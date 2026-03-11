@@ -129,6 +129,32 @@ fe:vault:import-wizard-completed
 fe:billing:upgrade-prompt-shown
 ```
 
+## Testing
+
+- **Framework:** Vitest + @testing-library/react + @testing-library/jest-dom
+- **Run tests:** `npm test` (single run), `npm run test:watch` (watch mode), `npm run test:coverage` (with coverage)
+- Co-locate test files next to components: `Component.test.tsx`
+- Test setup in `src/test/setup.ts`
+
+## CI/CD
+
+GitHub Actions workflow at `.github/workflows/test.yml` runs on PRs to `main`:
+1. `npm ci`
+2. `npm run build`
+3. `npm test`
+
+**All changes must go through PRs** — CI must pass before merging.
+
+## Environments
+
+| Environment | `VITE_API_URL` | Mode |
+|-------------|---------------|------|
+| Local | `http://localhost:5000` | `development` |
+| Staging | `https://api.stage.clawvault.io` | `staging` |
+| Production | `https://api.clawvault.io` | `production` |
+
+Build per environment: `vite build --mode staging` loads `.env.staging`.
+
 ## Environment Variables
 
 ```env
@@ -137,6 +163,8 @@ VITE_POSTHOG_KEY=phc_xxx                  # PostHog project key
 VITE_POSTHOG_HOST=https://app.posthog.com # PostHog instance URL
 VITE_SIGNALR_HUB_URL=http://localhost:5000/hubs/notifications
 ```
+
+Files: `.env.example` (committed template), `.env.local` / `.env.staging` / `.env.production` (gitignored).
 
 ## Key Flows
 
