@@ -1,4 +1,5 @@
 import { createRouter, RouterProvider } from '@tanstack/react-router'
+import { Providers } from './app/providers'
 import { routeTree } from './routeTree.gen'
 
 const router = createRouter({ routeTree })
@@ -10,7 +11,11 @@ declare module '@tanstack/react-router' {
 }
 
 function App() {
-  return <RouterProvider router={router} />
+  return (
+    <Providers>
+      <RouterProvider router={router} />
+    </Providers>
+  )
 }
 
 export default App

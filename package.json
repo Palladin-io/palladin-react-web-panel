@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@microsoft/signalr": "^10.0.0",
+    "@react-oauth/google": "^0.13.4",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-router": "^1.166.7",
     "ky": "^1.14.3",
