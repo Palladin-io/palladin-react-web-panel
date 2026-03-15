@@ -1,0 +1,17 @@
+import { useMutation } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
+import { oauthGoogle } from '../api/auth-api'
+import { useAuthStore } from '../stores/auth-store'
+
+export function useLogin() {
+  const setTokens = useAuthStore((s) => s.setTokens)
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: oauthGoogle,
+    onSuccess: (data) => {
+      setTokens(data)
+      navigate({ to: '/' })
+    },
+  })
+}
