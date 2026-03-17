@@ -1,6 +1,7 @@
 import ky from 'ky'
 import { env } from '../lib/env'
 import { useAuthStore } from '../../features/auth'
+import { getAnalyticsHeaders } from './analytics-headers'
 import type { AuthResponse } from './types'
 
 let isRefreshing = false
@@ -11,6 +12,11 @@ export const api = ky.create({
   hooks: {
     beforeRequest: [
       (request) => {
+        const headers = getAnalyticsHeaders()
+        for (const [key, value] of Object.entries(headers)) {
+          request.headers.set(key, value)
+        }
+
         const { accessToken } = useAuthStore.getState()
         if (accessToken) {
           request.headers.set('Authorization', `Bearer ${accessToken}`)
