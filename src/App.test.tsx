@@ -1,9 +1,9 @@
-import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import App from './App'
 
-describe('App smoke test', () => {
-  it('renders without crashing', () => {
-    render(<div>Claw Vault</div>)
-    expect(screen.getByText('Claw Vault')).toBeInTheDocument()
+describe('App', () => {
+  it('is a valid React component', () => {
+    expect(App).toBeDefined()
+    expect(typeof App).toBe('function')
   })
 })

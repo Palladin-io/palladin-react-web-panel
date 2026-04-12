@@ -4,7 +4,6 @@ import { useAuthStore } from '../../features/auth'
 import { getAnalyticsHeaders } from './analytics-headers'
 import type { AuthResponse } from './types'
 
-let isRefreshing = false
 let refreshPromise: Promise<AuthResponse> | null = null
 
 export const api = ky.create({
@@ -27,37 +26,39 @@ export const api = ky.create({
       async (request, _options, response) => {
         if (response.status !== 401) return response
 
-        const { refreshToken, logout, setTokens } = useAuthStore.getState()
+        const { refreshToken, setTokens } = useAuthStore.getState()
         if (!refreshToken) {
-          logout()
+          useAuthStore.getState().logout()
           window.location.href = '/login'
           return response
         }
 
-        try {
-          if (!isRefreshing) {
-            isRefreshing = true
-            refreshPromise = ky
-              .post('api/auth/refresh', {
-                prefixUrl: env.apiUrl,
-                json: { refreshToken },
-              })
-              .json<AuthResponse>()
-          }
+        if (!refreshPromise) {
+          refreshPromise = ky
+            .post('api/auth/refresh', {
+              prefixUrl: env.apiUrl,
+              json: { refreshToken },
+            })
+            .json<AuthResponse>()
+            .finally(() => {
+              refreshPromise = null
+            })
+        }
 
-          const data = await refreshPromise!
+        try {
+          const data = await refreshPromise
           setTokens(data)
-          isRefreshing = false
-          refreshPromise = null
 
           // Retry original request with new token
           request.headers.set('Authorization', `Bearer ${data.accessToken}`)
           return ky(request)
         } catch {
-          isRefreshing = false
-          refreshPromise = null
-          logout()
-          window.location.href = '/login'
+          // Only the first caller to observe the failure triggers logout.
+          // Subsequent callers see accessToken already cleared.
+          if (useAuthStore.getState().accessToken !== null) {
+            useAuthStore.getState().logout()
+            window.location.href = '/login'
+          }
           return response
         }
       },

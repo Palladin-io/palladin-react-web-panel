@@ -15,5 +15,10 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    env: {
+      VITE_API_URL: 'http://localhost:5000',
+      VITE_GOOGLE_CLIENT_ID: 'test-client-id',
+      VITE_SIGNALR_HUB_URL: 'http://localhost:5000/hubs/notifications',
+    },
   },
 })
