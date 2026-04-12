@@ -1,6 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../auth'
-import { deriveKey, MASTER_KEY_SALT_BYTES } from '../../../shared/crypto/argon2'
+import {
+  deriveKey,
+  MASTER_KEY_SALT_BYTES,
+  RECOVERY_KEY_SALT_BYTES,
+} from '../../../shared/crypto/argon2'
 import { toBase64 } from '../../../shared/crypto/encoding'
 import {
   encryptWithKey,
@@ -34,7 +38,7 @@ export function useCompleteSetup() {
       const keyPair = await generateKeyPair()
       const encryptedPrivateKey = await encryptWithKey(keyPair.privateKey, masterKey)
 
-      const recoverySalt = await randomBytes(MASTER_KEY_SALT_BYTES)
+      const recoverySalt = await randomBytes(RECOVERY_KEY_SALT_BYTES)
       const recoveryKey = await deriveKey(joinMnemonic(recoveryMnemonic), recoverySalt)
       const encryptedPrivateKeyByRecovery = await encryptWithKey(
         keyPair.privateKey,
@@ -42,7 +46,8 @@ export function useCompleteSetup() {
       )
 
       await setupAccount({
-        salt: toBase64(concat(salt, recoverySalt)),
+        salt: toBase64(salt),
+        recoverySalt: toBase64(recoverySalt),
         publicKey: toBase64(keyPair.publicKey),
         encryptedPrivateKey: toBase64(encryptedPrivateKey),
         encryptedPrivateKeyByRecovery: toBase64(encryptedPrivateKeyByRecovery),
@@ -63,16 +68,4 @@ export function useCompleteSetup() {
       queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY })
     },
   })
-}
-
-/**
- * Concatenate master salt and recovery salt into a single blob the backend
- * can round-trip. The first half is the master-password salt, the second
- * half the recovery-key salt — unlock/recovery flows split it the same way.
- */
-function concat(a: Uint8Array, b: Uint8Array): Uint8Array {
-  const out = new Uint8Array(a.length + b.length)
-  out.set(a, 0)
-  out.set(b, a.length)
-  return out
 }

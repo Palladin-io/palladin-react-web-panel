@@ -9,8 +9,10 @@ export interface AccountResponse {
 }
 
 export interface SetupAccountPayload {
-  /** base64-encoded 16-byte Argon2id salt for the master password. */
+  /** base64-encoded 16-byte Argon2id salt for the master password (MK derivation). */
   salt: string
+  /** base64-encoded 16-byte Argon2id salt for the recovery mnemonic (RK derivation). */
+  recoverySalt: string
   /** base64-encoded X25519 public key. */
   publicKey: string
   /** base64-encoded private key encrypted with the master key (nonce prepended). */
