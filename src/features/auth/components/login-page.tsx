@@ -5,13 +5,16 @@ import { useLogin } from '../hooks/use-login'
 export function LoginPage() {
   const login = useLogin()
   const [tooltipTarget, setTooltipTarget] = useState<string | null>(null)
+  const [googleError, setGoogleError] = useState<string | null>(null)
 
   const googleLogin = useGoogleLogin({
     onSuccess: (response) => {
+      setGoogleError(null)
       login.mutate(response.access_token)
     },
-    onError: () => {
-      // Google login popup was closed or errored
+    onError: (error) => {
+      console.error('Google login failed:', error)
+      setGoogleError('Google sign-in failed. Please try again.')
     },
   })
 
@@ -26,6 +29,11 @@ export function LoginPage() {
       <div className="w-full max-w-[440px] px-6">
         <div className="text-center">
           {/* Logo */}
+          <img
+            src="/logo.png"
+            alt="Claw Vault"
+            className="mx-auto mb-4 h-16 w-16"
+          />
           <h1 className="mb-1 text-[28px] font-extrabold tracking-tight">
             <span className="text-[#FDF9E4]">claw</span>
             <span className="text-[#FF4F4F]">vault</span>
@@ -101,9 +109,9 @@ export function LoginPage() {
           </div>
 
           {/* Error message */}
-          {login.isError && (
+          {(login.isError || googleError) && (
             <p className="mt-4 text-xs text-[#FF4F4F]">
-              Sign in failed. Please try again.
+              {googleError ?? 'Sign in failed. Please try again.'}
             </p>
           )}
 

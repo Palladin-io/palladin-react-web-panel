@@ -1,7 +1,17 @@
+function requireEnv(key: string): string {
+  const val = import.meta.env[key]
+  if (!val) throw new Error(`Missing required env var: ${key}`)
+  return val
+}
+
+function optionalEnv(key: string): string {
+  return (import.meta.env[key] as string | undefined) ?? ''
+}
+
 export const env = {
-  apiUrl: import.meta.env.VITE_API_URL as string,
-  googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID as string,
-  posthogKey: import.meta.env.VITE_POSTHOG_KEY as string,
-  posthogHost: import.meta.env.VITE_POSTHOG_HOST as string,
-  signalrHubUrl: import.meta.env.VITE_SIGNALR_HUB_URL as string,
+  apiUrl: requireEnv('VITE_API_URL'),
+  googleClientId: requireEnv('VITE_GOOGLE_CLIENT_ID'),
+  signalrHubUrl: requireEnv('VITE_SIGNALR_HUB_URL'),
+  posthogKey: optionalEnv('VITE_POSTHOG_KEY'),
+  posthogHost: optionalEnv('VITE_POSTHOG_HOST'),
 } as const
