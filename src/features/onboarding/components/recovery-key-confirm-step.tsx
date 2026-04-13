@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, CircleAlert, CircleCheck } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
+import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { pickVerificationIndices } from '../lib/mnemonic'
 import { OnboardingShell } from './onboarding-shell'
 
@@ -17,8 +18,6 @@ export function RecoveryKeyConfirmStep({
   isSubmitting,
   error,
 }: RecoveryKeyConfirmStepProps) {
-  // Indices are picked once per mount — re-picking on re-render would
-  // swap the quiz under the user's feet.
   const indicesToVerify = useMemo(
     () => pickVerificationIndices(mnemonic.length),
     [mnemonic.length],
@@ -36,8 +35,6 @@ export function RecoveryKeyConfirmStep({
 
   const allCorrect = correctness.every((state) => state === 'correct')
 
-  // Use a ref (not state) so firing the analytics event once doesn't cause
-  // a re-render — the effect still dedupes the capture but stays side-only.
   const analyticsFiredRef = useRef(false)
   useEffect(() => {
     if (allCorrect && !analyticsFiredRef.current) {
@@ -54,7 +51,7 @@ export function RecoveryKeyConfirmStep({
       totalSteps={3}
     >
       <form
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-3"
         onSubmit={(event) => {
           event.preventDefault()
           if (allCorrect && !isSubmitting) {
@@ -67,11 +64,10 @@ export function RecoveryKeyConfirmStep({
           const inputId = `recovery-word-${mnemonicIndex}`
           return (
             <div key={mnemonicIndex}>
-              <label htmlFor={inputId} className="mb-1 block text-xs font-medium text-[#FDF9E4]">
-                Word #{mnemonicIndex + 1}
-              </label>
-              <input
+              <FormInput
                 id={inputId}
+                label={`Word #${mnemonicIndex + 1}`}
+                labelClassName="mb-1 block text-xs font-medium text-[#FDF9E4]"
                 type="text"
                 autoComplete="off"
                 autoCapitalize="none"
@@ -82,28 +78,36 @@ export function RecoveryKeyConfirmStep({
                   next[inputIndex] = e.target.value
                   setInputs(next)
                 }}
-                className={
-                  'w-full rounded-lg border bg-[rgba(253,249,228,0.04)] px-3 py-2.5 text-sm text-[#FDF9E4] ' +
-                  'placeholder:text-[#6B7A8E] focus:outline-none ' +
-                  borderForState(state)
-                }
+                borderClass={borderClassForState(state)}
                 placeholder={`Enter word #${mnemonicIndex + 1}`}
               />
-              <WordFeedback state={state} />
+              <FieldFeedback visible={state !== 'empty'} color={state === 'correct' ? 'teal' : 'red'}>
+                {state === 'correct' ? (
+                  <><CircleCheck size={12} /> Correct</>
+                ) : (
+                  <><CircleAlert size={12} /> Doesn&apos;t match</>
+                )}
+              </FieldFeedback>
             </div>
           )
         })}
 
-        {error && (
-          <p role="alert" className="text-xs text-[#FF4F4F]">
-            {error}
+        {/* Server error — below inputs, always reserves space so button doesn't jump */}
+        <div className="relative h-4">
+          <p
+            role="alert"
+            className={`absolute inset-x-0 text-xs leading-4 text-[#FF4F4F] transition-opacity duration-200 ${
+              error ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            {error ?? ''}
           </p>
-        )}
+        </div>
 
         <button
           type="submit"
           disabled={!allCorrect || isSubmitting}
-          className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg
             bg-[#FF4F4F] px-4 py-2.5 text-sm font-medium text-white
             transition-colors hover:bg-[#e04545]
             disabled:cursor-not-allowed disabled:opacity-40"
@@ -118,26 +122,8 @@ export function RecoveryKeyConfirmStep({
 
 type WordState = 'empty' | 'correct' | 'wrong'
 
-function borderForState(state: WordState): string {
+function borderClassForState(state: WordState): string {
   if (state === 'correct') return 'border-[#2EC4B6] focus:border-[#2EC4B6]'
   if (state === 'wrong') return 'border-[#FF4F4F] focus:border-[#FF4F4F]'
   return 'border-[rgba(253,249,228,0.1)] focus:border-[#2EC4B6]'
-}
-
-function WordFeedback({ state }: { state: WordState }) {
-  if (state === 'correct') {
-    return (
-      <p className="mt-1 flex items-center gap-1 text-[11px] text-[#2EC4B6]">
-        <CircleCheck size={12} /> Correct
-      </p>
-    )
-  }
-  if (state === 'wrong') {
-    return (
-      <p className="mt-1 flex items-center gap-1 text-[11px] text-[#FF4F4F]">
-        <CircleAlert size={12} /> Doesn&apos;t match
-      </p>
-    )
-  }
-  return null
 }

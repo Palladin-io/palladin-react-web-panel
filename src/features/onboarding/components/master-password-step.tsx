@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { analytics } from '../../../shared/lib/analytics'
+import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import {
   evaluatePasswordStrength,
   isPasswordAcceptable,
@@ -46,65 +47,35 @@ export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
         }}
       >
         <div>
-          <label
-            htmlFor="master-password"
-            className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]"
-          >
-            Master Password
-          </label>
-          <input
+          <FormInput
             id="master-password"
+            label="Master Password"
             type="password"
             autoFocus
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-[rgba(253,249,228,0.1)] bg-[rgba(253,249,228,0.04)]
-              px-3 py-2 text-sm text-[#FDF9E4] placeholder:text-[#6B7A8E]
-              focus:border-[#2EC4B6] focus:outline-none"
             placeholder="Enter a strong password"
           />
           <StrengthBar score={score} />
-          {/* Absolutely positioned so it never shifts surrounding elements */}
-          <div className="relative mt-1 h-4">
-            <p
-              className={`absolute inset-x-0 text-[11px] leading-4 text-[#6B7A8E] transition-opacity duration-300 ${
-                password.length > 0 ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              {label}
-            </p>
-          </div>
+          <FieldFeedback visible={password.length > 0} color="teal">
+            {label}
+          </FieldFeedback>
         </div>
 
         <div>
-          <label
-            htmlFor="master-password-confirm"
-            className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]"
-          >
-            Confirm Password
-          </label>
-          <input
+          <FormInput
             id="master-password-confirm"
+            label="Confirm Password"
             type="password"
             autoComplete="new-password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            className="w-full rounded-lg border border-[rgba(253,249,228,0.1)] bg-[rgba(253,249,228,0.04)]
-              px-3 py-2 text-sm text-[#FDF9E4] placeholder:text-[#6B7A8E]
-              focus:border-[#2EC4B6] focus:outline-none"
             placeholder="Retype your password"
           />
-          {/* Absolutely positioned so it never shifts surrounding elements */}
-          <div className="relative mt-1 h-4">
-            <p
-              className={`absolute inset-x-0 text-[11px] leading-4 text-[#FF4F4F] transition-opacity duration-200 ${
-                confirm.length > 0 && !passwordsMatch ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              Passwords do not match.
-            </p>
-          </div>
+          <FieldFeedback visible={confirm.length > 0 && !passwordsMatch} color="red">
+            Passwords do not match.
+          </FieldFeedback>
         </div>
 
         <div className="rounded-lg border border-[rgba(253,249,228,0.06)] bg-[rgba(253,249,228,0.04)] px-3 py-2">
