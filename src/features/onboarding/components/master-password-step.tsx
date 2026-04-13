@@ -63,10 +63,9 @@ export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
           />
           <StrengthBar score={score} />
           <p
-            className={`mt-1 min-h-[1.125rem] text-[11px] text-[#6B7A8E] transition-opacity duration-300 ${
+            className={`mt-1 h-4 overflow-hidden text-[11px] leading-4 text-[#6B7A8E] transition-opacity duration-300 ${
               password.length > 0 ? 'opacity-100' : 'opacity-0'
             }`}
-            aria-live="polite"
           >
             {label}
           </p>
@@ -88,10 +87,9 @@ export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
             placeholder="Retype your password"
           />
           <p
-            className={`mt-1 min-h-[1.125rem] text-[11px] text-[#FF4F4F] transition-opacity duration-200 ${
+            className={`mt-1 h-4 overflow-hidden text-[11px] leading-4 text-[#FF4F4F] transition-opacity duration-200 ${
               confirm.length > 0 && !passwordsMatch ? 'opacity-100' : 'opacity-0'
             }`}
-            aria-live="polite"
           >
             Passwords do not match.
           </p>

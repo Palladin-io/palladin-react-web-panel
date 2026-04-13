@@ -27,7 +27,8 @@ export function RecoveryKeyStep({ mnemonic, onContinue }: RecoveryKeyStepProps) 
   }
 
   const handleExport = () => {
-    const blob = new Blob([joinMnemonic(mnemonic)], { type: 'text/plain' })
+    const content = mnemonic.map((word, i) => `${i + 1}. ${word}`).join('\n')
+    const blob = new Blob([content], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
