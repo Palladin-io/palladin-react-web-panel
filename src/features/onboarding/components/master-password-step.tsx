@@ -62,7 +62,14 @@ export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
             placeholder="Enter a strong password"
           />
           <StrengthBar score={score} />
-          <p className="mt-1 text-[11px] text-[#6B7A8E]">{label}</p>
+          <p
+            className={`mt-1 min-h-[1.125rem] text-[11px] text-[#6B7A8E] transition-opacity duration-300 ${
+              password.length > 0 ? 'opacity-100' : 'opacity-0'
+            }`}
+            aria-live="polite"
+          >
+            {label}
+          </p>
         </div>
 
         <div>
@@ -80,7 +87,12 @@ export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
               focus:border-[#2EC4B6] focus:outline-none"
             placeholder="Retype your password"
           />
-          <p className={`mt-1 text-[11px] text-[#FF4F4F] ${confirm.length > 0 && !passwordsMatch ? '' : 'invisible'}`}>
+          <p
+            className={`mt-1 min-h-[1.125rem] text-[11px] text-[#FF4F4F] transition-opacity duration-200 ${
+              confirm.length > 0 && !passwordsMatch ? 'opacity-100' : 'opacity-0'
+            }`}
+            aria-live="polite"
+          >
             Passwords do not match.
           </p>
         </div>
@@ -116,7 +128,7 @@ function StrengthBar({ score }: StrengthBarProps) {
         <div
           key={segment}
           className={
-            'h-1 flex-1 rounded ' +
+            'h-1 flex-1 rounded transition-colors duration-300 ' +
             (segment <= score ? colorForScore(score) : 'bg-[rgba(253,249,228,0.06)]')
           }
         />
