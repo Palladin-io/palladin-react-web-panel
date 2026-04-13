@@ -37,7 +37,7 @@ export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
       totalSteps={3}
     >
       <form
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-3"
         onSubmit={(event) => {
           event.preventDefault()
           if (canSubmit) {
@@ -46,7 +46,10 @@ export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
         }}
       >
         <div>
-          <label htmlFor="master-password" className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]">
+          <label
+            htmlFor="master-password"
+            className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]"
+          >
             Master Password
           </label>
           <input
@@ -57,22 +60,28 @@ export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-lg border border-[rgba(253,249,228,0.1)] bg-[rgba(253,249,228,0.04)]
-              px-3 py-2.5 text-sm text-[#FDF9E4] placeholder:text-[#6B7A8E]
+              px-3 py-2 text-sm text-[#FDF9E4] placeholder:text-[#6B7A8E]
               focus:border-[#2EC4B6] focus:outline-none"
             placeholder="Enter a strong password"
           />
           <StrengthBar score={score} />
-          <p
-            className={`mt-1 h-4 overflow-hidden text-[11px] leading-4 text-[#6B7A8E] transition-opacity duration-300 ${
-              password.length > 0 ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            {label}
-          </p>
+          {/* Absolutely positioned so it never shifts surrounding elements */}
+          <div className="relative mt-1 h-4">
+            <p
+              className={`absolute inset-x-0 text-[11px] leading-4 text-[#6B7A8E] transition-opacity duration-300 ${
+                password.length > 0 ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              {label}
+            </p>
+          </div>
         </div>
 
         <div>
-          <label htmlFor="master-password-confirm" className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]">
+          <label
+            htmlFor="master-password-confirm"
+            className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]"
+          >
             Confirm Password
           </label>
           <input
@@ -82,20 +91,23 @@ export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             className="w-full rounded-lg border border-[rgba(253,249,228,0.1)] bg-[rgba(253,249,228,0.04)]
-              px-3 py-2.5 text-sm text-[#FDF9E4] placeholder:text-[#6B7A8E]
+              px-3 py-2 text-sm text-[#FDF9E4] placeholder:text-[#6B7A8E]
               focus:border-[#2EC4B6] focus:outline-none"
             placeholder="Retype your password"
           />
-          <p
-            className={`mt-1 h-4 overflow-hidden text-[11px] leading-4 text-[#FF4F4F] transition-opacity duration-200 ${
-              confirm.length > 0 && !passwordsMatch ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            Passwords do not match.
-          </p>
+          {/* Absolutely positioned so it never shifts surrounding elements */}
+          <div className="relative mt-1 h-4">
+            <p
+              className={`absolute inset-x-0 text-[11px] leading-4 text-[#FF4F4F] transition-opacity duration-200 ${
+                confirm.length > 0 && !passwordsMatch ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              Passwords do not match.
+            </p>
+          </div>
         </div>
 
-        <div className="rounded-lg border border-[rgba(253,249,228,0.06)] bg-[rgba(253,249,228,0.04)] px-3 py-2.5">
+        <div className="rounded-lg border border-[rgba(253,249,228,0.06)] bg-[rgba(253,249,228,0.04)] px-3 py-2">
           <p className="text-xs text-[#FDF9E4]">
             Your password is never sent to our servers. All encryption happens on this device.
           </p>
@@ -121,7 +133,7 @@ interface StrengthBarProps {
 
 function StrengthBar({ score }: StrengthBarProps) {
   return (
-    <div className="mt-2 flex gap-1">
+    <div className="mt-1.5 flex gap-1">
       {[1, 2, 3, 4].map((segment) => (
         <div
           key={segment}
