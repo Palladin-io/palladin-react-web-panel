@@ -6,7 +6,7 @@ export interface ProgressDotsProps {
 export function ProgressDots({ current, total }: ProgressDotsProps) {
   return (
     <div
-      className="mb-6 flex justify-center gap-2"
+      className="mb-5 flex justify-center gap-2"
       role="progressbar"
       aria-valuenow={current + 1}
       aria-valuemin={1}
@@ -16,12 +16,12 @@ export function ProgressDots({ current, total }: ProgressDotsProps) {
         <span
           key={index}
           className={
-            'h-1.5 w-6 rounded-full transition-colors ' +
+            'h-2 w-2 rounded-full transition-colors ' +
             (index < current
-              ? 'bg-[#2EC4B6]'
+              ? 'bg-[#FFAB87]'
               : index === current
-                ? 'bg-[#FDF9E4]'
-                : 'bg-[rgba(253,249,228,0.1)]')
+                ? 'bg-[#FF4F4F]'
+                : 'bg-[rgba(253,249,228,0.08)]')
           }
         />
       ))}

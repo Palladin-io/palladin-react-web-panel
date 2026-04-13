@@ -46,7 +46,7 @@ export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
         }}
       >
         <div>
-          <label htmlFor="master-password" className="mb-1 block text-xs font-medium text-[#FDF9E4]">
+          <label htmlFor="master-password" className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]">
             Master Password
           </label>
           <input
@@ -66,7 +66,7 @@ export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
         </div>
 
         <div>
-          <label htmlFor="master-password-confirm" className="mb-1 block text-xs font-medium text-[#FDF9E4]">
+          <label htmlFor="master-password-confirm" className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]">
             Confirm Password
           </label>
           <input
@@ -80,9 +80,9 @@ export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
               focus:border-[#2EC4B6] focus:outline-none"
             placeholder="Retype your password"
           />
-          {confirm.length > 0 && !passwordsMatch && (
-            <p className="mt-1 text-[11px] text-[#FF4F4F]">Passwords do not match.</p>
-          )}
+          <p className={`mt-1 text-[11px] text-[#FF4F4F] ${confirm.length > 0 && !passwordsMatch ? '' : 'invisible'}`}>
+            Passwords do not match.
+          </p>
         </div>
 
         <div className="rounded-lg border border-[rgba(253,249,228,0.06)] bg-[rgba(253,249,228,0.04)] px-3 py-2.5">

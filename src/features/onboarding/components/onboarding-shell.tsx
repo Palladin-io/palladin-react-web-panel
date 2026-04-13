@@ -32,8 +32,8 @@ export function OnboardingShell({
         <ProgressDots current={stepIndex} total={totalSteps} />
 
         <div className="mb-6 text-center">
-          <h1 className="mb-1 text-lg font-bold text-[#FDF9E4]">{title}</h1>
-          <p className="text-sm text-[#6B7A8E]">{subtitle}</p>
+          <h1 className="mb-1 text-[22px] font-bold leading-tight text-[#FDF9E4]">{title}</h1>
+          <p className="text-[13px] text-[#6B7A8E]">{subtitle}</p>
         </div>
 
         {children}
