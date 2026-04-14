@@ -10,6 +10,7 @@ import {
   encryptWithKey,
   generateKeyPair,
   randomBytes,
+  wipe,
 } from '../../../shared/crypto/sodium'
 import { setupAccount } from '../api/account-api'
 import { joinMnemonic } from '../lib/mnemonic'
@@ -28,7 +29,6 @@ export interface CompleteSetupInput {
  */
 export function useCompleteSetup() {
   const queryClient = useQueryClient()
-  const authState = useAuthStore()
 
   return useMutation({
     mutationFn: async ({ masterPassword, recoveryMnemonic }: CompleteSetupInput) => {
@@ -36,35 +36,37 @@ export function useCompleteSetup() {
       const masterKey = await deriveKey(masterPassword, salt)
 
       const keyPair = await generateKeyPair()
-      const encryptedPrivateKey = await encryptWithKey(keyPair.privateKey, masterKey)
-
       const recoverySalt = await randomBytes(RECOVERY_KEY_SALT_BYTES)
       const recoveryKey = await deriveKey(joinMnemonic(recoveryMnemonic), recoverySalt)
-      const encryptedPrivateKeyByRecovery = await encryptWithKey(
-        keyPair.privateKey,
-        recoveryKey,
-      )
 
-      await setupAccount({
-        salt: toBase64(salt),
-        recoverySalt: toBase64(recoverySalt),
-        publicKey: toBase64(keyPair.publicKey),
-        encryptedPrivateKey: toBase64(encryptedPrivateKey),
-        encryptedPrivateKeyByRecovery: toBase64(encryptedPrivateKeyByRecovery),
-      })
+      try {
+        const encryptedPrivateKey = await encryptWithKey(keyPair.privateKey, masterKey)
+        const encryptedPrivateKeyByRecovery = await encryptWithKey(
+          keyPair.privateKey,
+          recoveryKey,
+        )
+
+        await setupAccount({
+          salt: toBase64(salt),
+          recoverySalt: toBase64(recoverySalt),
+          publicKey: toBase64(keyPair.publicKey),
+          encryptedPrivateKey: toBase64(encryptedPrivateKey),
+          encryptedPrivateKeyByRecovery: toBase64(encryptedPrivateKeyByRecovery),
+        })
+      } finally {
+        // Zero out all key material regardless of success/failure so the
+        // derived keys and raw private key don't linger in memory. Salts,
+        // public key, and ciphertexts are not secret and don't need wiping.
+        wipe(masterKey)
+        wipe(recoveryKey)
+        wipe(keyPair.privateKey)
+      }
     },
     onSuccess: () => {
       // Reflect onboarding in the auth store so /_authenticated/ stops
-      // rendering the wizard on the next render.
-      if (authState.accessToken && authState.refreshToken && authState.userId) {
-        authState.setTokens({
-          accessToken: authState.accessToken,
-          refreshToken: authState.refreshToken,
-          userId: authState.userId,
-          isOnboarded: true,
-          permissions: authState.permissions,
-        })
-      }
+      // rendering the wizard on the next render. Use getState() to avoid
+      // re-subscribing this hook to the whole store.
+      useAuthStore.getState().markOnboarded()
       queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY })
     },
   })

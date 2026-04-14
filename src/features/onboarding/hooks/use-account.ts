@@ -7,5 +7,6 @@ export function useAccount() {
   return useQuery({
     queryKey: ACCOUNT_QUERY_KEY,
     queryFn: getAccount,
+    staleTime: 5 * 60 * 1000,
   })
 }

@@ -26,23 +26,13 @@ export async function deriveKey(
   password: string,
   salt: Uint8Array,
 ): Promise<Uint8Array> {
-  const hex = await argon2id({
+  return argon2id({
     password,
     salt,
     parallelism: ARGON2_PARAMS.parallelism,
     iterations: ARGON2_PARAMS.iterations,
     memorySize: ARGON2_PARAMS.memorySize,
     hashLength: ARGON2_PARAMS.hashLength,
-    outputType: 'hex',
+    outputType: 'binary',
   })
-
-  return hexToBytes(hex)
-}
-
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2)
-  for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(hex.substr(i * 2, 2), 16)
-  }
-  return bytes
 }

@@ -60,7 +60,10 @@ export interface FieldFeedbackProps {
 
 export function FieldFeedback({ visible, color, children }: FieldFeedbackProps) {
   return (
-    <div className="relative mt-1 h-4">
+    <div
+      className="relative mt-1 h-4"
+      role={color === 'red' && visible ? 'alert' : undefined}
+    >
       <p
         className={`absolute inset-x-0 flex items-center gap-1 text-[11px] leading-4
           transition-opacity duration-200 ${

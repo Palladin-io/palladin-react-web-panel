@@ -8,6 +8,7 @@ export function ProgressDots({ current, total }: ProgressDotsProps) {
     <div
       className="mb-5 flex justify-center gap-2"
       role="progressbar"
+      aria-label="Onboarding progress"
       aria-valuenow={current + 1}
       aria-valuemin={1}
       aria-valuemax={total}

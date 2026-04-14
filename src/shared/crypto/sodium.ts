@@ -48,3 +48,12 @@ export async function randomBytes(length: number): Promise<Uint8Array> {
   const s = await loadSodium()
   return s.randombytes_buf(length)
 }
+
+/**
+ * Overwrite sensitive byte buffers with zeros so key material does not
+ * linger in memory after we're done with it. libsodium's `memzero`
+ * is resistant to compiler dead-store elimination.
+ */
+export function wipe(arr: Uint8Array): void {
+  sodium.memzero(arr)
+}
