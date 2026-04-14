@@ -35,8 +35,8 @@ export function LoginPage() {
             className="mx-auto mb-4 h-16 w-16"
           />
           <h1 className="mb-1 text-[28px] font-extrabold tracking-tight">
-            <span className="text-[#FDF9E4]">claw</span>
-            <span className="text-[#FF4F4F]">vault</span>
+            <span className="text-[#FDF9E4]">Claw </span>
+            <span className="text-[#FF4F4F]">Vault</span>
           </h1>
 
           {/* Tagline */}

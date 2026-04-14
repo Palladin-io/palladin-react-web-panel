@@ -14,6 +14,7 @@ interface AuthState {
     isOnboarded: boolean
     permissions?: number
   }) => void
+  markOnboarded: () => void
   logout: () => void
 }
 
@@ -36,6 +37,8 @@ export const useAuthStore = create<AuthState>()((set) => ({
       isOnboarded: data.isOnboarded,
       permissions: data.permissions ?? 0,
     }),
+
+  markOnboarded: () => set({ isOnboarded: true }),
 
   logout: () => set(initialState),
 }))

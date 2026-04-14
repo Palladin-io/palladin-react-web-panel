@@ -19,8 +19,7 @@ vi.mock('../hooks/use-login', () => ({
 describe('LoginPage', () => {
   it('renders without crashing', () => {
     render(<LoginPage />)
-    expect(screen.getByText('claw')).toBeInTheDocument()
-    expect(screen.getByText('vault')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /claw\s*vault/i })).toBeInTheDocument()
   })
 
   it('renders Google login button', () => {
