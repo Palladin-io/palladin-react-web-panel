@@ -26,7 +26,7 @@ export function OnboardingShell({
 }: OnboardingShellProps) {
   return (
     <div
-      className="flex min-h-screen items-start justify-center pt-[max(2rem,calc(50vh-250px))]"
+      className="flex min-h-screen items-start justify-center pt-[max(2rem,calc(50vh-360px))]"
       style={{
         background:
           'linear-gradient(160deg, #000B2E 0%, #0A1A3E 30%, #0E1230 60%, #000B2E 100%)',
