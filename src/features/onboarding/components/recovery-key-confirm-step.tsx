@@ -111,7 +111,7 @@ export function RecoveryKeyConfirmStep({
           type="submit"
           disabled={!allCorrect || isSubmitting}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg
-            bg-[#FF4F4F] px-4 py-2.5 text-sm font-medium text-white
+            bg-[#FF4F4F] px-4 py-2.5 text-sm font-semibold text-white
             transition-colors hover:bg-[#e04545]
             disabled:cursor-not-allowed disabled:opacity-40"
         >

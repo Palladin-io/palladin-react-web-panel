@@ -78,7 +78,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue }: RecoveryKeyStepProps) 
             onClick={handleCopy}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg
               border border-[rgba(253,249,228,0.1)] bg-transparent px-3 py-2 text-xs
-              font-medium text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.04)]"
+              font-semibold text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.04)]"
           >
             {copied ? <Check size={14} /> : <Copy size={14} />}
             {copied ? 'Copied' : 'Copy to Clipboard'}
@@ -88,7 +88,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue }: RecoveryKeyStepProps) 
             onClick={handleExport}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg
               border border-[rgba(253,249,228,0.1)] bg-transparent px-3 py-2 text-xs
-              font-medium text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.04)]"
+              font-semibold text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.04)]"
           >
             <Download size={14} />
             Export as .txt
@@ -99,7 +99,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue }: RecoveryKeyStepProps) 
           type="button"
           onClick={onContinue}
           className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg
-            bg-[#FF4F4F] px-4 py-2.5 text-sm font-medium text-white
+            bg-[#FF4F4F] px-4 py-2.5 text-sm font-semibold text-white
             transition-colors hover:bg-[#e04545]"
         >
           <Check size={14} />
