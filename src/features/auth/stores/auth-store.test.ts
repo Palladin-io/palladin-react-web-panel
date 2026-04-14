@@ -13,6 +13,9 @@ describe('auth-store', () => {
     expect(state.userId).toBeNull()
     expect(state.isOnboarded).toBe(false)
     expect(state.permissions).toBe(0)
+    expect(state.isVaultLocked).toBe(true)
+    expect(state.masterKey).toBeNull()
+    expect(state.privateKey).toBeNull()
   })
 
   it('is not authenticated initially', () => {
@@ -56,6 +59,9 @@ describe('auth-store', () => {
       isOnboarded: true,
       permissions: 7,
     })
+    useAuthStore
+      .getState()
+      .unlockVault(new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6]))
 
     useAuthStore.getState().logout()
 
@@ -65,6 +71,78 @@ describe('auth-store', () => {
     expect(state.userId).toBeNull()
     expect(state.isOnboarded).toBe(false)
     expect(state.permissions).toBe(0)
+    expect(state.isVaultLocked).toBe(true)
+    expect(state.masterKey).toBeNull()
+    expect(state.privateKey).toBeNull()
     expect(getIsAuthenticated()).toBe(false)
+  })
+
+  it('setTokens always leaves the vault locked', () => {
+    // Pre-unlock, then simulate a token refresh / re-login. The new session
+    // must force the user through the unlock flow again regardless of the
+    // previous lock state.
+    useAuthStore
+      .getState()
+      .unlockVault(new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6]))
+    expect(useAuthStore.getState().isVaultLocked).toBe(false)
+
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-123',
+      refreshToken: 'refresh-456',
+      userId: 'user-789',
+      isOnboarded: true,
+    })
+
+    expect(useAuthStore.getState().isVaultLocked).toBe(true)
+  })
+
+  it('unlockVault stores independent copies of the key material', () => {
+    const mk = new Uint8Array([1, 2, 3, 4])
+    const pk = new Uint8Array([9, 8, 7, 6])
+
+    useAuthStore.getState().unlockVault(mk, pk)
+
+    // Zero out the source buffers — the store's copies should be unaffected.
+    mk.fill(0)
+    pk.fill(0)
+
+    const state = useAuthStore.getState()
+    expect(state.isVaultLocked).toBe(false)
+    expect(Array.from(state.masterKey!)).toEqual([1, 2, 3, 4])
+    expect(Array.from(state.privateKey!)).toEqual([9, 8, 7, 6])
+  })
+
+  it('lockVault clears the keys but keeps the session', () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-123',
+      refreshToken: 'refresh-456',
+      userId: 'user-789',
+      isOnboarded: true,
+    })
+    useAuthStore
+      .getState()
+      .unlockVault(new Uint8Array([1]), new Uint8Array([2]))
+
+    useAuthStore.getState().lockVault()
+
+    const state = useAuthStore.getState()
+    expect(state.masterKey).toBeNull()
+    expect(state.privateKey).toBeNull()
+    expect(state.isVaultLocked).toBe(true)
+    // Session is intact — user is still logged in.
+    expect(state.accessToken).toBe('access-123')
+  })
+
+  it('markOnboarded leaves the vault lock state untouched', () => {
+    useAuthStore
+      .getState()
+      .unlockVault(new Uint8Array([1]), new Uint8Array([2]))
+    expect(useAuthStore.getState().isVaultLocked).toBe(false)
+
+    useAuthStore.getState().markOnboarded()
+
+    const state = useAuthStore.getState()
+    expect(state.isOnboarded).toBe(true)
+    expect(state.isVaultLocked).toBe(false)
   })
 })

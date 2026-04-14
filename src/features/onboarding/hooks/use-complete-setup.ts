@@ -53,6 +53,14 @@ export function useCompleteSetup() {
           encryptedPrivateKey: toBase64(encryptedPrivateKey),
           encryptedPrivateKeyByRecovery: toBase64(encryptedPrivateKeyByRecovery),
         })
+
+        // Hand copies of the in-memory keys to the auth store so the user
+        // lands on the dashboard already unlocked — no redundant password
+        // prompt immediately after setup. Pass copies because the `finally`
+        // block below wipes the original buffers.
+        useAuthStore
+          .getState()
+          .unlockVault(new Uint8Array(masterKey), new Uint8Array(keyPair.privateKey))
       } finally {
         // Zero out all key material regardless of success/failure so the
         // derived keys and raw private key don't linger in memory. Salts,
