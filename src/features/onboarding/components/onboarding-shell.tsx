@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import { ProgressDots } from './progress-dots'
 
 export interface OnboardingShellProps {
@@ -7,6 +8,8 @@ export interface OnboardingShellProps {
   stepIndex: number
   totalSteps: number
   children: ReactNode
+  /** When provided, a back arrow appears to the left of the progress dots. */
+  onBack?: () => void
 }
 
 /**
@@ -19,6 +22,7 @@ export function OnboardingShell({
   stepIndex,
   totalSteps,
   children,
+  onBack,
 }: OnboardingShellProps) {
   return (
     <div
@@ -29,7 +33,19 @@ export function OnboardingShell({
       }}
     >
       <div className="w-full max-w-[440px] px-6 py-10">
-        <ProgressDots current={stepIndex} total={totalSteps} />
+        <div className="relative flex items-center justify-center">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="absolute left-0 text-[#6B7A8E] transition-colors hover:text-[#FDF9E4]"
+              aria-label="Go back"
+            >
+              <ChevronLeft size={20} />
+            </button>
+          )}
+          <ProgressDots current={stepIndex} total={totalSteps} />
+        </div>
 
         <div className="mb-6 text-center">
           <h1 className="mb-1 text-[22px] font-bold leading-tight text-[#FDF9E4]">{title}</h1>

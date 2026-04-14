@@ -49,6 +49,7 @@ export function OnboardingWizard() {
       mnemonic={mnemonic}
       isSubmitting={completeSetup.isPending}
       error={completeSetup.isError ? 'Setup failed. Please try again.' : null}
+      onBack={() => setStep('recovery-key')}
       onConfirmed={() => {
         if (!masterPassword) {
           setStep('master-password')

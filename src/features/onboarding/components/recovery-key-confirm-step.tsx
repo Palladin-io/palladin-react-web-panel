@@ -8,6 +8,7 @@ import { OnboardingShell } from './onboarding-shell'
 export interface RecoveryKeyConfirmStepProps {
   mnemonic: string[]
   onConfirmed: () => void
+  onBack: () => void
   isSubmitting: boolean
   error: string | null
 }
@@ -15,6 +16,7 @@ export interface RecoveryKeyConfirmStepProps {
 export function RecoveryKeyConfirmStep({
   mnemonic,
   onConfirmed,
+  onBack,
   isSubmitting,
   error,
 }: RecoveryKeyConfirmStepProps) {
@@ -49,6 +51,7 @@ export function RecoveryKeyConfirmStep({
       subtitle="Enter the following words from your recovery key to verify you saved it correctly."
       stepIndex={2}
       totalSteps={3}
+      onBack={onBack}
     >
       <form
         className="flex flex-col gap-3"
