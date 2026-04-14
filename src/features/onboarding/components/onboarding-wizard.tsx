@@ -27,6 +27,7 @@ export function OnboardingWizard() {
   if (step === 'master-password') {
     return (
       <MasterPasswordStep
+        initialPassword={masterPassword ?? undefined}
         onContinue={(password) => {
           setMasterPassword(password)
           setStep('recovery-key')
@@ -40,6 +41,7 @@ export function OnboardingWizard() {
       <RecoveryKeyStep
         mnemonic={mnemonic}
         onContinue={() => setStep('confirm')}
+        onBack={() => setStep('master-password')}
       />
     )
   }

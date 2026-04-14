@@ -7,9 +7,10 @@ import { OnboardingShell } from './onboarding-shell'
 export interface RecoveryKeyStepProps {
   mnemonic: string[]
   onContinue: () => void
+  onBack?: () => void
 }
 
-export function RecoveryKeyStep({ mnemonic, onContinue }: RecoveryKeyStepProps) {
+export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeyStepProps) {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue }: RecoveryKeyStepProps) 
       subtitle="Write down these 24 words. Without them, you cannot recover your account."
       stepIndex={1}
       totalSteps={3}
+      onBack={onBack}
     >
       <div className="flex flex-col gap-3">
         <div className="rounded-lg border border-[rgba(253,249,228,0.06)] bg-[rgba(253,249,228,0.04)] p-3">

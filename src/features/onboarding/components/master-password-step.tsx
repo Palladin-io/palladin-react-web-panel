@@ -10,11 +10,12 @@ import { OnboardingShell } from './onboarding-shell'
 
 export interface MasterPasswordStepProps {
   onContinue: (password: string) => void
+  initialPassword?: string
 }
 
-export function MasterPasswordStep({ onContinue }: MasterPasswordStepProps) {
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
+export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswordStepProps) {
+  const [password, setPassword] = useState(initialPassword ?? '')
+  const [confirm, setConfirm] = useState(initialPassword ?? '')
 
   useEffect(() => {
     analytics.capture('onboarding', 'setup-page-viewed')
