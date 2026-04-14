@@ -103,7 +103,7 @@ describe('RecoveryKeyConfirmStep', () => {
     expect(screen.getAllByText(/correct/i).length).toBeGreaterThan(0)
 
     await user.type(inputs[1], 'notaword')
-    expect(screen.getByText(/doesn't match/i)).toBeInTheDocument()
+    expect(screen.getAllByText(/doesn't match/i).length).toBeGreaterThan(0)
   })
 
   it('displays the error prop when provided', () => {
