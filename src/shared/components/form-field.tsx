@@ -66,7 +66,7 @@ export function FieldFeedback({ visible, color, children }: FieldFeedbackProps) 
     >
       <p
         className={`absolute inset-x-0 flex items-center gap-1 text-[11px] leading-4
-          transition-[opacity,transform] duration-200 ease-out ${
+          transition-[opacity,translate] duration-200 ease-out ${
           color === 'teal' ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
         } ${visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}
       >
