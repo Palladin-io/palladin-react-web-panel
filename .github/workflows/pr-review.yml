@@ -1,4 +1,4 @@
-name: PR Review
+name: Code Review
 
 on:
   pull_request:
@@ -25,4 +25,4 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          claude --no-interactive "/pr-review ${{ github.event.pull_request.number }}"
+          claude --dangerously-skip-permissions "/pr-review ${{ github.event.pull_request.number }}"
