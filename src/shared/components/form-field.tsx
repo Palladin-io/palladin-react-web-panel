@@ -28,7 +28,7 @@ export function FormInput({
         htmlFor={id}
         className={
           labelClassName ??
-          'mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]'
+          'mb-1 block text-[11px] font-semibold text-[#B8C5D4]'
         }
       >
         {label}
