@@ -3,7 +3,7 @@ name: pr-review
 description: Reviews a pull request in the Claw Vault React web panel for component consistency, TypeScript correctness, i18n, security, and frontend best practices. Posts findings as a structured GitHub PR comment.
 argument-hint: <pr-number>
 disable-model-invocation: true
-allowed-tools: Read Grep Glob Bash(gh pr view *) Bash(gh pr diff *) Bash(gh pr comment *) Bash(git log *)
+allowed-tools: Read Grep Glob Bash(gh pr view *) Bash(gh pr diff *) Bash(gh pr comment *) Bash(gh api *) Bash(gh api graphql *) Bash(git log *)
 effort: high
 ---
 
@@ -24,6 +24,7 @@ effort: high
 
 ## How to Conduct the Review
 
+0. **Sprawdź poprzednie komentarze** — zanim przejdziesz do nowego kodu, przeczytaj `/tmp/pr_reviews.json` i `/tmp/pr_inline_comments.json`. Dla każdego wątku REQUEST_CHANGES: ustal czy problem został zaadresowany w aktualnym diffie. Zanotuj co naprawiono, co wisi.
 1. Read `CLAUDE.md` — it is the source of truth for all project conventions.
 2. Load [criteria.md](criteria.md) — detailed review checklist. Read it fully before starting.
 3. For each changed file: use `Read`, `Grep`, `Glob` to explore related files beyond the diff (e.g. locale files when new strings are added, shared components when UI changes are made, Zustand store when state is touched).
@@ -47,6 +48,40 @@ Cover all sections from `criteria.md`:
 ## Output
 
 Submit a proper GitHub pull request review — inline file comments + a final verdict. Do NOT use `gh pr comment`.
+
+### Step 0 — obsłuż poprzednie komentarze
+
+Dla każdego wątku z poprzednich review (`/tmp/pr_reviews.json`, `/tmp/pr_inline_comments.json`):
+
+**Jeśli problem został zaadresowany** — odpowiedz na komentarz i rozwiąż wątek:
+```bash
+REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
+gh api "repos/${REPO}/pulls/$ARGUMENTS/comments/{COMMENT_ID}/replies" \
+  --method POST --field body="✅ Zaadresowane — [opis co zostało zrobione]."
+
+gh api graphql -f query='
+  query($owner:String!,$repo:String!,$pr:Int!) {
+    repository(owner:$owner,name:$repo) {
+      pullRequest(number:$pr) {
+        reviewThreads(first:50) {
+          nodes { id isResolved comments(first:1) { nodes { databaseId } } }
+        }
+      }
+    }
+  }
+' -f owner="$(echo $REPO | cut -d/ -f1)" \
+  -f repo="$(echo $REPO | cut -d/ -f2)" \
+  -F pr=$ARGUMENTS \
+  --jq '.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved==false) | {id, commentId: .comments.nodes[0].databaseId}'
+
+gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$id}){thread{isResolved}}}' \
+  -f id="{THREAD_NODE_ID}"
+```
+
+**Jeśli problem NIE został zaadresowany** — wymień go w `body` nowego review z odwołaniem:
+```
+*(Nierozwiązane z poprzedniego review — [link do komentarza lub cytat])* — [stan + oczekiwane działanie]
+```
 
 ### Step 1 — determine the verdict
 
