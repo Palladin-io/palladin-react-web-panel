@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ChevronLeft } from 'lucide-react'
 import { ProgressDots } from './progress-dots'
 
@@ -24,6 +25,7 @@ export function OnboardingShell({
   children,
   onBack,
 }: OnboardingShellProps) {
+  const { t } = useTranslation()
   return (
     <div
       className="flex min-h-screen items-start justify-center pt-[max(2rem,calc(50vh-360px))]"
@@ -40,7 +42,7 @@ export function OnboardingShell({
               onClick={onBack}
               className="absolute left-0 flex h-7 w-7 items-center justify-center rounded-full
                 text-[#B8C5D4] transition-colors hover:bg-[rgba(253,249,228,0.08)] hover:text-[#FDF9E4]"
-              aria-label="Go back"
+              aria-label={t('onboarding.goBack')}
             >
               <ChevronLeft size={20} />
             </button>

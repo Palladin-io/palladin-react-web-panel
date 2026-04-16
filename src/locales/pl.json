@@ -2,8 +2,7 @@
   "auth.appName": "Claw Vault",
   "auth.titleClaw": "Claw ",
   "auth.titleVault": "Vault",
-  "auth.taglineZeroKnowledge": "Zero-Knowledge",
-  "auth.taglinePasswordManager": "Menedżer haseł",
+  "auth.tagline": "Zero-Knowledge Menedżer Haseł",
   "auth.taglineForAiAgents": "Dla agentów AI",
   "auth.signingIn": "Logowanie...",
   "auth.continueWithGoogle": "Kontynuuj z Google",
@@ -51,6 +50,9 @@
   "onboarding.confirmIncorrect": "Niezgodne",
   "onboarding.finishingSetup": "Kończenie konfiguracji...",
   "onboarding.verifyAndComplete": "Zweryfikuj i zakończ konfigurację",
+
+  "onboarding.goBack": "Wróć",
+  "onboarding.progress": "Postęp onboardingu",
 
   "common.loading": "Ładowanie...",
   "common.couldNotLoadAccount": "Nie udało się załadować konta. Przeładuj stronę.",

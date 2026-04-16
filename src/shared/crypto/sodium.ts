@@ -44,6 +44,20 @@ export async function encryptWithKey(
   return combined
 }
 
+/**
+ * Decrypt a combined blob (nonce || ciphertext) produced by `encryptWithKey`.
+ * Throws on MAC failure (wrong key).
+ */
+export async function decryptWithKey(
+  combined: Uint8Array,
+  key: Uint8Array,
+): Promise<Uint8Array> {
+  const s = await loadSodium()
+  const nonce = combined.slice(0, s.crypto_secretbox_NONCEBYTES)
+  const cipher = combined.slice(s.crypto_secretbox_NONCEBYTES)
+  return s.crypto_secretbox_open_easy(cipher, nonce, key)
+}
+
 export async function randomBytes(length: number): Promise<Uint8Array> {
   const s = await loadSodium()
   return s.randombytes_buf(length)

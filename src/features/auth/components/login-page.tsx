@@ -43,7 +43,7 @@ export function LoginPage() {
 
           {/* Tagline */}
           <p className="mb-7 text-sm text-[#6B7A8E]">
-            {t('auth.taglineZeroKnowledge')} {t('auth.taglinePasswordManager')}
+            {t('auth.tagline')}
             <br />
             {t('auth.taglineForAiAgents')}
           </p>

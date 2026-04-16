@@ -1,14 +1,17 @@
+import { useTranslation } from 'react-i18next'
+
 export interface ProgressDotsProps {
   current: number
   total: number
 }
 
 export function ProgressDots({ current, total }: ProgressDotsProps) {
+  const { t } = useTranslation()
   return (
     <div
       className="mb-5 flex justify-center gap-2"
       role="progressbar"
-      aria-label="Onboarding progress"
+      aria-label={t('onboarding.progress')}
       aria-valuenow={current + 1}
       aria-valuemin={1}
       aria-valuemax={total}

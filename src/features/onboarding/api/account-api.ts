@@ -1,23 +1,19 @@
+import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 
-export interface AccountResponse {
-  userId: string
-  email: string
-  displayName: string
-  avatarUrl: string | null
-  hasPublicKey: boolean
-  /**
-   * base64-encoded 16-byte Argon2id salt for master-key derivation.
-   * Present once the user has completed onboarding.
-   */
-  salt: string
-  /**
-   * base64-encoded private key wrapped with the master key
-   * (layout: `nonce || ciphertext`, matching `encryptWithKey`).
-   * Present once the user has completed onboarding.
-   */
-  encryptedPrivateKey: string
-}
+export const AccountResponseSchema = z.object({
+  userId: z.string(),
+  email: z.string(),
+  displayName: z.string(),
+  avatarUrl: z.string().nullable(),
+  hasPublicKey: z.boolean(),
+  /** base64-encoded 16-byte Argon2id salt for master-key derivation. */
+  salt: z.string().optional(),
+  /** base64-encoded private key wrapped with the master key (nonce || ciphertext). */
+  encryptedPrivateKey: z.string().optional(),
+})
+
+export type AccountResponse = z.infer<typeof AccountResponseSchema>
 
 export interface SetupAccountPayload {
   /** base64-encoded 16-byte Argon2id salt for the master password (MK derivation). */
@@ -32,8 +28,9 @@ export interface SetupAccountPayload {
   encryptedPrivateKeyByRecovery: string
 }
 
-export function getAccount(): Promise<AccountResponse> {
-  return api.get('api/account').json<AccountResponse>()
+export async function getAccount(): Promise<AccountResponse> {
+  const data = await api.get('api/account').json<unknown>()
+  return AccountResponseSchema.parse(data)
 }
 
 export function setupAccount(payload: SetupAccountPayload): Promise<void> {

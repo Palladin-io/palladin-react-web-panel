@@ -71,13 +71,18 @@ export const useAuthStore = create<AuthState>()((set) => ({
     }),
 
   lockVault: () =>
-    set({
-      masterKey: null,
-      privateKey: null,
-      isVaultLocked: true,
+    set((state) => {
+      state.masterKey?.fill(0)
+      state.privateKey?.fill(0)
+      return { masterKey: null, privateKey: null, isVaultLocked: true }
     }),
 
-  logout: () => set(initialState),
+  logout: () =>
+    set((state) => {
+      state.masterKey?.fill(0)
+      state.privateKey?.fill(0)
+      return initialState
+    }),
 }))
 
 export function getIsAuthenticated() {

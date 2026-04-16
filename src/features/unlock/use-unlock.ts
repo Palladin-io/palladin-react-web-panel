@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
 import { deriveKey } from '../../shared/crypto/argon2'
 import { fromBase64 } from '../../shared/crypto/encoding'
-import { loadSodium, wipe } from '../../shared/crypto/sodium'
+import { decryptWithKey, wipe } from '../../shared/crypto/sodium'
 import { getAccount } from '../onboarding/api/account-api'
 
 /**
@@ -32,6 +32,11 @@ export function useUnlock() {
   return useMutation({
     mutationFn: async (password: string) => {
       const account = await getAccount()
+
+      if (!account.salt || !account.encryptedPrivateKey) {
+        throw new Error('Account is not onboarded — missing salt or encrypted private key')
+      }
+
       const saltBytes = fromBase64(account.salt)
 
       const masterKey = await deriveKey(password, saltBytes)
@@ -39,16 +44,11 @@ export function useUnlock() {
       let privateKey: Uint8Array | null = null
       try {
         const combined = fromBase64(account.encryptedPrivateKey)
-        const sodium = await loadSodium()
-        const nonceLen = sodium.crypto_secretbox_NONCEBYTES
-        const nonce = combined.slice(0, nonceLen)
-        const cipher = combined.slice(nonceLen)
 
-        // libsodium throws on MAC failure rather than returning null, so we
-        // catch and translate into our typed error. Either way, the derived
-        // master key is useless and must be wiped before we bail.
+        // decryptWithKey throws on MAC failure (wrong key), so we catch and
+        // translate into our typed error.
         try {
-          privateKey = sodium.crypto_secretbox_open_easy(cipher, nonce, masterKey)
+          privateKey = await decryptWithKey(combined, masterKey)
         } catch {
           wipe(masterKey)
           throw new IncorrectMasterPasswordError()
