@@ -82,16 +82,22 @@ jobs:
           PR=${{ steps.pr.outputs.number }}
 
           {
-            printf '## Pre-fetched PR data\n\n'
-            printf 'Use these files instead of running gh commands:\n'
-            printf '- `/tmp/pr_meta.json` — metadata (read with `jq . /tmp/pr_meta.json`)\n'
-            printf '- `/tmp/pr_diff.patch` — full diff (use Read tool)\n'
-            printf '- `/tmp/pr_files.txt` — changed file paths (use Read tool)\n\n'
-            printf '---\n\n'
+            echo '## Pre-fetched PR data'
+            echo ''
+            echo 'Use these files instead of running gh commands:'
+            echo '- /tmp/pr_meta.json — metadata (read with: jq . /tmp/pr_meta.json)'
+            echo '- /tmp/pr_diff.patch — full diff (use Read tool)'
+            echo '- /tmp/pr_files.txt — changed file paths (use Read tool)'
+            echo ''
+            echo '---'
+            echo ''
             sed "s/\$ARGUMENTS/${PR}/g" .claude/skills/pr-review/SKILL.md \
               | grep -v '^!`'
             if [ -n "$USER_CONTEXT" ]; then
-              printf '\n\n## Additional instructions\n\n%s\n' "$USER_CONTEXT"
+              echo ''
+              echo '## Additional instructions'
+              echo ''
+              echo "$USER_CONTEXT"
             fi
           } > /tmp/review_prompt.md
 
