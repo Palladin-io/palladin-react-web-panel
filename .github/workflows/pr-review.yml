@@ -17,6 +17,9 @@ permissions:
   pull-requests: write
   issues: write
 
+env:
+  CLAUDE_MODEL: claude-opus-4-7
+
 concurrency:
   group: claude-review-pr-${{ github.event.pull_request.number || github.event.inputs.pr_number || github.run_id }}
   cancel-in-progress: true
@@ -93,7 +96,7 @@ jobs:
           } > /tmp/review_prompt.md
 
           claude -p \
-            --model claude-opus-4-6 \
+            --model "$CLAUDE_MODEL" \
             --max-turns 30 \
             --dangerously-skip-permissions \
             --allowedTools "Bash(gh:*),Bash(jq:*),Read,Glob,Grep" \
