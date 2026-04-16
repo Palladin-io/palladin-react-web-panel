@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { useTranslation } from 'react-i18next'
 import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { analytics } from '../../shared/lib/analytics'
 import { IncorrectMasterPasswordError, useUnlock } from './use-unlock'
@@ -10,6 +11,7 @@ import { IncorrectMasterPasswordError, useUnlock } from './use-unlock'
  * unlock dance and, on success, routes to the dashboard.
  */
 export function UnlockPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const unlock = useUnlock()
   const [password, setPassword] = useState('')
@@ -34,8 +36,8 @@ export function UnlockPage() {
       onError: (err) => {
         setErrorMessage(
           err instanceof IncorrectMasterPasswordError
-            ? 'Incorrect master password'
-            : 'Something went wrong. Please try again.',
+            ? t('unlock.errorIncorrect')
+            : t('unlock.errorGeneric'),
         )
       },
     })
@@ -53,21 +55,21 @@ export function UnlockPage() {
         <div className="text-center">
           <img
             src="/logo.png"
-            alt="Claw Vault"
+            alt={t('auth.appName')}
             className="mx-auto mb-4 h-16 w-16"
           />
           <h1 className="mb-1 text-[28px] font-bold leading-tight text-[#FDF9E4]">
-            Unlock Your Vault
+            {t('unlock.title')}
           </h1>
           <p className="mb-7 text-[13px] text-[#6B7A8E]">
-            Enter your master password to access your credentials.
+            {t('unlock.subtitle')}
           </p>
         </div>
 
         <form className="flex flex-col" onSubmit={handleSubmit}>
           <FormInput
             id="unlock-password"
-            label="Master Password"
+            label={t('unlock.passwordLabel')}
             type="password"
             autoFocus
             autoComplete="current-password"
@@ -78,7 +80,7 @@ export function UnlockPage() {
               // it — no need to make them re-read the message while typing.
               if (errorMessage) setErrorMessage(null)
             }}
-            placeholder="Enter your master password"
+            placeholder={t('unlock.passwordPlaceholder')}
             disabled={isPending}
             borderClass={
               hasError
@@ -97,7 +99,7 @@ export function UnlockPage() {
               transition-colors hover:bg-[#e04545]
               disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isPending ? 'Unlocking...' : 'Unlock'}
+            {isPending ? t('unlock.unlocking') : t('unlock.button')}
           </button>
 
           <div className="mt-3 text-center">
@@ -105,7 +107,7 @@ export function UnlockPage() {
               type="button"
               className="text-[12px] text-[#6B7A8E] transition-colors hover:text-[#FDF9E4]"
             >
-              Forgot password?
+              {t('unlock.forgotPassword')}
             </button>
           </div>
         </form>

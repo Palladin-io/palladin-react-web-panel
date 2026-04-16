@@ -1,8 +1,10 @@
 import { useGoogleLogin } from '@react-oauth/google'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useLogin } from '../hooks/use-login'
 
 export function LoginPage() {
+  const { t } = useTranslation()
   const login = useLogin()
   const [tooltipTarget, setTooltipTarget] = useState<string | null>(null)
   const [googleError, setGoogleError] = useState<string | null>(null)
@@ -14,7 +16,7 @@ export function LoginPage() {
     },
     onError: (error) => {
       console.error('Google login failed:', error)
-      setGoogleError('Google sign-in failed. Please try again.')
+      setGoogleError(t('auth.errorGoogleSignInFailed'))
     },
   })
 
@@ -31,19 +33,19 @@ export function LoginPage() {
           {/* Logo */}
           <img
             src="/logo.png"
-            alt="Claw Vault"
+            alt={t('auth.appName')}
             className="mx-auto mb-4 h-16 w-16"
           />
           <h1 className="mb-1 text-[28px] font-extrabold tracking-tight">
-            <span className="text-[#FDF9E4]">Claw </span>
-            <span className="text-[#FF4F4F]">Vault</span>
+            <span className="text-[#FDF9E4]">{t('auth.titleClaw')}</span>
+            <span className="text-[#FF4F4F]">{t('auth.titleVault')}</span>
           </h1>
 
           {/* Tagline */}
           <p className="mb-7 text-sm text-[#6B7A8E]">
-            Zero-Knowledge Password Manager
+            {t('auth.taglineZeroKnowledge')} {t('auth.taglinePasswordManager')}
             <br />
-            for AI Agents
+            {t('auth.taglineForAiAgents')}
           </p>
 
           {/* OAuth buttons */}
@@ -63,7 +65,7 @@ export function LoginPage() {
                 G
               </span>
               <span>
-                {login.isPending ? 'Signing in...' : 'Continue with Google'}
+                {login.isPending ? t('auth.signingIn') : t('auth.continueWithGoogle')}
               </span>
             </button>
 
@@ -82,7 +84,7 @@ export function LoginPage() {
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-xs font-bold text-black">
                   &#63743;
                 </span>
-                <span>Continue with Apple</span>
+                <span>{t('auth.continueWithApple')}</span>
               </button>
               {tooltipTarget === 'apple' && <Tooltip />}
             </div>
@@ -102,7 +104,7 @@ export function LoginPage() {
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-xs font-bold text-black">
                   &#120143;
                 </span>
-                <span>Continue with X</span>
+                <span>{t('auth.continueWithX')}</span>
               </button>
               {tooltipTarget === 'x' && <Tooltip />}
             </div>
@@ -111,13 +113,13 @@ export function LoginPage() {
           {/* Error message */}
           {(login.isError || googleError) && (
             <p className="mt-4 text-xs text-[#FF4F4F]">
-              {googleError ?? 'Sign in failed. Please try again.'}
+              {googleError ?? t('auth.errorSignInFailed')}
             </p>
           )}
 
           {/* Footer */}
           <p className="mt-5 text-[10px] text-[#6B7A8E]">
-            By continuing, you agree to our Terms &amp; Privacy Policy
+            {t('auth.legalFooter')}
           </p>
         </div>
       </div>
@@ -126,13 +128,14 @@ export function LoginPage() {
 }
 
 function Tooltip() {
+  const { t } = useTranslation()
   return (
     <span
       role="tooltip"
       className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded
         bg-[#1a2a4a] px-2 py-1 text-[10px] text-[#6B7A8E] shadow-lg"
     >
-      Coming soon
+      {t('auth.comingSoon')}
     </span>
   )
 }

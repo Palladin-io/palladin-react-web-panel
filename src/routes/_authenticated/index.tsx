@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../features/auth'
 import { OnboardingWizard, useAccount } from '../../features/onboarding'
 
@@ -8,6 +9,7 @@ export const Route = createFileRoute('/_authenticated/')({
 })
 
 function AuthenticatedHome() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
   const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
@@ -26,7 +28,7 @@ function AuthenticatedHome() {
   if (account.isPending) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-[#6B7A8E]">Loading...</p>
+        <p className="text-sm text-[#6B7A8E]">{t('common.loading')}</p>
       </div>
     )
   }
@@ -35,7 +37,7 @@ function AuthenticatedHome() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-sm text-[#FF4F4F]">
-          Could not load your account. Please reload the page.
+          {t('common.couldNotLoadAccount')}
         </p>
       </div>
     )
@@ -64,14 +66,14 @@ function AuthenticatedHome() {
   return (
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
-        <h1 className="mb-6 text-2xl font-bold">Dashboard (coming soon)</h1>
+        <h1 className="mb-6 text-2xl font-bold">{t('common.dashboardComingSoon')}</h1>
         <button
           type="button"
           onClick={handleLogout}
           className="rounded-lg border border-[rgba(253,249,228,0.1)] bg-[rgba(253,249,228,0.04)]
             px-4 py-2 text-sm text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.08)]"
         >
-          Log out
+          {t('common.logout')}
         </button>
       </div>
     </div>
