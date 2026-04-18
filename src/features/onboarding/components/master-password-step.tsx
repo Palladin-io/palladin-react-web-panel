@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { analytics } from '../../../shared/lib/analytics'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import {
@@ -14,6 +15,7 @@ export interface MasterPasswordStepProps {
 }
 
 export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswordStepProps) {
+  const { t } = useTranslation()
   const [password, setPassword] = useState(initialPassword ?? '')
   const [confirm, setConfirm] = useState(initialPassword ?? '')
 
@@ -27,12 +29,12 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
 
   return (
     <OnboardingShell
-      title="Set Master Password"
+      title={t('onboarding.masterPasswordTitle')}
       subtitle={
         <>
-          This password encrypts your vault locally.
+          {t('onboarding.masterPasswordSubtitle1')}
           <br />
-          We never see it.
+          {t('onboarding.masterPasswordSubtitle2')}
         </>
       }
       stepIndex={0}
@@ -50,13 +52,13 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
         <div>
           <FormInput
             id="master-password"
-            label="Master Password"
+            label={t('onboarding.masterPasswordLabel')}
             type="password"
             autoFocus
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter a strong password"
+            placeholder={t('onboarding.masterPasswordPlaceholder')}
           />
           <StrengthBar score={score} />
           <FieldFeedback visible={password.length > 0} color="teal">
@@ -67,21 +69,21 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
         <div>
           <FormInput
             id="master-password-confirm"
-            label="Confirm Password"
+            label={t('onboarding.confirmPasswordLabel')}
             type="password"
             autoComplete="new-password"
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
-            placeholder="Retype your password"
+            placeholder={t('onboarding.confirmPasswordPlaceholder')}
           />
           <FieldFeedback visible={confirm.length > 0 && !passwordsMatch} color="red">
-            Passwords do not match.
+            {t('onboarding.passwordsDoNotMatch')}
           </FieldFeedback>
         </div>
 
         <div className="rounded-lg border border-[rgba(253,249,228,0.06)] bg-[rgba(253,249,228,0.04)] px-3 py-2">
           <p className="text-xs text-[#FDF9E4]">
-            Your password is never sent to our servers. All encryption happens on this device.
+            {t('onboarding.encryptionNote')}
           </p>
         </div>
 
@@ -92,7 +94,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
             transition-colors hover:bg-[#e04545]
             disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Set Master Password
+          {t('onboarding.masterPasswordButton')}
         </button>
       </form>
     </OnboardingShell>

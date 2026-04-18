@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Check, CircleAlert, CircleCheck } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
@@ -20,6 +21,7 @@ export function RecoveryKeyConfirmStep({
   isSubmitting,
   error,
 }: RecoveryKeyConfirmStepProps) {
+  const { t } = useTranslation()
   const indicesToVerify = useMemo(
     () => pickVerificationIndices(mnemonic.length),
     [mnemonic.length],
@@ -47,8 +49,8 @@ export function RecoveryKeyConfirmStep({
 
   return (
     <OnboardingShell
-      title="Confirm Recovery Key"
-      subtitle="Enter the following words from your recovery key to verify you saved it correctly."
+      title={t('onboarding.confirmTitle')}
+      subtitle={t('onboarding.confirmSubtitle')}
       stepIndex={2}
       totalSteps={3}
       onBack={onBack}
@@ -69,7 +71,7 @@ export function RecoveryKeyConfirmStep({
             <div key={mnemonicIndex}>
               <FormInput
                 id={inputId}
-                label={`Word #${mnemonicIndex + 1}`}
+                label={t('onboarding.confirmWordLabel', { index: mnemonicIndex + 1 })}
                 labelClassName="mb-1 block text-xs font-medium text-[#FDF9E4]"
                 type="text"
                 autoComplete="off"
@@ -82,13 +84,13 @@ export function RecoveryKeyConfirmStep({
                   setInputs(next)
                 }}
                 borderClass={borderClassForState(state)}
-                placeholder={`Enter word #${mnemonicIndex + 1}`}
+                placeholder={t('onboarding.confirmWordPlaceholder', { index: mnemonicIndex + 1 })}
               />
               <FieldFeedback visible={state !== 'empty'} color={state === 'correct' ? 'teal' : 'red'}>
                 {state === 'correct' ? (
-                  <><CircleCheck size={12} /> Correct</>
+                  <><CircleCheck size={12} /> {t('onboarding.confirmCorrect')}</>
                 ) : (
-                  <><CircleAlert size={12} /> Doesn&apos;t match</>
+                  <><CircleAlert size={12} /> {t('onboarding.confirmIncorrect')}</>
                 )}
               </FieldFeedback>
             </div>
@@ -116,7 +118,7 @@ export function RecoveryKeyConfirmStep({
             disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Check size={14} />
-          {isSubmitting ? 'Finishing setup...' : 'Verify & Complete Setup'}
+          {isSubmitting ? t('onboarding.finishingSetup') : t('onboarding.verifyAndComplete')}
         </button>
       </form>
     </OnboardingShell>

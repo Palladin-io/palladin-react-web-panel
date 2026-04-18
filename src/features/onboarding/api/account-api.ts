@@ -6,6 +6,17 @@ export interface AccountResponse {
   displayName: string
   avatarUrl: string | null
   hasPublicKey: boolean
+  /**
+   * base64-encoded 16-byte Argon2id salt for master-key derivation.
+   * Present once the user has completed onboarding.
+   */
+  salt?: string
+  /**
+   * base64-encoded private key wrapped with the master key
+   * (layout: `nonce || ciphertext`, matching `encryptWithKey`).
+   * Present once the user has completed onboarding.
+   */
+  encryptedPrivateKey?: string
 }
 
 export interface SetupAccountPayload {

@@ -7,6 +7,17 @@ interface AuthState {
   isOnboarded: boolean
   permissions: number
 
+  /**
+   * Vault lock state. True whenever we do not currently hold the in-memory
+   * master key + private key. A fresh login always starts locked; onboarding
+   * and unlock both flip this to false by calling `unlockVault`.
+   */
+  isVaultLocked: boolean
+  /** 32-byte Argon2id-derived master key. Never persisted. */
+  masterKey: Uint8Array | null
+  /** 32-byte X25519 private key recovered by decrypting the server blob. */
+  privateKey: Uint8Array | null
+
   setTokens: (data: {
     accessToken: string
     refreshToken: string
@@ -15,6 +26,8 @@ interface AuthState {
     permissions?: number
   }) => void
   markOnboarded: () => void
+  unlockVault: (masterKey: Uint8Array, privateKey: Uint8Array) => void
+  lockVault: () => void
   logout: () => void
 }
 
@@ -24,6 +37,9 @@ const initialState = {
   userId: null,
   isOnboarded: false,
   permissions: 0,
+  isVaultLocked: true,
+  masterKey: null,
+  privateKey: null,
 }
 
 export const useAuthStore = create<AuthState>()((set) => ({
@@ -36,9 +52,30 @@ export const useAuthStore = create<AuthState>()((set) => ({
       userId: data.userId,
       isOnboarded: data.isOnboarded,
       permissions: data.permissions ?? 0,
+      // A fresh set of tokens means the session has just started (or been
+      // refreshed). Either way, the user needs to re-unlock before the
+      // vault is usable.
+      isVaultLocked: true,
     }),
 
   markOnboarded: () => set({ isOnboarded: true }),
+
+  unlockVault: (masterKey, privateKey) =>
+    // Store independent copies — callers routinely `wipe()` their local
+    // buffers right after handing them off, which would zero out our
+    // references too if we kept them.
+    set({
+      masterKey: new Uint8Array(masterKey),
+      privateKey: new Uint8Array(privateKey),
+      isVaultLocked: false,
+    }),
+
+  lockVault: () =>
+    set({
+      masterKey: null,
+      privateKey: null,
+      isVaultLocked: true,
+    }),
 
   logout: () => set(initialState),
 }))

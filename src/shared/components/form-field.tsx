@@ -49,8 +49,8 @@ export function FormInput({
  * Fixed-height feedback row that sits below an input.
  *
  * The outer div always occupies `h-4` (16 px) regardless of visibility so the
- * form height never changes — no layout shift. The inner text fades in/out via
- * CSS opacity transition.
+ * form height never changes — no layout shift. The inner text slides down from
+ * above and fades in (mirrors the Flutter AnimatedSlide + AnimatedOpacity pattern).
  */
 export interface FieldFeedbackProps {
   visible: boolean
@@ -61,14 +61,14 @@ export interface FieldFeedbackProps {
 export function FieldFeedback({ visible, color, children }: FieldFeedbackProps) {
   return (
     <div
-      className="relative mt-1 h-4"
+      className="relative mt-1 h-4 overflow-hidden"
       role={color === 'red' && visible ? 'alert' : undefined}
     >
       <p
         className={`absolute inset-x-0 flex items-center gap-1 text-[11px] leading-4
-          transition-opacity duration-200 ${
+          transition-[opacity,translate] duration-200 ease-out ${
           color === 'teal' ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
-        } ${visible ? 'opacity-100' : 'opacity-0'}`}
+        } ${visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}
       >
         {children}
       </p>

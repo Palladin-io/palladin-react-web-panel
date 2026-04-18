@@ -50,6 +50,22 @@ export async function randomBytes(length: number): Promise<Uint8Array> {
 }
 
 /**
+ * Decrypt a blob produced by `encryptWithKey` (nonce prepended).
+ * Throws if the MAC check fails — callers should translate into a
+ * typed error (e.g. `IncorrectMasterPasswordError`).
+ */
+export async function decryptWithKey(
+  combined: Uint8Array,
+  key: Uint8Array,
+): Promise<Uint8Array> {
+  const s = await loadSodium()
+  const nonceLen = s.crypto_secretbox_NONCEBYTES
+  const nonce = combined.slice(0, nonceLen)
+  const cipher = combined.slice(nonceLen)
+  return s.crypto_secretbox_open_easy(cipher, nonce, key)
+}
+
+/**
  * Overwrite sensitive byte buffers with zeros so key material does not
  * linger in memory after we're done with it. libsodium's `memzero`
  * is resistant to compiler dead-store elimination.

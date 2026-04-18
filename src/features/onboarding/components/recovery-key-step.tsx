@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Check, Copy, Download, TriangleAlert } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
 import { joinMnemonic } from '../lib/mnemonic'
@@ -11,6 +12,7 @@ export interface RecoveryKeyStepProps {
 }
 
 export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeyStepProps) {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -42,8 +44,8 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
 
   return (
     <OnboardingShell
-      title="Save Recovery Key"
-      subtitle="Write down these 24 words. Without them, you cannot recover your account."
+      title={t('onboarding.recoveryKeyTitle')}
+      subtitle={t('onboarding.recoveryKeySubtitle')}
       stepIndex={1}
       totalSteps={3}
       onBack={onBack}
@@ -69,8 +71,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
         >
           <TriangleAlert size={14} className="mt-0.5 shrink-0 text-[#FF4F4F]" />
           <p className="text-xs text-[#FF4F4F]">
-            You cannot recover your vault without this key. Store it safely — save
-            offline, and never share it.
+            {t('onboarding.recoveryKeyWarning')}
           </p>
         </div>
 
@@ -83,7 +84,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
               font-semibold text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.04)]"
           >
             {copied ? <Check size={14} /> : <Copy size={14} />}
-            {copied ? 'Copied' : 'Copy to Clipboard'}
+            {copied ? t('onboarding.copied') : t('onboarding.copyToClipboard')}
           </button>
           <button
             type="button"
@@ -93,7 +94,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
               font-semibold text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.04)]"
           >
             <Download size={14} />
-            Export as .txt
+            {t('onboarding.exportAsTxt')}
           </button>
         </div>
 
@@ -105,7 +106,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
             transition-colors hover:bg-[#e04545]"
         >
           <Check size={14} />
-          I&apos;ve Saved My Recovery Key
+          {t('onboarding.savedRecoveryKey')}
         </button>
       </div>
     </OnboardingShell>
