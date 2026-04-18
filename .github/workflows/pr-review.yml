@@ -108,7 +108,7 @@ jobs:
 
           claude -p \
             --model "$CLAUDE_MODEL" \
-            --max-turns 30 \
+            --max-turns 60 \
             --dangerously-skip-permissions \
             --allowedTools "Bash(gh:*),Bash(jq:*),Read,Glob,Grep" \
             < /tmp/review_prompt.md
