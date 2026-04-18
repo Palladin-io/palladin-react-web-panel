@@ -79,6 +79,7 @@
   "common.dashboardComingSoon": "Dashboard (coming soon)",
   "common.logout": "Log out",
   "common.reload": "Reload",
+  "common.back": "Back",
 
   "errors.somethingWentWrong": "Something went wrong",
   "errors.unexpectedError": "An unexpected error occurred. Please reload the page."

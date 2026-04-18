@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { AUTH_BACKGROUND_GRADIENT } from '../../../shared/lib/styles'
 
 export interface RecoveryShellProps {
   title: string
@@ -21,17 +22,14 @@ export function RecoveryShell({ title, subtitle, children, onBack }: RecoveryShe
   return (
     <div
       className="flex min-h-screen items-center justify-center"
-      style={{
-        background:
-          'linear-gradient(160deg, #000B2E 0%, #0A1A3E 30%, #0E1230 60%, #000B2E 100%)',
-      }}
+      style={{ background: AUTH_BACKGROUND_GRADIENT }}
     >
       <div className="w-full max-w-[440px] px-6 py-10">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            aria-label={t('common.back', { defaultValue: 'Back' })}
+            aria-label={t('common.back')}
             className="mb-4 flex h-8 w-8 items-center justify-center rounded-full
               text-[#B8C5D4] transition-colors hover:bg-[rgba(253,249,228,0.08)] hover:text-[#FDF9E4]"
           >

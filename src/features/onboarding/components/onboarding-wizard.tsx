@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useCompleteSetup } from '../hooks/use-complete-setup'
-import { generateRecoveryMnemonic } from '../lib/mnemonic'
+import { generateRecoveryMnemonic } from '../../../shared/lib/mnemonic'
 import { MasterPasswordStep } from './master-password-step'
 import { RecoveryKeyConfirmStep } from './recovery-key-confirm-step'
 import { RecoveryKeyStep } from './recovery-key-step'

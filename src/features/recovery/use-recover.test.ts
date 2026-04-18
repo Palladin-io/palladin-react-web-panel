@@ -5,16 +5,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { deriveKey, RECOVERY_KEY_SALT_BYTES } from '../../shared/crypto/argon2'
 import { toBase64 } from '../../shared/crypto/encoding'
 import { encryptWithKey, randomBytes } from '../../shared/crypto/sodium'
-import { generateRecoveryMnemonic, joinMnemonic } from '../onboarding/lib/mnemonic'
+import { generateRecoveryMnemonic, joinMnemonic } from '../../shared/lib/mnemonic'
 import { InvalidRecoveryKeyError, useRecover } from './use-recover'
 
 const getAccountMock = vi.fn()
 const recoverAccountMock = vi.fn()
 
-vi.mock('../onboarding/api/account-api', () => ({
-  getAccount: () => getAccountMock(),
-  recoverAccount: (payload: unknown) => recoverAccountMock(payload),
-}))
+vi.mock('../../shared/api/account-api', async () => {
+  const actual = await vi.importActual<typeof import('../../shared/api/account-api')>(
+    '../../shared/api/account-api',
+  )
+  return {
+    ...actual,
+    getAccount: () => getAccountMock(),
+    recoverAccount: (payload: unknown) => recoverAccountMock(payload),
+  }
+})
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, Copy, Download, TriangleAlert } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
-import { joinMnemonic } from '../lib/mnemonic'
+import { joinMnemonic } from '../../../shared/lib/mnemonic'
 import { OnboardingShell } from './onboarding-shell'
 
 export interface RecoveryKeyStepProps {

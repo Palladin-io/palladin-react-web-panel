@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Clipboard, FileText } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
 import { FieldFeedback } from '../../../shared/components/form-field'
-import { MNEMONIC_WORD_COUNT } from '../../onboarding/lib/mnemonic'
+import { FormTextarea } from '../../../shared/components/form-textarea'
+import { MNEMONIC_WORD_COUNT } from '../../../shared/lib/mnemonic'
 import { RecoveryShell } from './recovery-shell'
 
 export interface EnterRecoveryKeyStepProps {
@@ -95,14 +96,9 @@ export function EnterRecoveryKeyStep({
     >
       <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
         <div>
-          <label
-            htmlFor="recovery-key-input"
-            className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]"
-          >
-            {t('recovery.enterKeyLabel')}
-          </label>
-          <textarea
+          <FormTextarea
             id="recovery-key-input"
+            label={t('recovery.enterKeyLabel')}
             autoFocus
             rows={4}
             spellCheck={false}
@@ -113,12 +109,7 @@ export function EnterRecoveryKeyStep({
               if (localError) setLocalError(null)
             }}
             placeholder={t('recovery.enterKeyPlaceholder')}
-            className={`w-full rounded-lg border bg-[rgba(253,249,228,0.04)] px-3 py-2 text-sm
-              text-[#FDF9E4] placeholder:text-[#6B7A8E] focus:outline-none resize-none font-mono ${
-              hasError
-                ? 'border-[#FF4F4F] focus:border-[#FF4F4F]'
-                : 'border-[rgba(253,249,228,0.1)] focus:border-[#2EC4B6]'
-            }`}
+            hasError={hasError}
           />
           <FieldFeedback visible={hasError} color="red">
             {displayedError}

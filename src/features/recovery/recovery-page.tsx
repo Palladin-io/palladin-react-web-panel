@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { analytics } from '../../shared/lib/analytics'
@@ -14,6 +14,10 @@ type Step = 'enter-key' | 'new-password' | 'new-recovery-key'
  * and password never leave this component tree, and the derived keys live
  * only inside `useRecover`'s mutation scope. On the final step we navigate
  * the user to `/unlock` so they can log in with the new password.
+ *
+ * Page-level view tracking is owned by the individual step components
+ * (each fires its own `*-page-viewed` event on mount) so we don't emit a
+ * redundant wrapper event here.
  */
 export function RecoveryPage() {
   const { t } = useTranslation()
@@ -24,10 +28,6 @@ export function RecoveryPage() {
   const [mnemonic, setMnemonic] = useState<string[]>([])
   const [newMnemonic, setNewMnemonic] = useState<string[]>([])
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-
-  useEffect(() => {
-    analytics.capture('recovery', 'page-viewed')
-  }, [])
 
   const handleKeySubmit = (words: string[]) => {
     setMnemonic(words)

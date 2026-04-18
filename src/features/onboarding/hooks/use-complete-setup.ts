@@ -12,9 +12,8 @@ import {
   randomBytes,
   wipe,
 } from '../../../shared/crypto/sodium'
-import { setupAccount } from '../api/account-api'
-import { joinMnemonic } from '../lib/mnemonic'
-import { ACCOUNT_QUERY_KEY } from './use-account'
+import { ACCOUNT_QUERY_KEY, setupAccount } from '../../../shared/api/account-api'
+import { joinMnemonic } from '../../../shared/lib/mnemonic'
 
 export interface CompleteSetupInput {
   masterPassword: string

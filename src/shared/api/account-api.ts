@@ -1,4 +1,4 @@
-import { api } from '../../../shared/api/client'
+import { api } from './client'
 
 export interface AccountResponse {
   userId: string
@@ -54,6 +54,9 @@ export interface RecoverAccountPayload {
   /** base64-encoded private key re-wrapped with the new recovery key. */
   newEncryptedPrivateKeyByRecovery: string
 }
+
+/** TanStack Query key for the account resource — shared across features. */
+export const ACCOUNT_QUERY_KEY = ['account'] as const
 
 export function getAccount(): Promise<AccountResponse> {
   return api.get('api/account').json<AccountResponse>()

@@ -11,9 +11,12 @@ import {
   randomBytes,
   wipe,
 } from '../../shared/crypto/sodium'
-import { getAccount, recoverAccount } from '../onboarding/api/account-api'
-import { generateRecoveryMnemonic, joinMnemonic } from '../onboarding/lib/mnemonic'
-import { ACCOUNT_QUERY_KEY } from '../onboarding/hooks/use-account'
+import {
+  ACCOUNT_QUERY_KEY,
+  getAccount,
+  recoverAccount,
+} from '../../shared/api/account-api'
+import { generateRecoveryMnemonic, joinMnemonic } from '../../shared/lib/mnemonic'
 
 /**
  * Thrown when the supplied recovery mnemonic fails to unwrap the server's
