@@ -31,9 +31,11 @@ export function UnlockPage() {
     setErrorMessage(null)
     unlock.mutate(password, {
       onSuccess: () => {
+        analytics.capture('unlock', 'vault-unlocked')
         navigate({ to: '/' })
       },
       onError: (err) => {
+        analytics.capture('unlock', 'unlock-failed')
         setErrorMessage(
           err instanceof IncorrectMasterPasswordError
             ? t('unlock.errorIncorrect')

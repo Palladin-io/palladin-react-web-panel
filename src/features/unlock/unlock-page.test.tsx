@@ -70,7 +70,8 @@ describe('UnlockPage', () => {
     expect(screen.getByRole('button', { name: /^unlock$/i })).toBeEnabled()
   })
 
-  it('calls the unlock mutation and navigates on success', async () => {
+  it('calls the unlock mutation, fires vault-unlocked and navigates on success', async () => {
+    const { analytics } = await import('../../shared/lib/analytics')
     const user = userEvent.setup()
     mutateMock.mockImplementation((_password, options) => {
       options.onSuccess()
@@ -81,10 +82,12 @@ describe('UnlockPage', () => {
     await user.click(screen.getByRole('button', { name: /^unlock$/i }))
 
     expect(mutateMock).toHaveBeenCalledWith('hunter2', expect.any(Object))
+    expect(analytics.capture).toHaveBeenCalledWith('unlock', 'vault-unlocked')
     expect(navigateMock).toHaveBeenCalledWith({ to: '/' })
   })
 
-  it('shows the typed error message when the password is incorrect', async () => {
+  it('shows the typed error message and fires unlock-failed when the password is incorrect', async () => {
+    const { analytics } = await import('../../shared/lib/analytics')
     const user = userEvent.setup()
     mutateMock.mockImplementation((_password, options) => {
       options.onError(new IncorrectMasterPasswordError())
@@ -97,10 +100,12 @@ describe('UnlockPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       /incorrect master password/i,
     )
+    expect(analytics.capture).toHaveBeenCalledWith('unlock', 'unlock-failed')
     expect(navigateMock).not.toHaveBeenCalled()
   })
 
-  it('falls back to a generic error for unexpected failures', async () => {
+  it('falls back to a generic error and fires unlock-failed for unexpected failures', async () => {
+    const { analytics } = await import('../../shared/lib/analytics')
     const user = userEvent.setup()
     mutateMock.mockImplementation((_password, options) => {
       options.onError(new Error('network went sideways'))
@@ -113,6 +118,7 @@ describe('UnlockPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       /something went wrong/i,
     )
+    expect(analytics.capture).toHaveBeenCalledWith('unlock', 'unlock-failed')
   })
 
   it('clears the error as the user starts correcting their input', async () => {
