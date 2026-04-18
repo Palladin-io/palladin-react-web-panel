@@ -120,6 +120,8 @@ fe:{module}:{event}
 
 Frontend tracks **UI-only** events — page views, wizard interactions, clicks. Business logic events are tracked by backend.
 
+**`analytics.capture(module, event, properties?)` automatically prefixes `fe:`.** Never include the prefix in the call — `capture('unlock', 'page-viewed')` sends `fe:unlock:page-viewed` to PostHog.
+
 Examples:
 ```
 fe:auth:login-page-viewed
