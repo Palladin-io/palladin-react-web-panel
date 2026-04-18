@@ -87,7 +87,7 @@ gh api graphql -f query='mutation($id:ID!){resolveReviewThread(input:{threadId:$
 
 - `REQUEST_CHANGES` — any Critical or Warning findings
 - `APPROVE` — only Suggestions / Highlights, or a clean PR
-- `COMMENT` — only when genuinely ambiguous (rare)
+- `COMMENT` — **never use as a fallback for APPROVE**. `github-actions[bot]` with `pull-requests: write` CAN and MUST submit `APPROVE`. Use `COMMENT` only if you literally cannot determine a verdict (e.g. missing context that would require out-of-band knowledge).
 
 ### Step 2 — build `/tmp/review.json`
 
