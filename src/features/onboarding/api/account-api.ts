@@ -17,6 +17,18 @@ export interface AccountResponse {
    * Present once the user has completed onboarding.
    */
   encryptedPrivateKey?: string
+  /**
+   * base64-encoded 16-byte Argon2id salt for recovery-key derivation.
+   * Present once the user has completed onboarding.
+   */
+  recoverySalt?: string
+  /**
+   * base64-encoded private key wrapped with the recovery key
+   * (layout: `nonce || ciphertext`, matching `encryptWithKey`).
+   * Present once the user has completed onboarding — consumed by
+   * the recovery flow to re-wrap the private key with a new MK.
+   */
+  encryptedPrivateKeyByRecovery?: string
 }
 
 export interface SetupAccountPayload {
@@ -32,10 +44,31 @@ export interface SetupAccountPayload {
   encryptedPrivateKeyByRecovery: string
 }
 
+export interface RecoverAccountPayload {
+  /** base64-encoded 16-byte Argon2id salt for the new master password. */
+  newSalt: string
+  /** base64-encoded private key re-wrapped with the new master key. */
+  newEncryptedPrivateKey: string
+  /** base64-encoded 16-byte Argon2id salt for the new recovery mnemonic. */
+  newRecoverySalt: string
+  /** base64-encoded private key re-wrapped with the new recovery key. */
+  newEncryptedPrivateKeyByRecovery: string
+}
+
 export function getAccount(): Promise<AccountResponse> {
   return api.get('api/account').json<AccountResponse>()
 }
 
 export function setupAccount(payload: SetupAccountPayload): Promise<void> {
   return api.post('api/account/setup', { json: payload }).json<void>()
+}
+
+/**
+ * Rotate the master password by uploading a private key re-wrapped with
+ * a fresh MK and a fresh recovery key. The server replaces all four
+ * salt/ciphertext fields atomically; the user's public key is unchanged
+ * so existing vault entries remain decryptable after the next unlock.
+ */
+export function recoverAccount(payload: RecoverAccountPayload): Promise<void> {
+  return api.put('api/account/recovery', { json: payload }).json<void>()
 }

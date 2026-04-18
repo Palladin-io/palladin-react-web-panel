@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,6 +11,11 @@ let isPending = false
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
+  Link: ({ to, children, ...rest }: { to: string; children: ReactNode }) => (
+    <a href={to} {...rest}>
+      {children}
+    </a>
+  ),
 }))
 
 vi.mock('../../shared/lib/analytics', () => ({
@@ -53,8 +59,8 @@ describe('UnlockPage', () => {
       screen.getByText(/enter your master password to access your credentials/i),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: /forgot password/i }),
-    ).toBeInTheDocument()
+      screen.getByRole('link', { name: /forgot password/i }),
+    ).toHaveAttribute('href', '/recovery')
   })
 
   it('disables the submit button while the password field is empty', () => {
