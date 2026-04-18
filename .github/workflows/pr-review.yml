@@ -15,7 +15,6 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  issues: write
 
 env:
   CLAUDE_MODEL: claude-opus-4-7
@@ -35,8 +34,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -72,10 +69,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ steps.pr.outputs.number }}
+          REPO: ${{ github.repository }}
         run: |
           gh pr view "$PR" --json number,title,body,author,additions,deletions,changedFiles,headRefName,baseRefName > /tmp/pr_meta.json
           gh pr diff "$PR" > /tmp/pr_diff.patch
           gh pr view "$PR" --json files --jq '.files[].path' > /tmp/pr_files.txt
+          gh pr view "$PR" --json reviews > /tmp/pr_reviews.json
+          gh api "repos/${REPO}/pulls/${PR}/comments" > /tmp/pr_inline_comments.json
 
       - name: Run Claude Code review
         env:
@@ -91,6 +91,8 @@ jobs:
             echo '- /tmp/pr_meta.json — metadata (read with: jq . /tmp/pr_meta.json)'
             echo '- /tmp/pr_diff.patch — full diff (use Read tool)'
             echo '- /tmp/pr_files.txt — changed file paths (use Read tool)'
+            echo '- /tmp/pr_reviews.json — poprzednie review z werdyktami (SPRAWDŹ PRZED RECENZJĄ)'
+            echo '- /tmp/pr_inline_comments.json — komentarze inline z poprzednich review'
             echo ''
             echo '---'
             echo ''
