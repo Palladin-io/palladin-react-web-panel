@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
+import { AUTH_BACKGROUND_GRADIENT } from '../../../shared/lib/styles'
 import { ProgressDots } from './progress-dots'
 
 export interface OnboardingShellProps {
@@ -27,10 +28,7 @@ export function OnboardingShell({
   return (
     <div
       className="flex min-h-screen items-start justify-center pt-[max(2rem,calc(50vh-360px))]"
-      style={{
-        background:
-          'linear-gradient(160deg, #000B2E 0%, #0A1A3E 30%, #0E1230 60%, #000B2E 100%)',
-      }}
+      style={{ background: AUTH_BACKGROUND_GRADIENT }}
     >
       <div className="step-enter w-full max-w-[440px] px-6 py-10">
         <div className="relative flex items-center justify-center">

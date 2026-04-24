@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { analytics } from '../../shared/lib/analytics'
@@ -105,12 +105,12 @@ export function UnlockPage() {
           </button>
 
           <div className="mt-3 text-center">
-            <button
-              type="button"
+            <Link
+              to="/recovery"
               className="text-[12px] text-[#6B7A8E] transition-colors hover:text-[#FDF9E4]"
             >
               {t('unlock.forgotPassword')}
-            </button>
+            </Link>
           </div>
         </form>
       </div>

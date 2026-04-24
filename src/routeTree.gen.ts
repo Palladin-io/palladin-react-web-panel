@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RecoveryRouteImport } from './routes/recovery'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
 
+const RecoveryRoute = RecoveryRouteImport.update({
+  id: '/recovery',
+  path: '/recovery',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -37,10 +43,12 @@ const AuthenticatedUnlockRoute = AuthenticatedUnlockRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
+  '/recovery': typeof RecoveryRoute
   '/unlock': typeof AuthenticatedUnlockRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/recovery': typeof RecoveryRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/': typeof AuthenticatedIndexRoute
 }
@@ -48,18 +56,20 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/recovery': typeof RecoveryRoute
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/unlock'
+  fullPaths: '/' | '/login' | '/recovery' | '/unlock'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/unlock' | '/'
+  to: '/login' | '/recovery' | '/unlock' | '/'
   id:
     | '__root__'
     | '/_authenticated'
     | '/login'
+    | '/recovery'
     | '/_authenticated/unlock'
     | '/_authenticated/'
   fileRoutesById: FileRoutesById
@@ -67,10 +77,18 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  RecoveryRoute: typeof RecoveryRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/recovery': {
+      id: '/recovery'
+      path: '/recovery'
+      fullPath: '/recovery'
+      preLoaderRoute: typeof RecoveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -119,6 +137,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   LoginRoute: LoginRoute,
+  RecoveryRoute: RecoveryRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

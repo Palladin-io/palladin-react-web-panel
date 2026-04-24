@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { getAccount } from '../api/account-api'
+import { ACCOUNT_QUERY_KEY, getAccount } from '../../../shared/api/account-api'
 
-export const ACCOUNT_QUERY_KEY = ['account'] as const
+export { ACCOUNT_QUERY_KEY }
 
 export function useAccount() {
   return useQuery({

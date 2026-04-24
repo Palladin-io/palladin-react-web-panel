@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { analytics } from '../../../shared/lib/analytics'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { PasswordStrengthBar } from '../../../shared/components/password-strength-bar'
 import {
   evaluatePasswordStrength,
   isPasswordAcceptable,
-  type PasswordStrength,
-} from '../lib/password-strength'
+} from '../../../shared/lib/password-strength'
 import { OnboardingShell } from './onboarding-shell'
 
 export interface MasterPasswordStepProps {
@@ -60,7 +60,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
             onChange={(e) => setPassword(e.target.value)}
             placeholder={t('onboarding.masterPasswordPlaceholder')}
           />
-          <StrengthBar score={score} />
+          <PasswordStrengthBar score={score} />
           <FieldFeedback visible={password.length > 0} color="teal">
             {label}
           </FieldFeedback>
@@ -99,30 +99,4 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
       </form>
     </OnboardingShell>
   )
-}
-
-interface StrengthBarProps {
-  score: PasswordStrength
-}
-
-function StrengthBar({ score }: StrengthBarProps) {
-  return (
-    <div className="mt-1.5 flex gap-1">
-      {[1, 2, 3, 4].map((segment) => (
-        <div
-          key={segment}
-          className={
-            'h-1 flex-1 rounded transition-colors duration-300 ' +
-            (segment <= score ? colorForScore(score) : 'bg-[rgba(253,249,228,0.06)]')
-          }
-        />
-      ))}
-    </div>
-  )
-}
-
-function colorForScore(score: PasswordStrength): string {
-  if (score <= 1) return 'bg-[#FF4F4F]'
-  if (score === 2) return 'bg-[#FFB84F]'
-  return 'bg-[#2EC4B6]'
 }

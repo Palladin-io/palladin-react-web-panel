@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Check, CircleAlert, CircleCheck } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
-import { pickVerificationIndices } from '../lib/mnemonic'
+import { pickVerificationIndices } from '../../../shared/lib/mnemonic'
 import { OnboardingShell } from './onboarding-shell'
 
 export interface RecoveryKeyConfirmStepProps {

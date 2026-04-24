@@ -3,20 +3,20 @@ import { useTranslation } from 'react-i18next'
 import { Check, Copy, Download, TriangleAlert } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
 import { joinMnemonic } from '../../../shared/lib/mnemonic'
-import { OnboardingShell } from './onboarding-shell'
+import { RecoveryShell } from './recovery-shell'
 
-export interface RecoveryKeyStepProps {
+export interface NewRecoveryKeyStepProps {
   mnemonic: string[]
-  onContinue: () => void
-  onBack?: () => void
+  onFinish: () => void
 }
 
-export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeyStepProps) {
+export function NewRecoveryKeyStep({ mnemonic, onFinish }: NewRecoveryKeyStepProps) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
+  const [acknowledged, setAcknowledged] = useState(false)
 
   useEffect(() => {
-    analytics.capture('onboarding', 'recovery-key-page-viewed')
+    analytics.capture('recovery', 'new-recovery-key-page-viewed')
   }, [])
 
   const handleCopy = async () => {
@@ -43,12 +43,9 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
   }
 
   return (
-    <OnboardingShell
-      title={t('onboarding.recoveryKeyTitle')}
-      subtitle={t('onboarding.recoveryKeySubtitle')}
-      stepIndex={1}
-      totalSteps={3}
-      onBack={onBack}
+    <RecoveryShell
+      title={t('recovery.newRecoveryKeyTitle')}
+      subtitle={t('recovery.newRecoveryKeySubtitle')}
     >
       <div className="flex flex-col gap-3">
         <div className="rounded-lg border border-[rgba(253,249,228,0.06)] bg-[rgba(253,249,228,0.04)] p-3">
@@ -70,9 +67,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
           className="flex items-start gap-2 rounded-lg bg-[rgba(255,79,79,0.1)] px-3 py-2"
         >
           <TriangleAlert size={14} className="mt-0.5 shrink-0 text-[#FF4F4F]" />
-          <p className="text-xs text-[#FF4F4F]">
-            {t('onboarding.recoveryKeyWarning')}
-          </p>
+          <p className="text-xs text-[#FF4F4F]">{t('onboarding.recoveryKeyWarning')}</p>
         </div>
 
         <div className="flex gap-2">
@@ -98,17 +93,28 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
           </button>
         </div>
 
+        <label className="flex cursor-pointer items-center gap-2 text-xs text-[#B8C5D4]">
+          <input
+            type="checkbox"
+            checked={acknowledged}
+            onChange={(e) => setAcknowledged(e.target.checked)}
+            className="h-4 w-4 rounded border-[rgba(253,249,228,0.2)] bg-transparent
+              accent-[#2EC4B6]"
+          />
+          {t('recovery.savedCheckbox')}
+        </label>
+
         <button
           type="button"
-          onClick={onContinue}
-          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg
-            bg-[#FF4F4F] px-4 py-2.5 text-sm font-semibold text-white
-            transition-colors hover:bg-[#e04545]"
+          onClick={onFinish}
+          disabled={!acknowledged}
+          className="mt-1 w-full rounded-lg bg-[#FF4F4F] px-4 py-2.5 text-sm font-semibold text-white
+            transition-colors hover:bg-[#e04545]
+            disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Check size={14} />
-          {t('onboarding.savedRecoveryKey')}
+          {t('recovery.finish')}
         </button>
       </div>
-    </OnboardingShell>
+    </RecoveryShell>
   )
 }

@@ -3,7 +3,7 @@ import { useAuthStore } from '../auth'
 import { deriveKey } from '../../shared/crypto/argon2'
 import { fromBase64 } from '../../shared/crypto/encoding'
 import { decryptWithKey, wipe } from '../../shared/crypto/sodium'
-import { getAccount } from '../onboarding/api/account-api'
+import { getAccount } from '../../shared/api/account-api'
 
 /**
  * Thrown when the derived master key cannot decrypt the wrapped private key.
