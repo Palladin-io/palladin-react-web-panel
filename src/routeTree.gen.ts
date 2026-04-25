@@ -13,7 +13,10 @@ import { Route as RecoveryRouteImport } from './routes/recovery'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated/vaults'
 import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
+import { Route as AuthenticatedVaultsVaultIdRouteImport } from './routes/_authenticated/vaults.$vaultId'
+import { Route as AuthenticatedVaultsVaultIdSettingsRouteImport } from './routes/_authenticated/vaults.$vaultId.settings'
 
 const RecoveryRoute = RecoveryRouteImport.update({
   id: '/recovery',
@@ -34,23 +37,46 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedVaultsRoute = AuthenticatedVaultsRouteImport.update({
+  id: '/vaults',
+  path: '/vaults',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedUnlockRoute = AuthenticatedUnlockRouteImport.update({
   id: '/unlock',
   path: '/unlock',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedVaultsVaultIdRoute =
+  AuthenticatedVaultsVaultIdRouteImport.update({
+    id: '/$vaultId',
+    path: '/$vaultId',
+    getParentRoute: () => AuthenticatedVaultsRoute,
+  } as any)
+const AuthenticatedVaultsVaultIdSettingsRoute =
+  AuthenticatedVaultsVaultIdSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedVaultsVaultIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
   '/unlock': typeof AuthenticatedUnlockRoute
+  '/vaults': typeof AuthenticatedVaultsRouteWithChildren
+  '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRouteWithChildren
+  '/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
   '/unlock': typeof AuthenticatedUnlockRoute
+  '/vaults': typeof AuthenticatedVaultsRouteWithChildren
   '/': typeof AuthenticatedIndexRoute
+  '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRouteWithChildren
+  '/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -58,20 +84,40 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
+  '/_authenticated/vaults': typeof AuthenticatedVaultsRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRouteWithChildren
+  '/_authenticated/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/recovery' | '/unlock'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/recovery'
+    | '/unlock'
+    | '/vaults'
+    | '/vaults/$vaultId'
+    | '/vaults/$vaultId/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/recovery' | '/unlock' | '/'
+  to:
+    | '/login'
+    | '/recovery'
+    | '/unlock'
+    | '/vaults'
+    | '/'
+    | '/vaults/$vaultId'
+    | '/vaults/$vaultId/settings'
   id:
     | '__root__'
     | '/_authenticated'
     | '/login'
     | '/recovery'
     | '/_authenticated/unlock'
+    | '/_authenticated/vaults'
     | '/_authenticated/'
+    | '/_authenticated/vaults/$vaultId'
+    | '/_authenticated/vaults/$vaultId/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -110,6 +156,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/vaults': {
+      id: '/_authenticated/vaults'
+      path: '/vaults'
+      fullPath: '/vaults'
+      preLoaderRoute: typeof AuthenticatedVaultsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/unlock': {
       id: '/_authenticated/unlock'
       path: '/unlock'
@@ -117,16 +170,58 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUnlockRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/vaults/$vaultId': {
+      id: '/_authenticated/vaults/$vaultId'
+      path: '/$vaultId'
+      fullPath: '/vaults/$vaultId'
+      preLoaderRoute: typeof AuthenticatedVaultsVaultIdRouteImport
+      parentRoute: typeof AuthenticatedVaultsRoute
+    }
+    '/_authenticated/vaults/$vaultId/settings': {
+      id: '/_authenticated/vaults/$vaultId/settings'
+      path: '/settings'
+      fullPath: '/vaults/$vaultId/settings'
+      preLoaderRoute: typeof AuthenticatedVaultsVaultIdSettingsRouteImport
+      parentRoute: typeof AuthenticatedVaultsVaultIdRoute
+    }
   }
 }
 
+interface AuthenticatedVaultsVaultIdRouteChildren {
+  AuthenticatedVaultsVaultIdSettingsRoute: typeof AuthenticatedVaultsVaultIdSettingsRoute
+}
+
+const AuthenticatedVaultsVaultIdRouteChildren: AuthenticatedVaultsVaultIdRouteChildren =
+  {
+    AuthenticatedVaultsVaultIdSettingsRoute:
+      AuthenticatedVaultsVaultIdSettingsRoute,
+  }
+
+const AuthenticatedVaultsVaultIdRouteWithChildren =
+  AuthenticatedVaultsVaultIdRoute._addFileChildren(
+    AuthenticatedVaultsVaultIdRouteChildren,
+  )
+
+interface AuthenticatedVaultsRouteChildren {
+  AuthenticatedVaultsVaultIdRoute: typeof AuthenticatedVaultsVaultIdRouteWithChildren
+}
+
+const AuthenticatedVaultsRouteChildren: AuthenticatedVaultsRouteChildren = {
+  AuthenticatedVaultsVaultIdRoute: AuthenticatedVaultsVaultIdRouteWithChildren,
+}
+
+const AuthenticatedVaultsRouteWithChildren =
+  AuthenticatedVaultsRoute._addFileChildren(AuthenticatedVaultsRouteChildren)
+
 interface AuthenticatedRouteChildren {
   AuthenticatedUnlockRoute: typeof AuthenticatedUnlockRoute
+  AuthenticatedVaultsRoute: typeof AuthenticatedVaultsRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedUnlockRoute: AuthenticatedUnlockRoute,
+  AuthenticatedVaultsRoute: AuthenticatedVaultsRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 
