@@ -30,15 +30,15 @@ export function VaultDetailHeader({
           onClick={onBack}
           aria-label="Back"
           className="flex h-8 w-8 items-center justify-center rounded-lg
-            text-[#8A95A6] transition-colors hover:bg-[rgba(253,249,228,0.04)] hover:text-[#FDF9E4]"
+            text-[var(--cv-t3)] transition-colors hover:bg-[var(--cv-bg-subtle)] hover:text-[var(--cv-t1)]"
         >
           <Icon name="arrow_back" size={18} />
         </button>
         <div className="min-w-0">
-          <div className="truncate text-[20px] font-bold leading-tight text-[#FDF9E4]">
+          <div className="truncate text-[20px] font-bold leading-tight text-[var(--cv-t1)]">
             {title}
           </div>
-          <div className="mt-1 text-[12px] text-[#8A95A6]">{subtitle}</div>
+          <div className="mt-1 text-[12px] text-[var(--cv-t3)]">{subtitle}</div>
         </div>
       </div>
       {actions ? (

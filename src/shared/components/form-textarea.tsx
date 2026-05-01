@@ -17,7 +17,7 @@ export interface FormTextareaProps
   hasError?: boolean
 }
 
-const DEFAULT_BORDER_CLASS = 'border-[rgba(253,249,228,0.1)] focus:border-[#2EC4B6]'
+const DEFAULT_BORDER_CLASS = 'border-[var(--cv-input-border)] focus:border-[#2EC4B6]'
 const ERROR_BORDER_CLASS = 'border-[#FF4F4F] focus:border-[#FF4F4F]'
 
 export function FormTextarea({
@@ -37,15 +37,15 @@ export function FormTextarea({
         htmlFor={id}
         className={
           labelClassName ??
-          'mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]'
+          'mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--cv-label-text)]'
         }
       >
         {label}
       </label>
       <textarea
         id={id}
-        className={`w-full resize-none rounded-lg border bg-[rgba(253,249,228,0.04)] px-3 py-2
-          font-mono text-sm text-[#FDF9E4] placeholder:text-[#6B7A8E] focus:outline-none ${resolvedBorder}`}
+        className={`w-full resize-none rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2
+          font-mono text-sm text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none ${resolvedBorder}`}
         {...props}
       />
     </div>

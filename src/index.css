@@ -1,5 +1,63 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --cv-t1: #000B2E;
+  --cv-t2: #3D4E66;
+  --cv-t3: #8A95A6;
+  --cv-card-bg: rgba(255, 252, 247, 0.6);
+  --cv-border: rgba(0, 11, 46, 0.08);
+  --cv-divider: rgba(0, 11, 46, 0.06);
+  --cv-bg-subtle: rgba(0, 11, 46, 0.04);
+  --cv-empty-bg: rgba(255, 252, 247, 0.5);
+  --cv-empty-border: rgba(0, 11, 46, 0.1);
+  --cv-modal-bg: #FFFCF7;
+  --cv-input-bg: rgba(0, 11, 46, 0.04);
+  --cv-input-border: rgba(0, 11, 46, 0.1);
+  --cv-input-text: #000B2E;
+  --cv-input-placeholder: #8A95A6;
+  --cv-label-text: #5A6478;
+  --cv-btn-subtle-bg: rgba(0, 11, 46, 0.04);
+  --cv-btn-subtle-text: #000B2E;
+  --cv-btn-subtle-border: rgba(0, 11, 46, 0.1);
+  --cv-btn-subtle-hover: rgba(0, 11, 46, 0.08);
+  --cv-btn-outline-text: #000B2E;
+  --cv-btn-outline-border: rgba(0, 11, 46, 0.18);
+  --cv-btn-outline-hover: rgba(0, 11, 46, 0.04);
+  --cv-btn-ghost-text: #5A6478;
+  --cv-btn-ghost-hover: rgba(0, 11, 46, 0.04);
+  --cv-icon-muted: #8A95A6;
+}
+
+.dark {
+  --cv-t1: #FDF9E4;
+  --cv-t2: #B8C5D4;
+  --cv-t3: #8A95A6;
+  --cv-card-bg: rgba(13, 27, 62, 0.6);
+  --cv-border: rgba(253, 249, 228, 0.08);
+  --cv-divider: rgba(138, 149, 166, 0.12);
+  --cv-bg-subtle: rgba(253, 249, 228, 0.04);
+  --cv-empty-bg: rgba(13, 27, 62, 0.4);
+  --cv-empty-border: rgba(253, 249, 228, 0.12);
+  --cv-modal-bg: #0D1B3E;
+  --cv-input-bg: rgba(253, 249, 228, 0.04);
+  --cv-input-border: rgba(253, 249, 228, 0.1);
+  --cv-input-text: #FDF9E4;
+  --cv-input-placeholder: #6B7A8E;
+  --cv-label-text: #B8C5D4;
+  --cv-btn-subtle-bg: rgba(253, 249, 228, 0.06);
+  --cv-btn-subtle-text: #FDF9E4;
+  --cv-btn-subtle-border: rgba(253, 249, 228, 0.1);
+  --cv-btn-subtle-hover: rgba(253, 249, 228, 0.1);
+  --cv-btn-outline-text: #FDF9E4;
+  --cv-btn-outline-border: rgba(253, 249, 228, 0.18);
+  --cv-btn-outline-hover: rgba(253, 249, 228, 0.04);
+  --cv-btn-ghost-text: #C4BAA1;
+  --cv-btn-ghost-hover: rgba(253, 249, 228, 0.04);
+  --cv-icon-muted: #8A95A6;
+}
+
 button,
 [role="button"] {
   cursor: pointer;

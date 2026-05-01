@@ -20,9 +20,6 @@ import { VaultSettingsForm } from './components/vault-settings-form'
 import type { Vault } from './types'
 import { useVault } from './use-vault'
 
-const PAGE_BACKGROUND =
-  'linear-gradient(160deg, #000B2E 0%, #0A1A3E 30%, #0E1230 60%, #000B2E 100%)'
-
 export interface VaultDetailPageProps {
   vaultId: string
 }
@@ -44,10 +41,10 @@ export function VaultDetailPage({ vaultId }: VaultDetailPageProps) {
   const [activeTab, setActiveTab] = useState<VaultDetailTab>('entries')
 
   return (
-    <div className="min-h-screen text-[#FDF9E4]" style={{ background: PAGE_BACKGROUND }}>
+    <div className="min-h-screen text-[var(--cv-t1)]">
       <div className="mx-auto max-w-6xl px-6 py-10">
         {vault.isPending ? (
-          <div className="h-32 animate-pulse rounded-2xl bg-[rgba(13,27,62,0.6)]" />
+          <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
         ) : vault.isError || !vault.data ? (
           <div className="rounded-2xl border border-[rgba(255,79,79,0.3)] bg-[rgba(255,79,79,0.06)] p-6 text-sm text-[#FF4F4F]">
             {t('vault.errorLoad')}
@@ -231,8 +228,8 @@ function ComingSoonTab({ translationKey }: { translationKey: string }) {
 
 function EmptyMessage({ message }: { message: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-[rgba(253,249,228,0.12)]
-      bg-[rgba(13,27,62,0.4)] p-8 text-center text-sm text-[#8A95A6]">
+    <div className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
+      bg-[var(--cv-empty-bg)] p-8 text-center text-sm text-[var(--cv-t3)]">
       {message}
     </div>
   )

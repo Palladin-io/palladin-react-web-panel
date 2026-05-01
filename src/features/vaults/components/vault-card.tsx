@@ -32,8 +32,8 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
       type="button"
       onClick={onClick}
       className="group flex min-w-[280px] flex-1 flex-col items-stretch rounded-2xl border
-        border-[rgba(253,249,228,0.08)] bg-[rgba(13,27,62,0.6)] p-4 text-left
-        shadow-[0_2px_8px_rgba(0,0,0,0.25)] transition-colors
+        border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4 text-left
+        shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-colors
         hover:border-[rgba(255,79,79,0.3)] focus:outline-none
         focus-visible:border-[#FF4F4F]"
     >
@@ -41,33 +41,33 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
         <div className="flex items-center gap-2">
           <VaultIconCircle icon={icon} color={accent} size={32} iconSize={16} />
           <div className="flex flex-col gap-0.5 text-left">
-            <span className="text-[13px] font-bold text-[#FDF9E4]">
+            <span className="text-[13px] font-bold text-[var(--cv-t1)]">
               {vault.name}
             </span>
-            <span className="text-[11px] text-[#8A95A6]">
+            <span className="text-[11px] text-[var(--cv-t3)]">
               {t('vault.entries', { count: vault.entryCount ?? 0 })}
             </span>
           </div>
         </div>
-        <span className="text-[11px] text-[#8A95A6]">
+        <span className="text-[11px] text-[var(--cv-t3)]">
           {t('vault.grants', { count: vault.activeGrantCount ?? 0 })}
         </span>
       </div>
 
       <div
         aria-hidden
-        className="my-2 h-px w-full bg-[rgba(138,149,166,0.12)]"
+        className="my-2 h-px w-full bg-[var(--cv-divider)]"
       />
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <Icon name="lock" size={13} color="#8A95A6" />
-          <span className="text-[11px] text-[#8A95A6]">
+          <Icon name="lock" size={13} className="text-[var(--cv-t3)]" />
+          <span className="text-[11px] text-[var(--cv-t3)]">
             {t('vault.grants', { count: vault.activeGrantCount ?? 0 })}
           </span>
         </div>
         {updated ? (
-          <span className="text-[11px] text-[#8A95A6]">
+          <span className="text-[11px] text-[var(--cv-t3)]">
             {t('vault.relativeUpdatedLabel', { time: updated })}
           </span>
         ) : null}

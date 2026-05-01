@@ -28,17 +28,17 @@ export function VaultSearchBar({
   return (
     <div className="mb-3">
       <div
-        className="flex items-center gap-2.5 rounded-xl border border-[rgba(253,249,228,0.08)]
-          bg-[rgba(13,27,62,0.6)] px-3.5 py-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
+        className="flex items-center gap-2.5 rounded-xl border border-[var(--cv-border)]
+          bg-[var(--cv-card-bg)] px-3.5 py-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.12)]"
       >
-        <Icon name="search" size={18} color="#8A95A6" />
+        <Icon name="search" size={18} className="text-[var(--cv-t3)]" />
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="flex-1 border-none bg-transparent text-[12px] text-[#FDF9E4]
-            placeholder:text-[#8A95A6] focus:outline-none"
+          className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-t1)]
+            placeholder:text-[var(--cv-t3)] focus:outline-none"
         />
         {showToggle ? (
           <button
@@ -48,7 +48,7 @@ export function VaultSearchBar({
             aria-label={open ? 'Hide filters' : 'Show filters'}
             className="flex items-center justify-center"
           >
-            <Icon name="tune" size={16} color={open ? '#FF4F4F' : '#8A95A6'} />
+            <Icon name="tune" size={16} color={open ? '#FF4F4F' : undefined} className={open ? '' : 'text-[var(--cv-t3)]'} />
           </button>
         ) : null}
       </div>

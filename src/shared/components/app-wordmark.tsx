@@ -33,7 +33,7 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
         className="text-[14px] font-extrabold"
         style={{ letterSpacing: '-0.01em' }}
       >
-        <span className="text-[#FDF9E4]">Claw </span>
+        <span className="text-[var(--cv-t1)]">Claw </span>
         <span className="text-[#FF4F4F]">Vault</span>
       </span>
     </div>

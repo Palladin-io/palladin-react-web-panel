@@ -36,12 +36,12 @@ export function VaultAgentGrantCard({
   const cardStyle: React.CSSProperties = {
     borderRadius: 12,
     overflow: 'hidden',
-    background: 'rgba(13,27,62,0.6)',
+    background: 'var(--cv-card-bg)',
     border: isRevoked
       ? '1px solid rgba(255,79,79,0.18)'
-      : '1px solid rgba(253,249,228,0.08)',
+      : '1px solid var(--cv-border)',
     borderLeft: isRevoked ? '3px solid rgba(255,79,79,0.4)' : undefined,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
     opacity: isActive ? 1 : 0.72,
   }
 
@@ -65,10 +65,10 @@ function IdentityZone({ grant }: { grant: MockAgentGrant }) {
     <div className="flex items-center gap-2.5 px-3.5 py-3">
       <AgentBadge type={grant.agent.type} initials={grant.agent.initials} />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[13px] font-semibold text-[#FDF9E4]">
+        <div className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
           {grant.agent.name}
         </div>
-        <div className="mt-0.5 text-[11px] text-[#8A95A6]">
+        <div className="mt-0.5 text-[11px] text-[var(--cv-t3)]">
           {grant.mode === 'full'
             ? t('vault.agent.fullAccess')
             : t('vault.agent.granular')}
@@ -118,25 +118,26 @@ function FooterZone({
     <div
       className="flex items-center gap-2.5 px-3.5 py-2.5"
       style={{
-        borderTop: '1px solid rgba(138,149,166,0.08)',
-        background: 'rgba(0,0,0,0.12)',
+        borderTop: '1px solid var(--cv-divider)',
+        background: 'rgba(0,0,0,0.06)',
       }}
     >
       <div className="flex min-w-0 flex-1 items-center gap-1">
         <Icon
           name={isRevoked ? 'block' : 'person'}
           size={13}
-          color={isRevoked ? '#FF4F4F' : '#8A95A6'}
+          color={isRevoked ? '#FF4F4F' : undefined}
+          className={isRevoked ? '' : 'text-[var(--cv-t3)]'}
         />
-        <span className="truncate text-[11px] text-[#8A95A6]">
+        <span className="truncate text-[11px] text-[var(--cv-t3)]">
           {person ? (
             <>
               {t(verbKey)}{' '}
-              <span className="font-medium text-[#C4BAA1]">{person}</span>
+              <span className="font-medium text-[var(--cv-t2)]">{person}</span>
               {date ? (
                 <>
                   {' · '}
-                  <span className="text-[#FDF9E4]">{date}</span>
+                  <span className="text-[var(--cv-t1)]">{date}</span>
                 </>
               ) : null}
             </>

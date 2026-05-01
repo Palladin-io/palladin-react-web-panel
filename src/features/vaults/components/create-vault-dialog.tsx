@@ -97,7 +97,7 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
     >
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <header className="flex items-center justify-between">
-          <h2 className="text-[15px] font-bold text-[#FDF9E4]">
+          <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
             {t('vault.createVault')}
           </h2>
           <button
@@ -105,7 +105,7 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
             onClick={isPending ? undefined : onClose}
             disabled={isPending}
             aria-label={t('common.close')}
-            className="text-[#8A95A6] transition-colors hover:text-[#FDF9E4]
+            className="text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]
               disabled:cursor-not-allowed"
           >
             <Icon name="close" size={18} />

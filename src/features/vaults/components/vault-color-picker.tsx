@@ -24,7 +24,7 @@ export function VaultColorPicker({
   const { t } = useTranslation()
   return (
     <fieldset>
-      <legend className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#C4BAA1]">
+      <legend className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--cv-label-text)]">
         {t('vault.colorLabel')}
       </legend>
       <div className="flex flex-wrap gap-2.5">
@@ -44,7 +44,7 @@ export function VaultColorPicker({
                 disabled:opacity-40"
               style={{
                 backgroundColor: opt,
-                border: selected ? '2px solid #FDF9E4' : '2px solid transparent',
+                border: selected ? '2px solid var(--cv-t1)' : '2px solid transparent',
               }}
             />
           )

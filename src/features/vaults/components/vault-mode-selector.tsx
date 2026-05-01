@@ -31,7 +31,7 @@ export function VaultModeSelector({
   const { t } = useTranslation()
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]">
+      <legend className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--cv-label-text)]">
         {t('vault.modeLabel')}
       </legend>
       <div className="grid grid-cols-2 gap-2">
@@ -81,7 +81,7 @@ function ModeOption({
 }: ModeOptionProps) {
   const borderClass = selected
     ? 'border-[#2EC4B6] bg-[rgba(46,196,182,0.08)]'
-    : 'border-[rgba(253,249,228,0.1)] bg-[rgba(253,249,228,0.04)]'
+    : 'border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]'
   const layoutClass = description
     ? 'flex flex-col gap-1'
     : 'flex items-center justify-between'
@@ -97,14 +97,14 @@ function ModeOption({
       {description ? (
         <>
           <span className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-[#FDF9E4]">{label}</span>
+            <span className="text-sm font-semibold text-[var(--cv-t1)]">{label}</span>
             {locked && lockedLabel ? <ProBadge label={lockedLabel} /> : null}
           </span>
-          <span className="text-[11px] text-[#6B7A8E]">{description}</span>
+          <span className="text-[11px] text-[var(--cv-t3)]">{description}</span>
         </>
       ) : (
         <>
-          <span className="text-sm font-semibold text-[#FDF9E4]">{label}</span>
+          <span className="text-sm font-semibold text-[var(--cv-t1)]">{label}</span>
           {locked && lockedLabel ? <ProBadge label={lockedLabel} /> : null}
         </>
       )}

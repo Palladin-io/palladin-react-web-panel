@@ -25,18 +25,18 @@ export function DeleteConfirmDialog({
       ariaLabel={t('vault.deleteConfirmTitle', { name: vaultName })}
     >
       <div className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold text-[#FDF9E4]">
+        <h2 className="text-lg font-bold text-[var(--cv-t1)]">
           {t('vault.deleteConfirmTitle', { name: vaultName })}
         </h2>
-        <p className="text-sm text-[#B8C5D4]">{t('vault.deleteConfirmText')}</p>
+        <p className="text-sm text-[var(--cv-t2)]">{t('vault.deleteConfirmText')}</p>
 
         <div className="mt-2 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
             disabled={isPending}
-            className="rounded-lg border border-[rgba(253,249,228,0.1)] bg-transparent px-4 py-2
-              text-sm text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.04)]
+            className="rounded-lg border border-[var(--cv-btn-outline-border)] bg-transparent px-4 py-2
+              text-sm text-[var(--cv-t1)] transition-colors hover:bg-[var(--cv-btn-outline-hover)]
               disabled:cursor-not-allowed disabled:opacity-40"
           >
             {t('vault.cancel')}

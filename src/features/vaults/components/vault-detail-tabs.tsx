@@ -29,7 +29,7 @@ export function VaultDetailTabs({ active, onChange }: VaultDetailTabsProps) {
   const { t } = useTranslation()
   return (
     <div
-      className="mb-3 flex border-b border-[rgba(138,149,166,0.15)]"
+      className="mb-3 flex border-b border-[var(--cv-divider)]"
       role="tablist"
     >
       {TAB_KEYS.map((tab) => {
@@ -44,7 +44,7 @@ export function VaultDetailTabs({ active, onChange }: VaultDetailTabsProps) {
             className={`-mb-px border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
               isActive
                 ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
-                : 'border-transparent font-medium text-[#8A95A6] hover:text-[#FDF9E4]'
+                : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
             }`}
           >
             {t(tab.labelKey)}

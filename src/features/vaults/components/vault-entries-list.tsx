@@ -22,8 +22,8 @@ export interface VaultEntriesListProps {
 export function VaultEntriesList({ entries }: VaultEntriesListProps) {
   return (
     <div
-      className="rounded-2xl border border-[rgba(253,249,228,0.08)] bg-[rgba(13,27,62,0.6)]
-        px-3.5 shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
+      className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]
+        px-3.5 shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
     >
       {entries.map((entry, index) => (
         <EntryRow
@@ -50,7 +50,7 @@ function EntryRow({ entry, showDivider }: EntryRowProps) {
     <div
       style={
         showDivider
-          ? { borderTop: '1px solid rgba(138,149,166,0.08)' }
+          ? { borderTop: '1px solid var(--cv-divider)' }
           : undefined
       }
     >
@@ -63,10 +63,10 @@ function EntryRow({ entry, showDivider }: EntryRowProps) {
           <Icon name={entry.icon} size={16} color={entry.iconColor} />
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-[13px] font-semibold text-[#FDF9E4]">
+          <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
             {entry.name}
           </span>
-          <span className="text-[11px] text-[#8A95A6]">{entry.meta}</span>
+          <span className="text-[11px] text-[var(--cv-t3)]">{entry.meta}</span>
         </div>
         <div className="flex shrink-0 items-center gap-0.5">
           <RowAction
@@ -141,7 +141,7 @@ function RevealPanel({
     >
       <div className="flex flex-col gap-2 pb-3 pl-11 pr-1 pt-0.5">
         <DetailRow icon="link">
-          <span className="flex-1 text-[12px] text-[#C4BAA1]">{entry.url}</span>
+          <span className="flex-1 text-[12px] text-[var(--cv-t2)]">{entry.url}</span>
           <RowAction
             icon="content_copy"
             size="sm"
@@ -181,7 +181,7 @@ function RevealPanel({
         ) : (
           <>
             <DetailRow icon="person">
-              <span className="flex-1 text-[12px] text-[#FDF9E4]">
+              <span className="flex-1 text-[12px] text-[var(--cv-t1)]">
                 {entry.username}
               </span>
               <RowAction
@@ -229,7 +229,7 @@ interface DetailRowProps {
 function DetailRow({ icon, children }: DetailRowProps) {
   return (
     <div className="flex items-center gap-2">
-      <Icon name={icon} size={13} color="#8A95A6" />
+      <Icon name={icon} size={13} className="text-[var(--cv-t3)]" />
       {children}
     </div>
   )
@@ -244,7 +244,7 @@ interface SecretValueProps {
 function SecretValue({ value, revealed, monoSpacing }: SecretValueProps) {
   return (
     <span
-      className="flex-1 truncate text-[12px] text-[#FDF9E4]"
+      className="flex-1 truncate text-[12px] text-[var(--cv-t1)]"
       style={{
         fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
         letterSpacing: revealed ? '0.5px' : monoSpacing,
@@ -272,7 +272,7 @@ function RowAction({
 }: RowActionProps) {
   const buttonSize = size === 'sm' ? 'h-6 w-6' : 'h-7 w-7'
   const glyphSize = size === 'sm' ? 13 : 17
-  const color = tone === 'prominent' ? '#C4BAA1' : '#8A95A6'
+  const colorClass = tone === 'prominent' ? 'text-[var(--cv-t2)]' : 'text-[var(--cv-t3)]'
   return (
     <button
       type="button"
@@ -280,9 +280,9 @@ function RowAction({
       onClick={onClick}
       title={ariaLabel}
       className={`inline-flex items-center justify-center rounded-md transition-colors
-        hover:bg-[rgba(253,249,228,0.06)] hover:text-[#FDF9E4] ${buttonSize}`}
+        hover:bg-[var(--cv-bg-subtle)] hover:text-[var(--cv-t1)] ${buttonSize} ${colorClass}`}
     >
-      <Icon name={icon} size={glyphSize} color={color} />
+      <Icon name={icon} size={glyphSize} />
     </button>
   )
 }

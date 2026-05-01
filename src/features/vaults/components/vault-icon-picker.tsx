@@ -38,7 +38,7 @@ export function VaultIconPicker({
 
   return (
     <fieldset>
-      <legend className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#C4BAA1]">
+      <legend className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--cv-label-text)]">
         {t('vault.iconLabel')}
       </legend>
       <div className="flex flex-wrap gap-2">
@@ -46,8 +46,8 @@ export function VaultIconPicker({
           const selected = !isCustomUrl(value) && opt === value
           const background = selected
             ? hexWithAlpha(selectedColor, 0.15)
-            : 'rgba(253,249,228,0.06)'
-          const borderColor = selected ? selectedColor : 'rgba(253,249,228,0.08)'
+            : 'var(--cv-bg-subtle)'
+          const borderColor = selected ? selectedColor : 'var(--cv-border)'
           return (
             <button
               key={opt}
@@ -60,7 +60,7 @@ export function VaultIconPicker({
                 disabled:cursor-not-allowed disabled:opacity-40"
               style={{ background, borderColor }}
             >
-              <Icon name={opt} size={14} color={selected ? selectedColor : '#C4BAA1'} />
+              <Icon name={opt} size={14} color={selected ? selectedColor : undefined} className={selected ? '' : 'text-[var(--cv-t2)]'} />
             </button>
           )
         })}
@@ -84,16 +84,16 @@ export function VaultIconPicker({
               disabled={disabled || isUploading}
               aria-label={t('vault.iconUpload')}
               className="flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors
-                disabled:cursor-not-allowed disabled:opacity-40"
+                disabled:cursor-not-allowed disabled:opacity-40 text-[var(--cv-t2)]"
               style={{
                 background: isCustomUrl(value)
                   ? hexWithAlpha(selectedColor, 0.15)
-                  : 'rgba(253,249,228,0.06)',
-                borderColor: isCustomUrl(value) ? selectedColor : 'rgba(253,249,228,0.08)',
+                  : 'var(--cv-bg-subtle)',
+                borderColor: isCustomUrl(value) ? selectedColor : 'var(--cv-border)',
               }}
             >
               {isUploading ? (
-                <Icon name="progress_activity" size={14} color="#C4BAA1" />
+                <Icon name="progress_activity" size={14} />
               ) : isCustomUrl(value) ? (
                 <img
                   src={value}
@@ -101,7 +101,7 @@ export function VaultIconPicker({
                   className="h-5 w-5 rounded-full object-cover"
                 />
               ) : (
-                <Icon name="upload" size={14} color="#C4BAA1" />
+                <Icon name="upload" size={14} />
               )}
             </button>
           </>

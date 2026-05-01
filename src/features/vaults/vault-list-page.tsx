@@ -29,14 +29,14 @@ export function VaultListPage() {
   }
 
   return (
-    <div className="min-h-full text-[#FDF9E4]">
+    <div className="min-h-full text-[var(--cv-t1)]">
       <div className="px-6 py-8">
         <header className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-[20px] font-bold leading-tight text-[#FDF9E4]">
+            <h1 className="text-[20px] font-bold leading-tight text-[var(--cv-t1)]">
               {t('vault.title')}
             </h1>
-            <p className="mt-1 text-[12px] text-[#8A95A6]">
+            <p className="mt-1 text-[12px] text-[var(--cv-t3)]">
               {t('vault.list.subtitle', {
                 vaultCount: list.length,
                 entryCount: totalEntries,
@@ -67,7 +67,7 @@ export function VaultListPage() {
                   {t('vault.createVault')}
                 </span>
                 <span
-                  className="text-[10px] text-[#5A6478] transition-colors
+                  className="text-[10px] text-[var(--cv-t3)] transition-colors
                     group-hover:text-[#FF4F4F]"
                 >
                   {t('vault.upgradeForMoreVaults')}
@@ -158,7 +158,7 @@ function Body({
           <div
             key={idx}
             className="h-[110px] min-w-[280px] flex-1 animate-pulse rounded-2xl
-              border border-[rgba(253,249,228,0.04)] bg-[rgba(13,27,62,0.6)]"
+              border border-[var(--cv-border)] bg-[var(--cv-card-bg)]"
           />
         ))}
       </div>
@@ -175,11 +175,11 @@ function Body({
 
   if (isEmpty) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[rgba(253,249,228,0.12)] bg-[rgba(13,27,62,0.4)] p-10 text-center">
-        <h2 className="text-lg font-semibold text-[#FDF9E4]">
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-10 text-center">
+        <h2 className="text-lg font-semibold text-[var(--cv-t1)]">
           {t('vault.noVaults')}
         </h2>
-        <p className="max-w-sm text-sm text-[#8A95A6]">
+        <p className="max-w-sm text-sm text-[var(--cv-t3)]">
           {t('vault.noVaultsSubtitle')}
         </p>
         <button
@@ -196,7 +196,7 @@ function Body({
 
   if (isEmptyAfterFilter) {
     return (
-      <div className="rounded-2xl border border-dashed border-[rgba(253,249,228,0.12)] bg-[rgba(13,27,62,0.4)] p-8 text-center text-sm text-[#8A95A6]">
+      <div className="rounded-2xl border border-dashed border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center text-sm text-[var(--cv-t3)]">
         {t('vault.list.emptySearch')}
       </div>
     )

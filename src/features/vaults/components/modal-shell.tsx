@@ -51,8 +51,8 @@ export function ModalShell({
         className="absolute inset-0 h-full w-full cursor-default bg-black/60"
       />
       <div
-        className="relative z-10 w-full rounded-2xl border border-[rgba(253,249,228,0.08)]
-          bg-[#0D1B3E] p-6 shadow-xl"
+        className="relative z-10 w-full rounded-2xl border border-[var(--cv-border)]
+          bg-[var(--cv-modal-bg)] p-6 shadow-xl"
         style={{ maxWidth: width }}
       >
         {children}

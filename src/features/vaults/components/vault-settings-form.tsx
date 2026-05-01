@@ -123,8 +123,8 @@ export function VaultSettingsForm({
       <form
         id={formId}
         onSubmit={handleSubmit}
-        className="rounded-2xl border border-[rgba(253,249,228,0.08)] bg-[rgba(13,27,62,0.6)] p-5
-          shadow-[0_2px_8px_rgba(0,0,0,0.25)]"
+        className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
+          shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
         <div className="flex flex-col gap-5 lg:flex-row lg:gap-6">
           <div className="flex flex-1 flex-col gap-4">
@@ -186,10 +186,10 @@ export function VaultSettingsForm({
         </h2>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-[12px] font-semibold text-[#FDF9E4]">
+            <div className="text-[12px] font-semibold text-[var(--cv-t1)]">
               {t('vault.deleteVault')}
             </div>
-            <p className="mt-1 text-[11px] text-[#8A95A6]">
+            <p className="mt-1 text-[11px] text-[var(--cv-t3)]">
               {t('vault.deleteVaultDescription')}
             </p>
           </div>

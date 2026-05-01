@@ -24,10 +24,10 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   accent:
     'bg-[#FF4F4F] text-white hover:bg-[#E04545] disabled:bg-[#FF4F4F]/50',
   subtle:
-    'bg-[rgba(253,249,228,0.06)] text-[#FDF9E4] border border-[rgba(253,249,228,0.1)] hover:bg-[rgba(253,249,228,0.1)]',
+    'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-btn-subtle-text)] border border-[var(--cv-btn-subtle-border)] hover:bg-[var(--cv-btn-subtle-hover)]',
   outline:
-    'bg-transparent text-[#FDF9E4] border border-[rgba(253,249,228,0.18)] hover:bg-[rgba(253,249,228,0.04)]',
-  ghost: 'bg-transparent text-[#C4BAA1] hover:bg-[rgba(253,249,228,0.04)]',
+    'bg-transparent text-[var(--cv-btn-outline-text)] border border-[var(--cv-btn-outline-border)] hover:bg-[var(--cv-btn-outline-hover)]',
+  ghost: 'bg-transparent text-[var(--cv-btn-ghost-text)] hover:bg-[var(--cv-btn-ghost-hover)]',
   danger:
     'bg-[rgba(255,79,79,0.12)] text-[#FF4F4F] border border-[rgba(255,79,79,0.25)] hover:bg-[rgba(255,79,79,0.18)]',
 }

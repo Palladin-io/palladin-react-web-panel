@@ -39,7 +39,7 @@ export function RevokeGrantDialog({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Icon name="cancel" size={16} color="#FF4F4F" />
-          <h2 className="text-[15px] font-bold text-[#FDF9E4]">
+          <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
             {t('vault.agent.revokeDialogTitle')}
           </h2>
         </div>
@@ -47,7 +47,7 @@ export function RevokeGrantDialog({
           type="button"
           onClick={onClose}
           aria-label={t('common.close')}
-          className="text-[#8A95A6] transition-colors hover:text-[#FDF9E4]"
+          className="text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
         >
           <Icon name="close" size={18} />
         </button>
@@ -56,8 +56,8 @@ export function RevokeGrantDialog({
       <div
         className="mt-4 flex items-center gap-2.5 rounded-xl border px-3 py-2.5"
         style={{
-          background: 'rgba(253,249,228,0.04)',
-          borderColor: 'rgba(253,249,228,0.07)',
+          background: 'var(--cv-bg-subtle)',
+          borderColor: 'var(--cv-border)',
         }}
       >
         <span
@@ -69,10 +69,10 @@ export function RevokeGrantDialog({
           {grant.agent.initials}
         </span>
         <div>
-          <div className="text-[13px] font-semibold text-[#FDF9E4]">
+          <div className="text-[13px] font-semibold text-[var(--cv-t1)]">
             {grant.agent.name}
           </div>
-          <div className="text-[11px] text-[#8A95A6]">
+          <div className="text-[11px] text-[var(--cv-t3)]">
             {grant.mode === 'full'
               ? t('vault.agent.fullAccess')
               : t('vault.agent.granular')}{' '}
@@ -84,10 +84,10 @@ export function RevokeGrantDialog({
       <div className="mt-4">
         <label
           htmlFor="revoke-reason"
-          className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#C4BAA1]"
+          className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--cv-label-text)]"
         >
           {t('vault.agent.revokeReasonLabel')}{' '}
-          <span className="font-normal normal-case text-[#8A95A6]">
+          <span className="font-normal normal-case text-[var(--cv-t3)]">
             {t('vault.agent.revokeReasonOptional')}
           </span>
         </label>
@@ -97,9 +97,9 @@ export function RevokeGrantDialog({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           placeholder={t('vault.agent.revokeReasonPlaceholder')}
-          className="w-full rounded-lg border border-[rgba(253,249,228,0.1)]
-            bg-[rgba(253,249,228,0.04)] px-3 py-2 text-[12px] text-[#FDF9E4]
-            placeholder:text-[#8A95A6] focus:border-[#FF4F4F] focus:outline-none"
+          className="w-full rounded-lg border border-[var(--cv-input-border)]
+            bg-[var(--cv-input-bg)] px-3 py-2 text-[12px] text-[var(--cv-input-text)]
+            placeholder:text-[var(--cv-input-placeholder)] focus:border-[#FF4F4F] focus:outline-none"
         />
       </div>
 
