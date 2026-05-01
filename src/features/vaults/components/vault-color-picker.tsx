@@ -11,6 +11,10 @@ export interface VaultColorPickerProps {
  * Fieldset of selectable vault accent colours. Each swatch announces a
  * translated colour name to assistive tech (e.g. "Teal") rather than the
  * raw hex string, which would be meaningless to screen-reader users.
+ *
+ * Selected swatch is marked with a 2px text-token border, mirroring the
+ * Astro `selectedColorBorder` styling so the picker reads identically
+ * across design and implementation.
  */
 export function VaultColorPicker({
   value,
@@ -20,10 +24,10 @@ export function VaultColorPicker({
   const { t } = useTranslation()
   return (
     <fieldset>
-      <legend className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]">
+      <legend className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#C4BAA1]">
         {t('vault.colorLabel')}
       </legend>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2.5">
         {VAULT_COLOR_OPTIONS.map((opt) => {
           const selected = opt === value
           const nameKey = VAULT_COLOR_NAME_KEY[opt] ?? 'custom'
@@ -36,11 +40,12 @@ export function VaultColorPicker({
               disabled={disabled}
               aria-label={t('vault.colorOption', { name: colorName })}
               aria-pressed={selected}
-              className={`h-7 w-7 rounded-full border-2 transition-transform disabled:cursor-not-allowed
-                disabled:opacity-40 ${
-                selected ? 'scale-110 border-[#FDF9E4]' : 'border-transparent'
-              }`}
-              style={{ backgroundColor: opt }}
+              className="h-6 w-6 rounded-full transition-transform disabled:cursor-not-allowed
+                disabled:opacity-40"
+              style={{
+                backgroundColor: opt,
+                border: selected ? '2px solid #FDF9E4' : '2px solid transparent',
+              }}
             />
           )
         })}

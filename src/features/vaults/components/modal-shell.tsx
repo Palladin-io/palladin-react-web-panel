@@ -5,6 +5,8 @@ export interface ModalShellProps {
   /** Optional handler — when omitted, the backdrop and Escape key are inert. */
   onClose?: () => void
   ariaLabel: string
+  /** Max width of the dialog in px. Defaults to 480 to keep prior callers stable. */
+  width?: number
   children: ReactNode
 }
 
@@ -14,7 +16,12 @@ export interface ModalShellProps {
  * focused on their form content. Intentionally lean — when we need full
  * a11y (focus trap, return focus on close) we'll lift this into shared/.
  */
-export function ModalShell({ onClose, ariaLabel, children }: ModalShellProps) {
+export function ModalShell({
+  onClose,
+  ariaLabel,
+  width = 480,
+  children,
+}: ModalShellProps) {
   const { t } = useTranslation()
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -44,8 +51,9 @@ export function ModalShell({ onClose, ariaLabel, children }: ModalShellProps) {
         className="absolute inset-0 h-full w-full cursor-default bg-black/60"
       />
       <div
-        className="relative z-10 w-full max-w-[480px] rounded-2xl border border-[rgba(253,249,228,0.08)]
-          bg-[#0E1230] p-6 shadow-xl"
+        className="relative z-10 w-full rounded-2xl border border-[rgba(253,249,228,0.08)]
+          bg-[#0D1B3E] p-6 shadow-xl"
+        style={{ maxWidth: width }}
       >
         {children}
       </div>

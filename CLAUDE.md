@@ -2,6 +2,21 @@
 
 React SPA for managing vaults, entries, agents, and grants. Zero-knowledge architecture — all encryption/decryption happens client-side.
 
+## Project Brain
+
+Wiedza biznesowa i architektoniczna projektu: `../docs/obsidian/claw-vault/`
+
+Kluczowe noty dla tego repozytorium:
+- `Technical/Frontend.md` — stack, struktura, konwencje kodu
+- `Technical/Analytics Conventions.md` — PostHog, format zdarzeń
+- `Technical/Security Model.md` — zero-knowledge, szyfrowanie client-side
+- `Product/Modules/Vault/` — Vault module: reguły, API, eventy
+- `Product/Modules/Identity/API.md` — endpointy auth i account
+
+Użyj `/brain` żeby nawigować po brain lub: `grep -r "SŁOWO" ../docs/obsidian/claw-vault --include="*.md"`
+
+**Po sesji która zmienia API, architekturę lub reguły biznesowe: zaktualizuj odpowiednią notę w brain.**
+
 ## Tech Stack
 
 | Layer | Technology | Notes |

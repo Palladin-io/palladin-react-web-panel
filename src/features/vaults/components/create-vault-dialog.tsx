@@ -1,20 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Button } from '../../../shared/components/button'
+import { Icon } from '../../../shared/components/icon'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { analytics } from '../../../shared/lib/analytics'
-import { useAuthStore } from '../../auth'
-import {
-  GRANT_MODE_FULL,
-  GRANT_MODE_GRANULAR,
-  type GrantMode,
-  PERMISSION_FULL_GRANT_MODE,
-} from '../types'
+import { GRANT_MODE_GRANULAR } from '../types'
 import { useCreateVault } from '../use-create-vault'
 import { ModalShell } from './modal-shell'
 import { VaultColorPicker } from './vault-color-picker'
 import { VaultIconPicker } from './vault-icon-picker'
-import { VaultModeSelector } from './vault-mode-selector'
 import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from './vault-presentation'
 
 export interface CreateVaultDialogProps {
@@ -45,16 +40,11 @@ interface CreateVaultDialogBodyProps {
 function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProps) {
   const { t } = useTranslation()
   const create = useCreateVault()
-  const permissions = useAuthStore((s) => s.permissions)
-  const canUseFullMode = (permissions & PERMISSION_FULL_GRANT_MODE) !== 0
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [icon, setIcon] = useState<string>(DEFAULT_VAULT_ICON)
   const [color, setColor] = useState<string>(DEFAULT_VAULT_COLOR)
-  const [grantMode, setGrantMode] = useState<GrantMode>(
-    canUseFullMode ? GRANT_MODE_FULL : GRANT_MODE_GRANULAR,
-  )
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Mount-only side effect: emit analytics for "wizard opened". The form
@@ -73,13 +63,18 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
     if (!canSubmit) return
     setErrorMessage(null)
 
+    // Grant mode selector intentionally omitted from the create dialog
+    // (per CVT-30 design): mode is a property of grants, not the vault.
+    // The vault still needs a default — granular is the safe default
+    // since any account can use it; users with the Pro permission can
+    // switch to Full from the settings tab.
     create.mutate(
       {
         name: trimmedName,
         description: description.trim() || undefined,
         icon,
         color,
-        grantMode,
+        grantMode: GRANT_MODE_GRANULAR,
       },
       {
         onSuccess: (vault) => {
@@ -98,27 +93,36 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
     <ModalShell
       onClose={isPending ? undefined : onClose}
       ariaLabel={t('vault.createVault')}
+      width={360}
     >
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-        <header className="flex flex-col gap-1">
-          <h2 className="text-lg font-bold text-[#FDF9E4]">
+        <header className="flex items-center justify-between">
+          <h2 className="text-[15px] font-bold text-[#FDF9E4]">
             {t('vault.createVault')}
           </h2>
+          <button
+            type="button"
+            onClick={isPending ? undefined : onClose}
+            disabled={isPending}
+            aria-label={t('common.close')}
+            className="text-[#8A95A6] transition-colors hover:text-[#FDF9E4]
+              disabled:cursor-not-allowed"
+          >
+            <Icon name="close" size={18} />
+          </button>
         </header>
 
-        <div>
-          <FormInput
-            id="vault-name"
-            label={t('vault.nameLabel')}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t('vault.namePlaceholder')}
-            autoFocus
-            disabled={isPending}
-            maxLength={64}
-            required
-          />
-        </div>
+        <FormInput
+          id="vault-name"
+          label={t('vault.nameLabel')}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t('vault.namePlaceholder')}
+          autoFocus
+          disabled={isPending}
+          maxLength={64}
+          required
+        />
 
         <FormTextarea
           id="vault-description"
@@ -127,19 +131,16 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
           onChange={(e) => setDescription(e.target.value)}
           placeholder={t('vault.descriptionPlaceholder')}
           disabled={isPending}
-          rows={3}
+          rows={2}
           maxLength={500}
         />
 
-        <VaultModeSelector
-          value={grantMode}
-          onChange={setGrantMode}
-          canUseFullMode={canUseFullMode}
+        <VaultIconPicker
+          value={icon}
+          onChange={setIcon}
+          selectedColor={color}
           disabled={isPending}
-          showDescriptions
         />
-
-        <VaultIconPicker value={icon} onChange={setIcon} disabled={isPending} />
 
         <VaultColorPicker value={color} onChange={setColor} disabled={isPending} />
 
@@ -147,25 +148,25 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
           {errorMessage}
         </FieldFeedback>
 
-        <div className="mt-1 flex items-center justify-end gap-2">
-          <button
-            type="button"
+        <div className="mt-1 flex items-center gap-2">
+          <Button
+            variant="subtle"
+            size="md"
             onClick={onClose}
             disabled={isPending}
-            className="rounded-lg border border-[rgba(253,249,228,0.1)] bg-transparent px-4 py-2
-              text-sm text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.04)]
-              disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex-1"
           >
             {t('vault.cancel')}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="accent"
+            size="md"
             type="submit"
             disabled={!canSubmit}
-            className="rounded-lg bg-[#2EC4B6] px-4 py-2 text-sm font-semibold text-[#000B2E]
-              transition-colors hover:bg-[#26a89d] disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex-[2]"
           >
             {isPending ? t('vault.creating') : t('vault.createVault')}
-          </button>
+          </Button>
         </div>
       </form>
     </ModalShell>
