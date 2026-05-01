@@ -46,7 +46,7 @@ export function VaultListPage() {
               })}
             </p>
           </div>
-          <div className="flex flex-col items-end">
+          <div className="flex flex-col items-end gap-1">
             <span
               title={canCreateMore ? undefined : t('vault.upgradeForMoreVaults')}
               className="relative inline-flex"
@@ -63,9 +63,9 @@ export function VaultListPage() {
               </Button>
             </span>
             {!canCreateMore && (
-              <p className="mt-1 text-center text-[10px] text-[#FF4F4F]">
+              <span className="text-[10px] text-[#5A6478]">
                 {t('vault.upgradeForMoreVaults')}
-              </p>
+              </span>
             )}
           </div>
         </header>

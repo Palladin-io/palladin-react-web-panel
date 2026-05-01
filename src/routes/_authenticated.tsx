@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../features/auth'
+import { AppWordmark } from '../shared/components/app-wordmark'
 import { Icon } from '../shared/components/icon'
 
 export const Route = createFileRoute('/_authenticated')({
@@ -78,11 +79,8 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
       className="flex h-full w-[220px] flex-shrink-0 flex-col border-r
         border-[rgba(253,249,228,0.07)] bg-[rgba(13,27,62,0.95)]"
     >
-      <div className="flex items-center gap-2 px-5 py-5">
-        <Icon name="shield_lock" size={20} color="#FF4F4F" />
-        <span className="text-[15px] font-semibold tracking-wide text-[#FDF9E4]">
-          Claw Vault
-        </span>
+      <div className="px-5 py-5">
+        <AppWordmark size="sm" />
       </div>
       <nav className="flex flex-col">
         {NAV_ITEMS.map((item) => (

@@ -1,6 +1,7 @@
 import { useGoogleLogin } from '@react-oauth/google'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AppWordmark } from '../../../shared/components/app-wordmark'
 import { useLogin } from '../hooks/use-login'
 
 export function LoginPage() {
@@ -36,10 +37,9 @@ export function LoginPage() {
             alt={t('auth.appName')}
             className="mx-auto mb-4 h-16 w-16"
           />
-          <h1 className="mb-1 text-[28px] font-extrabold tracking-tight">
-            <span className="text-[#FDF9E4]">{t('auth.titleClaw')}</span>
-            <span className="text-[#FF4F4F]">{t('auth.titleVault')}</span>
-          </h1>
+          <div className="mb-1 flex justify-center">
+            <AppWordmark size="lg" />
+          </div>
 
           {/* Tagline */}
           <p className="mb-7 text-sm text-[#6B7A8E]">

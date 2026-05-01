@@ -45,12 +45,12 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
               {vault.name}
             </span>
             <span className="text-[11px] text-[#8A95A6]">
-              {t('vault.entries', { count: vault.entryCount })}
+              {t('vault.entries', { count: vault.entryCount ?? 0 })}
             </span>
           </div>
         </div>
         <span className="text-[11px] text-[#8A95A6]">
-          {t('vault.grants', { count: vault.activeGrantCount })}
+          {t('vault.grants', { count: vault.activeGrantCount ?? 0 })}
         </span>
       </div>
 
@@ -63,7 +63,7 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
         <div className="flex items-center gap-1.5">
           <Icon name="lock" size={13} color="#8A95A6" />
           <span className="text-[11px] text-[#8A95A6]">
-            {t('vault.grants', { count: vault.activeGrantCount })}
+            {t('vault.grants', { count: vault.activeGrantCount ?? 0 })}
           </span>
         </div>
         {updated ? (
