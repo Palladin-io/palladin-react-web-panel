@@ -27,7 +27,7 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
   }
 
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-3.5">
       <img src="/logo.png" alt={appName} className="h-9 w-9 shrink-0" />
       <span
         className="text-[16px] font-extrabold"
