@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../../shared/components/button'
+import { Button, PREMIUM_BUTTON_SM_CLASS } from '../../shared/components/button'
 import { Icon } from '../../shared/components/icon'
 import { useAuthStore } from '../auth'
 import { CreateVaultDialog } from './components/create-vault-dialog'
@@ -44,7 +44,7 @@ export function VaultListPage() {
               })}
             </p>
           </div>
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex items-center">
             {canCreateMore ? (
               <Button
                 variant="accent"
@@ -55,19 +55,10 @@ export function VaultListPage() {
                 {t('vault.createVault')}
               </Button>
             ) : (
-              <Link
-                to="/billing"
-                className="group inline-flex items-center gap-1.5 text-[11px] font-bold
-                  text-[#E8C87A] transition-transform duration-200 hover:translate-x-1"
-                style={{ textDecoration: 'none' }}
-              >
+              <Link to="/billing" className={PREMIUM_BUTTON_SM_CLASS} style={{ textDecoration: 'none' }}>
                 <Icon name="workspace_premium" size={13} />
                 {t('vault.upgradeForMoreVaults')}
-                <Icon
-                  name="arrow_forward"
-                  size={12}
-                  className="transition-transform duration-200 group-hover:translate-x-0.5"
-                />
+                <Icon name="arrow_forward" size={12} />
               </Link>
             )}
           </div>

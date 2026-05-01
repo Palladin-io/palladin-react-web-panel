@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { Icon } from './icon'
 
-export type ButtonVariant = 'accent' | 'subtle' | 'outline' | 'ghost' | 'danger'
+export type ButtonVariant = 'accent' | 'subtle' | 'outline' | 'ghost' | 'danger' | 'premium'
 export type ButtonSize = 'sm' | 'md'
 
 export interface ButtonProps
@@ -27,10 +27,21 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
     'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-btn-subtle-text)] border border-[var(--cv-btn-subtle-border)] hover:bg-[var(--cv-btn-subtle-hover)]',
   outline:
     'bg-transparent text-[var(--cv-btn-outline-text)] border border-[var(--cv-btn-outline-border)] hover:bg-[var(--cv-btn-outline-hover)]',
-  ghost: 'bg-transparent text-[var(--cv-btn-ghost-text)] hover:bg-[var(--cv-btn-ghost-hover)]',
+  ghost:
+    'bg-transparent text-[var(--cv-btn-ghost-text)] hover:bg-[var(--cv-btn-ghost-hover)]',
   danger:
     'bg-[rgba(255,79,79,0.12)] text-[#FF4F4F] border border-[rgba(255,79,79,0.25)] hover:bg-[rgba(255,79,79,0.18)]',
+  premium:
+    'bg-transparent text-[#E8C87A] font-bold border border-[#E8C87A]/40 hover:border-[#E8C87A]/70 hover:bg-[#E8C87A]/[0.07] hover:translate-x-0.5',
 }
+
+/** Shared base classes — exported so Link elements can carry premium styling. */
+const BASE_CLASS =
+  'inline-flex items-center justify-center transition-[colors,transform] disabled:cursor-not-allowed disabled:opacity-60'
+
+/** Ready-made class string for the `sm` premium button — apply to `<Link>` elements. */
+export const PREMIUM_BUTTON_SM_CLASS =
+  `${BASE_CLASS} ${SIZE_CLASS.sm} ${VARIANT_CLASS.premium}`
 
 /**
  * Pill-shaped button used by the vault list, detail header, and
@@ -50,7 +61,7 @@ export function Button({
   const sizeClass = SIZE_CLASS[size]
   const variantClass = VARIANT_CLASS[variant]
   const composed =
-    `inline-flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${sizeClass} ${variantClass}` +
+    `${BASE_CLASS} ${sizeClass} ${variantClass}` +
     (className ? ` ${className}` : '')
   return (
     <button {...rest} type={type} className={composed}>
