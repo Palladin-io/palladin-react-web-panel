@@ -27,14 +27,14 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <img src="/logo.png" alt={appName} className="h-5 w-5" />
+    <div className="flex items-center gap-2.5">
+      <img src="/logo.png" alt={appName} className="h-6 w-6 shrink-0" />
       <span
         className="text-[14px] font-extrabold"
         style={{ letterSpacing: '-0.01em' }}
       >
-        <span className="text-[#FDF9E4]">claw</span>
-        <span className="text-[#FF4F4F]">vault</span>
+        <span className="text-[#FDF9E4]">Claw </span>
+        <span className="text-[#FF4F4F]">Vault</span>
       </span>
     </div>
   )

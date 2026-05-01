@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
+import { Icon } from '../../shared/components/icon'
 import { useAuthStore } from '../auth'
 import { CreateVaultDialog } from './components/create-vault-dialog'
 import { VaultCard } from './components/vault-card'
@@ -44,27 +45,33 @@ export function VaultListPage() {
             </p>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <span
-              title={canCreateMore ? undefined : t('vault.upgradeForMoreVaults')}
-              className="relative inline-flex"
-              style={{ cursor: canCreateMore ? undefined : 'not-allowed' }}
-            >
+            {canCreateMore ? (
               <Button
                 variant="accent"
                 size="sm"
                 icon="add"
                 onClick={() => setDialogOpen(true)}
-                disabled={!canCreateMore}
               >
                 {t('vault.createVault')}
               </Button>
-            </span>
-            {!canCreateMore && (
-              <Link
-                to="/billing"
-                className="text-[10px] text-[#5A6478] transition-colors hover:text-[#FF4F4F]"
-              >
-                {t('vault.upgradeForMoreVaults')}
+            ) : (
+              <Link to="/billing" className="group flex flex-col items-end gap-1">
+                {/* pointer-events-none so clicks bubble up to the Link */}
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#FF4F4F]
+                    px-2.5 py-1.5 text-[11px] font-semibold text-white opacity-50
+                    transition-opacity group-hover:opacity-70"
+                  style={{ pointerEvents: 'none' }}
+                >
+                  <Icon name="add" size={14} />
+                  {t('vault.createVault')}
+                </span>
+                <span
+                  className="text-[10px] text-[#5A6478] transition-colors
+                    group-hover:text-[#FF4F4F]"
+                >
+                  {t('vault.upgradeForMoreVaults')}
+                </span>
               </Link>
             )}
           </div>
