@@ -22,7 +22,7 @@ export function VaultListPage() {
 
   const list = vaults.data?.vaults ?? []
   const filteredList = useFilteredVaults(list, search)
-  const totalEntries = list.reduce((sum, v) => sum + v.entryCount, 0)
+  const totalEntries = list.reduce((sum, v) => sum + (v.entryCount ?? 0), 0)
   const canCreateMore =
     list.length === 0 || (permissions & PERMISSION_MULTIPLE_VAULTS) !== 0
 
@@ -46,16 +46,28 @@ export function VaultListPage() {
               })}
             </p>
           </div>
-          <Button
-            variant="accent"
-            size="sm"
-            icon="add"
-            onClick={() => setDialogOpen(true)}
-            disabled={!canCreateMore}
-            title={canCreateMore ? undefined : t('vault.upgradeForMoreVaults')}
-          >
-            {t('vault.createVault')}
-          </Button>
+          <div className="flex flex-col items-end">
+            <span
+              title={canCreateMore ? undefined : t('vault.upgradeForMoreVaults')}
+              className="relative inline-flex"
+              style={{ cursor: canCreateMore ? undefined : 'not-allowed' }}
+            >
+              <Button
+                variant="accent"
+                size="sm"
+                icon="add"
+                onClick={() => setDialogOpen(true)}
+                disabled={!canCreateMore}
+              >
+                {t('vault.createVault')}
+              </Button>
+            </span>
+            {!canCreateMore && (
+              <p className="mt-1 text-center text-[10px] text-[#FF4F4F]">
+                {t('vault.upgradeForMoreVaults')}
+              </p>
+            )}
+          </div>
         </header>
 
         <VaultSearchBar

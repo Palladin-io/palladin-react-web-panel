@@ -210,5 +210,11 @@
   "common.close": "Zamknij",
 
   "errors.somethingWentWrong": "Coś poszło nie tak",
-  "errors.unexpectedError": "Wystąpił nieoczekiwany błąd. Przeładuj stronę."
+  "errors.unexpectedError": "Wystąpił nieoczekiwany błąd. Przeładuj stronę.",
+
+  "nav.vaults": "Skarbce",
+  "nav.agents": "Agenci",
+  "nav.auditLog": "Dziennik zdarzeń",
+  "nav.settings": "Ustawienia",
+  "nav.comingSoon": "Wkrótce"
 }

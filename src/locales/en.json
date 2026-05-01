@@ -196,5 +196,11 @@
   "common.close": "Close",
 
   "errors.somethingWentWrong": "Something went wrong",
-  "errors.unexpectedError": "An unexpected error occurred. Please reload the page."
+  "errors.unexpectedError": "An unexpected error occurred. Please reload the page.",
+
+  "nav.vaults": "Vaults",
+  "nav.agents": "Agents",
+  "nav.auditLog": "Audit Log",
+  "nav.settings": "Settings",
+  "nav.comingSoon": "Coming soon"
 }
