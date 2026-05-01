@@ -216,5 +216,10 @@
   "nav.agents": "Agenci",
   "nav.auditLog": "Dziennik zdarzeń",
   "nav.settings": "Ustawienia",
-  "nav.comingSoon": "Wkrótce"
+  "nav.billing": "Rozliczenia",
+  "nav.comingSoon": "Wkrótce",
+
+  "sidebar.freePlan": "Plan darmowy",
+  "sidebar.languageEN": "EN",
+  "sidebar.languagePL": "PL"
 }

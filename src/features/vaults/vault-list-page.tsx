@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
 import { useAuthStore } from '../auth'
@@ -8,9 +8,6 @@ import { VaultCard } from './components/vault-card'
 import { VaultSearchBar } from './components/vault-search-bar'
 import { PERMISSION_MULTIPLE_VAULTS, type VaultSummary } from './types'
 import { useVaults } from './use-vaults'
-
-const PAGE_BACKGROUND =
-  'linear-gradient(160deg, #000B2E 0%, #0A1A3E 30%, #0E1230 60%, #000B2E 100%)'
 
 export function VaultListPage() {
   const { t } = useTranslation()
@@ -31,8 +28,8 @@ export function VaultListPage() {
   }
 
   return (
-    <div className="min-h-screen text-[#FDF9E4]" style={{ background: PAGE_BACKGROUND }}>
-      <div className="mx-auto max-w-6xl px-6 py-10">
+    <div className="min-h-full text-[#FDF9E4]">
+      <div className="px-6 py-8">
         <header className="mb-6 flex items-center justify-between gap-4">
           <div>
             <h1 className="text-[20px] font-bold leading-tight text-[#FDF9E4]">
@@ -63,9 +60,12 @@ export function VaultListPage() {
               </Button>
             </span>
             {!canCreateMore && (
-              <span className="text-[10px] text-[#5A6478]">
+              <Link
+                to="/billing"
+                className="text-[10px] text-[#5A6478] transition-colors hover:text-[#FF4F4F]"
+              >
                 {t('vault.upgradeForMoreVaults')}
-              </span>
+              </Link>
             )}
           </div>
         </header>

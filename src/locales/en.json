@@ -202,5 +202,10 @@
   "nav.agents": "Agents",
   "nav.auditLog": "Audit Log",
   "nav.settings": "Settings",
-  "nav.comingSoon": "Coming soon"
+  "nav.billing": "Billing",
+  "nav.comingSoon": "Coming soon",
+
+  "sidebar.freePlan": "Free Plan",
+  "sidebar.languageEN": "EN",
+  "sidebar.languagePL": "PL"
 }

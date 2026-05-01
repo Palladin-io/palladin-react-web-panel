@@ -18,10 +18,10 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
     return (
       <div className="flex flex-col items-center gap-2">
         <img src="/logo.png" alt={appName} className="h-16 w-16" />
-        <span className="text-[28px] font-extrabold tracking-tight">
+        <h1 className="text-[28px] font-extrabold tracking-tight">
           <span className="text-[#FDF9E4]">{t('auth.titleClaw')}</span>
           <span className="text-[#FF4F4F]">{t('auth.titleVault')}</span>
-        </span>
+        </h1>
       </div>
     )
   }
@@ -29,9 +29,12 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
   return (
     <div className="flex items-center gap-2">
       <img src="/logo.png" alt={appName} className="h-5 w-5" />
-      <span className="text-[15px] font-semibold tracking-wide">
-        <span className="text-[#FDF9E4]">{t('auth.titleClaw')}</span>
-        <span className="text-[#FF4F4F]">{t('auth.titleVault')}</span>
+      <span
+        className="text-[14px] font-extrabold"
+        style={{ letterSpacing: '-0.01em' }}
+      >
+        <span className="text-[#FDF9E4]">claw</span>
+        <span className="text-[#FF4F4F]">vault</span>
       </span>
     </div>
   )
