@@ -32,12 +32,12 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   danger:
     'bg-[rgba(255,79,79,0.12)] text-[#FF4F4F] border border-[rgba(255,79,79,0.25)] hover:bg-[rgba(255,79,79,0.18)]',
   premium:
-    'bg-transparent text-[#E8C87A] font-bold border border-[#E8C87A]/40 hover:border-[#E8C87A]/70 hover:bg-[#E8C87A]/[0.07] hover:translate-x-0.5',
+    'btn-premium bg-transparent font-bold border',
 }
 
 /** Shared base classes — exported so Link elements can carry premium styling. */
 const BASE_CLASS =
-  'inline-flex items-center justify-center transition-[colors,transform] disabled:cursor-not-allowed disabled:opacity-60'
+  'inline-flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-60'
 
 /** Ready-made class string for the `sm` premium button — apply to `<Link>` elements. */
 export const PREMIUM_BUTTON_SM_CLASS =

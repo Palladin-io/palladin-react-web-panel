@@ -28,6 +28,7 @@
   --cv-btn-ghost-text: #5A6478;
   --cv-btn-ghost-hover: rgba(0, 11, 46, 0.04);
   --cv-icon-muted: #8A95A6;
+  --cv-premium: #9A6E1A;
 }
 
 .dark {
@@ -56,11 +57,39 @@
   --cv-btn-ghost-text: #C4BAA1;
   --cv-btn-ghost-hover: rgba(253, 249, 228, 0.04);
   --cv-icon-muted: #8A95A6;
+  --cv-premium: #E8C87A;
 }
 
 button,
 [role="button"] {
   cursor: pointer;
+}
+
+/* Premium button — sweep fill from left to right on hover */
+.btn-premium {
+  position: relative;
+  overflow: hidden;
+  color: var(--cv-premium);
+  border-color: color-mix(in srgb, var(--cv-premium) 45%, transparent);
+  transition: border-color 0.25s ease, color 0.25s ease;
+}
+.btn-premium::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--cv-premium);
+  opacity: 0.10;
+  border-radius: inherit;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.30s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+.btn-premium:hover {
+  border-color: color-mix(in srgb, var(--cv-premium) 80%, transparent);
+}
+.btn-premium:hover::after {
+  transform: scaleX(1);
 }
 
 @theme {
