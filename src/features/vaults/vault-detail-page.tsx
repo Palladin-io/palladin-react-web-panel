@@ -1,7 +1,5 @@
-import { useEffect } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { analytics } from '../../shared/lib/analytics'
 import { GRANT_MODE_FULL } from './types'
 import { useVault } from './use-vault'
 
@@ -19,10 +17,6 @@ export function VaultDetailPage({ vaultId }: VaultDetailPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const vault = useVault(vaultId)
-
-  useEffect(() => {
-    analytics.capture('vault', 'detail-viewed')
-  }, [])
 
   return (
     <div className="min-h-screen text-[#FDF9E4]" style={{ background: PAGE_BACKGROUND }}>

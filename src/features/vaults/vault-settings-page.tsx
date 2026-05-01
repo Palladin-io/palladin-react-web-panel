@@ -3,7 +3,6 @@ import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { FormTextarea } from '../../shared/components/form-textarea'
-import { analytics } from '../../shared/lib/analytics'
 import { useAuthStore } from '../auth'
 import { DeleteConfirmDialog } from './components/delete-confirm-dialog'
 import {
@@ -133,7 +132,6 @@ function SettingsForm({ vault }: SettingsFormProps) {
 
     update.mutate(patch, {
       onSuccess: () => {
-        analytics.capture('vault', 'settings-saved')
         navigate({ to: '/vaults/$vaultId', params: { vaultId: vault.id } })
       },
       onError: () => setErrorMessage(t('vault.errorSave')),
@@ -143,7 +141,6 @@ function SettingsForm({ vault }: SettingsFormProps) {
   const handleDelete = () => {
     remove.mutate(vault.id, {
       onSuccess: () => {
-        analytics.capture('vault', 'deleted')
         navigate({ to: '/vaults' })
       },
       onError: () => {

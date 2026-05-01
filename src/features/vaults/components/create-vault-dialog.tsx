@@ -95,9 +95,6 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
       },
       {
         onSuccess: (vault) => {
-          analytics.capture('vault', 'create-wizard-completed', {
-            grantMode,
-          })
           onCreated?.(vault.id)
           onClose()
         },

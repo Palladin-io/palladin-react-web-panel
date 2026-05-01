@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { analytics } from '../../shared/lib/analytics'
 import { useAuthStore } from '../auth'
 import { CreateVaultDialog } from './components/create-vault-dialog'
 import { VaultCard } from './components/vault-card'
@@ -17,10 +16,6 @@ export function VaultListPage() {
   const vaults = useVaults()
   const permissions = useAuthStore((s) => s.permissions)
   const [dialogOpen, setDialogOpen] = useState(false)
-
-  useEffect(() => {
-    analytics.capture('vault', 'list-viewed')
-  }, [])
 
   const list = vaults.data?.vaults ?? []
   const canCreateMore =
