@@ -162,6 +162,7 @@ export function VaultSettingsForm({
               onChange={setIcon}
               selectedColor={color}
               disabled={isPending}
+              vaultId={vault.id}
             />
             <VaultColorPicker
               value={color}

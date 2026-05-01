@@ -101,6 +101,7 @@
   "vault.descriptionLabel": "Opis",
   "vault.descriptionPlaceholder": "Opcjonalne notatki o skarbcu",
   "vault.iconLabel": "Ikona",
+  "vault.iconUpload": "Wgraj własną ikonę",
   "vault.colorLabel": "Kolor",
   "vault.colorOption": "Kolor: {{name}}",
   "vault.colorName.teal": "Morski",

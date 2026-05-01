@@ -49,5 +49,29 @@ export async function deleteVault(id: string): Promise<void> {
   await api.delete(`api/vaults/${id}`)
 }
 
+export interface PresignResponse {
+  uploadUrl: string
+  publicUrl: string
+  expiresAt: string
+}
+
+export function presignVaultIcon(
+  vaultId: string,
+  extension: string,
+): Promise<PresignResponse> {
+  return api
+    .post(`api/vaults/${vaultId}/icon/presign`, { json: { vaultId, extension } })
+    .json<PresignResponse>()
+}
+
+export async function uploadToS3(uploadUrl: string, file: File): Promise<void> {
+  const response = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type },
+    body: file,
+  })
+  if (!response.ok) throw new Error(`S3 upload failed: ${response.status}`)
+}
+
 // Re-export for convenient consumption by hooks/tests.
 export type { GrantMode }

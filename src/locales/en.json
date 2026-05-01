@@ -97,6 +97,7 @@
   "vault.descriptionLabel": "Description",
   "vault.descriptionPlaceholder": "Optional notes about this vault",
   "vault.iconLabel": "Icon",
+  "vault.iconUpload": "Upload custom icon",
   "vault.colorLabel": "Color",
   "vault.colorOption": "Color: {{name}}",
   "vault.colorName.teal": "Teal",
