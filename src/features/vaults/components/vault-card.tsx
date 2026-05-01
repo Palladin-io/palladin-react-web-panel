@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { GRANT_MODE_FULL, type VaultSummary } from '../types'
 
@@ -19,7 +20,7 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
   const { t, i18n } = useTranslation()
   const accent = vault.color ?? DEFAULT_ACCENT
   const isFull = vault.grantMode === GRANT_MODE_FULL
-  const updated = formatRelativeUpdate(vault.updatedAt, i18n.language)
+  const updated = formatRelativeUpdate(vault.updatedAt, i18n.language, t)
 
   return (
     <button
@@ -90,20 +91,25 @@ function ModeBadge({ isFull, t }: ModeBadgeProps) {
 /**
  * Lightweight relative time formatter — avoids pulling in a date library
  * for what's essentially "x days ago". Falls back to an absolute date for
- * anything older than a month.
+ * anything older than a month. Buckets translate via i18n plural keys so
+ * Polish/English (and future locales) read naturally.
  */
-function formatRelativeUpdate(iso: string, locale: string): string | null {
+function formatRelativeUpdate(
+  iso: string,
+  locale: string,
+  t: TFunction,
+): string | null {
   const ts = Date.parse(iso)
   if (Number.isNaN(ts)) return null
 
   const diffMs = Date.now() - ts
   const minutes = Math.floor(diffMs / 60_000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes}m ago`
+  if (minutes < 1) return t('vault.relativeJustNow')
+  if (minutes < 60) return t('vault.relativeMinutesAgo', { count: minutes })
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return t('vault.relativeHoursAgo', { count: hours })
   const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}d ago`
+  if (days < 30) return t('vault.relativeDaysAgo', { count: days })
   return new Date(ts).toLocaleDateString(locale, {
     year: 'numeric',
     month: 'short',

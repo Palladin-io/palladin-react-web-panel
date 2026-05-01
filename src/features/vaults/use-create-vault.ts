@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { sealVaultKey } from '../../shared/crypto/vault-key'
 import { useAuthStore } from '../auth'
 import { createVault } from './api/vault-api'
-import { generateWrappedVK } from './lib/vault-crypto'
 import type { CreateVaultInput } from './types'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 
@@ -33,7 +33,7 @@ export function useCreateVault() {
         throw new VaultLockedError()
       }
 
-      const wrappedVK = await generateWrappedVK(privateKey)
+      const wrappedVK = await sealVaultKey(privateKey)
       return createVault({ ...input, wrappedVK })
     },
     onSuccess: () => {

@@ -1,5 +1,5 @@
-import { toBase64 } from '../../../shared/crypto/encoding'
-import { loadSodium, wipe } from '../../../shared/crypto/sodium'
+import { toBase64 } from './encoding'
+import { loadSodium, wipe } from './sodium'
 
 /**
  * Generate a fresh 32-byte Vault Key and seal it for the user.
@@ -15,8 +15,13 @@ import { loadSodium, wipe } from '../../../shared/crypto/sodium'
  * The raw VK and the derived public key are wiped from local memory
  * before this function returns; the only surviving artefact is the
  * base64 string that is safe to ship over the wire.
+ *
+ * Lives in `shared/crypto/` (not in a feature folder) because the
+ * audit surface for libsodium primitives must stay in one place —
+ * feature code calls this high-level helper rather than reaching for
+ * `crypto_box_seal` directly.
  */
-export async function generateWrappedVK(privateKey: Uint8Array): Promise<string> {
+export async function sealVaultKey(privateKey: Uint8Array): Promise<string> {
   const sodium = await loadSodium()
   const vk = sodium.randombytes_buf(32)
   const publicKey = sodium.crypto_scalarmult_base(privateKey)

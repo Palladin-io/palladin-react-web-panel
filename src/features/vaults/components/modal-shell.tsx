@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export interface ModalShellProps {
   /** Optional handler — when omitted, the backdrop and Escape key are inert. */
@@ -14,6 +15,7 @@ export interface ModalShellProps {
  * a11y (focus trap, return focus on close) we'll lift this into shared/.
  */
 export function ModalShell({ onClose, ariaLabel, children }: ModalShellProps) {
+  const { t } = useTranslation()
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose?.()
@@ -36,7 +38,7 @@ export function ModalShell({ onClose, ariaLabel, children }: ModalShellProps) {
     >
       <button
         type="button"
-        aria-label="Close"
+        aria-label={t('common.close')}
         tabIndex={-1}
         onClick={onClose}
         className="absolute inset-0 h-full w-full cursor-default bg-black/60"

@@ -5,9 +5,14 @@ import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { FormTextarea } from '../../shared/components/form-textarea'
 import { useAuthStore } from '../auth'
 import { DeleteConfirmDialog } from './components/delete-confirm-dialog'
+import { VaultColorPicker } from './components/vault-color-picker'
+import { VaultIconPicker } from './components/vault-icon-picker'
+import { VaultModeSelector } from './components/vault-mode-selector'
 import {
-  GRANT_MODE_FULL,
-  GRANT_MODE_GRANULAR,
+  DEFAULT_VAULT_COLOR,
+  DEFAULT_VAULT_ICON,
+} from './components/vault-presentation'
+import {
   type GrantMode,
   PERMISSION_FULL_GRANT_MODE,
   type UpdateVaultInput,
@@ -19,19 +24,6 @@ import { useVault } from './use-vault'
 
 const PAGE_BACKGROUND =
   'linear-gradient(160deg, #000B2E 0%, #0A1A3E 30%, #0E1230 60%, #000B2E 100%)'
-
-const ICON_OPTIONS = ['🔒', '🔑', '🗝️', '🏦', '📁', '💼', '🛡️', '⚙️', '🔐', '🌐']
-const COLOR_OPTIONS = [
-  '#2EC4B6',
-  '#FF4F4F',
-  '#F59E0B',
-  '#60A5FA',
-  '#A78BFA',
-  '#34D399',
-  '#F97316',
-  '#EC4899',
-  '#6B7A8E',
-]
 
 export interface VaultSettingsPageProps {
   vaultId: string
@@ -93,8 +85,8 @@ function SettingsForm({ vault }: SettingsFormProps) {
 
   const [name, setName] = useState(vault.name)
   const [description, setDescription] = useState(vault.description ?? '')
-  const [icon, setIcon] = useState(vault.icon ?? ICON_OPTIONS[0])
-  const [color, setColor] = useState(vault.color ?? COLOR_OPTIONS[0])
+  const [icon, setIcon] = useState(vault.icon ?? DEFAULT_VAULT_ICON)
+  const [color, setColor] = useState(vault.color ?? DEFAULT_VAULT_COLOR)
   const [grantMode, setGrantMode] = useState<GrantMode>(vault.grantMode)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [showDelete, setShowDelete] = useState(false)
@@ -121,8 +113,8 @@ function SettingsForm({ vault }: SettingsFormProps) {
     if (trimmedDescription !== (vault.description ?? '')) {
       patch.description = trimmedDescription
     }
-    if (icon !== (vault.icon ?? ICON_OPTIONS[0])) patch.icon = icon
-    if (color !== (vault.color ?? COLOR_OPTIONS[0])) patch.color = color
+    if (icon !== (vault.icon ?? DEFAULT_VAULT_ICON)) patch.icon = icon
+    if (color !== (vault.color ?? DEFAULT_VAULT_COLOR)) patch.color = color
     if (grantMode !== vault.grantMode) patch.grantMode = grantMode
 
     if (Object.keys(patch).length === 0) {
@@ -177,75 +169,16 @@ function SettingsForm({ vault }: SettingsFormProps) {
           maxLength={500}
         />
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]">
-            {t('vault.modeLabel')}
-          </legend>
-          <div className="grid grid-cols-2 gap-2">
-            <ModeOption
-              label={t('vault.modeFull')}
-              selected={grantMode === GRANT_MODE_FULL}
-              locked={!canUseFullMode}
-              lockedLabel={t('vault.modeFullPro')}
-              disabled={isPending || !canUseFullMode}
-              onClick={() => canUseFullMode && setGrantMode(GRANT_MODE_FULL)}
-            />
-            <ModeOption
-              label={t('vault.modeGranular')}
-              selected={grantMode === GRANT_MODE_GRANULAR}
-              disabled={isPending}
-              onClick={() => setGrantMode(GRANT_MODE_GRANULAR)}
-            />
-          </div>
-        </fieldset>
+        <VaultModeSelector
+          value={grantMode}
+          onChange={setGrantMode}
+          canUseFullMode={canUseFullMode}
+          disabled={isPending}
+        />
 
-        <fieldset>
-          <legend className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]">
-            {t('vault.iconLabel')}
-          </legend>
-          <div className="flex flex-wrap gap-2">
-            {ICON_OPTIONS.map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => setIcon(opt)}
-                disabled={isPending}
-                aria-pressed={icon === opt}
-                className={`flex h-9 w-9 items-center justify-center rounded-lg border text-lg transition-colors
-                  disabled:cursor-not-allowed disabled:opacity-40 ${
-                  icon === opt
-                    ? 'border-[#2EC4B6] bg-[rgba(46,196,182,0.12)]'
-                    : 'border-[rgba(253,249,228,0.1)] bg-[rgba(253,249,228,0.04)] hover:bg-[rgba(253,249,228,0.08)]'
-                }`}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-        </fieldset>
+        <VaultIconPicker value={icon} onChange={setIcon} disabled={isPending} />
 
-        <fieldset>
-          <legend className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[#B8C5D4]">
-            {t('vault.colorLabel')}
-          </legend>
-          <div className="flex flex-wrap gap-2">
-            {COLOR_OPTIONS.map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => setColor(opt)}
-                disabled={isPending}
-                aria-label={opt}
-                aria-pressed={color === opt}
-                className={`h-7 w-7 rounded-full border-2 transition-transform disabled:cursor-not-allowed
-                  disabled:opacity-40 ${
-                  color === opt ? 'scale-110 border-[#FDF9E4]' : 'border-transparent'
-                }`}
-                style={{ backgroundColor: opt }}
-              />
-            ))}
-          </div>
-        </fieldset>
+        <VaultColorPicker value={color} onChange={setColor} disabled={isPending} />
 
         <FieldFeedback visible={errorMessage !== null} color="red">
           {errorMessage}
@@ -288,47 +221,5 @@ function SettingsForm({ vault }: SettingsFormProps) {
         onCancel={() => setShowDelete(false)}
       />
     </>
-  )
-}
-
-interface ModeOptionProps {
-  label: string
-  selected: boolean
-  locked?: boolean
-  lockedLabel?: string
-  disabled: boolean
-  onClick: () => void
-}
-
-function ModeOption({
-  label,
-  selected,
-  locked,
-  lockedLabel,
-  disabled,
-  onClick,
-}: ModeOptionProps) {
-  const borderClass = selected
-    ? 'border-[#2EC4B6] bg-[rgba(46,196,182,0.08)]'
-    : 'border-[rgba(253,249,228,0.1)] bg-[rgba(253,249,228,0.04)]'
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-pressed={selected}
-      className={`flex items-center justify-between rounded-lg border px-3 py-2.5 text-left transition-colors
-        disabled:cursor-not-allowed disabled:opacity-60 ${borderClass}`}
-    >
-      <span className="text-sm font-semibold text-[#FDF9E4]">{label}</span>
-      {locked && lockedLabel ? (
-        <span
-          className="rounded-full border border-[rgba(245,158,11,0.4)] bg-[rgba(245,158,11,0.12)]
-            px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#F59E0B]"
-        >
-          {lockedLabel}
-        </span>
-      ) : null}
-    </button>
   )
 }
