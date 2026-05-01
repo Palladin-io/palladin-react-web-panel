@@ -55,23 +55,19 @@ export function VaultListPage() {
                 {t('vault.createVault')}
               </Button>
             ) : (
-              <Link to="/billing" className="group flex flex-col items-end gap-1">
-                {/* pointer-events-none so clicks bubble up to the Link */}
-                <span
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-[#FF4F4F]
-                    px-2.5 py-1.5 text-[11px] font-semibold text-white opacity-50
-                    transition-opacity group-hover:opacity-70"
-                  style={{ pointerEvents: 'none' }}
-                >
-                  <Icon name="add" size={14} />
-                  {t('vault.createVault')}
-                </span>
-                <span
-                  className="text-[10px] text-[var(--cv-t3)] transition-colors
-                    group-hover:text-[#FF4F4F]"
-                >
-                  {t('vault.upgradeForMoreVaults')}
-                </span>
+              <Link
+                to="/billing"
+                className="group inline-flex items-center gap-1.5 text-[11px] font-bold
+                  text-[#E8C87A] transition-transform duration-200 hover:translate-x-1"
+                style={{ textDecoration: 'none' }}
+              >
+                <Icon name="workspace_premium" size={13} />
+                {t('vault.upgradeForMoreVaults')}
+                <Icon
+                  name="arrow_forward"
+                  size={12}
+                  className="transition-transform duration-200 group-hover:translate-x-0.5"
+                />
               </Link>
             )}
           </div>
