@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 interface AuthState {
   accessToken: string | null
@@ -42,43 +43,60 @@ const initialState = {
   privateKey: null,
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
-  ...initialState,
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      ...initialState,
 
-  setTokens: (data) =>
-    set({
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
-      userId: data.userId,
-      isOnboarded: data.isOnboarded,
-      permissions: data.permissions ?? 0,
-      // A fresh set of tokens means the session has just started (or been
-      // refreshed). Either way, the user needs to re-unlock before the
-      // vault is usable.
-      isVaultLocked: true,
+      setTokens: (data) =>
+        set({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          userId: data.userId,
+          isOnboarded: data.isOnboarded,
+          permissions: data.permissions ?? 0,
+          // A fresh set of tokens means the session has just started (or been
+          // refreshed). Either way, the user needs to re-unlock before the
+          // vault is usable.
+          isVaultLocked: true,
+        }),
+
+      markOnboarded: () => set({ isOnboarded: true }),
+
+      unlockVault: (masterKey, privateKey) =>
+        // Store independent copies — callers routinely `wipe()` their local
+        // buffers right after handing them off, which would zero out our
+        // references too if we kept them.
+        set({
+          masterKey: new Uint8Array(masterKey),
+          privateKey: new Uint8Array(privateKey),
+          isVaultLocked: false,
+        }),
+
+      lockVault: () =>
+        set({
+          masterKey: null,
+          privateKey: null,
+          isVaultLocked: true,
+        }),
+
+      logout: () => set(initialState),
     }),
-
-  markOnboarded: () => set({ isOnboarded: true }),
-
-  unlockVault: (masterKey, privateKey) =>
-    // Store independent copies — callers routinely `wipe()` their local
-    // buffers right after handing them off, which would zero out our
-    // references too if we kept them.
-    set({
-      masterKey: new Uint8Array(masterKey),
-      privateKey: new Uint8Array(privateKey),
-      isVaultLocked: false,
-    }),
-
-  lockVault: () =>
-    set({
-      masterKey: null,
-      privateKey: null,
-      isVaultLocked: true,
-    }),
-
-  logout: () => set(initialState),
-}))
+    {
+      name: 'claw-vault-auth',
+      // Only tokens + onboarding state survive a refresh.
+      // Crypto keys (masterKey, privateKey) and isVaultLocked are intentionally
+      // left out — the vault must be re-unlocked after every page reload.
+      partialize: (state) => ({
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        userId: state.userId,
+        isOnboarded: state.isOnboarded,
+        permissions: state.permissions,
+      }),
+    },
+  ),
+)
 
 export function getIsAuthenticated() {
   return useAuthStore.getState().accessToken !== null

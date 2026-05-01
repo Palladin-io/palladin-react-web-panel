@@ -31,13 +31,7 @@ export function LoginPage() {
     >
       <div className="w-full max-w-[440px] px-6">
         <div className="text-center">
-          {/* Logo */}
-          <img
-            src="/logo.png"
-            alt={t('auth.appName')}
-            className="mx-auto mb-4 h-16 w-16"
-          />
-          <div className="mb-1 flex justify-center">
+          <div className="mb-4 flex justify-center">
             <AppWordmark size="lg" />
           </div>
 
