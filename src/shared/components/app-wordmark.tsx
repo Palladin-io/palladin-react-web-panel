@@ -28,9 +28,9 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
 
   return (
     <div className="flex items-center gap-2.5">
-      <img src="/logo.png" alt={appName} className="h-6 w-6 shrink-0" />
+      <img src="/logo.png" alt={appName} className="h-9 w-9 shrink-0" />
       <span
-        className="text-[14px] font-extrabold"
+        className="text-[16px] font-extrabold"
         style={{ letterSpacing: '-0.01em' }}
       >
         <span className="text-[var(--cv-t1)]">Claw </span>
