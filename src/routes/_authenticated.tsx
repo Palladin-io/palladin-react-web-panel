@@ -31,12 +31,47 @@ export const Route = createFileRoute('/_authenticated')({
 
 const GRADIENTS = {
   dark: 'linear-gradient(160deg, #000B2E 0%, #0A1A3E 30%, #0E1230 60%, #000B2E 100%)',
-  light: 'linear-gradient(160deg, #F4F1E4 0%, #EAE6D0 30%, #E4DCCA 60%, #F4F1E4 100%)',
+  light: 'linear-gradient(160deg, #FDF9E4 0%, #FFF0E0 35%, #FDF9E4 65%, #FFF5E8 100%)',
 }
 
 const SIDEBAR_BG = {
   dark: 'rgba(253,249,228,0.02)',
+  light: 'rgba(255,252,247,0.5)',
+}
+
+const SIDEBAR_BORDER = {
+  dark: 'rgba(253,249,228,0.07)',
+  light: 'rgba(0,11,46,0.06)',
+}
+
+const NAV_TEXT = {
+  dark: '#8A95A6',
+  light: '#3D4E66',
+}
+
+const NAV_HOVER_BG = {
+  dark: 'rgba(253,249,228,0.06)',
   light: 'rgba(0,11,46,0.04)',
+}
+
+const NAV_ACTIVE_BG = {
+  dark: 'rgba(255,79,79,0.12)',
+  light: 'rgba(255,79,79,0.08)',
+}
+
+const TEXT_PRIMARY = {
+  dark: '#FDF9E4',
+  light: '#000B2E',
+}
+
+const TEXT_MUTED = {
+  dark: '#5A6478',
+  light: '#8A95A6',
+}
+
+const DROPDOWN_BG = {
+  dark: '#0D1B3E',
+  light: '#FFFCF7',
 }
 
 function AuthenticatedLayout() {
@@ -140,17 +175,16 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
     setLangOpen(false)
   }
 
-  const textColor = theme === 'dark' ? '#FDF9E4' : '#000B2E'
-  const mutedColor = theme === 'dark' ? '#5A6478' : '#8A95A6'
-  const borderColor =
-    theme === 'dark' ? 'rgba(253,249,228,0.06)' : 'rgba(0,11,46,0.08)'
+  const textColor = TEXT_PRIMARY[theme]
+  const mutedColor = TEXT_MUTED[theme]
+  const borderColor = SIDEBAR_BORDER[theme]
 
   return (
     <aside
       className="flex h-full w-[200px] flex-shrink-0 flex-col border-r"
       style={{
         background: SIDEBAR_BG[theme],
-        borderColor,
+        borderRightColor: borderColor,
       }}
     >
       {/* Logo — left-aligned with nav items (margin 8px + padding 14px = 22px) */}
@@ -175,7 +209,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
       {/* Profile */}
       <div
         className="mt-auto border-t px-4 py-3"
-        style={{ borderColor }}
+        style={{ borderTopColor: borderColor }}
       >
         {/* Avatar + name */}
         <div className="mb-3 flex items-center gap-2">
@@ -227,8 +261,8 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
                 className="absolute bottom-8 left-0 z-20 min-w-[120px] overflow-hidden
                   rounded-lg border shadow-xl"
                 style={{
-                  background: theme === 'dark' ? '#0D1B3E' : '#F4F1E4',
-                  borderColor,
+                  background: DROPDOWN_BG[theme],
+                  borderColor: borderColor,
                 }}
               >
                 {LANG_OPTIONS.map((lang) => (
@@ -300,13 +334,16 @@ function SidebarLink({
   currentPath,
   theme,
 }: SidebarLinkProps) {
+  const [hovered, setHovered] = useState(false)
+
   const isActive = item.matchPrefix
     ? currentPath === item.matchPrefix ||
       currentPath.startsWith(`${item.matchPrefix}/`)
     : false
 
-  const mutedColor = theme === 'dark' ? '#5A6478' : '#8A95A6'
-  const textColor = theme === 'dark' ? '#8A95A6' : '#4A5568'
+  const mutedColor = TEXT_MUTED[theme]
+  const textColor = NAV_TEXT[theme]
+  const hoverTextColor = theme === 'dark' ? '#FDF9E4' : '#000B2E'
 
   const baseStyle: React.CSSProperties = {
     display: 'flex',
@@ -338,16 +375,20 @@ function SidebarLink({
     )
   }
 
+  const activeBg = NAV_ACTIVE_BG[theme]
+  const hoverBg = NAV_HOVER_BG[theme]
+
   return (
     <Link
       to={item.to}
       style={{
         ...baseStyle,
-        color: isActive ? '#FF4F4F' : textColor,
-        background: isActive ? 'rgba(255,79,79,0.12)' : 'transparent',
+        color: isActive ? '#FF4F4F' : hovered ? hoverTextColor : textColor,
+        background: isActive ? activeBg : hovered ? hoverBg : 'transparent',
         textDecoration: 'none',
       }}
-      className={isActive ? '' : 'hover:bg-[rgba(253,249,228,0.06)] hover:!text-[#FDF9E4]'}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       <Icon name={item.icon} size={16} />
       <span>{label}</span>
