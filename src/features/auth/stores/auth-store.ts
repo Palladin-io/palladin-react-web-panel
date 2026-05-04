@@ -49,18 +49,18 @@ export const useAuthStore = create<AuthState>()(
       ...initialState,
 
       setTokens: (data) =>
-        set({
+        set((state) => ({
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,
           userId: data.userId,
-          isOnboarded: data.isOnboarded,
+          // Never regress isOnboarded from true to false. The JWT claim can
+          // return false during a token refresh (backend omission or stale
+          // claim), which would break the lock-redirect logic and cause the
+          // wizard to appear for already-onboarded users.
+          isOnboarded: state.isOnboarded || data.isOnboarded,
           permissions: data.permissions ?? 0,
-          // isVaultLocked is intentionally NOT set here. On first load it is
-          // true from initialState (not persisted). Silent token refreshes via
-          // the 401 interceptor must not re-lock the vault mid-session — the
-          // user should not need to re-enter their master password just because
-          // the access token expired. Explicit locking uses lockVault().
-        }),
+          // isVaultLocked is intentionally NOT set here — see lockVault().
+        })),
 
       markOnboarded: () => set({ isOnboarded: true }),
 

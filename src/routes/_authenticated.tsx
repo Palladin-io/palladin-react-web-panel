@@ -79,13 +79,36 @@ function AuthenticatedLayout() {
   const theme = useThemeStore((s) => s.theme)
   const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
   const isOnboarded = useAuthStore((s) => s.isOnboarded)
+  const markOnboarded = useAuthStore((s) => s.markOnboarded)
   const navigate = useNavigate()
 
+  const account = useQuery({
+    queryKey: ACCOUNT_QUERY_KEY,
+    queryFn: getAccount,
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // Self-heal: if the server confirms the account has key material but the
+  // local JWT claim says otherwise (stale/incorrect refresh response), fix
+  // isOnboarded so the lock-redirect logic below fires correctly.
   useEffect(() => {
-    if (isVaultLocked && isOnboarded && pathname !== '/unlock') {
+    if (account.data?.hasPublicKey && !isOnboarded) {
+      markOnboarded()
+    }
+  }, [account.data?.hasPublicKey, isOnboarded, markOnboarded])
+
+  // Redirect to unlock whenever the vault is locked AND we know the account
+  // is fully set up. Use isOnboarded OR hasPublicKey so the redirect fires
+  // even when the JWT claim is stale and the self-heal hasn't run yet.
+  useEffect(() => {
+    const shouldRedirect =
+      isVaultLocked &&
+      (isOnboarded || account.data?.hasPublicKey === true) &&
+      pathname !== '/unlock'
+    if (shouldRedirect) {
       navigate({ to: '/unlock' })
     }
-  }, [isVaultLocked, isOnboarded, pathname, navigate])
+  }, [isVaultLocked, isOnboarded, account.data?.hasPublicKey, pathname, navigate])
 
   if (pathname === '/unlock') return <Outlet />
   return (

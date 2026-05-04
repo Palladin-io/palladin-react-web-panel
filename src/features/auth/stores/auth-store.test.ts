@@ -77,6 +77,26 @@ describe('auth-store', () => {
     expect(getIsAuthenticated()).toBe(false)
   })
 
+  it('setTokens does not regress isOnboarded from true to false', () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-123',
+      refreshToken: 'refresh-456',
+      userId: 'user-789',
+      isOnboarded: true,
+    })
+    expect(useAuthStore.getState().isOnboarded).toBe(true)
+
+    // Simulate a token refresh where backend returns isOnboarded: false (stale JWT claim).
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-new',
+      refreshToken: 'refresh-new',
+      userId: 'user-789',
+      isOnboarded: false,
+    })
+
+    expect(useAuthStore.getState().isOnboarded).toBe(true)
+  })
+
   it('setTokens does not change vault lock state (token refresh stays unlocked)', () => {
     // Unlock first, then simulate a silent token refresh. The vault must
     // stay unlocked — the user should not be forced to re-enter their master
