@@ -10,15 +10,17 @@ export interface VaultIconPickerProps {
   onChange: (next: string) => void
   selectedColor?: string
   disabled?: boolean
-  /**
-   * When provided, enables the "Upload custom" option.
-   * Only available in edit mode — vaultId is unknown during vault creation.
-   */
+  /** Edit mode: enables upload + immediate S3 upload tied to this vault. */
   vaultId?: string
+  /**
+   * Create mode: called with the selected File and a local blob preview URL.
+   * The caller is responsible for uploading the file after the vault is created.
+   */
+  onFileSelected?: (file: File, previewUrl: string) => void
 }
 
 function isCustomUrl(value: string) {
-  return value.startsWith('https://')
+  return value.startsWith('https://') || value.startsWith('blob:')
 }
 
 export function VaultIconPicker({
@@ -27,6 +29,7 @@ export function VaultIconPicker({
   selectedColor = '#FF4F4F',
   disabled = false,
   vaultId,
+  onFileSelected,
 }: VaultIconPickerProps) {
   const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -65,7 +68,7 @@ export function VaultIconPicker({
           )
         })}
 
-        {vaultId && (
+        {(vaultId || onFileSelected) && (
           <>
             <input
               ref={fileInputRef}
@@ -74,7 +77,14 @@ export function VaultIconPicker({
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0]
-                if (file) upload(file)
+                if (file) {
+                  if (vaultId) {
+                    upload(file)
+                  } else if (onFileSelected) {
+                    const previewUrl = URL.createObjectURL(file)
+                    onFileSelected(file, previewUrl)
+                  }
+                }
                 e.target.value = ''
               }}
             />
