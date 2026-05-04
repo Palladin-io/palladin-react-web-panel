@@ -111,44 +111,39 @@ export function VaultSettingsForm({
         className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
           shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
-        <div className="flex flex-col gap-5 lg:flex-row lg:gap-6">
-          <div className="flex flex-1 flex-col gap-4">
-            <FormInput
-              id="settings-name"
-              label={t('vault.nameLabel')}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('vault.namePlaceholder')}
-              disabled={isPending}
-              maxLength={64}
-              required
-            />
-            <FormTextarea
-              id="settings-description"
-              label={t('vault.descriptionLabel')}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('vault.descriptionPlaceholder')}
-              disabled={isPending}
-              rows={3}
-              maxLength={500}
-            />
-          </div>
-
-          <div className="flex flex-col gap-4 lg:min-w-[220px]">
-            <VaultIconPicker
-              value={icon}
-              onChange={setIcon}
-              selectedColor={color}
-              disabled={isPending}
-              vaultId={vault.id}
-            />
-            <VaultColorPicker
-              value={color}
-              onChange={setColor}
-              disabled={isPending}
-            />
-          </div>
+        <div className="flex flex-col gap-4">
+          <FormInput
+            id="settings-name"
+            label={t('vault.nameLabel')}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('vault.namePlaceholder')}
+            disabled={isPending}
+            maxLength={64}
+            required
+          />
+          <FormTextarea
+            id="settings-description"
+            label={t('vault.descriptionLabel')}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t('vault.descriptionPlaceholder')}
+            disabled={isPending}
+            rows={3}
+            maxLength={500}
+          />
+          <VaultIconPicker
+            value={icon}
+            onChange={setIcon}
+            selectedColor={color}
+            disabled={isPending}
+            vaultId={vault.id}
+          />
+          <VaultColorPicker
+            value={color}
+            onChange={setColor}
+            disabled={isPending}
+          />
         </div>
 
         <FieldFeedback visible={errorMessage !== null} color="red">

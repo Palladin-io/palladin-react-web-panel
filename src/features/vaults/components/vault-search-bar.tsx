@@ -28,17 +28,17 @@ export function VaultSearchBar({
   return (
     <div className="mb-3">
       <div
-        className="flex items-center gap-2.5 rounded-xl border border-[var(--cv-border)]
-          bg-[var(--cv-card-bg)] px-3.5 py-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.12)]"
+        className="flex items-center gap-2 rounded-lg border border-[var(--cv-input-border)]
+          bg-[var(--cv-input-bg)] px-3 py-2 transition-colors focus-within:border-[var(--cv-t1)]"
       >
-        <Icon name="search" size={18} className="text-[var(--cv-t3)]" />
+        <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-t1)]
-            placeholder:text-[var(--cv-t3)] focus:outline-none"
+          className="flex-1 border-none bg-transparent text-sm text-[var(--cv-input-text)]
+            placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
         />
         {showToggle ? (
           <button
@@ -46,9 +46,9 @@ export function VaultSearchBar({
             onClick={() => setOpen((prev) => !prev)}
             aria-pressed={open}
             aria-label={open ? 'Hide filters' : 'Show filters'}
-            className="flex items-center justify-center"
+            className="flex shrink-0 items-center justify-center"
           >
-            <Icon name="tune" size={16} color={open ? '#FF4F4F' : undefined} className={open ? '' : 'text-[var(--cv-t3)]'} />
+            <Icon name="tune" size={16} color={open ? '#FF4F4F' : undefined} className={open ? '' : 'text-[var(--cv-input-placeholder)]'} />
           </button>
         ) : null}
       </div>
