@@ -130,7 +130,7 @@ function UnlockForm() {
             borderClass={
               hasError
                 ? 'border-[#FF4F4F] focus:border-[#FF4F4F]'
-                : 'border-[rgba(253,249,228,0.1)] focus:border-[#2EC4B6]'
+                : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
             }
           />
           <FieldFeedback visible={hasError} color="red">
