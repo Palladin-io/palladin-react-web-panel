@@ -13,6 +13,7 @@ function AuthenticatedHome() {
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
   const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
+  const isOnboarded = useAuthStore((s) => s.isOnboarded)
   const account = useAccount()
 
   // Safety net: account has key material on the server but the vault isn't
@@ -48,7 +49,7 @@ function AuthenticatedHome() {
   // is already unlocked — because setup just completed, or because unlock
   // succeeded with temporarily-stale hasPublicKey data — skip the wizard so
   // the user isn't looped back into onboarding right after unlocking.
-  if (!account.data.hasPublicKey && isVaultLocked) {
+  if (!isOnboarded && !account.data.hasPublicKey && isVaultLocked) {
     return <OnboardingWizard />
   }
 

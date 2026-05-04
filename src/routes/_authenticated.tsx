@@ -7,7 +7,7 @@ import {
   useRouterState,
 } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
 import { useAuthStore } from '../features/auth'
@@ -77,6 +77,15 @@ const DROPDOWN_BG = {
 function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const theme = useThemeStore((s) => s.theme)
+  const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
+  const isOnboarded = useAuthStore((s) => s.isOnboarded)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (isVaultLocked && isOnboarded && pathname !== '/unlock') {
+      navigate({ to: '/unlock' })
+    }
+  }, [isVaultLocked, isOnboarded, pathname, navigate])
 
   if (pathname === '/unlock') return <Outlet />
   return (

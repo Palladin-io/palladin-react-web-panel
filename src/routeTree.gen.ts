@@ -16,8 +16,8 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated/vaults'
 import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
-import { Route as AuthenticatedVaultsVaultIdRouteImport } from './routes/_authenticated/vaults.$vaultId'
-import { Route as AuthenticatedVaultsVaultIdSettingsRouteImport } from './routes/_authenticated/vaults.$vaultId.settings'
+import { Route as AuthenticatedVaultsVaultIdRouteImport } from './routes/_authenticated/vaults_.$vaultId'
+import { Route as AuthenticatedVaultsVaultIdSettingsRouteImport } from './routes/_authenticated/vaults_.$vaultId_.settings'
 
 const RecoveryRoute = RecoveryRouteImport.update({
   id: '/recovery',
@@ -55,15 +55,15 @@ const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
 } as any)
 const AuthenticatedVaultsVaultIdRoute =
   AuthenticatedVaultsVaultIdRouteImport.update({
-    id: '/$vaultId',
-    path: '/$vaultId',
-    getParentRoute: () => AuthenticatedVaultsRoute,
+    id: '/vaults_/$vaultId',
+    path: '/vaults/$vaultId',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedVaultsVaultIdSettingsRoute =
   AuthenticatedVaultsVaultIdSettingsRouteImport.update({
-    id: '/settings',
-    path: '/settings',
-    getParentRoute: () => AuthenticatedVaultsVaultIdRoute,
+    id: '/vaults_/$vaultId_/settings',
+    path: '/vaults/$vaultId/settings',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -72,8 +72,8 @@ export interface FileRoutesByFullPath {
   '/recovery': typeof RecoveryRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/unlock': typeof AuthenticatedUnlockRoute
-  '/vaults': typeof AuthenticatedVaultsRouteWithChildren
-  '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRouteWithChildren
+  '/vaults': typeof AuthenticatedVaultsRoute
+  '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
   '/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
 }
 export interface FileRoutesByTo {
@@ -81,9 +81,9 @@ export interface FileRoutesByTo {
   '/recovery': typeof RecoveryRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/unlock': typeof AuthenticatedUnlockRoute
-  '/vaults': typeof AuthenticatedVaultsRouteWithChildren
+  '/vaults': typeof AuthenticatedVaultsRoute
   '/': typeof AuthenticatedIndexRoute
-  '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRouteWithChildren
+  '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
   '/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
 }
 export interface FileRoutesById {
@@ -93,10 +93,10 @@ export interface FileRoutesById {
   '/recovery': typeof RecoveryRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
-  '/_authenticated/vaults': typeof AuthenticatedVaultsRouteWithChildren
+  '/_authenticated/vaults': typeof AuthenticatedVaultsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
-  '/_authenticated/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRouteWithChildren
-  '/_authenticated/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
+  '/_authenticated/vaults_/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
+  '/_authenticated/vaults_/$vaultId_/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -128,8 +128,8 @@ export interface FileRouteTypes {
     | '/_authenticated/unlock'
     | '/_authenticated/vaults'
     | '/_authenticated/'
-    | '/_authenticated/vaults/$vaultId'
-    | '/_authenticated/vaults/$vaultId/settings'
+    | '/_authenticated/vaults_/$vaultId'
+    | '/_authenticated/vaults_/$vaultId_/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -189,61 +189,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBillingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/vaults/$vaultId': {
-      id: '/_authenticated/vaults/$vaultId'
-      path: '/$vaultId'
+    '/_authenticated/vaults_/$vaultId': {
+      id: '/_authenticated/vaults_/$vaultId'
+      path: '/vaults/$vaultId'
       fullPath: '/vaults/$vaultId'
       preLoaderRoute: typeof AuthenticatedVaultsVaultIdRouteImport
-      parentRoute: typeof AuthenticatedVaultsRoute
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/vaults/$vaultId/settings': {
-      id: '/_authenticated/vaults/$vaultId/settings'
-      path: '/settings'
+    '/_authenticated/vaults_/$vaultId_/settings': {
+      id: '/_authenticated/vaults_/$vaultId_/settings'
+      path: '/vaults/$vaultId/settings'
       fullPath: '/vaults/$vaultId/settings'
       preLoaderRoute: typeof AuthenticatedVaultsVaultIdSettingsRouteImport
-      parentRoute: typeof AuthenticatedVaultsVaultIdRoute
+      parentRoute: typeof AuthenticatedRoute
     }
   }
 }
-
-interface AuthenticatedVaultsVaultIdRouteChildren {
-  AuthenticatedVaultsVaultIdSettingsRoute: typeof AuthenticatedVaultsVaultIdSettingsRoute
-}
-
-const AuthenticatedVaultsVaultIdRouteChildren: AuthenticatedVaultsVaultIdRouteChildren =
-  {
-    AuthenticatedVaultsVaultIdSettingsRoute:
-      AuthenticatedVaultsVaultIdSettingsRoute,
-  }
-
-const AuthenticatedVaultsVaultIdRouteWithChildren =
-  AuthenticatedVaultsVaultIdRoute._addFileChildren(
-    AuthenticatedVaultsVaultIdRouteChildren,
-  )
-
-interface AuthenticatedVaultsRouteChildren {
-  AuthenticatedVaultsVaultIdRoute: typeof AuthenticatedVaultsVaultIdRouteWithChildren
-}
-
-const AuthenticatedVaultsRouteChildren: AuthenticatedVaultsRouteChildren = {
-  AuthenticatedVaultsVaultIdRoute: AuthenticatedVaultsVaultIdRouteWithChildren,
-}
-
-const AuthenticatedVaultsRouteWithChildren =
-  AuthenticatedVaultsRoute._addFileChildren(AuthenticatedVaultsRouteChildren)
 
 interface AuthenticatedRouteChildren {
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedUnlockRoute: typeof AuthenticatedUnlockRoute
-  AuthenticatedVaultsRoute: typeof AuthenticatedVaultsRouteWithChildren
+  AuthenticatedVaultsRoute: typeof AuthenticatedVaultsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedVaultsVaultIdRoute: typeof AuthenticatedVaultsVaultIdRoute
+  AuthenticatedVaultsVaultIdSettingsRoute: typeof AuthenticatedVaultsVaultIdSettingsRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedUnlockRoute: AuthenticatedUnlockRoute,
-  AuthenticatedVaultsRoute: AuthenticatedVaultsRouteWithChildren,
+  AuthenticatedVaultsRoute: AuthenticatedVaultsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedVaultsVaultIdRoute: AuthenticatedVaultsVaultIdRoute,
+  AuthenticatedVaultsVaultIdSettingsRoute:
+    AuthenticatedVaultsVaultIdSettingsRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

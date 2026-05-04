@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { VaultSettingsPage } from '../../features/vaults'
 
-export const Route = createFileRoute('/_authenticated/vaults/$vaultId/settings')({
+export const Route = createFileRoute('/_authenticated/vaults_/$vaultId_/settings')({
   component: VaultSettingsRoute,
 })
 
