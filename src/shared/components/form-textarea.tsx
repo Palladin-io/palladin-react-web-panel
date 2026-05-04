@@ -17,7 +17,7 @@ export interface FormTextareaProps
   hasError?: boolean
 }
 
-const DEFAULT_BORDER_CLASS = 'border-[var(--cv-input-border)] focus:border-[#2EC4B6]'
+const DEFAULT_BORDER_CLASS = 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
 const ERROR_BORDER_CLASS = 'border-[#FF4F4F] focus:border-[#FF4F4F]'
 
 export function FormTextarea({

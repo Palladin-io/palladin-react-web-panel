@@ -37,7 +37,7 @@ export function FormInput({
         id={id}
         className={`w-full rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2 text-sm
           text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none ${
-          borderClass ?? 'border-[var(--cv-input-border)] focus:border-[#2EC4B6]'
+          borderClass ?? 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
         }`}
         {...props}
       />

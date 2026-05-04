@@ -1,6 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../../shared/components/button'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import {
   VaultDetailTabs,
@@ -56,17 +55,6 @@ export function VaultSettingsPage({ vaultId }: VaultSettingsPageProps) {
                 count: vault.data.entryCount,
               })}
               onBack={goToDetail}
-              actions={
-                <Button
-                  variant="accent"
-                  size="sm"
-                  icon="check"
-                  type="submit"
-                  form="vault-settings-form"
-                >
-                  {t('vault.saveChanges')}
-                </Button>
-              }
             />
             <VaultDetailTabs active="settings" onChange={handleTabChange} />
             {/* Re-key on the vault id so navigating between two vaults

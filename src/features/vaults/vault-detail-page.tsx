@@ -1,21 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
-import { VaultAgentGrantCard } from './components/vault-agent-grant-card'
-import {
-  MOCK_AGENT_GRANTS,
-  type MockAgentGrant,
-} from './components/vault-agent-grants-mock'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import {
   VaultDetailTabs,
   type VaultDetailTab,
 } from './components/vault-detail-tabs'
-import { VaultEntriesList } from './components/vault-entries-list'
-import { MOCK_ENTRIES } from './components/vault-entries-mock'
-import { VaultSearchBar } from './components/vault-search-bar'
-import { RevokeGrantDialog } from './components/revoke-grant-dialog'
 import { VaultSettingsForm } from './components/vault-settings-form'
 import type { Vault } from './types'
 import { useVault } from './use-vault'
@@ -107,12 +98,6 @@ function TabActions({ activeTab }: { activeTab: VaultDetailTab }) {
           {t('vault.detail.addAgent')}
         </Button>
       )
-    case 'settings':
-      return (
-        <Button variant="accent" size="sm" icon="check" form="vault-settings-form" type="submit">
-          {t('vault.saveChanges')}
-        </Button>
-      )
     default:
       return null
   }
@@ -129,13 +114,13 @@ function TabPanel({
     case 'entries':
       return <EntriesTab />
     case 'agents':
-      return <AgentsTab vaultName={vault.name} />
+      return <AgentsTab />
     case 'audit-log':
       return <ComingSoonTab translationKey="vault.detail.auditLogComingSoon" />
     case 'members':
       return <ComingSoonTab translationKey="vault.detail.membersComingSoon" />
     case 'settings':
-      return <VaultSettingsForm vault={vault} formId="vault-settings-form" />
+      return <VaultSettingsForm vault={vault} />
     default:
       return null
   }
@@ -143,82 +128,12 @@ function TabPanel({
 
 function EntriesTab() {
   const { t } = useTranslation()
-  const [search, setSearch] = useState('')
-  const filtered = useMemo(() => {
-    const trimmed = search.trim().toLowerCase()
-    if (trimmed.length === 0) return MOCK_ENTRIES
-    return MOCK_ENTRIES.filter((entry) =>
-      `${entry.name} ${entry.meta}`.toLowerCase().includes(trimmed),
-    )
-  }, [search])
-
-  return (
-    <>
-      <VaultSearchBar
-        value={search}
-        onChange={setSearch}
-        placeholder={t('vault.detail.entriesSearchPlaceholder')}
-      />
-      {filtered.length === 0 ? (
-        <EmptyMessage message={t('vault.detail.entriesEmpty')} />
-      ) : (
-        <VaultEntriesList entries={filtered} />
-      )}
-    </>
-  )
+  return <EmptyMessage message={t('vault.detail.entriesEmpty')} />
 }
 
-function AgentsTab({ vaultName }: { vaultName: string }) {
+function AgentsTab() {
   const { t } = useTranslation()
-  const [search, setSearch] = useState('')
-  const [revokeTarget, setRevokeTarget] = useState<MockAgentGrant | null>(null)
-
-  const filtered = useMemo(() => {
-    const trimmed = search.trim().toLowerCase()
-    if (trimmed.length === 0) return MOCK_AGENT_GRANTS
-    return MOCK_AGENT_GRANTS.filter((grant) =>
-      grant.agent.name.toLowerCase().includes(trimmed),
-    )
-  }, [search])
-
-  return (
-    <>
-      <VaultSearchBar
-        value={search}
-        onChange={setSearch}
-        placeholder={t('vault.detail.agentsSearchPlaceholder')}
-      />
-      {filtered.length === 0 ? (
-        <EmptyMessage message={t('vault.detail.agentsEmpty')} />
-      ) : (
-        <div
-          className="grid gap-2.5"
-          style={{
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          }}
-        >
-          {filtered.map((grant) => (
-            <VaultAgentGrantCard
-              key={grant.id}
-              grant={grant}
-              onRevoke={(g) => setRevokeTarget(g)}
-              onRegrant={(g) => console.info('regrant', g.id)}
-              onRestore={(g) => console.info('restore', g.id)}
-            />
-          ))}
-        </div>
-      )}
-      <RevokeGrantDialog
-        grant={revokeTarget}
-        vaultName={vaultName}
-        onClose={() => setRevokeTarget(null)}
-        onConfirm={(reason) => {
-          console.info('revoke confirmed', revokeTarget?.id, reason)
-          setRevokeTarget(null)
-        }}
-      />
-    </>
-  )
+  return <EmptyMessage message={t('vault.detail.agentsEmpty')} />
 }
 
 function ComingSoonTab({ translationKey }: { translationKey: string }) {

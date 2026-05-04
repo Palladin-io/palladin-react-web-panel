@@ -4,18 +4,14 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
-import { useAuthStore } from '../../auth'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { VaultColorPicker } from './vault-color-picker'
 import { VaultIconPicker } from './vault-icon-picker'
-import { VaultModeSelector } from './vault-mode-selector'
 import {
   DEFAULT_VAULT_COLOR,
   DEFAULT_VAULT_ICON,
 } from './vault-presentation'
 import {
-  type GrantMode,
-  PERMISSION_FULL_GRANT_MODE,
   type UpdateVaultInput,
   type Vault,
 } from '../types'
@@ -24,11 +20,6 @@ import { useUpdateVault } from '../use-update-vault'
 
 export interface VaultSettingsFormProps {
   vault: Vault
-  /**
-   * Stable HTML form id so the detail header's "Save Changes" button
-   * (rendered outside the form) can submit it via `form` attribute.
-   */
-  formId?: string
   /** When true, navigates to /vaults after a successful delete. */
   onDeleted?: () => void
   /** When true, navigates to detail after a successful save. */
@@ -44,7 +35,6 @@ export interface VaultSettingsFormProps {
  */
 export function VaultSettingsForm({
   vault,
-  formId = 'vault-settings-form',
   onDeleted,
   onSaved,
 }: VaultSettingsFormProps) {
@@ -52,14 +42,11 @@ export function VaultSettingsForm({
   const navigate = useNavigate()
   const update = useUpdateVault(vault.id)
   const remove = useDeleteVault()
-  const permissions = useAuthStore((s) => s.permissions)
-  const canUseFullMode = (permissions & PERMISSION_FULL_GRANT_MODE) !== 0
 
   const [name, setName] = useState(vault.name)
   const [description, setDescription] = useState(vault.description ?? '')
   const [icon, setIcon] = useState(vault.icon ?? DEFAULT_VAULT_ICON)
   const [color, setColor] = useState(vault.color ?? DEFAULT_VAULT_COLOR)
-  const [grantMode, setGrantMode] = useState<GrantMode>(vault.grantMode)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [showDelete, setShowDelete] = useState(false)
 
@@ -87,7 +74,6 @@ export function VaultSettingsForm({
     }
     if (icon !== (vault.icon ?? DEFAULT_VAULT_ICON)) patch.icon = icon
     if (color !== (vault.color ?? DEFAULT_VAULT_COLOR)) patch.color = color
-    if (grantMode !== vault.grantMode) patch.grantMode = grantMode
 
     if (Object.keys(patch).length === 0) {
       onSaved?.()
@@ -121,7 +107,6 @@ export function VaultSettingsForm({
   return (
     <>
       <form
-        id={formId}
         onSubmit={handleSubmit}
         className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
           shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
@@ -148,12 +133,6 @@ export function VaultSettingsForm({
               rows={3}
               maxLength={500}
             />
-            <VaultModeSelector
-              value={grantMode}
-              onChange={setGrantMode}
-              canUseFullMode={canUseFullMode}
-              disabled={isPending}
-            />
           </div>
 
           <div className="flex flex-col gap-4 lg:min-w-[220px]">
@@ -175,6 +154,12 @@ export function VaultSettingsForm({
         <FieldFeedback visible={errorMessage !== null} color="red">
           {errorMessage}
         </FieldFeedback>
+
+        <div className="mt-4 flex justify-end">
+          <Button variant="accent" size="sm" icon="check" type="submit" disabled={isPending}>
+            {isPending ? t('vault.saving') : t('vault.saveChanges')}
+          </Button>
+        </div>
       </form>
 
       <section
