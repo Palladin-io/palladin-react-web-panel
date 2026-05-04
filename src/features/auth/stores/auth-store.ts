@@ -55,10 +55,11 @@ export const useAuthStore = create<AuthState>()(
           userId: data.userId,
           isOnboarded: data.isOnboarded,
           permissions: data.permissions ?? 0,
-          // A fresh set of tokens means the session has just started (or been
-          // refreshed). Either way, the user needs to re-unlock before the
-          // vault is usable.
-          isVaultLocked: true,
+          // isVaultLocked is intentionally NOT set here. On first load it is
+          // true from initialState (not persisted). Silent token refreshes via
+          // the 401 interceptor must not re-lock the vault mid-session — the
+          // user should not need to re-enter their master password just because
+          // the access token expired. Explicit locking uses lockVault().
         }),
 
       markOnboarded: () => set({ isOnboarded: true }),
