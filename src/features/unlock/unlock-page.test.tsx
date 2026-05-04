@@ -41,7 +41,7 @@ vi.mock('./use-unlock', async () => {
 // Default: account is set up so the unlock form renders (not the wizard).
 vi.mock('../../shared/api/account-api', () => ({
   ACCOUNT_QUERY_KEY: ['account'],
-  getAccount: vi.fn().mockResolvedValue({ hasPublicKey: true }),
+  getAccount: vi.fn().mockResolvedValue({ isOnboarded: true, salt: 'mock-salt', encryptedPrivateKey: 'mock-key' }),
 }))
 
 function wrapper({ children }: { children: ReactNode }) {

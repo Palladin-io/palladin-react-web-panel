@@ -5,7 +5,8 @@ export interface AccountResponse {
   email: string
   displayName: string
   avatarUrl: string | null
-  hasPublicKey: boolean
+  /** Backend field indicating account setup is complete. */
+  isOnboarded: boolean
   /**
    * base64-encoded 16-byte Argon2id salt for master-key derivation.
    * Present once the user has completed onboarding.

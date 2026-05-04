@@ -49,8 +49,10 @@ export function UnlockPage() {
   }
 
   // Account has no key material → user needs to set up their master password.
+  // Check for salt + encryptedPrivateKey: these are the fields useUnlock
+  // actually needs; isOnboarded alone doesn't guarantee they're present.
   // Render the wizard full-screen here (no sidebar — /unlock renders without layout chrome).
-  if (!account.data?.hasPublicKey) {
+  if (!account.data?.salt || !account.data?.encryptedPrivateKey) {
     return <OnboardingWizard />
   }
 
