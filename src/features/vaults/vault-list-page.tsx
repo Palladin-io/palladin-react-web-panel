@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { Button, PREMIUM_BUTTON_SM_CLASS } from '../../shared/components/button'
-import { Icon } from '../../shared/components/icon'
+import { Button } from '../../shared/components/button'
 import { useAuthStore } from '../auth'
 import { CreateVaultDialog } from './components/create-vault-dialog'
+import { PremiumGateDialog } from './components/premium-gate-dialog'
 import { VaultCard } from './components/vault-card'
 import { VaultSearchBar } from './components/vault-search-bar'
 import { PERMISSION_MULTIPLE_VAULTS, type VaultSummary } from './types'
@@ -15,7 +15,8 @@ export function VaultListPage() {
   const navigate = useNavigate()
   const vaults = useVaults()
   const permissions = useAuthStore((s) => s.permissions)
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [premiumOpen, setPremiumOpen] = useState(false)
   const [search, setSearch] = useState('')
 
   const list = vaults.data?.vaults ?? []
@@ -26,6 +27,18 @@ export function VaultListPage() {
 
   const goToVault = (id: string) => {
     navigate({ to: '/vaults/$vaultId', params: { vaultId: id } })
+  }
+
+  // Single entry point for the "+ Create Vault" affordance. The button is
+  // always visible — gating belongs in the handler so users see a clear
+  // upsell instead of a missing button. Free users above the cap land in
+  // the premium dialog; everyone else gets the regular create flow.
+  const handleCreateClick = () => {
+    if (canCreateMore) {
+      setCreateOpen(true)
+    } else {
+      setPremiumOpen(true)
+    }
   }
 
   return (
@@ -45,22 +58,14 @@ export function VaultListPage() {
             </p>
           </div>
           <div className="flex items-center">
-            {canCreateMore ? (
-              <Button
-                variant="accent"
-                size="sm"
-                icon="add"
-                onClick={() => setDialogOpen(true)}
-              >
-                {t('vault.createVault')}
-              </Button>
-            ) : (
-              <Link to="/billing" className={PREMIUM_BUTTON_SM_CLASS} style={{ textDecoration: 'none' }}>
-                <Icon name="workspace_premium" size={13} />
-                {t('vault.upgradeForMoreVaults')}
-                <Icon name="arrow_forward" size={12} />
-              </Link>
-            )}
+            <Button
+              variant="accent"
+              size="sm"
+              icon="add"
+              onClick={handleCreateClick}
+            >
+              {t('vault.createVault')}
+            </Button>
           </div>
         </header>
 
@@ -80,7 +85,7 @@ export function VaultListPage() {
             list.length > 0 &&
             filteredList.length === 0
           }
-          onCreate={() => setDialogOpen(true)}
+          onCreate={handleCreateClick}
         >
           <div className="flex flex-wrap gap-6">
             {filteredList.map((vault) => (
@@ -95,9 +100,13 @@ export function VaultListPage() {
       </div>
 
       <CreateVaultDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
         onCreated={(id) => goToVault(id)}
+      />
+      <PremiumGateDialog
+        open={premiumOpen}
+        onClose={() => setPremiumOpen(false)}
       />
     </div>
   )
