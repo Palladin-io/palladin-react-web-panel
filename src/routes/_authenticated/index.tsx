@@ -1,8 +1,6 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../features/auth'
-import { OnboardingWizard, useAccount } from '../../features/onboarding'
 
 export const Route = createFileRoute('/_authenticated/')({
   component: AuthenticatedHome,
@@ -12,52 +10,6 @@ function AuthenticatedHome() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
-  const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
-  const isOnboarded = useAuthStore((s) => s.isOnboarded)
-  const account = useAccount()
-
-  // Safety net: account has key material on the server but the vault isn't
-  // unlocked. This can happen when isOnboarded was false in the JWT (so
-  // _authenticated.tsx didn't redirect to /unlock) but the account turns out
-  // to be fully set up. Redirect imperatively once the account data arrives.
-  useEffect(() => {
-    if (account.data?.hasPublicKey && isVaultLocked) {
-      navigate({ to: '/unlock' })
-    }
-  }, [account.data?.hasPublicKey, isVaultLocked, navigate])
-
-  if (account.isPending) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-[#6B7A8E]">{t('common.loading')}</p>
-      </div>
-    )
-  }
-
-  if (account.isError || !account.data) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-[#FF4F4F]">
-          {t('common.couldNotLoadAccount')}
-        </p>
-      </div>
-    )
-  }
-
-  // Show the onboarding wizard only when the account genuinely has no key
-  // material AND the vault is still locked (first-time setup). If the vault
-  // is already unlocked — because setup just completed, or because unlock
-  // succeeded with temporarily-stale hasPublicKey data — skip the wizard so
-  // the user isn't looped back into onboarding right after unlocking.
-  if (!isOnboarded && !account.data.hasPublicKey && isVaultLocked) {
-    return <OnboardingWizard />
-  }
-
-  // hasPublicKey: true but vault still locked — redirect is in flight via
-  // the effect above. Render nothing while the navigation resolves.
-  if (isVaultLocked) {
-    return null
-  }
 
   function handleLogout() {
     logout()

@@ -16,13 +16,17 @@ import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
 import { AppWordmark } from '../shared/components/app-wordmark'
 import { Icon } from '../shared/components/icon'
 
+
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: ({ location }) => {
-    const { accessToken, isOnboarded, isVaultLocked } = useAuthStore.getState()
+    const { accessToken, isVaultLocked } = useAuthStore.getState()
     if (!accessToken) {
       throw redirect({ to: '/login' })
     }
-    if (isOnboarded && isVaultLocked && location.pathname !== '/unlock') {
+    // Route based on isVaultLocked, not isOnboarded. isVaultLocked is never
+    // persisted — it always starts as true and is set to false only by
+    // unlockVault(). This makes it a reliable signal regardless of localStorage.
+    if (isVaultLocked && location.pathname !== '/unlock') {
       throw redirect({ to: '/unlock' })
     }
   },
@@ -78,37 +82,16 @@ function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const theme = useThemeStore((s) => s.theme)
   const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
-  const isOnboarded = useAuthStore((s) => s.isOnboarded)
-  const markOnboarded = useAuthStore((s) => s.markOnboarded)
   const navigate = useNavigate()
 
-  const account = useQuery({
-    queryKey: ACCOUNT_QUERY_KEY,
-    queryFn: getAccount,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  // Self-heal: if the server confirms the account has key material but the
-  // local JWT claim says otherwise (stale/incorrect refresh response), fix
-  // isOnboarded so the lock-redirect logic below fires correctly.
+  // Reactive counterpart of beforeLoad: if the vault locks mid-session
+  // (e.g. an explicit lockVault() call in the future), redirect immediately
+  // without waiting for a navigation to re-trigger beforeLoad.
   useEffect(() => {
-    if (account.data?.hasPublicKey && !isOnboarded) {
-      markOnboarded()
-    }
-  }, [account.data?.hasPublicKey, isOnboarded, markOnboarded])
-
-  // Redirect to unlock whenever the vault is locked AND we know the account
-  // is fully set up. Use isOnboarded OR hasPublicKey so the redirect fires
-  // even when the JWT claim is stale and the self-heal hasn't run yet.
-  useEffect(() => {
-    const shouldRedirect =
-      isVaultLocked &&
-      (isOnboarded || account.data?.hasPublicKey === true) &&
-      pathname !== '/unlock'
-    if (shouldRedirect) {
+    if (isVaultLocked && pathname !== '/unlock') {
       navigate({ to: '/unlock' })
     }
-  }, [isVaultLocked, isOnboarded, account.data?.hasPublicKey, pathname, navigate])
+  }, [isVaultLocked, pathname, navigate])
 
   if (pathname === '/unlock') return <Outlet />
   return (
