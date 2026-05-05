@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
 import { useVaultIconUpload } from '../use-vault-icon-upload'
 import { hexWithAlpha } from './vault-color'
-import { VAULT_ICON_OPTIONS } from './vault-presentation'
+import { VAULT_ICON_COLORS, VAULT_ICON_OPTIONS } from './vault-presentation'
 
 export interface VaultIconPickerProps {
   value: string
@@ -47,10 +47,11 @@ export function VaultIconPicker({
       <div className="flex flex-wrap gap-2">
         {VAULT_ICON_OPTIONS.map((opt) => {
           const selected = !isCustomUrl(value) && opt === value
+          const iconColor = VAULT_ICON_COLORS[opt] ?? '#8A95A6'
           const background = selected
             ? hexWithAlpha(selectedColor, 0.15)
-            : 'var(--cv-bg-subtle)'
-          const borderColor = selected ? selectedColor : 'var(--cv-border)'
+            : hexWithAlpha(iconColor, 0.10)
+          const border = selected ? `2px solid ${selectedColor}` : 'none'
           return (
             <button
               key={opt}
@@ -59,11 +60,11 @@ export function VaultIconPicker({
               disabled={disabled}
               aria-pressed={selected}
               aria-label={t(`vault.iconName.${opt}`, { defaultValue: opt })}
-              className="flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors
-                disabled:cursor-not-allowed disabled:opacity-40"
-              style={{ background, borderColor }}
+              className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
+                text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ background, border }}
             >
-              <Icon name={opt} size={14} color={selected ? selectedColor : undefined} className={selected ? '' : 'text-[var(--cv-t2)]'} />
+              <Icon name={opt} size={14} />
             </button>
           )
         })}
@@ -93,14 +94,19 @@ export function VaultIconPicker({
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled || isUploading}
               aria-label={t('vault.iconUpload')}
-              className="flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors
-                disabled:cursor-not-allowed disabled:opacity-40 text-[var(--cv-t2)]"
-              style={{
-                background: isCustomUrl(value)
-                  ? hexWithAlpha(selectedColor, 0.15)
-                  : 'var(--cv-bg-subtle)',
-                borderColor: isCustomUrl(value) ? selectedColor : 'var(--cv-border)',
-              }}
+              className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
+                disabled:cursor-not-allowed disabled:opacity-40 text-[var(--cv-t3)]"
+              style={
+                isCustomUrl(value)
+                  ? {
+                      background: hexWithAlpha(selectedColor, 0.15),
+                      border: `2px solid ${selectedColor}`,
+                    }
+                  : {
+                      background: 'transparent',
+                      border: '1.5px dashed var(--cv-input-border)',
+                    }
+              }
             >
               {isUploading ? (
                 <Icon name="progress_activity" size={14} />

@@ -18,6 +18,15 @@ export const VAULT_ICON_OPTIONS = [
   'key',
 ] as const
 
+export const VAULT_ICON_COLORS: Record<string, string> = {
+  shield: '#FF4F4F',
+  folder: '#FFAB87',
+  cloud: '#60A5FA',
+  code: '#2EC4B6',
+  database: '#8A95A6',
+  key: '#8A95A6',
+}
+
 /**
  * Accent palette mirrors the Astro design system swatches. The first
  * entry (`#FF4F4F` — accent red) is the primary action colour and the

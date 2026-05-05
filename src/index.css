@@ -12,9 +12,9 @@
   --cv-bg-subtle: rgba(0, 11, 46, 0.04);
   --cv-empty-bg: rgba(255, 252, 247, 0.5);
   --cv-empty-border: rgba(0, 11, 46, 0.1);
-  --cv-modal-bg: #FFFCF7;
-  --cv-input-bg: rgba(0, 11, 46, 0.04);
-  --cv-input-border: rgba(0, 11, 46, 0.1);
+  --cv-modal-bg: #FFFAF3;
+  --cv-input-bg: rgba(255, 252, 247, 0.7);
+  --cv-input-border: rgba(0, 11, 46, 0.08);
   --cv-input-text: #000B2E;
   --cv-input-placeholder: #8A95A6;
   --cv-label-text: #5A6478;
