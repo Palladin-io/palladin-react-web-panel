@@ -178,14 +178,15 @@ function Body({
         <p className="max-w-sm text-sm text-[var(--cv-t3)]">
           {t('vault.noVaultsSubtitle')}
         </p>
-        <button
-          type="button"
+        <Button
+          variant="accent"
+          size="md"
+          icon="add"
           onClick={onCreate}
-          className="mt-2 rounded-lg bg-[#FF4F4F] px-4 py-2 text-sm font-semibold text-white
-            transition-colors hover:bg-[#E04545]"
+          className="mt-2"
         >
           {t('vault.createVault')}
-        </button>
+        </Button>
       </div>
     )
   }

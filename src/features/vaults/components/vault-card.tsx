@@ -1,6 +1,5 @@
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
-import { Icon } from '../../../shared/components/icon'
 import type { VaultSummary } from '../types'
 import { VaultIconCircle } from './vault-icon-circle'
 import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from './vault-presentation'
@@ -13,8 +12,8 @@ export interface VaultCardProps {
 /**
  * Card representation of a vault in the list view. Two-zone layout:
  * a top row with the icon, name, entry count, and a right-aligned
- * grants summary, then a divider and a footer row with a lock glyph
- * and an "updated X ago" timestamp.
+ * active-grants summary, then a divider and a footer row with the
+ * "updated X ago" timestamp.
  *
  * Pure presentational — no data fetching, no mutations. The parent
  * owns navigation via `onClick` so the card can be reused in different
@@ -54,24 +53,19 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
         </span>
       </div>
 
-      <div
-        aria-hidden
-        className="my-2 h-px w-full bg-[var(--cv-divider)]"
-      />
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <Icon name="lock" size={13} className="text-[var(--cv-t3)]" />
-          <span className="text-[11px] text-[var(--cv-t3)]">
-            {t('vault.entries', { count: vault.entryCount ?? 0 })}
-          </span>
-        </div>
-        {updated ? (
-          <span className="text-[11px] text-[var(--cv-t3)]">
-            {t('vault.relativeUpdatedLabel', { time: updated })}
-          </span>
-        ) : null}
-      </div>
+      {updated ? (
+        <>
+          <div
+            aria-hidden
+            className="my-2 h-px w-full bg-[var(--cv-divider)]"
+          />
+          <div className="flex items-center justify-end">
+            <span className="text-[11px] text-[var(--cv-t3)]">
+              {t('vault.relativeUpdatedLabel', { time: updated })}
+            </span>
+          </div>
+        </>
+      ) : null}
     </button>
   )
 }

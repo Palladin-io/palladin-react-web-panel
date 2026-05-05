@@ -21,10 +21,10 @@ describe('VaultCard', () => {
   it('renders the vault name and entry count', () => {
     render(<VaultCard vault={baseVault} onClick={vi.fn()} />)
     expect(screen.getByText('Production Keys')).toBeInTheDocument()
-    // The entry count appears in two slots: under the title (header)
-    // and next to the lock icon in the footer.
+    // The entry count appears once under the title; grants and the
+    // relative-update line carry the remaining metadata.
     const entryMatches = screen.getAllByText(/8 entries/i)
-    expect(entryMatches).toHaveLength(2)
+    expect(entryMatches).toHaveLength(1)
   })
 
   it('renders the active grants count in the header', () => {
