@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
 
 export interface VaultDetailHeaderProps {
@@ -22,13 +23,14 @@ export function VaultDetailHeader({
   actions,
   onBack,
 }: VaultDetailHeaderProps) {
+  const { t } = useTranslation()
   return (
     <div className="mb-2 flex items-center justify-between gap-4">
       <div className="flex min-w-0 items-center gap-2">
         <button
           type="button"
           onClick={onBack}
-          aria-label="Back"
+          aria-label={t('common.back')}
           className="flex h-8 w-8 items-center justify-center rounded-lg
             text-[var(--cv-t3)] transition-colors hover:bg-[var(--cv-bg-subtle)] hover:text-[var(--cv-t1)]"
         >

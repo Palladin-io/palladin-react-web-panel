@@ -97,9 +97,11 @@ function EntryRow({ entry, showDivider }: EntryRowProps) {
             icon="arrow_forward"
             ariaLabel={t('vault.entry.viewDetails')}
             onClick={() => {
-              // Detail navigation lands with CVT-9. For the design pass
-              // we keep the affordance visible without a destination.
-              console.info('view entry', entry.id)
+              // Detail navigation lands with CVT-9. Until then the
+              // affordance stays visible but does nothing in production.
+              if (import.meta.env.DEV) {
+                console.info('view entry', entry.id)
+              }
             }}
             tone="prominent"
           />

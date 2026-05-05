@@ -21,15 +21,15 @@ describe('VaultCard', () => {
   it('renders the vault name and entry count', () => {
     render(<VaultCard vault={baseVault} onClick={vi.fn()} />)
     expect(screen.getByText('Production Keys')).toBeInTheDocument()
-    expect(screen.getByText('8 entries')).toBeInTheDocument()
+    // The entry count appears in two slots: under the title (header)
+    // and next to the lock icon in the footer.
+    const entryMatches = screen.getAllByText(/8 entries/i)
+    expect(entryMatches).toHaveLength(2)
   })
 
-  it('renders the active grants count in both header and footer slots', () => {
+  it('renders the active grants count in the header', () => {
     render(<VaultCard vault={baseVault} onClick={vi.fn()} />)
-    // The grants count appears twice — once on the header right side
-    // and once in the footer next to the lock icon.
-    const matches = screen.getAllByText(/3 active grants/i)
-    expect(matches).toHaveLength(2)
+    expect(screen.getByText(/3 active grants/i)).toBeInTheDocument()
   })
 
   it('invokes onClick when activated', async () => {

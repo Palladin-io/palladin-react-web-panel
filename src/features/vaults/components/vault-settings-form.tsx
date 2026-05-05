@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
+import { analytics } from '../../../shared/lib/analytics'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { VaultColorPicker } from './vault-color-picker'
 import { VaultIconPicker } from './vault-icon-picker'
@@ -82,6 +83,7 @@ export function VaultSettingsForm({
 
     update.mutate(patch, {
       onSuccess: () => {
+        analytics.capture('vault', 'settings-saved')
         onSaved?.()
       },
       onError: () => setErrorMessage(t('vault.errorSave')),
@@ -91,6 +93,7 @@ export function VaultSettingsForm({
   const handleDelete = () => {
     remove.mutate(vault.id, {
       onSuccess: () => {
+        analytics.capture('vault', 'deleted')
         if (onDeleted) {
           onDeleted()
         } else {

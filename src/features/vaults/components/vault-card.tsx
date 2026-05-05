@@ -63,7 +63,7 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
         <div className="flex items-center gap-1.5">
           <Icon name="lock" size={13} className="text-[var(--cv-t3)]" />
           <span className="text-[11px] text-[var(--cv-t3)]">
-            {t('vault.grants', { count: vault.activeGrantCount ?? 0 })}
+            {t('vault.entries', { count: vault.entryCount ?? 0 })}
           </span>
         </div>
         {updated ? (

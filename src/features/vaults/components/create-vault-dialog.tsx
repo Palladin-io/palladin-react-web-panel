@@ -97,6 +97,7 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
               // Icon upload failed — vault was created, proceed without custom icon
             }
           }
+          analytics.capture('vault', 'create-wizard-completed')
           onCreated?.(vault.id)
           onClose()
         },

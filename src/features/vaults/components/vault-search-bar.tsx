@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
 
 export interface VaultSearchBarProps {
@@ -22,6 +23,7 @@ export function VaultSearchBar({
   placeholder,
   filters,
 }: VaultSearchBarProps) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const showToggle = filters !== undefined
 
@@ -45,7 +47,7 @@ export function VaultSearchBar({
             type="button"
             onClick={() => setOpen((prev) => !prev)}
             aria-pressed={open}
-            aria-label={open ? 'Hide filters' : 'Show filters'}
+            aria-label={open ? t('vault.list.toggleFiltersHide') : t('vault.list.toggleFiltersShow')}
             className="flex shrink-0 items-center justify-center"
           >
             <Icon name="tune" size={16} color={open ? '#FF4F4F' : undefined} className={open ? '' : 'text-[var(--cv-input-placeholder)]'} />

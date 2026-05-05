@@ -9,7 +9,6 @@ export function useVault(id: string) {
   return useQuery({
     queryKey: vaultQueryKey(id),
     queryFn: () => getVault(id),
-    enabled: id.length > 0,
     staleTime: 30_000,
   })
 }

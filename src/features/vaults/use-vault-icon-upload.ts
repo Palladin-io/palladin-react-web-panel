@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { presignVaultIcon, uploadToS3, updateVault } from './api/vault-api'
 
 type UploadState = 'idle' | 'uploading' | 'error'
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 const MAX_BYTES = 2 * 1024 * 1024
+const MAX_MB = MAX_BYTES / (1024 * 1024)
 
 function extensionFromMime(mime: string): string {
   if (mime === 'image/png') return 'png'
@@ -13,16 +15,17 @@ function extensionFromMime(mime: string): string {
 }
 
 export function useVaultIconUpload(vaultId: string, onSuccess: (publicUrl: string) => void) {
+  const { t } = useTranslation()
   const [state, setState] = useState<UploadState>('idle')
   const [error, setError] = useState<string | null>(null)
 
   async function upload(file: File) {
     if (!ALLOWED_TYPES.includes(file.type)) {
-      setError('Allowed formats: PNG, JPEG, WebP')
+      setError(t('vault.iconUploadError.invalidType'))
       return
     }
     if (file.size > MAX_BYTES) {
-      setError('Max file size is 2 MB')
+      setError(t('vault.iconUploadError.tooLarge', { maxMb: MAX_MB }))
       return
     }
 
@@ -38,7 +41,7 @@ export function useVaultIconUpload(vaultId: string, onSuccess: (publicUrl: strin
       setState('idle')
     } catch {
       setState('error')
-      setError('Upload failed. Please try again.')
+      setError(t('vault.iconUploadError.failed'))
     }
   }
 

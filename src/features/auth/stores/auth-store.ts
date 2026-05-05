@@ -88,6 +88,37 @@ export const useAuthStore = create<AuthState>()(
       // Only tokens + onboarding state survive a refresh.
       // Crypto keys (masterKey, privateKey) and isVaultLocked are intentionally
       // left out — the vault must be re-unlocked after every page reload.
+      //
+      // ─── Threat model: tokens in localStorage ───────────────────────────────
+      // We persist accessToken + refreshToken via `persist` (default
+      // localStorage). This is deliberate, but worth spelling out so future
+      // contributors don't change it without thinking through the trade-off.
+      //
+      // Mitigations that make this acceptable:
+      //   • Strict CSP (no inline scripts, no eval, SRI on libsodium WASM —
+      //     see CLAUDE.md → Security section). XSS injection surface is
+      //     limited to package supply-chain compromise, which would compromise
+      //     httpOnly cookies just as effectively (the malicious code would
+      //     simply call /api with the user's credentials directly).
+      //   • Refresh tokens rotate aggressively when within 7 days of
+      //     expiry (see Identity module API doc).
+      //   • Crypto keys (MK, privateKey, VK) are NEVER persisted — the
+      //     zero-knowledge guarantee survives a stolen JWT because vault
+      //     contents stay encrypted.
+      //   • Session lifetime is bounded by master-password unlock UX: closing
+      //     the tab destroys the in-memory keys, forcing a re-unlock.
+      //
+      // Why not httpOnly cookies?
+      //   • The web panel is a pure SPA fetched from a different origin than
+      //     the API in staging/prod, so SameSite=Lax cookies wouldn't carry.
+      //     SameSite=None requires every request to be CORS-aware and adds a
+      //     CSRF token on top — net complexity outweighs the marginal XSS
+      //     hardening given the CSP above.
+      //   • Browser extension and mobile clients pull tokens via the SDK;
+      //     httpOnly would block that path.
+      //
+      // Revisit if: CSP weakens, we adopt third-party iframe widgets, or
+      // refresh-token TTL grows to multi-day.
       partialize: (state) => ({
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,

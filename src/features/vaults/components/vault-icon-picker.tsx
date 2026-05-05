@@ -58,7 +58,7 @@ export function VaultIconPicker({
               onClick={() => onChange(opt)}
               disabled={disabled}
               aria-pressed={selected}
-              aria-label={opt}
+              aria-label={t(`vault.iconName.${opt}`, { defaultValue: opt })}
               className="flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors
                 disabled:cursor-not-allowed disabled:opacity-40"
               style={{ background, borderColor }}
@@ -107,7 +107,7 @@ export function VaultIconPicker({
               ) : isCustomUrl(value) ? (
                 <img
                   src={value}
-                  alt="custom icon"
+                  alt=""
                   className="h-5 w-5 rounded-full object-cover"
                 />
               ) : (

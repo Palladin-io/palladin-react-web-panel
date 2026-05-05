@@ -257,7 +257,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             className="flex h-6 items-center gap-1 rounded px-1.5 text-[11px]
               transition-colors hover:bg-[rgba(253,249,228,0.06)]"
             style={{ color: mutedColor }}
-            title="Language"
+            title={t('nav.languageMenu')}
           >
             <span>{currentFlag}</span>
             <span className="text-[9px] font-semibold">{currentLang.toUpperCase()}</span>
@@ -310,7 +310,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             className="flex h-6 w-6 items-center justify-center rounded
               transition-colors hover:bg-[rgba(253,249,228,0.06)]"
             style={{ color: mutedColor }}
-            title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
+            title={theme === 'dark' ? t('nav.themeSwitchToLight') : t('nav.themeSwitchToDark')}
           >
             <Icon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size={14} />
           </button>

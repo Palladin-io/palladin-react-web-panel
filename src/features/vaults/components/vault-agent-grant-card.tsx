@@ -182,6 +182,7 @@ function EntryCounts({
 }: {
   entries: NonNullable<MockAgentGrant['entries']>
 }) {
+  const { t } = useTranslation()
   const counts = entries.reduce(
     (acc, entry) => {
       acc[entry.status] = (acc[entry.status] ?? 0) + 1
@@ -193,9 +194,18 @@ function EntryCounts({
   const expired = counts.expired ?? 0
   const revoked = counts.revoked ?? 0
   const summary = [
-    active > 0 && { label: `${active} active`, color: '#2EC4B6' },
-    expired > 0 && { label: `${expired} expired`, color: '#8A95A6' },
-    revoked > 0 && { label: `${revoked} revoked`, color: '#FF4F4F' },
+    active > 0 && {
+      label: t('vault.agent.entryCountActive', { count: active }),
+      color: '#2EC4B6',
+    },
+    expired > 0 && {
+      label: t('vault.agent.entryCountExpired', { count: expired }),
+      color: '#8A95A6',
+    },
+    revoked > 0 && {
+      label: t('vault.agent.entryCountRevoked', { count: revoked }),
+      color: '#FF4F4F',
+    },
   ].filter(Boolean) as { label: string; color: string }[]
 
   return (
