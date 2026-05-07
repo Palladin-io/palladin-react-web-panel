@@ -100,7 +100,22 @@ Detailed checklist for each review category. Load this file in full before start
 
 ---
 
-## 9. Over-Engineering Check
+## 9. Design Fidelity
+
+- **Every new UI component must match the Astro prototype 1:1** — before reviewing, check `docs/design/astro/src/components/` for the reference implementation.
+- Match shape precisely: e.g. `rounded-[10px]` not `rounded-full`, dashed vs solid borders, exact background alphas.
+- Icon colors and sizes must match the prototype — no arbitrary substitutions.
+- Deviations from the Astro prototype are **blocking** (Critical) findings unless explicitly approved.
+
+## 10. Light & Dark Mode
+
+- **Every new component must render correctly in both light and dark mode.** Use `var(--cv-*)` CSS tokens — never hardcode hex colors inline.
+- Dark mode: activated by `.dark` class on an ancestor — verify the component is tested inside a `.dark` wrapper.
+- Pages that always render on a dark background (e.g. `/unlock`, `/login`) must add `class="dark"` to their outermost container so CSS variables resolve to dark values regardless of user theme.
+- `ThemeSync` toggles `dark` on `document.documentElement` — do not toggle it anywhere else.
+- Flag any `Colors.white`, `Color(0xFF...)`, or hardcoded `#hex` inline in components — use `AppColors.*` or `var(--cv-*)`.
+
+## 11. Over-Engineering Check
 
 Flag any of the following:
 - A custom hook that wraps a single `useState` call with no additional logic.
