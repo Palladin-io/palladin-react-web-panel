@@ -34,6 +34,7 @@ Użyj `/brain` żeby nawigować po brain lub: `grep -r "SŁOWO" ../docs/obsidian
 | HTTP | ky | Lightweight fetch wrapper with interceptors |
 | Icons | Lucide React | Consistent icon set |
 | Toasts | Sonner | Non-blocking notifications |
+| i18n | i18next + react-i18next | ARB-style JSON, `en.json` + `pl.json` |
 
 ## Project Structure
 
@@ -128,6 +129,22 @@ Pages with a hardcoded dark gradient background (e.g., `/unlock`, `/login`) must
 - Design tokens via CSS variables in `src/index.css` (`:root` for light, `.dark` for dark) — never hardcode hex colors inline in components; use `var(--cv-*)` tokens
 - Dark mode: `@custom-variant dark (&:is(.dark *))` — the `dark:` prefix applies when element is inside a `.dark` ancestor. The `ThemeSync` provider toggles `dark` on `document.documentElement`.
 - **Design fidelity:** before implementing any UI component, check `docs/design/astro/src/components/` for the Astro reference. Match 1:1 — shape (e.g., `rounded-[10px]` not `rounded-full`), background alphas, border styles (dashed vs solid), icon colors. Deviations from design prototypes are blocking review findings.
+
+### i18n / Localisation
+
+**Stack:** `i18next` + `react-i18next`
+
+| File | Purpose |
+|------|---------|
+| `src/locales/en.json` | English strings (template) |
+| `src/locales/pl.json` | Polish translations |
+
+**Rules:**
+1. **Never hardcode user-facing strings** — add to both JSON files and reference with `t('key')`
+2. Use `useTranslation()` in functional components; `i18n.t('key')` in non-component contexts
+3. Key naming: `feature.actionOrLabel` (dot-separated, camelCase within namespace) — e.g. `auth.loginTitle`, `vault.createTitle`
+4. Both `en.json` and `pl.json` must be updated together
+5. Dynamic values use interpolation: `t('key', { count: n })` with `{{count}}` in the JSON value
 
 ### Error Handling
 - TanStack Query `onError` for API errors
