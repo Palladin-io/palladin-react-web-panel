@@ -8,6 +8,7 @@ import { FormTextarea } from '../../../shared/components/form-textarea'
 import { analytics } from '../../../shared/lib/analytics'
 import { GRANT_MODE_GRANULAR } from '../types'
 import { useCreateVault } from '../use-create-vault'
+import { extensionFromMime } from '../use-vault-icon-upload'
 import { VAULTS_QUERY_KEY } from '../use-vaults'
 import { presignVaultIcon, uploadToS3, updateVault } from '../api/vault-api'
 import { ModalShell } from './modal-shell'
@@ -87,8 +88,7 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
         onSuccess: async (vault) => {
           if (pendingIconFile) {
             try {
-              const mime = pendingIconFile.type
-              const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg'
+              const ext = extensionFromMime(pendingIconFile.type)
               const { uploadUrl, publicUrl } = await presignVaultIcon(vault.id, ext)
               await uploadToS3(uploadUrl, pendingIconFile)
               await updateVault(vault.id, { icon: publicUrl })

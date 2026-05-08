@@ -7,7 +7,7 @@ import {
   useRouterState,
 } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
 import { useAuthStore } from '../features/auth'
@@ -81,17 +81,13 @@ const DROPDOWN_BG = {
 function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const theme = useThemeStore((s) => s.theme)
-  const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
-  const navigate = useNavigate()
 
-  // Reactive counterpart of beforeLoad: if the vault locks mid-session
-  // (e.g. an explicit lockVault() call in the future), redirect immediately
-  // without waiting for a navigation to re-trigger beforeLoad.
-  useEffect(() => {
-    if (isVaultLocked && pathname !== '/unlock') {
-      navigate({ to: '/unlock' })
-    }
-  }, [isVaultLocked, pathname, navigate])
+  // Vault-lock routing is handled by `beforeLoad` (sync, fires on every
+  // navigation). We avoid a mid-session `useEffect` guard here because
+  // no caller currently flips `isVaultLocked` to `true` mid-session
+  // outside `logout()`, which already redirects to `/login`. When a
+  // real `lockVault()` caller lands, prefer `useRouter().invalidate()`
+  // after the lock so `beforeLoad` re-runs.
 
   if (pathname === '/unlock') return <Outlet />
   return (

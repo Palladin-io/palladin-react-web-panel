@@ -1,10 +1,22 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../features/auth'
+import { Button } from '../../shared/components/button'
 
 export const Route = createFileRoute('/_authenticated/')({
   component: AuthenticatedHome,
 })
+
+/**
+ * Class string mirrors `<Button variant="accent" size="md">` so a router
+ * `<Link>` (which can't render a `<button>`) shares the same chrome as
+ * the rest of the app's primary actions. Keeping it inline here — at a
+ * single call site — avoids inventing a generic `LinkButton` wrapper for
+ * one place; if a second caller appears, lift it into shared/components.
+ */
+const ACCENT_LINK_CLASS =
+  'inline-flex items-center justify-center px-3.5 py-2 text-[13px] font-semibold ' +
+  'rounded-lg gap-2 bg-[#FF4F4F] text-white transition-colors hover:bg-[#E04545]'
 
 function AuthenticatedHome() {
   const { t } = useTranslation()
@@ -21,21 +33,12 @@ function AuthenticatedHome() {
       <div className="text-center">
         <h1 className="mb-6 text-2xl font-bold">{t('common.dashboardComingSoon')}</h1>
         <div className="flex items-center justify-center gap-2">
-          <Link
-            to="/vaults"
-            className="rounded-lg bg-[#2EC4B6] px-4 py-2 text-sm font-semibold text-[#000B2E]
-              transition-colors hover:bg-[#26a89d]"
-          >
+          <Link to="/vaults" className={ACCENT_LINK_CLASS}>
             {t('vault.title')}
           </Link>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-lg border border-[rgba(253,249,228,0.1)] bg-[rgba(253,249,228,0.04)]
-              px-4 py-2 text-sm text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.08)]"
-          >
+          <Button variant="outline" onClick={handleLogout}>
             {t('common.logout')}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

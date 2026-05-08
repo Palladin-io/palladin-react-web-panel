@@ -8,7 +8,12 @@ const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 const MAX_BYTES = 2 * 1024 * 1024
 const MAX_MB = MAX_BYTES / (1024 * 1024)
 
-function extensionFromMime(mime: string): string {
+/**
+ * Map a MIME type to the file extension used for the S3 presign request.
+ * Exported so the create-vault dialog can use the same mapping when it
+ * uploads a custom icon during the two-step vault create flow.
+ */
+export function extensionFromMime(mime: string): string {
   if (mime === 'image/png') return 'png'
   if (mime === 'image/webp') return 'webp'
   return 'jpg'

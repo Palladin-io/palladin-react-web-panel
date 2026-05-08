@@ -1,5 +1,4 @@
 import { useEffect, type ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
 
 export interface ModalShellProps {
   /** Optional handler — when omitted, the backdrop and Escape key are inert. */
@@ -15,6 +14,10 @@ export interface ModalShellProps {
  * Escape-key dismissal, and body scroll lock so feature components stay
  * focused on their form content. Intentionally lean — when we need full
  * a11y (focus trap, return focus on close) we'll lift this into shared/.
+ *
+ * The backdrop is rendered as a non-focusable `<div>` with `aria-hidden`
+ * so screen-reader rotor lists don't end up with two "Close" entries
+ * (the dialog body always renders its own X button with `t('common.close')`).
  */
 export function ModalShell({
   onClose,
@@ -22,7 +25,6 @@ export function ModalShell({
   width = 480,
   children,
 }: ModalShellProps) {
-  const { t } = useTranslation()
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose?.()
@@ -43,12 +45,10 @@ export function ModalShell({
       aria-label={ariaLabel}
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
     >
-      <button
-        type="button"
-        aria-label={t('common.close')}
-        tabIndex={-1}
+      <div
+        aria-hidden
         onClick={onClose}
-        className="absolute inset-0 h-full w-full cursor-default bg-black/60"
+        className="absolute inset-0 h-full w-full bg-black/60"
       />
       <div
         className="relative z-10 w-full rounded-2xl border border-[var(--cv-border)]

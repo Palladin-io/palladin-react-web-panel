@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { Button } from '../../../shared/components/button'
 import { ModalShell } from './modal-shell'
 
 export interface DeleteConfirmDialogProps {
@@ -31,26 +32,12 @@ export function DeleteConfirmDialog({
         <p className="text-sm text-[var(--cv-t2)]">{t('vault.deleteConfirmText')}</p>
 
         <div className="mt-2 flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isPending}
-            className="rounded-lg border border-[var(--cv-btn-outline-border)] bg-transparent px-4 py-2
-              text-sm text-[var(--cv-t1)] transition-colors hover:bg-[var(--cv-btn-outline-hover)]
-              disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          <Button variant="outline" onClick={onCancel} disabled={isPending}>
             {t('vault.cancel')}
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isPending}
-            className="rounded-lg bg-[#FF4F4F] px-4 py-2 text-sm font-semibold text-white
-              transition-colors hover:bg-[#e04545]
-              disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          </Button>
+          <Button variant="accent" onClick={onConfirm} disabled={isPending}>
             {isPending ? t('vault.deleting') : t('vault.confirmDelete')}
-          </button>
+          </Button>
         </div>
       </div>
     </ModalShell>

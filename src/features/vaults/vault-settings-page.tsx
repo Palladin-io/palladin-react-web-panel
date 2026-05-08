@@ -8,9 +8,6 @@ import {
 import { VaultSettingsForm } from './components/vault-settings-form'
 import { useVault } from './use-vault'
 
-const PAGE_BACKGROUND =
-  'linear-gradient(160deg, #000B2E 0%, #0A1A3E 30%, #0E1230 60%, #000B2E 100%)'
-
 export interface VaultSettingsPageProps {
   vaultId: string
 }
@@ -20,7 +17,8 @@ export interface VaultSettingsPageProps {
  * Visually mirrors the detail page — same header + tab bar — and embeds
  * the shared {@link VaultSettingsForm}. Switching tabs from here pops
  * back into the regular detail page so the user keeps a consistent
- * navigation model.
+ * navigation model. Inherits the theme-aware gradient + text colour
+ * from `_authenticated.tsx` (mirroring `vault-detail-page.tsx`).
  */
 export function VaultSettingsPage({ vaultId }: VaultSettingsPageProps) {
   const { t } = useTranslation()
@@ -39,10 +37,10 @@ export function VaultSettingsPage({ vaultId }: VaultSettingsPageProps) {
   }
 
   return (
-    <div className="min-h-screen text-[#FDF9E4]" style={{ background: PAGE_BACKGROUND }}>
+    <div className="min-h-screen text-[var(--cv-t1)]">
       <div className="mx-auto max-w-6xl px-6 py-10">
         {vault.isPending ? (
-          <div className="h-32 animate-pulse rounded-2xl bg-[rgba(13,27,62,0.6)]" />
+          <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
         ) : vault.isError || !vault.data ? (
           <div className="rounded-2xl border border-[rgba(255,79,79,0.3)] bg-[rgba(255,79,79,0.06)] p-6 text-sm text-[#FF4F4F]">
             {t('vault.errorLoad')}
