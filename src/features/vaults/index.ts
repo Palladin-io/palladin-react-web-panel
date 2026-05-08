@@ -2,7 +2,12 @@ export { VaultListPage } from './vault-list-page'
 export { VaultDetailPage } from './vault-detail-page'
 export { VaultSettingsPage } from './vault-settings-page'
 export type {
+  CreateEntryPayload,
   CreateVaultInput,
+  EntryDetail,
+  EntryListItem,
+  EntryPlaintext,
+  EntryType,
   GrantMode,
   UpdateVaultInput,
   Vault,
@@ -16,3 +21,5 @@ export {
 } from './types'
 export { useVaults } from './use-vaults'
 export { useVault } from './use-vault'
+export { useEntries, useEntryDetail } from './use-entries'
+export { useCreateEntry } from './use-create-entry'

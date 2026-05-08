@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
+import { CreateEntryModal } from './components/create-entry-modal'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import {
   VaultDetailTabs,
   type VaultDetailTab,
 } from './components/vault-detail-tabs'
+import { VaultEntriesTab } from './components/vault-entries-tab'
 import { VaultSettingsForm } from './components/vault-settings-form'
 import type { Vault } from './types'
 import { useVault } from './use-vault'
@@ -30,6 +32,7 @@ export function VaultDetailPage({ vaultId }: VaultDetailPageProps) {
   const navigate = useNavigate()
   const vault = useVault(vaultId)
   const [activeTab, setActiveTab] = useState<VaultDetailTab>('entries')
+  const [createEntryOpen, setCreateEntryOpen] = useState(false)
 
   return (
     <div className="min-h-screen text-[var(--cv-t1)]">
@@ -41,12 +44,20 @@ export function VaultDetailPage({ vaultId }: VaultDetailPageProps) {
             {t('vault.errorLoad')}
           </div>
         ) : (
-          <DetailBody
-            vault={vault.data}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            onBack={() => navigate({ to: '/vaults' })}
-          />
+          <>
+            <DetailBody
+              vault={vault.data}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              onBack={() => navigate({ to: '/vaults' })}
+              onAddEntry={() => setCreateEntryOpen(true)}
+            />
+            <CreateEntryModal
+              open={createEntryOpen}
+              vault={vault.data}
+              onClose={() => setCreateEntryOpen(false)}
+            />
+          </>
         )}
       </div>
     </div>
@@ -58,9 +69,16 @@ interface DetailBodyProps {
   activeTab: VaultDetailTab
   onTabChange: (next: VaultDetailTab) => void
   onBack: () => void
+  onAddEntry: () => void
 }
 
-function DetailBody({ vault, activeTab, onTabChange, onBack }: DetailBodyProps) {
+function DetailBody({
+  vault,
+  activeTab,
+  onTabChange,
+  onBack,
+  onAddEntry,
+}: DetailBodyProps) {
   const { t } = useTranslation()
   const subtitle = t('vault.subtitle.entryCount', { count: vault.entryCount })
 
@@ -70,7 +88,7 @@ function DetailBody({ vault, activeTab, onTabChange, onBack }: DetailBodyProps) 
         title={vault.name}
         subtitle={subtitle}
         onBack={onBack}
-        actions={<TabActions activeTab={activeTab} />}
+        actions={<TabActions activeTab={activeTab} onAddEntry={onAddEntry} />}
       />
       <VaultDetailTabs active={activeTab} onChange={onTabChange} />
       <TabPanel activeTab={activeTab} vault={vault} />
@@ -78,7 +96,12 @@ function DetailBody({ vault, activeTab, onTabChange, onBack }: DetailBodyProps) 
   )
 }
 
-function TabActions({ activeTab }: { activeTab: VaultDetailTab }) {
+interface TabActionsProps {
+  activeTab: VaultDetailTab
+  onAddEntry: () => void
+}
+
+function TabActions({ activeTab, onAddEntry }: TabActionsProps) {
   const { t } = useTranslation()
   switch (activeTab) {
     case 'entries':
@@ -87,7 +110,7 @@ function TabActions({ activeTab }: { activeTab: VaultDetailTab }) {
           <Button variant="subtle" size="sm" icon="file_upload">
             {t('vault.detail.import')}
           </Button>
-          <Button variant="accent" size="sm" icon="add">
+          <Button variant="accent" size="sm" icon="add" onClick={onAddEntry}>
             {t('vault.detail.addEntry')}
           </Button>
         </>
@@ -112,7 +135,7 @@ function TabPanel({
 }) {
   switch (activeTab) {
     case 'entries':
-      return <EntriesTab />
+      return <VaultEntriesTab vault={vault} />
     case 'agents':
       return <AgentsTab />
     case 'audit-log':
@@ -124,11 +147,6 @@ function TabPanel({
     default:
       return null
   }
-}
-
-function EntriesTab() {
-  const { t } = useTranslation()
-  return <EmptyMessage message={t('vault.detail.entriesEmpty')} />
 }
 
 function AgentsTab() {

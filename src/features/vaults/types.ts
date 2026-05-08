@@ -34,7 +34,81 @@ export interface VaultSummary {
 
 export interface Vault extends VaultSummary {
   organizationId: string
+  /**
+   * The caller's wrapped Vault Key (sealed-box ciphertext) returned from
+   * `GET /vaults/{id}`. Optional because older backend builds and bare
+   * mocks may omit it; consumers must guard before unwrapping.
+   *
+   * Base64-encoded `crypto_box_seal(VK, userPublicKey)`.
+   */
+  wrappedVK?: string
 }
+
+/**
+ * Entry types match the backend `EntryType` enum (string-encoded).
+ * `KEY` — single secret value (API key, token, env variable).
+ * `CREDENTIAL` — username + password pair, optionally with URL.
+ */
+export type EntryType = 'KEY' | 'CREDENTIAL'
+
+/**
+ * List item shape returned by `GET /vaults/{id}/entries` — metadata only,
+ * never the encrypted blob. The blob is fetched lazily on reveal via
+ * `GET /vaults/{id}/entries/{eid}` so we don't ship every secret to the
+ * browser the moment the tab opens.
+ */
+export interface EntryListItem {
+  id: string
+  label: string
+  description?: string
+  icon?: string
+  type: EntryType
+  urlDomain?: string
+  createdAt: string
+  updatedAt: string
+  lastAccessedAt?: string
+  accessCount: number
+}
+
+/**
+ * Full entry detail (single-entry GET). Adds the encrypted blob + nonce
+ * — everything the client needs to decrypt with VK and render the
+ * plaintext payload in the reveal panel.
+ */
+export interface EntryDetail extends EntryListItem {
+  encryptedBlob: string
+  nonce: string
+}
+
+/**
+ * Wire payload for `POST /vaults/{id}/entries`. The plaintext entry
+ * payload (serialised JSON of {@link EntryPlaintext}) is encrypted with
+ * the vault key client-side before this object is built.
+ */
+export interface CreateEntryPayload {
+  label: string
+  description?: string
+  icon?: string
+  type: EntryType
+  encryptedBlob: string
+  nonce: string
+  urlDomain?: string
+}
+
+/**
+ * Plaintext payload that gets encrypted into `encryptedBlob`. Discriminated
+ * union so the encrypt/decrypt helpers can switch on `type` without
+ * tripping over optional fields.
+ */
+export type EntryPlaintext =
+  | { type: 'KEY'; value: string; notes?: string }
+  | {
+      type: 'CREDENTIAL'
+      username: string
+      password: string
+      url?: string
+      notes?: string
+    }
 
 export interface CreateVaultInput {
   name: string

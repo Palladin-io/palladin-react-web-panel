@@ -1,6 +1,7 @@
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEffect, type ReactNode } from 'react'
+import { Toaster } from 'sonner'
 import { ErrorBoundary } from '../shared/components/error-boundary'
 import { env } from '../shared/lib/env'
 import { useThemeStore } from '../shared/stores/theme-store'
@@ -26,6 +27,10 @@ export function Providers({ children }: { children: ReactNode }) {
       <GoogleOAuthProvider clientId={env.googleClientId}>
         <QueryClientProvider client={queryClient}>
           {children}
+          {/* Single Toaster mounted at the app root — feature components
+              call `toast(...)` from sonner without needing to mount their
+              own provider. Matches the dark theme via CSS variables. */}
+          <Toaster theme="system" position="bottom-right" richColors closeButton />
         </QueryClientProvider>
       </GoogleOAuthProvider>
     </ErrorBoundary>
