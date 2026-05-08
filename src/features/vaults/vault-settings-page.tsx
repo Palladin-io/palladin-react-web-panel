@@ -38,7 +38,7 @@ export function VaultSettingsPage({ vaultId }: VaultSettingsPageProps) {
 
   return (
     <div className="min-h-screen text-[var(--cv-t1)]">
-      <div className="mx-auto max-w-6xl px-6 py-10">
+      <div className="px-6 py-8">
         {vault.isPending ? (
           <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
         ) : vault.isError || !vault.data ? (
