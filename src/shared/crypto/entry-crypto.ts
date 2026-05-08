@@ -1,8 +1,4 @@
-import type {
-  EntryContent,
-  EntryPlaintext,
-  EntryType,
-} from '../../features/vaults/types'
+import type { EntryContent, EntryPlaintext } from '../../features/vaults/types'
 import { fromBase64, toBase64 } from './encoding'
 import { loadSodium } from './sodium'
 
@@ -15,10 +11,10 @@ import { loadSodium } from './sodium'
  * inside the blob means decrypt round-trips back to the exact same
  * object shape without depending on out-of-band metadata.
  *
- * Output is the polymorphic {@link EntryContent} expected by
- * `POST /vaults/{id}/entries` — the `entryType` discriminator must
- * match the outer entry `type` so the backend's JSON deserialiser
- * can reconstruct the right concrete type.
+ * Output is the {@link EntryContent} expected by `POST /vaults/{id}/entries`
+ * — a flat `(encryptedBlob, nonce)` pair. The plaintext type lives on the
+ * outer entry `type` field; the client uses it to pick the right schema
+ * when decrypting.
  *
  * Lives in `shared/crypto/` (not in a feature folder) on purpose: the
  * libsodium primitives stay in a single audited module. Feature code
@@ -28,7 +24,6 @@ import { loadSodium } from './sodium'
 export async function encryptEntry(
   payload: EntryPlaintext,
   vaultKey: Uint8Array,
-  type: EntryType,
 ): Promise<EntryContent> {
   const sodium = await loadSodium()
   const nonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES)
@@ -39,7 +34,6 @@ export async function encryptEntry(
   const plaintext = new Uint8Array(new TextEncoder().encode(JSON.stringify(payload)))
   const cipher = sodium.crypto_secretbox_easy(plaintext, nonce, vaultKey)
   return {
-    entryType: type,
     encryptedBlob: toBase64(cipher),
     nonce: toBase64(nonce),
   }

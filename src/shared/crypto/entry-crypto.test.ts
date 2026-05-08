@@ -16,8 +16,7 @@ describe('entry-crypto', () => {
       notes: 'Used by the deploy bot',
     }
 
-    const content = await encryptEntry(plaintext, vk, ENTRY_TYPE_KEY)
-    expect(content.entryType).toBe(ENTRY_TYPE_KEY)
+    const content = await encryptEntry(plaintext, vk)
     const recovered = await decryptEntry(content, vk)
 
     expect(recovered).toEqual(plaintext)
@@ -32,8 +31,7 @@ describe('entry-crypto', () => {
       url: 'https://example.com/login',
     }
 
-    const content = await encryptEntry(plaintext, vk, ENTRY_TYPE_CREDENTIAL)
-    expect(content.entryType).toBe(ENTRY_TYPE_CREDENTIAL)
+    const content = await encryptEntry(plaintext, vk)
     const recovered = await decryptEntry(content, vk)
 
     expect(recovered).toEqual(plaintext)
@@ -43,8 +41,8 @@ describe('entry-crypto', () => {
     const vk = await randomBytes(32)
     const plaintext: EntryPlaintext = { type: ENTRY_TYPE_KEY, value: 'static' }
 
-    const a = await encryptEntry(plaintext, vk, ENTRY_TYPE_KEY)
-    const b = await encryptEntry(plaintext, vk, ENTRY_TYPE_KEY)
+    const a = await encryptEntry(plaintext, vk)
+    const b = await encryptEntry(plaintext, vk)
 
     expect(a.nonce).not.toBe(b.nonce)
     expect(a.encryptedBlob).not.toBe(b.encryptedBlob)
@@ -53,11 +51,7 @@ describe('entry-crypto', () => {
   it('throws when decrypted with the wrong vault key', async () => {
     const vk = await randomBytes(32)
     const wrongVk = await randomBytes(32)
-    const content = await encryptEntry(
-      { type: ENTRY_TYPE_KEY, value: 'secret' },
-      vk,
-      ENTRY_TYPE_KEY,
-    )
+    const content = await encryptEntry({ type: ENTRY_TYPE_KEY, value: 'secret' }, vk)
 
     await expect(decryptEntry(content, wrongVk)).rejects.toThrow()
     // Sanity: calling loadSodium once primes the WASM init for the rejection above.

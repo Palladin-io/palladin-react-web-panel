@@ -74,12 +74,11 @@ export interface EntryListItem {
 }
 
 /**
- * Polymorphic entry content stored as JSONB on the backend. The
- * `entryType` discriminator must match the outer `type` and is required
- * by the backend's polymorphic JSON deserialiser.
+ * Encrypted entry content stored as JSONB on the backend. The plaintext
+ * type lives on the outer entry `type` field — clients use it to choose
+ * the right schema when decrypting.
  */
 export interface EntryContent {
-  entryType: EntryType
   encryptedBlob: string
   nonce: string
 }
