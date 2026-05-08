@@ -62,17 +62,13 @@ export function useCreateEntry() {
 
       const vaultKey = await unsealVaultKey(input.wrappedVK, privateKey)
       try {
-        const { encryptedBlob, nonce } = await encryptEntry(
-          input.payload,
-          vaultKey,
-        )
+        const content = await encryptEntry(input.payload, vaultKey, input.type)
         return createEntry(input.vaultId, {
           label: input.label,
           description: input.description,
           icon: input.icon,
           type: input.type,
-          encryptedBlob,
-          nonce,
+          content,
           urlDomain: input.urlDomain,
         })
       } finally {

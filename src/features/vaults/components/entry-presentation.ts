@@ -1,4 +1,4 @@
-import type { EntryType } from '../types'
+import { ENTRY_TYPE_KEY, type EntryType } from '../types'
 
 /**
  * Visual identity per entry type — mirrors the Astro spec
@@ -26,7 +26,7 @@ const CREDENTIAL_PRESENTATION: EntryPresentation = {
 }
 
 export function presentationForType(type: EntryType): EntryPresentation {
-  return type === 'KEY' ? KEY_PRESENTATION : CREDENTIAL_PRESENTATION
+  return type === ENTRY_TYPE_KEY ? KEY_PRESENTATION : CREDENTIAL_PRESENTATION
 }
 
 /**

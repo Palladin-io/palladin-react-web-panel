@@ -3,7 +3,11 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Vault } from '../types'
+import {
+  ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_KEY,
+  type Vault,
+} from '../types'
 import { CreateEntryModal } from './create-entry-modal'
 
 const mutateMock = vi.fn()
@@ -77,7 +81,7 @@ describe('CreateEntryModal', () => {
 
     await user.selectOptions(
       screen.getByLabelText(/entry type/i),
-      'CREDENTIAL',
+      String(ENTRY_TYPE_CREDENTIAL),
     )
 
     expect(screen.getByLabelText(/^username$/i)).toBeInTheDocument()
@@ -108,8 +112,8 @@ describe('CreateEntryModal', () => {
     expect(input.vaultId).toBe('vault-1')
     expect(input.wrappedVK).toBe('AAAAAAAA')
     expect(input.label).toBe('Stripe Key')
-    expect(input.type).toBe('KEY')
-    expect(input.payload).toEqual({ type: 'KEY', value: 'sk_live_123' })
+    expect(input.type).toBe(ENTRY_TYPE_KEY)
+    expect(input.payload).toEqual({ type: ENTRY_TYPE_KEY, value: 'sk_live_123' })
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
@@ -122,7 +126,10 @@ describe('CreateEntryModal', () => {
 
     render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
 
-    await user.selectOptions(screen.getByLabelText(/entry type/i), 'CREDENTIAL')
+    await user.selectOptions(
+      screen.getByLabelText(/entry type/i),
+      String(ENTRY_TYPE_CREDENTIAL),
+    )
     await user.type(screen.getByLabelText(/^label$/i), 'GitHub')
     await user.type(screen.getByLabelText(/^username$/i), '  user@example.com ')
     await user.type(screen.getByLabelText(/^password$/i), 'secret')
@@ -131,10 +138,10 @@ describe('CreateEntryModal', () => {
 
     expect(mutateMock).toHaveBeenCalledTimes(1)
     const [input] = mutateMock.mock.calls[0]
-    expect(input.type).toBe('CREDENTIAL')
+    expect(input.type).toBe(ENTRY_TYPE_CREDENTIAL)
     expect(input.urlDomain).toBe('github.com')
     expect(input.payload).toEqual({
-      type: 'CREDENTIAL',
+      type: ENTRY_TYPE_CREDENTIAL,
       username: 'user@example.com',
       password: 'secret',
       url: 'https://github.com/path',

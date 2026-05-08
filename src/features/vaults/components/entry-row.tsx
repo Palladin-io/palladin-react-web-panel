@@ -7,7 +7,12 @@ import { unsealVaultKey } from '../../../shared/crypto/vault-key'
 import { Icon } from '../../../shared/components/icon'
 import { useAuthStore } from '../../auth'
 import { analytics } from '../../../shared/lib/analytics'
-import type { EntryListItem, EntryPlaintext } from '../types'
+import {
+  ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_KEY,
+  type EntryListItem,
+  type EntryPlaintext,
+} from '../types'
 import { useEntryDetail } from '../use-entries'
 import { presentationForType } from './entry-presentation'
 
@@ -63,11 +68,7 @@ export function EntryRow({ vaultId, wrappedVK, entry, showDivider }: EntryRowPro
       try {
         const vaultKey = await unsealVaultKey(wrappedVK, privateKey)
         try {
-          const result = await decryptEntry(
-            detail.data.encryptedBlob,
-            detail.data.nonce,
-            vaultKey,
-          )
+          const result = await decryptEntry(detail.data.content, vaultKey)
           if (!cancelled) {
             setPlaintext(result)
           }
@@ -123,7 +124,7 @@ export function EntryRow({ vaultId, wrappedVK, entry, showDivider }: EntryRowPro
           <RowAction
             icon="content_copy"
             label={
-              entry.type === 'KEY'
+              entry.type === ENTRY_TYPE_KEY
                 ? t('vault.entry.copyKey')
                 : t('vault.entry.copyPassword')
             }
@@ -211,7 +212,7 @@ function RevealPanel({
         <p className="text-[11px] text-[#FF4F4F]">{error}</p>
       ) : plaintext ? (
         <div className="flex flex-col gap-2 text-[11px]">
-          {plaintext.type === 'CREDENTIAL' && plaintext.url ? (
+          {plaintext.type === ENTRY_TYPE_CREDENTIAL && plaintext.url ? (
             <RevealRow
               icon="link"
               value={plaintext.url}
@@ -224,7 +225,7 @@ function RevealPanel({
             />
           ) : null}
 
-          {plaintext.type === 'KEY' ? (
+          {plaintext.type === ENTRY_TYPE_KEY ? (
             <RevealRow
               icon="vpn_key"
               value={showSecret ? plaintext.value : maskValue(plaintext.value.length)}
@@ -238,7 +239,7 @@ function RevealPanel({
             />
           ) : null}
 
-          {plaintext.type === 'CREDENTIAL' ? (
+          {plaintext.type === ENTRY_TYPE_CREDENTIAL ? (
             <>
               <RevealRow
                 icon="person"
@@ -404,9 +405,11 @@ function copySecret(
 ) {
   if (!plaintext) return
   const value =
-    plaintext.type === 'KEY' ? plaintext.value : plaintext.password
+    plaintext.type === ENTRY_TYPE_KEY ? plaintext.value : plaintext.password
   const label =
-    type === 'KEY' ? t('vault.entry.copyKey') : t('vault.entry.copyPassword')
+    type === ENTRY_TYPE_KEY
+      ? t('vault.entry.copyKey')
+      : t('vault.entry.copyPassword')
   copyText(value, label, t)
 }
 

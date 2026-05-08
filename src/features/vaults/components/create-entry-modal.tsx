@@ -6,7 +6,13 @@ import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { Icon } from '../../../shared/components/icon'
 import { analytics } from '../../../shared/lib/analytics'
-import type { EntryPlaintext, EntryType, Vault } from '../types'
+import {
+  ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_KEY,
+  type EntryPlaintext,
+  type EntryType,
+  type Vault,
+} from '../types'
 import { useCreateEntry } from '../use-create-entry'
 import { extractDomain } from './entry-presentation'
 import { ModalShell } from './modal-shell'
@@ -36,7 +42,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const { t } = useTranslation()
   const create = useCreateEntry()
 
-  const [type, setType] = useState<EntryType>('KEY')
+  const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
   const [label, setLabel] = useState('')
   const [description, setDescription] = useState('')
   const [keyValue, setKeyValue] = useState('')
@@ -57,7 +63,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const canSubmit = useMemo(() => {
     if (isPending) return false
     if (!label.trim()) return false
-    if (type === 'KEY') return keyValue.trim().length > 0
+    if (type === ENTRY_TYPE_KEY) return keyValue.trim().length > 0
     return username.trim().length > 0 && password.trim().length > 0
   }, [isPending, label, type, keyValue, username, password])
 
@@ -88,7 +94,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         description: description.trim() || undefined,
         type,
         payload,
-        urlDomain: type === 'CREDENTIAL' ? extractDomain(url) : undefined,
+        urlDomain: type === ENTRY_TYPE_CREDENTIAL ? extractDomain(url) : undefined,
       },
       {
         onSuccess: () => {
@@ -159,19 +165,21 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           </label>
           <select
             id="entry-type"
-            value={type}
-            onChange={(e) => setType(e.target.value as EntryType)}
+            value={String(type)}
+            onChange={(e) => setType(Number(e.target.value) as EntryType)}
             disabled={isPending}
             className="w-full rounded-lg border border-[var(--cv-input-border)]
               bg-[var(--cv-input-bg)] px-3 py-2 text-sm text-[var(--cv-input-text)]
               focus:border-[var(--cv-t1)] focus:outline-none"
           >
-            <option value="KEY">{t('vault.entries.typeKeyOption')}</option>
-            <option value="CREDENTIAL">{t('vault.entries.typeCredentialOption')}</option>
+            <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
+            <option value={String(ENTRY_TYPE_CREDENTIAL)}>
+              {t('vault.entries.typeCredentialOption')}
+            </option>
           </select>
         </div>
 
-        {type === 'KEY' ? (
+        {type === ENTRY_TYPE_KEY ? (
           <SecretInput
             id="entry-value"
             label={t('vault.entries.valueLabel')}
@@ -349,16 +357,16 @@ interface BuildPayloadInput {
 
 function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
   const trimmedNotes = input.notes.trim() || undefined
-  if (input.type === 'KEY') {
+  if (input.type === ENTRY_TYPE_KEY) {
     return {
-      type: 'KEY',
+      type: ENTRY_TYPE_KEY,
       value: input.keyValue.trim(),
       notes: trimmedNotes,
     }
   }
   const trimmedUrl = input.url.trim() || undefined
   return {
-    type: 'CREDENTIAL',
+    type: ENTRY_TYPE_CREDENTIAL,
     username: input.username.trim(),
     password: input.password.trim(),
     url: trimmedUrl,

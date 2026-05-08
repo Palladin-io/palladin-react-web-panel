@@ -45,17 +45,20 @@ export interface Vault extends VaultSummary {
 }
 
 /**
- * Entry types match the backend `EntryType` enum (string-encoded).
- * `KEY` — single secret value (API key, token, env variable).
- * `CREDENTIAL` — username + password pair, optionally with URL.
+ * Entry types match the backend `EntryType` enum — serialised as integers
+ * on the wire. KEY (0) is a single secret value (API key, token, env
+ * variable); CREDENTIAL (1) is a username + password pair, optionally
+ * with a URL.
  */
-export type EntryType = 'KEY' | 'CREDENTIAL'
+export const ENTRY_TYPE_KEY = 0 as const
+export const ENTRY_TYPE_CREDENTIAL = 1 as const
+export type EntryType = typeof ENTRY_TYPE_KEY | typeof ENTRY_TYPE_CREDENTIAL
 
 /**
  * List item shape returned by `GET /vaults/{id}/entries` — metadata only,
- * never the encrypted blob. The blob is fetched lazily on reveal via
- * `GET /vaults/{id}/entries/{eid}` so we don't ship every secret to the
- * browser the moment the tab opens.
+ * never the encrypted content. The content is fetched lazily on reveal
+ * via `GET /vaults/{id}/entries/{eid}` so we don't ship every secret to
+ * the browser the moment the tab opens.
  */
 export interface EntryListItem {
   id: string
@@ -71,13 +74,23 @@ export interface EntryListItem {
 }
 
 /**
- * Full entry detail (single-entry GET). Adds the encrypted blob + nonce
+ * Polymorphic entry content stored as JSONB on the backend. The
+ * `entryType` discriminator must match the outer `type` and is required
+ * by the backend's polymorphic JSON deserialiser.
+ */
+export interface EntryContent {
+  entryType: EntryType
+  encryptedBlob: string
+  nonce: string
+}
+
+/**
+ * Full entry detail (single-entry GET). Adds the encrypted content
  * — everything the client needs to decrypt with VK and render the
  * plaintext payload in the reveal panel.
  */
 export interface EntryDetail extends EntryListItem {
-  encryptedBlob: string
-  nonce: string
+  content: EntryContent
 }
 
 /**
@@ -90,20 +103,19 @@ export interface CreateEntryPayload {
   description?: string
   icon?: string
   type: EntryType
-  encryptedBlob: string
-  nonce: string
+  content: EntryContent
   urlDomain?: string
 }
 
 /**
- * Plaintext payload that gets encrypted into `encryptedBlob`. Discriminated
- * union so the encrypt/decrypt helpers can switch on `type` without
- * tripping over optional fields.
+ * Plaintext payload that gets encrypted into `EntryContent.encryptedBlob`.
+ * Discriminated union so the encrypt/decrypt helpers can switch on
+ * `type` without tripping over optional fields.
  */
 export type EntryPlaintext =
-  | { type: 'KEY'; value: string; notes?: string }
+  | { type: typeof ENTRY_TYPE_KEY; value: string; notes?: string }
   | {
-      type: 'CREDENTIAL'
+      type: typeof ENTRY_TYPE_CREDENTIAL
       username: string
       password: string
       url?: string

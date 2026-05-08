@@ -2,7 +2,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { EntryListItem, Vault } from '../types'
+import {
+  ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_KEY,
+  type EntryListItem,
+  type Vault,
+} from '../types'
 import { VaultEntriesTab } from './vault-entries-tab'
 
 const useEntriesMock = vi.fn()
@@ -78,7 +83,7 @@ describe('VaultEntriesTab', () => {
       {
         id: 'e1',
         label: 'Stripe API Key',
-        type: 'KEY',
+        type: ENTRY_TYPE_KEY,
         accessCount: 0,
         createdAt: '2026-04-25T12:00:00Z',
         updatedAt: '2026-04-25T12:00:00Z',
@@ -86,7 +91,7 @@ describe('VaultEntriesTab', () => {
       {
         id: 'e2',
         label: 'GitHub',
-        type: 'CREDENTIAL',
+        type: ENTRY_TYPE_CREDENTIAL,
         urlDomain: 'github.com',
         accessCount: 0,
         createdAt: '2026-04-25T12:00:00Z',

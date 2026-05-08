@@ -2,7 +2,13 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
-import type { EntryListItem, EntryType, Vault } from '../types'
+import {
+  ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_KEY,
+  type EntryListItem,
+  type EntryType,
+  type Vault,
+} from '../types'
 import { useEntries } from '../use-entries'
 import { CreateEntryModal } from './create-entry-modal'
 import { EntryRow } from './entry-row'
@@ -12,7 +18,7 @@ export interface VaultEntriesTabProps {
   vault: Vault
 }
 
-const ALL_TYPES: EntryType[] = ['KEY', 'CREDENTIAL']
+const ALL_TYPES: EntryType[] = [ENTRY_TYPE_KEY, ENTRY_TYPE_CREDENTIAL]
 
 /**
  * Entries tab body — search + filter chips + list of entries (or an
@@ -114,12 +120,12 @@ interface EntryFilterChipsProps {
 function EntryFilterChips({ active, onToggle }: EntryFilterChipsProps) {
   const { t } = useTranslation()
   const labels: Record<EntryType, string> = {
-    KEY: t('vault.entries.filterKeys'),
-    CREDENTIAL: t('vault.entries.filterCredentials'),
+    [ENTRY_TYPE_KEY]: t('vault.entries.filterKeys'),
+    [ENTRY_TYPE_CREDENTIAL]: t('vault.entries.filterCredentials'),
   }
   const dotColor: Record<EntryType, string> = {
-    KEY: '#2EC4B6',
-    CREDENTIAL: '#60A5FA',
+    [ENTRY_TYPE_KEY]: '#2EC4B6',
+    [ENTRY_TYPE_CREDENTIAL]: '#60A5FA',
   }
   return (
     <>
