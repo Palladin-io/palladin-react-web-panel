@@ -31,7 +31,7 @@ jobs:
       github.event_name == 'workflow_dispatch'
     name: Claude Code Review
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -108,7 +108,7 @@ jobs:
 
           claude -p \
             --model "$CLAUDE_MODEL" \
-            --max-turns 60 \
+            --max-turns 120 \
             --dangerously-skip-permissions \
             --allowedTools "Bash(gh:*),Bash(jq:*),Read,Glob,Grep" \
             < /tmp/review_prompt.md

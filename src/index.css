@@ -1,8 +1,95 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --cv-t1: #000B2E;
+  --cv-t2: #3D4E66;
+  --cv-t3: #8A95A6;
+  --cv-card-bg: rgba(255, 252, 247, 0.6);
+  --cv-border: rgba(0, 11, 46, 0.08);
+  --cv-divider: rgba(0, 11, 46, 0.06);
+  --cv-bg-subtle: rgba(0, 11, 46, 0.04);
+  --cv-empty-bg: rgba(255, 252, 247, 0.5);
+  --cv-empty-border: rgba(0, 11, 46, 0.1);
+  --cv-modal-bg: #FFFAF3;
+  --cv-input-bg: rgba(255, 252, 247, 0.7);
+  --cv-input-border: rgba(0, 11, 46, 0.08);
+  --cv-input-text: #000B2E;
+  --cv-input-placeholder: #8A95A6;
+  --cv-label-text: #5A6478;
+  --cv-btn-subtle-bg: rgba(0, 11, 46, 0.04);
+  --cv-btn-subtle-text: #000B2E;
+  --cv-btn-subtle-border: rgba(0, 11, 46, 0.1);
+  --cv-btn-subtle-hover: rgba(0, 11, 46, 0.08);
+  --cv-btn-outline-text: #000B2E;
+  --cv-btn-outline-border: rgba(0, 11, 46, 0.18);
+  --cv-btn-outline-hover: rgba(0, 11, 46, 0.04);
+  --cv-btn-ghost-text: #5A6478;
+  --cv-btn-ghost-hover: rgba(0, 11, 46, 0.04);
+  --cv-icon-muted: #8A95A6;
+  --cv-premium: #9A6E1A;
+}
+
+.dark {
+  --cv-t1: #FDF9E4;
+  --cv-t2: #B8C5D4;
+  --cv-t3: #8A95A6;
+  --cv-card-bg: rgba(13, 27, 62, 0.6);
+  --cv-border: rgba(253, 249, 228, 0.08);
+  --cv-divider: rgba(138, 149, 166, 0.12);
+  --cv-bg-subtle: rgba(253, 249, 228, 0.04);
+  --cv-empty-bg: rgba(13, 27, 62, 0.4);
+  --cv-empty-border: rgba(253, 249, 228, 0.12);
+  --cv-modal-bg: #0D1B3E;
+  --cv-input-bg: rgba(253, 249, 228, 0.04);
+  --cv-input-border: rgba(253, 249, 228, 0.1);
+  --cv-input-text: #FDF9E4;
+  --cv-input-placeholder: #6B7A8E;
+  --cv-label-text: #B8C5D4;
+  --cv-btn-subtle-bg: rgba(253, 249, 228, 0.06);
+  --cv-btn-subtle-text: #FDF9E4;
+  --cv-btn-subtle-border: rgba(253, 249, 228, 0.1);
+  --cv-btn-subtle-hover: rgba(253, 249, 228, 0.1);
+  --cv-btn-outline-text: #FDF9E4;
+  --cv-btn-outline-border: rgba(253, 249, 228, 0.18);
+  --cv-btn-outline-hover: rgba(253, 249, 228, 0.04);
+  --cv-btn-ghost-text: #C4BAA1;
+  --cv-btn-ghost-hover: rgba(253, 249, 228, 0.04);
+  --cv-icon-muted: #8A95A6;
+  --cv-premium: #E8C87A;
+}
+
 button,
 [role="button"] {
   cursor: pointer;
+}
+
+/* Premium button — sweep fill from left to right on hover */
+.btn-premium {
+  position: relative;
+  overflow: hidden;
+  color: var(--cv-premium);
+  border-color: color-mix(in srgb, var(--cv-premium) 45%, transparent);
+  transition: border-color 0.25s ease, color 0.25s ease;
+}
+.btn-premium::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--cv-premium);
+  opacity: 0.10;
+  border-radius: inherit;
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.30s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+}
+.btn-premium:hover {
+  border-color: color-mix(in srgb, var(--cv-premium) 80%, transparent);
+}
+.btn-premium:hover::after {
+  transform: scaleX(1);
 }
 
 @theme {
@@ -22,4 +109,26 @@ button,
 
 .step-enter {
   animation: step-enter 0.22s ease-out both;
+}
+
+/*
+ * Material Symbols Rounded — used as inline glyph spans (`<span class="mi">name</span>`).
+ * Matches the Astro design system convention so vault screens can mirror the
+ * design files 1:1. Font-size is set per-call via inline style.
+ */
+.mi {
+  font-family: "Material Symbols Rounded";
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-flex;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "liga";
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }

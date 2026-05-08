@@ -100,7 +100,14 @@ Detailed checklist for each review category. Load this file in full before start
 
 ---
 
-## 9. Over-Engineering Check
+## 9. Light & Dark Mode
+
+- All colors use `var(--cv-*)` CSS tokens — never hardcode hex colors inline in components.
+- Pages that always render on a dark background (e.g. `/unlock`, `/login`) must have `class="dark"` on their outermost container.
+- `ThemeSync` toggles `dark` on `document.documentElement` — do not toggle it anywhere else.
+- Flag any hardcoded `#hex` or `rgba(...)` color values inline in components.
+
+## 10. Over-Engineering Check
 
 Flag any of the following:
 - A custom hook that wraps a single `useState` call with no additional logic.

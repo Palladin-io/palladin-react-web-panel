@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { UnlockPage } from './unlock-page'
 import { IncorrectMasterPasswordError } from './use-unlock'
@@ -37,6 +38,17 @@ vi.mock('./use-unlock', async () => {
   }
 })
 
+// Default: account is set up so the unlock form renders (not the wizard).
+vi.mock('../../shared/api/account-api', () => ({
+  ACCOUNT_QUERY_KEY: ['account'],
+  getAccount: vi.fn().mockResolvedValue({ isOnboarded: true, salt: 'mock-salt', encryptedPrivateKey: 'mock-key' }),
+}))
+
+function wrapper({ children }: { children: ReactNode }) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return <QueryClientProvider client={client}>{children}</QueryClientProvider>
+}
+
 describe('UnlockPage', () => {
   beforeEach(() => {
     navigateMock.mockReset()
@@ -46,14 +58,14 @@ describe('UnlockPage', () => {
 
   it('fires the page-viewed analytics event on mount', async () => {
     const { analytics } = await import('../../shared/lib/analytics')
-    render(<UnlockPage />)
+    render(<UnlockPage />, { wrapper })
     expect(analytics.capture).toHaveBeenCalledWith('unlock', 'page-viewed')
   })
 
-  it('renders the heading, subtitle, and forgot-password link', () => {
-    render(<UnlockPage />)
+  it('renders the heading, subtitle, and forgot-password link', async () => {
+    render(<UnlockPage />, { wrapper })
     expect(
-      screen.getByRole('heading', { name: /unlock your vault/i }),
+      await screen.findByRole('heading', { name: /unlock your vault/i }),
     ).toBeInTheDocument()
     expect(
       screen.getByText(/enter your master password to access your credentials/i),
@@ -63,16 +75,16 @@ describe('UnlockPage', () => {
     ).toHaveAttribute('href', '/recovery')
   })
 
-  it('disables the submit button while the password field is empty', () => {
-    render(<UnlockPage />)
-    expect(screen.getByRole('button', { name: /^unlock$/i })).toBeDisabled()
+  it('disables the submit button while the password field is empty', async () => {
+    render(<UnlockPage />, { wrapper })
+    expect(await screen.findByRole('button', { name: /^unlock$/i })).toBeDisabled()
   })
 
   it('enables submit once the user starts typing', async () => {
     const user = userEvent.setup()
-    render(<UnlockPage />)
+    render(<UnlockPage />, { wrapper })
 
-    await user.type(screen.getByLabelText(/master password/i), 'hunter2')
+    await user.type(await screen.findByLabelText(/master password/i), 'hunter2')
     expect(screen.getByRole('button', { name: /^unlock$/i })).toBeEnabled()
   })
 
@@ -83,8 +95,8 @@ describe('UnlockPage', () => {
       options.onSuccess()
     })
 
-    render(<UnlockPage />)
-    await user.type(screen.getByLabelText(/master password/i), 'hunter2')
+    render(<UnlockPage />, { wrapper })
+    await user.type(await screen.findByLabelText(/master password/i), 'hunter2')
     await user.click(screen.getByRole('button', { name: /^unlock$/i }))
 
     expect(mutateMock).toHaveBeenCalledWith('hunter2', expect.any(Object))
@@ -99,15 +111,15 @@ describe('UnlockPage', () => {
       options.onError(new IncorrectMasterPasswordError())
     })
 
-    render(<UnlockPage />)
-    await user.type(screen.getByLabelText(/master password/i), 'wrong')
+    render(<UnlockPage />, { wrapper })
+    await user.type(await screen.findByLabelText(/master password/i), 'wrong')
     await user.click(screen.getByRole('button', { name: /^unlock$/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       /incorrect master password/i,
     )
     expect(analytics.capture).toHaveBeenCalledWith('unlock', 'unlock-failed')
-    expect(navigateMock).not.toHaveBeenCalled()
+    expect(navigateMock).not.toHaveBeenCalledWith({ to: '/' })
   })
 
   it('falls back to a generic error and fires unlock-failed for unexpected failures', async () => {
@@ -117,8 +129,8 @@ describe('UnlockPage', () => {
       options.onError(new Error('network went sideways'))
     })
 
-    render(<UnlockPage />)
-    await user.type(screen.getByLabelText(/master password/i), 'hunter2')
+    render(<UnlockPage />, { wrapper })
+    await user.type(await screen.findByLabelText(/master password/i), 'hunter2')
     await user.click(screen.getByRole('button', { name: /^unlock$/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -133,8 +145,8 @@ describe('UnlockPage', () => {
       options.onError(new IncorrectMasterPasswordError())
     })
 
-    render(<UnlockPage />)
-    const input = screen.getByLabelText(/master password/i)
+    render(<UnlockPage />, { wrapper })
+    const input = await screen.findByLabelText(/master password/i)
     await user.type(input, 'wrong')
     await user.click(screen.getByRole('button', { name: /^unlock$/i }))
     expect(await screen.findByRole('alert')).toBeInTheDocument()
@@ -145,9 +157,9 @@ describe('UnlockPage', () => {
 
   it('renders a disabled unlocking button while the mutation is pending', async () => {
     isPending = true
-    render(<UnlockPage />)
+    render(<UnlockPage />, { wrapper })
 
-    const button = screen.getByRole('button', { name: /unlocking/i })
+    const button = await screen.findByRole('button', { name: /unlocking/i })
     expect(button).toBeDisabled()
   })
 })

@@ -2,6 +2,21 @@
 
 React SPA for managing vaults, entries, agents, and grants. Zero-knowledge architecture — all encryption/decryption happens client-side.
 
+## Project Brain
+
+Wiedza biznesowa i architektoniczna projektu: `../docs/obsidian/claw-vault/`
+
+Kluczowe noty dla tego repozytorium:
+- `Technical/Frontend.md` — stack, struktura, konwencje kodu
+- `Technical/Analytics Conventions.md` — PostHog, format zdarzeń
+- `Technical/Security Model.md` — zero-knowledge, szyfrowanie client-side
+- `Product/Modules/Vault/` — Vault module: reguły, API, eventy
+- `Product/Modules/Identity/API.md` — endpointy auth i account
+
+Użyj `/brain` żeby nawigować po brain lub: `grep -r "SŁOWO" ../docs/obsidian/claw-vault --include="*.md"`
+
+**Po sesji która zmienia API, architekturę lub reguły biznesowe: zaktualizuj odpowiednią notę w brain.**
+
 ## Tech Stack
 
 | Layer | Technology | Notes |
@@ -19,6 +34,7 @@ React SPA for managing vaults, entries, agents, and grants. Zero-knowledge archi
 | HTTP | ky | Lightweight fetch wrapper with interceptors |
 | Icons | Lucide React | Consistent icon set |
 | Toasts | Sonner | Non-blocking notifications |
+| i18n | i18next + react-i18next | ARB-style JSON, `en.json` + `pl.json` |
 
 ## Project Structure
 
@@ -54,6 +70,7 @@ src/
 - Each feature owns its components, hooks, queries, and types
 - Features import from `shared/` — never from other features
 - Export only through `index.ts` barrel file
+- **No dead code:** never ship exported components that have zero importers — remove them or keep them unexported until the dependent feature lands. Unused 300-line components inflate diffs and mislead reviewers.
 
 ### Crypto Layer (`shared/crypto/`)
 - All encryption/decryption logic lives here — nowhere else
@@ -66,6 +83,20 @@ src/
 - **Zustand** for client-only state: unlocked keys, UI preferences
 - **TanStack Query** for server state: vaults, entries, grants, audit logs
 - Never duplicate server state in Zustand
+
+### Route Guards
+- **Prefer non-persisted Zustand state for security-critical routing.** `isVaultLocked` is never persisted — it always starts `true` on page load and is only set `false` by `unlockVault()`. This makes it reliable regardless of localStorage corruption or stale JWT claims. Persisted fields like `isOnboarded` can drift and cause false-positive redirects.
+- **`beforeLoad` is sync-only.** It fires at navigation time but does NOT react to mid-session state changes. For mid-session redirects (e.g., vault locking while the user is on a protected page), add a `useEffect` in the layout component watching the relevant Zustand field.
+- Pattern: `beforeLoad` guards entry, `useEffect` in layout guards mid-session.
+
+### Two-Step Resource Creation
+When creating a resource that requires a server-assigned ID before a secondary asset can be uploaded (e.g., vault icon needing `vaultId` for S3 presign), use this pattern:
+1. Create the resource with a placeholder/default for the asset.
+2. After creation succeeds and you have the ID, upload the real asset and PATCH the resource.
+3. Use `blob:` URLs (via `URL.createObjectURL`) for local preview during step 1 — never upload to S3 without an ID.
+
+### Dark-Mode Forced Pages
+Pages with a hardcoded dark gradient background (e.g., `/unlock`, `/login`) must add `class="dark"` to their outermost container div. This ensures CSS variables (`--cv-input-bg`, `--cv-input-text`, etc.) resolve to their dark-mode values regardless of the user's app theme toggle — because these pages always render on a dark background.
 
 ### API Client
 - Base URL from env: `VITE_API_URL`
@@ -95,8 +126,25 @@ src/
 ### Styling
 - Tailwind utility classes directly on elements
 - Extract repeated patterns into components, not CSS classes
-- Design tokens via Tailwind theme config (colors, spacing, typography)
-- Dark mode support via Tailwind `dark:` variant
+- Design tokens via CSS variables in `src/index.css` (`:root` for light, `.dark` for dark) — never hardcode hex colors inline in components; use `var(--cv-*)` tokens
+- Dark mode: `@custom-variant dark (&:is(.dark *))` — the `dark:` prefix applies when element is inside a `.dark` ancestor. The `ThemeSync` provider toggles `dark` on `document.documentElement`.
+- **Design fidelity:** before implementing any UI component, check `docs/design/astro/src/components/` for the Astro reference. Match 1:1 — shape (e.g., `rounded-[10px]` not `rounded-full`), background alphas, border styles (dashed vs solid), icon colors. Deviations from design prototypes are blocking review findings.
+
+### i18n / Localisation
+
+**Stack:** `i18next` + `react-i18next`
+
+| File | Purpose |
+|------|---------|
+| `src/locales/en.json` | English strings (template) |
+| `src/locales/pl.json` | Polish translations |
+
+**Rules:**
+1. **Never hardcode user-facing strings** — add to both JSON files and reference with `t('key')`
+2. Use `useTranslation()` in functional components; `i18n.t('key')` in non-component contexts
+3. Key naming: `feature.actionOrLabel` (dot-separated, camelCase within namespace) — e.g. `auth.loginTitle`, `vault.createTitle`
+4. Both `en.json` and `pl.json` must be updated together
+5. Dynamic values use interpolation: `t('key', { count: n })` with `{{count}}` in the JSON value
 
 ### Error Handling
 - TanStack Query `onError` for API errors
@@ -137,6 +185,16 @@ fe:billing:upgrade-prompt-shown
 - **Run tests:** `npm test` (single run), `npm run test:watch` (watch mode), `npm run test:coverage` (with coverage)
 - Co-locate test files next to components: `Component.test.tsx`
 - Test setup in `src/test/setup.ts`
+
+### Required coverage for interactive forms
+Every new form/dialog that ships in a PR must have at minimum:
+1. **Render smoke** — component mounts and shows expected labels/fields
+2. **Happy path** — successful submit calls the mutation + fires expected analytics + closes/navigates
+3. **Error state** — mutation failure surfaces an inline error message
+
+Mock strategy: use a real `QueryClient` in a wrapper, mock the feature hook (`useCreateVault`, `useUpdateVault`, etc.) at the module level with a controllable `mutateMock` that drives `onSuccess`/`onError`. Mock analytics with `vi.fn()`. Stub heavy sub-components (icon picker, color picker) if they'd require their own deep mocks.
+
+Components with no importers must NOT ship — remove them before opening a PR.
 
 ## CI/CD
 

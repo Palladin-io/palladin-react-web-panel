@@ -1,62 +1,27 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../features/auth'
-import { OnboardingWizard, useAccount } from '../../features/onboarding'
+import { Button } from '../../shared/components/button'
 
 export const Route = createFileRoute('/_authenticated/')({
   component: AuthenticatedHome,
 })
 
+/**
+ * Class string mirrors `<Button variant="accent" size="md">` so a router
+ * `<Link>` (which can't render a `<button>`) shares the same chrome as
+ * the rest of the app's primary actions. Keeping it inline here — at a
+ * single call site — avoids inventing a generic `LinkButton` wrapper for
+ * one place; if a second caller appears, lift it into shared/components.
+ */
+const ACCENT_LINK_CLASS =
+  'inline-flex items-center justify-center px-3.5 py-2 text-[13px] font-semibold ' +
+  'rounded-lg gap-2 bg-[#FF4F4F] text-white transition-colors hover:bg-[#E04545]'
+
 function AuthenticatedHome() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
-  const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
-  const account = useAccount()
-
-  // Safety net: account has key material on the server but the vault isn't
-  // unlocked. This can happen when isOnboarded was false in the JWT (so
-  // _authenticated.tsx didn't redirect to /unlock) but the account turns out
-  // to be fully set up. Redirect imperatively once the account data arrives.
-  useEffect(() => {
-    if (account.data?.hasPublicKey && isVaultLocked) {
-      navigate({ to: '/unlock' })
-    }
-  }, [account.data?.hasPublicKey, isVaultLocked, navigate])
-
-  if (account.isPending) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-[#6B7A8E]">{t('common.loading')}</p>
-      </div>
-    )
-  }
-
-  if (account.isError || !account.data) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-[#FF4F4F]">
-          {t('common.couldNotLoadAccount')}
-        </p>
-      </div>
-    )
-  }
-
-  // Show the onboarding wizard only when the account genuinely has no key
-  // material AND the vault is still locked (first-time setup). If the vault
-  // is already unlocked — because setup just completed, or because unlock
-  // succeeded with temporarily-stale hasPublicKey data — skip the wizard so
-  // the user isn't looped back into onboarding right after unlocking.
-  if (!account.data.hasPublicKey && isVaultLocked) {
-    return <OnboardingWizard />
-  }
-
-  // hasPublicKey: true but vault still locked — redirect is in flight via
-  // the effect above. Render nothing while the navigation resolves.
-  if (isVaultLocked) {
-    return null
-  }
 
   function handleLogout() {
     logout()
@@ -67,14 +32,14 @@ function AuthenticatedHome() {
     <div className="flex min-h-screen items-center justify-center">
       <div className="text-center">
         <h1 className="mb-6 text-2xl font-bold">{t('common.dashboardComingSoon')}</h1>
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="rounded-lg border border-[rgba(253,249,228,0.1)] bg-[rgba(253,249,228,0.04)]
-            px-4 py-2 text-sm text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.08)]"
-        >
-          {t('common.logout')}
-        </button>
+        <div className="flex items-center justify-center gap-2">
+          <Link to="/vaults" className={ACCENT_LINK_CLASS}>
+            {t('vault.title')}
+          </Link>
+          <Button variant="outline" onClick={handleLogout}>
+            {t('common.logout')}
+          </Button>
+        </div>
       </div>
     </div>
   )

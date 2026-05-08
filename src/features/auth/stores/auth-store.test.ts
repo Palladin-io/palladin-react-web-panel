@@ -77,10 +77,30 @@ describe('auth-store', () => {
     expect(getIsAuthenticated()).toBe(false)
   })
 
-  it('setTokens always leaves the vault locked', () => {
-    // Pre-unlock, then simulate a token refresh / re-login. The new session
-    // must force the user through the unlock flow again regardless of the
-    // previous lock state.
+  it('setTokens does not regress isOnboarded from true to false', () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-123',
+      refreshToken: 'refresh-456',
+      userId: 'user-789',
+      isOnboarded: true,
+    })
+    expect(useAuthStore.getState().isOnboarded).toBe(true)
+
+    // Simulate a token refresh where backend returns isOnboarded: false (stale JWT claim).
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-new',
+      refreshToken: 'refresh-new',
+      userId: 'user-789',
+      isOnboarded: false,
+    })
+
+    expect(useAuthStore.getState().isOnboarded).toBe(true)
+  })
+
+  it('setTokens does not change vault lock state (token refresh stays unlocked)', () => {
+    // Unlock first, then simulate a silent token refresh. The vault must
+    // stay unlocked — the user should not be forced to re-enter their master
+    // password just because the access token expired mid-session.
     useAuthStore
       .getState()
       .unlockVault(new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6]))
@@ -93,7 +113,7 @@ describe('auth-store', () => {
       isOnboarded: true,
     })
 
-    expect(useAuthStore.getState().isVaultLocked).toBe(true)
+    expect(useAuthStore.getState().isVaultLocked).toBe(false)
   })
 
   it('unlockVault stores independent copies of the key material', () => {

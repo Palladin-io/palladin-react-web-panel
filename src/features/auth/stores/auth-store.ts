@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 interface AuthState {
   accessToken: string | null
@@ -42,43 +43,92 @@ const initialState = {
   privateKey: null,
 }
 
-export const useAuthStore = create<AuthState>()((set) => ({
-  ...initialState,
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      ...initialState,
 
-  setTokens: (data) =>
-    set({
-      accessToken: data.accessToken,
-      refreshToken: data.refreshToken,
-      userId: data.userId,
-      isOnboarded: data.isOnboarded,
-      permissions: data.permissions ?? 0,
-      // A fresh set of tokens means the session has just started (or been
-      // refreshed). Either way, the user needs to re-unlock before the
-      // vault is usable.
-      isVaultLocked: true,
+      setTokens: (data) =>
+        set((state) => ({
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          userId: data.userId,
+          // Never regress isOnboarded from true to false. The JWT claim can
+          // return false during a token refresh (backend omission or stale
+          // claim), which would break the lock-redirect logic and cause the
+          // wizard to appear for already-onboarded users.
+          isOnboarded: state.isOnboarded || data.isOnboarded,
+          permissions: data.permissions ?? 0,
+          // isVaultLocked is intentionally NOT set here — see lockVault().
+        })),
+
+      markOnboarded: () => set({ isOnboarded: true }),
+
+      unlockVault: (masterKey, privateKey) =>
+        // Store independent copies — callers routinely `wipe()` their local
+        // buffers right after handing them off, which would zero out our
+        // references too if we kept them.
+        set({
+          masterKey: new Uint8Array(masterKey),
+          privateKey: new Uint8Array(privateKey),
+          isVaultLocked: false,
+        }),
+
+      lockVault: () =>
+        set({
+          masterKey: null,
+          privateKey: null,
+          isVaultLocked: true,
+        }),
+
+      logout: () => set(initialState),
     }),
-
-  markOnboarded: () => set({ isOnboarded: true }),
-
-  unlockVault: (masterKey, privateKey) =>
-    // Store independent copies — callers routinely `wipe()` their local
-    // buffers right after handing them off, which would zero out our
-    // references too if we kept them.
-    set({
-      masterKey: new Uint8Array(masterKey),
-      privateKey: new Uint8Array(privateKey),
-      isVaultLocked: false,
-    }),
-
-  lockVault: () =>
-    set({
-      masterKey: null,
-      privateKey: null,
-      isVaultLocked: true,
-    }),
-
-  logout: () => set(initialState),
-}))
+    {
+      name: 'claw-vault-auth',
+      // Only tokens + onboarding state survive a refresh.
+      // Crypto keys (masterKey, privateKey) and isVaultLocked are intentionally
+      // left out — the vault must be re-unlocked after every page reload.
+      //
+      // ─── Threat model: tokens in localStorage ───────────────────────────────
+      // We persist accessToken + refreshToken via `persist` (default
+      // localStorage). This is deliberate, but worth spelling out so future
+      // contributors don't change it without thinking through the trade-off.
+      //
+      // Mitigations that make this acceptable:
+      //   • Strict CSP (no inline scripts, no eval, SRI on libsodium WASM —
+      //     see CLAUDE.md → Security section). XSS injection surface is
+      //     limited to package supply-chain compromise, which would compromise
+      //     httpOnly cookies just as effectively (the malicious code would
+      //     simply call /api with the user's credentials directly).
+      //   • Refresh tokens rotate aggressively when within 7 days of
+      //     expiry (see Identity module API doc).
+      //   • Crypto keys (MK, privateKey, VK) are NEVER persisted — the
+      //     zero-knowledge guarantee survives a stolen JWT because vault
+      //     contents stay encrypted.
+      //   • Session lifetime is bounded by master-password unlock UX: closing
+      //     the tab destroys the in-memory keys, forcing a re-unlock.
+      //
+      // Why not httpOnly cookies?
+      //   • The web panel is a pure SPA fetched from a different origin than
+      //     the API in staging/prod, so SameSite=Lax cookies wouldn't carry.
+      //     SameSite=None requires every request to be CORS-aware and adds a
+      //     CSRF token on top — net complexity outweighs the marginal XSS
+      //     hardening given the CSP above.
+      //   • Browser extension and mobile clients pull tokens via the SDK;
+      //     httpOnly would block that path.
+      //
+      // Revisit if: CSP weakens, we adopt third-party iframe widgets, or
+      // refresh-token TTL grows to multi-day.
+      partialize: (state) => ({
+        accessToken: state.accessToken,
+        refreshToken: state.refreshToken,
+        userId: state.userId,
+        isOnboarded: state.isOnboarded,
+        permissions: state.permissions,
+      }),
+    },
+  ),
+)
 
 export function getIsAuthenticated() {
   return useAuthStore.getState().accessToken !== null
