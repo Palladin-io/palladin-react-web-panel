@@ -140,6 +140,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           onChange={(e) => setLabel(e.target.value)}
           placeholder={t('vault.entries.labelPlaceholder')}
           autoFocus
+          autoComplete="off"
           disabled={isPending}
           maxLength={120}
           required
@@ -151,6 +152,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={t('vault.entries.descriptionPlaceholder')}
+          autoComplete="off"
           disabled={isPending}
           maxLength={500}
         />
@@ -200,6 +202,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder={t('vault.entries.usernamePlaceholder')}
+                  autoComplete="off"
                   disabled={isPending}
                   required
                 />
@@ -223,6 +226,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder={t('vault.entries.urlPlaceholder')}
+              autoComplete="off"
               disabled={isPending}
               type="url"
               inputMode="url"
@@ -236,6 +240,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder={t('vault.entries.notesPlaceholder')}
+          autoComplete="off"
           disabled={isPending}
           rows={2}
           maxLength={2000}
@@ -319,6 +324,7 @@ function SecretInput({
         <input
           id={id}
           type={visible ? 'text' : 'password'}
+          autoComplete="new-password"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
