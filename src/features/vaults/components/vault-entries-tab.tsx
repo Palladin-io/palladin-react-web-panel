@@ -47,7 +47,7 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
   }
 
   if (entries.isError) {
-    return <ErrorState message={t('vault.errorLoad')} />
+    return <ErrorState message={t('vault.errorLoad')} onRetry={entries.refetch} />
   }
 
   if (items.length === 0) {

@@ -3,9 +3,10 @@ import { Button } from './button'
 
 export interface ErrorStateProps {
   message?: string
+  onRetry: () => void
 }
 
-export function ErrorState({ message }: ErrorStateProps) {
+export function ErrorState({ message, onRetry }: ErrorStateProps) {
   const { t } = useTranslation()
   return (
     <div
@@ -15,12 +16,7 @@ export function ErrorState({ message }: ErrorStateProps) {
       <p className="text-sm text-[#FF4F4F]">
         {message ?? t('errors.unexpectedError')}
       </p>
-      <Button
-        variant="danger"
-        size="sm"
-        icon="refresh"
-        onClick={() => window.location.reload()}
-      >
+      <Button variant="danger" size="sm" icon="refresh" onClick={onRetry}>
         {t('common.reload')}
       </Button>
     </div>

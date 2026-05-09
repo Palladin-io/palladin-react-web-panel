@@ -87,6 +87,7 @@ export function VaultListPage() {
             filteredList.length === 0
           }
           onCreate={handleCreateClick}
+          onRetry={vaults.refetch}
         >
           <div className="flex flex-wrap gap-6">
             {filteredList.map((vault) => (
@@ -130,6 +131,7 @@ interface BodyProps {
   isEmpty: boolean
   isEmptyAfterFilter: boolean
   onCreate: () => void
+  onRetry: () => void
   children: React.ReactNode
 }
 
@@ -144,6 +146,7 @@ function Body({
   isEmpty,
   isEmptyAfterFilter,
   onCreate,
+  onRetry,
   children,
 }: BodyProps) {
   const { t } = useTranslation()
@@ -163,7 +166,7 @@ function Body({
   }
 
   if (isError) {
-    return <ErrorState message={t('vault.errorLoad')} />
+    return <ErrorState message={t('vault.errorLoad')} onRetry={onRetry} />
   }
 
   if (isEmpty) {

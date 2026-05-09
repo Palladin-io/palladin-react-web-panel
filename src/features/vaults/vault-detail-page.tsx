@@ -41,7 +41,7 @@ export function VaultDetailPage({ vaultId }: VaultDetailPageProps) {
         {vault.isPending ? (
           <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
         ) : vault.isError || !vault.data ? (
-          <ErrorState message={t('vault.errorLoad')} />
+          <ErrorState message={t('vault.errorLoad')} onRetry={vault.refetch} />
         ) : (
           <>
             <DetailBody
