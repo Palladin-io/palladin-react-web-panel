@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { Icon } from '../../../shared/components/icon'
 import { analytics } from '../../../shared/lib/analytics'
@@ -246,22 +246,34 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           maxLength={2000}
         />
 
-        <div className="flex items-center gap-2 rounded-lg border border-[rgba(46,196,182,0.25)]
-          bg-[rgba(46,196,182,0.08)] px-3 py-2">
-          <Icon
-            name="enhanced_encryption"
-            size={14}
-            className="shrink-0"
-            color="#2EC4B6"
-          />
-          <span className="text-[11px] text-[var(--cv-t2)]">
-            {t('vault.entries.encryptionNotice')}
-          </span>
+        <div style={{ perspective: '600px' }} className="relative h-[38px]">
+          <div
+            className="relative h-full w-full transition-transform duration-500 ease-in-out"
+            style={{
+              transformStyle: 'preserve-3d',
+              transform: errorMessage ? 'rotateX(180deg)' : 'rotateX(0deg)',
+            }}
+          >
+            <div
+              className="absolute inset-0 flex items-center gap-2 rounded-lg border
+                border-[rgba(46,196,182,0.25)] bg-[rgba(46,196,182,0.08)] px-3 py-2"
+              style={{ backfaceVisibility: 'hidden' }}
+            >
+              <Icon name="enhanced_encryption" size={14} className="shrink-0" color="#2EC4B6" />
+              <span className="text-[11px] text-[var(--cv-t2)]">
+                {t('vault.entries.encryptionNotice')}
+              </span>
+            </div>
+            <div
+              className="absolute inset-0 flex items-center gap-2 rounded-lg border
+                border-[rgba(255,79,79,0.3)] bg-[rgba(255,79,79,0.08)] px-3 py-2"
+              style={{ backfaceVisibility: 'hidden', transform: 'rotateX(180deg)' }}
+            >
+              <Icon name="error_outline" size={14} className="shrink-0" color="#FF4F4F" />
+              <span className="text-[11px] text-[#FF4F4F] leading-tight">{errorMessage}</span>
+            </div>
+          </div>
         </div>
-
-        <FieldFeedback visible={errorMessage !== null} color="red">
-          {errorMessage}
-        </FieldFeedback>
 
         <div className="mt-1 flex items-center gap-2">
           <Button
