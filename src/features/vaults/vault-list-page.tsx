@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
+import { ErrorState } from '../../shared/components/error-state'
 import { useAuthStore } from '../auth'
 import { CreateVaultDialog } from './components/create-vault-dialog'
 import { PremiumGateDialog } from './components/premium-gate-dialog'
@@ -162,11 +163,7 @@ function Body({
   }
 
   if (isError) {
-    return (
-      <div className="rounded-2xl border border-[rgba(255,79,79,0.3)] bg-[rgba(255,79,79,0.06)] p-6 text-sm text-[#FF4F4F]">
-        {t('vault.errorLoad')}
-      </div>
-    )
+    return <ErrorState message={t('vault.errorLoad')} />
   }
 
   if (isEmpty) {

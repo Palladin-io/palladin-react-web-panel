@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
+import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import {
   ENTRY_TYPE_CREDENTIAL,
@@ -46,14 +47,7 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
   }
 
   if (entries.isError) {
-    return (
-      <div
-        className="rounded-2xl border border-[rgba(255,79,79,0.3)]
-          bg-[rgba(255,79,79,0.06)] p-6 text-sm text-[#FF4F4F]"
-      >
-        {t('vault.errorLoad')}
-      </div>
-    )
+    return <ErrorState message={t('vault.errorLoad')} />
   }
 
   if (items.length === 0) {

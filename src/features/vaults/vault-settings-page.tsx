@@ -1,5 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { ErrorState } from '../../shared/components/error-state'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import {
   VaultDetailTabs,
@@ -42,9 +43,7 @@ export function VaultSettingsPage({ vaultId }: VaultSettingsPageProps) {
         {vault.isPending ? (
           <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
         ) : vault.isError || !vault.data ? (
-          <div className="rounded-2xl border border-[rgba(255,79,79,0.3)] bg-[rgba(255,79,79,0.06)] p-6 text-sm text-[#FF4F4F]">
-            {t('vault.errorLoad')}
-          </div>
+          <ErrorState message={t('vault.errorLoad')} />
         ) : (
           <>
             <VaultDetailHeader
