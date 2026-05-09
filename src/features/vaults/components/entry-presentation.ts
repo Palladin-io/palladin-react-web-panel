@@ -1,5 +1,22 @@
 import { ENTRY_TYPE_KEY, type EntryType } from '../types'
 
+export const ENTRY_ICON_OPTIONS = [
+  'vpn_key',
+  'language',
+  'person',
+  'email',
+  'code',
+  'database',
+  'cloud',
+  'terminal',
+  'credit_card',
+  'badge',
+  'lock',
+  'smartphone',
+] as const
+
+export type EntryIconOption = (typeof ENTRY_ICON_OPTIONS)[number]
+
 /**
  * Visual identity per entry type — mirrors the Astro spec
  * (`docs/obsidian/.../Entries UI.md` → "Entry Type Visual Language"

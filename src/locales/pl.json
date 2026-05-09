@@ -204,6 +204,7 @@
   "vault.entries.labelPlaceholder": "np. Klucz API Stripe",
   "vault.entries.descriptionLabel": "Opis",
   "vault.entries.descriptionPlaceholder": "Opcjonalny — pomaga agentom zrozumieć do czego służy ten wpis",
+  "vault.entries.iconLabel": "Ikona",
   "vault.entries.typeLabel": "Typ wpisu",
   "vault.entries.typeKeyOption": "Klucz — klucz API, token, zmienna środowiskowa",
   "vault.entries.typeCredentialOption": "Dane logowania — login + hasło",

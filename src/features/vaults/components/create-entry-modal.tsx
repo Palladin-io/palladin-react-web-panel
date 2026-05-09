@@ -14,8 +14,9 @@ import {
   type Vault,
 } from '../types'
 import { useCreateEntry } from '../use-create-entry'
-import { extractDomain } from './entry-presentation'
+import { ENTRY_ICON_OPTIONS, extractDomain } from './entry-presentation'
 import { ModalShell } from './modal-shell'
+import { hexWithAlpha } from './vault-color'
 
 export interface CreateEntryModalProps {
   open: boolean
@@ -43,6 +44,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const create = useCreateEntry()
 
   const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
+  const [icon, setIcon] = useState<string | undefined>(undefined)
   const [label, setLabel] = useState('')
   const [description, setDescription] = useState('')
   const [keyValue, setKeyValue] = useState('')
@@ -92,6 +94,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         wrappedVK: vault.wrappedVK,
         label: label.trim(),
         description: description.trim() || undefined,
+        icon,
         type,
         payload,
         urlDomain: type === ENTRY_TYPE_CREDENTIAL ? extractDomain(url) : undefined,
@@ -170,7 +173,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             onChange={(e) => setType(Number(e.target.value) as EntryType)}
             disabled={isPending}
             className="w-full rounded-lg border border-[var(--cv-input-border)]
-              bg-[var(--cv-input-bg)] px-3 py-2 text-sm text-[var(--cv-input-text)]
+              bg-[var(--cv-input-bg)] pl-3 pr-8 py-2 text-sm text-[var(--cv-input-text)]
               focus:border-[var(--cv-t1)] focus:outline-none"
           >
             <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
@@ -178,6 +181,46 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               {t('vault.entries.typeCredentialOption')}
             </option>
           </select>
+        </div>
+
+        <div>
+          <p className="mb-2 text-[11px] font-semibold text-[var(--cv-label-text)]">
+            {t('vault.entries.iconLabel')}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {ENTRY_ICON_OPTIONS.map((opt) => {
+              const selected = icon === opt
+              const accentColor = type === ENTRY_TYPE_KEY ? '#2EC4B6' : '#60A5FA'
+              return (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setIcon(selected ? undefined : opt)}
+                  disabled={isPending}
+                  aria-pressed={selected}
+                  className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
+                    disabled:cursor-not-allowed disabled:opacity-40"
+                  style={
+                    selected
+                      ? {
+                          background: hexWithAlpha(accentColor, 0.15),
+                          border: `2px solid ${accentColor}`,
+                        }
+                      : {
+                          background: 'var(--cv-input-bg)',
+                          border: '1.5px solid var(--cv-input-border)',
+                        }
+                  }
+                >
+                  <Icon
+                    name={opt}
+                    size={14}
+                    color={selected ? accentColor : 'var(--cv-t3)'}
+                  />
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {type === ENTRY_TYPE_KEY ? (
