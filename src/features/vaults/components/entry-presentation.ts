@@ -17,6 +17,25 @@ export const ENTRY_ICON_OPTIONS = [
 
 export type EntryIconOption = (typeof ENTRY_ICON_OPTIONS)[number]
 
+export const ENTRY_ICON_COLORS: Record<string, string> = {
+  vpn_key: '#2EC4B6',
+  language: '#60A5FA',
+  person: '#A78BFA',
+  email: '#60A5FA',
+  code: '#2EC4B6',
+  database: '#8A95A6',
+  cloud: '#60A5FA',
+  terminal: '#2EC4B6',
+  credit_card: '#FFAB87',
+  badge: '#A78BFA',
+  lock: '#FF4F4F',
+  smartphone: '#8A95A6',
+}
+
+export function isCustomIconUrl(value: string | undefined): value is string {
+  return typeof value === 'string' && (value.startsWith('https://') || value.startsWith('blob:'))
+}
+
 /**
  * Visual identity per entry type — mirrors the Astro spec
  * (`docs/obsidian/.../Entries UI.md` → "Entry Type Visual Language"

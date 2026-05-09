@@ -193,6 +193,7 @@
   "vault.entries.descriptionLabel": "Description",
   "vault.entries.descriptionPlaceholder": "Optional — helps agents understand what this entry is for",
   "vault.entries.iconLabel": "Icon",
+  "vault.entries.iconUpload": "Upload custom icon",
   "vault.entries.typeLabel": "Entry Type",
   "vault.entries.typeKeyOption": "Key — API key, token, env variable",
   "vault.entries.typeCredentialOption": "Credential — username + password",

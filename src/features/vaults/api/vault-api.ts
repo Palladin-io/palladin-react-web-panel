@@ -111,11 +111,29 @@ export function createEntry(
     .json<{ id: string }>()
 }
 
+export async function updateEntry(
+  vaultId: string,
+  entryId: string,
+  payload: { label?: string; description?: string; icon?: string; urlDomain?: string },
+): Promise<void> {
+  await api.put(`api/vaults/${vaultId}/entries/${entryId}`, { json: payload })
+}
+
 export async function deleteEntry(
   vaultId: string,
   entryId: string,
 ): Promise<void> {
   await api.delete(`api/vaults/${vaultId}/entries/${entryId}`)
+}
+
+export function presignEntryIcon(
+  vaultId: string,
+  entryId: string,
+  extension: string,
+): Promise<PresignResponse> {
+  return api
+    .post(`api/vaults/${vaultId}/entries/${entryId}/icon/presign`, { json: { extension } })
+    .json<PresignResponse>()
 }
 
 // Re-export for convenient consumption by hooks/tests.

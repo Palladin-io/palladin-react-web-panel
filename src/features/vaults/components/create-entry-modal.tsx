@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FormInput } from '../../../shared/components/form-field'
@@ -14,7 +15,15 @@ import {
   type Vault,
 } from '../types'
 import { useCreateEntry } from '../use-create-entry'
-import { ENTRY_ICON_OPTIONS, extractDomain } from './entry-presentation'
+import { entriesQueryKey } from '../use-entries'
+import { extensionFromMime } from '../use-vault-icon-upload'
+import { presignEntryIcon, updateEntry, uploadToS3 } from '../api/vault-api'
+import {
+  ENTRY_ICON_COLORS,
+  ENTRY_ICON_OPTIONS,
+  extractDomain,
+  isCustomIconUrl,
+} from './entry-presentation'
 import { ModalShell } from './modal-shell'
 import { hexWithAlpha } from './vault-color'
 
@@ -42,9 +51,11 @@ interface CreateEntryModalBodyProps {
 function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const { t } = useTranslation()
   const create = useCreateEntry()
+  const queryClient = useQueryClient()
 
   const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
   const [icon, setIcon] = useState<string | undefined>(undefined)
+  const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
   const [label, setLabel] = useState('')
   const [description, setDescription] = useState('')
   const [keyValue, setKeyValue] = useState('')
@@ -62,6 +73,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
   const isPending = create.isPending
 
+  const accentColor = type === ENTRY_TYPE_KEY ? '#2EC4B6' : '#60A5FA'
+
   const canSubmit = useMemo(() => {
     if (isPending) return false
     if (!label.trim()) return false
@@ -74,14 +87,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     if (!canSubmit) return
     setErrorMessage(null)
 
-    const payload = buildPlaintext({
-      type,
-      keyValue,
-      username,
-      password,
-      url,
-      notes,
-    })
+    const payload = buildPlaintext({ type, keyValue, username, password, url, notes })
 
     if (!vault.wrappedVK) {
       setErrorMessage(t('vault.entries.errorMissingVaultKey'))
@@ -94,13 +100,26 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         wrappedVK: vault.wrappedVK,
         label: label.trim(),
         description: description.trim() || undefined,
-        icon,
+        // Custom image uploaded after creation — send no icon so the list
+        // uses the type default until the PATCH lands.
+        icon: pendingIconFile ? undefined : icon,
         type,
         payload,
         urlDomain: type === ENTRY_TYPE_CREDENTIAL ? extractDomain(url) : undefined,
       },
       {
-        onSuccess: () => {
+        onSuccess: async (data) => {
+          if (pendingIconFile) {
+            try {
+              const ext = extensionFromMime(pendingIconFile.type)
+              const { uploadUrl, publicUrl } = await presignEntryIcon(vault.id, data.id, ext)
+              await uploadToS3(uploadUrl, pendingIconFile)
+              await updateEntry(vault.id, data.id, { icon: publicUrl })
+              queryClient.invalidateQueries({ queryKey: entriesQueryKey(vault.id) })
+            } catch {
+              // Icon upload failed — entry was created, proceed without custom icon
+            }
+          }
           analytics.capture('vault', 'create-entry-wizard-completed', { type })
           toast.success(t('vault.entries.createSuccess'))
           onClose()
@@ -160,6 +179,20 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           maxLength={500}
         />
 
+        <EntryIconPicker
+          value={icon}
+          onChange={(next) => {
+            setIcon(next)
+            setPendingIconFile(null)
+          }}
+          selectedColor={accentColor}
+          disabled={isPending}
+          onFileSelected={(file, previewUrl) => {
+            setPendingIconFile(file)
+            setIcon(previewUrl)
+          }}
+        />
+
         <div>
           <label
             htmlFor="entry-type"
@@ -181,46 +214,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               {t('vault.entries.typeCredentialOption')}
             </option>
           </select>
-        </div>
-
-        <div>
-          <p className="mb-2 text-[11px] font-semibold text-[var(--cv-label-text)]">
-            {t('vault.entries.iconLabel')}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {ENTRY_ICON_OPTIONS.map((opt) => {
-              const selected = icon === opt
-              const accentColor = type === ENTRY_TYPE_KEY ? '#2EC4B6' : '#60A5FA'
-              return (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setIcon(selected ? undefined : opt)}
-                  disabled={isPending}
-                  aria-pressed={selected}
-                  className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
-                    disabled:cursor-not-allowed disabled:opacity-40"
-                  style={
-                    selected
-                      ? {
-                          background: hexWithAlpha(accentColor, 0.15),
-                          border: `2px solid ${accentColor}`,
-                        }
-                      : {
-                          background: 'var(--cv-input-bg)',
-                          border: '1.5px solid var(--cv-input-border)',
-                        }
-                  }
-                >
-                  <Icon
-                    name={opt}
-                    size={14}
-                    color={selected ? accentColor : 'var(--cv-t3)'}
-                  />
-                </button>
-              )
-            })}
-          </div>
         </div>
 
         {type === ENTRY_TYPE_KEY ? (
@@ -343,6 +336,109 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// EntryIconPicker
+// ---------------------------------------------------------------------------
+
+interface EntryIconPickerProps {
+  value: string | undefined
+  onChange: (next: string | undefined) => void
+  selectedColor: string
+  disabled?: boolean
+  onFileSelected?: (file: File, previewUrl: string) => void
+}
+
+function EntryIconPicker({
+  value,
+  onChange,
+  selectedColor,
+  disabled = false,
+  onFileSelected,
+}: EntryIconPickerProps) {
+  const { t } = useTranslation()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  return (
+    <fieldset>
+      <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
+        {t('vault.entries.iconLabel')}
+      </legend>
+      <div className="flex flex-wrap gap-2">
+        {ENTRY_ICON_OPTIONS.map((opt) => {
+          const selected = !isCustomIconUrl(value) && opt === value
+          const iconColor = ENTRY_ICON_COLORS[opt] ?? '#8A95A6'
+          const background = selected
+            ? hexWithAlpha(selectedColor, 0.15)
+            : hexWithAlpha(iconColor, 0.10)
+          const border = selected ? `2px solid ${selectedColor}` : 'none'
+          return (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onChange(selected ? undefined : opt)}
+              disabled={disabled}
+              aria-pressed={selected}
+              className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
+                text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ background, border }}
+            >
+              <Icon name={opt} size={14} color={selected ? selectedColor : iconColor} />
+            </button>
+          )
+        })}
+
+        {onFileSelected && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) {
+                  const previewUrl = URL.createObjectURL(file)
+                  onFileSelected(file, previewUrl)
+                }
+                e.target.value = ''
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled}
+              aria-label={t('vault.entries.iconUpload')}
+              className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
+                disabled:cursor-not-allowed disabled:opacity-40 text-[var(--cv-t3)]"
+              style={
+                isCustomIconUrl(value)
+                  ? {
+                      background: hexWithAlpha(selectedColor, 0.15),
+                      border: `2px solid ${selectedColor}`,
+                    }
+                  : {
+                      background: 'transparent',
+                      border: '1.5px dashed var(--cv-input-border)',
+                    }
+              }
+            >
+              {isCustomIconUrl(value) ? (
+                <img src={value} alt="" className="h-5 w-5 rounded-full object-cover" />
+              ) : (
+                <Icon name="upload" size={14} />
+              )}
+            </button>
+          </>
+        )}
+      </div>
+    </fieldset>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SecretInput
+// ---------------------------------------------------------------------------
+
 interface SecretInputProps {
   id: string
   label: string
@@ -404,6 +500,10 @@ function SecretInput({
     </div>
   )
 }
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 interface BuildPayloadInput {
   type: EntryType
