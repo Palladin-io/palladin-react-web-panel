@@ -41,7 +41,7 @@ export function VaultIconPicker({
 
   return (
     <fieldset>
-      <legend className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--cv-label-text)]">
+      <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
         {t('vault.iconLabel')}
       </legend>
       <div className="flex flex-wrap gap-2">

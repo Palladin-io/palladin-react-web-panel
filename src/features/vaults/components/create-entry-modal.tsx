@@ -158,8 +158,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         <div>
           <label
             htmlFor="entry-type"
-            className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em]
-              text-[var(--cv-label-text)]"
+            className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
           >
             {t('vault.entries.typeLabel')}
           </label>
@@ -312,8 +311,7 @@ function SecretInput({
     <div>
       <label
         htmlFor={id}
-        className="mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em]
-          text-[var(--cv-label-text)]"
+        className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
       >
         {label}
       </label>
