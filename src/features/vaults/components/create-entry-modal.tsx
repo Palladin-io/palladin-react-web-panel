@@ -196,7 +196,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           }}
         />
 
-        <VaultColorPicker value={color} onChange={setColor} disabled={isPending} />
+        <VaultColorPicker value={color} onChange={setColor} disabled={isPending} swatchesClassName="flex justify-between" />
 
         <div>
           <label
@@ -205,20 +205,28 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           >
             {t('vault.entries.typeLabel')}
           </label>
-          <select
-            id="entry-type"
-            value={String(type)}
-            onChange={(e) => setType(Number(e.target.value) as EntryType)}
-            disabled={isPending}
-            className="w-full rounded-lg border border-[var(--cv-input-border)]
-              bg-[var(--cv-input-bg)] pl-3 pr-8 py-2 text-sm text-[var(--cv-input-text)]
-              focus:border-[var(--cv-t1)] focus:outline-none"
-          >
-            <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
-            <option value={String(ENTRY_TYPE_CREDENTIAL)}>
-              {t('vault.entries.typeCredentialOption')}
-            </option>
-          </select>
+          <div className="relative">
+            <select
+              id="entry-type"
+              value={String(type)}
+              onChange={(e) => setType(Number(e.target.value) as EntryType)}
+              disabled={isPending}
+              className="w-full appearance-none rounded-lg border border-[var(--cv-input-border)]
+                bg-[var(--cv-input-bg)] pl-3 pr-10 py-2 text-sm text-[var(--cv-input-text)]
+                focus:border-[var(--cv-t1)] focus:outline-none disabled:cursor-not-allowed
+                disabled:opacity-40"
+            >
+              <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
+              <option value={String(ENTRY_TYPE_CREDENTIAL)}>
+                {t('vault.entries.typeCredentialOption')}
+              </option>
+            </select>
+            <Icon
+              name="expand_more"
+              size={16}
+              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--cv-t3)]"
+            />
+          </div>
         </div>
 
         {type === ENTRY_TYPE_KEY ? (
@@ -368,7 +376,7 @@ function EntryIconPicker({
       <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
         {t('vault.entries.iconLabel')}
       </legend>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex justify-between">
         {ENTRY_ICON_OPTIONS.map((opt) => {
           const selected = !isCustomIconUrl(value) && opt === value
           const iconColor = ENTRY_ICON_COLORS[opt] ?? '#8A95A6'

@@ -5,6 +5,8 @@ export interface VaultColorPickerProps {
   value: string
   onChange: (next: string) => void
   disabled?: boolean
+  /** Override class on the swatches row — e.g. "flex justify-between" for full-width. */
+  swatchesClassName?: string
 }
 
 /**
@@ -20,6 +22,7 @@ export function VaultColorPicker({
   value,
   onChange,
   disabled = false,
+  swatchesClassName = 'flex flex-wrap gap-2.5',
 }: VaultColorPickerProps) {
   const { t } = useTranslation()
   return (
@@ -27,7 +30,7 @@ export function VaultColorPicker({
       <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
         {t('vault.colorLabel')}
       </legend>
-      <div className="flex flex-wrap gap-2.5">
+      <div className={swatchesClassName}>
         {VAULT_COLOR_OPTIONS.map((opt) => {
           const selected = opt === value
           const nameKey = VAULT_COLOR_NAME_KEY[opt] ?? 'custom'
