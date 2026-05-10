@@ -196,7 +196,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           }}
         />
 
-        <VaultColorPicker value={color} onChange={setColor} disabled={isPending} swatchesClassName="flex justify-between" />
+        <VaultColorPicker value={color} onChange={setColor} disabled={isPending} />
 
         <div>
           <label
