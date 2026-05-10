@@ -40,6 +40,7 @@ export interface CreateEntryInput {
   label: string
   description?: string
   icon?: string
+  color?: string
   type: EntryType
   /** Plaintext payload — discriminated on `type`. Encrypted client-side. */
   payload: EntryPlaintext
@@ -67,6 +68,7 @@ export function useCreateEntry() {
           label: input.label,
           description: input.description,
           icon: input.icon,
+          color: input.color,
           type: input.type,
           content,
           urlDomain: input.urlDomain,

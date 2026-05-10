@@ -101,6 +101,7 @@ export interface CreateEntryPayload {
   label: string
   description?: string
   icon?: string
+  color?: string
   type: EntryType
   content: EntryContent
   urlDomain?: string

@@ -26,6 +26,7 @@ import {
 } from './entry-presentation'
 import { ModalShell } from './modal-shell'
 import { hexWithAlpha } from './vault-color'
+import { VaultColorPicker } from './vault-color-picker'
 
 export interface CreateEntryModalProps {
   open: boolean
@@ -54,6 +55,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const queryClient = useQueryClient()
 
   const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
+  const [color, setColor] = useState('#2EC4B6')
   const [icon, setIcon] = useState<string | undefined>(undefined)
   const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
   const [label, setLabel] = useState('')
@@ -73,7 +75,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
   const isPending = create.isPending
 
-  const accentColor = type === ENTRY_TYPE_KEY ? '#2EC4B6' : '#60A5FA'
+  const accentColor = color
 
   const canSubmit = useMemo(() => {
     if (isPending) return false
@@ -103,6 +105,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         // Custom image uploaded after creation — send no icon so the list
         // uses the type default until the PATCH lands.
         icon: pendingIconFile ? undefined : icon,
+        color,
         type,
         payload,
         urlDomain: type === ENTRY_TYPE_CREDENTIAL ? extractDomain(url) : undefined,
@@ -192,6 +195,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             setIcon(previewUrl)
           }}
         />
+
+        <VaultColorPicker value={color} onChange={setColor} disabled={isPending} />
 
         <div>
           <label
