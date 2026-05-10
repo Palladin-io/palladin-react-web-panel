@@ -139,7 +139,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     <ModalShell
       onClose={isPending ? undefined : onClose}
       ariaLabel={t('vault.entries.addEntry')}
-      width={480}
+      width={520}
     >
       <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
         <header className="flex items-center justify-between">
