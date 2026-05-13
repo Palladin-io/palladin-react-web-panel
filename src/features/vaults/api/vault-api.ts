@@ -2,6 +2,7 @@ import { api } from '../../../shared/api/client'
 import type {
   CreateEntryPayload,
   CreateVaultInput,
+  EntryContent,
   EntryDetail,
   EntryListItem,
   GrantMode,
@@ -114,7 +115,13 @@ export function createEntry(
 export async function updateEntry(
   vaultId: string,
   entryId: string,
-  payload: { label?: string; description?: string; icon?: string; urlDomain?: string },
+  payload: {
+    label?: string
+    description?: string
+    icon?: string
+    urlDomain?: string
+    content?: EntryContent
+  },
 ): Promise<void> {
   await api.put(`api/vaults/${vaultId}/entries/${entryId}`, { json: payload })
 }

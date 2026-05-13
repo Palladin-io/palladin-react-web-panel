@@ -45,7 +45,7 @@ export function EntryIconPicker({
       <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
         {t('vault.entries.iconLabel')}
       </legend>
-      <div className="flex justify-between">
+      <div className="flex flex-wrap gap-2">
         {ENTRY_ICON_OPTIONS.map((opt) => {
           const selected = !isCustomIconUrl(value) && opt === value
           const iconColor = ENTRY_ICON_COLORS[opt] ?? '#8A95A6'

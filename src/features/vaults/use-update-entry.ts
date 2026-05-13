@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { updateEntry } from './api/vault-api'
+import type { EntryContent } from './types'
 import { entriesQueryKey, entryDetailQueryKey } from './use-entries'
 
 export interface UpdateEntryInput {
@@ -7,6 +8,7 @@ export interface UpdateEntryInput {
   description?: string
   icon?: string
   urlDomain?: string
+  content?: EntryContent
 }
 
 /**

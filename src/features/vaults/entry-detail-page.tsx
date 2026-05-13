@@ -5,24 +5,20 @@ import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
-import { decryptEntry } from '../../shared/crypto/entry-crypto'
+import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
 import { wipe } from '../../shared/crypto/sodium'
 import { unsealVaultKey } from '../../shared/crypto/vault-key'
 import { useAuthStore } from '../auth'
 import { EntryIconPicker } from './components/entry-icon-picker'
-import {
-  ENTRY_ICON_COLORS,
-  extractDomain,
-  isCustomIconUrl,
-  presentationForType,
-} from './components/entry-presentation'
+import { ENTRY_ICON_COLORS, extractDomain } from './components/entry-presentation'
 import { ModalShell } from './components/modal-shell'
+import { VaultDetailHeader } from './components/vault-detail-header'
 import {
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,
+  type EntryContent,
   type EntryDetail,
   type EntryPlaintext,
-  type EntryType,
   type Vault,
 } from './types'
 import { useDeleteEntry } from './use-delete-entry'
@@ -117,11 +113,17 @@ function DetailBody({
 
   return (
     <>
-      <EntryDetailHeader
-        vault={vault}
-        entry={entry}
-        activeTab={activeTab}
+      <VaultDetailHeader
+        title={entry.label}
+        subtitle={vault.name}
         onBack={onBack}
+        actions={
+          activeTab === 'agents' ? (
+            <Button variant="accent" size="sm" icon="add">
+              {t('vault.detail.addAgent')}
+            </Button>
+          ) : undefined
+        }
       />
       <EntryDetailTabs active={activeTab} onChange={onTabChange} />
       {activeTab === 'details' ? (
@@ -138,94 +140,6 @@ function DetailBody({
         <EmptyMessage message={t('vault.entry.detail.logsComingSoon')} />
       ) : null}
     </>
-  )
-}
-
-interface EntryDetailHeaderProps {
-  vault: Vault
-  entry: EntryDetail
-  activeTab: EntryDetailTab
-  onBack: () => void
-}
-
-function EntryDetailHeader({
-  vault,
-  entry,
-  activeTab,
-  onBack,
-}: EntryDetailHeaderProps) {
-  const { t } = useTranslation()
-  const presentation = presentationForType(entry.type)
-  const customIcon = isCustomIconUrl(entry.icon) ? entry.icon : null
-  const iconName = !customIcon ? entry.icon ?? presentation.defaultIcon : null
-
-  const titleNode = (
-    <div className="flex min-w-0 items-center gap-3">
-      <span
-        aria-hidden
-        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
-        style={{ backgroundColor: presentation.iconBg, color: presentation.iconColor }}
-      >
-        {customIcon ? (
-          <img
-            src={customIcon}
-            alt=""
-            className="h-7 w-7 rounded-full object-cover"
-          />
-        ) : (
-          <Icon name={iconName ?? presentation.defaultIcon} size={18} color={presentation.iconColor} />
-        )}
-      </span>
-      <div className="min-w-0">
-        <div className="truncate text-[20px] font-bold leading-tight text-[var(--cv-t1)]">
-          {entry.label}
-        </div>
-        <div className="mt-1 flex items-center gap-2 text-[12px] text-[var(--cv-t3)]">
-          <TypeBadge type={entry.type} />
-          <span>·</span>
-          <span className="truncate">{vault.name}</span>
-        </div>
-      </div>
-    </div>
-  )
-
-  return (
-    <div className="mb-2 flex items-center justify-between gap-4">
-      <div className="flex min-w-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label={t('common.back')}
-          className="flex h-8 w-8 items-center justify-center rounded-lg
-            text-[var(--cv-t3)] transition-colors hover:bg-[var(--cv-bg-subtle)] hover:text-[var(--cv-t1)]"
-        >
-          <Icon name="arrow_back" size={18} />
-        </button>
-        {titleNode}
-      </div>
-      {activeTab === 'agents' ? (
-        <div className="flex shrink-0 items-center gap-1.5">
-          <Button variant="accent" size="sm" icon="add">
-            {t('vault.detail.addAgent')}
-          </Button>
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
-function TypeBadge({ type }: { type: EntryType }) {
-  const { t } = useTranslation()
-  const isKey = type === ENTRY_TYPE_KEY
-  const background = isKey ? 'rgba(96,165,250,0.15)' : 'rgba(255,171,135,0.15)'
-  const color = isKey ? '#60A5FA' : '#FFAB87'
-  return (
-    <span
-      className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-      style={{ background, color }}
-    >
-      {isKey ? t('vault.entries.typeKey') : t('vault.entries.typeCredential')}
-    </span>
   )
 }
 
@@ -287,17 +201,70 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [description, setDescription] = useState(entry.description ?? '')
   const [icon, setIcon] = useState<string | undefined>(entry.icon)
   const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
-  const [url, setUrl] = useState(entry.urlDomain ? `https://${entry.urlDomain}` : '')
+  const [url, setUrl] = useState('')
   const [showDelete, setShowDelete] = useState(false)
 
-  // Reset local form when the server payload changes (e.g. after a save).
+  // Encrypted field state — populated after decrypt.
+  const [secretValue, setSecretValue] = useState('') // KEY only
+  const [username, setUsername] = useState('') // CREDENTIAL only
+  const [password, setPassword] = useState('') // CREDENTIAL only
+  const [notes, setNotes] = useState('') // both types
+
+  // Original plaintext for change detection / discard.
+  const [originalPlaintext, setOriginalPlaintext] = useState<EntryPlaintext | null>(null)
+  const [decryptError, setDecryptError] = useState<string | null>(null)
+  const [decrypting, setDecrypting] = useState(false)
+
+  // Reveal toggles.
+  const [showSecret, setShowSecret] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+
+  // Reset local metadata form when the server payload changes (e.g. after a save).
   useEffect(() => {
     setLabel(entry.label)
     setDescription(entry.description ?? '')
     setIcon(entry.icon)
     setPendingIconFile(null)
-    setUrl(entry.urlDomain ? `https://${entry.urlDomain}` : '')
   }, [entry.label, entry.description, entry.icon, entry.urlDomain])
+
+  // Decrypt the encrypted blob once when the wrapped VK is available.
+  // Intentionally omit `entry.content` from deps — decrypt happens once on
+  // mount, after a save the cache invalidation supplies fresh content and
+  // we re-seed local state from the new originalPlaintext.
+  useEffect(() => {
+    if (!vault.wrappedVK) return
+    const privateKey = useAuthStore.getState().privateKey
+    if (!privateKey) {
+      setDecryptError(t('vault.entry.detail.decryptError'))
+      return
+    }
+    setDecrypting(true)
+    void (async () => {
+      try {
+        const vaultKey = await unsealVaultKey(vault.wrappedVK!, privateKey)
+        try {
+          const pt = await decryptEntry(entry.content, vaultKey)
+          setOriginalPlaintext(pt)
+          if (pt.type === ENTRY_TYPE_KEY) {
+            setSecretValue(pt.value)
+            setNotes(pt.notes ?? '')
+          } else {
+            setUsername(pt.username)
+            setPassword(pt.password)
+            setUrl(pt.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : ''))
+            setNotes(pt.notes ?? '')
+          }
+        } finally {
+          wipe(vaultKey)
+        }
+      } catch {
+        setDecryptError(t('vault.entry.detail.decryptError'))
+      } finally {
+        setDecrypting(false)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vault.wrappedVK])
 
   const iconUpload = useEntryIconUpload(vault.id, entry.id, (publicUrl) => {
     setIcon(publicUrl)
@@ -316,19 +283,48 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       return true
     if (icon !== entry.icon) return true
     if (pendingIconFile) return true
-    if (entry.type === ENTRY_TYPE_CREDENTIAL) {
-      const nextDomain = extractDomain(url)
-      if (nextDomain !== entry.urlDomain) return true
+    if (!originalPlaintext) return false
+    if (originalPlaintext.type === ENTRY_TYPE_KEY) {
+      if (secretValue !== originalPlaintext.value) return true
+      if (notes !== (originalPlaintext.notes ?? '')) return true
+    } else {
+      if (username !== originalPlaintext.username) return true
+      if (password !== originalPlaintext.password) return true
+      if (notes !== (originalPlaintext.notes ?? '')) return true
+      const origUrl = originalPlaintext.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : '')
+      if (url !== origUrl) return true
     }
     return false
-  }, [label, description, icon, pendingIconFile, url, entry])
+  }, [
+    label,
+    description,
+    icon,
+    pendingIconFile,
+    secretValue,
+    username,
+    password,
+    notes,
+    url,
+    originalPlaintext,
+    entry,
+  ])
 
   const handleDiscard = () => {
     setLabel(entry.label)
     setDescription(entry.description ?? '')
     setIcon(entry.icon)
     setPendingIconFile(null)
-    setUrl(entry.urlDomain ? `https://${entry.urlDomain}` : '')
+    if (originalPlaintext) {
+      if (originalPlaintext.type === ENTRY_TYPE_KEY) {
+        setSecretValue(originalPlaintext.value)
+        setNotes(originalPlaintext.notes ?? '')
+      } else {
+        setUsername(originalPlaintext.username)
+        setPassword(originalPlaintext.password)
+        setUrl(originalPlaintext.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : ''))
+        setNotes(originalPlaintext.notes ?? '')
+      }
+    }
   }
 
   const handleSave = async () => {
@@ -348,6 +344,60 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       }
     }
 
+    // Re-encrypt if any encrypted field changed.
+    let newContent: EntryContent | undefined
+    const contentChanged =
+      !!originalPlaintext &&
+      (() => {
+        if (originalPlaintext.type === ENTRY_TYPE_KEY) {
+          return (
+            secretValue !== originalPlaintext.value ||
+            notes !== (originalPlaintext.notes ?? '')
+          )
+        }
+        const origUrl =
+          originalPlaintext.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : '')
+        return (
+          username !== originalPlaintext.username ||
+          password !== originalPlaintext.password ||
+          notes !== (originalPlaintext.notes ?? '') ||
+          url !== origUrl
+        )
+      })()
+
+    if (contentChanged) {
+      const privateKey = useAuthStore.getState().privateKey
+      if (!privateKey || !vault.wrappedVK) {
+        toast.error(t('vault.entry.detail.decryptError'))
+        return
+      }
+      try {
+        const vaultKey = await unsealVaultKey(vault.wrappedVK, privateKey)
+        try {
+          const newPlaintext: EntryPlaintext =
+            entry.type === ENTRY_TYPE_KEY
+              ? {
+                  type: ENTRY_TYPE_KEY,
+                  value: secretValue.trim(),
+                  ...(notes.trim() ? { notes: notes.trim() } : {}),
+                }
+              : {
+                  type: ENTRY_TYPE_CREDENTIAL,
+                  username: username.trim(),
+                  password,
+                  ...(url.trim() ? { url: url.trim() } : {}),
+                  ...(notes.trim() ? { notes: notes.trim() } : {}),
+                }
+          newContent = await encryptEntry(newPlaintext, vaultKey)
+        } finally {
+          wipe(vaultKey)
+        }
+      } catch {
+        toast.error(t('vault.entry.detail.saveError'))
+        return
+      }
+    }
+
     const patch = buildPatch({
       label,
       description,
@@ -355,6 +405,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       entry,
       url,
     })
+    if (newContent) patch.content = newContent
 
     if (Object.keys(patch).length === 0) {
       toast.success(t('vault.entry.detail.saveSuccess'))
@@ -427,41 +478,89 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             maxLength={500}
           />
 
-          <SecretFields vault={vault} entry={entry} />
-
-          {entry.type === ENTRY_TYPE_CREDENTIAL ? (
-            <LabeledInput
-              id="entry-detail-url"
-              label={t('vault.entries.urlLabel')}
-              value={url}
-              onChange={setUrl}
-              placeholder={t('vault.entries.urlPlaceholder')}
-              disabled={isSaving}
-              type="url"
-              inputMode="url"
+          {decryptError ? (
+            <div className="rounded-lg border border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.06)] px-3 py-2 text-[11px] text-[#FF4F4F]">
+              {decryptError}
+            </div>
+          ) : entry.type === ENTRY_TYPE_KEY ? (
+            <PasswordInput
+              id="entry-detail-value"
+              label={t('vault.entries.valueLabel')}
+              value={secretValue}
+              onChange={setSecretValue}
+              shown={showSecret}
+              onToggleShow={() => setShowSecret((v) => !v)}
+              disabled={isSaving || decrypting}
+              monospace
             />
-          ) : null}
+          ) : (
+            <>
+              <LabeledInput
+                id="entry-detail-username"
+                label={t('vault.entries.usernameLabel')}
+                value={username}
+                onChange={setUsername}
+                disabled={isSaving || decrypting}
+              />
+              <PasswordInput
+                id="entry-detail-password"
+                label={t('vault.entries.passwordLabel')}
+                value={password}
+                onChange={setPassword}
+                shown={showPassword}
+                onToggleShow={() => setShowPassword((v) => !v)}
+                disabled={isSaving || decrypting}
+                monospace
+              />
+              <LabeledInput
+                id="entry-detail-url"
+                label={t('vault.entries.urlLabel')}
+                value={url}
+                onChange={setUrl}
+                placeholder={t('vault.entries.urlPlaceholder')}
+                disabled={isSaving || decrypting}
+                type="url"
+                inputMode="url"
+              />
+            </>
+          )}
+
+          <div>
+            <label
+              htmlFor="entry-detail-notes"
+              className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
+            >
+              {t('vault.entries.notesLabel')}
+            </label>
+            <textarea
+              id="entry-detail-notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              disabled={isSaving || decrypting}
+              placeholder={t('vault.entries.notesPlaceholder')}
+              className="w-full resize-none rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
+                px-3 py-2 text-[12px] text-[var(--cv-t1)] placeholder:text-[var(--cv-t3)]
+                focus:outline-none focus:ring-1 focus:ring-[#FF4F4F] disabled:opacity-60"
+            />
+          </div>
         </div>
       </div>
 
-      <MetadataCard entry={entry} />
-
-      <div className="mb-3.5 flex gap-2">
+      <div className="mb-3.5 mt-3.5 flex justify-end gap-2">
         <Button
           variant="subtle"
-          size="md"
+          size="sm"
           onClick={handleDiscard}
           disabled={isSaving || !hasChanges}
-          className="flex-1"
         >
           {t('vault.entry.detail.discard')}
         </Button>
         <Button
           variant="accent"
-          size="md"
+          size="sm"
           onClick={handleSave}
           disabled={isSaving || !hasChanges}
-          className="flex-[2]"
         >
           {isSaving ? t('vault.entry.detail.saving') : t('vault.entry.detail.save')}
         </Button>
@@ -484,173 +583,31 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
 }
 
 // ---------------------------------------------------------------------------
-// Secret fields (decrypt-on-reveal)
+// Password input (toggleable reveal)
 // ---------------------------------------------------------------------------
 
-interface SecretFieldsProps {
-  vault: Vault
-  entry: EntryDetail
-}
-
-function SecretFields({ vault, entry }: SecretFieldsProps) {
-  const { t } = useTranslation()
-  const [plaintext, setPlaintext] = useState<EntryPlaintext | null>(null)
-  const [decryptError, setDecryptError] = useState<string | null>(null)
-  const [revealMap, setRevealMap] = useState<Record<string, boolean>>({})
-
-  const ensurePlaintext = async (): Promise<EntryPlaintext | null> => {
-    if (plaintext) return plaintext
-    if (decryptError) return null
-
-    const privateKey = useAuthStore.getState().privateKey
-    if (!privateKey || !vault.wrappedVK) {
-      setDecryptError(t('vault.entry.detail.decryptError'))
-      return null
-    }
-
-    try {
-      const vaultKey = await unsealVaultKey(vault.wrappedVK, privateKey)
-      try {
-        const result = await decryptEntry(entry.content, vaultKey)
-        setPlaintext(result)
-        return result
-      } finally {
-        wipe(vaultKey)
-      }
-    } catch {
-      setDecryptError(t('vault.entry.detail.decryptError'))
-      return null
-    }
-  }
-
-  const handleReveal = async (field: string) => {
-    // Toggle off — no decrypt needed.
-    if (revealMap[field]) {
-      setRevealMap((prev) => ({ ...prev, [field]: false }))
-      return
-    }
-    const result = await ensurePlaintext()
-    if (!result) return
-    setRevealMap((prev) => ({ ...prev, [field]: true }))
-  }
-
-  const handleCopy = async (field: 'value' | 'username' | 'password') => {
-    const result = await ensurePlaintext()
-    if (!result) return
-    const value =
-      field === 'value' && result.type === ENTRY_TYPE_KEY
-        ? result.value
-        : field === 'username' && result.type === ENTRY_TYPE_CREDENTIAL
-          ? result.username
-          : field === 'password' && result.type === ENTRY_TYPE_CREDENTIAL
-            ? result.password
-            : null
-    if (value === null) return
-    try {
-      await navigator.clipboard.writeText(value)
-      toast.success(t('vault.entries.copied', { label: copyLabel(field, t) }))
-    } catch {
-      toast.error(t('vault.entries.copyFailed'))
-    }
-  }
-
-  if (decryptError) {
-    return (
-      <div className="rounded-lg border border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.06)] px-3 py-2 text-[11px] text-[#FF4F4F]">
-        {decryptError}
-      </div>
-    )
-  }
-
-  if (entry.type === ENTRY_TYPE_KEY) {
-    return (
-      <SecretField
-        id="entry-detail-value"
-        label={t('vault.entries.valueLabel')}
-        revealed={!!revealMap.value}
-        revealedValue={
-          plaintext?.type === ENTRY_TYPE_KEY ? plaintext.value : ''
-        }
-        onToggleReveal={() => handleReveal('value')}
-        onCopy={() => handleCopy('value')}
-        leftIcon="lock"
-        leftIconColor="#FF4F4F"
-        hint={t('vault.entry.detail.valueLocked')}
-        monospace
-      />
-    )
-  }
-
-  return (
-    <>
-      <SecretField
-        id="entry-detail-username"
-        label={t('vault.entries.usernameLabel')}
-        revealed={!!revealMap.username}
-        revealedValue={
-          plaintext?.type === ENTRY_TYPE_CREDENTIAL ? plaintext.username : ''
-        }
-        onToggleReveal={() => handleReveal('username')}
-        onCopy={() => handleCopy('username')}
-        leftIcon="person"
-        leftIconColor="var(--cv-t3)"
-      />
-      <SecretField
-        id="entry-detail-password"
-        label={t('vault.entries.passwordLabel')}
-        revealed={!!revealMap.password}
-        revealedValue={
-          plaintext?.type === ENTRY_TYPE_CREDENTIAL ? plaintext.password : ''
-        }
-        onToggleReveal={() => handleReveal('password')}
-        onCopy={() => handleCopy('password')}
-        leftIcon="lock"
-        leftIconColor="#FF4F4F"
-        hint={t('vault.entry.detail.credentialLocked')}
-        monospace
-      />
-    </>
-  )
-}
-
-function copyLabel(
-  field: 'value' | 'username' | 'password',
-  t: ReturnType<typeof useTranslation>['t'],
-): string {
-  if (field === 'value') return t('vault.entry.copyKey')
-  if (field === 'username') return t('vault.entry.copyUsername')
-  return t('vault.entry.copyPassword')
-}
-
-interface SecretFieldProps {
+interface PasswordInputProps {
   id: string
   label: string
-  revealed: boolean
-  revealedValue: string
-  onToggleReveal: () => void
-  onCopy: () => void
-  leftIcon: string
-  leftIconColor: string
-  hint?: string
+  value: string
+  onChange: (next: string) => void
+  shown: boolean
+  onToggleShow: () => void
+  disabled?: boolean
   monospace?: boolean
 }
 
-function SecretField({
+function PasswordInput({
   id,
   label,
-  revealed,
-  revealedValue,
-  onToggleReveal,
-  onCopy,
-  leftIcon,
-  leftIconColor,
-  hint,
+  value,
+  onChange,
+  shown,
+  onToggleShow,
+  disabled,
   monospace,
-}: SecretFieldProps) {
+}: PasswordInputProps) {
   const { t } = useTranslation()
-  const isLockIcon = leftIcon === 'lock'
-  const displayValue = revealed ? revealedValue : '••••••••••'
-
   return (
     <div>
       <label
@@ -660,126 +617,37 @@ function SecretField({
         {label}
       </label>
       <div className="relative">
-        <span
-          className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2"
-          style={{ color: leftIconColor, opacity: isLockIcon ? 0.7 : 1 }}
-        >
-          <Icon name={leftIcon} size={15} color={leftIconColor} />
-        </span>
         <input
           id={id}
-          type={revealed ? 'text' : 'password'}
-          value={displayValue}
-          readOnly
-          aria-readonly
-          className={`w-full rounded-lg border border-[rgba(255,79,79,0.18)]
-            bg-[rgba(255,79,79,0.04)] py-2 pl-8 pr-20 text-[12px]
-            text-[var(--cv-t3)] cursor-not-allowed focus:outline-none ${
-            monospace ? 'font-mono tracking-wide' : ''
-          }`}
+          type={shown ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          autoComplete="off"
+          className={`w-full rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
+            py-2 pl-3 pr-9 text-[12px] text-[var(--cv-t1)] placeholder:text-[var(--cv-t3)]
+            focus:outline-none focus:ring-1 focus:ring-[#FF4F4F] disabled:opacity-60 ${
+              monospace ? 'font-mono tracking-wide' : ''
+            }`}
         />
-        <div className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-1">
-          <button
-            type="button"
-            onClick={onToggleReveal}
-            title={revealed ? t('vault.entry.hide') : t('vault.entry.reveal')}
-            aria-label={revealed ? t('vault.entry.hide') : t('vault.entry.reveal')}
-            className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--cv-t3)]
-              hover:bg-[var(--cv-btn-ghost-hover)] hover:text-[var(--cv-t1)]"
-          >
-            <Icon name={revealed ? 'visibility_off' : 'visibility'} size={15} />
-          </button>
-          <button
-            type="button"
-            onClick={onCopy}
-            title={t('vault.entry.copyKey')}
-            aria-label={t('vault.entry.copyKey')}
-            className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--cv-t3)]
-              hover:bg-[var(--cv-btn-ghost-hover)] hover:text-[var(--cv-t1)]"
-          >
-            <Icon name="content_copy" size={15} />
-          </button>
-        </div>
-      </div>
-      {hint ? (
-        <span className="mt-1 block text-[11px] text-[var(--cv-t3)]">{hint}</span>
-      ) : null}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Metadata card + Danger zone
-// ---------------------------------------------------------------------------
-
-function MetadataCard({ entry }: { entry: EntryDetail }) {
-  const { t } = useTranslation()
-  return (
-    <div
-      className="mt-3.5 mb-3.5 rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4
-        shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
-    >
-      <div className="flex flex-col gap-2 text-[11px]">
-        <MetaRow
-          label={t('vault.entry.detail.createdLabel')}
-          value={formatDate(entry.createdAt)}
-        />
-        <MetaRow
-          label={t('vault.entry.detail.modifiedLabel')}
-          value={formatDate(entry.updatedAt)}
-          withDivider
-        />
-        <MetaRow
-          label={t('vault.entry.detail.accessedLabel')}
-          value={formatAccess(entry.lastAccessedAt, entry.accessCount, t)}
-          withDivider
-        />
+        <button
+          type="button"
+          onClick={onToggleShow}
+          title={shown ? t('vault.entry.hide') : t('vault.entry.reveal')}
+          aria-label={shown ? t('vault.entry.hide') : t('vault.entry.reveal')}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center
+            justify-center rounded text-[var(--cv-t3)] hover:bg-[var(--cv-btn-ghost-hover)] hover:text-[var(--cv-t1)]"
+        >
+          <Icon name={shown ? 'visibility_off' : 'visibility'} size={14} />
+        </button>
       </div>
     </div>
   )
 }
 
-function MetaRow({
-  label,
-  value,
-  withDivider,
-}: {
-  label: string
-  value: string
-  withDivider?: boolean
-}) {
-  return (
-    <div
-      className={`flex items-center justify-between ${
-        withDivider ? 'border-t border-[var(--cv-divider)] pt-2' : ''
-      }`}
-    >
-      <span className="text-[var(--cv-t3)]">{label}</span>
-      <span className="text-right text-[var(--cv-t2)]">{value}</span>
-    </div>
-  )
-}
-
-function formatDate(iso: string): string {
-  const ts = Date.parse(iso)
-  if (Number.isNaN(ts)) return iso
-  return new Date(ts).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
-function formatAccess(
-  lastAccessedAt: string | undefined,
-  accessCount: number,
-  t: ReturnType<typeof useTranslation>['t'],
-): string {
-  if (!lastAccessedAt) return t('vault.entry.detail.neverAccessed')
-  return `${formatDate(lastAccessedAt)} · ${t('vault.entry.detail.accessedTimes', {
-    count: accessCount,
-  })}`
-}
+// ---------------------------------------------------------------------------
+// Danger zone
+// ---------------------------------------------------------------------------
 
 function DangerZone({
   onDelete,
