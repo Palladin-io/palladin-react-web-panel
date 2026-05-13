@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -18,14 +18,9 @@ import { useCreateEntry } from '../use-create-entry'
 import { entriesQueryKey } from '../use-entries'
 import { extensionFromMime } from '../use-vault-icon-upload'
 import { presignEntryIcon, updateEntry, uploadToS3 } from '../api/vault-api'
-import {
-  ENTRY_ICON_COLORS,
-  ENTRY_ICON_OPTIONS,
-  extractDomain,
-  isCustomIconUrl,
-} from './entry-presentation'
+import { extractDomain } from './entry-presentation'
+import { EntryIconPicker } from './entry-icon-picker'
 import { ModalShell } from './modal-shell'
-import { hexWithAlpha } from './vault-color'
 import { VaultColorPicker } from './vault-color-picker'
 
 export interface CreateEntryModalProps {
@@ -346,105 +341,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         </div>
       </form>
     </ModalShell>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// EntryIconPicker
-// ---------------------------------------------------------------------------
-
-interface EntryIconPickerProps {
-  value: string | undefined
-  onChange: (next: string | undefined) => void
-  selectedColor: string
-  disabled?: boolean
-  onFileSelected?: (file: File, previewUrl: string) => void
-}
-
-function EntryIconPicker({
-  value,
-  onChange,
-  selectedColor,
-  disabled = false,
-  onFileSelected,
-}: EntryIconPickerProps) {
-  const { t } = useTranslation()
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  return (
-    <fieldset>
-      <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
-        {t('vault.entries.iconLabel')}
-      </legend>
-      <div className="flex justify-between">
-        {ENTRY_ICON_OPTIONS.map((opt) => {
-          const selected = !isCustomIconUrl(value) && opt === value
-          const iconColor = ENTRY_ICON_COLORS[opt] ?? '#8A95A6'
-          const background = selected
-            ? hexWithAlpha(selectedColor, 0.15)
-            : hexWithAlpha(iconColor, 0.10)
-          const border = selected ? `2px solid ${selectedColor}` : 'none'
-          return (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => onChange(selected ? undefined : opt)}
-              disabled={disabled}
-              aria-pressed={selected}
-              className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
-                text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
-              style={{ background, border }}
-            >
-              <Icon name={opt} size={14} color={selected ? selectedColor : iconColor} />
-            </button>
-          )
-        })}
-
-        {onFileSelected && (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) {
-                  const previewUrl = URL.createObjectURL(file)
-                  onFileSelected(file, previewUrl)
-                }
-                e.target.value = ''
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={disabled}
-              aria-label={t('vault.entries.iconUpload')}
-              className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
-                disabled:cursor-not-allowed disabled:opacity-40 text-[var(--cv-t3)]"
-              style={
-                isCustomIconUrl(value)
-                  ? {
-                      background: hexWithAlpha(selectedColor, 0.15),
-                      border: `2px solid ${selectedColor}`,
-                    }
-                  : {
-                      background: 'transparent',
-                      border: '1.5px dashed var(--cv-input-border)',
-                    }
-              }
-            >
-              {isCustomIconUrl(value) ? (
-                <img src={value} alt="" className="h-5 w-5 rounded-full object-cover" />
-              ) : (
-                <Icon name="upload" size={14} />
-              )}
-            </button>
-          </>
-        )}
-      </div>
-    </fieldset>
   )
 }
 

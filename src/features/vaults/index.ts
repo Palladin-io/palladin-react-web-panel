@@ -1,6 +1,7 @@
 export { VaultListPage } from './vault-list-page'
 export { VaultDetailPage } from './vault-detail-page'
 export { VaultSettingsPage } from './vault-settings-page'
+export { EntryDetailPage } from './entry-detail-page'
 export type {
   CreateEntryPayload,
   CreateVaultInput,

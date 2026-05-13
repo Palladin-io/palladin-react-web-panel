@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { decryptEntry } from '../../../shared/crypto/entry-crypto'
@@ -36,6 +37,7 @@ export interface EntryRowProps {
  */
 export function EntryRow({ vaultId, wrappedVK, entry, showDivider }: EntryRowProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const presentation = presentationForType(entry.type)
   const icon = entry.icon ?? presentation.defaultIcon
 
@@ -141,11 +143,12 @@ export function EntryRow({ vaultId, wrappedVK, entry, showDivider }: EntryRowPro
           <RowAction
             icon="arrow_forward"
             label={t('vault.entry.viewDetails')}
-            onClick={() => {
-              // Entry detail page is a separate task (CVT-34); for now
-              // we keep the affordance visible so the row layout stays
-              // identical to the design and the action gets a no-op.
-            }}
+            onClick={() =>
+              navigate({
+                to: '/vaults/$vaultId/entries/$entryId',
+                params: { vaultId, entryId: entry.id },
+              })
+            }
           />
         </div>
       </div>
