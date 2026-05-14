@@ -149,8 +149,13 @@ export function EntryRow({ vaultId, wrappedVK, entry }: EntryRowProps) {
                 ? t('vault.entry.copyKey')
                 : t('vault.entry.copyPassword')
             }
-            disabled={!plaintext}
-            onClick={() => copySecret(plaintext, entry.type, t)}
+            onClick={() => {
+              if (!plaintext) {
+                setRevealOpen(true)
+              } else {
+                copySecret(plaintext, entry.type, t)
+              }
+            }}
           />
           {entry.urlDomain ? (
             <RowAction

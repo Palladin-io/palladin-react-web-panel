@@ -14,6 +14,6 @@ export const AUTH_BACKGROUND_GRADIENT =
 export const HOVERABLE_CARD_CLASSES = [
   'rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]',
   'dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-[border-color,box-shadow] duration-200 ease-out',
-  'hover:border-[var(--cv-t1)]',
+  'hover:shadow-[0_4px_14px_rgba(0,0,0,0.07)] dark:hover:shadow-[0_4px_18px_rgba(0,0,0,0.35)] dark:hover:border-[var(--cv-t1)]',
   'focus-visible:outline-none focus-visible:border-[var(--cv-t1)]',
 ].join(' ')

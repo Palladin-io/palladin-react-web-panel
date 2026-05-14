@@ -1,6 +1,6 @@
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, type ReactNode } from 'react'
+import { useLayoutEffect, type ReactNode } from 'react'
 import { Toaster } from 'sonner'
 import { ErrorBoundary } from '../shared/components/error-boundary'
 import { env } from '../shared/lib/env'
@@ -14,7 +14,7 @@ const queryClient = new QueryClient({
 
 function ThemeSync() {
   const theme = useThemeStore((s) => s.theme)
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
   }, [theme])
   return null

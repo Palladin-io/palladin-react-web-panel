@@ -159,7 +159,7 @@ These are intentional UX improvements approved by the product owner. PR review a
 | Area | Deviation | Reason |
 |------|-----------|--------|
 | Card shadows | `dark:shadow-*` only — no shadow in light mode | Avoids visual heaviness in light theme |
-| Hover border animation | `transition-[border-color,box-shadow] duration-200 ease-out` — smoother than prototype | Better feel; prototype shows instant change |
+| Hover effect | Light: subtle box-shadow lift (`0_4px_14px_rgba(0,0,0,0.07)`); Dark: shadow + border change | Border-only change too harsh on white background |
 | Entry detail pickers | Icon + Color pickers side-by-side (`flex-row`) | Prototype shows them stacked; side-by-side saves vertical space |
 | Premium colors | `#D4820A` light / `#F0C040` dark (aligned to Astro tokens) | Prototype used off-spec values; tokens are now the source of truth |
 
