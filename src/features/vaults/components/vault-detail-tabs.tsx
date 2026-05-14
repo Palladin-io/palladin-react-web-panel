@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export type VaultDetailTab =
@@ -10,6 +11,7 @@ export type VaultDetailTab =
 export interface VaultDetailTabsProps {
   active: VaultDetailTab
   onChange: (next: VaultDetailTab) => void
+  actions?: ReactNode
 }
 
 const TAB_KEYS: { id: VaultDetailTab; labelKey: string }[] = [
@@ -25,7 +27,7 @@ const TAB_KEYS: { id: VaultDetailTab; labelKey: string }[] = [
  * underlined with the accent colour. Tab state lives in the page (not
  * the URL) — switching is local to the detail view, no router hop.
  */
-export function VaultDetailTabs({ active, onChange }: VaultDetailTabsProps) {
+export function VaultDetailTabs({ active, onChange, actions }: VaultDetailTabsProps) {
   const { t } = useTranslation()
   return (
     <div
@@ -51,6 +53,11 @@ export function VaultDetailTabs({ active, onChange }: VaultDetailTabsProps) {
           </button>
         )
       })}
+      {actions ? (
+        <div className="ml-auto flex items-center gap-1 self-center">
+          {actions}
+        </div>
+      ) : null}
     </div>
   )
 }

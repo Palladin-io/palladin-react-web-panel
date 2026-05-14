@@ -14,7 +14,7 @@ import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from './vault-presentation'
 import { VaultSearchBar } from './vault-search-bar'
 
 export interface VaultListPanelProps {
-  selectedVaultId: string
+  selectedVaultId?: string
 }
 
 /**

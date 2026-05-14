@@ -78,6 +78,7 @@
   "vault.newVault": "Nowy skarbiec",
   "vault.noVaults": "Brak skarbców",
   "vault.noVaultsSubtitle": "Utwórz swój pierwszy skarbiec, aby zacząć porządkować dane logowania.",
+  "vault.selectVaultPrompt": "Wybierz vault z listy, aby zobaczyć jego wpisy",
   "vault.createVault": "Utwórz skarbiec",
   "vault.entries_one": "{{count}} wpis",
   "vault.entries_few": "{{count}} wpisy",

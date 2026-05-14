@@ -86,6 +86,7 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
       onTabChange={setActiveTab}
       onBack={handleBack}
       onDeleted={onDeleted}
+      hideHeader={isWide}
     />
   )
 
@@ -93,7 +94,7 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
     return (
       <div className="flex h-full text-[var(--cv-t1)]">
         <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
-          <div className="px-4 py-5">
+          <div className="px-4 py-4">
             {vault.data ? (
               <VaultEntriesPanel vault={vault.data} selectedEntryId={entryId} />
             ) : (
@@ -101,8 +102,8 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
             )}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          <div className="px-6 py-8">{detailContent}</div>
+        <div className="flex-1 overflow-y-auto min-w-0">
+          <div className="px-4 py-4">{detailContent}</div>
         </div>
       </div>
     )
@@ -132,6 +133,7 @@ interface DetailBodyProps {
   /** Omitted in split-view (wide screens) to hide the back arrow. */
   onBack?: () => void
   onDeleted: () => void
+  hideHeader?: boolean
 }
 
 function DetailBody({
@@ -141,6 +143,7 @@ function DetailBody({
   onTabChange,
   onBack,
   onDeleted,
+  hideHeader = false,
 }: DetailBodyProps) {
   const { t } = useTranslation()
 
@@ -151,18 +154,20 @@ function DetailBody({
 
   return (
     <>
-      <VaultDetailHeader
-        title={entry.label}
-        subtitle={subtitle}
-        onBack={onBack}
-        actions={
-          activeTab === 'agents' ? (
-            <Button variant="accent" size="sm" icon="add">
-              {t('vault.detail.addAgent')}
-            </Button>
-          ) : undefined
-        }
-      />
+      {!hideHeader && (
+        <VaultDetailHeader
+          title={entry.label}
+          subtitle={subtitle}
+          onBack={onBack}
+          actions={
+            activeTab === 'agents' ? (
+              <Button variant="accent" size="sm" icon="add">
+                {t('vault.detail.addAgent')}
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
       <EntryDetailTabs active={activeTab} onChange={onTabChange} />
       {activeTab === 'details' ? (
         <DetailsTab

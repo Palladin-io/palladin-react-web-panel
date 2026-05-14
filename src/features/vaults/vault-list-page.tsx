@@ -3,10 +3,13 @@ import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
+import { Icon } from '../../shared/components/icon'
+import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { useAuthStore } from '../auth'
 import { CreateVaultDialog } from './components/create-vault-dialog'
 import { PremiumGateDialog } from './components/premium-gate-dialog'
 import { VaultCard } from './components/vault-card'
+import { VaultListPanel } from './components/vault-list-panel'
 import { VaultSearchBar } from './components/vault-search-bar'
 import { PERMISSION_MULTIPLE_VAULTS, type VaultSummary } from './types'
 import { useVaults } from './use-vaults'
@@ -19,6 +22,7 @@ export function VaultListPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [premiumOpen, setPremiumOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const isWide = useWideScreen(1280)
 
   const list = vaults.data?.vaults ?? []
   const filteredList = useFilteredVaults(list, search)
@@ -40,6 +44,56 @@ export function VaultListPage() {
     } else {
       setPremiumOpen(true)
     }
+  }
+
+  if (isWide) {
+    return (
+      <div className="flex h-full text-[var(--cv-t1)]">
+        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
+          <div className="px-4 py-4">
+            <VaultListPanel />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto min-w-0">
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+            <Icon name="shield" size={48} color="var(--cv-t3)" />
+            {list.length === 0 ? (
+              <>
+                <h2 className="text-lg font-semibold text-[var(--cv-t1)]">
+                  {t('vault.noVaults')}
+                </h2>
+                <p className="max-w-sm text-sm text-[var(--cv-t3)]">
+                  {t('vault.noVaultsSubtitle')}
+                </p>
+                <Button
+                  variant="accent"
+                  size="md"
+                  icon="add"
+                  onClick={handleCreateClick}
+                  className="mt-2"
+                >
+                  {t('vault.createVault')}
+                </Button>
+              </>
+            ) : (
+              <p className="max-w-sm text-sm text-[var(--cv-t3)]">
+                {t('vault.selectVaultPrompt')}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <CreateVaultDialog
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          onCreated={(id) => goToVault(id)}
+        />
+        <PremiumGateDialog
+          open={premiumOpen}
+          onClose={() => setPremiumOpen(false)}
+        />
+      </div>
+    )
   }
 
   return (

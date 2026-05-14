@@ -50,6 +50,7 @@ export function VaultDetailPage({ vaultId }: VaultDetailPageProps) {
         onTabChange={setActiveTab}
         onBack={() => navigate({ to: '/vaults' })}
         onAddEntry={() => setCreateEntryOpen(true)}
+        showHeader={!isWide}
       />
       <CreateEntryModal
         open={createEntryOpen}
@@ -63,12 +64,12 @@ export function VaultDetailPage({ vaultId }: VaultDetailPageProps) {
     return (
       <div className="flex h-full text-[var(--cv-t1)]">
         <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
-          <div className="px-4 py-5">
+          <div className="px-4 py-4">
             <VaultListPanel selectedVaultId={vaultId} />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          <div className="px-6 py-8">{vaultContent}</div>
+        <div className="flex-1 overflow-y-auto min-w-0">
+          <div className="px-4 py-4">{vaultContent}</div>
         </div>
       </div>
     )
@@ -87,6 +88,7 @@ interface DetailBodyProps {
   onTabChange: (next: VaultDetailTab) => void
   onBack?: () => void
   onAddEntry: () => void
+  showHeader?: boolean
 }
 
 function DetailBody({
@@ -95,19 +97,30 @@ function DetailBody({
   onTabChange,
   onBack,
   onAddEntry,
+  showHeader = true,
 }: DetailBodyProps) {
   const { t } = useTranslation()
   const subtitle = t('vault.subtitle.entryCount', { count: vault.entryCount })
 
   return (
     <>
-      <VaultDetailHeader
-        title={vault.name}
-        subtitle={subtitle}
-        onBack={onBack}
-        actions={<TabActions activeTab={activeTab} onAddEntry={onAddEntry} />}
+      {showHeader ? (
+        <VaultDetailHeader
+          title={vault.name}
+          subtitle={subtitle}
+          onBack={onBack}
+          actions={<TabActions activeTab={activeTab} onAddEntry={onAddEntry} />}
+        />
+      ) : null}
+      <VaultDetailTabs
+        active={activeTab}
+        onChange={onTabChange}
+        actions={
+          showHeader ? undefined : (
+            <TabActions activeTab={activeTab} onAddEntry={onAddEntry} />
+          )
+        }
       />
-      <VaultDetailTabs active={activeTab} onChange={onTabChange} />
       <TabPanel activeTab={activeTab} vault={vault} />
     </>
   )
