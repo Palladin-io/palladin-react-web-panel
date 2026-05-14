@@ -49,20 +49,26 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
 
   return (
     <>
-      <div className="mb-4">
+      <div className="mb-4 flex items-center gap-2">
         <Link
-          to="/vaults"
-          className="mb-1 inline-flex items-center gap-1 text-[11px] text-[var(--cv-t3)] hover:text-[var(--cv-t1)] transition-colors no-underline"
+          to="/vaults/$vaultId"
+          params={{ vaultId: vault.id }}
+          aria-label={t('vault.backToDetail')}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md
+            text-[var(--cv-t3)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)]
+            hover:text-[var(--cv-t1)]"
         >
-          <Icon name="arrow_back" size={12} />
-          {t('vault.backToList')}
+          <Icon name="arrow_back" size={16} />
         </Link>
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">{vault.name}</h2>
-          <Button variant="accent" size="sm" icon="add" onClick={() => setCreateOpen(true)}>
-            {t('vault.detail.addEntry')}
-          </Button>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-[13px] font-bold text-[var(--cv-t1)]">{vault.name}</h2>
+          <p className="text-[11px] text-[var(--cv-t3)]">
+            {t('vault.entries', { count: items.length })}
+          </p>
         </div>
+        <Button variant="accent" size="sm" icon="add" onClick={() => setCreateOpen(true)}>
+          {t('vault.detail.addEntry')}
+        </Button>
       </div>
 
       {entries.isPending ? (

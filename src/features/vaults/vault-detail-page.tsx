@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
+import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { CreateEntryModal } from './components/create-entry-modal'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import {
@@ -10,6 +11,7 @@ import {
   type VaultDetailTab,
 } from './components/vault-detail-tabs'
 import { VaultEntriesTab } from './components/vault-entries-tab'
+import { VaultListPanel } from './components/vault-list-panel'
 import { VaultSettingsForm } from './components/vault-settings-form'
 import type { Vault } from './types'
 import { useVault } from './use-vault'
@@ -34,31 +36,47 @@ export function VaultDetailPage({ vaultId }: VaultDetailPageProps) {
   const vault = useVault(vaultId)
   const [activeTab, setActiveTab] = useState<VaultDetailTab>('entries')
   const [createEntryOpen, setCreateEntryOpen] = useState(false)
+  const isWide = useWideScreen(1280)
+
+  const vaultContent = vault.isPending ? (
+    <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
+  ) : vault.isError || !vault.data ? (
+    <ErrorState message={t('vault.errorLoad')} onRetry={vault.refetch} />
+  ) : (
+    <>
+      <DetailBody
+        vault={vault.data}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onBack={isWide ? undefined : () => navigate({ to: '/vaults' })}
+        onAddEntry={() => setCreateEntryOpen(true)}
+      />
+      <CreateEntryModal
+        open={createEntryOpen}
+        vault={vault.data}
+        onClose={() => setCreateEntryOpen(false)}
+      />
+    </>
+  )
+
+  if (isWide) {
+    return (
+      <div className="flex h-full text-[var(--cv-t1)]">
+        <div className="w-[320px] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
+          <div className="px-4 py-5">
+            <VaultListPanel selectedVaultId={vaultId} />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-6 py-8">{vaultContent}</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen text-[var(--cv-t1)]">
-      <div className="px-6 py-8">
-        {vault.isPending ? (
-          <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
-        ) : vault.isError || !vault.data ? (
-          <ErrorState message={t('vault.errorLoad')} onRetry={vault.refetch} />
-        ) : (
-          <>
-            <DetailBody
-              vault={vault.data}
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              onBack={() => navigate({ to: '/vaults' })}
-              onAddEntry={() => setCreateEntryOpen(true)}
-            />
-            <CreateEntryModal
-              open={createEntryOpen}
-              vault={vault.data}
-              onClose={() => setCreateEntryOpen(false)}
-            />
-          </>
-        )}
-      </div>
+      <div className="px-6 py-8">{vaultContent}</div>
     </div>
   )
 }
@@ -67,7 +85,7 @@ interface DetailBodyProps {
   vault: Vault
   activeTab: VaultDetailTab
   onTabChange: (next: VaultDetailTab) => void
-  onBack: () => void
+  onBack?: () => void
   onAddEntry: () => void
 }
 
