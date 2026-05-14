@@ -28,7 +28,7 @@
   --cv-btn-ghost-text: #5A6478;
   --cv-btn-ghost-hover: rgba(0, 11, 46, 0.04);
   --cv-icon-muted: #8A95A6;
-  --cv-premium: #9A6E1A;
+  --cv-premium: #D4820A;
 }
 
 .dark {
@@ -57,7 +57,7 @@
   --cv-btn-ghost-text: #C4BAA1;
   --cv-btn-ghost-hover: rgba(253, 249, 228, 0.04);
   --cv-icon-muted: #8A95A6;
-  --cv-premium: #E8C87A;
+  --cv-premium: #F0C040;
 }
 
 button,

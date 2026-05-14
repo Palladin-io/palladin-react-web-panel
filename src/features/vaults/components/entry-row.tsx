@@ -16,7 +16,8 @@ import {
   type EntryPlaintext,
 } from '../types'
 import { useEntryDetail } from '../use-entries'
-import { presentationForType } from './entry-presentation'
+import { ENTRY_ICON_COLORS, isCustomIconUrl, presentationForType } from './entry-presentation'
+import { hexWithAlpha } from './vault-color'
 
 export interface EntryRowProps {
   vaultId: string
@@ -39,7 +40,12 @@ export function EntryRow({ vaultId, wrappedVK, entry }: EntryRowProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const presentation = presentationForType(entry.type)
-  const icon = entry.icon ?? presentation.defaultIcon
+  const iconValue = entry.icon ?? presentation.defaultIcon
+  const isCustomIcon = isCustomIconUrl(iconValue)
+  const iconColor =
+    entry.color ??
+    (!isCustomIcon ? (ENTRY_ICON_COLORS[iconValue] ?? presentation.iconColor) : presentation.iconColor)
+  const iconBg = hexWithAlpha(iconColor, 0.12)
 
   const [revealOpen, setRevealOpen] = useState(false)
   const [plaintext, setPlaintext] = useState<EntryPlaintext | null>(null)
@@ -105,9 +111,13 @@ export function EntryRow({ vaultId, wrappedVK, entry }: EntryRowProps) {
         <span
           aria-hidden
           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-          style={{ backgroundColor: presentation.iconBg, color: presentation.iconColor }}
+          style={{ backgroundColor: iconBg, color: iconColor }}
         >
-          <Icon name={icon} size={16} color={presentation.iconColor} />
+          {isCustomIcon ? (
+            <img src={iconValue} alt="" className="h-5 w-5 rounded-full object-cover" />
+          ) : (
+            <Icon name={iconValue} size={16} color={iconColor} />
+          )}
         </span>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">

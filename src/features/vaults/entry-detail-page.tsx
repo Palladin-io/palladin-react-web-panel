@@ -119,7 +119,7 @@ function DetailBody({
 
   const subtitle = [
     t('vault.entry.detail.subtitleAgents', { count: 0 }),
-    t('vault.entry.detail.subtitleAccesses', { count: entry.accessCount }),
+    t('vault.entry.detail.subtitleLogs', { count: entry.accessCount }),
   ].join(' · ')
 
   return (
@@ -215,7 +215,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [color, setColor] = useState<string>(
     entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#2EC4B6' : '#60A5FA'))
   )
-  const [url, setUrl] = useState('')
+  const [url, setUrl] = useState(
+    entry.type === ENTRY_TYPE_KEY
+      ? (entry.urlDomain ? `https://${entry.urlDomain}` : '')
+      : ''
+  )
   const [showDelete, setShowDelete] = useState(false)
 
   // Encrypted field state — populated after decrypt.
@@ -242,6 +246,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setColor(
       entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#2EC4B6' : '#60A5FA'))
     )
+    if (entry.type === ENTRY_TYPE_KEY) {
+      setUrl(entry.urlDomain ? `https://${entry.urlDomain}` : '')
+    }
   }, [entry.label, entry.description, entry.icon, entry.color, entry.type, entry.urlDomain])
 
   // Decrypt the encrypted blob once when the wrapped VK is available.
@@ -305,6 +312,8 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     if (originalPlaintext.type === ENTRY_TYPE_KEY) {
       if (secretValue !== originalPlaintext.value) return true
       if (notes !== (originalPlaintext.notes ?? '')) return true
+      const origKeyUrl = entry.urlDomain ? `https://${entry.urlDomain}` : ''
+      if (url !== origKeyUrl) return true
     } else {
       if (username !== originalPlaintext.username) return true
       if (password !== originalPlaintext.password) return true
@@ -339,6 +348,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       if (originalPlaintext.type === ENTRY_TYPE_KEY) {
         setSecretValue(originalPlaintext.value)
         setNotes(originalPlaintext.notes ?? '')
+        setUrl(entry.urlDomain ? `https://${entry.urlDomain}` : '')
       } else {
         setUsername(originalPlaintext.username)
         setPassword(originalPlaintext.password)
@@ -462,29 +472,33 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     <>
       <div
         className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
-          shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+          dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <EntryIconPicker
-              value={icon}
-              onChange={(next) => {
-                setIcon(next)
-                setPendingIconFile(null)
-              }}
-              selectedColor={color}
-              disabled={isSaving}
-              onFileSelected={(file, previewUrl) => {
-                setPendingIconFile(file)
-                setIcon(previewUrl)
-              }}
-            />
-            <VaultColorPicker
-              value={color}
-              onChange={setColor}
-              disabled={isSaving}
-              swatchesClassName="flex justify-between"
-            />
+          <div className="flex items-start gap-4">
+            <div className="flex-1 min-w-0">
+              <EntryIconPicker
+                value={icon}
+                onChange={(next) => {
+                  setIcon(next)
+                  setPendingIconFile(null)
+                }}
+                selectedColor={color}
+                disabled={isSaving}
+                onFileSelected={(file, previewUrl) => {
+                  setPendingIconFile(file)
+                  setIcon(previewUrl)
+                }}
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <VaultColorPicker
+                value={color}
+                onChange={setColor}
+                disabled={isSaving}
+                swatchesClassName="flex justify-between"
+              />
+            </div>
           </div>
 
           <FormInput
@@ -508,6 +522,17 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             maxLength={500}
           />
 
+          <FormInput
+            id="entry-detail-url"
+            label={t('vault.entries.urlLabel')}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder={t('vault.entries.urlPlaceholder')}
+            disabled={isSaving}
+            type="url"
+            inputMode="url"
+          />
+
           {decryptError ? (
             <div className="rounded-lg border border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.06)] px-3 py-2 text-[11px] text-[#FF4F4F]">
               {decryptError}
@@ -524,35 +549,29 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               monospace
             />
           ) : (
-            <>
-              <FormInput
-                id="entry-detail-username"
-                label={t('vault.entries.usernameLabel')}
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={isSaving || decrypting}
-              />
-              <SecretInput
-                id="entry-detail-password"
-                label={t('vault.entries.passwordLabel')}
-                value={password}
-                onChange={setPassword}
-                shown={showPassword}
-                onToggleShown={() => setShowPassword((v) => !v)}
-                disabled={isSaving || decrypting}
-                monospace
-              />
-              <FormInput
-                id="entry-detail-url"
-                label={t('vault.entries.urlLabel')}
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder={t('vault.entries.urlPlaceholder')}
-                disabled={isSaving || decrypting}
-                type="url"
-                inputMode="url"
-              />
-            </>
+            <div className="flex gap-3">
+              <div className="flex-1 min-w-0">
+                <FormInput
+                  id="entry-detail-username"
+                  label={t('vault.entries.usernameLabel')}
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  disabled={isSaving || decrypting}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <SecretInput
+                  id="entry-detail-password"
+                  label={t('vault.entries.passwordLabel')}
+                  value={password}
+                  onChange={setPassword}
+                  shown={showPassword}
+                  onToggleShown={() => setShowPassword((v) => !v)}
+                  disabled={isSaving || decrypting}
+                  monospace
+                />
+              </div>
+            </div>
           )}
 
           <FormTextarea
@@ -730,9 +749,7 @@ function buildPatch({
   }
   if (icon !== entry.icon) patch.icon = icon
   if (color !== entry.color) patch.color = color
-  if (entry.type === ENTRY_TYPE_CREDENTIAL) {
-    const nextDomain = extractDomain(url)
-    if (nextDomain !== entry.urlDomain) patch.urlDomain = nextDomain
-  }
+  const nextDomain = extractDomain(url)
+  if (nextDomain !== entry.urlDomain) patch.urlDomain = nextDomain
   return patch
 }

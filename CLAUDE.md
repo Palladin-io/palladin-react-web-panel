@@ -152,6 +152,17 @@ All share `text-[12px]`, `border-[var(--cv-input-border)]`, `focus:border-[var(-
 - Dark mode: `@custom-variant dark (&:is(.dark *))` — the `dark:` prefix applies when element is inside a `.dark` ancestor. The `ThemeSync` provider toggles `dark` on `document.documentElement`.
 - **Design fidelity:** before implementing any UI component, check `docs/design/astro/src/components/` for the Astro reference. Match 1:1 — shape (e.g., `rounded-[10px]` not `rounded-full`), background alphas, border styles (dashed vs solid), icon colors. Deviations from design prototypes are blocking review findings.
 
+#### Accepted deviations from Astro reference (do NOT flag as blocking)
+
+These are intentional UX improvements approved by the product owner. PR review agents must not treat them as violations:
+
+| Area | Deviation | Reason |
+|------|-----------|--------|
+| Card shadows | `dark:shadow-*` only — no shadow in light mode | Avoids visual heaviness in light theme |
+| Hover border animation | `transition-[border-color,box-shadow] duration-200 ease-out` — smoother than prototype | Better feel; prototype shows instant change |
+| Entry detail pickers | Icon + Color pickers side-by-side (`flex-row`) | Prototype shows them stacked; side-by-side saves vertical space |
+| Premium colors | `#D4820A` light / `#F0C040` dark (aligned to Astro tokens) | Prototype used off-spec values; tokens are now the source of truth |
+
 ### i18n / Localisation
 
 **Stack:** `i18next` + `react-i18next`

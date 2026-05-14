@@ -14,6 +14,8 @@ export interface EntryIconPickerProps {
   /** Accent colour used to highlight the selected swatch + custom upload chip. */
   selectedColor: string
   disabled?: boolean
+  /** Class applied to the icons row. Defaults to `flex justify-between`. */
+  rowClassName?: string
   /**
    * Optional file-upload affordance. When provided a dashed upload tile is
    * rendered after the preset icons; selecting a file calls the callback
@@ -35,6 +37,7 @@ export function EntryIconPicker({
   onChange,
   selectedColor,
   disabled = false,
+  rowClassName = 'flex justify-between',
   onFileSelected,
 }: EntryIconPickerProps) {
   const { t } = useTranslation()
@@ -45,7 +48,7 @@ export function EntryIconPicker({
       <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
         {t('vault.entries.iconLabel')}
       </legend>
-      <div className="flex justify-between">
+      <div className={rowClassName}>
         {ENTRY_ICON_OPTIONS.map((opt) => {
           const selected = !isCustomIconUrl(value) && opt === value
           const iconColor = ENTRY_ICON_COLORS[opt] ?? '#8A95A6'

@@ -104,7 +104,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         color,
         type,
         payload,
-        urlDomain: type === ENTRY_TYPE_CREDENTIAL ? extractDomain(url) : undefined,
+        urlDomain: extractDomain(url) || undefined,
       },
       {
         onSuccess: async (data) => {
@@ -178,6 +178,18 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           maxLength={500}
         />
 
+        <FormInput
+          id="entry-url"
+          label={t('vault.entries.urlLabel')}
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder={t('vault.entries.urlPlaceholder')}
+          autoComplete="off"
+          disabled={isPending}
+          type="url"
+          inputMode="url"
+        />
+
         <EntryIconPicker
           value={icon}
           onChange={(next) => {
@@ -239,45 +251,32 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             required
           />
         ) : (
-          <>
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <FormInput
-                  id="entry-username"
-                  label={t('vault.entries.usernameLabel')}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder={t('vault.entries.usernamePlaceholder')}
-                  autoComplete="off"
-                  disabled={isPending}
-                  required
-                />
-              </div>
-              <div className="flex-1">
-                <SecretInput
-                  id="entry-password"
-                  label={t('vault.entries.passwordLabel')}
-                  value={password}
-                  onChange={setPassword}
-                  shown={passwordVisible}
-                  onToggleShown={() => setPasswordVisible((prev) => !prev)}
-                  placeholder={t('vault.entries.passwordPlaceholder')}
-                  disabled={isPending}
-                />
-              </div>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <FormInput
+                id="entry-username"
+                label={t('vault.entries.usernameLabel')}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder={t('vault.entries.usernamePlaceholder')}
+                autoComplete="off"
+                disabled={isPending}
+                required
+              />
             </div>
-            <FormInput
-              id="entry-url"
-              label={t('vault.entries.urlLabel')}
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder={t('vault.entries.urlPlaceholder')}
-              autoComplete="off"
-              disabled={isPending}
-              type="url"
-              inputMode="url"
-            />
-          </>
+            <div className="flex-1">
+              <SecretInput
+                id="entry-password"
+                label={t('vault.entries.passwordLabel')}
+                value={password}
+                onChange={setPassword}
+                shown={passwordVisible}
+                onToggleShown={() => setPasswordVisible((prev) => !prev)}
+                placeholder={t('vault.entries.passwordPlaceholder')}
+                disabled={isPending}
+              />
+            </div>
+          </div>
         )}
 
         <FormTextarea
