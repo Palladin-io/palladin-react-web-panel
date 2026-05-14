@@ -5,6 +5,8 @@ import { Icon } from '../../../shared/components/icon'
 export interface VaultDetailHeaderProps {
   title: string
   subtitle: string
+  /** Optional icon/avatar rendered between the back button and the title. */
+  iconElement?: ReactNode
   /** Action buttons rendered on the right side of the header. */
   actions?: ReactNode
   onBack: () => void
@@ -20,6 +22,7 @@ export interface VaultDetailHeaderProps {
 export function VaultDetailHeader({
   title,
   subtitle,
+  iconElement,
   actions,
   onBack,
 }: VaultDetailHeaderProps) {
@@ -36,6 +39,7 @@ export function VaultDetailHeader({
         >
           <Icon name="arrow_back" size={18} />
         </button>
+        {iconElement}
         <div className="min-w-0">
           <div className="truncate text-[20px] font-bold leading-tight text-[var(--cv-t1)]">
             {title}

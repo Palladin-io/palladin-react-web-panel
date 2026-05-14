@@ -4,14 +4,21 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
+import { FormInput } from '../../shared/components/form-field'
 import { Icon } from '../../shared/components/icon'
 import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
 import { wipe } from '../../shared/crypto/sodium'
 import { unsealVaultKey } from '../../shared/crypto/vault-key'
 import { useAuthStore } from '../auth'
 import { EntryIconPicker } from './components/entry-icon-picker'
-import { ENTRY_ICON_COLORS, extractDomain } from './components/entry-presentation'
+import {
+  ENTRY_ICON_COLORS,
+  extractDomain,
+  isCustomIconUrl,
+  presentationForType,
+} from './components/entry-presentation'
 import { ModalShell } from './components/modal-shell'
+import { hexWithAlpha } from './components/vault-color'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import {
   ENTRY_TYPE_CREDENTIAL,
@@ -111,12 +118,38 @@ function DetailBody({
 }: DetailBodyProps) {
   const { t } = useTranslation()
 
+  const presentation = presentationForType(entry.type)
+  const entryIconName = isCustomIconUrl(entry.icon)
+    ? presentation.defaultIcon
+    : (entry.icon ?? presentation.defaultIcon)
+  const entryIconColor = ENTRY_ICON_COLORS[entryIconName] ?? presentation.iconColor
+
   return (
     <>
       <VaultDetailHeader
         title={entry.label}
         subtitle={vault.name}
         onBack={onBack}
+        iconElement={
+          isCustomIconUrl(entry.icon) ? (
+            <img
+              src={entry.icon}
+              alt=""
+              className="h-9 w-9 rounded-full object-cover shrink-0"
+            />
+          ) : (
+            <span
+              aria-hidden
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+              style={{
+                backgroundColor: hexWithAlpha(entryIconColor, 0.15),
+                color: entryIconColor,
+              }}
+            >
+              <Icon name={entryIconName} size={18} color={entryIconColor} />
+            </span>
+          )
+        }
         actions={
           activeTab === 'agents' ? (
             <Button variant="accent" size="sm" icon="add">
@@ -457,22 +490,22 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             }}
           />
 
-          <LabeledInput
+          <FormInput
             id="entry-detail-label"
             label={t('vault.entries.labelLabel')}
             value={label}
-            onChange={setLabel}
+            onChange={(e) => setLabel(e.target.value)}
             placeholder={t('vault.entries.labelPlaceholder')}
             disabled={isSaving}
             maxLength={120}
             required
           />
 
-          <LabeledInput
+          <FormInput
             id="entry-detail-description"
             label={t('vault.entries.descriptionLabel')}
             value={description}
-            onChange={setDescription}
+            onChange={(e) => setDescription(e.target.value)}
             placeholder={t('vault.entries.descriptionPlaceholder')}
             disabled={isSaving}
             maxLength={500}
@@ -495,11 +528,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             />
           ) : (
             <>
-              <LabeledInput
+              <FormInput
                 id="entry-detail-username"
                 label={t('vault.entries.usernameLabel')}
                 value={username}
-                onChange={setUsername}
+                onChange={(e) => setUsername(e.target.value)}
                 disabled={isSaving || decrypting}
               />
               <PasswordInput
@@ -512,11 +545,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 disabled={isSaving || decrypting}
                 monospace
               />
-              <LabeledInput
+              <FormInput
                 id="entry-detail-url"
                 label={t('vault.entries.urlLabel')}
                 value={url}
-                onChange={setUrl}
+                onChange={(e) => setUrl(e.target.value)}
                 placeholder={t('vault.entries.urlPlaceholder')}
                 disabled={isSaving || decrypting}
                 type="url"
@@ -540,36 +573,38 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               disabled={isSaving || decrypting}
               placeholder={t('vault.entries.notesPlaceholder')}
               className="w-full resize-none rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
-                px-3 py-2 text-[12px] text-[var(--cv-t1)] placeholder:text-[var(--cv-t3)]
-                focus:outline-none focus:ring-1 focus:ring-[#FF4F4F] disabled:opacity-60"
+                px-3 py-2 text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)]
+                focus:outline-none focus:border-[var(--cv-t1)] disabled:opacity-60"
             />
           </div>
         </div>
+
+        <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
+          <Button
+            variant="subtle"
+            size="sm"
+            onClick={handleDiscard}
+            disabled={isSaving || !hasChanges}
+          >
+            {t('vault.entry.detail.discard')}
+          </Button>
+          <Button
+            variant="accent"
+            size="sm"
+            onClick={handleSave}
+            disabled={isSaving || !hasChanges}
+          >
+            {isSaving ? t('vault.entry.detail.saving') : t('vault.entry.detail.save')}
+          </Button>
+        </div>
       </div>
 
-      <div className="mb-3.5 mt-3.5 flex justify-end gap-2">
-        <Button
-          variant="subtle"
-          size="sm"
-          onClick={handleDiscard}
-          disabled={isSaving || !hasChanges}
-        >
-          {t('vault.entry.detail.discard')}
-        </Button>
-        <Button
-          variant="accent"
-          size="sm"
-          onClick={handleSave}
-          disabled={isSaving || !hasChanges}
-        >
-          {isSaving ? t('vault.entry.detail.saving') : t('vault.entry.detail.save')}
-        </Button>
+      <div className="mt-3.5">
+        <DangerZone
+          onDelete={() => setShowDelete(true)}
+          disabled={isRemoving}
+        />
       </div>
-
-      <DangerZone
-        onDelete={() => setShowDelete(true)}
-        disabled={isRemoving}
-      />
 
       <DeleteEntryDialog
         open={showDelete}
@@ -625,8 +660,8 @@ function PasswordInput({
           disabled={disabled}
           autoComplete="off"
           className={`w-full rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
-            py-2 pl-3 pr-9 text-[12px] text-[var(--cv-t1)] placeholder:text-[var(--cv-t3)]
-            focus:outline-none focus:ring-1 focus:ring-[#FF4F4F] disabled:opacity-60 ${
+            py-2 pl-3 pr-9 text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)]
+            focus:outline-none focus:border-[var(--cv-t1)] disabled:opacity-60 ${
               monospace ? 'font-mono tracking-wide' : ''
             }`}
         />
@@ -729,58 +764,6 @@ function DeleteEntryDialog({
 // ---------------------------------------------------------------------------
 // Small reusable bits
 // ---------------------------------------------------------------------------
-
-interface LabeledInputProps {
-  id: string
-  label: string
-  value: string
-  onChange: (next: string) => void
-  placeholder?: string
-  disabled?: boolean
-  maxLength?: number
-  required?: boolean
-  type?: string
-  inputMode?: 'text' | 'url' | 'email' | 'tel' | 'numeric' | 'decimal' | 'search'
-}
-
-function LabeledInput({
-  id,
-  label,
-  value,
-  onChange,
-  placeholder,
-  disabled,
-  maxLength,
-  required,
-  type = 'text',
-  inputMode,
-}: LabeledInputProps) {
-  return (
-    <div>
-      <label
-        htmlFor={id}
-        className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-      >
-        {label}
-      </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        disabled={disabled}
-        maxLength={maxLength}
-        required={required}
-        inputMode={inputMode}
-        autoComplete="off"
-        className="w-full rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
-          px-3 py-2 text-[12px] text-[var(--cv-t1)] placeholder:text-[var(--cv-t3)]
-          focus:outline-none focus:ring-1 focus:ring-[#FF4F4F]"
-      />
-    </div>
-  )
-}
 
 function EmptyMessage({ message }: { message: string }) {
   return (

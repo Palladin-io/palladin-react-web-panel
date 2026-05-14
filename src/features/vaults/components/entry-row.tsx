@@ -93,9 +93,17 @@ export function EntryRow({ vaultId, wrappedVK, entry, showDivider }: EntryRowPro
 
   return (
     <div
-      className={`flex flex-col px-4 ${showDivider ? 'border-t border-[var(--cv-divider)]' : ''}`}
+      className={`flex flex-col px-4 cursor-pointer transition-colors hover:bg-[var(--cv-bg-subtle)] ${showDivider ? 'border-t border-[var(--cv-divider)]' : ''}`}
     >
-      <div className="flex items-center gap-3 py-2.5">
+      <div
+        className="flex items-center gap-3 py-2.5"
+        onClick={() =>
+          navigate({
+            to: '/vaults/$vaultId/entries/$entryId',
+            params: { vaultId, entryId: entry.id },
+          })
+        }
+      >
         <span
           aria-hidden
           className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
@@ -111,7 +119,10 @@ export function EntryRow({ vaultId, wrappedVK, entry, showDivider }: EntryRowPro
             <span className="truncate text-[11px] text-[var(--cv-t3)]">{meta}</span>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-1">
+        <div
+          className="flex shrink-0 items-center gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
           <RowAction
             icon={revealOpen ? 'visibility_off' : 'visibility'}
             label={revealOpen ? t('vault.entry.hide') : t('vault.entry.reveal')}

@@ -33,8 +33,8 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
       className="group flex min-w-[280px] flex-1 flex-col items-stretch rounded-2xl border
         border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4 text-left
         shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-colors
-        hover:border-[rgba(255,79,79,0.3)] focus:outline-none
-        focus-visible:border-[#FF4F4F]"
+        hover:border-[var(--cv-t1)] focus:outline-none
+        focus-visible:border-[var(--cv-t1)]"
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
