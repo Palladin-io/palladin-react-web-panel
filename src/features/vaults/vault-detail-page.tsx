@@ -48,7 +48,7 @@ export function VaultDetailPage({ vaultId }: VaultDetailPageProps) {
         vault={vault.data}
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        onBack={isWide ? undefined : () => navigate({ to: '/vaults' })}
+        onBack={() => navigate({ to: '/vaults' })}
         onAddEntry={() => setCreateEntryOpen(true)}
       />
       <CreateEntryModal
