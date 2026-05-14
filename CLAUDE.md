@@ -123,6 +123,28 @@ Pages with a hardcoded dark gradient background (e.g., `/unlock`, `/login`) must
 - Props interfaces named `{ComponentName}Props`
 - Use composition over prop drilling
 
+### Shared Interactive Styles
+
+Hover/focus effects for interactive cards and list rows use the shared constant from `src/shared/lib/styles.ts`:
+
+```ts
+import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
+```
+
+Editing `HOVERABLE_CARD_CLASSES` updates the hover border effect everywhere (vault cards, entry rows, future list items) in one place. Never inline custom `hover:border-*` or `shadow-*` on card-like interactive elements.
+
+### Shared Form Components
+
+Always use shared components — never inline-style raw `<input>` or `<textarea>`:
+
+| Use case | Component | Import |
+|----------|-----------|--------|
+| Text / URL / email with label | `FormInput` | `shared/components/form-field` |
+| Password with show/hide toggle | `SecretInput` | `shared/components/secret-input` |
+| Multi-line textarea with label | `FormTextarea` | `shared/components/form-textarea` (add `monospace` for code/key fields) |
+
+All share `text-[12px]`, `border-[var(--cv-input-border)]`, `focus:border-[var(--cv-t1)]`.
+
 ### Styling
 - Tailwind utility classes directly on elements
 - Extract repeated patterns into components, not CSS classes

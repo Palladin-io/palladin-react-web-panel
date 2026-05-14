@@ -8,6 +8,7 @@ import { unsealVaultKey } from '../../../shared/crypto/vault-key'
 import { Icon } from '../../../shared/components/icon'
 import { useAuthStore } from '../../auth'
 import { analytics } from '../../../shared/lib/analytics'
+import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import {
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,
@@ -22,7 +23,6 @@ export interface EntryRowProps {
   /** Caller's wrapped VK from the vault detail response (base64). */
   wrappedVK: string | undefined
   entry: EntryListItem
-  showDivider?: boolean
 }
 
 /**
@@ -35,7 +35,7 @@ export interface EntryRowProps {
  * plaintext fields. Decrypt failures translate into a toast error so
  * the row stays interactive (the user can re-attempt or move on).
  */
-export function EntryRow({ vaultId, wrappedVK, entry, showDivider }: EntryRowProps) {
+export function EntryRow({ vaultId, wrappedVK, entry }: EntryRowProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const presentation = presentationForType(entry.type)
@@ -92,11 +92,9 @@ export function EntryRow({ vaultId, wrappedVK, entry, showDivider }: EntryRowPro
   const isLoadingDetail = revealOpen && detail.isPending
 
   return (
-    <div
-      className={`flex flex-col px-4 cursor-pointer transition-colors hover:bg-[var(--cv-bg-subtle)] ${showDivider ? 'border-t border-[var(--cv-divider)]' : ''}`}
-    >
+    <div className={`flex flex-col cursor-pointer ${HOVERABLE_CARD_CLASSES}`}>
       <div
-        className="flex items-center gap-3 py-2.5"
+        className="flex items-center gap-3 px-4 py-2.5"
         onClick={() =>
           navigate({
             to: '/vaults/$vaultId/entries/$entryId',

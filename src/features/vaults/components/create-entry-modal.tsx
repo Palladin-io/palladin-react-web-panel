@@ -6,6 +6,7 @@ import { Button } from '../../../shared/components/button'
 import { FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { Icon } from '../../../shared/components/icon'
+import { SecretInput } from '../../../shared/components/secret-input'
 import { analytics } from '../../../shared/lib/analytics'
 import {
   ENTRY_TYPE_CREDENTIAL,
@@ -207,7 +208,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               onChange={(e) => setType(Number(e.target.value) as EntryType)}
               disabled={isPending}
               className="w-full appearance-none rounded-lg border border-[var(--cv-input-border)]
-                bg-[var(--cv-input-bg)] pl-3 pr-10 py-2 text-sm text-[var(--cv-input-text)]
+                bg-[var(--cv-input-bg)] pl-3 pr-10 py-2 text-[12px] text-[var(--cv-input-text)]
                 focus:border-[var(--cv-t1)] focus:outline-none disabled:cursor-not-allowed
                 disabled:opacity-40"
             >
@@ -230,11 +231,12 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             label={t('vault.entries.valueLabel')}
             value={keyValue}
             onChange={setKeyValue}
-            visible={keyVisible}
-            onToggleVisible={() => setKeyVisible((prev) => !prev)}
+            shown={keyVisible}
+            onToggleShown={() => setKeyVisible((prev) => !prev)}
             placeholder={t('vault.entries.valuePlaceholder')}
             disabled={isPending}
             monospace
+            required
           />
         ) : (
           <>
@@ -257,8 +259,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   label={t('vault.entries.passwordLabel')}
                   value={password}
                   onChange={setPassword}
-                  visible={passwordVisible}
-                  onToggleVisible={() => setPasswordVisible((prev) => !prev)}
+                  shown={passwordVisible}
+                  onToggleShown={() => setPasswordVisible((prev) => !prev)}
                   placeholder={t('vault.entries.passwordPlaceholder')}
                   disabled={isPending}
                 />
@@ -341,72 +343,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         </div>
       </form>
     </ModalShell>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// SecretInput
-// ---------------------------------------------------------------------------
-
-interface SecretInputProps {
-  id: string
-  label: string
-  value: string
-  onChange: (next: string) => void
-  visible: boolean
-  onToggleVisible: () => void
-  placeholder?: string
-  disabled?: boolean
-  monospace?: boolean
-}
-
-function SecretInput({
-  id,
-  label,
-  value,
-  onChange,
-  visible,
-  onToggleVisible,
-  placeholder,
-  disabled,
-  monospace,
-}: SecretInputProps) {
-  const { t } = useTranslation()
-  return (
-    <div>
-      <label
-        htmlFor={id}
-        className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-      >
-        {label}
-      </label>
-      <div className="relative">
-        <input
-          id={id}
-          type={visible ? 'text' : 'password'}
-          autoComplete="new-password"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          disabled={disabled}
-          required
-          className={`w-full rounded-lg border border-[var(--cv-input-border)]
-            bg-[var(--cv-input-bg)] px-3 py-2 pr-10 text-sm text-[var(--cv-input-text)]
-            placeholder:text-[var(--cv-input-placeholder)] focus:border-[var(--cv-t1)]
-            focus:outline-none ${monospace ? 'font-mono' : ''}`}
-        />
-        <button
-          type="button"
-          onClick={onToggleVisible}
-          aria-label={visible ? t('vault.entry.hide') : t('vault.entry.reveal')}
-          className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex h-7 w-7
-            items-center justify-center rounded text-[var(--cv-t3)]
-            hover:text-[var(--cv-t1)]"
-        >
-          <Icon name={visible ? 'visibility_off' : 'visibility'} size={16} />
-        </button>
-      </div>
-    </div>
   )
 }
 

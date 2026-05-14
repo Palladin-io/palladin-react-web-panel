@@ -7,6 +7,7 @@ export interface UpdateEntryInput {
   label?: string
   description?: string
   icon?: string
+  color?: string
   urlDomain?: string
   content?: EntryContent
 }

@@ -5,7 +5,9 @@ import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
 import { FormInput } from '../../shared/components/form-field'
+import { FormTextarea } from '../../shared/components/form-textarea'
 import { Icon } from '../../shared/components/icon'
+import { SecretInput } from '../../shared/components/secret-input'
 import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
 import { wipe } from '../../shared/crypto/sodium'
 import { unsealVaultKey } from '../../shared/crypto/vault-key'
@@ -19,6 +21,7 @@ import {
 } from './components/entry-presentation'
 import { ModalShell } from './components/modal-shell'
 import { hexWithAlpha } from './components/vault-color'
+import { VaultColorPicker } from './components/vault-color-picker'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import {
   ENTRY_TYPE_CREDENTIAL,
@@ -234,6 +237,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [description, setDescription] = useState(entry.description ?? '')
   const [icon, setIcon] = useState<string | undefined>(entry.icon)
   const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
+  const [color, setColor] = useState<string>(
+    entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#2EC4B6' : '#60A5FA'))
+  )
   const [url, setUrl] = useState('')
   const [showDelete, setShowDelete] = useState(false)
 
@@ -258,7 +264,10 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setDescription(entry.description ?? '')
     setIcon(entry.icon)
     setPendingIconFile(null)
-  }, [entry.label, entry.description, entry.icon, entry.urlDomain])
+    setColor(
+      entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#2EC4B6' : '#60A5FA'))
+    )
+  }, [entry.label, entry.description, entry.icon, entry.color, entry.type, entry.urlDomain])
 
   // Decrypt the encrypted blob once when the wrapped VK is available.
   // Intentionally omit `entry.content` from deps — decrypt happens once on
@@ -304,17 +313,18 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setPendingIconFile(null)
   })
 
-  const accentColor =
-    (entry.icon && ENTRY_ICON_COLORS[entry.icon]) ?? (entry.type === ENTRY_TYPE_KEY ? '#2EC4B6' : '#60A5FA')
-
   const isSaving = update.isPending || iconUpload.isUploading
   const isRemoving = remove.isPending
+
+  const defaultColor =
+    entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#2EC4B6' : '#60A5FA'))
 
   const hasChanges = useMemo(() => {
     if (label.trim() !== entry.label) return true
     if ((description.trim() || undefined) !== (entry.description ?? undefined))
       return true
     if (icon !== entry.icon) return true
+    if (color !== defaultColor) return true
     if (pendingIconFile) return true
     if (!originalPlaintext) return false
     if (originalPlaintext.type === ENTRY_TYPE_KEY) {
@@ -332,6 +342,8 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     label,
     description,
     icon,
+    color,
+    defaultColor,
     pendingIconFile,
     secretValue,
     username,
@@ -346,6 +358,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setLabel(entry.label)
     setDescription(entry.description ?? '')
     setIcon(entry.icon)
+    setColor(defaultColor)
     setPendingIconFile(null)
     if (originalPlaintext) {
       if (originalPlaintext.type === ENTRY_TYPE_KEY) {
@@ -435,6 +448,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       label,
       description,
       icon: pendingIconFile ? undefined : icon,
+      color,
       entry,
       url,
     })
@@ -476,19 +490,22 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
           shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
         <div className="flex flex-col gap-4">
-          <EntryIconPicker
-            value={icon}
-            onChange={(next) => {
-              setIcon(next)
-              setPendingIconFile(null)
-            }}
-            selectedColor={accentColor}
-            disabled={isSaving}
-            onFileSelected={(file, previewUrl) => {
-              setPendingIconFile(file)
-              setIcon(previewUrl)
-            }}
-          />
+          <div className="flex flex-wrap items-start gap-4">
+            <EntryIconPicker
+              value={icon}
+              onChange={(next) => {
+                setIcon(next)
+                setPendingIconFile(null)
+              }}
+              selectedColor={color}
+              disabled={isSaving}
+              onFileSelected={(file, previewUrl) => {
+                setPendingIconFile(file)
+                setIcon(previewUrl)
+              }}
+            />
+            <VaultColorPicker value={color} onChange={setColor} disabled={isSaving} />
+          </div>
 
           <FormInput
             id="entry-detail-label"
@@ -516,13 +533,13 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               {decryptError}
             </div>
           ) : entry.type === ENTRY_TYPE_KEY ? (
-            <PasswordInput
+            <SecretInput
               id="entry-detail-value"
               label={t('vault.entries.valueLabel')}
               value={secretValue}
               onChange={setSecretValue}
               shown={showSecret}
-              onToggleShow={() => setShowSecret((v) => !v)}
+              onToggleShown={() => setShowSecret((v) => !v)}
               disabled={isSaving || decrypting}
               monospace
             />
@@ -535,13 +552,13 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={isSaving || decrypting}
               />
-              <PasswordInput
+              <SecretInput
                 id="entry-detail-password"
                 label={t('vault.entries.passwordLabel')}
                 value={password}
                 onChange={setPassword}
                 shown={showPassword}
-                onToggleShow={() => setShowPassword((v) => !v)}
+                onToggleShown={() => setShowPassword((v) => !v)}
                 disabled={isSaving || decrypting}
                 monospace
               />
@@ -558,25 +575,15 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             </>
           )}
 
-          <div>
-            <label
-              htmlFor="entry-detail-notes"
-              className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-            >
-              {t('vault.entries.notesLabel')}
-            </label>
-            <textarea
-              id="entry-detail-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              disabled={isSaving || decrypting}
-              placeholder={t('vault.entries.notesPlaceholder')}
-              className="w-full resize-none rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
-                px-3 py-2 text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)]
-                focus:outline-none focus:border-[var(--cv-t1)] disabled:opacity-60"
-            />
-          </div>
+          <FormTextarea
+            id="entry-detail-notes"
+            label={t('vault.entries.notesLabel')}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            disabled={isSaving || decrypting}
+            placeholder={t('vault.entries.notesPlaceholder')}
+          />
         </div>
 
         <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
@@ -614,69 +621,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         onCancel={() => setShowDelete(false)}
       />
     </>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Password input (toggleable reveal)
-// ---------------------------------------------------------------------------
-
-interface PasswordInputProps {
-  id: string
-  label: string
-  value: string
-  onChange: (next: string) => void
-  shown: boolean
-  onToggleShow: () => void
-  disabled?: boolean
-  monospace?: boolean
-}
-
-function PasswordInput({
-  id,
-  label,
-  value,
-  onChange,
-  shown,
-  onToggleShow,
-  disabled,
-  monospace,
-}: PasswordInputProps) {
-  const { t } = useTranslation()
-  return (
-    <div>
-      <label
-        htmlFor={id}
-        className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-      >
-        {label}
-      </label>
-      <div className="relative">
-        <input
-          id={id}
-          type={shown ? 'text' : 'password'}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled}
-          autoComplete="off"
-          className={`w-full rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
-            py-2 pl-3 pr-9 text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)]
-            focus:outline-none focus:border-[var(--cv-t1)] disabled:opacity-60 ${
-              monospace ? 'font-mono tracking-wide' : ''
-            }`}
-        />
-        <button
-          type="button"
-          onClick={onToggleShow}
-          title={shown ? t('vault.entry.hide') : t('vault.entry.reveal')}
-          aria-label={shown ? t('vault.entry.hide') : t('vault.entry.reveal')}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center
-            justify-center rounded text-[var(--cv-t3)] hover:bg-[var(--cv-btn-ghost-hover)] hover:text-[var(--cv-t1)]"
-        >
-          <Icon name={shown ? 'visibility_off' : 'visibility'} size={14} />
-        </button>
-      </div>
-    </div>
   )
 }
 
@@ -784,6 +728,7 @@ interface BuildPatchInput {
   label: string
   description: string
   icon: string | undefined
+  color: string
   entry: EntryDetail
   url: string
 }
@@ -792,6 +737,7 @@ function buildPatch({
   label,
   description,
   icon,
+  color,
   entry,
   url,
 }: BuildPatchInput): UpdateEntryInput {
@@ -803,6 +749,7 @@ function buildPatch({
     patch.description = trimmedDescription
   }
   if (icon !== entry.icon) patch.icon = icon
+  if (color !== entry.color) patch.color = color
   if (entry.type === ENTRY_TYPE_CREDENTIAL) {
     const nextDomain = extractDomain(url)
     if (nextDomain !== entry.urlDomain) patch.urlDomain = nextDomain

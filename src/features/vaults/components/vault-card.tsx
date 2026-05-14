@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
+import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import type { VaultSummary } from '../types'
 import { VaultIconCircle } from './vault-icon-circle'
 import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from './vault-presentation'
@@ -30,11 +31,7 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-w-[280px] flex-1 flex-col items-stretch rounded-2xl border
-        border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4 text-left
-        shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-colors
-        hover:border-[var(--cv-t1)] focus:outline-none
-        focus-visible:border-[var(--cv-t1)]"
+      className={`group flex min-w-[280px] flex-1 flex-col items-stretch p-4 text-left ${HOVERABLE_CARD_CLASSES}`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

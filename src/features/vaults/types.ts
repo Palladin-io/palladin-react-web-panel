@@ -65,6 +65,7 @@ export interface EntryListItem {
   label: string
   description?: string
   icon?: string
+  color?: string
   type: EntryType
   urlDomain?: string
   createdAt: string

@@ -110,6 +110,7 @@ export function EnterRecoveryKeyStep({
             }}
             placeholder={t('recovery.enterKeyPlaceholder')}
             hasError={hasError}
+            monospace
           />
           <FieldFeedback visible={hasError} color="red">
             {displayedError}

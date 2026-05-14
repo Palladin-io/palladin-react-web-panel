@@ -83,15 +83,13 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
           {t('vault.entries.emptySearch')}
         </p>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-[var(--cv-border)]
-          bg-[var(--cv-card-bg)]">
-          {filtered.map((entry, index) => (
+        <div className="flex flex-col gap-2">
+          {filtered.map((entry) => (
             <EntryRow
               key={entry.id}
               vaultId={vault.id}
               wrappedVK={vault.wrappedVK}
               entry={entry}
-              showDivider={index > 0}
             />
           ))}
         </div>

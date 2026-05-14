@@ -119,6 +119,7 @@ export async function updateEntry(
     label?: string
     description?: string
     icon?: string
+    color?: string
     urlDomain?: string
     content?: EntryContent
   },

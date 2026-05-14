@@ -45,13 +45,13 @@ export function EntryIconPicker({
       <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
         {t('vault.entries.iconLabel')}
       </legend>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex gap-2 overflow-x-auto pb-0.5">
         {ENTRY_ICON_OPTIONS.map((opt) => {
           const selected = !isCustomIconUrl(value) && opt === value
           const iconColor = ENTRY_ICON_COLORS[opt] ?? '#8A95A6'
           const background = selected
-            ? hexWithAlpha(selectedColor, 0.15)
-            : hexWithAlpha(iconColor, 0.10)
+            ? hexWithAlpha(selectedColor, 0.25)
+            : hexWithAlpha(iconColor, 0.15)
           const border = selected ? `2px solid ${selectedColor}` : 'none'
           return (
             <button
@@ -60,11 +60,11 @@ export function EntryIconPicker({
               onClick={() => onChange(selected ? undefined : opt)}
               disabled={disabled}
               aria-pressed={selected}
-              className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
-                text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform
+                hover:scale-105 text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
               style={{ background, border }}
             >
-              <Icon name={opt} size={14} color={selected ? selectedColor : iconColor} />
+              <Icon name={opt} size={16} color={selected ? selectedColor : iconColor} />
             </button>
           )
         })}
@@ -90,12 +90,12 @@ export function EntryIconPicker({
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled}
               aria-label={t('vault.entries.iconUpload')}
-              className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
-                disabled:cursor-not-allowed disabled:opacity-40 text-[var(--cv-t3)]"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform
+                hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40 text-[var(--cv-t3)]"
               style={
                 isCustomIconUrl(value)
                   ? {
-                      background: hexWithAlpha(selectedColor, 0.15),
+                      background: hexWithAlpha(selectedColor, 0.25),
                       border: `2px solid ${selectedColor}`,
                     }
                   : {
@@ -107,7 +107,7 @@ export function EntryIconPicker({
               {isCustomIconUrl(value) ? (
                 <img src={value} alt="" className="h-5 w-5 rounded-full object-cover" />
               ) : (
-                <Icon name="upload" size={14} />
+                <Icon name="upload" size={16} />
               )}
             </button>
           </>
