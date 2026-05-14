@@ -6,6 +6,7 @@ import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
 import { FormInput } from '../../shared/components/form-field'
 import { FormTextarea } from '../../shared/components/form-textarea'
+import { Icon } from '../../shared/components/icon'
 import { SecretInput } from '../../shared/components/secret-input'
 import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
 import { wipe } from '../../shared/crypto/sodium'
@@ -15,7 +16,9 @@ import { EntryIconPicker } from './components/entry-icon-picker'
 import {
   ENTRY_ICON_COLORS,
   extractDomain,
+  isCustomIconUrl,
 } from './components/entry-presentation'
+import { hexWithAlpha } from './components/vault-color'
 import { ModalShell } from './components/modal-shell'
 import { VaultColorPicker } from './components/vault-color-picker'
 import { VaultDetailHeader } from './components/vault-detail-header'
@@ -475,8 +478,27 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
           dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
         <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-4">
-            <div className="flex-1 min-w-0">
+          {/* Appearance — live preview + adaptive icon grid + colour row */}
+          <div className="flex items-center gap-3">
+            {/* Preview bubble: mirrors how the entry looks in the list */}
+            <span
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center
+                rounded-2xl transition-[background-color,color] duration-150"
+              style={{ backgroundColor: hexWithAlpha(color, 0.18) }}
+            >
+              {isCustomIconUrl(icon ?? '') ? (
+                <img src={icon} alt="" className="h-6 w-6 rounded-full object-cover" />
+              ) : (
+                <Icon
+                  name={icon ?? (entry.type === ENTRY_TYPE_KEY ? 'vpn_key' : 'language')}
+                  size={20}
+                  color={color}
+                />
+              )}
+            </span>
+
+            {/* Controls: icon grid + colour swatches */}
+            <div className="flex-1 min-w-0 flex flex-col gap-3">
               <EntryIconPicker
                 value={icon}
                 onChange={(next) => {
@@ -485,19 +507,13 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 }}
                 selectedColor={color}
                 disabled={isSaving}
+                rowClassName="grid grid-cols-[repeat(auto-fill,minmax(36px,1fr))] gap-1.5"
                 onFileSelected={(file, previewUrl) => {
                   setPendingIconFile(file)
                   setIcon(previewUrl)
                 }}
               />
-            </div>
-            <div className="flex-1 min-w-0">
-              <VaultColorPicker
-                value={color}
-                onChange={setColor}
-                disabled={isSaving}
-                swatchesClassName="flex justify-between"
-              />
+              <VaultColorPicker value={color} onChange={setColor} disabled={isSaving} />
             </div>
           </div>
 
