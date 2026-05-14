@@ -6,7 +6,6 @@ import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
 import { FormInput } from '../../shared/components/form-field'
 import { FormTextarea } from '../../shared/components/form-textarea'
-import { Icon } from '../../shared/components/icon'
 import { SecretInput } from '../../shared/components/secret-input'
 import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
 import { wipe } from '../../shared/crypto/sodium'
@@ -16,11 +15,8 @@ import { EntryIconPicker } from './components/entry-icon-picker'
 import {
   ENTRY_ICON_COLORS,
   extractDomain,
-  isCustomIconUrl,
-  presentationForType,
 } from './components/entry-presentation'
 import { ModalShell } from './components/modal-shell'
-import { hexWithAlpha } from './components/vault-color'
 import { VaultColorPicker } from './components/vault-color-picker'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import {
@@ -121,38 +117,17 @@ function DetailBody({
 }: DetailBodyProps) {
   const { t } = useTranslation()
 
-  const presentation = presentationForType(entry.type)
-  const entryIconName = isCustomIconUrl(entry.icon)
-    ? presentation.defaultIcon
-    : (entry.icon ?? presentation.defaultIcon)
-  const entryIconColor = ENTRY_ICON_COLORS[entryIconName] ?? presentation.iconColor
+  const subtitle = [
+    t('vault.entry.detail.subtitleAgents', { count: 0 }),
+    t('vault.entry.detail.subtitleAccesses', { count: entry.accessCount }),
+  ].join(' · ')
 
   return (
     <>
       <VaultDetailHeader
         title={entry.label}
-        subtitle={vault.name}
+        subtitle={subtitle}
         onBack={onBack}
-        iconElement={
-          isCustomIconUrl(entry.icon) ? (
-            <img
-              src={entry.icon}
-              alt=""
-              className="h-9 w-9 rounded-full object-cover shrink-0"
-            />
-          ) : (
-            <span
-              aria-hidden
-              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-              style={{
-                backgroundColor: hexWithAlpha(entryIconColor, 0.15),
-                color: entryIconColor,
-              }}
-            >
-              <Icon name={entryIconName} size={18} color={entryIconColor} />
-            </span>
-          )
-        }
         actions={
           activeTab === 'agents' ? (
             <Button variant="accent" size="sm" icon="add">
@@ -490,7 +465,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
           shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-start gap-4">
+          <div className="flex flex-col gap-2">
             <EntryIconPicker
               value={icon}
               onChange={(next) => {
@@ -504,7 +479,12 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 setIcon(previewUrl)
               }}
             />
-            <VaultColorPicker value={color} onChange={setColor} disabled={isSaving} />
+            <VaultColorPicker
+              value={color}
+              onChange={setColor}
+              disabled={isSaving}
+              swatchesClassName="flex justify-between"
+            />
           </div>
 
           <FormInput

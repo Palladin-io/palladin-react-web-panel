@@ -39,7 +39,7 @@ export function VaultSearchBar({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="flex-1 border-none bg-transparent text-sm text-[var(--cv-input-text)]
+          className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)]
             placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
         />
         {showToggle ? (
