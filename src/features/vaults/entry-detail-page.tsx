@@ -92,7 +92,7 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
   if (isWide) {
     return (
       <div className="flex h-full text-[var(--cv-t1)]">
-        <div className="w-[320px] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
+        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
           <div className="px-4 py-5">
             {vault.data ? (
               <VaultEntriesPanel vault={vault.data} selectedEntryId={entryId} />

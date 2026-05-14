@@ -166,16 +166,6 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
               onClick={() => openUrl(entry.urlDomain)}
             />
           ) : null}
-          <RowAction
-            icon="arrow_forward"
-            label={t('vault.entry.viewDetails')}
-            onClick={() =>
-              navigate({
-                to: '/vaults/$vaultId/entries/$entryId',
-                params: { vaultId, entryId: entry.id },
-              })
-            }
-          />
         </div>
       </div>
 
