@@ -48,24 +48,24 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
 
   return (
     <>
-      <div className="mb-4">
-        <div className="flex items-center justify-between gap-2">
+      <div className="mb-4 flex items-center gap-2">
+        <div className="min-w-0 flex-1">
           <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
             {t('vault.title')}
           </h2>
-          <Button variant="accent" size="sm" icon="add" onClick={handleCreateClick}>
-            {t('vault.createVault')}
-          </Button>
-        </div>
-        {!vaults.isPending && (
-          <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">
-            {t('vault.list.subtitle', {
-              vaultCount: list.length,
-              entryCount: totalEntries,
-              count: list.length,
-            })}
+          <p className="text-[11px] text-[var(--cv-t3)]">
+            {vaults.isPending
+              ? ' '
+              : t('vault.list.subtitle', {
+                  vaultCount: list.length,
+                  entryCount: totalEntries,
+                  count: list.length,
+                })}
           </p>
-        )}
+        </div>
+        <Button variant="accent" size="sm" icon="add" onClick={handleCreateClick}>
+          {t('vault.createVault')}
+        </Button>
       </div>
 
       {vaults.isPending ? (

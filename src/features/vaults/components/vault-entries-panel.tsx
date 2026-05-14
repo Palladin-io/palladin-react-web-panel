@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
+import { Icon } from '../../../shared/components/icon'
 import {
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,
@@ -48,8 +50,18 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
   return (
     <>
       <div className="mb-4 flex items-center gap-2">
+        <Link
+          to="/vaults/$vaultId"
+          params={{ vaultId: vault.id }}
+          aria-label={t('vault.backToDetail')}
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md
+            text-[var(--cv-t3)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)]
+            hover:text-[var(--cv-t1)]"
+        >
+          <Icon name="arrow_back" size={16} />
+        </Link>
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[13px] font-bold text-[var(--cv-t1)]">{vault.name}</h2>
+          <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">{vault.name}</h2>
           <p className="text-[11px] text-[var(--cv-t3)]">
             {t('vault.entries', { count: items.length })}
           </p>

@@ -84,7 +84,7 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
       entry={entry.data}
       activeTab={activeTab}
       onTabChange={setActiveTab}
-      onBack={isWide ? undefined : handleBack}
+      onBack={handleBack}
       onDeleted={onDeleted}
     />
   )
