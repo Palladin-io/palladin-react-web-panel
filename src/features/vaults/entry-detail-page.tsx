@@ -11,6 +11,7 @@ import { SecretInput } from '../../shared/components/secret-input'
 import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
 import { wipe } from '../../shared/crypto/sodium'
 import { unsealVaultKey } from '../../shared/crypto/vault-key'
+import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { useAuthStore } from '../auth'
 import { EntryIconPicker } from './components/entry-icon-picker'
 import {
@@ -22,6 +23,7 @@ import { hexWithAlpha } from './components/vault-color'
 import { ModalShell } from './components/modal-shell'
 import { VaultColorPicker } from './components/vault-color-picker'
 import { VaultDetailHeader } from './components/vault-detail-header'
+import { VaultEntriesPanel } from './components/vault-entries-panel'
 import {
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,
@@ -62,32 +64,53 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
   const vault = useVault(vaultId)
   const entry = useEntryDetail(vaultId, entryId, true)
   const [activeTab, setActiveTab] = useState<EntryDetailTab>('details')
+  const isWide = useWideScreen(1280)
 
   const handleBack = () => navigate({ to: '/vaults/$vaultId', params: { vaultId } })
+  const onDeleted = () => navigate({ to: '/vaults/$vaultId', params: { vaultId } })
+
+  const detailContent = vault.isPending || entry.isPending ? (
+    <PageSkeleton />
+  ) : vault.isError || !vault.data ? (
+    <ErrorState message={t('vault.errorLoad')} onRetry={vault.refetch} />
+  ) : entry.isError || !entry.data ? (
+    <ErrorState
+      message={t('vault.entry.detail.loadError')}
+      onRetry={entry.refetch}
+    />
+  ) : (
+    <DetailBody
+      vault={vault.data}
+      entry={entry.data}
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      onBack={isWide ? undefined : handleBack}
+      onDeleted={onDeleted}
+    />
+  )
+
+  if (isWide) {
+    return (
+      <div className="flex h-full text-[var(--cv-t1)]">
+        <div className="w-[360px] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
+          <div className="px-4 py-5">
+            {vault.data ? (
+              <VaultEntriesPanel vault={vault.data} selectedEntryId={entryId} />
+            ) : (
+              <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
+            )}
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <div className="px-6 py-8">{detailContent}</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen text-[var(--cv-t1)]">
-      <div className="px-6 py-8">
-        {vault.isPending || entry.isPending ? (
-          <PageSkeleton />
-        ) : vault.isError || !vault.data ? (
-          <ErrorState message={t('vault.errorLoad')} onRetry={vault.refetch} />
-        ) : entry.isError || !entry.data ? (
-          <ErrorState
-            message={t('vault.entry.detail.loadError')}
-            onRetry={entry.refetch}
-          />
-        ) : (
-          <DetailBody
-            vault={vault.data}
-            entry={entry.data}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            onBack={handleBack}
-            onDeleted={() => navigate({ to: '/vaults/$vaultId', params: { vaultId } })}
-          />
-        )}
-      </div>
+      <div className="px-6 py-8">{detailContent}</div>
     </div>
   )
 }
@@ -106,7 +129,8 @@ interface DetailBodyProps {
   entry: EntryDetail
   activeTab: EntryDetailTab
   onTabChange: (next: EntryDetailTab) => void
-  onBack: () => void
+  /** Omitted in split-view (wide screens) to hide the back arrow. */
+  onBack?: () => void
   onDeleted: () => void
 }
 

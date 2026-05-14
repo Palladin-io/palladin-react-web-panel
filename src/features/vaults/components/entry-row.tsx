@@ -24,6 +24,8 @@ export interface EntryRowProps {
   /** Caller's wrapped VK from the vault detail response (base64). */
   wrappedVK: string | undefined
   entry: EntryListItem
+  /** Highlight this row as the currently viewed entry (split-view left panel). */
+  isSelected?: boolean
 }
 
 /**
@@ -36,7 +38,7 @@ export interface EntryRowProps {
  * plaintext fields. Decrypt failures translate into a toast error so
  * the row stays interactive (the user can re-attempt or move on).
  */
-export function EntryRow({ vaultId, wrappedVK, entry }: EntryRowProps) {
+export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const presentation = presentationForType(entry.type)
@@ -98,7 +100,7 @@ export function EntryRow({ vaultId, wrappedVK, entry }: EntryRowProps) {
   const isLoadingDetail = revealOpen && detail.isPending
 
   return (
-    <div className={`flex flex-col cursor-pointer ${HOVERABLE_CARD_CLASSES}`}>
+    <div className={`flex flex-col cursor-pointer ${HOVERABLE_CARD_CLASSES}${isSelected ? ' !border-[#FF4F4F] bg-[rgba(255,79,79,0.04)] dark:bg-[rgba(255,79,79,0.06)]' : ''}`}>
       <div
         className="flex items-center gap-3 px-4 py-2.5"
         onClick={() =>
