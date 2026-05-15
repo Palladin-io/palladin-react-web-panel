@@ -26,14 +26,20 @@ export function useEntryIconUpload(
   const [state, setState] = useState<UploadState>('idle')
   const [error, setError] = useState<string | null>(null)
 
-  async function upload(file: File) {
+  /**
+   * Returns `true` on success and `false` on any validation or network
+   * failure. Callers must check the return value before continuing —
+   * `error` set via `setError` is not visible in the same render tick
+   * because it is captured by a stale closure.
+   */
+  async function upload(file: File): Promise<boolean> {
     if (!ALLOWED_TYPES.includes(file.type)) {
       setError(t('vault.iconUploadError.invalidType'))
-      return
+      return false
     }
     if (file.size > MAX_BYTES) {
       setError(t('vault.iconUploadError.tooLarge', { maxMb: MAX_MB }))
-      return
+      return false
     }
 
     setState('uploading')
@@ -46,9 +52,11 @@ export function useEntryIconUpload(
       await updateEntry(vaultId, entryId, { icon: publicUrl })
       onSuccess(publicUrl)
       setState('idle')
+      return true
     } catch {
       setState('error')
       setError(t('vault.iconUploadError.failed'))
+      return false
     }
   }
 

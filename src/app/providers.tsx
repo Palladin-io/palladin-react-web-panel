@@ -21,6 +21,10 @@ function ThemeSync() {
 }
 
 export function Providers({ children }: { children: ReactNode }) {
+  // Drive Sonner from our own store rather than `"system"` so the toast
+  // theme tracks the in-app toggle, not the OS preference (otherwise a
+  // user with a light OS but dark app would get a light toast on a dark UI).
+  const theme = useThemeStore((s) => s.theme)
   return (
     <ErrorBoundary>
       <ThemeSync />
@@ -29,8 +33,8 @@ export function Providers({ children }: { children: ReactNode }) {
           {children}
           {/* Single Toaster mounted at the app root — feature components
               call `toast(...)` from sonner without needing to mount their
-              own provider. Matches the dark theme via CSS variables. */}
-          <Toaster theme="system" position="bottom-right" richColors closeButton />
+              own provider. Matches the active app theme via CSS variables. */}
+          <Toaster theme={theme} position="bottom-right" richColors closeButton />
         </QueryClientProvider>
       </GoogleOAuthProvider>
     </ErrorBoundary>

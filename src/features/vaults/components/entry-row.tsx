@@ -53,6 +53,10 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
   const [plaintext, setPlaintext] = useState<EntryPlaintext | null>(null)
   const [showSecret, setShowSecret] = useState(false)
   const [decryptError, setDecryptError] = useState<string | null>(null)
+  // Tracks a copy action queued before plaintext was available. Without
+  // this flag the user has to click "copy" twice — once to trigger the
+  // decrypt, once more to actually copy. Reset after firing.
+  const [copyAfterDecrypt, setCopyAfterDecrypt] = useState(false)
 
   // Trigger the detail fetch only after the user opens the panel.
   const detail = useEntryDetail(vaultId, entry.id, revealOpen)
@@ -63,6 +67,7 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
       setPlaintext(null)
       setShowSecret(false)
       setDecryptError(null)
+      setCopyAfterDecrypt(false)
       return
     }
     if (!detail.data) return
@@ -95,6 +100,14 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
       cancelled = true
     }
   }, [revealOpen, detail.data, wrappedVK, t])
+
+  // If the user clicked "copy" before plaintext was ready, fire the copy
+  // exactly once when it arrives.
+  useEffect(() => {
+    if (!copyAfterDecrypt || !plaintext) return
+    copySecret(plaintext, entry.type, t)
+    setCopyAfterDecrypt(false)
+  }, [copyAfterDecrypt, plaintext, entry.type, t])
 
   const meta = entry.urlDomain ?? formatLastAccessed(entry, t)
   const isLoadingDetail = revealOpen && detail.isPending
@@ -152,11 +165,14 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
                 : t('vault.entry.copyPassword')
             }
             onClick={() => {
-              if (!plaintext) {
-                setRevealOpen(true)
-              } else {
+              if (plaintext) {
                 copySecret(plaintext, entry.type, t)
+                return
               }
+              // Trigger decrypt and queue the copy so it fires the
+              // moment plaintext lands — saves the user a second click.
+              setCopyAfterDecrypt(true)
+              setRevealOpen(true)
             }}
           />
           {entry.urlDomain ? (

@@ -43,9 +43,6 @@ vi.mock('../../../shared/lib/analytics', () => ({
 vi.mock('./vault-icon-picker', () => ({
   VaultIconPicker: () => <div data-testid="vault-icon-picker" />,
 }))
-vi.mock('./vault-color-picker', () => ({
-  VaultColorPicker: () => <div data-testid="vault-color-picker" />,
-}))
 
 const baseVault: Vault = {
   id: 'v1',

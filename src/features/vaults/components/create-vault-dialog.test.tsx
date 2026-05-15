@@ -40,9 +40,6 @@ vi.mock('../api/vault-api', () => ({
 vi.mock('./vault-icon-picker', () => ({
   VaultIconPicker: () => <div data-testid="vault-icon-picker" />,
 }))
-vi.mock('./vault-color-picker', () => ({
-  VaultColorPicker: () => <div data-testid="vault-color-picker" />,
-}))
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({

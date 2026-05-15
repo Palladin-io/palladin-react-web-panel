@@ -421,11 +421,13 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
 
     // Pending icon file → upload first, then PATCH metadata. Upload
     // already PATCHes `icon`; only ship the remaining fields here so we
-    // don't overwrite the freshly-set URL.
+    // don't overwrite the freshly-set URL. We trust the boolean return
+    // value rather than `iconUpload.error` — that field belongs to the
+    // captured render and stays `null` for the rest of this callback.
     if (pendingIconFile) {
-      await iconUpload.upload(pendingIconFile)
-      if (iconUpload.error) {
-        toast.error(iconUpload.error)
+      const uploaded = await iconUpload.upload(pendingIconFile)
+      if (!uploaded) {
+        toast.error(t('vault.iconUploadError.failed'))
         return
       }
     }
@@ -491,6 +493,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       description,
       icon: pendingIconFile ? undefined : icon,
       color,
+      defaultColor,
       entry,
       url,
     })
@@ -776,6 +779,12 @@ interface BuildPatchInput {
   description: string
   icon: string | undefined
   color: string
+  /**
+   * Derived baseline used to detect a real colour change — matches
+   * `hasChanges` so an entry without an explicit colour does not get a
+   * spurious `patch.color` of the derived value when other fields change.
+   */
+  defaultColor: string
   entry: EntryDetail
   url: string
 }
@@ -785,6 +794,7 @@ function buildPatch({
   description,
   icon,
   color,
+  defaultColor,
   entry,
   url,
 }: BuildPatchInput): UpdateEntryInput {
@@ -796,7 +806,7 @@ function buildPatch({
     patch.description = trimmedDescription
   }
   if (icon !== entry.icon) patch.icon = icon
-  if (color !== entry.color) patch.color = color
+  if (color !== defaultColor) patch.color = color
   const nextDomain = extractDomain(url)
   if (nextDomain !== entry.urlDomain) patch.urlDomain = nextDomain
   return patch

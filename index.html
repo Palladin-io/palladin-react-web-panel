@@ -9,17 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,400..700,0..1,-50..200&display=block" rel="stylesheet">
     <title>Claw Vault</title>
     <!-- Apply persisted theme before React mounts to prevent flash of wrong theme.
-         Reads the same localStorage key that Zustand `persist` uses. -->
-    <script>
-      (function () {
-        try {
-          var stored = JSON.parse(localStorage.getItem('claw-vault-theme') || '{}')
-          if ((stored.state && stored.state.theme) !== 'light') {
-            document.documentElement.classList.add('dark')
-          }
-        } catch (e) {}
-      })()
-    </script>
+         Loaded from an external file so the page stays compatible with a
+         strict CSP (`script-src 'self'` — no `unsafe-inline`). -->
+    <script src="/init-theme.js"></script>
   </head>
   <body>
     <div id="root"></div>
