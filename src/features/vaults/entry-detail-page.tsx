@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -6,7 +6,6 @@ import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
 import { FormInput } from '../../shared/components/form-field'
 import { FormTextarea } from '../../shared/components/form-textarea'
-import { Icon } from '../../shared/components/icon'
 import { SecretInput } from '../../shared/components/secret-input'
 import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
 import { wipe } from '../../shared/crypto/sodium'
@@ -17,11 +16,8 @@ import { EntryIconPicker } from './components/entry-icon-picker'
 import {
   ENTRY_ICON_COLORS,
   extractDomain,
-  isCustomIconUrl,
 } from './components/entry-presentation'
-import { hexWithAlpha } from './components/vault-color'
 import { ModalShell } from './components/modal-shell'
-import { VaultColorPicker } from './components/vault-color-picker'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import { VaultEntriesPanel } from './components/vault-entries-panel'
 import {
@@ -152,6 +148,12 @@ function DetailBody({
     t('vault.entry.detail.subtitleLogs', { count: entry.accessCount }),
   ].join(' · ')
 
+  const agentAction = (
+    <Button variant="accent" size="sm" icon="add">
+      {t('vault.detail.addAgent')}
+    </Button>
+  )
+
   return (
     <>
       {!hideHeader && (
@@ -159,16 +161,15 @@ function DetailBody({
           title={entry.label}
           subtitle={subtitle}
           onBack={onBack}
-          actions={
-            activeTab === 'agents' ? (
-              <Button variant="accent" size="sm" icon="add">
-                {t('vault.detail.addAgent')}
-              </Button>
-            ) : undefined
-          }
+          actions={activeTab === 'agents' ? agentAction : undefined}
         />
       )}
-      <EntryDetailTabs active={activeTab} onChange={onTabChange} />
+      <EntryDetailTabs
+        active={activeTab}
+        onChange={onTabChange}
+        wide={hideHeader}
+        actions={hideHeader && activeTab === 'agents' ? agentAction : undefined}
+      />
       {activeTab === 'details' ? (
         <DetailsTab
           vault={vault}
@@ -189,36 +190,57 @@ function DetailBody({
 interface EntryDetailTabsProps {
   active: EntryDetailTab
   onChange: (next: EntryDetailTab) => void
+  wide?: boolean
+  actions?: ReactNode
 }
 
-function EntryDetailTabs({ active, onChange }: EntryDetailTabsProps) {
+function EntryDetailTabs({ active, onChange, wide, actions }: EntryDetailTabsProps) {
   const { t } = useTranslation()
   const tabs: { id: EntryDetailTab; labelKey: string }[] = [
     { id: 'details', labelKey: 'vault.entry.detail.detailsTab' },
     { id: 'agents', labelKey: 'vault.entry.detail.agentsTab' },
     { id: 'logs', labelKey: 'vault.entry.detail.logsTab' },
   ]
+
+  const tabButtons = tabs.map((tab) => {
+    const isActive = tab.id === active
+    return (
+      <button
+        key={tab.id}
+        type="button"
+        role="tab"
+        aria-selected={isActive}
+        onClick={() => onChange(tab.id)}
+        className={`-mb-px border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
+          isActive
+            ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
+            : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
+        }`}
+      >
+        {t(tab.labelKey)}
+      </button>
+    )
+  })
+
+  if (wide) {
+    return (
+      <div className="mb-4 flex h-10 items-end">
+        <div className="flex shrink-0 border-b border-[var(--cv-divider)]" role="tablist">
+          {tabButtons}
+        </div>
+        <div className="h-px flex-1 self-end bg-gradient-to-r from-[var(--cv-divider)] to-transparent" />
+        {actions ? (
+          <div className="flex shrink-0 self-center items-center gap-1">
+            {actions}
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div className="mb-3 flex border-b border-[var(--cv-divider)]" role="tablist">
-      {tabs.map((tab) => {
-        const isActive = tab.id === active
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            role="tab"
-            aria-selected={isActive}
-            onClick={() => onChange(tab.id)}
-            className={`-mb-px border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
-              isActive
-                ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
-                : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
-            }`}
-          >
-            {t(tab.labelKey)}
-          </button>
-        )
-      })}
+      {tabButtons}
     </div>
   )
 }
@@ -283,11 +305,12 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     }
   }, [entry.label, entry.description, entry.icon, entry.color, entry.type, entry.urlDomain])
 
-  // Decrypt the encrypted blob once when the wrapped VK is available.
-  // Intentionally omit `entry.content` from deps — decrypt happens once on
-  // mount, after a save the cache invalidation supplies fresh content and
-  // we re-seed local state from the new originalPlaintext.
+  // Decrypt when entry changes or when wrappedVK becomes available.
+  // Resetting plaintext at the start ensures stale values from a previous
+  // entry are never compared against the current entry's fields.
   useEffect(() => {
+    setOriginalPlaintext(null)
+    setDecryptError(null)
     if (!vault.wrappedVK) return
     const privateKey = useAuthStore.getState().privateKey
     if (!privateKey) {
@@ -320,7 +343,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       }
     })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vault.wrappedVK])
+  }, [vault.wrappedVK, entry.id])
 
   const iconUpload = useEntryIconUpload(vault.id, entry.id, (publicUrl) => {
     setIcon(publicUrl)
@@ -409,6 +432,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
 
     // Re-encrypt if any encrypted field changed.
     let newContent: EntryContent | undefined
+    let savedPlaintext: EntryPlaintext | undefined
     const contentChanged =
       !!originalPlaintext &&
       (() => {
@@ -452,6 +476,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   ...(notes.trim() ? { notes: notes.trim() } : {}),
                 }
           newContent = await encryptEntry(newPlaintext, vaultKey)
+          savedPlaintext = newPlaintext
         } finally {
           wipe(vaultKey)
         }
@@ -479,6 +504,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     update.mutate(patch, {
       onSuccess: () => {
         toast.success(t('vault.entry.detail.saveSuccess'))
+        if (savedPlaintext) setOriginalPlaintext(savedPlaintext)
       },
       onError: () => {
         toast.error(t('vault.entry.detail.saveError'))
@@ -506,134 +532,111 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
           dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
-        <div className="flex flex-col gap-4">
-          {/* Appearance — live preview + adaptive icon grid + colour row */}
-          <div className="flex items-center gap-3">
-            {/* Preview bubble: mirrors how the entry looks in the list */}
-            <span
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center
-                rounded-2xl transition-[background-color,color] duration-150"
-              style={{ backgroundColor: hexWithAlpha(color, 0.18) }}
-            >
-              {isCustomIconUrl(icon ?? '') ? (
-                <img src={icon} alt="" className="h-6 w-6 rounded-full object-cover" />
-              ) : (
-                <Icon
-                  name={icon ?? (entry.type === ENTRY_TYPE_KEY ? 'vpn_key' : 'language')}
-                  size={20}
-                  color={color}
-                />
-              )}
-            </span>
-
-            {/* Controls: icon grid + colour swatches */}
-            <div className="flex-1 min-w-0 flex flex-col gap-3">
-              <EntryIconPicker
-                value={icon}
-                onChange={(next) => {
-                  setIcon(next)
-                  setPendingIconFile(null)
-                }}
-                selectedColor={color}
-                disabled={isSaving}
-                rowClassName="grid grid-cols-[repeat(auto-fill,minmax(36px,1fr))] gap-1.5"
-                onFileSelected={(file, previewUrl) => {
-                  setPendingIconFile(file)
-                  setIcon(previewUrl)
-                }}
-              />
-              <VaultColorPicker value={color} onChange={setColor} disabled={isSaving} />
-            </div>
-          </div>
-
-          <FormInput
-            id="entry-detail-label"
-            label={t('vault.entries.labelLabel')}
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            placeholder={t('vault.entries.labelPlaceholder')}
-            disabled={isSaving}
-            maxLength={120}
-            required
-          />
-
-          <FormInput
-            id="entry-detail-description"
-            label={t('vault.entries.descriptionLabel')}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={t('vault.entries.descriptionPlaceholder')}
-            disabled={isSaving}
-            maxLength={500}
-          />
-
-          <FormInput
-            id="entry-detail-url"
-            label={t('vault.entries.urlLabel')}
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder={t('vault.entries.urlPlaceholder')}
-            disabled={isSaving}
-            type="url"
-            inputMode="url"
-          />
-
-          {decryptError ? (
-            <div className="rounded-lg border border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.06)] px-3 py-2 text-[11px] text-[#FF4F4F]">
-              {decryptError}
-            </div>
-          ) : entry.type === ENTRY_TYPE_KEY ? (
-            <SecretInput
-              id="entry-detail-value"
-              label={t('vault.entries.valueLabel')}
-              value={secretValue}
-              onChange={setSecretValue}
-              shown={showSecret}
-              onToggleShown={() => setShowSecret((v) => !v)}
-              disabled={isSaving || decrypting}
-              monospace
+        <div className="flex gap-5 items-start">
+          <div className="flex-1 flex flex-col gap-4 min-w-0">
+            <FormInput
+              id="entry-detail-label"
+              label={t('vault.entries.labelLabel')}
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder={t('vault.entries.labelPlaceholder')}
+              disabled={isSaving}
+              maxLength={120}
+              required
             />
-          ) : (
-            <div className="flex gap-3">
-              <div className="flex-1 min-w-0">
-                <FormInput
-                  id="entry-detail-username"
-                  label={t('vault.entries.usernameLabel')}
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  disabled={isSaving || decrypting}
-                />
+            <FormInput
+              id="entry-detail-description"
+              label={t('vault.entries.descriptionLabel')}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t('vault.entries.descriptionPlaceholder')}
+              disabled={isSaving}
+              maxLength={500}
+            />
+            <FormInput
+              id="entry-detail-url"
+              label={t('vault.entries.urlLabel')}
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder={t('vault.entries.urlPlaceholder')}
+              disabled={isSaving}
+              type="url"
+              inputMode="url"
+            />
+            {decryptError ? (
+              <div className="rounded-lg border border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.06)] px-3 py-2 text-[11px] text-[#FF4F4F]">
+                {decryptError}
               </div>
-              <div className="flex-1 min-w-0">
-                <SecretInput
-                  id="entry-detail-password"
-                  label={t('vault.entries.passwordLabel')}
-                  value={password}
-                  onChange={setPassword}
-                  shown={showPassword}
-                  onToggleShown={() => setShowPassword((v) => !v)}
-                  disabled={isSaving || decrypting}
-                  monospace
-                />
+            ) : entry.type === ENTRY_TYPE_KEY ? (
+              <SecretInput
+                id="entry-detail-value"
+                label={t('vault.entries.valueLabel')}
+                value={secretValue}
+                onChange={setSecretValue}
+                shown={showSecret}
+                onToggleShown={() => setShowSecret((v) => !v)}
+                disabled={isSaving || decrypting}
+                monospace
+              />
+            ) : (
+              <div className="flex gap-3">
+                <div className="flex-1 min-w-0">
+                  <FormInput
+                    id="entry-detail-username"
+                    label={t('vault.entries.usernameLabel')}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    disabled={isSaving || decrypting}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <SecretInput
+                    id="entry-detail-password"
+                    label={t('vault.entries.passwordLabel')}
+                    value={password}
+                    onChange={setPassword}
+                    shown={showPassword}
+                    onToggleShown={() => setShowPassword((v) => !v)}
+                    disabled={isSaving || decrypting}
+                    monospace
+                  />
+                </div>
               </div>
-            </div>
-          )}
-
-          <FormTextarea
-            id="entry-detail-notes"
-            label={t('vault.entries.notesLabel')}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            disabled={isSaving || decrypting}
-            placeholder={t('vault.entries.notesPlaceholder')}
-          />
+            )}
+            <FormTextarea
+              id="entry-detail-notes"
+              label={t('vault.entries.notesLabel')}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              disabled={isSaving || decrypting}
+              placeholder={t('vault.entries.notesPlaceholder')}
+            />
+          </div>
+          <div className="w-60 shrink-0 flex flex-col gap-4">
+            <EntryIconPicker
+              value={icon}
+              onChange={(next) => {
+                setIcon(next)
+                setPendingIconFile(null)
+              }}
+              onColorChange={setColor}
+              selectedColor={color}
+              disabled={isSaving}
+              rowClassName="grid grid-cols-5 gap-1.5 justify-items-center"
+              maxVisible={35}
+              onFileSelected={(file, previewUrl) => {
+                setPendingIconFile(file)
+                setIcon(previewUrl)
+              }}
+            />
+          </div>
         </div>
 
         <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
           <Button
             variant="subtle"
-            size="sm"
+            size="md"
             onClick={handleDiscard}
             disabled={isSaving || !hasChanges}
           >
@@ -641,7 +644,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
           </Button>
           <Button
             variant="accent"
-            size="sm"
+            size="md"
             onClick={handleSave}
             disabled={isSaving || !hasChanges}
           >

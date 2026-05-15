@@ -1,31 +1,71 @@
 import { ENTRY_TYPE_KEY, type EntryType } from '../types'
 
 export const ENTRY_ICON_OPTIONS = [
-  'vpn_key',
-  'language',
-  'person',
-  'email',
-  'database',
-  'cloud',
-  'credit_card',
-  'badge',
-  'lock',
-  'smartphone',
+  // Auth / Security
+  'vpn_key', 'lock', 'badge', 'security', 'fingerprint', 'password', 'enhanced_encryption',
+  // Web / Network
+  'language', 'public', 'cloud', 'cloud_upload', 'api',
+  // People / Social
+  'person', 'people', 'favorite', 'star',
+  // Communication
+  'email', 'chat', 'phone', 'forum', 'notifications',
+  // Data / Storage
+  'database', 'folder', 'storage', 'archive',
+  // Dev / Tech
+  'code', 'terminal', 'extension', 'devices', 'smartphone',
+  // Finance
+  'credit_card', 'wallet', 'payments', 'currency_bitcoin',
+  // Work / Business
+  'work', 'business', 'settings',
+  // General
+  'home', 'bookmark', 'label', 'category', 'school',
 ] as const
 
 export type EntryIconOption = (typeof ENTRY_ICON_OPTIONS)[number]
 
 export const ENTRY_ICON_COLORS: Record<string, string> = {
   vpn_key: '#2EC4B6',
-  language: '#60A5FA',
-  person: '#A78BFA',
-  email: '#60A5FA',
-  database: '#8A95A6',
-  cloud: '#60A5FA',
-  credit_card: '#FFAB87',
-  badge: '#A78BFA',
   lock: '#FF4F4F',
+  badge: '#A78BFA',
+  security: '#FF4F4F',
+  fingerprint: '#FF4F4F',
+  password: '#8A95A6',
+  enhanced_encryption: '#2EC4B6',
+  language: '#60A5FA',
+  public: '#60A5FA',
+  cloud: '#60A5FA',
+  cloud_upload: '#60A5FA',
+  api: '#2EC4B6',
+  person: '#A78BFA',
+  people: '#A78BFA',
+  favorite: '#FF4F4F',
+  star: '#FFAB87',
+  email: '#60A5FA',
+  chat: '#2EC4B6',
+  phone: '#2EC4B6',
+  forum: '#60A5FA',
+  notifications: '#60A5FA',
+  database: '#8A95A6',
+  folder: '#FFAB87',
+  storage: '#60A5FA',
+  archive: '#8A95A6',
+  code: '#2EC4B6',
+  terminal: '#2EC4B6',
+  extension: '#A78BFA',
+  devices: '#60A5FA',
   smartphone: '#8A95A6',
+  credit_card: '#FFAB87',
+  wallet: '#2EC4B6',
+  payments: '#2EC4B6',
+  currency_bitcoin: '#FFAB87',
+  work: '#FFAB87',
+  business: '#FFAB87',
+  settings: '#8A95A6',
+  home: '#A78BFA',
+  bookmark: '#A78BFA',
+  label: '#8A95A6',
+  category: '#8A95A6',
+  school: '#60A5FA',
 }
 
 export function isCustomIconUrl(value: string | undefined): value is string {

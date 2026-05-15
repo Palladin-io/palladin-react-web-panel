@@ -19,11 +19,11 @@ import { useCreateEntry } from '../use-create-entry'
 import { entriesQueryKey } from '../use-entries'
 import { extensionFromMime } from '../use-vault-icon-upload'
 import { presignEntryIcon, updateEntry, uploadToS3 } from '../api/vault-api'
-import { extractDomain, isCustomIconUrl } from './entry-presentation'
-import { hexWithAlpha } from './vault-color'
+import {
+  extractDomain,
+} from './entry-presentation'
 import { EntryIconPicker } from './entry-icon-picker'
 import { ModalShell } from './modal-shell'
-import { VaultColorPicker } from './vault-color-picker'
 
 export interface CreateEntryModalProps {
   open: boolean
@@ -71,8 +71,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   }, [])
 
   const isPending = create.isPending
-
-  const accentColor = color
 
   const canSubmit = useMemo(() => {
     if (isPending) return false
@@ -191,43 +189,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           inputMode="url"
         />
 
-        {/* Appearance — live preview + adaptive icon grid + colour row */}
-        <div className="flex items-center gap-3">
-          <span
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center
-              rounded-2xl transition-[background-color,color] duration-150"
-            style={{ backgroundColor: hexWithAlpha(accentColor, 0.18) }}
-          >
-            {isCustomIconUrl(icon ?? '') ? (
-              <img src={icon} alt="" className="h-6 w-6 rounded-full object-cover" />
-            ) : (
-              <Icon
-                name={icon ?? (type === ENTRY_TYPE_KEY ? 'vpn_key' : 'language')}
-                size={20}
-                color={accentColor}
-              />
-            )}
-          </span>
-
-          <div className="flex-1 min-w-0 flex flex-col gap-3">
-            <EntryIconPicker
-              value={icon}
-              onChange={(next) => {
-                setIcon(next)
-                setPendingIconFile(null)
-              }}
-              selectedColor={accentColor}
-              disabled={isPending}
-              rowClassName="grid grid-cols-[repeat(auto-fill,minmax(36px,1fr))] gap-1.5"
-              onFileSelected={(file, previewUrl) => {
-                setPendingIconFile(file)
-                setIcon(previewUrl)
-              }}
-            />
-            <VaultColorPicker value={color} onChange={setColor} disabled={isPending} />
-          </div>
-        </div>
-
         <div>
           <label
             htmlFor="entry-type"
@@ -311,6 +272,16 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           disabled={isPending}
           rows={2}
           maxLength={2000}
+        />
+
+        <EntryIconPicker
+          value={icon}
+          onChange={(next) => { setIcon(next); setPendingIconFile(null) }}
+          onColorChange={setColor}
+          selectedColor={color}
+          rowClassName="flex justify-between"
+          onFileSelected={(file, previewUrl) => { setPendingIconFile(file); setIcon(previewUrl) }}
+          disabled={isPending}
         />
 
         <div style={{ perspective: '600px' }} className="relative h-[38px]">

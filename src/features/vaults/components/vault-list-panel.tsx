@@ -127,7 +127,7 @@ function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
       onClick={onClick}
       className={`flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left ${HOVERABLE_CARD_CLASSES}${
         isSelected
-          ? ' !border-[#FF4F4F] bg-[rgba(255,79,79,0.04)] dark:bg-[rgba(255,79,79,0.06)]'
+          ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]'
           : ''
       }`}
     >

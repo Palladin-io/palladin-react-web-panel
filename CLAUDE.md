@@ -133,6 +133,28 @@ import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 
 Editing `HOVERABLE_CARD_CLASSES` updates the hover border effect everywhere (vault cards, entry rows, future list items) in one place. Never inline custom `hover:border-*` or `shadow-*` on card-like interactive elements.
 
+### Modal Footer Button Pattern
+
+All modals/dialogs that have a Cancel + primary action use a **1:2 flex ratio** row — never `justify-center` or `justify-end`:
+
+```tsx
+<div className="mt-1 flex items-center gap-2">
+  <Button variant="subtle" size="md" onClick={onClose} className="flex-1">
+    {t('vault.cancel')}
+  </Button>
+  <Button variant="accent" size="md" type="submit" disabled={!canSubmit} className="flex-[2]">
+    {t('...')}
+  </Button>
+</div>
+```
+
+Rules:
+- Container: `mt-1 flex items-center gap-2` — no border-top (that's for detail-page card footers, not modals)
+- Cancel: `variant="subtle"`, `size="md"`, `className="flex-1"` (occupies 1/3)
+- Primary: `variant="accent"`, `size="md"`, `className="flex-[2]"` (occupies 2/3)
+- `size="md"` always (not `sm`) for modal footers
+- Apply to: create dialogs, icon browser, any ModalShell with confirm/cancel
+
 ### Shared Form Components
 
 Always use shared components — never inline-style raw `<input>` or `<textarea>`:

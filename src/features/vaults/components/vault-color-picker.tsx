@@ -22,7 +22,7 @@ export function VaultColorPicker({
   value,
   onChange,
   disabled = false,
-  swatchesClassName = 'flex flex-wrap gap-2.5',
+  swatchesClassName = 'flex gap-2.5',
 }: VaultColorPickerProps) {
   const { t } = useTranslation()
   return (

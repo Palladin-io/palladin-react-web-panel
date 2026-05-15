@@ -1,13 +1,16 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
 import { useVaultIconUpload } from '../use-vault-icon-upload'
 import { hexWithAlpha } from './vault-color'
-import { VAULT_ICON_COLORS, VAULT_ICON_OPTIONS } from './vault-presentation'
+import { IconColorBrowser } from './vault-icon-browser'
+import { VAULT_ICON_ALL, VAULT_ICON_COLORS, VAULT_ICON_OPTIONS } from './vault-presentation'
 
 export interface VaultIconPickerProps {
   value: string
   onChange: (next: string) => void
+  /** Called when user picks a colour in the icon browser dialog. */
+  onColorChange?: (color: string) => void
   selectedColor?: string
   disabled?: boolean
   /** Edit mode: enables upload + immediate S3 upload tied to this vault. */
@@ -17,6 +20,11 @@ export interface VaultIconPickerProps {
    * The caller is responsible for uploading the file after the vault is created.
    */
   onFileSelected?: (file: File, previewUrl: string) => void
+  /**
+   * Class applied to the icons grid. Defaults to `flex flex-wrap gap-2`.
+   * Pass e.g. `"grid grid-cols-5 gap-1.5 justify-items-center"` for a fixed grid layout.
+   */
+  rowClassName?: string
 }
 
 function isCustomUrl(value: string) {
@@ -26,26 +34,32 @@ function isCustomUrl(value: string) {
 export function VaultIconPicker({
   value,
   onChange,
+  onColorChange,
   selectedColor = '#FF4F4F',
   disabled = false,
   vaultId,
   onFileSelected,
+  rowClassName = 'flex flex-wrap gap-2',
 }: VaultIconPickerProps) {
   const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [showBrowser, setShowBrowser] = useState(false)
 
   const { upload, isUploading, error } = useVaultIconUpload(
     vaultId ?? '',
     (publicUrl) => onChange(publicUrl),
   )
 
+  const isFromBrowser =
+    !isCustomUrl(value) && !(VAULT_ICON_OPTIONS as readonly string[]).includes(value)
+
   return (
     <fieldset>
       <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
         {t('vault.iconLabel')}
       </legend>
-      <div className="flex flex-wrap gap-2">
-        {VAULT_ICON_OPTIONS.map((opt) => {
+      <div className={rowClassName}>
+        {(isFromBrowser ? VAULT_ICON_OPTIONS.slice(0, 8) : VAULT_ICON_OPTIONS).map((opt) => {
           const selected = !isCustomUrl(value) && opt === value
           const iconColor = VAULT_ICON_COLORS[opt] ?? '#8A95A6'
           const background = selected
@@ -64,69 +78,97 @@ export function VaultIconPicker({
                 text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
               style={{ background, border }}
             >
-              <Icon name={opt} size={14} />
+              <Icon name={opt} size={14} color={selected ? selectedColor : iconColor} />
             </button>
           )
         })}
 
-        {(vaultId || onFileSelected) && (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) {
-                  if (vaultId) {
-                    upload(file)
-                  } else if (onFileSelected) {
-                    const previewUrl = URL.createObjectURL(file)
-                    onFileSelected(file, previewUrl)
-                  }
-                }
-                e.target.value = ''
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={disabled || isUploading}
-              aria-label={t('vault.iconUpload')}
-              className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
-                disabled:cursor-not-allowed disabled:opacity-40 text-[var(--cv-t3)]"
-              style={
-                isCustomUrl(value)
-                  ? {
-                      background: hexWithAlpha(selectedColor, 0.15),
-                      border: `2px solid ${selectedColor}`,
-                    }
-                  : {
-                      background: 'transparent',
-                      border: '1.5px dashed var(--cv-input-border)',
-                    }
-              }
-            >
-              {isUploading ? (
-                <Icon name="progress_activity" size={14} />
-              ) : isCustomUrl(value) ? (
-                <img
-                  src={value}
-                  alt=""
-                  className="h-5 w-5 rounded-full object-cover"
-                />
-              ) : (
-                <Icon name="upload" size={14} />
-              )}
-            </button>
-          </>
+        {/* Browser-picked icon in the 9th slot when active */}
+        {isFromBrowser && (
+          <button
+            type="button"
+            onClick={() => onChange(value)}
+            disabled={disabled}
+            aria-pressed={true}
+            aria-label={t(`vault.iconName.${value}`, { defaultValue: value.replace(/_/g, ' ') })}
+            className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
+              text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+              background: hexWithAlpha(selectedColor, 0.15),
+              border: `2px solid ${selectedColor}`,
+            }}
+          >
+            <Icon name={value} size={14} color={selectedColor} />
+          </button>
         )}
+
+        {/* "More" button — always last */}
+        <button
+          type="button"
+          onClick={() => setShowBrowser(true)}
+          disabled={disabled}
+          aria-label={t('vault.iconMore')}
+          className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
+            disabled:cursor-not-allowed disabled:opacity-40"
+          style={{ background: hexWithAlpha('#8A95A6', 0.10) }}
+        >
+          <Icon name="more_horiz" size={14} color="#8A95A6" />
+        </button>
       </div>
+
+      {(vaultId || onFileSelected) && (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (file) {
+                if (vaultId) {
+                  upload(file)
+                } else if (onFileSelected) {
+                  const previewUrl = URL.createObjectURL(file)
+                  onFileSelected(file, previewUrl)
+                }
+              }
+              e.target.value = ''
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={disabled || isUploading}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border
+              border-dashed border-[var(--cv-input-border)] px-3 py-2.5 text-[11px]
+              text-[var(--cv-t3)] transition-colors hover:border-[var(--cv-t1)]
+              hover:text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isUploading ? (
+              <Icon name="progress_activity" size={13} />
+            ) : (
+              <Icon name="upload" size={13} />
+            )}
+            <span>{isCustomUrl(value) ? t('vault.iconChange') : t('vault.iconUpload')}</span>
+          </button>
+        </>
+      )}
 
       {error && (
         <p className="mt-1.5 text-[11px] text-red-400">{error}</p>
       )}
+
+      <IconColorBrowser
+        open={showBrowser}
+        onClose={() => setShowBrowser(false)}
+        icons={VAULT_ICON_ALL}
+        iconColors={VAULT_ICON_COLORS}
+        currentIcon={isCustomUrl(value) ? undefined : value}
+        onSelectIcon={(icon) => { if (icon) onChange(icon) }}
+        currentColor={onColorChange ? selectedColor : undefined}
+        onSelectColor={onColorChange}
+      />
     </fieldset>
   )
 }

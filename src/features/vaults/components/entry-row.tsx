@@ -100,7 +100,7 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
   const isLoadingDetail = revealOpen && detail.isPending
 
   return (
-    <div className={`flex flex-col cursor-pointer ${HOVERABLE_CARD_CLASSES}${isSelected ? ' !border-[#FF4F4F] bg-[rgba(255,79,79,0.04)] dark:bg-[rgba(255,79,79,0.06)]' : ''}`}>
+    <div className={`flex flex-col cursor-pointer ${HOVERABLE_CARD_CLASSES}${isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''}`}>
       <div
         className="flex items-center gap-3 px-4 py-2.5"
         onClick={() =>
@@ -289,9 +289,6 @@ function RevealPanel({
             </>
           ) : null}
 
-          {plaintext.notes ? (
-            <p className="text-[11px] text-[var(--cv-t3)]">{plaintext.notes}</p>
-          ) : null}
         </div>
       ) : null}
     </div>

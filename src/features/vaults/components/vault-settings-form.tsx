@@ -6,7 +6,6 @@ import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { analytics } from '../../../shared/lib/analytics'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
-import { VaultColorPicker } from './vault-color-picker'
 import { VaultIconPicker } from './vault-icon-picker'
 import {
   DEFAULT_VAULT_COLOR,
@@ -112,49 +111,65 @@ export function VaultSettingsForm({
       <form
         onSubmit={handleSubmit}
         className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
-          shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+          dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
-        <div className="flex flex-col gap-4">
-          <FormInput
-            id="settings-name"
-            label={t('vault.nameLabel')}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={t('vault.namePlaceholder')}
-            disabled={isPending}
-            maxLength={64}
-            required
-          />
-          <FormTextarea
-            id="settings-description"
-            label={t('vault.descriptionLabel')}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={t('vault.descriptionPlaceholder')}
-            disabled={isPending}
-            rows={3}
-            maxLength={500}
-          />
-          <VaultIconPicker
-            value={icon}
-            onChange={setIcon}
-            selectedColor={color}
-            disabled={isPending}
-            vaultId={vault.id}
-          />
-          <VaultColorPicker
-            value={color}
-            onChange={setColor}
-            disabled={isPending}
-          />
+        <div className="flex gap-5 items-start">
+          <div className="flex-1 flex flex-col gap-4 min-w-0">
+            <FormInput
+              id="settings-name"
+              label={t('vault.nameLabel')}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('vault.namePlaceholder')}
+              disabled={isPending}
+              maxLength={64}
+              required
+            />
+            <FormTextarea
+              id="settings-description"
+              label={t('vault.descriptionLabel')}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={t('vault.descriptionPlaceholder')}
+              disabled={isPending}
+              rows={3}
+              maxLength={500}
+            />
+          </div>
+          <div className="w-60 shrink-0 flex flex-col gap-4">
+            <VaultIconPicker
+              value={icon}
+              onChange={setIcon}
+              onColorChange={setColor}
+              selectedColor={color}
+              disabled={isPending}
+              vaultId={vault.id}
+              rowClassName="grid grid-cols-5 gap-1.5 justify-items-center"
+            />
+          </div>
         </div>
 
         <FieldFeedback visible={errorMessage !== null} color="red">
           {errorMessage}
         </FieldFeedback>
 
-        <div className="mt-4 flex justify-end">
-          <Button variant="accent" size="sm" icon="check" type="submit" disabled={isPending}>
+        <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
+          <Button
+            variant="subtle"
+            size="sm"
+            type="button"
+            onClick={() => {
+              setName(vault.name)
+              setDescription(vault.description ?? '')
+              setIcon(vault.icon ?? DEFAULT_VAULT_ICON)
+              setColor(vault.color ?? DEFAULT_VAULT_COLOR)
+              setErrorMessage(null)
+            }}
+            disabled={isPending}
+          >
+            {t('vault.cancel')}
+          </Button>
+          <Button variant="accent" size="sm" type="submit" disabled={isPending}>
             {isPending ? t('vault.saving') : t('vault.saveChanges')}
           </Button>
         </div>
