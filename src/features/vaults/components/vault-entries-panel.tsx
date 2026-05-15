@@ -49,7 +49,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
 
   return (
     <>
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex h-10 items-center gap-2">
         <Link
           to="/vaults/$vaultId"
           params={{ vaultId: vault.id }}

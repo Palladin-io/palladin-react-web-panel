@@ -56,16 +56,14 @@ export function VaultDetailTabs({ active, onChange, actions }: VaultDetailTabsPr
 
   if (actions) {
     return (
-      <div className="mb-3 flex items-end">
+      <div className="mb-4 flex h-10 items-end">
         {/* Tabs — border-b only under the tab labels */}
         <div className="flex shrink-0 border-b border-[var(--cv-divider)]" role="tablist">
           {tabButtons}
         </div>
         {/* Line fades to transparent right after the last tab */}
-        <div
-          className="h-px flex-1 self-end bg-gradient-to-r from-[var(--cv-divider)] to-transparent"
-        />
-        {/* Action buttons float above the line, no border underneath */}
+        <div className="h-px flex-1 self-end bg-gradient-to-r from-[var(--cv-divider)] to-transparent" />
+        {/* Action buttons vertically centred within the fixed-height row */}
         <div className="flex shrink-0 self-center items-center gap-1">
           {actions}
         </div>

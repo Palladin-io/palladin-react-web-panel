@@ -69,7 +69,7 @@ export function VaultDetailPage({ vaultId }: VaultDetailPageProps) {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto min-w-0">
-          <div className="px-4 pt-6 pb-4">{vaultContent}</div>
+          <div className="px-4 py-4">{vaultContent}</div>
         </div>
       </div>
     )

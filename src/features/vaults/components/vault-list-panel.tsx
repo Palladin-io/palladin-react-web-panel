@@ -48,7 +48,7 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
 
   return (
     <>
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex h-10 items-center gap-2">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
             {t('vault.title')}
