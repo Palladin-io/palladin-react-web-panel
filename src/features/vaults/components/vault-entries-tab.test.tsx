@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import type { AnchorHTMLAttributes, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ENTRY_TYPE_CREDENTIAL,
@@ -9,6 +9,26 @@ import {
   type Vault,
 } from '../types'
 import { VaultEntriesTab } from './vault-entries-tab'
+
+// EntryRow navigates via a real <Link>; render it as a plain anchor so
+// the tab tests don't need a full router context. `params` is dropped so
+// it doesn't leak onto the DOM node as an unknown attribute.
+vi.mock('@tanstack/react-router', () => ({
+  Link: ({
+    to,
+    params: _params,
+    children,
+    ...rest
+  }: {
+    to: string
+    params?: unknown
+    children: ReactNode
+  } & AnchorHTMLAttributes<HTMLAnchorElement>) => (
+    <a href={to} {...rest}>
+      {children}
+    </a>
+  ),
+}))
 
 const useEntriesMock = vi.fn()
 

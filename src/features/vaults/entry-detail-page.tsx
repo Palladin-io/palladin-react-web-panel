@@ -308,7 +308,14 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   // Decrypt when entry changes or when wrappedVK becomes available.
   // Resetting plaintext at the start ensures stale values from a previous
   // entry are never compared against the current entry's fields.
+  //
+  // The `cancelled` flag guards against a stale resolution: in split-view
+  // the user can switch entries faster than a decrypt completes, and
+  // `DetailsTab` is not remounted/keyed per entry — without the guard an
+  // async from entry A could land on entry B and leak A's secret into B's
+  // form. Same pattern as `entry-row.tsx`.
   useEffect(() => {
+    let cancelled = false
     setOriginalPlaintext(null)
     setDecryptError(null)
     if (!vault.wrappedVK) return
@@ -323,6 +330,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         const vaultKey = await unsealVaultKey(vault.wrappedVK!, privateKey)
         try {
           const pt = await decryptEntry(entry.content, vaultKey)
+          if (cancelled) return
           setOriginalPlaintext(pt)
           if (pt.type === ENTRY_TYPE_KEY) {
             setSecretValue(pt.value)
@@ -337,11 +345,14 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
           wipe(vaultKey)
         }
       } catch {
-        setDecryptError(t('vault.entry.detail.decryptError'))
+        if (!cancelled) setDecryptError(t('vault.entry.detail.decryptError'))
       } finally {
-        setDecrypting(false)
+        if (!cancelled) setDecrypting(false)
       }
     })()
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vault.wrappedVK, entry.id])
 

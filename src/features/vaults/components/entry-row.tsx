@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { decryptEntry } from '../../../shared/crypto/entry-crypto'
@@ -40,7 +40,6 @@ export interface EntryRowProps {
  */
 export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProps) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const presentation = presentationForType(entry.type)
   const iconValue = entry.icon ?? presentation.defaultIcon
   const isCustomIcon = isCustomIconUrl(iconValue)
@@ -113,39 +112,40 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
   const isLoadingDetail = revealOpen && detail.isPending
 
   return (
-    <div className={`flex flex-col cursor-pointer ${HOVERABLE_CARD_CLASSES}${isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''}`}>
-      <div
-        className="flex items-center gap-3 px-4 py-2.5"
-        onClick={() =>
-          navigate({
-            to: '/vaults/$vaultId/entries/$entryId',
-            params: { vaultId, entryId: entry.id },
-          })
-        }
-      >
-        <span
-          aria-hidden
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-          style={{ backgroundColor: iconBg, color: iconColor }}
+    <div className={`flex flex-col ${HOVERABLE_CARD_CLASSES}${isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''}`}>
+      <div className="flex items-center gap-3 px-4 py-2.5">
+        {/* The title/icon area navigates — use a real <Link> so it is
+            focusable and keyboard-operable. The action buttons live in a
+            sibling container, never nested inside the link. */}
+        <Link
+          to="/vaults/$vaultId/entries/$entryId"
+          params={{ vaultId, entryId: entry.id }}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-md
+            focus-visible:outline-none focus-visible:ring-2
+            focus-visible:ring-[var(--cv-t1)] focus-visible:ring-offset-2
+            focus-visible:ring-offset-[var(--cv-card-bg)]"
         >
-          {isCustomIcon ? (
-            <img src={iconValue} alt="" className="h-5 w-5 rounded-full object-cover" />
-          ) : (
-            <Icon name={iconValue} size={16} color={iconColor} />
-          )}
-        </span>
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
-            {entry.label}
+          <span
+            aria-hidden
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+            style={{ backgroundColor: iconBg, color: iconColor }}
+          >
+            {isCustomIcon ? (
+              <img src={iconValue} alt="" className="h-5 w-5 rounded-full object-cover" />
+            ) : (
+              <Icon name={iconValue} size={16} color={iconColor} />
+            )}
           </span>
-          {meta ? (
-            <span className="truncate text-[11px] text-[var(--cv-t3)]">{meta}</span>
-          ) : null}
-        </div>
-        <div
-          className="flex shrink-0 items-center gap-1"
-          onClick={(e) => e.stopPropagation()}
-        >
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
+              {entry.label}
+            </span>
+            {meta ? (
+              <span className="truncate text-[11px] text-[var(--cv-t3)]">{meta}</span>
+            ) : null}
+          </div>
+        </Link>
+        <div className="flex shrink-0 items-center gap-1">
           <RowAction
             icon={revealOpen ? 'visibility_off' : 'visibility'}
             label={revealOpen ? t('vault.entry.hide') : t('vault.entry.reveal')}
