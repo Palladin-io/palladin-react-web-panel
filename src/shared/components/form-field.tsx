@@ -28,14 +28,14 @@ export function FormInput({
         htmlFor={id}
         className={
           labelClassName ??
-          'mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--cv-label-text)]'
+          'mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]'
         }
       >
         {label}
       </label>
       <input
         id={id}
-        className={`w-full rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2 text-sm
+        className={`w-full rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2 text-[12px]
           text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none ${
           borderClass ?? 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
         }`}

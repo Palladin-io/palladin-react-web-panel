@@ -123,12 +123,67 @@ Pages with a hardcoded dark gradient background (e.g., `/unlock`, `/login`) must
 - Props interfaces named `{ComponentName}Props`
 - Use composition over prop drilling
 
+### Shared Interactive Styles
+
+Hover/focus effects for interactive cards and list rows use the shared constant from `src/shared/lib/styles.ts`:
+
+```ts
+import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
+```
+
+Editing `HOVERABLE_CARD_CLASSES` updates the hover border effect everywhere (vault cards, entry rows, future list items) in one place. Never inline custom `hover:border-*` or `shadow-*` on card-like interactive elements.
+
+### Modal Footer Button Pattern
+
+All modals/dialogs that have a Cancel + primary action use a **1:2 flex ratio** row — never `justify-center` or `justify-end`:
+
+```tsx
+<div className="mt-1 flex items-center gap-2">
+  <Button variant="subtle" size="md" onClick={onClose} className="flex-1">
+    {t('vault.cancel')}
+  </Button>
+  <Button variant="accent" size="md" type="submit" disabled={!canSubmit} className="flex-[2]">
+    {t('...')}
+  </Button>
+</div>
+```
+
+Rules:
+- Container: `mt-1 flex items-center gap-2` — no border-top (that's for detail-page card footers, not modals)
+- Cancel: `variant="subtle"`, `size="md"`, `className="flex-1"` (occupies 1/3)
+- Primary: `variant="accent"`, `size="md"`, `className="flex-[2]"` (occupies 2/3)
+- `size="md"` always (not `sm`) for modal footers
+- Apply to: create dialogs, icon browser, any ModalShell with confirm/cancel
+
+### Shared Form Components
+
+Always use shared components — never inline-style raw `<input>` or `<textarea>`:
+
+| Use case | Component | Import |
+|----------|-----------|--------|
+| Text / URL / email with label | `FormInput` | `shared/components/form-field` |
+| Password with show/hide toggle | `SecretInput` | `shared/components/secret-input` |
+| Multi-line textarea with label | `FormTextarea` | `shared/components/form-textarea` (add `monospace` for code/key fields) |
+
+All share `text-[12px]`, `border-[var(--cv-input-border)]`, `focus:border-[var(--cv-t1)]`.
+
 ### Styling
 - Tailwind utility classes directly on elements
 - Extract repeated patterns into components, not CSS classes
 - Design tokens via CSS variables in `src/index.css` (`:root` for light, `.dark` for dark) — never hardcode hex colors inline in components; use `var(--cv-*)` tokens
 - Dark mode: `@custom-variant dark (&:is(.dark *))` — the `dark:` prefix applies when element is inside a `.dark` ancestor. The `ThemeSync` provider toggles `dark` on `document.documentElement`.
 - **Design fidelity:** before implementing any UI component, check `docs/design/astro/src/components/` for the Astro reference. Match 1:1 — shape (e.g., `rounded-[10px]` not `rounded-full`), background alphas, border styles (dashed vs solid), icon colors. Deviations from design prototypes are blocking review findings.
+
+#### Accepted deviations from Astro reference (do NOT flag as blocking)
+
+These are intentional UX improvements approved by the product owner. PR review agents must not treat them as violations:
+
+| Area | Deviation | Reason |
+|------|-----------|--------|
+| Card shadows | `dark:shadow-*` only — no shadow in light mode | Avoids visual heaviness in light theme |
+| Hover effect | Light: subtle box-shadow lift (`0_4px_14px_rgba(0,0,0,0.07)`); Dark: shadow + border change | Border-only change too harsh on white background |
+| Entry detail pickers | Icon + Color pickers side-by-side (`flex-row`) | Prototype shows them stacked; side-by-side saves vertical space |
+| Premium colors | `#D4820A` light / `#F0C040` dark (aligned to Astro tokens) | Prototype used off-spec values; tokens are now the source of truth |
 
 ### i18n / Localisation
 

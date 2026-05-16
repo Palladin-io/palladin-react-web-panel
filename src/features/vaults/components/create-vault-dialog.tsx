@@ -12,9 +12,11 @@ import { extensionFromMime } from '../use-vault-icon-upload'
 import { VAULTS_QUERY_KEY } from '../use-vaults'
 import { presignVaultIcon, uploadToS3, updateVault } from '../api/vault-api'
 import { ModalShell } from './modal-shell'
-import { VaultColorPicker } from './vault-color-picker'
 import { VaultIconPicker } from './vault-icon-picker'
-import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from './vault-presentation'
+import {
+  DEFAULT_VAULT_COLOR,
+  DEFAULT_VAULT_ICON,
+} from './vault-presentation'
 
 export interface CreateVaultDialogProps {
   open: boolean
@@ -113,7 +115,7 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
     <ModalShell
       onClose={isPending ? undefined : onClose}
       ariaLabel={t('vault.createVault')}
-      width={360}
+      width={400}
     >
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <header className="flex items-center justify-between">
@@ -158,15 +160,15 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
         <VaultIconPicker
           value={icon}
           onChange={setIcon}
+          onColorChange={setColor}
           selectedColor={color}
-          disabled={isPending}
           onFileSelected={(file, previewUrl) => {
             setPendingIconFile(file)
             setIcon(previewUrl)
           }}
+          disabled={isPending}
+          rowClassName="flex justify-between"
         />
-
-        <VaultColorPicker value={color} onChange={setColor} disabled={isPending} />
 
         <FieldFeedback visible={errorMessage !== null} color="red">
           {errorMessage}
@@ -196,3 +198,4 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
     </ModalShell>
   )
 }
+

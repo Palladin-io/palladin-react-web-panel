@@ -15,6 +15,8 @@ export interface FormTextareaProps
   borderClass?: string
   /** Render the error-coloured border (red) when true. */
   hasError?: boolean
+  /** Render the textarea with a monospace font (for keys/codes). */
+  monospace?: boolean
 }
 
 const DEFAULT_BORDER_CLASS = 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
@@ -26,6 +28,7 @@ export function FormTextarea({
   labelClassName,
   borderClass,
   hasError,
+  monospace = false,
   ...props
 }: FormTextareaProps) {
   const resolvedBorder =
@@ -37,7 +40,7 @@ export function FormTextarea({
         htmlFor={id}
         className={
           labelClassName ??
-          'mb-1 block text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--cv-label-text)]'
+          'mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]'
         }
       >
         {label}
@@ -45,7 +48,7 @@ export function FormTextarea({
       <textarea
         id={id}
         className={`w-full resize-none rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2
-          font-mono text-sm text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none ${resolvedBorder}`}
+          text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none ${resolvedBorder}${monospace ? ' font-mono' : ''}`}
         {...props}
       />
     </div>

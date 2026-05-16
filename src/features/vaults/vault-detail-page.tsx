@@ -2,11 +2,16 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
+import { ErrorState } from '../../shared/components/error-state'
+import { useWideScreen } from '../../shared/hooks/use-wide-screen'
+import { CreateEntryModal } from './components/create-entry-modal'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import {
   VaultDetailTabs,
   type VaultDetailTab,
 } from './components/vault-detail-tabs'
+import { VaultEntriesTab } from './components/vault-entries-tab'
+import { VaultListPanel } from './components/vault-list-panel'
 import { VaultSettingsForm } from './components/vault-settings-form'
 import type { Vault } from './types'
 import { useVault } from './use-vault'
@@ -30,25 +35,49 @@ export function VaultDetailPage({ vaultId }: VaultDetailPageProps) {
   const navigate = useNavigate()
   const vault = useVault(vaultId)
   const [activeTab, setActiveTab] = useState<VaultDetailTab>('entries')
+  const [createEntryOpen, setCreateEntryOpen] = useState(false)
+  const isWide = useWideScreen(1280)
+
+  const vaultContent = vault.isPending ? (
+    <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
+  ) : vault.isError || !vault.data ? (
+    <ErrorState message={t('vault.errorLoad')} onRetry={vault.refetch} />
+  ) : (
+    <>
+      <DetailBody
+        vault={vault.data}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onBack={() => navigate({ to: '/vaults' })}
+        onAddEntry={() => setCreateEntryOpen(true)}
+        showHeader={!isWide}
+      />
+      <CreateEntryModal
+        open={createEntryOpen}
+        vault={vault.data}
+        onClose={() => setCreateEntryOpen(false)}
+      />
+    </>
+  )
+
+  if (isWide) {
+    return (
+      <div className="flex h-full text-[var(--cv-t1)]">
+        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
+          <div className="px-4 py-4">
+            <VaultListPanel selectedVaultId={vaultId} />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto min-w-0">
+          <div className="px-4 py-4">{vaultContent}</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen text-[var(--cv-t1)]">
-      <div className="px-6 py-8">
-        {vault.isPending ? (
-          <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
-        ) : vault.isError || !vault.data ? (
-          <div className="rounded-2xl border border-[rgba(255,79,79,0.3)] bg-[rgba(255,79,79,0.06)] p-6 text-sm text-[#FF4F4F]">
-            {t('vault.errorLoad')}
-          </div>
-        ) : (
-          <DetailBody
-            vault={vault.data}
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            onBack={() => navigate({ to: '/vaults' })}
-          />
-        )}
-      </div>
+      <div className="px-6 py-8">{vaultContent}</div>
     </div>
   )
 }
@@ -57,28 +86,52 @@ interface DetailBodyProps {
   vault: Vault
   activeTab: VaultDetailTab
   onTabChange: (next: VaultDetailTab) => void
-  onBack: () => void
+  onBack?: () => void
+  onAddEntry: () => void
+  showHeader?: boolean
 }
 
-function DetailBody({ vault, activeTab, onTabChange, onBack }: DetailBodyProps) {
+function DetailBody({
+  vault,
+  activeTab,
+  onTabChange,
+  onBack,
+  onAddEntry,
+  showHeader = true,
+}: DetailBodyProps) {
   const { t } = useTranslation()
   const subtitle = t('vault.subtitle.entryCount', { count: vault.entryCount })
 
   return (
     <>
-      <VaultDetailHeader
-        title={vault.name}
-        subtitle={subtitle}
-        onBack={onBack}
-        actions={<TabActions activeTab={activeTab} />}
+      {showHeader ? (
+        <VaultDetailHeader
+          title={vault.name}
+          subtitle={subtitle}
+          onBack={onBack}
+          actions={<TabActions activeTab={activeTab} onAddEntry={onAddEntry} />}
+        />
+      ) : null}
+      <VaultDetailTabs
+        active={activeTab}
+        onChange={onTabChange}
+        actions={
+          showHeader ? undefined : (
+            <TabActions activeTab={activeTab} onAddEntry={onAddEntry} />
+          )
+        }
       />
-      <VaultDetailTabs active={activeTab} onChange={onTabChange} />
       <TabPanel activeTab={activeTab} vault={vault} />
     </>
   )
 }
 
-function TabActions({ activeTab }: { activeTab: VaultDetailTab }) {
+interface TabActionsProps {
+  activeTab: VaultDetailTab
+  onAddEntry: () => void
+}
+
+function TabActions({ activeTab, onAddEntry }: TabActionsProps) {
   const { t } = useTranslation()
   switch (activeTab) {
     case 'entries':
@@ -87,7 +140,7 @@ function TabActions({ activeTab }: { activeTab: VaultDetailTab }) {
           <Button variant="subtle" size="sm" icon="file_upload">
             {t('vault.detail.import')}
           </Button>
-          <Button variant="accent" size="sm" icon="add">
+          <Button variant="accent" size="sm" icon="add" onClick={onAddEntry}>
             {t('vault.detail.addEntry')}
           </Button>
         </>
@@ -112,7 +165,7 @@ function TabPanel({
 }) {
   switch (activeTab) {
     case 'entries':
-      return <EntriesTab />
+      return <VaultEntriesTab vault={vault} />
     case 'agents':
       return <AgentsTab />
     case 'audit-log':
@@ -124,11 +177,6 @@ function TabPanel({
     default:
       return null
   }
-}
-
-function EntriesTab() {
-  const { t } = useTranslation()
-  return <EmptyMessage message={t('vault.detail.entriesEmpty')} />
 }
 
 function AgentsTab() {

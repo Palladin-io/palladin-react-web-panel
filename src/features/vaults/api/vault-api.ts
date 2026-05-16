@@ -1,6 +1,10 @@
 import { api } from '../../../shared/api/client'
 import type {
+  CreateEntryPayload,
   CreateVaultInput,
+  EntryContent,
+  EntryDetail,
+  EntryListItem,
   GrantMode,
   UpdateVaultInput,
   Vault,
@@ -71,6 +75,73 @@ export async function uploadToS3(uploadUrl: string, file: File): Promise<void> {
     body: file,
   })
   if (!response.ok) throw new Error(`S3 upload failed: ${response.status}`)
+}
+
+/**
+ * Cursor-paginated entries listing. The list intentionally omits the
+ * encrypted blob and nonce — those are fetched lazily on reveal via
+ * {@link getEntry} to keep the payload small and reduce the surface
+ * where secret bytes are present in browser memory.
+ */
+export interface EntryListResponse {
+  items: EntryListItem[]
+  nextCursor?: string
+}
+
+export function getEntries(vaultId: string): Promise<EntryListResponse> {
+  return api
+    .get(`api/vaults/${vaultId}/entries`)
+    .json<EntryListResponse>()
+}
+
+export function getEntry(
+  vaultId: string,
+  entryId: string,
+): Promise<EntryDetail> {
+  return api
+    .get(`api/vaults/${vaultId}/entries/${entryId}`)
+    .json<EntryDetail>()
+}
+
+export function createEntry(
+  vaultId: string,
+  payload: CreateEntryPayload,
+): Promise<{ id: string }> {
+  return api
+    .post(`api/vaults/${vaultId}/entries`, { json: payload })
+    .json<{ id: string }>()
+}
+
+export async function updateEntry(
+  vaultId: string,
+  entryId: string,
+  payload: {
+    label?: string
+    description?: string
+    icon?: string
+    color?: string
+    urlDomain?: string
+    content?: EntryContent
+  },
+): Promise<void> {
+  await api.put(`api/vaults/${vaultId}/entries/${entryId}`, { json: payload })
+}
+
+export async function deleteEntry(
+  vaultId: string,
+  entryId: string,
+): Promise<void> {
+  await api.delete(`api/vaults/${vaultId}/entries/${entryId}`)
+}
+
+export function presignEntryIcon(
+  vaultId: string,
+  entryId: string,
+  extension: string,
+): Promise<PresignResponse> {
+  return api
+    .post(`api/vaults/${vaultId}/entries/${entryId}/icon/presign`, { json: { extension } })
+    .json<PresignResponse>()
 }
 
 // Re-export for convenient consumption by hooks/tests.

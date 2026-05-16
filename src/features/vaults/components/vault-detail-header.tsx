@@ -5,9 +5,12 @@ import { Icon } from '../../../shared/components/icon'
 export interface VaultDetailHeaderProps {
   title: string
   subtitle: string
+  /** Optional icon/avatar rendered between the back button and the title. */
+  iconElement?: ReactNode
   /** Action buttons rendered on the right side of the header. */
   actions?: ReactNode
-  onBack: () => void
+  /** When omitted, the back button is hidden (e.g. inside a split-view right panel). */
+  onBack?: () => void
 }
 
 /**
@@ -20,6 +23,7 @@ export interface VaultDetailHeaderProps {
 export function VaultDetailHeader({
   title,
   subtitle,
+  iconElement,
   actions,
   onBack,
 }: VaultDetailHeaderProps) {
@@ -27,15 +31,18 @@ export function VaultDetailHeader({
   return (
     <div className="mb-2 flex items-center justify-between gap-4">
       <div className="flex min-w-0 items-center gap-2">
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label={t('common.back')}
-          className="flex h-8 w-8 items-center justify-center rounded-lg
-            text-[var(--cv-t3)] transition-colors hover:bg-[var(--cv-bg-subtle)] hover:text-[var(--cv-t1)]"
-        >
-          <Icon name="arrow_back" size={18} />
-        </button>
+        {onBack ? (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label={t('common.back')}
+            className="flex h-8 w-8 items-center justify-center rounded-lg
+              text-[var(--cv-t3)] transition-colors hover:bg-[var(--cv-bg-subtle)] hover:text-[var(--cv-t1)]"
+          >
+            <Icon name="arrow_back" size={18} />
+          </button>
+        ) : null}
+        {iconElement}
         <div className="min-w-0">
           <div className="truncate text-[20px] font-bold leading-tight text-[var(--cv-t1)]">
             {title}
