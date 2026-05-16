@@ -44,10 +44,10 @@ export async function encryptEntry(
  * the mobile/agent client — same wire format. Throws if the MAC fails;
  * callers should translate into a typed UI error.
  *
- * The decoded plaintext is JSON-parsed before the buffer is wiped, so
- * the only surviving artefact is the structured object the caller
- * needs. Strings inside that object retain plaintext secrets — the
- * caller is responsible for keeping them off persistent storage.
+ * The decoded plaintext bytes are JSON-parsed and then the byte buffer
+ * is wiped so the only surviving artefact is the structured object the
+ * caller needs. Strings inside that object retain plaintext secrets —
+ * the caller is responsible for keeping them off persistent storage.
  */
 export async function decryptEntry(
   content: EntryContent,
@@ -57,5 +57,12 @@ export async function decryptEntry(
   const cipher = fromBase64(content.encryptedBlob)
   const nonceBytes = fromBase64(content.nonce)
   const plaintext = sodium.crypto_secretbox_open_easy(cipher, nonceBytes, vaultKey)
-  return JSON.parse(new TextDecoder().decode(plaintext)) as EntryPlaintext
+  try {
+    return JSON.parse(new TextDecoder().decode(plaintext)) as EntryPlaintext
+  } finally {
+    // Wipe the decoded plaintext buffer — the parsed object keeps the
+    // secret strings (managed by the caller), but the raw byte buffer
+    // should not linger.
+    sodium.memzero(plaintext)
+  }
 }

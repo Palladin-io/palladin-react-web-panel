@@ -82,7 +82,7 @@ export const VAULT_ICON_COLORS: Record<string, string> = {
   notifications: '#60A5FA',
 }
 
-/** Full browsable icon set — 50 icons shown in the icon browser dialog. */
+/** Full browsable icon set — 56 icons shown in the icon browser dialog. */
 export const VAULT_ICON_ALL = [
   'shield', 'lock', 'key', 'vpn_key', 'security', 'fingerprint', 'password', 'enhanced_encryption',
   'folder', 'folder_open', 'database', 'cloud', 'storage', 'archive', 'inventory', 'cloud_upload',
