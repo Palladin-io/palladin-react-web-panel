@@ -3,5 +3,4 @@ export interface AuthResponse {
   refreshToken: string
   userId: string
   isOnboarded: boolean
-  permissions: number
 }
