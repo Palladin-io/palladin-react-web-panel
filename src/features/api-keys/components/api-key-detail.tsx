@@ -64,21 +64,19 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
         className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
           dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="truncate text-[16px] font-bold text-[var(--cv-t1)]">
-              {apiKey.name}
-            </h2>
-            <div className="mt-1.5">
-              <ApiKeyStatusBadge status={apiKey.status} />
-            </div>
+        <div className="flex items-center gap-3 min-w-0">
+          <h2 className="truncate text-[16px] font-bold text-[var(--cv-t1)]">
+            {apiKey.name}
+          </h2>
+          <div className="shrink-0">
+            <ApiKeyStatusBadge status={apiKey.status} />
           </div>
         </div>
 
         <dl className="mt-5 flex flex-col gap-3 border-t border-[var(--cv-divider)] pt-4">
           <DetailRow
             label={t('apiKeys.detail.key')}
-            value={`cv_••••${apiKey.keySuffix}`}
+            value={`cv_••••${apiKey.keySuffix || '••••'}`}
             mono
           />
           <DetailRow
