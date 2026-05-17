@@ -14,18 +14,10 @@ export interface ApiKeyListPanelProps {
   selectedApiKeyId?: string
 }
 
-/**
- * Formats an ISO timestamp as a short, locale-aware date. The list only
- * needs day-level granularity so we drop the time component.
- */
 function formatDate(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 /** Compact status pill mirroring the detail panel badge. */
@@ -117,7 +109,6 @@ interface ApiKeyRowProps {
 }
 
 function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
-  const { t } = useTranslation()
   return (
     <Link
       to="/api-keys/$keyId"
@@ -126,15 +117,18 @@ function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
         isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
       }`}
     >
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2">
         <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
           {apiKey.name}
         </span>
+        <span className="shrink-0 text-[11px] text-[var(--cv-t3)]">
+          {formatDate(apiKey.createdAt)}
+        </span>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-mono text-[11px] text-[var(--cv-t3)]">cv_••••••••</span>
         <ApiKeyStatusBadge status={apiKey.status} />
       </div>
-      <p className="text-[11px] text-[var(--cv-t3)]">
-        {t('apiKeys.createdOn', { date: formatDate(apiKey.createdAt) })}
-      </p>
     </Link>
   )
 }
