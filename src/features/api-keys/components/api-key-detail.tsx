@@ -42,7 +42,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
   const [revokeOpen, setRevokeOpen] = useState(false)
   const [revokeError, setRevokeError] = useState<string | null>(null)
 
-  const isActive = apiKey.status === 'Active'
+  const isActive = apiKey.status === 'active'
 
   const handleConfirmRevoke = () => {
     setRevokeError(null)

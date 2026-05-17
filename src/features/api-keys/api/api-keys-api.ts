@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 
 /** Lifecycle status of an API key. Mirrors the backend enum. */
-export const apiKeyStatusSchema = z.enum(['Active', 'Revoked'])
+export const apiKeyStatusSchema = z.enum(['active', 'revoked'])
 export type ApiKeyStatus = z.infer<typeof apiKeyStatusSchema>
 
 /**

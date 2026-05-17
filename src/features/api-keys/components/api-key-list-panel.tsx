@@ -31,7 +31,7 @@ function formatDate(iso: string): string {
 /** Compact status pill mirroring the detail panel badge. */
 export function ApiKeyStatusBadge({ status }: { status: ApiKeySummary['status'] }) {
   const { t } = useTranslation()
-  const isActive = status === 'Active'
+  const isActive = status === 'active'
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px]

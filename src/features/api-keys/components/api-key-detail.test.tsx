@@ -26,14 +26,14 @@ vi.mock('../../../shared/lib/analytics', () => ({
 const activeKey: ApiKeySummary = {
   apiKeyId: 'key-1',
   name: 'CI pipeline',
-  status: 'Active',
+  status: 'active',
   createdAt: '2026-05-17T10:00:00Z',
 }
 
 const revokedKey: ApiKeySummary = {
   apiKeyId: 'key-2',
   name: 'Old key',
-  status: 'Revoked',
+  status: 'revoked',
   createdAt: '2026-04-01T10:00:00Z',
   revokedAt: '2026-05-01T12:00:00Z',
 }
