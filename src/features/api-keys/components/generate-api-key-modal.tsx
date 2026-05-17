@@ -149,19 +149,7 @@ function GeneratedSecretView({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div
-        className="flex items-start gap-2 rounded-lg border border-[rgba(255,79,79,0.25)]
-          bg-[rgba(255,79,79,0.06)] p-3"
-      >
-        <span className="mt-0.5 text-[#FF4F4F]">
-          <Icon name="warning" size={16} />
-        </span>
-        <p className="text-[12px] text-[var(--cv-t2)]">
-          {t('apiKeys.oneTimeWarning')}
-        </p>
-      </div>
-
+    <div className="step-enter flex flex-col gap-4">
       <div>
         <label
           htmlFor="generated-api-key"
@@ -192,8 +180,21 @@ function GeneratedSecretView({
         </div>
       </div>
 
-      <div className="mt-1 flex justify-end">
-        <Button variant="accent" size="md" onClick={onDone}>
+      <div
+        className="flex items-start gap-2 rounded-lg border border-[rgba(255,79,79,0.25)]
+          bg-[rgba(255,79,79,0.06)] p-3"
+      >
+        <span className="mt-0.5 shrink-0 text-[#FF4F4F]">
+          <Icon name="warning" size={16} />
+        </span>
+        <p className="text-[12px] text-[var(--cv-t2)]">
+          {t('apiKeys.oneTimeWarning')}
+        </p>
+      </div>
+
+      <div className="mt-1 flex items-center gap-2">
+        <div className="flex-1" />
+        <Button variant="accent" size="md" onClick={onDone} className="flex-[2]">
           {t('apiKeys.done')}
         </Button>
       </div>
