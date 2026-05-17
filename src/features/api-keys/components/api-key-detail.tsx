@@ -4,6 +4,7 @@ import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
 import { analytics } from '../../../shared/lib/analytics'
 import type { ApiKeySummary } from '../api/api-keys-api'
+import { useApiKeyPermissions } from '../use-api-keys'
 import { useActivateApiKey } from '../use-activate-api-key'
 import { useDeleteApiKey } from '../use-delete-api-key'
 import { useRevokeApiKey } from '../use-revoke-api-key'
@@ -28,6 +29,7 @@ function formatDateTime(iso: string): string {
 
 export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
   const { t } = useTranslation()
+  const { canWrite } = useApiKeyPermissions()
   const revoke = useRevokeApiKey()
   const activate = useActivateApiKey()
   const del = useDeleteApiKey()
@@ -115,8 +117,8 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
         </dl>
       </div>
 
-      {/* Activate zone — shown only for revoked keys */}
-      {!isActive ? (
+      {/* Activate zone — shown only for revoked keys when user has write permission */}
+      {!isActive && canWrite ? (
         <section
           className="mt-4 rounded-xl border border-[rgba(46,196,182,0.25)] bg-[rgba(46,196,182,0.04)] p-4"
         >
@@ -149,8 +151,8 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
         </section>
       ) : null}
 
-      {/* Danger zone — Revoke (active keys) or Delete (revoked keys) */}
-      <section
+      {/* Danger zone — shown only when user has write permission */}
+      {canWrite ? <section
         className="mt-4 rounded-xl border border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.04)] p-4"
       >
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#FF4F4F]">
@@ -213,7 +215,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
             {deleteError}
           </p>
         ) : null}
-      </section>
+      </section> : null}
 
       <RevokeApiKeyDialog
         open={revokeOpen}

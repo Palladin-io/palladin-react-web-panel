@@ -25,6 +25,7 @@ const keysState: {
 
 vi.mock('../use-api-keys', () => ({
   useApiKeys: () => keysState,
+  useApiKeyPermissions: () => ({ canRead: true, canWrite: true }),
 }))
 
 // The generate modal owns its own mutation hook; stub it so this test

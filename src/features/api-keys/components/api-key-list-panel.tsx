@@ -6,7 +6,7 @@ import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import type { ApiKeySummary } from '../api/api-keys-api'
-import { useApiKeys } from '../use-api-keys'
+import { useApiKeyPermissions, useApiKeys } from '../use-api-keys'
 import { GenerateApiKeyModal } from './generate-api-key-modal'
 
 export interface ApiKeyListPanelProps {
@@ -48,6 +48,7 @@ export function ApiKeyStatusBadge({ status }: { status: ApiKeySummary['status'] 
 export function ApiKeyListPanel({ selectedApiKeyId }: ApiKeyListPanelProps) {
   const { t } = useTranslation()
   const keys = useApiKeys()
+  const { canWrite } = useApiKeyPermissions()
   const [generateOpen, setGenerateOpen] = useState(false)
 
   const list = useMemo(() => keys.data ?? [], [keys.data])
@@ -63,14 +64,16 @@ export function ApiKeyListPanel({ selectedApiKeyId }: ApiKeyListPanelProps) {
             {t('apiKeys.countLabel', { count: list.length })}
           </p>
         </div>
-        <Button
-          variant="accent"
-          size="sm"
-          icon="add"
-          onClick={() => setGenerateOpen(true)}
-        >
-          {t('apiKeys.generate')}
-        </Button>
+        {canWrite ? (
+          <Button
+            variant="accent"
+            size="sm"
+            icon="add"
+            onClick={() => setGenerateOpen(true)}
+          >
+            {t('apiKeys.generate')}
+          </Button>
+        ) : null}
       </div>
 
       {keys.isPending ? (

@@ -28,6 +28,10 @@ vi.mock('../use-delete-api-key', () => ({
   useDeleteApiKey: () => ({ mutate: deleteMutateMock, isPending: false }),
 }))
 
+vi.mock('../use-api-keys', () => ({
+  useApiKeyPermissions: () => ({ canRead: true, canWrite: true }),
+}))
+
 const captureMock = vi.fn()
 vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: (...args: unknown[]) => captureMock(...args) },
