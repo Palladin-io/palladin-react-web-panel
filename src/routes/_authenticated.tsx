@@ -130,10 +130,18 @@ const NAV_ITEMS: NavItem[] = [
     matchPrefix: '/billing',
   },
   {
+    key: 'api-keys',
+    labelKey: 'nav.apiKeys',
+    icon: 'key',
+    to: '/api-keys',
+    matchPrefix: '/api-keys',
+  },
+  {
     key: 'settings',
     labelKey: 'nav.settings',
     icon: 'settings',
-    disabled: true,
+    to: '/settings',
+    matchPrefix: '/settings',
   },
 ]
 
