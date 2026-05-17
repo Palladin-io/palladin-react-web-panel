@@ -326,6 +326,10 @@
   "apiKeys.detail.agentsTab": "Agents",
   "apiKeys.detail.createdAt": "Created",
   "apiKeys.detail.revokedAt": "Revoked",
+  "apiKeys.detail.key": "Key",
+  "apiKeys.dangerZone": "Danger Zone",
+  "apiKeys.revokeTitle": "Revoke API key",
+  "apiKeys.revokeSubtitle": "Permanently cuts off any agent using this key. This cannot be undone.",
   "apiKeys.detail.noSelection": "Select a key to view details",
   "apiKeys.detail.notFound": "This API key no longer exists.",
   "apiKeys.detail.agentsComingSoon": "Agent management for API keys is coming soon."

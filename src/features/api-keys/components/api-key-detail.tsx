@@ -77,6 +77,11 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
 
         <dl className="mt-5 flex flex-col gap-3 border-t border-[var(--cv-divider)] pt-4">
           <DetailRow
+            label={t('apiKeys.detail.key')}
+            value={`cv_••••${apiKey.keySuffix}`}
+            mono
+          />
+          <DetailRow
             label={t('apiKeys.detail.createdAt')}
             value={formatDateTime(apiKey.createdAt)}
           />
@@ -87,12 +92,27 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
             />
           ) : null}
         </dl>
+      </div>
 
-        {isActive ? (
-          <div className="mt-4 flex justify-end border-t border-[var(--cv-divider)] pt-4">
+      {isActive ? (
+        <section
+          className="mt-4 rounded-xl border border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.04)] p-4"
+        >
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#FF4F4F]">
+            {t('apiKeys.dangerZone')}
+          </h2>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-[12px] font-semibold text-[var(--cv-t1)]">
+                {t('apiKeys.revokeTitle')}
+              </div>
+              <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">
+                {t('apiKeys.revokeSubtitle')}
+              </p>
+            </div>
             <Button
               variant="danger"
-              size="md"
+              size="sm"
               onClick={() => {
                 setRevokeError(null)
                 setRevokeOpen(true)
@@ -102,14 +122,13 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
               {t('apiKeys.revoke')}
             </Button>
           </div>
-        ) : null}
-
-        {revokeError ? (
-          <p className="mt-2 text-[11px] text-[#FF4F4F]" role="alert">
-            {revokeError}
-          </p>
-        ) : null}
-      </div>
+          {revokeError ? (
+            <p className="mt-2 text-[11px] text-[#FF4F4F]" role="alert">
+              {revokeError}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       <RevokeApiKeyDialog
         open={revokeOpen}
@@ -122,11 +141,11 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
   )
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <dt className="text-[12px] text-[var(--cv-t3)]">{label}</dt>
-      <dd className="text-[12px] font-medium text-[var(--cv-t1)]">{value}</dd>
+      <dd className={`text-[12px] font-medium text-[var(--cv-t1)]${mono ? ' font-mono' : ''}`}>{value}</dd>
     </div>
   )
 }

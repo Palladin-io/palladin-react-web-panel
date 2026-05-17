@@ -346,6 +346,10 @@
   "apiKeys.detail.agentsTab": "Agenci",
   "apiKeys.detail.createdAt": "Utworzono",
   "apiKeys.detail.revokedAt": "Unieważniono",
+  "apiKeys.detail.key": "Klucz",
+  "apiKeys.dangerZone": "Strefa niebezpieczna",
+  "apiKeys.revokeTitle": "Unieważnij klucz API",
+  "apiKeys.revokeSubtitle": "Natychmiast odcina dostęp każdemu agentowi używającemu tego klucza. Tej operacji nie można cofnąć.",
   "apiKeys.detail.noSelection": "Wybierz klucz, aby zobaczyć szczegóły",
   "apiKeys.detail.notFound": "Ten klucz API już nie istnieje.",
   "apiKeys.detail.agentsComingSoon": "Zarządzanie agentami dla kluczy API już wkrótce."
