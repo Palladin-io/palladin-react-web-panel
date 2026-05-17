@@ -344,6 +344,7 @@
   "apiKeys.countLabel_other": "{{count}} klucza",
   "apiKeys.detail.detailsTab": "Szczegóły",
   "apiKeys.detail.agentsTab": "Agenci",
+  "apiKeys.detail.status": "Status",
   "apiKeys.detail.createdAt": "Utworzono",
   "apiKeys.detail.revokedAt": "Unieważniono",
   "apiKeys.detail.key": "Klucz",

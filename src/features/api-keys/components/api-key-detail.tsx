@@ -89,16 +89,12 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
         className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
           dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
-        <div className="flex items-center gap-3 min-w-0">
-          <h2 className="truncate text-[16px] font-bold text-[var(--cv-t1)]">
-            {apiKey.name}
-          </h2>
-          <div className="shrink-0">
-            <ApiKeyStatusBadge status={apiKey.status} />
-          </div>
-        </div>
+        <h2 className="truncate text-[16px] font-bold text-[var(--cv-t1)]">
+          {apiKey.name}
+        </h2>
 
         <dl className="mt-5 flex flex-col gap-3 border-t border-[var(--cv-divider)] pt-4">
+          <StatusRow label={t('apiKeys.detail.status')} status={apiKey.status} />
           <DetailRow
             label={t('apiKeys.detail.key')}
             value={`cv_••••${apiKey.keySuffix || '••••'}`}
@@ -241,6 +237,15 @@ function DetailRow({ label, value, mono }: { label: string; value: string; mono?
     <div className="flex items-start justify-between gap-4">
       <dt className="shrink-0 text-[12px] text-[var(--cv-t3)]">{label}</dt>
       <dd className={`text-right text-[12px] font-medium text-[var(--cv-t1)]${mono ? ' font-mono' : ''}`}>{value}</dd>
+    </div>
+  )
+}
+
+function StatusRow({ label, status }: { label: string; status: ApiKeySummary['status'] }) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <dt className="shrink-0 text-[12px] text-[var(--cv-t3)]">{label}</dt>
+      <dd><ApiKeyStatusBadge status={status} /></dd>
     </div>
   )
 }
