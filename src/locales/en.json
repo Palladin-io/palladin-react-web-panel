@@ -294,9 +294,7 @@
   "settings.org.errorSave": "Could not save the organization name. Please try again.",
 
   "apiKeys.sectionTitle": "API Keys",
-  "apiKeys.sectionSubtitle": "Keys for programmatic access to your organization.",
   "apiKeys.empty": "No API keys yet. Generate one to get started.",
-  "apiKeys.createdOn": "Created {{date}}",
   "apiKeys.statusActive": "Active",
   "apiKeys.statusRevoked": "Revoked",
   "apiKeys.generate": "Generate API key",

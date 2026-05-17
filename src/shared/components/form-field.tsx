@@ -13,6 +13,8 @@ export interface FormInputProps
   labelClassName?: string
   /** Override border + focus-border classes. Defaults to subtle/teal. */
   borderClass?: string
+  /** Render the input value in a monospace font (e.g. API keys, tokens). */
+  monospace?: boolean
 }
 
 export function FormInput({
@@ -20,6 +22,7 @@ export function FormInput({
   id,
   labelClassName,
   borderClass,
+  monospace,
   ...props
 }: FormInputProps) {
   return (
@@ -38,7 +41,7 @@ export function FormInput({
         className={`w-full rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2 text-[12px]
           text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none ${
           borderClass ?? 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
-        }`}
+        }${monospace ? ' font-mono' : ''}`}
         {...props}
       />
     </div>

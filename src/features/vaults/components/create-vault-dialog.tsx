@@ -11,7 +11,7 @@ import { useCreateVault } from '../use-create-vault'
 import { extensionFromMime } from '../use-vault-icon-upload'
 import { VAULTS_QUERY_KEY } from '../use-vaults'
 import { presignVaultIcon, uploadToS3, updateVault } from '../api/vault-api'
-import { ModalShell } from './modal-shell'
+import { ModalShell } from '../../../shared/components/modal-shell'
 import { VaultIconPicker } from './vault-icon-picker'
 import {
   DEFAULT_VAULT_COLOR,

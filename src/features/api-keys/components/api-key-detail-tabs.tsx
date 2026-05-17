@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export type ApiKeyDetailTab = 'details' | 'agents'
@@ -6,10 +5,8 @@ export type ApiKeyDetailTab = 'details' | 'agents'
 export interface ApiKeyDetailTabsProps {
   active: ApiKeyDetailTab
   onChange: (next: ApiKeyDetailTab) => void
-  /** Wide-mode renders the gradient line + actions slot; narrow stacks plainly. */
+  /** Wide-mode renders the gradient line; narrow stacks plainly. */
   wide?: boolean
-  /** Tab-specific action buttons rendered on the right of the strip (wide only). */
-  actions?: ReactNode
 }
 
 /**
@@ -22,7 +19,6 @@ export function ApiKeyDetailTabs({
   active,
   onChange,
   wide,
-  actions,
 }: ApiKeyDetailTabsProps) {
   const { t } = useTranslation()
   const tabs: { id: ApiKeyDetailTab; labelKey: string }[] = [
@@ -57,9 +53,6 @@ export function ApiKeyDetailTabs({
           {tabButtons}
         </div>
         <div className="h-px flex-1 self-end bg-gradient-to-r from-[var(--cv-divider)] to-transparent" />
-        {actions ? (
-          <div className="flex shrink-0 self-center items-center gap-1">{actions}</div>
-        ) : null}
       </div>
     )
   }

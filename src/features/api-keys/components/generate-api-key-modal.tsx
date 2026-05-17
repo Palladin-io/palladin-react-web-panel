@@ -151,23 +151,18 @@ function GeneratedSecretView({
   return (
     <div className="step-enter flex flex-col gap-4">
       <div>
-        <label
-          htmlFor="generated-api-key"
-          className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-        >
-          {t('apiKeys.secretLabel')}
-        </label>
-        <div className="flex items-center gap-2">
-          <input
-            id="generated-api-key"
-            type="text"
-            readOnly
-            value={generated.plaintext}
-            onFocus={(e) => e.currentTarget.select()}
-            className="w-full rounded-lg border border-[var(--cv-input-border)]
-              bg-[var(--cv-input-bg)] px-3 py-2 font-mono text-[12px]
-              text-[var(--cv-input-text)] focus:border-[var(--cv-t1)] focus:outline-none"
-          />
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <FormInput
+              id="generated-api-key"
+              label={t('apiKeys.secretLabel')}
+              type="text"
+              readOnly
+              value={generated.plaintext}
+              onFocus={(e) => e.currentTarget.select()}
+              monospace
+            />
+          </div>
           <Button
             variant="subtle"
             size="md"

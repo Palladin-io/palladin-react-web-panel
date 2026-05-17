@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
 import { analytics } from '../../../shared/lib/analytics'
-import { ModalShell } from './modal-shell'
+import { ModalShell } from '../../../shared/components/modal-shell'
 
 export interface PremiumGateDialogProps {
   open: boolean

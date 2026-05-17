@@ -312,9 +312,7 @@
   "settings.org.errorSave": "Nie udało się zapisać nazwy organizacji. Spróbuj ponownie.",
 
   "apiKeys.sectionTitle": "Klucze API",
-  "apiKeys.sectionSubtitle": "Klucze do programowego dostępu do Twojej organizacji.",
   "apiKeys.empty": "Brak kluczy API. Wygeneruj klucz, aby zacząć.",
-  "apiKeys.createdOn": "Utworzono {{date}}",
   "apiKeys.statusActive": "Aktywny",
   "apiKeys.statusRevoked": "Unieważniony",
   "apiKeys.generate": "Wygeneruj klucz API",
