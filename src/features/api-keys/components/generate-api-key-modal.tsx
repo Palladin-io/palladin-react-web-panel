@@ -192,9 +192,8 @@ function GeneratedSecretView({
         </p>
       </div>
 
-      <div className="mt-1 flex items-center gap-2">
-        <div className="flex-1" />
-        <Button variant="accent" size="md" onClick={onDone} className="flex-[2]">
+      <div className="mt-1">
+        <Button variant="accent" size="md" onClick={onDone} className="w-full">
           {t('apiKeys.done')}
         </Button>
       </div>

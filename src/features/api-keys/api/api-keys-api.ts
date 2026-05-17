@@ -15,7 +15,7 @@ export const apiKeySummarySchema = z.object({
   name: z.string(),
   status: apiKeyStatusSchema,
   createdAt: z.string(),
-  revokedAt: z.string().optional(),
+  revokedAt: z.string().nullish(),
 })
 
 export type ApiKeySummary = z.infer<typeof apiKeySummarySchema>
