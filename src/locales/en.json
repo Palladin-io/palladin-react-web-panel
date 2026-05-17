@@ -324,7 +324,6 @@
   "apiKeys.countLabel_other": "{{count}} keys",
   "apiKeys.detail.detailsTab": "Details",
   "apiKeys.detail.agentsTab": "Agents",
-  "apiKeys.detail.status": "Status",
   "apiKeys.detail.createdAt": "Created",
   "apiKeys.detail.revokedAt": "Revoked",
   "apiKeys.detail.key": "Key",
