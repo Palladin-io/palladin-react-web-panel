@@ -138,6 +138,18 @@ export const useAuthStore = create<AuthState>()(
         isOnboarded: state.isOnboarded,
         permissions: state.permissions,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (!state?.accessToken) return
+        const payload = parseJwtPayload(state.accessToken)
+        const raw = payload['permissions']
+        const derived =
+          typeof raw === 'number' ? raw
+          : typeof raw === 'string' ? parseInt(raw, 10)
+          : null
+        if (derived !== null && !isNaN(derived)) {
+          state.permissions = derived
+        }
+      },
     },
   ),
 )
