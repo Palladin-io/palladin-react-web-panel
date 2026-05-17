@@ -18,6 +18,16 @@ vi.mock('../use-revoke-api-key', () => ({
   }),
 }))
 
+const activateMutateMock = vi.fn()
+vi.mock('../use-activate-api-key', () => ({
+  useActivateApiKey: () => ({ mutate: activateMutateMock, isPending: false }),
+}))
+
+const deleteMutateMock = vi.fn()
+vi.mock('../use-delete-api-key', () => ({
+  useDeleteApiKey: () => ({ mutate: deleteMutateMock, isPending: false }),
+}))
+
 const captureMock = vi.fn()
 vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: (...args: unknown[]) => captureMock(...args) },
@@ -26,16 +36,21 @@ vi.mock('../../../shared/lib/analytics', () => ({
 const activeKey: ApiKeySummary = {
   apiKeyId: 'key-1',
   name: 'CI pipeline',
+  keySuffix: 'aB3x',
   status: 'active',
   createdAt: '2026-05-17T10:00:00Z',
+  createdByName: 'Alice',
 }
 
 const revokedKey: ApiKeySummary = {
   apiKeyId: 'key-2',
   name: 'Old key',
+  keySuffix: 'zQ9w',
   status: 'revoked',
   createdAt: '2026-04-01T10:00:00Z',
+  createdByName: 'Bob',
   revokedAt: '2026-05-01T12:00:00Z',
+  revokedByName: 'Alice',
 }
 
 function wrapper({ children }: { children: ReactNode }) {

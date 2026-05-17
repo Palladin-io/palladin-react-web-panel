@@ -36,8 +36,10 @@ vi.mock('./generate-api-key-modal', () => ({
 const activeKey: ApiKeySummary = {
   apiKeyId: 'key-1',
   name: 'CI pipeline',
+  keySuffix: 'aB3x',
   status: 'active',
   createdAt: '2026-05-17T10:00:00Z',
+  createdByName: 'Alice',
 }
 
 function wrapper({ children }: { children: ReactNode }) {

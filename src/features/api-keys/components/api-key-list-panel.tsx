@@ -121,15 +121,15 @@ function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
         <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
           {apiKey.name}
         </span>
-        <ApiKeyStatusBadge status={apiKey.status} />
+        <span className="shrink-0 text-[11px] text-[var(--cv-t3)]">
+          {formatDate(apiKey.createdAt)}
+        </span>
       </div>
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-[11px] text-[var(--cv-t3)]">
           cv_••••{apiKey.keySuffix || '••••'}
         </span>
-        <span className="shrink-0 text-[11px] text-[var(--cv-t3)]">
-          {formatDate(apiKey.createdAt)}
-        </span>
+        <ApiKeyStatusBadge status={apiKey.status} />
       </div>
     </Link>
   )
