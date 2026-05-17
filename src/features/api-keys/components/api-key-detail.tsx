@@ -9,6 +9,7 @@ import { useActivateApiKey } from '../use-activate-api-key'
 import { useDeleteApiKey } from '../use-delete-api-key'
 import { useRevokeApiKey } from '../use-revoke-api-key'
 import { ApiKeyStatusBadge } from './api-key-list-panel'
+import { ModalShell } from '../../../shared/components/modal-shell'
 import { RevokeApiKeyDialog } from './revoke-api-key-dialog'
 
 export interface ApiKeyDetailProps {
@@ -285,23 +286,20 @@ function DeleteApiKeyDialog({
   const { t } = useTranslation()
   if (!open) return null
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-      onClick={onCancel}
+    <ModalShell
+      onClose={isPending ? undefined : onCancel}
+      ariaLabel={t('apiKeys.deleteConfirmTitle', { name: keyName })}
+      width={420}
     >
-      <div
-        className="w-full max-w-sm rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-6
-          dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex flex-col gap-4">
         <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
           {t('apiKeys.deleteConfirmTitle', { name: keyName })}
         </h2>
-        <p className="mt-2 text-[12px] text-[var(--cv-t3)]">
+        <p className="text-[12px] text-[var(--cv-t2)]">
           {t('apiKeys.deleteConfirmText')}
         </p>
-        <div className="mt-5 flex items-center gap-2">
-          <Button variant="subtle" size="md" onClick={onCancel} className="flex-1">
+        <div className="mt-1 flex items-center gap-2">
+          <Button variant="subtle" size="md" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('apiKeys.cancel')}
           </Button>
           <Button
@@ -315,6 +313,6 @@ function DeleteApiKeyDialog({
           </Button>
         </div>
       </div>
-    </div>
+    </ModalShell>
   )
 }
