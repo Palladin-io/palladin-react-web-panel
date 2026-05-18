@@ -4,20 +4,19 @@ export interface ModalShellProps {
   /** Optional handler — when omitted, the backdrop and Escape key are inert. */
   onClose?: () => void
   ariaLabel: string
-  /** Max width of the dialog in px. Defaults to 480 to keep prior callers stable. */
+  /** Max width of the dialog in px. Defaults to 480. */
   width?: number
   children: ReactNode
 }
 
 /**
- * Minimal modal scaffold shared by the vault dialogs. Handles the backdrop,
- * Escape-key dismissal, and body scroll lock so feature components stay
- * focused on their form content. Intentionally lean — when we need full
- * a11y (focus trap, return focus on close) we'll lift this into shared/.
+ * Minimal modal scaffold shared across feature dialogs. Handles the
+ * backdrop, Escape-key dismissal, and body scroll lock so feature
+ * components stay focused on their form content.
  *
  * The backdrop is rendered as a non-focusable `<div>` with `aria-hidden`
- * so screen-reader rotor lists don't end up with two "Close" entries
- * (the dialog body always renders its own X button with `t('common.close')`).
+ * so screen-reader rotor lists don't end up with two "Close" entries —
+ * the dialog body always renders its own X / Close affordance.
  */
 export function ModalShell({
   onClose,

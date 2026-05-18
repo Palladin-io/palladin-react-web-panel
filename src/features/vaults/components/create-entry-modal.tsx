@@ -23,7 +23,7 @@ import {
   extractDomain,
 } from './entry-presentation'
 import { EntryIconPicker } from './entry-icon-picker'
-import { ModalShell } from './modal-shell'
+import { ModalShell } from '../../../shared/components/modal-shell'
 
 export interface CreateEntryModalProps {
   open: boolean

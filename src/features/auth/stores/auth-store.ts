@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { parseJwtPayload } from '../../../shared/lib/jwt'
 
 interface AuthState {
   accessToken: string | null
@@ -49,18 +50,29 @@ export const useAuthStore = create<AuthState>()(
       ...initialState,
 
       setTokens: (data) =>
-        set((state) => ({
-          accessToken: data.accessToken,
-          refreshToken: data.refreshToken,
-          userId: data.userId,
-          // Never regress isOnboarded from true to false. The JWT claim can
-          // return false during a token refresh (backend omission or stale
-          // claim), which would break the lock-redirect logic and cause the
-          // wizard to appear for already-onboarded users.
-          isOnboarded: state.isOnboarded || data.isOnboarded,
-          permissions: data.permissions ?? 0,
-          // isVaultLocked is intentionally NOT set here — see lockVault().
-        })),
+        set((state) => {
+          const jwtPayload = parseJwtPayload(data.accessToken)
+          const rawPerm = jwtPayload['permissions']
+          const permissions =
+            typeof rawPerm === 'number'
+              ? rawPerm
+              : typeof rawPerm === 'string'
+                ? parseInt(rawPerm, 10)
+                : (data.permissions ?? 0)
+
+          return {
+            accessToken: data.accessToken,
+            refreshToken: data.refreshToken,
+            userId: data.userId,
+            // Never regress isOnboarded from true to false. The JWT claim can
+            // return false during a token refresh (backend omission or stale
+            // claim), which would break the lock-redirect logic and cause the
+            // wizard to appear for already-onboarded users.
+            isOnboarded: state.isOnboarded || data.isOnboarded,
+            permissions,
+            // isVaultLocked is intentionally NOT set here — see lockVault().
+          }
+        }),
 
       markOnboarded: () => set({ isOnboarded: true }),
 
@@ -126,6 +138,18 @@ export const useAuthStore = create<AuthState>()(
         isOnboarded: state.isOnboarded,
         permissions: state.permissions,
       }),
+      onRehydrateStorage: () => (state) => {
+        if (!state?.accessToken) return
+        const payload = parseJwtPayload(state.accessToken)
+        const raw = payload['permissions']
+        const derived =
+          typeof raw === 'number' ? raw
+          : typeof raw === 'string' ? parseInt(raw, 10)
+          : null
+        if (derived !== null && !isNaN(derived)) {
+          state.permissions = derived
+        }
+      },
     },
   ),
 )

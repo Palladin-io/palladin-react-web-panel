@@ -15,6 +15,7 @@ import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
 import { AppWordmark } from '../shared/components/app-wordmark'
 import { Icon } from '../shared/components/icon'
+import { PERMISSION_READ_API_KEY } from '../shared/lib/permissions'
 
 
 export const Route = createFileRoute('/_authenticated')({
@@ -110,6 +111,7 @@ interface NavItem {
   to?: string
   matchPrefix?: string
   disabled?: boolean
+  requirePermission?: number
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -130,10 +132,19 @@ const NAV_ITEMS: NavItem[] = [
     matchPrefix: '/billing',
   },
   {
+    key: 'api-keys',
+    labelKey: 'nav.apiKeys',
+    icon: 'key',
+    to: '/api-keys',
+    matchPrefix: '/api-keys',
+    requirePermission: PERMISSION_READ_API_KEY,
+  },
+  {
     key: 'settings',
     labelKey: 'nav.settings',
     icon: 'settings',
-    disabled: true,
+    to: '/settings',
+    matchPrefix: '/settings',
   },
 ]
 
@@ -150,7 +161,11 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const logout = useAuthStore((s) => s.logout)
+  const permissions = useAuthStore((s) => s.permissions)
   const { theme, toggleTheme } = useThemeStore()
+  const visibleNavItems = NAV_ITEMS.filter(
+    (item) => item.requirePermission === undefined || (permissions & item.requirePermission) !== 0,
+  )
   const [langOpen, setLangOpen] = useState(false)
 
   const account = useQuery({
@@ -205,7 +220,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
 
       {/* Nav */}
       <nav className="mt-1 flex flex-col">
-        {NAV_ITEMS.map((item) => (
+        {visibleNavItems.map((item) => (
           <SidebarLink
             key={item.key}
             item={item}

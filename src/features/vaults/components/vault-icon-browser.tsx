@@ -4,7 +4,7 @@ import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
 import { VAULT_COLOR_OPTIONS, VAULT_COLOR_NAME_KEY } from './vault-presentation'
 import { hexWithAlpha } from './vault-color'
-import { ModalShell } from './modal-shell'
+import { ModalShell } from '../../../shared/components/modal-shell'
 
 export interface IconColorBrowserProps {
   open: boolean

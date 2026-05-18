@@ -17,7 +17,7 @@ import {
   ENTRY_ICON_COLORS,
   extractDomain,
 } from './components/entry-presentation'
-import { ModalShell } from './components/modal-shell'
+import { ModalShell } from '../../shared/components/modal-shell'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import { VaultEntriesPanel } from './components/vault-entries-panel'
 import {
