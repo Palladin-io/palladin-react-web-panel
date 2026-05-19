@@ -11,6 +11,18 @@ export type AgentStatus =
   | typeof AGENT_STATUS_ACTIVE
   | typeof AGENT_STATUS_DEACTIVATED
 
+/** Agent type — camelCase strings matching backend JsonStringEnumConverter. */
+export const AGENT_TYPE_OPEN_CLAW = 'openClaw' as const
+export const AGENT_TYPE_CLAUDE_CODE = 'claudeCode' as const
+export const AGENT_TYPE_HERMES = 'hermes' as const
+export const AGENT_TYPE_OTHER = 'other' as const
+
+export type AgentType =
+  | typeof AGENT_TYPE_OPEN_CLAW
+  | typeof AGENT_TYPE_CLAUDE_CODE
+  | typeof AGENT_TYPE_HERMES
+  | typeof AGENT_TYPE_OTHER
+
 /**
  * Zod schema for a single agent — the single source of truth for the
  * `Agent` type. Parsing at the API boundary guards the UI against a
@@ -20,7 +32,11 @@ const agentSchema = z.object({
   agentId: z.string(),
   name: z.string().nullable(),
   status: z.enum(['pending', 'active', 'deactivated']),
+  type: z.enum(['openClaw', 'claudeCode', 'hermes', 'other']).nullable(),
+  iconKey: z.string().nullable(),
+  publicKeyPrefix: z.string(),
   publicKeySuffix: z.string(),
+  publicKey: z.string(),
   createdAt: z.string(),
   enrolledAt: z.string().nullable(),
   enrolledByName: z.string().nullable(),
@@ -38,6 +54,12 @@ export interface UpdateAgentInput {
   description?: string
 }
 
+export interface ApproveAgentInput {
+  name?: string
+  type?: AgentType
+  iconKey?: string
+}
+
 export async function getAgents(): Promise<Agent[]> {
   const raw = await api.get('api/agents').json()
   return agentListSchema.parse(raw).items
@@ -48,8 +70,11 @@ export async function getAgent(agentId: string): Promise<Agent> {
   return agentSchema.parse(raw)
 }
 
-export async function approveAgent(agentId: string): Promise<void> {
-  await api.post(`api/agents/${agentId}/approve`)
+export async function approveAgent(
+  agentId: string,
+  input?: ApproveAgentInput,
+): Promise<void> {
+  await api.post(`api/agents/${agentId}/approve`, { json: input ?? {} })
 }
 
 export async function deactivateAgent(agentId: string): Promise<void> {

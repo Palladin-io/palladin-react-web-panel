@@ -410,5 +410,14 @@
   "agents.errorApprove": "Nie udało się zatwierdzić agenta. Spróbuj ponownie.",
   "agents.errorDeactivate": "Nie udało się dezaktywować agenta. Spróbuj ponownie.",
   "agents.errorReactivate": "Nie udało się ponownie aktywować agenta. Spróbuj ponownie.",
-  "agents.errorUpdate": "Nie udało się zapisać agenta. Spróbuj ponownie."
+  "agents.errorUpdate": "Nie udało się zapisać agenta. Spróbuj ponownie.",
+  "agents.typeOpenClaw": "Open Claw",
+  "agents.typeClaudeCode": "Claude Code",
+  "agents.typeHermes": "Hermes",
+  "agents.typeOther": "Inne",
+  "agents.approveSetup": "Zatwierdź agenta",
+  "agents.approveSetupHint": "Opcjonalnie ustaw nazwę, typ i ikonę przed aktywacją.",
+  "agents.agentName": "Nazwa (opcjonalna)",
+  "agents.agentType": "Typ agenta",
+  "agents.agentIcon": "Ikona"
 }

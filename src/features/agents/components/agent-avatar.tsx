@@ -3,19 +3,30 @@ import type { Agent } from '../api/agents-api'
 import { agentAvatarColor, agentInitials } from './agent-presentation'
 
 export interface AgentAvatarProps {
-  agent: Pick<Agent, 'name' | 'agentId'>
+  agent: Pick<Agent, 'name' | 'agentId' | 'iconKey'>
   /** Outer diameter in pixels. */
   size?: number
 }
 
 /**
- * Coloured initials circle identifying an agent across the list and
- * detail views. Falls back to the `smart_toy` glyph for unnamed agents.
- * The tint is deterministic — see {@link agentAvatarColor}.
+ * Coloured circle identifying an agent across the list and detail
+ * views. Renders the agent's chosen Material icon when `iconKey` is
+ * set, otherwise falls back to initials or the `smart_toy` glyph for
+ * unnamed agents. The tint is deterministic — see {@link agentAvatarColor}.
  */
 export function AgentAvatar({ agent, size = 32 }: AgentAvatarProps) {
   const color = agentAvatarColor(agent)
   const initials = agentInitials(agent.name)
+  const glyphSize = Math.round(size * 0.55)
+
+  let content
+  if (agent.iconKey) {
+    content = <Icon name={agent.iconKey} size={glyphSize} color={color} />
+  } else if (initials) {
+    content = initials
+  } else {
+    content = <Icon name="smart_toy" size={glyphSize} color={color} />
+  }
 
   return (
     <span
@@ -29,7 +40,7 @@ export function AgentAvatar({ agent, size = 32 }: AgentAvatarProps) {
         fontSize: Math.round(size * 0.38),
       }}
     >
-      {initials || <Icon name="smart_toy" size={Math.round(size * 0.55)} color={color} />}
+      {content}
     </span>
   )
 }

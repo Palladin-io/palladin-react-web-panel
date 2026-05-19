@@ -390,5 +390,14 @@
   "agents.errorApprove": "Could not approve the agent. Please try again.",
   "agents.errorDeactivate": "Could not deactivate the agent. Please try again.",
   "agents.errorReactivate": "Could not reactivate the agent. Please try again.",
-  "agents.errorUpdate": "Could not save the agent. Please try again."
+  "agents.errorUpdate": "Could not save the agent. Please try again.",
+  "agents.typeOpenClaw": "Open Claw",
+  "agents.typeClaudeCode": "Claude Code",
+  "agents.typeHermes": "Hermes",
+  "agents.typeOther": "Other",
+  "agents.approveSetup": "Approve Agent",
+  "agents.approveSetupHint": "Optionally set a name, type, and icon before activating.",
+  "agents.agentName": "Name (optional)",
+  "agents.agentType": "Agent type",
+  "agents.agentIcon": "Icon"
 }

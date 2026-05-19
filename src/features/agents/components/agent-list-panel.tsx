@@ -12,11 +12,14 @@ import {
   type AgentStatus,
 } from '../api/agents-api'
 import { useAgents } from '../use-agents'
+import { useApproveAgent } from '../use-approve-agent'
 import { AgentAvatar } from './agent-avatar'
 import {
   agentDisplayName,
   formatAgentDate,
+  formatPublicKey,
 } from './agent-presentation'
+import { ApproveAgentDialog } from './approve-agent-dialog'
 
 export interface AgentListPanelProps {
   /** Agent currently shown in the right detail panel (split-view). */
@@ -62,7 +65,9 @@ export function AgentStatusBadge({ status }: { status: AgentStatus }) {
 export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
   const { t } = useTranslation()
   const agents = useAgents()
+  const approve = useApproveAgent()
   const [search, setSearch] = useState('')
+  const [approveTarget, setApproveTarget] = useState<Agent | null>(null)
 
   const list = useMemo(() => agents.data ?? [], [agents.data])
 
@@ -149,6 +154,7 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
                   <AgentRow
                     agent={agent}
                     isSelected={agent.agentId === selectedAgentId}
+                    onApprove={() => setApproveTarget(agent)}
                   />
                 </li>
               ))}
@@ -156,6 +162,24 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
           )}
         </>
       )}
+
+      {approveTarget ? (
+        <ApproveAgentDialog
+          open
+          agentName={agentDisplayName(approveTarget, t('agents.unnamed'))}
+          isPending={approve.isPending}
+          onConfirm={(input) => {
+            approve.mutate(
+              { agentId: approveTarget.agentId, input },
+              {
+                onSuccess: () => setApproveTarget(null),
+                onError: () => setApproveTarget(null),
+              },
+            )
+          }}
+          onCancel={() => setApproveTarget(null)}
+        />
+      ) : null}
     </>
   )
 }
@@ -163,10 +187,13 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
 interface AgentRowProps {
   agent: Agent
   isSelected: boolean
+  /** Opens the approve dialog — only used for pending agents. */
+  onApprove: () => void
 }
 
-function AgentRow({ agent, isSelected }: AgentRowProps) {
+function AgentRow({ agent, isSelected, onApprove }: AgentRowProps) {
   const { t } = useTranslation()
+  const isPending = agent.status === AGENT_STATUS_PENDING
 
   return (
     <Link
@@ -187,7 +214,25 @@ function AgentRow({ agent, isSelected }: AgentRowProps) {
         <span className="mt-0.5 block truncate text-[11px] text-[var(--cv-t3)]">
           {rowSubtitle(agent, t)}
         </span>
+        <span className="mt-0.5 block truncate font-mono text-[10px] text-[var(--cv-t3)]">
+          {formatPublicKey(agent)}
+        </span>
       </div>
+      {isPending ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onApprove()
+          }}
+          className="shrink-0 cursor-pointer rounded-full border border-[var(--cv-t1)]
+            bg-[var(--cv-btn-subtle-bg)] px-2.5 py-1 text-[10px] font-semibold
+            text-[var(--cv-t1)] transition-colors hover:bg-[var(--cv-border)]"
+        >
+          {t('agents.approve')}
+        </button>
+      ) : null}
     </Link>
   )
 }

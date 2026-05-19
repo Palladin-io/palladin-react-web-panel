@@ -9,6 +9,7 @@ import {
   AGENT_STATUS_DEACTIVATED,
   AGENT_STATUS_PENDING,
   type Agent,
+  type AgentType,
 } from '../api/agents-api'
 import { useApproveAgent } from '../use-approve-agent'
 import { useDeactivateAgent } from '../use-deactivate-agent'
@@ -17,7 +18,9 @@ import { AgentAvatar } from './agent-avatar'
 import { AgentEditForm } from './agent-edit-form'
 import {
   agentDisplayName,
+  agentTypeLabelKey,
   formatAgentDateTime,
+  formatPublicKey,
 } from './agent-presentation'
 import { AgentStatusBadge } from './agent-list-panel'
 import { ApproveAgentDialog } from './approve-agent-dialog'
@@ -45,18 +48,25 @@ export function AgentDetail({ agent }: AgentDetailProps) {
 
   const name = agentDisplayName(agent, t('agents.unnamed'))
 
-  const handleConfirmApprove = () => {
+  const handleConfirmApprove = (input: {
+    name?: string
+    type?: AgentType
+    iconKey?: string
+  }) => {
     setActionError(null)
-    approve.mutate(agent.agentId, {
-      onSuccess: () => {
-        analytics.capture('agents', 'agent-approved')
-        setApproveOpen(false)
+    approve.mutate(
+      { agentId: agent.agentId, input },
+      {
+        onSuccess: () => {
+          analytics.capture('agents', 'agent-approved')
+          setApproveOpen(false)
+        },
+        onError: () => {
+          setApproveOpen(false)
+          setActionError(t('agents.errorApprove'))
+        },
       },
-      onError: () => {
-        setApproveOpen(false)
-        setActionError(t('agents.errorApprove'))
-      },
-    })
+    )
   }
 
   const handleConfirmDeactivate = () => {
@@ -101,7 +111,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               </h2>
               <div className="flex shrink-0 items-center gap-2">
                 <AgentStatusBadge status={agent.status} />
-                {!isEditing ? (
+                {!isEditing && agent.status !== AGENT_STATUS_PENDING ? (
                   <button
                     type="button"
                     onClick={() => setIsEditing(true)}
@@ -113,6 +123,14 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                 ) : null}
               </div>
             </div>
+            {agent.type ? (
+              <span
+                className="mt-1.5 inline-flex items-center rounded-full bg-[var(--cv-btn-subtle-bg)]
+                  px-2 py-0.5 text-[10px] font-semibold text-[var(--cv-t2)]"
+              >
+                {t(agentTypeLabelKey(agent.type))}
+              </span>
+            ) : null}
             {agent.description ? (
               <p className="mt-1 text-[12px] text-[var(--cv-t3)]">
                 {agent.description}
@@ -133,7 +151,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
           <dl className="mt-5 flex flex-col gap-3 border-t border-[var(--cv-divider)] pt-4">
             <DetailRow
               label={t('agents.publicKey')}
-              value={`••••${agent.publicKeySuffix || '••••'}`}
+              value={formatPublicKey(agent)}
               mono
             />
             <DetailRow

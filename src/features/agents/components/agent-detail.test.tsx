@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Agent } from '../api/agents-api'
 import {
@@ -38,7 +38,11 @@ const baseAgent: Agent = {
   agentId: 'agent-1',
   name: 'Deploy Bot',
   status: AGENT_STATUS_ACTIVE,
+  type: null,
+  iconKey: null,
+  publicKeyPrefix: 'pk7Yq2Lm',
   publicKeySuffix: 'aB3x',
+  publicKey: 'pk7Yq2Lm0000000000000000aB3x',
   createdAt: '2026-05-17T10:00:00Z',
   enrolledAt: '2026-05-17T11:00:00Z',
   enrolledByName: 'Alice',
@@ -62,11 +66,11 @@ describe('AgentDetail', () => {
     captureMock.mockReset()
   })
 
-  it('renders the agent name, description and public key suffix', () => {
+  it('renders the agent name, description and public key', () => {
     render(<AgentDetail agent={baseAgent} />, { wrapper })
     expect(screen.getByText('Deploy Bot')).toBeInTheDocument()
     expect(screen.getByText('CI deployment agent')).toBeInTheDocument()
-    expect(screen.getByText(/aB3x/)).toBeInTheDocument()
+    expect(screen.getByText('pk7Yq2Lm•••aB3x')).toBeInTheDocument()
   })
 
   it('shows the approve zone for a pending agent', () => {
@@ -76,6 +80,35 @@ describe('AgentDetail', () => {
     expect(
       screen.getByRole('button', { name: /approve agent/i }),
     ).toBeInTheDocument()
+  })
+
+  it('hides the edit button for a pending agent', () => {
+    render(<AgentDetail agent={{ ...baseAgent, status: AGENT_STATUS_PENDING }} />, {
+      wrapper,
+    })
+    expect(
+      screen.queryByRole('button', { name: /^edit agent$/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('confirming approve passes the input object to the mutation', () => {
+    approveMutate.mockImplementation((_vars, opts) => opts.onSuccess())
+    render(<AgentDetail agent={{ ...baseAgent, status: AGENT_STATUS_PENDING }} />, {
+      wrapper,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /approve agent/i }))
+    const dialog = screen.getByRole('dialog', { name: /approve agent/i })
+    const confirm = within(dialog).getByRole('button', {
+      name: /^approve agent$/i,
+    })
+    fireEvent.click(confirm)
+
+    expect(approveMutate).toHaveBeenCalledWith(
+      { agentId: 'agent-1', input: expect.any(Object) },
+      expect.any(Object),
+    )
+    expect(captureMock).toHaveBeenCalledWith('agents', 'agent-approved')
   })
 
   it('shows the danger zone for an active agent', () => {

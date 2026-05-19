@@ -1,4 +1,10 @@
-import type { Agent } from '../api/agents-api'
+import {
+  AGENT_TYPE_CLAUDE_CODE,
+  AGENT_TYPE_HERMES,
+  AGENT_TYPE_OPEN_CLAW,
+  type Agent,
+  type AgentType,
+} from '../api/agents-api'
 
 /**
  * Deterministic avatar palette for agents. The colour is picked from the
@@ -46,6 +52,21 @@ export function agentDisplayName(
   fallback: string,
 ): string {
   return agent.name?.trim() || fallback
+}
+
+/** i18n key for the human-readable label of an agent type. */
+export function agentTypeLabelKey(type: AgentType): string {
+  if (type === AGENT_TYPE_OPEN_CLAW) return 'agents.typeOpenClaw'
+  if (type === AGENT_TYPE_CLAUDE_CODE) return 'agents.typeClaudeCode'
+  if (type === AGENT_TYPE_HERMES) return 'agents.typeHermes'
+  return 'agents.typeOther'
+}
+
+/** Renders an agent public key as `{prefix}•••{suffix}`. */
+export function formatPublicKey(
+  agent: Pick<Agent, 'publicKeyPrefix' | 'publicKeySuffix'>,
+): string {
+  return `${agent.publicKeyPrefix}•••${agent.publicKeySuffix}`
 }
 
 /** Formats an ISO timestamp as a short, locale-aware date. */
