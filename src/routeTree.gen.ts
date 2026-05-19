@@ -18,8 +18,10 @@ import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedApiKeysRouteImport } from './routes/_authenticated/api-keys'
+import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
 import { Route as AuthenticatedVaultsVaultIdRouteImport } from './routes/_authenticated/vaults_.$vaultId'
 import { Route as AuthenticatedApiKeysKeyIdRouteImport } from './routes/_authenticated/api-keys_.$keyId'
+import { Route as AuthenticatedAgentsAgentIdRouteImport } from './routes/_authenticated/agents_.$agentId'
 import { Route as AuthenticatedVaultsVaultIdSettingsRouteImport } from './routes/_authenticated/vaults_.$vaultId_.settings'
 import { Route as AuthenticatedVaultsVaultIdEntriesEntryIdRouteImport } from './routes/_authenticated/vaults_.$vaultId_.entries_.$entryId'
 
@@ -67,6 +69,11 @@ const AuthenticatedApiKeysRoute = AuthenticatedApiKeysRouteImport.update({
   path: '/api-keys',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAgentsRoute = AuthenticatedAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedVaultsVaultIdRoute =
   AuthenticatedVaultsVaultIdRouteImport.update({
     id: '/vaults_/$vaultId',
@@ -77,6 +84,12 @@ const AuthenticatedApiKeysKeyIdRoute =
   AuthenticatedApiKeysKeyIdRouteImport.update({
     id: '/api-keys_/$keyId',
     path: '/api-keys/$keyId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAgentsAgentIdRoute =
+  AuthenticatedAgentsAgentIdRouteImport.update({
+    id: '/agents_/$agentId',
+    path: '/agents/$agentId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedVaultsVaultIdSettingsRoute =
@@ -96,11 +109,13 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
+  '/agents': typeof AuthenticatedAgentsRoute
   '/api-keys': typeof AuthenticatedApiKeysRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
+  '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
   '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
   '/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
@@ -109,12 +124,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
+  '/agents': typeof AuthenticatedAgentsRoute
   '/api-keys': typeof AuthenticatedApiKeysRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
   '/': typeof AuthenticatedIndexRoute
+  '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
   '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
   '/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
@@ -125,12 +142,14 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
+  '/_authenticated/agents': typeof AuthenticatedAgentsRoute
   '/_authenticated/api-keys': typeof AuthenticatedApiKeysRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
   '/_authenticated/vaults': typeof AuthenticatedVaultsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/agents_/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/_authenticated/api-keys_/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
   '/_authenticated/vaults_/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
   '/_authenticated/vaults_/$vaultId_/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
@@ -142,11 +161,13 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/recovery'
+    | '/agents'
     | '/api-keys'
     | '/billing'
     | '/settings'
     | '/unlock'
     | '/vaults'
+    | '/agents/$agentId'
     | '/api-keys/$keyId'
     | '/vaults/$vaultId'
     | '/vaults/$vaultId/settings'
@@ -155,12 +176,14 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/recovery'
+    | '/agents'
     | '/api-keys'
     | '/billing'
     | '/settings'
     | '/unlock'
     | '/vaults'
     | '/'
+    | '/agents/$agentId'
     | '/api-keys/$keyId'
     | '/vaults/$vaultId'
     | '/vaults/$vaultId/settings'
@@ -170,12 +193,14 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/recovery'
+    | '/_authenticated/agents'
     | '/_authenticated/api-keys'
     | '/_authenticated/billing'
     | '/_authenticated/settings'
     | '/_authenticated/unlock'
     | '/_authenticated/vaults'
     | '/_authenticated/'
+    | '/_authenticated/agents_/$agentId'
     | '/_authenticated/api-keys_/$keyId'
     | '/_authenticated/vaults_/$vaultId'
     | '/_authenticated/vaults_/$vaultId_/settings'
@@ -253,6 +278,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedApiKeysRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/agents': {
+      id: '/_authenticated/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof AuthenticatedAgentsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/vaults_/$vaultId': {
       id: '/_authenticated/vaults_/$vaultId'
       path: '/vaults/$vaultId'
@@ -265,6 +297,13 @@ declare module '@tanstack/react-router' {
       path: '/api-keys/$keyId'
       fullPath: '/api-keys/$keyId'
       preLoaderRoute: typeof AuthenticatedApiKeysKeyIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/agents_/$agentId': {
+      id: '/_authenticated/agents_/$agentId'
+      path: '/agents/$agentId'
+      fullPath: '/agents/$agentId'
+      preLoaderRoute: typeof AuthenticatedAgentsAgentIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/vaults_/$vaultId_/settings': {
@@ -285,12 +324,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAgentsRoute: typeof AuthenticatedAgentsRoute
   AuthenticatedApiKeysRoute: typeof AuthenticatedApiKeysRoute
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedUnlockRoute: typeof AuthenticatedUnlockRoute
   AuthenticatedVaultsRoute: typeof AuthenticatedVaultsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAgentsAgentIdRoute: typeof AuthenticatedAgentsAgentIdRoute
   AuthenticatedApiKeysKeyIdRoute: typeof AuthenticatedApiKeysKeyIdRoute
   AuthenticatedVaultsVaultIdRoute: typeof AuthenticatedVaultsVaultIdRoute
   AuthenticatedVaultsVaultIdSettingsRoute: typeof AuthenticatedVaultsVaultIdSettingsRoute
@@ -298,12 +339,14 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAgentsRoute: AuthenticatedAgentsRoute,
   AuthenticatedApiKeysRoute: AuthenticatedApiKeysRoute,
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedUnlockRoute: AuthenticatedUnlockRoute,
   AuthenticatedVaultsRoute: AuthenticatedVaultsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAgentsAgentIdRoute: AuthenticatedAgentsAgentIdRoute,
   AuthenticatedApiKeysKeyIdRoute: AuthenticatedApiKeysKeyIdRoute,
   AuthenticatedVaultsVaultIdRoute: AuthenticatedVaultsVaultIdRoute,
   AuthenticatedVaultsVaultIdSettingsRoute:
