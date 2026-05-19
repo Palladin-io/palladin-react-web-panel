@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 
-/** Agent lifecycle status. 1 = Pending, 2 = Active, 3 = Deactivated. */
-export const AGENT_STATUS_PENDING = 1
-export const AGENT_STATUS_ACTIVE = 2
-export const AGENT_STATUS_DEACTIVATED = 3
+/** Agent lifecycle status — camelCase strings matching backend JsonStringEnumConverter. */
+export const AGENT_STATUS_PENDING = 'pending' as const
+export const AGENT_STATUS_ACTIVE = 'active' as const
+export const AGENT_STATUS_DEACTIVATED = 'deactivated' as const
 
 export type AgentStatus =
   | typeof AGENT_STATUS_PENDING
@@ -19,7 +19,7 @@ export type AgentStatus =
 const agentSchema = z.object({
   agentId: z.string(),
   name: z.string().nullable(),
-  status: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  status: z.enum(['pending', 'active', 'deactivated']),
   publicKeySuffix: z.string(),
   createdAt: z.string(),
   enrolledAt: z.string().nullable(),
