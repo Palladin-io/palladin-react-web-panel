@@ -175,7 +175,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           maxLength={500}
         />
 
-        <div>
+        <div className="-mb-3">
           <FormInput
             id="entry-url"
             label={t('vault.entries.urlLabel')}
@@ -191,6 +191,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             autoComplete="off"
             disabled={isPending}
             inputMode="url"
+            error={urlError}
           />
           <FieldFeedback visible={urlError} color="red">
             {t('validation.invalidUrl')}

@@ -5,6 +5,7 @@ import type { InputHTMLAttributes, ReactNode } from 'react'
  *
  * Pass `borderClass` to override the border/focus-border classes when the
  * border must change dynamically (e.g. correct/wrong state on confirm step).
+ * Pass `error` for a standard red-border error state without a custom borderClass.
  */
 export interface FormInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className'> {
@@ -15,6 +16,8 @@ export interface FormInputProps
   borderClass?: string
   /** Render the input value in a monospace font (e.g. API keys, tokens). */
   monospace?: boolean
+  /** Show a red border to signal a validation error. */
+  error?: boolean
 }
 
 export function FormInput({
@@ -23,6 +26,7 @@ export function FormInput({
   labelClassName,
   borderClass,
   monospace,
+  error,
   ...props
 }: FormInputProps) {
   return (
@@ -40,7 +44,9 @@ export function FormInput({
         id={id}
         className={`w-full rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2 text-[12px]
           text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none ${
-          borderClass ?? 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
+          borderClass ?? (error
+            ? 'border-[#FF4F4F] focus:border-[#FF4F4F]'
+            : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]')
         }${monospace ? ' font-mono' : ''}`}
         {...props}
       />
@@ -49,11 +55,11 @@ export function FormInput({
 }
 
 /**
- * Fixed-height feedback row that sits below an input.
+ * Fixed-height (12 px) feedback row that sits below an input.
  *
- * The outer div always occupies `h-4` (16 px) regardless of visibility so the
- * form height never changes — no layout shift. The inner text slides down from
- * above and fades in (mirrors the Flutter AnimatedSlide + AnimatedOpacity pattern).
+ * Always occupies h-3 (12 px) regardless of visibility — the parent wrapper
+ * uses a matching negative margin (-mb-{gap}) so this height replaces the
+ * container gap rather than adding to it. No layout shift when errors toggle.
  */
 export interface FieldFeedbackProps {
   visible: boolean
@@ -63,20 +69,13 @@ export interface FieldFeedbackProps {
 
 export function FieldFeedback({ visible, color, children }: FieldFeedbackProps) {
   return (
-    <div
-      className="grid transition-[grid-template-rows] duration-200 ease-out"
-      style={{ gridTemplateRows: visible ? '1fr' : '0fr' }}
+    <p
       role={color === 'red' && visible ? 'alert' : undefined}
+      className={`h-3 text-[10px] leading-3 transition-opacity duration-150 ${
+        color === 'teal' ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
+      } ${visible ? 'opacity-100' : 'opacity-0'}`}
     >
-      <div className="overflow-hidden">
-        <p
-          className={`pt-1 text-[11px] leading-4 transition-opacity duration-200 ${
-            color === 'teal' ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
-          } ${visible ? 'opacity-100' : 'opacity-0'}`}
-        >
-          {children}
-        </p>
-      </div>
-    </div>
+      {children}
+    </p>
   )
 }

@@ -61,21 +61,23 @@ export function OrgSettingsForm({ org }: OrgSettingsFormProps) {
         {t('settings.org.sectionSubtitle')}
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-1">
-        <FormInput
-          id="org-name"
-          label={t('settings.org.nameLabel')}
-          value={name}
-          onChange={(e) => { setName(e.target.value); setNameError(false) }}
-          onBlur={() => setNameError(name.trim().length === 0)}
-          placeholder={t('settings.org.namePlaceholder')}
-          disabled={isPending}
-          maxLength={80}
-        />
-
-        <FieldFeedback visible={nameError} color="red">
-          {t('validation.required')}
-        </FieldFeedback>
+      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-0">
+        <div className="-mb-0">
+          <FormInput
+            id="org-name"
+            label={t('settings.org.nameLabel')}
+            value={name}
+            onChange={(e) => { setName(e.target.value); setNameError(false) }}
+            onBlur={() => setNameError(name.trim().length === 0)}
+            placeholder={t('settings.org.namePlaceholder')}
+            disabled={isPending}
+            maxLength={80}
+            error={nameError}
+          />
+          <FieldFeedback visible={nameError} color="red">
+            {t('validation.required')}
+          </FieldFeedback>
+        </div>
 
         <div className="mt-3 flex justify-end">
           <Button variant="accent" size="sm" type="submit" disabled={isPending}>

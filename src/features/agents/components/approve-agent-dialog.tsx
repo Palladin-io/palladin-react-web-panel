@@ -101,7 +101,7 @@ export function ApproveAgentDialog({
         </div>
 
         {/* Name — required */}
-        <div>
+        <div className="-mb-3">
           <label
             htmlFor="approve-agent-name"
             className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"

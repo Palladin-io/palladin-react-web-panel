@@ -568,7 +568,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               disabled={isSaving}
               maxLength={500}
             />
-            <div>
+            <div className="-mb-4">
               <FormInput
                 id="entry-detail-url"
                 label={t('vault.entries.urlLabel')}
@@ -583,6 +583,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 placeholder={t('vault.entries.urlPlaceholder')}
                 disabled={isSaving}
                 inputMode="url"
+                error={urlError}
               />
               <FieldFeedback visible={urlError} color="red">
                 {t('validation.invalidUrl')}

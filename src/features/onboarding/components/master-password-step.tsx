@@ -49,7 +49,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
           }
         }}
       >
-        <div>
+        <div className="-mb-3">
           <FormInput
             id="master-password"
             label={t('onboarding.masterPasswordLabel')}
@@ -66,7 +66,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
           </FieldFeedback>
         </div>
 
-        <div>
+        <div className="-mb-3">
           <FormInput
             id="master-password-confirm"
             label={t('onboarding.confirmPasswordLabel')}
@@ -75,6 +75,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
             placeholder={t('onboarding.confirmPasswordPlaceholder')}
+            error={confirm.length > 0 && !passwordsMatch}
           />
           <FieldFeedback visible={confirm.length > 0 && !passwordsMatch} color="red">
             {t('onboarding.passwordsDoNotMatch')}

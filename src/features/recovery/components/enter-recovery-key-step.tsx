@@ -95,7 +95,7 @@ export function EnterRecoveryKeyStep({
       subtitle={t('recovery.enterKeySubtitle')}
     >
       <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
-        <div>
+        <div className="-mb-3">
           <FormTextarea
             id="recovery-key-input"
             label={t('recovery.enterKeyLabel')}

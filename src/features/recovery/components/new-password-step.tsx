@@ -54,7 +54,7 @@ export function NewPasswordStep({
           if (canSubmit) onSubmit(password)
         }}
       >
-        <div>
+        <div className="-mb-3">
           <FormInput
             id="recovery-new-password"
             label={t('recovery.newPasswordLabel')}
@@ -72,7 +72,7 @@ export function NewPasswordStep({
           </FieldFeedback>
         </div>
 
-        <div>
+        <div className="-mb-3">
           <FormInput
             id="recovery-confirm-password"
             label={t('recovery.confirmPasswordLabel')}
@@ -82,6 +82,7 @@ export function NewPasswordStep({
             onChange={(e) => setConfirm(e.target.value)}
             placeholder={t('recovery.confirmPasswordPlaceholder')}
             disabled={isSubmitting}
+            error={confirm.length > 0 && !passwordsMatch}
           />
           <FieldFeedback visible={confirm.length > 0 && !passwordsMatch} color="red">
             {t('onboarding.passwordsDoNotMatch')}

@@ -115,7 +115,7 @@ export function VaultSettingsForm({
       >
         <div className="flex gap-5 items-start">
           <div className="flex-1 flex flex-col gap-4 min-w-0">
-            <div>
+            <div className="-mb-4">
               <FormInput
                 id="settings-name"
                 label={t('vault.nameLabel')}
@@ -125,6 +125,7 @@ export function VaultSettingsForm({
                 placeholder={t('vault.namePlaceholder')}
                 disabled={isPending}
                 maxLength={64}
+                error={nameError}
               />
               <FieldFeedback visible={nameError} color="red">
                 {t('validation.required')}
