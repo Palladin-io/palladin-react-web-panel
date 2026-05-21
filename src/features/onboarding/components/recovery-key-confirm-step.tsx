@@ -68,7 +68,7 @@ export function RecoveryKeyConfirmStep({
           const state = correctness[inputIndex]
           const inputId = `recovery-word-${mnemonicIndex}`
           return (
-            <div key={mnemonicIndex} className="-mb-3">
+            <div key={mnemonicIndex} className="-mb-2">
               <FormInput
                 id={inputId}
                 label={t('onboarding.confirmWordLabel', { index: mnemonicIndex + 1 })}

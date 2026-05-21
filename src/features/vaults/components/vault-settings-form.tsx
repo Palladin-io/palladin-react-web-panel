@@ -115,7 +115,7 @@ export function VaultSettingsForm({
       >
         <div className="flex gap-5 items-start">
           <div className="flex-1 flex flex-col gap-4 min-w-0">
-            <div className="-mb-4">
+            <div className="-mb-3">
               <FormInput
                 id="settings-name"
                 label={t('vault.nameLabel')}
