@@ -172,6 +172,7 @@ function DetailBody({
       />
       {activeTab === 'details' ? (
         <DetailsTab
+          key={entry.id}
           vault={vault}
           entry={entry}
           onDeleted={onDeleted}
@@ -275,12 +276,16 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       : ''
   )
   const [urlError, setUrlError] = useState(false)
+  const [labelError, setLabelError] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
 
   // Encrypted field state — populated after decrypt.
   const [secretValue, setSecretValue] = useState('') // KEY only
+  const [secretValueError, setSecretValueError] = useState(false)
   const [username, setUsername] = useState('') // CREDENTIAL only
+  const [usernameError, setUsernameError] = useState(false)
   const [password, setPassword] = useState('') // CREDENTIAL only
+  const [passwordError, setPasswordError] = useState(false)
   const [notes, setNotes] = useState('') // both types
 
   // Original plaintext for change detection / discard.
@@ -428,8 +433,21 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
 
   const handleSave = async () => {
     if (!label.trim()) {
-      toast.error(t('vault.entry.detail.saveError'))
+      setLabelError(true)
       return
+    }
+    if (originalPlaintext) {
+      if (entry.type === ENTRY_TYPE_KEY && !secretValue.trim()) {
+        setSecretValueError(true)
+        return
+      }
+      if (entry.type === ENTRY_TYPE_CREDENTIAL) {
+        const u = !username.trim()
+        const p = !password.trim()
+        if (u) setUsernameError(true)
+        if (p) setPasswordError(true)
+        if (u || p) return
+      }
     }
 
     // Pending icon file → upload first, then PATCH metadata. Upload
@@ -550,15 +568,22 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       >
         <div className="flex gap-5 items-start">
           <div className="flex-1 flex flex-col gap-4 min-w-0">
-            <FormInput
-              id="entry-detail-label"
-              label={t('vault.entries.labelLabel')}
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder={t('vault.entries.labelPlaceholder')}
-              disabled={isSaving}
-              maxLength={120}
-            />
+            <div className="-mb-4">
+              <FormInput
+                id="entry-detail-label"
+                label={t('vault.entries.labelLabel')}
+                value={label}
+                onChange={(e) => { setLabel(e.target.value); setLabelError(false) }}
+                onBlur={() => setLabelError(!label.trim())}
+                placeholder={t('vault.entries.labelPlaceholder')}
+                disabled={isSaving}
+                maxLength={120}
+                error={labelError}
+              />
+              <FieldFeedback visible={labelError} color="red">
+                {t('validation.required')}
+              </FieldFeedback>
+            </div>
             <FormInput
               id="entry-detail-description"
               label={t('vault.entries.descriptionLabel')}
@@ -594,38 +619,55 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 {decryptError}
               </div>
             ) : entry.type === ENTRY_TYPE_KEY ? (
-              <SecretInput
-                id="entry-detail-value"
-                label={t('vault.entries.valueLabel')}
-                value={secretValue}
-                onChange={setSecretValue}
-                shown={showSecret}
-                onToggleShown={() => setShowSecret((v) => !v)}
-                disabled={isSaving || decrypting}
-                monospace
-              />
+              <div className="-mb-4">
+                <SecretInput
+                  id="entry-detail-value"
+                  label={t('vault.entries.valueLabel')}
+                  value={secretValue}
+                  onChange={(next) => { setSecretValue(next); setSecretValueError(false) }}
+                  onBlur={() => setSecretValueError(!secretValue.trim())}
+                  shown={showSecret}
+                  onToggleShown={() => setShowSecret((v) => !v)}
+                  disabled={isSaving || decrypting}
+                  monospace
+                  error={secretValueError}
+                />
+                <FieldFeedback visible={secretValueError} color="red">
+                  {t('validation.required')}
+                </FieldFeedback>
+              </div>
             ) : (
-              <div className="flex gap-3">
+              <div className="flex gap-3 -mb-4">
                 <div className="flex-1 min-w-0">
                   <FormInput
                     id="entry-detail-username"
                     label={t('vault.entries.usernameLabel')}
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => { setUsername(e.target.value); setUsernameError(false) }}
+                    onBlur={() => setUsernameError(!username.trim())}
                     disabled={isSaving || decrypting}
+                    error={usernameError}
                   />
+                  <FieldFeedback visible={usernameError} color="red">
+                    {t('validation.required')}
+                  </FieldFeedback>
                 </div>
                 <div className="flex-1 min-w-0">
                   <SecretInput
                     id="entry-detail-password"
                     label={t('vault.entries.passwordLabel')}
                     value={password}
-                    onChange={setPassword}
+                    onChange={(next) => { setPassword(next); setPasswordError(false) }}
+                    onBlur={() => setPasswordError(!password.trim())}
                     shown={showPassword}
                     onToggleShown={() => setShowPassword((v) => !v)}
                     disabled={isSaving || decrypting}
                     monospace
+                    error={passwordError}
                   />
+                  <FieldFeedback visible={passwordError} color="red">
+                    {t('validation.required')}
+                  </FieldFeedback>
                 </div>
               </div>
             )}

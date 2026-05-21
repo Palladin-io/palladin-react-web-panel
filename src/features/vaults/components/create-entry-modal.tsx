@@ -56,11 +56,15 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [icon, setIcon] = useState<string | undefined>(undefined)
   const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
   const [label, setLabel] = useState('')
+  const [labelError, setLabelError] = useState(false)
   const [description, setDescription] = useState('')
   const [keyValue, setKeyValue] = useState('')
+  const [keyValueError, setKeyValueError] = useState(false)
   const [keyVisible, setKeyVisible] = useState(false)
   const [username, setUsername] = useState('')
+  const [usernameError, setUsernameError] = useState(false)
   const [password, setPassword] = useState('')
+  const [passwordError, setPasswordError] = useState(false)
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState(false)
@@ -69,6 +73,12 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   useEffect(() => {
     analytics.capture('vault', 'create-entry-wizard-opened')
   }, [])
+
+  useEffect(() => {
+    setKeyValueError(false)
+    setUsernameError(false)
+    setPasswordError(false)
+  }, [type])
 
   const isPending = create.isPending
 
@@ -152,17 +162,24 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           </button>
         </header>
 
-        <FormInput
-          id="entry-label"
-          label={t('vault.entries.labelLabel')}
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder={t('vault.entries.labelPlaceholder')}
-          autoFocus
-          autoComplete="off"
-          disabled={isPending}
-          maxLength={120}
-        />
+        <div className="-mb-3">
+          <FormInput
+            id="entry-label"
+            label={t('vault.entries.labelLabel')}
+            value={label}
+            onChange={(e) => { setLabel(e.target.value); setLabelError(false) }}
+            onBlur={() => setLabelError(!label.trim())}
+            placeholder={t('vault.entries.labelPlaceholder')}
+            autoFocus
+            autoComplete="off"
+            disabled={isPending}
+            maxLength={120}
+            error={labelError}
+          />
+          <FieldFeedback visible={labelError} color="red">
+            {t('validation.required')}
+          </FieldFeedback>
+        </div>
 
         <FormInput
           id="entry-description"
@@ -230,41 +247,58 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         </div>
 
         {type === ENTRY_TYPE_KEY ? (
-          <SecretInput
-            id="entry-value"
-            label={t('vault.entries.valueLabel')}
-            value={keyValue}
-            onChange={setKeyValue}
-            shown={keyVisible}
-            onToggleShown={() => setKeyVisible((prev) => !prev)}
-            placeholder={t('vault.entries.valuePlaceholder')}
-            disabled={isPending}
-            monospace
-          />
+          <div className="-mb-3">
+            <SecretInput
+              id="entry-value"
+              label={t('vault.entries.valueLabel')}
+              value={keyValue}
+              onChange={(next) => { setKeyValue(next); setKeyValueError(false) }}
+              onBlur={() => setKeyValueError(!keyValue.trim())}
+              shown={keyVisible}
+              onToggleShown={() => setKeyVisible((prev) => !prev)}
+              placeholder={t('vault.entries.valuePlaceholder')}
+              disabled={isPending}
+              monospace
+              error={keyValueError}
+            />
+            <FieldFeedback visible={keyValueError} color="red">
+              {t('validation.required')}
+            </FieldFeedback>
+          </div>
         ) : (
-          <div className="flex gap-3">
+          <div className="flex gap-3 -mb-3">
             <div className="flex-1">
               <FormInput
                 id="entry-username"
                 label={t('vault.entries.usernameLabel')}
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={(e) => { setUsername(e.target.value); setUsernameError(false) }}
+                onBlur={() => setUsernameError(!username.trim())}
                 placeholder={t('vault.entries.usernamePlaceholder')}
                 autoComplete="off"
                 disabled={isPending}
+                error={usernameError}
               />
+              <FieldFeedback visible={usernameError} color="red">
+                {t('validation.required')}
+              </FieldFeedback>
             </div>
             <div className="flex-1">
               <SecretInput
                 id="entry-password"
                 label={t('vault.entries.passwordLabel')}
                 value={password}
-                onChange={setPassword}
+                onChange={(next) => { setPassword(next); setPasswordError(false) }}
+                onBlur={() => setPasswordError(!password.trim())}
                 shown={passwordVisible}
                 onToggleShown={() => setPasswordVisible((prev) => !prev)}
                 placeholder={t('vault.entries.passwordPlaceholder')}
                 disabled={isPending}
+                error={passwordError}
               />
+              <FieldFeedback visible={passwordError} color="red">
+                {t('validation.required')}
+              </FieldFeedback>
             </div>
           </div>
         )}
