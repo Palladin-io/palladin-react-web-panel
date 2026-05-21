@@ -91,18 +91,18 @@ describe('AgentListPanel', () => {
     expect(screen.getByText(/no agents yet/i)).toBeInTheDocument()
   })
 
-  it('renders an agent row with its name and status badge', () => {
+  it('renders an agent card with its name and status badge', () => {
     agentsState.data = [activeAgent]
     render(<AgentListPanel />, { wrapper })
     expect(screen.getByText('Deploy Bot')).toBeInTheDocument()
-    expect(screen.getByText(/^active$/i)).toBeInTheDocument()
+    expect(screen.getByText(/● active/i)).toBeInTheDocument()
   })
 
-  it('shows "Pending approval" as the subtitle for a pending agent', () => {
+  it('shows pending badge and approve button for a pending agent', () => {
     agentsState.data = [pendingAgent]
     render(<AgentListPanel />, { wrapper })
-    expect(screen.getByText(/pending approval/i)).toBeInTheDocument()
-    expect(screen.getByText(/^pending$/i)).toBeInTheDocument()
+    expect(screen.getByText(/● pending/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /approve agent/i })).toBeInTheDocument()
   })
 
   it('renders an error state when the list fails to load', () => {

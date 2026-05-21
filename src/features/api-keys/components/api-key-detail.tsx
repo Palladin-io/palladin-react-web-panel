@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
 import { analytics } from '../../../shared/lib/analytics'
@@ -37,14 +38,10 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
 
   const [revokeOpen, setRevokeOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const [revokeError, setRevokeError] = useState<string | null>(null)
-  const [activateError, setActivateError] = useState<string | null>(null)
-  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const isActive = apiKey.status === 'active'
 
   const handleConfirmRevoke = () => {
-    setRevokeError(null)
     revoke.mutate(apiKey.apiKeyId, {
       onSuccess: () => {
         analytics.capture('apiKeys', 'api-key-revoked')
@@ -52,25 +49,23 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
       },
       onError: () => {
         setRevokeOpen(false)
-        setRevokeError(t('apiKeys.errorRevoke'))
+        toast.error(t('apiKeys.errorRevoke'))
       },
     })
   }
 
   const handleActivate = () => {
-    setActivateError(null)
     activate.mutate(apiKey.apiKeyId, {
       onSuccess: () => {
         analytics.capture('apiKeys', 'api-key-activated')
       },
       onError: () => {
-        setActivateError(t('apiKeys.errorActivate'))
+        toast.error(t('apiKeys.errorActivate'))
       },
     })
   }
 
   const handleConfirmDelete = () => {
-    setDeleteError(null)
     del.mutate(apiKey.apiKeyId, {
       onSuccess: () => {
         analytics.capture('apiKeys', 'api-key-deleted')
@@ -78,7 +73,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
       },
       onError: () => {
         setDeleteOpen(false)
-        setDeleteError(t('apiKeys.errorDelete'))
+        toast.error(t('apiKeys.errorDelete'))
       },
     })
   }
@@ -144,11 +139,6 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
               {activate.isPending ? t('apiKeys.activating') : t('apiKeys.activate')}
             </Button>
           </div>
-          {activateError ? (
-            <p className="mt-2 text-[11px] text-[#FF4F4F]" role="alert">
-              {activateError}
-            </p>
-          ) : null}
         </section>
       ) : null}
 
@@ -173,10 +163,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
             <Button
               variant="danger"
               size="sm"
-              onClick={() => {
-                setRevokeError(null)
-                setRevokeOpen(true)
-              }}
+              onClick={() => setRevokeOpen(true)}
               disabled={revoke.isPending}
             >
               {t('apiKeys.revoke')}
@@ -195,10 +182,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
             <Button
               variant="danger"
               size="sm"
-              onClick={() => {
-                setDeleteError(null)
-                setDeleteOpen(true)
-              }}
+              onClick={() => setDeleteOpen(true)}
               disabled={del.isPending}
             >
               {t('apiKeys.delete')}
@@ -206,16 +190,6 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
           </div>
         )}
 
-        {revokeError ? (
-          <p className="mt-2 text-[11px] text-[#FF4F4F]" role="alert">
-            {revokeError}
-          </p>
-        ) : null}
-        {deleteError ? (
-          <p className="mt-2 text-[11px] text-[#FF4F4F]" role="alert">
-            {deleteError}
-          </p>
-        ) : null}
       </section> : null}
 
       <RevokeApiKeyDialog
@@ -299,12 +273,12 @@ function DeleteApiKeyDialog({
           {t('apiKeys.deleteConfirmText')}
         </p>
         <div className="mt-1 flex items-center gap-2">
-          <Button variant="subtle" size="md" onClick={onCancel} disabled={isPending} className="flex-1">
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('apiKeys.cancel')}
           </Button>
           <Button
             variant="danger"
-            size="md"
+            size="sm"
             onClick={onConfirm}
             disabled={isPending}
             className="flex-[2]"

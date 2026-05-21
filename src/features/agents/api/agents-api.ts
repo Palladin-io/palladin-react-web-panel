@@ -15,12 +15,30 @@ export type AgentStatus =
 export const AGENT_TYPE_OPEN_CLAW = 'openClaw' as const
 export const AGENT_TYPE_CLAUDE_CODE = 'claudeCode' as const
 export const AGENT_TYPE_HERMES = 'hermes' as const
+export const AGENT_TYPE_CURSOR = 'cursor' as const
+export const AGENT_TYPE_COPILOT = 'copilot' as const
+export const AGENT_TYPE_GEMINI = 'gemini' as const
+export const AGENT_TYPE_CODEX = 'codex' as const
+export const AGENT_TYPE_KIMI_CODE = 'kimiCode' as const
+export const AGENT_TYPE_DEVIN = 'devin' as const
+export const AGENT_TYPE_AIDER = 'aider' as const
+export const AGENT_TYPE_CLINE = 'cline' as const
+export const AGENT_TYPE_ROO = 'roo' as const
 export const AGENT_TYPE_OTHER = 'other' as const
 
 export type AgentType =
   | typeof AGENT_TYPE_OPEN_CLAW
   | typeof AGENT_TYPE_CLAUDE_CODE
   | typeof AGENT_TYPE_HERMES
+  | typeof AGENT_TYPE_CURSOR
+  | typeof AGENT_TYPE_COPILOT
+  | typeof AGENT_TYPE_GEMINI
+  | typeof AGENT_TYPE_CODEX
+  | typeof AGENT_TYPE_KIMI_CODE
+  | typeof AGENT_TYPE_DEVIN
+  | typeof AGENT_TYPE_AIDER
+  | typeof AGENT_TYPE_CLINE
+  | typeof AGENT_TYPE_ROO
   | typeof AGENT_TYPE_OTHER
 
 /**
@@ -32,7 +50,7 @@ const agentSchema = z.object({
   agentId: z.string(),
   name: z.string().nullable(),
   status: z.enum(['pending', 'active', 'deactivated']),
-  type: z.enum(['openClaw', 'claudeCode', 'hermes', 'other']).nullable(),
+  type: z.enum(['openClaw', 'claudeCode', 'hermes', 'cursor', 'copilot', 'gemini', 'codex', 'kimiCode', 'devin', 'aider', 'cline', 'roo', 'other']).nullable(),
   iconKey: z.string().nullable(),
   publicKeyPrefix: z.string(),
   publicKeySuffix: z.string(),
@@ -58,6 +76,7 @@ export interface ApproveAgentInput {
   name?: string
   type?: AgentType
   iconKey?: string
+  iconColor?: string
 }
 
 export async function getAgents(): Promise<Agent[]> {

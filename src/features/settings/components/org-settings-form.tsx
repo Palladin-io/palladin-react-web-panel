@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { analytics } from '../../../shared/lib/analytics'
@@ -9,8 +10,6 @@ import { useUpdateOrg } from '../use-update-org'
 export interface OrgSettingsFormProps {
   org: Organization
 }
-
-type Feedback = { kind: 'success' | 'error'; message: string } | null
 
 /**
  * Editable organization-name form. Submitting an unchanged name is a
@@ -22,7 +21,7 @@ export function OrgSettingsForm({ org }: OrgSettingsFormProps) {
   const update = useUpdateOrg()
 
   const [name, setName] = useState(org.name)
-  const [feedback, setFeedback] = useState<Feedback>(null)
+  const [nameError, setNameError] = useState(false)
 
   const isPending = update.isPending
 
@@ -31,24 +30,20 @@ export function OrgSettingsForm({ org }: OrgSettingsFormProps) {
 
     const trimmedName = name.trim()
     if (trimmedName.length === 0) {
-      setFeedback({ kind: 'error', message: t('settings.org.nameRequired') })
+      setNameError(true)
       return
     }
-    if (trimmedName === org.name) {
-      setFeedback(null)
-      return
-    }
-    setFeedback(null)
+    if (trimmedName === org.name) return
 
     update.mutate(
       { name: trimmedName },
       {
         onSuccess: () => {
           analytics.capture('settings', 'org-renamed')
-          setFeedback({ kind: 'success', message: t('settings.org.saved') })
+          toast.success(t('settings.org.saved'))
         },
         onError: () => {
-          setFeedback({ kind: 'error', message: t('settings.org.errorSave') })
+          toast.error(t('settings.org.errorSave'))
         },
       },
     )
@@ -71,18 +66,15 @@ export function OrgSettingsForm({ org }: OrgSettingsFormProps) {
           id="org-name"
           label={t('settings.org.nameLabel')}
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => { setName(e.target.value); setNameError(false) }}
+          onBlur={() => setNameError(name.trim().length === 0)}
           placeholder={t('settings.org.namePlaceholder')}
           disabled={isPending}
           maxLength={80}
-          required
         />
 
-        <FieldFeedback
-          visible={feedback !== null}
-          color={feedback?.kind === 'success' ? 'teal' : 'red'}
-        >
-          {feedback?.message}
+        <FieldFeedback visible={nameError} color="red">
+          {t('validation.required')}
         </FieldFeedback>
 
         <div className="mt-3 flex justify-end">

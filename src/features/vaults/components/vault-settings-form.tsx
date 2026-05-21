@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
@@ -47,7 +48,7 @@ export function VaultSettingsForm({
   const [description, setDescription] = useState(vault.description ?? '')
   const [icon, setIcon] = useState(vault.icon ?? DEFAULT_VAULT_ICON)
   const [color, setColor] = useState(vault.color ?? DEFAULT_VAULT_COLOR)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [nameError, setNameError] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
 
   const isPending = update.isPending
@@ -58,10 +59,9 @@ export function VaultSettingsForm({
 
     const trimmedName = name.trim()
     if (trimmedName.length === 0) {
-      setErrorMessage(t('vault.nameRequired'))
+      setNameError(true)
       return
     }
-    setErrorMessage(null)
 
     // Build a minimal patch — only ship the fields that actually changed.
     // The backend treats null as "leave alone", but we'd rather not
@@ -85,7 +85,7 @@ export function VaultSettingsForm({
         analytics.capture('vault', 'settings-saved')
         onSaved?.()
       },
-      onError: () => setErrorMessage(t('vault.errorSave')),
+      onError: () => toast.error(t('vault.errorSave')),
     })
   }
 
@@ -101,7 +101,7 @@ export function VaultSettingsForm({
       },
       onError: () => {
         setShowDelete(false)
-        setErrorMessage(t('vault.errorDelete'))
+        toast.error(t('vault.errorDelete'))
       },
     })
   }
@@ -115,16 +115,21 @@ export function VaultSettingsForm({
       >
         <div className="flex gap-5 items-start">
           <div className="flex-1 flex flex-col gap-4 min-w-0">
-            <FormInput
-              id="settings-name"
-              label={t('vault.nameLabel')}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t('vault.namePlaceholder')}
-              disabled={isPending}
-              maxLength={64}
-              required
-            />
+            <div>
+              <FormInput
+                id="settings-name"
+                label={t('vault.nameLabel')}
+                value={name}
+                onChange={(e) => { setName(e.target.value); setNameError(false) }}
+                onBlur={() => setNameError(name.trim().length === 0)}
+                placeholder={t('vault.namePlaceholder')}
+                disabled={isPending}
+                maxLength={64}
+              />
+              <FieldFeedback visible={nameError} color="red">
+                {t('validation.required')}
+              </FieldFeedback>
+            </div>
             <FormTextarea
               id="settings-description"
               label={t('vault.descriptionLabel')}
@@ -149,10 +154,6 @@ export function VaultSettingsForm({
           </div>
         </div>
 
-        <FieldFeedback visible={errorMessage !== null} color="red">
-          {errorMessage}
-        </FieldFeedback>
-
         <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
           <Button
             variant="subtle"
@@ -163,7 +164,7 @@ export function VaultSettingsForm({
               setDescription(vault.description ?? '')
               setIcon(vault.icon ?? DEFAULT_VAULT_ICON)
               setColor(vault.color ?? DEFAULT_VAULT_COLOR)
-              setErrorMessage(null)
+              setNameError(false)
             }}
             disabled={isPending}
           >

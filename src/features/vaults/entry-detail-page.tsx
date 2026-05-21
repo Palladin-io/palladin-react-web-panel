@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
-import { FormInput } from '../../shared/components/form-field'
+import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { FormTextarea } from '../../shared/components/form-textarea'
 import { SecretInput } from '../../shared/components/secret-input'
 import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
@@ -274,6 +274,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       ? (entry.urlDomain ? `https://${entry.urlDomain}` : '')
       : ''
   )
+  const [urlError, setUrlError] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
 
   // Encrypted field state — populated after decrypt.
@@ -410,6 +411,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setIcon(entry.icon)
     setColor(defaultColor)
     setPendingIconFile(null)
+    setUrlError(false)
     if (originalPlaintext) {
       if (originalPlaintext.type === ENTRY_TYPE_KEY) {
         setSecretValue(originalPlaintext.value)
@@ -556,7 +558,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               placeholder={t('vault.entries.labelPlaceholder')}
               disabled={isSaving}
               maxLength={120}
-              required
             />
             <FormInput
               id="entry-detail-description"
@@ -567,16 +568,26 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               disabled={isSaving}
               maxLength={500}
             />
-            <FormInput
-              id="entry-detail-url"
-              label={t('vault.entries.urlLabel')}
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder={t('vault.entries.urlPlaceholder')}
-              disabled={isSaving}
-              type="url"
-              inputMode="url"
-            />
+            <div>
+              <FormInput
+                id="entry-detail-url"
+                label={t('vault.entries.urlLabel')}
+                value={url}
+                onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
+                onBlur={() => {
+                  if (url.trim()) {
+                    try { new URL(url.trim()); setUrlError(false) }
+                    catch { setUrlError(true) }
+                  }
+                }}
+                placeholder={t('vault.entries.urlPlaceholder')}
+                disabled={isSaving}
+                inputMode="url"
+              />
+              <FieldFeedback visible={urlError} color="red">
+                {t('validation.invalidUrl')}
+              </FieldFeedback>
+            </div>
             {decryptError ? (
               <div className="rounded-lg border border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.06)] px-3 py-2 text-[11px] text-[#FF4F4F]">
                 {decryptError}
@@ -650,7 +661,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
           <Button
             variant="subtle"
-            size="md"
+            size="sm"
             onClick={handleDiscard}
             disabled={isSaving || !hasChanges}
           >
@@ -658,7 +669,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
           </Button>
           <Button
             variant="accent"
-            size="md"
+            size="sm"
             onClick={handleSave}
             disabled={isSaving || !hasChanges}
           >

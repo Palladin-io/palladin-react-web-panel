@@ -34,7 +34,7 @@ export function Providers({ children }: { children: ReactNode }) {
           {/* Single Toaster mounted at the app root — feature components
               call `toast(...)` from sonner without needing to mount their
               own provider. Matches the active app theme via CSS variables. */}
-          <Toaster theme={theme} position="bottom-right" richColors closeButton />
+          <Toaster theme={theme} position="top-right" richColors closeButton />
         </QueryClientProvider>
       </GoogleOAuthProvider>
     </ErrorBoundary>

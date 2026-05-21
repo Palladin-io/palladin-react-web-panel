@@ -26,6 +26,9 @@ vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
 }))
 
+const toastError = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }))
+
 // Icon upload helpers are not exercised in these tests (no file
 // selected through the picker), but the dialog imports them at module
 // load — stub them so the module graph resolves cleanly.
@@ -51,6 +54,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('CreateVaultDialog', () => {
   beforeEach(() => {
     mutateMock.mockReset()
+    toastError.mockReset()
     isPending = false
   })
 
@@ -107,7 +111,7 @@ describe('CreateVaultDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('surfaces an error message when the mutation fails', async () => {
+  it('surfaces an error toast when the mutation fails', async () => {
     const user = userEvent.setup()
     mutateMock.mockImplementation((_input, options) => {
       options.onError(new Error('boom'))
@@ -117,9 +121,7 @@ describe('CreateVaultDialog', () => {
     await user.type(screen.getByLabelText(/vault name/i), 'Production')
     await user.click(screen.getByRole('button', { name: /^create vault$/i }))
 
-    expect(
-      await screen.findByText(/could not create the vault/i),
-    ).toBeInTheDocument()
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/could not create the vault/i))
   })
 
   it('invokes onClose when Cancel is clicked', async () => {

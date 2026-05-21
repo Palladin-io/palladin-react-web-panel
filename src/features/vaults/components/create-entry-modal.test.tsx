@@ -26,9 +26,8 @@ vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
 }))
 
-vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
-}))
+const toastError = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: toastError } }))
 
 const VAULT: Vault = {
   id: 'vault-1',
@@ -56,6 +55,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('CreateEntryModal', () => {
   beforeEach(() => {
     mutateMock.mockReset()
+    toastError.mockReset()
     isPending = false
   })
 
@@ -149,7 +149,7 @@ describe('CreateEntryModal', () => {
     })
   })
 
-  it('surfaces an error message when the mutation fails', async () => {
+  it('shows an error toast when the mutation fails', async () => {
     const user = userEvent.setup()
     mutateMock.mockImplementation((_input, options) => {
       options.onError(new Error('boom'))
@@ -161,9 +161,7 @@ describe('CreateEntryModal', () => {
     await user.type(screen.getByLabelText(/^value$/i), 'sk')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
-    expect(
-      await screen.findByText(/could not save the entry/i),
-    ).toBeInTheDocument()
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/could not save the entry/i))
   })
 
   it('blocks submit when the vault has no wrappedVK', async () => {
@@ -180,8 +178,6 @@ describe('CreateEntryModal', () => {
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
     expect(mutateMock).not.toHaveBeenCalled()
-    expect(
-      await screen.findByText(/encryption key unavailable/i),
-    ).toBeInTheDocument()
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/encryption key unavailable/i))
   })
 })

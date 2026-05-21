@@ -8,15 +8,15 @@ export const Route = createFileRoute('/_authenticated/')({
 })
 
 /**
- * Class string mirrors `<Button variant="accent" size="md">` so a router
+ * Class string mirrors `<Button variant="accent" size="sm">` so a router
  * `<Link>` (which can't render a `<button>`) shares the same chrome as
  * the rest of the app's primary actions. Keeping it inline here — at a
  * single call site — avoids inventing a generic `LinkButton` wrapper for
  * one place; if a second caller appears, lift it into shared/components.
  */
 const ACCENT_LINK_CLASS =
-  'inline-flex items-center justify-center px-3.5 py-2 text-[13px] font-semibold ' +
-  'rounded-lg gap-2 bg-[#FF4F4F] text-white transition-colors hover:bg-[#E04545]'
+  'inline-flex items-center justify-center px-2.5 py-1.5 text-[11px] font-semibold ' +
+  'rounded-lg gap-1.5 bg-[#FF4F4F] text-white transition-colors hover:bg-[#E04545]'
 
 function AuthenticatedHome() {
   const { t } = useTranslation()

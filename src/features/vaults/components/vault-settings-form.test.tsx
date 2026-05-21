@@ -38,6 +38,9 @@ vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
 }))
 
+const toastError = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }))
+
 // Pickers render irrelevant DOM here; stub them so we keep the test
 // focused on the form's name/description editing + submit behaviour.
 vi.mock('./vault-icon-picker', () => ({
@@ -70,6 +73,7 @@ describe('VaultSettingsForm', () => {
   beforeEach(() => {
     updateMutateMock.mockReset()
     deleteMutateMock.mockReset()
+    toastError.mockReset()
     updateIsPending = false
   })
 
@@ -116,7 +120,7 @@ describe('VaultSettingsForm', () => {
     expect(onSaved).toHaveBeenCalledTimes(1)
   })
 
-  it('shows an error message when the update mutation fails', async () => {
+  it('shows an error toast when the update mutation fails', async () => {
     const user = userEvent.setup()
     updateMutateMock.mockImplementation((_patch, options) => {
       options.onError(new Error('500'))
@@ -129,6 +133,6 @@ describe('VaultSettingsForm', () => {
     await user.type(nameInput, 'Whatever')
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
-    expect(await screen.findByText(/could not save changes/i)).toBeInTheDocument()
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/could not save changes/i))
   })
 })

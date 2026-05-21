@@ -64,17 +64,19 @@ export interface FieldFeedbackProps {
 export function FieldFeedback({ visible, color, children }: FieldFeedbackProps) {
   return (
     <div
-      className="relative mt-1 h-4 overflow-hidden"
+      className="grid transition-[grid-template-rows] duration-200 ease-out"
+      style={{ gridTemplateRows: visible ? '1fr' : '0fr' }}
       role={color === 'red' && visible ? 'alert' : undefined}
     >
-      <p
-        className={`absolute inset-x-0 flex items-center gap-1 text-[11px] leading-4
-          transition-[opacity,translate] duration-200 ease-out ${
-          color === 'teal' ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
-        } ${visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}
-      >
-        {children}
-      </p>
+      <div className="overflow-hidden">
+        <p
+          className={`pt-1 text-[11px] leading-4 transition-opacity duration-200 ${
+            color === 'teal' ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
+          } ${visible ? 'opacity-100' : 'opacity-0'}`}
+        >
+          {children}
+        </p>
+      </div>
     </div>
   )
 }

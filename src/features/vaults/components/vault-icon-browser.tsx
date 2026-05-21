@@ -187,7 +187,7 @@ function IconColorBrowserBody({
         <div className="mt-1 flex items-center gap-2">
           <Button
             variant="subtle"
-            size="md"
+            size="sm"
             onClick={onClose}
             className="flex-1"
           >
@@ -195,7 +195,7 @@ function IconColorBrowserBody({
           </Button>
           <Button
             variant="accent"
-            size="md"
+            size="sm"
             onClick={handleConfirm}
             disabled={localIcon === undefined}
             className="flex-[2]"

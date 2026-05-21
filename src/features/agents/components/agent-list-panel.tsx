@@ -3,7 +3,6 @@ import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
-import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import {
   AGENT_STATUS_ACTIVE,
   AGENT_STATUS_DEACTIVATED,
@@ -16,6 +15,7 @@ import { useApproveAgent } from '../use-approve-agent'
 import { AgentAvatar } from './agent-avatar'
 import {
   agentDisplayName,
+  agentTypeLabelKey,
   formatAgentDate,
   formatPublicKey,
 } from './agent-presentation'
@@ -26,32 +26,32 @@ export interface AgentListPanelProps {
   selectedAgentId?: string
 }
 
-/** Compact status pill mirroring the detail panel badge. */
+/** Compact status pill mirroring the Astro VaultAgentGrant badge. */
 export function AgentStatusBadge({ status }: { status: AgentStatus }) {
   const { t } = useTranslation()
 
   const config: Record<AgentStatus, { label: string; className: string }> = {
     [AGENT_STATUS_ACTIVE]: {
       label: t('agents.statusActive'),
-      className: 'bg-[rgba(46,196,182,0.14)] text-[#2EC4B6]',
+      className: 'bg-[rgba(46,196,182,0.1)] text-[#2EC4B6]',
     },
     [AGENT_STATUS_PENDING]: {
       label: t('agents.statusPending'),
-      className: 'bg-[rgba(240,192,64,0.16)] text-[#D4820A]',
+      className: 'bg-[rgba(240,192,64,0.12)] text-[#D4820A]',
     },
     [AGENT_STATUS_DEACTIVATED]: {
       label: t('agents.statusDeactivated'),
-      className: 'bg-[rgba(255,79,79,0.12)] text-[#FF4F4F]',
+      className: 'bg-[rgba(255,79,79,0.1)] text-[#FF4F4F]',
     },
   }
   const { label, className } = config[status]
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px]
-        font-semibold ${className}`}
+      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5
+        text-[10px] font-bold ${className}`}
     >
-      {label}
+      ● {label}
     </span>
   )
 }
@@ -148,10 +148,10 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
               {t('agents.empty')}
             </div>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-[10px]">
               {filtered.map((agent) => (
                 <li key={agent.agentId}>
-                  <AgentRow
+                  <AgentCard
                     agent={agent}
                     isSelected={agent.agentId === selectedAgentId}
                     onApprove={() => setApproveTarget(agent)}
@@ -187,68 +187,93 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
 interface AgentRowProps {
   agent: Agent
   isSelected: boolean
-  /** Opens the approve dialog — only used for pending agents. */
   onApprove: () => void
 }
 
-function AgentRow({ agent, isSelected, onApprove }: AgentRowProps) {
+function AgentCard({ agent, isSelected, onApprove }: AgentRowProps) {
   const { t } = useTranslation()
   const isPending = agent.status === AGENT_STATUS_PENDING
+  const isDeactivated = agent.status === AGENT_STATUS_DEACTIVATED
+
+  const subtitle = agent.type
+    ? t(agentTypeLabelKey(agent.type))
+    : formatPublicKey(agent)
 
   return (
-    <Link
-      to="/agents/$agentId"
-      params={{ agentId: agent.agentId }}
-      className={`flex items-center gap-3 px-4 py-3 ${HOVERABLE_CARD_CLASSES}${
-        isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
-      }`}
+    <div
+      className={`overflow-hidden rounded-xl border bg-[var(--cv-card-bg)]
+        transition-[border-color,box-shadow] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] ${
+        isSelected
+          ? 'border-[var(--cv-t1)]'
+          : 'border-[var(--cv-border)] hover:border-[rgba(138,149,166,0.35)] dark:hover:border-[var(--cv-t1)]'
+      } ${isDeactivated ? 'opacity-70' : ''}`}
     >
-      <AgentAvatar agent={agent} size={36} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
-            {agentDisplayName(agent, t('agents.unnamed'))}
-          </span>
-          <AgentStatusBadge status={agent.status} />
+      {/* Identity zone */}
+      <Link
+        to="/agents/$agentId"
+        params={{ agentId: agent.agentId }}
+        className="flex items-center gap-[10px] px-[14px] py-3 hover:bg-[var(--cv-bg-subtle)]"
+      >
+        <AgentAvatar agent={agent} size={36} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--cv-t1)]">
+              {agentDisplayName(agent, t('agents.unnamed'))}
+            </p>
+            <AgentStatusBadge status={agent.status} />
+          </div>
+          <p className={`mt-0.5 truncate text-[var(--cv-t3)] ${agent.type ? 'text-[11px]' : 'font-mono text-[10px]'}`}>
+            {subtitle}
+          </p>
         </div>
-        <span className="mt-0.5 block truncate text-[11px] text-[var(--cv-t3)]">
-          {rowSubtitle(agent, t)}
-        </span>
-        <span className="mt-0.5 block truncate font-mono text-[10px] text-[var(--cv-t3)]">
-          {formatPublicKey(agent)}
-        </span>
+      </Link>
+
+      {/* Footer */}
+      <div
+        className="flex items-center justify-between px-[14px] py-2
+          border-t border-[var(--cv-divider)]
+          bg-[rgba(0,11,46,0.015)] dark:bg-[rgba(253,249,228,0.02)]"
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+          <Icon
+            name={isDeactivated ? 'block' : 'schedule'}
+            size={12}
+            color={isDeactivated ? '#FF4F4F' : 'var(--cv-t3)'}
+            className="shrink-0"
+          />
+          <span className="truncate text-[10px] text-[var(--cv-t3)]">
+            {cardFooterText(agent, t)}
+          </span>
+        </div>
+        {isPending && (
+          <button
+            type="button"
+            onClick={onApprove}
+            className="ml-2 flex shrink-0 cursor-pointer items-center gap-1 rounded-[7px]
+              border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)]
+              px-2.5 py-1 text-[11px] font-semibold text-[#2EC4B6]
+              transition-colors hover:bg-[rgba(46,196,182,0.12)]"
+          >
+            <Icon name="check_circle" size={12} />
+            {t('agents.approve')}
+          </button>
+        )}
       </div>
-      {isPending ? (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            onApprove()
-          }}
-          className="shrink-0 cursor-pointer rounded-full border border-[var(--cv-t1)]
-            bg-[var(--cv-btn-subtle-bg)] px-2.5 py-1 text-[10px] font-semibold
-            text-[var(--cv-t1)] transition-colors hover:bg-[var(--cv-border)]"
-        >
-          {t('agents.approve')}
-        </button>
-      ) : null}
-    </Link>
+    </div>
   )
 }
 
-function rowSubtitle(
+function cardFooterText(
   agent: Agent,
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): string {
-  if (agent.status === AGENT_STATUS_PENDING) {
-    return t('agents.pendingApproval')
-  }
   if (agent.status === AGENT_STATUS_DEACTIVATED && agent.deactivatedAt) {
-    return `${t('agents.deactivatedOn')} ${formatAgentDate(agent.deactivatedAt)}`
+    const by = agent.deactivatedByName ? ` · ${agent.deactivatedByName}` : ''
+    return `${t('agents.deactivatedOn')} ${formatAgentDate(agent.deactivatedAt)}${by}`
   }
   if (agent.enrolledAt) {
-    return `${t('agents.enrolled')} ${formatAgentDate(agent.enrolledAt)}`
+    const by = agent.enrolledByName ? ` · ${agent.enrolledByName}` : ''
+    return `${t('agents.enrolled')} ${formatAgentDate(agent.enrolledAt)}${by}`
   }
   return `${t('agents.connectedOn')} ${formatAgentDate(agent.createdAt)}`
 }

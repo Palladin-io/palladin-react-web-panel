@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { analytics } from '../../../shared/lib/analytics'
 import { GRANT_MODE_GRANULAR } from '../types'
@@ -53,7 +54,6 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
   const [icon, setIcon] = useState<string>(DEFAULT_VAULT_ICON)
   const [color, setColor] = useState<string>(DEFAULT_VAULT_COLOR)
   const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Mount-only side effect: emit analytics for "wizard opened". The form
   // reset that used to live here is now implicit — opening the dialog
@@ -69,7 +69,6 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit) return
-    setErrorMessage(null)
 
     // Grant mode selector intentionally omitted from the create dialog
     // (per CVT-30 design): mode is a property of grants, not the vault.
@@ -105,7 +104,7 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
         },
         onError: () => {
           analytics.capture('vault', 'create-wizard-failed')
-          setErrorMessage(t('vault.errorCreate'))
+          toast.error(t('vault.errorCreate'))
         },
       },
     )
@@ -143,7 +142,6 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
           autoFocus
           disabled={isPending}
           maxLength={64}
-          required
         />
 
         <FormTextarea
@@ -170,14 +168,10 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
           rowClassName="flex justify-between"
         />
 
-        <FieldFeedback visible={errorMessage !== null} color="red">
-          {errorMessage}
-        </FieldFeedback>
-
         <div className="mt-1 flex items-center gap-2">
           <Button
             variant="subtle"
-            size="md"
+            size="sm"
             onClick={onClose}
             disabled={isPending}
             className="flex-1"
@@ -186,7 +180,7 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
           </Button>
           <Button
             variant="accent"
-            size="md"
+            size="sm"
             type="submit"
             disabled={!canSubmit}
             className="flex-[2]"

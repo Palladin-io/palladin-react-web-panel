@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
-import { FormInput } from '../../../shared/components/form-field'
+import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { Icon } from '../../../shared/components/icon'
 import { SecretInput } from '../../../shared/components/secret-input'
@@ -63,8 +63,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [password, setPassword] = useState('')
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [url, setUrl] = useState('')
+  const [urlError, setUrlError] = useState(false)
   const [notes, setNotes] = useState('')
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
     analytics.capture('vault', 'create-entry-wizard-opened')
@@ -82,12 +82,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit) return
-    setErrorMessage(null)
 
     const payload = buildPlaintext({ type, keyValue, username, password, url, notes })
 
     if (!vault.wrappedVK) {
-      setErrorMessage(t('vault.entries.errorMissingVaultKey'))
+      toast.error(t('vault.entries.errorMissingVaultKey'))
       return
     }
 
@@ -124,7 +123,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         },
         onError: () => {
           analytics.capture('vault', 'create-entry-wizard-failed', { type })
-          setErrorMessage(t('vault.entries.errorCreate'))
+          toast.error(t('vault.entries.errorCreate'))
         },
       },
     )
@@ -163,7 +162,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           autoComplete="off"
           disabled={isPending}
           maxLength={120}
-          required
         />
 
         <FormInput
@@ -177,17 +175,27 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           maxLength={500}
         />
 
-        <FormInput
-          id="entry-url"
-          label={t('vault.entries.urlLabel')}
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder={t('vault.entries.urlPlaceholder')}
-          autoComplete="off"
-          disabled={isPending}
-          type="url"
-          inputMode="url"
-        />
+        <div>
+          <FormInput
+            id="entry-url"
+            label={t('vault.entries.urlLabel')}
+            value={url}
+            onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
+            onBlur={() => {
+              if (url.trim()) {
+                try { new URL(url.trim()); setUrlError(false) }
+                catch { setUrlError(true) }
+              }
+            }}
+            placeholder={t('vault.entries.urlPlaceholder')}
+            autoComplete="off"
+            disabled={isPending}
+            inputMode="url"
+          />
+          <FieldFeedback visible={urlError} color="red">
+            {t('validation.invalidUrl')}
+          </FieldFeedback>
+        </div>
 
         <div>
           <label
@@ -231,7 +239,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             placeholder={t('vault.entries.valuePlaceholder')}
             disabled={isPending}
             monospace
-            required
           />
         ) : (
           <div className="flex gap-3">
@@ -244,7 +251,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 placeholder={t('vault.entries.usernamePlaceholder')}
                 autoComplete="off"
                 disabled={isPending}
-                required
               />
             </div>
             <div className="flex-1">
@@ -284,39 +290,20 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           disabled={isPending}
         />
 
-        <div style={{ perspective: '600px' }} className="relative h-[38px]">
-          <div
-            className="relative h-full w-full transition-transform duration-500 ease-in-out"
-            style={{
-              transformStyle: 'preserve-3d',
-              transform: errorMessage ? 'rotateX(180deg)' : 'rotateX(0deg)',
-            }}
-          >
-            <div
-              className="absolute inset-0 flex items-center gap-2 rounded-lg border
-                border-[rgba(46,196,182,0.25)] bg-[rgba(46,196,182,0.08)] px-3 py-2"
-              style={{ backfaceVisibility: 'hidden' }}
-            >
-              <Icon name="enhanced_encryption" size={14} className="shrink-0" color="#2EC4B6" />
-              <span className="text-[11px] text-[var(--cv-t2)]">
-                {t('vault.entries.encryptionNotice')}
-              </span>
-            </div>
-            <div
-              className="absolute inset-0 flex items-center gap-2 rounded-lg border
-                border-[rgba(255,79,79,0.3)] bg-[rgba(255,79,79,0.08)] px-3 py-2"
-              style={{ backfaceVisibility: 'hidden', transform: 'rotateX(180deg)' }}
-            >
-              <Icon name="error_outline" size={14} className="shrink-0" color="#FF4F4F" />
-              <span className="text-[11px] text-[#FF4F4F] leading-tight">{errorMessage}</span>
-            </div>
-          </div>
+        <div
+          className="flex items-center gap-2 rounded-lg border
+            border-[rgba(46,196,182,0.25)] bg-[rgba(46,196,182,0.08)] px-3 py-2"
+        >
+          <Icon name="enhanced_encryption" size={14} className="shrink-0" color="#2EC4B6" />
+          <span className="text-[11px] text-[var(--cv-t2)]">
+            {t('vault.entries.encryptionNotice')}
+          </span>
         </div>
 
         <div className="mt-1 flex items-center gap-2">
           <Button
             variant="subtle"
-            size="md"
+            size="sm"
             onClick={onClose}
             disabled={isPending}
             className="flex-1"
@@ -325,7 +312,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           </Button>
           <Button
             variant="accent"
-            size="md"
+            size="sm"
             type="submit"
             disabled={!canSubmit}
             className="flex-[2]"

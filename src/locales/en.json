@@ -394,10 +394,25 @@
   "agents.typeOpenClaw": "Open Claw",
   "agents.typeClaudeCode": "Claude Code",
   "agents.typeHermes": "Hermes",
+  "agents.typeCursor": "Cursor",
+  "agents.typeCopilot": "GitHub Copilot",
+  "agents.typeGemini": "Gemini",
+  "agents.typeCodex": "OpenAI Codex",
+  "agents.typeKimiCode": "Kimi Code",
+  "agents.typeDevin": "Devin",
+  "agents.typeAider": "Aider",
+  "agents.typeCline": "Cline",
+  "agents.typeRoo": "Roo Code",
   "agents.typeOther": "Other",
+  "agents.typeNameError": "Name is required",
   "agents.approveSetup": "Approve Agent",
   "agents.approveSetupHint": "Optionally set a name, type, and icon before activating.",
-  "agents.agentName": "Name (optional)",
+  "agents.agentName": "Name",
   "agents.agentType": "Agent type",
-  "agents.agentIcon": "Icon"
+  "agents.agentIcon": "Icon",
+  "agents.typePlaceholder": "Select type",
+
+  "validation.required": "This field is required",
+  "validation.invalidUrl": "Enter a valid URL (e.g. https://example.com)",
+  "validation.tooLong": "Value is too long"
 }

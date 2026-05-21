@@ -34,6 +34,9 @@ vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: (...args: unknown[]) => captureMock(...args) },
 }))
 
+const toastError = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }))
+
 const baseAgent: Agent = {
   agentId: 'agent-1',
   name: 'Deploy Bot',
@@ -64,6 +67,7 @@ describe('AgentDetail', () => {
     deactivateMutate.mockReset()
     reactivateMutate.mockReset()
     captureMock.mockReset()
+    toastError.mockReset()
   })
 
   it('renders the agent name, description and public key', () => {
@@ -99,6 +103,10 @@ describe('AgentDetail', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /approve agent/i }))
     const dialog = screen.getByRole('dialog', { name: /approve agent/i })
+    // Name is required — fill it before the confirm button becomes enabled.
+    fireEvent.change(within(dialog).getByRole('textbox'), {
+      target: { value: 'Test Bot' },
+    })
     const confirm = within(dialog).getByRole('button', {
       name: /^approve agent$/i,
     })
@@ -134,7 +142,7 @@ describe('AgentDetail', () => {
     expect(captureMock).toHaveBeenCalledWith('agents', 'agent-deactivated')
   })
 
-  it('surfaces an inline error when reactivation fails', () => {
+  it('shows an error toast when reactivation fails', () => {
     reactivateMutate.mockImplementation((_id, opts) => opts.onError())
     render(
       <AgentDetail agent={{ ...baseAgent, status: AGENT_STATUS_DEACTIVATED }} />,
@@ -142,8 +150,6 @@ describe('AgentDetail', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: /reactivate agent/i }))
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      /could not reactivate/i,
-    )
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/could not reactivate/i))
   })
 })

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
@@ -44,7 +45,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [approveOpen, setApproveOpen] = useState(false)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
 
   const name = agentDisplayName(agent, t('agents.unnamed'))
 
@@ -52,8 +52,8 @@ export function AgentDetail({ agent }: AgentDetailProps) {
     name?: string
     type?: AgentType
     iconKey?: string
+    iconColor?: string
   }) => {
-    setActionError(null)
     approve.mutate(
       { agentId: agent.agentId, input },
       {
@@ -63,14 +63,13 @@ export function AgentDetail({ agent }: AgentDetailProps) {
         },
         onError: () => {
           setApproveOpen(false)
-          setActionError(t('agents.errorApprove'))
+          toast.error(t('agents.errorApprove'))
         },
       },
     )
   }
 
   const handleConfirmDeactivate = () => {
-    setActionError(null)
     deactivate.mutate(agent.agentId, {
       onSuccess: () => {
         analytics.capture('agents', 'agent-deactivated')
@@ -78,19 +77,18 @@ export function AgentDetail({ agent }: AgentDetailProps) {
       },
       onError: () => {
         setDeactivateOpen(false)
-        setActionError(t('agents.errorDeactivate'))
+        toast.error(t('agents.errorDeactivate'))
       },
     })
   }
 
   const handleReactivate = () => {
-    setActionError(null)
     reactivate.mutate(agent.agentId, {
       onSuccess: () => {
         analytics.capture('agents', 'agent-reactivated')
       },
       onError: () => {
-        setActionError(t('agents.errorReactivate'))
+        toast.error(t('agents.errorReactivate'))
       },
     })
   }
@@ -186,17 +184,19 @@ export function AgentDetail({ agent }: AgentDetailProps) {
           heading={t('agents.approve')}
           hint={t('agents.approveHint')}
           action={
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setActionError(null)
-                setApproveOpen(true)
-              }}
+            <button
+              type="button"
+              onClick={() => setApproveOpen(true)}
               disabled={approve.isPending}
+              className="flex cursor-pointer items-center gap-1.5 rounded-[7px]
+                border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)]
+                px-3 py-1.5 text-[11px] font-semibold text-[#2EC4B6]
+                transition-colors hover:bg-[rgba(46,196,182,0.12)]
+                disabled:cursor-not-allowed disabled:opacity-40"
             >
+              <Icon name="check_circle" size={13} />
               {t('agents.approve')}
-            </Button>
+            </button>
           }
         />
       ) : null}
@@ -212,10 +212,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
             <Button
               variant="danger"
               size="sm"
-              onClick={() => {
-                setActionError(null)
-                setDeactivateOpen(true)
-              }}
+              onClick={() => setDeactivateOpen(true)}
               disabled={deactivate.isPending}
             >
               {t('agents.deactivate')}
@@ -232,24 +229,21 @@ export function AgentDetail({ agent }: AgentDetailProps) {
           heading={t('agents.reactivate')}
           hint={t('agents.reactivateHint')}
           action={
-            <Button
-              variant="outline"
-              size="sm"
+            <button
+              type="button"
               onClick={handleReactivate}
               disabled={reactivate.isPending}
+              className="flex cursor-pointer items-center gap-1.5 rounded-[7px]
+                border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)]
+                px-3 py-1.5 text-[11px] font-semibold text-[#2EC4B6]
+                transition-colors hover:bg-[rgba(46,196,182,0.12)]
+                disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {reactivate.isPending
-                ? t('agents.reactivating')
-                : t('agents.reactivate')}
-            </Button>
+              <Icon name="replay" size={13} />
+              {reactivate.isPending ? t('agents.reactivating') : t('agents.reactivate')}
+            </button>
           }
         />
-      ) : null}
-
-      {actionError ? (
-        <p className="mt-2 text-[11px] text-[#FF4F4F]" role="alert">
-          {actionError}
-        </p>
       ) : null}
 
       <ApproveAgentDialog
@@ -385,7 +379,7 @@ function DeactivateAgentDialog({
         <div className="mt-1 flex items-center gap-2">
           <Button
             variant="subtle"
-            size="md"
+            size="sm"
             onClick={onCancel}
             disabled={isPending}
             className="flex-1"
@@ -394,7 +388,7 @@ function DeactivateAgentDialog({
           </Button>
           <Button
             variant="danger"
-            size="md"
+            size="sm"
             onClick={onConfirm}
             disabled={isPending}
             className="flex-[2]"

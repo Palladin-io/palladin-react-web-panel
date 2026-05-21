@@ -42,7 +42,7 @@ export function RevokeApiKeyDialog({
         <div className="mt-1 flex items-center gap-2">
           <Button
             variant="subtle"
-            size="md"
+            size="sm"
             onClick={onCancel}
             disabled={isPending}
             className="flex-1"
@@ -51,7 +51,7 @@ export function RevokeApiKeyDialog({
           </Button>
           <Button
             variant="accent"
-            size="md"
+            size="sm"
             onClick={onConfirm}
             disabled={isPending}
             className="flex-[2]"

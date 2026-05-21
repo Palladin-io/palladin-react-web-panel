@@ -23,6 +23,10 @@ vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
 }))
 
+const toastSuccess = vi.hoisted(() => vi.fn())
+const toastError = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }))
+
 const baseOrg: Organization = {
   orgId: 'org-1',
   name: 'Acme Inc.',
@@ -40,6 +44,8 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('OrgSettingsForm', () => {
   beforeEach(() => {
     updateMutateMock.mockReset()
+    toastSuccess.mockReset()
+    toastError.mockReset()
     updateIsPending = false
   })
 
@@ -48,7 +54,7 @@ describe('OrgSettingsForm', () => {
     expect(screen.getByLabelText(/organization name/i)).toHaveValue('Acme Inc.')
   })
 
-  it('submits the changed name and shows success feedback', async () => {
+  it('submits the changed name and shows a success toast', async () => {
     const user = userEvent.setup()
     updateMutateMock.mockImplementation((_input, options) => {
       options.onSuccess()
@@ -63,9 +69,7 @@ describe('OrgSettingsForm', () => {
 
     expect(updateMutateMock).toHaveBeenCalledTimes(1)
     expect(updateMutateMock.mock.calls[0][0]).toEqual({ name: 'Renamed Org' })
-    expect(
-      await screen.findByText(/organization name saved/i),
-    ).toBeInTheDocument()
+    expect(toastSuccess).toHaveBeenCalledWith(expect.stringMatching(/organization name saved/i))
   })
 
   it('does not call the mutation when the name is unchanged', async () => {
@@ -77,7 +81,7 @@ describe('OrgSettingsForm', () => {
     expect(updateMutateMock).not.toHaveBeenCalled()
   })
 
-  it('shows an error message when the update mutation fails', async () => {
+  it('shows an error toast when the update mutation fails', async () => {
     const user = userEvent.setup()
     updateMutateMock.mockImplementation((_input, options) => {
       options.onError(new Error('403'))
@@ -90,8 +94,6 @@ describe('OrgSettingsForm', () => {
     await user.type(input, 'Whatever')
     await user.click(screen.getByRole('button', { name: /^save$/i }))
 
-    expect(
-      await screen.findByText(/could not save the organization name/i),
-    ).toBeInTheDocument()
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/could not save the organization name/i))
   })
 })
