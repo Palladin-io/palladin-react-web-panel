@@ -54,7 +54,7 @@ export function NewPasswordStep({
           if (canSubmit) onSubmit(password)
         }}
       >
-        <div className="-mb-2">
+        <div className="-mb-3">
           <FormInput
             id="recovery-new-password"
             label={t('recovery.newPasswordLabel')}
@@ -72,7 +72,7 @@ export function NewPasswordStep({
           </FieldFeedback>
         </div>
 
-        <div className="-mb-2">
+        <div className="-mb-3">
           <FormInput
             id="recovery-confirm-password"
             label={t('recovery.confirmPasswordLabel')}

@@ -49,7 +49,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
           }
         }}
       >
-        <div className="-mb-2">
+        <div className="-mb-3">
           <FormInput
             id="master-password"
             label={t('onboarding.masterPasswordLabel')}
@@ -66,7 +66,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
           </FieldFeedback>
         </div>
 
-        <div className="-mb-2">
+        <div className="-mb-3">
           <FormInput
             id="master-password-confirm"
             label={t('onboarding.confirmPasswordLabel')}

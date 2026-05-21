@@ -568,7 +568,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       >
         <div className="flex gap-5 items-start">
           <div className="flex-1 flex flex-col gap-4 min-w-0">
-            <div className="-mb-3">
+            <div className="-mb-4">
               <FormInput
                 id="entry-detail-label"
                 label={t('vault.entries.labelLabel')}
@@ -593,7 +593,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               disabled={isSaving}
               maxLength={500}
             />
-            <div className="-mb-3">
+            <div className="-mb-4">
               <FormInput
                 id="entry-detail-url"
                 label={t('vault.entries.urlLabel')}
@@ -619,7 +619,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 {decryptError}
               </div>
             ) : entry.type === ENTRY_TYPE_KEY ? (
-              <div className="-mb-3">
+              <div className="-mb-4">
                 <SecretInput
                   id="entry-detail-value"
                   label={t('vault.entries.valueLabel')}
@@ -637,7 +637,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 </FieldFeedback>
               </div>
             ) : (
-              <div className="flex gap-3 -mb-3">
+              <div className="flex gap-3 -mb-4">
                 <div className="flex-1 min-w-0">
                   <FormInput
                     id="entry-detail-username"

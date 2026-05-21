@@ -162,7 +162,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           </button>
         </header>
 
-        <div className="-mb-2">
+        <div className="-mb-3">
           <FormInput
             id="entry-label"
             label={t('vault.entries.labelLabel')}
@@ -192,7 +192,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           maxLength={500}
         />
 
-        <div className="-mb-2">
+        <div className="-mb-3">
           <FormInput
             id="entry-url"
             label={t('vault.entries.urlLabel')}
@@ -247,7 +247,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         </div>
 
         {type === ENTRY_TYPE_KEY ? (
-          <div className="-mb-2">
+          <div className="-mb-3">
             <SecretInput
               id="entry-value"
               label={t('vault.entries.valueLabel')}
@@ -266,7 +266,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             </FieldFeedback>
           </div>
         ) : (
-          <div className="flex gap-3 -mb-2">
+          <div className="flex gap-3 -mb-3">
             <div className="flex-1">
               <FormInput
                 id="entry-username"
