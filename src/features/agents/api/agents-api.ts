@@ -67,7 +67,7 @@ const agentSchema = z.object({
   agentId: z.string(),
   name: z.string().nullable(),
   status: z.enum(['pending', 'active', 'deactivated']),
-  type: z.enum(['openClaw', 'claudeCode', 'hermes', 'cursor', 'copilot', 'gemini', 'codex', 'kimiCode', 'devin', 'aider', 'cline', 'roo', 'other']).nullable(),
+  type: z.string().nullable(),
   iconKey: z.string().nullable(),
   publicKeyPrefix: z.string(),
   publicKeySuffix: z.string(),

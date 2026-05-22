@@ -196,7 +196,7 @@ function AgentCard({ agent, isSelected, onApprove }: AgentRowProps) {
   const isDeactivated = agent.status === AGENT_STATUS_DEACTIVATED
 
   const subtitle = agent.type
-    ? t(agentTypeLabelKey(agent.type))
+    ? (agentTypeLabelKey(agent.type) ? t(agentTypeLabelKey(agent.type)!) : agent.type)
     : formatPublicKey(agent)
 
   return (

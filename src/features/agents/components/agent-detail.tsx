@@ -78,7 +78,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
           setApproveOpen(false)
         },
         onError: () => {
-          setApproveOpen(false)
           toast.error(t('agents.errorApprove'))
         },
       },
@@ -159,7 +158,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                   </div>
                   {agent.type ? (
                     <span className="mt-1 inline-flex items-center rounded-full bg-[var(--cv-btn-subtle-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--cv-t2)]">
-                      {t(agentTypeLabelKey(agent.type))}
+                      {agentTypeLabelKey(agent.type) ? t(agentTypeLabelKey(agent.type)!) : agent.type}
                     </span>
                   ) : null}
                 </div>
@@ -197,7 +196,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                   </div>
                   {agent.type ? (
                     <span className="mt-1 inline-flex items-center rounded-full bg-[var(--cv-btn-subtle-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--cv-t2)]">
-                      {t(agentTypeLabelKey(agent.type))}
+                      {agentTypeLabelKey(agent.type) ? t(agentTypeLabelKey(agent.type)!) : agent.type}
                     </span>
                   ) : null}
                 </div>
@@ -318,8 +317,10 @@ export function AgentDetail({ agent }: AgentDetailProps) {
       ) : null}
 
       <ApproveAgentDialog
+        key={agent.agentId}
         open={approveOpen}
         agentName={name}
+        initialName={agent.name ?? ''}
         isPending={approve.isPending}
         onConfirm={handleConfirmApprove}
         onCancel={() => setApproveOpen(false)}

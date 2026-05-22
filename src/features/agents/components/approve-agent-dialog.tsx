@@ -11,6 +11,8 @@ import { AgentIconPicker, DEFAULT_AGENT_COLOR } from './agent-icon-picker'
 export interface ApproveAgentDialogProps {
   open: boolean
   agentName: string
+  /** Pre-fills the name input — the agent's existing name if set. */
+  initialName?: string
   isPending: boolean
   onConfirm: (input: {
     name?: string
@@ -130,6 +132,7 @@ function AgentTypeCombobox({ typeValues, inputValue, onInputChange, onSelect, di
 export function ApproveAgentDialog({
   open,
   agentName,
+  initialName = '',
   isPending,
   onConfirm,
   onCancel,
@@ -137,7 +140,7 @@ export function ApproveAgentDialog({
   const { t } = useTranslation()
   const agentTypes = useAgentTypes()
   const nameRef = useRef<HTMLInputElement>(null)
-  const [name, setName] = useState('')
+  const [name, setName] = useState(initialName)
   const [nameError, setNameError] = useState(false)
   const [typeInput, setTypeInput] = useState('')
   const [typeValue, setTypeValue] = useState('')

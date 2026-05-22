@@ -12,7 +12,6 @@ import {
   AGENT_TYPE_OPEN_CLAW,
   AGENT_TYPE_ROO,
   type Agent,
-  type AgentType,
 } from '../api/agents-api'
 
 /** Preset icons shown in the row (AI / automation themed). */
@@ -106,8 +105,8 @@ export function agentDisplayName(
   return agent.name?.trim() || fallback
 }
 
-/** i18n key for the human-readable label of an agent type. */
-export function agentTypeLabelKey(type: AgentType): string {
+/** i18n key for the human-readable label of a built-in agent type, or null for custom types. */
+export function agentTypeLabelKey(type: string): string | null {
   switch (type) {
     case AGENT_TYPE_OPEN_CLAW:  return 'agents.typeOpenClaw'
     case AGENT_TYPE_CLAUDE_CODE: return 'agents.typeClaudeCode'
@@ -121,7 +120,7 @@ export function agentTypeLabelKey(type: AgentType): string {
     case AGENT_TYPE_AIDER:      return 'agents.typeAider'
     case AGENT_TYPE_CLINE:      return 'agents.typeCline'
     case AGENT_TYPE_ROO:        return 'agents.typeRoo'
-    default:                    return 'agents.typeOther'
+    default:                    return null
   }
 }
 
