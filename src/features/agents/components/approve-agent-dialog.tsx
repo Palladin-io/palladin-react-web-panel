@@ -123,8 +123,7 @@ function AgentTypeCombobox({ inputValue, onInputChange, onSelect, disabled }: Ag
                     setOpen(false)
                   }}
                   className="w-full px-3 py-2 text-left text-[12px] text-[var(--cv-t1)]
-                    transition-colors hover:bg-[rgba(0,11,46,0.08)]
-                    dark:hover:bg-[rgba(253,249,228,0.12)]"
+                    transition-colors hover:bg-[var(--cv-btn-subtle-hover)]"
                 >
                   {t(labelKey)}
                 </button>
