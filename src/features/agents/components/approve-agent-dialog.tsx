@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { FieldFeedback } from '../../../shared/components/form-field'
@@ -35,7 +35,6 @@ export interface ApproveAgentDialogProps {
   onCancel: () => void
 }
 
-/** All known types ordered alphabetically (Other last). */
 const TYPE_OPTIONS: { value: AgentType; labelKey: string }[] = [
   { value: AGENT_TYPE_AIDER,      labelKey: 'agents.typeAider' },
   { value: AGENT_TYPE_CLAUDE_CODE, labelKey: 'agents.typeClaudeCode' },
@@ -52,6 +51,90 @@ const TYPE_OPTIONS: { value: AgentType; labelKey: string }[] = [
   { value: AGENT_TYPE_OTHER,      labelKey: 'agents.typeOther' },
 ]
 
+// ---------------------------------------------------------------------------
+// Combobox — suggestions from TYPE_OPTIONS, but free-form input allowed
+// ---------------------------------------------------------------------------
+
+interface AgentTypeComboboxProps {
+  inputValue: string
+  onInputChange: (text: string) => void
+  onSelect: (value: string, label: string) => void
+  disabled?: boolean
+}
+
+function AgentTypeCombobox({ inputValue, onInputChange, onSelect, disabled }: AgentTypeComboboxProps) {
+  const { t } = useTranslation()
+  const listId = useId()
+  const [open, setOpen] = useState(false)
+
+  const filtered = inputValue.trim()
+    ? TYPE_OPTIONS.filter(({ labelKey }) =>
+        t(labelKey).toLowerCase().includes(inputValue.toLowerCase())
+      )
+    : TYPE_OPTIONS
+
+  return (
+    <div>
+      <label
+        htmlFor="approve-agent-type"
+        className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
+      >
+        {t('agents.agentType')}
+      </label>
+      <div className="relative">
+        <input
+          id="approve-agent-type"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={open}
+          aria-controls={listId}
+          value={inputValue}
+          onChange={(e) => { onInputChange(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 120)}
+          placeholder={t('agents.typePlaceholder')}
+          disabled={disabled}
+          autoComplete="off"
+          className="w-full rounded-lg border border-[var(--cv-input-border)]
+            bg-[var(--cv-input-bg)] px-3 py-2 pr-9 text-[12px] text-[var(--cv-input-text)]
+            placeholder:text-[var(--cv-input-placeholder)]
+            focus:border-[var(--cv-t1)] focus:outline-none transition-colors
+            disabled:cursor-not-allowed disabled:opacity-40"
+        />
+        <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+          <Icon name="expand_more" size={16} color="var(--cv-t3)" />
+        </div>
+
+        {open && filtered.length > 0 ? (
+          <ul
+            id={listId}
+            role="listbox"
+            className="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-y-auto
+              rounded-lg border border-[var(--cv-border)] bg-[var(--cv-card-bg)] py-1
+              shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
+          >
+            {filtered.map(({ value, labelKey }) => (
+              <li key={value} role="option" aria-selected={false}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault()
+                    onSelect(value, t(labelKey))
+                    setOpen(false)
+                  }}
+                  className="w-full px-3 py-2 text-left text-[12px] text-[var(--cv-t1)]
+                    transition-colors hover:bg-[var(--cv-btn-subtle-bg)]"
+                >
+                  {t(labelKey)}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </div>
+  )
+}
 
 export function ApproveAgentDialog({
   open,
@@ -64,7 +147,8 @@ export function ApproveAgentDialog({
   const nameRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState('')
   const [nameError, setNameError] = useState(false)
-  const [typeSelect, setTypeSelect] = useState<AgentType | ''>('')
+  const [typeInput, setTypeInput] = useState('')
+  const [typeValue, setTypeValue] = useState('')
   const [selectedIcon, setSelectedIcon] = useState<string | undefined>(undefined)
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_AGENT_COLOR)
 
@@ -78,7 +162,7 @@ export function ApproveAgentDialog({
     }
     onConfirm({
       name: name.trim(),
-      type: typeSelect || undefined,
+      type: (typeValue.trim() as AgentType) || undefined,
       iconKey: selectedIcon,
       iconColor: selectedIcon ? selectedColor : undefined,
     })
@@ -127,37 +211,13 @@ export function ApproveAgentDialog({
           </FieldFeedback>
         </div>
 
-        {/* Type — styled native select */}
-        <div>
-          <label
-            htmlFor="approve-agent-type"
-            className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-          >
-            {t('agents.agentType')}
-          </label>
-          <div className="relative">
-            <select
-              id="approve-agent-type"
-              value={typeSelect}
-              onChange={(e) => setTypeSelect(e.target.value as AgentType | '')}
-              disabled={isPending}
-              className="w-full appearance-none rounded-lg border border-[var(--cv-input-border)]
-                bg-[var(--cv-input-bg)] px-3 py-2 pr-9 text-[12px] text-[var(--cv-input-text)]
-                focus:border-[var(--cv-t1)] focus:outline-none
-                disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <option value="" className="text-[var(--cv-input-placeholder)]">
-                {t('agents.typePlaceholder')}
-              </option>
-              {TYPE_OPTIONS.map(({ value, labelKey }) => (
-                <option key={value} value={value}>{t(labelKey)}</option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-              <Icon name="expand_more" size={16} color="var(--cv-t3)" />
-            </div>
-          </div>
-        </div>
+        {/* Type — combobox: predefined suggestions + free-form input */}
+        <AgentTypeCombobox
+          inputValue={typeInput}
+          disabled={isPending}
+          onInputChange={(text) => { setTypeInput(text); setTypeValue(text) }}
+          onSelect={(value, label) => { setTypeValue(value); setTypeInput(label) }}
+        />
 
         <AgentIconPicker
           value={selectedIcon}
