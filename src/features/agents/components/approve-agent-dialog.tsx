@@ -4,7 +4,7 @@ import { Button } from '../../../shared/components/button'
 import { FieldFeedback } from '../../../shared/components/form-field'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
-import { type AgentType } from '../api/agents-api'
+import { BUILTIN_AGENT_TYPES, type AgentType } from '../api/agents-api'
 import { useAgentTypes } from '../use-agent-types'
 import { AgentIconPicker, DEFAULT_AGENT_COLOR } from './agent-icon-picker'
 
@@ -146,7 +146,7 @@ export function ApproveAgentDialog({
 
   if (!open) return null
 
-  const typeValues = agentTypes.data ?? []
+  const typeValues = agentTypes.data ?? BUILTIN_AGENT_TYPES
 
   const handleConfirm = () => {
     if (!name.trim()) {

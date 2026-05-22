@@ -5,7 +5,7 @@ export function useAgentTypes() {
   return useQuery({
     queryKey: ['agent-types'],
     queryFn: getAgentTypes,
-    placeholderData: BUILTIN_AGENT_TYPES,
+    initialData: BUILTIN_AGENT_TYPES,
     staleTime: 5 * 60 * 1000,
   })
 }
