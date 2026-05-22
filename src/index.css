@@ -29,6 +29,7 @@
   --cv-btn-ghost-hover: rgba(0, 11, 46, 0.04);
   --cv-icon-muted: #8A95A6;
   --cv-premium: #D4820A;
+  --cv-list-item-hover: rgba(0, 11, 46, 0.1);
 }
 
 .dark {
@@ -58,6 +59,7 @@
   --cv-btn-ghost-hover: rgba(253, 249, 228, 0.04);
   --cv-icon-muted: #8A95A6;
   --cv-premium: #F0C040;
+  --cv-list-item-hover: rgba(253, 249, 228, 0.18);
 }
 
 button,
