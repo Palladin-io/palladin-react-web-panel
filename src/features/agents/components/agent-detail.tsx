@@ -111,64 +111,34 @@ export function AgentDetail({ agent }: AgentDetailProps) {
 
   return (
     <>
-      {/* ── Flat identity header (mirrors VaultDetailHeader pattern) ────── */}
-      <div className="mb-4 flex items-start gap-3">
-        <AgentAvatar agent={agent} size={44} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h2 className="truncate text-[16px] font-bold text-[var(--cv-t1)]">
-              {name}
-            </h2>
-            <AgentStatusBadge status={agent.status} />
-            {!isEditing && agent.status !== AGENT_STATUS_PENDING ? (
+      {/* ── Tab bar — mirrors entry-detail wide-mode: h-10 items-end ────── */}
+      <div className="mb-4 flex h-10 items-end">
+        <div className="flex shrink-0 border-b border-[var(--cv-divider)]" role="tablist">
+          {AGENT_TABS.map(({ id, labelKey, requiresActive }) => {
+            const disabled = requiresActive && !isAgentActive
+            const isActive = id === activeTab
+            return (
               <button
+                key={id}
                 type="button"
-                onClick={() => { setIsEditing(true); setActiveTab('details') }}
-                aria-label={t('agents.edit')}
-                className="ml-auto shrink-0 text-[var(--cv-t3)] transition-colors
-                  hover:text-[var(--cv-t1)]"
+                role="tab"
+                aria-selected={isActive}
+                disabled={disabled}
+                onClick={() => setActiveTab(id)}
+                className={`-mb-px border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
+                  disabled
+                    ? 'cursor-not-allowed border-transparent font-medium text-[var(--cv-t3)] opacity-35'
+                    : isActive
+                      ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
+                      : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
+                }`}
               >
-                <Icon name="edit" size={15} />
+                {t(labelKey)}
               </button>
-            ) : null}
-          </div>
-          {agent.type ? (
-            <span
-              className="mt-1 inline-flex items-center rounded-full
-                bg-[var(--cv-btn-subtle-bg)] px-2 py-0.5 text-[10px]
-                font-semibold text-[var(--cv-t2)]"
-            >
-              {t(agentTypeLabelKey(agent.type))}
-            </span>
-          ) : null}
+            )
+          })}
         </div>
-      </div>
-
-      {/* ── Tab bar ─────────────────────────────────────────────────────── */}
-      <div className="mb-4 flex border-b border-[var(--cv-divider)]" role="tablist">
-        {AGENT_TABS.map(({ id, labelKey, requiresActive }) => {
-          const disabled = requiresActive && !isAgentActive
-          const isActive = id === activeTab
-          return (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={isActive}
-              disabled={disabled}
-              onClick={() => setActiveTab(id)}
-              className={`-mb-px border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
-                disabled
-                  ? 'cursor-not-allowed border-transparent font-medium text-[var(--cv-t3)] opacity-35'
-                  : isActive
-                    ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
-                    : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
-              }`}
-            >
-              {t(labelKey)}
-            </button>
-          )
-        })}
+        <div className="h-px flex-1 self-end bg-gradient-to-r from-[var(--cv-divider)] to-transparent" />
       </div>
 
       {/* ── Details tab ─────────────────────────────────────────────────── */}
@@ -179,6 +149,21 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]
                 p-5 dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
             >
+              {/* Identity header inside card when editing */}
+              <div className="mb-4 flex items-start gap-3 border-b border-[var(--cv-divider)] pb-4">
+                <AgentAvatar agent={agent} size={40} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">{name}</h2>
+                    <AgentStatusBadge status={agent.status} />
+                  </div>
+                  {agent.type ? (
+                    <span className="mt-1 inline-flex items-center rounded-full bg-[var(--cv-btn-subtle-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--cv-t2)]">
+                      {t(agentTypeLabelKey(agent.type))}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
               <AgentEditForm
                 agent={agent}
                 onSaved={() => setIsEditing(false)}
@@ -190,6 +175,31 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]
                 p-5 dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
             >
+              {/* Identity header inside card */}
+              <div className="mb-4 flex items-start gap-3 border-b border-[var(--cv-divider)] pb-4">
+                <AgentAvatar agent={agent} size={40} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">{name}</h2>
+                    <AgentStatusBadge status={agent.status} />
+                    {agent.status !== AGENT_STATUS_PENDING ? (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditing(true)}
+                        aria-label={t('agents.edit')}
+                        className="ml-auto shrink-0 text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
+                      >
+                        <Icon name="edit" size={15} />
+                      </button>
+                    ) : null}
+                  </div>
+                  {agent.type ? (
+                    <span className="mt-1 inline-flex items-center rounded-full bg-[var(--cv-btn-subtle-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--cv-t2)]">
+                      {t(agentTypeLabelKey(agent.type))}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
               <dl className="flex flex-col gap-3">
                 {agent.description ? (
                   <DetailRow label={t('agents.description')} value={agent.description} />
