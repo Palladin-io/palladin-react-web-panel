@@ -4,22 +4,8 @@ import { Button } from '../../../shared/components/button'
 import { FieldFeedback } from '../../../shared/components/form-field'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
-import {
-  AGENT_TYPE_AIDER,
-  AGENT_TYPE_CLAUDE_CODE,
-  AGENT_TYPE_CLINE,
-  AGENT_TYPE_CODEX,
-  AGENT_TYPE_COPILOT,
-  AGENT_TYPE_CURSOR,
-  AGENT_TYPE_DEVIN,
-  AGENT_TYPE_GEMINI,
-  AGENT_TYPE_HERMES,
-  AGENT_TYPE_KIMI_CODE,
-  AGENT_TYPE_OPEN_CLAW,
-  AGENT_TYPE_OTHER,
-  AGENT_TYPE_ROO,
-  type AgentType,
-} from '../api/agents-api'
+import { type AgentType } from '../api/agents-api'
+import { useAgentTypes } from '../use-agent-types'
 import { AgentIconPicker, DEFAULT_AGENT_COLOR } from './agent-icon-picker'
 
 export interface ApproveAgentDialogProps {
@@ -35,43 +21,48 @@ export interface ApproveAgentDialogProps {
   onCancel: () => void
 }
 
-const TYPE_OPTIONS: { value: AgentType; labelKey: string }[] = [
-  { value: AGENT_TYPE_AIDER,      labelKey: 'agents.typeAider' },
-  { value: AGENT_TYPE_CLAUDE_CODE, labelKey: 'agents.typeClaudeCode' },
-  { value: AGENT_TYPE_CLINE,      labelKey: 'agents.typeCline' },
-  { value: AGENT_TYPE_CODEX,      labelKey: 'agents.typeCodex' },
-  { value: AGENT_TYPE_COPILOT,    labelKey: 'agents.typeCopilot' },
-  { value: AGENT_TYPE_CURSOR,     labelKey: 'agents.typeCursor' },
-  { value: AGENT_TYPE_DEVIN,      labelKey: 'agents.typeDevin' },
-  { value: AGENT_TYPE_GEMINI,     labelKey: 'agents.typeGemini' },
-  { value: AGENT_TYPE_HERMES,     labelKey: 'agents.typeHermes' },
-  { value: AGENT_TYPE_KIMI_CODE,  labelKey: 'agents.typeKimiCode' },
-  { value: AGENT_TYPE_OPEN_CLAW,  labelKey: 'agents.typeOpenClaw' },
-  { value: AGENT_TYPE_ROO,        labelKey: 'agents.typeRoo' },
-  { value: AGENT_TYPE_OTHER,      labelKey: 'agents.typeOther' },
-]
+/** i18n label keys for built-in types — custom types show their raw value. */
+const BUILTIN_LABEL_KEYS: Record<string, string> = {
+  aider:      'agents.typeAider',
+  claudeCode: 'agents.typeClaudeCode',
+  cline:      'agents.typeCline',
+  codex:      'agents.typeCodex',
+  copilot:    'agents.typeCopilot',
+  cursor:     'agents.typeCursor',
+  devin:      'agents.typeDevin',
+  gemini:     'agents.typeGemini',
+  hermes:     'agents.typeHermes',
+  kimiCode:   'agents.typeKimiCode',
+  openClaw:   'agents.typeOpenClaw',
+  roo:        'agents.typeRoo',
+  other:      'agents.typeOther',
+}
 
 // ---------------------------------------------------------------------------
-// Combobox — suggestions from TYPE_OPTIONS, but free-form input allowed
+// Combobox — suggestions from API (with built-in fallback), free-form allowed
 // ---------------------------------------------------------------------------
 
 interface AgentTypeComboboxProps {
+  typeValues: string[]
   inputValue: string
   onInputChange: (text: string) => void
   onSelect: (value: string, label: string) => void
   disabled?: boolean
 }
 
-function AgentTypeCombobox({ inputValue, onInputChange, onSelect, disabled }: AgentTypeComboboxProps) {
+function typeLabel(value: string, t: (key: string) => string): string {
+  const key = BUILTIN_LABEL_KEYS[value]
+  return key ? t(key) : value
+}
+
+function AgentTypeCombobox({ typeValues, inputValue, onInputChange, onSelect, disabled }: AgentTypeComboboxProps) {
   const { t } = useTranslation()
   const listId = useId()
   const [open, setOpen] = useState(false)
 
   const filtered = inputValue.trim()
-    ? TYPE_OPTIONS.filter(({ labelKey }) =>
-        t(labelKey).toLowerCase().includes(inputValue.toLowerCase())
-      )
-    : TYPE_OPTIONS
+    ? typeValues.filter((v) => typeLabel(v, t).toLowerCase().includes(inputValue.toLowerCase()))
+    : typeValues
 
   return (
     <div>
@@ -110,22 +101,22 @@ function AgentTypeCombobox({ inputValue, onInputChange, onSelect, disabled }: Ag
             id={listId}
             role="listbox"
             className="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-y-auto
-              rounded-lg border border-[var(--cv-border)] bg-[var(--cv-card-bg)] py-1
-              shadow-[0_4px_20px_rgba(0,0,0,0.12)]"
+              rounded-lg border border-[var(--cv-border)] bg-[var(--cv-modal-bg)] py-1
+              shadow-[0_4px_20px_rgba(0,0,0,0.15)]"
           >
-            {filtered.map(({ value, labelKey }) => (
+            {filtered.map((value) => (
               <li key={value} role="option" aria-selected={false}>
                 <button
                   type="button"
                   onMouseDown={(e) => {
                     e.preventDefault()
-                    onSelect(value, t(labelKey))
+                    onSelect(value, typeLabel(value, t))
                     setOpen(false)
                   }}
                   className="w-full px-3 py-2 text-left text-[12px] text-[var(--cv-t1)]
                     transition-colors hover:bg-[var(--cv-list-item-hover)]"
                 >
-                  {t(labelKey)}
+                  {typeLabel(value, t)}
                 </button>
               </li>
             ))}
@@ -144,6 +135,7 @@ export function ApproveAgentDialog({
   onCancel,
 }: ApproveAgentDialogProps) {
   const { t } = useTranslation()
+  const agentTypes = useAgentTypes()
   const nameRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState('')
   const [nameError, setNameError] = useState(false)
@@ -153,6 +145,8 @@ export function ApproveAgentDialog({
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_AGENT_COLOR)
 
   if (!open) return null
+
+  const typeValues = agentTypes.data ?? []
 
   const handleConfirm = () => {
     if (!name.trim()) {
@@ -211,8 +205,9 @@ export function ApproveAgentDialog({
           </FieldFeedback>
         </div>
 
-        {/* Type — combobox: predefined suggestions + free-form input */}
+        {/* Type — combobox: suggestions from API + free-form input */}
         <AgentTypeCombobox
+          typeValues={typeValues}
           inputValue={typeInput}
           disabled={isPending}
           onInputChange={(text) => { setTypeInput(text); setTypeValue(text) }}

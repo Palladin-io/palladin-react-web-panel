@@ -41,6 +41,23 @@ export type AgentType =
   | typeof AGENT_TYPE_ROO
   | typeof AGENT_TYPE_OTHER
 
+/** Predefined built-in types — used as placeholder data before API responds. */
+export const BUILTIN_AGENT_TYPES: string[] = [
+  AGENT_TYPE_AIDER,
+  AGENT_TYPE_CLAUDE_CODE,
+  AGENT_TYPE_CLINE,
+  AGENT_TYPE_CODEX,
+  AGENT_TYPE_COPILOT,
+  AGENT_TYPE_CURSOR,
+  AGENT_TYPE_DEVIN,
+  AGENT_TYPE_GEMINI,
+  AGENT_TYPE_HERMES,
+  AGENT_TYPE_KIMI_CODE,
+  AGENT_TYPE_OPEN_CLAW,
+  AGENT_TYPE_ROO,
+  AGENT_TYPE_OTHER,
+]
+
 /**
  * Zod schema for a single agent — the single source of truth for the
  * `Agent` type. Parsing at the API boundary guards the UI against a
@@ -77,6 +94,11 @@ export interface ApproveAgentInput {
   type?: AgentType
   iconKey?: string
   iconColor?: string
+}
+
+export async function getAgentTypes(): Promise<string[]> {
+  const raw = await api.get('api/agents/types').json()
+  return z.array(z.string()).parse(raw)
 }
 
 export async function getAgents(): Promise<Agent[]> {
