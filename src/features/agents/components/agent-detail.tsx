@@ -26,15 +26,30 @@ import {
 import { AgentStatusBadge } from './agent-list-panel'
 import { ApproveAgentDialog } from './approve-agent-dialog'
 
+// ---------------------------------------------------------------------------
+// Tab types
+// ---------------------------------------------------------------------------
+
+type AgentDetailTab = 'details' | 'grants' | 'logs'
+
+const AGENT_TABS: { id: AgentDetailTab; labelKey: string; requiresActive?: boolean }[] = [
+  { id: 'details', labelKey: 'agents.tabDetails' },
+  { id: 'grants', labelKey: 'agents.tabGrants', requiresActive: true },
+  { id: 'logs', labelKey: 'agents.tabLogs' },
+]
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
 export interface AgentDetailProps {
   agent: Agent
 }
 
 /**
- * Right-side detail panel of the Agents split view. Renders a hero card
- * with the agent identity, its metadata, and a status-specific action
- * zone: approve (pending), deactivate (active) or reactivate
- * (deactivated). The name/description can be edited inline.
+ * Right-side detail panel of the Agents split view. Shows a hero card with
+ * agent identity and a tab bar: Details (metadata + action zone), Grants
+ * (disabled for non-active agents), Logs (lifecycle timeline).
  */
 export function AgentDetail({ agent }: AgentDetailProps) {
   const { t } = useTranslation()
@@ -42,11 +57,13 @@ export function AgentDetail({ agent }: AgentDetailProps) {
   const deactivate = useDeactivateAgent()
   const reactivate = useReactivateAgent()
 
+  const [activeTab, setActiveTab] = useState<AgentDetailTab>('details')
   const [isEditing, setIsEditing] = useState(false)
   const [approveOpen, setApproveOpen] = useState(false)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
 
   const name = agentDisplayName(agent, t('agents.unnamed'))
+  const isAgentActive = agent.status === AGENT_STATUS_ACTIVE
 
   const handleConfirmApprove = (input: {
     name?: string
@@ -95,7 +112,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
 
   return (
     <>
-      {/* Hero card */}
+      {/* Hero card — always visible, shows identity */}
       <div
         className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
           dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
@@ -129,10 +146,8 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                 {t(agentTypeLabelKey(agent.type))}
               </span>
             ) : null}
-            {agent.description ? (
-              <p className="mt-1 text-[12px] text-[var(--cv-t3)]">
-                {agent.description}
-              </p>
+            {!isEditing && agent.description ? (
+              <p className="mt-1 text-[12px] text-[var(--cv-t3)]">{agent.description}</p>
             ) : null}
           </div>
         </div>
@@ -145,106 +160,152 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               onCancel={() => setIsEditing(false)}
             />
           </div>
-        ) : (
-          <dl className="mt-5 flex flex-col gap-3 border-t border-[var(--cv-divider)] pt-4">
-            <DetailRow
-              label={t('agents.publicKey')}
-              value={formatPublicKey(agent)}
-              mono
-            />
-            <DetailRow
-              label={t('agents.connectedOn')}
-              value={formatAgentDateTime(agent.createdAt)}
-            />
-            {agent.enrolledAt ? (
-              <DetailRow
-                label={t('agents.enrolled')}
-                value={`${formatAgentDateTime(agent.enrolledAt)}${
-                  agent.enrolledByName ? ` · ${agent.enrolledByName}` : ''
-                }`}
-              />
-            ) : null}
-            {agent.deactivatedAt ? (
-              <DetailRow
-                label={t('agents.deactivatedOn')}
-                value={`${formatAgentDateTime(agent.deactivatedAt)}${
-                  agent.deactivatedByName ? ` · ${agent.deactivatedByName}` : ''
-                }`}
-              />
-            ) : null}
-          </dl>
-        )}
+        ) : null}
       </div>
 
-      {/* Pending — approve zone */}
-      {agent.status === AGENT_STATUS_PENDING ? (
-        <ActionZone
-          tone="positive"
-          title={t('agents.approveZone')}
-          heading={t('agents.approve')}
-          hint={t('agents.approveHint')}
-          action={
+      {/* Tab bar */}
+      <div
+        className="flex border-b border-[var(--cv-divider)]"
+        role="tablist"
+      >
+        {AGENT_TABS.map(({ id, labelKey, requiresActive }) => {
+          const disabled = requiresActive && !isAgentActive
+          const isActive = id === activeTab
+          return (
             <button
+              key={id}
               type="button"
-              onClick={() => setApproveOpen(true)}
-              disabled={approve.isPending}
-              className="flex cursor-pointer items-center gap-1.5 rounded-[7px]
-                border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)]
-                px-3 py-1.5 text-[11px] font-semibold text-[#2EC4B6]
-                transition-colors hover:bg-[rgba(46,196,182,0.12)]
-                disabled:cursor-not-allowed disabled:opacity-40"
+              role="tab"
+              aria-selected={isActive}
+              disabled={disabled}
+              onClick={() => setActiveTab(id)}
+              className={`-mb-px border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
+                disabled
+                  ? 'cursor-not-allowed border-transparent font-medium text-[var(--cv-t3)] opacity-35'
+                  : isActive
+                    ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
+                    : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
+              }`}
             >
-              <Icon name="check_circle" size={13} />
-              {t('agents.approve')}
+              {t(labelKey)}
             </button>
-          }
-        />
-      ) : null}
+          )
+        })}
+      </div>
 
-      {/* Active — danger zone */}
-      {agent.status === AGENT_STATUS_ACTIVE ? (
-        <ActionZone
-          tone="danger"
-          title={t('agents.deactivateZone')}
-          heading={t('agents.deactivate')}
-          hint={t('agents.deactivateHint')}
-          action={
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() => setDeactivateOpen(true)}
-              disabled={deactivate.isPending}
-            >
-              {t('agents.deactivate')}
-            </Button>
-          }
-        />
-      ) : null}
+      {/* Details tab */}
+      {activeTab === 'details' && (
+        <>
+          <div
+            className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
+              dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+          >
+            <dl className="flex flex-col gap-3">
+              <DetailRow
+                label={t('agents.publicKey')}
+                value={formatPublicKey(agent)}
+                mono
+              />
+              <DetailRow
+                label={t('agents.connectedOn')}
+                value={formatAgentDateTime(agent.createdAt)}
+              />
+              {agent.enrolledAt ? (
+                <DetailRow
+                  label={t('agents.enrolled')}
+                  value={`${formatAgentDateTime(agent.enrolledAt)}${
+                    agent.enrolledByName ? ` · ${agent.enrolledByName}` : ''
+                  }`}
+                />
+              ) : null}
+              {agent.deactivatedAt ? (
+                <DetailRow
+                  label={t('agents.deactivatedOn')}
+                  value={`${formatAgentDateTime(agent.deactivatedAt)}${
+                    agent.deactivatedByName ? ` · ${agent.deactivatedByName}` : ''
+                  }`}
+                />
+              ) : null}
+            </dl>
+          </div>
 
-      {/* Deactivated — reactivate zone */}
-      {agent.status === AGENT_STATUS_DEACTIVATED ? (
-        <ActionZone
-          tone="positive"
-          title={t('agents.reactivateZone')}
-          heading={t('agents.reactivate')}
-          hint={t('agents.reactivateHint')}
-          action={
-            <button
-              type="button"
-              onClick={handleReactivate}
-              disabled={reactivate.isPending}
-              className="flex cursor-pointer items-center gap-1.5 rounded-[7px]
-                border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)]
-                px-3 py-1.5 text-[11px] font-semibold text-[#2EC4B6]
-                transition-colors hover:bg-[rgba(46,196,182,0.12)]
-                disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Icon name="replay" size={13} />
-              {reactivate.isPending ? t('agents.reactivating') : t('agents.reactivate')}
-            </button>
-          }
-        />
-      ) : null}
+          {/* Pending — approve zone */}
+          {agent.status === AGENT_STATUS_PENDING ? (
+            <ActionZone
+              tone="positive"
+              title={t('agents.approveZone')}
+              heading={t('agents.approve')}
+              hint={t('agents.approveHint')}
+              action={
+                <button
+                  type="button"
+                  onClick={() => setApproveOpen(true)}
+                  disabled={approve.isPending}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-[7px]
+                    border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)]
+                    px-3 py-1.5 text-[11px] font-semibold text-[#2EC4B6]
+                    transition-colors hover:bg-[rgba(46,196,182,0.12)]
+                    disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Icon name="check_circle" size={13} />
+                  {t('agents.approve')}
+                </button>
+              }
+            />
+          ) : null}
+
+          {/* Active — danger zone */}
+          {agent.status === AGENT_STATUS_ACTIVE ? (
+            <ActionZone
+              tone="danger"
+              title={t('agents.deactivateZone')}
+              heading={t('agents.deactivate')}
+              hint={t('agents.deactivateHint')}
+              action={
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setDeactivateOpen(true)}
+                  disabled={deactivate.isPending}
+                >
+                  {t('agents.deactivate')}
+                </Button>
+              }
+            />
+          ) : null}
+
+          {/* Deactivated — reactivate zone */}
+          {agent.status === AGENT_STATUS_DEACTIVATED ? (
+            <ActionZone
+              tone="positive"
+              title={t('agents.reactivateZone')}
+              heading={t('agents.reactivate')}
+              hint={t('agents.reactivateHint')}
+              action={
+                <button
+                  type="button"
+                  onClick={handleReactivate}
+                  disabled={reactivate.isPending}
+                  className="flex cursor-pointer items-center gap-1.5 rounded-[7px]
+                    border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)]
+                    px-3 py-1.5 text-[11px] font-semibold text-[#2EC4B6]
+                    transition-colors hover:bg-[rgba(46,196,182,0.12)]
+                    disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Icon name="replay" size={13} />
+                  {reactivate.isPending ? t('agents.reactivating') : t('agents.reactivate')}
+                </button>
+              }
+            />
+          ) : null}
+        </>
+      )}
+
+      {/* Grants tab */}
+      {activeTab === 'grants' && <GrantsTabContent />}
+
+      {/* Logs tab */}
+      {activeTab === 'logs' && <LogsTabContent agent={agent} />}
 
       <ApproveAgentDialog
         open={approveOpen}
@@ -265,6 +326,101 @@ export function AgentDetail({ agent }: AgentDetailProps) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Grants tab — empty state (Grants tab is disabled for non-active agents)
+// ---------------------------------------------------------------------------
+
+function GrantsTabContent() {
+  const { t } = useTranslation()
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+      <span
+        className="flex h-12 w-12 items-center justify-center rounded-full
+          bg-[var(--cv-empty-bg)]"
+      >
+        <Icon name="key" size={22} color="var(--cv-t3)" />
+      </span>
+      <p className="text-[13px] font-medium text-[var(--cv-t2)]">
+        {t('agents.grantsEmpty')}
+      </p>
+      <p className="max-w-[240px] text-[11px] text-[var(--cv-t3)]">
+        {t('agents.grantsEmptyHint')}
+      </p>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Logs tab — lifecycle timeline
+// ---------------------------------------------------------------------------
+
+function LogsTabContent({ agent }: { agent: Agent }) {
+  const { t } = useTranslation()
+
+  const events: { labelKey: string; date: string; detail?: string }[] = [
+    {
+      labelKey: 'agents.logsFirstConnected',
+      date: formatAgentDateTime(agent.createdAt),
+    },
+    ...(agent.enrolledAt
+      ? [
+          {
+            labelKey: 'agents.logsEnrolled',
+            date: formatAgentDateTime(agent.enrolledAt),
+            detail: agent.enrolledByName ?? undefined,
+          },
+        ]
+      : []),
+    ...(agent.deactivatedAt
+      ? [
+          {
+            labelKey: 'agents.logsDeactivated',
+            date: formatAgentDateTime(agent.deactivatedAt),
+            detail: agent.deactivatedByName ?? undefined,
+          },
+        ]
+      : []),
+  ]
+
+  return (
+    <div
+      className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
+        dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+    >
+      <ul className="flex flex-col">
+        {events.map(({ labelKey, date, detail }, i) => (
+          <li
+            key={labelKey}
+            className={`flex items-start gap-3 py-3 ${
+              i < events.length - 1 ? 'border-b border-[var(--cv-divider)]' : ''
+            }`}
+          >
+            <span
+              className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center
+                rounded-full bg-[var(--cv-empty-bg)]"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-[var(--cv-t3)]" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[12px] font-medium text-[var(--cv-t1)]">
+                {t(labelKey)}
+              </p>
+              {detail ? (
+                <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">{detail}</p>
+              ) : null}
+            </div>
+            <span className="shrink-0 text-[11px] text-[var(--cv-t3)]">{date}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Shared sub-components
+// ---------------------------------------------------------------------------
+
 interface ActionZoneProps {
   tone: 'positive' | 'danger'
   title: string
@@ -281,7 +437,7 @@ function ActionZone({ tone, title, heading, hint, action }: ActionZoneProps) {
   const titleClass = isPositive ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
 
   return (
-    <section className={`mt-4 rounded-xl border p-4 ${containerClass}`}>
+    <section className={`rounded-xl border p-4 ${containerClass}`}>
       <h2
         className={`text-[11px] font-semibold uppercase tracking-[0.06em] ${titleClass}`}
       >
