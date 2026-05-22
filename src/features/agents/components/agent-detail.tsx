@@ -155,7 +155,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">{name}</h2>
-                    <AgentStatusBadge status={agent.status} />
+                    <span className="ml-auto"><AgentStatusBadge status={agent.status} /></span>
                   </div>
                   {agent.type ? (
                     <span className="mt-1 inline-flex items-center rounded-full bg-[var(--cv-btn-subtle-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--cv-t2)]">
@@ -181,17 +181,19 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">{name}</h2>
-                    <AgentStatusBadge status={agent.status} />
-                    {agent.status !== AGENT_STATUS_PENDING ? (
-                      <button
-                        type="button"
-                        onClick={() => setIsEditing(true)}
-                        aria-label={t('agents.edit')}
-                        className="ml-auto shrink-0 text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
-                      >
-                        <Icon name="edit" size={15} />
-                      </button>
-                    ) : null}
+                    <span className="ml-auto flex items-center gap-2">
+                      <AgentStatusBadge status={agent.status} />
+                      {agent.status !== AGENT_STATUS_PENDING ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsEditing(true)}
+                          aria-label={t('agents.edit')}
+                          className="shrink-0 text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
+                        >
+                          <Icon name="edit" size={15} />
+                        </button>
+                      ) : null}
+                    </span>
                   </div>
                   {agent.type ? (
                     <span className="mt-1 inline-flex items-center rounded-full bg-[var(--cv-btn-subtle-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--cv-t2)]">
