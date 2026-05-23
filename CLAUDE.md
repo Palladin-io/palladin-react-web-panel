@@ -206,6 +206,31 @@ const [nameError, setNameError] = useState(false)
 </FieldFeedback>
 ```
 
+### Inline Edit Pattern (always-visible fields)
+
+Detail panels show fields **always visible** — no pencil/edit mode toggle. Interactivity is gated by a `canEdit` prop derived at the parent level:
+
+```tsx
+// Parent — derive canEdit from permission + resource status
+const canEdit = canManage && resource.status === 'active'
+<ResourceEditForm resource={resource} canEdit={canEdit} />
+```
+
+Inside the form:
+- All fields: `disabled={!canEdit || isPending}`
+- Save button: rendered only when `canEdit`, disabled when `!canSubmit`
+- `canSubmit = canEdit && isDirty && isValid && !isPending`
+- Dirty check: compare `.trim()`-ed field values against the original resource props
+
+**Form state reset on split-view navigation** — reset when the selected entity changes, not on every refetch:
+```tsx
+useEffect(() => {
+  setName(resource.name ?? '')
+  setType(resource.type ?? '')
+  // ...other fields
+}, [resource.resourceId])  // entity ID as dependency, not the full object
+```
+
 ### Shared Form Components
 
 Always use shared components — never inline-style raw `<input>` or `<textarea>`:
