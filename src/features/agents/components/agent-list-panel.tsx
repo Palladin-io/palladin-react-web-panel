@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
+import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
@@ -167,13 +168,17 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
         <ApproveAgentDialog
           open
           agentName={agentDisplayName(approveTarget, t('agents.unnamed'))}
+          initialName={approveTarget.name ?? ''}
           isPending={approve.isPending}
           onConfirm={(input) => {
             approve.mutate(
               { agentId: approveTarget.agentId, input },
               {
                 onSuccess: () => setApproveTarget(null),
-                onError: () => setApproveTarget(null),
+                onError: () => {
+                  toast.error(t('agents.errorApprove'))
+                  setApproveTarget(null)
+                },
               },
             )
           }}

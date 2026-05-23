@@ -218,6 +218,20 @@ Always use shared components — never inline-style raw `<input>` or `<textarea>
 
 All share `text-[12px]`, `border-[var(--cv-input-border)]`, `focus:border-[var(--cv-t1)]`.
 
+#### Raw `<input>` — only for custom composites (combobox, search bar)
+
+When a raw `<input>` is unavoidable (e.g. combobox with `role="combobox"`, search bar with embedded icon), use this exact class string so the styling stays consistent:
+
+```tsx
+className="w-full rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
+  px-3 py-2 text-[12px] text-[var(--cv-input-text)]
+  placeholder:text-[var(--cv-input-placeholder)]
+  focus:border-[var(--cv-t1)] focus:outline-none transition-colors
+  disabled:cursor-not-allowed disabled:opacity-40"
+```
+
+Never add hardcoded hex or rgba colors to an input — always use `var(--cv-*)` tokens.
+
 ### Styling
 - Tailwind utility classes directly on elements
 - Extract repeated patterns into components, not CSS classes

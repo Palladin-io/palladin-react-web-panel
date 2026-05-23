@@ -87,6 +87,7 @@ export type Agent = z.infer<typeof agentSchema>
 export interface UpdateAgentInput {
   name?: string
   description?: string
+  type?: AgentType
 }
 
 export interface ApproveAgentInput {

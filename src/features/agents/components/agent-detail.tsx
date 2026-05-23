@@ -12,6 +12,7 @@ import {
   type Agent,
   type AgentType,
 } from '../api/agents-api'
+import { useAgentPermissions } from '../use-agents'
 import { useApproveAgent } from '../use-approve-agent'
 import { useDeactivateAgent } from '../use-deactivate-agent'
 import { useReactivateAgent } from '../use-reactivate-agent'
@@ -19,7 +20,6 @@ import { AgentAvatar } from './agent-avatar'
 import { AgentEditForm } from './agent-edit-form'
 import {
   agentDisplayName,
-  agentTypeLabelKey,
   formatAgentDateTime,
   formatPublicKey,
 } from './agent-presentation'
@@ -52,17 +52,18 @@ export interface AgentDetailProps {
  */
 export function AgentDetail({ agent }: AgentDetailProps) {
   const { t } = useTranslation()
+  const { canManage } = useAgentPermissions()
   const approve = useApproveAgent()
   const deactivate = useDeactivateAgent()
   const reactivate = useReactivateAgent()
 
   const [activeTab, setActiveTab] = useState<AgentDetailTab>('details')
-  const [isEditing, setIsEditing] = useState(false)
   const [approveOpen, setApproveOpen] = useState(false)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
 
   const name = agentDisplayName(agent, t('agents.unnamed'))
   const isAgentActive = agent.status === AGENT_STATUS_ACTIVE
+  const canEdit = canManage && isAgentActive
 
   const handleConfirmApprove = (input: {
     name?: string
@@ -143,96 +144,53 @@ export function AgentDetail({ agent }: AgentDetailProps) {
       {/* ── Details tab ─────────────────────────────────────────────────── */}
       {activeTab === 'details' ? (
         <>
-          {isEditing ? (
-            <div
-              className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]
-                p-5 dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
-            >
-              {/* Identity header inside card when editing */}
-              <div className="mb-4 flex items-start gap-3 border-b border-[var(--cv-divider)] pb-4">
-                <AgentAvatar agent={agent} size={40} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">{name}</h2>
-                    <span className="ml-auto"><AgentStatusBadge status={agent.status} /></span>
-                  </div>
-                  {agent.type ? (
-                    <span className="mt-1 inline-flex items-center rounded-full bg-[var(--cv-btn-subtle-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--cv-t2)]">
-                      {agentTypeLabelKey(agent.type) ? t(agentTypeLabelKey(agent.type)!) : agent.type}
-                    </span>
-                  ) : null}
+          <div
+            className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]
+              p-5 dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+          >
+            {/* Identity header */}
+            <div className="mb-4 flex items-start gap-3 border-b border-[var(--cv-divider)] pb-4">
+              <AgentAvatar agent={agent} size={40} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">{name}</h2>
+                  <span className="ml-auto"><AgentStatusBadge status={agent.status} /></span>
                 </div>
               </div>
-              <AgentEditForm
-                agent={agent}
-                onSaved={() => setIsEditing(false)}
-                onCancel={() => setIsEditing(false)}
+            </div>
+
+            {/* Editable fields — always visible, disabled when not eligible */}
+            <AgentEditForm agent={agent} canEdit={canEdit} />
+
+            {/* Read-only metadata */}
+            <dl className="mt-4 flex flex-col gap-3 border-t border-[var(--cv-divider)] pt-4">
+              <DetailRow
+                label={t('agents.publicKey')}
+                value={formatPublicKey(agent)}
+                mono
               />
-            </div>
-          ) : (
-            <div
-              className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]
-                p-5 dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
-            >
-              {/* Identity header inside card */}
-              <div className="mb-4 flex items-start gap-3 border-b border-[var(--cv-divider)] pb-4">
-                <AgentAvatar agent={agent} size={40} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">{name}</h2>
-                    <span className="ml-auto flex items-center gap-2">
-                      <AgentStatusBadge status={agent.status} />
-                      {agent.status !== AGENT_STATUS_PENDING ? (
-                        <button
-                          type="button"
-                          onClick={() => setIsEditing(true)}
-                          aria-label={t('agents.edit')}
-                          className="shrink-0 text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
-                        >
-                          <Icon name="edit" size={15} />
-                        </button>
-                      ) : null}
-                    </span>
-                  </div>
-                  {agent.type ? (
-                    <span className="mt-1 inline-flex items-center rounded-full bg-[var(--cv-btn-subtle-bg)] px-2 py-0.5 text-[10px] font-semibold text-[var(--cv-t2)]">
-                      {agentTypeLabelKey(agent.type) ? t(agentTypeLabelKey(agent.type)!) : agent.type}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-              <dl className="flex flex-col gap-3">
-                {agent.description ? (
-                  <DetailRow label={t('agents.description')} value={agent.description} />
-                ) : null}
+              <DetailRow
+                label={t('agents.connectedOn')}
+                value={formatAgentDateTime(agent.createdAt)}
+              />
+              {agent.enrolledAt ? (
                 <DetailRow
-                  label={t('agents.publicKey')}
-                  value={formatPublicKey(agent)}
-                  mono
+                  label={t('agents.enrolled')}
+                  value={`${formatAgentDateTime(agent.enrolledAt)}${
+                    agent.enrolledByName ? ` · ${agent.enrolledByName}` : ''
+                  }`}
                 />
+              ) : null}
+              {agent.deactivatedAt ? (
                 <DetailRow
-                  label={t('agents.connectedOn')}
-                  value={formatAgentDateTime(agent.createdAt)}
+                  label={t('agents.deactivatedOn')}
+                  value={`${formatAgentDateTime(agent.deactivatedAt)}${
+                    agent.deactivatedByName ? ` · ${agent.deactivatedByName}` : ''
+                  }`}
                 />
-                {agent.enrolledAt ? (
-                  <DetailRow
-                    label={t('agents.enrolled')}
-                    value={`${formatAgentDateTime(agent.enrolledAt)}${
-                      agent.enrolledByName ? ` · ${agent.enrolledByName}` : ''
-                    }`}
-                  />
-                ) : null}
-                {agent.deactivatedAt ? (
-                  <DetailRow
-                    label={t('agents.deactivatedOn')}
-                    value={`${formatAgentDateTime(agent.deactivatedAt)}${
-                      agent.deactivatedByName ? ` · ${agent.deactivatedByName}` : ''
-                    }`}
-                  />
-                ) : null}
-              </dl>
-            </div>
-          )}
+              ) : null}
+            </dl>
+          </div>
 
           {/* Action zones */}
           <div className="mt-3.5 flex flex-col gap-3">

@@ -1,7 +1,6 @@
-import { useRef, useState, useId } from 'react'
+import { useState, useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
-import { FieldFeedback } from '../../../shared/components/form-field'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { BUILTIN_AGENT_TYPES, type AgentType } from '../api/agents-api'
@@ -139,9 +138,7 @@ export function ApproveAgentDialog({
 }: ApproveAgentDialogProps) {
   const { t } = useTranslation()
   const agentTypes = useAgentTypes()
-  const nameRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState(initialName)
-  const [nameError, setNameError] = useState(false)
   const [typeInput, setTypeInput] = useState('')
   const [typeValue, setTypeValue] = useState('')
   const [selectedIcon, setSelectedIcon] = useState<string | undefined>(undefined)
@@ -152,13 +149,8 @@ export function ApproveAgentDialog({
   const typeValues = agentTypes.data ?? BUILTIN_AGENT_TYPES
 
   const handleConfirm = () => {
-    if (!name.trim()) {
-      setNameError(true)
-      nameRef.current?.focus()
-      return
-    }
     onConfirm({
-      name: name.trim(),
+      name: name.trim() || undefined,
       type: (typeValue.trim() as AgentType) || undefined,
       iconKey: selectedIcon,
       iconColor: selectedIcon ? selectedColor : undefined,
@@ -181,8 +173,8 @@ export function ApproveAgentDialog({
           </p>
         </div>
 
-        {/* Name — required */}
-        <div className="-mb-3">
+        {/* Name */}
+        <div>
           <label
             htmlFor="approve-agent-name"
             className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
@@ -190,22 +182,17 @@ export function ApproveAgentDialog({
             {t('agents.agentName')}
           </label>
           <input
-            ref={nameRef}
             id="approve-agent-name"
             value={name}
-            onChange={(e) => { setName(e.target.value); setNameError(false) }}
+            onChange={(e) => setName(e.target.value)}
             disabled={isPending}
-            className={`w-full rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2 text-[12px]
-              text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)]
-              focus:outline-none transition-colors
-              ${nameError
-                ? 'border-[#FF4F4F] focus:border-[#FF4F4F]'
-                : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
-              } disabled:cursor-not-allowed disabled:opacity-40`}
+            placeholder={t('agents.agentNamePlaceholder')}
+            className="w-full rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
+              px-3 py-2 text-[12px] text-[var(--cv-input-text)]
+              placeholder:text-[var(--cv-input-placeholder)]
+              focus:border-[var(--cv-t1)] focus:outline-none transition-colors
+              disabled:cursor-not-allowed disabled:opacity-40"
           />
-          <FieldFeedback visible={nameError} color="red">
-            {t('agents.typeNameError')}
-          </FieldFeedback>
         </div>
 
         {/* Type — combobox: suggestions from API + free-form input */}

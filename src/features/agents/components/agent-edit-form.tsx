@@ -1,51 +1,68 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
+import { Icon } from '../../../shared/components/icon'
 import { analytics } from '../../../shared/lib/analytics'
-import type { Agent } from '../api/agents-api'
+import { BUILTIN_AGENT_TYPES, type Agent, type AgentType } from '../api/agents-api'
+import { useAgentTypes } from '../use-agent-types'
 import { useUpdateAgent } from '../use-update-agent'
+import { agentTypeLabelKey } from './agent-presentation'
 
 export interface AgentEditFormProps {
   agent: Agent
-  /** Called after a successful save so the parent can leave edit mode. */
-  onSaved: () => void
-  /** Called when the user discards edits. */
-  onCancel: () => void
+  /** When false all fields render as disabled and the Save button is hidden. */
+  canEdit: boolean
 }
 
-/**
- * Inline editor for an agent's display name and description. Sits inside
- * the detail panel; on save it PATCHes the agent and hands control back
- * to the parent via `onSaved`.
- */
-export function AgentEditForm({ agent, onSaved, onCancel }: AgentEditFormProps) {
+export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
   const { t } = useTranslation()
   const update = useUpdateAgent()
+  const agentTypes = useAgentTypes()
+  const typeValues = agentTypes.data ?? BUILTIN_AGENT_TYPES
 
   const [name, setName] = useState(agent.name ?? '')
+  const [type, setType] = useState(agent.type ?? '')
   const [description, setDescription] = useState(agent.description ?? '')
 
+  // Reset when navigating to a different agent
+  useEffect(() => {
+    setName(agent.name ?? '')
+    setType(agent.type ?? '')
+    setDescription(agent.description ?? '')
+  }, [agent.agentId])
+
   const isPending = update.isPending
+  const isDisabled = !canEdit || isPending
+
   const trimmedName = name.trim()
   const trimmedDescription = description.trim()
-  const canSubmit = trimmedName.length > 0 && !isPending
+  const isDirty =
+    trimmedName !== (agent.name?.trim() ?? '') ||
+    type !== (agent.type ?? '') ||
+    trimmedDescription !== (agent.description?.trim() ?? '')
+  const canSubmit = canEdit && isDirty && trimmedName.length > 0 && !isPending
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
     if (!canSubmit) return
 
+    const input: { name: string; description: string; type?: AgentType } = {
+      name: trimmedName,
+      description: trimmedDescription,
+    }
+    if (type !== (agent.type ?? '')) {
+      input.type = (type as AgentType) || undefined
+    }
+
     update.mutate(
-      {
-        agentId: agent.agentId,
-        input: { name: trimmedName, description: trimmedDescription },
-      },
+      { agentId: agent.agentId, input },
       {
         onSuccess: () => {
           analytics.capture('agents', 'agent-updated')
-          onSaved()
+          toast.success(t('agents.editSaved'))
         },
         onError: () => {
           toast.error(t('agents.errorUpdate'))
@@ -61,40 +78,64 @@ export function AgentEditForm({ agent, onSaved, onCancel }: AgentEditFormProps) 
         label={t('agents.editName')}
         value={name}
         onChange={(e) => setName(e.target.value)}
-        autoFocus
-        disabled={isPending}
+        disabled={isDisabled}
         maxLength={64}
       />
+
+      <div>
+        <label
+          htmlFor="agent-type"
+          className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
+        >
+          {t('agents.agentType')}
+        </label>
+        <div className="relative">
+          <select
+            id="agent-type"
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            disabled={isDisabled}
+            className="w-full appearance-none rounded-lg border border-[var(--cv-input-border)]
+              bg-[var(--cv-input-bg)] pl-3 pr-10 py-2 text-[12px] text-[var(--cv-input-text)]
+              focus:border-[var(--cv-t1)] focus:outline-none transition-colors
+              disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <option value="">{t('agents.typePlaceholder')}</option>
+            {typeValues.map((v) => (
+              <option key={v} value={v}>
+                {agentTypeLabelKey(v) ? t(agentTypeLabelKey(v)!) : v}
+              </option>
+            ))}
+          </select>
+          <Icon
+            name="expand_more"
+            size={16}
+            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--cv-t3)]"
+          />
+        </div>
+      </div>
+
       <FormTextarea
         id="agent-description"
         label={t('agents.editDescription')}
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        disabled={isPending}
+        disabled={isDisabled}
         maxLength={280}
         rows={3}
       />
 
-      <div className="mt-1 flex items-center gap-2">
-        <Button
-          variant="subtle"
-          size="sm"
-          onClick={onCancel}
-          disabled={isPending}
-          className="flex-1"
-        >
-          {t('agents.cancel')}
-        </Button>
+      {canEdit ? (
         <Button
           variant="accent"
           size="sm"
           type="submit"
           disabled={!canSubmit}
-          className="flex-[2]"
+          className="self-end"
         >
           {isPending ? t('agents.saving') : t('agents.editSave')}
         </Button>
-      </div>
+      ) : null}
     </form>
   )
 }
