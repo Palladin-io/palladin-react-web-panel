@@ -4,14 +4,13 @@ import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
-import { Icon } from '../../../shared/components/icon'
 import { analytics } from '../../../shared/lib/analytics'
 import { BUILTIN_AGENT_TYPES, type Agent, type AgentType } from '../api/agents-api'
 import { useAgentTypes } from '../use-agent-types'
 import { useAgentIconUpload } from '../use-agent-icon-upload'
 import { useUpdateAgent } from '../use-update-agent'
 import { AgentIconPicker, DEFAULT_AGENT_COLOR } from './agent-icon-picker'
-import { agentTypeLabelKey } from './agent-presentation'
+import { AgentTypeCombobox, typeLabel } from './agent-type-combobox'
 
 export interface AgentEditFormProps {
   agent: Agent
@@ -27,7 +26,10 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
   const typeValues = agentTypes.data ?? BUILTIN_AGENT_TYPES
 
   const [name, setName] = useState(agent.name ?? '')
-  const [type, setType] = useState(agent.type ?? '')
+  const [typeValue, setTypeValue] = useState(agent.type ?? '')
+  const [typeInput, setTypeInput] = useState(
+    agent.type ? typeLabel(agent.type, t) : '',
+  )
   const [description, setDescription] = useState(agent.description ?? '')
   const [selectedIcon, setSelectedIcon] = useState<string | undefined>(
     agent.iconKey ?? undefined,
@@ -40,7 +42,8 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
   // Reset when navigating to a different agent
   useEffect(() => {
     setName(agent.name ?? '')
-    setType(agent.type ?? '')
+    setTypeValue(agent.type ?? '')
+    setTypeInput(agent.type ? typeLabel(agent.type, t) : '')
     setDescription(agent.description ?? '')
     setSelectedIcon(agent.iconKey ?? undefined)
     setSelectedColor(agent.iconColor ?? DEFAULT_AGENT_COLOR)
@@ -49,7 +52,8 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
 
   const resetForm = () => {
     setName(agent.name ?? '')
-    setType(agent.type ?? '')
+    setTypeValue(agent.type ?? '')
+    setTypeInput(agent.type ? typeLabel(agent.type, t) : '')
     setDescription(agent.description ?? '')
     setSelectedIcon(agent.iconKey ?? undefined)
     setSelectedColor(agent.iconColor ?? DEFAULT_AGENT_COLOR)
@@ -67,7 +71,7 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
     selectedColor !== (agent.iconColor ?? DEFAULT_AGENT_COLOR)
   const isDirty =
     trimmedName !== (agent.name?.trim() ?? '') ||
-    type !== (agent.type ?? '') ||
+    typeValue !== (agent.type ?? '') ||
     trimmedDescription !== (agent.description?.trim() ?? '') ||
     iconChanged
   const canSubmit = canEdit && isDirty && trimmedName.length > 0 && !isPending
@@ -98,8 +102,8 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
       name: trimmedName,
       description: trimmedDescription,
     }
-    if (type !== (agent.type ?? '')) {
-      input.type = (type as AgentType) || undefined
+    if (typeValue !== (agent.type ?? '')) {
+      input.type = (typeValue as AgentType) || undefined
     }
     // Only include icon fields when the picker (preset or browser) changed.
     // The upload hook already PATCH'd iconKey when pendingFile was set.
@@ -139,38 +143,13 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
             maxLength={64}
           />
 
-          <div>
-            <label
-              htmlFor="agent-type"
-              className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-            >
-              {t('agents.agentType')}
-            </label>
-            <div className="relative">
-              <select
-                id="agent-type"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                disabled={isDisabled}
-                className="w-full appearance-none rounded-lg border border-[var(--cv-input-border)]
-                  bg-[var(--cv-input-bg)] pl-3 pr-10 py-2 text-[12px] text-[var(--cv-input-text)]
-                  focus:border-[var(--cv-t1)] focus:outline-none transition-colors
-                  disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <option value="">{t('agents.typePlaceholder')}</option>
-                {typeValues.map((v) => (
-                  <option key={v} value={v}>
-                    {agentTypeLabelKey(v) ? t(agentTypeLabelKey(v)!) : v}
-                  </option>
-                ))}
-              </select>
-              <Icon
-                name="expand_more"
-                size={16}
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--cv-t3)]"
-              />
-            </div>
-          </div>
+          <AgentTypeCombobox
+            typeValues={typeValues}
+            inputValue={typeInput}
+            disabled={isDisabled}
+            onInputChange={(text) => { setTypeInput(text); setTypeValue(text) }}
+            onSelect={(value, label) => { setTypeValue(value); setTypeInput(label) }}
+          />
 
           <FormTextarea
             id="agent-description"
