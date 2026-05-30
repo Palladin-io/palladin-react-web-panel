@@ -50,6 +50,18 @@ export const AGENT_ICON_COLORS: Record<string, string> = {
   developer_mode: '#2EC4B6',
 }
 
+/**
+ * True when `iconKey` is an uploaded custom icon (S3/`blob:` URL) rather
+ * than a Material Symbols glyph name. Callers must render an `<img>` for
+ * custom URLs — feeding a URL to the ligature font renders it as raw text.
+ */
+export function isCustomAgentIcon(value: string | null | undefined): value is string {
+  return (
+    typeof value === 'string' &&
+    (value.startsWith('https://') || value.startsWith('blob:'))
+  )
+}
+
 /** Full browsable icon set (shown in the icon browser modal). */
 export const AGENT_ICON_ALL = [
   'smart_toy', 'memory', 'hub', 'token', 'terminal', 'psychology', 'auto_mode', 'support_agent', 'dns',

@@ -5,6 +5,7 @@ import { Button } from '../../../shared/components/button'
 import { FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { analytics } from '../../../shared/lib/analytics'
+import { firstError, required } from '../../../shared/lib/validation'
 import { BUILTIN_AGENT_TYPES, type Agent, type AgentType } from '../api/agents-api'
 import { useAgentTypes } from '../use-agent-types'
 import { useAgentIconUpload } from '../use-agent-icon-upload'
@@ -67,7 +68,8 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
     typeValue !== (agent.type ?? '') ||
     trimmedDescription !== (agent.description?.trim() ?? '') ||
     iconChanged
-  const canSubmit = canEdit && isDirty && trimmedName.length > 0 && !isPending
+  const isNameValid = firstError(name, [required(t('validation.required'))]) === null
+  const canSubmit = canEdit && isDirty && isNameValid && !isPending
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()

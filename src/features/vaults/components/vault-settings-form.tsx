@@ -6,6 +6,7 @@ import { Button } from '../../../shared/components/button'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { analytics } from '../../../shared/lib/analytics'
+import { firstError, required } from '../../../shared/lib/validation'
 import { DeleteConfirmDialog } from './delete-confirm-dialog'
 import { VaultIconPicker } from './vault-icon-picker'
 import {
@@ -58,7 +59,7 @@ export function VaultSettingsForm({
     event.preventDefault()
 
     const trimmedName = name.trim()
-    if (trimmedName.length === 0) {
+    if (firstError(name, [required(t('validation.required'))]) !== null) {
       setNameError(true)
       return
     }
@@ -121,7 +122,11 @@ export function VaultSettingsForm({
                 label={t('vault.nameLabel')}
                 value={name}
                 onChange={(e) => { setName(e.target.value); setNameError(false) }}
-                onBlur={() => setNameError(name.trim().length === 0)}
+                onBlur={() =>
+                  setNameError(
+                    firstError(name, [required(t('validation.required'))]) !== null,
+                  )
+                }
                 placeholder={t('vault.namePlaceholder')}
                 disabled={isPending}
                 maxLength={64}

@@ -1,6 +1,10 @@
 import { Icon } from '../../../shared/components/icon'
 import type { Agent } from '../api/agents-api'
-import { agentAvatarColor, agentInitials } from './agent-presentation'
+import {
+  agentAvatarColor,
+  agentInitials,
+  isCustomAgentIcon,
+} from './agent-presentation'
 
 export interface AgentAvatarProps {
   agent: Pick<Agent, 'name' | 'agentId' | 'iconKey'>
@@ -20,7 +24,15 @@ export function AgentAvatar({ agent, size = 32 }: AgentAvatarProps) {
   const glyphSize = Math.round(size * 0.55)
 
   let content
-  if (agent.iconKey) {
+  if (isCustomAgentIcon(agent.iconKey)) {
+    content = (
+      <img
+        src={agent.iconKey}
+        alt=""
+        className="h-full w-full rounded-full object-cover"
+      />
+    )
+  } else if (agent.iconKey) {
     content = <Icon name={agent.iconKey} size={glyphSize} color={color} />
   } else if (initials) {
     content = initials

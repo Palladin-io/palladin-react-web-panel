@@ -85,6 +85,11 @@ const agentSchema = z.object({
 
 const agentListSchema = z.object({ items: z.array(agentSchema) })
 
+const presignIconSchema = z.object({
+  uploadUrl: z.string(),
+  publicUrl: z.string(),
+})
+
 export type Agent = z.infer<typeof agentSchema>
 
 export interface UpdateAgentInput {
@@ -146,5 +151,5 @@ export async function presignAgentIcon(
   const raw = await api
     .post(`api/agents/${agentId}/icon/presign`, { json: { agentId, extension } })
     .json()
-  return raw as { uploadUrl: string; publicUrl: string }
+  return presignIconSchema.parse(raw)
 }

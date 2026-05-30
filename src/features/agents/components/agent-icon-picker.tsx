@@ -9,6 +9,7 @@ import {
   AGENT_ICON_ALL,
   AGENT_ICON_COLORS,
   AGENT_ICON_OPTIONS,
+  isCustomAgentIcon,
 } from './agent-presentation'
 
 const COLOR_OPTIONS = [
@@ -40,12 +41,11 @@ export function AgentIconPicker({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showBrowser, setShowBrowser] = useState(false)
 
-  const isCustomUrl =
-    typeof value === 'string' &&
-    (value.startsWith('https://') || value.startsWith('blob:'))
+  const isCustomUrl: boolean = isCustomAgentIcon(value)
 
   const presets = AGENT_ICON_OPTIONS as readonly string[]
-  const isFromBrowser = !isCustomUrl && value !== undefined && !presets.includes(value)
+  const isFromBrowser =
+    value !== undefined && !isCustomUrl && !presets.includes(value)
   const visiblePresets = isFromBrowser ? presets.slice(0, presets.length - 1) : presets
 
   return (
@@ -77,6 +77,21 @@ export function AgentIconPicker({
             </button>
           )
         })}
+
+        {isCustomUrl && value !== undefined && (
+          <button
+            type="button"
+            disabled={disabled}
+            aria-pressed
+            aria-label={t('agents.agentIcon')}
+            className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden
+              rounded-xl transition-transform hover:scale-105
+              disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ border: `2px solid ${selectedColor}` }}
+          >
+            <img src={value} alt="" className="h-full w-full rounded-lg object-cover" />
+          </button>
+        )}
 
         {isFromBrowser && value !== undefined && (
           <button

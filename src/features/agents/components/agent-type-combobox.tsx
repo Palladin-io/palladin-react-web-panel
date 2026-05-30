@@ -25,6 +25,7 @@ export function AgentTypeCombobox({
 }: AgentTypeComboboxProps) {
   const { t } = useTranslation()
   const listId = useId()
+  const inputId = useId()
   const [open, setOpen] = useState(false)
 
   const filtered = inputValue.trim()
@@ -36,14 +37,14 @@ export function AgentTypeCombobox({
   return (
     <div>
       <label
-        htmlFor="agent-type-combobox"
+        htmlFor={inputId}
         className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
       >
         {t('agents.agentType')}
       </label>
       <div className="relative">
         <input
-          id="agent-type-combobox"
+          id={inputId}
           role="combobox"
           aria-autocomplete="list"
           aria-expanded={open}
