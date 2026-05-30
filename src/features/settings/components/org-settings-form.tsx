@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { analytics } from '../../../shared/lib/analytics'
+import { firstError, required } from '../../../shared/lib/validation'
 import type { Organization } from '../api/org-api'
 import { useUpdateOrg } from '../use-update-org'
 
@@ -29,7 +30,7 @@ export function OrgSettingsForm({ org }: OrgSettingsFormProps) {
     event.preventDefault()
 
     const trimmedName = name.trim()
-    if (trimmedName.length === 0) {
+    if (firstError(name, [required(t('validation.required'))]) !== null) {
       setNameError(true)
       return
     }
@@ -68,7 +69,11 @@ export function OrgSettingsForm({ org }: OrgSettingsFormProps) {
             label={t('settings.org.nameLabel')}
             value={name}
             onChange={(e) => { setName(e.target.value); setNameError(false) }}
-            onBlur={() => setNameError(name.trim().length === 0)}
+            onBlur={() =>
+              setNameError(
+                firstError(name, [required(t('validation.required'))]) !== null,
+              )
+            }
             placeholder={t('settings.org.namePlaceholder')}
             disabled={isPending}
             maxLength={80}
