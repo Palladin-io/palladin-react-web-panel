@@ -47,6 +47,15 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
     setPendingFile(null)
   }, [agent.agentId])
 
+  const resetForm = () => {
+    setName(agent.name ?? '')
+    setType(agent.type ?? '')
+    setDescription(agent.description ?? '')
+    setSelectedIcon(agent.iconKey ?? undefined)
+    setSelectedColor(agent.iconColor ?? DEFAULT_AGENT_COLOR)
+    setPendingFile(null)
+  }
+
   const isPending = update.isPending || iconUpload.isUploading
   const isDisabled = !canEdit || isPending
 
@@ -118,81 +127,93 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
   }
 
   return (
-    <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
-      <FormInput
-        id="agent-name"
-        label={t('agents.editName')}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        disabled={isDisabled}
-        maxLength={64}
-      />
-
-      <div>
-        <label
-          htmlFor="agent-type"
-          className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-        >
-          {t('agents.agentType')}
-        </label>
-        <div className="relative">
-          <select
-            id="agent-type"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
+    <form onSubmit={handleSubmit}>
+      <div className="flex gap-5 items-start">
+        <div className="flex-1 flex flex-col gap-4 min-w-0">
+          <FormInput
+            id="agent-name"
+            label={t('agents.editName')}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             disabled={isDisabled}
-            className="w-full appearance-none rounded-lg border border-[var(--cv-input-border)]
-              bg-[var(--cv-input-bg)] pl-3 pr-10 py-2 text-[12px] text-[var(--cv-input-text)]
-              focus:border-[var(--cv-t1)] focus:outline-none transition-colors
-              disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <option value="">{t('agents.typePlaceholder')}</option>
-            {typeValues.map((v) => (
-              <option key={v} value={v}>
-                {agentTypeLabelKey(v) ? t(agentTypeLabelKey(v)!) : v}
-              </option>
-            ))}
-          </select>
-          <Icon
-            name="expand_more"
-            size={16}
-            className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--cv-t3)]"
+            maxLength={64}
+          />
+
+          <div>
+            <label
+              htmlFor="agent-type"
+              className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
+            >
+              {t('agents.agentType')}
+            </label>
+            <div className="relative">
+              <select
+                id="agent-type"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+                disabled={isDisabled}
+                className="w-full appearance-none rounded-lg border border-[var(--cv-input-border)]
+                  bg-[var(--cv-input-bg)] pl-3 pr-10 py-2 text-[12px] text-[var(--cv-input-text)]
+                  focus:border-[var(--cv-t1)] focus:outline-none transition-colors
+                  disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <option value="">{t('agents.typePlaceholder')}</option>
+                {typeValues.map((v) => (
+                  <option key={v} value={v}>
+                    {agentTypeLabelKey(v) ? t(agentTypeLabelKey(v)!) : v}
+                  </option>
+                ))}
+              </select>
+              <Icon
+                name="expand_more"
+                size={16}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--cv-t3)]"
+              />
+            </div>
+          </div>
+
+          <FormTextarea
+            id="agent-description"
+            label={t('agents.editDescription')}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            disabled={isDisabled}
+            maxLength={280}
+            rows={3}
+          />
+        </div>
+
+        <div className="w-60 shrink-0 flex flex-col gap-4">
+          <AgentIconPicker
+            value={selectedIcon}
+            onChange={setSelectedIcon}
+            selectedColor={selectedColor}
+            onColorChange={setSelectedColor}
+            onFileSelected={(file, previewUrl) => {
+              setPendingFile(file)
+              setSelectedIcon(previewUrl)
+            }}
+            disabled={isDisabled}
+            rowClassName="grid grid-cols-5 gap-1.5 justify-items-center"
           />
         </div>
       </div>
 
-      <AgentIconPicker
-        value={selectedIcon}
-        onChange={setSelectedIcon}
-        selectedColor={selectedColor}
-        onColorChange={setSelectedColor}
-        onFileSelected={(file, previewUrl) => {
-          setPendingFile(file)
-          setSelectedIcon(previewUrl)
-        }}
-        disabled={isDisabled}
-      />
-
-      <FormTextarea
-        id="agent-description"
-        label={t('agents.editDescription')}
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        disabled={isDisabled}
-        maxLength={280}
-        rows={3}
-      />
-
       {canEdit ? (
-        <Button
-          variant="accent"
-          size="sm"
-          type="submit"
-          disabled={!canSubmit}
-          className="self-end"
-        >
-          {isPending ? t('agents.saving') : t('agents.editSave')}
-        </Button>
+        <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
+          <Button
+            variant="subtle"
+            size="sm"
+            type="button"
+            onClick={resetForm}
+            disabled={isPending}
+          >
+            {t('agents.cancel')}
+          </Button>
+          <Button variant="accent" size="sm" type="submit" disabled={!canSubmit}>
+            {isPending ? t('agents.saving') : t('agents.editSave')}
+          </Button>
+        </div>
       ) : null}
     </form>
   )

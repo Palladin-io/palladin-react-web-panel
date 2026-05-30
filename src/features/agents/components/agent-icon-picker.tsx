@@ -23,6 +23,7 @@ export interface AgentIconPickerProps {
   onColorChange?: (color: string) => void
   onFileSelected?: (file: File, previewUrl: string) => void
   disabled?: boolean
+  rowClassName?: string
 }
 
 export function AgentIconPicker({
@@ -32,6 +33,7 @@ export function AgentIconPicker({
   onColorChange,
   onFileSelected,
   disabled = false,
+  rowClassName = 'grid grid-cols-8 gap-2',
 }: AgentIconPickerProps) {
   const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -50,7 +52,7 @@ export function AgentIconPicker({
       <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
         {t('agents.agentIcon')}
       </legend>
-      <div className="grid grid-cols-8 gap-2">
+      <div className={rowClassName}>
         {visiblePresets.map((opt) => {
           const selected = !isCustomUrl && opt === value
           const iconColor = AGENT_ICON_COLORS[opt] ?? '#8A95A6'
