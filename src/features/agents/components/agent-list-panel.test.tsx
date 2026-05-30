@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Agent } from '../api/agents-api'
 import {
@@ -29,11 +29,6 @@ const agentsState: {
 
 vi.mock('../use-agents', () => ({
   useAgents: () => agentsState,
-}))
-
-const approveMutate = vi.fn()
-vi.mock('../use-approve-agent', () => ({
-  useApproveAgent: () => ({ mutate: approveMutate, isPending: false }),
 }))
 
 const activeAgent: Agent = {
@@ -82,7 +77,6 @@ describe('AgentListPanel', () => {
     agentsState.data = undefined
     agentsState.isPending = false
     agentsState.isError = false
-    approveMutate.mockReset()
   })
 
   it('renders the empty state when there are no agents', () => {
@@ -98,11 +92,10 @@ describe('AgentListPanel', () => {
     expect(screen.getByText(/● active/i)).toBeInTheDocument()
   })
 
-  it('shows pending badge and approve button for a pending agent', () => {
+  it('shows pending badge for a pending agent', () => {
     agentsState.data = [pendingAgent]
     render(<AgentListPanel />, { wrapper })
     expect(screen.getByText(/● pending/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /approve agent/i })).toBeInTheDocument()
   })
 
   it('renders an error state when the list fails to load', () => {
@@ -115,17 +108,5 @@ describe('AgentListPanel', () => {
     agentsState.data = [activeAgent]
     render(<AgentListPanel />, { wrapper })
     expect(screen.getByText('pk7Yq2Lm•••aB3x')).toBeInTheDocument()
-  })
-
-  it('opens the approve dialog from the inline approve button', () => {
-    agentsState.data = [pendingAgent]
-    render(<AgentListPanel />, { wrapper })
-
-    const rowButtons = screen.getAllByRole('button', { name: /approve/i })
-    fireEvent.click(rowButtons[0])
-
-    expect(
-      screen.getByRole('dialog', { name: /approve agent/i }),
-    ).toBeInTheDocument()
   })
 })
