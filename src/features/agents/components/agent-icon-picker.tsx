@@ -96,7 +96,7 @@ export function AgentIconPicker({
         {isFromBrowser && value !== undefined && (
           <button
             type="button"
-            onClick={() => onChange(value)}
+            onClick={() => onChange(undefined)}
             disabled={disabled}
             aria-pressed
             aria-label={value.replace(/_/g, ' ')}

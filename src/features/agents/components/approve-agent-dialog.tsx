@@ -5,11 +5,8 @@ import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { FormInput } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
-import {
-  BUILTIN_AGENT_TYPES,
-  presignAgentIcon,
-  type AgentType,
-} from '../api/agents-api'
+import { BUILTIN_AGENT_TYPES, type AgentType } from '../api/agents-api'
+import { AGENT_ICON_MAX_MB, uploadAgentIcon } from '../upload-agent-icon'
 import { useAgentTypes } from '../use-agent-types'
 import { AgentIconPicker, DEFAULT_AGENT_COLOR } from './agent-icon-picker'
 import { AgentTypeCombobox } from './agent-type-combobox'
@@ -58,31 +55,24 @@ export function ApproveAgentDialog({
   const handleConfirm = async () => {
     let iconKey = selectedIcon
 
-    // Custom file: upload to S3 before confirming so the persisted iconKey
-    // is the public URL — not the throwaway blob: preview.
+    // Custom file: validate + upload to S3 before confirming so the persisted
+    // iconKey is the public URL — not the throwaway blob: preview. Validation
+    // (type + size) lives in the shared helper, in lockstep with the edit flow.
     if (pendingFile) {
       setIsUploading(true)
-      try {
-        const ext =
-          pendingFile.type === 'image/png'
-            ? 'png'
-            : pendingFile.type === 'image/webp'
-              ? 'webp'
-              : 'jpg'
-        const { uploadUrl, publicUrl } = await presignAgentIcon(agentId, ext)
-        const res = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': pendingFile.type },
-          body: pendingFile,
-        })
-        if (!res.ok) throw new Error(`S3 upload failed: ${res.status}`)
-        iconKey = `${publicUrl}?v=${Date.now()}`
-      } catch {
-        setIsUploading(false)
-        toast.error(t('vault.iconUploadError.failed'))
+      const result = await uploadAgentIcon(agentId, pendingFile)
+      setIsUploading(false)
+      if (!result.ok) {
+        if (result.reason === 'invalid-type') {
+          toast.error(t('vault.iconUploadError.invalidType'))
+        } else if (result.reason === 'too-large') {
+          toast.error(t('vault.iconUploadError.tooLarge', { maxMb: AGENT_ICON_MAX_MB }))
+        } else {
+          toast.error(t('vault.iconUploadError.failed'))
+        }
         return
       }
-      setIsUploading(false)
+      iconKey = result.iconUrl
     }
 
     onConfirm({
