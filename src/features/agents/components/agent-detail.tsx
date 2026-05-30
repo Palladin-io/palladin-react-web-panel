@@ -159,11 +159,8 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               </div>
             </div>
 
-            {/* Editable fields — always visible, disabled when not eligible */}
-            <AgentEditForm agent={agent} canEdit={canEdit} />
-
             {/* Read-only metadata */}
-            <dl className="mt-4 flex flex-col gap-3 border-t border-[var(--cv-divider)] pt-4">
+            <dl className="flex flex-col gap-3">
               <DetailRow
                 label={t('agents.publicKey')}
                 value={formatPublicKey(agent)}
@@ -203,6 +200,11 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                 value={formatAgentDateTime(agent.createdAt)}
               />
             </dl>
+
+            {/* Editable fields — always visible, disabled when not eligible */}
+            <div className="mt-4 border-t border-[var(--cv-divider)] pt-4">
+              <AgentEditForm agent={agent} canEdit={canEdit} />
+            </div>
           </div>
 
           {/* Action zones */}
