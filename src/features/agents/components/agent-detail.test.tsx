@@ -53,6 +53,8 @@ const baseAgent: Agent = {
   deactivatedAt: null,
   deactivatedByName: null,
   description: 'CI deployment agent',
+  lastIp: null,
+  lastHostname: null,
 }
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -104,7 +106,8 @@ describe('AgentDetail', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /approve agent/i }))
     const dialog = screen.getByRole('dialog', { name: /approve agent/i })
-    // Name is required — fill it before the confirm button becomes enabled.
+    // Name is optional in the approve dialog (it's sent as `name.trim() ||
+    // undefined`); we fill it here only to exercise the populated path.
     fireEvent.change(within(dialog).getByRole('textbox'), {
       target: { value: 'Test Bot' },
     })

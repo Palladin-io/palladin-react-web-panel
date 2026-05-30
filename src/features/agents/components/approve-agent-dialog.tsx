@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
-import { Icon } from '../../../shared/components/icon'
+import { FormInput } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import {
   BUILTIN_AGENT_TYPES,
@@ -110,26 +110,15 @@ export function ApproveAgentDialog({
         </div>
 
         {/* Name */}
-        <div>
-          <label
-            htmlFor="approve-agent-name"
-            className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-          >
-            {t('agents.agentName')}
-          </label>
-          <input
-            id="approve-agent-name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={isPending}
-            placeholder={t('agents.agentNamePlaceholder')}
-            className="w-full rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
-              px-3 py-2 text-[12px] text-[var(--cv-input-text)]
-              placeholder:text-[var(--cv-input-placeholder)]
-              focus:border-[var(--cv-t1)] focus:outline-none transition-colors
-              disabled:cursor-not-allowed disabled:opacity-40"
-          />
-        </div>
+        <FormInput
+          id="approve-agent-name"
+          label={t('agents.agentName')}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={isPending}
+          placeholder={t('agents.agentNamePlaceholder')}
+          maxLength={64}
+        />
 
         {/* Type — combobox: suggestions from API + free-form input */}
         <AgentTypeCombobox
@@ -167,19 +156,16 @@ export function ApproveAgentDialog({
         >
           {t('agents.cancel')}
         </Button>
-        <button
-          type="button"
+        <Button
+          variant="positive"
+          size="sm"
+          icon="check_circle"
           onClick={handleConfirm}
           disabled={isPending || isUploading}
-          className="flex flex-[2] cursor-pointer items-center justify-center gap-1.5
-            rounded-lg border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)]
-            px-2.5 py-1.5 text-[11px] font-semibold text-[#2EC4B6]
-            transition-colors hover:bg-[rgba(46,196,182,0.12)]
-            disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex-[2]"
         >
-          <Icon name="check_circle" size={14} />
           {isPending || isUploading ? t('agents.approving') : t('agents.approve')}
-        </button>
+        </Button>
       </DialogFooter>
     </ModalShell>
   )

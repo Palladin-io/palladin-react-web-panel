@@ -219,19 +219,15 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                 heading={t('agents.approve')}
                 hint={t('agents.approveHint')}
                 action={
-                  <button
-                    type="button"
+                  <Button
+                    variant="positive"
+                    size="sm"
+                    icon="check_circle"
                     onClick={() => setApproveOpen(true)}
                     disabled={approve.isPending}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-[7px]
-                      border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)]
-                      px-3 py-1.5 text-[11px] font-semibold text-[#2EC4B6]
-                      transition-colors hover:bg-[rgba(46,196,182,0.12)]
-                      disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    <Icon name="check_circle" size={13} />
                     {t('agents.approve')}
-                  </button>
+                  </Button>
                 }
               />
             ) : null}
@@ -262,19 +258,15 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                 heading={t('agents.reactivate')}
                 hint={t('agents.reactivateHint')}
                 action={
-                  <button
-                    type="button"
+                  <Button
+                    variant="positive"
+                    size="sm"
+                    icon="replay"
                     onClick={handleReactivate}
                     disabled={reactivate.isPending}
-                    className="flex cursor-pointer items-center gap-1.5 rounded-[7px]
-                      border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)]
-                      px-3 py-1.5 text-[11px] font-semibold text-[#2EC4B6]
-                      transition-colors hover:bg-[rgba(46,196,182,0.12)]
-                      disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    <Icon name="replay" size={13} />
                     {reactivate.isPending ? t('agents.reactivating') : t('agents.reactivate')}
-                  </button>
+                  </Button>
                 }
               />
             ) : null}

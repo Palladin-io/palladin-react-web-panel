@@ -8,6 +8,7 @@ import { FormTextarea } from '../../../shared/components/form-textarea'
 import { Icon } from '../../../shared/components/icon'
 import { SecretInput } from '../../../shared/components/secret-input'
 import { analytics } from '../../../shared/lib/analytics'
+import { firstError, required, validUrl } from '../../../shared/lib/validation'
 import {
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,
@@ -169,7 +170,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             label={t('vault.entries.labelLabel')}
             value={label}
             onChange={(e) => { setLabel(e.target.value); setLabelError(false) }}
-            onBlur={() => setLabelError(!label.trim())}
+            onBlur={() =>
+              setLabelError(
+                firstError(label, [required(t('validation.required'))]) !== null,
+              )
+            }
             placeholder={t('vault.entries.labelPlaceholder')}
             autoFocus
             autoComplete="off"
@@ -199,12 +204,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             label={t('vault.entries.urlLabel')}
             value={url}
             onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
-            onBlur={() => {
-              if (url.trim()) {
-                try { new URL(url.trim()); setUrlError(false) }
-                catch { setUrlError(true) }
-              }
-            }}
+            onBlur={() =>
+              setUrlError(
+                firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null,
+              )
+            }
             placeholder={t('vault.entries.urlPlaceholder')}
             autoComplete="off"
             disabled={isPending}
@@ -254,7 +258,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               label={t('vault.entries.valueLabel')}
               value={keyValue}
               onChange={(next) => { setKeyValue(next); setKeyValueError(false) }}
-              onBlur={() => setKeyValueError(!keyValue.trim())}
+              onBlur={() =>
+                setKeyValueError(
+                  firstError(keyValue, [required(t('validation.required'))]) !== null,
+                )
+              }
               shown={keyVisible}
               onToggleShown={() => setKeyVisible((prev) => !prev)}
               placeholder={t('vault.entries.valuePlaceholder')}
@@ -274,7 +282,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 label={t('vault.entries.usernameLabel')}
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); setUsernameError(false) }}
-                onBlur={() => setUsernameError(!username.trim())}
+                onBlur={() =>
+                  setUsernameError(
+                    firstError(username, [required(t('validation.required'))]) !== null,
+                  )
+                }
                 placeholder={t('vault.entries.usernamePlaceholder')}
                 autoComplete="off"
                 disabled={isPending}
@@ -290,7 +302,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 label={t('vault.entries.passwordLabel')}
                 value={password}
                 onChange={(next) => { setPassword(next); setPasswordError(false) }}
-                onBlur={() => setPasswordError(!password.trim())}
+                onBlur={() =>
+                  setPasswordError(
+                    firstError(password, [required(t('validation.required'))]) !== null,
+                  )
+                }
                 shown={passwordVisible}
                 onToggleShown={() => setPasswordVisible((prev) => !prev)}
                 placeholder={t('vault.entries.passwordPlaceholder')}

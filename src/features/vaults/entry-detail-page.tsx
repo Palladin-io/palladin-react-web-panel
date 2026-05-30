@@ -7,6 +7,7 @@ import { ErrorState } from '../../shared/components/error-state'
 import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { FormTextarea } from '../../shared/components/form-textarea'
 import { SecretInput } from '../../shared/components/secret-input'
+import { firstError, required, validUrl } from '../../shared/lib/validation'
 import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
 import { wipe } from '../../shared/crypto/sodium'
 import { unsealVaultKey } from '../../shared/crypto/vault-key'
@@ -574,7 +575,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 label={t('vault.entries.labelLabel')}
                 value={label}
                 onChange={(e) => { setLabel(e.target.value); setLabelError(false) }}
-                onBlur={() => setLabelError(!label.trim())}
+                onBlur={() =>
+                  setLabelError(
+                    firstError(label, [required(t('validation.required'))]) !== null,
+                  )
+                }
                 placeholder={t('vault.entries.labelPlaceholder')}
                 disabled={isSaving}
                 maxLength={120}
@@ -599,12 +604,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 label={t('vault.entries.urlLabel')}
                 value={url}
                 onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
-                onBlur={() => {
-                  if (url.trim()) {
-                    try { new URL(url.trim()); setUrlError(false) }
-                    catch { setUrlError(true) }
-                  }
-                }}
+                onBlur={() =>
+                  setUrlError(
+                    firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null,
+                  )
+                }
                 placeholder={t('vault.entries.urlPlaceholder')}
                 disabled={isSaving}
                 inputMode="url"
@@ -625,7 +629,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   label={t('vault.entries.valueLabel')}
                   value={secretValue}
                   onChange={(next) => { setSecretValue(next); setSecretValueError(false) }}
-                  onBlur={() => setSecretValueError(!secretValue.trim())}
+                  onBlur={() =>
+                    setSecretValueError(
+                      firstError(secretValue, [required(t('validation.required'))]) !== null,
+                    )
+                  }
                   shown={showSecret}
                   onToggleShown={() => setShowSecret((v) => !v)}
                   disabled={isSaving || decrypting}
@@ -644,7 +652,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     label={t('vault.entries.usernameLabel')}
                     value={username}
                     onChange={(e) => { setUsername(e.target.value); setUsernameError(false) }}
-                    onBlur={() => setUsernameError(!username.trim())}
+                    onBlur={() =>
+                      setUsernameError(
+                        firstError(username, [required(t('validation.required'))]) !== null,
+                      )
+                    }
                     disabled={isSaving || decrypting}
                     error={usernameError}
                   />
@@ -658,7 +670,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     label={t('vault.entries.passwordLabel')}
                     value={password}
                     onChange={(next) => { setPassword(next); setPasswordError(false) }}
-                    onBlur={() => setPasswordError(!password.trim())}
+                    onBlur={() =>
+                      setPasswordError(
+                        firstError(password, [required(t('validation.required'))]) !== null,
+                      )
+                    }
                     shown={showPassword}
                     onToggleShown={() => setShowPassword((v) => !v)}
                     disabled={isSaving || decrypting}

@@ -1,7 +1,14 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { Icon } from './icon'
 
-export type ButtonVariant = 'accent' | 'subtle' | 'outline' | 'ghost' | 'danger' | 'premium'
+export type ButtonVariant =
+  | 'accent'
+  | 'subtle'
+  | 'outline'
+  | 'ghost'
+  | 'danger'
+  | 'positive'
+  | 'premium'
 export type ButtonSize = 'sm' | 'md'
 
 export interface ButtonProps
@@ -31,6 +38,8 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
     'bg-transparent text-[var(--cv-btn-ghost-text)] hover:bg-[var(--cv-btn-ghost-hover)]',
   danger:
     'bg-[rgba(255,79,79,0.12)] text-[#FF4F4F] border border-[rgba(255,79,79,0.25)] hover:bg-[rgba(255,79,79,0.18)]',
+  positive:
+    'bg-[rgba(46,196,182,0.06)] text-[#2EC4B6] border border-[rgba(46,196,182,0.3)] hover:bg-[rgba(46,196,182,0.12)]',
   premium:
     'btn-premium bg-transparent font-bold border',
 }

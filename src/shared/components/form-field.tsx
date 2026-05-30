@@ -56,10 +56,10 @@ export function FormInput({
 }
 
 /**
- * Fixed-height (12 px) feedback row that sits below an input.
+ * Fixed-height (16 px) feedback row that sits below an input.
  *
- * Always occupies h-3 (12 px) regardless of visibility — the parent wrapper
- * uses a matching negative margin (-mb-{gap}) so this height replaces the
+ * Always occupies h-4 (16 px) regardless of visibility — the parent wrapper
+ * uses a matching negative margin (`-mb-4`) so this height replaces the
  * container gap rather than adding to it. No layout shift when errors toggle.
  */
 export interface FieldFeedbackProps {

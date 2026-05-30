@@ -37,6 +37,7 @@ const activeAgent: Agent = {
   status: AGENT_STATUS_ACTIVE,
   type: null,
   iconKey: null,
+  iconColor: null,
   publicKeyPrefix: 'pk7Yq2Lm',
   publicKeySuffix: 'aB3x',
   publicKey: 'pk7Yq2Lm0000000000000000aB3x',
@@ -46,6 +47,8 @@ const activeAgent: Agent = {
   deactivatedAt: null,
   deactivatedByName: null,
   description: null,
+  lastIp: null,
+  lastHostname: null,
 }
 
 const pendingAgent: Agent = {
@@ -54,6 +57,7 @@ const pendingAgent: Agent = {
   status: AGENT_STATUS_PENDING,
   type: null,
   iconKey: null,
+  iconColor: null,
   publicKeyPrefix: 'pkZ9k1Aa',
   publicKeySuffix: 'Z9k1',
   publicKey: 'pkZ9k1Aa0000000000000000Z9k1',
@@ -63,6 +67,8 @@ const pendingAgent: Agent = {
   deactivatedAt: null,
   deactivatedByName: null,
   description: null,
+  lastIp: null,
+  lastHostname: null,
 }
 
 function wrapper({ children }: { children: ReactNode }) {

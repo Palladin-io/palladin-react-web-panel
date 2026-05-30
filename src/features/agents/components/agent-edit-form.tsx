@@ -39,17 +39,6 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
   )
   const [pendingFile, setPendingFile] = useState<File | null>(null)
 
-  // Reset when navigating to a different agent
-  useEffect(() => {
-    setName(agent.name ?? '')
-    setTypeValue(agent.type ?? '')
-    setTypeInput(agent.type ? typeLabel(agent.type, t) : '')
-    setDescription(agent.description ?? '')
-    setSelectedIcon(agent.iconKey ?? undefined)
-    setSelectedColor(agent.iconColor ?? DEFAULT_AGENT_COLOR)
-    setPendingFile(null)
-  }, [agent.agentId])
-
   const resetForm = () => {
     setName(agent.name ?? '')
     setTypeValue(agent.type ?? '')
@@ -59,6 +48,10 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
     setSelectedColor(agent.iconColor ?? DEFAULT_AGENT_COLOR)
     setPendingFile(null)
   }
+
+  // Reset when navigating to a different agent
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { resetForm() }, [agent.agentId])
 
   const isPending = update.isPending || iconUpload.isUploading
   const isDisabled = !canEdit || isPending
@@ -85,7 +78,9 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
     if (pendingFile) {
       const uploaded = await iconUpload.upload(pendingFile)
       if (uploaded === null) {
-        toast.error(t('agents.errorUpdate'))
+        // Surface the specific reason the hook recorded (invalid type / too
+        // large / upload failed) rather than the generic update error.
+        toast.error(iconUpload.error ?? t('agents.errorUpdate'))
         return
       }
       setSelectedIcon(uploaded)

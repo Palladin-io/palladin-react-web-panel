@@ -175,17 +175,16 @@ Rules:
 
 **URL validation pattern:**
 ```tsx
+import { firstError, validUrl } from '../../shared/lib/validation'
+
 const [urlError, setUrlError] = useState(false)
 
 <FormInput
   value={url}
   onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
-  onBlur={() => {
-    if (url.trim()) {
-      try { new URL(url.trim()); setUrlError(false) }
-      catch { setUrlError(true) }
-    }
-  }}
+  onBlur={() =>
+    setUrlError(firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null)
+  }
 />
 <FieldFeedback visible={urlError} color="red">
   {t('validation.invalidUrl')}
@@ -194,12 +193,16 @@ const [urlError, setUrlError] = useState(false)
 
 **Required field pattern:**
 ```tsx
+import { firstError, required } from '../../shared/lib/validation'
+
 const [nameError, setNameError] = useState(false)
 
 <FormInput
   value={name}
   onChange={(e) => { setName(e.target.value); setNameError(false) }}
-  onBlur={() => setNameError(name.trim().length === 0)}
+  onBlur={() =>
+    setNameError(firstError(name, [required(t('validation.required'))]) !== null)
+  }
 />
 <FieldFeedback visible={nameError} color="red">
   {t('validation.required')}
