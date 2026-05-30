@@ -345,6 +345,8 @@
   "agents.enrolled": "Enrolled",
   "agents.deactivatedOn": "Deactivated",
   "agents.connectedOn": "Connected",
+  "agents.lastIp": "Last IP",
+  "agents.lastHostname": "Last hostname",
   "agents.publicKey": "Public Key",
   "agents.enrolledBy": "Enrolled by",
   "agents.deactivatedBy": "Deactivated by",

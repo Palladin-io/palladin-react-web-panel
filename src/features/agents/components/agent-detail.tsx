@@ -189,6 +189,19 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                   }`}
                 />
               ) : null}
+              {agent.lastIp ? (
+                <DetailRow
+                  label={t('agents.lastIp')}
+                  value={agent.lastIp}
+                  mono
+                />
+              ) : null}
+              {agent.lastHostname ? (
+                <DetailRow
+                  label={t('agents.lastHostname')}
+                  value={agent.lastHostname}
+                />
+              ) : null}
             </dl>
           </div>
 

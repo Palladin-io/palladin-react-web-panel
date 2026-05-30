@@ -365,6 +365,8 @@
   "agents.enrolled": "Zarejestrowano",
   "agents.deactivatedOn": "Dezaktywowano",
   "agents.connectedOn": "Połączono",
+  "agents.lastIp": "Ostatnie IP",
+  "agents.lastHostname": "Ostatni hostname",
   "agents.publicKey": "Klucz publiczny",
   "agents.enrolledBy": "Zarejestrowany przez",
   "agents.deactivatedBy": "Dezaktywowany przez",

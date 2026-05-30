@@ -78,6 +78,8 @@ const agentSchema = z.object({
   deactivatedAt: z.string().nullable(),
   deactivatedByName: z.string().nullable(),
   description: z.string().nullable(),
+  lastIp: z.string().nullable(),
+  lastHostname: z.string().nullable(),
 })
 
 const agentListSchema = z.object({ items: z.array(agentSchema) })
