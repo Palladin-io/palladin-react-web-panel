@@ -169,10 +169,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                 value={formatPublicKey(agent)}
                 mono
               />
-              <DetailRow
-                label={t('agents.connectedOn')}
-                value={formatAgentDateTime(agent.createdAt)}
-              />
               {agent.enrolledAt ? (
                 <DetailRow
                   label={t('agents.enrolled')}
@@ -202,6 +198,10 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                   value={agent.lastHostname}
                 />
               ) : null}
+              <DetailRow
+                label={t('agents.connectedOn')}
+                value={formatAgentDateTime(agent.createdAt)}
+              />
             </dl>
           </div>
 
