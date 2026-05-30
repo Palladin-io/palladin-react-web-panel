@@ -14,11 +14,11 @@ import {
   type Agent,
 } from '../api/agents-api'
 
-/** Preset icons shown in the row (AI / automation themed). */
+/** Preset icons shown in the row (AI / automation themed). 14 items + 1 "more" = 15 = 3×5 grid. */
 export const AGENT_ICON_OPTIONS = [
   'smart_toy', 'memory', 'hub', 'token', 'terminal',
   'psychology', 'auto_mode', 'support_agent', 'dns', 'code', 'api',
-  'cloud', 'extension', 'bolt', 'developer_mode',
+  'cloud', 'extension', 'bolt',
 ] as const
 
 /** Accent colour per agent icon glyph. */

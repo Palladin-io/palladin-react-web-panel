@@ -172,8 +172,13 @@ function AgentIconBrowser({
   onClose,
 }: AgentIconBrowserProps) {
   const { t } = useTranslation()
+  const [search, setSearch] = useState('')
   const [localIcon, setLocalIcon] = useState<string | undefined>(currentIcon)
   const [localColor, setLocalColor] = useState<string | undefined>(currentColor)
+
+  const query = search.toLowerCase().replace(/\s+/g, '_')
+  const allIcons = AGENT_ICON_ALL as readonly string[]
+  const filtered = query ? allIcons.filter((icon) => icon.includes(query)) : allIcons
 
   const handleConfirm = () => {
     onSelectIcon(localIcon)
@@ -198,32 +203,61 @@ function AgentIconBrowser({
           </button>
         </header>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '6px' }}>
-          {(AGENT_ICON_ALL as readonly string[]).map((icon) => {
-            const selected = icon === localIcon
-            const iconColor = AGENT_ICON_COLORS[icon] ?? '#8A95A6'
-            const accent = localColor ?? iconColor
-            return (
-              <button
-                key={icon}
-                type="button"
-                onClick={() => setLocalIcon(icon)}
-                aria-label={icon.replace(/_/g, ' ')}
-                aria-pressed={selected}
-                className="flex h-10 w-full items-center justify-center rounded-xl
-                  transition-colors hover:opacity-80"
-                style={{
-                  background: selected
-                    ? hexWithAlpha(accent, 0.18)
-                    : hexWithAlpha(iconColor, 0.08),
-                  border: selected ? `2px solid ${accent}` : '2px solid transparent',
-                }}
-              >
-                <Icon name={icon} size={18} color={selected ? accent : iconColor} />
-              </button>
-            )
-          })}
+        <div className="flex items-center gap-2 rounded-lg border border-[var(--cv-input-border)]
+          bg-[var(--cv-input-bg)] px-3 py-2">
+          <Icon name="search" size={14} color="var(--cv-t3)" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('vault.iconBrowserSearch')}
+            autoFocus
+            className="flex-1 bg-transparent text-[12px] text-[var(--cv-input-text)]
+              placeholder:text-[var(--cv-t3)] outline-none"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              className="text-[var(--cv-t3)] hover:text-[var(--cv-t1)]"
+            >
+              <Icon name="close" size={14} />
+            </button>
+          )}
         </div>
+
+        {filtered.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '6px' }}>
+            {filtered.map((icon) => {
+              const selected = icon === localIcon
+              const iconColor = AGENT_ICON_COLORS[icon] ?? '#8A95A6'
+              const accent = localColor ?? iconColor
+              return (
+                <button
+                  key={icon}
+                  type="button"
+                  onClick={() => setLocalIcon(icon)}
+                  aria-label={icon.replace(/_/g, ' ')}
+                  aria-pressed={selected}
+                  className="flex h-10 w-full items-center justify-center rounded-xl
+                    transition-colors hover:opacity-80"
+                  style={{
+                    background: selected
+                      ? hexWithAlpha(accent, 0.18)
+                      : hexWithAlpha(iconColor, 0.08),
+                    border: selected ? `2px solid ${accent}` : '2px solid transparent',
+                  }}
+                >
+                  <Icon name={icon} size={18} color={selected ? accent : iconColor} />
+                </button>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="py-6 text-center text-[12px] text-[var(--cv-t3)]">
+            {t('vault.iconBrowserEmpty')}
+          </p>
+        )}
 
         {onSelectColor && currentColor !== undefined && (
           <>
