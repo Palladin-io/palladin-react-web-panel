@@ -201,10 +201,12 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               />
             </dl>
 
-            {/* Editable fields — always visible, disabled when not eligible */}
-            <div className="mt-4 border-t border-[var(--cv-divider)] pt-4">
-              <AgentEditForm agent={agent} canEdit={canEdit} />
-            </div>
+            {/* Editable fields — hidden for pending agents (nothing to configure before approval) */}
+            {agent.status !== AGENT_STATUS_PENDING ? (
+              <div className="mt-4 border-t border-[var(--cv-divider)] pt-4">
+                <AgentEditForm agent={agent} canEdit={canEdit} />
+              </div>
+            ) : null}
           </div>
 
           {/* Action zones */}

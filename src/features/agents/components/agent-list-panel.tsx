@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
-import { toast } from 'sonner'
 import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
@@ -12,7 +11,6 @@ import {
   type AgentStatus,
 } from '../api/agents-api'
 import { useAgents } from '../use-agents'
-import { useApproveAgent } from '../use-approve-agent'
 import { AgentAvatar } from './agent-avatar'
 import {
   agentDisplayName,
@@ -20,7 +18,6 @@ import {
   formatAgentDate,
   formatPublicKey,
 } from './agent-presentation'
-import { ApproveAgentDialog } from './approve-agent-dialog'
 
 export interface AgentListPanelProps {
   /** Agent currently shown in the right detail panel (split-view). */
@@ -66,9 +63,7 @@ export function AgentStatusBadge({ status }: { status: AgentStatus }) {
 export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
   const { t } = useTranslation()
   const agents = useAgents()
-  const approve = useApproveAgent()
   const [search, setSearch] = useState('')
-  const [approveTarget, setApproveTarget] = useState<Agent | null>(null)
 
   const list = useMemo(() => agents.data ?? [], [agents.data])
 
@@ -155,7 +150,6 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
                   <AgentCard
                     agent={agent}
                     isSelected={agent.agentId === selectedAgentId}
-                    onApprove={() => setApproveTarget(agent)}
                   />
                 </li>
               ))}
@@ -164,28 +158,6 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
         </>
       )}
 
-      {approveTarget ? (
-        <ApproveAgentDialog
-          open
-          agentId={approveTarget.agentId}
-          agentName={agentDisplayName(approveTarget, t('agents.unnamed'))}
-          initialName={approveTarget.name ?? ''}
-          isPending={approve.isPending}
-          onConfirm={(input) => {
-            approve.mutate(
-              { agentId: approveTarget.agentId, input },
-              {
-                onSuccess: () => setApproveTarget(null),
-                onError: () => {
-                  toast.error(t('agents.errorApprove'))
-                  setApproveTarget(null)
-                },
-              },
-            )
-          }}
-          onCancel={() => setApproveTarget(null)}
-        />
-      ) : null}
     </>
   )
 }
@@ -193,12 +165,10 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
 interface AgentRowProps {
   agent: Agent
   isSelected: boolean
-  onApprove: () => void
 }
 
-function AgentCard({ agent, isSelected, onApprove }: AgentRowProps) {
+function AgentCard({ agent, isSelected }: AgentRowProps) {
   const { t } = useTranslation()
-  const isPending = agent.status === AGENT_STATUS_PENDING
   const isDeactivated = agent.status === AGENT_STATUS_DEACTIVATED
 
   const subtitle = agent.type
@@ -251,19 +221,6 @@ function AgentCard({ agent, isSelected, onApprove }: AgentRowProps) {
             {cardFooterText(agent, t)}
           </span>
         </div>
-        {isPending && (
-          <button
-            type="button"
-            onClick={onApprove}
-            className="ml-2 flex shrink-0 cursor-pointer items-center gap-1 rounded-[7px]
-              border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)]
-              px-2.5 py-1 text-[11px] font-semibold text-[#2EC4B6]
-              transition-colors hover:bg-[rgba(46,196,182,0.12)]"
-          >
-            <Icon name="check_circle" size={12} />
-            {t('agents.approve')}
-          </button>
-        )}
       </div>
     </div>
   )
