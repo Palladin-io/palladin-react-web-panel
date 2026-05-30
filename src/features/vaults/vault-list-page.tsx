@@ -67,7 +67,7 @@ export function VaultListPage() {
                 </p>
                 <Button
                   variant="accent"
-                  size="md"
+                  size="sm"
                   icon="add"
                   onClick={handleCreateClick}
                   className="mt-2"
@@ -234,7 +234,7 @@ function Body({
         </p>
         <Button
           variant="accent"
-          size="md"
+          size="sm"
           icon="add"
           onClick={onCreate}
           className="mt-2"

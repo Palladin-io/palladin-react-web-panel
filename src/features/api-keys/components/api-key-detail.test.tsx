@@ -37,6 +37,9 @@ vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: (...args: unknown[]) => captureMock(...args) },
 }))
 
+const toastError = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }))
+
 const activeKey: ApiKeySummary = {
   apiKeyId: 'key-1',
   name: 'CI pipeline',
@@ -68,6 +71,7 @@ describe('ApiKeyDetail', () => {
   beforeEach(() => {
     revokeMutateMock.mockReset()
     captureMock.mockReset()
+    toastError.mockReset()
     revokeIsPending = false
   })
 
@@ -103,7 +107,7 @@ describe('ApiKeyDetail', () => {
     expect(captureMock).toHaveBeenCalledWith('apiKeys', 'api-key-revoked')
   })
 
-  it('shows an inline error when revoke fails', async () => {
+  it('shows an error toast when revoke fails', async () => {
     const user = userEvent.setup()
     revokeMutateMock.mockImplementation((_id, options) => {
       options.onError(new Error('500'))
@@ -114,8 +118,6 @@ describe('ApiKeyDetail', () => {
     await user.click(screen.getByRole('button', { name: /^revoke$/i }))
     await user.click(screen.getByRole('button', { name: /^revoke key$/i }))
 
-    expect(
-      await screen.findByText(/could not revoke the api key/i),
-    ).toBeInTheDocument()
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/could not revoke the api key/i))
   })
 })

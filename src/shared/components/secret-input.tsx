@@ -11,13 +11,15 @@ export interface SecretInputProps {
   placeholder?: string
   disabled?: boolean
   monospace?: boolean
-  required?: boolean
   autoComplete?: string
+  /** Show a red border to signal a validation error. */
+  error?: boolean
+  onBlur?: () => void
 }
 
 export function SecretInput({
   id, label, value, onChange, shown, onToggleShown,
-  placeholder, disabled, monospace, required, autoComplete = 'new-password',
+  placeholder, disabled, monospace, autoComplete = 'new-password', error, onBlur,
 }: SecretInputProps) {
   const { t } = useTranslation()
   return (
@@ -31,14 +33,18 @@ export function SecretInput({
           type={shown ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
           placeholder={placeholder}
           disabled={disabled}
-          required={required}
           autoComplete={autoComplete}
-          className={`w-full rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
+          className={`w-full rounded-lg border bg-[var(--cv-input-bg)]
             py-2 pl-3 pr-10 text-[12px] text-[var(--cv-input-text)]
             placeholder:text-[var(--cv-input-placeholder)]
-            focus:border-[var(--cv-t1)] focus:outline-none disabled:opacity-60${monospace ? ' font-mono' : ''}`}
+            focus:outline-none transition-colors duration-200 disabled:opacity-60${monospace ? ' font-mono' : ''}
+            ${error
+              ? 'border-[#FF4F4F] focus:border-[#FF4F4F]'
+              : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
+            }`}
         />
         <button
           type="button"

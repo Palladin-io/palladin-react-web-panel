@@ -5,6 +5,7 @@ import type { InputHTMLAttributes, ReactNode } from 'react'
  *
  * Pass `borderClass` to override the border/focus-border classes when the
  * border must change dynamically (e.g. correct/wrong state on confirm step).
+ * Pass `error` for a standard red-border error state without a custom borderClass.
  */
 export interface FormInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className'> {
@@ -15,6 +16,8 @@ export interface FormInputProps
   borderClass?: string
   /** Render the input value in a monospace font (e.g. API keys, tokens). */
   monospace?: boolean
+  /** Show a red border to signal a validation error. */
+  error?: boolean
 }
 
 export function FormInput({
@@ -23,6 +26,7 @@ export function FormInput({
   labelClassName,
   borderClass,
   monospace,
+  error,
   ...props
 }: FormInputProps) {
   return (
@@ -39,8 +43,11 @@ export function FormInput({
       <input
         id={id}
         className={`w-full rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2 text-[12px]
-          text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none ${
-          borderClass ?? 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
+          text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)]
+          focus:outline-none transition-colors duration-200 ${
+          borderClass ?? (error
+            ? 'border-[#FF4F4F] focus:border-[#FF4F4F]'
+            : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]')
         }${monospace ? ' font-mono' : ''}`}
         {...props}
       />
@@ -49,11 +56,11 @@ export function FormInput({
 }
 
 /**
- * Fixed-height feedback row that sits below an input.
+ * Fixed-height (16 px) feedback row that sits below an input.
  *
- * The outer div always occupies `h-4` (16 px) regardless of visibility so the
- * form height never changes — no layout shift. The inner text slides down from
- * above and fades in (mirrors the Flutter AnimatedSlide + AnimatedOpacity pattern).
+ * Always occupies h-4 (16 px) regardless of visibility — the parent wrapper
+ * uses a matching negative margin (`-mb-4`) so this height replaces the
+ * container gap rather than adding to it. No layout shift when errors toggle.
  */
 export interface FieldFeedbackProps {
   visible: boolean
@@ -63,18 +70,14 @@ export interface FieldFeedbackProps {
 
 export function FieldFeedback({ visible, color, children }: FieldFeedbackProps) {
   return (
-    <div
-      className="relative mt-1 h-4 overflow-hidden"
+    <p
       role={color === 'red' && visible ? 'alert' : undefined}
+      className={`h-4 pt-[3px] pl-2 text-[9px] font-medium leading-3
+        transition-[opacity,transform] duration-200 ease-out ${
+        color === 'teal' ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
+      } ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}
     >
-      <p
-        className={`absolute inset-x-0 flex items-center gap-1 text-[11px] leading-4
-          transition-[opacity,translate] duration-200 ease-out ${
-          color === 'teal' ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
-        } ${visible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}
-      >
-        {children}
-      </p>
-    </div>
+      {children}
+    </p>
   )
 }

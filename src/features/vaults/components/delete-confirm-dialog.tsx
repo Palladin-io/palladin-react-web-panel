@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
 
 export interface DeleteConfirmDialogProps {
@@ -26,20 +27,20 @@ export function DeleteConfirmDialog({
       ariaLabel={t('vault.deleteConfirmTitle', { name: vaultName })}
     >
       <div className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold text-[var(--cv-t1)]">
+        <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
           {t('vault.deleteConfirmTitle', { name: vaultName })}
         </h2>
-        <p className="text-sm text-[var(--cv-t2)]">{t('vault.deleteConfirmText')}</p>
-
-        <div className="mt-2 flex items-center justify-end gap-2">
-          <Button variant="outline" onClick={onCancel} disabled={isPending}>
-            {t('vault.cancel')}
-          </Button>
-          <Button variant="accent" onClick={onConfirm} disabled={isPending}>
-            {isPending ? t('vault.deleting') : t('vault.confirmDelete')}
-          </Button>
-        </div>
+        <p className="text-[12px] text-[var(--cv-t2)]">{t('vault.deleteConfirmText')}</p>
       </div>
+
+      <DialogFooter>
+        <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
+          {t('vault.cancel')}
+        </Button>
+        <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
+          {isPending ? t('vault.deleting') : t('vault.confirmDelete')}
+        </Button>
+      </DialogFooter>
     </ModalShell>
   )
 }

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { analytics } from '../../../shared/lib/analytics'
 import { GRANT_MODE_GRANULAR } from '../types'
@@ -11,6 +12,7 @@ import { useCreateVault } from '../use-create-vault'
 import { extensionFromMime } from '../use-vault-icon-upload'
 import { VAULTS_QUERY_KEY } from '../use-vaults'
 import { presignVaultIcon, uploadToS3, updateVault } from '../api/vault-api'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { VaultIconPicker } from './vault-icon-picker'
 import {
@@ -53,7 +55,6 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
   const [icon, setIcon] = useState<string>(DEFAULT_VAULT_ICON)
   const [color, setColor] = useState<string>(DEFAULT_VAULT_COLOR)
   const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Mount-only side effect: emit analytics for "wizard opened". The form
   // reset that used to live here is now implicit — opening the dialog
@@ -69,7 +70,6 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit) return
-    setErrorMessage(null)
 
     // Grant mode selector intentionally omitted from the create dialog
     // (per CVT-30 design): mode is a property of grants, not the vault.
@@ -105,7 +105,7 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
         },
         onError: () => {
           analytics.capture('vault', 'create-wizard-failed')
-          setErrorMessage(t('vault.errorCreate'))
+          toast.error(t('vault.errorCreate'))
         },
       },
     )
@@ -143,7 +143,6 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
           autoFocus
           disabled={isPending}
           maxLength={64}
-          required
         />
 
         <FormTextarea
@@ -170,30 +169,14 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
           rowClassName="flex justify-between"
         />
 
-        <FieldFeedback visible={errorMessage !== null} color="red">
-          {errorMessage}
-        </FieldFeedback>
-
-        <div className="mt-1 flex items-center gap-2">
-          <Button
-            variant="subtle"
-            size="md"
-            onClick={onClose}
-            disabled={isPending}
-            className="flex-1"
-          >
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
             {t('vault.cancel')}
           </Button>
-          <Button
-            variant="accent"
-            size="md"
-            type="submit"
-            disabled={!canSubmit}
-            className="flex-[2]"
-          >
+          <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
             {isPending ? t('vault.creating') : t('vault.createVault')}
           </Button>
-        </div>
+        </DialogFooter>
       </form>
     </ModalShell>
   )

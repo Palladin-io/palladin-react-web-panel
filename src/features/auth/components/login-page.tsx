@@ -1,6 +1,7 @@
 import { useGoogleLogin } from '@react-oauth/google'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { AppWordmark } from '../../../shared/components/app-wordmark'
 import { useLogin } from '../hooks/use-login'
 
@@ -8,16 +9,18 @@ export function LoginPage() {
   const { t } = useTranslation()
   const login = useLogin()
   const [tooltipTarget, setTooltipTarget] = useState<string | null>(null)
-  const [googleError, setGoogleError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (login.isError) toast.error(t('auth.errorSignInFailed'))
+  }, [login.isError, t])
 
   const googleLogin = useGoogleLogin({
     onSuccess: (response) => {
-      setGoogleError(null)
       login.mutate(response.access_token)
     },
     onError: (error) => {
       console.error('Google login failed:', error)
-      setGoogleError(t('auth.errorGoogleSignInFailed'))
+      toast.error(t('auth.errorGoogleSignInFailed'))
     },
   })
 
@@ -103,13 +106,6 @@ export function LoginPage() {
               {tooltipTarget === 'x' && <Tooltip />}
             </div>
           </div>
-
-          {/* Error message */}
-          {(login.isError || googleError) && (
-            <p className="mt-4 text-xs text-[#FF4F4F]">
-              {googleError ?? t('auth.errorSignInFailed')}
-            </p>
-          )}
 
           {/* Footer */}
           <p className="mt-5 text-[10px] text-[#6B7A8E]">

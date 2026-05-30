@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
-import { FormInput } from '../../shared/components/form-field'
+import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { FormTextarea } from '../../shared/components/form-textarea'
 import { SecretInput } from '../../shared/components/secret-input'
+import { firstError, required, validUrl } from '../../shared/lib/validation'
 import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
 import { wipe } from '../../shared/crypto/sodium'
 import { unsealVaultKey } from '../../shared/crypto/vault-key'
@@ -172,6 +173,7 @@ function DetailBody({
       />
       {activeTab === 'details' ? (
         <DetailsTab
+          key={entry.id}
           vault={vault}
           entry={entry}
           onDeleted={onDeleted}
@@ -274,12 +276,17 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       ? (entry.urlDomain ? `https://${entry.urlDomain}` : '')
       : ''
   )
+  const [urlError, setUrlError] = useState(false)
+  const [labelError, setLabelError] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
 
   // Encrypted field state — populated after decrypt.
   const [secretValue, setSecretValue] = useState('') // KEY only
+  const [secretValueError, setSecretValueError] = useState(false)
   const [username, setUsername] = useState('') // CREDENTIAL only
+  const [usernameError, setUsernameError] = useState(false)
   const [password, setPassword] = useState('') // CREDENTIAL only
+  const [passwordError, setPasswordError] = useState(false)
   const [notes, setNotes] = useState('') // both types
 
   // Original plaintext for change detection / discard.
@@ -410,6 +417,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setIcon(entry.icon)
     setColor(defaultColor)
     setPendingIconFile(null)
+    setUrlError(false)
     if (originalPlaintext) {
       if (originalPlaintext.type === ENTRY_TYPE_KEY) {
         setSecretValue(originalPlaintext.value)
@@ -426,8 +434,21 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
 
   const handleSave = async () => {
     if (!label.trim()) {
-      toast.error(t('vault.entry.detail.saveError'))
+      setLabelError(true)
       return
+    }
+    if (originalPlaintext) {
+      if (entry.type === ENTRY_TYPE_KEY && !secretValue.trim()) {
+        setSecretValueError(true)
+        return
+      }
+      if (entry.type === ENTRY_TYPE_CREDENTIAL) {
+        const u = !username.trim()
+        const p = !password.trim()
+        if (u) setUsernameError(true)
+        if (p) setPasswordError(true)
+        if (u || p) return
+      }
     }
 
     // Pending icon file → upload first, then PATCH metadata. Upload
@@ -548,16 +569,26 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       >
         <div className="flex gap-5 items-start">
           <div className="flex-1 flex flex-col gap-4 min-w-0">
-            <FormInput
-              id="entry-detail-label"
-              label={t('vault.entries.labelLabel')}
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder={t('vault.entries.labelPlaceholder')}
-              disabled={isSaving}
-              maxLength={120}
-              required
-            />
+            <div className="-mb-4">
+              <FormInput
+                id="entry-detail-label"
+                label={t('vault.entries.labelLabel')}
+                value={label}
+                onChange={(e) => { setLabel(e.target.value); setLabelError(false) }}
+                onBlur={() =>
+                  setLabelError(
+                    firstError(label, [required(t('validation.required'))]) !== null,
+                  )
+                }
+                placeholder={t('vault.entries.labelPlaceholder')}
+                disabled={isSaving}
+                maxLength={120}
+                error={labelError}
+              />
+              <FieldFeedback visible={labelError} color="red">
+                {t('validation.required')}
+              </FieldFeedback>
+            </div>
             <FormInput
               id="entry-detail-description"
               label={t('vault.entries.descriptionLabel')}
@@ -567,53 +598,92 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               disabled={isSaving}
               maxLength={500}
             />
-            <FormInput
-              id="entry-detail-url"
-              label={t('vault.entries.urlLabel')}
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              placeholder={t('vault.entries.urlPlaceholder')}
-              disabled={isSaving}
-              type="url"
-              inputMode="url"
-            />
+            <div className="-mb-4">
+              <FormInput
+                id="entry-detail-url"
+                label={t('vault.entries.urlLabel')}
+                value={url}
+                onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
+                onBlur={() =>
+                  setUrlError(
+                    firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null,
+                  )
+                }
+                placeholder={t('vault.entries.urlPlaceholder')}
+                disabled={isSaving}
+                inputMode="url"
+                error={urlError}
+              />
+              <FieldFeedback visible={urlError} color="red">
+                {t('validation.invalidUrl')}
+              </FieldFeedback>
+            </div>
             {decryptError ? (
               <div className="rounded-lg border border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.06)] px-3 py-2 text-[11px] text-[#FF4F4F]">
                 {decryptError}
               </div>
             ) : entry.type === ENTRY_TYPE_KEY ? (
-              <SecretInput
-                id="entry-detail-value"
-                label={t('vault.entries.valueLabel')}
-                value={secretValue}
-                onChange={setSecretValue}
-                shown={showSecret}
-                onToggleShown={() => setShowSecret((v) => !v)}
-                disabled={isSaving || decrypting}
-                monospace
-              />
+              <div className="-mb-4">
+                <SecretInput
+                  id="entry-detail-value"
+                  label={t('vault.entries.valueLabel')}
+                  value={secretValue}
+                  onChange={(next) => { setSecretValue(next); setSecretValueError(false) }}
+                  onBlur={() =>
+                    setSecretValueError(
+                      firstError(secretValue, [required(t('validation.required'))]) !== null,
+                    )
+                  }
+                  shown={showSecret}
+                  onToggleShown={() => setShowSecret((v) => !v)}
+                  disabled={isSaving || decrypting}
+                  monospace
+                  error={secretValueError}
+                />
+                <FieldFeedback visible={secretValueError} color="red">
+                  {t('validation.required')}
+                </FieldFeedback>
+              </div>
             ) : (
-              <div className="flex gap-3">
+              <div className="flex gap-3 -mb-4">
                 <div className="flex-1 min-w-0">
                   <FormInput
                     id="entry-detail-username"
                     label={t('vault.entries.usernameLabel')}
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => { setUsername(e.target.value); setUsernameError(false) }}
+                    onBlur={() =>
+                      setUsernameError(
+                        firstError(username, [required(t('validation.required'))]) !== null,
+                      )
+                    }
                     disabled={isSaving || decrypting}
+                    error={usernameError}
                   />
+                  <FieldFeedback visible={usernameError} color="red">
+                    {t('validation.required')}
+                  </FieldFeedback>
                 </div>
                 <div className="flex-1 min-w-0">
                   <SecretInput
                     id="entry-detail-password"
                     label={t('vault.entries.passwordLabel')}
                     value={password}
-                    onChange={setPassword}
+                    onChange={(next) => { setPassword(next); setPasswordError(false) }}
+                    onBlur={() =>
+                      setPasswordError(
+                        firstError(password, [required(t('validation.required'))]) !== null,
+                      )
+                    }
                     shown={showPassword}
                     onToggleShown={() => setShowPassword((v) => !v)}
                     disabled={isSaving || decrypting}
                     monospace
+                    error={passwordError}
                   />
+                  <FieldFeedback visible={passwordError} color="red">
+                    {t('validation.required')}
+                  </FieldFeedback>
                 </div>
               </div>
             )}
@@ -650,7 +720,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
           <Button
             variant="subtle"
-            size="md"
+            size="sm"
             onClick={handleDiscard}
             disabled={isSaving || !hasChanges}
           >
@@ -658,7 +728,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
           </Button>
           <Button
             variant="accent"
-            size="md"
+            size="sm"
             onClick={handleSave}
             disabled={isSaving || !hasChanges}
           >

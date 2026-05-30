@@ -114,28 +114,30 @@ function UnlockForm() {
         </div>
 
         <form className="flex flex-col" onSubmit={handleSubmit}>
-          <FormInput
-            id="unlock-password"
-            label={t('unlock.passwordLabel')}
-            type="password"
-            autoFocus
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value)
-              if (errorMessage) setErrorMessage(null)
-            }}
-            placeholder={t('unlock.passwordPlaceholder')}
-            disabled={isPending}
-            borderClass={
-              hasError
-                ? 'border-[#FF4F4F] focus:border-[#FF4F4F]'
-                : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
-            }
-          />
-          <FieldFeedback visible={hasError} color="red">
-            {errorMessage}
-          </FieldFeedback>
+          <div>
+            <FormInput
+              id="unlock-password"
+              label={t('unlock.passwordLabel')}
+              type="password"
+              autoFocus
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                if (errorMessage) setErrorMessage(null)
+              }}
+              placeholder={t('unlock.passwordPlaceholder')}
+              disabled={isPending}
+              borderClass={
+                hasError
+                  ? 'border-[#FF4F4F] focus:border-[#FF4F4F]'
+                  : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
+              }
+            />
+            <FieldFeedback visible={hasError} color="red">
+              {errorMessage}
+            </FieldFeedback>
+          </div>
 
           <button
             type="submit"

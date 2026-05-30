@@ -21,6 +21,9 @@ vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
 }))
 
+const toastError = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }))
+
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -31,6 +34,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('GenerateApiKeyModal', () => {
   beforeEach(() => {
     generateMutateMock.mockReset()
+    toastError.mockReset()
     isPending = false
   })
 
@@ -87,7 +91,7 @@ describe('GenerateApiKeyModal', () => {
     )
   })
 
-  it('surfaces an error message when generation fails', async () => {
+  it('surfaces an error toast when generation fails', async () => {
     const user = userEvent.setup()
     generateMutateMock.mockImplementation((_name, options) => {
       options.onError(new Error('boom'))
@@ -100,8 +104,6 @@ describe('GenerateApiKeyModal', () => {
       screen.getByRole('button', { name: /^generate api key$/i }),
     )
 
-    expect(
-      await screen.findByText(/could not generate the api key/i),
-    ).toBeInTheDocument()
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/could not generate the api key/i))
   })
 })

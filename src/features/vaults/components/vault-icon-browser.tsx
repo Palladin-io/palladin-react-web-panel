@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { Icon } from '../../../shared/components/icon'
 import { VAULT_COLOR_OPTIONS, VAULT_COLOR_NAME_KEY } from './vault-presentation'
 import { hexWithAlpha } from './vault-color'
@@ -184,25 +185,14 @@ function IconColorBrowserBody({
           </>
         )}
 
-        <div className="mt-1 flex items-center gap-2">
-          <Button
-            variant="subtle"
-            size="md"
-            onClick={onClose}
-            className="flex-1"
-          >
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onClose} className="flex-1">
             {t('vault.cancel')}
           </Button>
-          <Button
-            variant="accent"
-            size="md"
-            onClick={handleConfirm}
-            disabled={localIcon === undefined}
-            className="flex-[2]"
-          >
+          <Button variant="accent" size="sm" onClick={handleConfirm} disabled={localIcon === undefined} className="flex-[2]">
             {t('vault.iconBrowserChoose')}
           </Button>
-        </div>
+        </DialogFooter>
       </div>
     </ModalShell>
   )

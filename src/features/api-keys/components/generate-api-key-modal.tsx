@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
+import { FormInput } from '../../../shared/components/form-field'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { analytics } from '../../../shared/lib/analytics'
@@ -28,7 +30,6 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
   const generate = useGenerateApiKey()
 
   const [name, setName] = useState('')
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   // Once set, the modal switches to the one-time-secret view. The
   // plaintext lives only in this component state and is discarded when
   // the modal unmounts on close.
@@ -41,7 +42,6 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit) return
-    setErrorMessage(null)
 
     generate.mutate(trimmedName, {
       onSuccess: (key) => {
@@ -49,7 +49,7 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
         setGenerated(key)
       },
       onError: () => {
-        setErrorMessage(t('apiKeys.errorGenerate'))
+        toast.error(t('apiKeys.errorGenerate'))
       },
     })
   }
@@ -89,33 +89,16 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
             autoFocus
             disabled={isPending}
             maxLength={64}
-            required
           />
 
-          <FieldFeedback visible={errorMessage !== null} color="red">
-            {errorMessage}
-          </FieldFeedback>
-
-          <div className="mt-3 flex items-center gap-2">
-            <Button
-              variant="subtle"
-              size="md"
-              onClick={onClose}
-              disabled={isPending}
-              className="flex-1"
-            >
+          <DialogFooter>
+            <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
               {t('apiKeys.cancel')}
             </Button>
-            <Button
-              variant="accent"
-              size="md"
-              type="submit"
-              disabled={!canSubmit}
-              className="flex-[2]"
-            >
+            <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
               {isPending ? t('apiKeys.generating') : t('apiKeys.generate')}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       )}
     </ModalShell>
@@ -165,7 +148,7 @@ function GeneratedSecretView({
           </div>
           <Button
             variant="subtle"
-            size="md"
+            size="sm"
             icon={copied ? 'check' : 'content_copy'}
             onClick={handleCopy}
             className="shrink-0"
@@ -187,11 +170,11 @@ function GeneratedSecretView({
         </p>
       </div>
 
-      <div className="mt-1">
-        <Button variant="accent" size="md" onClick={onDone} className="w-full">
+      <DialogFooter>
+        <Button variant="accent" size="sm" onClick={onDone} className="w-full">
           {t('apiKeys.done')}
         </Button>
-      </div>
+      </DialogFooter>
     </div>
   )
 }

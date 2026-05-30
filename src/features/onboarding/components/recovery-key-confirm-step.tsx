@@ -68,7 +68,7 @@ export function RecoveryKeyConfirmStep({
           const state = correctness[inputIndex]
           const inputId = `recovery-word-${mnemonicIndex}`
           return (
-            <div key={mnemonicIndex}>
+            <div key={mnemonicIndex} className="-mb-3">
               <FormInput
                 id={inputId}
                 label={t('onboarding.confirmWordLabel', { index: mnemonicIndex + 1 })}
@@ -97,17 +97,9 @@ export function RecoveryKeyConfirmStep({
           )
         })}
 
-        {/* Server error — below inputs, always reserves space so button doesn't jump */}
-        <div className="relative h-4">
-          <p
-            role="alert"
-            className={`absolute inset-x-0 text-xs leading-4 text-[#FF4F4F] transition-opacity duration-200 ${
-              error ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            {error ?? ''}
-          </p>
-        </div>
+        <FieldFeedback visible={error !== null} color="red">
+          {error}
+        </FieldFeedback>
 
         <button
           type="submit"
