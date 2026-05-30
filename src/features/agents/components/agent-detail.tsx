@@ -289,6 +289,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
 
       <ApproveAgentDialog
         key={agent.agentId}
+        agentId={agent.agentId}
         open={approveOpen}
         agentName={name}
         initialName={agent.name ?? ''}

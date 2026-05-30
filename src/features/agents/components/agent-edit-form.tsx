@@ -8,7 +8,9 @@ import { Icon } from '../../../shared/components/icon'
 import { analytics } from '../../../shared/lib/analytics'
 import { BUILTIN_AGENT_TYPES, type Agent, type AgentType } from '../api/agents-api'
 import { useAgentTypes } from '../use-agent-types'
+import { useAgentIconUpload } from '../use-agent-icon-upload'
 import { useUpdateAgent } from '../use-update-agent'
+import { AgentIconPicker, DEFAULT_AGENT_COLOR } from './agent-icon-picker'
 import { agentTypeLabelKey } from './agent-presentation'
 
 export interface AgentEditFormProps {
@@ -20,41 +22,85 @@ export interface AgentEditFormProps {
 export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
   const { t } = useTranslation()
   const update = useUpdateAgent()
+  const iconUpload = useAgentIconUpload(agent.agentId)
   const agentTypes = useAgentTypes()
   const typeValues = agentTypes.data ?? BUILTIN_AGENT_TYPES
 
   const [name, setName] = useState(agent.name ?? '')
   const [type, setType] = useState(agent.type ?? '')
   const [description, setDescription] = useState(agent.description ?? '')
+  const [selectedIcon, setSelectedIcon] = useState<string | undefined>(
+    agent.iconKey ?? undefined,
+  )
+  const [selectedColor, setSelectedColor] = useState<string>(
+    agent.iconColor ?? DEFAULT_AGENT_COLOR,
+  )
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
 
   // Reset when navigating to a different agent
   useEffect(() => {
     setName(agent.name ?? '')
     setType(agent.type ?? '')
     setDescription(agent.description ?? '')
+    setSelectedIcon(agent.iconKey ?? undefined)
+    setSelectedColor(agent.iconColor ?? DEFAULT_AGENT_COLOR)
+    setPendingFile(null)
   }, [agent.agentId])
 
-  const isPending = update.isPending
+  const isPending = update.isPending || iconUpload.isUploading
   const isDisabled = !canEdit || isPending
 
   const trimmedName = name.trim()
   const trimmedDescription = description.trim()
+  const iconChanged =
+    pendingFile !== null ||
+    selectedIcon !== (agent.iconKey ?? undefined) ||
+    selectedColor !== (agent.iconColor ?? DEFAULT_AGENT_COLOR)
   const isDirty =
     trimmedName !== (agent.name?.trim() ?? '') ||
     type !== (agent.type ?? '') ||
-    trimmedDescription !== (agent.description?.trim() ?? '')
+    trimmedDescription !== (agent.description?.trim() ?? '') ||
+    iconChanged
   const canSubmit = canEdit && isDirty && trimmedName.length > 0 && !isPending
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!canSubmit) return
 
-    const input: { name: string; description: string; type?: AgentType } = {
+    // 1) If a custom file is pending, upload it first — the hook persists
+    //    `iconKey` on its own, so we skip it from the PATCH payload below.
+    if (pendingFile) {
+      const uploaded = await iconUpload.upload(pendingFile)
+      if (uploaded === null) {
+        toast.error(t('agents.errorUpdate'))
+        return
+      }
+      setSelectedIcon(uploaded)
+      setPendingFile(null)
+    }
+
+    const input: {
+      name: string
+      description: string
+      type?: AgentType
+      iconKey?: string
+      iconColor?: string
+    } = {
       name: trimmedName,
       description: trimmedDescription,
     }
     if (type !== (agent.type ?? '')) {
       input.type = (type as AgentType) || undefined
+    }
+    // Only include icon fields when the picker (preset or browser) changed.
+    // The upload hook already PATCH'd iconKey when pendingFile was set.
+    if (!pendingFile) {
+      if (selectedIcon !== (agent.iconKey ?? undefined)) {
+        input.iconKey = selectedIcon
+      }
+      if (selectedColor !== (agent.iconColor ?? DEFAULT_AGENT_COLOR)) {
+        input.iconColor = selectedColor
+      }
     }
 
     update.mutate(
@@ -114,6 +160,18 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
           />
         </div>
       </div>
+
+      <AgentIconPicker
+        value={selectedIcon}
+        onChange={setSelectedIcon}
+        selectedColor={selectedColor}
+        onColorChange={setSelectedColor}
+        onFileSelected={(file, previewUrl) => {
+          setPendingFile(file)
+          setSelectedIcon(previewUrl)
+        }}
+        disabled={isDisabled}
+      />
 
       <FormTextarea
         id="agent-description"

@@ -69,6 +69,7 @@ const agentSchema = z.object({
   status: z.enum(['pending', 'active', 'deactivated']),
   type: z.string().nullable(),
   iconKey: z.string().nullable(),
+  iconColor: z.string().nullable(),
   publicKeyPrefix: z.string(),
   publicKeySuffix: z.string(),
   publicKey: z.string(),
@@ -90,6 +91,8 @@ export interface UpdateAgentInput {
   name?: string
   description?: string
   type?: AgentType
+  iconKey?: string
+  iconColor?: string
 }
 
 export interface ApproveAgentInput {
@@ -134,4 +137,14 @@ export async function updateAgent(
   input: UpdateAgentInput,
 ): Promise<void> {
   await api.patch(`api/agents/${agentId}`, { json: input })
+}
+
+export async function presignAgentIcon(
+  agentId: string,
+  extension: string,
+): Promise<{ uploadUrl: string; publicUrl: string }> {
+  const raw = await api
+    .post(`api/agents/${agentId}/icon/presign`, { json: { agentId, extension } })
+    .json()
+  return raw as { uploadUrl: string; publicUrl: string }
 }

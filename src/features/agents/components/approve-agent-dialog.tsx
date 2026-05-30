@@ -1,15 +1,21 @@
 import { useState, useId } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
-import { BUILTIN_AGENT_TYPES, type AgentType } from '../api/agents-api'
+import {
+  BUILTIN_AGENT_TYPES,
+  presignAgentIcon,
+  type AgentType,
+} from '../api/agents-api'
 import { useAgentTypes } from '../use-agent-types'
 import { AgentIconPicker, DEFAULT_AGENT_COLOR } from './agent-icon-picker'
 
 export interface ApproveAgentDialogProps {
   open: boolean
   agentName: string
+  agentId: string
   /** Pre-fills the name input — the agent's existing name if set. */
   initialName?: string
   isPending: boolean
@@ -131,6 +137,7 @@ function AgentTypeCombobox({ typeValues, inputValue, onInputChange, onSelect, di
 export function ApproveAgentDialog({
   open,
   agentName,
+  agentId,
   initialName = '',
   isPending,
   onConfirm,
@@ -143,23 +150,54 @@ export function ApproveAgentDialog({
   const [typeValue, setTypeValue] = useState('')
   const [selectedIcon, setSelectedIcon] = useState<string | undefined>(undefined)
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_AGENT_COLOR)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
 
   if (!open) return null
 
   const typeValues = agentTypes.data ?? BUILTIN_AGENT_TYPES
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
+    let iconKey = selectedIcon
+
+    // Custom file: upload to S3 before confirming so the persisted iconKey
+    // is the public URL — not the throwaway blob: preview.
+    if (pendingFile) {
+      setIsUploading(true)
+      try {
+        const ext =
+          pendingFile.type === 'image/png'
+            ? 'png'
+            : pendingFile.type === 'image/webp'
+              ? 'webp'
+              : 'jpg'
+        const { uploadUrl, publicUrl } = await presignAgentIcon(agentId, ext)
+        const res = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': pendingFile.type },
+          body: pendingFile,
+        })
+        if (!res.ok) throw new Error(`S3 upload failed: ${res.status}`)
+        iconKey = `${publicUrl}?v=${Date.now()}`
+      } catch {
+        setIsUploading(false)
+        toast.error(t('vault.iconUploadError.failed'))
+        return
+      }
+      setIsUploading(false)
+    }
+
     onConfirm({
       name: name.trim() || undefined,
       type: (typeValue.trim() as AgentType) || undefined,
-      iconKey: selectedIcon,
-      iconColor: selectedIcon ? selectedColor : undefined,
+      iconKey,
+      iconColor: iconKey ? selectedColor : undefined,
     })
   }
 
   return (
     <ModalShell
-      onClose={isPending ? undefined : onCancel}
+      onClose={isPending || isUploading ? undefined : onCancel}
       ariaLabel={t('agents.approveSetup')}
       width={420}
     >
@@ -206,11 +244,18 @@ export function ApproveAgentDialog({
 
         <AgentIconPicker
           value={selectedIcon}
-          onChange={setSelectedIcon}
+          onChange={(next) => {
+            // Picking a preset / browser icon clears any pending custom file.
+            setPendingFile(null)
+            setSelectedIcon(next)
+          }}
           selectedColor={selectedColor}
           onColorChange={setSelectedColor}
-          onFileSelected={(_file, previewUrl) => setSelectedIcon(previewUrl)}
-          disabled={isPending}
+          onFileSelected={(file, previewUrl) => {
+            setPendingFile(file)
+            setSelectedIcon(previewUrl)
+          }}
+          disabled={isPending || isUploading}
         />
       </div>
 
@@ -225,7 +270,7 @@ export function ApproveAgentDialog({
           variant="subtle"
           size="sm"
           onClick={onCancel}
-          disabled={isPending}
+          disabled={isPending || isUploading}
           className="flex-1"
         >
           {t('agents.cancel')}
@@ -233,7 +278,7 @@ export function ApproveAgentDialog({
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={isPending}
+          disabled={isPending || isUploading}
           className="flex flex-[2] cursor-pointer items-center justify-center gap-1.5
             rounded-lg border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)]
             px-2.5 py-1.5 text-[11px] font-semibold text-[#2EC4B6]
@@ -241,7 +286,7 @@ export function ApproveAgentDialog({
             disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Icon name="check_circle" size={14} />
-          {isPending ? t('agents.approving') : t('agents.approve')}
+          {isPending || isUploading ? t('agents.approving') : t('agents.approve')}
         </button>
       </div>
     </ModalShell>

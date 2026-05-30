@@ -43,6 +43,7 @@ const baseAgent: Agent = {
   status: AGENT_STATUS_ACTIVE,
   type: null,
   iconKey: null,
+  iconColor: null,
   publicKeyPrefix: 'pk7Yq2Lm',
   publicKeySuffix: 'aB3x',
   publicKey: 'pk7Yq2Lm0000000000000000aB3x',

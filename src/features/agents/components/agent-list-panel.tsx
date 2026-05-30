@@ -167,6 +167,7 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
       {approveTarget ? (
         <ApproveAgentDialog
           open
+          agentId={approveTarget.agentId}
           agentName={agentDisplayName(approveTarget, t('agents.unnamed'))}
           initialName={approveTarget.name ?? ''}
           isPending={approve.isPending}
