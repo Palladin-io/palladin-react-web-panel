@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { Icon } from '../../../shared/components/icon'
 import { analytics } from '../../../shared/lib/analytics'
 import { ModalShell } from '../../../shared/components/modal-shell'
@@ -80,13 +81,8 @@ export function PremiumGateDialog({ open, onClose }: PremiumGateDialogProps) {
           <PremiumPerk label={t('vault.premiumGate.perkPriority')} />
         </ul>
 
-        <div className="mt-1 flex items-center gap-2">
-          <Button
-            variant="subtle"
-            size="sm"
-            onClick={onClose}
-            className="flex-1"
-          >
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onClose} className="flex-1">
             {t('vault.premiumGate.maybeLater')}
           </Button>
           <Link
@@ -104,7 +100,7 @@ export function PremiumGateDialog({ open, onClose }: PremiumGateDialogProps) {
             <Icon name="workspace_premium" size={16} />
             {t('vault.premiumGate.upgradeCta')}
           </Link>
-        </div>
+        </DialogFooter>
       </div>
     </ModalShell>
   )

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { FormInput } from '../../../shared/components/form-field'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
@@ -90,26 +91,14 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
             maxLength={64}
           />
 
-          <div className="mt-3 flex items-center gap-2">
-            <Button
-              variant="subtle"
-              size="sm"
-              onClick={onClose}
-              disabled={isPending}
-              className="flex-1"
-            >
+          <DialogFooter>
+            <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
               {t('apiKeys.cancel')}
             </Button>
-            <Button
-              variant="accent"
-              size="sm"
-              type="submit"
-              disabled={!canSubmit}
-              className="flex-[2]"
-            >
+            <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
               {isPending ? t('apiKeys.generating') : t('apiKeys.generate')}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       )}
     </ModalShell>
@@ -181,11 +170,11 @@ function GeneratedSecretView({
         </p>
       </div>
 
-      <div className="mt-1">
+      <DialogFooter>
         <Button variant="accent" size="sm" onClick={onDone} className="w-full">
           {t('apiKeys.done')}
         </Button>
-      </div>
+      </DialogFooter>
     </div>
   )
 }

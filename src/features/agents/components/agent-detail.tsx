@@ -16,6 +16,7 @@ import { useAgentPermissions } from '../use-agents'
 import { useApproveAgent } from '../use-approve-agent'
 import { useDeactivateAgent } from '../use-deactivate-agent'
 import { useReactivateAgent } from '../use-reactivate-agent'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { AgentAvatar } from './agent-avatar'
 import { AgentEditForm } from './agent-edit-form'
 import {
@@ -462,14 +463,14 @@ function DeactivateAgentDialog({ open, agentName, isPending, onConfirm, onCancel
         <p className="text-[12px] text-[var(--cv-t2)]">
           {t('agents.deactivateConfirmBody', { name: agentName })}
         </p>
-        <div className="mt-1 flex items-center gap-2">
+        <DialogFooter>
           <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('agents.cancel')}
           </Button>
           <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
             {isPending ? t('agents.deactivating') : t('agents.deactivate')}
           </Button>
-        </div>
+        </DialogFooter>
       </div>
     </ModalShell>
   )

@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
 
 export interface RevokeApiKeyDialogProps {
@@ -39,26 +40,14 @@ export function RevokeApiKeyDialog({
           {t('apiKeys.revokeConfirmText')}
         </p>
 
-        <div className="mt-1 flex items-center gap-2">
-          <Button
-            variant="subtle"
-            size="sm"
-            onClick={onCancel}
-            disabled={isPending}
-            className="flex-1"
-          >
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('apiKeys.cancel')}
           </Button>
-          <Button
-            variant="accent"
-            size="sm"
-            onClick={onConfirm}
-            disabled={isPending}
-            className="flex-[2]"
-          >
+          <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
             {isPending ? t('apiKeys.revoking') : t('apiKeys.confirmRevoke')}
           </Button>
-        </div>
+        </DialogFooter>
       </div>
     </ModalShell>
   )

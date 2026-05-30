@@ -12,6 +12,7 @@ import { useCreateVault } from '../use-create-vault'
 import { extensionFromMime } from '../use-vault-icon-upload'
 import { VAULTS_QUERY_KEY } from '../use-vaults'
 import { presignVaultIcon, uploadToS3, updateVault } from '../api/vault-api'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { VaultIconPicker } from './vault-icon-picker'
 import {
@@ -168,26 +169,14 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
           rowClassName="flex justify-between"
         />
 
-        <div className="mt-1 flex items-center gap-2">
-          <Button
-            variant="subtle"
-            size="sm"
-            onClick={onClose}
-            disabled={isPending}
-            className="flex-1"
-          >
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
             {t('vault.cancel')}
           </Button>
-          <Button
-            variant="accent"
-            size="sm"
-            type="submit"
-            disabled={!canSubmit}
-            className="flex-[2]"
-          >
+          <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
             {isPending ? t('vault.creating') : t('vault.createVault')}
           </Button>
-        </div>
+        </DialogFooter>
       </form>
     </ModalShell>
   )

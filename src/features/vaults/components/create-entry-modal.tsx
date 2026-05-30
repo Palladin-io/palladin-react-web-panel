@@ -23,6 +23,7 @@ import {
   extractDomain,
 } from './entry-presentation'
 import { EntryIconPicker } from './entry-icon-picker'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
 
 export interface CreateEntryModalProps {
@@ -335,26 +336,14 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           </span>
         </div>
 
-        <div className="mt-1 flex items-center gap-2">
-          <Button
-            variant="subtle"
-            size="sm"
-            onClick={onClose}
-            disabled={isPending}
-            className="flex-1"
-          >
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
             {t('vault.cancel')}
           </Button>
-          <Button
-            variant="accent"
-            size="sm"
-            type="submit"
-            disabled={!canSubmit}
-            className="flex-[2]"
-          >
+          <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
             {isPending ? t('vault.entries.saving') : t('vault.entries.saveEntry')}
           </Button>
-        </div>
+        </DialogFooter>
       </form>
     </ModalShell>
   )

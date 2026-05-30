@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { hexWithAlpha } from '../../vaults/components/vault-color'
@@ -285,20 +286,14 @@ function AgentIconBrowser({
           </>
         )}
 
-        <div className="mt-1 flex items-center gap-2">
+        <DialogFooter>
           <Button variant="subtle" size="sm" onClick={onClose} className="flex-1">
             {t('vault.cancel')}
           </Button>
-          <Button
-            variant="accent"
-            size="sm"
-            onClick={handleConfirm}
-            disabled={localIcon === undefined}
-            className="flex-[2]"
-          >
+          <Button variant="accent" size="sm" onClick={handleConfirm} disabled={localIcon === undefined} className="flex-[2]">
             {t('vault.iconBrowserChoose')}
           </Button>
-        </div>
+        </DialogFooter>
       </div>
     </ModalShell>
   )
