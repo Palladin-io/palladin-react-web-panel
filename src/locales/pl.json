@@ -393,7 +393,7 @@
   "agents.reactivating": "Aktywowanie…",
   "agents.editName": "Nazwa wyświetlana",
   "agents.editDescription": "Opis",
-  "agents.editSave": "Zapisz",
+  "agents.editSave": "Zapisz zmiany",
   "agents.notFound": "Nie znaleziono agenta",
   "agents.selectAgent": "Wybierz agenta, aby zobaczyć szczegóły",
   "agents.errorLoad": "Nie udało się załadować agentów. Spróbuj ponownie.",

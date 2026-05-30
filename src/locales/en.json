@@ -373,7 +373,7 @@
   "agents.reactivating": "Reactivating…",
   "agents.editName": "Display Name",
   "agents.editDescription": "Description",
-  "agents.editSave": "Save",
+  "agents.editSave": "Save Changes",
   "agents.notFound": "Agent not found",
   "agents.selectAgent": "Select an agent to view details",
   "agents.errorLoad": "Could not load agents. Please try again.",
