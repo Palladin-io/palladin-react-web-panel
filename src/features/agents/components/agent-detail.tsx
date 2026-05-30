@@ -166,14 +166,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                 value={formatPublicKey(agent)}
                 mono
               />
-              {agent.enrolledAt ? (
-                <DetailRow
-                  label={t('agents.enrolled')}
-                  value={`${formatAgentDateTime(agent.enrolledAt)}${
-                    agent.enrolledByName ? ` · ${agent.enrolledByName}` : ''
-                  }`}
-                />
-              ) : null}
               {agent.deactivatedAt ? (
                 <DetailRow
                   label={t('agents.deactivatedOn')}
@@ -199,6 +191,14 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                 label={t('agents.connectedOn')}
                 value={formatAgentDateTime(agent.createdAt)}
               />
+              {agent.enrolledAt ? (
+                <DetailRow
+                  label={t('agents.enrolled')}
+                  value={`${formatAgentDateTime(agent.enrolledAt)}${
+                    agent.enrolledByName ? ` · ${agent.enrolledByName}` : ''
+                  }`}
+                />
+              ) : null}
             </dl>
 
             {/* Editable fields — hidden for pending agents (nothing to configure before approval) */}

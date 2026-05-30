@@ -100,11 +100,11 @@ export function AgentIconPicker({
           onClick={() => setShowBrowser(true)}
           disabled={disabled}
           aria-label={t('vault.iconMore')}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl
-            transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
-          style={{ background: hexWithAlpha('#8A95A6', 0.15) }}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border
+            border-[#FF4F4F] transition-transform hover:scale-105
+            disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Icon name="more_horiz" size={16} color="#8A95A6" />
+          <Icon name="more_horiz" size={16} color="#FF4F4F" />
         </button>
       </div>
 
