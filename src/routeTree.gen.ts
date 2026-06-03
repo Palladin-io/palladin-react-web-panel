@@ -23,6 +23,8 @@ import { Route as AuthenticatedVaultsVaultIdRouteImport } from './routes/_authen
 import { Route as AuthenticatedApiKeysKeyIdRouteImport } from './routes/_authenticated/api-keys_.$keyId'
 import { Route as AuthenticatedAgentsAgentIdRouteImport } from './routes/_authenticated/agents_.$agentId'
 import { Route as AuthenticatedVaultsVaultIdSettingsRouteImport } from './routes/_authenticated/vaults_.$vaultId_.settings'
+import { Route as AuthenticatedVaultsVaultIdGrantsRouteImport } from './routes/_authenticated/vaults_.$vaultId_.grants'
+import { Route as AuthenticatedVaultsVaultIdGrantsGrantIdRouteImport } from './routes/_authenticated/vaults_.$vaultId_.grants_.$grantId'
 import { Route as AuthenticatedVaultsVaultIdEntriesEntryIdRouteImport } from './routes/_authenticated/vaults_.$vaultId_.entries_.$entryId'
 
 const RecoveryRoute = RecoveryRouteImport.update({
@@ -98,6 +100,18 @@ const AuthenticatedVaultsVaultIdSettingsRoute =
     path: '/vaults/$vaultId/settings',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedVaultsVaultIdGrantsRoute =
+  AuthenticatedVaultsVaultIdGrantsRouteImport.update({
+    id: '/vaults_/$vaultId_/grants',
+    path: '/vaults/$vaultId/grants',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedVaultsVaultIdGrantsGrantIdRoute =
+  AuthenticatedVaultsVaultIdGrantsGrantIdRouteImport.update({
+    id: '/vaults_/$vaultId_/grants_/$grantId',
+    path: '/vaults/$vaultId/grants/$grantId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedVaultsVaultIdEntriesEntryIdRoute =
   AuthenticatedVaultsVaultIdEntriesEntryIdRouteImport.update({
     id: '/vaults_/$vaultId_/entries_/$entryId',
@@ -118,8 +132,10 @@ export interface FileRoutesByFullPath {
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
   '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
+  '/vaults/$vaultId/grants': typeof AuthenticatedVaultsVaultIdGrantsRoute
   '/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
   '/vaults/$vaultId/entries/$entryId': typeof AuthenticatedVaultsVaultIdEntriesEntryIdRoute
+  '/vaults/$vaultId/grants/$grantId': typeof AuthenticatedVaultsVaultIdGrantsGrantIdRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
@@ -134,8 +150,10 @@ export interface FileRoutesByTo {
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
   '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
+  '/vaults/$vaultId/grants': typeof AuthenticatedVaultsVaultIdGrantsRoute
   '/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
   '/vaults/$vaultId/entries/$entryId': typeof AuthenticatedVaultsVaultIdEntriesEntryIdRoute
+  '/vaults/$vaultId/grants/$grantId': typeof AuthenticatedVaultsVaultIdGrantsGrantIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -152,8 +170,10 @@ export interface FileRoutesById {
   '/_authenticated/agents_/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/_authenticated/api-keys_/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
   '/_authenticated/vaults_/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
+  '/_authenticated/vaults_/$vaultId_/grants': typeof AuthenticatedVaultsVaultIdGrantsRoute
   '/_authenticated/vaults_/$vaultId_/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
   '/_authenticated/vaults_/$vaultId_/entries_/$entryId': typeof AuthenticatedVaultsVaultIdEntriesEntryIdRoute
+  '/_authenticated/vaults_/$vaultId_/grants_/$grantId': typeof AuthenticatedVaultsVaultIdGrantsGrantIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -170,8 +190,10 @@ export interface FileRouteTypes {
     | '/agents/$agentId'
     | '/api-keys/$keyId'
     | '/vaults/$vaultId'
+    | '/vaults/$vaultId/grants'
     | '/vaults/$vaultId/settings'
     | '/vaults/$vaultId/entries/$entryId'
+    | '/vaults/$vaultId/grants/$grantId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
@@ -186,8 +208,10 @@ export interface FileRouteTypes {
     | '/agents/$agentId'
     | '/api-keys/$keyId'
     | '/vaults/$vaultId'
+    | '/vaults/$vaultId/grants'
     | '/vaults/$vaultId/settings'
     | '/vaults/$vaultId/entries/$entryId'
+    | '/vaults/$vaultId/grants/$grantId'
   id:
     | '__root__'
     | '/_authenticated'
@@ -203,8 +227,10 @@ export interface FileRouteTypes {
     | '/_authenticated/agents_/$agentId'
     | '/_authenticated/api-keys_/$keyId'
     | '/_authenticated/vaults_/$vaultId'
+    | '/_authenticated/vaults_/$vaultId_/grants'
     | '/_authenticated/vaults_/$vaultId_/settings'
     | '/_authenticated/vaults_/$vaultId_/entries_/$entryId'
+    | '/_authenticated/vaults_/$vaultId_/grants_/$grantId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -313,6 +339,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVaultsVaultIdSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/vaults_/$vaultId_/grants': {
+      id: '/_authenticated/vaults_/$vaultId_/grants'
+      path: '/vaults/$vaultId/grants'
+      fullPath: '/vaults/$vaultId/grants'
+      preLoaderRoute: typeof AuthenticatedVaultsVaultIdGrantsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/vaults_/$vaultId_/grants_/$grantId': {
+      id: '/_authenticated/vaults_/$vaultId_/grants_/$grantId'
+      path: '/vaults/$vaultId/grants/$grantId'
+      fullPath: '/vaults/$vaultId/grants/$grantId'
+      preLoaderRoute: typeof AuthenticatedVaultsVaultIdGrantsGrantIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/vaults_/$vaultId_/entries_/$entryId': {
       id: '/_authenticated/vaults_/$vaultId_/entries_/$entryId'
       path: '/vaults/$vaultId/entries/$entryId'
@@ -334,8 +374,10 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAgentsAgentIdRoute: typeof AuthenticatedAgentsAgentIdRoute
   AuthenticatedApiKeysKeyIdRoute: typeof AuthenticatedApiKeysKeyIdRoute
   AuthenticatedVaultsVaultIdRoute: typeof AuthenticatedVaultsVaultIdRoute
+  AuthenticatedVaultsVaultIdGrantsRoute: typeof AuthenticatedVaultsVaultIdGrantsRoute
   AuthenticatedVaultsVaultIdSettingsRoute: typeof AuthenticatedVaultsVaultIdSettingsRoute
   AuthenticatedVaultsVaultIdEntriesEntryIdRoute: typeof AuthenticatedVaultsVaultIdEntriesEntryIdRoute
+  AuthenticatedVaultsVaultIdGrantsGrantIdRoute: typeof AuthenticatedVaultsVaultIdGrantsGrantIdRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -349,10 +391,13 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAgentsAgentIdRoute: AuthenticatedAgentsAgentIdRoute,
   AuthenticatedApiKeysKeyIdRoute: AuthenticatedApiKeysKeyIdRoute,
   AuthenticatedVaultsVaultIdRoute: AuthenticatedVaultsVaultIdRoute,
+  AuthenticatedVaultsVaultIdGrantsRoute: AuthenticatedVaultsVaultIdGrantsRoute,
   AuthenticatedVaultsVaultIdSettingsRoute:
     AuthenticatedVaultsVaultIdSettingsRoute,
   AuthenticatedVaultsVaultIdEntriesEntryIdRoute:
     AuthenticatedVaultsVaultIdEntriesEntryIdRoute,
+  AuthenticatedVaultsVaultIdGrantsGrantIdRoute:
+    AuthenticatedVaultsVaultIdGrantsGrantIdRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

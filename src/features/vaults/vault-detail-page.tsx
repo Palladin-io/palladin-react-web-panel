@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
+import { useAuthStore } from '../auth'
+import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
 import { CreateEntryModal } from './components/create-entry-modal'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import {
@@ -109,7 +111,13 @@ function DetailBody({
           title={vault.name}
           subtitle={subtitle}
           onBack={onBack}
-          actions={<TabActions activeTab={activeTab} onAddEntry={onAddEntry} />}
+          actions={
+            <TabActions
+              activeTab={activeTab}
+              vaultId={vault.id}
+              onAddEntry={onAddEntry}
+            />
+          }
         />
       ) : null}
       <VaultDetailTabs
@@ -117,7 +125,11 @@ function DetailBody({
         onChange={onTabChange}
         actions={
           showHeader ? undefined : (
-            <TabActions activeTab={activeTab} onAddEntry={onAddEntry} />
+            <TabActions
+              activeTab={activeTab}
+              vaultId={vault.id}
+              onAddEntry={onAddEntry}
+            />
           )
         }
       />
@@ -128,11 +140,15 @@ function DetailBody({
 
 interface TabActionsProps {
   activeTab: VaultDetailTab
+  vaultId: string
   onAddEntry: () => void
 }
 
-function TabActions({ activeTab, onAddEntry }: TabActionsProps) {
+function TabActions({ activeTab, vaultId, onAddEntry }: TabActionsProps) {
   const { t } = useTranslation()
+  const permissions = useAuthStore((s) => s.permissions)
+  const canManageGrants = (permissions & PERMISSION_GRANT_MANAGE) !== 0
+
   switch (activeTab) {
     case 'entries':
       return (
@@ -147,9 +163,22 @@ function TabActions({ activeTab, onAddEntry }: TabActionsProps) {
       )
     case 'agents':
       return (
-        <Button variant="accent" size="sm" icon="add">
-          {t('vault.detail.addAgent')}
-        </Button>
+        <>
+          {canManageGrants && (
+            <Link
+              to="/vaults/$vaultId/grants"
+              params={{ vaultId }}
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5
+                text-[12px] font-semibold text-[var(--cv-t2)]
+                transition-colors hover:bg-[var(--cv-bg-subtle)] hover:text-[var(--cv-t1)]"
+            >
+              {t('vault.detail.manageGrants')}
+            </Link>
+          )}
+          <Button variant="accent" size="sm" icon="add">
+            {t('vault.detail.addAgent')}
+          </Button>
+        </>
       )
     default:
       return null

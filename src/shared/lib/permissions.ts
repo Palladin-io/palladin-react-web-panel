@@ -8,5 +8,6 @@
  */
 
 export const PERMISSION_AGENT_MANAGE = 16
+export const PERMISSION_GRANT_MANAGE = 32
 export const PERMISSION_READ_API_KEY = 4096
 export const PERMISSION_WRITE_API_KEY = 8192
