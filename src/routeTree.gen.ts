@@ -17,6 +17,7 @@ import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
+import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
 import { Route as AuthenticatedApiKeysRouteImport } from './routes/_authenticated/api-keys'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
 import { Route as AuthenticatedVaultsVaultIdRouteImport } from './routes/_authenticated/vaults_.$vaultId'
@@ -62,6 +63,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedApprovalsRoute = AuthenticatedApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedApiKeysRoute = AuthenticatedApiKeysRouteImport.update({
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   '/recovery': typeof RecoveryRoute
   '/agents': typeof AuthenticatedAgentsRoute
   '/api-keys': typeof AuthenticatedApiKeysRoute
+  '/approvals': typeof AuthenticatedApprovalsRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/unlock': typeof AuthenticatedUnlockRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/recovery': typeof RecoveryRoute
   '/agents': typeof AuthenticatedAgentsRoute
   '/api-keys': typeof AuthenticatedApiKeysRoute
+  '/approvals': typeof AuthenticatedApprovalsRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/unlock': typeof AuthenticatedUnlockRoute
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   '/recovery': typeof RecoveryRoute
   '/_authenticated/agents': typeof AuthenticatedAgentsRoute
   '/_authenticated/api-keys': typeof AuthenticatedApiKeysRoute
+  '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | '/recovery'
     | '/agents'
     | '/api-keys'
+    | '/approvals'
     | '/billing'
     | '/settings'
     | '/unlock'
@@ -178,6 +188,7 @@ export interface FileRouteTypes {
     | '/recovery'
     | '/agents'
     | '/api-keys'
+    | '/approvals'
     | '/billing'
     | '/settings'
     | '/unlock'
@@ -195,6 +206,7 @@ export interface FileRouteTypes {
     | '/recovery'
     | '/_authenticated/agents'
     | '/_authenticated/api-keys'
+    | '/_authenticated/approvals'
     | '/_authenticated/billing'
     | '/_authenticated/settings'
     | '/_authenticated/unlock'
@@ -271,6 +283,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedBillingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/approvals': {
+      id: '/_authenticated/approvals'
+      path: '/approvals'
+      fullPath: '/approvals'
+      preLoaderRoute: typeof AuthenticatedApprovalsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/api-keys': {
       id: '/_authenticated/api-keys'
       path: '/api-keys'
@@ -326,6 +345,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteChildren {
   AuthenticatedAgentsRoute: typeof AuthenticatedAgentsRoute
   AuthenticatedApiKeysRoute: typeof AuthenticatedApiKeysRoute
+  AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedUnlockRoute: typeof AuthenticatedUnlockRoute
@@ -341,6 +361,7 @@ interface AuthenticatedRouteChildren {
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAgentsRoute: AuthenticatedAgentsRoute,
   AuthenticatedApiKeysRoute: AuthenticatedApiKeysRoute,
+  AuthenticatedApprovalsRoute: AuthenticatedApprovalsRoute,
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedUnlockRoute: AuthenticatedUnlockRoute,

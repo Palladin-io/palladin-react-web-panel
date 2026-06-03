@@ -15,7 +15,11 @@ import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
 import { AppWordmark } from '../shared/components/app-wordmark'
 import { Icon } from '../shared/components/icon'
-import { PERMISSION_AGENT_MANAGE, PERMISSION_READ_API_KEY } from '../shared/lib/permissions'
+import {
+  PERMISSION_AGENT_MANAGE,
+  PERMISSION_GRANT_MANAGE,
+  PERMISSION_READ_API_KEY,
+} from '../shared/lib/permissions'
 
 
 export const Route = createFileRoute('/_authenticated')({
@@ -129,6 +133,14 @@ const NAV_ITEMS: NavItem[] = [
     to: '/agents',
     matchPrefix: '/agents',
     requirePermission: PERMISSION_AGENT_MANAGE,
+  },
+  {
+    key: 'approvals',
+    labelKey: 'nav.approvals',
+    icon: 'verified_user',
+    to: '/approvals',
+    matchPrefix: '/approvals',
+    requirePermission: PERMISSION_GRANT_MANAGE,
   },
   { key: 'audit', labelKey: 'nav.auditLog', icon: 'history', disabled: true },
   {
