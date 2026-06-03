@@ -405,5 +405,7 @@
   "agents.logsDeactivated": "Deactivated",
   "validation.required": "This field is required",
   "validation.invalidUrl": "Enter a valid URL (e.g. https://example.com)",
-  "agents.editSaved": "Agent saved"
+  "agents.editSaved": "Agent saved",
+  "notifications.enablePush": "Enable push notifications",
+  "notifications.pushBlocked": "Notifications are blocked in your browser settings"
 }

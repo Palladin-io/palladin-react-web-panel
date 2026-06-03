@@ -14,4 +14,26 @@ export const env = {
   signalrHubUrl: requireEnv('VITE_SIGNALR_HUB_URL'),
   posthogKey: optionalEnv('VITE_POSTHOG_KEY'),
   posthogHost: optionalEnv('VITE_POSTHOG_HOST'),
+
+  // Firebase Cloud Messaging (Web Push). All optional — when any of these are
+  // empty, web push is simply disabled (see `isFirebaseConfigured`). The web
+  // panel still works fully via SignalR; push is complementary.
+  firebaseApiKey: optionalEnv('VITE_FIREBASE_API_KEY'),
+  firebaseAuthDomain: optionalEnv('VITE_FIREBASE_AUTH_DOMAIN'),
+  firebaseProjectId: optionalEnv('VITE_FIREBASE_PROJECT_ID'),
+  firebaseMessagingSenderId: optionalEnv('VITE_FIREBASE_MESSAGING_SENDER_ID'),
+  firebaseAppId: optionalEnv('VITE_FIREBASE_APP_ID'),
+  firebaseVapidKey: optionalEnv('VITE_FIREBASE_VAPID_KEY'),
 } as const
+
+/** True only when every Firebase value required for web push is present. */
+export function isFirebaseConfigured(): boolean {
+  return Boolean(
+    env.firebaseApiKey &&
+      env.firebaseAuthDomain &&
+      env.firebaseProjectId &&
+      env.firebaseMessagingSenderId &&
+      env.firebaseAppId &&
+      env.firebaseVapidKey,
+  )
+}

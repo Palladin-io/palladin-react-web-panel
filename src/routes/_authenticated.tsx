@@ -16,6 +16,7 @@ import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
 import { AppWordmark } from '../shared/components/app-wordmark'
 import { Icon } from '../shared/components/icon'
 import { PERMISSION_AGENT_MANAGE, PERMISSION_READ_API_KEY } from '../shared/lib/permissions'
+import { SignalRProvider, clearPushTokenOnLogout, useWebPush } from '../features/notifications'
 
 
 export const Route = createFileRoute('/_authenticated')({
@@ -92,15 +93,19 @@ function AuthenticatedLayout() {
 
   if (pathname === '/unlock') return <Outlet />
   return (
-    <div
-      className="flex h-screen overflow-hidden"
-      style={{ background: GRADIENTS[theme] }}
-    >
-      <AppSidebar currentPath={pathname} />
-      <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
-        <Outlet />
-      </main>
-    </div>
+    // SignalRProvider self-gates on auth + unlocked vault, so it only opens a
+    // connection once we're past the guards above.
+    <SignalRProvider>
+      <div
+        className="flex h-screen overflow-hidden"
+        style={{ background: GRADIENTS[theme] }}
+      >
+        <AppSidebar currentPath={pathname} />
+        <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+          <Outlet />
+        </main>
+      </div>
+    </SignalRProvider>
   )
 }
 
@@ -170,6 +175,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
   const logout = useAuthStore((s) => s.logout)
   const permissions = useAuthStore((s) => s.permissions)
   const { theme, toggleTheme } = useThemeStore()
+  const webPush = useWebPush()
   const visibleNavItems = NAV_ITEMS.filter(
     (item) => item.requirePermission === undefined || (permissions & item.requirePermission) !== 0,
   )
@@ -198,6 +204,9 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
   const currentFlag = LANG_OPTIONS.find((l) => l.code === currentLang)?.flag ?? '🌐'
 
   function handleLogout() {
+    // Best-effort: delete the FCM push token server-side before the JWT is
+    // cleared. Fire-and-forget — logout must not wait on or fail from cleanup.
+    void clearPushTokenOnLogout()
     logout()
     navigate({ to: '/login' })
   }
@@ -332,6 +341,31 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
           >
             <Icon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size={14} />
           </button>
+
+          {/* Enable push notifications — only while supported and not yet
+              registered. Deliberate user action triggers the permission prompt;
+              we never request permission automatically on load. */}
+          {webPush.isSupported && webPush.status !== 'registered' && (
+            <button
+              type="button"
+              onClick={() => void webPush.requestPermissionAndRegister()}
+              disabled={webPush.status === 'denied'}
+              className="flex h-6 w-6 items-center justify-center rounded
+                transition-colors hover:bg-[rgba(253,249,228,0.06)]
+                disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ color: mutedColor }}
+              title={
+                webPush.status === 'denied'
+                  ? t('notifications.pushBlocked')
+                  : t('notifications.enablePush')
+              }
+            >
+              <Icon
+                name={webPush.status === 'denied' ? 'notifications_off' : 'notifications'}
+                size={14}
+              />
+            </button>
+          )}
 
           <div className="flex-1" />
 

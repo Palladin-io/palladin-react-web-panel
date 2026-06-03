@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../features/auth'
+import { clearPushTokenOnLogout } from '../../features/notifications'
 import { Button } from '../../shared/components/button'
 
 export const Route = createFileRoute('/_authenticated/')({
@@ -24,6 +25,7 @@ function AuthenticatedHome() {
   const logout = useAuthStore((s) => s.logout)
 
   function handleLogout() {
+    void clearPushTokenOnLogout()
     logout()
     navigate({ to: '/login' })
   }

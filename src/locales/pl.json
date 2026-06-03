@@ -425,5 +425,7 @@
   "agents.logsDeactivated": "Dezaktywowany",
   "validation.required": "To pole jest wymagane",
   "validation.invalidUrl": "Podaj prawidłowy URL (np. https://example.com)",
-  "agents.editSaved": "Agent zapisany"
+  "agents.editSaved": "Agent zapisany",
+  "notifications.enablePush": "Włącz powiadomienia push",
+  "notifications.pushBlocked": "Powiadomienia są zablokowane w ustawieniach przeglądarki"
 }
