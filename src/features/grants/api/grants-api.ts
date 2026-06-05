@@ -59,13 +59,16 @@ const grantSchema = z.object({
 
 export type Grant = z.infer<typeof grantSchema>
 
-/** Cursor-paginated list response. */
-const grantPageSchema = z.object({
-  items: z.array(grantSchema),
+/** Cursor-paginated list envelope — items are parsed per-row below. */
+const grantPageEnvelopeSchema = z.object({
+  items: z.array(z.unknown()),
   nextCursor: z.string().nullable().optional(),
 })
 
-export type GrantPage = z.infer<typeof grantPageSchema>
+export interface GrantPage {
+  items: Grant[]
+  nextCursor: string | null
+}
 
 export interface GetVaultGrantsParams {
   status?: GrantStatus
@@ -74,6 +77,11 @@ export interface GetVaultGrantsParams {
   pageSize?: number
 }
 
+/**
+ * Per-vault grants list. Each item is parsed individually with `safeParse`
+ * (mirrors `getOrgGrants`) so a single malformed row never collapses the entire
+ * list into an `ErrorState`.
+ */
 export async function getVaultGrants(
   vaultId: string,
   params: GetVaultGrantsParams = {},
@@ -87,7 +95,19 @@ export async function getVaultGrants(
   const raw = await api
     .get(`api/vaults/${vaultId}/grants`, { searchParams })
     .json()
-  return grantPageSchema.parse(raw)
+  const page = grantPageEnvelopeSchema.parse(raw)
+
+  const items: Grant[] = []
+  let skipped = 0
+  for (const item of page.items) {
+    const result = grantSchema.safeParse(item)
+    if (result.success) items.push(result.data)
+    else skipped += 1
+  }
+  if (skipped > 0) {
+    console.warn(`[vault-grants] skipped ${skipped} malformed item(s)`)
+  }
+  return { items, nextCursor: page.nextCursor ?? null }
 }
 
 export async function getGrant(vaultId: string, grantId: string): Promise<Grant> {

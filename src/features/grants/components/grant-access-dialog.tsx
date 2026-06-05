@@ -7,7 +7,7 @@ import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { FieldFeedback } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { AGENT_STATUS_ACTIVE, getAgent, useAgents } from '../../agents'
-import { getVaults } from '../../vaults/api/vault-api'
+import { useVaults } from '../../vaults/use-vaults'
 import {
   GRANT_TYPE_FULL,
   GRANT_TYPE_GRANULAR,
@@ -404,7 +404,7 @@ function VaultPicker({
   const [query, setQuery] = useState('')
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null)
 
-  const vaults = useQuery({ queryKey: ['vaults'], queryFn: getVaults })
+  const vaults = useVaults()
   const covered = useMemo(() => vaultsCoveredByAgent(agentGrants), [agentGrants])
 
   const options = useMemo<ComboboxOption[]>(() => {

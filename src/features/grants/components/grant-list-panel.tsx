@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
+import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import {
   GRANT_STATUSES,
   type Grant,
@@ -144,12 +145,8 @@ function GrantCard({
     <Link
       to="/vaults/$vaultId/grants/$grantId"
       params={{ vaultId, grantId: grant.grantId }}
-      className={`block overflow-hidden rounded-xl border bg-[var(--cv-card-bg)]
-        px-[14px] py-3 transition-[border-color,box-shadow]
-        dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] hover:bg-[var(--cv-bg-subtle)] ${
-        isSelected
-          ? 'border-[var(--cv-t1)]'
-          : 'border-[var(--cv-border)] hover:border-[rgba(138,149,166,0.35)] dark:hover:border-[var(--cv-t1)]'
+      className={`block overflow-hidden px-[14px] py-3 ${HOVERABLE_CARD_CLASSES}${
+        isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
       }`}
     >
       <div className="flex items-center gap-2">

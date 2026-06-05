@@ -48,6 +48,17 @@ describe('grants-api', () => {
     expect(page.nextCursor).toBe('next')
   })
 
+  it('skips a single malformed item instead of collapsing the whole list', async () => {
+    getJson.mockResolvedValue({
+      items: [sampleGrant, { foo: 'bar' }],
+      nextCursor: null,
+    })
+    const page = await getVaultGrants('v1')
+    expect(page.items).toHaveLength(1)
+    expect(page.items[0].grantId).toBe('g1')
+    expect(page.nextCursor).toBeNull()
+  })
+
   it('forwards filters as search params', async () => {
     getJson.mockResolvedValue({ items: [] })
     await getVaultGrants('v1', { status: 'pending', agentId: 'a9', pageSize: 20 })

@@ -20,13 +20,12 @@ export const APPROVAL_AUDIT_LOG_QUERY_KEY = ['audit-logs', 'approvals'] as const
 
 /**
  * Keys to invalidate after a grant lifecycle mutation (revoke / proactive
- * grant-again). Covers the grants tree (org list + pending queue) AND the
- * approval audit log. Grant-again resolves a matching pending request
- * server-side, so the pending queue must refresh too.
+ * grant-again). `GRANTS_QUERY_KEY` is the root prefix that already covers the
+ * pending queue, org list, per-vault lists, and detail keys in one shot; the
+ * approval audit log lives under a different prefix so it needs its own entry.
  */
 export const GRANT_MUTATION_INVALIDATION_KEYS = [
   GRANTS_QUERY_KEY,
-  PENDING_GRANTS_QUERY_KEY,
   APPROVAL_AUDIT_LOG_QUERY_KEY,
 ] as const
 
