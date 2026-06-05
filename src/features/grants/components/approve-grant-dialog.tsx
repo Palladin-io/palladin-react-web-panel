@@ -2,16 +2,17 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import type { PendingGrant } from '../api/pending-grants-api'
 import {
   DEFAULT_GRANT_POLICY_KIND,
   grantPolicyToBody,
+  POLICY_ERROR_KEY,
   validateGrantPolicy,
   type GrantPolicyBody,
   type GrantPolicyKind,
 } from '../grant-policy'
+import { GrantPolicyFields } from './grant-policy-fields'
 
 export interface ApproveGrantDialogProps {
   grant: PendingGrant
@@ -20,25 +21,6 @@ export interface ApproveGrantDialogProps {
   onConfirm: (policy: GrantPolicyBody) => void
   onCancel: () => void
 }
-
-const POLICY_ERROR_KEY: Record<string, string> = {
-  expiryRequired: 'grants.approve.errorExpiryRequired',
-  expiryInPast: 'grants.approve.errorExpiryInPast',
-  limitRequired: 'grants.approve.errorLimitRequired',
-  limitInvalid: 'grants.approve.errorLimitInvalid',
-}
-
-const POLICY_KINDS: { value: GrantPolicyKind; labelKey: string }[] = [
-  { value: 'time', labelKey: 'grants.approve.policyTime' },
-  { value: 'uses', labelKey: 'grants.approve.policyUses' },
-  { value: 'lifetime', labelKey: 'grants.approve.policyLifetime' },
-]
-
-const SELECT_CLASS =
-  'w-full rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] ' +
-  'px-3 py-2 text-[12px] text-[var(--cv-input-text)] ' +
-  'focus:border-[var(--cv-t1)] focus:outline-none transition-colors ' +
-  'disabled:cursor-not-allowed disabled:opacity-40'
 
 /**
  * Approval dialog for a GRANULAR pending grant. The user picks ONE access
@@ -96,97 +78,26 @@ export function ApproveGrantDialog({
           </p>
         </div>
 
-        {/* Access type dropdown — drives which field (if any) shows below. */}
-        <div>
-          <label
-            htmlFor="approve-policy-kind"
-            className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-          >
-            {t('grants.approve.accessTypeLabel')}
-          </label>
-          <select
-            id="approve-policy-kind"
-            value={kind}
-            disabled={isPending}
-            onChange={(e) => {
-              setKind(e.target.value as GrantPolicyKind)
-              setError(null)
-            }}
-            className={SELECT_CLASS}
-          >
-            {POLICY_KINDS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {t(option.labelKey)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {kind === 'time' && (
-          <div className="-mb-4">
-            <FormInput
-              id="approve-expires-at"
-              type="datetime-local"
-              label={t('grants.approve.expiresAtLabel')}
-              value={expiresAt}
-              disabled={isPending}
-              error={
-                error === POLICY_ERROR_KEY.expiryRequired ||
-                error === POLICY_ERROR_KEY.expiryInPast
-              }
-              onChange={(e) => {
-                setExpiresAt(e.target.value)
-                setError(null)
-              }}
-            />
-            <FieldFeedback
-              visible={
-                error === POLICY_ERROR_KEY.expiryRequired ||
-                error === POLICY_ERROR_KEY.expiryInPast
-              }
-              color="red"
-            >
-              {error ? t(error) : ''}
-            </FieldFeedback>
-          </div>
-        )}
-
-        {kind === 'uses' && (
-          <div className="-mb-4">
-            <FormInput
-              id="approve-query-limit"
-              type="number"
-              min={1}
-              label={t('grants.approve.queryLimitLabel')}
-              placeholder={t('grants.approve.queryLimitPlaceholder')}
-              value={queryLimit}
-              disabled={isPending}
-              error={
-                error === POLICY_ERROR_KEY.limitRequired ||
-                error === POLICY_ERROR_KEY.limitInvalid
-              }
-              onChange={(e) => {
-                setQueryLimit(e.target.value)
-                setError(null)
-              }}
-            />
-            <FieldFeedback
-              visible={
-                error === POLICY_ERROR_KEY.limitRequired ||
-                error === POLICY_ERROR_KEY.limitInvalid
-              }
-              color="red"
-            >
-              {error ? t(error) : ''}
-            </FieldFeedback>
-          </div>
-        )}
-
-        {kind === 'lifetime' && (
-          <p className="rounded-lg bg-[var(--cv-bg-subtle)] px-3 py-2 text-[11px] text-[var(--cv-t3)]">
-            {t('grants.approve.lifetimeHint')}
-          </p>
-        )}
+        <GrantPolicyFields
+          idPrefix="approve"
+          kind={kind}
+          expiresAt={expiresAt}
+          queryLimit={queryLimit}
+          error={error}
+          disabled={isPending}
+          onKindChange={(k) => {
+            setKind(k)
+            setError(null)
+          }}
+          onExpiresAtChange={(v) => {
+            setExpiresAt(v)
+            setError(null)
+          }}
+          onQueryLimitChange={(v) => {
+            setQueryLimit(v)
+            setError(null)
+          }}
+        />
 
         <DialogFooter>
           <Button

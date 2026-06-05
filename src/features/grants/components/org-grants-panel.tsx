@@ -6,6 +6,8 @@ import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import { Tooltip } from '../../../shared/components/tooltip'
+import { useAuthStore } from '../../auth'
+import { PERMISSION_GRANT_MANAGE } from '../../../shared/lib/permissions'
 import { AgentAvatar } from '../../agents/components/agent-avatar'
 import {
   GRANT_STATUS_PENDING,
@@ -71,11 +73,18 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId }: OrgGrantsPanelProp
   // the section so the panel header is hidden.
   const embedded = Boolean(agentId || vaultId || entryId)
 
+  // Gate the fetch on GrantManage — without it the backend returns 403, so the
+  // embeds (agent/vault/entry tabs) must never trigger the request. Render a
+  // self-contained empty state instead.
+  const permissions = useAuthStore((s) => s.permissions)
+  const canManage = (permissions & PERMISSION_GRANT_MANAGE) !== 0
+
   // Fetch the org list, scoped to the given filter (mutually exclusive embeds).
   // No server status filter — we filter client-side so the multi-select works
   // without N requests. Pending is always dropped here.
   const grants = useOrgGrants(
     agentId ? { agentId } : vaultId ? { vaultId } : entryId ? { entryId } : {},
+    canManage,
   )
   const items = useMemo(
     () =>
@@ -173,7 +182,17 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId }: OrgGrantsPanelProp
         <StatusFilterDropdown selected={statusFilter} onChange={setStatusFilter} />
       </div>
 
-      {grants.isPending ? (
+      {!canManage ? (
+        <div
+          className="flex flex-col items-center gap-2 rounded-2xl border border-dashed
+            border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
+        >
+          <Icon name="lock" size={28} color="var(--cv-t3)" />
+          <p className="text-[12px] font-medium text-[var(--cv-t3)]">
+            {t('grants.org.noPermission')}
+          </p>
+        </div>
+      ) : grants.isPending ? (
         <PanelLoadingSkeleton />
       ) : grants.isError ? (
         <ErrorState message={t('grants.org.errorLoad')} onRetry={grants.refetch} />

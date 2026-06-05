@@ -40,7 +40,7 @@ export function GrantsPage({ vaultId, grantId }: GrantsPageProps) {
 
   return (
     <div className="min-h-full text-[var(--cv-t1)]">
-      <div className="mx-auto max-w-[640px] px-6 py-8">
+      <div className="px-4 py-4">
         {grantId ? (
           detailContent
         ) : (

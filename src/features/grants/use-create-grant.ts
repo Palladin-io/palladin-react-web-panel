@@ -72,17 +72,22 @@ export function useCreateGrant() {
         let body: CreateGrantBody
 
         if (type === GRANT_TYPE_FULL) {
-          // Cover every entry currently in the vault.
+          // Cover every entry currently in the vault. Fetch all entry details
+          // in parallel — N sequential HTTP round-trips quickly dominate latency
+          // for vaults with 10+ entries. Envelope production stays sequential
+          // (it's CPU-bound on libsodium and already runs one-at-a-time anyway).
           const { items } = await getEntries(vaultId)
+          const details = await Promise.all(
+            items.map((item) => getEntry(vaultId, item.id)),
+          )
           const grantEntries = []
-          for (const item of items) {
-            const detail = await getEntry(vaultId, item.id)
+          for (let i = 0; i < items.length; i++) {
             const envelope = await produceGrantEntryEnvelope({
-              entryContent: detail.content,
+              entryContent: details[i].content,
               vaultKey,
               agentPublicKey,
             })
-            grantEntries.push({ entryId: item.id, ...envelope })
+            grantEntries.push({ entryId: items[i].id, ...envelope })
           }
           body = { agentId, type: GRANT_TYPE_FULL, grantEntries, ...policy }
         } else {
