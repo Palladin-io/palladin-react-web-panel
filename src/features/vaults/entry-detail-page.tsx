@@ -13,6 +13,7 @@ import { wipe } from '../../shared/crypto/sodium'
 import { unsealVaultKey } from '../../shared/crypto/vault-key'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { useAuthStore } from '../auth'
+import { GrantAccessDialog, OrgGrantsPanel } from '../grants'
 import { EntryIconPicker } from './components/entry-icon-picker'
 import {
   ENTRY_ICON_COLORS,
@@ -61,6 +62,7 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
   const vault = useVault(vaultId)
   const entry = useEntryDetail(vaultId, entryId, true)
   const [activeTab, setActiveTab] = useState<EntryDetailTab>('details')
+  const [addAgentOpen, setAddAgentOpen] = useState(false)
   const isWide = useWideScreen(1280)
 
   const handleBack = () => navigate({ to: '/vaults/$vaultId', params: { vaultId } })
@@ -76,15 +78,24 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
       onRetry={entry.refetch}
     />
   ) : (
-    <DetailBody
-      vault={vault.data}
-      entry={entry.data}
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-      onBack={handleBack}
-      onDeleted={onDeleted}
-      hideHeader={isWide}
-    />
+    <>
+      <DetailBody
+        vault={vault.data}
+        entry={entry.data}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        onBack={handleBack}
+        onDeleted={onDeleted}
+        onAddAgent={() => setAddAgentOpen(true)}
+        hideHeader={isWide}
+      />
+      {addAgentOpen && (
+        <GrantAccessDialog
+          mode={{ kind: 'agent-for-entry', vaultId, entryId }}
+          onClose={() => setAddAgentOpen(false)}
+        />
+      )}
+    </>
   )
 
   if (isWide) {
@@ -130,6 +141,7 @@ interface DetailBodyProps {
   /** Omitted in split-view (wide screens) to hide the back arrow. */
   onBack?: () => void
   onDeleted: () => void
+  onAddAgent: () => void
   hideHeader?: boolean
 }
 
@@ -140,6 +152,7 @@ function DetailBody({
   onTabChange,
   onBack,
   onDeleted,
+  onAddAgent,
   hideHeader = false,
 }: DetailBodyProps) {
   const { t } = useTranslation()
@@ -150,7 +163,7 @@ function DetailBody({
   ].join(' · ')
 
   const agentAction = (
-    <Button variant="accent" size="sm" icon="add">
+    <Button variant="accent" size="sm" icon="add" onClick={onAddAgent}>
       {t('vault.detail.addAgent')}
     </Button>
   )
@@ -180,7 +193,9 @@ function DetailBody({
         />
       ) : null}
       {activeTab === 'agents' ? (
-        <EmptyMessage message={t('vault.entry.detail.agentsEmpty')} />
+        // Same org-grants panel, scoped strictly to this entry (GRANULAR grants
+        // on this exact entry only) — one component, many locations.
+        <OrgGrantsPanel entryId={entry.id} />
       ) : null}
       {activeTab === 'logs' ? (
         <EmptyMessage message={t('vault.entry.detail.logsComingSoon')} />

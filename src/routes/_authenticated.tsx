@@ -11,11 +11,18 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
 import { useAuthStore } from '../features/auth'
+import { useAgents, AGENT_STATUS_PENDING } from '../features/agents'
+import { usePendingGrants } from '../features/grants'
 import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
 import { AppWordmark } from '../shared/components/app-wordmark'
 import { Icon } from '../shared/components/icon'
-import { PERMISSION_AGENT_MANAGE, PERMISSION_READ_API_KEY } from '../shared/lib/permissions'
+import {
+  PERMISSION_AGENT_MANAGE,
+  PERMISSION_GRANT_MANAGE,
+  PERMISSION_READ_API_KEY,
+} from '../shared/lib/permissions'
+import { SignalRProvider, clearPushTokenOnLogout, useWebPush } from '../features/notifications'
 
 
 export const Route = createFileRoute('/_authenticated')({
@@ -92,15 +99,19 @@ function AuthenticatedLayout() {
 
   if (pathname === '/unlock') return <Outlet />
   return (
-    <div
-      className="flex h-screen overflow-hidden"
-      style={{ background: GRADIENTS[theme] }}
-    >
-      <AppSidebar currentPath={pathname} />
-      <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
-        <Outlet />
-      </main>
-    </div>
+    // SignalRProvider self-gates on auth + unlocked vault, so it only opens a
+    // connection once we're past the guards above.
+    <SignalRProvider>
+      <div
+        className="flex h-screen overflow-hidden"
+        style={{ background: GRADIENTS[theme] }}
+      >
+        <AppSidebar currentPath={pathname} />
+        <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+          <Outlet />
+        </main>
+      </div>
+    </SignalRProvider>
   )
 }
 
@@ -121,6 +132,14 @@ const NAV_ITEMS: NavItem[] = [
     icon: 'shield',
     to: '/vaults',
     matchPrefix: '/vaults',
+  },
+  {
+    key: 'approvals',
+    labelKey: 'nav.approvals',
+    icon: 'verified_user',
+    to: '/approvals',
+    matchPrefix: '/approvals',
+    requirePermission: PERMISSION_GRANT_MANAGE,
   },
   {
     key: 'agents',
@@ -170,9 +189,24 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
   const logout = useAuthStore((s) => s.logout)
   const permissions = useAuthStore((s) => s.permissions)
   const { theme, toggleTheme } = useThemeStore()
+  const webPush = useWebPush()
   const visibleNavItems = NAV_ITEMS.filter(
     (item) => item.requirePermission === undefined || (permissions & item.requirePermission) !== 0,
   )
+
+  // Attention badges. Both queries reuse the keys SignalR invalidates
+  // (`['grants','pending']` on grant_pending, `['agents']` on agent_pending),
+  // so the counts update live as new requests/agents arrive. Each is gated on
+  // its permission so users without it never trigger a 403.
+  const canManageGrants = (permissions & PERMISSION_GRANT_MANAGE) !== 0
+  const pendingGrants = usePendingGrants(canManageGrants)
+  const agents = useAgents()
+  const navBadges: Record<string, number> = {
+    approvals: pendingGrants.data?.length ?? 0,
+    agents:
+      agents.data?.filter((a) => a.status === AGENT_STATUS_PENDING).length ?? 0,
+  }
+
   const [langOpen, setLangOpen] = useState(false)
 
   const account = useQuery({
@@ -198,6 +232,9 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
   const currentFlag = LANG_OPTIONS.find((l) => l.code === currentLang)?.flag ?? '🌐'
 
   function handleLogout() {
+    // Best-effort: delete the FCM push token server-side before the JWT is
+    // cleared. Fire-and-forget — logout must not wait on or fail from cleanup.
+    void clearPushTokenOnLogout()
     logout()
     navigate({ to: '/login' })
   }
@@ -235,6 +272,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             comingSoonLabel={t('nav.comingSoon')}
             currentPath={currentPath}
             theme={theme}
+            badge={navBadges[item.key] ?? 0}
           />
         ))}
       </nav>
@@ -333,6 +371,31 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             <Icon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size={14} />
           </button>
 
+          {/* Enable push notifications — only while supported and not yet
+              registered. Deliberate user action triggers the permission prompt;
+              we never request permission automatically on load. */}
+          {webPush.isSupported && webPush.status !== 'registered' && (
+            <button
+              type="button"
+              onClick={() => void webPush.requestPermissionAndRegister()}
+              disabled={webPush.status === 'denied'}
+              className="flex h-6 w-6 items-center justify-center rounded
+                transition-colors hover:bg-[rgba(253,249,228,0.06)]
+                disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ color: mutedColor }}
+              title={
+                webPush.status === 'denied'
+                  ? t('notifications.pushBlocked')
+                  : t('notifications.enablePush')
+              }
+            >
+              <Icon
+                name={webPush.status === 'denied' ? 'notifications_off' : 'notifications'}
+                size={14}
+              />
+            </button>
+          )}
+
           <div className="flex-1" />
 
           {/* Logout */}
@@ -358,6 +421,51 @@ interface SidebarLinkProps {
   comingSoonLabel: string
   currentPath: string
   theme: 'dark' | 'light'
+  /** Attention count; a red chip renders only when > 0. */
+  badge?: number
+}
+
+/** Base colour the sidebar sits on (page gradient edge) — used as a thin badge
+ *  ring so the corner overlay cleanly cuts out from the icon beneath it. */
+const NAV_BADGE_RING = {
+  dark: '#000B2E',
+  light: '#FDF9E4',
+}
+
+/**
+ * Small notification-style count overlaid on the top-right corner of a nav
+ * icon — a discreet dot with a digit, proportional to the 16px icon (~14px).
+ * Thin 1.5px ring in the sidebar base colour keeps it cleanly cut from the
+ * icon without looking detached. Renders only when count > 0; clamps to "99+".
+ */
+function NavBadge({ count, theme }: { count: number; theme: 'dark' | 'light' }) {
+  const display = count > 99 ? '99+' : String(count)
+  return (
+    <span
+      aria-label={`${count} pending`}
+      style={{
+        position: 'absolute',
+        top: '-3px',
+        right: '-3px',
+        minWidth: '14px',
+        height: '14px',
+        padding: '0 3px',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: '9999px',
+        background: '#FF4F4F',
+        color: '#FFFFFF',
+        fontSize: '9px',
+        fontWeight: 700,
+        lineHeight: 1,
+        boxShadow: `0 0 0 1.5px ${NAV_BADGE_RING[theme]}`,
+        pointerEvents: 'none',
+      }}
+    >
+      {display}
+    </span>
+  )
 }
 
 function SidebarLink({
@@ -366,6 +474,7 @@ function SidebarLink({
   comingSoonLabel,
   currentPath,
   theme,
+  badge = 0,
 }: SidebarLinkProps) {
   const [hovered, setHovered] = useState(false)
 
@@ -423,7 +532,11 @@ function SidebarLink({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <Icon name={item.icon} size={16} />
+      {/* Icon wrapper is the positioning context for the corner count badge. */}
+      <span style={{ position: 'relative', display: 'inline-flex' }}>
+        <Icon name={item.icon} size={16} />
+        {badge > 0 && <NavBadge count={badge} theme={theme} />}
+      </span>
       <span>{label}</span>
     </Link>
   )

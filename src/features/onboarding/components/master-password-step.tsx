@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { analytics } from '../../../shared/lib/analytics'
+import { Button } from '../../../shared/components/button'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { PasswordStrengthBar } from '../../../shared/components/password-strength-bar'
 import {
@@ -88,15 +89,9 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
           </p>
         </div>
 
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="w-full rounded-lg bg-[#FF4F4F] px-4 py-2.5 text-sm font-semibold text-white
-            transition-colors hover:bg-[#e04545]
-            disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <Button type="submit" variant="accent" size="sm" disabled={!canSubmit} className="w-full">
           {t('onboarding.masterPasswordButton')}
-        </button>
+        </Button>
       </form>
     </OnboardingShell>
   )

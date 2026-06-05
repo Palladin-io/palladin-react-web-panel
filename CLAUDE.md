@@ -123,6 +123,12 @@ Pages with a hardcoded dark gradient background (e.g., `/unlock`, `/login`) must
 - Props interfaces named `{ComponentName}Props`
 - Use composition over prop drilling
 
+### View Layout (nowe widoki)
+
+- Nowe widoki są **wyrównane do lewej** ze standardowym kontenerem `panel-content` (padding `px-4 py-4`), spójnie z Agents/Vaults. **Nigdy nie centruj** treści widoku (`mx-auto`/`justify-center` na poziomie strony jest zabronione).
+- **Preferuj split-view** dla widoków z listą + powiązanym kontekstem: główna lista po lewej (`w-[clamp(...)] shrink-0 border-r`), panel powiązany po prawej (`flex-1`). Na wąskich ekranach kolumny układają się pionowo (lista pierwsza).
+- Wzorce do skopiowania (nie wymyślaj nowego): Grant Management (lista + detal), Approvals (pending po lewej + audit log po prawej), Agents/Vaults. Trzymaj istniejący pattern z `agents-page.tsx` / `grants-page.tsx`.
+
 ### Shared Interactive Styles
 
 Hover/focus effects for interactive cards and list rows use the shared constant from `src/shared/lib/styles.ts`:

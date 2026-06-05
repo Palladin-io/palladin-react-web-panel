@@ -134,3 +134,16 @@ button,
   font-feature-settings: "liga";
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
 }
+
+/* Sonner: align the toast icon with the title (top), not centred across the
+   whole toast — our notification toasts have a title + divider + body, so a
+   vertically centred icon floats at mid-height. Sonner sets align-items:center
+   on [data-sonner-toast] (and injects its styles at runtime), so we need a
+   higher-specificity selector + !important to win the cascade. Applies to all
+   toasts. */
+[data-sonner-toast][data-styled='true'] {
+  align-items: flex-start !important;
+}
+[data-sonner-toast][data-styled='true'] [data-icon] {
+  margin-top: 2px;
+}
