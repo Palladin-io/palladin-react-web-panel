@@ -96,7 +96,7 @@ jobs:
 
           claude -p \
             --model "$CLAUDE_MODEL" \
-            --max-turns 50 \
+            --max-turns 120 \
             --dangerously-skip-permissions \
             --allowedTools "Read,Write,Edit,Glob,Grep,Bash(gh:*),Bash(jq:*),Bash(git:*),Bash(npm:*)" \
             < /tmp/fix_prompt.md
