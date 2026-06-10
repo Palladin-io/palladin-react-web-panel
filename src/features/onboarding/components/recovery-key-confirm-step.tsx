@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, CircleAlert, CircleCheck } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
+import { Button } from '../../../shared/components/button'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { pickVerificationIndices } from '../../../shared/lib/mnemonic'
 import { OnboardingShell } from './onboarding-shell'
@@ -101,17 +102,16 @@ export function RecoveryKeyConfirmStep({
           {error}
         </FieldFeedback>
 
-        <button
+        <Button
           type="submit"
+          variant="accent"
+          size="sm"
           disabled={!allCorrect || isSubmitting}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg
-            bg-[#FF4F4F] px-4 py-2.5 text-sm font-semibold text-white
-            transition-colors hover:bg-[#e04545]
-            disabled:cursor-not-allowed disabled:opacity-40"
+          className="w-full"
         >
           <Check size={14} />
           {isSubmitting ? t('onboarding.finishingSetup') : t('onboarding.verifyAndComplete')}
-        </button>
+        </Button>
       </form>
     </OnboardingShell>
   )

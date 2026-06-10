@@ -72,6 +72,10 @@ const agentSchema = z.object({
   iconColor: z.string().nullable(),
   publicKeyPrefix: z.string(),
   publicKeySuffix: z.string(),
+  // Full base64 X25519 public key — returned by `GET /api/agents/{id}` so the
+  // proactive-grant flow can seal a DEK to the agent. Optional until the
+  // backend ships it; the list endpoint keeps returning only prefix/suffix.
+  publicKey: z.string().nullable().optional(),
   createdAt: z.string(),
   enrolledAt: z.string().nullable(),
   enrolledByName: z.string().nullable(),

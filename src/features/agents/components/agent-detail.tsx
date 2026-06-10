@@ -12,10 +12,12 @@ import {
   type Agent,
   type AgentType,
 } from '../api/agents-api'
+import { GrantAccessDialog } from '../../grants'
 import { useAgentPermissions } from '../use-agents'
 import { useApproveAgent } from '../use-approve-agent'
 import { useDeactivateAgent } from '../use-deactivate-agent'
 import { useReactivateAgent } from '../use-reactivate-agent'
+import { OrgGrantsPanel } from '../../grants'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { AgentAvatar } from './agent-avatar'
 import { AgentEditForm } from './agent-edit-form'
@@ -61,6 +63,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
   const [activeTab, setActiveTab] = useState<AgentDetailTab>('details')
   const [approveOpen, setApproveOpen] = useState(false)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
+  const [addAccessOpen, setAddAccessOpen] = useState(false)
 
   const name = agentDisplayName(agent, t('agents.unnamed'))
   const isAgentActive = agent.status === AGENT_STATUS_ACTIVE
@@ -140,6 +143,18 @@ export function AgentDetail({ agent }: AgentDetailProps) {
           })}
         </div>
         <div className="h-px flex-1 self-end bg-gradient-to-r from-[var(--cv-divider)] to-transparent" />
+        {/* Add Access lives in the tab bar (same place as Vault → Agents → Add Agent). */}
+        {activeTab === 'grants' ? (
+          <Button
+            variant="accent"
+            size="sm"
+            icon="add"
+            className="ml-2 shrink-0 self-center"
+            onClick={() => setAddAccessOpen(true)}
+          >
+            {t('agents.addAccess')}
+          </Button>
+        ) : null}
       </div>
 
       {/* ── Details tab ─────────────────────────────────────────────────── */}
@@ -274,9 +289,14 @@ export function AgentDetail({ agent }: AgentDetailProps) {
         </>
       ) : null}
 
-      {/* ── Grants tab ──────────────────────────────────────────────────── */}
+      {/* ── Grants tab ──────────────────────────────────────────────────────
+          Reuses the exact Approvals org-grants panel, filtered to this agent —
+          one component, two locations. */}
       {activeTab === 'grants' ? (
-        <EmptyCard message={t('agents.grantsEmpty')} hint={t('agents.grantsEmptyHint')} />
+        // The Approvals org-grants panel, filtered to this agent — one
+        // component, many locations. Handles its own empty state. "Add Access"
+        // lives in the tab bar above.
+        <OrgGrantsPanel agentId={agent.agentId} />
       ) : null}
 
       {/* ── Logs tab ────────────────────────────────────────────────────── */}
@@ -302,6 +322,13 @@ export function AgentDetail({ agent }: AgentDetailProps) {
         onConfirm={handleConfirmDeactivate}
         onCancel={() => setDeactivateOpen(false)}
       />
+
+      {addAccessOpen && (
+        <GrantAccessDialog
+          mode={{ kind: 'target-for-agent', agentId: agent.agentId }}
+          onClose={() => setAddAccessOpen(false)}
+        />
+      )}
     </>
   )
 }
@@ -354,18 +381,6 @@ function LogsTabContent({ agent }: { agent: Agent }) {
 // ---------------------------------------------------------------------------
 // Shared sub-components
 // ---------------------------------------------------------------------------
-
-function EmptyCard({ message, hint }: { message: string; hint?: string }) {
-  return (
-    <div
-      className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-        bg-[var(--cv-empty-bg)] p-8 text-center"
-    >
-      <p className="text-sm text-[var(--cv-t3)]">{message}</p>
-      {hint ? <p className="mt-1 text-[11px] text-[var(--cv-t3)] opacity-70">{hint}</p> : null}
-    </div>
-  )
-}
 
 interface ActionZoneProps {
   tone: 'positive' | 'danger'

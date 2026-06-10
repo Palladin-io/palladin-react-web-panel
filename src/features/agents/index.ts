@@ -9,4 +9,5 @@ export {
   AGENT_STATUS_DEACTIVATED,
   AGENT_STATUS_PENDING,
 } from './api/agents-api'
+export { getAgent, getAgents } from './api/agents-api'
 export { useAgents } from './use-agents'
