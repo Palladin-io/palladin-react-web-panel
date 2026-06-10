@@ -46,6 +46,9 @@ const grantSchema = z.object({
   entryLabel: z.string().nullable(),
   status: z.enum(GRANT_STATUSES),
   mode: z.enum([GRANT_MODE_FULL, GRANT_MODE_GRANULAR]),
+  // Combined-flags string of permitted methods, e.g. "get, exec" (CVT-149). Optional for
+  // pre-methods backends; the detail row is hidden when absent/empty.
+  methods: z.string().nullable().optional(),
   reason: z.string().nullable(),
   expiresAt: z.string().nullable(),
   queryLimit: z.number().nullable(),

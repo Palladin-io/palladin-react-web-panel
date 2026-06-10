@@ -6,8 +6,10 @@ import { useAuthStore } from '../../auth'
 import { PERMISSION_GRANT_MANAGE } from '../../../shared/lib/permissions'
 import type { Grant } from '../api/grants-api'
 import { grantStatusPresentation, isRevocable } from '../grant-presentation'
+import { parseGrantMethods } from '../grant-methods'
 import { useRevokeGrant } from '../use-revoke-grant'
 import { formatGrantDate } from './grant-format'
+import { GrantMethodsBadges } from './grant-methods-badges'
 import { RevokeGrantDialog } from './revoke-grant-dialog'
 
 export interface GrantDetailProps {
@@ -47,6 +49,7 @@ export function GrantDetail({ grant }: GrantDetailProps) {
   const presentation = grantStatusPresentation(grant.status)
   const target = grant.entryLabel ?? t('grants.detail.wholeVault')
   const showRevoke = canManage && isRevocable(grant.status)
+  const grantMethods = parseGrantMethods(grant.methods)
 
   function handleConfirm(reason: string) {
     revoke.mutate(
@@ -102,6 +105,12 @@ export function GrantDetail({ grant }: GrantDetailProps) {
         />
         {grant.entryLabel && (
           <DetailRow label={t('grants.detail.entry')} value={grant.entryLabel} />
+        )}
+        {grantMethods.length > 0 && (
+          <div className="flex items-start justify-between gap-4 py-2">
+            <span className="text-[12px] text-[var(--cv-t2)]">{t('grants.detail.methods')}</span>
+            <GrantMethodsBadges methods={grantMethods} />
+          </div>
         )}
         {grant.reason && (
           <DetailRow label={t('grants.detail.reason')} value={grant.reason} />

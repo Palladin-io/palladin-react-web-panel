@@ -60,14 +60,14 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
   it('renders the title, agent picker, and access-type dropdown', () => {
     renderDialog()
     expect(screen.getByText('Grant Access')).toBeInTheDocument()
-    expect(screen.getByLabelText(/Agent/i)).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: /Agent/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/Access type/i)).toBeInTheDocument()
   })
 
   it('excludes agents already covered by an active grant, and pending agents', async () => {
     const user = userEvent.setup()
     renderDialog()
-    await user.click(screen.getByLabelText(/Agent/i))
+    await user.click(screen.getByRole('combobox', { name: /Agent/i }))
     expect(screen.getByText('Deploy Bot')).toBeInTheDocument()
     expect(screen.queryByText('Covered Bot')).not.toBeInTheDocument() // active grant
     expect(screen.queryByText('Pending Bot')).not.toBeInTheDocument() // not active
@@ -78,7 +78,7 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     const user = userEvent.setup()
     renderDialog()
 
-    await user.click(screen.getByLabelText(/Agent/i))
+    await user.click(screen.getByRole('combobox', { name: /Agent/i }))
     await user.click(screen.getByText('Deploy Bot'))
     // Default policy = Time Limited → set a future expiry.
     await user.type(screen.getByLabelText(/Expiry date/i), '2030-01-01T10:00')

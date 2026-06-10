@@ -13,12 +13,21 @@ import {
   type GrantPolicyKind,
 } from '../grant-policy'
 import { GrantPolicyFields } from './grant-policy-fields'
+import { GrantMethodsField } from './grant-methods-field'
+import {
+  DEFAULT_GRANT_METHODS,
+  parseGrantMethods,
+  type GrantMethod,
+} from '../grant-methods'
 
 export interface ApproveGrantDialogProps {
   grant: PendingGrant
   isPending: boolean
-  /** Confirm with the resolved policy (time → expiresAt, uses → queryLimit, lifetime → {}). */
-  onConfirm: (policy: GrantPolicyBody) => void
+  /**
+   * Confirm with the resolved policy (time → expiresAt, uses → queryLimit, lifetime → {}) and the
+   * final methods the agent may use (CVT-149).
+   */
+  onConfirm: (policy: GrantPolicyBody, methods: GrantMethod[]) => void
   onCancel: () => void
 }
 
@@ -41,6 +50,13 @@ export function ApproveGrantDialog({
   const [queryLimit, setQueryLimit] = useState('')
   const [error, setError] = useState<string | null>(null)
 
+  // What the agent asked for — used as the default selection and highlighted in the field.
+  const requestedMethods = parseGrantMethods(grant.methods)
+  const [methods, setMethods] = useState<GrantMethod[]>(
+    requestedMethods.length > 0 ? requestedMethods : DEFAULT_GRANT_METHODS,
+  )
+  const [methodsError, setMethodsError] = useState<string | null>(null)
+
   const entryLabel = grant.entryLabel ?? t('grants.approve.fallbackEntry')
   const agentName = grant.agentName ?? t('grants.approve.fallbackAgent')
   const vaultName = grant.vaultName ?? t('grants.approve.fallbackVault')
@@ -52,7 +68,11 @@ export function ApproveGrantDialog({
       setError(POLICY_ERROR_KEY[validationError])
       return
     }
-    onConfirm(grantPolicyToBody(input))
+    if (methods.length === 0) {
+      setMethodsError('grants.methods.errorNoneSelected')
+      return
+    }
+    onConfirm(grantPolicyToBody(input), methods)
   }
 
   return (
@@ -96,6 +116,18 @@ export function ApproveGrantDialog({
           onQueryLimitChange={(v) => {
             setQueryLimit(v)
             setError(null)
+          }}
+        />
+
+        <GrantMethodsField
+          idPrefix="approve"
+          value={methods}
+          requested={requestedMethods}
+          disabled={isPending}
+          error={methodsError}
+          onChange={(m) => {
+            setMethods(m)
+            setMethodsError(null)
           }}
         />
 

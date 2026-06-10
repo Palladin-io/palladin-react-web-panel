@@ -68,7 +68,8 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     await user.type(screen.getByLabelText(/Maximum uses/i), '3')
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    expect(onConfirm).toHaveBeenCalledWith({ queryLimit: 3 })
+    // Methods default to the privacy-preserving set when the grant requested none.
+    expect(onConfirm).toHaveBeenCalledWith({ queryLimit: 3 }, ['exec', 'inject'])
   })
 
   it('confirms with an empty body when Lifetime is selected (neither field)', async () => {
@@ -77,7 +78,7 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     await user.selectOptions(screen.getByLabelText(/Access type/i), 'lifetime')
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    expect(onConfirm).toHaveBeenCalledWith({})
+    expect(onConfirm).toHaveBeenCalledWith({}, ['exec', 'inject'])
   })
 
   it('rejects an invalid usage limit', async () => {

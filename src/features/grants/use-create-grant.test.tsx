@@ -55,6 +55,7 @@ describe('useCreateGrant', () => {
       type: 'granular',
       entryId: 'e1',
       policy: { queryLimit: 3 },
+      methods: ['exec', 'inject'],
     })
     await waitFor(() => expect(createGrantProactively).toHaveBeenCalled())
     const [vaultId, body] = createGrantProactively.mock.calls[0]
@@ -63,6 +64,7 @@ describe('useCreateGrant', () => {
     expect(body.entryId).toBe('e1')
     expect(body.grantEntries).toEqual([{ entryId: 'e1', ...ENVELOPE }])
     expect(body.queryLimit).toBe(3)
+    expect(body.methods).toBe('Exec, Inject')
     expect(getEntries).not.toHaveBeenCalled()
   })
 
@@ -75,6 +77,7 @@ describe('useCreateGrant', () => {
       agentPublicKey: 'PK',
       type: 'full',
       policy: {},
+      methods: ['get', 'exec'],
     })
     await waitFor(() => expect(createGrantProactively).toHaveBeenCalled())
     const [, body] = createGrantProactively.mock.calls[0]
@@ -87,6 +90,7 @@ describe('useCreateGrant', () => {
       'e3',
     ])
     expect(produceGrantEntryEnvelope).toHaveBeenCalledTimes(3)
+    expect(body.methods).toBe('Get, Exec')
   })
 
   it('errors when the agent public key is missing', async () => {
@@ -98,6 +102,7 @@ describe('useCreateGrant', () => {
       type: 'granular',
       entryId: 'e1',
       policy: {},
+      methods: ['exec'],
     })
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(createGrantProactively).not.toHaveBeenCalled()

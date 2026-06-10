@@ -30,8 +30,10 @@ import {
 } from '../grant-policy'
 import { useCreateGrant } from '../use-create-grant'
 import { useOrgGrants } from '../use-org-grants'
+import { DEFAULT_GRANT_METHODS, type GrantMethod } from '../grant-methods'
 import { EntityCombobox, type ComboboxOption } from './entity-combobox'
 import { GrantPolicyFields } from './grant-policy-fields'
+import { GrantMethodsField } from './grant-methods-field'
 
 /**
  * Where the dialog was opened from — drives which subject the user picks and
@@ -74,6 +76,10 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
   const [policyError, setPolicyError] = useState<string | null>(null)
   const [subjectError, setSubjectError] = useState(false)
 
+  // Methods the grant permits (CVT-149). Default to the privacy-preserving set; `get` is opt-in.
+  const [methods, setMethods] = useState<GrantMethod[]>(DEFAULT_GRANT_METHODS)
+  const [methodsError, setMethodsError] = useState<string | null>(null)
+
   // Subject selection (resolved on confirm).
   const [subject, setSubject] = useState<ResolvedSubject | null>(null)
 
@@ -90,6 +96,10 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
     const validationError = validateGrantPolicy(policyInput)
     if (validationError) {
       setPolicyError(POLICY_ERROR_KEY[validationError])
+      return
+    }
+    if (methods.length === 0) {
+      setMethodsError('grants.methods.errorNoneSelected')
       return
     }
 
@@ -111,6 +121,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         type: subject.type,
         entryId: subject.entryId,
         policy: grantPolicyToBody(policyInput),
+        methods,
       },
       {
         onSuccess: () => {
@@ -173,6 +184,17 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           onQueryLimitChange={(v) => {
             setQueryLimit(v)
             resetPolicyError()
+          }}
+        />
+
+        <GrantMethodsField
+          idPrefix="create-grant"
+          value={methods}
+          disabled={createGrant.isPending}
+          error={methodsError}
+          onChange={(m) => {
+            setMethods(m)
+            setMethodsError(null)
           }}
         />
 

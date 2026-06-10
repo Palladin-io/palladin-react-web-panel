@@ -634,5 +634,17 @@
   "notifications.grantRevoked.body": "<b>{{agent}}</b> — dostęp do <b>{{entry}}</b> w <b>{{vault}}</b> cofnięty",
   "notifications.grantRevoked.bodyFull": "<b>{{agent}}</b> — dostęp do <b>{{vault}}</b> cofnięty",
   "notifications.agentPending.title": "Nowy agent do zatwierdzenia",
-  "notifications.agentPending.body": "<b>{{agent}}</b> czeka na zatwierdzenie"
+  "notifications.agentPending.body": "<b>{{agent}}</b> czeka na zatwierdzenie",
+  "grants.detail.methods": "Metody",
+  "grants.methods.legend": "Jak agent może użyć",
+  "grants.methods.help": "Wybierz, jak ten credential może zostać użyty. Ograniczenie do Exec/Inject trzyma sekret poza kontekstem LLM agenta.",
+  "grants.methods.requested": "prośba",
+  "grants.methods.errorNoneSelected": "Wybierz co najmniej jedną metodę.",
+  "grants.methods.getLabel": "Get (plaintext)",
+  "grants.methods.getDesc": "Zwraca sekret jako plaintext do agenta.",
+  "grants.methods.getWarning": "Sekret trafia do kontekstu agenta — na hostowanym LLM może opuścić maszynę.",
+  "grants.methods.execLabel": "Exec",
+  "grants.methods.execDesc": "Uruchamia komendę z sekretem w środowisku — nie trafia do kontekstu agenta.",
+  "grants.methods.injectLabel": "Inject",
+  "grants.methods.injectDesc": "Wypełnia formularz logowania w przeglądarce agenta — nie trafia do kontekstu agenta."
 }

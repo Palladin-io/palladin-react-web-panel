@@ -49,6 +49,9 @@ const orgGrantSchema = z.object({
   agentPublicKey: z.string().nullable().optional(),
   type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]).nullable().optional(),
   status: z.enum(GRANT_STATUSES),
+  // Combined-flags string of permitted methods, e.g. "get, exec" (CVT-149). Optional for
+  // pre-methods backends; the badge is hidden when absent/empty.
+  methods: z.string().nullable().optional(),
   entryId: z.string().nullable().optional(),
   entryLabel: z.string().nullable().optional(),
   reason: z.string().nullable().optional(),
@@ -156,6 +159,8 @@ export interface CreateGrantBody {
   grantEntries: ({ entryId: string } & GrantEntryEnvelope)[]
   expiresAt?: string
   queryLimit?: number
+  /** Combined-flags string of permitted methods, e.g. "Exec, Inject" (CVT-149). */
+  methods?: string
 }
 
 export async function createGrantProactively(
