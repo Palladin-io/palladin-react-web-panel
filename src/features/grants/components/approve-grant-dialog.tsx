@@ -13,7 +13,7 @@ import {
   type GrantPolicyKind,
 } from '../grant-policy'
 import { GrantPolicyFields } from './grant-policy-fields'
-import { GrantMethodsField } from './grant-methods-field'
+import { GrantMethodsSelect } from './grant-methods-select'
 import {
   DEFAULT_GRANT_METHODS,
   parseGrantMethods,
@@ -119,7 +119,7 @@ export function ApproveGrantDialog({
           }}
         />
 
-        <GrantMethodsField
+        <GrantMethodsSelect
           idPrefix="approve"
           value={methods}
           requested={requestedMethods}

@@ -33,7 +33,7 @@ import { useOrgGrants } from '../use-org-grants'
 import { DEFAULT_GRANT_METHODS, type GrantMethod } from '../grant-methods'
 import { EntityCombobox, type ComboboxOption } from './entity-combobox'
 import { GrantPolicyFields } from './grant-policy-fields'
-import { GrantMethodsField } from './grant-methods-field'
+import { GrantMethodsSelect } from './grant-methods-select'
 
 /**
  * Where the dialog was opened from — drives which subject the user picks and
@@ -187,7 +187,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           }}
         />
 
-        <GrantMethodsField
+        <GrantMethodsSelect
           idPrefix="create-grant"
           value={methods}
           disabled={createGrant.isPending}
