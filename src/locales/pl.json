@@ -647,5 +647,6 @@
   "grants.methods.execDesc": "Uruchamia komendę z sekretem w środowisku — nie trafia do kontekstu agenta.",
   "grants.methods.injectLabel": "Inject",
   "grants.methods.injectDesc": "Wypełnia formularz logowania w przeglądarce agenta — nie trafia do kontekstu agenta.",
-  "grants.methods.placeholder": "Wybierz, jak agent może użyć"
+  "grants.methods.placeholder": "Wybierz, jak agent może użyć",
+  "grants.methods.warningZoneTitle": "Strefa ostrzeżenia"
 }

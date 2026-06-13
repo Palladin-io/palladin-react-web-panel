@@ -127,12 +127,33 @@ export function GrantMethodsSelect({
         )}
       </div>
 
-      {/* Compact, conditional warning — only when the plaintext method is chosen. */}
-      {value.includes(GRANT_METHOD_GET) && (
-        <p className="mt-1 text-[11px] leading-snug text-[#D4820A] dark:text-[#F0C040]">
-          {t('grants.methods.getWarning')}
-        </p>
-      )}
+      {/* Warning Zone — framed like the Danger/Approve zones but in amber. Animates open/closed
+          (grid-rows height + opacity) when the plaintext `get` method is toggled, instead of
+          popping in. Same visual family as ActionZone (rounded-xl + tinted border/bg + uppercase
+          title); amber tokens match the get-warning colour used elsewhere. */}
+      <div
+        className={`grid transition-all duration-200 ease-out ${
+          value.includes(GRANT_METHOD_GET)
+            ? 'mt-2 grid-rows-[1fr] opacity-100'
+            : 'grid-rows-[0fr] opacity-0'
+        }`}
+        aria-hidden={!value.includes(GRANT_METHOD_GET)}
+      >
+        <div className="overflow-hidden">
+          <section
+            role="alert"
+            className="rounded-xl border border-[rgba(212,130,10,0.3)] bg-[rgba(212,130,10,0.06)] p-3
+              dark:border-[rgba(240,192,64,0.3)] dark:bg-[rgba(240,192,64,0.08)]"
+          >
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#D4820A] dark:text-[#F0C040]">
+              {t('grants.methods.warningZoneTitle')}
+            </h3>
+            <p className="mt-1 text-[11px] leading-snug text-[var(--cv-t2)]">
+              {t('grants.methods.getWarning')}
+            </p>
+          </section>
+        </div>
+      </div>
       {error && <p className="mt-1 text-[11px] text-[#FF4F4F]">{t(error)}</p>}
     </div>
   )

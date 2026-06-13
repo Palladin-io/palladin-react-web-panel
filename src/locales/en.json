@@ -613,5 +613,6 @@
   "grants.methods.execDesc": "Runs a command with the secret in its environment — never enters the agent's context.",
   "grants.methods.injectLabel": "Inject",
   "grants.methods.injectDesc": "Fills a login form in the agent's browser — never enters the agent's context.",
-  "grants.methods.placeholder": "Select how the agent may use it"
+  "grants.methods.placeholder": "Select how the agent may use it",
+  "grants.methods.warningZoneTitle": "Warning Zone"
 }

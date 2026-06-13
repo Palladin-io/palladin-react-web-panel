@@ -24,12 +24,16 @@ describe('GrantMethodsSelect', () => {
     expect(onChange).toHaveBeenCalledWith(['exec', 'get'])
   })
 
-  it('shows the LLM-exposure warning only when get is selected', () => {
+  it('reveals the amber Warning Zone only when get is selected (animated, aria-hidden when not)', () => {
+    const zone = () => screen.getByText(/Warning Zone/i).closest('[aria-hidden]')
+
     const { rerender } = render(<GrantMethodsSelect idPrefix="t" value={['exec']} onChange={vi.fn()} />)
-    expect(screen.queryByText(/leave the machine/i)).not.toBeInTheDocument()
+    // The zone is always in the DOM (so it can animate) but hidden until get is chosen.
+    expect(zone()).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByText(/leave the machine/i)).toBeInTheDocument()
 
     rerender(<GrantMethodsSelect idPrefix="t" value={['get']} onChange={vi.fn()} />)
-    expect(screen.getByText(/leave the machine/i)).toBeInTheDocument()
+    expect(zone()).toHaveAttribute('aria-hidden', 'false')
   })
 
   it('flags requested methods inside the dropdown', async () => {
