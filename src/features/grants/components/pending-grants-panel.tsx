@@ -8,6 +8,7 @@ import { Icon } from '../../../shared/components/icon'
 import { Tooltip } from '../../../shared/components/tooltip'
 import type { PendingGrant } from '../api/pending-grants-api'
 import type { GrantPolicyBody } from '../grant-policy'
+import type { GrantMethod } from '../grant-methods'
 import { useApproveGrant } from '../use-approve-grant'
 import { useDenyGrant } from '../use-deny-grant'
 import { usePendingGrants } from '../use-pending-grants'
@@ -36,7 +37,7 @@ export function PendingGrantsPanel() {
 
   const items = pending.data ?? []
 
-  function handleApprove(grant: PendingGrant, policy: GrantPolicyBody) {
+  function handleApprove(grant: PendingGrant, policy: GrantPolicyBody, methods: GrantMethod[]) {
     approve.mutate(
       {
         grantId: grant.id,
@@ -44,6 +45,7 @@ export function PendingGrantsPanel() {
         entryId: grant.entryId,
         agentPublicKey: grant.agentPublicKey,
         policy,
+        methods,
       },
       {
         onSuccess: () => {
@@ -117,7 +119,7 @@ export function PendingGrantsPanel() {
         <ApproveGrantDialog
           grant={approveTarget}
           isPending={approve.isPending}
-          onConfirm={(policy) => handleApprove(approveTarget, policy)}
+          onConfirm={(policy, methods) => handleApprove(approveTarget, policy, methods)}
           onCancel={() => setApproveTarget(null)}
         />
       )}

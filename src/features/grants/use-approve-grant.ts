@@ -6,6 +6,7 @@ import { wipe } from '../../shared/crypto/sodium'
 import { getEntry, getVault } from '../vaults/api/vault-api'
 import { approveGrant, type ApproveGrantBody } from './api/pending-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
+import { serializeGrantMethods, type GrantMethod } from './grant-methods'
 import { GRANTS_QUERY_KEY } from './query-keys'
 
 /** Thrown when the vault key cannot be recovered (vault locked / no wrappedVK). */
@@ -39,6 +40,8 @@ export interface ApproveGrantInput {
    * or `{}` (lifetime — neither field). Never both.
    */
   policy: GrantPolicyBody
+  /** Methods the agent may use (CVT-149) — at least one. */
+  methods: GrantMethod[]
 }
 
 /**
@@ -65,6 +68,7 @@ export function useApproveGrant() {
       entryId,
       agentPublicKey,
       policy,
+      methods,
     }: ApproveGrantInput) => {
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new VaultLockedError()
@@ -93,6 +97,7 @@ export function useApproveGrant() {
         const body: ApproveGrantBody = {
           grantEntry: { entryId, ...envelope },
           ...policy,
+          methods: serializeGrantMethods(methods),
         }
         await approveGrant(vaultId, grantId, body)
       } finally {

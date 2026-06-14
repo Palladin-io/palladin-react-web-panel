@@ -600,5 +600,18 @@
   "notifications.grantRevoked.body": "<b>{{agent}}</b> access to <b>{{entry}}</b> in <b>{{vault}}</b> was revoked",
   "notifications.grantRevoked.bodyFull": "<b>{{agent}}</b> access to <b>{{vault}}</b> was revoked",
   "notifications.agentPending.title": "New agent pending approval",
-  "notifications.agentPending.body": "<b>{{agent}}</b> is awaiting approval"
+  "notifications.agentPending.body": "<b>{{agent}}</b> is awaiting approval",
+  "grants.detail.methods": "Methods",
+  "grants.methods.legend": "How the agent may use it",
+  "grants.methods.requested": "requested",
+  "grants.methods.errorNoneSelected": "Select at least one method.",
+  "grants.methods.getLabel": "Get (plaintext)",
+  "grants.methods.getDesc": "Returns the secret as plaintext to the agent.",
+  "grants.methods.getWarning": "The secret enters the agent's context — on a hosted LLM it may leave the machine.",
+  "grants.methods.execLabel": "Exec",
+  "grants.methods.execDesc": "Runs a command with the secret in its environment — never enters the agent's context.",
+  "grants.methods.injectLabel": "Inject",
+  "grants.methods.injectDesc": "Fills a login form in the agent's browser — never enters the agent's context.",
+  "grants.methods.placeholder": "Select how the agent may use it",
+  "grants.methods.warningZoneTitle": "Warning Zone"
 }

@@ -12,6 +12,7 @@ import {
   type GrantType,
 } from './api/org-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
+import { serializeGrantMethods, type GrantMethod } from './grant-methods'
 import { MissingGrantMaterialError, VaultLockedError } from './use-approve-grant'
 import { GRANT_MUTATION_INVALIDATION_KEYS } from './query-keys'
 
@@ -25,6 +26,8 @@ export interface CreateGrantInput {
   entryId?: string
   /** XOR-or-none policy: `{expiresAt}`, `{queryLimit}`, or `{}` (lifetime). */
   policy: GrantPolicyBody
+  /** Methods the grant permits (CVT-149) — at least one. */
+  methods: GrantMethod[]
 }
 
 /**
@@ -56,6 +59,7 @@ export function useCreateGrant() {
       type,
       entryId,
       policy,
+      methods,
     }: CreateGrantInput) => {
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new VaultLockedError()
@@ -89,7 +93,7 @@ export function useCreateGrant() {
             })
             grantEntries.push({ entryId: items[i].id, ...envelope })
           }
-          body = { agentId, type: GRANT_TYPE_FULL, grantEntries, ...policy }
+          body = { agentId, type: GRANT_TYPE_FULL, grantEntries, ...policy, methods: serializeGrantMethods(methods) }
         } else {
           const detail = await getEntry(vaultId, entryId!)
           const envelope = await produceGrantEntryEnvelope({
@@ -103,6 +107,7 @@ export function useCreateGrant() {
             entryId,
             grantEntries: [{ entryId: entryId!, ...envelope }],
             ...policy,
+            methods: serializeGrantMethods(methods),
           }
         }
 

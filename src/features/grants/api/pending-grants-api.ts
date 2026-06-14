@@ -26,6 +26,9 @@ const pendingGrantSchema = z.object({
   // Optional — rendered after the entry label as "· {urlDomain}" when present.
   urlDomain: z.string().nullable().optional(),
   reason: z.string().nullable().optional(),
+  // Combined-flags string the agent requested, e.g. "get, exec" (CVT-149). Optional for
+  // pre-methods backends; the approve dialog falls back to a sensible default when absent.
+  methods: z.string().nullable().optional(),
   expiresAt: z.string().nullable().optional(),
   queryLimit: z.number().nullable().optional(),
   queryCount: z.number().nullable().optional(),
@@ -78,6 +81,8 @@ export interface ApproveGrantBody {
   grantEntry: { entryId: string } & GrantEntryEnvelope
   expiresAt?: string
   queryLimit?: number
+  /** Combined-flags string of the methods the agent may use, e.g. "Get, Exec" (CVT-149). */
+  methods?: string
 }
 
 export async function approveGrant(
