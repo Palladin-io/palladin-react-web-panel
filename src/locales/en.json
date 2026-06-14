@@ -603,7 +603,6 @@
   "notifications.agentPending.body": "<b>{{agent}}</b> is awaiting approval",
   "grants.detail.methods": "Methods",
   "grants.methods.legend": "How the agent may use it",
-  "grants.methods.help": "Choose how this credential can be used. Restricting to Exec/Inject keeps the secret out of the agent's LLM context.",
   "grants.methods.requested": "requested",
   "grants.methods.errorNoneSelected": "Select at least one method.",
   "grants.methods.getLabel": "Get (plaintext)",

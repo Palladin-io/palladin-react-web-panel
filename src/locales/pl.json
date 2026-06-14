@@ -637,7 +637,6 @@
   "notifications.agentPending.body": "<b>{{agent}}</b> czeka na zatwierdzenie",
   "grants.detail.methods": "Metody",
   "grants.methods.legend": "Jak agent może użyć",
-  "grants.methods.help": "Wybierz, jak ten credential może zostać użyty. Ograniczenie do Exec/Inject trzyma sekret poza kontekstem LLM agenta.",
   "grants.methods.requested": "prośba",
   "grants.methods.errorNoneSelected": "Wybierz co najmniej jedną metodę.",
   "grants.methods.getLabel": "Get (plaintext)",

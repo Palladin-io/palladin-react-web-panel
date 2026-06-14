@@ -108,7 +108,9 @@ export function GrantDetail({ grant }: GrantDetailProps) {
         )}
         {grantMethods.length > 0 && (
           <div className="flex items-start justify-between gap-4 py-2">
-            <span className="text-[12px] text-[var(--cv-t2)]">{t('grants.detail.methods')}</span>
+            <span className="shrink-0 text-[11px] font-semibold text-[var(--cv-t3)]">
+              {t('grants.detail.methods')}
+            </span>
             <GrantMethodsBadges methods={grantMethods} />
           </div>
         )}

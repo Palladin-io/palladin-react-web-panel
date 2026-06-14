@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
+import { FieldFeedback } from '../../../shared/components/form-field'
 import {
   GRANT_METHODS,
   GRANT_METHOD_DESC_KEY,
@@ -154,7 +155,9 @@ export function GrantMethodsSelect({
           </section>
         </div>
       </div>
-      {error && <p className="mt-1 text-[11px] text-[#FF4F4F]">{t(error)}</p>}
+      <FieldFeedback visible={!!error} color="red">
+        {error ? t(error) : ''}
+      </FieldFeedback>
     </div>
   )
 }
