@@ -28,6 +28,7 @@ describe('useNotificationInvalidation', () => {
       invalidate(payload(type))
       // Root invalidation prefix-matches ['grants','pending'] and ['grants','org'].
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['grants'] })
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['notifications'] })
     }
   })
 
@@ -55,9 +56,10 @@ describe('useNotificationInvalidation', () => {
     )
   })
 
-  it('does nothing for an unknown type', () => {
+  it('refreshes the inbox for an unknown future type', () => {
     const { invalidate, invalidateSpy } = setup()
     invalidate(payload('future_type'))
-    expect(invalidateSpy).not.toHaveBeenCalled()
+    expect(invalidateSpy).toHaveBeenCalledTimes(1)
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['notifications'] })
   })
 })

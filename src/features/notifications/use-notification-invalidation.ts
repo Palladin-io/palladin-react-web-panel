@@ -4,6 +4,7 @@ import { AGENTS_QUERY_KEY } from '../agents/use-agents'
 import { GRANTS_QUERY_KEY } from '../grants'
 import { entryDetailQueryKey } from '../vaults/use-entries'
 import type { NotificationPayload } from './notification-types'
+import { NOTIFICATIONS_QUERY_KEY } from './notification-queries'
 
 /**
  * Maps an incoming notification to the TanStack Query keys that should be
@@ -18,6 +19,7 @@ export function useNotificationInvalidation() {
   return useCallback(
     (payload: NotificationPayload) => {
       const { type, data } = payload
+      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
 
       switch (type) {
         case 'grant_pending':
