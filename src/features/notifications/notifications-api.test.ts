@@ -22,7 +22,7 @@ import {
 const item = {
   id: 'n1',
   type: 'grant_pending',
-  category: 'ActionRequired',
+  category: 'actionRequired',
   titleKey: 'notifications.grantPending.title',
   metadata: { grantId: 'g1', agentName: 'Deploy Bot', vaultId: 'v1' },
   occurredAt: '2026-06-15T10:00:00Z',
@@ -41,13 +41,13 @@ describe('notifications-api', () => {
   it('parses notifications and forwards cursor + category filters', async () => {
     getJson.mockResolvedValue({ items: [item], nextCursor: 'next' })
 
-    const page = await getNotifications({ cursor: 'cur', category: 'ActionRequired' })
+    const page = await getNotifications({ cursor: 'cur', category: 'actionRequired' })
 
     const [path, options] = getFn.mock.calls[0]
     expect(path).toBe('api/notifications')
     const params = options.searchParams as URLSearchParams
     expect(params.get('cursor')).toBe('cur')
-    expect(params.get('category')).toBe('ActionRequired')
+    expect(params.get('category')).toBe('actionRequired')
     expect(page.items[0].id).toBe('n1')
     expect(page.items[0].actionState).toBe('pending')
     expect(page.nextCursor).toBe('next')

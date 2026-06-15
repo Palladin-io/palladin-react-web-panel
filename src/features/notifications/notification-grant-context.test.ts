@@ -6,7 +6,7 @@ function makeItem(metadata: Record<string, string>): NotificationItem {
   return {
     id: 'n',
     type: 'grant_pending',
-    category: 'ActionRequired',
+    category: 'actionRequired',
     titleKey: 'k',
     metadata,
     occurredAt: '2026-06-15T10:00:00Z',

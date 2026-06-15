@@ -25,7 +25,6 @@ const PILL_TONE: Record<PillTone, { color: string; bg: string }> = {
   green: { color: '#2EC4B6', bg: 'rgba(46,196,182,0.13)' },
   red: { color: '#FF4F4F', bg: 'rgba(255,79,79,0.12)' },
   orange: { color: '#FF9060', bg: 'rgba(255,144,96,0.14)' },
-  blue: { color: '#60A5FA', bg: 'rgba(96,165,250,0.13)' },
 }
 
 export interface NotificationCardProps {

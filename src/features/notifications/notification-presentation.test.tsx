@@ -1,15 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { NotificationItem } from './notifications-api'
-import {
-  isKnownNotificationType,
-  notificationCardPresentation,
-} from './notification-presentation'
+import { notificationCardPresentation } from './notification-presentation'
 
 function makeItem(overrides: Partial<NotificationItem>): NotificationItem {
   return {
     id: 'n',
     type: 'grant_pending',
-    category: 'ActionRequired',
+    category: 'actionRequired',
     titleKey: 'notifications.grantPending.title',
     metadata: {},
     occurredAt: '2026-06-15T10:00:00Z',
@@ -48,7 +45,7 @@ describe('notificationCardPresentation', () => {
     const card = notificationCardPresentation(
       makeItem({
         type: 'credential_stale',
-        category: 'ActionRequired',
+        category: 'actionRequired',
         metadata: { agentName: 'Billing Bot', entryLabel: 'Stripe API' },
       }),
     )
@@ -79,12 +76,5 @@ describe('notificationCardPresentation', () => {
     )
     expect(card.header).toEqual({ kind: 'glyph', glyph: 'notifications', tone: 'grey' })
     expect(card.rows).toHaveLength(0)
-    expect(isKnownNotificationType('something_new')).toBe(false)
-  })
-
-  it('recognises the known taxonomy (no credential_created)', () => {
-    expect(isKnownNotificationType('grant_pending')).toBe(true)
-    expect(isKnownNotificationType('credential_stale')).toBe(true)
-    expect(isKnownNotificationType('credential_created')).toBe(false)
   })
 })

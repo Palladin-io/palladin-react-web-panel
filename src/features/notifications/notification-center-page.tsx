@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -27,6 +28,7 @@ import {
 } from './notification-grant-context'
 import type { NotificationItem } from './notifications-api'
 import {
+  NOTIFICATIONS_QUERY_KEY,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotifications,
@@ -50,10 +52,18 @@ type Segment = 'all' | 'todo' | 'history'
  */
 export function NotificationCenterPage() {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const notifications = useNotifications()
   const summary = useNotificationsSummary()
   const markRead = useMarkNotificationRead()
   const markAllRead = useMarkAllNotificationsRead()
+
+  // Refresh the feed + summary after a grant action so the resolved card drops
+  // out (and its buttons disable) immediately, instead of lingering up to the
+  // 15s staleTime — which risks a double-submit. The grant mutations already
+  // invalidate ['grants']; this covers the notifications side.
+  const refreshFeed = () =>
+    queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
 
   const [segment, setSegment] = useState<Segment>('all')
   const [query, setQuery] = useState('')
@@ -104,6 +114,7 @@ export function NotificationCenterPage() {
         onSuccess: () => {
           toast.success(t('grants.approve.success'))
           setApproveTarget(null)
+          refreshFeed()
         },
         onError: () => toast.error(t('grants.approve.error')),
       },
@@ -118,6 +129,7 @@ export function NotificationCenterPage() {
         onSuccess: () => {
           toast.success(t('grants.deny.success'))
           setDenyTarget(null)
+          refreshFeed()
         },
         onError: () => toast.error(t('grants.deny.error')),
       },
@@ -132,6 +144,7 @@ export function NotificationCenterPage() {
         onSuccess: () => {
           toast.success(t('grants.revoke.success'))
           setRevokeTarget(null)
+          refreshFeed()
         },
         onError: () => toast.error(t('grants.revoke.error')),
       },
@@ -153,6 +166,7 @@ export function NotificationCenterPage() {
         onSuccess: () => {
           toast.success(t('grants.regrant.success'))
           setRegrantTarget(null)
+          refreshFeed()
         },
         onError: () => toast.error(t('grants.regrant.error')),
       },
@@ -239,7 +253,7 @@ export function NotificationCenterPage() {
               count={filteredActions.length}
             >
               {filteredActions.length === 0 ? (
-                <EmptyState filtered={Boolean(query) || actionItems.length > 0} />
+                <EmptyState filtered={Boolean(query)} />
               ) : (
                 <Grid>
                   {filteredActions.map((item) => (
@@ -278,7 +292,7 @@ export function NotificationCenterPage() {
               }
             >
               {filteredHistory.length === 0 ? (
-                <EmptyState filtered={Boolean(query) || historyItems.length > 0} />
+                <EmptyState filtered={Boolean(query)} />
               ) : (
                 <Grid>
                   {filteredHistory.map((item) => (
@@ -355,7 +369,7 @@ function splitByCategory(items: NotificationItem[]) {
   const actionItems: NotificationItem[] = []
   const historyItems: NotificationItem[] = []
   for (const item of items) {
-    if (item.category === 'ActionRequired' && item.actionState !== 'resolved') {
+    if (item.category === 'actionRequired' && item.actionState !== 'resolved') {
       actionItems.push(item)
     } else {
       historyItems.push(item)

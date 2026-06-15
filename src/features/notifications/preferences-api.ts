@@ -13,7 +13,7 @@ import { api } from '../../shared/api/client'
 
 const preferenceItemSchema = z.object({
   type: z.string(),
-  category: z.enum(['ActionRequired', 'Update']),
+  category: z.enum(['actionRequired', 'update']),
   inboxEnabled: z.boolean(),
   signalREnabled: z.boolean(),
   pushEnabled: z.boolean(),

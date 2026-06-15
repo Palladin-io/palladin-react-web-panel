@@ -13,8 +13,12 @@ import { api } from '../../shared/api/client'
  * grant card resolves automatically once approved/denied/expired anywhere.
  */
 
-/** Notification category — drives the To-do vs History split. */
-export const NOTIFICATION_CATEGORY = ['ActionRequired', 'Update'] as const
+/**
+ * Notification category — drives the To-do vs History split. camelCase to match
+ * the backend JSON serializer (camelCase enums); any other casing would make
+ * `safeParse` reject every row and yield an empty feed.
+ */
+export const NOTIFICATION_CATEGORY = ['actionRequired', 'update'] as const
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORY)[number]
 
 /**

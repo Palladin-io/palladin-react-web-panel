@@ -13,26 +13,8 @@ import type { NotificationItem } from './notifications-api'
  * carries the `titleKey` with no rows/pill.
  */
 
-/** Notification types the client models (frozen taxonomy minus credential_created). */
-export const KNOWN_NOTIFICATION_TYPES = [
-  'agent_pending',
-  'grant_pending',
-  'grant_revoked',
-  'grant_approved',
-  'grant_denied',
-  'credential_stale',
-] as const
-
-export type KnownNotificationType = (typeof KNOWN_NOTIFICATION_TYPES)[number]
-
-export function isKnownNotificationType(
-  type: string,
-): type is KnownNotificationType {
-  return (KNOWN_NOTIFICATION_TYPES as readonly string[]).includes(type)
-}
-
 /** Status pill colour family — mirrors the approved design palette. */
-export type PillTone = 'green' | 'red' | 'orange' | 'blue'
+export type PillTone = 'green' | 'red' | 'orange'
 
 export interface StatusPill {
   /** i18n key for the pill label. */

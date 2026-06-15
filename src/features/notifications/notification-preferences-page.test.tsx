@@ -17,7 +17,7 @@ vi.mock('./use-web-push', () => ({
 const prefs: PreferenceItem[] = [
   {
     type: 'grant_pending',
-    category: 'ActionRequired',
+    category: 'actionRequired',
     inboxEnabled: true,
     signalREnabled: true,
     pushEnabled: true,
@@ -25,7 +25,7 @@ const prefs: PreferenceItem[] = [
   },
   {
     type: 'credential_stale',
-    category: 'ActionRequired',
+    category: 'actionRequired',
     inboxEnabled: true,
     signalREnabled: true,
     pushEnabled: false,
