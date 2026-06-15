@@ -51,6 +51,11 @@ export function showNotificationToast(payload: NotificationPayload) {
         description: withDivider(credentialAccessedBody(payload)),
       })
       break
+    case 'credential_stale':
+      toast.warning(i18n.t('notifications.credentialStale.title'), {
+        description: withDivider(credentialStaleBody(payload)),
+      })
+      break
     default:
       // Unknown type — show the server-supplied copy verbatim.
       toast.info(payload.title, { description: withDivider(payload.body) })
@@ -144,6 +149,23 @@ function credentialAccessedBody(payload: NotificationPayload): ReactNode {
     vault
       ? 'notifications.credentialAccessed.body'
       : 'notifications.credentialAccessed.bodyNoVault',
+    { agent, entry, vault: vault ?? '' },
+  )
+}
+
+/**
+ * credential_stale — "{agent} reported {entry} in {vault} isn't working" with
+ * bold names, falling back to the plain server body when names are absent.
+ */
+function credentialStaleBody(payload: NotificationPayload): ReactNode {
+  const agent = payload.data['agentName']
+  const entry = payload.data['entryLabel']
+  const vault = payload.data['vaultName']
+  if (!agent || !entry) return payload.body
+  return transBody(
+    vault
+      ? 'notifications.credentialStale.body'
+      : 'notifications.credentialStale.bodyNoVault',
     { agent, entry, vault: vault ?? '' },
   )
 }

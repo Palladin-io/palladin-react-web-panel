@@ -52,6 +52,17 @@ export function useNotificationInvalidation() {
           break
         }
 
+        case 'credential_stale': {
+          // An agent reported the credential isn't working — refresh the entry
+          // detail so any "stale" badge / last-failure surface updates.
+          if (data.vaultId && data.entryId) {
+            queryClient.invalidateQueries({
+              queryKey: entryDetailQueryKey(data.vaultId, data.entryId),
+            })
+          }
+          break
+        }
+
         default:
           // Unknown type — nothing to invalidate. The toast still fires so the
           // user is informed even for a type the client doesn't model yet.

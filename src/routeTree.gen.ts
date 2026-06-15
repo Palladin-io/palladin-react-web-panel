@@ -22,6 +22,7 @@ import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authentica
 import { Route as AuthenticatedApiKeysRouteImport } from './routes/_authenticated/api-keys'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
 import { Route as AuthenticatedVaultsVaultIdRouteImport } from './routes/_authenticated/vaults_.$vaultId'
+import { Route as AuthenticatedInboxPreferencesRouteImport } from './routes/_authenticated/inbox_.preferences'
 import { Route as AuthenticatedApiKeysKeyIdRouteImport } from './routes/_authenticated/api-keys_.$keyId'
 import { Route as AuthenticatedAgentsAgentIdRouteImport } from './routes/_authenticated/agents_.$agentId'
 import { Route as AuthenticatedVaultsVaultIdSettingsRouteImport } from './routes/_authenticated/vaults_.$vaultId_.settings'
@@ -94,6 +95,12 @@ const AuthenticatedVaultsVaultIdRoute =
     path: '/vaults/$vaultId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedInboxPreferencesRoute =
+  AuthenticatedInboxPreferencesRouteImport.update({
+    id: '/inbox_/preferences',
+    path: '/inbox/preferences',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedApiKeysKeyIdRoute =
   AuthenticatedApiKeysKeyIdRouteImport.update({
     id: '/api-keys_/$keyId',
@@ -145,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/vaults': typeof AuthenticatedVaultsRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
+  '/inbox/preferences': typeof AuthenticatedInboxPreferencesRoute
   '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
   '/vaults/$vaultId/grants': typeof AuthenticatedVaultsVaultIdGrantsRoute
   '/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
@@ -165,6 +173,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
+  '/inbox/preferences': typeof AuthenticatedInboxPreferencesRoute
   '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
   '/vaults/$vaultId/grants': typeof AuthenticatedVaultsVaultIdGrantsRoute
   '/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
@@ -187,6 +196,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/agents_/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/_authenticated/api-keys_/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
+  '/_authenticated/inbox_/preferences': typeof AuthenticatedInboxPreferencesRoute
   '/_authenticated/vaults_/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
   '/_authenticated/vaults_/$vaultId_/grants': typeof AuthenticatedVaultsVaultIdGrantsRoute
   '/_authenticated/vaults_/$vaultId_/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
@@ -209,6 +219,7 @@ export interface FileRouteTypes {
     | '/vaults'
     | '/agents/$agentId'
     | '/api-keys/$keyId'
+    | '/inbox/preferences'
     | '/vaults/$vaultId'
     | '/vaults/$vaultId/grants'
     | '/vaults/$vaultId/settings'
@@ -229,6 +240,7 @@ export interface FileRouteTypes {
     | '/'
     | '/agents/$agentId'
     | '/api-keys/$keyId'
+    | '/inbox/preferences'
     | '/vaults/$vaultId'
     | '/vaults/$vaultId/grants'
     | '/vaults/$vaultId/settings'
@@ -250,6 +262,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/agents_/$agentId'
     | '/_authenticated/api-keys_/$keyId'
+    | '/_authenticated/inbox_/preferences'
     | '/_authenticated/vaults_/$vaultId'
     | '/_authenticated/vaults_/$vaultId_/grants'
     | '/_authenticated/vaults_/$vaultId_/settings'
@@ -356,6 +369,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVaultsVaultIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/inbox_/preferences': {
+      id: '/_authenticated/inbox_/preferences'
+      path: '/inbox/preferences'
+      fullPath: '/inbox/preferences'
+      preLoaderRoute: typeof AuthenticatedInboxPreferencesRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/api-keys_/$keyId': {
       id: '/_authenticated/api-keys_/$keyId'
       path: '/api-keys/$keyId'
@@ -413,6 +433,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAgentsAgentIdRoute: typeof AuthenticatedAgentsAgentIdRoute
   AuthenticatedApiKeysKeyIdRoute: typeof AuthenticatedApiKeysKeyIdRoute
+  AuthenticatedInboxPreferencesRoute: typeof AuthenticatedInboxPreferencesRoute
   AuthenticatedVaultsVaultIdRoute: typeof AuthenticatedVaultsVaultIdRoute
   AuthenticatedVaultsVaultIdGrantsRoute: typeof AuthenticatedVaultsVaultIdGrantsRoute
   AuthenticatedVaultsVaultIdSettingsRoute: typeof AuthenticatedVaultsVaultIdSettingsRoute
@@ -432,6 +453,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAgentsAgentIdRoute: AuthenticatedAgentsAgentIdRoute,
   AuthenticatedApiKeysKeyIdRoute: AuthenticatedApiKeysKeyIdRoute,
+  AuthenticatedInboxPreferencesRoute: AuthenticatedInboxPreferencesRoute,
   AuthenticatedVaultsVaultIdRoute: AuthenticatedVaultsVaultIdRoute,
   AuthenticatedVaultsVaultIdGrantsRoute: AuthenticatedVaultsVaultIdGrantsRoute,
   AuthenticatedVaultsVaultIdSettingsRoute:

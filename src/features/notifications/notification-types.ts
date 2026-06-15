@@ -11,6 +11,7 @@ export const NOTIFICATION_TYPES = [
   'grant_denied',
   'grant_revoked',
   'credential_accessed',
+  'credential_stale',
   'agent_pending',
 ] as const
 
