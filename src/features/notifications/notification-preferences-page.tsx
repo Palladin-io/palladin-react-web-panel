@@ -59,10 +59,12 @@ export function NotificationPreferencesPage() {
   }
 
   return (
-    <div className="min-h-full px-7 py-6 text-[var(--cv-t1)]">
-      <header className="mb-5">
-        <h1 className="text-[20px] font-bold">{t('notifications.prefs.title')}</h1>
-        <p className="mt-0.5 text-[12px] text-[var(--cv-t3)]">
+    <div className="min-h-full px-6 py-8 text-[var(--cv-t1)]">
+      <header className="mb-6">
+        <h1 className="text-[20px] font-bold leading-tight text-[var(--cv-t1)]">
+          {t('notifications.prefs.title')}
+        </h1>
+        <p className="mt-1 text-[12px] text-[var(--cv-t3)]">
           {t('notifications.prefs.subtitle')}
         </p>
       </header>

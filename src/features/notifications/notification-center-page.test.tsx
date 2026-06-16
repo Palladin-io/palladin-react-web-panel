@@ -19,6 +19,7 @@ const denyMutate = vi.hoisted(() =>
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
+  useNavigate: () => vi.fn(),
 }))
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))

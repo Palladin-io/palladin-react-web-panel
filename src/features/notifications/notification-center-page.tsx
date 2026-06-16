@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
@@ -52,6 +52,7 @@ type Segment = 'all' | 'todo' | 'history'
  */
 export function NotificationCenterPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const notifications = useNotifications()
   const summary = useNotificationsSummary()
@@ -67,7 +68,6 @@ export function NotificationCenterPage() {
 
   const [segment, setSegment] = useState<Segment>('all')
   const [query, setQuery] = useState('')
-  const [filtersOpen, setFiltersOpen] = useState(false)
 
   // Grant-action mutations + dialog targets (shared across both sections).
   const approve = useApproveGrant()
@@ -174,23 +174,20 @@ export function NotificationCenterPage() {
   }
 
   return (
-    <div className="min-h-full px-7 py-6 text-[var(--cv-t1)]">
-      {/* Header + segment */}
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-[20px] font-bold">{t('notifications.center.title')}</h1>
-          <p className="mt-0.5 text-[12px] text-[var(--cv-t3)]">
+    <div className="min-h-full px-6 py-8 text-[var(--cv-t1)]">
+      {/* Page header — same height/typography as Vaults & Agents */}
+      <header className="mb-6 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="text-[20px] font-bold leading-tight text-[var(--cv-t1)]">
+            {t('notifications.center.title')}
+          </h1>
+          <p className="mt-1 text-[12px] text-[var(--cv-t3)]">
             {t('notifications.center.subtitle')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <SegmentControl
-            segment={segment}
-            onChange={setSegment}
-            todoCount={summary.data?.pendingActionCount ?? 0}
-          />
+        <div className="flex shrink-0 items-center gap-1">
           <Button
-            variant="subtle"
+            variant="ghost"
             size="sm"
             icon="done_all"
             disabled={(summary.data?.unreadCount ?? 0) === 0 || markAllRead.isPending}
@@ -198,40 +195,36 @@ export function NotificationCenterPage() {
           >
             {t('notifications.center.markAllRead')}
           </Button>
-          <Link
-            to="/inbox/preferences"
+          <Button
+            variant="ghost"
+            size="sm"
+            icon="settings"
             aria-label={t('notifications.prefs.title')}
             title={t('notifications.prefs.title')}
-            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-[var(--cv-btn-subtle-border)] bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-t2)] transition-colors hover:bg-[var(--cv-btn-subtle-hover)]"
-          >
-            <Icon name="settings" size={16} />
-          </Link>
+            onClick={() => navigate({ to: '/inbox/preferences' })}
+          />
         </div>
-      </div>
+      </header>
 
-      {/* Search row: input + Filter button (org-grants-panel style) */}
-      <div className="mb-5 flex gap-2">
-        <div className="flex flex-1 items-center gap-2.5 rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2 focus-within:border-[var(--cv-t1)]">
-          <Icon name="search" size={16} color="var(--cv-t3)" />
+      {/* Segment tabs — same underline pattern as the vault detail tabs */}
+      <SegmentTabs
+        segment={segment}
+        onChange={setSegment}
+        todoCount={summary.data?.pendingActionCount ?? 0}
+      />
+
+      {/* Search — exact org-grants-panel input */}
+      <div className="mb-3 flex items-stretch gap-2">
+        <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2 transition-colors focus-within:border-[var(--cv-t1)]">
+          <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
           <input
-            type="search"
+            type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('notifications.center.search')}
-            className="min-w-0 flex-1 bg-transparent text-[12px] text-[var(--cv-t1)] outline-none placeholder:text-[var(--cv-t3)]"
+            className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
           />
         </div>
-        <button
-          type="button"
-          onClick={() => setFiltersOpen((open) => !open)}
-          aria-expanded={filtersOpen}
-          className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 text-[12px] font-medium text-[var(--cv-t2)] transition-colors hover:border-[var(--cv-t1)]"
-          style={{ color: filtersOpen ? '#FF4F4F' : undefined }}
-        >
-          <Icon name="filter_alt" size={14} />
-          {t('notifications.center.filter')}
-          <Icon name="expand_more" size={14} />
-        </button>
       </div>
 
       {notifications.isPending ? (
@@ -547,7 +540,13 @@ function toOrgGrant(ctx: NotificationGrantContext): OrgGrant {
   } as OrgGrant
 }
 
-function SegmentControl({
+/**
+ * Segment switcher reusing the app's underline tab pattern (see
+ * `VaultDetailTabs`) — accent-coloured active tab with a bottom border, instead
+ * of the standalone-mockup pill control. The To-do tab carries a small count
+ * chip built from `--cv-*` tokens.
+ */
+function SegmentTabs({
   segment,
   onChange,
   todoCount,
@@ -563,28 +562,25 @@ function SegmentControl({
     { key: 'history', label: t('notifications.center.segHistory') },
   ]
   return (
-    <div className="inline-flex rounded-[10px] bg-[var(--cv-btn-subtle-bg)] p-[3px]">
+    <div className="mb-4 flex border-b border-[var(--cv-divider)]" role="tablist">
       {options.map((option) => {
-        const active = segment === option.key
+        const isActive = segment === option.key
         return (
           <button
             key={option.key}
             type="button"
+            role="tab"
+            aria-selected={isActive}
             onClick={() => onChange(option.key)}
-            className={`flex items-center gap-1.5 rounded-[7px] px-3 py-1.5 text-[12px] font-semibold transition-colors ${
-              active ? 'bg-[#FF4F4F] text-white' : 'text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
+            className={`-mb-px flex items-center gap-1.5 border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
+              isActive
+                ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
+                : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
             }`}
           >
             {option.label}
             {option.count ? (
-              <span
-                className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-bold"
-                style={
-                  active
-                    ? { background: 'rgba(255,255,255,0.25)', color: '#fff' }
-                    : { background: 'rgba(255,79,79,0.15)', color: '#FF4F4F' }
-                }
-              >
+              <span className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[rgba(255,79,79,0.15)] px-1 text-[10px] font-bold text-[#FF4F4F]">
                 {option.count}
               </span>
             ) : null}
@@ -627,13 +623,14 @@ function Section({
   )
 }
 
-/** Responsive card grid — auto-fill, min 340px (matches the approved design). */
+/**
+ * Responsive card grid — identical to the org-grants-panel list grid
+ * (auto-fill, min 340px, `gap-[10px]`, `items-start`) so card spacing matches
+ * the rest of the app.
+ */
 function Grid({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="grid items-start gap-2.5"
-      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))' }}
-    >
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] items-start gap-[10px]">
       {children}
     </div>
   )
@@ -653,12 +650,12 @@ function EmptyState({ filtered }: { filtered: boolean }) {
 
 function LoadingSkeleton() {
   return (
-    <div
-      className="grid items-start gap-2.5"
-      style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))' }}
-    >
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] items-start gap-[10px]">
       {[0, 1, 2, 3].map((index) => (
-        <div key={index} className="h-[150px] animate-pulse rounded-xl bg-[var(--cv-card-bg)]" />
+        <div
+          key={index}
+          className="h-[150px] animate-pulse rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]"
+        />
       ))}
     </div>
   )
