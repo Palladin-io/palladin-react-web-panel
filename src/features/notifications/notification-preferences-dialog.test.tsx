@@ -43,17 +43,20 @@ vi.mock('./notification-queries', () => ({
   useUpdateNotificationPreferences: () => ({ mutate: update, isPending: false }),
 }))
 
-import { NotificationPreferencesPage } from './notification-preferences-page'
+import { NotificationPreferencesDialog } from './notification-preferences-dialog'
 
-describe('NotificationPreferencesPage', () => {
+const onClose = vi.fn()
+
+describe('NotificationPreferencesDialog', () => {
   beforeEach(() => {
     update.mockReset()
+    onClose.mockReset()
     webPushState.isSupported = true
     webPushState.status = 'registered'
   })
 
   it('renders a row per type with the three channel switches', () => {
-    render(<NotificationPreferencesPage />)
+    render(<NotificationPreferencesDialog onClose={onClose} />)
 
     expect(screen.getByText('Access requests')).toBeInTheDocument()
     expect(screen.getByText('Stale credentials')).toBeInTheDocument()
@@ -62,7 +65,7 @@ describe('NotificationPreferencesPage', () => {
   })
 
   it('locks inbox + realtime for mandatory types (push stays mutable)', () => {
-    render(<NotificationPreferencesPage />)
+    render(<NotificationPreferencesDialog onClose={onClose} />)
 
     const switches = screen.getAllByRole('switch')
     // grant_pending row: inbox(0) + realtime(1) locked, push(2) enabled
@@ -72,7 +75,7 @@ describe('NotificationPreferencesPage', () => {
   })
 
   it('persists a non-locked toggle change', () => {
-    render(<NotificationPreferencesPage />)
+    render(<NotificationPreferencesDialog onClose={onClose} />)
 
     // credential_stale push (last switch) is mutable and currently off → enable.
     const switches = screen.getAllByRole('switch')
@@ -86,7 +89,7 @@ describe('NotificationPreferencesPage', () => {
 
   it('disables the push column when web push is unavailable', () => {
     webPushState.isSupported = false
-    render(<NotificationPreferencesPage />)
+    render(<NotificationPreferencesDialog onClose={onClose} />)
 
     const switches = screen.getAllByRole('switch')
     // push columns (index 2 and 5) disabled

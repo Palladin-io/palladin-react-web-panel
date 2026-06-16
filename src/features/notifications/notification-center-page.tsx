@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
@@ -22,6 +22,7 @@ import type { PendingGrant } from '../grants'
 import type { OrgGrant } from '../grants/api/org-grants-api'
 import { GRANT_TYPE_GRANULAR } from '../grants/api/org-grants-api'
 import { NotificationCard } from './notification-card'
+import { NotificationPreferencesDialog } from './notification-preferences-dialog'
 import {
   notificationGrantContext,
   type NotificationGrantContext,
@@ -52,7 +53,6 @@ type Segment = 'all' | 'todo' | 'history'
  */
 export function NotificationCenterPage() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const notifications = useNotifications()
   const summary = useNotificationsSummary()
@@ -68,6 +68,7 @@ export function NotificationCenterPage() {
 
   const [segment, setSegment] = useState<Segment>('all')
   const [query, setQuery] = useState('')
+  const [prefsOpen, setPrefsOpen] = useState(false)
 
   // Grant-action mutations + dialog targets (shared across both sections).
   const approve = useApproveGrant()
@@ -174,18 +175,25 @@ export function NotificationCenterPage() {
   }
 
   return (
-    <div className="min-h-full px-6 py-8 text-[var(--cv-t1)]">
-      {/* Page header — same height/typography as Vaults & Agents */}
-      <header className="mb-6 flex items-center justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-[20px] font-bold leading-tight text-[var(--cv-t1)]">
+    <div className="min-h-full px-4 py-4 text-[var(--cv-t1)]">
+      {/* Header row — app-standard `h-10` (same as Agents/Vaults/org-grants) so
+          the search below sits at the same height across every list screen.
+          Title/subtitle on the left; segment tabs + actions inline on the right. */}
+      <div className="mb-4 flex h-10 items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
             {t('notifications.center.title')}
-          </h1>
-          <p className="mt-1 text-[12px] text-[var(--cv-t3)]">
+          </h2>
+          <p className="text-[11px] text-[var(--cv-t3)]">
             {t('notifications.center.subtitle')}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <SegmentTabs
+            segment={segment}
+            onChange={setSegment}
+            todoCount={summary.data?.pendingActionCount ?? 0}
+          />
           <Button
             variant="ghost"
             size="sm"
@@ -201,17 +209,10 @@ export function NotificationCenterPage() {
             icon="settings"
             aria-label={t('notifications.prefs.title')}
             title={t('notifications.prefs.title')}
-            onClick={() => navigate({ to: '/inbox/preferences' })}
+            onClick={() => setPrefsOpen(true)}
           />
         </div>
-      </header>
-
-      {/* Segment tabs — same underline pattern as the vault detail tabs */}
-      <SegmentTabs
-        segment={segment}
-        onChange={setSegment}
-        todoCount={summary.data?.pendingActionCount ?? 0}
-      />
+      </div>
 
       {/* Search — exact org-grants-panel input */}
       <div className="mb-3 flex items-stretch gap-2">
@@ -273,15 +274,12 @@ export function NotificationCenterPage() {
             <Section
               title={t('notifications.center.history')}
               trailing={
-                <Link
-                  to="/inbox"
-                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#60A5FA]"
-                  aria-disabled
-                  onClick={(e) => e.preventDefault()}
+                <span
+                  className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--cv-t3)]"
                   title={t('notifications.center.auditLogSoon')}
                 >
                   ({t('notifications.center.auditLog')} →)
-                </Link>
+                </span>
               }
             >
               {filteredHistory.length === 0 ? (
@@ -352,6 +350,10 @@ export function NotificationCenterPage() {
           onConfirm={handleRegrant}
           onCancel={() => setRegrantTarget(null)}
         />
+      )}
+
+      {prefsOpen && (
+        <NotificationPreferencesDialog onClose={() => setPrefsOpen(false)} />
       )}
     </div>
   )
@@ -541,10 +543,10 @@ function toOrgGrant(ctx: NotificationGrantContext): OrgGrant {
 }
 
 /**
- * Segment switcher reusing the app's underline tab pattern (see
- * `VaultDetailTabs`) — accent-coloured active tab with a bottom border, instead
- * of the standalone-mockup pill control. The To-do tab carries a small count
- * chip built from `--cv-*` tokens.
+ * Segment switcher — accent-underline active tab matching the app's tab idiom
+ * (`VaultDetailTabs`), sized to sit inline in the header action row next to
+ * "Mark all as read" / settings. The To-do tab carries a small count chip built
+ * from `--cv-*` / `#FF4F4F` tokens.
  */
 function SegmentTabs({
   segment,
@@ -562,7 +564,7 @@ function SegmentTabs({
     { key: 'history', label: t('notifications.center.segHistory') },
   ]
   return (
-    <div className="mb-4 flex border-b border-[var(--cv-divider)]" role="tablist">
+    <div className="mr-1 flex items-center" role="tablist">
       {options.map((option) => {
         const isActive = segment === option.key
         return (
@@ -572,7 +574,7 @@ function SegmentTabs({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(option.key)}
-            className={`-mb-px flex items-center gap-1.5 border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
+            className={`flex items-center gap-1.5 border-b-2 px-2.5 py-1 text-[12px] transition-colors ${
               isActive
                 ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
                 : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
