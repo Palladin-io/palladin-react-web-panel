@@ -22,9 +22,16 @@ export interface ButtonProps
   className?: string
 }
 
+// Fixed height per size (no `py`) so a button's height is constant regardless
+// of content — an `icon` glyph (14/16px) has a taller line-box than the text
+// (11/13px), which previously made icon buttons taller than plain ones even
+// with `leading-none`. With `h-7`/`h-9` every button of a given size is
+// pixel-identical: icon vs no icon, bordered vs borderless.
+//   sm → 28px (h-7), was ~27px (py-1.5 + 11px text + 1px border) → +1px
+//   md → 36px (h-9), was ~34px (py-2 + 13px text + 1px border) → +2px
 const SIZE_CLASS: Record<ButtonSize, string> = {
-  sm: 'px-2.5 py-1.5 text-[11px] font-semibold rounded-lg gap-1.5',
-  md: 'px-3.5 py-2 text-[13px] font-semibold rounded-lg gap-2',
+  sm: 'h-7 px-2.5 text-[11px] font-semibold rounded-lg gap-1.5',
+  md: 'h-9 px-3.5 text-[13px] font-semibold rounded-lg gap-2',
 }
 
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
@@ -48,10 +55,9 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
     'btn-premium bg-transparent font-bold border',
 }
 
-/** Shared base classes — exported so Link elements can carry premium styling.
- *  `leading-none` keeps the button height driven purely by `py` + `items-center`
- *  so an icon glyph's taller line-box (e.g. `file_upload`) can't inflate one
- *  variant's height relative to another (Import vs Add Entry parity). */
+/** Shared base classes — exported so Link elements can carry button styling.
+ *  Height comes from the fixed `h-*` in SIZE_CLASS; `items-center` +
+ *  `leading-none` keep the label/icon centred within that fixed height. */
 const BASE_CLASS =
   'inline-flex items-center justify-center leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-60'
 
