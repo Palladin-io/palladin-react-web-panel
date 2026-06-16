@@ -41,21 +41,19 @@ export interface NotificationCardProps {
  * optional status pill + relative time; detail rows = label column + value;
  * footer = caller-provided actions on a subtle ground.
  *
- * Unread items carry a left accent + a corner dot. All copy is localised on the
- * client from `titleKey`/`metadata`; this component renders only the resolved
- * presentation, so it stays trivial to test.
+ * Cards are a uniform full-height flex column (the grid stretches them) so every
+ * card in a row lines up regardless of how many detail rows it has — the footer
+ * pins to the bottom. No per-type accent border or unread dot: a single
+ * `--cv-border` + `--cv-card-bg` keeps the grid visually even. All copy is
+ * localised on the client from `titleKey`/`metadata`.
  */
 export function NotificationCard({ item, footer }: NotificationCardProps) {
   const { t } = useTranslation()
   const card = notificationCardPresentation(item)
-  const unread = !item.readAt
 
   return (
     <article
-      className="overflow-hidden rounded-xl border bg-[var(--cv-card-bg)]"
-      style={{
-        borderColor: unread ? 'rgba(255,79,79,0.28)' : 'var(--cv-border)',
-      }}
+      className="flex h-full flex-col overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]"
       aria-label={t(card.subtitleKey)}
     >
       {/* Header */}
@@ -76,17 +74,11 @@ export function NotificationCard({ item, footer }: NotificationCardProps) {
         >
           {formatRelativeTime(item.occurredAt, t)}
         </span>
-        {unread && (
-          <span
-            className="ml-0.5 h-2 w-2 shrink-0 rounded-full bg-[#FF4F4F]"
-            aria-label={t('notifications.center.unread')}
-          />
-        )}
       </div>
 
-      {/* Detail rows */}
+      {/* Detail rows — grow to fill so the footer pins to the card bottom */}
       {card.rows.length > 0 && (
-        <div className="flex flex-col gap-2 border-t border-[var(--cv-divider)] px-[14px] py-3">
+        <div className="flex flex-1 flex-col gap-2 border-t border-[var(--cv-divider)] px-[14px] py-3">
           {card.rows.map((row) => (
             <div key={row.labelKey} className="flex gap-3 text-[11px] leading-relaxed">
               <span className="w-20 shrink-0 font-medium text-[var(--cv-t3)]">

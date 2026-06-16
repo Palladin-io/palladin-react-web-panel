@@ -195,7 +195,7 @@ export function NotificationCenterPage() {
             todoCount={summary.data?.pendingActionCount ?? 0}
           />
           <Button
-            variant="ghost"
+            variant="subtle"
             size="sm"
             icon="done_all"
             disabled={(summary.data?.unreadCount ?? 0) === 0 || markAllRead.isPending}
@@ -204,7 +204,7 @@ export function NotificationCenterPage() {
             {t('notifications.center.markAllRead')}
           </Button>
           <Button
-            variant="ghost"
+            variant="subtle"
             size="sm"
             icon="settings"
             aria-label={t('notifications.prefs.title')}
@@ -239,16 +239,13 @@ export function NotificationCenterPage() {
         <EmptyState filtered={false} />
       ) : (
         <>
-          {showActions && (
-            <Section
-              icon="warning"
-              iconColor="#FF4F4F"
-              title={t('notifications.center.requiredActions')}
-              count={filteredActions.length}
-            >
-              {filteredActions.length === 0 ? (
-                <EmptyState filtered={Boolean(query)} />
-              ) : (
+          {/* Action-required cards render with no section label — just the
+              cards at the top of the inbox. */}
+          {showActions &&
+            (filteredActions.length === 0 ? (
+              segment === 'todo' ? <EmptyState filtered={Boolean(query)} /> : null
+            ) : (
+              <div className="mb-4">
                 <Grid>
                   {filteredActions.map((item) => (
                     <NotificationCard
@@ -266,22 +263,19 @@ export function NotificationCenterPage() {
                     />
                   ))}
                 </Grid>
-              )}
-            </Section>
-          )}
+              </div>
+            ))}
 
           {showHistory && (
-            <Section
-              title={t('notifications.center.history')}
-              trailing={
-                <span
-                  className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--cv-t3)]"
-                  title={t('notifications.center.auditLogSoon')}
-                >
-                  ({t('notifications.center.auditLog')} →)
+            <section>
+              {/* Single-row label: "History" + inline "Check full audit log" in
+                  the same section-label font, vertically centered. */}
+              <p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--cv-t3)]">
+                {t('notifications.center.history')}
+                <span title={t('notifications.center.auditLogSoon')}>
+                  ({t('notifications.center.auditLog')})
                 </span>
-              }
-            >
+              </p>
               {filteredHistory.length === 0 ? (
                 <EmptyState filtered={Boolean(query)} />
               ) : (
@@ -302,7 +296,7 @@ export function NotificationCenterPage() {
                   ))}
                 </Grid>
               )}
-            </Section>
+            </section>
           )}
 
           {notifications.hasNextPage && (
@@ -593,46 +587,15 @@ function SegmentTabs({
   )
 }
 
-function Section({
-  icon,
-  iconColor,
-  title,
-  count,
-  trailing,
-  children,
-}: {
-  icon?: string
-  iconColor?: string
-  title: string
-  count?: number
-  trailing?: React.ReactNode
-  children: React.ReactNode
-}) {
-  return (
-    <section className="mb-6">
-      <p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--cv-t3)]">
-        {icon && <Icon name={icon} size={14} color={iconColor} />}
-        {title}
-        {count ? (
-          <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[rgba(255,79,79,0.15)] px-1.5 text-[10px] font-bold tracking-normal text-[#FF4F4F]">
-            {count}
-          </span>
-        ) : null}
-        {trailing && <span className="font-normal normal-case tracking-normal">{trailing}</span>}
-      </p>
-      {children}
-    </section>
-  )
-}
-
 /**
- * Responsive card grid — identical to the org-grants-panel list grid
- * (auto-fill, min 340px, `gap-[10px]`, `items-start`) so card spacing matches
- * the rest of the app.
+ * Responsive card grid — same auto-fill/min-340/`gap-[10px]` as the
+ * org-grants-panel list, but `items-stretch` so every card in a row shares the
+ * tallest card's height (cards are `h-full` flex columns). This gives the
+ * uniform-height pending grid.
  */
 function Grid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] items-start gap-[10px]">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] items-stretch gap-[10px]">
       {children}
     </div>
   )

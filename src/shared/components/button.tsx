@@ -44,9 +44,12 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
     'btn-premium bg-transparent font-bold border',
 }
 
-/** Shared base classes — exported so Link elements can carry premium styling. */
+/** Shared base classes — exported so Link elements can carry premium styling.
+ *  `leading-none` keeps the button height driven purely by `py` + `items-center`
+ *  so an icon glyph's taller line-box (e.g. `file_upload`) can't inflate one
+ *  variant's height relative to another (Import vs Add Entry parity). */
 const BASE_CLASS =
-  'inline-flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-60'
+  'inline-flex items-center justify-center leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-60'
 
 /** Ready-made class string for the `sm` premium button — apply to `<Link>` elements. */
 export const PREMIUM_BUTTON_SM_CLASS =
