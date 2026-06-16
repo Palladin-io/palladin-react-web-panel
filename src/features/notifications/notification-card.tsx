@@ -13,10 +13,11 @@ import {
   type StatusPill,
 } from './notification-presentation'
 
-/** Soft chip tints for the glyph header avatar, per the approved design. */
-const GLYPH_TONE: Record<'red' | 'orange' | 'teal' | 'grey', { bg: string; color: string }> = {
+/** Soft chip tints for the glyph header avatar. On-palette tokens only. */
+const GLYPH_TONE: Record<'red' | 'amber' | 'teal' | 'grey', { bg: string; color: string }> = {
   red: { bg: 'rgba(255,79,79,0.13)', color: '#FF4F4F' },
-  orange: { bg: 'rgba(255,144,96,0.15)', color: '#FF9060' },
+  // Amber matches the grant "pending/denied" family (org-grant-presentation).
+  amber: { bg: 'rgba(240,192,64,0.14)', color: '#D4820A' },
   teal: { bg: 'rgba(46,196,182,0.14)', color: '#2EC4B6' },
   grey: { bg: 'rgba(138,149,166,0.16)', color: '#8A95A6' },
 }
@@ -24,7 +25,8 @@ const GLYPH_TONE: Record<'red' | 'orange' | 'teal' | 'grey', { bg: string; color
 const PILL_TONE: Record<PillTone, { color: string; bg: string }> = {
   green: { color: '#2EC4B6', bg: 'rgba(46,196,182,0.13)' },
   red: { color: '#FF4F4F', bg: 'rgba(255,79,79,0.12)' },
-  orange: { color: '#FF9060', bg: 'rgba(255,144,96,0.14)' },
+  // Denied pill reuses the grant amber tokens (org-grant-presentation pending).
+  amber: { color: '#D4820A', bg: 'rgba(240,192,64,0.14)' },
 }
 
 export interface NotificationCardProps {
@@ -84,10 +86,10 @@ export function NotificationCard({ item, footer }: NotificationCardProps) {
 
       {/* Detail rows */}
       {card.rows.length > 0 && (
-        <div className="flex flex-col gap-2 border-t border-[var(--cv-divider)] px-[14px] py-2.5">
+        <div className="flex flex-col gap-2 border-t border-[var(--cv-divider)] px-[14px] py-3">
           {card.rows.map((row) => (
             <div key={row.labelKey} className="flex gap-3 text-[11px] leading-relaxed">
-              <span className="w-[78px] shrink-0 font-medium text-[var(--cv-t3)]">
+              <span className="w-20 shrink-0 font-medium text-[var(--cv-t3)]">
                 {t(row.labelKey)}
               </span>
               <span className="min-w-0 flex-1 text-[var(--cv-t2)]">
@@ -100,7 +102,7 @@ export function NotificationCard({ item, footer }: NotificationCardProps) {
 
       {/* Footer */}
       {footer && (
-        <div className="flex items-center gap-2 border-t border-[var(--cv-divider)] bg-[rgba(0,11,46,0.015)] px-[14px] py-2 dark:bg-[rgba(253,249,228,0.02)]">
+        <div className="flex min-h-[46px] items-center gap-2 border-t border-[var(--cv-divider)] bg-[rgba(0,11,46,0.015)] px-[14px] py-2 dark:bg-[rgba(253,249,228,0.02)]">
           {footer}
         </div>
       )}

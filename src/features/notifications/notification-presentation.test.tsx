@@ -60,7 +60,7 @@ describe('notificationCardPresentation', () => {
       tone: 'green',
     })
     expect(notificationCardPresentation(makeItem({ type: 'grant_revoked' })).pill?.tone).toBe('red')
-    expect(notificationCardPresentation(makeItem({ type: 'grant_denied' })).pill?.tone).toBe('orange')
+    expect(notificationCardPresentation(makeItem({ type: 'grant_denied' })).pill?.tone).toBe('amber')
   })
 
   it('models the entry row as a bold entry + vault suffix', () => {

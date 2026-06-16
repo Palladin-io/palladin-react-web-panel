@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Button } from '../../shared/components/button'
+import { Button, POSITIVE_BUTTON_SM_CLASS } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
 import {
@@ -425,7 +425,7 @@ function ActionFooter({
           <Link
             to="/agents/$agentId"
             params={{ agentId }}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)] px-2.5 py-1.5 text-[11px] font-semibold text-[#2EC4B6] transition-colors hover:bg-[rgba(46,196,182,0.12)]"
+            className={`${POSITIVE_BUTTON_SM_CLASS} flex-1`}
           >
             <Icon name="check" size={14} />
             {t('notifications.center.review')}
@@ -447,7 +447,7 @@ function ActionFooter({
           <Link
             to="/vaults/$vaultId/entries/$entryId"
             params={{ vaultId, entryId }}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[rgba(46,196,182,0.3)] bg-[rgba(46,196,182,0.06)] px-2.5 py-1.5 text-[11px] font-semibold text-[#2EC4B6] transition-colors hover:bg-[rgba(46,196,182,0.12)]"
+            className={`${POSITIVE_BUTTON_SM_CLASS} flex-1`}
           >
             <Icon name="refresh" size={14} />
             {t('notifications.center.update')}

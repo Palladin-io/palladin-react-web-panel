@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { Button } from '../../shared/components/button'
+import { DialogFooter } from '../../shared/components/dialog-footer'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
 import { ModalShell } from '../../shared/components/modal-shell'
@@ -122,6 +124,14 @@ export function NotificationPreferencesDialog({ onClose }: { onClose: () => void
             {t('notifications.pushBlocked')}
           </p>
         )}
+
+        {/* Preferences auto-save on toggle; the footer gives an explicit
+            dismissal instead of forcing a backdrop click. */}
+        <DialogFooter>
+          <Button variant="subtle" size="sm" className="flex-1" onClick={onClose}>
+            {t('common.close')}
+          </Button>
+        </DialogFooter>
       </div>
     </ModalShell>
   )
@@ -175,9 +185,14 @@ function ChannelToggle({
       disabled={isDisabled}
       onClick={() => onToggle(!checked)}
       title={locked ? t('notifications.prefs.locked') : undefined}
-      className="relative h-[18px] w-[32px] shrink-0 rounded-[9px] transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-      style={{ background: checked ? '#FF4F4F' : 'var(--cv-t3)', opacity: checked ? undefined : 0.3 }}
+      className="relative h-[18px] w-[32px] shrink-0 rounded-[9px] disabled:cursor-not-allowed disabled:opacity-60"
     >
+      {/* Track — only this dims when OFF, matching the prototype's
+          `toggle-track.off` (#8A95A6 @0.3) without fading the white thumb. */}
+      <span
+        className="absolute inset-0 rounded-[9px] transition-colors"
+        style={{ background: checked ? '#FF4F4F' : '#8A95A6', opacity: checked ? undefined : 0.3 }}
+      />
       <span
         className="absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white transition-[left]"
         style={{ left: checked ? '16px' : '2px' }}

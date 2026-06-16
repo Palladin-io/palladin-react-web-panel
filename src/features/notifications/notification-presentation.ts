@@ -13,8 +13,8 @@ import type { NotificationItem } from './notifications-api'
  * carries the `titleKey` with no rows/pill.
  */
 
-/** Status pill colour family — mirrors the approved design palette. */
-export type PillTone = 'green' | 'red' | 'orange'
+/** Status pill colour family — on-palette tokens (green/red/amber). */
+export type PillTone = 'green' | 'red' | 'amber'
 
 export interface StatusPill {
   /** i18n key for the pill label. */
@@ -41,7 +41,7 @@ export interface DetailRow {
 /** Avatar treatment for the card header. */
 export type CardHeaderIcon =
   | { kind: 'agent'; agentName: string | null; agentIconKey: string | null }
-  | { kind: 'glyph'; glyph: string; tone: 'red' | 'orange' | 'teal' | 'grey' }
+  | { kind: 'glyph'; glyph: string; tone: 'red' | 'amber' | 'teal' | 'grey' }
 
 export interface CardPresentation {
   header: CardHeaderIcon
@@ -162,7 +162,7 @@ export function notificationCardPresentation(
         header: { kind: 'agent', agentName, agentIconKey },
         name: agentName ?? FALLBACK,
         subtitleKey: 'notifications.card.grantDenied.subtitle',
-        pill: { labelKey: 'notifications.card.pill.denied', tone: 'orange' },
+        pill: { labelKey: 'notifications.card.pill.denied', tone: 'amber' },
         rows: [
           entryRow(item),
           ...(reason ? [textRow('notifications.card.rowReason', reason)] : []),

@@ -52,6 +52,11 @@ const BASE_CLASS =
 export const PREMIUM_BUTTON_SM_CLASS =
   `${BASE_CLASS} ${SIZE_CLASS.sm} ${VARIANT_CLASS.premium}`
 
+/** Ready-made class string for the `sm` positive button — apply to `<Link>` elements
+ *  that need the positive (teal) treatment but must navigate via the router. */
+export const POSITIVE_BUTTON_SM_CLASS =
+  `${BASE_CLASS} ${SIZE_CLASS.sm} ${VARIANT_CLASS.positive}`
+
 /**
  * Pill-shaped button used by the vault list, detail header, and
  * settings forms. Mirrors the Astro `Button.astro` API (variant / size
