@@ -21,6 +21,12 @@ import {
 import type { PendingGrant } from '../grants'
 import type { OrgGrant } from '../grants/api/org-grants-api'
 import { GRANT_TYPE_GRANULAR } from '../grants/api/org-grants-api'
+import {
+  ApproveAgentDialog,
+  useApproveAgent,
+  useDeactivateAgent,
+  type ApproveAgentInput,
+} from '../agents'
 import { NotificationCard } from './notification-card'
 import { NotificationPreferencesDialog } from './notification-preferences-dialog'
 import {
@@ -37,6 +43,13 @@ import {
 } from './notification-queries'
 
 type Segment = 'all' | 'todo' | 'history'
+
+/** Agent-approval target carried from an `agent_pending` card to the modal. */
+interface AgentTarget {
+  agentId: string
+  agentName: string
+  notificationId: string
+}
 
 /**
  * Notification Center / Inbox (CVT-164) — replaces the Approvals surface with a
@@ -75,11 +88,27 @@ export function NotificationCenterPage() {
   const deny = useDenyGrant()
   const revoke = useRevokeOrgGrant()
   const regrant = useRegrant()
+  const approveAgent = useApproveAgent()
+  const deactivateAgent = useDeactivateAgent()
   const [approveTarget, setApproveTarget] = useState<NotificationGrantContext | null>(null)
   const [denyTarget, setDenyTarget] = useState<NotificationGrantContext | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<NotificationGrantContext | null>(null)
   const [regrantTarget, setRegrantTarget] = useState<NotificationGrantContext | null>(null)
-  const busy = approve.isPending || deny.isPending || revoke.isPending || regrant.isPending
+  // Agent approval target — opens the existing agent-activation modal.
+  const [agentApproveTarget, setAgentApproveTarget] = useState<AgentTarget | null>(null)
+  const busy =
+    approve.isPending ||
+    deny.isPending ||
+    revoke.isPending ||
+    regrant.isPending ||
+    approveAgent.isPending ||
+    deactivateAgent.isPending
+
+  // Auto-mark a notification read + refresh the unread badge immediately.
+  function markReadNow(id: string) {
+    markRead.mutate(id)
+    refreshFeed()
+  }
 
   const items = useMemo(
     () => notifications.data?.pages.flatMap((page) => page.items) ?? [],
@@ -174,6 +203,32 @@ export function NotificationCenterPage() {
     )
   }
 
+  function handleApproveAgent(input: ApproveAgentInput) {
+    if (!agentApproveTarget) return
+    approveAgent.mutate(
+      { agentId: agentApproveTarget.agentId, input },
+      {
+        onSuccess: () => {
+          toast.success(t('agents.approveSuccess'))
+          setAgentApproveTarget(null)
+          refreshFeed()
+        },
+        onError: () => toast.error(t('agents.errorApprove')),
+      },
+    )
+  }
+
+  function handleDenyAgent(agentId: string, notificationId: string) {
+    // "Deny" a pending agent = deactivate it (no separate reject endpoint).
+    deactivateAgent.mutate(agentId, {
+      onSuccess: () => {
+        toast.success(t('agents.deactivateSuccess'))
+        markReadNow(notificationId)
+      },
+      onError: () => toast.error(t('agents.errorDeactivate')),
+    })
+  }
+
   return (
     <div className="min-h-full px-4 py-4 text-[var(--cv-t1)]">
       {/* Header row — app-standard `h-10` (same as Agents/Vaults/org-grants) so
@@ -204,7 +259,7 @@ export function NotificationCenterPage() {
             {t('notifications.center.markAllRead')}
           </Button>
           <Button
-            variant="subtle"
+            variant="accent"
             size="sm"
             icon="settings"
             aria-label={t('notifications.prefs.title')}
@@ -257,7 +312,9 @@ export function NotificationCenterPage() {
                           busy={busy}
                           onApprove={setApproveTarget}
                           onDeny={setDenyTarget}
-                          onMarkRead={(id) => markRead.mutate(id)}
+                          onApproveAgent={setAgentApproveTarget}
+                          onDenyAgent={handleDenyAgent}
+                          onMarkRead={markReadNow}
                         />
                       }
                     />
@@ -269,10 +326,10 @@ export function NotificationCenterPage() {
           {showHistory && (
             <section>
               {/* Single-row label: "History" + inline "Check full audit log" in
-                  the same section-label font, vertically centered. */}
-              <p className="mb-3 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--cv-t3)]">
+                  the same sentence-case label font, vertically centered. */}
+              <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-[var(--cv-t3)]">
                 {t('notifications.center.history')}
-                <span title={t('notifications.center.auditLogSoon')}>
+                <span className="font-medium" title={t('notifications.center.auditLogSoon')}>
                   ({t('notifications.center.auditLog')})
                 </span>
               </p>
@@ -346,6 +403,18 @@ export function NotificationCenterPage() {
         />
       )}
 
+      {agentApproveTarget && (
+        <ApproveAgentDialog
+          open
+          agentId={agentApproveTarget.agentId}
+          agentName={agentApproveTarget.agentName}
+          initialName={agentApproveTarget.agentName}
+          isPending={approveAgent.isPending}
+          onConfirm={handleApproveAgent}
+          onCancel={() => setAgentApproveTarget(null)}
+        />
+      )}
+
       {prefsOpen && (
         <NotificationPreferencesDialog onClose={() => setPrefsOpen(false)} />
       )}
@@ -378,18 +447,27 @@ function filterByQuery(items: NotificationItem[], query: string): NotificationIt
   })
 }
 
-/** Footer for action-required cards — type-specific buttons. */
+/**
+ * Footer for action-required cards. Every button is `size="sm"` + `flex-1` so
+ * the two slots are always equal width and height (the `POSITIVE_BUTTON_SM_CLASS`
+ * link shares the same base classes as `<Button>`, so a link CTA matches a
+ * button CTA exactly).
+ */
 function ActionFooter({
   item,
   busy,
   onApprove,
   onDeny,
+  onApproveAgent,
+  onDenyAgent,
   onMarkRead,
 }: {
   item: NotificationItem
   busy: boolean
   onApprove: (ctx: NotificationGrantContext) => void
   onDeny: (ctx: NotificationGrantContext) => void
+  onApproveAgent: (target: AgentTarget) => void
+  onDenyAgent: (agentId: string, notificationId: string) => void
   onMarkRead: (id: string) => void
 }) {
   const { t } = useTranslation()
@@ -410,21 +488,37 @@ function ActionFooter({
 
   if (item.type === 'agent_pending') {
     const agentId = item.metadata?.agentId
-    return (
-      <>
+    // Without an agentId we can't drive the approve/deactivate flow — degrade
+    // to a dismiss so the card still resolves.
+    if (!agentId) {
+      return (
         <Button variant="subtle" size="sm" className="flex-1" disabled={busy} onClick={() => onMarkRead(item.id)}>
           {t('notifications.center.dismiss')}
         </Button>
-        {agentId ? (
-          <Link
-            to="/agents/$agentId"
-            params={{ agentId }}
-            className={`${POSITIVE_BUTTON_SM_CLASS} flex-1`}
-          >
-            <Icon name="check" size={14} />
-            {t('notifications.center.review')}
-          </Link>
-        ) : null}
+      )
+    }
+    const agentName = item.metadata?.agentName ?? ''
+    return (
+      <>
+        <Button
+          variant="subtle"
+          size="sm"
+          className="flex-1"
+          disabled={busy}
+          onClick={() => onDenyAgent(agentId, item.id)}
+        >
+          {t('grants.deny.action')}
+        </Button>
+        <Button
+          variant="positive"
+          size="sm"
+          icon="check"
+          className="flex-1"
+          disabled={busy}
+          onClick={() => onApproveAgent({ agentId, agentName, notificationId: item.id })}
+        >
+          {t('grants.approve.action')}
+        </Button>
       </>
     )
   }
@@ -441,6 +535,7 @@ function ActionFooter({
           <Link
             to="/vaults/$vaultId/entries/$entryId"
             params={{ vaultId, entryId }}
+            onClick={() => onMarkRead(item.id)}
             className={`${POSITIVE_BUTTON_SM_CLASS} flex-1`}
           >
             <Icon name="refresh" size={14} />
@@ -496,6 +591,22 @@ function HistoryFooter({
       <Button variant="positive" size="sm" icon="refresh" className="flex-1" disabled={busy} onClick={() => onRegrant(ctx)}>
         {t('grants.regrant.action')}
       </Button>
+    )
+  }
+
+  // agent_approved (informational): deep-link to the agent to review it.
+  if (item.type === 'agent_approved') {
+    const agentId = item.metadata?.agentId
+    if (!agentId) return null
+    return (
+      <Link
+        to="/agents/$agentId"
+        params={{ agentId }}
+        className={`${POSITIVE_BUTTON_SM_CLASS} flex-1`}
+      >
+        <Icon name="arrow_forward" size={14} />
+        {t('notifications.center.review')}
+      </Link>
     )
   }
 

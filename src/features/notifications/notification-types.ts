@@ -13,6 +13,7 @@ export const NOTIFICATION_TYPES = [
   'credential_accessed',
   'credential_stale',
   'agent_pending',
+  'agent_approved',
 ] as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]

@@ -50,6 +50,12 @@ vi.mock('../grants', () => ({
   useRevokeOrgGrant: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
+vi.mock('../agents', () => ({
+  ApproveAgentDialog: () => null,
+  useApproveAgent: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeactivateAgent: () => ({ mutate: vi.fn(), isPending: false }),
+}))
+
 const items: NotificationItem[] = [
   {
     id: 'n1',

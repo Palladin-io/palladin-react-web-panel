@@ -77,4 +77,49 @@ describe('notificationCardPresentation', () => {
     expect(card.header).toEqual({ kind: 'glyph', glyph: 'notifications', tone: 'grey' })
     expect(card.rows).toHaveLength(0)
   })
+
+  it('shows agentId + host for agent_pending and never a keyHint row', () => {
+    const card = notificationCardPresentation(
+      makeItem({
+        type: 'agent_pending',
+        category: 'actionRequired',
+        metadata: { agentName: 'CI Runner', agentId: 'a-123', host: 'build-eu-1', keyHint: 'ck_••8f21' },
+      }),
+    )
+    expect(card.rows.map((r) => r.labelKey)).toEqual([
+      'notifications.card.rowAgentId',
+      'notifications.card.rowHost',
+    ])
+  })
+
+  it('falls back to ip when host is absent for agent_pending', () => {
+    const card = notificationCardPresentation(
+      makeItem({
+        type: 'agent_pending',
+        category: 'actionRequired',
+        metadata: { agentId: 'a-1', ip: '10.0.0.5' },
+      }),
+    )
+    expect(card.rows[1].value).toEqual({ kind: 'text', text: '10.0.0.5' })
+  })
+
+  it('renders agent_approved as an informational card with an active pill', () => {
+    const card = notificationCardPresentation(
+      makeItem({
+        type: 'agent_approved',
+        category: 'update',
+        metadata: { agentName: 'CI Runner', agentId: 'a-9', actorName: 'Patryk R.' },
+      }),
+    )
+    expect(card.header.kind).toBe('agent')
+    expect(card.pill).toEqual({ labelKey: 'notifications.card.pill.active', tone: 'green' })
+  })
+
+  it('degrades agent_pending gracefully when metadata is empty', () => {
+    const card = notificationCardPresentation(
+      makeItem({ type: 'agent_pending', category: 'actionRequired', metadata: {} }),
+    )
+    expect(card.rows).toHaveLength(0)
+    expect(card.name).toBe('—')
+  })
 })

@@ -34,7 +34,8 @@ export function useNotificationInvalidation() {
           break
         }
 
-        case 'agent_pending': {
+        case 'agent_pending':
+        case 'agent_approved': {
           queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY })
           break
         }

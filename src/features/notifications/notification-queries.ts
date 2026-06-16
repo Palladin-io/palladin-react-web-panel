@@ -10,6 +10,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   type NotificationCategory,
+  type NotificationsSummary,
 } from './notifications-api'
 import {
   getNotificationPreferences,
@@ -55,23 +56,63 @@ export function useNotificationsSummary() {
   })
 }
 
-/** Mark a single notification read. Invalidates every feed + the badge. */
+/**
+ * Mark a single notification read. Optimistically drops the summary
+ * `unreadCount` by one so the nav badge / counter updates the instant the user
+ * acts (no wait for the refetch), then reconciles on settle.
+ */
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: markNotificationRead,
-    onSuccess: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_SUMMARY_QUERY_KEY })
+      const previous = queryClient.getQueryData<NotificationsSummary>(
+        NOTIFICATIONS_SUMMARY_QUERY_KEY,
+      )
+      if (previous) {
+        queryClient.setQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY, {
+          ...previous,
+          unreadCount: Math.max(0, previous.unreadCount - 1),
+        })
+      }
+      return { previous }
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(NOTIFICATIONS_SUMMARY_QUERY_KEY, context.previous)
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
     },
   })
 }
 
-/** Mark everything read. */
+/** Mark everything read. Optimistically zeroes the unread badge. */
 export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: markAllNotificationsRead,
-    onSuccess: () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_SUMMARY_QUERY_KEY })
+      const previous = queryClient.getQueryData<NotificationsSummary>(
+        NOTIFICATIONS_SUMMARY_QUERY_KEY,
+      )
+      if (previous) {
+        queryClient.setQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY, {
+          ...previous,
+          unreadCount: 0,
+        })
+      }
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(NOTIFICATIONS_SUMMARY_QUERY_KEY, context.previous)
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
     },
   })

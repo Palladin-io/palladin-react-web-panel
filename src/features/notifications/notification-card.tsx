@@ -56,8 +56,9 @@ export function NotificationCard({ item, footer }: NotificationCardProps) {
       className="flex h-full flex-col overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]"
       aria-label={t(card.subtitleKey)}
     >
-      {/* Header */}
-      <div className="flex items-center gap-2.5 px-[14px] py-2.5">
+      {/* Header — date sits top-right on the title line; the status pill (if
+          any) stacks directly under the date, not inline with the title. */}
+      <div className="flex items-start gap-2.5 px-[14px] py-2.5">
         <CardAvatar header={card.header} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
@@ -67,13 +68,15 @@ export function NotificationCard({ item, footer }: NotificationCardProps) {
             {t(card.subtitleKey)}
           </p>
         </div>
-        {card.pill && <Pill pill={card.pill} />}
-        <span
-          className="shrink-0 whitespace-nowrap text-[10px] text-[var(--cv-t3)]"
-          title={formatGrantDate(item.occurredAt)}
-        >
-          {formatRelativeTime(item.occurredAt, t)}
-        </span>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <span
+            className="whitespace-nowrap text-[10px] text-[var(--cv-t3)]"
+            title={formatGrantDate(item.occurredAt)}
+          >
+            {formatRelativeTime(item.occurredAt, t)}
+          </span>
+          {card.pill && <Pill pill={card.pill} />}
+        </div>
       </div>
 
       {/* Detail rows — grow to fill so the footer pins to the card bottom */}

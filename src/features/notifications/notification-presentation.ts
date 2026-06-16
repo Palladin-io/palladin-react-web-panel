@@ -80,6 +80,9 @@ export function notificationCardPresentation(
 ): CardPresentation {
   const agentName = meta(item, 'agentName') ?? null
   const agentIconKey = meta(item, 'agentIconKey') ?? null
+  const agentId = meta(item, 'agentId')
+  // Host / IP the agent connected from — backend may send either key.
+  const agentHost = meta(item, 'host') ?? meta(item, 'ip')
   const reason = meta(item, 'reason')
   const actor = meta(item, 'actorName')
 
@@ -106,12 +109,22 @@ export function notificationCardPresentation(
         subtitleKey: 'notifications.card.agentPending.subtitle',
         pill: null,
         rows: [
-          ...(meta(item, 'host')
-            ? [textRow('notifications.card.rowHost', meta(item, 'host')!)]
+          ...(agentId ? [textRow('notifications.card.rowAgentId', agentId)] : []),
+          ...(agentHost
+            ? [textRow('notifications.card.rowHost', agentHost)]
             : []),
-          ...(meta(item, 'keyHint')
-            ? [textRow('notifications.card.rowKey', meta(item, 'keyHint')!)]
-            : []),
+        ],
+      }
+
+    case 'agent_approved':
+      return {
+        header: { kind: 'agent', agentName, agentIconKey },
+        name: agentName ?? FALLBACK,
+        subtitleKey: 'notifications.card.agentApproved.subtitle',
+        pill: { labelKey: 'notifications.card.pill.active', tone: 'green' },
+        rows: [
+          ...(agentId ? [textRow('notifications.card.rowAgentId', agentId)] : []),
+          ...(actor ? [textRow('notifications.card.rowBy', actor)] : []),
         ],
       }
 
