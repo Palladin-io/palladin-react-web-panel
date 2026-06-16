@@ -457,6 +457,8 @@
   "notifications.card.rowMethods": "Metody",
   "notifications.card.rowReason": "Powód",
   "notifications.card.rowHost": "Host",
+  "notifications.card.rowIp": "IP",
+  "notifications.card.rowPublicKey": "Klucz publiczny",
   "notifications.card.rowAgentId": "ID agenta",
   "notifications.card.rowError": "Błąd",
   "notifications.card.rowAttempts": "Próby",

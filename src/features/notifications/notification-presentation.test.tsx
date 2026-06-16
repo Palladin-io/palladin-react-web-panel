@@ -83,16 +83,26 @@ describe('notificationCardPresentation', () => {
       makeItem({
         type: 'agent_pending',
         category: 'actionRequired',
-        metadata: { agentName: 'CI Runner', agentId: 'a-123', host: 'build-eu-1', keyHint: 'ck_••8f21' },
+        metadata: {
+          agentName: 'CI Runner',
+          agentId: 'a-123',
+          host: 'build-eu-1',
+          ip: '10.0.0.5',
+          keyHint: 'pk_abc123',
+        },
       }),
     )
+    // agent id, host, IP, and the public key (labelled "Public key", not "key").
     expect(card.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowAgentId',
       'notifications.card.rowHost',
+      'notifications.card.rowIp',
+      'notifications.card.rowPublicKey',
     ])
+    expect(card.rows[3].value).toEqual({ kind: 'text', text: 'pk_abc123' })
   })
 
-  it('falls back to ip when host is absent for agent_pending', () => {
+  it('renders only the present agent rows (graceful degradation)', () => {
     const card = notificationCardPresentation(
       makeItem({
         type: 'agent_pending',
@@ -100,7 +110,10 @@ describe('notificationCardPresentation', () => {
         metadata: { agentId: 'a-1', ip: '10.0.0.5' },
       }),
     )
-    expect(card.rows[1].value).toEqual({ kind: 'text', text: '10.0.0.5' })
+    expect(card.rows.map((r) => r.labelKey)).toEqual([
+      'notifications.card.rowAgentId',
+      'notifications.card.rowIp',
+    ])
   })
 
   it('renders agent_approved as an informational card with an active pill', () => {

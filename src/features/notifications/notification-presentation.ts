@@ -80,11 +80,26 @@ export function notificationCardPresentation(
 ): CardPresentation {
   const agentName = meta(item, 'agentName') ?? null
   const agentIconKey = meta(item, 'agentIconKey') ?? null
-  const agentId = meta(item, 'agentId')
-  // Host / IP the agent connected from — backend may send either key.
-  const agentHost = meta(item, 'host') ?? meta(item, 'ip')
   const reason = meta(item, 'reason')
   const actor = meta(item, 'actorName')
+
+  // Agent identity rows — agent id, host, IP, and the agent's public key. Each
+  // is rendered only when the backend sends it (graceful degradation). The
+  // public key surfaces under a "Public key" label, never a vague "key".
+  const agentRows: DetailRow[] = [
+    ...(meta(item, 'agentId')
+      ? [textRow('notifications.card.rowAgentId', meta(item, 'agentId')!)]
+      : []),
+    ...(meta(item, 'host')
+      ? [textRow('notifications.card.rowHost', meta(item, 'host')!)]
+      : []),
+    ...(meta(item, 'ip')
+      ? [textRow('notifications.card.rowIp', meta(item, 'ip')!)]
+      : []),
+    ...(meta(item, 'keyHint')
+      ? [textRow('notifications.card.rowPublicKey', meta(item, 'keyHint')!)]
+      : []),
+  ]
 
   switch (item.type) {
     case 'grant_pending':
@@ -108,12 +123,7 @@ export function notificationCardPresentation(
         name: agentName ?? FALLBACK,
         subtitleKey: 'notifications.card.agentPending.subtitle',
         pill: null,
-        rows: [
-          ...(agentId ? [textRow('notifications.card.rowAgentId', agentId)] : []),
-          ...(agentHost
-            ? [textRow('notifications.card.rowHost', agentHost)]
-            : []),
-        ],
+        rows: agentRows,
       }
 
     case 'agent_approved':
@@ -123,7 +133,7 @@ export function notificationCardPresentation(
         subtitleKey: 'notifications.card.agentApproved.subtitle',
         pill: { labelKey: 'notifications.card.pill.active', tone: 'green' },
         rows: [
-          ...(agentId ? [textRow('notifications.card.rowAgentId', agentId)] : []),
+          ...agentRows,
           ...(actor ? [textRow('notifications.card.rowBy', actor)] : []),
         ],
       }
