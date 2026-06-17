@@ -329,14 +329,16 @@ export function NotificationCenterPage() {
 
           {showHistory && (
             <section>
-              {/* Single-row label: "History" + inline "Check full audit log" in
-                  the same sentence-case label font, vertically centered. */}
-              <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-[var(--cv-t3)]">
-                {t('notifications.center.history')}
-                <span className="font-medium" title={t('notifications.center.auditLogSoon')}>
-                  ({t('notifications.center.auditLog')})
-                </span>
-              </p>
+              {/* Section label only when a To-do section with cards is rendered
+                  above it — never show "History" as the first/only section. */}
+              {showActions && filteredActions.length > 0 && (
+                <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-[var(--cv-t3)]">
+                  {t('notifications.center.history')}
+                  <span className="font-medium" title={t('notifications.center.auditLogSoon')}>
+                    ({t('notifications.center.auditLog')})
+                  </span>
+                </p>
+              )}
               {filteredHistory.length === 0 ? (
                 <EmptyState filtered={Boolean(query)} />
               ) : (
@@ -523,8 +525,7 @@ function ActionFooter({
         <Button
           variant="positive"
           size="sm"
-          icon="check"
-          className="flex-1"
+                   className="flex-1"
           disabled={busy}
           onClick={() => onApproveAgent({ agentId, agentName, notificationId: item.id })}
         >
@@ -549,7 +550,6 @@ function ActionFooter({
             onClick={() => onMarkRead(item.id)}
             className={`${POSITIVE_BUTTON_SM_CLASS} flex-1`}
           >
-            <Icon name="refresh" size={14} />
             {t('notifications.center.update')}
           </Link>
         ) : null}
@@ -591,7 +591,7 @@ function HistoryFooter({
       )
     }
     return (
-      <Button variant="danger" size="sm" icon="close" className="flex-1" disabled={busy} onClick={() => onRevoke(ctx)}>
+      <Button variant="danger" size="sm" className="flex-1" disabled={busy} onClick={() => onRevoke(ctx)}>
         {t('grants.revoke.action')}
       </Button>
     )
@@ -599,7 +599,7 @@ function HistoryFooter({
 
   if ((item.type === 'grant_revoked' || item.type === 'grant_denied') && ctx?.agentId && ctx.entryId) {
     return (
-      <Button variant="positive" size="sm" icon="refresh" className="flex-1" disabled={busy} onClick={() => onRegrant(ctx)}>
+      <Button variant="positive" size="sm" className="flex-1" disabled={busy} onClick={() => onRegrant(ctx)}>
         {t('grants.regrant.action')}
       </Button>
     )
@@ -615,7 +615,6 @@ function HistoryFooter({
         params={{ agentId }}
         className={`${POSITIVE_BUTTON_SM_CLASS} flex-1`}
       >
-        <Icon name="arrow_forward" size={14} />
         {t('notifications.center.review')}
       </Link>
     )
