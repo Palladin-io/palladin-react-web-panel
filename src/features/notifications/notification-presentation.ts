@@ -1,3 +1,4 @@
+import { shortenKey } from '../../shared/lib/shorten-key'
 import type { NotificationItem } from './notifications-api'
 
 /**
@@ -20,6 +21,17 @@ export interface StatusPill {
   /** i18n key for the pill label. */
   labelKey: string
   tone: PillTone
+}
+
+/**
+ * Shared "Pending" pill for every action-required card (agent_pending,
+ * grant_pending, credential_stale) so they carry the same status affordance as
+ * terminal cards (Active/Denied/Revoked) — one consistent pattern: date on the
+ * title line, status pill underneath. Amber = awaiting action.
+ */
+const PENDING_PILL: StatusPill = {
+  labelKey: 'notifications.card.pill.pending',
+  tone: 'amber',
 }
 
 /**
@@ -78,6 +90,20 @@ function entryRow(item: NotificationItem): DetailRow {
 }
 
 /**
+ * Combined "host / ip" value for the agent card — keeps the agent rows at three
+ * max. The host is shortened (prefix+suffix) so a long FQDN doesn't push the IP
+ * off the row. Returns just one side when only one is present, or `null` when
+ * neither is.
+ */
+function agentHostIp(item: NotificationItem): string | null {
+  const host = meta(item, 'host')
+  const ip = meta(item, 'ip')
+  const shortHost = host ? shortenKey(host, 12, 8) : undefined
+  if (shortHost && ip) return `${shortHost} / ${ip}`
+  return shortHost ?? ip ?? null
+}
+
+/**
  * Build the visual card presentation for a notification. Pure — no hooks/JSX —
  * so it is trivial to unit-test against fixed metadata.
  */
@@ -89,22 +115,19 @@ export function notificationCardPresentation(
   const reason = meta(item, 'reason')
   const actor = meta(item, 'actorName')
 
-  // Agent identity rows — agent id, host, IP, and the agent's public key. Each
-  // is rendered only when the backend sends it (graceful degradation). The
-  // public key surfaces under a "Public key" label, never a vague "key".
+  // Agent identity rows, capped at 3: Public key → Agent Id → Host / Ip. Host
+  // and IP are merged into ONE row ("host / ip") so the card never exceeds three
+  // properties; the host is shortened (middle ellipsis) so the pair fits. Each
+  // row renders only when its data is present (graceful degradation). The public
+  // key uses a "Public key" label, never a vague "key".
   const agentRows: DetailRow[] = [
-    ...(meta(item, 'agentId')
-      ? [textRow('notifications.card.rowAgentId', meta(item, 'agentId')!)]
-      : []),
-    ...(meta(item, 'host')
-      ? [textRow('notifications.card.rowHost', meta(item, 'host')!)]
-      : []),
-    ...(meta(item, 'ip')
-      ? [textRow('notifications.card.rowIp', meta(item, 'ip')!)]
-      : []),
     ...(meta(item, 'keyHint')
       ? [textRow('notifications.card.rowPublicKey', meta(item, 'keyHint')!)]
       : []),
+    ...(meta(item, 'agentId')
+      ? [textRow('notifications.card.rowAgentId', meta(item, 'agentId')!)]
+      : []),
+    ...(agentHostIp(item) ? [textRow('notifications.card.rowHostIp', agentHostIp(item)!)] : []),
   ]
 
   switch (item.type) {
@@ -113,7 +136,7 @@ export function notificationCardPresentation(
         header: { kind: 'agent', agentName, agentIconKey },
         name: agentName ?? FALLBACK,
         subtitleKey: 'notifications.card.grantPending.subtitle',
-        pill: null,
+        pill: PENDING_PILL,
         rows: [
           entryRow(item),
           ...(meta(item, 'methods')
@@ -129,7 +152,7 @@ export function notificationCardPresentation(
         name: agentName ?? '',
         nameFallbackKey: 'grants.unknownAgent',
         subtitleKey: 'notifications.card.agentPending.subtitle',
-        pill: null,
+        pill: PENDING_PILL,
         rows: agentRows,
       }
 
@@ -151,7 +174,7 @@ export function notificationCardPresentation(
         header: { kind: 'glyph', glyph: 'error', tone: 'red' },
         name: agentName ?? FALLBACK,
         subtitleKey: 'notifications.card.credentialStale.subtitle',
-        pill: null,
+        pill: PENDING_PILL,
         rows: [
           entryRow(item),
           ...(meta(item, 'errorHint')

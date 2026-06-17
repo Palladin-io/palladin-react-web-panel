@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -81,6 +81,7 @@ export function NotificationCenterPage() {
 
   const [segment, setSegment] = useState<Segment>('all')
   const [query, setQuery] = useState('')
+  const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set())
   const [prefsOpen, setPrefsOpen] = useState(false)
 
   // Grant-action mutations + dialog targets (shared across both sections).
@@ -118,12 +119,12 @@ export function NotificationCenterPage() {
   const { actionItems, historyItems } = useMemo(() => splitByCategory(items), [items])
 
   const filteredActions = useMemo(
-    () => filterByQuery(actionItems, query),
-    [actionItems, query],
+    () => filterItems(actionItems, query, typeFilter),
+    [actionItems, query, typeFilter],
   )
   const filteredHistory = useMemo(
-    () => filterByQuery(historyItems, query),
-    [historyItems, query],
+    () => filterItems(historyItems, query, typeFilter),
+    [historyItems, query, typeFilter],
   )
 
   const showActions = segment === 'all' || segment === 'todo'
@@ -269,7 +270,7 @@ export function NotificationCenterPage() {
         </div>
       </div>
 
-      {/* Search — exact org-grants-panel input */}
+      {/* Search (left) + multi-select type filter (right) — org-grants pattern */}
       <div className="mb-3 flex items-stretch gap-2">
         <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2 transition-colors focus-within:border-[var(--cv-t1)]">
           <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
@@ -281,6 +282,7 @@ export function NotificationCenterPage() {
             className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
           />
         </div>
+        <TypeFilterDropdown selected={typeFilter} onChange={setTypeFilter} />
       </div>
 
       {notifications.isPending ? (
@@ -436,10 +438,16 @@ function splitByCategory(items: NotificationItem[]) {
   return { actionItems, historyItems }
 }
 
-function filterByQuery(items: NotificationItem[], query: string): NotificationItem[] {
+/** Filter by free-text search (over metadata) AND the selected type set. */
+function filterItems(
+  items: NotificationItem[],
+  query: string,
+  types: Set<string>,
+): NotificationItem[] {
   const needle = query.trim().toLocaleLowerCase()
-  if (!needle) return items
   return items.filter((item) => {
+    if (types.size > 0 && !types.has(item.type)) return false
+    if (!needle) return true
     const haystack = Object.values(item.metadata ?? {})
       .join(' ')
       .toLocaleLowerCase()
@@ -645,6 +653,116 @@ function toOrgGrant(ctx: NotificationGrantContext): OrgGrant {
     canRevoke: false,
     canGrantAgain: true,
   } as OrgGrant
+}
+
+/** Notification types offered in the filter dropdown (matches the taxonomy). */
+const FILTERABLE_TYPES = [
+  'agent_pending',
+  'grant_pending',
+  'credential_stale',
+  'grant_approved',
+  'grant_denied',
+  'grant_revoked',
+  'agent_approved',
+] as const
+
+/**
+ * Multi-select type filter — same pattern as org-grants `StatusFilterDropdown`:
+ * a `filter_list` button + a checkbox list, multi-select, with a "clear" row.
+ * Filters the feed by notification `type`.
+ */
+function TypeFilterDropdown({
+  selected,
+  onChange,
+}: {
+  selected: Set<string>
+  onChange: (next: Set<string>) => void
+}) {
+  const { t } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [open])
+
+  function toggle(type: string) {
+    const next = new Set(selected)
+    if (next.has(type)) next.delete(type)
+    else next.add(type)
+    onChange(next)
+  }
+
+  const label =
+    selected.size === 0
+      ? t('notifications.center.filterType')
+      : t('notifications.center.filterTypeCount', { count: selected.size })
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-full items-center gap-1.5 rounded-lg border border-[var(--cv-input-border)]
+          bg-[var(--cv-input-bg)] px-3 text-[12px] text-[var(--cv-t2)]
+          transition-colors hover:border-[var(--cv-t1)]"
+      >
+        <Icon name="filter_list" size={15} />
+        <span className="whitespace-nowrap">{label}</span>
+        <Icon name={open ? 'expand_less' : 'expand_more'} size={15} />
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 z-20 mt-1 w-52 overflow-hidden rounded-lg border
+            border-[var(--cv-border)] bg-[var(--cv-modal-bg)] py-1 shadow-xl"
+          role="listbox"
+          aria-multiselectable
+        >
+          {FILTERABLE_TYPES.map((type) => {
+            const checked = selected.has(type)
+            return (
+              <button
+                key={type}
+                type="button"
+                role="option"
+                aria-selected={checked}
+                onClick={() => toggle(type)}
+                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px]
+                  text-[var(--cv-t1)] transition-colors hover:bg-[var(--cv-bg-subtle)]"
+              >
+                <span
+                  className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border"
+                  style={{
+                    borderColor: checked ? '#FF4F4F' : 'var(--cv-input-border)',
+                    background: checked ? '#FF4F4F' : 'transparent',
+                  }}
+                >
+                  {checked && <Icon name="check" size={11} color="#fff" />}
+                </span>
+                {t(`notifications.center.filterType.${type}`)}
+              </button>
+            )
+          })}
+          {selected.size > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange(new Set())}
+              className="mt-1 w-full border-t border-[var(--cv-divider)] px-3 py-1.5
+                text-left text-[11px] text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
+            >
+              {t('notifications.center.filterClear')}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /**
