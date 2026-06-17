@@ -62,7 +62,7 @@ export function NotificationCard({ item, footer }: NotificationCardProps) {
         <CardAvatar header={card.header} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
-            {card.name}
+            {card.name || (card.nameFallbackKey ? t(card.nameFallbackKey) : '—')}
           </p>
           <p className="truncate text-[11px] text-[var(--cv-t3)]">
             {t(card.subtitleKey)}

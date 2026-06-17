@@ -45,8 +45,14 @@ export type CardHeaderIcon =
 
 export interface CardPresentation {
   header: CardHeaderIcon
-  /** Bold name (or fallback) shown as the card's primary name. */
+  /** Bold name shown as the card's primary name; empty string when unknown. */
   name: string
+  /**
+   * i18n key the card renders when `name` is empty — e.g. an agent registered
+   * without a name (via `search`, not `connect`) shows "Unknown agent" instead
+   * of a blank header. Falls back to the em-dash when unset.
+   */
+  nameFallbackKey?: string
   /** i18n key for the small subtitle under the name. */
   subtitleKey: string
   /** Optional status pill (History items). */
@@ -120,7 +126,8 @@ export function notificationCardPresentation(
     case 'agent_pending':
       return {
         header: { kind: 'glyph', glyph: 'smart_toy', tone: 'teal' },
-        name: agentName ?? FALLBACK,
+        name: agentName ?? '',
+        nameFallbackKey: 'grants.unknownAgent',
         subtitleKey: 'notifications.card.agentPending.subtitle',
         pill: null,
         rows: agentRows,
@@ -129,7 +136,8 @@ export function notificationCardPresentation(
     case 'agent_approved':
       return {
         header: { kind: 'agent', agentName, agentIconKey },
-        name: agentName ?? FALLBACK,
+        name: agentName ?? '',
+        nameFallbackKey: 'grants.unknownAgent',
         subtitleKey: 'notifications.card.agentApproved.subtitle',
         pill: { labelKey: 'notifications.card.pill.active', tone: 'green' },
         rows: [

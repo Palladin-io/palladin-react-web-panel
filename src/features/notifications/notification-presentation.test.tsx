@@ -133,6 +133,9 @@ describe('notificationCardPresentation', () => {
       makeItem({ type: 'agent_pending', category: 'actionRequired', metadata: {} }),
     )
     expect(card.rows).toHaveLength(0)
-    expect(card.name).toBe('—')
+    // No name → empty string + a fallback i18n key the card resolves to a
+    // readable "Unknown agent" placeholder (never a blank header).
+    expect(card.name).toBe('')
+    expect(card.nameFallbackKey).toBe('grants.unknownAgent')
   })
 })
