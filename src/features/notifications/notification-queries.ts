@@ -128,16 +128,49 @@ export function useNotificationPreferences() {
 }
 
 /**
- * Toggle a preference. The server returns the EFFECTIVE state (mandatory locks
- * applied), which we write straight into the cache so a rejected change on a
- * locked row visibly snaps back without a refetch.
+ * Toggle a preference. Optimistically MERGES the changed channels into the
+ * matching cached row (never replacing the whole row — so untouched channels
+ * keep their value), then reconciles with the server's effective state on
+ * success and rolls back on error.
  */
 export function useUpdateNotificationPreferences() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (updates: PreferenceUpdate[]) =>
       updateNotificationPreferences(updates),
+    onMutate: async (updates: PreferenceUpdate[]) => {
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_PREFERENCES_QUERY_KEY })
+      const previous = queryClient.getQueryData<PreferenceItem[]>(
+        NOTIFICATIONS_PREFERENCES_QUERY_KEY,
+      )
+      if (previous) {
+        const byType = new Map(updates.map((u) => [u.type, u]))
+        queryClient.setQueryData<PreferenceItem[]>(
+          NOTIFICATIONS_PREFERENCES_QUERY_KEY,
+          previous.map((item) => {
+            const update = byType.get(item.type)
+            if (!update) return item
+            // Merge ONLY the channels present in the update — leave the rest.
+            return {
+              ...item,
+              ...(update.inboxEnabled !== undefined && { inboxEnabled: update.inboxEnabled }),
+              ...(update.signalREnabled !== undefined && {
+                signalREnabled: update.signalREnabled,
+              }),
+              ...(update.pushEnabled !== undefined && { pushEnabled: update.pushEnabled }),
+            }
+          }),
+        )
+      }
+      return { previous }
+    },
+    onError: (_err, _updates, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(NOTIFICATIONS_PREFERENCES_QUERY_KEY, context.previous)
+      }
+    },
     onSuccess: (items: PreferenceItem[]) => {
+      // Server returns the EFFECTIVE state (mandatory locks applied).
       queryClient.setQueryData(NOTIFICATIONS_PREFERENCES_QUERY_KEY, items)
     },
   })

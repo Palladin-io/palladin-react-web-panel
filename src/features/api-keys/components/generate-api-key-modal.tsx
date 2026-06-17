@@ -92,10 +92,10 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
           />
 
           <DialogFooter>
-            <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
+            <Button variant="subtle" size="md" onClick={onClose} disabled={isPending} className="flex-1">
               {t('apiKeys.cancel')}
             </Button>
-            <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
+            <Button variant="accent" size="md" type="submit" disabled={!canSubmit} className="flex-[2]">
               {isPending ? t('apiKeys.generating') : t('apiKeys.generate')}
             </Button>
           </DialogFooter>
@@ -171,7 +171,7 @@ function GeneratedSecretView({
       </div>
 
       <DialogFooter>
-        <Button variant="accent" size="sm" onClick={onDone} className="w-full">
+        <Button variant="accent" size="md" onClick={onDone} className="w-full">
           {t('apiKeys.done')}
         </Button>
       </DialogFooter>

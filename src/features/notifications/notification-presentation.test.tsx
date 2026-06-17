@@ -23,6 +23,8 @@ describe('notificationCardPresentation', () => {
         type: 'grant_pending',
         metadata: {
           agentName: 'Deploy Bot',
+          agentId: 'a-77',
+          agentIconKey: 'smart_toy',
           entryLabel: 'GitHub Token',
           vaultName: 'Production',
           methods: 'get · inject',
@@ -32,6 +34,12 @@ describe('notificationCardPresentation', () => {
     )
 
     expect(card.header.kind).toBe('agent')
+    // Avatar gets the real agentId (deterministic colour) + iconKey, like the
+    // Agents list.
+    if (card.header.kind === 'agent') {
+      expect(card.header.agentId).toBe('a-77')
+      expect(card.header.agentIconKey).toBe('smart_toy')
+    }
     // Title = type name; agent name moves to the subtitle.
     expect(card.titleKey).toBe('notifications.type.grantPending')
     expect(card.subtitleKey).toBe('notifications.sub.grantPending')

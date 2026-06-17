@@ -186,10 +186,10 @@ function IconColorBrowserBody({
         )}
 
         <DialogFooter>
-          <Button variant="subtle" size="sm" onClick={onClose} className="flex-1">
+          <Button variant="subtle" size="md" onClick={onClose} className="flex-1">
             {t('vault.cancel')}
           </Button>
-          <Button variant="accent" size="sm" onClick={handleConfirm} disabled={localIcon === undefined} className="flex-[2]">
+          <Button variant="accent" size="md" onClick={handleConfirm} disabled={localIcon === undefined} className="flex-[2]">
             {t('vault.iconBrowserChoose')}
           </Button>
         </DialogFooter>

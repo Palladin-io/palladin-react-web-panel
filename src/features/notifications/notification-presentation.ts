@@ -55,7 +55,12 @@ export interface DetailRow {
 
 /** Avatar treatment for the card header. */
 export type CardHeaderIcon =
-  | { kind: 'agent'; agentName: string | null; agentIconKey: string | null }
+  | {
+      kind: 'agent'
+      agentName: string | null
+      agentId: string | null
+      agentIconKey: string | null
+    }
   | { kind: 'glyph'; glyph: string; tone: 'red' | 'amber' | 'teal' | 'grey' }
 
 export interface CardPresentation {
@@ -184,6 +189,7 @@ export function notificationCardPresentation(
   item: NotificationItem,
 ): CardPresentation {
   const agentName = meta(item, 'agentName') ?? null
+  const agentId = meta(item, 'agentId') ?? null
   const agentIconKey = meta(item, 'agentIconKey') ?? null
 
   // Title = the localized type name (e.g. "New agent"). Subtitle = agent +
@@ -199,7 +205,7 @@ export function notificationCardPresentation(
   switch (item.type) {
     case 'grant_pending':
       return {
-        header: { kind: 'agent', agentName, agentIconKey },
+        header: { kind: 'agent', agentName, agentId, agentIconKey },
         titleKey,
         subtitleKey: 'notifications.sub.grantPending',
         subtitleAgent: agentName,
@@ -225,7 +231,7 @@ export function notificationCardPresentation(
 
     case 'agent_approved':
       return {
-        header: { kind: 'agent', agentName, agentIconKey },
+        header: { kind: 'agent', agentName, agentId, agentIconKey },
         titleKey,
         subtitleKey: 'notifications.sub.agentApproved',
         subtitleAgent: agentName,
@@ -252,7 +258,7 @@ export function notificationCardPresentation(
 
     case 'grant_approved':
       return {
-        header: { kind: 'agent', agentName, agentIconKey },
+        header: { kind: 'agent', agentName, agentId, agentIconKey },
         titleKey,
         subtitleKey: 'notifications.sub.grantUpdate',
         subtitleAgent: agentName,
@@ -267,7 +273,7 @@ export function notificationCardPresentation(
 
     case 'grant_revoked':
       return {
-        header: { kind: 'agent', agentName, agentIconKey },
+        header: { kind: 'agent', agentName, agentId, agentIconKey },
         titleKey,
         subtitleKey: 'notifications.sub.grantUpdate',
         subtitleAgent: agentName,
@@ -282,7 +288,7 @@ export function notificationCardPresentation(
 
     case 'grant_denied':
       return {
-        header: { kind: 'agent', agentName, agentIconKey },
+        header: { kind: 'agent', agentName, agentId, agentIconKey },
         titleKey,
         subtitleKey: 'notifications.sub.grantUpdate',
         subtitleAgent: agentName,

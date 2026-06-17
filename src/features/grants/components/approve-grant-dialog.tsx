@@ -134,7 +134,7 @@ export function ApproveGrantDialog({
         <DialogFooter>
           <Button
             variant="subtle"
-            size="sm"
+            size="md"
             onClick={onCancel}
             disabled={isPending}
             className="flex-1"
@@ -143,7 +143,7 @@ export function ApproveGrantDialog({
           </Button>
           <Button
             variant="positive"
-            size="sm"
+            size="md"
             onClick={handleConfirm}
             disabled={isPending}
             className="flex-[2]"

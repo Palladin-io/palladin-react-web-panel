@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { AgentAvatar } from '../agents/components/agent-avatar'
 import { Icon } from '../../shared/components/icon'
@@ -37,7 +37,17 @@ export interface NotificationCardProps {
   item: NotificationItem
   /** Card footer — action buttons (provided by the page) or a terminal note. */
   footer?: ReactNode
+  /**
+   * Called once when an UNREAD card has been visible long enough to count as
+   * "seen" (mark-read-on-view). The page wires this to `markRead(id)` so the
+   * unread badge drops while scrolling/reading — including History items that
+   * have no explicit action. Read cards never call it.
+   */
+  onSeen?: (id: string) => void
 }
+
+/** How long an unread card must stay visible before it counts as seen. */
+const SEEN_DELAY_MS = 600
 
 /**
  * One Notification Center card in the grant-card style (anatomy from
@@ -51,7 +61,7 @@ export interface NotificationCardProps {
  * `--cv-border` + `--cv-card-bg` keeps the grid visually even. All copy is
  * localised on the client from `titleKey`/`metadata`.
  */
-export function NotificationCard({ item, footer }: NotificationCardProps) {
+export function NotificationCard({ item, footer, onSeen }: NotificationCardProps) {
   const { t } = useTranslation()
   const card = notificationCardPresentation(item)
 
@@ -61,8 +71,41 @@ export function NotificationCard({ item, footer }: NotificationCardProps) {
   const agent = card.subtitleAgent || t(card.subtitleAgentFallbackKey)
   const subtitle = t(card.subtitleKey, { agent })
 
+  // Mark-read-on-view: when an unread card stays visible for SEEN_DELAY_MS, fire
+  // `onSeen(id)` exactly once. Read cards (or no handler) skip the observer.
+  const articleRef = useRef<HTMLElement>(null)
+  const unread = !item.readAt
+  useEffect(() => {
+    if (!unread || !onSeen) return
+    const el = articleRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries[0]?.isIntersecting
+        if (visible && timer === null) {
+          timer = setTimeout(() => {
+            onSeen(item.id)
+            observer.disconnect()
+          }, SEEN_DELAY_MS)
+        } else if (!visible && timer !== null) {
+          clearTimeout(timer)
+          timer = null
+        }
+      },
+      { threshold: 0.5 },
+    )
+    observer.observe(el)
+    return () => {
+      if (timer !== null) clearTimeout(timer)
+      observer.disconnect()
+    }
+  }, [unread, onSeen, item.id])
+
   return (
     <article
+      ref={articleRef}
       className="flex h-full flex-col overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]"
       aria-label={title}
     >
@@ -167,7 +210,13 @@ function CardAvatar({ header }: { header: CardHeaderIcon }) {
   if (header.kind === 'agent') {
     return (
       <AgentAvatar
-        agent={{ name: header.agentName ?? '', agentId: '', iconKey: header.agentIconKey }}
+        agent={{
+          name: header.agentName ?? '',
+          // Real agentId → deterministic colour matches the Agents list; iconKey
+          // → the agent's chosen glyph or uploaded S3 image (when present).
+          agentId: header.agentId ?? '',
+          iconKey: header.agentIconKey,
+        }}
         size={36}
       />
     )

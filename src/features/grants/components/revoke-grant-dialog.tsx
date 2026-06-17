@@ -79,7 +79,7 @@ export function RevokeGrantDialog({
         <DialogFooter>
           <Button
             variant="subtle"
-            size="sm"
+            size="md"
             onClick={onCancel}
             disabled={isPending}
             className="flex-1"
@@ -88,7 +88,7 @@ export function RevokeGrantDialog({
           </Button>
           <Button
             variant="danger"
-            size="sm"
+            size="md"
             onClick={handleConfirm}
             disabled={isPending || tooLong}
             className="flex-[2]"

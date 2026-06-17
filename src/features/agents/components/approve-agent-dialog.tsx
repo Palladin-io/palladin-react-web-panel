@@ -139,7 +139,7 @@ export function ApproveAgentDialog({
       <DialogFooter>
         <Button
           variant="subtle"
-          size="sm"
+          size="md"
           onClick={onCancel}
           disabled={isPending || isUploading}
           className="flex-1"
@@ -148,7 +148,7 @@ export function ApproveAgentDialog({
         </Button>
         <Button
           variant="positive"
-          size="sm"
+          size="md"
           icon="check_circle"
           onClick={handleConfirm}
           disabled={isPending || isUploading}

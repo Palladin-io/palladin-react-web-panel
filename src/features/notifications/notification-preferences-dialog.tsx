@@ -45,17 +45,34 @@ export function NotificationPreferencesDialog({ onClose }: { onClose: () => void
     if (channel === 'push' && next && webPush.status !== 'registered') {
       // Enabling push needs OS permission first; only persist once registered.
       void webPush.requestPermissionAndRegister().then((status) => {
-        if (status === 'registered') persist(item.type, channel, true)
+        if (status === 'registered') persist(item, channel, true)
       })
       return
     }
-    persist(item.type, channel, next)
+    persist(item, channel, next)
   }
 
-  function persist(type: string, channel: PreferenceChannel, next: boolean) {
-    update.mutate([{ type, [channelField(channel)]: next }], {
-      onError: () => toast.error(t('notifications.prefs.saveError')),
-    })
+  /**
+   * Persist a single channel change. We send the FULL triple (current values +
+   * the toggled channel), not a partial — the backend `UpdatePreferenceItem` has
+   * non-nullable booleans, so a missing field would be read as `false` and a
+   * change to one channel would silently disable the other two for this type.
+   */
+  function persist(item: PreferenceItem, channel: PreferenceChannel, next: boolean) {
+    update.mutate(
+      [
+        {
+          type: item.type,
+          inboxEnabled: item.inboxEnabled,
+          signalREnabled: item.signalREnabled,
+          pushEnabled: item.pushEnabled,
+          [channelField(channel)]: next,
+        },
+      ],
+      {
+        onError: () => toast.error(t('notifications.prefs.saveError')),
+      },
+    )
   }
 
   return (
@@ -128,7 +145,7 @@ export function NotificationPreferencesDialog({ onClose }: { onClose: () => void
         {/* Preferences auto-save on toggle; the footer gives an explicit
             dismissal instead of forcing a backdrop click. */}
         <DialogFooter>
-          <Button variant="subtle" size="sm" className="flex-1" onClick={onClose}>
+          <Button variant="subtle" size="md" className="flex-1" onClick={onClose}>
             {t('common.close')}
           </Button>
         </DialogFooter>

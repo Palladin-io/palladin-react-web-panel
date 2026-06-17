@@ -74,15 +74,24 @@ describe('NotificationPreferencesDialog', () => {
     expect(switches[2]).not.toBeDisabled()
   })
 
-  it('persists a non-locked toggle change', () => {
+  it('persists the FULL channel triple (not a partial) on a toggle change', () => {
     render(<NotificationPreferencesDialog onClose={onClose} />)
 
     // credential_stale push (last switch) is mutable and currently off → enable.
+    // The payload must carry all three channels — a partial would be read as
+    // `false` by the backend's non-nullable booleans and disable inbox/realtime.
     const switches = screen.getAllByRole('switch')
     fireEvent.click(switches[5])
 
     expect(update).toHaveBeenCalledWith(
-      [{ type: 'credential_stale', pushEnabled: true }],
+      [
+        {
+          type: 'credential_stale',
+          inboxEnabled: true,
+          signalREnabled: true,
+          pushEnabled: true,
+        },
+      ],
       expect.anything(),
     )
   })
