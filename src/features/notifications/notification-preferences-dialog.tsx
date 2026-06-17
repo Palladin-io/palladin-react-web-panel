@@ -145,7 +145,7 @@ export function NotificationPreferencesDialog({ onClose }: { onClose: () => void
         {/* Preferences auto-save on toggle; the footer gives an explicit
             dismissal instead of forcing a backdrop click. */}
         <DialogFooter>
-          <Button variant="subtle" size="md" className="flex-1" onClick={onClose}>
+          <Button variant="subtle" size="sm" className="flex-1" onClick={onClose}>
             {t('common.close')}
           </Button>
         </DialogFooter>

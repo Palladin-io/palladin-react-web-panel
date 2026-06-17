@@ -96,7 +96,7 @@ export function GrantAgainDialog({
         <DialogFooter>
           <Button
             variant="subtle"
-            size="md"
+            size="sm"
             onClick={onCancel}
             disabled={isPending}
             className="flex-1"
@@ -105,7 +105,7 @@ export function GrantAgainDialog({
           </Button>
           <Button
             variant="accent"
-            size="md"
+            size="sm"
             onClick={handleConfirm}
             disabled={isPending}
             className="flex-[2]"

@@ -149,10 +149,10 @@ use a **1:2 flex ratio**; never `justify-center` or `justify-end`.
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 
 <DialogFooter>
-  <Button variant="subtle" size="md" onClick={onClose} className="flex-1">
+  <Button variant="subtle" size="sm" onClick={onClose} className="flex-1">
     {t('vault.cancel')}
   </Button>
-  <Button variant="accent" size="md" type="submit" disabled={!canSubmit} className="flex-[2]">
+  <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
     {t('...')}
   </Button>
 </DialogFooter>
@@ -160,11 +160,11 @@ import { DialogFooter } from '../../../shared/components/dialog-footer'
 
 Rules:
 - **Always use `DialogFooter`** (`shared/components/dialog-footer.tsx`) — it owns the edge-bleed, top border, subtle tint, and the spacing above the footer (`mt-3` + `py-3.5`). Don't reproduce the strip inline.
-- **Footer buttons are `size="md"`** (taller `h-9`) — this is the ONE deliberate exception to the app-wide `size="sm"` standard: a dialog's primary action must be comfortably tappable. In-content buttons inside the dialog body stay `size="sm"`.
+- **Every button in the app is `size="sm"` (h-7 / 28px) — ONE single height, no exceptions.** Dialog footers are NOT taller than card/in-content buttons; opening a dialog must show a button the exact same height as the buttons on the cards. (`size="md"` exists in the type but must not be used.)
 - Cancel: `variant="subtle"`, `className="flex-1"` (occupies 1/3).
 - Primary: `variant="accent"` (or `positive`/`danger` per intent), `className="flex-[2]"` (occupies 2/3).
-- Single-action footer (e.g. "Done"/"Close"): one `size="md"` button with `className="flex-1"` or `w-full`.
-- Router `<Link>` styled as a footer button: use `PREMIUM_BUTTON_MD_CLASS` / a `md`-sized class export (NOT the `sm` variant) so it matches the footer height.
+- Single-action footer (e.g. "Done"/"Close"): one `size="sm"` button with `className="flex-1"` or `w-full`.
+- Router `<Link>` styled as a footer button: use `PREMIUM_BUTTON_SM_CLASS` / `POSITIVE_BUTTON_SM_CLASS` (the `sm` class exports) so it matches every other button's height.
 - Apply to: every `ModalShell` with confirm/cancel — create dialogs, icon browsers, approve/deny/revoke/grant-again, preferences, delete confirms.
 
 ### Validation & Notifications

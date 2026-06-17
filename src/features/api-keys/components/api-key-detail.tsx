@@ -274,12 +274,12 @@ function DeleteApiKeyDialog({
           {t('apiKeys.deleteConfirmText')}
         </p>
         <DialogFooter>
-          <Button variant="subtle" size="md" onClick={onCancel} disabled={isPending} className="flex-1">
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('apiKeys.cancel')}
           </Button>
           <Button
             variant="danger"
-            size="md"
+            size="sm"
             onClick={onConfirm}
             disabled={isPending}
             className="flex-[2]"

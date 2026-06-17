@@ -34,10 +34,10 @@ export function DeleteConfirmDialog({
       </div>
 
       <DialogFooter>
-        <Button variant="subtle" size="md" onClick={onCancel} disabled={isPending} className="flex-1">
+        <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
           {t('vault.cancel')}
         </Button>
-        <Button variant="danger" size="md" onClick={onConfirm} disabled={isPending} className="flex-[2]">
+        <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
           {isPending ? t('vault.deleting') : t('vault.confirmDelete')}
         </Button>
       </DialogFooter>

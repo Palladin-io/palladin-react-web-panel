@@ -471,10 +471,10 @@ function DeactivateAgentDialog({ open, agentName, isPending, onConfirm, onCancel
           {t('agents.deactivateConfirmBody', { name: agentName })}
         </p>
         <DialogFooter>
-          <Button variant="subtle" size="md" onClick={onCancel} disabled={isPending} className="flex-1">
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('agents.cancel')}
           </Button>
-          <Button variant="danger" size="md" onClick={onConfirm} disabled={isPending} className="flex-[2]">
+          <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
             {isPending ? t('agents.deactivating') : t('agents.deactivate')}
           </Button>
         </DialogFooter>

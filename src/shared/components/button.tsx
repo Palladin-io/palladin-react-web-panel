@@ -65,11 +65,6 @@ const BASE_CLASS =
 export const PREMIUM_BUTTON_SM_CLASS =
   `${BASE_CLASS} ${SIZE_CLASS.sm} ${VARIANT_CLASS.premium}`
 
-/** `md` premium button class — for `<Link>` elements in dialog footers (which
- *  use the taller `md` height). */
-export const PREMIUM_BUTTON_MD_CLASS =
-  `${BASE_CLASS} ${SIZE_CLASS.md} ${VARIANT_CLASS.premium}`
-
 /** Ready-made class string for the `sm` positive button — apply to `<Link>` elements
  *  that need the positive (teal) treatment but must navigate via the router. */
 export const POSITIVE_BUTTON_SM_CLASS =
@@ -83,7 +78,7 @@ export const POSITIVE_BUTTON_SM_CLASS =
  */
 export function Button({
   variant = 'accent',
-  size = 'md',
+  size = 'sm',
   icon,
   children,
   className,

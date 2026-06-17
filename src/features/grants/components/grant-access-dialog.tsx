@@ -201,7 +201,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         <DialogFooter>
           <Button
             variant="subtle"
-            size="md"
+            size="sm"
             onClick={onClose}
             disabled={createGrant.isPending}
             className="flex-1"
@@ -210,7 +210,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           </Button>
           <Button
             variant="positive"
-            size="md"
+            size="sm"
             onClick={handleConfirm}
             disabled={createGrant.isPending}
             className="flex-[2]"

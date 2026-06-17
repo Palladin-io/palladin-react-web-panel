@@ -10,9 +10,10 @@ interface DialogFooterProps {
  * background tint — mirrors the Approve Agent dialog reference pattern.
  *
  * Usage: wrap Cancel + primary action buttons; apply flex-1 / flex-[2]
- * directly on the buttons for the 1:2 ratio layout. Footer action buttons
- * use `size="md"` (taller than the in-content `sm` standard) so the primary
- * dialog action is comfortably tappable — see CLAUDE.md "Modal Footer".
+ * directly on the buttons for the 1:2 ratio layout. Footer buttons are
+ * `size="sm"` — the SAME height as every other button in the app (the
+ * app-wide single standard); no taller dialog exception. See CLAUDE.md
+ * "Modal Footer".
  *
  * `mt-3` keeps the footer close to the dialog body (the body already uses
  * `gap-4` internally; `mt-4` here pushed it too far down).

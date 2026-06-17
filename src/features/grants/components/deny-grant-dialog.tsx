@@ -76,7 +76,7 @@ export function DenyGrantDialog({
         <DialogFooter>
           <Button
             variant="subtle"
-            size="md"
+            size="sm"
             onClick={onCancel}
             disabled={isPending}
             className="flex-1"
@@ -85,7 +85,7 @@ export function DenyGrantDialog({
           </Button>
           <Button
             variant="danger"
-            size="md"
+            size="sm"
             onClick={handleConfirm}
             disabled={isPending || tooLong}
             className="flex-[2]"

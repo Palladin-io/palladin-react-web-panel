@@ -170,10 +170,10 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
         />
 
         <DialogFooter>
-          <Button variant="subtle" size="md" onClick={onClose} disabled={isPending} className="flex-1">
+          <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
             {t('vault.cancel')}
           </Button>
-          <Button variant="accent" size="md" type="submit" disabled={!canSubmit} className="flex-[2]">
+          <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
             {isPending ? t('vault.creating') : t('vault.createVault')}
           </Button>
         </DialogFooter>
