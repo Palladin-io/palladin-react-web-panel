@@ -4,12 +4,15 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
+import type { InfiniteData } from '@tanstack/react-query'
 import {
   getNotifications,
   getNotificationsSummary,
   markAllNotificationsRead,
   markNotificationRead,
   type NotificationCategory,
+  type NotificationItem,
+  type NotificationsPage,
   type NotificationsSummary,
 } from './notifications-api'
 import {
@@ -30,6 +33,37 @@ export const NOTIFICATIONS_PREFERENCES_QUERY_KEY = [
 /** Per-category feed key so To-do and History page independently. */
 export function notificationsListQueryKey(category?: NotificationCategory) {
   return ['notifications', 'list', category ?? 'all'] as const
+}
+
+/** Prefix that matches EVERY per-category feed cache (`['notifications','list', …]`). */
+const NOTIFICATIONS_LIST_PREFIX = ['notifications', 'list'] as const
+
+type NotificationsInfiniteData = InfiniteData<NotificationsPage, string | undefined>
+
+/**
+ * Optimistically patch matching feed rows across ALL list caches and capture a
+ * rollback snapshot. `patch` returns the new item (or the same reference to
+ * leave it untouched). Returns the previous `[queryKey, data]` pairs so callers
+ * can restore them on error.
+ */
+function patchFeedItems(
+  queryClient: ReturnType<typeof useQueryClient>,
+  patch: (item: NotificationItem) => NotificationItem,
+): [readonly unknown[], NotificationsInfiniteData | undefined][] {
+  const entries = queryClient.getQueriesData<NotificationsInfiniteData>({
+    queryKey: NOTIFICATIONS_LIST_PREFIX,
+  })
+  for (const [key, data] of entries) {
+    if (!data) continue
+    queryClient.setQueryData<NotificationsInfiniteData>(key, {
+      ...data,
+      pages: data.pages.map((page) => ({
+        ...page,
+        items: page.items.map(patch),
+      })),
+    })
+  }
+  return entries
 }
 
 /**
@@ -57,63 +91,80 @@ export function useNotificationsSummary() {
 }
 
 /**
- * Mark a single notification read. Optimistically drops the summary
- * `unreadCount` by one so the nav badge / counter updates the instant the user
- * acts (no wait for the refetch), then reconciles on settle.
+ * Mark a single notification read — PURELY optimistic, no refetch.
+ *
+ * Sets `readAt` on the matching row in every feed cache AND drops the summary
+ * `unreadCount` by one. We deliberately do NOT invalidate the feed on settle:
+ * a refetch would remount cards and re-trigger the mark-read-on-view observer
+ * for rows whose `readAt` hadn't been patched locally — a request storm. The
+ * PUT is idempotent and the optimistic feed patch is authoritative; we only
+ * roll back on error.
  */
 export function useMarkNotificationRead() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: markNotificationRead,
-    onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_SUMMARY_QUERY_KEY })
-      const previous = queryClient.getQueryData<NotificationsSummary>(
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
+      const readAt = new Date().toISOString()
+      const previousFeeds = patchFeedItems(queryClient, (item) =>
+        item.id === id && !item.readAt ? { ...item, readAt } : item,
+      )
+      const previousSummary = queryClient.getQueryData<NotificationsSummary>(
         NOTIFICATIONS_SUMMARY_QUERY_KEY,
       )
-      if (previous) {
+      if (previousSummary) {
         queryClient.setQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY, {
-          ...previous,
-          unreadCount: Math.max(0, previous.unreadCount - 1),
+          ...previousSummary,
+          unreadCount: Math.max(0, previousSummary.unreadCount - 1),
         })
       }
-      return { previous }
+      return { previousFeeds, previousSummary }
     },
     onError: (_err, _id, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(NOTIFICATIONS_SUMMARY_QUERY_KEY, context.previous)
+      context?.previousFeeds?.forEach(([key, data]) =>
+        queryClient.setQueryData(key, data),
+      )
+      if (context?.previousSummary) {
+        queryClient.setQueryData(NOTIFICATIONS_SUMMARY_QUERY_KEY, context.previousSummary)
       }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
     },
   })
 }
 
-/** Mark everything read. Optimistically zeroes the unread badge. */
+/**
+ * Mark everything read — PURELY optimistic, no refetch. Sets `readAt` on every
+ * feed row + zeroes the summary `unreadCount`. Same no-invalidate rationale as
+ * {@link useMarkNotificationRead}.
+ */
 export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: markAllNotificationsRead,
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_SUMMARY_QUERY_KEY })
-      const previous = queryClient.getQueryData<NotificationsSummary>(
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
+      const readAt = new Date().toISOString()
+      const previousFeeds = patchFeedItems(queryClient, (item) =>
+        item.readAt ? item : { ...item, readAt },
+      )
+      const previousSummary = queryClient.getQueryData<NotificationsSummary>(
         NOTIFICATIONS_SUMMARY_QUERY_KEY,
       )
-      if (previous) {
+      if (previousSummary) {
         queryClient.setQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY, {
-          ...previous,
+          ...previousSummary,
           unreadCount: 0,
         })
       }
-      return { previous }
+      return { previousFeeds, previousSummary }
     },
     onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(NOTIFICATIONS_SUMMARY_QUERY_KEY, context.previous)
+      context?.previousFeeds?.forEach(([key, data]) =>
+        queryClient.setQueryData(key, data),
+      )
+      if (context?.previousSummary) {
+        queryClient.setQueryData(NOTIFICATIONS_SUMMARY_QUERY_KEY, context.previousSummary)
       }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
     },
   })
 }

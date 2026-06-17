@@ -105,10 +105,11 @@ export function NotificationCenterPage() {
     approveAgent.isPending ||
     deactivateAgent.isPending
 
-  // Auto-mark a notification read + refresh the unread badge immediately.
+  // Mark a notification read. `markRead` is purely optimistic (patches `readAt`
+  // in the feed cache + drops the badge) — no feed invalidation, so this never
+  // remounts cards or re-triggers the mark-read-on-view observer.
   function markReadNow(id: string) {
     markRead.mutate(id)
-    refreshFeed()
   }
 
   const items = useMemo(

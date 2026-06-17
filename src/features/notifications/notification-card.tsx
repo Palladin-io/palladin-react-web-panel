@@ -72,11 +72,14 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
   const subtitle = t(card.subtitleKey, { agent })
 
   // Mark-read-on-view: when an unread card stays visible for SEEN_DELAY_MS, fire
-  // `onSeen(id)` exactly once. Read cards (or no handler) skip the observer.
+  // `onSeen(id)` exactly once. Read cards (or no handler) skip the observer; a
+  // per-instance `firedRef` guarantees a single call even before the optimistic
+  // `readAt` patch propagates back as a re-render.
   const articleRef = useRef<HTMLElement>(null)
+  const firedRef = useRef(false)
   const unread = !item.readAt
   useEffect(() => {
-    if (!unread || !onSeen) return
+    if (!unread || !onSeen || firedRef.current) return
     const el = articleRef.current
     if (!el || typeof IntersectionObserver === 'undefined') return
 
@@ -86,7 +89,10 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
         const visible = entries[0]?.isIntersecting
         if (visible && timer === null) {
           timer = setTimeout(() => {
-            onSeen(item.id)
+            if (!firedRef.current) {
+              firedRef.current = true
+              onSeen(item.id)
+            }
             observer.disconnect()
           }, SEEN_DELAY_MS)
         } else if (!visible && timer !== null) {
