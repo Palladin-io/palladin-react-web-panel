@@ -32,7 +32,10 @@ describe('notificationCardPresentation', () => {
     )
 
     expect(card.header.kind).toBe('agent')
-    expect(card.name).toBe('Deploy Bot')
+    // Title = type name; agent name moves to the subtitle.
+    expect(card.titleKey).toBe('notifications.type.grantPending')
+    expect(card.subtitleKey).toBe('notifications.sub.grantPending')
+    expect(card.subtitleAgent).toBe('Deploy Bot')
     expect(card.pill).toEqual({ labelKey: 'notifications.card.pill.pending', tone: 'amber' })
     expect(card.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowEntry',
@@ -41,7 +44,7 @@ describe('notificationCardPresentation', () => {
     ])
   })
 
-  it('uses a red alert glyph + pill-less header for credential_stale', () => {
+  it('uses a red alert glyph + type title for credential_stale', () => {
     const card = notificationCardPresentation(
       makeItem({
         type: 'credential_stale',
@@ -51,7 +54,8 @@ describe('notificationCardPresentation', () => {
     )
 
     expect(card.header).toEqual({ kind: 'glyph', glyph: 'error', tone: 'red' })
-    expect(card.name).toBe('Billing Bot')
+    expect(card.titleKey).toBe('notifications.type.credentialStale')
+    expect(card.subtitleAgent).toBe('Billing Bot')
   })
 
   it('gives every action-required card a "Pending" pill', () => {
@@ -87,7 +91,7 @@ describe('notificationCardPresentation', () => {
     expect(card.rows).toHaveLength(0)
   })
 
-  it('caps agent_pending at 3 rows: public key, agent id, host / ip (in order)', () => {
+  it('agent_pending: 3 fixed rows public key · agent id · host·ip (in order)', () => {
     const card = notificationCardPresentation(
       makeItem({
         type: 'agent_pending',
@@ -106,33 +110,95 @@ describe('notificationCardPresentation', () => {
       'notifications.card.rowAgentId',
       'notifications.card.rowHostIp',
     ])
-    // public key labelled "Public key", value rendered as-is
     expect(card.rows[0].value).toEqual({ kind: 'text', text: 'pk_abc123' })
-    // host + ip merged into one row, host shortened with a middle ellipsis
     const hostIp = card.rows[2].value
     expect(hostIp.kind).toBe('text')
     if (hostIp.kind === 'text') {
       expect(hostIp.text).toContain('…')
       expect(hostIp.text).toContain('10.0.0.5')
-      expect(hostIp.text).toContain(' / ')
+      expect(hostIp.text).toContain(' · ')
     }
   })
 
-  it('renders only the present agent rows (graceful degradation)', () => {
+  it('agent_pending always keeps 3 rows, missing values → em-dash', () => {
     const card = notificationCardPresentation(
       makeItem({
         type: 'agent_pending',
         category: 'actionRequired',
-        metadata: { agentId: 'a-1', ip: '10.0.0.5' },
+        metadata: { agentId: 'a-1' },
       }),
     )
-    // no public key, no host → just agent id then the ip (in the host/ip row)
+    // no public key, no host/ip → still 3 rows, placeholders for the missing
     expect(card.rows.map((r) => r.labelKey)).toEqual([
+      'notifications.card.rowPublicKey',
       'notifications.card.rowAgentId',
       'notifications.card.rowHostIp',
     ])
-    const hostIp = card.rows[1].value
-    expect(hostIp).toEqual({ kind: 'text', text: '10.0.0.5' })
+    expect(card.rows[0].value).toEqual({ kind: 'text', text: '—' })
+    expect(card.rows[1].value).toEqual({ kind: 'text', text: 'a-1' })
+    expect(card.rows[2].value).toEqual({ kind: 'text', text: '—' })
+  })
+
+  it('grant_pending always keeps 3 rows even when methods/reason are absent', () => {
+    const card = notificationCardPresentation(
+      makeItem({ type: 'grant_pending', metadata: { entryLabel: 'GitHub Token' } }),
+    )
+    expect(card.rows.map((r) => r.labelKey)).toEqual([
+      'notifications.card.rowEntry',
+      'notifications.card.rowMethods',
+      'notifications.card.rowReason',
+    ])
+    expect(card.rows[1].value).toEqual({ kind: 'text', text: '—' })
+    expect(card.rows[2].value).toEqual({ kind: 'text', text: '—' })
+  })
+
+  it('grant_approved shows Entry · Access · By; Access reads use limit / expiry / unlimited', () => {
+    const uses = notificationCardPresentation(
+      makeItem({
+        type: 'grant_approved',
+        category: 'update',
+        metadata: { entryLabel: 'AWS Key', queryLimit: '20', queryCount: '2' },
+      }),
+    )
+    expect(uses.rows.map((r) => r.labelKey)).toEqual([
+      'notifications.card.rowEntry',
+      'notifications.card.rowAccess',
+      'notifications.card.rowBy',
+    ])
+    expect(uses.rows[1].value).toEqual({
+      kind: 'access',
+      queryLimit: 20,
+      queryCount: 2,
+      expiresAt: undefined,
+    })
+
+    const unlimited = notificationCardPresentation(
+      makeItem({ type: 'grant_approved', category: 'update', metadata: { entryLabel: 'AWS Key' } }),
+    )
+    expect(unlimited.rows[1].value).toEqual({
+      kind: 'access',
+      queryLimit: undefined,
+      queryCount: undefined,
+      expiresAt: undefined,
+    })
+    // By falls back to em-dash when no actor is present
+    expect(unlimited.rows[2].value).toEqual({ kind: 'text', text: '—' })
+  })
+
+  it('agent_approved shows the 3 agent rows and NO "By" row', () => {
+    const card = notificationCardPresentation(
+      makeItem({
+        type: 'agent_approved',
+        category: 'update',
+        metadata: { agentName: 'CI Runner', agentId: 'a-9', actorName: 'Patryk R.' },
+      }),
+    )
+    expect(card.rows.map((r) => r.labelKey)).toEqual([
+      'notifications.card.rowPublicKey',
+      'notifications.card.rowAgentId',
+      'notifications.card.rowHostIp',
+    ])
+    expect(card.rows.some((r) => r.labelKey === 'notifications.card.rowBy')).toBe(false)
   })
 
   it('renders agent_approved as an informational card with an active pill', () => {
@@ -151,10 +217,13 @@ describe('notificationCardPresentation', () => {
     const card = notificationCardPresentation(
       makeItem({ type: 'agent_pending', category: 'actionRequired', metadata: {} }),
     )
-    expect(card.rows).toHaveLength(0)
-    // No name → empty string + a fallback i18n key the card resolves to a
-    // readable "Unknown agent" placeholder (never a blank header).
-    expect(card.name).toBe('')
-    expect(card.nameFallbackKey).toBe('grants.unknownAgent')
+    // Still the fixed 3 rows (all em-dash) — never collapses.
+    expect(card.rows).toHaveLength(3)
+    expect(card.rows.every((r) => r.value.kind === 'text' && r.value.text === '—')).toBe(true)
+    // No agent name → null subtitleAgent + the "Unknown agent" fallback key the
+    // card resolves into the subtitle (title stays the localized type name).
+    expect(card.titleKey).toBe('notifications.type.agentPending')
+    expect(card.subtitleAgent).toBeNull()
+    expect(card.subtitleAgentFallbackKey).toBe('grants.unknownAgent')
   })
 })

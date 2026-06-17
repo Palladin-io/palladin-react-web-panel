@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { AgentAvatar } from '../agents/components/agent-avatar'
 import { Icon } from '../../shared/components/icon'
 import { Tooltip } from '../../shared/components/tooltip'
-import { formatGrantDate, formatRelativeTime } from '../grants/components/grant-format'
+import {
+  formatExpiresIn,
+  formatGrantDate,
+  formatRelativeTime,
+} from '../grants/components/grant-format'
 import type { NotificationItem } from './notifications-api'
 import {
   notificationCardPresentation,
@@ -51,10 +55,16 @@ export function NotificationCard({ item, footer }: NotificationCardProps) {
   const { t } = useTranslation()
   const card = notificationCardPresentation(item)
 
+  // Title = localized type name. Subtitle = agent (or localized fallback) +
+  // context, interpolated into the per-type subtitle string.
+  const title = t(card.titleKey)
+  const agent = card.subtitleAgent || t(card.subtitleAgentFallbackKey)
+  const subtitle = t(card.subtitleKey, { agent })
+
   return (
     <article
       className="flex h-full flex-col overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]"
-      aria-label={t(card.subtitleKey)}
+      aria-label={title}
     >
       {/* Header — date sits top-right on the title line; the status pill (if
           any) stacks directly under the date, not inline with the title. */}
@@ -62,10 +72,10 @@ export function NotificationCard({ item, footer }: NotificationCardProps) {
         <CardAvatar header={card.header} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
-            {card.name || (card.nameFallbackKey ? t(card.nameFallbackKey) : '—')}
+            {title}
           </p>
           <p className="truncate text-[11px] text-[var(--cv-t3)]">
-            {t(card.subtitleKey)}
+            {subtitle}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
@@ -106,6 +116,8 @@ export function NotificationCard({ item, footer }: NotificationCardProps) {
 }
 
 function RowValue({ value }: { value: DetailRowValue }) {
+  const { t } = useTranslation()
+
   if (value.kind === 'entry') {
     return (
       <span className="block truncate">
@@ -114,6 +126,16 @@ function RowValue({ value }: { value: DetailRowValue }) {
       </span>
     )
   }
+
+  if (value.kind === 'access') {
+    const text = formatAccess(value, t)
+    return (
+      <Tooltip content={text} className="block truncate">
+        {text}
+      </Tooltip>
+    )
+  }
+
   return (
     <Tooltip content={value.text} className="block truncate">
       {value.text}
@@ -121,12 +143,32 @@ function RowValue({ value }: { value: DetailRowValue }) {
   )
 }
 
+/**
+ * Localizes a grant access policy — mirrors org-grants `accessSummary`:
+ * use-capped → "{left}/{limit} uses"; time-limited → "expires in 6d";
+ * otherwise → "Unlimited".
+ */
+function formatAccess(
+  value: { queryLimit?: number; queryCount?: number; expiresAt?: string },
+  t: ReturnType<typeof useTranslation>['t'],
+): string {
+  if (value.queryLimit != null) {
+    const left = Math.max(value.queryLimit - (value.queryCount ?? 0), 0)
+    return t('grants.org.usesLeft', { left, limit: value.queryLimit })
+  }
+  if (value.expiresAt) {
+    return formatExpiresIn(value.expiresAt, t)
+  }
+  return t('grants.org.unlimited')
+}
+
 function CardAvatar({ header }: { header: CardHeaderIcon }) {
+  // 36px matches the app's standard icon-circle / agent-list avatar size.
   if (header.kind === 'agent') {
     return (
       <AgentAvatar
         agent={{ name: header.agentName ?? '', agentId: '', iconKey: header.agentIconKey }}
-        size={30}
+        size={36}
       />
     )
   }
@@ -134,10 +176,10 @@ function CardAvatar({ header }: { header: CardHeaderIcon }) {
   return (
     <span
       aria-hidden
-      className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px]"
+      className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[9px]"
       style={{ background: tone.bg }}
     >
-      <Icon name={header.glyph} size={16} color={tone.color} />
+      <Icon name={header.glyph} size={18} color={tone.color} />
     </span>
   )
 }

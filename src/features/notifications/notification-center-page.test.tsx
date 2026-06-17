@@ -139,12 +139,13 @@ describe('NotificationCenterPage', () => {
   it('splits action-required (pending) into Required actions and resolved into History', () => {
     renderPage()
 
-    // pending grant request → To-do card with its agent + entry shown
-    expect(screen.getByText('Deploy Bot')).toBeInTheDocument()
+    // pending grant request → To-do card: type title + agent in the subtitle
+    // (subtitle interpolates the agent name, so match by substring) + entry row
+    expect(screen.getByText(/Deploy Bot/)).toBeInTheDocument()
     expect(screen.getByText('GitHub Token')).toBeInTheDocument()
 
     // a resolved action-required item drops into History (revoked → grant again)
-    expect(screen.getByText('Old Bot')).toBeInTheDocument()
+    expect(screen.getByText(/Old Bot/)).toBeInTheDocument()
   })
 
   it('renders the To-do approve/deny actions for a grant_pending card', () => {
