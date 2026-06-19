@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, CircleAlert, CircleCheck } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
-import { Button } from '../../../shared/components/button'
+import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { pickVerificationIndices } from '../../../shared/lib/mnemonic'
 import { OnboardingShell } from './onboarding-shell'
@@ -88,11 +88,9 @@ export function RecoveryKeyConfirmStep({
                 placeholder={t('onboarding.confirmWordPlaceholder', { index: mnemonicIndex + 1 })}
               />
               <FieldFeedback visible={state !== 'empty'} color={state === 'correct' ? 'teal' : 'red'}>
-                {state === 'correct' ? (
-                  <><CircleCheck size={12} /> {t('onboarding.confirmCorrect')}</>
-                ) : (
-                  <><CircleAlert size={12} /> {t('onboarding.confirmIncorrect')}</>
-                )}
+                {state === 'correct'
+                  ? t('onboarding.confirmCorrect')
+                  : t('onboarding.confirmIncorrect')}
               </FieldFeedback>
             </div>
           )
@@ -102,16 +100,10 @@ export function RecoveryKeyConfirmStep({
           {error}
         </FieldFeedback>
 
-        <Button
-          type="submit"
-          variant="accent"
-          size="sm"
-          disabled={!allCorrect || isSubmitting}
-          className="w-full"
-        >
+        <AuthSubmitButton disabled={!allCorrect || isSubmitting}>
           <Check size={14} />
           {isSubmitting ? t('onboarding.finishingSetup') : t('onboarding.verifyAndComplete')}
-        </Button>
+        </AuthSubmitButton>
       </form>
     </OnboardingShell>
   )

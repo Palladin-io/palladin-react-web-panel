@@ -37,7 +37,7 @@ export function NewPasswordStep({
     analytics.capture('recovery', 'new-password-page-viewed')
   }, [])
 
-  const { score, label } = evaluatePasswordStrength(password)
+  const { score } = evaluatePasswordStrength(password)
   const passwordsMatch = password.length > 0 && password === confirm
   const canSubmit = !isSubmitting && isPasswordAcceptable(score) && passwordsMatch
   const hasError = errorMessage !== null
@@ -55,7 +55,7 @@ export function NewPasswordStep({
           if (canSubmit) onSubmit(password)
         }}
       >
-        <div className="-mb-3">
+        <div>
           <FormInput
             id="recovery-new-password"
             label={t('recovery.newPasswordLabel')}
@@ -68,9 +68,6 @@ export function NewPasswordStep({
             disabled={isSubmitting}
           />
           <PasswordStrengthBar score={score} />
-          <FieldFeedback visible={password.length > 0} color="teal">
-            {label}
-          </FieldFeedback>
         </div>
 
         <div className="-mb-3">

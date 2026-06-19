@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Clipboard, FileText } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
+import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
 import { FieldFeedback } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { MNEMONIC_WORD_COUNT } from '../../../shared/lib/mnemonic'
@@ -147,15 +148,9 @@ export function EnterRecoveryKeyStep({
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={!wordCountValid}
-          className="mt-2 w-full rounded-lg bg-[#FF4F4F] px-4 py-2.5 text-sm font-semibold text-white
-            transition-colors hover:bg-[#e04545]
-            disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <AuthSubmitButton className="mt-2" disabled={!wordCountValid}>
           {t('recovery.next')}
-        </button>
+        </AuthSubmitButton>
       </form>
     </RecoveryShell>
   )
