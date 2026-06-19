@@ -76,7 +76,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
             error={confirm.length > 0 && !passwordsMatch}
           />
           {confirm.length > 0 && !passwordsMatch && (
-            <FieldFeedback visible color="red">
+            <FieldFeedback visible animateIn color="red">
               {t('onboarding.passwordsDoNotMatch')}
             </FieldFeedback>
           )}

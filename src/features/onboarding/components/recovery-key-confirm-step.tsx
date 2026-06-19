@@ -88,7 +88,7 @@ export function RecoveryKeyConfirmStep({
                 placeholder={t('onboarding.confirmWordPlaceholder', { index: mnemonicIndex + 1 })}
               />
               {state === 'wrong' && (
-                <FieldFeedback visible color="red">
+                <FieldFeedback visible animateIn color="red">
                   {t('onboarding.confirmIncorrect')}
                 </FieldFeedback>
               )}
@@ -97,7 +97,7 @@ export function RecoveryKeyConfirmStep({
         })}
 
         {error && (
-          <FieldFeedback visible color="red">
+          <FieldFeedback visible animateIn color="red">
             {error}
           </FieldFeedback>
         )}

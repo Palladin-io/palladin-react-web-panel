@@ -66,16 +66,27 @@ export interface FieldFeedbackProps {
   visible: boolean
   color: 'red' | 'teal'
   children: ReactNode
+  /**
+   * For conditionally-rendered feedback (mounted only when shown): play an
+   * entrance animation on mount. The default opacity/transform transition only
+   * animates when the element stays mounted and `visible` toggles.
+   */
+  animateIn?: boolean
 }
 
-export function FieldFeedback({ visible, color, children }: FieldFeedbackProps) {
+export function FieldFeedback({ visible, color, children, animateIn }: FieldFeedbackProps) {
   return (
     <p
       role={color === 'red' && visible ? 'alert' : undefined}
-      className={`h-4 pt-[3px] pl-2 text-[9px] font-medium leading-3
-        transition-[opacity,transform] duration-200 ease-out ${
+      className={`h-4 pt-[3px] pl-2 text-[9px] font-medium leading-3 ${
         color === 'teal' ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
-      } ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}
+      } ${
+        animateIn
+          ? 'field-error-enter'
+          : `transition-[opacity,transform] duration-200 ease-out ${
+              visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'
+            }`
+      }`}
     >
       {children}
     </p>
