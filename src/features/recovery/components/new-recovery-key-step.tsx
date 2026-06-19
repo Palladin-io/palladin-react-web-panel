@@ -105,7 +105,7 @@ export function NewRecoveryKeyStep({ mnemonic, onFinish }: NewRecoveryKeyStepPro
           {t('recovery.savedCheckbox')}
         </label>
 
-        <AuthSubmitButton type="button" onClick={onFinish} disabled={!acknowledged} className="mt-1">
+        <AuthSubmitButton type="button" onClick={onFinish} disabled={!acknowledged}>
           {t('recovery.finish')}
         </AuthSubmitButton>
       </div>

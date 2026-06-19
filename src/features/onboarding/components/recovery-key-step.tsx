@@ -99,7 +99,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
           </button>
         </div>
 
-        <AuthSubmitButton type="button" onClick={onContinue} className="mt-2">
+        <AuthSubmitButton type="button" onClick={onContinue}>
           <Check size={14} />
           {t('onboarding.savedRecoveryKey')}
         </AuthSubmitButton>

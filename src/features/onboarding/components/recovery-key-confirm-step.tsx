@@ -69,7 +69,7 @@ export function RecoveryKeyConfirmStep({
           const state = correctness[inputIndex]
           const inputId = `recovery-word-${mnemonicIndex}`
           return (
-            <div key={mnemonicIndex} className="-mb-4">
+            <div key={mnemonicIndex}>
               <FormInput
                 id={inputId}
                 label={t('onboarding.confirmWordLabel', { index: mnemonicIndex + 1 })}
@@ -88,9 +88,11 @@ export function RecoveryKeyConfirmStep({
                 borderClass={borderClassForState(state)}
                 placeholder={t('onboarding.confirmWordPlaceholder', { index: mnemonicIndex + 1 })}
               />
-              <FieldFeedback visible={state === 'wrong'} color="red">
-                {t('onboarding.confirmIncorrect')}
-              </FieldFeedback>
+              {state === 'wrong' && (
+                <FieldFeedback visible color="red">
+                  {t('onboarding.confirmIncorrect')}
+                </FieldFeedback>
+              )}
             </div>
           )
         })}
@@ -101,7 +103,9 @@ export function RecoveryKeyConfirmStep({
           </FieldFeedback>
         )}
 
-        <AuthSubmitButton disabled={!allCorrect || isSubmitting}>
+        {/* mt-5 ≈ a field's label+gap, so the button keeps the same visual rhythm
+            as the gaps between inputs (which each carry a "Word #N" label). */}
+        <AuthSubmitButton className="mt-5" disabled={!allCorrect || isSubmitting}>
           <Check size={14} />
           {isSubmitting ? t('onboarding.finishingSetup') : t('onboarding.verifyAndComplete')}
         </AuthSubmitButton>
