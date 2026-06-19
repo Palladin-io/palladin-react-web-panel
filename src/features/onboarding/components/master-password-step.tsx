@@ -64,7 +64,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
           <PasswordStrengthBar score={score} />
         </div>
 
-        <div className="-mb-3">
+        <div>
           <FormInput
             id="master-password-confirm"
             label={t('onboarding.confirmPasswordLabel')}
@@ -75,9 +75,11 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
             placeholder={t('onboarding.confirmPasswordPlaceholder')}
             error={confirm.length > 0 && !passwordsMatch}
           />
-          <FieldFeedback visible={confirm.length > 0 && !passwordsMatch} color="red">
-            {t('onboarding.passwordsDoNotMatch')}
-          </FieldFeedback>
+          {confirm.length > 0 && !passwordsMatch && (
+            <FieldFeedback visible color="red">
+              {t('onboarding.passwordsDoNotMatch')}
+            </FieldFeedback>
+          )}
         </div>
 
         <div className="rounded-lg border border-[rgba(253,249,228,0.06)] bg-[rgba(253,249,228,0.04)] px-3 py-2">

@@ -73,7 +73,6 @@ export function RecoveryKeyConfirmStep({
               <FormInput
                 id={inputId}
                 label={t('onboarding.confirmWordLabel', { index: mnemonicIndex + 1 })}
-                labelClassName="mb-1 block text-xs font-medium text-[#FDF9E4]"
                 type="text"
                 autoFocus={inputIndex === 0}
                 autoComplete="off"

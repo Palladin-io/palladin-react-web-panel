@@ -24,7 +24,7 @@ export function AuthSubmitButton({
       {...rest}
       type={type}
       className={
-        'flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#FF4F4F] px-4 py-2 ' +
+        'flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#FF4F4F] px-4 py-2.5 ' +
         'text-xs font-semibold text-white ' +
         'shadow-[0_2px_10px_rgba(255,79,79,0.22)] transition-[background-color,box-shadow] ' +
         'hover:bg-[#E04545] hover:shadow-[0_2px_14px_rgba(255,79,79,0.3)] ' +
