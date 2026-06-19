@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Check } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
 import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 import { pickVerificationIndices } from '../../../shared/lib/mnemonic'
 import { OnboardingShell } from './onboarding-shell'
 
@@ -87,20 +87,16 @@ export function RecoveryKeyConfirmStep({
                 borderClass={borderClassForState(state)}
                 placeholder={t('onboarding.confirmWordPlaceholder', { index: mnemonicIndex + 1 })}
               />
-              {state === 'wrong' && (
-                <FieldFeedback visible animateIn color="red">
-                  {t('onboarding.confirmIncorrect')}
-                </FieldFeedback>
-              )}
+              <FeedbackSlot visible={state === 'wrong'} color="red">
+                {t('onboarding.confirmIncorrect')}
+              </FeedbackSlot>
             </div>
           )
         })}
 
-        {error && (
-          <FieldFeedback visible animateIn color="red">
-            {error}
-          </FieldFeedback>
-        )}
+        <FeedbackSlot visible={error !== null} color="red">
+          {error}
+        </FeedbackSlot>
 
         {/* mt-5 ≈ a field's label+gap, so the button keeps the same visual rhythm
             as the gaps between inputs (which each carry a "Word #N" label). */}

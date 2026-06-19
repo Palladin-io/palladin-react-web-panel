@@ -79,9 +79,10 @@ describe('RecoveryKeyConfirmStep', () => {
     const user = userEvent.setup()
     renderStep()
 
+    expect(screen.queryByRole('alert')).toBeNull()
     await user.type(screen.getAllByLabelText(/^word #\d+$/i)[0], 'notaword')
 
-    expect(screen.getAllByText(/doesn't match/i).length).toBeGreaterThan(0)
+    expect(screen.getByRole('alert')).toHaveTextContent(/doesn't match/i)
   })
 
   it('displays the error prop when provided', () => {

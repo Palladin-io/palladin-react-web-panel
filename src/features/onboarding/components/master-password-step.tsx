@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { analytics } from '../../../shared/lib/analytics'
 import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 import { PasswordStrengthBar } from '../../../shared/components/password-strength-bar'
 import {
   evaluatePasswordStrength,
@@ -75,11 +75,9 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
             placeholder={t('onboarding.confirmPasswordPlaceholder')}
             error={confirm.length > 0 && !passwordsMatch}
           />
-          {confirm.length > 0 && !passwordsMatch && (
-            <FieldFeedback visible animateIn color="red">
-              {t('onboarding.passwordsDoNotMatch')}
-            </FieldFeedback>
-          )}
+          <FeedbackSlot visible={confirm.length > 0 && !passwordsMatch} color="red">
+            {t('onboarding.passwordsDoNotMatch')}
+          </FeedbackSlot>
         </div>
 
         <div className="rounded-lg border border-[rgba(253,249,228,0.06)] bg-[rgba(253,249,228,0.04)] px-3 py-2">

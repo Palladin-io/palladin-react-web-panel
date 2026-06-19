@@ -66,29 +66,39 @@ export interface FieldFeedbackProps {
   visible: boolean
   color: 'red' | 'teal'
   children: ReactNode
-  /**
-   * For conditionally-rendered feedback (mounted only when shown): play an
-   * entrance animation on mount. The default opacity/transform transition only
-   * animates when the element stays mounted and `visible` toggles.
-   */
-  animateIn?: boolean
 }
 
-export function FieldFeedback({ visible, color, children, animateIn }: FieldFeedbackProps) {
+export function FieldFeedback({ visible, color, children }: FieldFeedbackProps) {
   return (
     <p
       role={color === 'red' && visible ? 'alert' : undefined}
-      className={`h-4 pt-[3px] pl-2 text-[9px] font-medium leading-3 ${
+      className={`h-4 pt-[3px] pl-2 text-[9px] font-medium leading-3
+        transition-[opacity,transform] duration-200 ease-out ${
         color === 'teal' ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
-      } ${
-        animateIn
-          ? 'field-error-enter'
-          : `transition-[opacity,transform] duration-200 ease-out ${
-              visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'
-            }`
-      }`}
+      } ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}
     >
       {children}
     </p>
+  )
+}
+
+/**
+ * Feedback that animates its OWN height so the fields below slide down/up
+ * smoothly when it appears/disappears (instead of jumping). Uses the
+ * grid `0fr → 1fr` rows trick — stays mounted, so it animates both ways.
+ * No reserved space when hidden (the row collapses to 0).
+ */
+export function FeedbackSlot({ visible, color, children }: FieldFeedbackProps) {
+  return (
+    <div
+      className="grid transition-[grid-template-rows] duration-200 ease-out"
+      style={{ gridTemplateRows: visible ? '1fr' : '0fr' }}
+    >
+      <div className="overflow-hidden">
+        <FieldFeedback visible={visible} color={color}>
+          {children}
+        </FieldFeedback>
+      </div>
+    </div>
   )
 }
