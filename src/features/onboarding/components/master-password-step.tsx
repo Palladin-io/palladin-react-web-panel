@@ -24,7 +24,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
     analytics.capture('onboarding', 'setup-page-viewed')
   }, [])
 
-  const { score, label } = evaluatePasswordStrength(password)
+  const { score } = evaluatePasswordStrength(password)
   const passwordsMatch = password.length > 0 && password === confirm
   const canSubmit = isPasswordAcceptable(score) && passwordsMatch
 
@@ -50,7 +50,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
           }
         }}
       >
-        <div className="-mb-3">
+        <div>
           <FormInput
             id="master-password"
             label={t('onboarding.masterPasswordLabel')}
@@ -62,9 +62,6 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
             placeholder={t('onboarding.masterPasswordPlaceholder')}
           />
           <PasswordStrengthBar score={score} />
-          <FieldFeedback visible={password.length > 0} color="teal">
-            {label}
-          </FieldFeedback>
         </div>
 
         <div className="-mb-3">
