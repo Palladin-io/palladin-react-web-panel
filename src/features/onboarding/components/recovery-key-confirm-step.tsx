@@ -38,13 +38,7 @@ export function RecoveryKeyConfirmStep({
     return entered === mnemonic[mnemonicIndex] ? 'correct' : 'wrong'
   })
 
-  // Reveal one field at a time: a field shows only once every word before it is
-  // correct. The next field (or the submit button, once all are correct) slides
-  // in — that reveal is itself the "correct" signal, so no per-field tick needed.
-  const firstUnsolved = correctness.findIndex((state) => state !== 'correct')
-  const correctCount = firstUnsolved === -1 ? correctness.length : firstUnsolved
-  const visibleCount = Math.min(correctCount + 1, indicesToVerify.length)
-  const allCorrect = correctCount === indicesToVerify.length
+  const allCorrect = correctness.every((state) => state === 'correct')
 
   const analyticsFiredRef = useRef(false)
   useEffect(() => {
@@ -71,17 +65,17 @@ export function RecoveryKeyConfirmStep({
           }
         }}
       >
-        {indicesToVerify.slice(0, visibleCount).map((mnemonicIndex, inputIndex) => {
+        {indicesToVerify.map((mnemonicIndex, inputIndex) => {
           const state = correctness[inputIndex]
           const inputId = `recovery-word-${mnemonicIndex}`
           return (
-            <div key={mnemonicIndex} className="step-enter -mb-3">
+            <div key={mnemonicIndex} className="-mb-4">
               <FormInput
                 id={inputId}
                 label={t('onboarding.confirmWordLabel', { index: mnemonicIndex + 1 })}
                 labelClassName="mb-1 block text-xs font-medium text-[#FDF9E4]"
                 type="text"
-                autoFocus
+                autoFocus={inputIndex === 0}
                 autoComplete="off"
                 autoCapitalize="none"
                 spellCheck={false}
@@ -101,16 +95,16 @@ export function RecoveryKeyConfirmStep({
           )
         })}
 
-        <FieldFeedback visible={error !== null} color="red">
-          {error}
-        </FieldFeedback>
-
-        {allCorrect && (
-          <AuthSubmitButton className="step-enter" disabled={isSubmitting}>
-            <Check size={14} />
-            {isSubmitting ? t('onboarding.finishingSetup') : t('onboarding.verifyAndComplete')}
-          </AuthSubmitButton>
+        {error && (
+          <FieldFeedback visible color="red">
+            {error}
+          </FieldFeedback>
         )}
+
+        <AuthSubmitButton disabled={!allCorrect || isSubmitting}>
+          <Check size={14} />
+          {isSubmitting ? t('onboarding.finishingSetup') : t('onboarding.verifyAndComplete')}
+        </AuthSubmitButton>
       </form>
     </OnboardingShell>
   )

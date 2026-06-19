@@ -27,66 +27,61 @@ function renderStep(overrides: Partial<Parameters<typeof RecoveryKeyConfirmStep>
   )
 }
 
-/** Type each required word correctly, one at a time; later inputs reveal as earlier ones pass. */
-async function fillAllCorrect(user: ReturnType<typeof userEvent.setup>): Promise<void> {
-  let visible = screen.getAllByLabelText(/^word #\d+$/i).length
-  while (true) {
-    const inputs = screen.getAllByLabelText(/^word #\d+$/i) as HTMLInputElement[]
-    const next = inputs[inputs.length - 1]
-    const idx = Number(next.id.replace('recovery-word-', ''))
-    await user.type(next, SAMPLE_WORDS[idx])
-    const nowVisible = screen.getAllByLabelText(/^word #\d+$/i).length
-    if (nowVisible === visible) break // last word — nothing more reveals
-    visible = nowVisible
-  }
+function askedIndices(): number[] {
+  return screen
+    .getAllByLabelText(/^word #\d+$/i)
+    .map((input) => Number((input as HTMLInputElement).id.replace('recovery-word-', '')))
 }
 
 describe('RecoveryKeyConfirmStep', () => {
-  it('reveals only the first input initially', () => {
+  it('renders three verification inputs', () => {
     renderStep()
-    expect(screen.getAllByLabelText(/^word #\d+$/i)).toHaveLength(1)
-    expect(screen.queryByRole('button', { name: /verify & complete setup/i })).toBeNull()
+    expect(screen.getAllByLabelText(/^word #\d+$/i)).toHaveLength(3)
   })
 
-  it('reveals the next input only after the current word is correct', async () => {
+  it('disables submit until all three words are correct', async () => {
     const user = userEvent.setup()
     renderStep()
 
-    const first = screen.getByLabelText(/^word #\d+$/i) as HTMLInputElement
-    const idx0 = Number(first.id.replace('recovery-word-', ''))
-    await user.type(first, SAMPLE_WORDS[idx0])
+    const submit = screen.getByRole('button', { name: /verify & complete setup/i })
+    expect(submit).toBeDisabled()
 
-    expect(screen.getAllByLabelText(/^word #\d+$/i)).toHaveLength(2)
+    const indices = askedIndices()
+    const inputs = screen.getAllByLabelText(/^word #\d+$/i)
+
+    await user.type(inputs[0], SAMPLE_WORDS[indices[0]])
+    expect(submit).toBeDisabled()
+
+    await user.type(inputs[1], SAMPLE_WORDS[indices[1]])
+    expect(submit).toBeDisabled()
+
+    await user.type(inputs[2], SAMPLE_WORDS[indices[2]])
+    expect(submit).toBeEnabled()
   })
 
-  it('shows error feedback for a wrong word and does not reveal the next input', async () => {
-    const user = userEvent.setup()
-    renderStep()
-
-    await user.type(screen.getByLabelText(/^word #\d+$/i), 'notaword')
-
-    expect(screen.getAllByText(/doesn't match/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByLabelText(/^word #\d+$/i)).toHaveLength(1)
-  })
-
-  it('shows the submit button only once every word is correct', async () => {
-    const user = userEvent.setup()
-    renderStep()
-
-    expect(screen.queryByRole('button', { name: /verify & complete setup/i })).toBeNull()
-    await fillAllCorrect(user)
-    expect(screen.getByRole('button', { name: /verify & complete setup/i })).toBeEnabled()
-  })
-
-  it('invokes onConfirmed when submitted with all correct words', async () => {
+  it('invokes onConfirmed when the form is submitted with correct words', async () => {
     const onConfirmed = vi.fn()
     const user = userEvent.setup()
     renderStep({ onConfirmed })
 
-    await fillAllCorrect(user)
+    const indices = askedIndices()
+    const inputs = screen.getAllByLabelText(/^word #\d+$/i)
+    for (let i = 0; i < indices.length; i++) {
+      await user.type(inputs[i], SAMPLE_WORDS[indices[i]])
+    }
+
     await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
 
     expect(onConfirmed).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows error feedback for a wrong word', async () => {
+    const user = userEvent.setup()
+    renderStep()
+
+    await user.type(screen.getAllByLabelText(/^word #\d+$/i)[0], 'notaword')
+
+    expect(screen.getAllByText(/doesn't match/i).length).toBeGreaterThan(0)
   })
 
   it('displays the error prop when provided', () => {
@@ -94,22 +89,8 @@ describe('RecoveryKeyConfirmStep', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Setup failed')
   })
 
-  it('shows a submitting label while finishing', async () => {
-    const user = userEvent.setup()
-    const { rerender } = renderStep()
-
-    await fillAllCorrect(user)
-
-    rerender(
-      <RecoveryKeyConfirmStep
-        mnemonic={SAMPLE_WORDS}
-        onConfirmed={vi.fn()}
-        onBack={vi.fn()}
-        isSubmitting
-        error={null}
-      />,
-    )
-
+  it('shows a submitting label when isSubmitting is true', () => {
+    renderStep({ isSubmitting: true })
     expect(screen.getByRole('button', { name: /finishing setup/i })).toBeDisabled()
   })
 })
