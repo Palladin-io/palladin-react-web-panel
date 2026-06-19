@@ -528,7 +528,7 @@ function ActionFooter({
         <Button
           variant="positive"
           size="sm"
-                   className="flex-1"
+          className="flex-1"
           disabled={busy}
           onClick={() => onApproveAgent({ agentId, agentName, agentType, notificationId: item.id })}
         >
