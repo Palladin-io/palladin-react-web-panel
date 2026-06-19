@@ -98,9 +98,7 @@ export function RecoveryKeyConfirmStep({
           {error}
         </FeedbackSlot>
 
-        {/* mt-5 ≈ a field's label+gap, so the button keeps the same visual rhythm
-            as the gaps between inputs (which each carry a "Word #N" label). */}
-        <AuthSubmitButton className="mt-5" disabled={!allCorrect || isSubmitting}>
+        <AuthSubmitButton disabled={!allCorrect || isSubmitting}>
           <Check size={14} />
           {isSubmitting ? t('onboarding.finishingSetup') : t('onboarding.verifyAndComplete')}
         </AuthSubmitButton>
