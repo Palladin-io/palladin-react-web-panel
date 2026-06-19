@@ -38,7 +38,13 @@ export function RecoveryKeyConfirmStep({
     return entered === mnemonic[mnemonicIndex] ? 'correct' : 'wrong'
   })
 
-  const allCorrect = correctness.every((state) => state === 'correct')
+  // Reveal one field at a time: a field shows only once every word before it is
+  // correct. The next field (or the submit button, once all are correct) slides
+  // in — that reveal is itself the "correct" signal, so no per-field tick needed.
+  const firstUnsolved = correctness.findIndex((state) => state !== 'correct')
+  const correctCount = firstUnsolved === -1 ? correctness.length : firstUnsolved
+  const visibleCount = Math.min(correctCount + 1, indicesToVerify.length)
+  const allCorrect = correctCount === indicesToVerify.length
 
   const analyticsFiredRef = useRef(false)
   useEffect(() => {
@@ -65,16 +71,17 @@ export function RecoveryKeyConfirmStep({
           }
         }}
       >
-        {indicesToVerify.map((mnemonicIndex, inputIndex) => {
+        {indicesToVerify.slice(0, visibleCount).map((mnemonicIndex, inputIndex) => {
           const state = correctness[inputIndex]
           const inputId = `recovery-word-${mnemonicIndex}`
           return (
-            <div key={mnemonicIndex} className="-mb-3">
+            <div key={mnemonicIndex} className="step-enter -mb-3">
               <FormInput
                 id={inputId}
                 label={t('onboarding.confirmWordLabel', { index: mnemonicIndex + 1 })}
                 labelClassName="mb-1 block text-xs font-medium text-[#FDF9E4]"
                 type="text"
+                autoFocus
                 autoComplete="off"
                 autoCapitalize="none"
                 spellCheck={false}
@@ -87,10 +94,8 @@ export function RecoveryKeyConfirmStep({
                 borderClass={borderClassForState(state)}
                 placeholder={t('onboarding.confirmWordPlaceholder', { index: mnemonicIndex + 1 })}
               />
-              <FieldFeedback visible={state !== 'empty'} color={state === 'correct' ? 'teal' : 'red'}>
-                {state === 'correct'
-                  ? t('onboarding.confirmCorrect')
-                  : t('onboarding.confirmIncorrect')}
+              <FieldFeedback visible={state === 'wrong'} color="red">
+                {t('onboarding.confirmIncorrect')}
               </FieldFeedback>
             </div>
           )
@@ -100,10 +105,12 @@ export function RecoveryKeyConfirmStep({
           {error}
         </FieldFeedback>
 
-        <AuthSubmitButton disabled={!allCorrect || isSubmitting}>
-          <Check size={14} />
-          {isSubmitting ? t('onboarding.finishingSetup') : t('onboarding.verifyAndComplete')}
-        </AuthSubmitButton>
+        {allCorrect && (
+          <AuthSubmitButton className="step-enter" disabled={isSubmitting}>
+            <Check size={14} />
+            {isSubmitting ? t('onboarding.finishingSetup') : t('onboarding.verifyAndComplete')}
+          </AuthSubmitButton>
+        )}
       </form>
     </OnboardingShell>
   )
