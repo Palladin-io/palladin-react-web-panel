@@ -38,13 +38,10 @@ const PENDING_PILL: StatusPill = {
  * A detail row value:
  * - `text`   → a plain string value (tooltip + truncate); `'—'` when absent
  * - `entry`  → bold entry label with an optional "· vault" suffix
- * - `access` → grant access policy (uses-left / expires-in / unlimited),
- *   localized by the card since it needs `t` + relative-time formatting
  */
 export type DetailRowValue =
   | { kind: 'text'; text: string }
   | { kind: 'entry'; entry: string; vault: string | null }
-  | { kind: 'access'; queryLimit?: number; queryCount?: number; expiresAt?: string }
 
 /** One labelled detail row inside a card. */
 export interface DetailRow {
@@ -114,23 +111,6 @@ function entryRow(item: NotificationItem): DetailRow {
   const entry = meta(item, 'entryLabel') ?? FALLBACK
   const vault = meta(item, 'vaultName') ?? null
   return { labelKey: 'notifications.card.rowEntry', value: { kind: 'entry', entry, vault } }
-}
-
-/** Grant access-policy row — the card localizes uses-left / expires-in / unlimited. */
-function accessRow(item: NotificationItem): DetailRow {
-  const queryLimit = numeric(meta(item, 'queryLimit'))
-  const queryCount = numeric(meta(item, 'queryCount'))
-  const expiresAt = meta(item, 'expiresAt')
-  return {
-    labelKey: 'notifications.card.rowAccess',
-    value: { kind: 'access', queryLimit, queryCount, expiresAt },
-  }
-}
-
-function numeric(value: string | undefined): number | undefined {
-  if (value == null) return undefined
-  const n = Number(value)
-  return Number.isFinite(n) ? n : undefined
 }
 
 /**
@@ -273,7 +253,7 @@ export function notificationCardPresentation(
         rows: [
           entryRow(item),
           metaRow(item, 'notifications.card.rowMethods', 'methods'),
-          accessRow(item),
+          metaRow(item, 'notifications.card.rowReason', 'reason'),
           metaRow(item, 'notifications.card.rowBy', 'actorName'),
         ],
       }

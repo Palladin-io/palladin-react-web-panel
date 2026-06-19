@@ -4,7 +4,6 @@ import { AgentAvatar } from '../agents/components/agent-avatar'
 import { Icon } from '../../shared/components/icon'
 import { Tooltip } from '../../shared/components/tooltip'
 import {
-  formatExpiresIn,
   formatGrantDate,
   formatRelativeTime,
 } from '../grants/components/grant-format'
@@ -165,8 +164,6 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
 }
 
 function RowValue({ value }: { value: DetailRowValue }) {
-  const { t } = useTranslation()
-
   if (value.kind === 'entry') {
     return (
       <span className="block truncate">
@@ -176,39 +173,11 @@ function RowValue({ value }: { value: DetailRowValue }) {
     )
   }
 
-  if (value.kind === 'access') {
-    const text = formatAccess(value, t)
-    return (
-      <Tooltip content={text} className="block truncate">
-        {text}
-      </Tooltip>
-    )
-  }
-
   return (
     <Tooltip content={value.text} className="block truncate">
       {value.text}
     </Tooltip>
   )
-}
-
-/**
- * Localizes a grant access policy — mirrors org-grants `accessSummary`:
- * use-capped → "{left}/{limit} uses"; time-limited → "expires in 6d";
- * otherwise → "Unlimited".
- */
-function formatAccess(
-  value: { queryLimit?: number; queryCount?: number; expiresAt?: string },
-  t: ReturnType<typeof useTranslation>['t'],
-): string {
-  if (value.queryLimit != null) {
-    const left = Math.max(value.queryLimit - (value.queryCount ?? 0), 0)
-    return t('grants.org.usesLeft', { left, limit: value.queryLimit })
-  }
-  if (value.expiresAt) {
-    return formatExpiresIn(value.expiresAt, t)
-  }
-  return t('grants.org.unlimited')
 }
 
 function CardAvatar({ header }: { header: CardHeaderIcon }) {

@@ -166,38 +166,33 @@ describe('notificationCardPresentation', () => {
     expect(card.rows[2].value).toEqual({ kind: 'text', text: '—' })
   })
 
-  it('grant_approved shows Entry · Methods · Access · By; Access reads use limit / expiry / unlimited', () => {
-    const uses = notificationCardPresentation(
+  it('grant_approved shows immutable Entry · Methods · Reason · By (no mutable access counter)', () => {
+    const card = notificationCardPresentation(
       makeItem({
         type: 'grant_approved',
         category: 'update',
-        metadata: { entryLabel: 'AWS Key', queryLimit: '20', queryCount: '2' },
+        metadata: {
+          entryLabel: 'AWS Key',
+          methods: 'get, inject',
+          reason: 'CI deploy',
+          actorName: 'Patryk R.',
+        },
       }),
     )
-    expect(uses.rows.map((r) => r.labelKey)).toEqual([
+    expect(card.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowEntry',
       'notifications.card.rowMethods',
-      'notifications.card.rowAccess',
+      'notifications.card.rowReason',
       'notifications.card.rowBy',
     ])
-    expect(uses.rows[2].value).toEqual({
-      kind: 'access',
-      queryLimit: 20,
-      queryCount: 2,
-      expiresAt: undefined,
-    })
+    expect(card.rows[2].value).toEqual({ kind: 'text', text: 'CI deploy' })
+    expect(card.rows[3].value).toEqual({ kind: 'text', text: 'Patryk R.' })
 
-    const unlimited = notificationCardPresentation(
+    // Reason falls back to em-dash when absent
+    const noReason = notificationCardPresentation(
       makeItem({ type: 'grant_approved', category: 'update', metadata: { entryLabel: 'AWS Key' } }),
     )
-    expect(unlimited.rows[2].value).toEqual({
-      kind: 'access',
-      queryLimit: undefined,
-      queryCount: undefined,
-      expiresAt: undefined,
-    })
-    // By falls back to em-dash when no actor is present
-    expect(unlimited.rows[3].value).toEqual({ kind: 'text', text: '—' })
+    expect(noReason.rows[2].value).toEqual({ kind: 'text', text: '—' })
   })
 
   it('agent_approved shows the agent rows and NO "By" row', () => {
