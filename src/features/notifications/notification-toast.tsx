@@ -20,6 +20,13 @@ import type { NotificationPayload } from './notification-types'
 export function showNotificationToast(payload: NotificationPayload) {
   const { type } = payload
 
+  // agent_resolved is an invisible collapse marker; agent_approved is
+  // informational and the approver already sees an action toast. Neither
+  // pops its own toast (the inbox + badge still update). Also avoids an
+  // empty toast — neither had a case, so they fell through to the empty
+  // server-supplied title.
+  if (type === 'agent_resolved' || type === 'agent_approved') return
+
   switch (type) {
     case 'grant_approved':
       toast.success(i18n.t('notifications.grantApproved.title'), {

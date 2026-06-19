@@ -109,7 +109,7 @@ describe('notificationCardPresentation', () => {
           agentId: 'a-123',
           host: 'build-server-eu-west-1.internal',
           ip: '10.0.0.5',
-          keyHint: 'pk_abc123',
+          agentPublicKey: 'ABCDEFGHxxxxxxxxxxYYYYYY',
         },
       }),
     )
@@ -118,7 +118,8 @@ describe('notificationCardPresentation', () => {
       'notifications.card.rowAgentId',
       'notifications.card.rowHostIp',
     ])
-    expect(card.rows[0].value).toEqual({ kind: 'text', text: 'pk_abc123' })
+    // Full key shortened client-side per the Key & ID Display Standard (first 8 … last 6).
+    expect(card.rows[0].value).toEqual({ kind: 'text', text: 'ABCDEFGH…YYYYYY' })
     const hostIp = card.rows[2].value
     expect(hostIp.kind).toBe('text')
     if (hostIp.kind === 'text') {

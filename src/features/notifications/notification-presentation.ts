@@ -151,9 +151,14 @@ function agentHostIp(item: NotificationItem): string | undefined {
  * Fixed 3-row agent identity block: Public key · Agent Id · Host · Ip. Always
  * three rows — missing values show the em-dash placeholder.
  */
+function agentPublicKeyShort(item: NotificationItem): string | undefined {
+  const pk = meta(item, 'agentPublicKey')
+  return pk ? shortenKey(pk, 8, 6) : undefined
+}
+
 function agentRows(item: NotificationItem): DetailRow[] {
   return [
-    textRow('notifications.card.rowPublicKey', meta(item, 'keyHint')),
+    textRow('notifications.card.rowPublicKey', agentPublicKeyShort(item)),
     metaRow(item, 'notifications.card.rowAgentId', 'agentId'),
     textRow('notifications.card.rowHostIp', agentHostIp(item)),
   ]
