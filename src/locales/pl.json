@@ -469,6 +469,7 @@
   "notifications.card.rowHostIp": "Host · Ip",
   "notifications.card.rowPublicKey": "Klucz publiczny",
   "notifications.card.rowAgentId": "Id agenta",
+  "notifications.card.rowType": "Typ",
   "notifications.card.rowError": "Błąd",
   "notifications.card.rowAttempts": "Próby",
   "notifications.card.rowAccess": "Dostęp",

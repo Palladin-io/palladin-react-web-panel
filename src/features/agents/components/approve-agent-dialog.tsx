@@ -17,6 +17,8 @@ export interface ApproveAgentDialogProps {
   agentId: string
   /** Pre-fills the name input — the agent's existing name if set. */
   initialName?: string
+  /** Pre-fills the type — the type the agent reported at connect (e.g. "ci"). */
+  initialType?: string
   isPending: boolean
   onConfirm: (input: {
     name?: string
@@ -34,6 +36,7 @@ export function ApproveAgentDialog({
   agentName,
   agentId,
   initialName = '',
+  initialType = '',
   isPending,
   onConfirm,
   onCancel,
@@ -41,8 +44,8 @@ export function ApproveAgentDialog({
   const { t } = useTranslation()
   const agentTypes = useAgentTypes()
   const [name, setName] = useState(initialName)
-  const [typeInput, setTypeInput] = useState('')
-  const [typeValue, setTypeValue] = useState('')
+  const [typeInput, setTypeInput] = useState(initialType)
+  const [typeValue, setTypeValue] = useState(initialType)
   const [selectedIcon, setSelectedIcon] = useState<string | undefined>(undefined)
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_AGENT_COLOR)
   const [pendingFile, setPendingFile] = useState<File | null>(null)

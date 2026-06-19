@@ -99,7 +99,7 @@ describe('notificationCardPresentation', () => {
     expect(card.rows).toHaveLength(0)
   })
 
-  it('agent_pending: 3 fixed rows public key · agent id · host·ip (in order)', () => {
+  it('agent_pending: fixed rows public key · type · agent id · host·ip (in order)', () => {
     const card = notificationCardPresentation(
       makeItem({
         type: 'agent_pending',
@@ -107,6 +107,7 @@ describe('notificationCardPresentation', () => {
         metadata: {
           agentName: 'CI Runner',
           agentId: 'a-123',
+          agentType: 'ci',
           host: 'build-server-eu-west-1.internal',
           ip: '10.0.0.5',
           agentPublicKey: 'ABCDEFGHxxxxxxxxxxYYYYYY',
@@ -115,12 +116,14 @@ describe('notificationCardPresentation', () => {
     )
     expect(card.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowPublicKey',
+      'notifications.card.rowType',
       'notifications.card.rowAgentId',
       'notifications.card.rowHostIp',
     ])
     // Full key shortened client-side per the Key & ID Display Standard (first 8 … last 6).
     expect(card.rows[0].value).toEqual({ kind: 'text', text: 'ABCDEFGH…YYYYYY' })
-    const hostIp = card.rows[2].value
+    expect(card.rows[1].value).toEqual({ kind: 'text', text: 'ci' })
+    const hostIp = card.rows[3].value
     expect(hostIp.kind).toBe('text')
     if (hostIp.kind === 'text') {
       expect(hostIp.text).toContain('…')
@@ -129,7 +132,7 @@ describe('notificationCardPresentation', () => {
     }
   })
 
-  it('agent_pending always keeps 3 rows, missing values → em-dash', () => {
+  it('agent_pending always keeps the fixed rows, missing values → em-dash', () => {
     const card = notificationCardPresentation(
       makeItem({
         type: 'agent_pending',
@@ -137,15 +140,17 @@ describe('notificationCardPresentation', () => {
         metadata: { agentId: 'a-1' },
       }),
     )
-    // no public key, no host/ip → still 3 rows, placeholders for the missing
+    // no public key/type/host/ip → still the fixed rows, placeholders for missing
     expect(card.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowPublicKey',
+      'notifications.card.rowType',
       'notifications.card.rowAgentId',
       'notifications.card.rowHostIp',
     ])
     expect(card.rows[0].value).toEqual({ kind: 'text', text: '—' })
-    expect(card.rows[1].value).toEqual({ kind: 'text', text: 'a-1' })
-    expect(card.rows[2].value).toEqual({ kind: 'text', text: '—' })
+    expect(card.rows[1].value).toEqual({ kind: 'text', text: '—' })
+    expect(card.rows[2].value).toEqual({ kind: 'text', text: 'a-1' })
+    expect(card.rows[3].value).toEqual({ kind: 'text', text: '—' })
   })
 
   it('grant_pending always keeps 3 rows even when methods/reason are absent', () => {
@@ -194,7 +199,7 @@ describe('notificationCardPresentation', () => {
     expect(unlimited.rows[2].value).toEqual({ kind: 'text', text: '—' })
   })
 
-  it('agent_approved shows the 3 agent rows and NO "By" row', () => {
+  it('agent_approved shows the agent rows and NO "By" row', () => {
     const card = notificationCardPresentation(
       makeItem({
         type: 'agent_approved',
@@ -204,6 +209,7 @@ describe('notificationCardPresentation', () => {
     )
     expect(card.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowPublicKey',
+      'notifications.card.rowType',
       'notifications.card.rowAgentId',
       'notifications.card.rowHostIp',
     ])
@@ -226,8 +232,8 @@ describe('notificationCardPresentation', () => {
     const card = notificationCardPresentation(
       makeItem({ type: 'agent_pending', category: 'actionRequired', metadata: {} }),
     )
-    // Still the fixed 3 rows (all em-dash) — never collapses.
-    expect(card.rows).toHaveLength(3)
+    // Still the fixed rows (all em-dash) — never collapses.
+    expect(card.rows).toHaveLength(4)
     expect(card.rows.every((r) => r.value.kind === 'text' && r.value.text === '—')).toBe(true)
     // No agent name → null subtitleAgent + the "Unknown agent" fallback key the
     // card resolves into the subtitle (title stays the localized type name).

@@ -48,6 +48,7 @@ type Segment = 'all' | 'todo' | 'history'
 interface AgentTarget {
   agentId: string
   agentName: string
+  agentType?: string
   notificationId: string
 }
 
@@ -416,6 +417,7 @@ export function NotificationCenterPage() {
           agentId={agentApproveTarget.agentId}
           agentName={agentApproveTarget.agentName}
           initialName={agentApproveTarget.agentName}
+          initialType={agentApproveTarget.agentType ?? ''}
           isPending={approveAgent.isPending}
           onConfirm={handleApproveAgent}
           onCancel={() => setAgentApproveTarget(null)}
@@ -511,6 +513,7 @@ function ActionFooter({
       )
     }
     const agentName = item.metadata?.agentName ?? ''
+    const agentType = item.metadata?.agentType ?? ''
     return (
       <>
         <Button
@@ -527,7 +530,7 @@ function ActionFooter({
           size="sm"
                    className="flex-1"
           disabled={busy}
-          onClick={() => onApproveAgent({ agentId, agentName, notificationId: item.id })}
+          onClick={() => onApproveAgent({ agentId, agentName, agentType, notificationId: item.id })}
         >
           {t('grants.approve.action')}
         </Button>
