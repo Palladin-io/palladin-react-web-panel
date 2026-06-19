@@ -166,7 +166,7 @@ describe('notificationCardPresentation', () => {
     expect(card.rows[2].value).toEqual({ kind: 'text', text: '—' })
   })
 
-  it('grant_approved shows Entry · Access · By; Access reads use limit / expiry / unlimited', () => {
+  it('grant_approved shows Entry · Methods · Access · By; Access reads use limit / expiry / unlimited', () => {
     const uses = notificationCardPresentation(
       makeItem({
         type: 'grant_approved',
@@ -176,10 +176,11 @@ describe('notificationCardPresentation', () => {
     )
     expect(uses.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowEntry',
+      'notifications.card.rowMethods',
       'notifications.card.rowAccess',
       'notifications.card.rowBy',
     ])
-    expect(uses.rows[1].value).toEqual({
+    expect(uses.rows[2].value).toEqual({
       kind: 'access',
       queryLimit: 20,
       queryCount: 2,
@@ -189,14 +190,14 @@ describe('notificationCardPresentation', () => {
     const unlimited = notificationCardPresentation(
       makeItem({ type: 'grant_approved', category: 'update', metadata: { entryLabel: 'AWS Key' } }),
     )
-    expect(unlimited.rows[1].value).toEqual({
+    expect(unlimited.rows[2].value).toEqual({
       kind: 'access',
       queryLimit: undefined,
       queryCount: undefined,
       expiresAt: undefined,
     })
     // By falls back to em-dash when no actor is present
-    expect(unlimited.rows[2].value).toEqual({ kind: 'text', text: '—' })
+    expect(unlimited.rows[3].value).toEqual({ kind: 'text', text: '—' })
   })
 
   it('agent_approved shows the agent rows and NO "By" row', () => {

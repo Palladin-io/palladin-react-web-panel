@@ -272,6 +272,7 @@ export function notificationCardPresentation(
         pill: { labelKey: 'notifications.card.pill.active', tone: 'green' },
         rows: [
           entryRow(item),
+          metaRow(item, 'notifications.card.rowMethods', 'methods'),
           accessRow(item),
           metaRow(item, 'notifications.card.rowBy', 'actorName'),
         ],
