@@ -310,7 +310,7 @@ export function NotificationCenterPage() {
                     <NotificationCard
                       key={item.id}
                       item={item}
-                      onSeen={(id) => markRead.mutate(id)}
+                      onSeen={markRead.mutate}
                       footer={
                         <ActionFooter
                           item={item}
@@ -348,7 +348,7 @@ export function NotificationCenterPage() {
                     <NotificationCard
                       key={item.id}
                       item={item}
-                      onSeen={(id) => markRead.mutate(id)}
+                      onSeen={markRead.mutate}
                       footer={
                         <HistoryFooter
                           item={item}
