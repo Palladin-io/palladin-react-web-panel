@@ -15,12 +15,12 @@ import {
   useDenyGrant,
   useRegrant,
   useRevokeOrgGrant,
+  GRANT_TYPE_GRANULAR,
   type GrantMethod,
   type GrantPolicyBody,
+  type OrgGrant,
+  type PendingGrant,
 } from '../grants'
-import type { PendingGrant } from '../grants'
-import type { OrgGrant } from '../grants/api/org-grants-api'
-import { GRANT_TYPE_GRANULAR } from '../grants/api/org-grants-api'
 import {
   ApproveAgentDialog,
   useApproveAgent,

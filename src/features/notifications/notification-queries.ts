@@ -105,7 +105,10 @@ export function useMarkNotificationRead() {
   return useMutation({
     mutationFn: markNotificationRead,
     onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
+      // Scope cancellation to the feed caches we actually patch — a broad
+      // `['notifications']` prefix would also abort an in-flight preferences
+      // fetch (`['notifications','preferences']`).
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_LIST_PREFIX })
       const readAt = new Date().toISOString()
       const previousFeeds = patchFeedItems(queryClient, (item) =>
         item.id === id && !item.readAt ? { ...item, readAt } : item,
@@ -142,7 +145,8 @@ export function useMarkAllNotificationsRead() {
   return useMutation({
     mutationFn: markAllNotificationsRead,
     onMutate: async () => {
-      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
+      // Same scoping rationale as useMarkNotificationRead — only the feed lists.
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_LIST_PREFIX })
       const readAt = new Date().toISOString()
       const previousFeeds = patchFeedItems(queryClient, (item) =>
         item.readAt ? item : { ...item, readAt },

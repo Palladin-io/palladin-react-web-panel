@@ -26,7 +26,10 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 // Grant flows are exercised by their own suites — here we only need the barrel
 // to resolve so the page renders and wires action buttons.
-vi.mock('../grants', () => ({
+vi.mock('../grants', async (importOriginal) => ({
+  // Keep real formatters + constants (used by NotificationCard); stub only the
+  // hooks and dialogs so grant flows are exercised by their own suites.
+  ...(await importOriginal<typeof import('../grants')>()),
   ApproveGrantDialog: () => null,
   // Stub exposes a confirm button so the page's handleDeny → deny.mutate →
   // onSuccess wiring can be exercised end-to-end.
@@ -50,7 +53,9 @@ vi.mock('../grants', () => ({
   useRevokeOrgGrant: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
-vi.mock('../agents', () => ({
+vi.mock('../agents', async (importOriginal) => ({
+  // Keep real AgentAvatar (rendered by NotificationCard); stub the hooks/dialog.
+  ...(await importOriginal<typeof import('../agents')>()),
   ApproveAgentDialog: () => null,
   useApproveAgent: () => ({ mutate: vi.fn(), isPending: false }),
   useDeactivateAgent: () => ({ mutate: vi.fn(), isPending: false }),

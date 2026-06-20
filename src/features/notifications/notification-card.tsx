@@ -1,12 +1,9 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AgentAvatar } from '../agents/components/agent-avatar'
+import { AgentAvatar } from '../agents'
 import { Icon } from '../../shared/components/icon'
 import { Tooltip } from '../../shared/components/tooltip'
-import {
-  formatGrantDate,
-  formatRelativeTime,
-} from '../grants/components/grant-format'
+import { formatGrantDate, formatRelativeTime } from '../grants'
 import type { NotificationItem } from './notifications-api'
 import {
   notificationCardPresentation,

@@ -24,3 +24,8 @@ export {
 } from './query-keys'
 export type { Grant, GrantStatus, GrantMode } from './api/grants-api'
 export type { PendingGrant } from './api/pending-grants-api'
+// Promoted for the Notification Center (CVT-164): the Inbox shares the grant
+// date/relative-time formatters and the org-grant type + granular discriminant.
+export { formatGrantDate, formatRelativeTime } from './components/grant-format'
+export type { OrgGrant } from './api/org-grants-api'
+export { GRANT_TYPE_GRANULAR } from './api/org-grants-api'

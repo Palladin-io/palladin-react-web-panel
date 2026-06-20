@@ -17,3 +17,5 @@ export { useApproveAgent } from './use-approve-agent'
 export { useDeactivateAgent } from './use-deactivate-agent'
 export { ApproveAgentDialog } from './components/approve-agent-dialog'
 export type { ApproveAgentInput } from './api/agents-api'
+// Shared agent glyph reused by the Notification Center card header (CVT-164).
+export { AgentAvatar } from './components/agent-avatar'
