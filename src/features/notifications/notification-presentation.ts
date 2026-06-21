@@ -6,33 +6,17 @@ import type { NotificationItem } from './notifications-api'
  *
  * The backend sends a `titleKey` (i18n key) + presentational `metadata` (names
  * + ids, never secrets). This module turns a `NotificationItem` into the visual
- * pieces of a grant-style card — header avatar, name, subtitle, status pill and
- * detail rows. It is PURE DATA (no JSX/hooks) so it is trivial to unit-test and
- * the card component owns all rendering + localisation.
+ * pieces of a card — header avatar, name, subtitle and detail rows. It is PURE
+ * DATA (no JSX/hooks) so it is trivial to unit-test and the card component owns
+ * all rendering + localisation.
+ *
+ * A notification card is an IMMUTABLE LOG of an event, not a live control panel:
+ * the title + card colour carry the meaning of the event, so there is no live
+ * status pill that would claim to reflect the resource's CURRENT state.
  *
  * Forward-compatible: an unknown `type` falls back to a generic card that just
- * carries the `titleKey` with no rows/pill.
+ * carries the `titleKey` with no rows.
  */
-
-/** Status pill colour family — on-palette tokens (green/red/amber). */
-export type PillTone = 'green' | 'red' | 'amber'
-
-export interface StatusPill {
-  /** i18n key for the pill label. */
-  labelKey: string
-  tone: PillTone
-}
-
-/**
- * Shared "Pending" pill for every action-required card (agent_pending,
- * grant_pending, credential_stale) so they carry the same status affordance as
- * terminal cards (Active/Denied/Revoked) — one consistent pattern: date on the
- * title line, status pill underneath. Amber = awaiting action.
- */
-const PENDING_PILL: StatusPill = {
-  labelKey: 'notifications.card.pill.pending',
-  tone: 'amber',
-}
 
 /**
  * A detail row value:
@@ -81,8 +65,6 @@ export interface CardPresentation {
    * `notifications.agentSoftFallback` for grant/credential cards.
    */
   subtitleAgentFallbackKey: string
-  /** Optional status pill (History items). */
-  pill: StatusPill | null
   rows: DetailRow[]
 }
 
@@ -196,7 +178,6 @@ export function notificationCardPresentation(
         subtitleKey: 'notifications.sub.grantPending',
         subtitleAgent: agentName,
         subtitleAgentFallbackKey: SOFT,
-        pill: PENDING_PILL,
         rows: [
           entryRow(item),
           metaRow(item, 'notifications.card.rowMethods', 'methods'),
@@ -211,7 +192,6 @@ export function notificationCardPresentation(
         subtitleKey: 'notifications.sub.agentPending',
         subtitleAgent: agentName,
         subtitleAgentFallbackKey: UNKNOWN,
-        pill: PENDING_PILL,
         rows: agentRows(item),
       }
 
@@ -222,7 +202,6 @@ export function notificationCardPresentation(
         subtitleKey: 'notifications.sub.agentApproved',
         subtitleAgent: agentName,
         subtitleAgentFallbackKey: UNKNOWN,
-        pill: { labelKey: 'notifications.card.pill.active', tone: 'green' },
         // Same 3 agent rows as agent_pending — no "By" row.
         rows: agentRows(item),
       }
@@ -234,7 +213,6 @@ export function notificationCardPresentation(
         subtitleKey: 'notifications.sub.credentialStale',
         subtitleAgent: agentName,
         subtitleAgentFallbackKey: SOFT,
-        pill: PENDING_PILL,
         rows: [
           entryRow(item),
           metaRow(item, 'notifications.card.rowError', 'errorHint'),
@@ -249,7 +227,6 @@ export function notificationCardPresentation(
         subtitleKey: 'notifications.sub.grantUpdate',
         subtitleAgent: agentName,
         subtitleAgentFallbackKey: SOFT,
-        pill: { labelKey: 'notifications.card.pill.active', tone: 'green' },
         rows: [
           entryRow(item),
           metaRow(item, 'notifications.card.rowMethods', 'methods'),
@@ -258,6 +235,8 @@ export function notificationCardPresentation(
         ],
       }
 
+    // Backend no longer emits grant_revoked, but a historical row must still
+    // render as an immutable log (no actions, no pill) rather than crash.
     case 'grant_revoked':
       return {
         header: { kind: 'agent', agentName, agentId, agentIconKey },
@@ -265,7 +244,6 @@ export function notificationCardPresentation(
         subtitleKey: 'notifications.sub.grantUpdate',
         subtitleAgent: agentName,
         subtitleAgentFallbackKey: SOFT,
-        pill: { labelKey: 'notifications.card.pill.revoked', tone: 'red' },
         rows: [
           entryRow(item),
           metaRow(item, 'notifications.card.rowReason', 'reason'),
@@ -280,7 +258,6 @@ export function notificationCardPresentation(
         subtitleKey: 'notifications.sub.grantUpdate',
         subtitleAgent: agentName,
         subtitleAgentFallbackKey: SOFT,
-        pill: { labelKey: 'notifications.card.pill.denied', tone: 'amber' },
         rows: [
           entryRow(item),
           metaRow(item, 'notifications.card.rowReason', 'reason'),
@@ -296,7 +273,6 @@ export function notificationCardPresentation(
         subtitleKey: 'notifications.sub.generic',
         subtitleAgent: agentName,
         subtitleAgentFallbackKey: SOFT,
-        pill: null,
         rows: [],
       }
   }

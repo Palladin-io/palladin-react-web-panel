@@ -44,7 +44,6 @@ describe('notificationCardPresentation', () => {
     expect(card.titleKey).toBe('notifications.type.grantPending')
     expect(card.subtitleKey).toBe('notifications.sub.grantPending')
     expect(card.subtitleAgent).toBe('Deploy Bot')
-    expect(card.pill).toEqual({ labelKey: 'notifications.card.pill.pending', tone: 'amber' })
     expect(card.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowEntry',
       'notifications.card.rowMethods',
@@ -66,22 +65,23 @@ describe('notificationCardPresentation', () => {
     expect(card.subtitleAgent).toBe('Billing Bot')
   })
 
-  it('gives every action-required card a "Pending" pill', () => {
-    for (const type of ['agent_pending', 'grant_pending', 'credential_stale']) {
-      const card = notificationCardPresentation(
-        makeItem({ type, category: 'actionRequired' }),
-      )
-      expect(card.pill).toEqual({ labelKey: 'notifications.card.pill.pending', tone: 'amber' })
+  it('never carries a live status pill — the card is an immutable log', () => {
+    // No presentation exposes a `pill`: title + copy describe the event, not the
+    // resource's current state.
+    const types = [
+      'agent_pending',
+      'grant_pending',
+      'credential_stale',
+      'grant_approved',
+      'grant_denied',
+      'grant_revoked',
+      'agent_approved',
+      'something_new',
+    ]
+    for (const type of types) {
+      const card = notificationCardPresentation(makeItem({ type }))
+      expect(card).not.toHaveProperty('pill')
     }
-  })
-
-  it('attaches a status pill to history items', () => {
-    expect(notificationCardPresentation(makeItem({ type: 'grant_approved' })).pill).toEqual({
-      labelKey: 'notifications.card.pill.active',
-      tone: 'green',
-    })
-    expect(notificationCardPresentation(makeItem({ type: 'grant_revoked' })).pill?.tone).toBe('red')
-    expect(notificationCardPresentation(makeItem({ type: 'grant_denied' })).pill?.tone).toBe('amber')
   })
 
   it('models the entry row as a bold entry + vault suffix', () => {
@@ -212,7 +212,7 @@ describe('notificationCardPresentation', () => {
     expect(card.rows.some((r) => r.labelKey === 'notifications.card.rowBy')).toBe(false)
   })
 
-  it('renders agent_approved as an informational card with an active pill', () => {
+  it('renders agent_approved as an informational card with an agent header', () => {
     const card = notificationCardPresentation(
       makeItem({
         type: 'agent_approved',
@@ -221,7 +221,6 @@ describe('notificationCardPresentation', () => {
       }),
     )
     expect(card.header.kind).toBe('agent')
-    expect(card.pill).toEqual({ labelKey: 'notifications.card.pill.active', tone: 'green' })
   })
 
   it('degrades agent_pending gracefully when metadata is empty', () => {

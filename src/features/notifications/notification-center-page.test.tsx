@@ -17,9 +17,11 @@ const denyMutate = vi.hoisted(() =>
   ),
 )
 
+const navigateMock = vi.hoisted(() => vi.fn())
+
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigateMock,
 }))
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
@@ -45,12 +47,8 @@ vi.mock('../grants', async (importOriginal) => ({
         confirm deny
       </button>
     ) : null,
-  GrantAgainDialog: () => null,
-  RevokeGrantDialog: () => null,
   useApproveGrant: () => ({ mutate: vi.fn(), isPending: false }),
   useDenyGrant: () => ({ mutate: denyMutate, isPending: false }),
-  useRegrant: () => ({ mutate: vi.fn(), isPending: false }),
-  useRevokeOrgGrant: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 
 vi.mock('../agents', async (importOriginal) => ({
@@ -81,9 +79,9 @@ const items: NotificationItem[] = [
   },
   {
     id: 'n2',
-    type: 'grant_revoked',
-    category: 'actionRequired',
-    titleKey: 'notifications.grantRevoked.title',
+    type: 'grant_approved',
+    category: 'update',
+    titleKey: 'notifications.grantApproved.title',
     metadata: {
       grantId: 'g2',
       vaultId: 'v1',
@@ -92,10 +90,11 @@ const items: NotificationItem[] = [
       agentName: 'Old Bot',
       entryLabel: 'SSH Key',
       vaultName: 'Legacy',
+      actionDeepLink: '/agents/a2',
     },
     occurredAt: '2026-06-15T09:00:00Z',
     readAt: '2026-06-15T09:05:00Z',
-    actionState: 'resolved',
+    actionState: null,
   },
 ]
 
@@ -139,9 +138,10 @@ describe('NotificationCenterPage', () => {
     markRead.mockReset()
     markAllRead.mockReset()
     denyMutate.mockClear()
+    navigateMock.mockReset()
   })
 
-  it('splits action-required (pending) into Required actions and resolved into History', () => {
+  it('splits pending action-required into To-do and updates into History', () => {
     renderPage()
 
     // pending grant request → To-do card: type title + agent in the subtitle
@@ -149,7 +149,7 @@ describe('NotificationCenterPage', () => {
     expect(screen.getByText(/Deploy Bot/)).toBeInTheDocument()
     expect(screen.getByText('GitHub Token')).toBeInTheDocument()
 
-    // a resolved action-required item drops into History (revoked → grant again)
+    // an update (grant_approved) drops into History as an immutable log
     expect(screen.getByText(/Old Bot/)).toBeInTheDocument()
   })
 
@@ -158,6 +158,24 @@ describe('NotificationCenterPage', () => {
 
     expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Deny' })).toBeInTheDocument()
+  })
+
+  it('shows only a non-mutating "View" link on a History card — no Revoke', () => {
+    renderPage()
+
+    // The immutable log card never offers a mutating action inline.
+    expect(screen.queryByRole('button', { name: /revoke/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /grant again/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'View' })).toBeInTheDocument()
+  })
+
+  it('deep-links and marks read when the "View" link is clicked', () => {
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'View' }))
+
+    expect(markRead).toHaveBeenCalledWith('n2')
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/agents/a2' })
   })
 
   it('marks everything read from the header', () => {
