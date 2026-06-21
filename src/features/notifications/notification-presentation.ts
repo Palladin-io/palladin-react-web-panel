@@ -202,8 +202,13 @@ export function notificationCardPresentation(
         subtitleKey: 'notifications.sub.agentApproved',
         subtitleAgent: agentName,
         subtitleAgentFallbackKey: UNKNOWN,
-        // Same 3 agent rows as agent_pending — no "By" row.
-        rows: agentRows(item),
+        // Approved record: Agent Id first, no public key, approver ("By") last.
+        rows: [
+          metaRow(item, 'notifications.card.rowAgentId', 'agentId'),
+          metaRow(item, 'notifications.card.rowType', 'agentType'),
+          textRow('notifications.card.rowHostIp', agentHostIp(item)),
+          metaRow(item, 'notifications.card.rowBy', 'actorName'),
+        ],
       }
 
     case 'credential_stale':

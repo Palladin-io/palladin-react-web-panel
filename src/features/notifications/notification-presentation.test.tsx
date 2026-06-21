@@ -195,21 +195,23 @@ describe('notificationCardPresentation', () => {
     expect(noReason.rows[2].value).toEqual({ kind: 'text', text: '—' })
   })
 
-  it('agent_approved shows the agent rows and NO "By" row', () => {
+  it('agent_approved: Agent Id first, no public key, By (approver) last', () => {
     const card = notificationCardPresentation(
       makeItem({
         type: 'agent_approved',
         category: 'update',
-        metadata: { agentName: 'CI Runner', agentId: 'a-9', actorName: 'Patryk R.' },
+        metadata: { agentName: 'CI Runner', agentId: 'a-9', agentType: 'ci', actorName: 'Patryk R.' },
       }),
     )
     expect(card.rows.map((r) => r.labelKey)).toEqual([
-      'notifications.card.rowPublicKey',
-      'notifications.card.rowType',
       'notifications.card.rowAgentId',
+      'notifications.card.rowType',
       'notifications.card.rowHostIp',
+      'notifications.card.rowBy',
     ])
-    expect(card.rows.some((r) => r.labelKey === 'notifications.card.rowBy')).toBe(false)
+    expect(card.rows.some((r) => r.labelKey === 'notifications.card.rowPublicKey')).toBe(false)
+    expect(card.rows[0].value).toEqual({ kind: 'text', text: 'a-9' })
+    expect(card.rows[3].value).toEqual({ kind: 'text', text: 'Patryk R.' })
   })
 
   it('renders agent_approved as an informational card with an agent header', () => {
