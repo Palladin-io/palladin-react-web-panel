@@ -9,6 +9,7 @@ import { Icon } from '../../shared/components/icon'
 import {
   ApproveGrantDialog,
   DenyGrantDialog,
+  OrgGrantsPanel,
   useApproveGrant,
   useDenyGrant,
   type GrantMethod,
@@ -36,7 +37,7 @@ import {
   useNotificationsSummary,
 } from './notification-queries'
 
-type Segment = 'all' | 'todo' | 'history'
+type Segment = 'all' | 'todo' | 'history' | 'grants'
 
 /** Agent-approval target carried from an `agent_pending` card to the modal. */
 interface AgentTarget {
@@ -123,6 +124,9 @@ export function NotificationCenterPage() {
     [historyItems, query, typeFilter],
   )
 
+  // The Grants tab swaps the immutable inbox feed for the live org-wide grants
+  // panel — the only place in the inbox with live state + actions (Revoke).
+  const showGrants = segment === 'grants'
   const showActions = segment === 'all' || segment === 'todo'
   const showHistory = segment === 'all' || segment === 'history'
 
@@ -239,22 +243,27 @@ export function NotificationCenterPage() {
         </div>
       </div>
 
-      {/* Search (left) + multi-select type filter (right) — org-grants pattern */}
-      <div className="mb-3 flex items-stretch gap-2">
-        <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2 transition-colors focus-within:border-[var(--cv-t1)]">
-          <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
-          <input
-            type="text"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('notifications.center.search')}
-            className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
-          />
+      {/* Search (left) + multi-select type filter (right) — org-grants pattern.
+          Hidden on the Grants tab, where OrgGrantsPanel owns its own filtering. */}
+      {!showGrants && (
+        <div className="mb-3 flex items-stretch gap-2">
+          <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2 transition-colors focus-within:border-[var(--cv-t1)]">
+            <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
+            <input
+              type="text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t('notifications.center.search')}
+              className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
+            />
+          </div>
+          <TypeFilterDropdown selected={typeFilter} onChange={setTypeFilter} />
         </div>
-        <TypeFilterDropdown selected={typeFilter} onChange={setTypeFilter} />
-      </div>
+      )}
 
-      {notifications.isPending ? (
+      {showGrants ? (
+        <OrgGrantsPanel />
+      ) : notifications.isPending ? (
         <LoadingSkeleton />
       ) : notifications.isError ? (
         <ErrorState
@@ -484,10 +493,39 @@ function ActionFooter({
 }
 
 /**
+ * Contextual label for the "View" link — names the deep-link target so the CTA
+ * reads "View Access" / "View Agent" / "View Entry" instead of a generic "View".
+ *
+ * The notification `type` is the most reliable signal; for unmodelled types we
+ * fall back to the `actionDeepLink` path prefix (`/agents` → agent, `/vaults` →
+ * entry). Defaults to the access label (grants are the dominant inbox target).
+ */
+function viewLabelKey(item: NotificationItem): string {
+  switch (item.type) {
+    case 'agent_pending':
+    case 'agent_approved':
+      return 'notifications.center.viewAgent'
+    case 'credential_stale':
+      return 'notifications.center.viewEntry'
+    case 'grant_approved':
+    case 'grant_denied':
+    case 'grant_revoked':
+      return 'notifications.center.viewAccess'
+    default: {
+      const link = item.metadata?.actionDeepLink ?? ''
+      if (link.startsWith('/agents')) return 'notifications.center.viewAgent'
+      if (link.startsWith('/vaults')) return 'notifications.center.viewEntry'
+      return 'notifications.center.viewAccess'
+    }
+  }
+}
+
+/**
  * Footer for every non-pending card (History + non-actionable To-do): a single
- * non-mutating "View" link that deep-links to the resource detail. The card is
- * an immutable log, so it never mutates state inline. Renders nothing when the
- * backend supplied no `actionDeepLink` — the card then stands as a pure log.
+ * non-mutating "View" link that deep-links to the resource detail, with a label
+ * naming the target (Access / Agent / Entry). The card is an immutable log, so
+ * it never mutates state inline. Renders nothing when the backend supplied no
+ * `actionDeepLink` — the card then stands as a pure log.
  */
 function ViewFooter({
   item,
@@ -506,7 +544,7 @@ function ViewFooter({
       className="flex-1"
       onClick={() => onView(item)}
     >
-      {t('notifications.center.view')}
+      {t(viewLabelKey(item))}
     </Button>
   )
 }
@@ -657,6 +695,7 @@ function SegmentTabs({
     { key: 'all', label: t('notifications.center.segAll') },
     { key: 'todo', label: t('notifications.center.segTodo'), count: todoCount },
     { key: 'history', label: t('notifications.center.segHistory') },
+    { key: 'grants', label: t('notifications.center.segGrants') },
   ]
   return (
     <div className="mr-1 flex items-center" role="tablist">

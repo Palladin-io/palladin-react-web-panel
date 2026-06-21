@@ -32,6 +32,9 @@ vi.mock('../grants', async (importOriginal) => ({
   // Keep real formatters + constants (used by NotificationCard); stub only the
   // hooks and dialogs so grant flows are exercised by their own suites.
   ...(await importOriginal<typeof import('../grants')>()),
+  // Live org-wide grants panel rendered only on the Grants tab — stubbed to a
+  // marker so the tab-switch wiring can be asserted without its own deep mocks.
+  OrgGrantsPanel: () => <div data-testid="org-grants-panel" />,
   ApproveGrantDialog: () => null,
   // Stub exposes a confirm button so the page's handleDeny → deny.mutate →
   // onSuccess wiring can be exercised end-to-end.
@@ -90,10 +93,24 @@ const items: NotificationItem[] = [
       agentName: 'Old Bot',
       entryLabel: 'SSH Key',
       vaultName: 'Legacy',
-      actionDeepLink: '/agents/a2',
+      actionDeepLink: '/vaults/v1/entries/e2',
     },
     occurredAt: '2026-06-15T09:00:00Z',
     readAt: '2026-06-15T09:05:00Z',
+    actionState: null,
+  },
+  {
+    id: 'n3',
+    type: 'agent_approved',
+    category: 'update',
+    titleKey: 'notifications.agentApproved.title',
+    metadata: {
+      agentId: 'a3',
+      agentName: 'CI Runner',
+      actionDeepLink: '/agents/a3',
+    },
+    occurredAt: '2026-06-15T08:00:00Z',
+    readAt: '2026-06-15T08:05:00Z',
     actionState: null,
   },
 ]
@@ -160,22 +177,40 @@ describe('NotificationCenterPage', () => {
     expect(screen.getByRole('button', { name: 'Deny' })).toBeInTheDocument()
   })
 
-  it('shows only a non-mutating "View" link on a History card — no Revoke', () => {
+  it('shows only a contextual non-mutating "View" link on History cards — no Revoke', () => {
     renderPage()
 
     // The immutable log card never offers a mutating action inline.
     expect(screen.queryByRole('button', { name: /revoke/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /grant again/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'View' })).toBeInTheDocument()
+
+    // Label names the deep-link target: grant_approved → access, agent_approved → agent.
+    expect(screen.getByRole('button', { name: 'View Access' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'View Agent' })).toBeInTheDocument()
   })
 
-  it('deep-links and marks read when the "View" link is clicked', () => {
+  it('deep-links and marks read when a "View" link is clicked', () => {
     renderPage()
 
-    fireEvent.click(screen.getByRole('button', { name: 'View' }))
+    fireEvent.click(screen.getByRole('button', { name: 'View Access' }))
 
     expect(markRead).toHaveBeenCalledWith('n2')
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/agents/a2' })
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/vaults/v1/entries/e2' })
+  })
+
+  it('renders the live OrgGrantsPanel on the Grants tab and hides the inbox search', () => {
+    renderPage()
+
+    // Inbox feed + its search are visible by default (All tab).
+    expect(screen.getByPlaceholderText(/search by agent/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('org-grants-panel')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /grants/i }))
+
+    // Grants tab swaps in the live panel and drops the inbox search + log cards.
+    expect(screen.getByTestId('org-grants-panel')).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/search by agent/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('GitHub Token')).not.toBeInTheDocument()
   })
 
   it('marks everything read from the header', () => {
