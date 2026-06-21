@@ -11,6 +11,7 @@ import { useDeleteApiKey } from '../use-delete-api-key'
 import { useRevokeApiKey } from '../use-revoke-api-key'
 import { ApiKeyStatusBadge } from './api-key-list-panel'
 import { ModalShell } from '../../../shared/components/modal-shell'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { RevokeApiKeyDialog } from './revoke-api-key-dialog'
 
 export interface ApiKeyDetailProps {
@@ -272,7 +273,7 @@ function DeleteApiKeyDialog({
         <p className="text-[12px] text-[var(--cv-t2)]">
           {t('apiKeys.deleteConfirmText')}
         </p>
-        <div className="mt-1 flex items-center gap-2">
+        <DialogFooter>
           <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('apiKeys.cancel')}
           </Button>
@@ -285,7 +286,7 @@ function DeleteApiKeyDialog({
           >
             {t('apiKeys.confirmDelete')}
           </Button>
-        </div>
+        </DialogFooter>
       </div>
     </ModalShell>
   )

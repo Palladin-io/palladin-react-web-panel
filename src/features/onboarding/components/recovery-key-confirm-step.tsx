@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, CircleAlert, CircleCheck } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
-import { Button } from '../../../shared/components/button'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
+import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 import { pickVerificationIndices } from '../../../shared/lib/mnemonic'
 import { OnboardingShell } from './onboarding-shell'
 
@@ -69,12 +69,12 @@ export function RecoveryKeyConfirmStep({
           const state = correctness[inputIndex]
           const inputId = `recovery-word-${mnemonicIndex}`
           return (
-            <div key={mnemonicIndex} className="-mb-3">
+            <div key={mnemonicIndex}>
               <FormInput
                 id={inputId}
                 label={t('onboarding.confirmWordLabel', { index: mnemonicIndex + 1 })}
-                labelClassName="mb-1 block text-xs font-medium text-[#FDF9E4]"
                 type="text"
+                autoFocus={inputIndex === 0}
                 autoComplete="off"
                 autoCapitalize="none"
                 spellCheck={false}
@@ -87,31 +87,21 @@ export function RecoveryKeyConfirmStep({
                 borderClass={borderClassForState(state)}
                 placeholder={t('onboarding.confirmWordPlaceholder', { index: mnemonicIndex + 1 })}
               />
-              <FieldFeedback visible={state !== 'empty'} color={state === 'correct' ? 'teal' : 'red'}>
-                {state === 'correct' ? (
-                  <><CircleCheck size={12} /> {t('onboarding.confirmCorrect')}</>
-                ) : (
-                  <><CircleAlert size={12} /> {t('onboarding.confirmIncorrect')}</>
-                )}
-              </FieldFeedback>
+              <FeedbackSlot visible={state === 'wrong'} color="red">
+                {t('onboarding.confirmIncorrect')}
+              </FeedbackSlot>
             </div>
           )
         })}
 
-        <FieldFeedback visible={error !== null} color="red">
+        <FeedbackSlot visible={error !== null} color="red">
           {error}
-        </FieldFeedback>
+        </FeedbackSlot>
 
-        <Button
-          type="submit"
-          variant="accent"
-          size="sm"
-          disabled={!allCorrect || isSubmitting}
-          className="w-full"
-        >
+        <AuthSubmitButton disabled={!allCorrect || isSubmitting}>
           <Check size={14} />
           {isSubmitting ? t('onboarding.finishingSetup') : t('onboarding.verifyAndComplete')}
-        </Button>
+        </AuthSubmitButton>
       </form>
     </OnboardingShell>
   )

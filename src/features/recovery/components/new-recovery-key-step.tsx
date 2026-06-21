@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, Copy, Download, TriangleAlert } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
+import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
 import { joinMnemonic } from '../../../shared/lib/mnemonic'
 import { RecoveryShell } from './recovery-shell'
 
@@ -104,16 +105,9 @@ export function NewRecoveryKeyStep({ mnemonic, onFinish }: NewRecoveryKeyStepPro
           {t('recovery.savedCheckbox')}
         </label>
 
-        <button
-          type="button"
-          onClick={onFinish}
-          disabled={!acknowledged}
-          className="mt-1 w-full rounded-lg bg-[#FF4F4F] px-4 py-2.5 text-sm font-semibold text-white
-            transition-colors hover:bg-[#e04545]
-            disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <AuthSubmitButton type="button" onClick={onFinish} disabled={!acknowledged}>
           {t('recovery.finish')}
-        </button>
+        </AuthSubmitButton>
       </div>
     </RecoveryShell>
   )

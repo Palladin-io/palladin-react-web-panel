@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { AuthSubmitButton } from '../../shared/components/auth-submit-button'
 import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { analytics } from '../../shared/lib/analytics'
 import { useAuthStore } from '../auth'
@@ -139,15 +140,9 @@ function UnlockForm() {
             </FieldFeedback>
           </div>
 
-          <button
-            type="submit"
-            disabled={isPending || password.length === 0}
-            className="mt-2 w-full rounded-lg bg-[#FF4F4F] px-4 py-2.5 text-sm font-semibold text-white
-              transition-colors hover:bg-[#e04545]
-              disabled:cursor-not-allowed disabled:opacity-40"
-          >
+          <AuthSubmitButton className="mt-2" disabled={isPending || password.length === 0}>
             {isPending ? t('unlock.unlocking') : t('unlock.button')}
-          </button>
+          </AuthSubmitButton>
 
           <div className="mt-3 text-center">
             <Link

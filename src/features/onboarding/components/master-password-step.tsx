@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { analytics } from '../../../shared/lib/analytics'
-import { Button } from '../../../shared/components/button'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
+import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 import { PasswordStrengthBar } from '../../../shared/components/password-strength-bar'
 import {
   evaluatePasswordStrength,
@@ -24,7 +24,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
     analytics.capture('onboarding', 'setup-page-viewed')
   }, [])
 
-  const { score, label } = evaluatePasswordStrength(password)
+  const { score } = evaluatePasswordStrength(password)
   const passwordsMatch = password.length > 0 && password === confirm
   const canSubmit = isPasswordAcceptable(score) && passwordsMatch
 
@@ -50,7 +50,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
           }
         }}
       >
-        <div className="-mb-3">
+        <div>
           <FormInput
             id="master-password"
             label={t('onboarding.masterPasswordLabel')}
@@ -62,12 +62,9 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
             placeholder={t('onboarding.masterPasswordPlaceholder')}
           />
           <PasswordStrengthBar score={score} />
-          <FieldFeedback visible={password.length > 0} color="teal">
-            {label}
-          </FieldFeedback>
         </div>
 
-        <div className="-mb-3">
+        <div>
           <FormInput
             id="master-password-confirm"
             label={t('onboarding.confirmPasswordLabel')}
@@ -78,9 +75,9 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
             placeholder={t('onboarding.confirmPasswordPlaceholder')}
             error={confirm.length > 0 && !passwordsMatch}
           />
-          <FieldFeedback visible={confirm.length > 0 && !passwordsMatch} color="red">
+          <FeedbackSlot visible={confirm.length > 0 && !passwordsMatch} color="red">
             {t('onboarding.passwordsDoNotMatch')}
-          </FieldFeedback>
+          </FeedbackSlot>
         </div>
 
         <div className="rounded-lg border border-[rgba(253,249,228,0.06)] bg-[rgba(253,249,228,0.04)] px-3 py-2">
@@ -89,9 +86,9 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
           </p>
         </div>
 
-        <Button type="submit" variant="accent" size="sm" disabled={!canSubmit} className="w-full">
+        <AuthSubmitButton disabled={!canSubmit}>
           {t('onboarding.masterPasswordButton')}
-        </Button>
+        </AuthSubmitButton>
       </form>
     </OnboardingShell>
   )

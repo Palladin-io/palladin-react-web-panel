@@ -141,25 +141,31 @@ Editing `HOVERABLE_CARD_CLASSES` updates the hover border effect everywhere (vau
 
 ### Modal Footer Button Pattern
 
-All modals/dialogs that have a Cancel + primary action use a **1:2 flex ratio** row — never `justify-center` or `justify-end`:
+All modals/dialogs (`ModalShell`) put their actions in the shared `DialogFooter`
+component — never a hand-rolled `<div className="mt-* flex">`. Cancel + primary
+use a **1:2 flex ratio**; never `justify-center` or `justify-end`.
 
 ```tsx
-<div className="mt-1 flex items-center gap-2">
+import { DialogFooter } from '../../../shared/components/dialog-footer'
+
+<DialogFooter>
   <Button variant="subtle" size="sm" onClick={onClose} className="flex-1">
     {t('vault.cancel')}
   </Button>
   <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
     {t('...')}
   </Button>
-</div>
+</DialogFooter>
 ```
 
 Rules:
-- Container: `mt-1 flex items-center gap-2` — no border-top (that's for detail-page card footers, not modals)
-- Cancel: `variant="subtle"`, `size="sm"`, `className="flex-1"` (occupies 1/3)
-- Primary: `variant="accent"`, `size="sm"`, `className="flex-[2]"` (occupies 2/3)
-- `size="sm"` always (not `md`) for modal footers — matches the app-wide button standard (`+ Add Entry` reference)
-- Apply to: create dialogs, icon browser, any ModalShell with confirm/cancel
+- **Always use `DialogFooter`** (`shared/components/dialog-footer.tsx`) — it owns the edge-bleed, top border, subtle tint, and the spacing above the footer (`mt-3` + `py-3.5`). Don't reproduce the strip inline.
+- **Every button in the app is `size="sm"` (h-7 / 28px) — ONE single height, no exceptions.** Dialog footers are NOT taller than card/in-content buttons; opening a dialog must show a button the exact same height as the buttons on the cards. (`size="md"` exists in the type but must not be used.)
+- Cancel: `variant="subtle"`, `className="flex-1"` (occupies 1/3).
+- Primary: `variant="accent"` (or `positive`/`danger` per intent), `className="flex-[2]"` (occupies 2/3).
+- Single-action footer (e.g. "Done"/"Close"): one `size="sm"` button with `className="flex-1"` or `w-full`.
+- Router `<Link>` styled as a footer button: use `PREMIUM_BUTTON_SM_CLASS` / `POSITIVE_BUTTON_SM_CLASS` (the `sm` class exports) so it matches every other button's height.
+- Apply to: every `ModalShell` with confirm/cancel — create dialogs, icon browsers, approve/deny/revoke/grant-again, preferences, delete confirms.
 
 ### Validation & Notifications
 

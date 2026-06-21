@@ -27,7 +27,7 @@ export function OnboardingShell({
 }: OnboardingShellProps) {
   return (
     <div
-      className="flex min-h-screen items-start justify-center pt-[max(2rem,calc(50vh-360px))]"
+      className="dark flex min-h-screen items-start justify-center pt-[max(2rem,calc(50vh-360px))]"
       style={{ background: AUTH_BACKGROUND_GRADIENT }}
     >
       <div className="step-enter w-full max-w-[440px] px-6 py-10">

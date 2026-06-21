@@ -310,6 +310,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
         open={approveOpen}
         agentName={name}
         initialName={agent.name ?? ''}
+        initialType={agent.type ?? ''}
         isPending={approve.isPending}
         onConfirm={handleConfirmApprove}
         onCancel={() => setApproveOpen(false)}

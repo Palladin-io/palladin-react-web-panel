@@ -14,6 +14,19 @@ const SAMPLE_WORDS = [
   'sierra', 'tango', 'ultra', 'victor', 'whisky', 'xray',
 ]
 
+function renderStep(overrides: Partial<Parameters<typeof RecoveryKeyConfirmStep>[0]> = {}) {
+  return render(
+    <RecoveryKeyConfirmStep
+      mnemonic={SAMPLE_WORDS}
+      onConfirmed={vi.fn()}
+      onBack={vi.fn()}
+      isSubmitting={false}
+      error={null}
+      {...overrides}
+    />,
+  )
+}
+
 function askedIndices(): number[] {
   return screen
     .getAllByLabelText(/^word #\d+$/i)
@@ -22,28 +35,13 @@ function askedIndices(): number[] {
 
 describe('RecoveryKeyConfirmStep', () => {
   it('renders three verification inputs', () => {
-    render(
-      <RecoveryKeyConfirmStep
-        mnemonic={SAMPLE_WORDS}
-        onConfirmed={vi.fn()}
-        isSubmitting={false}
-        error={null}
-      />,
-    )
-
+    renderStep()
     expect(screen.getAllByLabelText(/^word #\d+$/i)).toHaveLength(3)
   })
 
   it('disables submit until all three words are correct', async () => {
     const user = userEvent.setup()
-    render(
-      <RecoveryKeyConfirmStep
-        mnemonic={SAMPLE_WORDS}
-        onConfirmed={vi.fn()}
-        isSubmitting={false}
-        error={null}
-      />,
-    )
+    renderStep()
 
     const submit = screen.getByRole('button', { name: /verify & complete setup/i })
     expect(submit).toBeDisabled()
@@ -64,18 +62,10 @@ describe('RecoveryKeyConfirmStep', () => {
   it('invokes onConfirmed when the form is submitted with correct words', async () => {
     const onConfirmed = vi.fn()
     const user = userEvent.setup()
-    render(
-      <RecoveryKeyConfirmStep
-        mnemonic={SAMPLE_WORDS}
-        onConfirmed={onConfirmed}
-        isSubmitting={false}
-        error={null}
-      />,
-    )
+    renderStep({ onConfirmed })
 
     const indices = askedIndices()
     const inputs = screen.getAllByLabelText(/^word #\d+$/i)
-
     for (let i = 0; i < indices.length; i++) {
       await user.type(inputs[i], SAMPLE_WORDS[indices[i]])
     }
@@ -85,48 +75,23 @@ describe('RecoveryKeyConfirmStep', () => {
     expect(onConfirmed).toHaveBeenCalledTimes(1)
   })
 
-  it('shows "Correct" feedback for matched words and error feedback for wrong ones', async () => {
+  it('shows error feedback for a wrong word', async () => {
     const user = userEvent.setup()
-    render(
-      <RecoveryKeyConfirmStep
-        mnemonic={SAMPLE_WORDS}
-        onConfirmed={vi.fn()}
-        isSubmitting={false}
-        error={null}
-      />,
-    )
+    renderStep()
 
-    const indices = askedIndices()
-    const inputs = screen.getAllByLabelText(/^word #\d+$/i)
+    expect(screen.queryByRole('alert')).toBeNull()
+    await user.type(screen.getAllByLabelText(/^word #\d+$/i)[0], 'notaword')
 
-    await user.type(inputs[0], SAMPLE_WORDS[indices[0]])
-    expect(screen.getAllByText(/correct/i).length).toBeGreaterThan(0)
-
-    await user.type(inputs[1], 'notaword')
-    expect(screen.getAllByText(/doesn't match/i).length).toBeGreaterThan(0)
+    expect(screen.getByRole('alert')).toHaveTextContent(/doesn't match/i)
   })
 
   it('displays the error prop when provided', () => {
-    render(
-      <RecoveryKeyConfirmStep
-        mnemonic={SAMPLE_WORDS}
-        onConfirmed={vi.fn()}
-        isSubmitting={false}
-        error="Setup failed. Please try again."
-      />,
-    )
+    renderStep({ error: 'Setup failed. Please try again.' })
     expect(screen.getByRole('alert')).toHaveTextContent('Setup failed')
   })
 
   it('shows a submitting label when isSubmitting is true', () => {
-    render(
-      <RecoveryKeyConfirmStep
-        mnemonic={SAMPLE_WORDS}
-        onConfirmed={vi.fn()}
-        isSubmitting
-        error={null}
-      />,
-    )
+    renderStep({ isSubmitting: true })
     expect(screen.getByRole('button', { name: /finishing setup/i })).toBeDisabled()
   })
 })

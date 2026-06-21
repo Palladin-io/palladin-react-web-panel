@@ -39,10 +39,13 @@ export function AgentsPage({ agentId }: AgentsPageProps) {
   }
 
   // Narrow: a single column. `/agents` shows the list,
-  // `/agents/$agentId` shows the selected agent's detail.
+  // `/agents/$agentId` shows the selected agent's detail. Full-width (no
+  // centering) so the screen behaves like Vaults — `mx-auto max-w-*` here made
+  // Agents look centered on smaller resolutions while every other screen
+  // stretched edge-to-edge.
   return (
     <div className="min-h-full text-[var(--cv-t1)]">
-      <div className="mx-auto max-w-[640px] px-6 py-8">
+      <div className="px-4 py-4">
         {agentId ? detailContent : <AgentListPanel selectedAgentId={agentId} />}
       </div>
     </div>

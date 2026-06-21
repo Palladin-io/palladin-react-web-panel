@@ -21,7 +21,7 @@ export function RecoveryShell({ title, subtitle, children, onBack }: RecoveryShe
 
   return (
     <div
-      className="flex min-h-screen items-center justify-center"
+      className="dark flex min-h-screen items-center justify-center"
       style={{ background: AUTH_BACKGROUND_GRADIENT }}
     >
       <div className="w-full max-w-[440px] px-6 py-10">

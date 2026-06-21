@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../../../shared/components/button'
+import { Button, PREMIUM_BUTTON_SM_CLASS } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { Icon } from '../../../shared/components/icon'
 import { analytics } from '../../../shared/lib/analytics'
@@ -93,9 +93,7 @@ export function PremiumGateDialog({ open, onClose }: PremiumGateDialogProps) {
               })
               onClose()
             }}
-            className="btn-premium inline-flex flex-[2] items-center justify-center gap-2
-              rounded-lg border bg-transparent px-3.5 py-2 text-[13px] font-bold no-underline
-              transition-colors"
+            className={`${PREMIUM_BUTTON_SM_CLASS} flex-[2] no-underline`}
           >
             <Icon name="workspace_premium" size={16} />
             {t('vault.premiumGate.upgradeCta')}

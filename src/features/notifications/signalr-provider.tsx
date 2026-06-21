@@ -14,7 +14,11 @@ import { useNotificationInvalidation } from './use-notification-invalidation'
 import { usePendingAlerts } from './use-pending-alerts'
 
 /** Notification types that demand the user's attention (sound + tab flash). */
-const ATTENTION_TYPES = new Set(['grant_pending', 'agent_pending'])
+const ATTENTION_TYPES = new Set([
+  'grant_pending',
+  'agent_pending',
+  'credential_stale',
+])
 
 /** Initial-connect retry backoff (ms), capped. Used only for the FIRST start —
  *  drops after a successful start are handled by `withAutomaticReconnect`. */

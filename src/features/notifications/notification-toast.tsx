@@ -20,6 +20,13 @@ import type { NotificationPayload } from './notification-types'
 export function showNotificationToast(payload: NotificationPayload) {
   const { type } = payload
 
+  // agent_resolved is an invisible collapse marker; agent_approved is
+  // informational and the approver already sees an action toast. Neither
+  // pops its own toast (the inbox + badge still update). Also avoids an
+  // empty toast — neither had a case, so they fell through to the empty
+  // server-supplied title.
+  if (type === 'agent_resolved' || type === 'agent_approved') return
+
   switch (type) {
     case 'grant_approved':
       toast.success(i18n.t('notifications.grantApproved.title'), {
@@ -49,6 +56,11 @@ export function showNotificationToast(payload: NotificationPayload) {
     case 'credential_accessed':
       toast.info(i18n.t('notifications.credentialAccessed.title'), {
         description: withDivider(credentialAccessedBody(payload)),
+      })
+      break
+    case 'credential_stale':
+      toast.warning(i18n.t('notifications.credentialStale.title'), {
+        description: withDivider(credentialStaleBody(payload)),
       })
       break
     default:
@@ -144,6 +156,23 @@ function credentialAccessedBody(payload: NotificationPayload): ReactNode {
     vault
       ? 'notifications.credentialAccessed.body'
       : 'notifications.credentialAccessed.bodyNoVault',
+    { agent, entry, vault: vault ?? '' },
+  )
+}
+
+/**
+ * credential_stale — "{agent} reported {entry} in {vault} isn't working" with
+ * bold names, falling back to the plain server body when names are absent.
+ */
+function credentialStaleBody(payload: NotificationPayload): ReactNode {
+  const agent = payload.data['agentName']
+  const entry = payload.data['entryLabel']
+  const vault = payload.data['vaultName']
+  if (!agent || !entry) return payload.body
+  return transBody(
+    vault
+      ? 'notifications.credentialStale.body'
+      : 'notifications.credentialStale.bodyNoVault',
     { agent, entry, vault: vault ?? '' },
   )
 }

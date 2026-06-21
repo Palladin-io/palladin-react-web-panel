@@ -22,20 +22,31 @@ export interface ButtonProps
   className?: string
 }
 
+// Fixed height per size (no `py`) so a button's height is constant regardless
+// of content — an `icon` glyph (14/16px) has a taller line-box than the text
+// (11/13px), which previously made icon buttons taller than plain ones even
+// with `leading-none`. With `h-7`/`h-9` every button of a given size is
+// pixel-identical: icon vs no icon, bordered vs borderless.
+//   sm → 28px (h-7), was ~27px (py-1.5 + 11px text + 1px border) → +1px
+//   md → 36px (h-9), was ~34px (py-2 + 13px text + 1px border) → +2px
 const SIZE_CLASS: Record<ButtonSize, string> = {
-  sm: 'px-2.5 py-1.5 text-[11px] font-semibold rounded-lg gap-1.5',
-  md: 'px-3.5 py-2 text-[13px] font-semibold rounded-lg gap-2',
+  sm: 'h-7 px-2.5 text-[11px] font-semibold rounded-lg gap-1.5',
+  md: 'h-9 px-3.5 text-[13px] font-semibold rounded-lg gap-2',
 }
 
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
+  // `border border-transparent` on accent/ghost keeps them the SAME total height
+  // as the bordered variants (subtle/outline/danger/positive/premium) at a given
+  // size — without it a bordered button is ~2px taller and footer rows look
+  // uneven (e.g. Deny vs Approve in notification cards).
   accent:
-    'bg-[#FF4F4F] text-white hover:bg-[#E04545] disabled:bg-[#FF4F4F]/50',
+    'bg-[#FF4F4F] text-white border border-transparent hover:bg-[#E04545] disabled:bg-[#FF4F4F]/50',
   subtle:
     'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-btn-subtle-text)] border border-[var(--cv-btn-subtle-border)] hover:bg-[var(--cv-btn-subtle-hover)]',
   outline:
     'bg-transparent text-[var(--cv-btn-outline-text)] border border-[var(--cv-btn-outline-border)] hover:bg-[var(--cv-btn-outline-hover)]',
   ghost:
-    'bg-transparent text-[var(--cv-btn-ghost-text)] hover:bg-[var(--cv-btn-ghost-hover)]',
+    'bg-transparent text-[var(--cv-btn-ghost-text)] border border-transparent hover:bg-[var(--cv-btn-ghost-hover)]',
   danger:
     'bg-[rgba(255,79,79,0.12)] text-[#FF4F4F] border border-[rgba(255,79,79,0.25)] hover:bg-[rgba(255,79,79,0.18)]',
   positive:
@@ -44,13 +55,20 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
     'btn-premium bg-transparent font-bold border',
 }
 
-/** Shared base classes — exported so Link elements can carry premium styling. */
+/** Shared base classes — exported so Link elements can carry button styling.
+ *  Height comes from the fixed `h-*` in SIZE_CLASS; `items-center` +
+ *  `leading-none` keep the label/icon centred within that fixed height. */
 const BASE_CLASS =
-  'inline-flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-60'
+  'inline-flex items-center justify-center leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-60'
 
 /** Ready-made class string for the `sm` premium button — apply to `<Link>` elements. */
 export const PREMIUM_BUTTON_SM_CLASS =
   `${BASE_CLASS} ${SIZE_CLASS.sm} ${VARIANT_CLASS.premium}`
+
+/** Ready-made class string for the `sm` positive button — apply to `<Link>` elements
+ *  that need the positive (teal) treatment but must navigate via the router. */
+export const POSITIVE_BUTTON_SM_CLASS =
+  `${BASE_CLASS} ${SIZE_CLASS.sm} ${VARIANT_CLASS.positive}`
 
 /**
  * Pill-shaped button used by the vault list, detail header, and
@@ -60,7 +78,7 @@ export const PREMIUM_BUTTON_SM_CLASS =
  */
 export function Button({
   variant = 'accent',
-  size = 'md',
+  size = 'sm',
   icon,
   children,
   className,

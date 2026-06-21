@@ -56,7 +56,7 @@ export function EntryIconPicker({
   // isFromBrowser: value is not in the visible preset range (so it gets its own slot before 3-dots)
   const isFromBrowser =
     !isCustomIconUrl(value) &&
-    value !== undefined &&
+    value != null &&
     !candidatePresets.includes(value)
 
   const presetCount = isFromBrowser ? maxVisible - 2 : maxVisible - 1
@@ -92,7 +92,7 @@ export function EntryIconPicker({
         })}
 
         {/* Browser-picked icon in the 9th slot when active */}
-        {isFromBrowser && value !== undefined && (
+        {isFromBrowser && value != null && (
           <button
             type="button"
             onClick={() => onChange(value as string)}

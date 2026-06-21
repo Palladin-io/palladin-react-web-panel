@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { analytics } from '../../../shared/lib/analytics'
+import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { PasswordStrengthBar } from '../../../shared/components/password-strength-bar'
 import {
@@ -36,7 +37,7 @@ export function NewPasswordStep({
     analytics.capture('recovery', 'new-password-page-viewed')
   }, [])
 
-  const { score, label } = evaluatePasswordStrength(password)
+  const { score } = evaluatePasswordStrength(password)
   const passwordsMatch = password.length > 0 && password === confirm
   const canSubmit = !isSubmitting && isPasswordAcceptable(score) && passwordsMatch
   const hasError = errorMessage !== null
@@ -54,7 +55,7 @@ export function NewPasswordStep({
           if (canSubmit) onSubmit(password)
         }}
       >
-        <div className="-mb-3">
+        <div>
           <FormInput
             id="recovery-new-password"
             label={t('recovery.newPasswordLabel')}
@@ -67,9 +68,6 @@ export function NewPasswordStep({
             disabled={isSubmitting}
           />
           <PasswordStrengthBar score={score} />
-          <FieldFeedback visible={password.length > 0} color="teal">
-            {label}
-          </FieldFeedback>
         </div>
 
         <div className="-mb-3">
@@ -93,15 +91,9 @@ export function NewPasswordStep({
           {errorMessage}
         </FieldFeedback>
 
-        <button
-          type="submit"
-          disabled={!canSubmit}
-          className="mt-1 w-full rounded-lg bg-[#FF4F4F] px-4 py-2.5 text-sm font-semibold text-white
-            transition-colors hover:bg-[#e04545]
-            disabled:cursor-not-allowed disabled:opacity-40"
-        >
+        <AuthSubmitButton className="mt-1" disabled={!canSubmit}>
           {isSubmitting ? t('recovery.recovering') : t('recovery.recover')}
-        </button>
+        </AuthSubmitButton>
       </form>
     </RecoveryShell>
   )

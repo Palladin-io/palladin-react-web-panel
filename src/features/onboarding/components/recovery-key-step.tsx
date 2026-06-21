@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, Copy, Download, TriangleAlert } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
-import { Button } from '../../../shared/components/button'
+import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
 import { joinMnemonic } from '../../../shared/lib/mnemonic'
 import { OnboardingShell } from './onboarding-shell'
 
@@ -99,16 +99,10 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
           </button>
         </div>
 
-        <Button
-          type="button"
-          variant="accent"
-          size="sm"
-          onClick={onContinue}
-          className="mt-2 w-full"
-        >
+        <AuthSubmitButton type="button" onClick={onContinue}>
           <Check size={14} />
           {t('onboarding.savedRecoveryKey')}
-        </Button>
+        </AuthSubmitButton>
       </div>
     </OnboardingShell>
   )

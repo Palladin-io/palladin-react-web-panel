@@ -12,17 +12,20 @@ import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
 import { useAuthStore } from '../features/auth'
 import { useAgents, AGENT_STATUS_PENDING } from '../features/agents'
-import { usePendingGrants } from '../features/grants'
 import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
 import { AppWordmark } from '../shared/components/app-wordmark'
 import { Icon } from '../shared/components/icon'
 import {
   PERMISSION_AGENT_MANAGE,
-  PERMISSION_GRANT_MANAGE,
   PERMISSION_READ_API_KEY,
 } from '../shared/lib/permissions'
-import { SignalRProvider, clearPushTokenOnLogout, useWebPush } from '../features/notifications'
+import {
+  SignalRProvider,
+  clearPushTokenOnLogout,
+  useNotificationsSummary,
+  useWebPush,
+} from '../features/notifications'
 
 
 export const Route = createFileRoute('/_authenticated')({
@@ -134,12 +137,11 @@ const NAV_ITEMS: NavItem[] = [
     matchPrefix: '/vaults',
   },
   {
-    key: 'approvals',
-    labelKey: 'nav.approvals',
-    icon: 'verified_user',
-    to: '/approvals',
-    matchPrefix: '/approvals',
-    requirePermission: PERMISSION_GRANT_MANAGE,
+    key: 'inbox',
+    labelKey: 'nav.inbox',
+    icon: 'inbox',
+    to: '/inbox',
+    matchPrefix: '/inbox',
   },
   {
     key: 'agents',
@@ -194,15 +196,11 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
     (item) => item.requirePermission === undefined || (permissions & item.requirePermission) !== 0,
   )
 
-  // Attention badges. Both queries reuse the keys SignalR invalidates
-  // (`['grants','pending']` on grant_pending, `['agents']` on agent_pending),
-  // so the counts update live as new requests/agents arrive. Each is gated on
-  // its permission so users without it never trigger a 403.
-  const canManageGrants = (permissions & PERMISSION_GRANT_MANAGE) !== 0
-  const pendingGrants = usePendingGrants(canManageGrants)
+  // Attention badges reuse the keys SignalR invalidates, so counts update live.
+  const notificationsSummary = useNotificationsSummary()
   const agents = useAgents()
   const navBadges: Record<string, number> = {
-    approvals: pendingGrants.data?.length ?? 0,
+    inbox: notificationsSummary.data?.unreadCount ?? 0,
     agents:
       agents.data?.filter((a) => a.status === AGENT_STATUS_PENDING).length ?? 0,
   }

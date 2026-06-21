@@ -10,14 +10,20 @@ interface DialogFooterProps {
  * background tint — mirrors the Approve Agent dialog reference pattern.
  *
  * Usage: wrap Cancel + primary action buttons; apply flex-1 / flex-[2]
- * directly on the buttons for the 1:2 ratio layout.
+ * directly on the buttons for the 1:2 ratio layout. Footer buttons are
+ * `size="sm"` — the SAME height as every other button in the app (the
+ * app-wide single standard); no taller dialog exception. See CLAUDE.md
+ * "Modal Footer".
+ *
+ * `mt-3` keeps the footer close to the dialog body (the body already uses
+ * `gap-4` internally; `mt-4` here pushed it too far down).
  */
 export function DialogFooter({ children }: DialogFooterProps) {
   return (
     <div
-      className="-mx-6 -mb-6 mt-4 flex items-center gap-2
+      className="-mx-6 -mb-6 mt-3 flex items-center gap-2
         rounded-b-2xl border-t border-[var(--cv-divider)]
-        bg-[rgba(0,11,46,0.015)] px-6 py-4
+        bg-[rgba(0,11,46,0.015)] px-6 py-3.5
         dark:bg-[rgba(253,249,228,0.02)]"
     >
       {children}

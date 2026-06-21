@@ -81,3 +81,24 @@ export function FieldFeedback({ visible, color, children }: FieldFeedbackProps) 
     </p>
   )
 }
+
+/**
+ * Feedback that animates its OWN height so the fields below slide down/up
+ * smoothly when it appears/disappears (instead of jumping). Uses the
+ * grid `0fr → 1fr` rows trick — stays mounted, so it animates both ways.
+ * No reserved space when hidden (the row collapses to 0).
+ */
+export function FeedbackSlot({ visible, color, children }: FieldFeedbackProps) {
+  return (
+    <div
+      className="grid transition-[grid-template-rows] duration-200 ease-out"
+      style={{ gridTemplateRows: visible ? '1fr' : '0fr' }}
+    >
+      <div className="overflow-hidden">
+        <FieldFeedback visible={visible} color={color}>
+          {children}
+        </FieldFeedback>
+      </div>
+    </div>
+  )
+}
