@@ -80,7 +80,8 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'Agent' }))
     await user.click(screen.getByText('Deploy Bot'))
-    // Default policy = Time Limited → set a future expiry.
+    // Default policy = Time Limited (pre-filled ~1 day ahead); replace with a fixed future expiry.
+    await user.clear(screen.getByLabelText(/Expiry date/i))
     await user.type(screen.getByLabelText(/Expiry date/i), '2030-01-01T10:00')
     await user.click(screen.getByRole('button', { name: /^grant access$/i }))
 

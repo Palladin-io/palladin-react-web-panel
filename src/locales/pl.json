@@ -667,6 +667,7 @@
   "grants.approve.policyLifetime": "Bezterminowy (nigdy nie wygasa)",
   "grants.approve.lifetimeHint": "Dostęp pozostaje ważny, dopóki nie cofniesz go ręcznie.",
   "grants.approve.expiresAtLabel": "Data i godzina wygaśnięcia",
+  "grants.approve.quickHours": "{{count}}h",
   "grants.approve.queryLimitLabel": "Maksymalna liczba użyć",
   "grants.approve.queryLimitPlaceholder": "np. 1",
   "grants.approve.approve": "Zatwierdź dostęp",

@@ -635,6 +635,7 @@
   "grants.approve.policyLifetime": "Lifetime (never expires)",
   "grants.approve.lifetimeHint": "Access stays valid until you revoke it manually.",
   "grants.approve.expiresAtLabel": "Expiry date & time",
+  "grants.approve.quickHours": "{{count}}h",
   "grants.approve.queryLimitLabel": "Maximum uses",
   "grants.approve.queryLimitPlaceholder": "e.g. 1",
   "grants.approve.approve": "Approve access",

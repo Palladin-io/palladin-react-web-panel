@@ -1,7 +1,19 @@
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { Icon } from '../../../shared/components/icon'
 import { POLICY_ERROR_KEY, type GrantPolicyKind } from '../grant-policy'
+
+/** Quick-pick durations (hours) offered for a time-limited grant. */
+const QUICK_HOURS = [1, 2, 6, 12, 24] as const
+const DEFAULT_EXPIRY_HOURS = 24
+
+/** `datetime-local` value (local timezone, minute precision) for `now + hours`. */
+function datetimeLocalIn(hours: number): string {
+  const d = new Date(Date.now() + hours * 3_600_000)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 const POLICY_KINDS: { value: GrantPolicyKind; labelKey: string }[] = [
   { value: 'time', labelKey: 'grants.approve.policyTime' },
@@ -50,6 +62,16 @@ export function GrantPolicyFields({
   const { t } = useTranslation()
   const expiryError =
     error === POLICY_ERROR_KEY.expiryRequired || error === POLICY_ERROR_KEY.expiryInPast
+
+  // Default to 1 day when entering time mode (or on open) so the field starts
+  // filled. Keyed on `kind` only — clearing the field later must NOT auto-refill,
+  // so an emptied expiry can still fail validation.
+  useEffect(() => {
+    if (kind === 'time' && !expiresAt) {
+      onExpiresAtChange(datetimeLocalIn(DEFAULT_EXPIRY_HOURS))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind])
   const limitError =
     error === POLICY_ERROR_KEY.limitRequired || error === POLICY_ERROR_KEY.limitInvalid
 
@@ -91,8 +113,28 @@ export function GrantPolicyFields({
             value={expiresAt}
             disabled={disabled}
             error={expiryError}
+            // Block past dates; dark picker with the app accent (not browser blue).
+            min={datetimeLocalIn(0)}
+            style={{ colorScheme: 'dark', accentColor: '#FF4F4F' }}
             onChange={(e) => onExpiresAtChange(e.target.value)}
           />
+          {/* Quick durations — one click sets now + Nh. */}
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {QUICK_HOURS.map((h) => (
+              <button
+                key={h}
+                type="button"
+                disabled={disabled}
+                onClick={() => onExpiresAtChange(datetimeLocalIn(h))}
+                className="rounded-md border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
+                  px-2 py-1 text-[11px] font-medium text-[var(--cv-t2)]
+                  transition-colors hover:border-[#FF4F4F] hover:text-[var(--cv-t1)]
+                  disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {t('grants.approve.quickHours', { count: h })}
+              </button>
+            ))}
+          </div>
           <FieldFeedback visible={expiryError} color="red">
             {error ? t(error) : ''}
           </FieldFeedback>

@@ -155,9 +155,11 @@ export function GrantMethodsSelect({
           </section>
         </div>
       </div>
-      <FieldFeedback visible={!!error} color="red">
-        {error ? t(error) : ''}
-      </FieldFeedback>
+      {error && (
+        <FieldFeedback visible color="red">
+          {t(error)}
+        </FieldFeedback>
+      )}
     </div>
   )
 }

@@ -53,9 +53,31 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     ).toBeInTheDocument()
   })
 
-  it('blocks confirm with an empty expiry (default = Time Limited)', async () => {
+  it('defaults Time Limited to a future expiry and confirms with it', async () => {
     const user = userEvent.setup()
     renderDialog()
+    // Time Limited is the default kind; the expiry pre-fills to ~1 day ahead.
+    const expiry = screen.getByLabelText(/Expiry date & time/i) as HTMLInputElement
+    expect(expiry.value).not.toBe('')
+    expect(new Date(expiry.value).getTime()).toBeGreaterThan(Date.now())
+
+    await user.click(screen.getByRole('button', { name: /^approve access$/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm.mock.calls[0][0]).toHaveProperty('expiresAt')
+  })
+
+  it('a quick-duration chip sets the expiry', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    await user.click(screen.getByRole('button', { name: '6h' }))
+    const expiry = screen.getByLabelText(/Expiry date & time/i) as HTMLInputElement
+    expect(new Date(expiry.value).getTime()).toBeGreaterThan(Date.now())
+  })
+
+  it('blocks confirm when the expiry is cleared', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    await user.clear(screen.getByLabelText(/Expiry date & time/i))
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
     expect(onConfirm).not.toHaveBeenCalled()
     expect(screen.getByText(/choose an expiry/i)).toBeInTheDocument()
