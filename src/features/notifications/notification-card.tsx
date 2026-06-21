@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AgentAvatar } from '../agents'
+import { AgentAvatar, useAgents } from '../agents'
 import { Icon } from '../../shared/components/icon'
 import { Tooltip } from '../../shared/components/tooltip'
 import { formatGrantDate, formatRelativeTime } from '../grants'
@@ -170,15 +170,20 @@ function RowValue({ value }: { value: DetailRowValue }) {
 
 function CardAvatar({ header }: { header: CardHeaderIcon }) {
   // 36px matches the app's standard icon-circle / agent-list avatar size.
+  // Resolve the agent's CURRENT icon/name by agentId from the live cache — the
+  // notification metadata is an immutable snapshot, so its iconKey goes stale
+  // after the owner changes the agent's icon. Fall back to the snapshot when the
+  // agent isn't in the cache (no AgentManage permission / not loaded yet).
+  const agents = useAgents()
   if (header.kind === 'agent') {
+    const live = agents.data?.find((a) => a.agentId === header.agentId)
     return (
       <AgentAvatar
         agent={{
-          name: header.agentName ?? '',
-          // Real agentId → deterministic colour matches the Agents list; iconKey
-          // → the agent's chosen glyph or uploaded S3 image (when present).
+          name: live?.name ?? header.agentName ?? '',
+          // Real agentId → deterministic colour matches the Agents list.
           agentId: header.agentId ?? '',
-          iconKey: header.agentIconKey,
+          iconKey: live ? live.iconKey : header.agentIconKey,
         }}
         size={36}
       />

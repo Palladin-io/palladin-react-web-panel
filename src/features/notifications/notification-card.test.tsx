@@ -1,7 +1,18 @@
 import { act, render } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotificationItem } from './notifications-api'
 import { NotificationCard } from './notification-card'
+
+// CardAvatar reads the live agents cache (useAgents) to resolve the agent's
+// current icon, so every render needs a QueryClient in context.
+function renderCard(ui: ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(ui, {
+    wrapper: ({ children }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>,
+  })
+}
 
 const SEEN_DELAY_MS = 600
 
@@ -68,7 +79,7 @@ afterEach(() => {
 describe('NotificationCard mark-read-on-view', () => {
   it('fires onSeen exactly once after the card stays visible for the delay', () => {
     const onSeen = vi.fn()
-    render(<NotificationCard item={unreadItem} onSeen={onSeen} />)
+    renderCard(<NotificationCard item={unreadItem} onSeen={onSeen} />)
 
     act(() => observers[0].trigger(true))
     expect(onSeen).not.toHaveBeenCalled()
@@ -83,7 +94,7 @@ describe('NotificationCard mark-read-on-view', () => {
     // the timer. A stable reference (e.g. TanStack's `mutate`) must let the
     // timer run to completion across parent re-renders.
     const onSeen = vi.fn()
-    const { rerender } = render(<NotificationCard item={unreadItem} onSeen={onSeen} />)
+    const { rerender } = renderCard(<NotificationCard item={unreadItem} onSeen={onSeen} />)
 
     act(() => observers[0].trigger(true))
 
@@ -104,7 +115,7 @@ describe('NotificationCard mark-read-on-view', () => {
     // (new observer) and the previous in-flight timer is cleared, so the card is
     // never marked read despite staying visible.
     const mutate = vi.fn()
-    const { rerender } = render(
+    const { rerender } = renderCard(
       <NotificationCard item={unreadItem} onSeen={(id) => mutate(id)} />,
     )
 
@@ -122,7 +133,7 @@ describe('NotificationCard mark-read-on-view', () => {
 
   it('skips the observer entirely for already-read cards', () => {
     const onSeen = vi.fn()
-    render(
+    renderCard(
       <NotificationCard
         item={{ ...unreadItem, readAt: '2026-06-15T11:00:00Z' }}
         onSeen={onSeen}
