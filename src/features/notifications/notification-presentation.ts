@@ -121,8 +121,8 @@ function agentPublicKeyShort(item: NotificationItem): string | undefined {
 function agentRows(item: NotificationItem): DetailRow[] {
   return [
     textRow('notifications.card.rowPublicKey', agentPublicKeyShort(item)),
-    metaRow(item, 'notifications.card.rowType', 'agentType'),
     metaRow(item, 'notifications.card.rowAgentId', 'agentId'),
+    metaRow(item, 'notifications.card.rowType', 'agentType'),
     textRow('notifications.card.rowHostIp', agentHostIp(item)),
   ]
 }

@@ -116,13 +116,14 @@ describe('notificationCardPresentation', () => {
     )
     expect(card.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowPublicKey',
-      'notifications.card.rowType',
       'notifications.card.rowAgentId',
+      'notifications.card.rowType',
       'notifications.card.rowHostIp',
     ])
     // Full key shortened client-side per the Key & ID Display Standard (first 8 … last 6).
     expect(card.rows[0].value).toEqual({ kind: 'text', text: 'ABCDEFGH…YYYYYY' })
-    expect(card.rows[1].value).toEqual({ kind: 'text', text: 'ci' })
+    expect(card.rows[1].value).toEqual({ kind: 'text', text: 'a-123' })
+    expect(card.rows[2].value).toEqual({ kind: 'text', text: 'ci' })
     const hostIp = card.rows[3].value
     expect(hostIp.kind).toBe('text')
     if (hostIp.kind === 'text') {
@@ -143,13 +144,13 @@ describe('notificationCardPresentation', () => {
     // no public key/type/host/ip → still the fixed rows, placeholders for missing
     expect(card.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowPublicKey',
-      'notifications.card.rowType',
       'notifications.card.rowAgentId',
+      'notifications.card.rowType',
       'notifications.card.rowHostIp',
     ])
     expect(card.rows[0].value).toEqual({ kind: 'text', text: '—' })
-    expect(card.rows[1].value).toEqual({ kind: 'text', text: '—' })
-    expect(card.rows[2].value).toEqual({ kind: 'text', text: 'a-1' })
+    expect(card.rows[1].value).toEqual({ kind: 'text', text: 'a-1' })
+    expect(card.rows[2].value).toEqual({ kind: 'text', text: '—' })
     expect(card.rows[3].value).toEqual({ kind: 'text', text: '—' })
   })
 
