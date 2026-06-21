@@ -197,6 +197,14 @@ export function NotificationCenterPage() {
   // a backend-supplied app path (`metadata.actionDeepLink`); state changes
   // (revoke / grant again) live on that detail, not on the immutable log card.
   function handleView(item: NotificationItem) {
+    // Access (grant) cards open the vault on its Agents tab — that's where the
+    // live grant state and revoke/re-grant actions live, not the grant deep-link.
+    const vaultId = item.metadata?.vaultId
+    if (isAccessNotification(item) && vaultId) {
+      markReadNow(item.id)
+      navigate({ to: '/vaults/$vaultId', params: { vaultId }, search: { tab: 'agents' } })
+      return
+    }
     const deepLink = item.metadata?.actionDeepLink
     if (!deepLink) return
     markReadNow(item.id)
@@ -500,6 +508,15 @@ function ActionFooter({
  * fall back to the `actionDeepLink` path prefix (`/agents` → agent, `/vaults` →
  * entry). Defaults to the access label (grants are the dominant inbox target).
  */
+/** Access (grant) notifications resolve their View to the vault's Agents tab. */
+function isAccessNotification(item: NotificationItem): boolean {
+  return (
+    item.type === 'grant_approved' ||
+    item.type === 'grant_denied' ||
+    item.type === 'grant_revoked'
+  )
+}
+
 function viewLabelKey(item: NotificationItem): string {
   switch (item.type) {
     case 'agent_pending':

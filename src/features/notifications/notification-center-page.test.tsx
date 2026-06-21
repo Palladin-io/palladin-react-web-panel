@@ -189,13 +189,27 @@ describe('NotificationCenterPage', () => {
     expect(screen.getByRole('button', { name: 'View Agent' })).toBeInTheDocument()
   })
 
-  it('deep-links and marks read when a "View" link is clicked', () => {
+  it('opens the vault on its Agents tab and marks read when "View Access" is clicked', () => {
     renderPage()
 
     fireEvent.click(screen.getByRole('button', { name: 'View Access' }))
 
     expect(markRead).toHaveBeenCalledWith('n2')
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/vaults/v1/entries/e2' })
+    // Access cards route to the vault's Agents tab (live grant state lives there).
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/vaults/$vaultId',
+      params: { vaultId: 'v1' },
+      search: { tab: 'agents' },
+    })
+  })
+
+  it('deep-links to the resource for a non-access "View" (agent)', () => {
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'View Agent' }))
+
+    expect(markRead).toHaveBeenCalledWith('n3')
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/agents/a3' })
   })
 
   it('renders the live OrgGrantsPanel on the Grants tab and hides the inbox search', () => {
