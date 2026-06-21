@@ -262,7 +262,7 @@ export function NotificationCenterPage() {
       )}
 
       {showGrants ? (
-        <OrgGrantsPanel />
+        <OrgGrantsPanel bare />
       ) : notifications.isPending ? (
         <LoadingSkeleton />
       ) : notifications.isError ? (
