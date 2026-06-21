@@ -113,6 +113,14 @@ button,
   animation: step-enter 0.22s ease-out both;
 }
 
+/* Mask secret inputs WITHOUT a real `type=password` field, so the browser's
+   password manager never offers to save / autofill vault credentials. Applied
+   to a normal `type=text` input by SecretInput when the value is hidden. */
+.secret-mask {
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+
 /*
  * Material Symbols Rounded — used as inline glyph spans (`<span class="mi">name</span>`).
  * Matches the Astro design system convention so vault screens can mirror the
