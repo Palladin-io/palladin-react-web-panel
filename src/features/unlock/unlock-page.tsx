@@ -140,7 +140,7 @@ function UnlockForm() {
             </FieldFeedback>
           </div>
 
-          <AuthSubmitButton className="mt-2" disabled={isPending || password.length === 0}>
+          <AuthSubmitButton disabled={isPending || password.length === 0}>
             {isPending ? t('unlock.unlocking') : t('unlock.button')}
           </AuthSubmitButton>
 
