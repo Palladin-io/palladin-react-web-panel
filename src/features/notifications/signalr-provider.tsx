@@ -5,6 +5,7 @@ import {
   type HubConnection,
 } from '@microsoft/signalr'
 import { useEffect, useRef, type ReactNode } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { useAuthStore } from '../auth'
 import { env } from '../../shared/lib/env'
 import { parseNotificationPayload } from './notification-types'
@@ -49,6 +50,7 @@ const RETRY_BACKOFF_MS = [1000, 2000, 4000, 8000, 15000]
 export function SignalRProvider({ children }: { children: ReactNode }) {
   const invalidate = useNotificationInvalidation()
   const { notifyPending } = usePendingAlerts()
+  const navigate = useNavigate()
 
   // Keep the latest handler in a ref so the connection's message subscription
   // always calls the current closure without needing to be re-registered.
@@ -63,14 +65,14 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
         signalrLog.warn('payload failed to parse — ignored', raw)
         return
       }
-      showNotificationToast(payload)
+      showNotificationToast(payload, () => navigate({ to: '/inbox' }))
       invalidate(payload)
       // Attention-worthy pending events also chime + flash the tab title.
       if (ATTENTION_TYPES.has(payload.type)) {
         notifyPending()
       }
     }
-  }, [invalidate, notifyPending])
+  }, [invalidate, notifyPending, navigate])
 
   useEffect(() => {
     // `disposed` flips on unmount so any in-flight retry/start bails out and

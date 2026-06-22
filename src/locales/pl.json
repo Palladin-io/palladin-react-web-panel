@@ -705,6 +705,7 @@
   "notifications.pendingTitle_many": "🔔 ({{count}}) Nowych próśb",
   "notifications.pendingTitle_other": "🔔 ({{count}}) Nowych próśb",
   "notifications.grantPending.title": "Nowa prośba o dostęp",
+  "notifications.toast.open": "Otwórz",
   "notifications.grantPending.body": "<b>{{agent}}</b> poprosił o dostęp do <b>{{entry}}</b> w <b>{{vault}}</b>",
   "notifications.grantApproved.title": "Dostęp przyznany",
   "notifications.grantApproved.body": "<b>{{agent}}</b> — dostęp do <b>{{entry}}</b> w <b>{{vault}}</b> przyznany",

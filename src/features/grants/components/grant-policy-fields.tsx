@@ -161,9 +161,16 @@ export function GrantPolicyFields({
       )}
 
       {kind === 'lifetime' && (
-        <p className="rounded-lg bg-[var(--cv-bg-subtle)] px-3 py-2 text-[11px] text-[var(--cv-t3)]">
-          {t('grants.approve.lifetimeHint')}
-        </p>
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-lg border border-[rgba(240,192,64,0.3)]
+            bg-[rgba(240,192,64,0.08)] px-3 py-2"
+        >
+          <Icon name="warning" size={14} className="mt-0.5 shrink-0 text-[#D4820A] dark:text-[#F0C040]" />
+          <p className="text-[11px] leading-snug text-[var(--cv-t2)]">
+            {t('grants.approve.lifetimeHint')}
+          </p>
+        </div>
       )}
     </>
   )

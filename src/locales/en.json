@@ -671,6 +671,7 @@
   "notifications.pendingTitle_one": "🔔 ({{count}}) New approval",
   "notifications.pendingTitle_other": "🔔 ({{count}}) New approvals",
   "notifications.grantPending.title": "New access request",
+  "notifications.toast.open": "Open",
   "notifications.grantPending.body": "<b>{{agent}}</b> requested access to <b>{{entry}}</b> in <b>{{vault}}</b>",
   "notifications.grantApproved.title": "Grant approved",
   "notifications.grantApproved.body": "<b>{{agent}}</b> access to <b>{{entry}}</b> in <b>{{vault}}</b> was approved",
