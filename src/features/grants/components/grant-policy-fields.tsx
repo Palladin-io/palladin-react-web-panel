@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { Icon } from '../../../shared/components/icon'
+import { WarningZone } from '../../../shared/components/warning-zone'
 import { POLICY_ERROR_KEY, type GrantPolicyKind } from '../grant-policy'
 
 /** Quick-pick durations (hours) offered for a time-limited grant. */
@@ -113,9 +114,9 @@ export function GrantPolicyFields({
             value={expiresAt}
             disabled={disabled}
             error={expiryError}
-            // Block past dates; dark picker with the app accent (not browser blue).
+            // Block past dates. (No inline color-scheme — it can stop Chrome
+            // from opening the native date picker.)
             min={datetimeLocalIn(0)}
-            style={{ colorScheme: 'dark', accentColor: '#FF4F4F' }}
             onChange={(e) => onExpiresAtChange(e.target.value)}
           />
           {/* Quick durations — one click sets now + Nh. */}
@@ -161,16 +162,9 @@ export function GrantPolicyFields({
       )}
 
       {kind === 'lifetime' && (
-        <div
-          role="alert"
-          className="flex items-start gap-2 rounded-lg border border-[rgba(240,192,64,0.3)]
-            bg-[rgba(240,192,64,0.08)] px-3 py-2"
-        >
-          <Icon name="warning" size={14} className="mt-0.5 shrink-0 text-[#D4820A] dark:text-[#F0C040]" />
-          <p className="text-[11px] leading-snug text-[var(--cv-t2)]">
-            {t('grants.approve.lifetimeHint')}
-          </p>
-        </div>
+        <WarningZone title={t('grants.methods.warningZoneTitle')}>
+          {t('grants.approve.lifetimeHint')}
+        </WarningZone>
       )}
     </>
   )

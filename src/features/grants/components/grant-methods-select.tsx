@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
 import { FieldFeedback } from '../../../shared/components/form-field'
+import { WarningZone } from '../../../shared/components/warning-zone'
 import {
   GRANT_METHODS,
   GRANT_METHOD_DESC_KEY,
@@ -141,18 +142,9 @@ export function GrantMethodsSelect({
         aria-hidden={!value.includes(GRANT_METHOD_GET)}
       >
         <div className="overflow-hidden">
-          <section
-            role="alert"
-            className="rounded-xl border border-[rgba(212,130,10,0.3)] bg-[rgba(212,130,10,0.06)] p-3
-              dark:border-[rgba(240,192,64,0.3)] dark:bg-[rgba(240,192,64,0.08)]"
-          >
-            <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#D4820A] dark:text-[#F0C040]">
-              {t('grants.methods.warningZoneTitle')}
-            </h3>
-            <p className="mt-1 text-[11px] leading-snug text-[var(--cv-t2)]">
-              {t('grants.methods.getWarning')}
-            </p>
-          </section>
+          <WarningZone title={t('grants.methods.warningZoneTitle')}>
+            {t('grants.methods.getWarning')}
+          </WarningZone>
         </div>
       </div>
       {error && (
