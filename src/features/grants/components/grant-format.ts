@@ -64,14 +64,16 @@ export function formatExpiresIn(iso: string, t: TFunction): string {
 export function formatExpiresInLong(iso: string, t: TFunction): string {
   const ts = Date.parse(iso)
   if (Number.isNaN(ts)) return iso
-  const minutes = Math.floor((ts - Date.now()) / 60_000)
+  // Round (not floor): a value set to exactly now+24h is already a few ms in the
+  // past by render time, which would floor to "23 hours" — round keeps it "24h".
+  const minutes = Math.round((ts - Date.now()) / 60_000)
   if (minutes <= 0) return t('grants.remaining.expired')
   if (minutes < 60) return t('grants.approve.expiresRelMinutes', { count: minutes })
-  const hours = Math.floor(minutes / 60)
+  const hours = Math.round(minutes / 60)
   if (hours < 24) return t('grants.approve.expiresRelHours', { count: hours })
-  const days = Math.floor(hours / 24)
+  const days = Math.round(hours / 24)
   if (days < 30) return t('grants.approve.expiresRelDays', { count: days })
-  return t('grants.approve.expiresRelMonths', { count: Math.floor(days / 30) })
+  return t('grants.approve.expiresRelMonths', { count: Math.round(days / 30) })
 }
 
 /** Time bucket for grouping the org-grants list. */

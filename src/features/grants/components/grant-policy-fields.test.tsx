@@ -46,7 +46,7 @@ describe('GrantPolicyFields — time mode', () => {
     expect(spy).toHaveBeenCalledTimes(1)
     expect(new Date(spy.mock.calls[0][0]).getTime()).toBeGreaterThan(Date.now())
     // Summary shows the relative distance ("in 23 hours" / "in 1 day").
-    expect(screen.getByText(/^in \d+ (hour|day)/i)).toBeInTheDocument()
+    expect(screen.getByText(/Expires in \d+ (hour|day)/i)).toBeInTheDocument()
   })
 
   it('a quick-hours chip sets a future expiry', async () => {

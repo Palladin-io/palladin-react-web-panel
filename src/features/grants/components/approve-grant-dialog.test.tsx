@@ -58,7 +58,7 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     renderDialog()
     // Time Limited is the default kind; the expiry pre-fills to ~1 day ahead,
     // shown as a relative distance ("in 23 hours" / "in 1 day").
-    expect(screen.getByText(/^in \d+ (hour|day)/i)).toBeInTheDocument()
+    expect(screen.getByText(/Expires in \d+ (hour|day)/i)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
