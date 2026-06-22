@@ -56,10 +56,9 @@ describe('ApproveGrantDialog — access type dropdown', () => {
   it('defaults Time Limited to a future expiry and confirms with it', async () => {
     const user = userEvent.setup()
     renderDialog()
-    // Time Limited is the default kind; the expiry pre-fills to ~1 day ahead.
-    const expiry = screen.getByLabelText(/Expiry date & time/i) as HTMLInputElement
-    expect(expiry.value).not.toBe('')
-    expect(new Date(expiry.value).getTime()).toBeGreaterThan(Date.now())
+    // Time Limited is the default kind; the expiry pre-fills to ~1 day ahead,
+    // shown in the "Expires: …" summary line.
+    expect(screen.getByText(/^Expires:/i)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
@@ -70,17 +69,29 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     const user = userEvent.setup()
     renderDialog()
     await user.click(screen.getByRole('button', { name: '6h' }))
-    const expiry = screen.getByLabelText(/Expiry date & time/i) as HTMLInputElement
-    expect(new Date(expiry.value).getTime()).toBeGreaterThan(Date.now())
+    await user.click(screen.getByRole('button', { name: /^approve access$/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const body = onConfirm.mock.calls[0][0]
+    expect(body).toHaveProperty('expiresAt')
+    expect(new Date(body.expiresAt).getTime()).toBeGreaterThan(Date.now())
   })
 
-  it('blocks confirm when the expiry is cleared', async () => {
+  it('a quick-minutes chip sets the expiry', async () => {
     const user = userEvent.setup()
     renderDialog()
-    await user.clear(screen.getByLabelText(/Expiry date & time/i))
+    await user.click(screen.getByRole('button', { name: '15min' }))
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
-    expect(onConfirm).not.toHaveBeenCalled()
-    expect(screen.getByText(/choose an expiry/i)).toBeInTheDocument()
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm.mock.calls[0][0]).toHaveProperty('expiresAt')
+  })
+
+  it('Custom opens the on-brand date-time picker', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    await user.click(screen.getByRole('button', { name: /custom/i }))
+    expect(
+      screen.getByRole('dialog', { name: /choose date and time/i }),
+    ).toBeInTheDocument()
   })
 
   it('confirms with queryLimit only when Number of Uses is selected', async () => {

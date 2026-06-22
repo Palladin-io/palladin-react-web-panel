@@ -1,17 +1,21 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { DateTimePicker } from '../../../shared/components/datetime-picker'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { Icon } from '../../../shared/components/icon'
 import { WarningZone } from '../../../shared/components/warning-zone'
 import { POLICY_ERROR_KEY, type GrantPolicyKind } from '../grant-policy'
+import { formatGrantDate } from './grant-format'
 
-/** Quick-pick durations (hours) offered for a time-limited grant. */
+/** Quick-pick intervals offered for a time-limited grant (minutes). */
+const QUICK_MINUTES = [5, 15, 30] as const
+/** Quick-pick intervals offered for a time-limited grant (hours). */
 const QUICK_HOURS = [1, 2, 6, 12, 24] as const
 const DEFAULT_EXPIRY_HOURS = 24
 
-/** `datetime-local` value (local timezone, minute precision) for `now + hours`. */
-function datetimeLocalIn(hours: number): string {
-  const d = new Date(Date.now() + hours * 3_600_000)
+/** `datetime-local` value (local timezone, minute precision) for `now + minutes`. */
+function datetimeLocalInMinutes(minutes: number): string {
+  const d = new Date(Date.now() + minutes * 60_000)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
@@ -28,6 +32,12 @@ const SELECT_CLASS =
   'w-full appearance-none rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] ' +
   'px-3 py-2 pr-9 text-[12px] text-[var(--cv-input-text)] ' +
   'focus:border-[var(--cv-t1)] focus:outline-none transition-colors ' +
+  'disabled:cursor-not-allowed disabled:opacity-40'
+
+const CHIP_CLASS =
+  'rounded-md border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] ' +
+  'px-2 py-1 text-[11px] font-medium text-[var(--cv-t2)] ' +
+  'transition-colors hover:border-[#FF4F4F] hover:text-[var(--cv-t1)] ' +
   'disabled:cursor-not-allowed disabled:opacity-40'
 
 export interface GrantPolicyFieldsProps {
@@ -48,6 +58,9 @@ export interface GrantPolicyFieldsProps {
  * Lifetime) plus the dependent field. Reused by every grant dialog (approve,
  * grant-again, proactive grant) so the policy UX + validation stay identical.
  * Validation/mapping live in `grant-policy.ts`.
+ *
+ * Time mode offers quick-interval chips plus a Custom chip that opens the
+ * on-brand `DateTimePicker` popover (the native datetime popup can't be styled).
  */
 export function GrantPolicyFields({
   kind,
@@ -61,20 +74,22 @@ export function GrantPolicyFields({
   idPrefix,
 }: GrantPolicyFieldsProps) {
   const { t } = useTranslation()
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const customButtonRef = useRef<HTMLButtonElement>(null)
   const expiryError =
     error === POLICY_ERROR_KEY.expiryRequired || error === POLICY_ERROR_KEY.expiryInPast
+  const limitError =
+    error === POLICY_ERROR_KEY.limitRequired || error === POLICY_ERROR_KEY.limitInvalid
 
   // Default to 1 day when entering time mode (or on open) so the field starts
   // filled. Keyed on `kind` only — clearing the field later must NOT auto-refill,
   // so an emptied expiry can still fail validation.
   useEffect(() => {
     if (kind === 'time' && !expiresAt) {
-      onExpiresAtChange(datetimeLocalIn(DEFAULT_EXPIRY_HOURS))
+      onExpiresAtChange(datetimeLocalInMinutes(DEFAULT_EXPIRY_HOURS * 60))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind])
-  const limitError =
-    error === POLICY_ERROR_KEY.limitRequired || error === POLICY_ERROR_KEY.limitInvalid
 
   return (
     <>
@@ -107,35 +122,65 @@ export function GrantPolicyFields({
 
       {kind === 'time' && (
         <div className="-mb-4">
-          <FormInput
-            id={`${idPrefix}-expires-at`}
-            type="datetime-local"
-            label={t('grants.approve.expiresAtLabel')}
-            value={expiresAt}
-            disabled={disabled}
-            error={expiryError}
-            // Block past dates. (No inline color-scheme — it can stop Chrome
-            // from opening the native date picker.)
-            min={datetimeLocalIn(0)}
-            onChange={(e) => onExpiresAtChange(e.target.value)}
-          />
-          {/* Quick durations — one click sets now + Nh. */}
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
-            {QUICK_HOURS.map((h) => (
+          <span className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]">
+            {t('grants.approve.expiresAtLabel')}
+          </span>
+          {/* Quick durations — one click sets now + interval. */}
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_MINUTES.map((m) => (
               <button
-                key={h}
+                key={`m${m}`}
                 type="button"
                 disabled={disabled}
-                onClick={() => onExpiresAtChange(datetimeLocalIn(h))}
-                className="rounded-md border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
-                  px-2 py-1 text-[11px] font-medium text-[var(--cv-t2)]
-                  transition-colors hover:border-[#FF4F4F] hover:text-[var(--cv-t1)]
-                  disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={() => onExpiresAtChange(datetimeLocalInMinutes(m))}
+                className={CHIP_CLASS}
+              >
+                {t('grants.approve.quickMinutes', { count: m })}
+              </button>
+            ))}
+            {QUICK_HOURS.map((h) => (
+              <button
+                key={`h${h}`}
+                type="button"
+                disabled={disabled}
+                onClick={() => onExpiresAtChange(datetimeLocalInMinutes(h * 60))}
+                className={CHIP_CLASS}
               >
                 {t('grants.approve.quickHours', { count: h })}
               </button>
             ))}
+            <button
+              ref={customButtonRef}
+              type="button"
+              disabled={disabled}
+              aria-haspopup="dialog"
+              aria-expanded={pickerOpen}
+              onClick={() => setPickerOpen((open) => !open)}
+              className={`${CHIP_CLASS} inline-flex items-center gap-1`}
+            >
+              <Icon name="event" size={14} />
+              {t('grants.approve.quickCustom')}
+            </button>
           </div>
+
+          {/* Chosen expiry, shown so the picked value is always visible. */}
+          {expiresAt && (
+            <p className="mt-1.5 text-[11px] text-[var(--cv-t2)]">
+              {t('grants.approve.expiresAtSummary', {
+                date: formatGrantDate(expiresAt),
+              })}
+            </p>
+          )}
+
+          {pickerOpen && (
+            <DateTimePicker
+              value={expiresAt}
+              anchorRef={customButtonRef}
+              onChange={onExpiresAtChange}
+              onClose={() => setPickerOpen(false)}
+            />
+          )}
+
           <FieldFeedback visible={expiryError} color="red">
             {error ? t(error) : ''}
           </FieldFeedback>
