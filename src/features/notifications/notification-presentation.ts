@@ -265,7 +265,8 @@ export function notificationCardPresentation(
         subtitleAgentFallbackKey: SOFT,
         rows: [
           entryRow(item),
-          metaRow(item, 'notifications.card.rowReason', 'reason'),
+          metaRow(item, 'notifications.card.rowMethods', 'methods'),
+          metaRow(item, 'notifications.card.rowReason', 'denyReason'),
           metaRow(item, 'notifications.card.rowBy', 'actorName'),
         ],
       }
