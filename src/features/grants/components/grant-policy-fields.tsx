@@ -125,15 +125,16 @@ export function GrantPolicyFields({
           <span className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]">
             {t('grants.approve.expiresAtLabel')}
           </span>
-          {/* Quick durations — one click sets now + interval. */}
-          <div className="flex flex-wrap gap-1.5">
+          {/* Quick durations — even 4-col grid (2 rows). Custom is qualitatively
+              different (opens a picker), so it sits on its own full-width row. */}
+          <div className="grid grid-cols-4 gap-1.5">
             {QUICK_MINUTES.map((m) => (
               <button
                 key={`m${m}`}
                 type="button"
                 disabled={disabled}
                 onClick={() => onExpiresAtChange(datetimeLocalInMinutes(m))}
-                className={CHIP_CLASS}
+                className={`${CHIP_CLASS} text-center`}
               >
                 {t('grants.approve.quickMinutes', { count: m })}
               </button>
@@ -144,24 +145,24 @@ export function GrantPolicyFields({
                 type="button"
                 disabled={disabled}
                 onClick={() => onExpiresAtChange(datetimeLocalInMinutes(h * 60))}
-                className={CHIP_CLASS}
+                className={`${CHIP_CLASS} text-center`}
               >
                 {t('grants.approve.quickHours', { count: h })}
               </button>
             ))}
-            <button
-              ref={customButtonRef}
-              type="button"
-              disabled={disabled}
-              aria-haspopup="dialog"
-              aria-expanded={pickerOpen}
-              onClick={() => setPickerOpen((open) => !open)}
-              className={`${CHIP_CLASS} inline-flex items-center gap-1`}
-            >
-              <Icon name="event" size={14} />
-              {t('grants.approve.quickCustom')}
-            </button>
           </div>
+          <button
+            ref={customButtonRef}
+            type="button"
+            disabled={disabled}
+            aria-haspopup="dialog"
+            aria-expanded={pickerOpen}
+            onClick={() => setPickerOpen((open) => !open)}
+            className={`${CHIP_CLASS} mt-1.5 flex w-full items-center justify-center gap-1`}
+          >
+            <Icon name="event" size={14} />
+            {t('grants.approve.quickCustom')}
+          </button>
 
           {/* Chosen expiry, shown so the picked value is always visible. */}
           {expiresAt && (

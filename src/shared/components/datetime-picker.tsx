@@ -68,8 +68,8 @@ export interface DateTimePickerProps {
  * native `<input type="datetime-local">` popup, which cannot be styled. Renders
  * a month calendar (‹ › navigation), hour/minute selects and a Today shortcut.
  *
- * The component is always wrapped in a `.dark` container so the `--cv-*` tokens
- * resolve to their dark-mode values, matching the dialogs it lives in.
+ * Portaled to document.body — a descendant of <html>, where the theme `dark`
+ * class lives — so `--cv-*` tokens follow the active theme (light or dark).
  *
  * Past dates are disabled (days before `min`'s day; on the min day, times before
  * `min`). Value in/out is a local `datetime-local` string, matching `expiresAt`.
@@ -211,7 +211,7 @@ export function DateTimePicker({
       ref={popoverRef}
       role="dialog"
       aria-label={t('datetimePicker.ariaLabel')}
-      className="dark fixed z-[120] w-[260px] rounded-xl border border-[var(--cv-border)]
+      className="fixed z-[120] w-[260px] rounded-xl border border-[var(--cv-border)]
         bg-[var(--cv-modal-bg)] p-3 text-[var(--cv-t1)]
         shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
       style={{ left: coords.left, top: coords.top, minWidth: coords.width }}
