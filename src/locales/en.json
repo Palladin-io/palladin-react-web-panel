@@ -633,7 +633,7 @@
   "grants.approve.policyTime": "Time Limited",
   "grants.approve.policyUses": "Number of Uses",
   "grants.approve.policyLifetime": "Lifetime (never expires)",
-  "grants.approve.lifetimeHint": "Access stays valid until you revoke it manually.",
+  "grants.approve.lifetimeHint": "This grant never expires — the agent keeps access until you revoke it manually. Prefer a time limit or usage cap unless permanent access is truly required.",
   "grants.approve.expiresAtLabel": "Expiry date & time",
   "grants.approve.quickHours": "{{count}}h",
   "grants.approve.queryLimitLabel": "Maximum uses",

@@ -665,7 +665,7 @@
   "grants.approve.policyTime": "Ograniczony czasowo",
   "grants.approve.policyUses": "Liczba użyć",
   "grants.approve.policyLifetime": "Bezterminowy (nigdy nie wygasa)",
-  "grants.approve.lifetimeHint": "Dostęp pozostaje ważny, dopóki nie cofniesz go ręcznie.",
+  "grants.approve.lifetimeHint": "To nadanie nigdy nie wygasa — agent zachowuje dostęp aż do ręcznego cofnięcia. Wybierz limit czasu lub liczby użyć, chyba że stały dostęp jest naprawdę potrzebny.",
   "grants.approve.expiresAtLabel": "Data i godzina wygaśnięcia",
   "grants.approve.quickHours": "{{count}}h",
   "grants.approve.queryLimitLabel": "Maksymalna liczba użyć",
