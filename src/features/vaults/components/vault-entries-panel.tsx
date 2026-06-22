@@ -5,10 +5,7 @@ import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import {
-  ENTRY_TYPE_CREDENTIAL,
-  ENTRY_TYPE_KEY,
   type EntryListItem,
-  type EntryType,
   type Vault,
 } from '../types'
 import { useEntries } from '../use-entries'
@@ -21,14 +18,12 @@ export interface VaultEntriesPanelProps {
   selectedEntryId: string
 }
 
-const ALL_TYPES: EntryType[] = [ENTRY_TYPE_KEY, ENTRY_TYPE_CREDENTIAL]
-
 /**
  * Compact left-side panel of the entry detail split view. Renders a
  * back link to the vault list, the vault title, an Add Entry CTA, and
- * the filterable entry list — highlighting the currently viewed row.
+ * the searchable entry list — highlighting the currently viewed row.
  *
- * Filtering logic mirrors {@link VaultEntriesTab} verbatim so the
+ * Search logic mirrors {@link VaultEntriesTab} verbatim so the
  * panel and the full-page tab stay in lockstep. Owns its own
  * `CreateEntryModal` because the right-side panel has no knowledge of
  * the left side's lifecycle.
@@ -36,15 +31,14 @@ const ALL_TYPES: EntryType[] = [ENTRY_TYPE_KEY, ENTRY_TYPE_CREDENTIAL]
 export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelProps) {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
-  const [activeFilters, setActiveFilters] = useState<Set<EntryType>>(new Set())
   const [createOpen, setCreateOpen] = useState(false)
 
   const entries = useEntries(vault.id)
   const items = useMemo(() => entries.data?.items ?? [], [entries.data])
 
   const filtered = useMemo(
-    () => filterEntries(items, search, activeFilters),
-    [items, search, activeFilters],
+    () => filterEntries(items, search),
+    [items, search],
   )
 
   return (
@@ -81,12 +75,6 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
             value={search}
             onChange={setSearch}
             placeholder={t('vault.detail.entriesSearchPlaceholder')}
-            filters={
-              <EntryFilterChips
-                active={activeFilters}
-                onToggle={(type) => setActiveFilters((prev) => toggleSet(prev, type))}
-              />
-            }
           />
 
           {filtered.length === 0 ? (
@@ -119,51 +107,6 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
   )
 }
 
-interface EntryFilterChipsProps {
-  active: Set<EntryType>
-  onToggle: (type: EntryType) => void
-}
-
-function EntryFilterChips({ active, onToggle }: EntryFilterChipsProps) {
-  const { t } = useTranslation()
-  const labels: Record<EntryType, string> = {
-    [ENTRY_TYPE_KEY]: t('vault.entries.filterKeys'),
-    [ENTRY_TYPE_CREDENTIAL]: t('vault.entries.filterCredentials'),
-  }
-  const dotColor: Record<EntryType, string> = {
-    [ENTRY_TYPE_KEY]: '#2EC4B6',
-    [ENTRY_TYPE_CREDENTIAL]: '#60A5FA',
-  }
-  return (
-    <>
-      {ALL_TYPES.map((type) => {
-        const selected = active.has(type)
-        return (
-          <button
-            key={type}
-            type="button"
-            onClick={() => onToggle(type)}
-            aria-pressed={selected}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1
-              text-[11px] transition-colors ${
-              selected
-                ? 'border-[#FF4F4F] bg-[rgba(255,79,79,0.08)] text-[#FF4F4F]'
-                : 'border-[var(--cv-border)] text-[var(--cv-t2)] hover:border-[var(--cv-t3)]'
-            }`}
-          >
-            <span
-              aria-hidden
-              className="inline-block h-1.5 w-1.5 rounded-full"
-              style={{ backgroundColor: dotColor[type] }}
-            />
-            {labels[type]}
-          </button>
-        )
-      })}
-    </>
-  )
-}
-
 function PanelLoadingSkeleton() {
   return (
     <div className="space-y-2">
@@ -177,16 +120,9 @@ function PanelLoadingSkeleton() {
   )
 }
 
-function filterEntries(
-  items: EntryListItem[],
-  search: string,
-  activeFilters: Set<EntryType>,
-): EntryListItem[] {
+function filterEntries(items: EntryListItem[], search: string): EntryListItem[] {
   const query = search.trim().toLowerCase()
   return items.filter((item) => {
-    if (activeFilters.size > 0 && !activeFilters.has(item.type)) {
-      return false
-    }
     if (!query) return true
     return (
       item.label.toLowerCase().includes(query) ||
@@ -194,14 +130,4 @@ function filterEntries(
       (item.urlDomain?.toLowerCase().includes(query) ?? false)
     )
   })
-}
-
-function toggleSet<T>(set: Set<T>, value: T): Set<T> {
-  const next = new Set(set)
-  if (next.has(value)) {
-    next.delete(value)
-  } else {
-    next.add(value)
-  }
-  return next
 }
