@@ -5,7 +5,7 @@ import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { Icon } from '../../../shared/components/icon'
 import { WarningZone } from '../../../shared/components/warning-zone'
 import { POLICY_ERROR_KEY, type GrantPolicyKind } from '../grant-policy'
-import { formatGrantDate } from './grant-format'
+import { formatExpiresInLong, formatGrantDate } from './grant-format'
 
 /** Quick-pick intervals offered for a time-limited grant (minutes). */
 const QUICK_MINUTES = [5, 15, 30] as const
@@ -164,13 +164,21 @@ export function GrantPolicyFields({
             {t('grants.approve.quickCustom')}
           </button>
 
-          {/* Chosen expiry, shown so the picked value is always visible. */}
+          {/* Chosen expiry — prominent relative distance (teal) on the left, the
+              absolute timestamp muted on the right so the picked value is clear. */}
           {expiresAt && (
-            <p className="mt-1.5 text-[11px] text-[var(--cv-t2)]">
-              {t('grants.approve.expiresAtSummary', {
-                date: formatGrantDate(expiresAt),
-              })}
-            </p>
+            <div
+              className="mt-2 flex items-center justify-between gap-2 rounded-lg
+                border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2"
+            >
+              <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--cv-t1)]">
+                <Icon name="schedule" size={14} className="text-[#2EC4B6]" />
+                {formatExpiresInLong(expiresAt, t)}
+              </span>
+              <span className="shrink-0 text-[11px] text-[var(--cv-t3)]">
+                {formatGrantDate(expiresAt)}
+              </span>
+            </div>
           )}
 
           {pickerOpen && (
