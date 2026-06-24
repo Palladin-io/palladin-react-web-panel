@@ -11,13 +11,6 @@ import {
   type DetailRowValue,
 } from './notification-presentation'
 
-/**
- * Fixed detail-row count every non-empty card renders — shorter types are
- * padded with blank rows so all cards share one height (4 = the richest type:
- * agent / grant approved/denied).
- */
-const DETAIL_ROWS = 4
-
 /** Soft chip tints for the glyph header avatar. On-palette tokens only. */
 const GLYPH_TONE: Record<'red' | 'amber' | 'teal' | 'grey', { bg: string; color: string }> = {
   red: { bg: 'rgba(255,79,79,0.13)', color: '#FF4F4F' },
@@ -132,9 +125,7 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
         </span>
       </div>
 
-      {/* Detail rows — grow to fill so the footer pins to the card bottom.
-          Padded to a fixed count so every card is the same height regardless
-          of type (uneven row counts made the feed look ragged). */}
+      {/* Detail rows — grow to fill so the footer pins to the card bottom */}
       {card.rows.length > 0 && (
         <div className="flex flex-1 flex-col gap-2 border-t border-[var(--cv-divider)] px-[14px] py-3">
           {card.rows.map((row) => (
@@ -147,18 +138,6 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
               </span>
             </div>
           ))}
-          {Array.from({ length: Math.max(0, DETAIL_ROWS - card.rows.length) }).map(
-            (_, i) => (
-              <div
-                key={`pad-${i}`}
-                aria-hidden
-                className="flex gap-3 text-[11px] leading-relaxed"
-              >
-                <span className="w-20 shrink-0">&nbsp;</span>
-                <span className="min-w-0 flex-1">&nbsp;</span>
-              </div>
-            ),
-          )}
         </div>
       )}
 

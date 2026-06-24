@@ -222,6 +222,7 @@ export function notificationCardPresentation(
           entryRow(item),
           metaRow(item, 'notifications.card.rowReason', 'errorHint'),
           metaRow(item, 'notifications.card.rowNote', 'note'),
+          textRow('notifications.card.rowHostIp', agentHostIp(item)),
         ],
       }
 
