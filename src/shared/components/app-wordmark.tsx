@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 
 interface AppWordmarkProps {
-  /** 'sm' for sidebar (logo 20px, text 15px semibold) — 'lg' for login hero (logo 64px, text 28px extrabold, stacked) */
+  /** 'sm' for sidebar header (logo 48px, "Palladin" 16px below, centred) — 'lg' for login hero (logo 64px, text 28px) */
   size?: 'sm' | 'lg'
 }
 
@@ -25,8 +25,8 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
   }
 
   return (
-    <div className="flex items-center gap-3.5">
-      <img src="/logo.png" alt={appName} className="h-9 w-9 shrink-0" />
+    <div className="flex flex-col items-center gap-2">
+      <img src="/logo.png" alt={appName} className="h-12 w-12" />
       <span
         className="text-[16px] font-extrabold text-[var(--cv-t1)]"
         style={{ letterSpacing: '-0.01em' }}

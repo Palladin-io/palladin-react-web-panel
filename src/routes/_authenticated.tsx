@@ -255,8 +255,11 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
         borderRightColor: borderColor,
       }}
     >
-      {/* Logo — left-aligned with nav items (margin 8px + padding 14px = 22px) */}
-      <div className="py-5 pl-[22px] pr-4">
+      {/* Logo header — centred logo + wordmark, divider mirrors the profile's */}
+      <div
+        className="border-b px-4 py-5"
+        style={{ borderBottomColor: borderColor }}
+      >
         <AppWordmark size="sm" />
       </div>
 
