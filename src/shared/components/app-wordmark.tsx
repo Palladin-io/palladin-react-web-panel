@@ -25,8 +25,8 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
   }
 
   return (
-    <div className="flex items-center justify-center gap-3">
-      <img src="/logo.png" alt={appName} className="h-12 w-auto" />
+    <div className="flex items-center gap-2.5">
+      <img src="/logo.png" alt={appName} className="h-11 w-auto" />
       <span
         className="text-[20px] font-extrabold text-[#FF4F4F]"
         style={{ letterSpacing: '-0.01em' }}
