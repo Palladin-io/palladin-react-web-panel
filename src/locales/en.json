@@ -1,7 +1,5 @@
 {
   "auth.appName": "Palladin",
-  "auth.titleClaw": "Claw ",
-  "auth.titleVault": "Vault",
   "auth.taglineFirstLine": "Zero-Knowledge Password Manager",
   "auth.taglineForAiAgents": "for AI Agents",
   "auth.signingIn": "Signing in...",

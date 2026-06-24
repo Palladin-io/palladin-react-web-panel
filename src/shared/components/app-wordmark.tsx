@@ -7,7 +7,7 @@ interface AppWordmarkProps {
 
 /**
  * Palladin logotype: logo image + two-colour wordmark.
- * "Claw " renders in cream, "Vault" in brand red.
+ * "Pa" and "adin" render in the foreground colour, the middle "ll" in brand red.
  * Used on the login page (lg) and in the app sidebar (sm).
  */
 export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
@@ -19,8 +19,9 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
       <div className="flex flex-col items-center gap-2">
         <img src="/logo.png" alt={appName} className="h-16 w-16" />
         <h1 className="text-[28px] font-extrabold tracking-tight">
-          <span className="text-[#FDF9E4]">{t('auth.titleClaw')}</span>
-          <span className="text-[#FF4F4F]">{t('auth.titleVault')}</span>
+          <span className="text-[#FDF9E4]">Pa</span>
+          <span className="text-[#FF4F4F]">ll</span>
+          <span className="text-[#FDF9E4]">adin</span>
         </h1>
       </div>
     )
@@ -33,8 +34,9 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
         className="text-[16px] font-extrabold"
         style={{ letterSpacing: '-0.01em' }}
       >
-        <span className="text-[var(--cv-t1)]">Claw </span>
-        <span className="text-[#FF4F4F]">Vault</span>
+        <span className="text-[var(--cv-t1)]">Pa</span>
+        <span className="text-[#FF4F4F]">ll</span>
+        <span className="text-[var(--cv-t1)]">adin</span>
       </span>
     </div>
   )
