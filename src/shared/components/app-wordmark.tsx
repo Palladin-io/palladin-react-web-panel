@@ -16,7 +16,7 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
   if (size === 'lg') {
     return (
       <div className="flex flex-col items-center gap-2">
-        <img src="/logo.png" alt={appName} className="h-16 w-16" />
+        <img src="/logo.png" alt={appName} className="h-16 w-auto" />
         <h1 className="text-[28px] font-extrabold tracking-tight text-[#FDF9E4]">
           Palladin
         </h1>
@@ -26,7 +26,7 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
 
   return (
     <div className="flex flex-col items-center gap-2">
-      <img src="/logo.png" alt={appName} className="h-12 w-12" />
+      <img src="/logo.png" alt={appName} className="h-12 w-auto" />
       <span
         className="text-[20px] font-extrabold text-[var(--cv-t1)]"
         style={{ letterSpacing: '-0.01em' }}
