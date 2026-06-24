@@ -96,7 +96,7 @@ export const useAuthStore = create<AuthState>()(
       logout: () => set(initialState),
     }),
     {
-      name: 'claw-vault-auth',
+      name: 'palladin-auth',
       // Only tokens + onboarding state survive a refresh.
       // Crypto keys (masterKey, privateKey) and isVaultLocked are intentionally
       // left out — the vault must be re-unlocked after every page reload.

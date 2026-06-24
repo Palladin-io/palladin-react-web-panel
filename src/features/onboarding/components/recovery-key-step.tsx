@@ -36,7 +36,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'clawvault-recovery-key.txt'
+    link.download = 'palladin-recovery-key.txt'
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)

@@ -6,7 +6,7 @@ interface AppWordmarkProps {
 }
 
 /**
- * Claw Vault logotype: logo image + two-colour wordmark.
+ * Palladin logotype: logo image + two-colour wordmark.
  * "Claw " renders in cream, "Vault" in brand red.
  * Used on the login page (lg) and in the app sidebar (sm).
  */

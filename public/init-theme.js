@@ -4,7 +4,7 @@
 // Reads the same localStorage key that the Zustand `persist` middleware writes.
 (function () {
   try {
-    var stored = JSON.parse(localStorage.getItem('claw-vault-theme') || '{}')
+    var stored = JSON.parse(localStorage.getItem('palladin-theme') || '{}')
     if ((stored.state && stored.state.theme) !== 'light') {
       document.documentElement.classList.add('dark')
     }

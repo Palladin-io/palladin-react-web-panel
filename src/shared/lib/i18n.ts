@@ -6,7 +6,7 @@ import pl from '../../locales/pl.json'
 export const SUPPORTED_LANGUAGES = ['en', 'pl'] as const
 export type Language = (typeof SUPPORTED_LANGUAGES)[number]
 
-export const LANGUAGE_STORAGE_KEY = 'claw-vault-lang'
+export const LANGUAGE_STORAGE_KEY = 'palladin-lang'
 
 const savedLng =
   typeof localStorage !== 'undefined'

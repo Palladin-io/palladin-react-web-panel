@@ -119,6 +119,6 @@ describe('getAnalyticsHeaders', () => {
 
     const headers = getAnalyticsHeaders()
 
-    expect(headers['x-user-agent']).toMatch(/^ClawVault\/web \(.+; .+\)$/)
+    expect(headers['x-user-agent']).toMatch(/^Palladin\/web \(.+; .+\)$/)
   })
 })

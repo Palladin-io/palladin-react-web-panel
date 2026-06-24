@@ -15,6 +15,6 @@ export const useThemeStore = create<ThemeState>()(
       toggleTheme: () =>
         set({ theme: get().theme === 'dark' ? 'light' : 'dark' }),
     }),
-    { name: 'claw-vault-theme' },
+    { name: 'palladin-theme' },
   ),
 )

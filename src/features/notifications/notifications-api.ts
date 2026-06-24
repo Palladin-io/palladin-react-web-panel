@@ -3,7 +3,7 @@ import { api } from '../../shared/api/client'
 
 /**
  * Notification Center API client — matches the FROZEN contract in
- * `docs/obsidian/claw-vault/Product/Modules/Notification/Notification Center (CVT-162).md`.
+ * `docs/obsidian/palladin/Product/Modules/Notification/Notification Center (CVT-162).md`.
  *
  * The feed is self-scoped (JWT) and already filtered by the caller's current
  * vault access. The server NEVER sends ready-made copy: it sends a `titleKey`
