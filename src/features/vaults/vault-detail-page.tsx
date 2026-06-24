@@ -19,6 +19,8 @@ import { useVault } from './use-vault'
 
 export interface VaultDetailPageProps {
   vaultId: string
+  /** Tab to open initially (e.g. deep-linked `?tab=agents` from a notification). */
+  initialTab?: VaultDetailTab
 }
 
 /**
@@ -31,11 +33,11 @@ export interface VaultDetailPageProps {
  * settings form so settings are reachable without leaving the page;
  * the dedicated `/vaults/:id/settings` route stays as a deep link.
  */
-export function VaultDetailPage({ vaultId }: VaultDetailPageProps) {
+export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const vault = useVault(vaultId)
-  const [activeTab, setActiveTab] = useState<VaultDetailTab>('entries')
+  const [activeTab, setActiveTab] = useState<VaultDetailTab>(initialTab ?? 'entries')
   const [createEntryOpen, setCreateEntryOpen] = useState(false)
   const [addAgentOpen, setAddAgentOpen] = useState(false)
   const isWide = useWideScreen(1280)

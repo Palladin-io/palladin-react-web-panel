@@ -53,12 +53,45 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     ).toBeInTheDocument()
   })
 
-  it('blocks confirm with an empty expiry (default = Time Limited)', async () => {
+  it('defaults Time Limited to a future expiry and confirms with it', async () => {
     const user = userEvent.setup()
     renderDialog()
+    // Time Limited is the default kind; the expiry pre-fills to ~1 day ahead,
+    // shown as a relative distance ("in 23 hours" / "in 1 day").
+    expect(screen.getByText(/Expires in \d+ (hour|day)/i)).toBeInTheDocument()
+
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
-    expect(onConfirm).not.toHaveBeenCalled()
-    expect(screen.getByText(/choose an expiry/i)).toBeInTheDocument()
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm.mock.calls[0][0]).toHaveProperty('expiresAt')
+  })
+
+  it('a quick-duration chip sets the expiry', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    await user.click(screen.getByRole('button', { name: '6h' }))
+    await user.click(screen.getByRole('button', { name: /^approve access$/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    const body = onConfirm.mock.calls[0][0]
+    expect(body).toHaveProperty('expiresAt')
+    expect(new Date(body.expiresAt).getTime()).toBeGreaterThan(Date.now())
+  })
+
+  it('a quick-minutes chip sets the expiry', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    await user.click(screen.getByRole('button', { name: '15min' }))
+    await user.click(screen.getByRole('button', { name: /^approve access$/i }))
+    expect(onConfirm).toHaveBeenCalledTimes(1)
+    expect(onConfirm.mock.calls[0][0]).toHaveProperty('expiresAt')
+  })
+
+  it('Custom opens the on-brand date-time picker', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    await user.click(screen.getByRole('button', { name: /custom/i }))
+    expect(
+      screen.getByRole('dialog', { name: /choose date and time/i }),
+    ).toBeInTheDocument()
   })
 
   it('confirms with queryLimit only when Number of Uses is selected', async () => {

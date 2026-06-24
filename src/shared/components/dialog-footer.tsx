@@ -15,13 +15,13 @@ interface DialogFooterProps {
  * app-wide single standard); no taller dialog exception. See CLAUDE.md
  * "Modal Footer".
  *
- * `mt-3` keeps the footer close to the dialog body (the body already uses
- * `gap-4` internally; `mt-4` here pushed it too far down).
+ * Spacing above the footer comes from the dialog body's own `gap` — the footer
+ * adds none of its own so it sits one gap below the last field.
  */
 export function DialogFooter({ children }: DialogFooterProps) {
   return (
     <div
-      className="-mx-6 -mb-6 mt-3 flex items-center gap-2
+      className="-mx-6 -mb-6 flex items-center gap-2
         rounded-b-2xl border-t border-[var(--cv-divider)]
         bg-[rgba(0,11,46,0.015)] px-6 py-3.5
         dark:bg-[rgba(253,249,228,0.02)]"

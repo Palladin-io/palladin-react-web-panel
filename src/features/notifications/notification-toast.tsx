@@ -17,7 +17,11 @@ import type { NotificationPayload } from './notification-types'
  *
  * Variants: approved=success, denied/revoked=error, pending/agent_pending=info.
  */
-export function showNotificationToast(payload: NotificationPayload) {
+export function showNotificationToast(
+  payload: NotificationPayload,
+  /** Invoked from the toast's "Open" action — wired to navigate to the inbox. */
+  onOpen?: () => void,
+) {
   const { type } = payload
 
   // agent_resolved is an invisible collapse marker; agent_approved is
@@ -27,45 +31,39 @@ export function showNotificationToast(payload: NotificationPayload) {
   // server-supplied title.
   if (type === 'agent_resolved' || type === 'agent_approved') return
 
+  // Every toast carries an action that takes the user to the inbox — the hub
+  // where the full card and its actions live. Transient toasts shouldn't be the
+  // only path to act on a notification.
+  const action = onOpen
+    ? { label: i18n.t('notifications.toast.open'), onClick: onOpen }
+    : undefined
+  const opts = (description: ReactNode) => ({ description: withDivider(description), action })
+
   switch (type) {
     case 'grant_approved':
-      toast.success(i18n.t('notifications.grantApproved.title'), {
-        description: withDivider(grantDecisionBody(payload, 'grantApproved')),
-      })
+      toast.success(i18n.t('notifications.grantApproved.title'), opts(grantDecisionBody(payload, 'grantApproved')))
       break
     case 'grant_denied':
-      toast.error(i18n.t('notifications.grantDenied.title'), {
-        description: withDivider(grantDeniedBody(payload)),
-      })
+      toast.error(i18n.t('notifications.grantDenied.title'), opts(grantDeniedBody(payload)))
       break
     case 'grant_revoked':
-      toast.error(i18n.t('notifications.grantRevoked.title'), {
-        description: withDivider(grantDecisionBody(payload, 'grantRevoked')),
-      })
+      toast.error(i18n.t('notifications.grantRevoked.title'), opts(grantDecisionBody(payload, 'grantRevoked')))
       break
     case 'grant_pending':
-      toast.info(i18n.t('notifications.grantPending.title'), {
-        description: withDivider(grantPendingBody(payload)),
-      })
+      toast.info(i18n.t('notifications.grantPending.title'), opts(grantPendingBody(payload)))
       break
     case 'agent_pending':
-      toast.info(i18n.t('notifications.agentPending.title'), {
-        description: withDivider(agentPendingBody(payload)),
-      })
+      toast.info(i18n.t('notifications.agentPending.title'), opts(agentPendingBody(payload)))
       break
     case 'credential_accessed':
-      toast.info(i18n.t('notifications.credentialAccessed.title'), {
-        description: withDivider(credentialAccessedBody(payload)),
-      })
+      toast.info(i18n.t('notifications.credentialAccessed.title'), opts(credentialAccessedBody(payload)))
       break
     case 'credential_stale':
-      toast.warning(i18n.t('notifications.credentialStale.title'), {
-        description: withDivider(credentialStaleBody(payload)),
-      })
+      toast.warning(i18n.t('notifications.credentialStale.title'), opts(credentialStaleBody(payload)))
       break
     default:
       // Unknown type — show the server-supplied copy verbatim.
-      toast.info(payload.title, { description: withDivider(payload.body) })
+      toast.info(payload.title, opts(payload.body))
       break
   }
 }

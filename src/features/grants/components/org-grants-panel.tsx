@@ -62,9 +62,15 @@ export interface OrgGrantsPanelProps {
   agentId?: string
   vaultId?: string
   entryId?: string
+  /**
+   * Chromeless variant for the inbox Grants segment: drops the title/status-count
+   * header and the time-bucket group labels, rendering one flat grid. The segment
+   * tab already names the view, and the time markers add noise there.
+   */
+  bare?: boolean
 }
 
-export function OrgGrantsPanel({ agentId, vaultId, entryId }: OrgGrantsPanelProps = {}) {
+export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPanelProps = {}) {
   const { t } = useTranslation()
   const [statusFilter, setStatusFilter] = useState<Set<GrantStatus>>(new Set())
   const [search, setSearch] = useState('')
@@ -152,7 +158,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId }: OrgGrantsPanelProp
           `h-10` header (same as Agents/Vaults and the left Pending panel) so
           the search bar sits at the same height across every list screen and
           the view doesn't jump when navigating. */}
-      {!embedded && (
+      {!embedded && !bare && (
         <div className="mb-4 flex h-10 items-center gap-2">
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
@@ -206,6 +212,20 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId }: OrgGrantsPanelProp
             {t('grants.org.empty')}
           </p>
         </div>
+      ) : bare ? (
+        // Flat grid — no time-bucket headers (inbox Grants segment).
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] items-start gap-[10px]">
+          {filtered.map((grant) => (
+            <li key={grant.id}>
+              <OrgGrantRow
+                grant={grant}
+                onRevoke={() => setRevokeTarget(grant)}
+                onRegrant={() => setRegrantTarget(grant)}
+                disabled={revoke.isPending || regrant.isPending}
+              />
+            </li>
+          ))}
+        </ul>
       ) : (
         <div className="flex flex-col gap-4">
           {groups.map(([bucket, rows]) => (

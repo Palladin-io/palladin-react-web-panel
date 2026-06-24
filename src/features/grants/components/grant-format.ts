@@ -56,6 +56,26 @@ export function formatExpiresIn(iso: string, t: TFunction): string {
   return t('grants.remaining.expiresInDays', { count: days })
 }
 
+/**
+ * Verbose forward-looking distance ("in 30 minutes / 5 hours / 3 days / 2 months")
+ * for the grant-policy expiry summary. Unlike `formatExpiresIn` (compact "3d"),
+ * this spells the unit out and rolls up to months for long spans.
+ */
+export function formatExpiresInLong(iso: string, t: TFunction): string {
+  const ts = Date.parse(iso)
+  if (Number.isNaN(ts)) return iso
+  // Round (not floor): a value set to exactly now+24h is already a few ms in the
+  // past by render time, which would floor to "23 hours" — round keeps it "24h".
+  const minutes = Math.round((ts - Date.now()) / 60_000)
+  if (minutes <= 0) return t('grants.remaining.expired')
+  if (minutes < 60) return t('grants.approve.expiresRelMinutes', { count: minutes })
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return t('grants.approve.expiresRelHours', { count: hours })
+  const days = Math.round(hours / 24)
+  if (days < 30) return t('grants.approve.expiresRelDays', { count: days })
+  return t('grants.approve.expiresRelMonths', { count: Math.round(days / 30) })
+}
+
 /** Time bucket for grouping the org-grants list. */
 export type TimeBucket = 'today' | 'week' | 'older'
 

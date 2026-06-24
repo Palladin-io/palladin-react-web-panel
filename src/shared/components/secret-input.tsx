@@ -19,7 +19,7 @@ export interface SecretInputProps {
 
 export function SecretInput({
   id, label, value, onChange, shown, onToggleShown,
-  placeholder, disabled, monospace, autoComplete = 'new-password', error, onBlur,
+  placeholder, disabled, monospace, autoComplete = 'off', error, onBlur,
 }: SecretInputProps) {
   const { t } = useTranslation()
   return (
@@ -28,19 +28,32 @@ export function SecretInput({
         {label}
       </label>
       <div className="relative">
+        {/* Never `type=password`: a real password field in a form makes the
+            browser's password manager offer to save the vault secret. We mask a
+            plain text field via `.secret-mask` (a disc-glyph font that masks in
+            every browser incl. Firefox, hardened by -webkit-text-security) and
+            add ignore hints for third-party managers (1Password/LastPass/Bitwarden). */}
         <input
           id={id}
-          type={shown ? 'text' : 'password'}
+          type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
           placeholder={placeholder}
           disabled={disabled}
           autoComplete={autoComplete}
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          data-1p-ignore
+          data-lpignore="true"
+          data-bwignore
+          data-form-type="other"
           className={`w-full rounded-lg border bg-[var(--cv-input-bg)]
             py-2 pl-3 pr-10 text-[12px] text-[var(--cv-input-text)]
             placeholder:text-[var(--cv-input-placeholder)]
             focus:outline-none transition-colors duration-200 disabled:opacity-60${monospace ? ' font-mono' : ''}
+            ${shown ? '' : ' secret-mask'}
             ${error
               ? 'border-[#FF4F4F] focus:border-[#FF4F4F]'
               : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'

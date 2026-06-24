@@ -1,24 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Button, POSITIVE_BUTTON_SM_CLASS } from '../../shared/components/button'
+import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
 import {
   ApproveGrantDialog,
   DenyGrantDialog,
-  GrantAgainDialog,
-  RevokeGrantDialog,
+  OrgGrantsPanel,
   useApproveGrant,
   useDenyGrant,
-  useRegrant,
-  useRevokeOrgGrant,
-  GRANT_TYPE_GRANULAR,
   type GrantMethod,
   type GrantPolicyBody,
-  type OrgGrant,
   type PendingGrant,
 } from '../grants'
 import {
@@ -42,7 +37,7 @@ import {
   useNotificationsSummary,
 } from './notification-queries'
 
-type Segment = 'all' | 'todo' | 'history'
+type Segment = 'all' | 'todo' | 'history' | 'grants'
 
 /** Agent-approval target carried from an `agent_pending` card to the modal. */
 interface AgentTarget {
@@ -58,15 +53,20 @@ interface AgentTarget {
  *
  * Layout follows the approved design 1:1: header + segment (All / To-do /
  * History), a search row (input + "Filter" button), then a "Required actions"
- * section (action-required cards with approve/deny/update) and a "History"
- * section (interactive: active→revoke, revoked/denied→grant again, terminal→
- * "agent has active access") linking out to the Audit Log.
+ * section and a "History" section linking out to the Audit Log.
  *
- * All grant actions reuse the existing zero-knowledge flows — the crypto is
- * untouched; only the ids come from notification `metadata`.
+ * A notification card is an IMMUTABLE LOG of an event, not a live control panel.
+ * Inline mutating actions exist ONLY on the two action-required pending types —
+ * `grant_pending` and `agent_pending` (approve/deny). Every other card carries
+ * at most a single non-mutating "View" link that deep-links to the resource
+ * detail; state changes (revoke / grant again) happen there, not on the card.
+ *
+ * The approve/deny flows reuse the existing zero-knowledge grant + agent flows —
+ * the crypto is untouched; only the ids come from notification `metadata`.
  */
 export function NotificationCenterPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const notifications = useNotifications()
   const summary = useNotificationsSummary()
@@ -85,24 +85,19 @@ export function NotificationCenterPage() {
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set())
   const [prefsOpen, setPrefsOpen] = useState(false)
 
-  // Grant-action mutations + dialog targets (shared across both sections).
+  // Pending-action mutations + dialog targets. Only the two action-required
+  // pending types mutate from the inbox; everything else just deep-links out.
   const approve = useApproveGrant()
   const deny = useDenyGrant()
-  const revoke = useRevokeOrgGrant()
-  const regrant = useRegrant()
   const approveAgent = useApproveAgent()
   const deactivateAgent = useDeactivateAgent()
   const [approveTarget, setApproveTarget] = useState<NotificationGrantContext | null>(null)
   const [denyTarget, setDenyTarget] = useState<NotificationGrantContext | null>(null)
-  const [revokeTarget, setRevokeTarget] = useState<NotificationGrantContext | null>(null)
-  const [regrantTarget, setRegrantTarget] = useState<NotificationGrantContext | null>(null)
   // Agent approval target — opens the existing agent-activation modal.
   const [agentApproveTarget, setAgentApproveTarget] = useState<AgentTarget | null>(null)
   const busy =
     approve.isPending ||
     deny.isPending ||
-    revoke.isPending ||
-    regrant.isPending ||
     approveAgent.isPending ||
     deactivateAgent.isPending
 
@@ -129,6 +124,9 @@ export function NotificationCenterPage() {
     [historyItems, query, typeFilter],
   )
 
+  // The Grants tab swaps the immutable inbox feed for the live org-wide grants
+  // panel — the only place in the inbox with live state + actions (Revoke).
+  const showGrants = segment === 'grants'
   const showActions = segment === 'all' || segment === 'todo'
   const showHistory = segment === 'all' || segment === 'history'
 
@@ -169,43 +167,6 @@ export function NotificationCenterPage() {
     )
   }
 
-  function handleRevoke(reason: string) {
-    if (!revokeTarget) return
-    revoke.mutate(
-      { vaultId: revokeTarget.vaultId, grantId: revokeTarget.grantId, reason },
-      {
-        onSuccess: () => {
-          toast.success(t('grants.revoke.success'))
-          setRevokeTarget(null)
-          refreshFeed()
-        },
-        onError: () => toast.error(t('grants.revoke.error')),
-      },
-    )
-  }
-
-  function handleRegrant(policy: GrantPolicyBody) {
-    if (!regrantTarget?.agentId || !regrantTarget.entryId) return
-    regrant.mutate(
-      {
-        vaultId: regrantTarget.vaultId,
-        agentId: regrantTarget.agentId,
-        entryId: regrantTarget.entryId,
-        agentPublicKey: regrantTarget.agentPublicKey,
-        type: GRANT_TYPE_GRANULAR,
-        policy,
-      },
-      {
-        onSuccess: () => {
-          toast.success(t('grants.regrant.success'))
-          setRegrantTarget(null)
-          refreshFeed()
-        },
-        onError: () => toast.error(t('grants.regrant.error')),
-      },
-    )
-  }
-
   function handleApproveAgent(input: ApproveAgentInput) {
     if (!agentApproveTarget) return
     approveAgent.mutate(
@@ -230,6 +191,26 @@ export function NotificationCenterPage() {
       },
       onError: () => toast.error(t('agents.errorDeactivate')),
     })
+  }
+
+  // Open a card's deep-link to the resource detail and mark it read. The link is
+  // a backend-supplied app path (`metadata.actionDeepLink`); state changes
+  // (revoke / grant again) live on that detail, not on the immutable log card.
+  function handleView(item: NotificationItem) {
+    // Access (grant) cards open the vault on its Agents tab — that's where the
+    // live grant state and revoke/re-grant actions live, not the grant deep-link.
+    const vaultId = item.metadata?.vaultId
+    if (isAccessNotification(item) && vaultId) {
+      markReadNow(item.id)
+      navigate({ to: '/vaults/$vaultId', params: { vaultId }, search: { tab: 'agents' } })
+      return
+    }
+    const deepLink = item.metadata?.actionDeepLink
+    if (!deepLink || !isKnownDeepLink(deepLink)) return
+    markReadNow(item.id)
+    // Validated against the app's route prefixes above, so the backend string is
+    // safe to hand to the type-safe navigator (which otherwise trusts the path).
+    navigate({ to: deepLink })
   }
 
   return (
@@ -272,22 +253,27 @@ export function NotificationCenterPage() {
         </div>
       </div>
 
-      {/* Search (left) + multi-select type filter (right) — org-grants pattern */}
-      <div className="mb-3 flex items-stretch gap-2">
-        <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2 transition-colors focus-within:border-[var(--cv-t1)]">
-          <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
-          <input
-            type="text"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t('notifications.center.search')}
-            className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
-          />
+      {/* Search (left) + multi-select type filter (right) — org-grants pattern.
+          Hidden on the Grants tab, where OrgGrantsPanel owns its own filtering. */}
+      {!showGrants && (
+        <div className="mb-3 flex items-stretch gap-2">
+          <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2 transition-colors focus-within:border-[var(--cv-t1)]">
+            <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
+            <input
+              type="text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={t('notifications.center.search')}
+              className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
+            />
+          </div>
+          <TypeFilterDropdown selected={typeFilter} onChange={setTypeFilter} />
         </div>
-        <TypeFilterDropdown selected={typeFilter} onChange={setTypeFilter} />
-      </div>
+      )}
 
-      {notifications.isPending ? (
+      {showGrants ? (
+        <OrgGrantsPanel bare />
+      ) : notifications.isPending ? (
         <LoadingSkeleton />
       ) : notifications.isError ? (
         <ErrorState
@@ -319,7 +305,7 @@ export function NotificationCenterPage() {
                           onDeny={setDenyTarget}
                           onApproveAgent={setAgentApproveTarget}
                           onDenyAgent={handleDenyAgent}
-                          onMarkRead={markReadNow}
+                          onView={handleView}
                         />
                       }
                     />
@@ -349,14 +335,7 @@ export function NotificationCenterPage() {
                       key={item.id}
                       item={item}
                       onSeen={markRead.mutate}
-                      footer={
-                        <HistoryFooter
-                          item={item}
-                          busy={busy}
-                          onRevoke={setRevokeTarget}
-                          onRegrant={setRegrantTarget}
-                        />
-                      }
+                      footer={<ViewFooter item={item} onView={handleView} />}
                     />
                   ))}
                 </Grid>
@@ -379,7 +358,8 @@ export function NotificationCenterPage() {
         </>
       )}
 
-      {/* Dialogs — reuse the existing grant flows (crypto unchanged) */}
+      {/* Dialogs — only the two pending types mutate; reuse the existing
+          zero-knowledge grant + agent flows (crypto unchanged). */}
       {approveTarget && (
         <ApproveGrantDialog
           grant={toPendingGrant(approveTarget)}
@@ -395,21 +375,6 @@ export function NotificationCenterPage() {
         onConfirm={handleDeny}
         onCancel={() => setDenyTarget(null)}
       />
-      <RevokeGrantDialog
-        open={revokeTarget !== null}
-        targetLabel={revokeTarget?.entryLabel ?? t('grants.unknownTarget')}
-        isPending={revoke.isPending}
-        onConfirm={handleRevoke}
-        onCancel={() => setRevokeTarget(null)}
-      />
-      {regrantTarget && (
-        <GrantAgainDialog
-          grant={toOrgGrant(regrantTarget)}
-          isPending={regrant.isPending}
-          onConfirm={handleRegrant}
-          onCancel={() => setRegrantTarget(null)}
-        />
-      )}
 
       {agentApproveTarget && (
         <ApproveAgentDialog
@@ -463,10 +428,11 @@ function filterItems(
 }
 
 /**
- * Footer for action-required cards. Every button is `size="sm"` + `flex-1` so
- * the two slots are always equal width and height (the `POSITIVE_BUTTON_SM_CLASS`
- * link shares the same base classes as `<Button>`, so a link CTA matches a
- * button CTA exactly).
+ * Footer for cards in the To-do section. Inline mutating actions exist ONLY for
+ * the two action-required PENDING types (`grant_pending`, `agent_pending`) —
+ * approve/deny. Any other action-required type (e.g. `credential_stale`) is an
+ * immutable log and gets the same non-mutating "View" link as History cards.
+ * Both approve/deny buttons are `size="sm"` + `flex-1` so the slots stay equal.
  */
 function ActionFooter({
   item,
@@ -475,7 +441,7 @@ function ActionFooter({
   onDeny,
   onApproveAgent,
   onDenyAgent,
-  onMarkRead,
+  onView,
 }: {
   item: NotificationItem
   busy: boolean
@@ -483,7 +449,7 @@ function ActionFooter({
   onDeny: (ctx: NotificationGrantContext) => void
   onApproveAgent: (target: AgentTarget) => void
   onDenyAgent: (agentId: string, notificationId: string) => void
-  onMarkRead: (id: string) => void
+  onView: (item: NotificationItem) => void
 }) {
   const { t } = useTranslation()
   const ctx = notificationGrantContext(item)
@@ -503,15 +469,9 @@ function ActionFooter({
 
   if (item.type === 'agent_pending') {
     const agentId = item.metadata?.agentId
-    // Without an agentId we can't drive the approve/deactivate flow — degrade
-    // to a dismiss so the card still resolves.
-    if (!agentId) {
-      return (
-        <Button variant="subtle" size="sm" className="flex-1" disabled={busy} onClick={() => onMarkRead(item.id)}>
-          {t('notifications.center.dismiss')}
-        </Button>
-      )
-    }
+    // Without an agentId we can't drive the approve/deactivate flow — fall back
+    // to the read-only "View" link rather than a dead button.
+    if (!agentId) return <ViewFooter item={item} onView={onView} />
     const agentName = item.metadata?.agentName ?? ''
     const agentType = item.metadata?.agentType ?? ''
     return (
@@ -538,92 +498,87 @@ function ActionFooter({
     )
   }
 
-  if (item.type === 'credential_stale') {
-    const vaultId = item.metadata?.vaultId
-    const entryId = item.metadata?.entryId
-    return (
-      <>
-        <Button variant="subtle" size="sm" className="flex-1" disabled={busy} onClick={() => onMarkRead(item.id)}>
-          {t('notifications.center.dismiss')}
-        </Button>
-        {vaultId && entryId ? (
-          <Link
-            to="/vaults/$vaultId/entries/$entryId"
-            params={{ vaultId, entryId }}
-            onClick={() => onMarkRead(item.id)}
-            className={`${POSITIVE_BUTTON_SM_CLASS} flex-1`}
-          >
-            {t('notifications.center.update')}
-          </Link>
-        ) : null}
-      </>
-    )
-  }
+  // Any other action-required type is a log card — read-only "View" link.
+  return <ViewFooter item={item} onView={onView} />
+}
 
-  // Action-required type the client doesn't model — offer dismiss only.
-  return (
-    <Button variant="subtle" size="sm" className="flex-1" disabled={busy} onClick={() => onMarkRead(item.id)}>
-      {t('notifications.center.dismiss')}
-    </Button>
+/**
+ * Backend-supplied deep links are arbitrary strings; the type-safe navigator
+ * trusts whatever it's handed and an unknown path can break navigation. Only
+ * allow paths that match a real top-level route prefix before navigating.
+ */
+const KNOWN_DEEP_LINK_ROOTS = ['/vaults', '/agents', '/inbox', '/approvals']
+
+function isKnownDeepLink(path: string): boolean {
+  return KNOWN_DEEP_LINK_ROOTS.some(
+    (root) => path === root || path.startsWith(`${root}/`) || path.startsWith(`${root}?`),
   )
 }
 
-/** Footer for History cards — revoke active, grant-again terminal, else note. */
-function HistoryFooter({
+/** Access (grant) notifications resolve their View to the vault's Agents tab. */
+function isAccessNotification(item: NotificationItem): boolean {
+  return (
+    item.type === 'grant_approved' ||
+    item.type === 'grant_denied' ||
+    item.type === 'grant_revoked'
+  )
+}
+
+/**
+ * Contextual label for the "View" link — names the deep-link target so the CTA
+ * reads "View Access" / "View Agent" / "View Entry" instead of a generic "View".
+ *
+ * The notification `type` is the most reliable signal; for unmodelled types we
+ * fall back to the `actionDeepLink` path prefix (`/agents` → agent, `/vaults` →
+ * entry). Defaults to the access label (grants are the dominant inbox target).
+ */
+function viewLabelKey(item: NotificationItem): string {
+  switch (item.type) {
+    case 'agent_pending':
+    case 'agent_approved':
+      return 'notifications.center.viewAgent'
+    case 'credential_stale':
+      return 'notifications.center.viewEntry'
+    case 'grant_approved':
+    case 'grant_denied':
+    case 'grant_revoked':
+      return 'notifications.center.viewAccess'
+    default: {
+      const link = item.metadata?.actionDeepLink ?? ''
+      if (link.startsWith('/agents')) return 'notifications.center.viewAgent'
+      if (link.startsWith('/vaults')) return 'notifications.center.viewEntry'
+      return 'notifications.center.viewAccess'
+    }
+  }
+}
+
+/**
+ * Footer for every non-pending card (History + non-actionable To-do): a single
+ * non-mutating "View" link that deep-links to the resource detail, with a label
+ * naming the target (Access / Agent / Entry). The card is an immutable log, so
+ * it never mutates state inline. Renders nothing when the backend supplied no
+ * `actionDeepLink` — the card then stands as a pure log.
+ */
+function ViewFooter({
   item,
-  busy,
-  onRevoke,
-  onRegrant,
+  onView,
 }: {
   item: NotificationItem
-  busy: boolean
-  onRevoke: (ctx: NotificationGrantContext) => void
-  onRegrant: (ctx: NotificationGrantContext) => void
+  onView: (item: NotificationItem) => void
 }) {
   const { t } = useTranslation()
-  const ctx = notificationGrantContext(item)
-
-  if (item.type === 'grant_approved' && ctx) {
-    // Active grant: offer revoke, unless already resolved/terminal elsewhere.
-    if (item.actionState === 'resolved') {
-      return (
-        <span className="flex w-full items-center justify-center gap-1.5 text-[11px] font-semibold text-[#2EC4B6]">
-          <Icon name="check_circle" size={14} />
-          {t('notifications.center.agentHasAccess')}
-        </span>
-      )
-    }
-    return (
-      <Button variant="danger" size="sm" className="flex-1" disabled={busy} onClick={() => onRevoke(ctx)}>
-        {t('grants.revoke.action')}
-      </Button>
-    )
-  }
-
-  if ((item.type === 'grant_revoked' || item.type === 'grant_denied') && ctx?.agentId && ctx.entryId) {
-    return (
-      <Button variant="positive" size="sm" className="flex-1" disabled={busy} onClick={() => onRegrant(ctx)}>
-        {t('grants.regrant.action')}
-      </Button>
-    )
-  }
-
-  // agent_approved (informational): deep-link to the agent to review it.
-  if (item.type === 'agent_approved') {
-    const agentId = item.metadata?.agentId
-    if (!agentId) return null
-    return (
-      <Link
-        to="/agents/$agentId"
-        params={{ agentId }}
-        className={`${POSITIVE_BUTTON_SM_CLASS} flex-1`}
-      >
-        {t('notifications.center.review')}
-      </Link>
-    )
-  }
-
-  return null
+  if (!item.metadata?.actionDeepLink) return null
+  return (
+    <Button
+      variant="subtle"
+      size="sm"
+      icon="arrow_forward"
+      className="flex-1"
+      onClick={() => onView(item)}
+    >
+      {t(viewLabelKey(item))}
+    </Button>
+  )
 }
 
 /** Synthesize the minimal PendingGrant the approve dialog needs from metadata. */
@@ -640,24 +595,6 @@ function toPendingGrant(ctx: NotificationGrantContext): PendingGrant {
     agentPublicKey: ctx.agentPublicKey,
     createdAt: new Date().toISOString(),
   } as PendingGrant
-}
-
-/** Synthesize the minimal OrgGrant the grant-again dialog needs from metadata. */
-function toOrgGrant(ctx: NotificationGrantContext): OrgGrant {
-  return {
-    id: ctx.grantId,
-    vaultId: ctx.vaultId,
-    vaultName: ctx.vaultName,
-    agentId: ctx.agentId,
-    agentName: ctx.agentName,
-    agentPublicKey: ctx.agentPublicKey,
-    entryId: ctx.entryId,
-    entryLabel: ctx.entryLabel,
-    status: 'revoked',
-    createdAt: new Date().toISOString(),
-    canRevoke: false,
-    canGrantAgain: true,
-  } as OrgGrant
 }
 
 /** Notification types offered in the filter dropdown (matches the taxonomy). */
@@ -790,6 +727,7 @@ function SegmentTabs({
     { key: 'all', label: t('notifications.center.segAll') },
     { key: 'todo', label: t('notifications.center.segTodo'), count: todoCount },
     { key: 'history', label: t('notifications.center.segHistory') },
+    { key: 'grants', label: t('notifications.center.segGrants') },
   ]
   return (
     <div className="mr-1 flex items-center" role="tablist">

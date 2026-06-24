@@ -134,24 +134,31 @@ function GeneratedSecretView({
   return (
     <div className="step-enter flex flex-col gap-4">
       <div>
-        <div className="flex items-end gap-2">
-          <div className="flex-1">
-            <FormInput
-              id="generated-api-key"
-              label={t('apiKeys.secretLabel')}
-              type="text"
-              readOnly
-              value={generated.plaintext}
-              onFocus={(e) => e.currentTarget.select()}
-              monospace
-            />
-          </div>
+        <label
+          htmlFor="generated-api-key"
+          className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
+        >
+          {t('apiKeys.secretLabel')}
+        </label>
+        {/* Input + Copy share an explicit h-9 so the button matches the field
+            height exactly (the `sm` button alone is shorter than the input). */}
+        <div className="flex gap-2">
+          <input
+            id="generated-api-key"
+            type="text"
+            readOnly
+            value={generated.plaintext}
+            onFocus={(e) => e.currentTarget.select()}
+            className="h-9 w-full flex-1 rounded-lg border border-[var(--cv-input-border)]
+              bg-[var(--cv-input-bg)] px-3 font-mono text-[12px] text-[var(--cv-input-text)]
+              transition-colors focus:border-[var(--cv-t1)] focus:outline-none"
+          />
           <Button
             variant="subtle"
             size="sm"
             icon={copied ? 'check' : 'content_copy'}
             onClick={handleCopy}
-            className="shrink-0"
+            className="h-9 shrink-0"
           >
             {copied ? t('apiKeys.copied') : t('apiKeys.copy')}
           </Button>

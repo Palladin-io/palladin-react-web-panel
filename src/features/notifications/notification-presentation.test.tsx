@@ -44,7 +44,6 @@ describe('notificationCardPresentation', () => {
     expect(card.titleKey).toBe('notifications.type.grantPending')
     expect(card.subtitleKey).toBe('notifications.sub.grantPending')
     expect(card.subtitleAgent).toBe('Deploy Bot')
-    expect(card.pill).toEqual({ labelKey: 'notifications.card.pill.pending', tone: 'amber' })
     expect(card.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowEntry',
       'notifications.card.rowMethods',
@@ -66,22 +65,23 @@ describe('notificationCardPresentation', () => {
     expect(card.subtitleAgent).toBe('Billing Bot')
   })
 
-  it('gives every action-required card a "Pending" pill', () => {
-    for (const type of ['agent_pending', 'grant_pending', 'credential_stale']) {
-      const card = notificationCardPresentation(
-        makeItem({ type, category: 'actionRequired' }),
-      )
-      expect(card.pill).toEqual({ labelKey: 'notifications.card.pill.pending', tone: 'amber' })
+  it('never carries a live status pill — the card is an immutable log', () => {
+    // No presentation exposes a `pill`: title + copy describe the event, not the
+    // resource's current state.
+    const types = [
+      'agent_pending',
+      'grant_pending',
+      'credential_stale',
+      'grant_approved',
+      'grant_denied',
+      'grant_revoked',
+      'agent_approved',
+      'something_new',
+    ]
+    for (const type of types) {
+      const card = notificationCardPresentation(makeItem({ type }))
+      expect(card).not.toHaveProperty('pill')
     }
-  })
-
-  it('attaches a status pill to history items', () => {
-    expect(notificationCardPresentation(makeItem({ type: 'grant_approved' })).pill).toEqual({
-      labelKey: 'notifications.card.pill.active',
-      tone: 'green',
-    })
-    expect(notificationCardPresentation(makeItem({ type: 'grant_revoked' })).pill?.tone).toBe('red')
-    expect(notificationCardPresentation(makeItem({ type: 'grant_denied' })).pill?.tone).toBe('amber')
   })
 
   it('models the entry row as a bold entry + vault suffix', () => {
@@ -116,13 +116,14 @@ describe('notificationCardPresentation', () => {
     )
     expect(card.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowPublicKey',
-      'notifications.card.rowType',
       'notifications.card.rowAgentId',
+      'notifications.card.rowType',
       'notifications.card.rowHostIp',
     ])
     // Full key shortened client-side per the Key & ID Display Standard (first 8 … last 6).
     expect(card.rows[0].value).toEqual({ kind: 'text', text: 'ABCDEFGH…YYYYYY' })
-    expect(card.rows[1].value).toEqual({ kind: 'text', text: 'ci' })
+    expect(card.rows[1].value).toEqual({ kind: 'text', text: 'a-123' })
+    expect(card.rows[2].value).toEqual({ kind: 'text', text: 'ci' })
     const hostIp = card.rows[3].value
     expect(hostIp.kind).toBe('text')
     if (hostIp.kind === 'text') {
@@ -143,13 +144,13 @@ describe('notificationCardPresentation', () => {
     // no public key/type/host/ip → still the fixed rows, placeholders for missing
     expect(card.rows.map((r) => r.labelKey)).toEqual([
       'notifications.card.rowPublicKey',
-      'notifications.card.rowType',
       'notifications.card.rowAgentId',
+      'notifications.card.rowType',
       'notifications.card.rowHostIp',
     ])
     expect(card.rows[0].value).toEqual({ kind: 'text', text: '—' })
-    expect(card.rows[1].value).toEqual({ kind: 'text', text: '—' })
-    expect(card.rows[2].value).toEqual({ kind: 'text', text: 'a-1' })
+    expect(card.rows[1].value).toEqual({ kind: 'text', text: 'a-1' })
+    expect(card.rows[2].value).toEqual({ kind: 'text', text: '—' })
     expect(card.rows[3].value).toEqual({ kind: 'text', text: '—' })
   })
 
@@ -195,24 +196,26 @@ describe('notificationCardPresentation', () => {
     expect(noReason.rows[2].value).toEqual({ kind: 'text', text: '—' })
   })
 
-  it('agent_approved shows the agent rows and NO "By" row', () => {
+  it('agent_approved: Agent Id first, no public key, By (approver) last', () => {
     const card = notificationCardPresentation(
       makeItem({
         type: 'agent_approved',
         category: 'update',
-        metadata: { agentName: 'CI Runner', agentId: 'a-9', actorName: 'Patryk R.' },
+        metadata: { agentName: 'CI Runner', agentId: 'a-9', agentType: 'ci', actorName: 'Patryk R.' },
       }),
     )
     expect(card.rows.map((r) => r.labelKey)).toEqual([
-      'notifications.card.rowPublicKey',
-      'notifications.card.rowType',
       'notifications.card.rowAgentId',
+      'notifications.card.rowType',
       'notifications.card.rowHostIp',
+      'notifications.card.rowBy',
     ])
-    expect(card.rows.some((r) => r.labelKey === 'notifications.card.rowBy')).toBe(false)
+    expect(card.rows.some((r) => r.labelKey === 'notifications.card.rowPublicKey')).toBe(false)
+    expect(card.rows[0].value).toEqual({ kind: 'text', text: 'a-9' })
+    expect(card.rows[3].value).toEqual({ kind: 'text', text: 'Patryk R.' })
   })
 
-  it('renders agent_approved as an informational card with an active pill', () => {
+  it('renders agent_approved as an informational card with an agent header', () => {
     const card = notificationCardPresentation(
       makeItem({
         type: 'agent_approved',
@@ -221,7 +224,6 @@ describe('notificationCardPresentation', () => {
       }),
     )
     expect(card.header.kind).toBe('agent')
-    expect(card.pill).toEqual({ labelKey: 'notifications.card.pill.active', tone: 'green' })
   })
 
   it('degrades agent_pending gracefully when metadata is empty', () => {

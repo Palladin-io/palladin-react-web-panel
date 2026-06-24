@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AgentAvatar } from '../agents'
+import { AgentAvatar, useAgents } from '../agents'
 import { Icon } from '../../shared/components/icon'
 import { Tooltip } from '../../shared/components/tooltip'
 import { formatGrantDate, formatRelativeTime } from '../grants'
@@ -9,8 +9,6 @@ import {
   notificationCardPresentation,
   type CardHeaderIcon,
   type DetailRowValue,
-  type PillTone,
-  type StatusPill,
 } from './notification-presentation'
 
 /** Soft chip tints for the glyph header avatar. On-palette tokens only. */
@@ -20,13 +18,6 @@ const GLYPH_TONE: Record<'red' | 'amber' | 'teal' | 'grey', { bg: string; color:
   amber: { bg: 'rgba(240,192,64,0.14)', color: '#D4820A' },
   teal: { bg: 'rgba(46,196,182,0.14)', color: '#2EC4B6' },
   grey: { bg: 'rgba(138,149,166,0.16)', color: '#8A95A6' },
-}
-
-const PILL_TONE: Record<PillTone, { color: string; bg: string }> = {
-  green: { color: '#2EC4B6', bg: 'rgba(46,196,182,0.13)' },
-  red: { color: '#FF4F4F', bg: 'rgba(255,79,79,0.12)' },
-  // Denied pill reuses the grant amber tokens (org-grant-presentation pending).
-  amber: { color: '#D4820A', bg: 'rgba(240,192,64,0.14)' },
 }
 
 export interface NotificationCardProps {
@@ -48,8 +39,12 @@ const SEEN_DELAY_MS = 600
 /**
  * One Notification Center card in the grant-card style (anatomy from
  * org-grants-panel / pending-grants-panel): header = avatar + name + subtitle +
- * optional status pill + relative time; detail rows = label column + value;
- * footer = caller-provided actions on a subtle ground.
+ * relative time; detail rows = label column + value; footer = caller-provided
+ * action (inline approve/deny for pending items, otherwise a single "View" link).
+ *
+ * The card is an IMMUTABLE LOG of an event — it carries no live status pill that
+ * would assert the resource's current state; the title + copy describe what
+ * happened, not what is true now.
  *
  * Cards are a uniform full-height flex column (the grid stretches them) so every
  * card in a row lines up regardless of how many detail rows it has — the footer
@@ -111,8 +106,7 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
       className="flex h-full flex-col overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]"
       aria-label={title}
     >
-      {/* Header — date sits top-right on the title line; the status pill (if
-          any) stacks directly under the date, not inline with the title. */}
+      {/* Header — relative time sits top-right on the title line. */}
       <div className="flex items-start gap-2.5 px-[14px] py-2.5">
         <CardAvatar header={card.header} />
         <div className="min-w-0 flex-1">
@@ -123,15 +117,12 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
             {subtitle}
           </p>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <span
-            className="whitespace-nowrap text-[10px] text-[var(--cv-t3)]"
-            title={formatGrantDate(item.occurredAt)}
-          >
-            {formatRelativeTime(item.occurredAt, t)}
-          </span>
-          {card.pill && <Pill pill={card.pill} />}
-        </div>
+        <span
+          className="shrink-0 whitespace-nowrap text-[10px] text-[var(--cv-t3)]"
+          title={formatGrantDate(item.occurredAt)}
+        >
+          {formatRelativeTime(item.occurredAt, t)}
+        </span>
       </div>
 
       {/* Detail rows — grow to fill so the footer pins to the card bottom */}
@@ -179,19 +170,10 @@ function RowValue({ value }: { value: DetailRowValue }) {
 
 function CardAvatar({ header }: { header: CardHeaderIcon }) {
   // 36px matches the app's standard icon-circle / agent-list avatar size.
+  // Only the agent variant subscribes to the live agent cache; glyph cards must
+  // not pull `useAgents()` (no cache read, no needless re-renders).
   if (header.kind === 'agent') {
-    return (
-      <AgentAvatar
-        agent={{
-          name: header.agentName ?? '',
-          // Real agentId → deterministic colour matches the Agents list; iconKey
-          // → the agent's chosen glyph or uploaded S3 image (when present).
-          agentId: header.agentId ?? '',
-          iconKey: header.agentIconKey,
-        }}
-        size={36}
-      />
-    )
+    return <AgentCardAvatar header={header} />
   }
   const tone = GLYPH_TONE[header.tone]
   return (
@@ -205,16 +187,22 @@ function CardAvatar({ header }: { header: CardHeaderIcon }) {
   )
 }
 
-function Pill({ pill }: { pill: StatusPill }) {
-  const { t } = useTranslation()
-  const tone = PILL_TONE[pill.tone]
+function AgentCardAvatar({ header }: { header: Extract<CardHeaderIcon, { kind: 'agent' }> }) {
+  // Resolve the agent's CURRENT icon/name by agentId from the live cache — the
+  // notification metadata is an immutable snapshot, so its iconKey goes stale
+  // after the owner changes the agent's icon. Fall back to the snapshot when the
+  // agent isn't in the cache (no AgentManage permission / not loaded yet).
+  const agents = useAgents()
+  const live = agents.data?.find((a) => a.agentId === header.agentId)
   return (
-    <span
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold"
-      style={{ color: tone.color, background: tone.bg }}
-    >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: tone.color }} />
-      {t(pill.labelKey)}
-    </span>
+    <AgentAvatar
+      agent={{
+        name: live?.name ?? header.agentName ?? '',
+        // Real agentId → deterministic colour matches the Agents list.
+        agentId: header.agentId ?? '',
+        iconKey: live ? live.iconKey : header.agentIconKey,
+      }}
+      size={36}
+    />
   )
 }
