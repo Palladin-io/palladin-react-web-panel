@@ -1,4 +1,4 @@
-# PR Review Criteria — Claw Vault React Web Panel
+# PR Review Criteria — Palladin React Web Panel
 
 Detailed checklist for each review category. Load this file in full before starting the review.
 

@@ -1,6 +1,6 @@
 ---
 name: project-conventions
-description: Confirmed code conventions for the Claw Vault React web panel
+description: Confirmed code conventions for the Palladin React web panel
 metadata:
   type: project
 ---

@@ -1,13 +1,13 @@
 ---
 name: pr-review
-description: Reviews a pull request in the Claw Vault React web panel for component consistency, TypeScript correctness, i18n, security, and frontend best practices. Posts findings as a structured GitHub PR comment.
+description: Reviews a pull request in the Palladin React web panel for component consistency, TypeScript correctness, i18n, security, and frontend best practices. Posts findings as a structured GitHub PR comment.
 argument-hint: <pr-number>
 disable-model-invocation: true
 allowed-tools: Read Grep Glob Bash(gh pr view *) Bash(gh pr diff *) Bash(gh pr comment *) Bash(gh api *) Bash(gh api graphql *) Bash(git log *)
 effort: high
 ---
 
-# PR Review — Claw Vault React Web Panel
+# PR Review — Palladin React Web Panel
 
 ## Pull Request Context
 

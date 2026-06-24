@@ -7,7 +7,7 @@ allowed-tools: Read Write Edit Grep Glob Bash(gh pr *) Bash(gh api *) Bash(gh ap
 effort: high
 ---
 
-# Fix PR — Claw Vault React Web Panel
+# Fix PR — Palladin React Web Panel
 
 ## Kontekst PR
 

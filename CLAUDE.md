@@ -1,10 +1,10 @@
-# Claw Vault — Web Panel
+# Palladin — Web Panel
 
 React SPA for managing vaults, entries, agents, and grants. Zero-knowledge architecture — all encryption/decryption happens client-side.
 
 ## Project Brain
 
-Wiedza biznesowa i architektoniczna projektu: `../docs/obsidian/claw-vault/`
+Wiedza biznesowa i architektoniczna projektu: `../docs/obsidian/palladin/`
 
 Kluczowe noty dla tego repozytorium:
 - `Technical/Frontend.md` — stack, struktura, konwencje kodu
@@ -13,7 +13,7 @@ Kluczowe noty dla tego repozytorium:
 - `Product/Modules/Vault/` — Vault module: reguły, API, eventy
 - `Product/Modules/Identity/API.md` — endpointy auth i account
 
-Użyj `/brain` żeby nawigować po brain lub: `grep -r "SŁOWO" ../docs/obsidian/claw-vault --include="*.md"`
+Użyj `/brain` żeby nawigować po brain lub: `grep -r "SŁOWO" ../docs/obsidian/palladin --include="*.md"`
 
 **Po sesji która zmienia API, architekturę lub reguły biznesowe: zaktualizuj odpowiednią notę w brain.**
 
@@ -370,8 +370,8 @@ GitHub Actions workflow at `.github/workflows/test.yml` runs on PRs to `main`:
 | Environment | `VITE_API_URL` | Mode |
 |-------------|---------------|------|
 | Local | `http://localhost:5000` | `development` |
-| Staging | `https://api.stage.clawvault.io` | `staging` |
-| Production | `https://api.clawvault.io` | `production` |
+| Staging | `https://api.stage.palladin.io` | `staging` |
+| Production | `https://api.palladin.io` | `production` |
 
 Build per environment: `vite build --mode staging` loads `.env.staging`.
 
