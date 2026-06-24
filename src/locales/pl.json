@@ -479,6 +479,7 @@
   "notifications.card.rowType": "Typ",
   "notifications.card.rowError": "Błąd",
   "notifications.card.rowAttempts": "Próby",
+  "notifications.card.rowNote": "Notatka",
   "notifications.card.rowBy": "Przez",
   "notifications.type.grantPending": "Prośba o dostęp",
   "notifications.type.agentPending": "Nowy agent",
