@@ -98,7 +98,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
         <dl className="mt-5 flex flex-col gap-3 border-t border-[var(--cv-divider)] pt-4">
           <DetailRow
             label={t('apiKeys.detail.key')}
-            value={`cv_••••${apiKey.keySuffix || '••••'}`}
+            value={`pl_••••${apiKey.keySuffix || '••••'}`}
             mono
           />
           <DetailRow

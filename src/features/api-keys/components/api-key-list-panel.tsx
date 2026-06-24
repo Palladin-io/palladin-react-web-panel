@@ -128,7 +128,7 @@ function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
       </div>
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-[11px] text-[var(--cv-t3)]">
-          cv_••••{apiKey.keySuffix || '••••'}
+          pl_••••{apiKey.keySuffix || '••••'}
         </span>
         <span className="shrink-0 text-[11px] text-[var(--cv-t3)]">
           {formatDate(apiKey.createdAt)}
