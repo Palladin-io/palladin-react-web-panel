@@ -6,8 +6,7 @@ interface AppWordmarkProps {
 }
 
 /**
- * Palladin logotype: logo image + two-colour wordmark.
- * "Pa" and "adin" render in the foreground colour, the middle "ll" in brand red.
+ * Palladin logotype: logo image + single-colour wordmark.
  * Used on the login page (lg) and in the app sidebar (sm).
  */
 export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
@@ -18,10 +17,8 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
     return (
       <div className="flex flex-col items-center gap-2">
         <img src="/logo.png" alt={appName} className="h-16 w-16" />
-        <h1 className="text-[28px] font-extrabold tracking-tight">
-          <span className="text-[#FDF9E4]">Pa</span>
-          <span className="text-[#FF4F4F]">ll</span>
-          <span className="text-[#FDF9E4]">adin</span>
+        <h1 className="text-[28px] font-extrabold tracking-tight text-[#FDF9E4]">
+          Palladin
         </h1>
       </div>
     )
@@ -31,12 +28,10 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
     <div className="flex items-center gap-3.5">
       <img src="/logo.png" alt={appName} className="h-9 w-9 shrink-0" />
       <span
-        className="text-[16px] font-extrabold"
+        className="text-[16px] font-extrabold text-[var(--cv-t1)]"
         style={{ letterSpacing: '-0.01em' }}
       >
-        <span className="text-[var(--cv-t1)]">Pa</span>
-        <span className="text-[#FF4F4F]">ll</span>
-        <span className="text-[var(--cv-t1)]">adin</span>
+        Palladin
       </span>
     </div>
   )

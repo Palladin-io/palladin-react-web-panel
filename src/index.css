@@ -153,6 +153,16 @@ button,
   letter-spacing: normal;
   text-transform: none;
   display: inline-flex;
+  /* Reserve a 1em square and clip overflow so that, before the icon font
+     finishes loading, the ligature name ("settings", "search") cannot render
+     as fallback text — which otherwise widths out to the whole word and shifts
+     the sidebar layout until the font swaps in. The glyph is exactly 1em, so
+     the icon stays pixel-identical once loaded. */
+  width: 1em;
+  height: 1em;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
