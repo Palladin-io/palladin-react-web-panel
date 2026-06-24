@@ -29,9 +29,10 @@ export function SecretInput({
       </label>
       <div className="relative">
         {/* Never `type=password`: a real password field in a form makes the
-            browser's password manager offer to save the vault secret. We mask
-            a plain text field via `.secret-mask` (CSS) and add ignore hints for
-            third-party managers (1Password / LastPass / Bitwarden). */}
+            browser's password manager offer to save the vault secret. We mask a
+            plain text field via `.secret-mask` (a disc-glyph font that masks in
+            every browser incl. Firefox, hardened by -webkit-text-security) and
+            add ignore hints for third-party managers (1Password/LastPass/Bitwarden). */}
         <input
           id={id}
           type="text"

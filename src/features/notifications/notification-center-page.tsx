@@ -206,8 +206,10 @@ export function NotificationCenterPage() {
       return
     }
     const deepLink = item.metadata?.actionDeepLink
-    if (!deepLink) return
+    if (!deepLink || !isKnownDeepLink(deepLink)) return
     markReadNow(item.id)
+    // Validated against the app's route prefixes above, so the backend string is
+    // safe to hand to the type-safe navigator (which otherwise trusts the path).
     navigate({ to: deepLink })
   }
 
@@ -501,13 +503,18 @@ function ActionFooter({
 }
 
 /**
- * Contextual label for the "View" link — names the deep-link target so the CTA
- * reads "View Access" / "View Agent" / "View Entry" instead of a generic "View".
- *
- * The notification `type` is the most reliable signal; for unmodelled types we
- * fall back to the `actionDeepLink` path prefix (`/agents` → agent, `/vaults` →
- * entry). Defaults to the access label (grants are the dominant inbox target).
+ * Backend-supplied deep links are arbitrary strings; the type-safe navigator
+ * trusts whatever it's handed and an unknown path can break navigation. Only
+ * allow paths that match a real top-level route prefix before navigating.
  */
+const KNOWN_DEEP_LINK_ROOTS = ['/vaults', '/agents', '/inbox', '/approvals']
+
+function isKnownDeepLink(path: string): boolean {
+  return KNOWN_DEEP_LINK_ROOTS.some(
+    (root) => path === root || path.startsWith(`${root}/`) || path.startsWith(`${root}?`),
+  )
+}
+
 /** Access (grant) notifications resolve their View to the vault's Agents tab. */
 function isAccessNotification(item: NotificationItem): boolean {
   return (
@@ -517,6 +524,14 @@ function isAccessNotification(item: NotificationItem): boolean {
   )
 }
 
+/**
+ * Contextual label for the "View" link — names the deep-link target so the CTA
+ * reads "View Access" / "View Agent" / "View Entry" instead of a generic "View".
+ *
+ * The notification `type` is the most reliable signal; for unmodelled types we
+ * fall back to the `actionDeepLink` path prefix (`/agents` → agent, `/vaults` →
+ * entry). Defaults to the access label (grants are the dominant inbox target).
+ */
 function viewLabelKey(item: NotificationItem): string {
   switch (item.type) {
     case 'agent_pending':

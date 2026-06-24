@@ -170,24 +170,10 @@ function RowValue({ value }: { value: DetailRowValue }) {
 
 function CardAvatar({ header }: { header: CardHeaderIcon }) {
   // 36px matches the app's standard icon-circle / agent-list avatar size.
-  // Resolve the agent's CURRENT icon/name by agentId from the live cache — the
-  // notification metadata is an immutable snapshot, so its iconKey goes stale
-  // after the owner changes the agent's icon. Fall back to the snapshot when the
-  // agent isn't in the cache (no AgentManage permission / not loaded yet).
-  const agents = useAgents()
+  // Only the agent variant subscribes to the live agent cache; glyph cards must
+  // not pull `useAgents()` (no cache read, no needless re-renders).
   if (header.kind === 'agent') {
-    const live = agents.data?.find((a) => a.agentId === header.agentId)
-    return (
-      <AgentAvatar
-        agent={{
-          name: live?.name ?? header.agentName ?? '',
-          // Real agentId → deterministic colour matches the Agents list.
-          agentId: header.agentId ?? '',
-          iconKey: live ? live.iconKey : header.agentIconKey,
-        }}
-        size={36}
-      />
-    )
+    return <AgentCardAvatar header={header} />
   }
   const tone = GLYPH_TONE[header.tone]
   return (
@@ -198,5 +184,25 @@ function CardAvatar({ header }: { header: CardHeaderIcon }) {
     >
       <Icon name={header.glyph} size={18} color={tone.color} />
     </span>
+  )
+}
+
+function AgentCardAvatar({ header }: { header: Extract<CardHeaderIcon, { kind: 'agent' }> }) {
+  // Resolve the agent's CURRENT icon/name by agentId from the live cache — the
+  // notification metadata is an immutable snapshot, so its iconKey goes stale
+  // after the owner changes the agent's icon. Fall back to the snapshot when the
+  // agent isn't in the cache (no AgentManage permission / not loaded yet).
+  const agents = useAgents()
+  const live = agents.data?.find((a) => a.agentId === header.agentId)
+  return (
+    <AgentAvatar
+      agent={{
+        name: live?.name ?? header.agentName ?? '',
+        // Real agentId → deterministic colour matches the Agents list.
+        agentId: header.agentId ?? '',
+        iconKey: live ? live.iconKey : header.agentIconKey,
+      }}
+      size={36}
+    />
   )
 }

@@ -113,6 +113,21 @@ const items: NotificationItem[] = [
     readAt: '2026-06-15T08:05:00Z',
     actionState: null,
   },
+  {
+    id: 'n4',
+    type: 'agent_approved',
+    category: 'update',
+    titleKey: 'notifications.agentApproved.title',
+    metadata: {
+      agentId: 'a4',
+      agentName: 'Rogue Bot',
+      // Hostile backend value: not a known app route prefix.
+      actionDeepLink: '/evil/phish',
+    },
+    occurredAt: '2026-06-15T07:00:00Z',
+    readAt: '2026-06-15T07:05:00Z',
+    actionState: null,
+  },
 ]
 
 vi.mock('./notification-queries', async () => {
@@ -186,7 +201,7 @@ describe('NotificationCenterPage', () => {
 
     // Label names the deep-link target: grant_approved → access, agent_approved → agent.
     expect(screen.getByRole('button', { name: 'View Access' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'View Agent' })).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'View Agent' }).length).toBeGreaterThan(0)
   })
 
   it('opens the vault on its Agents tab and marks read when "View Access" is clicked', () => {
@@ -206,10 +221,22 @@ describe('NotificationCenterPage', () => {
   it('deep-links to the resource for a non-access "View" (agent)', () => {
     renderPage()
 
-    fireEvent.click(screen.getByRole('button', { name: 'View Agent' }))
+    // n3 (valid /agents/a3) is the first "View Agent" card.
+    fireEvent.click(screen.getAllByRole('button', { name: 'View Agent' })[0])
 
     expect(markRead).toHaveBeenCalledWith('n3')
     expect(navigateMock).toHaveBeenCalledWith({ to: '/agents/a3' })
+  })
+
+  it('ignores a deep-link that is not a known app route — no navigate, no mark-read', () => {
+    renderPage()
+
+    // n4 carries a hostile actionDeepLink ('/evil/phish'); it is the second
+    // "View Agent" card. The guard must no-op rather than hand it to the router.
+    fireEvent.click(screen.getAllByRole('button', { name: 'View Agent' })[1])
+
+    expect(navigateMock).not.toHaveBeenCalled()
+    expect(markRead).not.toHaveBeenCalledWith('n4')
   })
 
   it('renders the live OrgGrantsPanel on the Grants tab and hides the inbox search', () => {

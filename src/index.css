@@ -113,12 +113,31 @@ button,
   animation: step-enter 0.22s ease-out both;
 }
 
+/* `text-security-disc` is a font whose every glyph renders as a •, giving us
+   cross-browser secret masking (incl. Firefox, which ignores -webkit-text-security)
+   WITHOUT a real `type=password` field. Bundled woff2 (no node_modules runtime
+   dep, no relative-url eot/ttf). The @supports block mirrors the upstream package:
+   modern engines get the better-hinted build, everyone else the compat build. */
+@font-face {
+  font-family: "text-security-disc";
+  src: url("./assets/fonts/text-security-disc-compat.woff2") format("woff2");
+}
+@supports (
+  (content-visibility: visible) or (-moz-appearance: meter)
+) and (not (-webkit-hyphens: none)) {
+  @font-face {
+    font-family: "text-security-disc";
+    src: url("./assets/fonts/text-security-disc.woff2") format("woff2");
+  }
+}
+
 /* Mask secret inputs WITHOUT a real `type=password` field, so the browser's
    password manager never offers to save / autofill vault credentials. Applied
-   to a normal `type=text` input by SecretInput when the value is hidden. */
+   to a normal `type=text` input by SecretInput when the value is hidden.
+   The masking font works everywhere; -webkit-text-security hardens Chromium. */
 .secret-mask {
+  font-family: "text-security-disc";
   -webkit-text-security: disc;
-  text-security: disc;
 }
 
 /*

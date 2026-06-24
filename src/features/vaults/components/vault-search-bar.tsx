@@ -1,25 +1,19 @@
-import type { ReactNode } from 'react'
 import { Icon } from '../../../shared/components/icon'
 
 export interface VaultSearchBarProps {
   value: string
   onChange: (next: string) => void
   placeholder?: string
-  /** Optional filter chips rendered inline below the search input. */
-  filters?: ReactNode
 }
 
 /**
- * Search input + optional inline filter chips used across vault screens
- * (vault list, detail entries, detail agents): a rounded card with a leading
- * magnifier glyph and a borderless input. When `filters` are provided they sit
- * directly below — always visible, no toggle.
+ * Search input used across vault screens (vault list, detail entries, detail
+ * agents): a rounded card with a leading magnifier glyph and a borderless input.
  */
 export function VaultSearchBar({
   value,
   onChange,
   placeholder,
-  filters,
 }: VaultSearchBarProps) {
   return (
     <div className="mb-3">
@@ -37,9 +31,6 @@ export function VaultSearchBar({
             placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
         />
       </div>
-      {filters ? (
-        <div className="mt-2 flex flex-wrap gap-1.5">{filters}</div>
-      ) : null}
     </div>
   )
 }
