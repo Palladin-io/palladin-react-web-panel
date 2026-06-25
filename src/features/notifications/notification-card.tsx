@@ -143,7 +143,7 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
 
       {/* Footer */}
       {footer && (
-        <div className="flex min-h-[46px] items-center gap-2 border-t border-[var(--cv-divider)] bg-[rgba(12, 14, 18,0.015)] px-[14px] py-2 dark:bg-[rgba(253,249,228,0.02)]">
+        <div className="flex min-h-[46px] items-center gap-2 border-t border-[var(--cv-divider)] bg-[rgba(12, 14, 18,0.015)] px-[14px] py-2 dark:bg-[rgba(232, 234, 237,0.02)]">
           {footer}
         </div>
       )}

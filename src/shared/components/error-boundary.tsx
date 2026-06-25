@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<
         this.props.fallback ?? (
           <div className="flex min-h-screen items-center justify-center bg-[#0C0E12]">
             <div className="text-center">
-              <h1 className="mb-2 text-xl font-bold text-[#FDF9E4]">
+              <h1 className="mb-2 text-xl font-bold text-[#E8EAED]">
                 {i18n.t('errors.somethingWentWrong')}
               </h1>
               <p className="mb-4 text-sm text-[#6B7A8E]">

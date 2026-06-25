@@ -31,7 +31,7 @@ export function RecoveryShell({ title, subtitle, children, onBack }: RecoveryShe
             onClick={onBack}
             aria-label={t('common.back')}
             className="mb-4 flex h-8 w-8 items-center justify-center rounded-full
-              text-[#B8C5D4] transition-colors hover:bg-[rgba(253,249,228,0.08)] hover:text-[#FDF9E4]"
+              text-[#B8C5D4] transition-colors hover:bg-[rgba(232, 234, 237,0.08)] hover:text-[#E8EAED]"
           >
             <ChevronLeft size={20} />
           </button>
@@ -43,7 +43,7 @@ export function RecoveryShell({ title, subtitle, children, onBack }: RecoveryShe
             alt={t('auth.appName')}
             className="mx-auto mb-4 h-16 w-16"
           />
-          <h1 className="mb-1 text-[22px] font-bold leading-tight text-[#FDF9E4]">
+          <h1 className="mb-1 text-[22px] font-bold leading-tight text-[#E8EAED]">
             {title}
           </h1>
           <p className="mb-7 text-[13px] text-[#6B7A8E]">{subtitle}</p>

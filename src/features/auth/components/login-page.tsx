@@ -52,10 +52,10 @@ export function LoginPage() {
               type="button"
               onClick={() => googleLogin()}
               disabled={login.isPending}
-              className="flex w-full items-center gap-3 rounded-lg border border-[rgba(253,249,228,0.06)]
-                bg-[rgba(253,249,228,0.04)] px-3.5 py-2.5 text-[13px] font-medium
-                text-[#FDF9E4] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
-                transition-colors hover:bg-[rgba(253,249,228,0.08)]
+              className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232, 234, 237,0.06)]
+                bg-[rgba(232, 234, 237,0.04)] px-3.5 py-2.5 text-[13px] font-medium
+                text-[#E8EAED] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
+                transition-colors hover:bg-[rgba(232, 234, 237,0.08)]
                 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#4285F4] text-xs font-bold text-white">
@@ -73,9 +73,9 @@ export function LoginPage() {
                 disabled
                 onMouseEnter={() => setTooltipTarget('apple')}
                 onMouseLeave={() => setTooltipTarget(null)}
-                className="flex w-full items-center gap-3 rounded-lg border border-[rgba(253,249,228,0.06)]
-                  bg-[rgba(253,249,228,0.04)] px-3.5 py-2.5 text-[13px] font-medium
-                  text-[#FDF9E4] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
+                className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232, 234, 237,0.06)]
+                  bg-[rgba(232, 234, 237,0.04)] px-3.5 py-2.5 text-[13px] font-medium
+                  text-[#E8EAED] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
                   disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-xs font-bold text-black">
@@ -93,9 +93,9 @@ export function LoginPage() {
                 disabled
                 onMouseEnter={() => setTooltipTarget('x')}
                 onMouseLeave={() => setTooltipTarget(null)}
-                className="flex w-full items-center gap-3 rounded-lg border border-[rgba(253,249,228,0.06)]
-                  bg-[rgba(253,249,228,0.04)] px-3.5 py-2.5 text-[13px] font-medium
-                  text-[#FDF9E4] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
+                className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232, 234, 237,0.06)]
+                  bg-[rgba(232, 234, 237,0.04)] px-3.5 py-2.5 text-[13px] font-medium
+                  text-[#E8EAED] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
                   disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-xs font-bold text-black">

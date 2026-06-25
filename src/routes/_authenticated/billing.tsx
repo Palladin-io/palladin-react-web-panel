@@ -13,7 +13,7 @@ function BillingPage() {
       <span className="text-[var(--cv-primary)]">
         <Icon name="credit_card" size={40} />
       </span>
-      <h1 className="text-[20px] font-bold text-[#FDF9E4]">
+      <h1 className="text-[20px] font-bold text-[#E8EAED]">
         {t('nav.billing')}
       </h1>
       <p className="max-w-sm text-sm text-[#5A6478]">

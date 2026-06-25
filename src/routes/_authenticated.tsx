@@ -46,16 +46,16 @@ export const Route = createFileRoute('/_authenticated')({
 
 const GRADIENTS = {
   dark: 'linear-gradient(160deg, #0C0E12 0%, #13161C 30%, #0F1218 60%, #0C0E12 100%)',
-  light: 'linear-gradient(160deg, #FDF9E4 0%, #FFF0E0 35%, #FDF9E4 65%, #FFF5E8 100%)',
+  light: 'linear-gradient(160deg, #E8EAED 0%, #EDEFF2 35%, #E8EAED 65%, #F0F2F5 100%)',
 }
 
 const SIDEBAR_BG = {
-  dark: 'rgba(253,249,228,0.02)',
-  light: 'rgba(255,252,247,0.5)',
+  dark: 'rgba(232, 234, 237,0.02)',
+  light: 'rgba(245, 247, 250,0.5)',
 }
 
 const SIDEBAR_BORDER = {
-  dark: 'rgba(253,249,228,0.07)',
+  dark: 'rgba(232, 234, 237,0.07)',
   light: 'rgba(12, 14, 18,0.06)',
 }
 
@@ -65,7 +65,7 @@ const NAV_TEXT = {
 }
 
 const NAV_HOVER_BG = {
-  dark: 'rgba(253,249,228,0.06)',
+  dark: 'rgba(232, 234, 237,0.06)',
   light: 'rgba(12, 14, 18,0.04)',
 }
 
@@ -75,7 +75,7 @@ const NAV_ACTIVE_BG = {
 }
 
 const TEXT_PRIMARY = {
-  dark: '#FDF9E4',
+  dark: '#E8EAED',
   light: '#0C0E12',
 }
 
@@ -86,7 +86,7 @@ const TEXT_MUTED = {
 
 const DROPDOWN_BG = {
   dark: '#181B22',
-  light: '#FFFCF7',
+  light: '#F5F7FA',
 }
 
 function AuthenticatedLayout() {
@@ -312,7 +312,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             type="button"
             onClick={() => setLangOpen((o) => !o)}
             className="flex h-6 items-center gap-1 rounded px-1.5 text-[11px]
-              transition-colors hover:bg-[rgba(253,249,228,0.06)]"
+              transition-colors hover:bg-[rgba(232, 234, 237,0.06)]"
             style={{ color: mutedColor }}
             title={t('nav.languageMenu')}
           >
@@ -365,7 +365,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             type="button"
             onClick={toggleTheme}
             className="flex h-6 w-6 items-center justify-center rounded
-              transition-colors hover:bg-[rgba(253,249,228,0.06)]"
+              transition-colors hover:bg-[rgba(232, 234, 237,0.06)]"
             style={{ color: mutedColor }}
             title={theme === 'dark' ? t('nav.themeSwitchToLight') : t('nav.themeSwitchToDark')}
           >
@@ -381,7 +381,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
               onClick={() => void webPush.requestPermissionAndRegister()}
               disabled={webPush.status === 'denied'}
               className="flex h-6 w-6 items-center justify-center rounded
-                transition-colors hover:bg-[rgba(253,249,228,0.06)]
+                transition-colors hover:bg-[rgba(232, 234, 237,0.06)]
                 disabled:cursor-not-allowed disabled:opacity-40"
               style={{ color: mutedColor }}
               title={
@@ -430,7 +430,7 @@ interface SidebarLinkProps {
  *  ring so the corner overlay cleanly cuts out from the icon beneath it. */
 const NAV_BADGE_RING = {
   dark: '#0C0E12',
-  light: '#FDF9E4',
+  light: '#E8EAED',
 }
 
 /**
@@ -486,7 +486,7 @@ function SidebarLink({
 
   const mutedColor = TEXT_MUTED[theme]
   const textColor = NAV_TEXT[theme]
-  const hoverTextColor = theme === 'dark' ? '#FDF9E4' : '#0C0E12'
+  const hoverTextColor = theme === 'dark' ? '#E8EAED' : '#0C0E12'
 
   const baseStyle: React.CSSProperties = {
     display: 'flex',

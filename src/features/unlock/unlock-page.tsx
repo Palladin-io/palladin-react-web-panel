@@ -106,7 +106,7 @@ function UnlockForm() {
             alt={t('auth.appName')}
             className="mx-auto mb-4 h-16 w-16"
           />
-          <h1 className="mb-1 text-[28px] font-bold leading-tight text-[#FDF9E4]">
+          <h1 className="mb-1 text-[28px] font-bold leading-tight text-[#E8EAED]">
             {t('unlock.title')}
           </h1>
           <p className="mb-7 text-[13px] text-[#6B7A8E]">
@@ -147,7 +147,7 @@ function UnlockForm() {
           <div className="mt-3 text-center">
             <Link
               to="/recovery"
-              className="text-[12px] text-[#6B7A8E] transition-colors hover:text-[#FDF9E4]"
+              className="text-[12px] text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
             >
               {t('unlock.forgotPassword')}
             </Link>

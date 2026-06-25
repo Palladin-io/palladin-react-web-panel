@@ -49,12 +49,12 @@ export function NewRecoveryKeyStep({ mnemonic, onFinish }: NewRecoveryKeyStepPro
       subtitle={t('recovery.newRecoveryKeySubtitle')}
     >
       <div className="flex flex-col gap-3">
-        <div className="rounded-lg border border-[rgba(253,249,228,0.06)] bg-[rgba(253,249,228,0.04)] p-3">
-          <ol className="grid grid-cols-4 gap-2 text-xs text-[#FDF9E4]">
+        <div className="rounded-lg border border-[rgba(232, 234, 237,0.06)] bg-[rgba(232, 234, 237,0.04)] p-3">
+          <ol className="grid grid-cols-4 gap-2 text-xs text-[#E8EAED]">
             {mnemonic.map((word, index) => (
               <li
                 key={index}
-                className="flex items-center gap-1 rounded bg-[rgba(253,249,228,0.04)] px-2 py-1.5"
+                className="flex items-center gap-1 rounded bg-[rgba(232, 234, 237,0.04)] px-2 py-1.5"
               >
                 <span className="text-[10px] text-[#6B7A8E]">{index + 1}</span>
                 <span className="font-mono">{word}</span>
@@ -76,8 +76,8 @@ export function NewRecoveryKeyStep({ mnemonic, onFinish }: NewRecoveryKeyStepPro
             type="button"
             onClick={handleCopy}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg
-              border border-[rgba(253,249,228,0.1)] bg-transparent px-3 py-2 text-xs
-              font-semibold text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.04)]"
+              border border-[rgba(232, 234, 237,0.1)] bg-transparent px-3 py-2 text-xs
+              font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232, 234, 237,0.04)]"
           >
             {copied ? <Check size={14} /> : <Copy size={14} />}
             {copied ? t('onboarding.copied') : t('onboarding.copyToClipboard')}
@@ -86,8 +86,8 @@ export function NewRecoveryKeyStep({ mnemonic, onFinish }: NewRecoveryKeyStepPro
             type="button"
             onClick={handleExport}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg
-              border border-[rgba(253,249,228,0.1)] bg-transparent px-3 py-2 text-xs
-              font-semibold text-[#FDF9E4] transition-colors hover:bg-[rgba(253,249,228,0.04)]"
+              border border-[rgba(232, 234, 237,0.1)] bg-transparent px-3 py-2 text-xs
+              font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232, 234, 237,0.04)]"
           >
             <Download size={14} />
             {t('onboarding.exportAsTxt')}
@@ -99,7 +99,7 @@ export function NewRecoveryKeyStep({ mnemonic, onFinish }: NewRecoveryKeyStepPro
             type="checkbox"
             checked={acknowledged}
             onChange={(e) => setAcknowledged(e.target.checked)}
-            className="h-4 w-4 rounded border-[rgba(253,249,228,0.2)] bg-transparent
+            className="h-4 w-4 rounded border-[rgba(232, 234, 237,0.2)] bg-transparent
               accent-[#2EC4B6]"
           />
           {t('recovery.savedCheckbox')}

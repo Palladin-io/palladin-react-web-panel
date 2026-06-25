@@ -17,7 +17,7 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
     return (
       <div className="flex flex-col items-center gap-2">
         <img src="/logo.png" alt={appName} className="h-16 w-auto" />
-        <h1 className="text-[28px] font-extrabold tracking-tight text-[#FDF9E4]">
+        <h1 className="text-[28px] font-extrabold tracking-tight text-[#E8EAED]">
           Palladin
         </h1>
       </div>
