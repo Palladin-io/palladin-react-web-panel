@@ -7,7 +7,7 @@ import {
   useRouterState,
 } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
 import { useAuthStore } from '../features/auth'
@@ -46,7 +46,7 @@ export const Route = createFileRoute('/_authenticated')({
 
 const GRADIENTS = {
   dark: 'linear-gradient(160deg, #15171B 0%, #2B2F36 30%, #1A1D22 60%, #15171B 100%)',
-  light: 'linear-gradient(160deg, #E8EAED 0%, #EDEFF2 35%, #E8EAED 65%, #F0F2F5 100%)',
+  light: 'linear-gradient(160deg, #E1E4E9 0%, #F2F4F7 38%, #E7EAEF 68%, #EEF0F4 100%)',
 }
 
 const SIDEBAR_BG = {
@@ -185,41 +185,6 @@ interface AppSidebarProps {
   currentPath: string
 }
 
-/** Rotating welcome line under the sidebar wordmark, for the signed-in user. */
-function SidebarWelcome({ firstName, color }: { firstName: string; color: string }) {
-  const lines = useMemo(
-    () => [
-      firstName ? `Welcome back, ${firstName}` : 'Welcome back',
-      'Your agents are standing by.',
-      'Everything stays encrypted.',
-      'Zero-knowledge, always on.',
-    ],
-    [firstName],
-  )
-  const [index, setIndex] = useState(0)
-  const [visible, setVisible] = useState(true)
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setVisible(false)
-      setTimeout(() => {
-        setIndex((prev) => (prev + 1) % lines.length)
-        setVisible(true)
-      }, 300)
-    }, 4200)
-    return () => clearInterval(id)
-  }, [lines.length])
-
-  return (
-    <p
-      className="mt-0.5 truncate text-[10px] font-medium transition-opacity duration-300"
-      style={{ color, opacity: visible ? 1 : 0 }}
-    >
-      {lines[index]}
-    </p>
-  )
-}
-
 function AppSidebar({ currentPath }: AppSidebarProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -298,10 +263,14 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
         <AppWordmark
           size="sm"
           subtitle={
-            <SidebarWelcome
-              firstName={(displayName || email).split(' ')[0]}
-              color={mutedColor}
-            />
+            <p
+              className="mt-0.5 truncate text-[10px] font-medium"
+              style={{ color: mutedColor }}
+            >
+              {displayName || email
+                ? `Welcome back, ${(displayName || email).split(' ')[0]}`
+                : 'Welcome back'}
+            </p>
           }
         />
       </div>

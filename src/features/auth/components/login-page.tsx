@@ -6,10 +6,10 @@ import { AppWordmark } from '../../../shared/components/app-wordmark'
 import { useLogin } from '../hooks/use-login'
 
 const WELCOME_MESSAGES = [
-  'Secrets your agents use — never see.',
   'Zero-knowledge by design.',
-  'Your vault. Your keys. Your rules.',
-  'Built for autonomous agents.',
+  'Built for AI agents.',
+  'Your keys, your rules.',
+  'Always encrypted.',
 ]
 
 function RotatingWelcome() {
