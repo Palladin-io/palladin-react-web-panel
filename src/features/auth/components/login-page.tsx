@@ -29,7 +29,7 @@ export function LoginPage() {
       className="flex min-h-screen items-center justify-center"
       style={{
         background:
-          'linear-gradient(160deg, #0E1012 0%, #16191E 30%, #131519 60%, #0E1012 100%)',
+          'linear-gradient(160deg, #0C0E12 0%, #13161C 30%, #0F1218 60%, #0C0E12 100%)',
       }}
     >
       <div className="w-full max-w-[440px] px-6">
@@ -123,7 +123,7 @@ function Tooltip() {
     <span
       role="tooltip"
       className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded
-        bg-[#24272E] px-2 py-1 text-[10px] text-[#6B7A8E] shadow-lg"
+        bg-[#20242C] px-2 py-1 text-[10px] text-[#6B7A8E] shadow-lg"
     >
       {t('auth.comingSoon')}
     </span>

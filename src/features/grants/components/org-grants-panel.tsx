@@ -483,7 +483,7 @@ function OrgGrantRow({
       {(grant.canRevoke || grant.canGrantAgain) && (
         <div
           className="flex min-h-[46px] items-center gap-2 border-t border-[var(--cv-divider)] px-[14px] py-2
-            bg-[rgba(14, 16, 18,0.015)] dark:bg-[rgba(253,249,228,0.02)]"
+            bg-[rgba(12, 14, 18,0.015)] dark:bg-[rgba(253,249,228,0.02)]"
         >
           {grant.canRevoke && (
             <Button
@@ -517,7 +517,7 @@ function OrgGrantRow({
       {isTerminal(grant.status) && !grant.canGrantAgain && !grant.canRevoke && (
         <div
           className="flex min-h-[46px] items-center justify-center gap-1.5 border-t border-[var(--cv-divider)]
-            px-[14px] py-2 bg-[rgba(14, 16, 18,0.015)] dark:bg-[rgba(253,249,228,0.02)]"
+            px-[14px] py-2 bg-[rgba(12, 14, 18,0.015)] dark:bg-[rgba(253,249,228,0.02)]"
           title={t('grants.org.alreadyActiveHint')}
         >
           <Icon name="check_circle" size={14} color="#2EC4B6" />

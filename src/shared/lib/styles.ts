@@ -4,7 +4,7 @@
  * all those screens stay visually identical when the palette evolves.
  */
 export const AUTH_BACKGROUND_GRADIENT =
-  'linear-gradient(160deg, #0E1012 0%, #16191E 30%, #131519 60%, #0E1012 100%)'
+  'linear-gradient(160deg, #0C0E12 0%, #13161C 30%, #0F1218 60%, #0C0E12 100%)'
 
 /**
  * Shared interactive element class strings — edit here to update hover/focus
