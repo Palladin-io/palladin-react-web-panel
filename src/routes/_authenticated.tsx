@@ -45,18 +45,18 @@ export const Route = createFileRoute('/_authenticated')({
 })
 
 const GRADIENTS = {
-  dark: 'linear-gradient(160deg, #0C0E12 0%, #13161C 30%, #0F1218 60%, #0C0E12 100%)',
+  dark: 'linear-gradient(160deg, #15171B 0%, #2B2F36 30%, #1A1D22 60%, #15171B 100%)',
   light: 'linear-gradient(160deg, #E8EAED 0%, #EDEFF2 35%, #E8EAED 65%, #F0F2F5 100%)',
 }
 
 const SIDEBAR_BG = {
   dark: 'rgba(232, 234, 237,0.02)',
-  light: 'rgba(245, 247, 250,0.5)',
+  light: 'rgba(245, 247, 250, 0.5)',
 }
 
 const SIDEBAR_BORDER = {
   dark: 'rgba(232, 234, 237,0.07)',
-  light: 'rgba(12, 14, 18,0.06)',
+  light: 'rgba(12, 14, 18, 0.06)',
 }
 
 const NAV_TEXT = {
@@ -66,7 +66,7 @@ const NAV_TEXT = {
 
 const NAV_HOVER_BG = {
   dark: 'rgba(232, 234, 237,0.06)',
-  light: 'rgba(12, 14, 18,0.04)',
+  light: 'rgba(12, 14, 18, 0.04)',
 }
 
 const NAV_ACTIVE_BG = {
@@ -429,7 +429,7 @@ interface SidebarLinkProps {
 /** Base colour the sidebar sits on (page gradient edge) — used as a thin badge
  *  ring so the corner overlay cleanly cuts out from the icon beneath it. */
 const NAV_BADGE_RING = {
-  dark: '#0C0E12',
+  dark: '#15171B',
   light: '#E8EAED',
 }
 

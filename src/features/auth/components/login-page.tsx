@@ -5,6 +5,38 @@ import { toast } from 'sonner'
 import { AppWordmark } from '../../../shared/components/app-wordmark'
 import { useLogin } from '../hooks/use-login'
 
+const WELCOME_MESSAGES = [
+  'Secrets your agents use — never see.',
+  'Zero-knowledge by design.',
+  'Your vault. Your keys. Your rules.',
+  'Built for autonomous agents.',
+]
+
+function RotatingWelcome() {
+  const [index, setIndex] = useState(0)
+  const [visible, setVisible] = useState(true)
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setVisible(false)
+      setTimeout(() => {
+        setIndex((prev) => (prev + 1) % WELCOME_MESSAGES.length)
+        setVisible(true)
+      }, 350)
+    }, 3800)
+    return () => clearInterval(id)
+  }, [])
+
+  return (
+    <p
+      className="mb-7 h-4 text-[12px] text-[#8A95A6] transition-opacity duration-300"
+      style={{ opacity: visible ? 1 : 0 }}
+    >
+      {WELCOME_MESSAGES[index]}
+    </p>
+  )
+}
+
 export function LoginPage() {
   const { t } = useTranslation()
   const login = useLogin()
@@ -29,21 +61,17 @@ export function LoginPage() {
       className="flex min-h-screen items-center justify-center"
       style={{
         background:
-          'linear-gradient(160deg, #0C0E12 0%, #13161C 30%, #0F1218 60%, #0C0E12 100%)',
+          'linear-gradient(160deg, #15171B 0%, #2B2F36 30%, #1A1D22 60%, #15171B 100%)',
       }}
     >
       <div className="w-full max-w-[440px] px-6">
         <div className="text-center">
-          <div className="mb-4 flex justify-center">
+          <div className="mb-2 flex justify-center">
             <AppWordmark size="lg" />
           </div>
 
-          {/* Tagline */}
-          <p className="mb-7 text-sm text-[#6B7A8E]">
-            {t('auth.taglineFirstLine')}
-            <br />
-            {t('auth.taglineForAiAgents')}
-          </p>
+          {/* Rotating welcome */}
+          <RotatingWelcome />
 
           {/* OAuth buttons */}
           <div className="flex flex-col gap-3">
