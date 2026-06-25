@@ -7,7 +7,7 @@ import {
   useRouterState,
 } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
 import { useAuthStore } from '../features/auth'
@@ -185,6 +185,41 @@ interface AppSidebarProps {
   currentPath: string
 }
 
+/** Rotating welcome line under the sidebar wordmark, for the signed-in user. */
+function SidebarWelcome({ firstName, color }: { firstName: string; color: string }) {
+  const lines = useMemo(
+    () => [
+      firstName ? `Welcome back, ${firstName}` : 'Welcome back',
+      'Your agents are standing by.',
+      'Everything stays encrypted.',
+      'Zero-knowledge, always on.',
+    ],
+    [firstName],
+  )
+  const [index, setIndex] = useState(0)
+  const [visible, setVisible] = useState(true)
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setVisible(false)
+      setTimeout(() => {
+        setIndex((prev) => (prev + 1) % lines.length)
+        setVisible(true)
+      }, 300)
+    }, 4200)
+    return () => clearInterval(id)
+  }, [lines.length])
+
+  return (
+    <p
+      className="mt-1.5 truncate text-[10px] font-medium transition-opacity duration-300"
+      style={{ color, opacity: visible ? 1 : 0 }}
+    >
+      {lines[index]}
+    </p>
+  )
+}
+
 function AppSidebar({ currentPath }: AppSidebarProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -255,12 +290,16 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
         borderRightColor: borderColor,
       }}
     >
-      {/* Logo header — centred logo + wordmark, divider mirrors the profile's */}
+      {/* Logo header — logo + wordmark + rotating welcome, divider mirrors the profile's */}
       <div
         className="border-b px-4 py-5"
         style={{ borderBottomColor: borderColor }}
       >
         <AppWordmark size="sm" />
+        <SidebarWelcome
+          firstName={(displayName || email).split(' ')[0]}
+          color={mutedColor}
+        />
       </div>
 
       {/* Nav */}
