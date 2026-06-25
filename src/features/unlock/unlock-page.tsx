@@ -96,7 +96,7 @@ function UnlockForm() {
       className="dark flex min-h-screen items-center justify-center"
       style={{
         background:
-          'linear-gradient(160deg, #181A1D 0%, #212429 30%, #1D1F23 60%, #181A1D 100%)',
+          'linear-gradient(160deg, #0E1012 0%, #16191E 30%, #131519 60%, #0E1012 100%)',
       }}
     >
       <div className="w-full max-w-[440px] px-6">
