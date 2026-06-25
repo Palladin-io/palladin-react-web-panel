@@ -45,7 +45,7 @@ export const Route = createFileRoute('/_authenticated')({
 })
 
 const GRADIENTS = {
-  dark: 'linear-gradient(160deg, #000B2E 0%, #0A1A3E 30%, #0E1230 60%, #000B2E 100%)',
+  dark: 'linear-gradient(160deg, #181A1D 0%, #212429 30%, #1D1F23 60%, #181A1D 100%)',
   light: 'linear-gradient(160deg, #FDF9E4 0%, #FFF0E0 35%, #FDF9E4 65%, #FFF5E8 100%)',
 }
 
@@ -56,7 +56,7 @@ const SIDEBAR_BG = {
 
 const SIDEBAR_BORDER = {
   dark: 'rgba(253,249,228,0.07)',
-  light: 'rgba(0,11,46,0.06)',
+  light: 'rgba(24, 26, 29,0.06)',
 }
 
 const NAV_TEXT = {
@@ -66,7 +66,7 @@ const NAV_TEXT = {
 
 const NAV_HOVER_BG = {
   dark: 'rgba(253,249,228,0.06)',
-  light: 'rgba(0,11,46,0.04)',
+  light: 'rgba(24, 26, 29,0.04)',
 }
 
 const NAV_ACTIVE_BG = {
@@ -76,7 +76,7 @@ const NAV_ACTIVE_BG = {
 
 const TEXT_PRIMARY = {
   dark: '#FDF9E4',
-  light: '#000B2E',
+  light: '#181A1D',
 }
 
 const TEXT_MUTED = {
@@ -85,7 +85,7 @@ const TEXT_MUTED = {
 }
 
 const DROPDOWN_BG = {
-  dark: '#0D1B3E',
+  dark: '#23262C',
   light: '#FFFCF7',
 }
 
@@ -288,7 +288,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
           <span
             className="flex h-7 w-7 shrink-0 items-center justify-center
               rounded-full text-[10px] font-bold"
-            style={{ background: '#FFAB87', color: '#000B2E' }}
+            style={{ background: '#FFAB87', color: '#181A1D' }}
           >
             {initials || '?'}
           </span>
@@ -429,7 +429,7 @@ interface SidebarLinkProps {
 /** Base colour the sidebar sits on (page gradient edge) — used as a thin badge
  *  ring so the corner overlay cleanly cuts out from the icon beneath it. */
 const NAV_BADGE_RING = {
-  dark: '#000B2E',
+  dark: '#181A1D',
   light: '#FDF9E4',
 }
 
@@ -486,7 +486,7 @@ function SidebarLink({
 
   const mutedColor = TEXT_MUTED[theme]
   const textColor = NAV_TEXT[theme]
-  const hoverTextColor = theme === 'dark' ? '#FDF9E4' : '#000B2E'
+  const hoverTextColor = theme === 'dark' ? '#FDF9E4' : '#181A1D'
 
   const baseStyle: React.CSSProperties = {
     display: 'flex',

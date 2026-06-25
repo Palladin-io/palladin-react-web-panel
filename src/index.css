@@ -3,49 +3,49 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --cv-t1: #000B2E;
+  --cv-t1: #181A1D;
   --cv-t2: #3D4E66;
   --cv-t3: #8A95A6;
   --cv-card-bg: rgba(255, 252, 247, 0.6);
-  --cv-border: rgba(0, 11, 46, 0.08);
-  --cv-divider: rgba(0, 11, 46, 0.06);
-  --cv-bg-subtle: rgba(0, 11, 46, 0.04);
+  --cv-border: rgba(24, 26, 29, 0.08);
+  --cv-divider: rgba(24, 26, 29, 0.06);
+  --cv-bg-subtle: rgba(24, 26, 29, 0.04);
   --cv-empty-bg: rgba(255, 252, 247, 0.5);
-  --cv-empty-border: rgba(0, 11, 46, 0.1);
+  --cv-empty-border: rgba(24, 26, 29, 0.1);
   --cv-modal-bg: #FFFAF3;
   --cv-input-bg: rgba(255, 252, 247, 0.7);
-  --cv-input-border: rgba(0, 11, 46, 0.08);
-  --cv-input-text: #000B2E;
+  --cv-input-border: rgba(24, 26, 29, 0.08);
+  --cv-input-text: #181A1D;
   --cv-input-placeholder: #8A95A6;
   --cv-label-text: #5A6478;
-  --cv-btn-subtle-bg: rgba(0, 11, 46, 0.04);
-  --cv-btn-subtle-text: #000B2E;
-  --cv-btn-subtle-border: rgba(0, 11, 46, 0.1);
-  --cv-btn-subtle-hover: rgba(0, 11, 46, 0.08);
-  --cv-btn-outline-text: #000B2E;
-  --cv-btn-outline-border: rgba(0, 11, 46, 0.18);
-  --cv-btn-outline-hover: rgba(0, 11, 46, 0.04);
+  --cv-btn-subtle-bg: rgba(24, 26, 29, 0.04);
+  --cv-btn-subtle-text: #181A1D;
+  --cv-btn-subtle-border: rgba(24, 26, 29, 0.1);
+  --cv-btn-subtle-hover: rgba(24, 26, 29, 0.08);
+  --cv-btn-outline-text: #181A1D;
+  --cv-btn-outline-border: rgba(24, 26, 29, 0.18);
+  --cv-btn-outline-hover: rgba(24, 26, 29, 0.04);
   --cv-btn-ghost-text: #5A6478;
-  --cv-btn-ghost-hover: rgba(0, 11, 46, 0.04);
+  --cv-btn-ghost-hover: rgba(24, 26, 29, 0.04);
   --cv-icon-muted: #8A95A6;
   --cv-premium: #D4820A;
   --cv-primary: #EB4747;
   --cv-primary-hover: #D43E3E;
   --cv-primary-rgb: 235 71 71;
-  --cv-list-item-hover: rgba(0, 11, 46, 0.1);
+  --cv-list-item-hover: rgba(24, 26, 29, 0.1);
 }
 
 .dark {
   --cv-t1: #FDF9E4;
   --cv-t2: #B8C5D4;
   --cv-t3: #8A95A6;
-  --cv-card-bg: rgba(13, 27, 62, 0.6);
+  --cv-card-bg: rgba(35, 38, 44, 0.6);
   --cv-border: rgba(253, 249, 228, 0.08);
   --cv-divider: rgba(138, 149, 166, 0.12);
   --cv-bg-subtle: rgba(253, 249, 228, 0.04);
-  --cv-empty-bg: rgba(13, 27, 62, 0.4);
+  --cv-empty-bg: rgba(35, 38, 44, 0.4);
   --cv-empty-border: rgba(253, 249, 228, 0.12);
-  --cv-modal-bg: #0D1B3E;
+  --cv-modal-bg: #23262C;
   --cv-input-bg: rgba(253, 249, 228, 0.04);
   --cv-input-border: rgba(253, 249, 228, 0.1);
   --cv-input-text: #FDF9E4;
