@@ -40,7 +40,7 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   // size — without it a bordered button is ~2px taller and footer rows look
   // uneven (e.g. Deny vs Approve in notification cards).
   accent:
-    'bg-[var(--cv-primary)] text-white border border-transparent hover:bg-[var(--cv-primary-hover)] disabled:bg-[var(--cv-primary)]/50',
+    'bg-[var(--cv-primary)] text-white border border-transparent hover:bg-[var(--cv-primary-hover)] disabled:bg-[rgb(var(--cv-primary-rgb)/0.5)]',
   subtle:
     'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-btn-subtle-text)] border border-[var(--cv-btn-subtle-border)] hover:bg-[var(--cv-btn-subtle-hover)]',
   outline:
