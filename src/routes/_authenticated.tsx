@@ -212,7 +212,7 @@ function SidebarWelcome({ firstName, color }: { firstName: string; color: string
 
   return (
     <p
-      className="mt-1.5 truncate text-[10px] font-medium transition-opacity duration-300"
+      className="mt-0.5 truncate text-[10px] font-medium transition-opacity duration-300"
       style={{ color, opacity: visible ? 1 : 0 }}
     >
       {lines[index]}
@@ -295,10 +295,14 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
         className="border-b px-4 py-5"
         style={{ borderBottomColor: borderColor }}
       >
-        <AppWordmark size="sm" />
-        <SidebarWelcome
-          firstName={(displayName || email).split(' ')[0]}
-          color={mutedColor}
+        <AppWordmark
+          size="sm"
+          subtitle={
+            <SidebarWelcome
+              firstName={(displayName || email).split(' ')[0]}
+              color={mutedColor}
+            />
+          }
         />
       </div>
 
