@@ -30,7 +30,7 @@ export function ApiKeyStatusBadge({ status }: { status: ApiKeySummary['status'] 
         font-semibold ${
         isActive
           ? 'bg-[rgba(46,196,182,0.14)] text-[#2EC4B6]'
-          : 'bg-[rgba(255,79,79,0.12)] text-[#FF4F4F]'
+          : 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
       }`}
     >
       {isActive ? t('apiKeys.statusActive') : t('apiKeys.statusRevoked')}

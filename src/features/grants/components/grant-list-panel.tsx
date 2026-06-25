@@ -61,7 +61,7 @@ function FilterChip({
       onClick={onClick}
       className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${
         active
-          ? 'bg-[rgba(255,79,79,0.12)] text-[#FF4F4F]'
+          ? 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
           : 'bg-[var(--cv-bg-subtle)] text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
       }`}
     >

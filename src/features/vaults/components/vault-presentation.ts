@@ -96,7 +96,7 @@ export const VAULT_ICON_ALL = [
 
 /**
  * Accent palette mirrors the Astro design system swatches. The first
- * entry (`#FF4F4F` — accent red) is the primary action colour and the
+ * entry (`var(--cv-primary)` — accent red) is the primary action colour and the
  * default for new vaults to match the Create Vault modal mockup.
  */
 export const VAULT_COLOR_OPTIONS = [

@@ -29,6 +29,9 @@
   --cv-btn-ghost-hover: rgba(0, 11, 46, 0.04);
   --cv-icon-muted: #8A95A6;
   --cv-premium: #D4820A;
+  --cv-primary: #EB4747;
+  --cv-primary-hover: #D43E3E;
+  --cv-primary-rgb: 235 71 71;
   --cv-list-item-hover: rgba(0, 11, 46, 0.1);
 }
 
@@ -59,6 +62,9 @@
   --cv-btn-ghost-hover: rgba(253, 249, 228, 0.04);
   --cv-icon-muted: #8A95A6;
   --cv-premium: #F0C040;
+  --cv-primary: #EB4747;
+  --cv-primary-hover: #D43E3E;
+  --cv-primary-rgb: 235 71 71;
   --cv-list-item-hover: rgba(253, 249, 228, 0.18);
 }
 

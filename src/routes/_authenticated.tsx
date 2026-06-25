@@ -70,8 +70,8 @@ const NAV_HOVER_BG = {
 }
 
 const NAV_ACTIVE_BG = {
-  dark: 'rgba(255,79,79,0.12)',
-  light: 'rgba(255,79,79,0.08)',
+  dark: 'rgb(var(--cv-primary-rgb) / 0.12)',
+  light: 'rgb(var(--cv-primary-rgb) / 0.08)',
 }
 
 const TEXT_PRIMARY = {
@@ -345,10 +345,10 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
                     className="flex w-full items-center gap-2 px-3 py-2 text-left
                       text-[12px] transition-colors"
                     style={{
-                      color: lang.code === currentLang ? '#FF4F4F' : textColor,
+                      color: lang.code === currentLang ? 'var(--cv-primary)' : textColor,
                       background:
                         lang.code === currentLang
-                          ? 'rgba(255,79,79,0.08)'
+                          ? 'rgb(var(--cv-primary-rgb) / 0.08)'
                           : 'transparent',
                     }}
                   >
@@ -404,7 +404,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             type="button"
             onClick={handleLogout}
             className="flex h-6 w-6 items-center justify-center rounded
-              transition-colors hover:bg-[rgba(255,79,79,0.08)] hover:text-[#FF4F4F]"
+              transition-colors hover:bg-[rgb(var(--cv-primary-rgb)/0.08)] hover:text-[var(--cv-primary)]"
             style={{ color: mutedColor }}
             title={t('common.logout')}
           >
@@ -455,7 +455,7 @@ function NavBadge({ count, theme }: { count: number; theme: 'dark' | 'light' }) 
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: '9999px',
-        background: '#FF4F4F',
+        background: 'var(--cv-primary)',
         color: '#FFFFFF',
         fontSize: '9px',
         fontWeight: 700,
@@ -526,7 +526,7 @@ function SidebarLink({
       to={item.to}
       style={{
         ...baseStyle,
-        color: isActive ? '#FF4F4F' : hovered ? hoverTextColor : textColor,
+        color: isActive ? 'var(--cv-primary)' : hovered ? hoverTextColor : textColor,
         background: isActive ? activeBg : hovered ? hoverBg : 'transparent',
         textDecoration: 'none',
       }}

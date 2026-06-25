@@ -28,7 +28,7 @@ export function AppWordmark({ size = 'sm' }: AppWordmarkProps) {
     <div className="flex items-center gap-2.5">
       <img src="/logo.png" alt={appName} className="h-11 w-auto" />
       <span
-        className="text-[20px] font-extrabold text-[#FF4F4F]"
+        className="text-[20px] font-extrabold text-[var(--cv-primary)]"
         style={{ letterSpacing: '-0.01em' }}
       >
         Palladin

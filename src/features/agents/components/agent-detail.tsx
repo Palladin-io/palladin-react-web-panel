@@ -133,7 +133,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                   disabled
                     ? 'cursor-not-allowed border-transparent font-medium text-[var(--cv-t3)] opacity-35'
                     : isActive
-                      ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
+                      ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
                       : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
                 }`}
               >
@@ -398,12 +398,12 @@ function ActionZone({ tone, title, heading, hint, action }: ActionZoneProps) {
       className={`rounded-xl border p-4 ${
         isPositive
           ? 'border-[rgba(46,196,182,0.25)] bg-[rgba(46,196,182,0.04)]'
-          : 'border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.04)]'
+          : 'border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)]'
       }`}
     >
       <h2
         className={`text-[11px] font-semibold uppercase tracking-[0.06em] ${
-          isPositive ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
+          isPositive ? 'text-[#2EC4B6]' : 'text-[var(--cv-primary)]'
         }`}
       >
         {title}

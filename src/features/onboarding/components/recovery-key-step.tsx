@@ -68,10 +68,10 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
 
         <div
           role="alert"
-          className="flex items-start gap-2 rounded-lg bg-[rgba(255,79,79,0.1)] px-3 py-2"
+          className="flex items-start gap-2 rounded-lg bg-[rgb(var(--cv-primary-rgb)/0.1)] px-3 py-2"
         >
-          <TriangleAlert size={14} className="mt-0.5 shrink-0 text-[#FF4F4F]" />
-          <p className="text-xs text-[#FF4F4F]">
+          <TriangleAlert size={14} className="mt-0.5 shrink-0 text-[var(--cv-primary)]" />
+          <p className="text-xs text-[var(--cv-primary)]">
             {t('onboarding.recoveryKeyWarning')}
           </p>
         </div>

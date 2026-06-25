@@ -442,7 +442,7 @@ function OrgGrantRow({
               to="/vaults/$vaultId"
               params={{ vaultId: grant.vaultId }}
               className="font-medium text-[var(--cv-t1)] underline-offset-2
-                transition-colors hover:text-[#FF4F4F] hover:underline"
+                transition-colors hover:text-[var(--cv-primary)] hover:underline"
             >
               {vaultName}
             </Link>
@@ -457,7 +457,7 @@ function OrgGrantRow({
                 to="/vaults/$vaultId/entries/$entryId"
                 params={{ vaultId: grant.vaultId, entryId: grant.entryId }}
                 className="font-medium text-[var(--cv-t1)] underline-offset-2
-                  transition-colors hover:text-[#FF4F4F] hover:underline"
+                  transition-colors hover:text-[var(--cv-primary)] hover:underline"
               >
                 {entryLabel}
               </Link>

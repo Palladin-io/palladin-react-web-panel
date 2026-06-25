@@ -184,7 +184,7 @@ function PendingGrantCard({
               to="/vaults/$vaultId/entries/$entryId"
               params={{ vaultId: grant.vaultId, entryId: grant.entryId }}
               className="inline min-w-0 font-medium text-[var(--cv-t1)] underline-offset-2
-                transition-colors hover:text-[#FF4F4F] hover:underline"
+                transition-colors hover:text-[var(--cv-primary)] hover:underline"
             >
               {entryLabel}
             </Link>

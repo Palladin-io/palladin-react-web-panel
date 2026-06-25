@@ -401,7 +401,7 @@ function ToggleButton({
       onClick={onClick}
       className={`flex-1 rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors ${
         active
-          ? 'bg-[rgba(255,79,79,0.12)] text-[#FF4F4F]'
+          ? 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
           : 'text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
       }`}
     >

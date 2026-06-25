@@ -244,7 +244,7 @@ function RevealPanel({
       {isLoading ? (
         <div className="h-4 animate-pulse rounded bg-[var(--cv-divider)]" />
       ) : error ? (
-        <p className="text-[11px] text-[#FF4F4F]">{error}</p>
+        <p className="text-[11px] text-[var(--cv-primary)]">{error}</p>
       ) : plaintext ? (
         <div className="flex flex-col gap-2 text-[11px]">
           {plaintext.type === ENTRY_TYPE_CREDENTIAL && plaintext.url ? (

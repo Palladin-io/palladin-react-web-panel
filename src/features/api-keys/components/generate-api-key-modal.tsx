@@ -166,10 +166,10 @@ function GeneratedSecretView({
       </div>
 
       <div
-        className="flex items-start gap-2 rounded-lg border border-[rgba(255,79,79,0.25)]
-          bg-[rgba(255,79,79,0.06)] p-3"
+        className="flex items-start gap-2 rounded-lg border border-[rgb(var(--cv-primary-rgb)/0.25)]
+          bg-[rgb(var(--cv-primary-rgb)/0.06)] p-3"
       >
-        <span className="mt-0.5 shrink-0 text-[#FF4F4F]">
+        <span className="mt-0.5 shrink-0 text-[var(--cv-primary)]">
           <Icon name="warning" size={16} />
         </span>
         <p className="text-[12px] text-[var(--cv-t2)]">

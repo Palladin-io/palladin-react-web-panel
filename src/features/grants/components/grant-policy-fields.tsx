@@ -37,7 +37,7 @@ const SELECT_CLASS =
 const CHIP_CLASS =
   'rounded-md border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] ' +
   'px-2 py-1 text-[11px] font-medium text-[var(--cv-t2)] ' +
-  'transition-colors hover:border-[#FF4F4F] hover:text-[var(--cv-t1)] ' +
+  'transition-colors hover:border-[var(--cv-primary)] hover:text-[var(--cv-t1)] ' +
   'disabled:cursor-not-allowed disabled:opacity-40'
 
 export interface GrantPolicyFieldsProps {

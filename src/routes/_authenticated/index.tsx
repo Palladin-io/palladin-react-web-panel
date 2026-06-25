@@ -17,7 +17,7 @@ export const Route = createFileRoute('/_authenticated/')({
  */
 const ACCENT_LINK_CLASS =
   'inline-flex items-center justify-center px-2.5 py-1.5 text-[11px] font-semibold ' +
-  'rounded-lg gap-1.5 bg-[#FF4F4F] text-white transition-colors hover:bg-[#E04545]'
+  'rounded-lg gap-1.5 bg-[var(--cv-primary)] text-white transition-colors hover:bg-[var(--cv-primary-hover)]'
 
 function AuthenticatedHome() {
   const { t } = useTranslation()

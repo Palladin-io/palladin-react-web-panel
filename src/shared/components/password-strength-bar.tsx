@@ -28,7 +28,7 @@ export function PasswordStrengthBar({ score }: PasswordStrengthBarProps) {
 }
 
 function colorForScore(score: PasswordStrength): string {
-  if (score <= 1) return 'bg-[#FF4F4F]'
+  if (score <= 1) return 'bg-[var(--cv-primary)]'
   if (score === 2) return 'bg-[#FFB84F]'
   return 'bg-[#2EC4B6]'
 }

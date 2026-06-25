@@ -170,7 +170,7 @@ function channelValue(item: PreferenceItem, channel: PreferenceChannel): boolean
 
 /**
  * On/off switch (track 32×18, thumb 14) matching the prototype's
- * `toggle-track`: ON = primary `#FF4F4F`, OFF = `--cv-t3` at 30% opacity. Locked
+ * `toggle-track`: ON = primary `--cv-primary`, OFF = `--cv-t3` at 30% opacity. Locked
  * (mandatory) rows keep the same colours — only `disabled` differs.
  */
 function ChannelToggle({
@@ -208,7 +208,7 @@ function ChannelToggle({
           `toggle-track.off` (#8A95A6 @0.3) without fading the white thumb. */}
       <span
         className="absolute inset-0 rounded-[9px] transition-colors"
-        style={{ background: checked ? '#FF4F4F' : '#8A95A6', opacity: checked ? undefined : 0.3 }}
+        style={{ background: checked ? 'var(--cv-primary)' : '#8A95A6', opacity: checked ? undefined : 0.3 }}
       />
       <span
         className="absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white transition-[left]"

@@ -131,7 +131,7 @@ function UnlockForm() {
               disabled={isPending}
               borderClass={
                 hasError
-                  ? 'border-[#FF4F4F] focus:border-[#FF4F4F]'
+                  ? 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
                   : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
               }
             />

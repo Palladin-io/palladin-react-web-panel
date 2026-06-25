@@ -58,7 +58,11 @@ export function AgentAvatar({ agent, size = 32 }: AgentAvatarProps) {
 }
 
 function hexWithAlpha(hex: string, alpha: number): string {
-  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return hex
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    // Non-hex (CSS var / named colour) — color-mix so alpha is honoured
+    // instead of rendering fully opaque. Mirrors shared vault-color helper.
+    return `color-mix(in srgb, ${hex} ${Math.round(alpha * 100)}%, transparent)`
+  }
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)

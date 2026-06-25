@@ -279,6 +279,19 @@ Never add hardcoded hex or rgba colors to an input — always use `var(--cv-*)` 
 - Dark mode: `@custom-variant dark (&:is(.dark *))` — the `dark:` prefix applies when element is inside a `.dark` ancestor. The `ThemeSync` provider toggles `dark` on `document.documentElement`.
 - **Design fidelity:** before implementing any UI component, check `docs/design/astro/src/components/` for the Astro reference. Match 1:1 — shape (e.g., `rounded-[10px]` not `rounded-full`), background alphas, border styles (dashed vs solid), icon colors. Deviations from design prototypes are blocking review findings.
 
+#### Brand/Primary Red
+
+The brand/primary red lives ONLY in CSS tokens — never hardcode `#FF4F4F`, `rgba(255,79,79,…)`, or `#E04545` in components.
+
+| Token | Value | Use |
+|-------|-------|-----|
+| `--cv-primary` | `#EB4747` | Solid color (text, borders, backgrounds) |
+| `--cv-primary-hover` | `#D43E3E` | Hover state |
+| `--cv-primary-rgb` | `235 71 71` | Alpha tints via `rgb(var(--cv-primary-rgb) / 0.12)` |
+
+In Tailwind arbitrary values: `text-[var(--cv-primary)]`, `bg-[rgb(var(--cv-primary-rgb)/0.12)]`.
+In inline JS styles: `'var(--cv-primary)'`, `'rgb(var(--cv-primary-rgb) / 0.12)'`.
+
 #### Accepted deviations from Astro reference (do NOT flag as blocking)
 
 These are intentional UX improvements approved by the product owner. PR review agents must not treat them as violations:

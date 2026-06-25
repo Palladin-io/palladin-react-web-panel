@@ -230,7 +230,7 @@ function EntryDetailTabs({ active, onChange, wide, actions }: EntryDetailTabsPro
         onClick={() => onChange(tab.id)}
         className={`-mb-px border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
           isActive
-            ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
+            ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
             : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
         }`}
       >
@@ -634,7 +634,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               </FieldFeedback>
             </div>
             {decryptError ? (
-              <div className="rounded-lg border border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.06)] px-3 py-2 text-[11px] text-[#FF4F4F]">
+              <div className="rounded-lg border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.06)] px-3 py-2 text-[11px] text-[var(--cv-primary)]">
                 {decryptError}
               </div>
             ) : entry.type === ENTRY_TYPE_KEY ? (
@@ -784,9 +784,9 @@ function DangerZone({
   const { t } = useTranslation()
   return (
     <section
-      className="rounded-xl border border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.04)] p-4"
+      className="rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
     >
-      <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#FF4F4F]">
+      <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--cv-primary)]">
         {t('vault.entry.detail.dangerZoneTitle')}
       </h2>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-3">

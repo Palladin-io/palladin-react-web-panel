@@ -681,8 +681,8 @@ function TypeFilterDropdown({
                 <span
                   className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border"
                   style={{
-                    borderColor: checked ? '#FF4F4F' : 'var(--cv-input-border)',
-                    background: checked ? '#FF4F4F' : 'transparent',
+                    borderColor: checked ? 'var(--cv-primary)' : 'var(--cv-input-border)',
+                    background: checked ? 'var(--cv-primary)' : 'transparent',
                   }}
                 >
                   {checked && <Icon name="check" size={11} color="#fff" />}
@@ -711,7 +711,7 @@ function TypeFilterDropdown({
  * Segment switcher — accent-underline active tab matching the app's tab idiom
  * (`VaultDetailTabs`), sized to sit inline in the header action row next to
  * "Mark all as read" / settings. The To-do tab carries a small count chip built
- * from `--cv-*` / `#FF4F4F` tokens.
+ * from `--cv-*` / `--cv-primary` tokens.
  */
 function SegmentTabs({
   segment,
@@ -742,13 +742,13 @@ function SegmentTabs({
             onClick={() => onChange(option.key)}
             className={`flex items-center gap-1.5 border-b-2 px-2.5 py-1 text-[12px] transition-colors ${
               isActive
-                ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
+                ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
                 : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
             }`}
           >
             {option.label}
             {option.count ? (
-              <span className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[rgba(255,79,79,0.15)] px-1 text-[10px] font-bold text-[#FF4F4F]">
+              <span className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[rgb(var(--cv-primary-rgb)/0.15)] px-1 text-[10px] font-bold text-[var(--cv-primary)]">
                 {option.count}
               </span>
             ) : null}

@@ -39,7 +39,7 @@ export function AgentStatusBadge({ status }: { status: AgentStatus }) {
     },
     [AGENT_STATUS_DEACTIVATED]: {
       label: t('agents.statusDeactivated'),
-      className: 'bg-[rgba(255,79,79,0.1)] text-[#FF4F4F]',
+      className: 'bg-[rgb(var(--cv-primary-rgb)/0.1)] text-[var(--cv-primary)]',
     },
   }
   const { label, className } = config[status]
@@ -214,7 +214,7 @@ function AgentCard({ agent, isSelected }: AgentRowProps) {
           <Icon
             name={isDeactivated ? 'block' : 'schedule'}
             size={12}
-            color={isDeactivated ? '#FF4F4F' : 'var(--cv-t3)'}
+            color={isDeactivated ? 'var(--cv-primary)' : 'var(--cv-t3)'}
             className="shrink-0"
           />
           <span className="truncate text-[10px] text-[var(--cv-t3)]">
