@@ -24,30 +24,30 @@ export const AGENT_ICON_OPTIONS = [
 
 /** Accent colour per agent icon glyph. */
 export const AGENT_ICON_COLORS: Record<string, string> = {
-  smart_toy: '#2EC4B6',
+  smart_toy: '#16A34A',
   memory: '#8A95A6',
   hub: '#60A5FA',
   token: '#A78BFA',
-  terminal: '#2EC4B6',
+  terminal: '#16A34A',
   psychology: '#A78BFA',
-  auto_mode: '#2EC4B6',
+  auto_mode: '#16A34A',
   support_agent: '#60A5FA',
   dns: '#8A95A6',
-  code: '#2EC4B6',
-  api: '#2EC4B6',
+  code: '#16A34A',
+  api: '#16A34A',
   extension: '#A78BFA',
   computer: '#60A5FA',
   bolt: '#FFAB87',
   cloud: '#60A5FA',
   assistant: '#A78BFA',
-  data_object: '#2EC4B6',
+  data_object: '#16A34A',
   precision_manufacturing: '#FFAB87',
   settings_suggest: '#8A95A6',
   manage_search: '#60A5FA',
   batch_prediction: '#A78BFA',
-  android: '#2EC4B6',
-  biotech: '#2EC4B6',
-  developer_mode: '#2EC4B6',
+  android: '#16A34A',
+  biotech: '#16A34A',
+  developer_mode: '#16A34A',
 }
 
 /**
@@ -76,7 +76,7 @@ export const AGENT_ICON_ALL = [
  * agent always renders with the same tint across list and detail views.
  */
 const AVATAR_PALETTE = [
-  '#2EC4B6',
+  '#16A34A',
   '#FF4F4F',
   '#FFAB87',
   '#F0C040',

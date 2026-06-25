@@ -104,7 +104,7 @@ function EntriesEmptyState({ onAdd }: EntriesEmptyStateProps) {
     >
       <span
         className="inline-flex h-12 w-12 items-center justify-center rounded-full
-          bg-[rgba(46,196,182,0.12)] text-[#2EC4B6]"
+          bg-[rgba(22, 163, 74,0.12)] text-[#16A34A]"
         aria-hidden
       >
         <Icon name="inbox" size={24} />

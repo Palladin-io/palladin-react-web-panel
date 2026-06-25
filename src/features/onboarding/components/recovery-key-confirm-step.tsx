@@ -110,7 +110,7 @@ export function RecoveryKeyConfirmStep({
 type WordState = 'empty' | 'correct' | 'wrong'
 
 function borderClassForState(state: WordState): string {
-  if (state === 'correct') return 'border-[#2EC4B6] focus:border-[#2EC4B6]'
+  if (state === 'correct') return 'border-[#16A34A] focus:border-[#16A34A]'
   if (state === 'wrong') return 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
-  return 'border-[rgba(232, 234, 237,0.1)] focus:border-[#2EC4B6]'
+  return 'border-[rgba(232, 234, 237,0.1)] focus:border-[#16A34A]'
 }

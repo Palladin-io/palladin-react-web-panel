@@ -53,7 +53,7 @@ vi.mock('sonner', () => ({
 // test stays focused on the name / type / description editing + submit flow.
 vi.mock('./agent-icon-picker', () => ({
   AgentIconPicker: () => <div data-testid="agent-icon-picker" />,
-  DEFAULT_AGENT_COLOR: '#2EC4B6',
+  DEFAULT_AGENT_COLOR: '#16A34A',
 }))
 
 const baseAgent: Agent = {

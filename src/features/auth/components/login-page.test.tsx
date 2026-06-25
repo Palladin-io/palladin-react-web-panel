@@ -50,10 +50,10 @@ describe('LoginPage', () => {
     ).toBeDisabled()
   })
 
-  it('renders the tagline', () => {
+  it('renders the rotating welcome line', () => {
     render(<LoginPage />)
     expect(
-      screen.getByText(/zero-knowledge password manager/i),
+      screen.getByText(/zero-knowledge by design/i),
     ).toBeInTheDocument()
   })
 

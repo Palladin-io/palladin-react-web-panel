@@ -29,7 +29,7 @@ export function ApiKeyStatusBadge({ status }: { status: ApiKeySummary['status'] 
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px]
         font-semibold ${
         isActive
-          ? 'bg-[rgba(46,196,182,0.14)] text-[#2EC4B6]'
+          ? 'bg-[rgba(22, 163, 74,0.14)] text-[#16A34A]'
           : 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
       }`}
     >

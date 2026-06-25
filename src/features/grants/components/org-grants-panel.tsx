@@ -520,8 +520,8 @@ function OrgGrantRow({
             px-[14px] py-2 bg-[rgba(12, 14, 18,0.015)] dark:bg-[rgba(232, 234, 237,0.02)]"
           title={t('grants.org.alreadyActiveHint')}
         >
-          <Icon name="check_circle" size={14} color="#2EC4B6" />
-          <span className="text-[11px] font-semibold text-[#2EC4B6]">
+          <Icon name="check_circle" size={14} color="#16A34A" />
+          <span className="text-[11px] font-semibold text-[#16A34A]">
             {t('grants.org.alreadyActive')}
           </span>
         </div>

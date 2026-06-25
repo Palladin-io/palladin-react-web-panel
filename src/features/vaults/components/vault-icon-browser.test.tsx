@@ -20,7 +20,7 @@ const ICON_COLORS: Record<string, string> = {
   key: '#8A95A6',
   cloud: '#60A5FA',
   folder: '#FFAB87',
-  code: '#2EC4B6',
+  code: '#16A34A',
   home: '#A78BFA',
   work: '#FFAB87',
 }
@@ -147,12 +147,12 @@ describe('IconColorBrowser', () => {
       />,
     )
 
-    // Pick a different palette swatch (teal #2EC4B6 -> "Teal").
+    // Pick a different palette swatch (teal #16A34A -> "Teal").
     await user.click(screen.getByRole('button', { name: /color: teal/i }))
     await user.click(screen.getByRole('button', { name: /^choose$/i }))
 
     expect(onSelectIcon).toHaveBeenCalledWith('shield')
-    expect(onSelectColor).toHaveBeenCalledWith('#2EC4B6')
+    expect(onSelectColor).toHaveBeenCalledWith('#16A34A')
   })
 
   it('cancels without notifying when the user clicks Cancel', async () => {

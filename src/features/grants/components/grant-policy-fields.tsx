@@ -172,7 +172,7 @@ export function GrantPolicyFields({
                 border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2"
             >
               <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--cv-t1)]">
-                <Icon name="schedule" size={14} className="text-[#2EC4B6]" />
+                <Icon name="schedule" size={14} className="text-[#16A34A]" />
                 {formatExpiresInLong(expiresAt, t)}
               </span>
               <span className="shrink-0 text-[11px] text-[var(--cv-t3)]">

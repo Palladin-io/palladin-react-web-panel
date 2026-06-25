@@ -158,10 +158,10 @@ function PendingGrantCard({
       <div className="flex items-center gap-2.5 px-[14px] py-3">
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full
-            bg-[rgba(46,196,182,0.12)]"
+            bg-[rgba(22, 163, 74,0.12)]"
           aria-hidden
         >
-          <Icon name="smart_toy" size={16} color="#2EC4B6" />
+          <Icon name="smart_toy" size={16} color="#16A34A" />
         </span>
         <div className="min-w-0 flex-1">
           <p

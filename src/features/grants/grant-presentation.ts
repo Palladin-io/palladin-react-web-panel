@@ -12,7 +12,7 @@ interface StatusPresentation {
 
 const STATUS_PRESENTATION: Record<GrantStatus, StatusPresentation> = {
   pending: { labelKey: 'grants.statusPending', color: '#D4820A' },
-  active: { labelKey: 'grants.statusActive', color: '#2EC4B6' },
+  active: { labelKey: 'grants.statusActive', color: '#16A34A' },
   expired: { labelKey: 'grants.statusExpired', color: '#8A95A6' },
   revoked: { labelKey: 'grants.statusRevoked', color: 'var(--cv-primary)' },
   consumed: { labelKey: 'grants.statusConsumed', color: '#8A95A6' },

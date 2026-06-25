@@ -16,7 +16,7 @@ const GLYPH_TONE: Record<'red' | 'amber' | 'teal' | 'grey', { bg: string; color:
   red: { bg: 'rgb(var(--cv-primary-rgb) / 0.13)', color: 'var(--cv-primary)' },
   // Amber matches the grant "pending/denied" family (org-grant-presentation).
   amber: { bg: 'rgba(240,192,64,0.14)', color: '#D4820A' },
-  teal: { bg: 'rgba(46,196,182,0.14)', color: '#2EC4B6' },
+  teal: { bg: 'rgba(22, 163, 74,0.14)', color: '#16A34A' },
   grey: { bg: 'rgba(138,149,166,0.16)', color: '#8A95A6' },
 }
 
