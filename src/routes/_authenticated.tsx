@@ -45,8 +45,7 @@ export const Route = createFileRoute('/_authenticated')({
 })
 
 const GRADIENTS = {
-  dark:
-    'radial-gradient(125% 95% at 72% 0%, #2A2E36 0%, #17191E 46%, #0F1115 100%)',
+  dark: 'linear-gradient(160deg, #15171B 0%, #2B2F36 30%, #1A1D22 60%, #15171B 100%)',
   light:
     'radial-gradient(125% 95% at 72% 0%, #F8FAFC 0%, #E7EAEF 46%, #D6DAE2 100%)',
 }
