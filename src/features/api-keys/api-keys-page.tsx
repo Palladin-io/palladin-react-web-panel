@@ -87,10 +87,11 @@ export function ApiKeysPage({ keyId }: ApiKeysPageProps) {
   }
 
   // Narrow: a single column. `/api-keys` shows the list,
-  // `/api-keys/$keyId` shows the selected key's detail.
+  // `/api-keys/$keyId` shows the detail. Left-aligned, full-width (NO
+  // `mx-auto max-w-*`) so it behaves like Agents/Vaults at small widths.
   return (
     <div className="min-h-full text-[var(--cv-t1)]">
-      <div className="mx-auto max-w-[640px] px-6 py-8">
+      <div className="px-4 py-4">
         {keyId ? detailContent : <ApiKeyListPanel selectedApiKeyId={keyId} />}
       </div>
     </div>
