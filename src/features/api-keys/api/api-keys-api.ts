@@ -11,6 +11,8 @@ export interface ApiKeySummary {
   createdByName: string
   revokedAt?: string | null
   revokedByName?: string | null
+  /** Active agents whose most recent operation authenticated with this key. */
+  activeAgentCount: number
 }
 
 export interface GeneratedApiKey {

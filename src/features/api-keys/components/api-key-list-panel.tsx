@@ -132,10 +132,14 @@ function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
           pl_••••{apiKey.keySuffix || '••••'}
         </span>
       </div>
-      <div className="flex items-center gap-1.5 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
-        <Icon name="schedule" size={12} color="var(--cv-t3)" className="shrink-0" />
-        <span className="truncate text-[10px] text-[var(--cv-t3)]">
+      <div className="flex items-center justify-between gap-2 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
+        <span className="flex min-w-0 items-center gap-1.5 truncate text-[10px] text-[var(--cv-t3)]">
+          <Icon name="schedule" size={12} color="var(--cv-t3)" className="shrink-0" />
           {t('apiKeys.createdLabel', { date: formatDate(apiKey.createdAt) })}
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-[10px] text-[var(--cv-t3)]">
+          <Icon name="smart_toy" size={12} color="var(--cv-t3)" className="shrink-0" />
+          {t('apiKeys.agentsUsing', { count: apiKey.activeAgentCount })}
         </span>
       </div>
     </Link>

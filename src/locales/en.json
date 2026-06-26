@@ -295,6 +295,8 @@
   "apiKeys.empty": "No API keys yet. Generate one to get started.",
   "apiKeys.statusActive": "Active",
   "apiKeys.createdLabel": "Created {{date}}",
+  "apiKeys.agentsUsing_one": "{{count}} agent",
+  "apiKeys.agentsUsing_other": "{{count}} agents",
   "apiKeys.statusRevoked": "Revoked",
   "apiKeys.generate": "Generate API key",
   "apiKeys.generating": "Generating…",
