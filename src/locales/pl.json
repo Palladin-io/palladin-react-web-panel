@@ -123,6 +123,7 @@
   "vault.colorName.custom": "Niestandardowy",
   "vault.relativeJustNow": "przed chwilą",
   "vault.relativeUpdatedLabel": "Zaktualizowano {{time}}",
+  "vault.relativeCreatedLabel": "Utworzono {{time}}",
   "vault.relativeMinutesAgo_one": "{{count}} minutę temu",
   "vault.relativeMinutesAgo_few": "{{count}} minuty temu",
   "vault.relativeMinutesAgo_many": "{{count}} minut temu",

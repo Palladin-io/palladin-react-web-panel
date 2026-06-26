@@ -23,7 +23,15 @@ export interface VaultCardProps {
  */
 export function VaultCard({ vault, onClick }: VaultCardProps) {
   const { t, i18n } = useTranslation()
-  const updated = formatRelativeUpdate(vault.updatedAt, i18n.language, t)
+  // Footer always shows a timestamp: last update when available, otherwise the
+  // creation date (empty/never-touched vaults have no updatedAt).
+  const updatedRel = formatRelativeUpdate(vault.updatedAt, i18n.language, t)
+  const createdRel = formatRelativeUpdate(vault.createdAt, i18n.language, t)
+  const footerLabel = updatedRel
+    ? t('vault.relativeUpdatedLabel', { time: updatedRel })
+    : createdRel
+      ? t('vault.relativeCreatedLabel', { time: createdRel })
+      : null
   const accent = vault.color ?? DEFAULT_VAULT_COLOR
   const icon = vault.icon ?? DEFAULT_VAULT_ICON
 
@@ -50,11 +58,9 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
         </span>
       </div>
 
-      {updated ? (
+      {footerLabel ? (
         <div className="flex items-center justify-end border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
-          <span className="text-[11px] text-[var(--cv-t3)]">
-            {t('vault.relativeUpdatedLabel', { time: updated })}
-          </span>
+          <span className="text-[11px] text-[var(--cv-t3)]">{footerLabel}</span>
         </div>
       ) : null}
     </button>

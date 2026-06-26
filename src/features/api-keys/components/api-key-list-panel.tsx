@@ -120,17 +120,19 @@ function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
         isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-2 px-4 py-3">
-        <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
-          {apiKey.name}
-        </span>
-        <ApiKeyStatusBadge status={apiKey.status} />
-      </div>
-      <div className="flex items-center justify-between gap-2 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
+      <div className="flex flex-col gap-1 px-4 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
+            {apiKey.name}
+          </span>
+          <ApiKeyStatusBadge status={apiKey.status} />
+        </div>
         <span className="font-mono text-[11px] text-[var(--cv-t3)]">
           pl_••••{apiKey.keySuffix || '••••'}
         </span>
-        <span className="shrink-0 text-[11px] text-[var(--cv-t3)]">
+      </div>
+      <div className="flex items-center justify-end border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
+        <span className="text-[11px] text-[var(--cv-t3)]">
           {formatDate(apiKey.createdAt)}
         </span>
       </div>
