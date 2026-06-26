@@ -249,36 +249,8 @@ button,
   padding-right: 60px;
 }
 
-/* Notification toasts: the rule between title and description is the variant
-   accent, fading out toward the action button on the right. Extends a little
-   past the text column so it reaches toward the action. */
-.cv-toast-divider {
-  position: relative;
-  margin-top: 14px;
-  padding-top: 9px;
-}
-.cv-toast-divider::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: linear-gradient(to right, var(--cv-toast-accent), var(--cv-toast-accent) 45%, transparent);
-}
-
-/* Title-only toasts (no description) get a bottom accent line instead — same
-   fade, anchored to the toast bottom. Hidden when a description is present
-   (the divider already carries the accent). */
-.cv-toast::after {
-  content: '';
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: 9px;
-  height: 1px;
-  background: linear-gradient(to right, var(--cv-toast-accent), var(--cv-toast-accent) 45%, transparent);
-}
-.cv-toast:has([data-description])::after {
-  display: none;
+/* Notification toasts: description sits just below the title, separated by
+   spacing only (no rule). The accent is the left border + coloured icon. */
+.cv-toast-body {
+  margin-top: 7px;
 }
