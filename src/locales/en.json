@@ -294,6 +294,7 @@
   "apiKeys.sectionTitle": "API Keys",
   "apiKeys.empty": "No API keys yet. Generate one to get started.",
   "apiKeys.statusActive": "Active",
+  "apiKeys.createdLabel": "Created {{date}}",
   "apiKeys.statusRevoked": "Revoked",
   "apiKeys.generate": "Generate API key",
   "apiKeys.generating": "Generating…",

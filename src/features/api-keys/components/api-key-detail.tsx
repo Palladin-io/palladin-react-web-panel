@@ -122,15 +122,10 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#10B981]">
             {t('apiKeys.activateZone')}
           </h2>
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-[12px] font-semibold text-[var(--cv-t1)]">
-                {t('apiKeys.activateTitle')}
-              </div>
-              <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">
-                {t('apiKeys.activateSubtitle')}
-              </p>
-            </div>
+          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] text-[var(--cv-t3)]">
+              {t('apiKeys.activateSubtitle')}
+            </p>
             <Button
               variant="outline"
               size="sm"
@@ -152,15 +147,10 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
         </h2>
 
         {isActive ? (
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-[12px] font-semibold text-[var(--cv-t1)]">
-                {t('apiKeys.revokeTitle')}
-              </div>
-              <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">
-                {t('apiKeys.revokeSubtitle')}
-              </p>
-            </div>
+          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] text-[var(--cv-t3)]">
+              {t('apiKeys.revokeSubtitle')}
+            </p>
             <Button
               variant="danger"
               size="sm"
@@ -171,15 +161,10 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
             </Button>
           </div>
         ) : (
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-[12px] font-semibold text-[var(--cv-t1)]">
-                {t('apiKeys.deleteTitle')}
-              </div>
-              <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">
-                {t('apiKeys.deleteSubtitle')}
-              </p>
-            </div>
+          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] text-[var(--cv-t3)]">
+              {t('apiKeys.deleteSubtitle')}
+            </p>
             <Button
               variant="danger"
               size="sm"

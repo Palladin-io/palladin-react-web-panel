@@ -231,7 +231,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               <ActionZone
                 tone="positive"
                 title={t('agents.approveZone')}
-                heading={t('agents.approve')}
                 hint={t('agents.approveHint')}
                 action={
                   <Button
@@ -251,7 +250,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               <ActionZone
                 tone="danger"
                 title={t('agents.deactivateZone')}
-                heading={t('agents.deactivate')}
                 hint={t('agents.deactivateHint')}
                 action={
                   <Button
@@ -270,7 +268,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               <ActionZone
                 tone="positive"
                 title={t('agents.reactivateZone')}
-                heading={t('agents.reactivate')}
                 hint={t('agents.reactivateHint')}
                 action={
                   <Button
@@ -386,12 +383,11 @@ function LogsTabContent({ agent }: { agent: Agent }) {
 interface ActionZoneProps {
   tone: 'positive' | 'danger'
   title: string
-  heading: string
   hint: string
   action: React.ReactNode
 }
 
-function ActionZone({ tone, title, heading, hint, action }: ActionZoneProps) {
+function ActionZone({ tone, title, hint, action }: ActionZoneProps) {
   const isPositive = tone === 'positive'
   return (
     <section
@@ -408,11 +404,8 @@ function ActionZone({ tone, title, heading, hint, action }: ActionZoneProps) {
       >
         {title}
       </h2>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-[12px] font-semibold text-[var(--cv-t1)]">{heading}</div>
-          <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">{hint}</p>
-        </div>
+      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[11px] text-[var(--cv-t3)]">{hint}</p>
         {action}
       </div>
     </section>

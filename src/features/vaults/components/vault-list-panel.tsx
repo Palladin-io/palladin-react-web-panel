@@ -3,12 +3,14 @@ import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
+import { Icon } from '../../../shared/components/icon'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_MULTIPLE_VAULTS, type VaultSummary } from '../types'
 import { useVaults } from '../use-vaults'
 import { CreateVaultDialog } from './create-vault-dialog'
 import { PremiumGateDialog } from './premium-gate-dialog'
+import { vaultFooterLabel } from './vault-card'
 import { VaultIconCircle } from './vault-icon-circle'
 import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from './vault-presentation'
 import { VaultSearchBar } from './vault-search-bar'
@@ -117,27 +119,36 @@ interface VaultRowProps {
 }
 
 function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const accent = vault.color ?? DEFAULT_VAULT_COLOR
   const icon = vault.icon ?? DEFAULT_VAULT_ICON
+  const footerLabel = vaultFooterLabel(vault, i18n.language, t)
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full cursor-pointer items-center gap-3 px-4 py-2.5 text-left ${HOVERABLE_CARD_CLASSES}${
+      className={`flex w-full cursor-pointer flex-col overflow-hidden text-left ${HOVERABLE_CARD_CLASSES}${
         isSelected
           ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]'
           : ''
       }`}
     >
-      <VaultIconCircle icon={icon} color={accent} size={32} iconSize={16} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">{vault.name}</p>
-        <p className="text-[11px] text-[var(--cv-t3)]">
-          {t('vault.entries', { count: vault.entryCount ?? 0 })}
-        </p>
+      <div className="flex items-center gap-3 px-4 py-2.5">
+        <VaultIconCircle icon={icon} color={accent} size={32} iconSize={16} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">{vault.name}</p>
+          <p className="text-[11px] text-[var(--cv-t3)]">
+            {t('vault.entries', { count: vault.entryCount ?? 0 })}
+          </p>
+        </div>
       </div>
+      {footerLabel ? (
+        <div className="flex items-center gap-1.5 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
+          <Icon name="schedule" size={12} color="var(--cv-t3)" className="shrink-0" />
+          <span className="truncate text-[10px] text-[var(--cv-t3)]">{footerLabel}</span>
+        </div>
+      ) : null}
     </button>
   )
 }

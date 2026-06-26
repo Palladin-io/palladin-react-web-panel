@@ -112,6 +112,7 @@ interface ApiKeyRowProps {
 }
 
 function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
+  const { t } = useTranslation()
   return (
     <Link
       to="/api-keys/$keyId"
@@ -131,9 +132,10 @@ function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
           pl_••••{apiKey.keySuffix || '••••'}
         </span>
       </div>
-      <div className="flex items-center justify-end border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
-        <span className="text-[11px] text-[var(--cv-t3)]">
-          {formatDate(apiKey.createdAt)}
+      <div className="flex items-center gap-1.5 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
+        <Icon name="schedule" size={12} color="var(--cv-t3)" className="shrink-0" />
+        <span className="truncate text-[10px] text-[var(--cv-t3)]">
+          {t('apiKeys.createdLabel', { date: formatDate(apiKey.createdAt) })}
         </span>
       </div>
     </Link>

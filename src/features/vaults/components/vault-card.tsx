@@ -23,15 +23,7 @@ export interface VaultCardProps {
  */
 export function VaultCard({ vault, onClick }: VaultCardProps) {
   const { t, i18n } = useTranslation()
-  // Footer always shows a timestamp: last update when available, otherwise the
-  // creation date (empty/never-touched vaults have no updatedAt).
-  const updatedRel = formatRelativeUpdate(vault.updatedAt, i18n.language, t)
-  const createdRel = formatRelativeUpdate(vault.createdAt, i18n.language, t)
-  const footerLabel = updatedRel
-    ? t('vault.relativeUpdatedLabel', { time: updatedRel })
-    : createdRel
-      ? t('vault.relativeCreatedLabel', { time: createdRel })
-      : null
+  const footerLabel = vaultFooterLabel(vault, i18n.language, t)
   const accent = vault.color ?? DEFAULT_VAULT_COLOR
   const icon = vault.icon ?? DEFAULT_VAULT_ICON
 
@@ -94,4 +86,21 @@ function formatRelativeUpdate(
     month: 'short',
     day: 'numeric',
   })
+}
+
+/**
+ * Footer timestamp label for a vault row/card: last-update relative time when
+ * available, otherwise the creation date — so even empty/never-touched vaults
+ * (no updatedAt) still show a timestamp. Shared by VaultCard and VaultRow.
+ */
+export function vaultFooterLabel(
+  vault: Pick<VaultSummary, 'updatedAt' | 'createdAt'>,
+  locale: string,
+  t: TFunction,
+): string | null {
+  const updatedRel = formatRelativeUpdate(vault.updatedAt, locale, t)
+  if (updatedRel) return t('vault.relativeUpdatedLabel', { time: updatedRel })
+  const createdRel = formatRelativeUpdate(vault.createdAt, locale, t)
+  if (createdRel) return t('vault.relativeCreatedLabel', { time: createdRel })
+  return null
 }

@@ -312,6 +312,7 @@
   "apiKeys.sectionTitle": "Klucze API",
   "apiKeys.empty": "Brak kluczy API. Wygeneruj klucz, aby zacząć.",
   "apiKeys.statusActive": "Aktywny",
+  "apiKeys.createdLabel": "Utworzono {{date}}",
   "apiKeys.statusRevoked": "Unieważniony",
   "apiKeys.generate": "Wygeneruj klucz API",
   "apiKeys.generating": "Generowanie…",
