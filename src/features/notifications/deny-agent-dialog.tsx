@@ -8,6 +8,10 @@ import { WarningZone } from '../../shared/components/warning-zone'
 export interface DenyAgentDialogProps {
   open: boolean
   agentName: string
+  /** Key the agent enrolled with — deep-links the warning to that exact key. */
+  apiKeyId?: string
+  /** Masked suffix of that key (`pl_••••{suffix}`); never the plaintext key. */
+  apiKeySuffix?: string
   isPending: boolean
   onConfirm: () => void
   onCancel: () => void
@@ -19,7 +23,15 @@ export interface DenyAgentDialogProps {
  * deliberate confirm. The WarningZone exists because an unexpected agent
  * enrollment can mean a leaked API key — we point the user at remediation.
  */
-export function DenyAgentDialog({ open, agentName, isPending, onConfirm, onCancel }: DenyAgentDialogProps) {
+export function DenyAgentDialog({
+  open,
+  agentName,
+  apiKeyId,
+  apiKeySuffix,
+  isPending,
+  onConfirm,
+  onCancel,
+}: DenyAgentDialogProps) {
   const { t } = useTranslation()
   if (!open) return null
   return (
@@ -38,13 +50,24 @@ export function DenyAgentDialog({ open, agentName, isPending, onConfirm, onCance
 
         <WarningZone title={t('agents.denyWarningTitle')}>
           {t('agents.denyWarningBody')}{' '}
-          <Link
-            to="/api-keys"
-            onClick={onCancel}
-            className="font-semibold text-[var(--cv-primary)] underline-offset-2 hover:underline"
-          >
-            {t('agents.denyWarningLink')}
-          </Link>
+          {apiKeyId ? (
+            <Link
+              to="/api-keys/$keyId"
+              params={{ keyId: apiKeyId }}
+              onClick={onCancel}
+              className="font-mono font-semibold text-[var(--cv-primary)] underline-offset-2 hover:underline"
+            >
+              pl_••••{apiKeySuffix || '••••'} →
+            </Link>
+          ) : (
+            <Link
+              to="/api-keys"
+              onClick={onCancel}
+              className="font-semibold text-[var(--cv-primary)] underline-offset-2 hover:underline"
+            >
+              {t('agents.denyWarningLink')}
+            </Link>
+          )}
         </WarningZone>
 
         <DialogFooter>

@@ -102,6 +102,8 @@ export function NotificationCenterPage() {
     agentId: string
     notificationId: string
     agentName: string
+    apiKeyId?: string
+    apiKeySuffix?: string
   } | null>(null)
   const busy =
     approve.isPending ||
@@ -190,10 +192,16 @@ export function NotificationCenterPage() {
     )
   }
 
-  function handleDenyAgent(agentId: string, notificationId: string, agentName: string) {
+  function handleDenyAgent(
+    agentId: string,
+    notificationId: string,
+    agentName: string,
+    apiKeyId?: string,
+    apiKeySuffix?: string,
+  ) {
     // Open the confirm dialog first — denying deactivates the agent and may
     // signal a leaked API key, so it deserves a deliberate confirmation.
-    setDenyAgentTarget({ agentId, notificationId, agentName })
+    setDenyAgentTarget({ agentId, notificationId, agentName, apiKeyId, apiKeySuffix })
   }
 
   function handleConfirmDenyAgent() {
@@ -412,6 +420,8 @@ export function NotificationCenterPage() {
         <DenyAgentDialog
           open
           agentName={denyAgentTarget.agentName}
+          apiKeyId={denyAgentTarget.apiKeyId}
+          apiKeySuffix={denyAgentTarget.apiKeySuffix}
           isPending={deactivateAgent.isPending}
           onConfirm={handleConfirmDenyAgent}
           onCancel={() => setDenyAgentTarget(null)}
@@ -477,7 +487,13 @@ function ActionFooter({
   onApprove: (ctx: NotificationGrantContext) => void
   onDeny: (ctx: NotificationGrantContext) => void
   onApproveAgent: (target: AgentTarget) => void
-  onDenyAgent: (agentId: string, notificationId: string, agentName: string) => void
+  onDenyAgent: (
+    agentId: string,
+    notificationId: string,
+    agentName: string,
+    apiKeyId?: string,
+    apiKeySuffix?: string,
+  ) => void
   onView: (item: NotificationItem) => void
 }) {
   const { t } = useTranslation()
@@ -510,7 +526,9 @@ function ActionFooter({
           size="sm"
           className="flex-1"
           disabled={busy}
-          onClick={() => onDenyAgent(agentId, item.id, agentName)}
+          onClick={() =>
+            onDenyAgent(agentId, item.id, agentName, item.metadata?.apiKeyId, item.metadata?.apiKeySuffix)
+          }
         >
           {t('grants.deny.action')}
         </Button>
