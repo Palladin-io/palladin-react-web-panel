@@ -50,7 +50,7 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   danger:
     'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)] border border-[rgb(var(--cv-primary-rgb)/0.25)] hover:bg-[rgb(var(--cv-primary-rgb)/0.18)]',
   positive:
-    'bg-[rgba(22, 163, 74,0.06)] text-[#16A34A] border border-[rgba(22, 163, 74,0.3)] hover:bg-[rgba(22, 163, 74,0.12)]',
+    'bg-[rgba(16, 185, 129,0.06)] text-[#10B981] border border-[rgba(16, 185, 129,0.3)] hover:bg-[rgba(16, 185, 129,0.12)]',
   premium:
     'btn-premium bg-transparent font-bold border',
 }

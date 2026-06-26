@@ -284,7 +284,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [icon, setIcon] = useState<string | undefined>(entry.icon)
   const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
   const [color, setColor] = useState<string>(
-    entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#16A34A' : '#60A5FA'))
+    entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#10B981' : '#60A5FA'))
   )
   const [url, setUrl] = useState(
     entry.type === ENTRY_TYPE_KEY
@@ -320,7 +320,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setIcon(entry.icon)
     setPendingIconFile(null)
     setColor(
-      entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#16A34A' : '#60A5FA'))
+      entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#10B981' : '#60A5FA'))
     )
     if (entry.type === ENTRY_TYPE_KEY) {
       setUrl(entry.urlDomain ? `https://${entry.urlDomain}` : '')
@@ -387,7 +387,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const isRemoving = remove.isPending
 
   const defaultColor =
-    entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#16A34A' : '#60A5FA'))
+    entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#10B981' : '#60A5FA'))
 
   const hasChanges = useMemo(() => {
     if (label.trim() !== entry.label) return true

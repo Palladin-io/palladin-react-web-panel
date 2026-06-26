@@ -74,7 +74,7 @@ export function FieldFeedback({ visible, color, children }: FieldFeedbackProps) 
       role={color === 'red' && visible ? 'alert' : undefined}
       className={`h-4 pt-[3px] pl-2 text-[9px] font-medium leading-3
         transition-[opacity,transform] duration-200 ease-out ${
-        color === 'teal' ? 'text-[#16A34A]' : 'text-[var(--cv-primary)]'
+        color === 'teal' ? 'text-[#10B981]' : 'text-[var(--cv-primary)]'
       } ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}
     >
       {children}

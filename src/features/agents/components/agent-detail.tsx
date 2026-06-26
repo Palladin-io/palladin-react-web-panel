@@ -397,13 +397,13 @@ function ActionZone({ tone, title, heading, hint, action }: ActionZoneProps) {
     <section
       className={`rounded-xl border p-4 ${
         isPositive
-          ? 'border-[rgba(22, 163, 74,0.25)] bg-[rgba(22, 163, 74,0.04)]'
+          ? 'border-[rgba(16, 185, 129,0.25)] bg-[rgba(16, 185, 129,0.04)]'
           : 'border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)]'
       }`}
     >
       <h2
         className={`text-[11px] font-semibold uppercase tracking-[0.06em] ${
-          isPositive ? 'text-[#16A34A]' : 'text-[var(--cv-primary)]'
+          isPositive ? 'text-[#10B981]' : 'text-[var(--cv-primary)]'
         }`}
       >
         {title}

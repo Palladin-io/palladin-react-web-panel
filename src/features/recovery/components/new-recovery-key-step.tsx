@@ -100,7 +100,7 @@ export function NewRecoveryKeyStep({ mnemonic, onFinish }: NewRecoveryKeyStepPro
             checked={acknowledged}
             onChange={(e) => setAcknowledged(e.target.checked)}
             className="h-4 w-4 rounded border-[rgba(232, 234, 237,0.2)] bg-transparent
-              accent-[#16A34A]"
+              accent-[#10B981]"
           />
           {t('recovery.savedCheckbox')}
         </label>
