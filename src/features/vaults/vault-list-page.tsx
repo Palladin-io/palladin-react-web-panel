@@ -143,7 +143,7 @@ export function VaultListPage() {
           onCreate={handleCreateClick}
           onRetry={vaults.refetch}
         >
-          <div className="flex flex-wrap gap-6">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
             {filteredList.map((vault) => (
               <VaultCard
                 key={vault.id}
