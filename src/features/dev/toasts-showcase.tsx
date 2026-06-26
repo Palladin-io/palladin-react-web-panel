@@ -49,9 +49,16 @@ const BASE: { label: string; fire: () => void }[] = [
   {
     label: 'success + action',
     fire: () =>
+      // Footer rendered as the description (a real element) — the same trick the
+      // notification toasts use, so it never clips and matches their footer.
       toast.success('Vault created', {
-        description: 'Production vault is ready.',
-        action: { label: 'Open', onClick: noop },
+        description: (
+          <span className="cv-toast-footer">
+            <button type="button" className="cv-toast-action" onClick={noop}>
+              Open
+            </button>
+          </span>
+        ),
         duration: KEEP,
       }),
   },

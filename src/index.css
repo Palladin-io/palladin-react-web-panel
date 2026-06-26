@@ -239,7 +239,8 @@ button,
   width: 100%;
 }
 
-/* Rule between title and description — in the notification's accent colour. */
+/* Rule between title and description — full width, SOLID, in the notification's
+   accent colour (no gradient/fade — runs edge to edge). */
 .cv-toast-body {
   position: relative;
   margin-top: 9px;
@@ -252,68 +253,39 @@ button,
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(to right, var(--cv-toast-accent), var(--cv-toast-accent) 78%, transparent);
+  background: var(--cv-toast-accent);
 }
 
-/* Footer surface — a recessed strip: darker than the toast body in light,
-   lighter in dark, so it reads as a footer in both themes (the shared card
-   footer token was too close to the toast surface in light). */
-.cv-toast-footer,
-.cv-toast:has([data-button])::after {
-  background: rgba(12, 14, 18, 0.05);
-  border-top: 1px solid var(--cv-divider);
-}
-.dark .cv-toast-footer,
-.dark .cv-toast:has([data-button])::after {
-  background: rgba(232, 234, 237, 0.05);
-}
-
-/* Notification toasts: the action footer is a REAL element inside the body (so
-   Sonner measures the full height — no clipping). Bleeds to the toast edges. */
+/* Action footer — a REAL element inside the toast body (so Sonner measures the
+   full height; no clipping). Bleeds to the toast edges. SOLID surface (the app's
+   dialog footer colours) + solid border — no rgba show-through. */
 .cv-toast-footer {
   display: flex;
   justify-content: flex-end;
   align-items: center;
   margin: 12px -14px -13px -40px;
   padding: 8px 13px;
+  background: #e8ebf0;
+  border-top: 1px solid #d7dbe3;
   border-radius: 0 0 10px 10px;
 }
-
-/* Base toasts that carry a Sonner action (title-only) get the same footer via a
-   strip + the action docked bottom-right — there's no description to clip. */
-.cv-toast:has([data-button]) {
-  padding-bottom: 40px;
-}
-.cv-toast:has([data-button])::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 35px;
-  border-radius: 0 0 10px 10px;
+.dark .cv-toast-footer {
+  background: #272c35;
+  border-top-color: #30353f;
 }
 
-/* Shared small action button (both footer kinds) — the app's subtle button. */
-.cv-toast-action,
-[data-sonner-toast].cv-toast [data-button] {
+/* Small action button — SOLID, in the notification accent colour (white text). */
+.cv-toast-action {
   height: 23px;
   padding: 0 12px;
   border-radius: 6px;
-  background: var(--cv-btn-subtle-bg) !important;
-  color: var(--cv-t1) !important;
-  border: 1px solid var(--cv-btn-subtle-border) !important;
+  background: var(--cv-toast-accent);
+  color: #fff;
+  border: none;
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
 }
-.cv-toast-action:hover,
-[data-sonner-toast].cv-toast [data-button]:hover {
-  background: var(--cv-btn-subtle-hover) !important;
-}
-[data-sonner-toast].cv-toast [data-button] {
-  position: absolute;
-  bottom: 7px;
-  right: 13px;
-  z-index: 1;
+.cv-toast-action:hover {
+  filter: brightness(1.08);
 }
