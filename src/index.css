@@ -239,7 +239,7 @@ button,
    instead of stopping at the action. Close button sits top-left already. */
 .cv-toast [data-button] {
   position: absolute;
-  top: 13px;
+  top: 11px;
   right: 14px;
 }
 .cv-toast [data-content] {
@@ -254,8 +254,8 @@ button,
    past the text column so it reaches toward the action. */
 .cv-toast-divider {
   position: relative;
-  margin-top: 6px;
-  padding-top: 8px;
+  margin-top: 14px;
+  padding-top: 9px;
 }
 .cv-toast-divider::before {
   content: '';
