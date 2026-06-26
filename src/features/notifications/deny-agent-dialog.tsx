@@ -49,21 +49,22 @@ export function DenyAgentDialog({
         </p>
 
         <WarningZone title={t('agents.denyWarningTitle')}>
-          {t('agents.denyWarningBody')}{' '}
+          {t('agents.denyWarningBody')}
           {apiKeyId ? (
             <Link
               to="/api-keys/$keyId"
               params={{ keyId: apiKeyId }}
               onClick={onCancel}
-              className="font-mono font-semibold text-[var(--cv-primary)] underline-offset-2 hover:underline"
+              className="mt-1 block font-semibold text-[var(--cv-primary)] underline-offset-2 hover:underline"
             >
-              pl_••••{apiKeySuffix || '••••'} →
+              {t('agents.denyWarningOpenKey')}{' '}
+              <span className="font-mono">pl_••••{apiKeySuffix || '••••'}</span> →
             </Link>
           ) : (
             <Link
               to="/api-keys"
               onClick={onCancel}
-              className="font-semibold text-[var(--cv-primary)] underline-offset-2 hover:underline"
+              className="mt-1 block font-semibold text-[var(--cv-primary)] underline-offset-2 hover:underline"
             >
               {t('agents.denyWarningLink')}
             </Link>
