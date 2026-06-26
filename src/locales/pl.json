@@ -401,7 +401,7 @@
   "agents.denyWarningTitle": "To nie Twój agent?",
   "agents.denyWarningBody": "Jeśli nie konfigurowałeś tego agenta, Twój klucz API mógł wyciec. Sprawdź Ustawienia → Klucze API i unieważnij każdy klucz, którego nie rozpoznajesz.",
   "agents.denyWarningLink": "Sprawdź klucze API →",
-  "agents.denyWarningOpenKey": "Przejdź do klucza API",
+  "agents.denyWarningOpenKey": "Przejdź do klucza API:",
   "agents.denyConfirmAction": "Odrzuć agenta",
   "agents.reactivateZone": "PONOWNA AKTYWACJA",
   "agents.reactivateHint": "Przywróć temu agentowi dostęp do sejfów",
