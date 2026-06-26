@@ -208,7 +208,7 @@ function AgentCard({ agent, isSelected }: AgentRowProps) {
       <div
         className="flex items-center justify-between px-[14px] py-2
           border-t border-[var(--cv-divider)]
-          bg-[rgba(12, 14, 18,0.015)] dark:bg-[rgba(232, 234, 237,0.02)]"
+          bg-[rgba(12, 14, 18,0.045)] dark:bg-[rgba(232, 234, 237,0.06)]"
       >
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
           <Icon
