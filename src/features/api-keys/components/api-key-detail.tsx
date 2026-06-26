@@ -117,7 +117,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
       {/* Activate zone — shown only for revoked keys when user has write permission */}
       {!isActive && canWrite ? (
         <section
-          className="mt-4 rounded-xl border border-[rgba(16, 185, 129,0.25)] bg-[rgba(16, 185, 129,0.04)] p-4"
+          className="mt-4 rounded-xl border border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.12)] p-4"
         >
           <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#10B981]">
             {t('apiKeys.activateZone')}

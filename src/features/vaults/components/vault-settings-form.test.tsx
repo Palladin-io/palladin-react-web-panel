@@ -53,7 +53,7 @@ const baseVault: Vault = {
   name: 'Production Keys',
   description: 'Critical production secrets',
   icon: 'shield',
-  color: '#FF4F4F',
+  color: '#EB4747',
   grantMode: GRANT_MODE_GRANULAR,
   createdAt: '2026-04-25T10:00:00Z',
   updatedAt: '2026-04-25T10:00:00Z',

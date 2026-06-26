@@ -15,8 +15,8 @@ const ICONS = [
 ] as const
 
 const ICON_COLORS: Record<string, string> = {
-  shield: '#FF4F4F',
-  lock: '#FF4F4F',
+  shield: '#EB4747',
+  lock: '#EB4747',
   key: '#8A95A6',
   cloud: '#60A5FA',
   folder: '#FFAB87',
@@ -142,7 +142,7 @@ describe('IconColorBrowser', () => {
         iconColors={ICON_COLORS}
         currentIcon="shield"
         onSelectIcon={onSelectIcon}
-        currentColor="#FF4F4F"
+        currentColor="#EB4747"
         onSelectColor={onSelectColor}
       />,
     )

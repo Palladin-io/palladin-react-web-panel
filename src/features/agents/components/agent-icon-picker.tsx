@@ -13,7 +13,7 @@ import {
 } from './agent-presentation'
 
 const COLOR_OPTIONS = [
-  '#FF4F4F', '#FFAB87', '#60A5FA', '#10B981', '#A78BFA', '#8A95A6',
+  '#EB4747', '#FFAB87', '#60A5FA', '#10B981', '#A78BFA', '#8A95A6',
 ] as const
 
 export const DEFAULT_AGENT_COLOR = COLOR_OPTIONS[3]
@@ -120,7 +120,7 @@ export function AgentIconPicker({
             border-[var(--cv-primary)] transition-transform hover:scale-105
             disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Icon name="more_horiz" size={16} color="#FF4F4F" />
+          <Icon name="more_horiz" size={16} color="var(--cv-primary)" />
         </button>
       </div>
 

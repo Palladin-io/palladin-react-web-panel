@@ -25,10 +25,10 @@ export type EntryIconOption = (typeof ENTRY_ICON_OPTIONS)[number]
 
 export const ENTRY_ICON_COLORS: Record<string, string> = {
   vpn_key: '#10B981',
-  lock: '#FF4F4F',
+  lock: '#EB4747',
   badge: '#A78BFA',
-  security: '#FF4F4F',
-  fingerprint: '#FF4F4F',
+  security: '#EB4747',
+  fingerprint: '#EB4747',
   password: '#8A95A6',
   enhanced_encryption: '#10B981',
   language: '#60A5FA',
@@ -38,7 +38,7 @@ export const ENTRY_ICON_COLORS: Record<string, string> = {
   api: '#10B981',
   person: '#A78BFA',
   people: '#A78BFA',
-  favorite: '#FF4F4F',
+  favorite: '#EB4747',
   star: '#FFAB87',
   email: '#60A5FA',
   chat: '#10B981',

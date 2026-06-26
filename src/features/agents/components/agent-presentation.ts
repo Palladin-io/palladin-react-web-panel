@@ -77,7 +77,7 @@ export const AGENT_ICON_ALL = [
  */
 const AVATAR_PALETTE = [
   '#10B981',
-  '#FF4F4F',
+  '#EB4747',
   '#FFAB87',
   '#F0C040',
   '#5B8DEF',

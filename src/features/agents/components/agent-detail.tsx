@@ -397,7 +397,7 @@ function ActionZone({ tone, title, heading, hint, action }: ActionZoneProps) {
     <section
       className={`rounded-xl border p-4 ${
         isPositive
-          ? 'border-[rgba(16, 185, 129,0.25)] bg-[rgba(16, 185, 129,0.04)]'
+          ? 'border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.12)]'
           : 'border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)]'
       }`}
     >
