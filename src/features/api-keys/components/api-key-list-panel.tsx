@@ -139,7 +139,7 @@ function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
         </span>
         <span className="flex shrink-0 items-center gap-1 text-[10px] text-[var(--cv-t3)]">
           <Icon name="smart_toy" size={12} color="var(--cv-t3)" className="shrink-0" />
-          {t('apiKeys.agentsUsing', { count: apiKey.activeAgentCount })}
+          {t('apiKeys.agentsUsing', { count: apiKey.activeAgentCount ?? 0 })}
         </span>
       </div>
     </Link>
