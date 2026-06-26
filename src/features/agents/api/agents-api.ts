@@ -142,6 +142,11 @@ export async function reactivateAgent(agentId: string): Promise<void> {
   await api.post(`api/agents/${agentId}/reactivate`)
 }
 
+/** Hard-deletes a deactivated agent (backend rejects active/pending with 409). */
+export async function deleteAgent(agentId: string): Promise<void> {
+  await api.delete(`api/agents/${agentId}`)
+}
+
 export async function updateAgent(
   agentId: string,
   input: UpdateAgentInput,

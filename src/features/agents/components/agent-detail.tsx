@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -17,6 +18,7 @@ import { useAgentPermissions } from '../use-agents'
 import { useApproveAgent } from '../use-approve-agent'
 import { useDeactivateAgent } from '../use-deactivate-agent'
 import { useReactivateAgent } from '../use-reactivate-agent'
+import { useDeleteAgent } from '../use-delete-agent'
 import { OrgGrantsPanel } from '../../grants'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { AgentAvatar } from './agent-avatar'
@@ -59,10 +61,13 @@ export function AgentDetail({ agent }: AgentDetailProps) {
   const approve = useApproveAgent()
   const deactivate = useDeactivateAgent()
   const reactivate = useReactivateAgent()
+  const del = useDeleteAgent()
+  const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState<AgentDetailTab>('details')
   const [approveOpen, setApproveOpen] = useState(false)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [addAccessOpen, setAddAccessOpen] = useState(false)
 
   const name = agentDisplayName(agent, t('agents.unnamed'))
@@ -110,6 +115,18 @@ export function AgentDetail({ agent }: AgentDetailProps) {
       onError: () => {
         toast.error(t('agents.errorReactivate'))
       },
+    })
+  }
+
+  const handleConfirmDelete = () => {
+    del.mutate(agent.agentId, {
+      onSuccess: () => {
+        analytics.capture('agents', 'agent-deleted')
+        setDeleteOpen(false)
+        // The agent no longer exists — leave the (now-dangling) detail panel.
+        navigate({ to: '/agents' })
+      },
+      onError: () => toast.error(t('agents.errorDelete')),
     })
   }
 
@@ -282,6 +299,25 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                 }
               />
             ) : null}
+
+            {agent.status === AGENT_STATUS_DEACTIVATED ? (
+              <ActionZone
+                tone="danger"
+                title={t('agents.deleteZone')}
+                hint={t('agents.deleteHint')}
+                action={
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    icon="delete"
+                    onClick={() => setDeleteOpen(true)}
+                    disabled={del.isPending}
+                  >
+                    {t('agents.delete')}
+                  </Button>
+                }
+              />
+            ) : null}
           </div>
         </>
       ) : null}
@@ -318,6 +354,14 @@ export function AgentDetail({ agent }: AgentDetailProps) {
         isPending={deactivate.isPending}
         onConfirm={handleConfirmDeactivate}
         onCancel={() => setDeactivateOpen(false)}
+      />
+
+      <DeleteAgentDialog
+        open={deleteOpen}
+        agentName={name}
+        isPending={del.isPending}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteOpen(false)}
       />
 
       {addAccessOpen && (
@@ -469,6 +513,43 @@ function DeactivateAgentDialog({ open, agentName, isPending, onConfirm, onCancel
           </Button>
           <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
             {isPending ? t('agents.deactivating') : t('agents.deactivate')}
+          </Button>
+        </DialogFooter>
+      </div>
+    </ModalShell>
+  )
+}
+
+interface DeleteAgentDialogProps {
+  open: boolean
+  agentName: string
+  isPending: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+function DeleteAgentDialog({ open, agentName, isPending, onConfirm, onCancel }: DeleteAgentDialogProps) {
+  const { t } = useTranslation()
+  if (!open) return null
+  return (
+    <ModalShell
+      onClose={isPending ? undefined : onCancel}
+      ariaLabel={t('agents.deleteConfirmTitle')}
+      width={420}
+    >
+      <div className="flex flex-col gap-4">
+        <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
+          {t('agents.deleteConfirmTitle')}
+        </h2>
+        <p className="text-[12px] text-[var(--cv-t2)]">
+          {t('agents.deleteConfirmBody', { name: agentName })}
+        </p>
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
+            {t('agents.cancel')}
+          </Button>
+          <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
+            {isPending ? t('agents.deleting') : t('agents.delete')}
           </Button>
         </DialogFooter>
       </div>
