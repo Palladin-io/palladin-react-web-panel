@@ -188,6 +188,9 @@ export function NotificationCenterPage() {
       onSuccess: () => {
         toast.success(t('agents.deactivateSuccess'))
         markReadNow(notificationId)
+        // Backend collapses the pending card + emits an `agent_deactivated`
+        // history card; re-fetch so both land in the feed (like grant deny).
+        refreshFeed()
       },
       onError: () => toast.error(t('agents.errorDeactivate')),
     })
