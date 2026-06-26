@@ -210,7 +210,7 @@ function PendingGrantCard({
 
       <div
         className="flex items-center gap-2 border-t border-[var(--cv-divider)] px-[14px] py-2
-          bg-[rgba(12, 14, 18,0.045)] dark:bg-[rgba(232, 234, 237,0.06)]"
+          bg-[var(--cv-card-footer)]"
       >
         <Button
           variant="subtle"

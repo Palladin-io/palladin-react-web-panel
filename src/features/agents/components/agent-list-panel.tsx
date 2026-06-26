@@ -177,18 +177,17 @@ function AgentCard({ agent, isSelected }: AgentRowProps) {
 
   return (
     <div
-      className={`overflow-hidden rounded-xl border bg-[var(--cv-card-bg)]
-        transition-[border-color,box-shadow] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] ${
+      className={`group overflow-hidden rounded-xl border bg-[var(--cv-card-bg)] transition-colors ${
         isSelected
           ? 'border-[var(--cv-t1)]'
-          : 'border-[var(--cv-border)] hover:border-[rgba(138,149,166,0.35)] dark:hover:border-[var(--cv-t1)]'
+          : 'border-[var(--cv-border)] hover:bg-[var(--cv-card-hover)]'
       } ${isDeactivated ? 'opacity-70' : ''}`}
     >
       {/* Identity zone */}
       <Link
         to="/agents/$agentId"
         params={{ agentId: agent.agentId }}
-        className="flex items-center gap-[10px] px-[14px] py-3 hover:bg-[var(--cv-bg-subtle)]"
+        className="flex items-center gap-[10px] px-[14px] py-3"
       >
         <AgentAvatar agent={agent} size={36} />
         <div className="min-w-0 flex-1">
@@ -208,7 +207,7 @@ function AgentCard({ agent, isSelected }: AgentRowProps) {
       <div
         className="flex items-center justify-between px-[14px] py-2
           border-t border-[var(--cv-divider)]
-          bg-[rgba(12, 14, 18,0.045)] dark:bg-[rgba(232, 234, 237,0.06)]"
+          bg-[var(--cv-card-footer)]"
       >
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
           <Icon

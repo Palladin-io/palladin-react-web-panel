@@ -8,6 +8,7 @@
   --cv-t3: #8A95A6;
   --cv-card-bg: rgba(255, 255, 255, 0.55);
   --cv-card-hover: rgba(255, 255, 255, 0.8);
+  --cv-card-footer: #E5E8ED;
   --cv-border: rgba(12, 14, 18, 0.1);
   --cv-divider: rgba(12, 14, 18, 0.08);
   --cv-bg-subtle: rgba(12, 14, 18, 0.04);
@@ -42,6 +43,7 @@
   --cv-t3: #8A95A6;
   --cv-card-bg: rgba(0, 0, 0, 0.22);
   --cv-card-hover: rgba(0, 0, 0, 0.1);
+  --cv-card-footer: #262B33;
   --cv-border: rgba(232, 234, 237, 0.13);
   --cv-divider: rgba(232, 234, 237, 0.13);
   --cv-bg-subtle: rgba(232, 234, 237, 0.05);

@@ -13,7 +13,7 @@ export const AUTH_BACKGROUND_GRADIENT =
  */
 export const HOVERABLE_CARD_CLASSES = [
   'rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]',
-  'dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-[background-color,box-shadow] duration-200 ease-out',
-  'hover:bg-[var(--cv-card-hover)] hover:shadow-[0_4px_14px_rgba(0,0,0,0.07)] dark:hover:shadow-[0_4px_18px_rgba(0,0,0,0.35)]',
+  'transition-colors duration-150 ease-out',
+  'hover:bg-[var(--cv-card-hover)]',
   'focus-visible:outline-none focus-visible:border-[var(--cv-t1)]',
 ].join(' ')
