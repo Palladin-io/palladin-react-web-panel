@@ -21,6 +21,9 @@ export function showNotificationToast(
   payload: NotificationPayload,
   /** Invoked from the toast's "Open" action — wired to navigate to the inbox. */
   onOpen?: () => void,
+  /** Override the auto-dismiss time (ms). `Infinity` keeps it open — used by the
+   *  dev toast showcase so every variant can be styled side by side. */
+  durationMs?: number,
 ) {
   const { type } = payload
 
@@ -37,7 +40,11 @@ export function showNotificationToast(
   const action = onOpen
     ? { label: i18n.t('notifications.toast.open'), onClick: onOpen }
     : undefined
-  const opts = (description: ReactNode) => ({ description: withDivider(description), action })
+  const opts = (description: ReactNode) => ({
+    description: withDivider(description),
+    action,
+    ...(durationMs !== undefined ? { duration: durationMs } : {}),
+  })
 
   switch (type) {
     case 'grant_approved':

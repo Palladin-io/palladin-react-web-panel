@@ -17,6 +17,7 @@ import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
+import { Route as AuthenticatedDevToastsRouteImport } from './routes/_authenticated/dev-toasts'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
 import { Route as AuthenticatedApiKeysRouteImport } from './routes/_authenticated/api-keys'
@@ -66,6 +67,11 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedDevToastsRoute = AuthenticatedDevToastsRouteImport.update({
+  id: '/dev-toasts',
+  path: '/dev-toasts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/api-keys': typeof AuthenticatedApiKeysRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/billing': typeof AuthenticatedBillingRoute
+  '/dev-toasts': typeof AuthenticatedDevToastsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/unlock': typeof AuthenticatedUnlockRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/api-keys': typeof AuthenticatedApiKeysRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/billing': typeof AuthenticatedBillingRoute
+  '/dev-toasts': typeof AuthenticatedDevToastsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/unlock': typeof AuthenticatedUnlockRoute
@@ -180,6 +188,7 @@ export interface FileRoutesById {
   '/_authenticated/api-keys': typeof AuthenticatedApiKeysRoute
   '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
+  '/_authenticated/dev-toasts': typeof AuthenticatedDevToastsRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
     | '/api-keys'
     | '/approvals'
     | '/billing'
+    | '/dev-toasts'
     | '/inbox'
     | '/settings'
     | '/unlock'
@@ -222,6 +232,7 @@ export interface FileRouteTypes {
     | '/api-keys'
     | '/approvals'
     | '/billing'
+    | '/dev-toasts'
     | '/inbox'
     | '/settings'
     | '/unlock'
@@ -243,6 +254,7 @@ export interface FileRouteTypes {
     | '/_authenticated/api-keys'
     | '/_authenticated/approvals'
     | '/_authenticated/billing'
+    | '/_authenticated/dev-toasts'
     | '/_authenticated/inbox'
     | '/_authenticated/settings'
     | '/_authenticated/unlock'
@@ -319,6 +331,13 @@ declare module '@tanstack/react-router' {
       path: '/inbox'
       fullPath: '/inbox'
       preLoaderRoute: typeof AuthenticatedInboxRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/dev-toasts': {
+      id: '/_authenticated/dev-toasts'
+      path: '/dev-toasts'
+      fullPath: '/dev-toasts'
+      preLoaderRoute: typeof AuthenticatedDevToastsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/billing': {
@@ -406,6 +425,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedApiKeysRoute: typeof AuthenticatedApiKeysRoute
   AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
+  AuthenticatedDevToastsRoute: typeof AuthenticatedDevToastsRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedUnlockRoute: typeof AuthenticatedUnlockRoute
@@ -425,6 +445,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedApiKeysRoute: AuthenticatedApiKeysRoute,
   AuthenticatedApprovalsRoute: AuthenticatedApprovalsRoute,
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
+  AuthenticatedDevToastsRoute: AuthenticatedDevToastsRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedUnlockRoute: AuthenticatedUnlockRoute,
