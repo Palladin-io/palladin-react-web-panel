@@ -400,6 +400,7 @@
   "agents.denyConfirmBody": "Odrzuca to enrollment agenta „{{name}}” i dezaktywuje go — agent nie połączy się ani nie uzyska żadnego dostępu.",
   "agents.denyWarningTitle": "To nie Twój agent?",
   "agents.denyWarningBody": "Jeśli nie konfigurowałeś tego agenta, Twój klucz API mógł wyciec. Sprawdź Ustawienia → Klucze API i unieważnij każdy klucz, którego nie rozpoznajesz.",
+  "agents.denyWarningLink": "Sprawdź klucze API →",
   "agents.denyConfirmAction": "Odrzuć agenta",
   "agents.reactivateZone": "PONOWNA AKTYWACJA",
   "agents.reactivateHint": "Przywróć temu agentowi dostęp do sejfów",

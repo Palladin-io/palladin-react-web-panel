@@ -379,6 +379,7 @@
   "agents.denyConfirmBody": "This rejects the enrollment of \"{{name}}\" and deactivates it — the agent won't be able to connect or access anything.",
   "agents.denyWarningTitle": "Not your agent?",
   "agents.denyWarningBody": "If you didn't set up this agent, your API key may have leaked. Review Settings → API Keys and revoke any key you don't recognize.",
+  "agents.denyWarningLink": "Review API keys →",
   "agents.denyConfirmAction": "Deny agent",
   "agents.reactivateZone": "REACTIVATE",
   "agents.reactivateHint": "Re-enable vault access for this agent",

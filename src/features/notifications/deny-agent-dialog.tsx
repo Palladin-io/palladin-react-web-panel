@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
 import { DialogFooter } from '../../shared/components/dialog-footer'
@@ -36,7 +37,14 @@ export function DenyAgentDialog({ open, agentName, isPending, onConfirm, onCance
         </p>
 
         <WarningZone title={t('agents.denyWarningTitle')}>
-          {t('agents.denyWarningBody')}
+          {t('agents.denyWarningBody')}{' '}
+          <Link
+            to="/api-keys"
+            onClick={onCancel}
+            className="font-semibold text-[var(--cv-primary)] underline-offset-2 hover:underline"
+          >
+            {t('agents.denyWarningLink')}
+          </Link>
         </WarningZone>
 
         <DialogFooter>
