@@ -58,13 +58,13 @@ describe('showNotificationToast', () => {
     showNotificationToast(payload('future_type'))
     expect(info.mock.calls[0][0]).toBe('ServerTitle')
     // description is wrapped in the divider span — its child is the server body.
-    expect(info.mock.calls[0][1].description.props.children).toBe('ServerBody')
+    expect(info.mock.calls[0][1].description.props.children[0].props.children).toBe('ServerBody')
   })
 
   it('falls back to the server body when required names are missing', () => {
     // grant_pending with no data → description child is the plain server body.
     showNotificationToast(payload('grant_pending'))
-    expect(info.mock.calls[0][1].description.props.children).toBe('ServerBody')
+    expect(info.mock.calls[0][1].description.props.children[0].props.children).toBe('ServerBody')
   })
 
   it('picks the FULL body variant when grantType is full (no entry)', () => {
@@ -72,14 +72,14 @@ describe('showNotificationToast', () => {
       payload('grant_approved', { agentName: 'Bot', vaultName: 'Prod', grantType: 'full' }),
     )
     // description = divider span wrapping a <Trans> — assert the Trans i18nKey.
-    expect(success.mock.calls[0][1].description.props.children.props.i18nKey).toBe(
+    expect(success.mock.calls[0][1].description.props.children[0].props.children.props.i18nKey).toBe(
       'notifications.grantApproved.bodyFull',
     )
   })
 
   it('picks the GRANULAR body variant when an entry is present', () => {
     showNotificationToast(payload('grant_approved', FULL_DATA))
-    expect(success.mock.calls[0][1].description.props.children.props.i18nKey).toBe(
+    expect(success.mock.calls[0][1].description.props.children[0].props.children.props.i18nKey).toBe(
       'notifications.grantApproved.body',
     )
   })
