@@ -79,7 +79,7 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
       {generated ? (
         <GeneratedSecretView generated={generated} onDone={onClose} />
       ) : (
-        <form className="flex flex-col gap-1" onSubmit={handleSubmit}>
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <FormInput
             id="api-key-name"
             label={t('apiKeys.nameLabel')}
