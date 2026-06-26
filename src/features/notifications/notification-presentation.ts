@@ -223,6 +223,7 @@ export function notificationCardPresentation(
         rows: [
           metaRow(item, 'notifications.card.rowAgentId', 'agentId'),
           metaRow(item, 'notifications.card.rowType', 'agentType'),
+          textRow('notifications.card.rowHostIp', agentHostIp(item)),
           metaRow(item, 'notifications.card.rowBy', 'actorName'),
         ],
       }
