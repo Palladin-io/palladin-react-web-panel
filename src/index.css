@@ -202,6 +202,7 @@ button,
 [data-sonner-toast].cv-toast {
   position: relative;
   --cv-toast-accent: var(--cv-divider);
+  padding: 13px 14px;
   background: var(--cv-modal-bg);
   color: var(--cv-t1);
   border: 1px solid var(--cv-border);
@@ -234,23 +235,41 @@ button,
   color: var(--cv-t3);
 }
 
-/* Float the action button to the top-right corner so the content column (title
-   row, and the full-width description + divider below) spans the whole toast
-   instead of stopping at the action. Close button sits top-left already. */
-.cv-toast [data-button] {
-  position: absolute;
-  top: 11px;
-  right: 14px;
-}
 .cv-toast [data-content] {
   width: 100%;
-}
-.cv-toast [data-title] {
-  padding-right: 60px;
 }
 
 /* Notification toasts: description sits just below the title, separated by
    spacing only (no rule). The accent is the left border + coloured icon. */
 .cv-toast-body {
   margin-top: 7px;
+}
+
+/* Action footer — a REAL element inside the toast body (so Sonner measures the
+   full height; no clipping). Bleeds to the toast edges into a strip with the
+   app's footer surface + top border + a small right-aligned button (the app's
+   subtle button). */
+.cv-toast-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin: 12px -14px -13px -40px;
+  padding: 8px 13px;
+  background: var(--cv-card-footer);
+  border-top: 1px solid var(--cv-divider);
+  border-radius: 0 0 10px 10px;
+}
+.cv-toast-action {
+  height: 23px;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: var(--cv-btn-subtle-bg);
+  color: var(--cv-t1);
+  border: 1px solid var(--cv-btn-subtle-border);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cv-toast-action:hover {
+  background: var(--cv-btn-subtle-hover);
 }

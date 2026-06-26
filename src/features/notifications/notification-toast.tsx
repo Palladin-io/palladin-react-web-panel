@@ -34,15 +34,23 @@ export function showNotificationToast(
   // server-supplied title.
   if (type === 'agent_resolved' || type === 'agent_approved' || type === 'agent_deactivated') return
 
-  // Every toast carries an action that takes the user to the inbox — the hub
-  // where the full card and its actions live. Transient toasts shouldn't be the
-  // only path to act on a notification.
-  const action = onOpen
-    ? { label: i18n.t('notifications.toast.open'), onClick: onOpen }
-    : undefined
+  // The "Open" action lives in a footer rendered as REAL toast content (not
+  // Sonner's `action` button) — so the toast measures its full height and the
+  // body is never clipped. The footer styling is in index.css (`cv-toast-*`).
+  const footer = onOpen ? (
+    <span className="cv-toast-footer">
+      <button type="button" className="cv-toast-action" onClick={onOpen}>
+        {i18n.t('notifications.toast.open')}
+      </button>
+    </span>
+  ) : null
   const opts = (description: ReactNode) => ({
-    description: withDivider(description),
-    action,
+    description: (
+      <>
+        {withDivider(description)}
+        {footer}
+      </>
+    ),
     ...(durationMs !== undefined ? { duration: durationMs } : {}),
   })
 
