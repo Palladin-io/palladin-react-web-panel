@@ -16,6 +16,7 @@ import {
   type GrantPolicyBody,
   type PendingGrant,
 } from '../grants'
+import { DenyAgentDialog } from './deny-agent-dialog'
 import {
   ApproveAgentDialog,
   useApproveAgent,
@@ -95,6 +96,13 @@ export function NotificationCenterPage() {
   const [denyTarget, setDenyTarget] = useState<NotificationGrantContext | null>(null)
   // Agent approval target — opens the existing agent-activation modal.
   const [agentApproveTarget, setAgentApproveTarget] = useState<AgentTarget | null>(null)
+  // Agent deny target — opens a confirm dialog (deny === deactivate) with a
+  // security warning about possible API-key leakage.
+  const [denyAgentTarget, setDenyAgentTarget] = useState<{
+    agentId: string
+    notificationId: string
+    agentName: string
+  } | null>(null)
   const busy =
     approve.isPending ||
     deny.isPending ||
@@ -182,7 +190,15 @@ export function NotificationCenterPage() {
     )
   }
 
-  function handleDenyAgent(agentId: string, notificationId: string) {
+  function handleDenyAgent(agentId: string, notificationId: string, agentName: string) {
+    // Open the confirm dialog first — denying deactivates the agent and may
+    // signal a leaked API key, so it deserves a deliberate confirmation.
+    setDenyAgentTarget({ agentId, notificationId, agentName })
+  }
+
+  function handleConfirmDenyAgent() {
+    if (!denyAgentTarget) return
+    const { agentId, notificationId } = denyAgentTarget
     // "Deny" a pending agent = deactivate it (no separate reject endpoint).
     deactivateAgent.mutate(agentId, {
       onSuccess: () => {
@@ -191,6 +207,7 @@ export function NotificationCenterPage() {
         // Backend collapses the pending card + emits an `agent_deactivated`
         // history card; re-fetch so both land in the feed (like grant deny).
         refreshFeed()
+        setDenyAgentTarget(null)
       },
       onError: () => toast.error(t('agents.errorDeactivate')),
     })
@@ -391,6 +408,16 @@ export function NotificationCenterPage() {
         />
       )}
 
+      {denyAgentTarget && (
+        <DenyAgentDialog
+          open
+          agentName={denyAgentTarget.agentName}
+          isPending={deactivateAgent.isPending}
+          onConfirm={handleConfirmDenyAgent}
+          onCancel={() => setDenyAgentTarget(null)}
+        />
+      )}
+
       {prefsOpen && (
         <NotificationPreferencesDialog onClose={() => setPrefsOpen(false)} />
       )}
@@ -450,7 +477,7 @@ function ActionFooter({
   onApprove: (ctx: NotificationGrantContext) => void
   onDeny: (ctx: NotificationGrantContext) => void
   onApproveAgent: (target: AgentTarget) => void
-  onDenyAgent: (agentId: string, notificationId: string) => void
+  onDenyAgent: (agentId: string, notificationId: string, agentName: string) => void
   onView: (item: NotificationItem) => void
 }) {
   const { t } = useTranslation()
@@ -483,7 +510,7 @@ function ActionFooter({
           size="sm"
           className="flex-1"
           disabled={busy}
-          onClick={() => onDenyAgent(agentId, item.id)}
+          onClick={() => onDenyAgent(agentId, item.id, agentName)}
         >
           {t('grants.deny.action')}
         </Button>
