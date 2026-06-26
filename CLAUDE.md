@@ -137,7 +137,7 @@ Hover/focus effects for interactive cards and list rows use the shared constant 
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 ```
 
-Editing `HOVERABLE_CARD_CLASSES` updates the hover border effect everywhere (vault cards, entry rows, future list items) in one place. Never inline custom `hover:border-*` or `shadow-*` on card-like interactive elements.
+Editing `HOVERABLE_CARD_CLASSES` updates the hover **background-lift** effect everywhere (vault cards, entry rows, agent cards, future list items) in one place — hover lightens the card surface (`--cv-card-hover`), no shadow, no border change. Never inline custom `hover:border-*`, `hover:bg-*`, or `shadow-*` on card-like interactive elements; route them through the shared constant.
 
 ### Modal Footer Button Pattern
 
@@ -299,7 +299,7 @@ These are intentional UX improvements approved by the product owner. PR review a
 | Area | Deviation | Reason |
 |------|-----------|--------|
 | Card shadows | `dark:shadow-*` only — no shadow in light mode | Avoids visual heaviness in light theme |
-| Hover effect | Light: subtle box-shadow lift (`0_4px_14px_rgba(0,0,0,0.07)`); Dark: shadow + border change | Border-only change too harsh on white background |
+| Hover effect | Background lift (`hover:bg-[var(--cv-card-hover)]`), **no shadow**, both modes — same feel as the sidebar nav-item hover | Border/shadow change felt inconsistent; unified with nav hover per product owner |
 | Entry detail pickers | Icon + Color pickers side-by-side (`flex-row`) | Prototype shows them stacked; side-by-side saves vertical space |
 | Premium colors | `#D4820A` light / `#F0C040` dark (aligned to Astro tokens) | Prototype used off-spec values; tokens are now the source of truth |
 
