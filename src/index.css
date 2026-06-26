@@ -194,3 +194,91 @@ button,
 [data-sonner-toast][data-styled='true'] [data-icon] {
   margin-top: 2px;
 }
+
+/* Toasts wear the active theme's surface (light/dark) with the variant colour
+   as a left-border + icon ACCENT — not a full-bleed colour fill (richColors is
+   off). The colour stays a noticeable accent without taking over the toast.
+   `[data-sonner-toast].cv-toast` outranks Sonner's own attribute rules. */
+[data-sonner-toast].cv-toast {
+  position: relative;
+  --cv-toast-accent: var(--cv-divider);
+  background: var(--cv-modal-bg);
+  color: var(--cv-t1);
+  border: 1px solid var(--cv-border);
+  border-left: 3px solid var(--cv-toast-accent);
+}
+.cv-toast[data-type='success'] {
+  --cv-toast-accent: #10b981;
+}
+.cv-toast[data-type='error'] {
+  --cv-toast-accent: var(--cv-primary);
+}
+.cv-toast[data-type='warning'] {
+  --cv-toast-accent: var(--cv-premium);
+}
+.cv-toast[data-type='info'] {
+  --cv-toast-accent: #3b82f6;
+}
+.cv-toast [data-icon] {
+  color: var(--cv-toast-accent);
+}
+.cv-toast [data-title] {
+  color: var(--cv-t1);
+}
+.cv-toast [data-description] {
+  color: var(--cv-t2);
+}
+.cv-toast [data-close-button] {
+  background: var(--cv-modal-bg);
+  border-color: var(--cv-border);
+  color: var(--cv-t3);
+}
+
+/* Float the action button to the top-right corner so the content column (title
+   row, and the full-width description + divider below) spans the whole toast
+   instead of stopping at the action. Close button sits top-left already. */
+.cv-toast [data-button] {
+  position: absolute;
+  top: 13px;
+  right: 14px;
+}
+.cv-toast [data-content] {
+  width: 100%;
+}
+.cv-toast [data-title] {
+  padding-right: 60px;
+}
+
+/* Notification toasts: the rule between title and description is the variant
+   accent, fading out toward the action button on the right. Extends a little
+   past the text column so it reaches toward the action. */
+.cv-toast-divider {
+  position: relative;
+  margin-top: 6px;
+  padding-top: 8px;
+}
+.cv-toast-divider::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(to right, var(--cv-toast-accent), var(--cv-toast-accent) 45%, transparent);
+}
+
+/* Title-only toasts (no description) get a bottom accent line instead — same
+   fade, anchored to the toast bottom. Hidden when a description is present
+   (the divider already carries the accent). */
+.cv-toast::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 9px;
+  height: 1px;
+  background: linear-gradient(to right, var(--cv-toast-accent), var(--cv-toast-accent) 45%, transparent);
+}
+.cv-toast:has([data-description])::after {
+  display: none;
+}

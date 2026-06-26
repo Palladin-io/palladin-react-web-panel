@@ -81,11 +81,9 @@ export function showNotificationToast(
  */
 function withDivider(content: ReactNode): ReactNode {
   if (!content) return undefined
-  return (
-    <span className="mt-1 block border-t border-[var(--cv-divider)] pt-1.5">
-      {content}
-    </span>
-  )
+  // `cv-toast-divider` draws the accent-coloured rule (styled in index.css so
+  // it can read the per-type `--cv-toast-accent` and fade toward the action).
+  return <span className="cv-toast-divider block">{content}</span>
 }
 
 /** Shared bold-name renderer for a Trans body. */

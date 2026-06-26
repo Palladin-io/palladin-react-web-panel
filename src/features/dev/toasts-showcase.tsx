@@ -68,25 +68,27 @@ export function ToastsShowcase() {
 
   return (
     <div className="min-h-screen bg-[var(--cv-modal-bg)] px-4 py-4 text-[var(--cv-t1)]">
-      <div className="mb-4 flex h-10 items-center gap-2">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-[14px] font-bold">Toast showcase</h2>
-          <p className="text-[11px] text-[var(--cv-t3)]">
-            Theme: <span className="font-semibold text-[var(--cv-t1)]">{theme}</span> · toasts stay open (Infinity) for styling
-          </p>
+      {/* All controls on the LEFT — the top-right is where toasts pop, so
+          keeping buttons here means they never get covered. */}
+      <div className="mb-5">
+        <h2 className="text-[14px] font-bold">Toast showcase</h2>
+        <p className="text-[11px] text-[var(--cv-t3)]">
+          Theme: <span className="font-semibold text-[var(--cv-t1)]">{theme}</span> · toasts stay open (Infinity) for styling
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" icon="dark_mode" onClick={toggleTheme}>
+            Toggle {theme === 'dark' ? 'light' : 'dark'}
+          </Button>
+          <Button variant="accent" size="sm" onClick={fireAll}>
+            Show all
+          </Button>
+          <Button variant="subtle" size="sm" onClick={() => toast.dismiss()}>
+            Dismiss all
+          </Button>
         </div>
-        <Button variant="outline" size="sm" icon="dark_mode" onClick={toggleTheme}>
-          Toggle {theme === 'dark' ? 'light' : 'dark'}
-        </Button>
-        <Button variant="accent" size="sm" onClick={fireAll}>
-          Show all
-        </Button>
-        <Button variant="subtle" size="sm" onClick={() => toast.dismiss()}>
-          Dismiss all
-        </Button>
       </div>
 
-      <Section title="Base variants (Sonner · richColors)">
+      <Section title="Base variants (Sonner)">
         {BASE.map((b) => (
           <Button key={b.label} variant="subtle" size="sm" onClick={b.fire}>
             {b.label}
@@ -108,8 +110,9 @@ export function ToastsShowcase() {
       <p className="mt-6 max-w-[640px] text-[11px] leading-relaxed text-[var(--cv-t3)]">
         Note: <code>agent_approved</code>, <code>agent_deactivated</code> and <code>agent_resolved</code> intentionally
         raise <strong>no</strong> toast (the actor already sees a success toast / they’re collapse markers), so they’re
-        not listed here. Toast look &amp; feel is configured on the <code>&lt;Toaster&gt;</code> in{' '}
-        <code>src/app/providers.tsx</code> (currently <code>richColors closeButton</code>).
+        not listed here. Toast look &amp; feel: the <code>&lt;Toaster&gt;</code> in <code>src/app/providers.tsx</code>{' '}
+        (class <code>cv-toast</code>) + the <code>.cv-toast</code> rules in <code>src/index.css</code> — themed
+        surface with the variant colour as a left-border + icon accent.
       </p>
     </div>
   )
