@@ -380,7 +380,6 @@ export function NotificationCenterPage() {
         <ApproveAgentDialog
           open
           agentId={agentApproveTarget.agentId}
-          agentName={agentApproveTarget.agentName}
           initialName={agentApproveTarget.agentName}
           initialType={agentApproveTarget.agentType ?? ''}
           isPending={approveAgent.isPending}

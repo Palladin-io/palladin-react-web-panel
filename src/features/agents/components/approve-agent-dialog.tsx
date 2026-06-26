@@ -13,7 +13,6 @@ import { AgentTypeCombobox } from './agent-type-combobox'
 
 export interface ApproveAgentDialogProps {
   open: boolean
-  agentName: string
   agentId: string
   /** Pre-fills the name input — the agent's existing name if set. */
   initialName?: string
@@ -33,7 +32,6 @@ export interface ApproveAgentDialogProps {
 
 export function ApproveAgentDialog({
   open,
-  agentName,
   agentId,
   initialName = '',
   initialType = '',
@@ -98,7 +96,7 @@ export function ApproveAgentDialog({
             {t('agents.approveSetup')}
           </h2>
           <p className="mt-1 text-[12px] text-[var(--cv-t2)]">
-            {t('agents.approveConfirmBody', { name: agentName })}
+            {t('agents.approveHint')}
           </p>
         </div>
 

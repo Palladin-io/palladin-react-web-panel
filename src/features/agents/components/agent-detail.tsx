@@ -305,7 +305,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
         key={agent.agentId}
         agentId={agent.agentId}
         open={approveOpen}
-        agentName={name}
         initialName={agent.name ?? ''}
         initialType={agent.type ?? ''}
         isPending={approve.isPending}

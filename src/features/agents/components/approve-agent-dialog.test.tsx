@@ -28,7 +28,6 @@ function wrapper({ children }: { children: ReactNode }) {
 
 const baseProps = {
   open: true,
-  agentName: 'Deploy Bot',
   agentId: 'agent-1',
   isPending: false,
   onConfirm: vi.fn(),
