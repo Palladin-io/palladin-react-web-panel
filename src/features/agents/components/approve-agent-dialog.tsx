@@ -137,9 +137,8 @@ export function ApproveAgentDialog({
           }}
           disabled={isPending || isUploading}
         />
-      </div>
 
-      <DialogFooter>
+        <DialogFooter>
         <Button
           variant="subtle"
           size="sm"
@@ -159,7 +158,8 @@ export function ApproveAgentDialog({
         >
           {isPending || isUploading ? t('agents.approving') : t('agents.approve')}
         </Button>
-      </DialogFooter>
+        </DialogFooter>
+      </div>
     </ModalShell>
   )
 }
