@@ -11,13 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RecoveryRouteImport } from './routes/recovery'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DevToastsRouteImport } from './routes/dev-toasts'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated/vaults'
 import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
-import { Route as AuthenticatedDevToastsRouteImport } from './routes/_authenticated/dev-toasts'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
 import { Route as AuthenticatedApiKeysRouteImport } from './routes/_authenticated/api-keys'
@@ -38,6 +38,11 @@ const RecoveryRoute = RecoveryRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevToastsRoute = DevToastsRouteImport.update({
+  id: '/dev-toasts',
+  path: '/dev-toasts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -67,11 +72,6 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
 const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
   id: '/inbox',
   path: '/inbox',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedDevToastsRoute = AuthenticatedDevToastsRouteImport.update({
-  id: '/dev-toasts',
-  path: '/dev-toasts',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
@@ -139,13 +139,13 @@ const AuthenticatedVaultsVaultIdEntriesEntryIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/dev-toasts': typeof DevToastsRoute
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
   '/agents': typeof AuthenticatedAgentsRoute
   '/api-keys': typeof AuthenticatedApiKeysRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/billing': typeof AuthenticatedBillingRoute
-  '/dev-toasts': typeof AuthenticatedDevToastsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/unlock': typeof AuthenticatedUnlockRoute
@@ -159,13 +159,13 @@ export interface FileRoutesByFullPath {
   '/vaults/$vaultId/grants/$grantId': typeof AuthenticatedVaultsVaultIdGrantsGrantIdRoute
 }
 export interface FileRoutesByTo {
+  '/dev-toasts': typeof DevToastsRoute
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
   '/agents': typeof AuthenticatedAgentsRoute
   '/api-keys': typeof AuthenticatedApiKeysRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/billing': typeof AuthenticatedBillingRoute
-  '/dev-toasts': typeof AuthenticatedDevToastsRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/unlock': typeof AuthenticatedUnlockRoute
@@ -182,13 +182,13 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/dev-toasts': typeof DevToastsRoute
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
   '/_authenticated/agents': typeof AuthenticatedAgentsRoute
   '/_authenticated/api-keys': typeof AuthenticatedApiKeysRoute
   '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
-  '/_authenticated/dev-toasts': typeof AuthenticatedDevToastsRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
@@ -206,13 +206,13 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/dev-toasts'
     | '/login'
     | '/recovery'
     | '/agents'
     | '/api-keys'
     | '/approvals'
     | '/billing'
-    | '/dev-toasts'
     | '/inbox'
     | '/settings'
     | '/unlock'
@@ -226,13 +226,13 @@ export interface FileRouteTypes {
     | '/vaults/$vaultId/grants/$grantId'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/dev-toasts'
     | '/login'
     | '/recovery'
     | '/agents'
     | '/api-keys'
     | '/approvals'
     | '/billing'
-    | '/dev-toasts'
     | '/inbox'
     | '/settings'
     | '/unlock'
@@ -248,13 +248,13 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
+    | '/dev-toasts'
     | '/login'
     | '/recovery'
     | '/_authenticated/agents'
     | '/_authenticated/api-keys'
     | '/_authenticated/approvals'
     | '/_authenticated/billing'
-    | '/_authenticated/dev-toasts'
     | '/_authenticated/inbox'
     | '/_authenticated/settings'
     | '/_authenticated/unlock'
@@ -271,6 +271,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  DevToastsRoute: typeof DevToastsRoute
   LoginRoute: typeof LoginRoute
   RecoveryRoute: typeof RecoveryRoute
 }
@@ -289,6 +290,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev-toasts': {
+      id: '/dev-toasts'
+      path: '/dev-toasts'
+      fullPath: '/dev-toasts'
+      preLoaderRoute: typeof DevToastsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -331,13 +339,6 @@ declare module '@tanstack/react-router' {
       path: '/inbox'
       fullPath: '/inbox'
       preLoaderRoute: typeof AuthenticatedInboxRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/dev-toasts': {
-      id: '/_authenticated/dev-toasts'
-      path: '/dev-toasts'
-      fullPath: '/dev-toasts'
-      preLoaderRoute: typeof AuthenticatedDevToastsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/billing': {
@@ -425,7 +426,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedApiKeysRoute: typeof AuthenticatedApiKeysRoute
   AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
-  AuthenticatedDevToastsRoute: typeof AuthenticatedDevToastsRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedUnlockRoute: typeof AuthenticatedUnlockRoute
@@ -445,7 +445,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedApiKeysRoute: AuthenticatedApiKeysRoute,
   AuthenticatedApprovalsRoute: AuthenticatedApprovalsRoute,
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
-  AuthenticatedDevToastsRoute: AuthenticatedDevToastsRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedUnlockRoute: AuthenticatedUnlockRoute,
@@ -469,6 +468,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  DevToastsRoute: DevToastsRoute,
   LoginRoute: LoginRoute,
   RecoveryRoute: RecoveryRoute,
 }

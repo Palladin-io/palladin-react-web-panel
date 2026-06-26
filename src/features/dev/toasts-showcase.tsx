@@ -67,7 +67,7 @@ export function ToastsShowcase() {
   }
 
   return (
-    <div className="min-h-full px-4 py-4 text-[var(--cv-t1)]">
+    <div className="min-h-screen bg-[var(--cv-modal-bg)] px-4 py-4 text-[var(--cv-t1)]">
       <div className="mb-4 flex h-10 items-center gap-2">
         <div className="min-w-0 flex-1">
           <h2 className="text-[14px] font-bold">Toast showcase</h2>
