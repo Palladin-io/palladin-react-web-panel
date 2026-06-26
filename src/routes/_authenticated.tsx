@@ -54,7 +54,7 @@ const SIDEBAR_BG = {
   // Sidebar contrasts with the content gradient: darker than it in dark mode,
   // lighter (near-white) than it in light mode — so it reads as a distinct rail.
   dark: 'rgba(0, 0, 0, 0.25)',
-  light: 'rgba(255, 255, 255, 0.72)',
+  light: 'rgba(255, 255, 255, 0.45)',
 }
 
 const SIDEBAR_BORDER = {
