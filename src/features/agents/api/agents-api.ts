@@ -63,7 +63,7 @@ export const BUILTIN_AGENT_TYPES: string[] = [
  * `Agent` type. Parsing at the API boundary guards the UI against a
  * backend contract drift (missing fields, wrong status enum, etc.).
  */
-const agentSchema = z.object({
+export const agentSchema = z.object({
   agentId: z.string(),
   name: z.string().nullable(),
   status: z.enum(['pending', 'active', 'deactivated']),

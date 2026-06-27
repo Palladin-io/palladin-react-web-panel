@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../shared/components/error-state'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
+import { ApiKeyAgentsTab } from './components/api-key-agents-tab'
 import { ApiKeyDetail, ApiKeyDetailEmpty } from './components/api-key-detail'
 import {
   ApiKeyDetailTabs,
@@ -62,10 +63,7 @@ export function ApiKeysPage({ keyId }: ApiKeysPageProps) {
         <ApiKeyDetailTabs active={activeTab} onChange={setActiveTab} wide={isWide} />
         {activeTab === 'details' ? <ApiKeyDetail apiKey={selectedKey} /> : null}
         {activeTab === 'agents' ? (
-          <div className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-            bg-[var(--cv-empty-bg)] p-8 text-center text-sm text-[var(--cv-t3)]">
-            {t('apiKeys.detail.agentsComingSoon')}
-          </div>
+          <ApiKeyAgentsTab apiKeyId={selectedKey.apiKeyId} />
         ) : null}
       </>
     )

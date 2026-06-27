@@ -1,4 +1,6 @@
+import { z } from 'zod'
 import { api } from '../../../shared/api/client'
+import { type Agent, agentSchema } from '../../agents'
 
 export type ApiKeyStatus = 'active' | 'revoked'
 
@@ -65,4 +67,30 @@ export async function generateApiKey(name: string): Promise<GeneratedApiKey> {
 /** Revokes an API key. The endpoint is idempotent and returns 204. */
 export async function revokeApiKey(keyId: string): Promise<void> {
   await api.delete(`api/api-keys/${keyId}`)
+}
+
+const apiKeyAgentsPageSchema = z.object({
+  items: z.array(agentSchema),
+  nextCursor: z.string().nullable(),
+})
+
+export interface ApiKeyAgentsPage {
+  items: Agent[]
+  nextCursor: string | null
+}
+
+/**
+ * Cursor-paginated list of agents whose most recent operation authenticated
+ * with this API key. Same item shape as the main agents list.
+ */
+export async function getApiKeyAgents(
+  apiKeyId: string,
+  cursor?: string,
+): Promise<ApiKeyAgentsPage> {
+  const raw = await api
+    .get(`api/api-keys/${apiKeyId}/agents`, {
+      searchParams: cursor ? { cursor } : undefined,
+    })
+    .json()
+  return apiKeyAgentsPageSchema.parse(raw)
 }
