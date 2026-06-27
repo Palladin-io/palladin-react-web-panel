@@ -201,14 +201,16 @@ button,
    `[data-sonner-toast].cv-toast` outranks Sonner's own attribute rules. */
 [data-sonner-toast].cv-toast {
   position: relative;
-  overflow: hidden;
   border-radius: 12px;
   --cv-toast-accent: var(--cv-divider);
   padding: 13px 14px;
-  background: var(--cv-modal-bg);
+  background: linear-gradient(160deg, #ffffff 0%, #eef1f5 100%);
   color: var(--cv-t1);
   border: 1px solid var(--cv-border);
   border-left: 3px solid var(--cv-toast-accent);
+}
+.dark [data-sonner-toast].cv-toast {
+  background: linear-gradient(160deg, #1f232b 0%, #16191f 100%);
 }
 .cv-toast[data-type='success'] {
   --cv-toast-accent: #10b981;
@@ -231,12 +233,7 @@ button,
 .cv-toast [data-description] {
   color: var(--cv-t2);
 }
-/* Close button moved inside top-right (overflow:hidden would otherwise clip the
-   default top-left button that sits half outside the corner). */
-[data-sonner-toast].cv-toast [data-close-button] {
-  left: auto !important;
-  right: 8px !important;
-  top: 8px !important;
+.cv-toast [data-close-button] {
   background: var(--cv-modal-bg);
   border-color: var(--cv-border);
   color: var(--cv-t3);
@@ -253,8 +250,7 @@ button,
   margin-top: 9px;
   padding-top: 9px;
 }
-/* Over-bleeds both sides; the toast's overflow:hidden clips it to the full inner
-   width → a true edge-to-edge line. */
+/* Bleeds precisely to the toast's inner edges → a true edge-to-edge line. */
 .cv-toast-body::before {
   content: '';
   position: absolute;
@@ -265,10 +261,9 @@ button,
   background: var(--cv-toast-accent);
 }
 
-/* Action footer — a REAL element inside the toast body (so Sonner measures the
-   full height; no clipping). Over-bleeds; the toast's overflow:hidden clips it
-   flush to the edges/rounded corners. SOLID surface (the app's dialog footer
-   colours) + solid border — no rgba show-through. */
+/* Action footer — a REAL element inside the toast body (Sonner measures the full
+   height; no clipping). Bleeds precisely to the toast's inner edges (-40 left /
+   -14 right / -13 bottom) and rounds its bottom corners to match the toast. */
 .cv-toast-footer {
   display: flex;
   justify-content: flex-end;
@@ -277,10 +272,11 @@ button,
   padding: 8px 14px;
   background: #e8ebf0;
   border-top: 1px solid #d7dbe3;
+  border-radius: 0 0 11px 11px;
 }
 .dark .cv-toast-footer {
-  background: #272c35;
-  border-top-color: #30353f;
+  background: #20242c;
+  border-top-color: #2e333c;
 }
 
 /* Small action button — the app's subtle button (same as everywhere). */
