@@ -292,6 +292,10 @@ The brand/primary red lives ONLY in CSS tokens — never hardcode `#FF4F4F`, `rg
 In Tailwind arbitrary values: `text-[var(--cv-primary)]`, `bg-[rgb(var(--cv-primary-rgb)/0.12)]`.
 In inline JS styles: `'var(--cv-primary)'`, `'rgb(var(--cv-primary-rgb) / 0.12)'`.
 
+#### Audit Log colors
+
+When touching Audit Log UI (event colors, legend, badges), load the canonical taxonomy: **`../.claude/memory/reference_audit_log_colors.md`** (monorepo memory). Semantic roles map to tokens: `--cv-success` (#10B981), `--cv-pending` (#FFAB87 = `grant.requested`), `--cv-info` (#60A5FA), `--cv-primary` (danger), `--cv-neutral` (#8A95A6). Defined in `src/index.css`, consumed via `tone()` in `src/features/audit/components/audit-event-config.ts`. Web ↔ mobile parity required; never hardcode hex. Green is `#10B981` (never `#2EC4B6`); `agent.enrolled` = info/blue.
+
 #### Accepted deviations from Astro reference (do NOT flag as blocking)
 
 These are intentional UX improvements approved by the product owner. PR review agents must not treat them as violations:

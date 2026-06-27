@@ -11,6 +11,7 @@ import {
   VaultDetailTabs,
   type VaultDetailTab,
 } from './components/vault-detail-tabs'
+import { VaultDetailAuditLog } from './components/vault-detail-audit-log'
 import { VaultEntriesTab } from './components/vault-entries-tab'
 import { VaultListPanel } from './components/vault-list-panel'
 import { VaultSettingsForm } from './components/vault-settings-form'
@@ -194,7 +195,7 @@ function TabPanel({
     case 'agents':
       return <AgentsTab vault={vault} />
     case 'audit-log':
-      return <ComingSoonTab translationKey="vault.detail.auditLogComingSoon" />
+      return <VaultDetailAuditLog vaultId={vault.id} />
     case 'members':
       return <ComingSoonTab translationKey="vault.detail.membersComingSoon" />
     case 'settings':

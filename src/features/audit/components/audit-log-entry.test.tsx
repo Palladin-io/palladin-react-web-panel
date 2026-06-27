@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest'
 import { AuditLogEntry } from './audit-log-entry'
 import type { AuditLogItem } from '../api/audit-api'
 
+// The sentence renders names in their own bold <span>s, so the text spans
+// multiple elements — match against the whole <p>'s textContent.
+const sentence = (re: RegExp) => (_: string, el: Element | null) =>
+  el?.tagName === 'P' && re.test(el.textContent ?? '')
+
 function item(overrides: Partial<AuditLogItem>): AuditLogItem {
   return {
     id: 'log-1',
@@ -27,7 +32,7 @@ describe('AuditLogEntry', () => {
       />,
     )
     expect(
-      screen.getByText(/github-copilot accessed Stripe API Key/i),
+      screen.getByText(sentence(/github-copilot accessed Stripe API Key/i)),
     ).toBeInTheDocument()
     // Type chip + metadata chips.
     expect(screen.getByText('Credential Accessed')).toBeInTheDocument()
@@ -37,29 +42,93 @@ describe('AuditLogEntry', () => {
 
   it('falls back to "Unknown agent" when no name resolves', () => {
     render(<AuditLogEntry item={item({})} />)
-    expect(screen.getByText(/Unknown agent accessed/i)).toBeInTheDocument()
+    expect(screen.getByText(sentence(/Unknown agent accessed/i))).toBeInTheDocument()
   })
 
   it('prefers the server-denormalised agentName on the row (no prop needed)', () => {
     render(<AuditLogEntry item={item({ agentName: 'deploy-bot' })} />)
-    expect(screen.getByText(/deploy-bot accessed/i)).toBeInTheDocument()
+    expect(screen.getByText(sentence(/deploy-bot accessed/i))).toBeInTheDocument()
   })
 
-  it('renders an entry-scoped sentence for entry lifecycle events', () => {
+  it('renders an actor + object sentence for entry lifecycle events', () => {
     render(
       <AuditLogEntry
-        item={item({ eventType: 'entry.created', actorType: 'user', agentId: null })}
+        item={item({
+          eventType: 'entry.created',
+          actorType: 'user',
+          agentId: null,
+          actorName: 'Patryk',
+        })}
       />,
     )
-    expect(screen.getByText(/Entry Stripe API Key created/i)).toBeInTheDocument()
+    // actor (human) + action + bold object (entry name).
+    expect(
+      screen.getByText(sentence(/Patryk created entry Stripe API Key/i)),
+    ).toBeInTheDocument()
+  })
+
+  it('builds actor + object sentences for vault/api-key events from the right object source', () => {
+    const { rerender } = render(
+      <AuditLogEntry
+        item={item({
+          eventType: 'vault.created',
+          actorType: 'user',
+          agentId: null,
+          entryId: null,
+          entryLabel: null,
+          actorName: 'Patryk',
+          metadata: { name: 'Production Keys' },
+        })}
+      />,
+    )
+    expect(
+      screen.getByText(sentence(/Patryk created vault Production Keys/i)),
+    ).toBeInTheDocument()
+
+    rerender(
+      <AuditLogEntry
+        item={item({
+          eventType: 'apikey.created',
+          actorType: 'user',
+          agentId: null,
+          entryId: null,
+          entryLabel: null,
+          actorName: 'Patryk',
+          metadata: { keyName: 'CI Token' },
+        })}
+      />,
+    )
+    expect(
+      screen.getByText(sentence(/Patryk created API key CI Token/i)),
+    ).toBeInTheDocument()
+  })
+
+  it('uses a localised "unnamed" object fallback (never an id) when no name resolves', () => {
+    render(
+      <AuditLogEntry
+        item={item({
+          eventType: 'vault.created',
+          actorType: 'user',
+          agentId: null,
+          entryId: null,
+          entryLabel: null,
+          actorName: 'Patryk',
+          metadata: {},
+        })}
+      />,
+    )
+    expect(
+      screen.getByText(sentence(/Patryk created vault \(unnamed\)/i)),
+    ).toBeInTheDocument()
   })
 
   it('hides the entry chip when showEntry is false', () => {
     render(
       <AuditLogEntry item={item({})} agentName="copilot" showEntry={false} />,
     )
-    // The entry name still appears in the sentence, but not as a standalone chip.
-    expect(screen.queryByText('Stripe API Key')).not.toBeInTheDocument()
+    // The entry name still appears in the sentence (bold), but not duplicated as
+    // a standalone chip — so it occurs exactly once.
+    expect(screen.getAllByText('Stripe API Key')).toHaveLength(1)
   })
 
   it('renders a neutral fallback for an unknown event type', () => {

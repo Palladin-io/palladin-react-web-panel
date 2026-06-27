@@ -14,41 +14,67 @@ export interface AuditEventConfig {
 }
 
 /**
- * Per-event presentation — single source of truth for the audit row icon,
- * colour and type-chip label. Colours follow the established semantic palette
- * (teal = success/access, brand red = denial/destructive, blue = neutral
- * lifecycle, grey = expiry/passive). The brand red comes only from the
- * `--cv-primary` token (never a hardcoded hex), matching the Astro prototype.
+ * Semantic accent tones — every audit colour comes from a CSS token (never a
+ * hardcoded hex), so the palette tracks the design system and matches mobile
+ * (`AppColors`): success = `#10B981`, danger = brand red, info = blue,
+ * neutral = grey, pending = peach (awaiting human action). Each tone yields the
+ * icon colour plus the soft tile bg/border tints.
  */
-const CONFIG: Record<AuditEventType, AuditEventConfig> = {
-  'credential.accessed': { icon: 'key', color: '#2EC4B6', bg: 'rgba(46,196,182,0.12)', border: 'rgba(46,196,182,0.25)', labelKey: 'audit.event.credentialAccessed' },
-  'credential.access-denied': { icon: 'key_off', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.10)', border: 'rgb(var(--cv-primary-rgb) / 0.22)', labelKey: 'audit.event.credentialAccessDenied' },
-  'grant.requested': { icon: 'hourglass_empty', color: '#60A5FA', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.25)', labelKey: 'audit.event.grantRequested' },
-  'grant.created': { icon: 'lock_open', color: '#2EC4B6', bg: 'rgba(46,196,182,0.12)', border: 'rgba(46,196,182,0.25)', labelKey: 'audit.event.grantCreated' },
-  'grant.approved': { icon: 'check_circle', color: '#2EC4B6', bg: 'rgba(46,196,182,0.12)', border: 'rgba(46,196,182,0.25)', labelKey: 'audit.event.grantApproved' },
-  'grant.denied': { icon: 'block', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.10)', border: 'rgb(var(--cv-primary-rgb) / 0.22)', labelKey: 'audit.event.grantDenied' },
-  'grant.revoked': { icon: 'remove_circle', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.10)', border: 'rgb(var(--cv-primary-rgb) / 0.22)', labelKey: 'audit.event.grantRevoked' },
-  'grant.consumed': { icon: 'task_alt', color: '#8A95A6', bg: 'rgba(138,149,166,0.10)', border: 'rgba(138,149,166,0.22)', labelKey: 'audit.event.grantConsumed' },
-  'grant.expired': { icon: 'timer_off', color: '#8A95A6', bg: 'rgba(138,149,166,0.10)', border: 'rgba(138,149,166,0.22)', labelKey: 'audit.event.grantExpired' },
-  'agent.enrolled': { icon: 'person_add', color: '#60A5FA', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.25)', labelKey: 'audit.event.agentEnrolled' },
-  'agent.blocked': { icon: 'person_off', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.10)', border: 'rgb(var(--cv-primary-rgb) / 0.22)', labelKey: 'audit.event.agentBlocked' },
-  'agent.reactivated': { icon: 'how_to_reg', color: '#2EC4B6', bg: 'rgba(46,196,182,0.12)', border: 'rgba(46,196,182,0.25)', labelKey: 'audit.event.agentReactivated' },
-  'agent.deleted': { icon: 'person_remove', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.10)', border: 'rgb(var(--cv-primary-rgb) / 0.22)', labelKey: 'audit.event.agentDeleted' },
-  'vault.created': { icon: 'shield', color: '#60A5FA', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.25)', labelKey: 'audit.event.vaultCreated' },
-  'vault.updated': { icon: 'edit', color: '#60A5FA', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.25)', labelKey: 'audit.event.vaultUpdated' },
-  'vault.deleted': { icon: 'delete_forever', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.10)', border: 'rgb(var(--cv-primary-rgb) / 0.22)', labelKey: 'audit.event.vaultDeleted' },
-  'entry.created': { icon: 'note_add', color: '#60A5FA', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.25)', labelKey: 'audit.event.entryCreated' },
-  'entry.updated': { icon: 'edit_note', color: '#60A5FA', bg: 'rgba(96,165,250,0.12)', border: 'rgba(96,165,250,0.25)', labelKey: 'audit.event.entryUpdated' },
-  'entry.deleted': { icon: 'delete', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.10)', border: 'rgb(var(--cv-primary-rgb) / 0.22)', labelKey: 'audit.event.entryDeleted' },
+type Tone = 'success' | 'danger' | 'info' | 'neutral' | 'pending'
+
+function tone(name: Tone, icon: string, labelKey: string): AuditEventConfig {
+  const varName = name === 'danger' ? 'primary' : name
+  const color = `var(--cv-${varName})`
+  const rgb = `var(--cv-${varName}-rgb)`
+  return {
+    icon,
+    color,
+    bg: `rgb(${rgb} / 0.12)`,
+    border: `rgb(${rgb} / 0.25)`,
+    labelKey,
+  }
 }
 
-const FALLBACK: AuditEventConfig = {
-  icon: 'help',
-  color: '#8A95A6',
-  bg: 'rgba(138,149,166,0.10)',
-  border: 'rgba(138,149,166,0.22)',
-  labelKey: 'audit.event.unknown',
+/**
+ * Per-event presentation — single source of truth for the audit row icon,
+ * colour and type-chip label. Tone assignment: success = access granted /
+ * positive completion (incl. agent reactivation), danger = denial / destruction,
+ * info = neutral lifecycle (created/updated/enrolled), neutral = passive/terminal
+ * (consumed/expired), pending = awaiting human action (grant requested — the
+ * only pending event, peach, mirrors mobile).
+ */
+const CONFIG: Record<AuditEventType, AuditEventConfig> = {
+  'credential.accessed': tone('success', 'key', 'audit.event.credentialAccessed'),
+  'credential.access-denied': tone('danger', 'key_off', 'audit.event.credentialAccessDenied'),
+  'grant.requested': tone('pending', 'hourglass_empty', 'audit.event.grantRequested'),
+  'grant.created': tone('success', 'lock_open', 'audit.event.grantCreated'),
+  'grant.approved': tone('success', 'check_circle', 'audit.event.grantApproved'),
+  'grant.denied': tone('danger', 'block', 'audit.event.grantDenied'),
+  'grant.revoked': tone('danger', 'remove_circle', 'audit.event.grantRevoked'),
+  'grant.consumed': tone('neutral', 'task_alt', 'audit.event.grantConsumed'),
+  'grant.expired': tone('neutral', 'timer_off', 'audit.event.grantExpired'),
+  'agent.enrolled': tone('info', 'person_add', 'audit.event.agentEnrolled'),
+  'agent.blocked': tone('danger', 'person_off', 'audit.event.agentBlocked'),
+  'agent.reactivated': tone('success', 'how_to_reg', 'audit.event.agentReactivated'),
+  'agent.deleted': tone('danger', 'person_remove', 'audit.event.agentDeleted'),
+  'vault.created': tone('info', 'shield', 'audit.event.vaultCreated'),
+  'vault.updated': tone('info', 'edit', 'audit.event.vaultUpdated'),
+  'vault.deleted': tone('danger', 'delete_forever', 'audit.event.vaultDeleted'),
+  'entry.created': tone('info', 'note_add', 'audit.event.entryCreated'),
+  'entry.updated': tone('info', 'edit_note', 'audit.event.entryUpdated'),
+  'entry.deleted': tone('danger', 'delete', 'audit.event.entryDeleted'),
+  'apikey.created': tone('info', 'vpn_key', 'audit.event.apikeyCreated'),
+  'apikey.activated': tone('success', 'key', 'audit.event.apikeyActivated'),
+  'apikey.revoked': tone('danger', 'key_off', 'audit.event.apikeyRevoked'),
+  'apikey.deleted': tone('danger', 'delete', 'audit.event.apikeyDeleted'),
+  'org.created': tone('info', 'corporate_fare', 'audit.event.orgCreated'),
+  'org.updated': tone('info', 'domain', 'audit.event.orgUpdated'),
+  'user.signed-up': tone('info', 'person_add', 'audit.event.userSignedUp'),
+  'account.setup-completed': tone('success', 'verified_user', 'audit.event.accountSetupCompleted'),
+  'account.recovery-completed': tone('success', 'lock_reset', 'audit.event.accountRecoveryCompleted'),
 }
+
+const FALLBACK: AuditEventConfig = tone('neutral', 'help', 'audit.event.unknown')
 
 export function auditEventConfig(eventType: string): AuditEventConfig {
   return CONFIG[eventType as AuditEventType] ?? FALLBACK
@@ -69,4 +95,64 @@ export const ENTRY_RELEVANT_EVENT_TYPES: AuditEventType[] = [
   'grant.approved',
   'grant.denied',
   'grant.revoked',
+]
+
+export interface AuditEventCategory {
+  /** i18n key for the category heading. */
+  labelKey: string
+  types: AuditEventType[]
+}
+
+/**
+ * Semantic grouping of every audit event — drives the legend modal so the full
+ * taxonomy reads as a handful of categories rather than one long list. Every
+ * member of `AUDIT_EVENT_TYPES` appears in exactly one category (asserted by a
+ * test) so a newly added event can never silently fall out of the legend.
+ */
+export const AUDIT_EVENT_CATEGORIES: AuditEventCategory[] = [
+  {
+    labelKey: 'audit.legend.category.credentialAccess',
+    types: ['credential.accessed', 'credential.access-denied'],
+  },
+  {
+    labelKey: 'audit.legend.category.grantLifecycle',
+    types: [
+      'grant.requested',
+      'grant.created',
+      'grant.approved',
+      'grant.denied',
+      'grant.revoked',
+      'grant.consumed',
+      'grant.expired',
+    ],
+  },
+  {
+    labelKey: 'audit.legend.category.vaultEntry',
+    types: [
+      'vault.created',
+      'vault.updated',
+      'vault.deleted',
+      'entry.created',
+      'entry.updated',
+      'entry.deleted',
+    ],
+  },
+  {
+    labelKey: 'audit.legend.category.agentLifecycle',
+    types: ['agent.enrolled', 'agent.blocked', 'agent.reactivated', 'agent.deleted'],
+  },
+  {
+    labelKey: 'audit.legend.category.apiKeys',
+    types: ['apikey.created', 'apikey.activated', 'apikey.revoked', 'apikey.deleted'],
+  },
+  {
+    labelKey: 'audit.legend.category.orgAccount',
+    types: [
+      'org.created',
+      'org.updated',
+      'user.signed-up',
+      'account.setup-completed',
+      'account.recovery-completed',
+    ],
+  },
 ]

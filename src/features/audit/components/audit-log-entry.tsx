@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Icon } from '../../../shared/components/icon'
@@ -29,28 +30,37 @@ export function AuditLogEntry({
 }: AuditLogEntryProps) {
   const { t } = useTranslation()
   const cfg = auditEventConfig(item.eventType)
-  const name = agentName ?? item.agentName ?? t('audit.unknownAgent')
-  const entry = item.entryLabel ?? t('audit.unknownEntry')
+  // Sentence slots. Names are never a raw id/public key — they fall back to a
+  // localised "unknown"/"unnamed". `agent` is the caller-resolved agent (the
+  // actor for grant/credential, the target for agent lifecycle); `actor` is the
+  // human who performed the action; `object` is the named resource the action
+  // targets (vault/entry/org/api-key).
+  const slots: SentenceSlots = {
+    agent: agentName ?? item.agentName ?? t('audit.unknownAgent'),
+    actor: item.actorName ?? item.agentName ?? t('audit.unknownUser'),
+    entry: item.entryLabel ?? t('audit.unknownEntry'),
+    object: resolveObject(item, t),
+  }
 
-  const primary = buildPrimary(item.eventType, t, name, entry)
+  const primary = buildPrimary(item.eventType, t, slots)
   const chips = buildChips(item, t, cfg.labelKey, cfg.color, cfg.bg, cfg.border, showEntry)
 
   return (
     <div
-      className={`flex gap-2.5 px-4 py-3.5 ${
+      className={`flex items-center gap-2.5 px-4 py-3.5 ${
         withDivider ? 'border-t border-[var(--cv-divider)]' : ''
       }`}
       style={{ borderLeft: `3px solid ${cfg.color}` }}
     >
       <div
-        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
         style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
       >
         <Icon name={cfg.icon} size={16} style={{ color: cfg.color }} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-2 flex items-start justify-between gap-2">
-          <p className="min-w-0 text-[12px] font-semibold leading-snug text-[var(--cv-t1)]">
+          <p className="min-w-0 text-[12px] font-normal leading-snug text-[var(--cv-t2)]">
             {primary}
           </p>
           <time
@@ -133,14 +143,69 @@ function buildChips(
   return chips
 }
 
+interface SentenceSlots {
+  /** Who performed the action (human, or the agent for agent-initiated events). */
+  actor: string
+  /** The agent involved — its own action (grant/credential) or the target (lifecycle). */
+  agent: string
+  /** Entry label (grant/credential sentences). */
+  entry: string
+  /** Named resource the action targets: vault / entry / org / api-key. */
+  object: string
+}
+
+/** Resolve the "what" of an event to a display name, never an id. Backend
+ *  denormalises: entry → `entryLabel`, vault/org → `metadata.name`,
+ *  api-key → `metadata.keyName`; otherwise a localised "unnamed". */
+function resolveObject(item: AuditLogItem, t: TFunction): string {
+  return (
+    item.entryLabel ??
+    item.metadata.name ??
+    item.metadata.keyName ??
+    t('audit.object.unnamed')
+  )
+}
+
+// Private-use sentinels injected in place of the interpolation values, so the
+// translated sentence can be split back into text + name segments without
+// re-parsing the i18n template — the names render bold, the rest stays normal.
+const ACTOR_TOKEN = String.fromCharCode(0xe000)
+const AGENT_TOKEN = String.fromCharCode(0xe001)
+const ENTRY_TOKEN = String.fromCharCode(0xe002)
+const OBJECT_TOKEN = String.fromCharCode(0xe003)
+
 function buildPrimary(
   eventType: string,
   t: TFunction,
-  agent: string,
-  entry: string,
-): string {
+  slots: SentenceSlots,
+): ReactNode {
   const key = `audit.sentence.${SENTENCE_KEY[eventType] ?? 'unknown'}`
-  return t(key, { agent, entry, defaultValue: t(auditEventConfig(eventType).labelKey) })
+  const template = t(key, {
+    actor: ACTOR_TOKEN,
+    agent: AGENT_TOKEN,
+    entry: ENTRY_TOKEN,
+    object: OBJECT_TOKEN,
+    defaultValue: t(auditEventConfig(eventType).labelKey),
+  })
+  const byToken: Record<string, string> = {
+    [ACTOR_TOKEN]: slots.actor,
+    [AGENT_TOKEN]: slots.agent,
+    [ENTRY_TOKEN]: slots.entry,
+    [OBJECT_TOKEN]: slots.object,
+  }
+  const splitter = new RegExp(
+    `([${ACTOR_TOKEN}${AGENT_TOKEN}${ENTRY_TOKEN}${OBJECT_TOKEN}])`,
+  )
+  return template.split(splitter).map((part, i) => {
+    if (part in byToken) return <Name key={i}>{byToken[part]}</Name>
+    if (!part) return null
+    return <Fragment key={i}>{part}</Fragment>
+  })
+}
+
+/** Bold, high-contrast emphasis for the actor/asset names inside a sentence. */
+function Name({ children }: { children: ReactNode }) {
+  return <span className="font-semibold text-[var(--cv-t1)]">{children}</span>
 }
 
 /** Maps a dotted event type to the camelCase suffix of its sentence i18n key. */
@@ -164,6 +229,15 @@ const SENTENCE_KEY: Record<string, string> = {
   'entry.created': 'entryCreated',
   'entry.updated': 'entryUpdated',
   'entry.deleted': 'entryDeleted',
+  'apikey.created': 'apikeyCreated',
+  'apikey.activated': 'apikeyActivated',
+  'apikey.revoked': 'apikeyRevoked',
+  'apikey.deleted': 'apikeyDeleted',
+  'org.created': 'orgCreated',
+  'org.updated': 'orgUpdated',
+  'user.signed-up': 'userSignedUp',
+  'account.setup-completed': 'accountSetupCompleted',
+  'account.recovery-completed': 'accountRecoveryCompleted',
 }
 
 function formatAuditTime(iso: string): string {

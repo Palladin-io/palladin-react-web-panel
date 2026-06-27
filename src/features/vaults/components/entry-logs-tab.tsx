@@ -3,14 +3,12 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
-import { ModalShell } from '../../../shared/components/modal-shell'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
 import { shortenKey } from '../../../shared/lib/shorten-key'
 import { useAgentNames } from '../../agents'
 import {
   AuditLogEntry,
-  AuditLogLegend,
   ENTRY_RELEVANT_EVENT_TYPES,
   auditEventConfig,
   filterAuditLogs,
@@ -45,7 +43,6 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
   const [search, setSearch] = useState('')
   const [agentId, setAgentId] = useState('')
   const [eventType, setEventType] = useState('')
-  const [legendOpen, setLegendOpen] = useState(false)
 
   const agents = useAgentNames(canView)
   const logs = useVaultAuditLogs(vaultId, {}, canView)
@@ -93,112 +90,85 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
   }, [allItems, entryId, agentNameById])
 
   return (
-    <div className="@container">
-      <div className="grid grid-cols-1 gap-4 @[1100px]:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="min-w-0">
-          <div className="mb-3 flex flex-wrap items-stretch gap-2">
-            <div
-              className="flex min-w-[180px] flex-1 items-center gap-2 rounded-lg border
-                border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3
-                transition-colors focus-within:border-[var(--cv-t1)]"
-            >
-              <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('audit.searchPlaceholder')}
-                className="h-8 flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)]
-                  placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
-              />
-            </div>
-            <select
-              className={SELECT_CLASS}
-              value={agentId}
-              onChange={(e) => setAgentId(e.target.value)}
-              aria-label={t('audit.filterAgent')}
-            >
-              <option value="">{t('audit.allAgents')}</option>
-              {agentOptions.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-            <select
-              className={SELECT_CLASS}
-              value={eventType}
-              onChange={(e) => setEventType(e.target.value)}
-              aria-label={t('audit.filterEvent')}
-            >
-              <option value="">{t('audit.allEvents')}</option>
-              {ENTRY_RELEVANT_EVENT_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {t(auditEventConfig(type).labelKey)}
-                </option>
-              ))}
-            </select>
-            <Button
-              variant="subtle"
-              size="sm"
-              icon="palette"
-              onClick={() => setLegendOpen(true)}
-              className="@[1100px]:hidden"
-            >
-              {t('audit.legend.action')}
-            </Button>
-          </div>
-
-          {!canView ? (
-            <EmptyState icon="lock" message={t('audit.noPermission')} />
-          ) : logs.isPending ? (
-            <ListSkeleton />
-          ) : logs.isError ? (
-            <ErrorState message={t('audit.errorLoad')} onRetry={() => logs.refetch()} />
-          ) : filtered.length === 0 ? (
-            <EmptyState icon="history" message={t('audit.empty')} />
-          ) : (
-            <>
-              <div className="overflow-hidden rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
-                {filtered.map((item, i) => (
-                  <AuditLogEntry
-                    key={item.id}
-                    item={item}
-                    agentName={item.agentId ? resolveAgentName(item.agentId) : undefined}
-                    showEntry={false}
-                    withDivider={i > 0}
-                  />
-                ))}
-              </div>
-              {logs.hasNextPage && (
-                <div className="mt-3 flex justify-center">
-                  <Button
-                    variant="subtle"
-                    size="sm"
-                    onClick={() => logs.fetchNextPage()}
-                    disabled={logs.isFetchingNextPage}
-                  >
-                    {logs.isFetchingNextPage
-                      ? t('audit.loadingMore')
-                      : t('audit.loadMore')}
-                  </Button>
-                </div>
-              )}
-            </>
-          )}
+    <div className="min-w-0">
+      <div className="mb-3 flex flex-wrap items-stretch gap-2">
+        <div
+          className="flex min-w-[180px] flex-1 items-center gap-2 rounded-lg border
+            border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3
+            transition-colors focus-within:border-[var(--cv-t1)]"
+        >
+          <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t('audit.searchPlaceholder')}
+            className="h-8 flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)]
+              placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
+          />
         </div>
-
-        <aside className="hidden @[1100px]:block">
-          <div className="sticky top-4 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5">
-            <AuditLogLegend />
-          </div>
-        </aside>
+        <select
+          className={SELECT_CLASS}
+          value={agentId}
+          onChange={(e) => setAgentId(e.target.value)}
+          aria-label={t('audit.filterAgent')}
+        >
+          <option value="">{t('audit.allAgents')}</option>
+          {agentOptions.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </select>
+        <select
+          className={SELECT_CLASS}
+          value={eventType}
+          onChange={(e) => setEventType(e.target.value)}
+          aria-label={t('audit.filterEvent')}
+        >
+          <option value="">{t('audit.allEvents')}</option>
+          {ENTRY_RELEVANT_EVENT_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {t(auditEventConfig(type).labelKey)}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {legendOpen && (
-        <ModalShell onClose={() => setLegendOpen(false)} ariaLabel={t('audit.legend.title')}>
-          <AuditLogLegend />
-        </ModalShell>
+      {!canView ? (
+        <EmptyState icon="lock" message={t('audit.noPermission')} />
+      ) : logs.isPending ? (
+        <ListSkeleton />
+      ) : logs.isError ? (
+        <ErrorState message={t('audit.errorLog')} onRetry={() => logs.refetch()} />
+      ) : filtered.length === 0 ? (
+        <EmptyState icon="history" message={t('audit.emptyLog')} />
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
+            {filtered.map((item, i) => (
+              <AuditLogEntry
+                key={item.id}
+                item={item}
+                agentName={item.agentId ? resolveAgentName(item.agentId) : undefined}
+                showEntry={false}
+                withDivider={i > 0}
+              />
+            ))}
+          </div>
+          {logs.hasNextPage && (
+            <div className="mt-3 flex justify-center">
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={() => logs.fetchNextPage()}
+                disabled={logs.isFetchingNextPage}
+              >
+                {logs.isFetchingNextPage ? t('audit.loadingMore') : t('audit.loadMore')}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

@@ -18,6 +18,7 @@ import { AppWordmark } from '../shared/components/app-wordmark'
 import { Icon } from '../shared/components/icon'
 import {
   PERMISSION_AGENT_MANAGE,
+  PERMISSION_AUDIT_VIEW,
   PERMISSION_READ_API_KEY,
 } from '../shared/lib/permissions'
 import {
@@ -154,7 +155,14 @@ const NAV_ITEMS: NavItem[] = [
     matchPrefix: '/agents',
     requirePermission: PERMISSION_AGENT_MANAGE,
   },
-  { key: 'audit', labelKey: 'nav.auditLog', icon: 'history', disabled: true },
+  {
+    key: 'audit',
+    labelKey: 'nav.auditLog',
+    icon: 'history',
+    to: '/audit',
+    matchPrefix: '/audit',
+    requirePermission: PERMISSION_AUDIT_VIEW,
+  },
   {
     key: 'billing',
     labelKey: 'nav.billing',
