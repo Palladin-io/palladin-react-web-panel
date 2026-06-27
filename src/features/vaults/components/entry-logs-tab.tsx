@@ -6,7 +6,8 @@ import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
-import { useAgents } from '../../agents'
+import { shortenKey } from '../../../shared/lib/shorten-key'
+import { useAgentNames } from '../../agents'
 import {
   AuditLogEntry,
   AuditLogLegend,
@@ -31,9 +32,10 @@ const SELECT_CLASS =
  *
  * The backend has no entry-level audit filter, so this over-fetches the vault
  * log and narrows to this entry client-side (`filterAuditLogs`, with `entryId`
- * acting as a security guard). Agent display names are likewise resolved from
- * the agents list because audit rows carry only the agent id. Both are backend
- * gaps tracked for follow-up.
+ * acting as a security guard). Agent names are taken from the row when the
+ * backend denormalises them (CVT-181); until then they fall back to the agents
+ * list (via `useAgentNames`, NOT gated on AgentManage) and finally to a
+ * shortened agent id — never a misleading "unknown" for an agent that exists.
  */
 export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
   const { t } = useTranslation()
@@ -45,19 +47,28 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
   const [eventType, setEventType] = useState('')
   const [legendOpen, setLegendOpen] = useState(false)
 
-  const agents = useAgents()
+  const agents = useAgentNames(canView)
   const logs = useVaultAuditLogs(vaultId, {}, canView)
-
-  const agentNameById = useMemo(() => {
-    const map: Record<string, string> = {}
-    for (const a of agents.data ?? []) map[a.agentId] = a.name ?? a.agentId
-    return map
-  }, [agents.data])
 
   const allItems = useMemo(
     () => (logs.data?.pages ?? []).flatMap((p) => p.items),
     [logs.data],
   )
+
+  // Prefer the server-denormalised name on the row (CVT-181); fall back to the
+  // agents list for everyone who can read it (not just managers).
+  const agentNameById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const a of agents.data ?? []) {
+      if (a.name) map[a.agentId] = a.name
+    }
+    for (const item of allItems) {
+      if (item.agentId && item.agentName) map[item.agentId] = item.agentName
+    }
+    return map
+  }, [agents.data, allItems])
+
+  const resolveAgentName = (id: string) => agentNameById[id] ?? shortenKey(id)
 
   const filtered = useMemo(
     () =>
@@ -77,7 +88,8 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
     for (const item of allItems) {
       if (item.entryId === entryId && item.agentId) ids.add(item.agentId)
     }
-    return [...ids].map((id) => ({ id, name: agentNameById[id] ?? id }))
+    return [...ids].map((id) => ({ id, name: resolveAgentName(id) }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allItems, entryId, agentNameById])
 
   return (
@@ -142,7 +154,7 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
           ) : logs.isPending ? (
             <ListSkeleton />
           ) : logs.isError ? (
-            <ErrorState message={t('audit.errorLoad')} onRetry={logs.refetch} />
+            <ErrorState message={t('audit.errorLoad')} onRetry={() => logs.refetch()} />
           ) : filtered.length === 0 ? (
             <EmptyState icon="history" message={t('audit.empty')} />
           ) : (
@@ -152,7 +164,7 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
                   <AuditLogEntry
                     key={item.id}
                     item={item}
-                    agentName={item.agentId ? agentNameById[item.agentId] : undefined}
+                    agentName={item.agentId ? resolveAgentName(item.agentId) : undefined}
                     showEntry={false}
                     withDivider={i > 0}
                   />

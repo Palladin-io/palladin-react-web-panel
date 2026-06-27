@@ -23,3 +23,20 @@ export function useAgentPermissions() {
     canManage: (permissions & PERMISSION_AGENT_MANAGE) !== 0,
   }
 }
+
+/**
+ * Agent list for read-only name resolution (e.g. the audit log), NOT gated on
+ * AgentManage — a viewer with another permission (e.g. AuditView) must still be
+ * able to map agent ids to names. The caller passes `enabled` (its own view
+ * gate). Shares `AGENTS_QUERY_KEY` so it reuses the same cache as `useAgents`
+ * with no extra request. This is a stopgap until the backend denormalises
+ * `agentName` onto audit rows (CVT-181).
+ */
+export function useAgentNames(enabled = true) {
+  return useQuery({
+    queryKey: AGENTS_QUERY_KEY,
+    queryFn: getAgents,
+    staleTime: 30_000,
+    enabled,
+  })
+}

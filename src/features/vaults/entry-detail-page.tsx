@@ -187,7 +187,7 @@ function DetailBody({
   const handleTabChange = (next: EntryDetailTab) => {
     if (next !== activeTab) {
       analytics.capture('entry', 'detail-tab-switched', {
-        entry_type: entry.type === ENTRY_TYPE_KEY ? 'key' : 'credential',
+        type: entry.type === ENTRY_TYPE_KEY ? 'key' : 'credential',
         tab: next,
       })
     }

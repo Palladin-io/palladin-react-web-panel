@@ -40,6 +40,11 @@ describe('AuditLogEntry', () => {
     expect(screen.getByText(/Unknown agent accessed/i)).toBeInTheDocument()
   })
 
+  it('prefers the server-denormalised agentName on the row (no prop needed)', () => {
+    render(<AuditLogEntry item={item({ agentName: 'deploy-bot' })} />)
+    expect(screen.getByText(/deploy-bot accessed/i)).toBeInTheDocument()
+  })
+
   it('renders an entry-scoped sentence for entry lifecycle events', () => {
     render(
       <AuditLogEntry

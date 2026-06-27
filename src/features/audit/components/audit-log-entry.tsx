@@ -29,7 +29,7 @@ export function AuditLogEntry({
 }: AuditLogEntryProps) {
   const { t } = useTranslation()
   const cfg = auditEventConfig(item.eventType)
-  const name = agentName ?? t('audit.unknownAgent')
+  const name = agentName ?? item.agentName ?? t('audit.unknownAgent')
   const entry = item.entryLabel ?? t('audit.unknownEntry')
 
   const primary = buildPrimary(item.eventType, t, name, entry)
@@ -86,12 +86,13 @@ interface Chip {
   border: string
 }
 
+// Only the chip styles actually emitted by `buildChips` are kept here — the
+// brand red lives solely in the `--cv-primary` token, so any future denial chip
+// must use `rgb(var(--cv-primary-rgb) / …)`, never a hardcoded hex.
 const CHIP_STYLES = {
   indigo: { color: '#818CF8', bg: 'rgba(129,140,248,0.10)', border: 'rgba(129,140,248,0.20)' },
   blue: { color: '#60A5FA', bg: 'rgba(96,165,250,0.10)', border: 'rgba(96,165,250,0.20)' },
-  teal: { color: '#2EC4B6', bg: 'rgba(46,196,182,0.08)', border: 'rgba(46,196,182,0.18)' },
   gray: { color: '#8A95A6', bg: 'rgba(138,149,166,0.08)', border: 'rgba(138,149,166,0.18)' },
-  red: { color: '#FF4F4F', bg: 'rgba(255,79,79,0.08)', border: 'rgba(255,79,79,0.18)' },
 } as const
 
 function buildChips(
