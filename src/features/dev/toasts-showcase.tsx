@@ -56,7 +56,7 @@ const BASE: { label: string; fire: () => void }[] = [
             <button type="button" className="cv-toast-open" onClick={noop} aria-label="Open">
               <Icon name="open_in_new" size={15} />
             </button>
-            Production vault is ready.
+            <span className="cv-toast-body block">Production vault is ready.</span>
           </span>
         ),
         duration: KEEP,

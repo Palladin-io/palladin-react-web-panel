@@ -240,6 +240,7 @@ button,
 
 .cv-toast [data-content] {
   width: 100%;
+  position: relative;
 }
 
 /* Rule between title and description — full width, SOLID, in the notification's
@@ -260,23 +261,21 @@ button,
   background: var(--cv-toast-accent);
 }
 
-/* The "Open" action is a small icon button docked in the toast's top-right
-   corner, next to the body. Positioned against the body wrapper (raised up to
-   sit on the title row). */
+/* The "Open" action — a small icon button on the title's text row, top-right.
+   Positioned against [data-content] so it sits level with the title text. */
 .cv-toast-wrap {
-  position: relative;
   display: block;
 }
 .cv-toast-open {
   position: absolute;
-  top: -24px;
+  top: -1px;
   right: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
   background: transparent;
   border: none;
   color: var(--cv-t3);
