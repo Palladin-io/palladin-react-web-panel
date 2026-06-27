@@ -11,7 +11,7 @@ describe('EntryIconPicker', () => {
         <EntryIconPicker
           value={null as unknown as undefined}
           onChange={vi.fn()}
-          selectedColor="#FF4F4F"
+          selectedColor="#EB4747"
         />,
       ),
     ).not.toThrow()
@@ -19,7 +19,7 @@ describe('EntryIconPicker', () => {
 
   it('renders without crashing when value is undefined', () => {
     expect(() =>
-      render(<EntryIconPicker value={undefined} onChange={vi.fn()} selectedColor="#FF4F4F" />),
+      render(<EntryIconPicker value={undefined} onChange={vi.fn()} selectedColor="#EB4747" />),
     ).not.toThrow()
   })
 })

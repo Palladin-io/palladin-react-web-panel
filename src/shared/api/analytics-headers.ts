@@ -64,7 +64,7 @@ export function getAnalyticsHeaders(): Record<string, string> {
   }
 
   const { browser, os } = parseUserAgent()
-  headers['x-user-agent'] = `ClawVault/web (${browser}; ${os})`
+  headers['x-user-agent'] = `Palladin/web (${browser}; ${os})`
 
   return headers
 }

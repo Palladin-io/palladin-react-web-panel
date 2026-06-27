@@ -9,7 +9,7 @@ metadata:
 
 Branch `feat/cvt-165-notification-center` (worktree `.worktrees/cvt-165-mobile`), PR #20 (draft, assignee don-flamingo).
 
-**Frozen contract:** `docs/obsidian/claw-vault/Product/Modules/Notification/Notification Center (CVT-162).md`. Backend builds the same contract in parallel — do NOT invent fields.
+**Frozen contract:** `docs/obsidian/palladin/Product/Modules/Notification/Notification Center (CVT-162).md`. Backend builds the same contract in parallel — do NOT invent fields.
 
 **Contract data shape (authoritative):** `NotificationItem { id, type, category(ActionRequired|Update), titleKey, metadata(names+ids, NO secrets), occurredAt, readAt?, actionState(pending|resolved|null) }`. Summary = `{ unreadCount, pendingActionCount }`. Preferences = `PreferenceItem { type, category, inboxEnabled, signalREnabled, pushEnabled, mandatory }`. Push payload carries `notificationId` + `type`.
 

@@ -29,8 +29,8 @@ export function ApiKeyStatusBadge({ status }: { status: ApiKeySummary['status'] 
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px]
         font-semibold ${
         isActive
-          ? 'bg-[rgba(46,196,182,0.14)] text-[#2EC4B6]'
-          : 'bg-[rgba(255,79,79,0.12)] text-[#FF4F4F]'
+          ? 'bg-[rgba(16,185,129,0.14)] text-[#10B981]'
+          : 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
       }`}
     >
       {isActive ? t('apiKeys.statusActive') : t('apiKeys.statusRevoked')}
@@ -112,26 +112,34 @@ interface ApiKeyRowProps {
 }
 
 function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
+  const { t } = useTranslation()
   return (
     <Link
       to="/api-keys/$keyId"
       params={{ keyId: apiKey.apiKeyId }}
-      className={`flex flex-col gap-1 px-4 py-3 ${HOVERABLE_CARD_CLASSES}${
+      className={`flex flex-col overflow-hidden ${HOVERABLE_CARD_CLASSES}${
         isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
       }`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
-          {apiKey.name}
-        </span>
-        <ApiKeyStatusBadge status={apiKey.status} />
-      </div>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col gap-1 px-4 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
+            {apiKey.name}
+          </span>
+          <ApiKeyStatusBadge status={apiKey.status} />
+        </div>
         <span className="font-mono text-[11px] text-[var(--cv-t3)]">
-          cv_••••{apiKey.keySuffix || '••••'}
+          pl_••••{apiKey.keySuffix || '••••'}
         </span>
-        <span className="shrink-0 text-[11px] text-[var(--cv-t3)]">
-          {formatDate(apiKey.createdAt)}
+      </div>
+      <div className="flex items-center justify-between gap-2 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
+        <span className="flex min-w-0 items-center gap-1.5 truncate text-[10px] text-[var(--cv-t3)]">
+          <Icon name="schedule" size={12} color="var(--cv-t3)" className="shrink-0" />
+          {t('apiKeys.createdLabel', { date: formatDate(apiKey.createdAt) })}
+        </span>
+        <span className="flex shrink-0 items-center gap-1 text-[10px] text-[var(--cv-t3)]">
+          <Icon name="smart_toy" size={12} color="var(--cv-t3)" className="shrink-0" />
+          {t('apiKeys.agentsUsing', { count: apiKey.activeAgentCount ?? 0 })}
         </span>
       </div>
     </Link>

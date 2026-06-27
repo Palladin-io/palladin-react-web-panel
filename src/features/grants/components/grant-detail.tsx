@@ -143,8 +143,8 @@ export function GrantDetail({ grant }: GrantDetailProps) {
       {/* Revoke action */}
       {showRevoke && (
         <div
-          className="rounded-2xl border border-[rgba(255,79,79,0.25)]
-            bg-[rgba(255,79,79,0.04)] p-4"
+          className="rounded-2xl border border-[rgb(var(--cv-primary-rgb)/0.25)]
+            bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
         >
           <p className="text-[12px] font-semibold text-[var(--cv-t1)]">
             {t('grants.revokeZoneTitle')}

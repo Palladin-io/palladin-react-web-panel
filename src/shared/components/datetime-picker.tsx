@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Icon } from './icon'
 
-const ACCENT = '#FF4F4F'
+const ACCENT = 'var(--cv-primary)'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 
@@ -324,7 +324,7 @@ export function DateTimePicker({
           onClick={goToday}
           className="flex-1 rounded-md border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
             px-2 py-1.5 text-[11px] font-medium text-[var(--cv-t2)] transition-colors
-            hover:border-[#FF4F4F] hover:text-[var(--cv-t1)]"
+            hover:border-[var(--cv-primary)] hover:text-[var(--cv-t1)]"
         >
           {t('datetimePicker.today')}
         </button>

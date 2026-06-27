@@ -23,7 +23,7 @@ export interface VaultCardProps {
  */
 export function VaultCard({ vault, onClick }: VaultCardProps) {
   const { t, i18n } = useTranslation()
-  const updated = formatRelativeUpdate(vault.updatedAt, i18n.language, t)
+  const footerLabel = vaultFooterLabel(vault, i18n.language, t)
   const accent = vault.color ?? DEFAULT_VAULT_COLOR
   const icon = vault.icon ?? DEFAULT_VAULT_ICON
 
@@ -31,9 +31,9 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`group flex min-w-[280px] flex-1 flex-col items-stretch p-4 text-left ${HOVERABLE_CARD_CLASSES}`}
+      className={`group flex min-w-[280px] flex-1 flex-col items-stretch overflow-hidden text-left ${HOVERABLE_CARD_CLASSES}`}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-2">
           <VaultIconCircle icon={icon} color={accent} size={32} iconSize={16} />
           <div className="flex flex-col gap-0.5 text-left">
@@ -50,18 +50,10 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
         </span>
       </div>
 
-      {updated ? (
-        <>
-          <div
-            aria-hidden
-            className="my-2 h-px w-full bg-[var(--cv-divider)]"
-          />
-          <div className="flex items-center justify-end">
-            <span className="text-[11px] text-[var(--cv-t3)]">
-              {t('vault.relativeUpdatedLabel', { time: updated })}
-            </span>
-          </div>
-        </>
+      {footerLabel ? (
+        <div className="flex items-center justify-end border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
+          <span className="text-[11px] text-[var(--cv-t3)]">{footerLabel}</span>
+        </div>
       ) : null}
     </button>
   )
@@ -94,4 +86,21 @@ function formatRelativeUpdate(
     month: 'short',
     day: 'numeric',
   })
+}
+
+/**
+ * Footer timestamp label for a vault row/card: last-update relative time when
+ * available, otherwise the creation date — so even empty/never-touched vaults
+ * (no updatedAt) still show a timestamp. Shared by VaultCard and VaultRow.
+ */
+export function vaultFooterLabel(
+  vault: Pick<VaultSummary, 'updatedAt' | 'createdAt'>,
+  locale: string,
+  t: TFunction,
+): string | null {
+  const updatedRel = formatRelativeUpdate(vault.updatedAt, locale, t)
+  if (updatedRel) return t('vault.relativeUpdatedLabel', { time: updatedRel })
+  const createdRel = formatRelativeUpdate(vault.createdAt, locale, t)
+  if (createdRel) return t('vault.relativeCreatedLabel', { time: createdRel })
+  return null
 }

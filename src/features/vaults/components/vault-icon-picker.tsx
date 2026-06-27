@@ -35,7 +35,7 @@ export function VaultIconPicker({
   value,
   onChange,
   onColorChange,
-  selectedColor = '#FF4F4F',
+  selectedColor = '#EB4747',
   disabled = false,
   vaultId,
   onFileSelected,

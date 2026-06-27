@@ -13,10 +13,10 @@ import {
 
 /** Soft chip tints for the glyph header avatar. On-palette tokens only. */
 const GLYPH_TONE: Record<'red' | 'amber' | 'teal' | 'grey', { bg: string; color: string }> = {
-  red: { bg: 'rgba(255,79,79,0.13)', color: '#FF4F4F' },
+  red: { bg: 'rgb(var(--cv-primary-rgb) / 0.13)', color: 'var(--cv-primary)' },
   // Amber matches the grant "pending/denied" family (org-grant-presentation).
   amber: { bg: 'rgba(240,192,64,0.14)', color: '#D4820A' },
-  teal: { bg: 'rgba(46,196,182,0.14)', color: '#2EC4B6' },
+  teal: { bg: 'rgba(16, 185, 129,0.14)', color: '#10B981' },
   grey: { bg: 'rgba(138,149,166,0.16)', color: '#8A95A6' },
 }
 
@@ -143,7 +143,7 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
 
       {/* Footer */}
       {footer && (
-        <div className="flex min-h-[46px] items-center gap-2 border-t border-[var(--cv-divider)] bg-[rgba(0,11,46,0.015)] px-[14px] py-2 dark:bg-[rgba(253,249,228,0.02)]">
+        <div className="flex min-h-[46px] items-center gap-2 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-[14px] py-2">
           {footer}
         </div>
       )}

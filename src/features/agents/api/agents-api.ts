@@ -63,7 +63,7 @@ export const BUILTIN_AGENT_TYPES: string[] = [
  * `Agent` type. Parsing at the API boundary guards the UI against a
  * backend contract drift (missing fields, wrong status enum, etc.).
  */
-const agentSchema = z.object({
+export const agentSchema = z.object({
   agentId: z.string(),
   name: z.string().nullable(),
   status: z.enum(['pending', 'active', 'deactivated']),
@@ -140,6 +140,11 @@ export async function deactivateAgent(agentId: string): Promise<void> {
 
 export async function reactivateAgent(agentId: string): Promise<void> {
   await api.post(`api/agents/${agentId}/reactivate`)
+}
+
+/** Hard-deletes a deactivated agent (backend rejects active/pending with 409). */
+export async function deleteAgent(agentId: string): Promise<void> {
+  await api.delete(`api/agents/${agentId}`)
 }
 
 export async function updateAgent(

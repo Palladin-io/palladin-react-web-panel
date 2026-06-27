@@ -183,10 +183,10 @@ export function VaultSettingsForm({
       </form>
 
       <section
-        className="mt-4 rounded-xl border border-[rgba(255,79,79,0.25)]
-          bg-[rgba(255,79,79,0.04)] p-4"
+        className="mt-4 rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)]
+          bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
       >
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#FF4F4F]">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--cv-primary)]">
           {t('vault.dangerZone')}
         </h2>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">

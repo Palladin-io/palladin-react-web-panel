@@ -14,7 +14,7 @@ function setTabHidden(hidden: boolean) {
 describe('usePendingAlerts', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    document.title = 'Claw Vault'
+    document.title = 'Palladin'
     setTabHidden(true)
   })
 
@@ -32,7 +32,7 @@ describe('usePendingAlerts', () => {
 
     // After one interval it toggles back to the original title.
     act(() => vi.advanceTimersByTime(1000))
-    expect(document.title).toBe('Claw Vault')
+    expect(document.title).toBe('Palladin')
 
     // A second pending event bumps the count.
     act(() => result.current.notifyPending())
@@ -42,21 +42,21 @@ describe('usePendingAlerts', () => {
   it('reset() restores the original title and stops flashing', () => {
     const { result } = renderHook(() => usePendingAlerts())
     act(() => result.current.notifyPending())
-    expect(document.title).not.toBe('Claw Vault')
+    expect(document.title).not.toBe('Palladin')
 
     act(() => result.current.reset())
-    expect(document.title).toBe('Claw Vault')
+    expect(document.title).toBe('Palladin')
 
     // No further mutation once reset (timer cleared).
     act(() => vi.advanceTimersByTime(3000))
-    expect(document.title).toBe('Claw Vault')
+    expect(document.title).toBe('Palladin')
   })
 
   it('does not flash while the tab is focused (only counts)', () => {
     setTabHidden(false)
     const { result } = renderHook(() => usePendingAlerts())
     act(() => result.current.notifyPending())
-    expect(document.title).toBe('Claw Vault')
+    expect(document.title).toBe('Palladin')
   })
 
   it('does not throw when Web Audio is unavailable', () => {

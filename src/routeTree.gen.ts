@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as RecoveryRouteImport } from './routes/recovery'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as DevToastsRouteImport } from './routes/dev-toasts'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated/vaults'
@@ -37,6 +38,11 @@ const RecoveryRoute = RecoveryRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevToastsRoute = DevToastsRouteImport.update({
+  id: '/dev-toasts',
+  path: '/dev-toasts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -133,6 +139,7 @@ const AuthenticatedVaultsVaultIdEntriesEntryIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
+  '/dev-toasts': typeof DevToastsRoute
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
   '/agents': typeof AuthenticatedAgentsRoute
@@ -152,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/vaults/$vaultId/grants/$grantId': typeof AuthenticatedVaultsVaultIdGrantsGrantIdRoute
 }
 export interface FileRoutesByTo {
+  '/dev-toasts': typeof DevToastsRoute
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
   '/agents': typeof AuthenticatedAgentsRoute
@@ -174,6 +182,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/dev-toasts': typeof DevToastsRoute
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
   '/_authenticated/agents': typeof AuthenticatedAgentsRoute
@@ -197,6 +206,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/dev-toasts'
     | '/login'
     | '/recovery'
     | '/agents'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/vaults/$vaultId/grants/$grantId'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/dev-toasts'
     | '/login'
     | '/recovery'
     | '/agents'
@@ -237,6 +248,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authenticated'
+    | '/dev-toasts'
     | '/login'
     | '/recovery'
     | '/_authenticated/agents'
@@ -259,6 +271,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  DevToastsRoute: typeof DevToastsRoute
   LoginRoute: typeof LoginRoute
   RecoveryRoute: typeof RecoveryRoute
 }
@@ -277,6 +290,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev-toasts': {
+      id: '/dev-toasts'
+      path: '/dev-toasts'
+      fullPath: '/dev-toasts'
+      preLoaderRoute: typeof DevToastsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -448,6 +468,7 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  DevToastsRoute: DevToastsRoute,
   LoginRoute: LoginRoute,
   RecoveryRoute: RecoveryRoute,
 }

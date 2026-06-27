@@ -3,63 +3,73 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --cv-t1: #000B2E;
+  --cv-t1: #0C0E12;
   --cv-t2: #3D4E66;
   --cv-t3: #8A95A6;
-  --cv-card-bg: rgba(255, 252, 247, 0.6);
-  --cv-border: rgba(0, 11, 46, 0.08);
-  --cv-divider: rgba(0, 11, 46, 0.06);
-  --cv-bg-subtle: rgba(0, 11, 46, 0.04);
-  --cv-empty-bg: rgba(255, 252, 247, 0.5);
-  --cv-empty-border: rgba(0, 11, 46, 0.1);
-  --cv-modal-bg: #FFFAF3;
-  --cv-input-bg: rgba(255, 252, 247, 0.7);
-  --cv-input-border: rgba(0, 11, 46, 0.08);
-  --cv-input-text: #000B2E;
+  --cv-card-bg: rgba(255, 255, 255, 0.55);
+  --cv-card-hover: rgba(255, 255, 255, 0.8);
+  --cv-card-footer: #EDEFF2;
+  --cv-border: rgba(12, 14, 18, 0.1);
+  --cv-divider: rgba(12, 14, 18, 0.08);
+  --cv-bg-subtle: rgba(12, 14, 18, 0.04);
+  --cv-empty-bg: rgba(255, 255, 255, 0.4);
+  --cv-empty-border: rgba(12, 14, 18, 0.12);
+  --cv-modal-bg: #F3F5F8;
+  --cv-input-bg: rgba(245, 247, 250, 0.7);
+  --cv-input-border: rgba(12, 14, 18, 0.12);
+  --cv-input-text: #0C0E12;
   --cv-input-placeholder: #8A95A6;
   --cv-label-text: #5A6478;
-  --cv-btn-subtle-bg: rgba(0, 11, 46, 0.04);
-  --cv-btn-subtle-text: #000B2E;
-  --cv-btn-subtle-border: rgba(0, 11, 46, 0.1);
-  --cv-btn-subtle-hover: rgba(0, 11, 46, 0.08);
-  --cv-btn-outline-text: #000B2E;
-  --cv-btn-outline-border: rgba(0, 11, 46, 0.18);
-  --cv-btn-outline-hover: rgba(0, 11, 46, 0.04);
+  --cv-btn-subtle-bg: rgba(12, 14, 18, 0.05);
+  --cv-btn-subtle-text: #0C0E12;
+  --cv-btn-subtle-border: rgba(12, 14, 18, 0.12);
+  --cv-btn-subtle-hover: rgba(12, 14, 18, 0.09);
+  --cv-btn-outline-text: #0C0E12;
+  --cv-btn-outline-border: rgba(12, 14, 18, 0.2);
+  --cv-btn-outline-hover: rgba(12, 14, 18, 0.04);
   --cv-btn-ghost-text: #5A6478;
-  --cv-btn-ghost-hover: rgba(0, 11, 46, 0.04);
+  --cv-btn-ghost-hover: rgba(12, 14, 18, 0.05);
   --cv-icon-muted: #8A95A6;
   --cv-premium: #D4820A;
-  --cv-list-item-hover: rgba(0, 11, 46, 0.1);
+  --cv-primary: #EB4747;
+  --cv-primary-hover: #D43E3E;
+  --cv-primary-rgb: 235 71 71;
+  --cv-list-item-hover: rgba(12, 14, 18, 0.06);
 }
 
 .dark {
-  --cv-t1: #FDF9E4;
+  --cv-t1: #E8EAED;
   --cv-t2: #B8C5D4;
   --cv-t3: #8A95A6;
-  --cv-card-bg: rgba(13, 27, 62, 0.6);
-  --cv-border: rgba(253, 249, 228, 0.08);
-  --cv-divider: rgba(138, 149, 166, 0.12);
-  --cv-bg-subtle: rgba(253, 249, 228, 0.04);
-  --cv-empty-bg: rgba(13, 27, 62, 0.4);
-  --cv-empty-border: rgba(253, 249, 228, 0.12);
-  --cv-modal-bg: #0D1B3E;
-  --cv-input-bg: rgba(253, 249, 228, 0.04);
-  --cv-input-border: rgba(253, 249, 228, 0.1);
-  --cv-input-text: #FDF9E4;
+  --cv-card-bg: rgba(0, 0, 0, 0.22);
+  --cv-card-hover: rgba(0, 0, 0, 0.1);
+  --cv-card-footer: var(--cv-input-bg);
+  --cv-border: rgba(232, 234, 237, 0.13);
+  --cv-divider: rgba(232, 234, 237, 0.13);
+  --cv-bg-subtle: rgba(232, 234, 237, 0.05);
+  --cv-empty-bg: rgba(0, 0, 0, 0.15);
+  --cv-empty-border: rgba(232, 234, 237, 0.13);
+  --cv-modal-bg: #181B22;
+  --cv-input-bg: rgba(232, 234, 237, 0.04);
+  --cv-input-border: rgba(232, 234, 237, 0.15);
+  --cv-input-text: #E8EAED;
   --cv-input-placeholder: #6B7A8E;
   --cv-label-text: #B8C5D4;
-  --cv-btn-subtle-bg: rgba(253, 249, 228, 0.06);
-  --cv-btn-subtle-text: #FDF9E4;
-  --cv-btn-subtle-border: rgba(253, 249, 228, 0.1);
-  --cv-btn-subtle-hover: rgba(253, 249, 228, 0.1);
-  --cv-btn-outline-text: #FDF9E4;
-  --cv-btn-outline-border: rgba(253, 249, 228, 0.18);
-  --cv-btn-outline-hover: rgba(253, 249, 228, 0.04);
-  --cv-btn-ghost-text: #C4BAA1;
-  --cv-btn-ghost-hover: rgba(253, 249, 228, 0.04);
+  --cv-btn-subtle-bg: rgba(232, 234, 237, 0.07);
+  --cv-btn-subtle-text: #E8EAED;
+  --cv-btn-subtle-border: rgba(232, 234, 237, 0.15);
+  --cv-btn-subtle-hover: rgba(232, 234, 237, 0.12);
+  --cv-btn-outline-text: #E8EAED;
+  --cv-btn-outline-border: rgba(232, 234, 237, 0.22);
+  --cv-btn-outline-hover: rgba(232, 234, 237, 0.06);
+  --cv-btn-ghost-text: #B4B8C0;
+  --cv-btn-ghost-hover: rgba(232, 234, 237, 0.06);
   --cv-icon-muted: #8A95A6;
   --cv-premium: #F0C040;
-  --cv-list-item-hover: rgba(253, 249, 228, 0.18);
+  --cv-primary: #EB4747;
+  --cv-primary-hover: #D43E3E;
+  --cv-primary-rgb: 235 71 71;
+  --cv-list-item-hover: rgba(232, 234, 237, 0.18);
 }
 
 button,
@@ -153,6 +163,16 @@ button,
   letter-spacing: normal;
   text-transform: none;
   display: inline-flex;
+  /* Reserve a 1em square and clip overflow so that, before the icon font
+     finishes loading, the ligature name ("settings", "search") cannot render
+     as fallback text — which otherwise widths out to the whole word and shifts
+     the sidebar layout until the font swaps in. The glyph is exactly 1em, so
+     the icon stays pixel-identical once loaded. */
+  width: 1em;
+  height: 1em;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
@@ -173,4 +193,96 @@ button,
 }
 [data-sonner-toast][data-styled='true'] [data-icon] {
   margin-top: 2px;
+}
+
+/* Toasts wear the active theme's surface (light/dark) with the variant colour
+   as a left-border + icon ACCENT — not a full-bleed colour fill (richColors is
+   off). The colour stays a noticeable accent without taking over the toast.
+   `[data-sonner-toast].cv-toast` outranks Sonner's own attribute rules. */
+/* Sonner forces padding:16px + border-radius:8px on the toast (our overrides for
+   those don't win), so all the footer/line bleeds are computed against 16/8. */
+[data-sonner-toast].cv-toast {
+  --cv-toast-accent: var(--cv-divider);
+  background: linear-gradient(160deg, #ffffff 0%, #eef1f5 100%);
+  color: var(--cv-t1);
+  border: 1px solid var(--cv-border);
+  border-left: 3px solid var(--cv-toast-accent);
+}
+.dark [data-sonner-toast].cv-toast {
+  background: linear-gradient(160deg, #1f232b 0%, #16191f 100%);
+}
+.cv-toast[data-type='success'] {
+  --cv-toast-accent: #10b981;
+}
+.cv-toast[data-type='error'] {
+  --cv-toast-accent: var(--cv-primary);
+}
+.cv-toast[data-type='warning'] {
+  --cv-toast-accent: var(--cv-premium);
+}
+.cv-toast[data-type='info'] {
+  --cv-toast-accent: #3b82f6;
+}
+.cv-toast [data-icon] {
+  color: var(--cv-toast-accent);
+}
+.cv-toast [data-title] {
+  color: var(--cv-t1);
+}
+.cv-toast [data-description] {
+  color: var(--cv-t2);
+}
+.cv-toast [data-close-button] {
+  background: var(--cv-modal-bg);
+  border-color: var(--cv-border);
+  color: var(--cv-t3);
+}
+
+.cv-toast [data-content] {
+  width: 100%;
+  position: relative;
+}
+
+/* Rule between title and description — full width, SOLID, in the notification's
+   accent colour (no gradient/fade — runs edge to edge). */
+.cv-toast-body {
+  position: relative;
+  margin-top: 9px;
+  padding-top: 9px;
+}
+/* Bleeds precisely to the toast's inner edges (padding 16px) → edge-to-edge. */
+.cv-toast-body::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -37px;
+  right: -16px;
+  height: 1px;
+  background: var(--cv-toast-accent);
+}
+
+/* The "Open" action — a small icon button on the title's text row, top-right.
+   Positioned against [data-content] so it sits level with the title text. */
+.cv-toast-wrap {
+  display: block;
+}
+.cv-toast-open {
+  position: absolute;
+  top: -1px;
+  right: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--cv-t3);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.cv-toast-open:hover {
+  background: var(--cv-btn-subtle-bg);
+  color: var(--cv-t1);
 }

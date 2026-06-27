@@ -45,7 +45,7 @@ export function VaultDetailTabs({ active, onChange, actions }: VaultDetailTabsPr
         onClick={() => onChange(tab.id)}
         className={`-mb-px border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
           isActive
-            ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
+            ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
             : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
         }`}
       >

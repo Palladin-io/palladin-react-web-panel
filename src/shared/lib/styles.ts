@@ -4,7 +4,7 @@
  * all those screens stay visually identical when the palette evolves.
  */
 export const AUTH_BACKGROUND_GRADIENT =
-  'linear-gradient(160deg, #000B2E 0%, #0A1A3E 30%, #0E1230 60%, #000B2E 100%)'
+  'linear-gradient(160deg, #15171B 0%, #212429 30%, #1A1D22 60%, #15171B 100%)'
 
 /**
  * Shared interactive element class strings — edit here to update hover/focus
@@ -13,7 +13,7 @@ export const AUTH_BACKGROUND_GRADIENT =
  */
 export const HOVERABLE_CARD_CLASSES = [
   'rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]',
-  'dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)] transition-[border-color,box-shadow] duration-200 ease-out',
-  'hover:shadow-[0_4px_14px_rgba(0,0,0,0.07)] dark:hover:shadow-[0_4px_18px_rgba(0,0,0,0.35)] dark:hover:border-[var(--cv-t1)]',
+  'transition-colors duration-150 ease-out',
+  'hover:bg-[var(--cv-card-hover)]',
   'focus-visible:outline-none focus-visible:border-[var(--cv-t1)]',
 ].join(' ')

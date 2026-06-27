@@ -45,18 +45,21 @@ export const Route = createFileRoute('/_authenticated')({
 })
 
 const GRADIENTS = {
-  dark: 'linear-gradient(160deg, #000B2E 0%, #0A1A3E 30%, #0E1230 60%, #000B2E 100%)',
-  light: 'linear-gradient(160deg, #FDF9E4 0%, #FFF0E0 35%, #FDF9E4 65%, #FFF5E8 100%)',
+  dark: 'linear-gradient(160deg, #15171B 0%, #212429 30%, #1A1D22 60%, #15171B 100%)',
+  light:
+    'radial-gradient(125% 95% at 72% 0%, #F8FAFC 0%, #E7EAEF 46%, #D6DAE2 100%)',
 }
 
 const SIDEBAR_BG = {
-  dark: 'rgba(253,249,228,0.02)',
-  light: 'rgba(255,252,247,0.5)',
+  // Sidebar contrasts with the content gradient: darker than it in dark mode,
+  // lighter (near-white) than it in light mode — so it reads as a distinct rail.
+  dark: 'rgba(0, 0, 0, 0.25)',
+  light: 'rgba(255, 255, 255, 0.45)',
 }
 
 const SIDEBAR_BORDER = {
-  dark: 'rgba(253,249,228,0.07)',
-  light: 'rgba(0,11,46,0.06)',
+  dark: 'rgba(232, 234, 237,0.07)',
+  light: 'rgba(12, 14, 18, 0.06)',
 }
 
 const NAV_TEXT = {
@@ -65,18 +68,18 @@ const NAV_TEXT = {
 }
 
 const NAV_HOVER_BG = {
-  dark: 'rgba(253,249,228,0.06)',
-  light: 'rgba(0,11,46,0.04)',
+  dark: 'rgba(232, 234, 237,0.06)',
+  light: 'rgba(12, 14, 18, 0.04)',
 }
 
 const NAV_ACTIVE_BG = {
-  dark: 'rgba(255,79,79,0.12)',
-  light: 'rgba(255,79,79,0.08)',
+  dark: 'rgb(var(--cv-primary-rgb) / 0.12)',
+  light: 'rgb(var(--cv-primary-rgb) / 0.08)',
 }
 
 const TEXT_PRIMARY = {
-  dark: '#FDF9E4',
-  light: '#000B2E',
+  dark: '#E8EAED',
+  light: '#0C0E12',
 }
 
 const TEXT_MUTED = {
@@ -85,8 +88,8 @@ const TEXT_MUTED = {
 }
 
 const DROPDOWN_BG = {
-  dark: '#0D1B3E',
-  light: '#FFFCF7',
+  dark: '#181B22',
+  light: '#F5F7FA',
 }
 
 function AuthenticatedLayout() {
@@ -255,9 +258,24 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
         borderRightColor: borderColor,
       }}
     >
-      {/* Logo — left-aligned with nav items (margin 8px + padding 14px = 22px) */}
-      <div className="py-5 pl-[22px] pr-4">
-        <AppWordmark size="sm" />
+      {/* Logo header — logo + wordmark + rotating welcome, divider mirrors the profile's */}
+      <div
+        className="border-b px-4 py-5"
+        style={{ borderBottomColor: borderColor }}
+      >
+        <AppWordmark
+          size="sm"
+          subtitle={
+            <p
+              className="mt-0.5 truncate text-[10px] font-medium"
+              style={{ color: mutedColor }}
+            >
+              {displayName || email
+                ? `Welcome back, ${(displayName || email).split(' ')[0]}`
+                : 'Welcome back'}
+            </p>
+          }
+        />
       </div>
 
       {/* Nav */}
@@ -285,7 +303,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
           <span
             className="flex h-7 w-7 shrink-0 items-center justify-center
               rounded-full text-[10px] font-bold"
-            style={{ background: '#FFAB87', color: '#000B2E' }}
+            style={{ background: '#FFAB87', color: '#0C0E12' }}
           >
             {initials || '?'}
           </span>
@@ -309,7 +327,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             type="button"
             onClick={() => setLangOpen((o) => !o)}
             className="flex h-6 items-center gap-1 rounded px-1.5 text-[11px]
-              transition-colors hover:bg-[rgba(253,249,228,0.06)]"
+              transition-colors hover:bg-[rgba(232,234,237,0.06)]"
             style={{ color: mutedColor }}
             title={t('nav.languageMenu')}
           >
@@ -342,10 +360,10 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
                     className="flex w-full items-center gap-2 px-3 py-2 text-left
                       text-[12px] transition-colors"
                     style={{
-                      color: lang.code === currentLang ? '#FF4F4F' : textColor,
+                      color: lang.code === currentLang ? 'var(--cv-primary)' : textColor,
                       background:
                         lang.code === currentLang
-                          ? 'rgba(255,79,79,0.08)'
+                          ? 'rgb(var(--cv-primary-rgb) / 0.08)'
                           : 'transparent',
                     }}
                   >
@@ -362,7 +380,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             type="button"
             onClick={toggleTheme}
             className="flex h-6 w-6 items-center justify-center rounded
-              transition-colors hover:bg-[rgba(253,249,228,0.06)]"
+              transition-colors hover:bg-[rgba(232,234,237,0.06)]"
             style={{ color: mutedColor }}
             title={theme === 'dark' ? t('nav.themeSwitchToLight') : t('nav.themeSwitchToDark')}
           >
@@ -378,7 +396,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
               onClick={() => void webPush.requestPermissionAndRegister()}
               disabled={webPush.status === 'denied'}
               className="flex h-6 w-6 items-center justify-center rounded
-                transition-colors hover:bg-[rgba(253,249,228,0.06)]
+                transition-colors hover:bg-[rgba(232,234,237,0.06)]
                 disabled:cursor-not-allowed disabled:opacity-40"
               style={{ color: mutedColor }}
               title={
@@ -401,7 +419,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             type="button"
             onClick={handleLogout}
             className="flex h-6 w-6 items-center justify-center rounded
-              transition-colors hover:bg-[rgba(255,79,79,0.08)] hover:text-[#FF4F4F]"
+              transition-colors hover:bg-[rgb(var(--cv-primary-rgb)/0.08)] hover:text-[var(--cv-primary)]"
             style={{ color: mutedColor }}
             title={t('common.logout')}
           >
@@ -426,8 +444,8 @@ interface SidebarLinkProps {
 /** Base colour the sidebar sits on (page gradient edge) — used as a thin badge
  *  ring so the corner overlay cleanly cuts out from the icon beneath it. */
 const NAV_BADGE_RING = {
-  dark: '#000B2E',
-  light: '#FDF9E4',
+  dark: '#15171B',
+  light: '#E8EAED',
 }
 
 /**
@@ -452,7 +470,7 @@ function NavBadge({ count, theme }: { count: number; theme: 'dark' | 'light' }) 
         alignItems: 'center',
         justifyContent: 'center',
         borderRadius: '9999px',
-        background: '#FF4F4F',
+        background: 'var(--cv-primary)',
         color: '#FFFFFF',
         fontSize: '9px',
         fontWeight: 700,
@@ -483,7 +501,7 @@ function SidebarLink({
 
   const mutedColor = TEXT_MUTED[theme]
   const textColor = NAV_TEXT[theme]
-  const hoverTextColor = theme === 'dark' ? '#FDF9E4' : '#000B2E'
+  const hoverTextColor = theme === 'dark' ? '#E8EAED' : '#0C0E12'
 
   const baseStyle: React.CSSProperties = {
     display: 'flex',
@@ -523,7 +541,7 @@ function SidebarLink({
       to={item.to}
       style={{
         ...baseStyle,
-        color: isActive ? '#FF4F4F' : hovered ? hoverTextColor : textColor,
+        color: isActive ? 'var(--cv-primary)' : hovered ? hoverTextColor : textColor,
         background: isActive ? activeBg : hovered ? hoverBg : 'transparent',
         textDecoration: 'none',
       }}

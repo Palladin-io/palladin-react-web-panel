@@ -19,7 +19,7 @@ export function PasswordStrengthBar({ score }: PasswordStrengthBarProps) {
           key={segment}
           className={
             'h-1 flex-1 rounded transition-colors duration-300 ' +
-            (segment <= score ? filledClass : 'bg-[rgba(253,249,228,0.06)]')
+            (segment <= score ? filledClass : 'bg-[rgba(232,234,237,0.06)]')
           }
         />
       ))}
@@ -28,7 +28,7 @@ export function PasswordStrengthBar({ score }: PasswordStrengthBarProps) {
 }
 
 function colorForScore(score: PasswordStrength): string {
-  if (score <= 1) return 'bg-[#FF4F4F]'
+  if (score <= 1) return 'bg-[var(--cv-primary)]'
   if (score === 2) return 'bg-[#FFB84F]'
-  return 'bg-[#2EC4B6]'
+  return 'bg-[#10B981]'
 }

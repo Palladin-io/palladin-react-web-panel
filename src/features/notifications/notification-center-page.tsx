@@ -16,6 +16,7 @@ import {
   type GrantPolicyBody,
   type PendingGrant,
 } from '../grants'
+import { DenyAgentDialog } from './deny-agent-dialog'
 import {
   ApproveAgentDialog,
   useApproveAgent,
@@ -95,6 +96,15 @@ export function NotificationCenterPage() {
   const [denyTarget, setDenyTarget] = useState<NotificationGrantContext | null>(null)
   // Agent approval target — opens the existing agent-activation modal.
   const [agentApproveTarget, setAgentApproveTarget] = useState<AgentTarget | null>(null)
+  // Agent deny target — opens a confirm dialog (deny === deactivate) with a
+  // security warning about possible API-key leakage.
+  const [denyAgentTarget, setDenyAgentTarget] = useState<{
+    agentId: string
+    notificationId: string
+    agentName: string
+    apiKeyId?: string
+    apiKeySuffix?: string
+  } | null>(null)
   const busy =
     approve.isPending ||
     deny.isPending ||
@@ -182,12 +192,30 @@ export function NotificationCenterPage() {
     )
   }
 
-  function handleDenyAgent(agentId: string, notificationId: string) {
+  function handleDenyAgent(
+    agentId: string,
+    notificationId: string,
+    agentName: string,
+    apiKeyId?: string,
+    apiKeySuffix?: string,
+  ) {
+    // Open the confirm dialog first — denying deactivates the agent and may
+    // signal a leaked API key, so it deserves a deliberate confirmation.
+    setDenyAgentTarget({ agentId, notificationId, agentName, apiKeyId, apiKeySuffix })
+  }
+
+  function handleConfirmDenyAgent() {
+    if (!denyAgentTarget) return
+    const { agentId, notificationId } = denyAgentTarget
     // "Deny" a pending agent = deactivate it (no separate reject endpoint).
     deactivateAgent.mutate(agentId, {
       onSuccess: () => {
         toast.success(t('agents.deactivateSuccess'))
         markReadNow(notificationId)
+        // Backend collapses the pending card + emits an `agent_deactivated`
+        // history card; re-fetch so both land in the feed (like grant deny).
+        refreshFeed()
+        setDenyAgentTarget(null)
       },
       onError: () => toast.error(t('agents.errorDeactivate')),
     })
@@ -380,12 +408,23 @@ export function NotificationCenterPage() {
         <ApproveAgentDialog
           open
           agentId={agentApproveTarget.agentId}
-          agentName={agentApproveTarget.agentName}
           initialName={agentApproveTarget.agentName}
           initialType={agentApproveTarget.agentType ?? ''}
           isPending={approveAgent.isPending}
           onConfirm={handleApproveAgent}
           onCancel={() => setAgentApproveTarget(null)}
+        />
+      )}
+
+      {denyAgentTarget && (
+        <DenyAgentDialog
+          open
+          agentName={denyAgentTarget.agentName}
+          apiKeyId={denyAgentTarget.apiKeyId}
+          apiKeySuffix={denyAgentTarget.apiKeySuffix}
+          isPending={deactivateAgent.isPending}
+          onConfirm={handleConfirmDenyAgent}
+          onCancel={() => setDenyAgentTarget(null)}
         />
       )}
 
@@ -448,7 +487,13 @@ function ActionFooter({
   onApprove: (ctx: NotificationGrantContext) => void
   onDeny: (ctx: NotificationGrantContext) => void
   onApproveAgent: (target: AgentTarget) => void
-  onDenyAgent: (agentId: string, notificationId: string) => void
+  onDenyAgent: (
+    agentId: string,
+    notificationId: string,
+    agentName: string,
+    apiKeyId?: string,
+    apiKeySuffix?: string,
+  ) => void
   onView: (item: NotificationItem) => void
 }) {
   const { t } = useTranslation()
@@ -481,7 +526,9 @@ function ActionFooter({
           size="sm"
           className="flex-1"
           disabled={busy}
-          onClick={() => onDenyAgent(agentId, item.id)}
+          onClick={() =>
+            onDenyAgent(agentId, item.id, agentName, item.metadata?.apiKeyId, item.metadata?.apiKeySuffix)
+          }
         >
           {t('grants.deny.action')}
         </Button>
@@ -681,8 +728,8 @@ function TypeFilterDropdown({
                 <span
                   className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border"
                   style={{
-                    borderColor: checked ? '#FF4F4F' : 'var(--cv-input-border)',
-                    background: checked ? '#FF4F4F' : 'transparent',
+                    borderColor: checked ? 'var(--cv-primary)' : 'var(--cv-input-border)',
+                    background: checked ? 'var(--cv-primary)' : 'transparent',
                   }}
                 >
                   {checked && <Icon name="check" size={11} color="#fff" />}
@@ -711,7 +758,7 @@ function TypeFilterDropdown({
  * Segment switcher — accent-underline active tab matching the app's tab idiom
  * (`VaultDetailTabs`), sized to sit inline in the header action row next to
  * "Mark all as read" / settings. The To-do tab carries a small count chip built
- * from `--cv-*` / `#FF4F4F` tokens.
+ * from `--cv-*` / `--cv-primary` tokens.
  */
 function SegmentTabs({
   segment,
@@ -742,13 +789,13 @@ function SegmentTabs({
             onClick={() => onChange(option.key)}
             className={`flex items-center gap-1.5 border-b-2 px-2.5 py-1 text-[12px] transition-colors ${
               isActive
-                ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
+                ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
                 : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
             }`}
           >
             {option.label}
             {option.count ? (
-              <span className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[rgba(255,79,79,0.15)] px-1 text-[10px] font-bold text-[#FF4F4F]">
+              <span className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[rgb(var(--cv-primary-rgb)/0.15)] px-1 text-[10px] font-bold text-[var(--cv-primary)]">
                 {option.count}
               </span>
             ) : null}

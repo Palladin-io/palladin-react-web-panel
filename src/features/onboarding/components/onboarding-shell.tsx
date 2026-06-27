@@ -37,7 +37,7 @@ export function OnboardingShell({
               type="button"
               onClick={onBack}
               className="absolute left-0 flex h-7 w-7 items-center justify-center rounded-full
-                text-[#B8C5D4] transition-colors hover:bg-[rgba(253,249,228,0.08)] hover:text-[#FDF9E4]"
+                text-[#B8C5D4] transition-colors hover:bg-[rgba(232,234,237,0.08)] hover:text-[#E8EAED]"
               aria-label="Go back"
             >
               <ChevronLeft size={20} />
@@ -47,7 +47,7 @@ export function OnboardingShell({
         </div>
 
         <div className="mt-6 mb-6 text-center">
-          <h1 className="mb-1 text-[22px] font-bold leading-tight text-[#FDF9E4]">{title}</h1>
+          <h1 className="mb-1 text-[22px] font-bold leading-tight text-[#E8EAED]">{title}</h1>
           <p className="text-[13px] text-[#6B7A8E]">{subtitle}</p>
         </div>
 

@@ -16,7 +16,7 @@ vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }))
 // their own suite; here we only care about the name / type / confirm flow.
 vi.mock('./agent-icon-picker', () => ({
   AgentIconPicker: () => <div data-testid="agent-icon-picker" />,
-  DEFAULT_AGENT_COLOR: '#2EC4B6',
+  DEFAULT_AGENT_COLOR: '#10B981',
 }))
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -28,7 +28,6 @@ function wrapper({ children }: { children: ReactNode }) {
 
 const baseProps = {
   open: true,
-  agentName: 'Deploy Bot',
   agentId: 'agent-1',
   isPending: false,
   onConfirm: vi.fn(),

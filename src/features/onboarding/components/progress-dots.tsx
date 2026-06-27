@@ -21,8 +21,8 @@ export function ProgressDots({ current, total }: ProgressDotsProps) {
             (index < current
               ? 'bg-[#FFAB87]'
               : index === current
-                ? 'bg-[#FF4F4F]'
-                : 'bg-[rgba(253,249,228,0.08)]')
+                ? 'bg-[var(--cv-primary)]'
+                : 'bg-[rgba(232,234,237,0.08)]')
           }
         />
       ))}

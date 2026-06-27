@@ -67,7 +67,7 @@ describe('GenerateApiKeyModal', () => {
       options.onSuccess({
         apiKeyId: 'key-1',
         name: 'CI pipeline',
-        plaintext: 'cv_live_secret_value',
+        plaintext: 'pl_live_secret_value',
         createdAt: '2026-05-17T10:00:00Z',
       })
     })
@@ -87,7 +87,7 @@ describe('GenerateApiKeyModal', () => {
       await screen.findByText(/won't be shown again/i),
     ).toBeInTheDocument()
     expect(screen.getByLabelText(/your new api key/i)).toHaveValue(
-      'cv_live_secret_value',
+      'pl_live_secret_value',
     )
   })
 

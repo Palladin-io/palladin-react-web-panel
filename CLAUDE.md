@@ -1,10 +1,10 @@
-# Claw Vault — Web Panel
+# Palladin — Web Panel
 
 React SPA for managing vaults, entries, agents, and grants. Zero-knowledge architecture — all encryption/decryption happens client-side.
 
 ## Project Brain
 
-Wiedza biznesowa i architektoniczna projektu: `../docs/obsidian/claw-vault/`
+Wiedza biznesowa i architektoniczna projektu: `../docs/obsidian/palladin/`
 
 Kluczowe noty dla tego repozytorium:
 - `Technical/Frontend.md` — stack, struktura, konwencje kodu
@@ -13,7 +13,7 @@ Kluczowe noty dla tego repozytorium:
 - `Product/Modules/Vault/` — Vault module: reguły, API, eventy
 - `Product/Modules/Identity/API.md` — endpointy auth i account
 
-Użyj `/brain` żeby nawigować po brain lub: `grep -r "SŁOWO" ../docs/obsidian/claw-vault --include="*.md"`
+Użyj `/brain` żeby nawigować po brain lub: `grep -r "SŁOWO" ../docs/obsidian/palladin --include="*.md"`
 
 **Po sesji która zmienia API, architekturę lub reguły biznesowe: zaktualizuj odpowiednią notę w brain.**
 
@@ -137,7 +137,7 @@ Hover/focus effects for interactive cards and list rows use the shared constant 
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 ```
 
-Editing `HOVERABLE_CARD_CLASSES` updates the hover border effect everywhere (vault cards, entry rows, future list items) in one place. Never inline custom `hover:border-*` or `shadow-*` on card-like interactive elements.
+Editing `HOVERABLE_CARD_CLASSES` updates the hover **background-lift** effect everywhere (vault cards, entry rows, agent cards, future list items) in one place — hover lightens the card surface (`--cv-card-hover`), no shadow, no border change. Never inline custom `hover:border-*`, `hover:bg-*`, or `shadow-*` on card-like interactive elements; route them through the shared constant.
 
 ### Modal Footer Button Pattern
 
@@ -279,6 +279,19 @@ Never add hardcoded hex or rgba colors to an input — always use `var(--cv-*)` 
 - Dark mode: `@custom-variant dark (&:is(.dark *))` — the `dark:` prefix applies when element is inside a `.dark` ancestor. The `ThemeSync` provider toggles `dark` on `document.documentElement`.
 - **Design fidelity:** before implementing any UI component, check `docs/design/astro/src/components/` for the Astro reference. Match 1:1 — shape (e.g., `rounded-[10px]` not `rounded-full`), background alphas, border styles (dashed vs solid), icon colors. Deviations from design prototypes are blocking review findings.
 
+#### Brand/Primary Red
+
+The brand/primary red lives ONLY in CSS tokens — never hardcode `#FF4F4F`, `rgba(255,79,79,…)`, or `#E04545` in components.
+
+| Token | Value | Use |
+|-------|-------|-----|
+| `--cv-primary` | `#EB4747` | Solid color (text, borders, backgrounds) |
+| `--cv-primary-hover` | `#D43E3E` | Hover state |
+| `--cv-primary-rgb` | `235 71 71` | Alpha tints via `rgb(var(--cv-primary-rgb) / 0.12)` |
+
+In Tailwind arbitrary values: `text-[var(--cv-primary)]`, `bg-[rgb(var(--cv-primary-rgb)/0.12)]`.
+In inline JS styles: `'var(--cv-primary)'`, `'rgb(var(--cv-primary-rgb) / 0.12)'`.
+
 #### Accepted deviations from Astro reference (do NOT flag as blocking)
 
 These are intentional UX improvements approved by the product owner. PR review agents must not treat them as violations:
@@ -286,7 +299,7 @@ These are intentional UX improvements approved by the product owner. PR review a
 | Area | Deviation | Reason |
 |------|-----------|--------|
 | Card shadows | `dark:shadow-*` only — no shadow in light mode | Avoids visual heaviness in light theme |
-| Hover effect | Light: subtle box-shadow lift (`0_4px_14px_rgba(0,0,0,0.07)`); Dark: shadow + border change | Border-only change too harsh on white background |
+| Hover effect | Background lift (`hover:bg-[var(--cv-card-hover)]`), **no shadow**, both modes — same feel as the sidebar nav-item hover | Border/shadow change felt inconsistent; unified with nav hover per product owner |
 | Entry detail pickers | Icon + Color pickers side-by-side (`flex-row`) | Prototype shows them stacked; side-by-side saves vertical space |
 | Premium colors | `#D4820A` light / `#F0C040` dark (aligned to Astro tokens) | Prototype used off-spec values; tokens are now the source of truth |
 
@@ -370,8 +383,8 @@ GitHub Actions workflow at `.github/workflows/test.yml` runs on PRs to `main`:
 | Environment | `VITE_API_URL` | Mode |
 |-------------|---------------|------|
 | Local | `http://localhost:5000` | `development` |
-| Staging | `https://api.stage.clawvault.io` | `staging` |
-| Production | `https://api.clawvault.io` | `production` |
+| Staging | `https://api.stage.palladin.io` | `staging` |
+| Production | `https://api.palladin.io` | `production` |
 
 Build per environment: `vite build --mode staging` loads `.env.staging`.
 

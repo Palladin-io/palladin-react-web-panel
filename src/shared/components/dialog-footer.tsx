@@ -23,8 +23,8 @@ export function DialogFooter({ children }: DialogFooterProps) {
     <div
       className="-mx-6 -mb-6 flex items-center gap-2
         rounded-b-2xl border-t border-[var(--cv-divider)]
-        bg-[rgba(0,11,46,0.015)] px-6 py-3.5
-        dark:bg-[rgba(253,249,228,0.02)]"
+        bg-[#E8EBF0] px-6 py-3.5
+        dark:bg-[#272C35]"
     >
       {children}
     </div>

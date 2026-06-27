@@ -36,7 +36,7 @@ if (firebaseConfig.apiKey && firebaseConfig.appId) {
 
   messaging.onBackgroundMessage((payload) => {
     const data = payload.data || {}
-    const title = data.title || (payload.notification && payload.notification.title) || 'Claw Vault'
+    const title = data.title || (payload.notification && payload.notification.title) || 'Palladin'
     const body = data.body || (payload.notification && payload.notification.body) || ''
     const link =
       (payload.fcmOptions && payload.fcmOptions.link) || data.link || '/'

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -17,6 +18,7 @@ import { useAgentPermissions } from '../use-agents'
 import { useApproveAgent } from '../use-approve-agent'
 import { useDeactivateAgent } from '../use-deactivate-agent'
 import { useReactivateAgent } from '../use-reactivate-agent'
+import { useDeleteAgent } from '../use-delete-agent'
 import { OrgGrantsPanel } from '../../grants'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { AgentAvatar } from './agent-avatar'
@@ -59,10 +61,13 @@ export function AgentDetail({ agent }: AgentDetailProps) {
   const approve = useApproveAgent()
   const deactivate = useDeactivateAgent()
   const reactivate = useReactivateAgent()
+  const del = useDeleteAgent()
+  const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState<AgentDetailTab>('details')
   const [approveOpen, setApproveOpen] = useState(false)
   const [deactivateOpen, setDeactivateOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [addAccessOpen, setAddAccessOpen] = useState(false)
 
   const name = agentDisplayName(agent, t('agents.unnamed'))
@@ -113,6 +118,18 @@ export function AgentDetail({ agent }: AgentDetailProps) {
     })
   }
 
+  const handleConfirmDelete = () => {
+    del.mutate(agent.agentId, {
+      onSuccess: () => {
+        analytics.capture('agents', 'agent-deleted')
+        setDeleteOpen(false)
+        // The agent no longer exists — leave the (now-dangling) detail panel.
+        navigate({ to: '/agents' })
+      },
+      onError: () => toast.error(t('agents.errorDelete')),
+    })
+  }
+
   return (
     <>
       {/* ── Tab bar — mirrors entry-detail wide-mode: h-10 items-end ────── */}
@@ -133,7 +150,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                   disabled
                     ? 'cursor-not-allowed border-transparent font-medium text-[var(--cv-t3)] opacity-35'
                     : isActive
-                      ? 'border-[#FF4F4F] font-bold text-[#FF4F4F]'
+                      ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
                       : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
                 }`}
               >
@@ -231,7 +248,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               <ActionZone
                 tone="positive"
                 title={t('agents.approveZone')}
-                heading={t('agents.approve')}
                 hint={t('agents.approveHint')}
                 action={
                   <Button
@@ -251,7 +267,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               <ActionZone
                 tone="danger"
                 title={t('agents.deactivateZone')}
-                heading={t('agents.deactivate')}
                 hint={t('agents.deactivateHint')}
                 action={
                   <Button
@@ -270,7 +285,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               <ActionZone
                 tone="positive"
                 title={t('agents.reactivateZone')}
-                heading={t('agents.reactivate')}
                 hint={t('agents.reactivateHint')}
                 action={
                   <Button
@@ -281,6 +295,25 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                     disabled={reactivate.isPending}
                   >
                     {reactivate.isPending ? t('agents.reactivating') : t('agents.reactivate')}
+                  </Button>
+                }
+              />
+            ) : null}
+
+            {agent.status === AGENT_STATUS_DEACTIVATED ? (
+              <ActionZone
+                tone="danger"
+                title={t('agents.deleteZone')}
+                hint={t('agents.deleteHint')}
+                action={
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    icon="delete"
+                    onClick={() => setDeleteOpen(true)}
+                    disabled={del.isPending}
+                  >
+                    {t('agents.delete')}
                   </Button>
                 }
               />
@@ -308,7 +341,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
         key={agent.agentId}
         agentId={agent.agentId}
         open={approveOpen}
-        agentName={name}
         initialName={agent.name ?? ''}
         initialType={agent.type ?? ''}
         isPending={approve.isPending}
@@ -322,6 +354,14 @@ export function AgentDetail({ agent }: AgentDetailProps) {
         isPending={deactivate.isPending}
         onConfirm={handleConfirmDeactivate}
         onCancel={() => setDeactivateOpen(false)}
+      />
+
+      <DeleteAgentDialog
+        open={deleteOpen}
+        agentName={name}
+        isPending={del.isPending}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteOpen(false)}
       />
 
       {addAccessOpen && (
@@ -386,33 +426,29 @@ function LogsTabContent({ agent }: { agent: Agent }) {
 interface ActionZoneProps {
   tone: 'positive' | 'danger'
   title: string
-  heading: string
   hint: string
   action: React.ReactNode
 }
 
-function ActionZone({ tone, title, heading, hint, action }: ActionZoneProps) {
+function ActionZone({ tone, title, hint, action }: ActionZoneProps) {
   const isPositive = tone === 'positive'
   return (
     <section
       className={`rounded-xl border p-4 ${
         isPositive
-          ? 'border-[rgba(46,196,182,0.25)] bg-[rgba(46,196,182,0.04)]'
-          : 'border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.04)]'
+          ? 'border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.12)]'
+          : 'border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)]'
       }`}
     >
       <h2
         className={`text-[11px] font-semibold uppercase tracking-[0.06em] ${
-          isPositive ? 'text-[#2EC4B6]' : 'text-[#FF4F4F]'
+          isPositive ? 'text-[#10B981]' : 'text-[var(--cv-primary)]'
         }`}
       >
         {title}
       </h2>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div className="text-[12px] font-semibold text-[var(--cv-t1)]">{heading}</div>
-          <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">{hint}</p>
-        </div>
+      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-[11px] text-[var(--cv-t3)]">{hint}</p>
         {action}
       </div>
     </section>
@@ -477,6 +513,43 @@ function DeactivateAgentDialog({ open, agentName, isPending, onConfirm, onCancel
           </Button>
           <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
             {isPending ? t('agents.deactivating') : t('agents.deactivate')}
+          </Button>
+        </DialogFooter>
+      </div>
+    </ModalShell>
+  )
+}
+
+interface DeleteAgentDialogProps {
+  open: boolean
+  agentName: string
+  isPending: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+function DeleteAgentDialog({ open, agentName, isPending, onConfirm, onCancel }: DeleteAgentDialogProps) {
+  const { t } = useTranslation()
+  if (!open) return null
+  return (
+    <ModalShell
+      onClose={isPending ? undefined : onCancel}
+      ariaLabel={t('agents.deleteConfirmTitle')}
+      width={420}
+    >
+      <div className="flex flex-col gap-4">
+        <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
+          {t('agents.deleteConfirmTitle')}
+        </h2>
+        <p className="text-[12px] text-[var(--cv-t2)]">
+          {t('agents.deleteConfirmBody', { name: agentName })}
+        </p>
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
+            {t('agents.cancel')}
+          </Button>
+          <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
+            {isPending ? t('agents.deleting') : t('agents.delete')}
           </Button>
         </DialogFooter>
       </div>

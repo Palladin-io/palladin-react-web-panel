@@ -1,57 +1,16 @@
 import { useMemo, useState } from 'react'
-import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
-import {
-  AGENT_STATUS_ACTIVE,
-  AGENT_STATUS_DEACTIVATED,
-  AGENT_STATUS_PENDING,
-  type Agent,
-  type AgentStatus,
-} from '../api/agents-api'
+import { AGENT_STATUS_ACTIVE } from '../api/agents-api'
 import { useAgents } from '../use-agents'
-import { AgentAvatar } from './agent-avatar'
-import {
-  agentDisplayName,
-  agentTypeLabelKey,
-  formatAgentDate,
-  formatPublicKey,
-} from './agent-presentation'
+import { AgentCard } from './agent-card'
+
+export { AgentStatusBadge } from './agent-status-badge'
 
 export interface AgentListPanelProps {
   /** Agent currently shown in the right detail panel (split-view). */
   selectedAgentId?: string
-}
-
-/** Compact status pill mirroring the Astro VaultAgentGrant badge. */
-export function AgentStatusBadge({ status }: { status: AgentStatus }) {
-  const { t } = useTranslation()
-
-  const config: Record<AgentStatus, { label: string; className: string }> = {
-    [AGENT_STATUS_ACTIVE]: {
-      label: t('agents.statusActive'),
-      className: 'bg-[rgba(46,196,182,0.1)] text-[#2EC4B6]',
-    },
-    [AGENT_STATUS_PENDING]: {
-      label: t('agents.statusPending'),
-      className: 'bg-[rgba(240,192,64,0.12)] text-[#D4820A]',
-    },
-    [AGENT_STATUS_DEACTIVATED]: {
-      label: t('agents.statusDeactivated'),
-      className: 'bg-[rgba(255,79,79,0.1)] text-[#FF4F4F]',
-    },
-  }
-  const { label, className } = config[status]
-
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5
-        text-[10px] font-bold ${className}`}
-    >
-      ● {label}
-    </span>
-  )
 }
 
 /**
@@ -160,85 +119,6 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
 
     </>
   )
-}
-
-interface AgentRowProps {
-  agent: Agent
-  isSelected: boolean
-}
-
-function AgentCard({ agent, isSelected }: AgentRowProps) {
-  const { t } = useTranslation()
-  const isDeactivated = agent.status === AGENT_STATUS_DEACTIVATED
-
-  const subtitle = agent.type
-    ? (agentTypeLabelKey(agent.type) ? t(agentTypeLabelKey(agent.type)!) : agent.type)
-    : formatPublicKey(agent)
-
-  return (
-    <div
-      className={`overflow-hidden rounded-xl border bg-[var(--cv-card-bg)]
-        transition-[border-color,box-shadow] dark:shadow-[0_1px_4px_rgba(0,0,0,0.2)] ${
-        isSelected
-          ? 'border-[var(--cv-t1)]'
-          : 'border-[var(--cv-border)] hover:border-[rgba(138,149,166,0.35)] dark:hover:border-[var(--cv-t1)]'
-      } ${isDeactivated ? 'opacity-70' : ''}`}
-    >
-      {/* Identity zone */}
-      <Link
-        to="/agents/$agentId"
-        params={{ agentId: agent.agentId }}
-        className="flex items-center gap-[10px] px-[14px] py-3 hover:bg-[var(--cv-bg-subtle)]"
-      >
-        <AgentAvatar agent={agent} size={36} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--cv-t1)]">
-              {agentDisplayName(agent, t('agents.unnamed'))}
-            </p>
-            <AgentStatusBadge status={agent.status} />
-          </div>
-          <p className={`mt-0.5 truncate text-[var(--cv-t3)] ${agent.type ? 'text-[11px]' : 'font-mono text-[10px]'}`}>
-            {subtitle}
-          </p>
-        </div>
-      </Link>
-
-      {/* Footer */}
-      <div
-        className="flex items-center justify-between px-[14px] py-2
-          border-t border-[var(--cv-divider)]
-          bg-[rgba(0,11,46,0.015)] dark:bg-[rgba(253,249,228,0.02)]"
-      >
-        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
-          <Icon
-            name={isDeactivated ? 'block' : 'schedule'}
-            size={12}
-            color={isDeactivated ? '#FF4F4F' : 'var(--cv-t3)'}
-            className="shrink-0"
-          />
-          <span className="truncate text-[10px] text-[var(--cv-t3)]">
-            {cardFooterText(agent, t)}
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function cardFooterText(
-  agent: Agent,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-): string {
-  if (agent.status === AGENT_STATUS_DEACTIVATED && agent.deactivatedAt) {
-    const by = agent.deactivatedByName ? ` · ${agent.deactivatedByName}` : ''
-    return `${t('agents.deactivatedOn')} ${formatAgentDate(agent.deactivatedAt)}${by}`
-  }
-  if (agent.enrolledAt) {
-    const by = agent.enrolledByName ? ` · ${agent.enrolledByName}` : ''
-    return `${t('agents.enrolled')} ${formatAgentDate(agent.enrolledAt)}${by}`
-  }
-  return `${t('agents.connectedOn')} ${formatAgentDate(agent.createdAt)}`
 }
 
 function PanelLoadingSkeleton() {

@@ -96,7 +96,7 @@ function UnlockForm() {
       className="dark flex min-h-screen items-center justify-center"
       style={{
         background:
-          'linear-gradient(160deg, #000B2E 0%, #0A1A3E 30%, #0E1230 60%, #000B2E 100%)',
+          'linear-gradient(160deg, #15171B 0%, #212429 30%, #1A1D22 60%, #15171B 100%)',
       }}
     >
       <div className="w-full max-w-[440px] px-6">
@@ -106,7 +106,7 @@ function UnlockForm() {
             alt={t('auth.appName')}
             className="mx-auto mb-4 h-16 w-16"
           />
-          <h1 className="mb-1 text-[28px] font-bold leading-tight text-[#FDF9E4]">
+          <h1 className="mb-1 text-[28px] font-bold leading-tight text-[#E8EAED]">
             {t('unlock.title')}
           </h1>
           <p className="mb-7 text-[13px] text-[#6B7A8E]">
@@ -131,7 +131,7 @@ function UnlockForm() {
               disabled={isPending}
               borderClass={
                 hasError
-                  ? 'border-[#FF4F4F] focus:border-[#FF4F4F]'
+                  ? 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
                   : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
               }
             />
@@ -147,7 +147,7 @@ function UnlockForm() {
           <div className="mt-3 text-center">
             <Link
               to="/recovery"
-              className="text-[12px] text-[#6B7A8E] transition-colors hover:text-[#FDF9E4]"
+              className="text-[12px] text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
             >
               {t('unlock.forgotPassword')}
             </Link>

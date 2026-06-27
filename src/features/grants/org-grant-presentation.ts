@@ -14,10 +14,10 @@ interface StatusPresentation {
  * Denied/Revoked=red, Expired/Consumed=grey.
  */
 const STATUS_PRESENTATION: Record<GrantStatus, StatusPresentation> = {
-  active: { labelKey: 'grants.statusActive', color: '#2EC4B6', bg: 'rgba(46,196,182,0.12)' },
+  active: { labelKey: 'grants.statusActive', color: '#10B981', bg: 'rgba(16, 185, 129,0.12)' },
   pending: { labelKey: 'grants.statusPending', color: '#D4820A', bg: 'rgba(240,192,64,0.14)' },
-  denied: { labelKey: 'grants.statusDenied', color: '#FF4F4F', bg: 'rgba(255,79,79,0.12)' },
-  revoked: { labelKey: 'grants.statusRevoked', color: '#FF4F4F', bg: 'rgba(255,79,79,0.12)' },
+  denied: { labelKey: 'grants.statusDenied', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.12)' },
+  revoked: { labelKey: 'grants.statusRevoked', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.12)' },
   expired: { labelKey: 'grants.statusExpired', color: '#8A95A6', bg: 'rgba(138,149,166,0.14)' },
   consumed: { labelKey: 'grants.statusConsumed', color: '#8A95A6', bg: 'rgba(138,149,166,0.14)' },
 }

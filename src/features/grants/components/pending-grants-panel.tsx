@@ -158,10 +158,10 @@ function PendingGrantCard({
       <div className="flex items-center gap-2.5 px-[14px] py-3">
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full
-            bg-[rgba(46,196,182,0.12)]"
+            bg-[rgba(16,185,129,0.12)]"
           aria-hidden
         >
-          <Icon name="smart_toy" size={16} color="#2EC4B6" />
+          <Icon name="smart_toy" size={16} color="#10B981" />
         </span>
         <div className="min-w-0 flex-1">
           <p
@@ -184,7 +184,7 @@ function PendingGrantCard({
               to="/vaults/$vaultId/entries/$entryId"
               params={{ vaultId: grant.vaultId, entryId: grant.entryId }}
               className="inline min-w-0 font-medium text-[var(--cv-t1)] underline-offset-2
-                transition-colors hover:text-[#FF4F4F] hover:underline"
+                transition-colors hover:text-[var(--cv-primary)] hover:underline"
             >
               {entryLabel}
             </Link>
@@ -210,7 +210,7 @@ function PendingGrantCard({
 
       <div
         className="flex items-center gap-2 border-t border-[var(--cv-divider)] px-[14px] py-2
-          bg-[rgba(0,11,46,0.015)] dark:bg-[rgba(253,249,228,0.02)]"
+          bg-[var(--cv-card-footer)]"
       >
         <Button
           variant="subtle"

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../shared/components/error-state'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
+import { ApiKeyAgentsTab } from './components/api-key-agents-tab'
 import { ApiKeyDetail, ApiKeyDetailEmpty } from './components/api-key-detail'
 import {
   ApiKeyDetailTabs,
@@ -62,10 +63,7 @@ export function ApiKeysPage({ keyId }: ApiKeysPageProps) {
         <ApiKeyDetailTabs active={activeTab} onChange={setActiveTab} wide={isWide} />
         {activeTab === 'details' ? <ApiKeyDetail apiKey={selectedKey} /> : null}
         {activeTab === 'agents' ? (
-          <div className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-            bg-[var(--cv-empty-bg)] p-8 text-center text-sm text-[var(--cv-t3)]">
-            {t('apiKeys.detail.agentsComingSoon')}
-          </div>
+          <ApiKeyAgentsTab apiKeyId={selectedKey.apiKeyId} />
         ) : null}
       </>
     )
@@ -87,10 +85,11 @@ export function ApiKeysPage({ keyId }: ApiKeysPageProps) {
   }
 
   // Narrow: a single column. `/api-keys` shows the list,
-  // `/api-keys/$keyId` shows the selected key's detail.
+  // `/api-keys/$keyId` shows the detail. Left-aligned, full-width (NO
+  // `mx-auto max-w-*`) so it behaves like Agents/Vaults at small widths.
   return (
     <div className="min-h-full text-[var(--cv-t1)]">
-      <div className="mx-auto max-w-[640px] px-6 py-8">
+      <div className="px-4 py-4">
         {keyId ? detailContent : <ApiKeyListPanel selectedApiKeyId={keyId} />}
       </div>
     </div>

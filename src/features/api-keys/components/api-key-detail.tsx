@@ -98,7 +98,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
         <dl className="mt-5 flex flex-col gap-3 border-t border-[var(--cv-divider)] pt-4">
           <DetailRow
             label={t('apiKeys.detail.key')}
-            value={`cv_••••${apiKey.keySuffix || '••••'}`}
+            value={`pl_••••${apiKey.keySuffix || '••••'}`}
             mono
           />
           <DetailRow
@@ -117,20 +117,15 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
       {/* Activate zone — shown only for revoked keys when user has write permission */}
       {!isActive && canWrite ? (
         <section
-          className="mt-4 rounded-xl border border-[rgba(46,196,182,0.25)] bg-[rgba(46,196,182,0.04)] p-4"
+          className="mt-4 rounded-xl border border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.12)] p-4"
         >
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#2EC4B6]">
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#10B981]">
             {t('apiKeys.activateZone')}
           </h2>
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-[12px] font-semibold text-[var(--cv-t1)]">
-                {t('apiKeys.activateTitle')}
-              </div>
-              <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">
-                {t('apiKeys.activateSubtitle')}
-              </p>
-            </div>
+          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] text-[var(--cv-t3)]">
+              {t('apiKeys.activateSubtitle')}
+            </p>
             <Button
               variant="outline"
               size="sm"
@@ -145,22 +140,17 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
 
       {/* Danger zone — shown only when user has write permission */}
       {canWrite ? <section
-        className="mt-4 rounded-xl border border-[rgba(255,79,79,0.25)] bg-[rgba(255,79,79,0.04)] p-4"
+        className="mt-4 rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
       >
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#FF4F4F]">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--cv-primary)]">
           {t('apiKeys.dangerZone')}
         </h2>
 
         {isActive ? (
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-[12px] font-semibold text-[var(--cv-t1)]">
-                {t('apiKeys.revokeTitle')}
-              </div>
-              <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">
-                {t('apiKeys.revokeSubtitle')}
-              </p>
-            </div>
+          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] text-[var(--cv-t3)]">
+              {t('apiKeys.revokeSubtitle')}
+            </p>
             <Button
               variant="danger"
               size="sm"
@@ -171,15 +161,10 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
             </Button>
           </div>
         ) : (
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="text-[12px] font-semibold text-[var(--cv-t1)]">
-                {t('apiKeys.deleteTitle')}
-              </div>
-              <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">
-                {t('apiKeys.deleteSubtitle')}
-              </p>
-            </div>
+          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-[11px] text-[var(--cv-t3)]">
+              {t('apiKeys.deleteSubtitle')}
+            </p>
             <Button
               variant="danger"
               size="sm"

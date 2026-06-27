@@ -442,7 +442,7 @@ function OrgGrantRow({
               to="/vaults/$vaultId"
               params={{ vaultId: grant.vaultId }}
               className="font-medium text-[var(--cv-t1)] underline-offset-2
-                transition-colors hover:text-[#FF4F4F] hover:underline"
+                transition-colors hover:text-[var(--cv-primary)] hover:underline"
             >
               {vaultName}
             </Link>
@@ -457,7 +457,7 @@ function OrgGrantRow({
                 to="/vaults/$vaultId/entries/$entryId"
                 params={{ vaultId: grant.vaultId, entryId: grant.entryId }}
                 className="font-medium text-[var(--cv-t1)] underline-offset-2
-                  transition-colors hover:text-[#FF4F4F] hover:underline"
+                  transition-colors hover:text-[var(--cv-primary)] hover:underline"
               >
                 {entryLabel}
               </Link>
@@ -483,7 +483,7 @@ function OrgGrantRow({
       {(grant.canRevoke || grant.canGrantAgain) && (
         <div
           className="flex min-h-[46px] items-center gap-2 border-t border-[var(--cv-divider)] px-[14px] py-2
-            bg-[rgba(0,11,46,0.015)] dark:bg-[rgba(253,249,228,0.02)]"
+            bg-[var(--cv-card-footer)]"
         >
           {grant.canRevoke && (
             <Button
@@ -517,11 +517,11 @@ function OrgGrantRow({
       {isTerminal(grant.status) && !grant.canGrantAgain && !grant.canRevoke && (
         <div
           className="flex min-h-[46px] items-center justify-center gap-1.5 border-t border-[var(--cv-divider)]
-            px-[14px] py-2 bg-[rgba(0,11,46,0.015)] dark:bg-[rgba(253,249,228,0.02)]"
+            px-[14px] py-2 bg-[var(--cv-card-footer)]"
           title={t('grants.org.alreadyActiveHint')}
         >
-          <Icon name="check_circle" size={14} color="#2EC4B6" />
-          <span className="text-[11px] font-semibold text-[#2EC4B6]">
+          <Icon name="check_circle" size={14} color="#10B981" />
+          <span className="text-[11px] font-semibold text-[#10B981]">
             {t('grants.org.alreadyActive')}
           </span>
         </div>

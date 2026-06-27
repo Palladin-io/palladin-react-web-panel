@@ -8,7 +8,7 @@
  * it as-is instead — don't double-shorten.
  *
  * Secret keys are NEVER shortened with this: those use the masked
- * `cv_••••{keySuffix}` form and the raw key never reaches the client.
+ * `pl_••••{keySuffix}` form and the raw key never reaches the client.
  *
  * Values short enough that prefix + ellipsis + suffix wouldn't actually save
  * space are returned unchanged.

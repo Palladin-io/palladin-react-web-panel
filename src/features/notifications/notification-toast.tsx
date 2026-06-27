@@ -1,6 +1,7 @@
 import { Trans } from 'react-i18next'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
+import { Icon } from '../../shared/components/icon'
 import i18n from '../../shared/lib/i18n'
 import type { NotificationPayload } from './notification-types'
 
@@ -21,23 +22,40 @@ export function showNotificationToast(
   payload: NotificationPayload,
   /** Invoked from the toast's "Open" action — wired to navigate to the inbox. */
   onOpen?: () => void,
+  /** Override the auto-dismiss time (ms). `Infinity` keeps it open — used by the
+   *  dev toast showcase so every variant can be styled side by side. */
+  durationMs?: number,
 ) {
   const { type } = payload
 
-  // agent_resolved is an invisible collapse marker; agent_approved is
-  // informational and the approver already sees an action toast. Neither
-  // pops its own toast (the inbox + badge still update). Also avoids an
-  // empty toast — neither had a case, so they fell through to the empty
+  // agent_resolved is an invisible collapse marker; agent_approved and
+  // agent_deactivated are informational and the actor already sees an action
+  // toast. None pop their own toast (the inbox + badge still update). Also
+  // avoids an empty toast — none had a case, so they fell through to the empty
   // server-supplied title.
-  if (type === 'agent_resolved' || type === 'agent_approved') return
+  if (type === 'agent_resolved' || type === 'agent_approved' || type === 'agent_deactivated') return
 
-  // Every toast carries an action that takes the user to the inbox — the hub
-  // where the full card and its actions live. Transient toasts shouldn't be the
-  // only path to act on a notification.
-  const action = onOpen
-    ? { label: i18n.t('notifications.toast.open'), onClick: onOpen }
-    : undefined
-  const opts = (description: ReactNode) => ({ description: withDivider(description), action })
+  // The "Open" action is a small icon button in the toast's top-right corner
+  // (rendered as real toast content). Styling in index.css (`cv-toast-*`).
+  const openBtn = onOpen ? (
+    <button
+      type="button"
+      className="cv-toast-open"
+      onClick={onOpen}
+      aria-label={i18n.t('notifications.toast.open')}
+    >
+      <Icon name="open_in_new" size={15} />
+    </button>
+  ) : null
+  const opts = (description: ReactNode) => ({
+    description: (
+      <span className="cv-toast-wrap">
+        {openBtn}
+        {withDivider(description)}
+      </span>
+    ),
+    ...(durationMs !== undefined ? { duration: durationMs } : {}),
+  })
 
   switch (type) {
     case 'grant_approved':
@@ -74,11 +92,9 @@ export function showNotificationToast(
  */
 function withDivider(content: ReactNode): ReactNode {
   if (!content) return undefined
-  return (
-    <span className="mt-1 block border-t border-[var(--cv-divider)] pt-1.5">
-      {content}
-    </span>
-  )
+  // No rule — just spacing below the title (styled in index.css). The accent
+  // is carried by the left border + coloured icon, not a divider line.
+  return <span className="cv-toast-body block">{content}</span>
 }
 
 /** Shared bold-name renderer for a Trans body. */

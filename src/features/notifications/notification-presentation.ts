@@ -140,6 +140,8 @@ export function notificationTypeNameKey(type: string): string {
       return 'notifications.type.agentPending'
     case 'agent_approved':
       return 'notifications.type.agentApproved'
+    case 'agent_deactivated':
+      return 'notifications.type.agentDeactivated'
     case 'grant_revoked':
       return 'notifications.type.grantRevoked'
     case 'grant_approved':
@@ -203,6 +205,21 @@ export function notificationCardPresentation(
         subtitleAgent: agentName,
         subtitleAgentFallbackKey: UNKNOWN,
         // Approved record: Agent Id first, no public key, approver ("By") last.
+        rows: [
+          metaRow(item, 'notifications.card.rowAgentId', 'agentId'),
+          metaRow(item, 'notifications.card.rowType', 'agentType'),
+          textRow('notifications.card.rowHostIp', agentHostIp(item)),
+          metaRow(item, 'notifications.card.rowBy', 'actorName'),
+        ],
+      }
+
+    case 'agent_deactivated':
+      return {
+        header: { kind: 'agent', agentName, agentId, agentIconKey },
+        titleKey,
+        subtitleKey: 'notifications.sub.agentDeactivated',
+        subtitleAgent: agentName,
+        subtitleAgentFallbackKey: UNKNOWN,
         rows: [
           metaRow(item, 'notifications.card.rowAgentId', 'agentId'),
           metaRow(item, 'notifications.card.rowType', 'agentType'),

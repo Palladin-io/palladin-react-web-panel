@@ -13,7 +13,7 @@ import {
 } from './agent-presentation'
 
 const COLOR_OPTIONS = [
-  '#FF4F4F', '#FFAB87', '#60A5FA', '#2EC4B6', '#A78BFA', '#8A95A6',
+  '#EB4747', '#FFAB87', '#60A5FA', '#10B981', '#A78BFA', '#8A95A6',
 ] as const
 
 export const DEFAULT_AGENT_COLOR = COLOR_OPTIONS[3]
@@ -117,10 +117,10 @@ export function AgentIconPicker({
           disabled={disabled}
           aria-label={t('vault.iconMore')}
           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border
-            border-[#FF4F4F] transition-transform hover:scale-105
+            border-[var(--cv-primary)] transition-transform hover:scale-105
             disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Icon name="more_horiz" size={16} color="#FF4F4F" />
+          <Icon name="more_horiz" size={16} color="var(--cv-primary)" />
         </button>
       </div>
 

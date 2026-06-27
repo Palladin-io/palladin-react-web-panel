@@ -40,7 +40,7 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   // size — without it a bordered button is ~2px taller and footer rows look
   // uneven (e.g. Deny vs Approve in notification cards).
   accent:
-    'bg-[#FF4F4F] text-white border border-transparent hover:bg-[#E04545] disabled:bg-[#FF4F4F]/50',
+    'bg-[var(--cv-primary)] text-white border border-transparent hover:bg-[var(--cv-primary-hover)] disabled:bg-[rgb(var(--cv-primary-rgb)/0.5)]',
   subtle:
     'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-btn-subtle-text)] border border-[var(--cv-btn-subtle-border)] hover:bg-[var(--cv-btn-subtle-hover)]',
   outline:
@@ -48,9 +48,9 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   ghost:
     'bg-transparent text-[var(--cv-btn-ghost-text)] border border-transparent hover:bg-[var(--cv-btn-ghost-hover)]',
   danger:
-    'bg-[rgba(255,79,79,0.12)] text-[#FF4F4F] border border-[rgba(255,79,79,0.25)] hover:bg-[rgba(255,79,79,0.18)]',
+    'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)] border border-[rgb(var(--cv-primary-rgb)/0.25)] hover:bg-[rgb(var(--cv-primary-rgb)/0.18)]',
   positive:
-    'bg-[rgba(46,196,182,0.06)] text-[#2EC4B6] border border-[rgba(46,196,182,0.3)] hover:bg-[rgba(46,196,182,0.12)]',
+    'bg-[rgba(16,185,129,0.12)] text-[#10B981] border border-[rgba(16,185,129,0.3)] hover:bg-[rgba(16,185,129,0.18)]',
   premium:
     'btn-premium bg-transparent font-bold border',
 }
