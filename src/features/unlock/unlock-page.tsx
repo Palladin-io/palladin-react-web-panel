@@ -6,6 +6,7 @@ import { AuthSubmitButton } from '../../shared/components/auth-submit-button'
 import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { analytics } from '../../shared/lib/analytics'
 import { useAuthStore } from '../auth'
+import { clearPushTokenOnLogout } from '../notifications'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../shared/api/account-api'
 import { OnboardingWizard } from '../onboarding'
 import { IncorrectMasterPasswordError, useUnlock } from './use-unlock'
@@ -64,8 +65,18 @@ function UnlockForm() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const unlock = useUnlock()
+  const logout = useAuthStore((s) => s.logout)
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  // Same logout flow as the app shell: best-effort push-token cleanup, clear
+  // session, redirect to login. The only escape hatch from a locked vault when
+  // the master password is lost or the wrong account is signed in.
+  const handleLogout = () => {
+    void clearPushTokenOnLogout()
+    logout()
+    navigate({ to: '/login' })
+  }
 
   const isPending = unlock.isPending
   const hasError = errorMessage !== null
@@ -144,13 +155,20 @@ function UnlockForm() {
             {isPending ? t('unlock.unlocking') : t('unlock.button')}
           </AuthSubmitButton>
 
-          <div className="mt-3 text-center">
+          <div className="mt-3 flex flex-col items-center gap-2 text-[12px]">
             <Link
               to="/recovery"
-              className="text-[12px] text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
+              className="text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
             >
               {t('unlock.forgotPassword')}
             </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
+            >
+              {t('common.logout')}
+            </button>
           </div>
         </form>
       </div>
