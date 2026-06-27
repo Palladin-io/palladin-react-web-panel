@@ -112,5 +112,5 @@ type WordState = 'empty' | 'correct' | 'wrong'
 function borderClassForState(state: WordState): string {
   if (state === 'correct') return 'border-[#10B981] focus:border-[#10B981]'
   if (state === 'wrong') return 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
-  return 'border-[rgba(232, 234, 237,0.1)] focus:border-[#10B981]'
+  return 'border-[rgba(232,234,237,0.1)] focus:border-[#10B981]'
 }

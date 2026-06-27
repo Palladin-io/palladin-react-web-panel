@@ -1,7 +1,9 @@
 {
   "auth.appName": "Palladin",
-  "auth.taglineFirstLine": "Menedżer haseł Zero-Knowledge",
-  "auth.taglineForAiAgents": "Dla agentów AI",
+  "auth.welcomeLine1": "Zero-knowledge u podstaw.",
+  "auth.welcomeLine2": "Stworzony dla agentów AI.",
+  "auth.welcomeLine3": "Twoje klucze, twoje zasady.",
+  "auth.welcomeLine4": "Zawsze zaszyfrowane.",
   "auth.signingIn": "Logowanie...",
   "auth.continueWithGoogle": "Kontynuuj z Google",
   "auth.continueWithApple": "Kontynuuj z Apple",

@@ -123,8 +123,8 @@ export function EnterRecoveryKeyStep({
             type="button"
             onClick={handlePaste}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg
-              border border-[rgba(232, 234, 237,0.1)] bg-transparent px-3 py-2 text-xs
-              font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232, 234, 237,0.04)]"
+              border border-[rgba(232,234,237,0.1)] bg-transparent px-3 py-2 text-xs
+              font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.04)]"
           >
             <Clipboard size={14} />
             {t('recovery.pasteFromClipboard')}
@@ -133,8 +133,8 @@ export function EnterRecoveryKeyStep({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg
-              border border-[rgba(232, 234, 237,0.1)] bg-transparent px-3 py-2 text-xs
-              font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232, 234, 237,0.04)]"
+              border border-[rgba(232,234,237,0.1)] bg-transparent px-3 py-2 text-xs
+              font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.04)]"
           >
             <FileText size={14} />
             {t('recovery.importFromFile')}

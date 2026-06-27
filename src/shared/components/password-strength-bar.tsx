@@ -19,7 +19,7 @@ export function PasswordStrengthBar({ score }: PasswordStrengthBarProps) {
           key={segment}
           className={
             'h-1 flex-1 rounded transition-colors duration-300 ' +
-            (segment <= score ? filledClass : 'bg-[rgba(232, 234, 237,0.06)]')
+            (segment <= score ? filledClass : 'bg-[rgba(232,234,237,0.06)]')
           }
         />
       ))}

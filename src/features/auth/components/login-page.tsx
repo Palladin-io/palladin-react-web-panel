@@ -5,14 +5,15 @@ import { toast } from 'sonner'
 import { AppWordmark } from '../../../shared/components/app-wordmark'
 import { useLogin } from '../hooks/use-login'
 
-const WELCOME_MESSAGES = [
-  'Zero-knowledge by design.',
-  'Built for AI agents.',
-  'Your keys, your rules.',
-  'Always encrypted.',
+const WELCOME_MESSAGE_KEYS = [
+  'auth.welcomeLine1',
+  'auth.welcomeLine2',
+  'auth.welcomeLine3',
+  'auth.welcomeLine4',
 ]
 
 function RotatingWelcome() {
+  const { t } = useTranslation()
   const [index, setIndex] = useState(0)
   const [visible, setVisible] = useState(true)
 
@@ -20,7 +21,7 @@ function RotatingWelcome() {
     const id = setInterval(() => {
       setVisible(false)
       setTimeout(() => {
-        setIndex((prev) => (prev + 1) % WELCOME_MESSAGES.length)
+        setIndex((prev) => (prev + 1) % WELCOME_MESSAGE_KEYS.length)
         setVisible(true)
       }, 350)
     }, 3800)
@@ -32,7 +33,7 @@ function RotatingWelcome() {
       className="mb-7 h-4 text-[12px] text-[#8A95A6] transition-opacity duration-300"
       style={{ opacity: visible ? 1 : 0 }}
     >
-      {WELCOME_MESSAGES[index]}
+      {t(WELCOME_MESSAGE_KEYS[index])}
     </p>
   )
 }
@@ -80,10 +81,10 @@ export function LoginPage() {
               type="button"
               onClick={() => googleLogin()}
               disabled={login.isPending}
-              className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232, 234, 237,0.06)]
-                bg-[rgba(232, 234, 237,0.04)] px-3.5 py-2.5 text-[13px] font-medium
+              className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232,234,237,0.06)]
+                bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-[13px] font-medium
                 text-[#E8EAED] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
-                transition-colors hover:bg-[rgba(232, 234, 237,0.08)]
+                transition-colors hover:bg-[rgba(232,234,237,0.08)]
                 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#4285F4] text-xs font-bold text-white">
@@ -101,8 +102,8 @@ export function LoginPage() {
                 disabled
                 onMouseEnter={() => setTooltipTarget('apple')}
                 onMouseLeave={() => setTooltipTarget(null)}
-                className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232, 234, 237,0.06)]
-                  bg-[rgba(232, 234, 237,0.04)] px-3.5 py-2.5 text-[13px] font-medium
+                className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232,234,237,0.06)]
+                  bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-[13px] font-medium
                   text-[#E8EAED] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
                   disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -121,8 +122,8 @@ export function LoginPage() {
                 disabled
                 onMouseEnter={() => setTooltipTarget('x')}
                 onMouseLeave={() => setTooltipTarget(null)}
-                className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232, 234, 237,0.06)]
-                  bg-[rgba(232, 234, 237,0.04)] px-3.5 py-2.5 text-[13px] font-medium
+                className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232,234,237,0.06)]
+                  bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-[13px] font-medium
                   text-[#E8EAED] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
                   disabled:cursor-not-allowed disabled:opacity-40"
               >

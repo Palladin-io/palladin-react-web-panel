@@ -31,7 +31,7 @@ export function RecoveryShell({ title, subtitle, children, onBack }: RecoveryShe
             onClick={onBack}
             aria-label={t('common.back')}
             className="mb-4 flex h-8 w-8 items-center justify-center rounded-full
-              text-[#B8C5D4] transition-colors hover:bg-[rgba(232, 234, 237,0.08)] hover:text-[#E8EAED]"
+              text-[#B8C5D4] transition-colors hover:bg-[rgba(232,234,237,0.08)] hover:text-[#E8EAED]"
           >
             <ChevronLeft size={20} />
           </button>

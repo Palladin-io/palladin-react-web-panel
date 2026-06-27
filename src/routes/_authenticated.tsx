@@ -327,7 +327,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             type="button"
             onClick={() => setLangOpen((o) => !o)}
             className="flex h-6 items-center gap-1 rounded px-1.5 text-[11px]
-              transition-colors hover:bg-[rgba(232, 234, 237,0.06)]"
+              transition-colors hover:bg-[rgba(232,234,237,0.06)]"
             style={{ color: mutedColor }}
             title={t('nav.languageMenu')}
           >
@@ -380,7 +380,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             type="button"
             onClick={toggleTheme}
             className="flex h-6 w-6 items-center justify-center rounded
-              transition-colors hover:bg-[rgba(232, 234, 237,0.06)]"
+              transition-colors hover:bg-[rgba(232,234,237,0.06)]"
             style={{ color: mutedColor }}
             title={theme === 'dark' ? t('nav.themeSwitchToLight') : t('nav.themeSwitchToDark')}
           >
@@ -396,7 +396,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
               onClick={() => void webPush.requestPermissionAndRegister()}
               disabled={webPush.status === 'denied'}
               className="flex h-6 w-6 items-center justify-center rounded
-                transition-colors hover:bg-[rgba(232, 234, 237,0.06)]
+                transition-colors hover:bg-[rgba(232,234,237,0.06)]
                 disabled:cursor-not-allowed disabled:opacity-40"
               style={{ color: mutedColor }}
               title={

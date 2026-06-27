@@ -37,7 +37,7 @@ export function OnboardingShell({
               type="button"
               onClick={onBack}
               className="absolute left-0 flex h-7 w-7 items-center justify-center rounded-full
-                text-[#B8C5D4] transition-colors hover:bg-[rgba(232, 234, 237,0.08)] hover:text-[#E8EAED]"
+                text-[#B8C5D4] transition-colors hover:bg-[rgba(232,234,237,0.08)] hover:text-[#E8EAED]"
               aria-label="Go back"
             >
               <ChevronLeft size={20} />

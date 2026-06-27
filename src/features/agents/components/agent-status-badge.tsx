@@ -13,7 +13,7 @@ export function AgentStatusBadge({ status }: { status: AgentStatus }) {
   const config: Record<AgentStatus, { label: string; className: string }> = {
     [AGENT_STATUS_ACTIVE]: {
       label: t('agents.statusActive'),
-      className: 'bg-[rgba(16, 185, 129,0.1)] text-[#10B981]',
+      className: 'bg-[rgba(16,185,129,0.1)] text-[#10B981]',
     },
     [AGENT_STATUS_PENDING]: {
       label: t('agents.statusPending'),

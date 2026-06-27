@@ -1,7 +1,9 @@
 {
   "auth.appName": "Palladin",
-  "auth.taglineFirstLine": "Zero-Knowledge Password Manager",
-  "auth.taglineForAiAgents": "for AI Agents",
+  "auth.welcomeLine1": "Zero-knowledge by design.",
+  "auth.welcomeLine2": "Built for AI agents.",
+  "auth.welcomeLine3": "Your keys, your rules.",
+  "auth.welcomeLine4": "Always encrypted.",
   "auth.signingIn": "Signing in...",
   "auth.continueWithGoogle": "Continue with Google",
   "auth.continueWithApple": "Continue with Apple",

@@ -344,7 +344,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
         <div
           className="flex items-center gap-2 rounded-lg border
-            border-[rgba(16, 185, 129,0.25)] bg-[rgba(16, 185, 129,0.08)] px-3 py-2"
+            border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.08)] px-3 py-2"
         >
           <Icon name="enhanced_encryption" size={14} className="shrink-0" color="#10B981" />
           <span className="text-[11px] text-[var(--cv-t2)]">

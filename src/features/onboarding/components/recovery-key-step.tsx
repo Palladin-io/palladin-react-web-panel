@@ -52,12 +52,12 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
       onBack={onBack}
     >
       <div className="flex flex-col gap-3">
-        <div className="rounded-lg border border-[rgba(232, 234, 237,0.06)] bg-[rgba(232, 234, 237,0.04)] p-3">
+        <div className="rounded-lg border border-[rgba(232,234,237,0.06)] bg-[rgba(232,234,237,0.04)] p-3">
           <ol className="grid grid-cols-4 gap-2 text-xs text-[#E8EAED]">
             {mnemonic.map((word, index) => (
               <li
                 key={index}
-                className="flex items-center gap-1 rounded bg-[rgba(232, 234, 237,0.04)] px-2 py-1.5"
+                className="flex items-center gap-1 rounded bg-[rgba(232,234,237,0.04)] px-2 py-1.5"
               >
                 <span className="text-[10px] text-[#6B7A8E]">{index + 1}</span>
                 <span className="font-mono">{word}</span>
@@ -81,8 +81,8 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
             type="button"
             onClick={handleCopy}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg
-              border border-[rgba(232, 234, 237,0.1)] bg-transparent px-3 py-2 text-xs
-              font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232, 234, 237,0.04)]"
+              border border-[rgba(232,234,237,0.1)] bg-transparent px-3 py-2 text-xs
+              font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.04)]"
           >
             {copied ? <Check size={14} /> : <Copy size={14} />}
             {copied ? t('onboarding.copied') : t('onboarding.copyToClipboard')}
@@ -91,8 +91,8 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
             type="button"
             onClick={handleExport}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg
-              border border-[rgba(232, 234, 237,0.1)] bg-transparent px-3 py-2 text-xs
-              font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232, 234, 237,0.04)]"
+              border border-[rgba(232,234,237,0.1)] bg-transparent px-3 py-2 text-xs
+              font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.04)]"
           >
             <Download size={14} />
             {t('onboarding.exportAsTxt')}
