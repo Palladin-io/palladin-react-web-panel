@@ -1,6 +1,7 @@
 import { Trans } from 'react-i18next'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
+import { Icon } from '../../shared/components/icon'
 import i18n from '../../shared/lib/i18n'
 import type { NotificationPayload } from './notification-types'
 
@@ -34,22 +35,24 @@ export function showNotificationToast(
   // server-supplied title.
   if (type === 'agent_resolved' || type === 'agent_approved' || type === 'agent_deactivated') return
 
-  // The "Open" action lives in a footer rendered as REAL toast content (not
-  // Sonner's `action` button) — so the toast measures its full height and the
-  // body is never clipped. The footer styling is in index.css (`cv-toast-*`).
-  const footer = onOpen ? (
-    <span className="cv-toast-footer">
-      <button type="button" className="cv-toast-action" onClick={onOpen}>
-        {i18n.t('notifications.toast.open')}
-      </button>
-    </span>
+  // The "Open" action is a small icon button in the toast's top-right corner
+  // (rendered as real toast content). Styling in index.css (`cv-toast-*`).
+  const openBtn = onOpen ? (
+    <button
+      type="button"
+      className="cv-toast-open"
+      onClick={onOpen}
+      aria-label={i18n.t('notifications.toast.open')}
+    >
+      <Icon name="open_in_new" size={15} />
+    </button>
   ) : null
   const opts = (description: ReactNode) => ({
     description: (
-      <>
+      <span className="cv-toast-wrap">
+        {openBtn}
         {withDivider(description)}
-        {footer}
-      </>
+      </span>
     ),
     ...(durationMs !== undefined ? { duration: durationMs } : {}),
   })

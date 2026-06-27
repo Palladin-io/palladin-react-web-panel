@@ -202,7 +202,6 @@ button,
 /* Sonner forces padding:16px + border-radius:8px on the toast (our overrides for
    those don't win), so all the footer/line bleeds are computed against 16/8. */
 [data-sonner-toast].cv-toast {
-  position: relative;
   --cv-toast-accent: var(--cv-divider);
   background: linear-gradient(160deg, #ffffff 0%, #eef1f5 100%);
   color: var(--cv-t1);
@@ -261,41 +260,30 @@ button,
   background: var(--cv-toast-accent);
 }
 
-/* Action footer — a REAL element inside the toast body (Sonner measures the full
-   height; no clipping). Bleeds precisely to the toast's inner edges (-40 left /
-   -14 right / -13 bottom) and rounds its bottom corners to match the toast. */
-.cv-toast-footer {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  margin: 12px -16px -16px -37px;
-  padding: 8px 16px;
-  background: #e8ebf0;
-  border-top: 1px solid #d7dbe3;
-  border-radius: 0 0 7px 7px;
+/* The "Open" action is a small icon button docked in the toast's top-right
+   corner, next to the body. Positioned against the body wrapper (raised up to
+   sit on the title row). */
+.cv-toast-wrap {
+  position: relative;
+  display: block;
 }
-.dark .cv-toast-footer {
-  background: #20242c;
-  border-top-color: #2e333c;
-}
-
-/* Small action button — the app's subtle button (same as everywhere). */
-/* Matches the app's subtle Button (h-7, rounded-lg, 11px semibold). */
-.cv-toast-action {
+.cv-toast-open {
+  position: absolute;
+  top: -24px;
+  right: 0;
   display: inline-flex;
   align-items: center;
-  height: 26px;
-  padding: 0 14px;
-  border-radius: 8px;
-  background: var(--cv-btn-subtle-bg);
-  color: var(--cv-btn-subtle-text);
-  border: 1px solid var(--cv-btn-subtle-border);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: transparent;
+  border: none;
+  color: var(--cv-t3);
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
-.cv-toast-action:hover {
-  background: var(--cv-btn-subtle-hover);
+.cv-toast-open:hover {
+  background: var(--cv-btn-subtle-bg);
+  color: var(--cv-t1);
 }

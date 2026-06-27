@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
+import { Icon } from '../../shared/components/icon'
 import { useThemeStore } from '../../shared/stores/theme-store'
 import { showNotificationToast } from '../notifications/notification-toast'
 import type { NotificationPayload } from '../notifications/notification-types'
@@ -49,14 +50,13 @@ const BASE: { label: string; fire: () => void }[] = [
   {
     label: 'success + action',
     fire: () =>
-      // Footer rendered as the description (a real element) — the same trick the
-      // notification toasts use, so it never clips and matches their footer.
       toast.success('Vault created', {
         description: (
-          <span className="cv-toast-footer">
-            <button type="button" className="cv-toast-action" onClick={noop}>
-              Open
+          <span className="cv-toast-wrap">
+            <button type="button" className="cv-toast-open" onClick={noop} aria-label="Open">
+              <Icon name="open_in_new" size={15} />
             </button>
+            Production vault is ready.
           </span>
         ),
         duration: KEEP,
