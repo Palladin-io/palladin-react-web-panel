@@ -10,7 +10,7 @@ export {
   AGENT_STATUS_PENDING,
 } from './api/agents-api'
 export { getAgent, getAgents, agentSchema } from './api/agents-api'
-export { useAgents, AGENTS_QUERY_KEY } from './use-agents'
+export { useAgents, useAgentNames, AGENTS_QUERY_KEY } from './use-agents'
 // Promoted for the API Keys → Agents tab: the tab reuses the agent card and the
 // agent schema to list the agents that authenticated with a given key.
 export { AgentCard } from './components/agent-card'

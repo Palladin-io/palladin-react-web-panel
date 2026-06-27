@@ -28,4 +28,8 @@ export type { PendingGrant } from './api/pending-grants-api'
 // date/relative-time formatters and the org-grant type + granular discriminant.
 export { formatGrantDate, formatRelativeTime } from './components/grant-format'
 export type { OrgGrant } from './api/org-grants-api'
-export { GRANT_TYPE_GRANULAR } from './api/org-grants-api'
+export { GRANT_TYPE_GRANULAR, GRANT_STATUS_ACTIVE } from './api/org-grants-api'
+// Promoted for the Entry Detail · Agents tab (CVT-127): the header needs the
+// active-agent count, computed from the same (deduped) org-grants query the
+// embedded panel already runs.
+export { useOrgGrants } from './use-org-grants'

@@ -12,9 +12,17 @@ import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
 import { wipe } from '../../shared/crypto/sodium'
 import { unsealVaultKey } from '../../shared/crypto/vault-key'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
+import { analytics } from '../../shared/lib/analytics'
+import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
 import { useAuthStore } from '../auth'
-import { GrantAccessDialog, OrgGrantsPanel } from '../grants'
+import {
+  GRANT_STATUS_ACTIVE,
+  GrantAccessDialog,
+  OrgGrantsPanel,
+  useOrgGrants,
+} from '../grants'
 import { EntryIconPicker } from './components/entry-icon-picker'
+import { EntryLogsTab } from './components/entry-logs-tab'
 import {
   ENTRY_ICON_COLORS,
   extractDomain,
@@ -157,15 +165,44 @@ function DetailBody({
 }: DetailBodyProps) {
   const { t } = useTranslation()
 
+  // Active-agent count for the header. Reuses the same (deduped) org-grants query
+  // the embedded Agents-tab panel runs, gated on GrantManage so users without it
+  // never trigger a 403; the count falls back to 0 until/unless it loads.
+  const permissions = useAuthStore((s) => s.permissions)
+  const canManageGrants = (permissions & PERMISSION_GRANT_MANAGE) !== 0
+  const grants = useOrgGrants({ entryId: entry.id }, canManageGrants)
+  const agentCount = useMemo(() => {
+    const ids = new Set<string>()
+    for (const g of grants.data?.items ?? []) {
+      if (g.status === GRANT_STATUS_ACTIVE && g.agentId) ids.add(g.agentId)
+    }
+    return ids.size
+  }, [grants.data])
+
   const subtitle = [
-    t('vault.entry.detail.subtitleAgents', { count: 0 }),
+    t('vault.entry.detail.subtitleAgents', { count: agentCount }),
     t('vault.entry.detail.subtitleLogs', { count: entry.accessCount }),
   ].join(' · ')
 
+  const handleTabChange = (next: EntryDetailTab) => {
+    if (next !== activeTab) {
+      analytics.capture('entry', 'detail-tab-switched', {
+        type: entry.type === ENTRY_TYPE_KEY ? 'key' : 'credential',
+        tab: next,
+      })
+    }
+    onTabChange(next)
+  }
+
   const agentAction = (
-    <Button variant="accent" size="sm" icon="add" onClick={onAddAgent}>
-      {t('vault.detail.addAgent')}
-    </Button>
+    <div className="flex items-center gap-2">
+      <span className="text-[11px] text-[var(--cv-t3)]">
+        {t('vault.entry.detail.agentsWithAccess', { count: agentCount })}
+      </span>
+      <Button variant="accent" size="sm" icon="add" onClick={onAddAgent}>
+        {t('vault.detail.addAgent')}
+      </Button>
+    </div>
   )
 
   return (
@@ -180,7 +217,7 @@ function DetailBody({
       )}
       <EntryDetailTabs
         active={activeTab}
-        onChange={onTabChange}
+        onChange={handleTabChange}
         wide={hideHeader}
         actions={hideHeader && activeTab === 'agents' ? agentAction : undefined}
       />
@@ -198,7 +235,7 @@ function DetailBody({
         <OrgGrantsPanel entryId={entry.id} />
       ) : null}
       {activeTab === 'logs' ? (
-        <EmptyMessage message={t('vault.entry.detail.logsComingSoon')} />
+        <EntryLogsTab vaultId={vault.id} entryId={entry.id} />
       ) : null}
     </>
   )
@@ -848,21 +885,6 @@ function DeleteEntryDialog({
         </div>
       </div>
     </ModalShell>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Small reusable bits
-// ---------------------------------------------------------------------------
-
-function EmptyMessage({ message }: { message: string }) {
-  return (
-    <div
-      className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-        bg-[var(--cv-empty-bg)] p-8 text-center text-sm text-[var(--cv-t3)]"
-    >
-      {message}
-    </div>
   )
 }
 
