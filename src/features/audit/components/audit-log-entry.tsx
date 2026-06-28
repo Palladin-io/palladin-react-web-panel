@@ -1,3 +1,4 @@
+import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Icon } from '../../../shared/components/icon'
@@ -8,8 +9,12 @@ export interface AuditLogEntryProps {
   item: AuditLogItem
   /** Agent display name resolved by the caller (backend audit rows carry only the id). */
   agentName?: string
+  /** Vault display name resolved by the caller — drives the vault chip. */
+  vaultName?: string
   /** Show the entry chip — off on the Entry Logs tab where the entry is fixed. */
   showEntry?: boolean
+  /** Show the vault chip — on only in the global log; off where the vault is implicit. */
+  showVault?: boolean
   /** Hairline divider above the row (every row except the first in a list). */
   withDivider?: boolean
 }
@@ -24,33 +29,53 @@ export interface AuditLogEntryProps {
 export function AuditLogEntry({
   item,
   agentName,
+  vaultName,
   showEntry = true,
+  showVault = false,
   withDivider = false,
 }: AuditLogEntryProps) {
   const { t } = useTranslation()
   const cfg = auditEventConfig(item.eventType)
-  const name = agentName ?? item.agentName ?? t('audit.unknownAgent')
-  const entry = item.entryLabel ?? t('audit.unknownEntry')
+  const agent = agentName ?? item.agentName ?? t('audit.unknownAgent')
+  // Sentence slots. Names are never a raw id/public key — they fall back to a
+  // localised "unknown"/"unnamed". `agent` is the caller-resolved agent (its own
+  // action for grant/credential, the target for agent lifecycle); `object` is
+  // the named resource the action targets (vault/entry/org/api-key).
+  //
+  // `actor` (the WHO) is resolved by `actorType`: agent-initiated events use the
+  // agent's name; user/system events use `actorName` and NEVER fall back to
+  // `agentName` — otherwise "{actor} blocked agent {agent}" would render the
+  // blocked agent as its own blocker ("Claude blocked agent Claude").
+  const slots: SentenceSlots = {
+    agent,
+    actor:
+      item.actorType === 'agent' ? agent : item.actorName ?? t('audit.unknownUser'),
+    entry: item.entryLabel ?? t('audit.unknownEntry'),
+    object: resolveObject(item, t),
+  }
 
-  const primary = buildPrimary(item.eventType, t, name, entry)
-  const chips = buildChips(item, t, cfg.labelKey, cfg.color, cfg.bg, cfg.border, showEntry)
+  const primary = buildPrimary(item.eventType, t, slots)
+  const chips = buildChips(item, t, cfg.labelKey, cfg.color, cfg.bg, cfg.border, {
+    showEntry,
+    vaultName: showVault ? vaultName : undefined,
+  })
 
   return (
     <div
-      className={`flex gap-2.5 px-4 py-3.5 ${
+      className={`flex items-center gap-2.5 px-4 py-3.5 ${
         withDivider ? 'border-t border-[var(--cv-divider)]' : ''
       }`}
       style={{ borderLeft: `3px solid ${cfg.color}` }}
     >
       <div
-        className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
         style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
       >
         <Icon name={cfg.icon} size={16} style={{ color: cfg.color }} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-2 flex items-start justify-between gap-2">
-          <p className="min-w-0 text-[12px] font-semibold leading-snug text-[var(--cv-t1)]">
+          <p className="min-w-0 text-[12px] font-normal leading-snug text-[var(--cv-t2)]">
             {primary}
           </p>
           <time
@@ -86,13 +111,21 @@ interface Chip {
   border: string
 }
 
-// Only the chip styles actually emitted by `buildChips` are kept here — the
-// brand red lives solely in the `--cv-primary` token, so any future denial chip
-// must use `rgb(var(--cv-primary-rgb) / …)`, never a hardcoded hex.
+// Chip styles emitted by `buildChips`. Colours come from CSS tokens (matching
+// the audit `tone()` palette): `blue` = `--cv-info`, `gray` = `--cv-neutral`.
+// `indigo` has no semantic token (entry-only accent) so it stays a literal.
 const CHIP_STYLES = {
   indigo: { color: '#818CF8', bg: 'rgba(129,140,248,0.10)', border: 'rgba(129,140,248,0.20)' },
-  blue: { color: '#60A5FA', bg: 'rgba(96,165,250,0.10)', border: 'rgba(96,165,250,0.20)' },
-  gray: { color: '#8A95A6', bg: 'rgba(138,149,166,0.08)', border: 'rgba(138,149,166,0.18)' },
+  blue: {
+    color: 'var(--cv-info)',
+    bg: 'rgb(var(--cv-info-rgb) / 0.10)',
+    border: 'rgb(var(--cv-info-rgb) / 0.20)',
+  },
+  gray: {
+    color: 'var(--cv-neutral)',
+    bg: 'rgb(var(--cv-neutral-rgb) / 0.08)',
+    border: 'rgb(var(--cv-neutral-rgb) / 0.18)',
+  },
 } as const
 
 function buildChips(
@@ -102,14 +135,20 @@ function buildChips(
   typeColor: string,
   typeBg: string,
   typeBorder: string,
-  showEntry: boolean,
+  options: { showEntry: boolean; vaultName?: string },
 ): Chip[] {
   const chips: Chip[] = [
     { text: t(typeLabelKey), color: typeColor, bg: typeBg, border: typeBorder },
   ]
 
-  if (showEntry && item.entryLabel) {
+  if (options.showEntry && item.entryLabel) {
     chips.push({ icon: 'article', text: item.entryLabel, ...CHIP_STYLES.indigo })
+  }
+
+  // Vault chip — only in the global log, where rows span vaults; resolved name
+  // passed by the caller, skipped when unknown (never a raw id).
+  if (options.vaultName && item.vaultId) {
+    chips.push({ icon: 'shield', text: options.vaultName, ...CHIP_STYLES.blue })
   }
 
   const grantType = item.metadata.grantType?.toLowerCase()
@@ -133,14 +172,69 @@ function buildChips(
   return chips
 }
 
+interface SentenceSlots {
+  /** Who performed the action (human, or the agent for agent-initiated events). */
+  actor: string
+  /** The agent involved — its own action (grant/credential) or the target (lifecycle). */
+  agent: string
+  /** Entry label (grant/credential sentences). */
+  entry: string
+  /** Named resource the action targets: vault / entry / org / api-key. */
+  object: string
+}
+
+/** Resolve the "what" of an event to a display name, never an id. Backend
+ *  denormalises: entry → `entryLabel`, vault/org → `metadata.name`,
+ *  api-key → `metadata.keyName`; otherwise a localised "unnamed". */
+function resolveObject(item: AuditLogItem, t: TFunction): string {
+  return (
+    item.entryLabel ??
+    item.metadata.name ??
+    item.metadata.keyName ??
+    t('audit.object.unnamed')
+  )
+}
+
+// Private-use sentinels injected in place of the interpolation values, so the
+// translated sentence can be split back into text + name segments without
+// re-parsing the i18n template — the names render bold, the rest stays normal.
+const ACTOR_TOKEN = String.fromCharCode(0xe000)
+const AGENT_TOKEN = String.fromCharCode(0xe001)
+const ENTRY_TOKEN = String.fromCharCode(0xe002)
+const OBJECT_TOKEN = String.fromCharCode(0xe003)
+const TOKEN_SPLITTER = new RegExp(
+  `([${ACTOR_TOKEN}${AGENT_TOKEN}${ENTRY_TOKEN}${OBJECT_TOKEN}])`,
+)
+
 function buildPrimary(
   eventType: string,
   t: TFunction,
-  agent: string,
-  entry: string,
-): string {
+  slots: SentenceSlots,
+): ReactNode {
   const key = `audit.sentence.${SENTENCE_KEY[eventType] ?? 'unknown'}`
-  return t(key, { agent, entry, defaultValue: t(auditEventConfig(eventType).labelKey) })
+  const template = t(key, {
+    actor: ACTOR_TOKEN,
+    agent: AGENT_TOKEN,
+    entry: ENTRY_TOKEN,
+    object: OBJECT_TOKEN,
+    defaultValue: t(auditEventConfig(eventType).labelKey),
+  })
+  const byToken: Record<string, string> = {
+    [ACTOR_TOKEN]: slots.actor,
+    [AGENT_TOKEN]: slots.agent,
+    [ENTRY_TOKEN]: slots.entry,
+    [OBJECT_TOKEN]: slots.object,
+  }
+  return template.split(TOKEN_SPLITTER).map((part, i) => {
+    if (part in byToken) return <Name key={i}>{byToken[part]}</Name>
+    if (!part) return null
+    return <Fragment key={i}>{part}</Fragment>
+  })
+}
+
+/** Bold, high-contrast emphasis for the actor/asset names inside a sentence. */
+function Name({ children }: { children: ReactNode }) {
+  return <span className="font-semibold text-[var(--cv-t1)]">{children}</span>
 }
 
 /** Maps a dotted event type to the camelCase suffix of its sentence i18n key. */
@@ -164,6 +258,15 @@ const SENTENCE_KEY: Record<string, string> = {
   'entry.created': 'entryCreated',
   'entry.updated': 'entryUpdated',
   'entry.deleted': 'entryDeleted',
+  'apikey.created': 'apikeyCreated',
+  'apikey.activated': 'apikeyActivated',
+  'apikey.revoked': 'apikeyRevoked',
+  'apikey.deleted': 'apikeyDeleted',
+  'org.created': 'orgCreated',
+  'org.updated': 'orgUpdated',
+  'user.signed-up': 'userSignedUp',
+  'account.setup-completed': 'accountSetupCompleted',
+  'account.recovery-completed': 'accountRecoveryCompleted',
 }
 
 function formatAuditTime(iso: string): string {

@@ -26,6 +26,15 @@ export const AUDIT_EVENT_TYPES = [
   'entry.created',
   'entry.updated',
   'entry.deleted',
+  'apikey.created',
+  'apikey.activated',
+  'apikey.revoked',
+  'apikey.deleted',
+  'org.created',
+  'org.updated',
+  'user.signed-up',
+  'account.setup-completed',
+  'account.recovery-completed',
 ] as const
 
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number]
@@ -69,9 +78,40 @@ const auditLogPageSchema = z.object({
 })
 
 export interface GetVaultAuditLogsParams {
-  /** Comma-joined event types — backend `actions` filter. */
+  /** Comma-joined event types — backend `actions` filter (`IN`). */
   actions?: string
+  /** Comma-joined agent ids (`IN`). */
   agentId?: string
+  /** Comma-joined acting-user ids (human actors, `IN`). */
+  userId?: string
+  entryId?: string
+  /** Inclusive lower bound (`YYYY-MM-DD` or ISO instant). */
+  from?: string
+  /** Inclusive upper bound (`YYYY-MM-DD` or ISO instant). */
+  to?: string
+  cursor?: string
+  pageSize?: number
+}
+
+/**
+ * Org-scoped audit log filters (`GET /api/audit-logs`). The vault is itself a
+ * filter dimension here (`vaultId`). The multi-value filters (`vaultId`,
+ * `agentId`, `userId`, `eventType`) are comma-joined CSV strings the backend
+ * reads as an `IN (...)` filter — built from the UI multi-selects via
+ * `csvParam`. Empty selection → omit the param.
+ */
+export interface GetOrgAuditLogsParams {
+  /** Comma-joined vault ids (`IN`). */
+  vaultId?: string
+  /** Comma-joined agent ids (`IN`). */
+  agentId?: string
+  /** Comma-joined acting-user ids (human actors, `IN`). */
+  userId?: string
+  entryId?: string
+  /** Comma-joined event types (`IN`). */
+  eventType?: string
+  from?: string
+  to?: string
   cursor?: string
   pageSize?: number
 }
@@ -81,28 +121,9 @@ export interface AuditLogPage {
   nextCursor: string | null
 }
 
-/**
- * Vault-scoped audit log, newest-first. Each item is parsed individually with
- * `safeParse` so one malformed row never collapses the whole list.
- *
- * NOTE: the backend exposes no entry-level filter, so the Entry Logs tab fetches
- * the vault log and narrows to a single entry client-side.
- */
-export async function getVaultAuditLogs(
-  vaultId: string,
-  params: GetVaultAuditLogsParams = {},
-): Promise<AuditLogPage> {
-  const searchParams = new URLSearchParams()
-  if (params.actions) searchParams.set('actions', params.actions)
-  if (params.agentId) searchParams.set('agentId', params.agentId)
-  if (params.cursor) searchParams.set('cursor', params.cursor)
-  if (params.pageSize) searchParams.set('pageSize', String(params.pageSize))
-
-  const raw = await api
-    .get(`api/vaults/${vaultId}/audit-logs`, { searchParams })
-    .json()
+/** Parse a raw page, dropping malformed rows so one bad item never blanks the list. */
+function parseAuditLogPage(raw: unknown): AuditLogPage {
   const page = auditLogPageSchema.parse(raw)
-
   const items: AuditLogItem[] = []
   let skipped = 0
   for (const item of page.items) {
@@ -114,4 +135,50 @@ export async function getVaultAuditLogs(
     console.warn(`[audit-logs] skipped ${skipped} malformed item(s)`)
   }
   return { items, nextCursor: page.nextCursor ?? null }
+}
+
+/**
+ * Vault-scoped audit log, newest-first. Each item is parsed individually with
+ * `safeParse` so one malformed row never collapses the whole list.
+ */
+export async function getVaultAuditLogs(
+  vaultId: string,
+  params: GetVaultAuditLogsParams = {},
+): Promise<AuditLogPage> {
+  const searchParams = new URLSearchParams()
+  if (params.actions) searchParams.set('actions', params.actions)
+  if (params.agentId) searchParams.set('agentId', params.agentId)
+  if (params.userId) searchParams.set('userId', params.userId)
+  if (params.entryId) searchParams.set('entryId', params.entryId)
+  if (params.from) searchParams.set('from', params.from)
+  if (params.to) searchParams.set('to', params.to)
+  if (params.cursor) searchParams.set('cursor', params.cursor)
+  if (params.pageSize) searchParams.set('pageSize', String(params.pageSize))
+
+  const raw = await api
+    .get(`api/vaults/${vaultId}/audit-logs`, { searchParams })
+    .json()
+  return parseAuditLogPage(raw)
+}
+
+/**
+ * Org-wide audit log, newest-first — backs the global Audit Log screen.
+ * Same row shape and parsing guarantees as the vault-scoped endpoint.
+ */
+export async function getOrgAuditLogs(
+  params: GetOrgAuditLogsParams = {},
+): Promise<AuditLogPage> {
+  const searchParams = new URLSearchParams()
+  if (params.vaultId) searchParams.set('vaultId', params.vaultId)
+  if (params.agentId) searchParams.set('agentId', params.agentId)
+  if (params.userId) searchParams.set('userId', params.userId)
+  if (params.entryId) searchParams.set('entryId', params.entryId)
+  if (params.eventType) searchParams.set('eventType', params.eventType)
+  if (params.from) searchParams.set('from', params.from)
+  if (params.to) searchParams.set('to', params.to)
+  if (params.cursor) searchParams.set('cursor', params.cursor)
+  if (params.pageSize) searchParams.set('pageSize', String(params.pageSize))
+
+  const raw = await api.get('api/audit-logs', { searchParams }).json()
+  return parseAuditLogPage(raw)
 }

@@ -34,6 +34,16 @@
   --cv-primary: #EB4747;
   --cv-primary-hover: #D43E3E;
   --cv-primary-rgb: 235 71 71;
+  /* Semantic accents (shared with mobile AppColors) — success = #10B981. */
+  --cv-success: #10B981;
+  --cv-success-rgb: 16 185 129;
+  --cv-info: #60A5FA;
+  --cv-info-rgb: 96 165 250;
+  --cv-neutral: #8A95A6;
+  --cv-neutral-rgb: 138 149 166;
+  /* Pending / awaiting human action (peach) — mirrors mobile AppColors. */
+  --cv-pending: #FFAB87;
+  --cv-pending-rgb: 255 171 135;
   --cv-list-item-hover: rgba(12, 14, 18, 0.06);
 }
 
@@ -69,6 +79,16 @@
   --cv-primary: #EB4747;
   --cv-primary-hover: #D43E3E;
   --cv-primary-rgb: 235 71 71;
+  /* Semantic accents (shared with mobile AppColors) — success = #10B981. */
+  --cv-success: #10B981;
+  --cv-success-rgb: 16 185 129;
+  --cv-info: #60A5FA;
+  --cv-info-rgb: 96 165 250;
+  --cv-neutral: #8A95A6;
+  --cv-neutral-rgb: 138 149 166;
+  /* Pending / awaiting human action (peach) — mirrors mobile AppColors. */
+  --cv-pending: #FFAB87;
+  --cv-pending-rgb: 255 171 135;
   --cv-list-item-hover: rgba(232, 234, 237, 0.18);
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
+import { TypeFilterDropdown } from '../../shared/components/type-filter-dropdown'
 import {
   ApproveGrantDialog,
   DenyGrantDialog,
@@ -132,6 +133,14 @@ export function NotificationCenterPage() {
   const filteredHistory = useMemo(
     () => filterItems(historyItems, query, typeFilter),
     [historyItems, query, typeFilter],
+  )
+  const typeFilterOptions = useMemo(
+    () =>
+      FILTERABLE_TYPES.map((type) => ({
+        value: type,
+        label: t(`notifications.center.filterType.${type}`),
+      })),
+    [t],
   )
 
   // The Grants tab swaps the immutable inbox feed for the live org-wide grants
@@ -295,7 +304,13 @@ export function NotificationCenterPage() {
               className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
             />
           </div>
-          <TypeFilterDropdown selected={typeFilter} onChange={setTypeFilter} />
+          <TypeFilterDropdown
+            options={typeFilterOptions}
+            selected={typeFilter}
+            onChange={setTypeFilter}
+            placeholder={t('notifications.center.filterType')}
+            ariaLabel={t('notifications.center.filterType')}
+          />
         </div>
       )}
 
@@ -654,105 +669,6 @@ const FILTERABLE_TYPES = [
   'grant_revoked',
   'agent_approved',
 ] as const
-
-/**
- * Multi-select type filter — same pattern as org-grants `StatusFilterDropdown`:
- * a `filter_list` button + a checkbox list, multi-select, with a "clear" row.
- * Filters the feed by notification `type`.
- */
-function TypeFilterDropdown({
-  selected,
-  onChange,
-}: {
-  selected: Set<string>
-  onChange: (next: Set<string>) => void
-}) {
-  const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
-
-  function toggle(type: string) {
-    const next = new Set(selected)
-    if (next.has(type)) next.delete(type)
-    else next.add(type)
-    onChange(next)
-  }
-
-  const label =
-    selected.size === 0
-      ? t('notifications.center.filterType')
-      : t('notifications.center.filterTypeCount', { count: selected.size })
-
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex h-full items-center gap-1.5 rounded-lg border border-[var(--cv-input-border)]
-          bg-[var(--cv-input-bg)] px-3 text-[12px] text-[var(--cv-t2)]
-          transition-colors hover:border-[var(--cv-t1)]"
-      >
-        <Icon name="filter_list" size={15} />
-        <span className="whitespace-nowrap">{label}</span>
-        <Icon name={open ? 'expand_less' : 'expand_more'} size={15} />
-      </button>
-
-      {open && (
-        <div
-          className="absolute right-0 z-20 mt-1 w-52 overflow-hidden rounded-lg border
-            border-[var(--cv-border)] bg-[var(--cv-modal-bg)] py-1 shadow-xl"
-          role="listbox"
-          aria-multiselectable
-        >
-          {FILTERABLE_TYPES.map((type) => {
-            const checked = selected.has(type)
-            return (
-              <button
-                key={type}
-                type="button"
-                role="option"
-                aria-selected={checked}
-                onClick={() => toggle(type)}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px]
-                  text-[var(--cv-t1)] transition-colors hover:bg-[var(--cv-bg-subtle)]"
-              >
-                <span
-                  className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border"
-                  style={{
-                    borderColor: checked ? 'var(--cv-primary)' : 'var(--cv-input-border)',
-                    background: checked ? 'var(--cv-primary)' : 'transparent',
-                  }}
-                >
-                  {checked && <Icon name="check" size={11} color="#fff" />}
-                </span>
-                {t(`notifications.center.filterType.${type}`)}
-              </button>
-            )
-          })}
-          {selected.size > 0 && (
-            <button
-              type="button"
-              onClick={() => onChange(new Set())}
-              className="mt-1 w-full border-t border-[var(--cv-divider)] px-3 py-1.5
-                text-left text-[11px] text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
-            >
-              {t('notifications.center.filterClear')}
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
 
 /**
  * Segment switcher — accent-underline active tab matching the app's tab idiom

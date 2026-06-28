@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -6,6 +6,7 @@ import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import { Tooltip } from '../../../shared/components/tooltip'
+import { TypeFilterDropdown } from '../../../shared/components/type-filter-dropdown'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_GRANT_MANAGE } from '../../../shared/lib/permissions'
 import { AgentAvatar } from '../../agents/components/agent-avatar'
@@ -74,6 +75,12 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
   const { t } = useTranslation()
   const [statusFilter, setStatusFilter] = useState<Set<GrantStatus>>(new Set())
   const [search, setSearch] = useState('')
+
+  const statusOptions = useMemo(
+    () =>
+      PANEL_STATUSES.map((s) => ({ value: s, label: t(grantStatusPresentation(s).labelKey) })),
+    [t],
+  )
 
   // Embedded = scoped to a single agent/vault/entry; the surrounding tab names
   // the section so the panel header is hidden.
@@ -185,7 +192,20 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
               placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
           />
         </div>
-        <StatusFilterDropdown selected={statusFilter} onChange={setStatusFilter} />
+        <TypeFilterDropdown
+          options={statusOptions}
+          selected={statusFilter as Set<string>}
+          onChange={(next) => setStatusFilter(next as Set<GrantStatus>)}
+          placeholder={t('grants.org.filterStatus')}
+          ariaLabel={t('grants.org.filterStatus')}
+          optionPrefix={(value) => (
+            <span
+              aria-hidden
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ background: grantStatusPresentation(value as GrantStatus).color }}
+            />
+          )}
+        />
       </div>
 
       {!canManage ? (
@@ -274,103 +294,6 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
         />
       )}
     </>
-  )
-}
-
-/** Multi-select status dropdown (sits to the right of the search bar). */
-function StatusFilterDropdown({
-  selected,
-  onChange,
-}: {
-  selected: Set<GrantStatus>
-  onChange: (next: Set<GrantStatus>) => void
-}) {
-  const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
-
-  function toggle(status: GrantStatus) {
-    const next = new Set(selected)
-    if (next.has(status)) next.delete(status)
-    else next.add(status)
-    onChange(next)
-  }
-
-  const label =
-    selected.size === 0
-      ? t('grants.org.filterStatus')
-      : t('grants.org.filterStatusCount', { count: selected.size })
-
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex h-full items-center gap-1.5 rounded-lg border border-[var(--cv-input-border)]
-          bg-[var(--cv-input-bg)] px-3 text-[12px] text-[var(--cv-t2)]
-          transition-colors hover:border-[var(--cv-t1)]"
-      >
-        <Icon name="filter_list" size={15} />
-        <span className="whitespace-nowrap">{label}</span>
-        <Icon name={open ? 'expand_less' : 'expand_more'} size={15} />
-      </button>
-
-      {open && (
-        <div
-          className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border
-            border-[var(--cv-border)] bg-[var(--cv-modal-bg)] py-1 shadow-xl"
-          role="listbox"
-          aria-multiselectable
-        >
-          {PANEL_STATUSES.map((s) => {
-            const checked = selected.has(s)
-            const presentation = grantStatusPresentation(s)
-            return (
-              <button
-                key={s}
-                type="button"
-                role="option"
-                aria-selected={checked}
-                onClick={() => toggle(s)}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px]
-                  text-[var(--cv-t1)] transition-colors hover:bg-[var(--cv-bg-subtle)]"
-              >
-                <span
-                  className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border"
-                  style={{
-                    borderColor: checked ? presentation.color : 'var(--cv-input-border)',
-                    background: checked ? presentation.color : 'transparent',
-                  }}
-                >
-                  {checked && <Icon name="check" size={11} color="#fff" />}
-                </span>
-                <span style={{ color: presentation.color }}>●</span>
-                {t(presentation.labelKey)}
-              </button>
-            )
-          })}
-          {selected.size > 0 && (
-            <button
-              type="button"
-              onClick={() => onChange(new Set())}
-              className="mt-1 w-full border-t border-[var(--cv-divider)] px-3 py-1.5
-                text-left text-[11px] text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
-            >
-              {t('grants.org.filterClear')}
-            </button>
-          )}
-        </div>
-      )}
-    </div>
   )
 }
 
