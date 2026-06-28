@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
+import { TypeFilterDropdown } from '../../../shared/components/type-filter-dropdown'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
 import { shortenKey } from '../../../shared/lib/shorten-key'
@@ -20,11 +21,6 @@ export interface EntryLogsTabProps {
   entryId: string
 }
 
-const SELECT_CLASS =
-  'h-8 rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] ' +
-  'px-2.5 text-[12px] text-[var(--cv-input-text)] focus:border-[var(--cv-t1)] ' +
-  'focus:outline-none transition-colors'
-
 /**
  * Entry Detail · Logs tab — the audit trail scoped to one entry. Read-only.
  *
@@ -41,8 +37,8 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
   const canView = (permissions & PERMISSION_AUDIT_VIEW) !== 0
 
   const [search, setSearch] = useState('')
-  const [agentId, setAgentId] = useState('')
-  const [eventType, setEventType] = useState('')
+  const [agentId, setAgentId] = useState<string[]>([])
+  const [eventType, setEventType] = useState<string[]>([])
 
   const agents = useAgentNames(canView)
   const logs = useVaultAuditLogs(vaultId, {}, canView)
@@ -71,8 +67,8 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
     () =>
       filterAuditLogs(allItems, {
         entryId,
-        agentId: agentId || undefined,
-        eventType: eventType || undefined,
+        agentId,
+        eventType,
         search,
         agentNameById,
       }),
@@ -85,9 +81,18 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
     for (const item of allItems) {
       if (item.entryId === entryId && item.agentId) ids.add(item.agentId)
     }
-    return [...ids].map((id) => ({ id, name: resolveAgentName(id) }))
+    return [...ids].map((id) => ({ value: id, label: resolveAgentName(id) }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allItems, entryId, agentNameById])
+
+  const eventOptions = useMemo(
+    () =>
+      ENTRY_RELEVANT_EVENT_TYPES.map((type) => ({
+        value: type,
+        label: t(auditEventConfig(type).labelKey),
+      })),
+    [t],
+  )
 
   return (
     <div className="min-w-0">
@@ -107,32 +112,22 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
               placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
           />
         </div>
-        <select
-          className={SELECT_CLASS}
-          value={agentId}
-          onChange={(e) => setAgentId(e.target.value)}
-          aria-label={t('audit.filterAgent')}
-        >
-          <option value="">{t('audit.allAgents')}</option>
-          {agentOptions.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className={SELECT_CLASS}
-          value={eventType}
-          onChange={(e) => setEventType(e.target.value)}
-          aria-label={t('audit.filterEvent')}
-        >
-          <option value="">{t('audit.allEvents')}</option>
-          {ENTRY_RELEVANT_EVENT_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {t(auditEventConfig(type).labelKey)}
-            </option>
-          ))}
-        </select>
+        <TypeFilterDropdown
+          triggerClassName="h-8"
+          options={agentOptions}
+          selected={new Set(agentId)}
+          onChange={(next) => setAgentId([...next])}
+          placeholder={t('audit.filterAgentLabel')}
+          ariaLabel={t('audit.filterAgent')}
+        />
+        <TypeFilterDropdown
+          triggerClassName="h-8"
+          options={eventOptions}
+          selected={new Set(eventType)}
+          onChange={(next) => setEventType([...next])}
+          placeholder={t('audit.filterEventLabel')}
+          ariaLabel={t('audit.filterEvent')}
+        />
       </div>
 
       {!canView ? (

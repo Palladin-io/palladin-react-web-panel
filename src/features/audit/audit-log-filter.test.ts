@@ -63,6 +63,24 @@ describe('filterAuditLogs', () => {
     expect(result.map((r) => r.id)).toEqual(['b'])
   })
 
+  it('narrows to multiple agents (multi-select)', () => {
+    const result = filterAuditLogs(rows, { entryId: 'entry-1', agentId: ['agent-1', 'agent-2'] })
+    expect(result.map((r) => r.id)).toEqual(['a', 'b', 'd'])
+  })
+
+  it('narrows to multiple event types (multi-select)', () => {
+    const result = filterAuditLogs(rows, {
+      entryId: 'entry-1',
+      eventType: ['grant.revoked', 'grant.created'],
+    })
+    expect(result.map((r) => r.id)).toEqual(['b', 'd'])
+  })
+
+  it('treats an empty filter array as "any"', () => {
+    const result = filterAuditLogs(rows, { entryId: 'entry-1', agentId: [], eventType: [] })
+    expect(result.map((r) => r.id)).toEqual(['a', 'b', 'd'])
+  })
+
   it('returns an empty array when nothing matches', () => {
     expect(filterAuditLogs(rows, { entryId: 'missing' })).toEqual([])
   })
