@@ -36,14 +36,20 @@ export function AuditLogEntry({
 }: AuditLogEntryProps) {
   const { t } = useTranslation()
   const cfg = auditEventConfig(item.eventType)
+  const agent = agentName ?? item.agentName ?? t('audit.unknownAgent')
   // Sentence slots. Names are never a raw id/public key — they fall back to a
-  // localised "unknown"/"unnamed". `agent` is the caller-resolved agent (the
-  // actor for grant/credential, the target for agent lifecycle); `actor` is the
-  // human who performed the action; `object` is the named resource the action
-  // targets (vault/entry/org/api-key).
+  // localised "unknown"/"unnamed". `agent` is the caller-resolved agent (its own
+  // action for grant/credential, the target for agent lifecycle); `object` is
+  // the named resource the action targets (vault/entry/org/api-key).
+  //
+  // `actor` (the WHO) is resolved by `actorType`: agent-initiated events use the
+  // agent's name; user/system events use `actorName` and NEVER fall back to
+  // `agentName` — otherwise "{actor} blocked agent {agent}" would render the
+  // blocked agent as its own blocker ("Claude blocked agent Claude").
   const slots: SentenceSlots = {
-    agent: agentName ?? item.agentName ?? t('audit.unknownAgent'),
-    actor: item.actorName ?? item.agentName ?? t('audit.unknownUser'),
+    agent,
+    actor:
+      item.actorType === 'agent' ? agent : item.actorName ?? t('audit.unknownUser'),
     entry: item.entryLabel ?? t('audit.unknownEntry'),
     object: resolveObject(item, t),
   }
@@ -105,13 +111,21 @@ interface Chip {
   border: string
 }
 
-// Only the chip styles actually emitted by `buildChips` are kept here — the
-// brand red lives solely in the `--cv-primary` token, so any future denial chip
-// must use `rgb(var(--cv-primary-rgb) / …)`, never a hardcoded hex.
+// Chip styles emitted by `buildChips`. Colours come from CSS tokens (matching
+// the audit `tone()` palette): `blue` = `--cv-info`, `gray` = `--cv-neutral`.
+// `indigo` has no semantic token (entry-only accent) so it stays a literal.
 const CHIP_STYLES = {
   indigo: { color: '#818CF8', bg: 'rgba(129,140,248,0.10)', border: 'rgba(129,140,248,0.20)' },
-  blue: { color: '#60A5FA', bg: 'rgba(96,165,250,0.10)', border: 'rgba(96,165,250,0.20)' },
-  gray: { color: '#8A95A6', bg: 'rgba(138,149,166,0.08)', border: 'rgba(138,149,166,0.18)' },
+  blue: {
+    color: 'var(--cv-info)',
+    bg: 'rgb(var(--cv-info-rgb) / 0.10)',
+    border: 'rgb(var(--cv-info-rgb) / 0.20)',
+  },
+  gray: {
+    color: 'var(--cv-neutral)',
+    bg: 'rgb(var(--cv-neutral-rgb) / 0.08)',
+    border: 'rgb(var(--cv-neutral-rgb) / 0.18)',
+  },
 } as const
 
 function buildChips(

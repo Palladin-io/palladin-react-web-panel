@@ -122,6 +122,37 @@ describe('AuditLogEntry', () => {
     ).toBeInTheDocument()
   })
 
+  it('resolves the actor by actorType — a user-blocked agent is never its own blocker', () => {
+    // agent.blocked: actor = human (user), agent = the blocked agent (object).
+    // With actorName null, the actor must fall back to "Unknown user", NOT to
+    // the agent name (which would read "Claude blocked agent Claude").
+    render(
+      <AuditLogEntry
+        item={item({
+          eventType: 'agent.blocked',
+          actorType: 'user',
+          actorName: null,
+          agentId: 'agent-1',
+          agentName: 'Claude',
+        })}
+      />,
+    )
+    expect(
+      screen.getByText(sentence(/^Unknown user blocked agent Claude$/i)),
+    ).toBeInTheDocument()
+  })
+
+  it('uses the agent name as actor for agent-initiated events', () => {
+    render(
+      <AuditLogEntry
+        item={item({ eventType: 'agent.enrolled', actorType: 'agent', agentName: 'deploy-bot' })}
+      />,
+    )
+    expect(
+      screen.getByText(sentence(/deploy-bot enrolled in the system/i)),
+    ).toBeInTheDocument()
+  })
+
   it('hides the entry chip when showEntry is false', () => {
     render(
       <AuditLogEntry item={item({})} agentName="copilot" showEntry={false} />,

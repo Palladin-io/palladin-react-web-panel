@@ -78,10 +78,11 @@ const auditLogPageSchema = z.object({
 })
 
 export interface GetVaultAuditLogsParams {
-  /** Comma-joined event types — backend `actions` filter. */
+  /** Comma-joined event types — backend `actions` filter (`IN`). */
   actions?: string
+  /** Comma-joined agent ids (`IN`). */
   agentId?: string
-  /** Filter by the acting user (human actor). */
+  /** Comma-joined acting-user ids (human actors, `IN`). */
   userId?: string
   entryId?: string
   /** Inclusive lower bound (`YYYY-MM-DD` or ISO instant). */
@@ -93,16 +94,21 @@ export interface GetVaultAuditLogsParams {
 }
 
 /**
- * Org-scoped audit log filters (`GET /api/audit-logs`). Unlike the vault
- * endpoint, event type is a single value (`eventType`) and the vault itself is
- * a filter dimension.
+ * Org-scoped audit log filters (`GET /api/audit-logs`). The vault is itself a
+ * filter dimension here (`vaultId`). The multi-value filters (`vaultId`,
+ * `agentId`, `userId`, `eventType`) are comma-joined CSV strings the backend
+ * reads as an `IN (...)` filter — built from the UI multi-selects via
+ * `csvParam`. Empty selection → omit the param.
  */
 export interface GetOrgAuditLogsParams {
+  /** Comma-joined vault ids (`IN`). */
   vaultId?: string
+  /** Comma-joined agent ids (`IN`). */
   agentId?: string
-  /** Filter by the acting user (human actor). */
+  /** Comma-joined acting-user ids (human actors, `IN`). */
   userId?: string
   entryId?: string
+  /** Comma-joined event types (`IN`). */
   eventType?: string
   from?: string
   to?: string

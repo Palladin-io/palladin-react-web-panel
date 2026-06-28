@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from './icon'
 
@@ -18,6 +18,8 @@ export interface TypeFilterDropdownProps {
   ariaLabel?: string
   /** Sizing for the trigger (e.g. `h-full` in the inbox header, `h-8` in filter rows). */
   triggerClassName?: string
+  /** Optional adornment rendered before each option's label (e.g. a status colour dot). */
+  optionPrefix?: (value: string) => ReactNode
 }
 
 /**
@@ -33,6 +35,7 @@ export function TypeFilterDropdown({
   placeholder,
   ariaLabel,
   triggerClassName = 'h-full',
+  optionPrefix,
 }: TypeFilterDropdownProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -104,6 +107,7 @@ export function TypeFilterDropdown({
                 >
                   {checked && <Icon name="check" size={11} color="#fff" />}
                 </span>
+                {optionPrefix?.(option.value)}
                 {option.label}
               </button>
             )

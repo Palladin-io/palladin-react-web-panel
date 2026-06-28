@@ -198,6 +198,13 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
           onChange={(next) => setStatusFilter(next as Set<GrantStatus>)}
           placeholder={t('grants.org.filterStatus')}
           ariaLabel={t('grants.org.filterStatus')}
+          optionPrefix={(value) => (
+            <span
+              aria-hidden
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ background: grantStatusPresentation(value as GrantStatus).color }}
+            />
+          )}
         />
       </div>
 
