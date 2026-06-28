@@ -17,6 +17,31 @@ Użyj `/brain` żeby nawigować po brain lub: `grep -r "SŁOWO" ../docs/obsidian
 
 **Po sesji która zmienia API, architekturę lub reguły biznesowe: zaktualizuj odpowiednią notę w brain.**
 
+## Architecture Reference Docs
+
+**Reuse-first rule:** before building any control, check the catalog. If a shared component covers the case, use it. If a pattern appears **2+ times**, extract it into `src/shared/components/` instead of copy-pasting markup.
+
+- **Full control catalog** (every shared component + props + controls still to extract + reuse rules): `docs/architecture/component-catalog.md`.
+- **Architecture index:** `docs/architecture/README.md`.
+
+**Before implementing in a feature, read its architecture doc first** — it lists existing components, hooks, queries, patterns, and cross-feature deps so you extend rather than duplicate.
+
+| Feature | Doc |
+|---------|-----|
+| Auth | `docs/architecture/features/auth.md` |
+| Onboarding | `docs/architecture/features/onboarding.md` |
+| Unlock | `docs/architecture/features/unlock.md` |
+| Recovery | `docs/architecture/features/recovery.md` |
+| Vaults & Entries | `docs/architecture/features/vaults.md` |
+| Agents | `docs/architecture/features/agents.md` |
+| Grants | `docs/architecture/features/grants.md` |
+| Audit | `docs/architecture/features/audit.md` |
+| API Keys | `docs/architecture/features/api-keys.md` |
+| Notifications | `docs/architecture/features/notifications.md` |
+| Settings | `docs/architecture/features/settings.md` |
+
+`billing/`, `teams/`, `dashboard/` are not yet implemented (placeholder dirs).
+
 ## Tech Stack
 
 | Layer | Technology | Notes |
@@ -271,6 +296,34 @@ className="w-full rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv
 ```
 
 Never add hardcoded hex or rgba colors to an input — always use `var(--cv-*)` tokens.
+
+#### Other shared components
+
+These also live in `shared/components/` — use them instead of hand-rolling. Full props in `docs/architecture/component-catalog.md`.
+
+| Component | Use case |
+|-----------|----------|
+| `Icon` | Material Symbols Rounded glyph — never hand-write `<span className="material-symbols-*">` |
+| `FeedbackSlot` | Animated-height inline field feedback (slides content below the field) |
+| `ErrorState` | Red-tinted error card with a Retry button for failed query panels |
+| `ErrorBoundary` | Route-level React error boundary |
+| `TypeFilterDropdown` | Multi-select filter dropdown (checkbox listbox + Clear) |
+| `DateTimePicker` | Anchored calendar popover — never native `datetime-local` |
+| `PasswordStrengthBar` | 4-segment password-strength bar (score 0–4) |
+| `AuthSubmitButton` | Full-width hero CTA on auth screens (not the compact `Button`) |
+| `AppWordmark` | Palladin logo + wordmark (login `lg`, sidebar `sm`) |
+
+### Components to reuse, not re-implement
+
+These patterns are currently duplicated across features. **Use the shared component, or extract it if it doesn't exist yet — never copy markup.** Counts and proposed APIs in `docs/architecture/component-catalog.md`.
+
+| Pattern | Status | Rule |
+|---------|--------|------|
+| Skeleton / loading block | 22 inline copies, no component | Use/extract `SkeletonBlock` — never inline `animate-pulse rounded-* bg-[var(--cv-card-bg)]` |
+| Empty state (dashed box) | 13 inline copies, no component | Use/extract `EmptyState` — never inline the dashed `--cv-empty-*` box |
+| Detail tab strip | 4 impls (2 extracted, 2 inline) | Use/extract `DetailTabBar` — don't add a 5th copy |
+| Split-view page layout | 7 copies | Use/extract `SplitView` — don't re-inline `useWideScreen(1280)` + clamp panel |
+| `<select>` dropdown | 2 inline copies | Use/extract `FormSelect` — mirrors `FormInput`, owns the chevron |
 
 ### Styling
 - Tailwind utility classes directly on elements
