@@ -9,8 +9,12 @@ export interface AuditLogEntryProps {
   item: AuditLogItem
   /** Agent display name resolved by the caller (backend audit rows carry only the id). */
   agentName?: string
+  /** Vault display name resolved by the caller — drives the vault chip. */
+  vaultName?: string
   /** Show the entry chip — off on the Entry Logs tab where the entry is fixed. */
   showEntry?: boolean
+  /** Show the vault chip — on only in the global log; off where the vault is implicit. */
+  showVault?: boolean
   /** Hairline divider above the row (every row except the first in a list). */
   withDivider?: boolean
 }
@@ -25,7 +29,9 @@ export interface AuditLogEntryProps {
 export function AuditLogEntry({
   item,
   agentName,
+  vaultName,
   showEntry = true,
+  showVault = false,
   withDivider = false,
 }: AuditLogEntryProps) {
   const { t } = useTranslation()
@@ -43,7 +49,10 @@ export function AuditLogEntry({
   }
 
   const primary = buildPrimary(item.eventType, t, slots)
-  const chips = buildChips(item, t, cfg.labelKey, cfg.color, cfg.bg, cfg.border, showEntry)
+  const chips = buildChips(item, t, cfg.labelKey, cfg.color, cfg.bg, cfg.border, {
+    showEntry,
+    vaultName: showVault ? vaultName : undefined,
+  })
 
   return (
     <div
@@ -112,14 +121,20 @@ function buildChips(
   typeColor: string,
   typeBg: string,
   typeBorder: string,
-  showEntry: boolean,
+  options: { showEntry: boolean; vaultName?: string },
 ): Chip[] {
   const chips: Chip[] = [
     { text: t(typeLabelKey), color: typeColor, bg: typeBg, border: typeBorder },
   ]
 
-  if (showEntry && item.entryLabel) {
+  if (options.showEntry && item.entryLabel) {
     chips.push({ icon: 'article', text: item.entryLabel, ...CHIP_STYLES.indigo })
+  }
+
+  // Vault chip — only in the global log, where rows span vaults; resolved name
+  // passed by the caller, skipped when unknown (never a raw id).
+  if (options.vaultName && item.vaultId) {
+    chips.push({ icon: 'shield', text: options.vaultName, ...CHIP_STYLES.blue })
   }
 
   const grantType = item.metadata.grantType?.toLowerCase()
@@ -173,6 +188,9 @@ const ACTOR_TOKEN = String.fromCharCode(0xe000)
 const AGENT_TOKEN = String.fromCharCode(0xe001)
 const ENTRY_TOKEN = String.fromCharCode(0xe002)
 const OBJECT_TOKEN = String.fromCharCode(0xe003)
+const TOKEN_SPLITTER = new RegExp(
+  `([${ACTOR_TOKEN}${AGENT_TOKEN}${ENTRY_TOKEN}${OBJECT_TOKEN}])`,
+)
 
 function buildPrimary(
   eventType: string,
@@ -193,10 +211,7 @@ function buildPrimary(
     [ENTRY_TOKEN]: slots.entry,
     [OBJECT_TOKEN]: slots.object,
   }
-  const splitter = new RegExp(
-    `([${ACTOR_TOKEN}${AGENT_TOKEN}${ENTRY_TOKEN}${OBJECT_TOKEN}])`,
-  )
-  return template.split(splitter).map((part, i) => {
+  return template.split(TOKEN_SPLITTER).map((part, i) => {
     if (part in byToken) return <Name key={i}>{byToken[part]}</Name>
     if (!part) return null
     return <Fragment key={i}>{part}</Fragment>

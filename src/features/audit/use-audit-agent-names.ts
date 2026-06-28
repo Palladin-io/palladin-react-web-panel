@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { shortenKey } from '../../shared/lib/shorten-key'
 import { useAgentNames } from '../agents'
@@ -45,7 +45,10 @@ export function useAuditAgentNames(
     return map
   }, [agents.data, items])
 
-  const resolveAgentName = (id: string) => agentNameById[id] ?? shortenKey(id)
+  const resolveAgentName = useCallback(
+    (id: string) => agentNameById[id] ?? shortenKey(id),
+    [agentNameById],
+  )
 
   const agentOptions = useMemo(() => {
     const ids = new Set<string>()

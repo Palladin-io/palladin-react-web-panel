@@ -57,6 +57,7 @@ beforeEach(() => {
     agentNameById: { 'agent-1': 'github-copilot' },
     resolveAgentName: (id: string) => (id === 'agent-1' ? 'github-copilot' : id),
     agentOptions: [{ value: 'agent-1', label: 'github-copilot' }],
+    userOptions: [],
   })
 })
 

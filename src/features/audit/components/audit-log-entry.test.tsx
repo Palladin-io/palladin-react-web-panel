@@ -138,4 +138,32 @@ describe('AuditLogEntry', () => {
     // Unknown events degrade to a neutral "Event" label (sentence + type chip).
     expect(screen.getAllByText('Event').length).toBeGreaterThan(0)
   })
+
+  it('shows a vault chip when showVault and a vault name are provided', () => {
+    render(
+      <AuditLogEntry
+        item={item({ vaultId: 'vault-1' })}
+        agentName="copilot"
+        showVault
+        vaultName="Production Keys"
+      />,
+    )
+    expect(screen.getByText('Production Keys')).toBeInTheDocument()
+  })
+
+  it('omits the vault chip by default (per-vault / entry views)', () => {
+    render(
+      <AuditLogEntry
+        item={item({ vaultId: 'vault-1' })}
+        agentName="copilot"
+        vaultName="Production Keys"
+      />,
+    )
+    expect(screen.queryByText('Production Keys')).not.toBeInTheDocument()
+  })
+
+  it('omits the vault chip when the name is unknown even with showVault', () => {
+    render(<AuditLogEntry item={item({ vaultId: 'vault-1' })} agentName="copilot" showVault />)
+    expect(screen.queryByText('vault-1')).not.toBeInTheDocument()
+  })
 })

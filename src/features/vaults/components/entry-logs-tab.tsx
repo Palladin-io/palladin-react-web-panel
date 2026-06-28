@@ -1,7 +1,5 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../../../shared/components/button'
-import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import { TypeFilterDropdown } from '../../../shared/components/type-filter-dropdown'
 import { useAuthStore } from '../../auth'
@@ -9,7 +7,7 @@ import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
 import { shortenKey } from '../../../shared/lib/shorten-key'
 import { useAgentNames } from '../../agents'
 import {
-  AuditLogEntry,
+  AuditLogList,
   ENTRY_RELEVANT_EVENT_TYPES,
   auditEventConfig,
   filterAuditLogs,
@@ -130,63 +128,19 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
         />
       </div>
 
-      {!canView ? (
-        <EmptyState icon="lock" message={t('audit.noPermission')} />
-      ) : logs.isPending ? (
-        <ListSkeleton />
-      ) : logs.isError ? (
-        <ErrorState message={t('audit.errorLog')} onRetry={() => logs.refetch()} />
-      ) : filtered.length === 0 ? (
-        <EmptyState icon="history" message={t('audit.emptyLog')} />
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
-            {filtered.map((item, i) => (
-              <AuditLogEntry
-                key={item.id}
-                item={item}
-                agentName={item.agentId ? resolveAgentName(item.agentId) : undefined}
-                showEntry={false}
-                withDivider={i > 0}
-              />
-            ))}
-          </div>
-          {logs.hasNextPage && (
-            <div className="mt-3 flex justify-center">
-              <Button
-                variant="subtle"
-                size="sm"
-                onClick={() => logs.fetchNextPage()}
-                disabled={logs.isFetchingNextPage}
-              >
-                {logs.isFetchingNextPage ? t('audit.loadingMore') : t('audit.loadMore')}
-              </Button>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  )
-}
-
-function EmptyState({ icon, message }: { icon: string; message: string }) {
-  return (
-    <div
-      className="flex flex-col items-center gap-2 rounded-2xl border border-dashed
-        border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
-    >
-      <Icon name={icon} size={28} color="var(--cv-t3)" />
-      <p className="text-[12px] font-medium text-[var(--cv-t3)]">{message}</p>
-    </div>
-  )
-}
-
-function ListSkeleton() {
-  return (
-    <div className="flex flex-col gap-2">
-      {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="h-[72px] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
-      ))}
+      <AuditLogList
+        items={filtered}
+        isPending={logs.isPending}
+        isError={logs.isError}
+        onRetry={() => logs.refetch()}
+        hasNextPage={logs.hasNextPage}
+        isFetchingNextPage={logs.isFetchingNextPage}
+        onLoadMore={() => logs.fetchNextPage()}
+        resolveAgentName={resolveAgentName}
+        showEntry={false}
+        emptyMessage={t('audit.emptyLog')}
+        canView={canView}
+      />
     </div>
   )
 }

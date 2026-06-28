@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
 import { ModalShell } from '../../shared/components/modal-shell'
-import { Tooltip } from '../../shared/components/tooltip'
 import { PERMISSION_AUDIT_VIEW } from '../../shared/lib/permissions'
 import { useAuthStore } from '../auth'
 // Imported from the module (not the vaults barrel) to avoid an import cycle:
@@ -45,11 +44,17 @@ export function AuditLogPage() {
   const [filter, setFilter] = useState<AuditFilterState>(EMPTY_FILTER)
   const [legendOpen, setLegendOpen] = useState(false)
 
-  const vaults = useVaults()
+  const vaults = useVaults({ enabled: canView })
+  const vaultList = vaults.data?.vaults
   const vaultOptions = useMemo(
-    () => (vaults.data?.vaults ?? []).map((v) => ({ value: v.id, label: v.name })),
-    [vaults.data],
+    () => (vaultList ?? []).map((v) => ({ value: v.id, label: v.name })),
+    [vaultList],
   )
+  // Reuse the same vault list for the vault chip — no extra id→name lookup.
+  const resolveVaultName = useMemo(() => {
+    const byId = new Map((vaultList ?? []).map((v) => [v.id, v.name]))
+    return (vaultId: string) => byId.get(vaultId)
+  }, [vaultList])
 
   const logs = useOrgAuditLogs(
     {
@@ -95,12 +100,18 @@ export function AuditLogPage() {
             >
               {t('audit.legend.action')}
             </Button>
-            {/* TODO(CVT-141): wire to the backend async CSV export job once it ships. */}
-            <Tooltip content={t('audit.exportComingSoon')}>
-              <Button variant="subtle" size="sm" icon="download" disabled>
-                {t('audit.exportCsv')}
-              </Button>
-            </Tooltip>
+            {/* TODO(CVT-141): wire to the backend async CSV export job once it ships.
+                Native `title` (not the truncation-only Tooltip) so the hint shows
+                on the disabled button. */}
+            <Button
+              variant="subtle"
+              size="sm"
+              icon="download"
+              disabled
+              title={t('audit.exportComingSoon')}
+            >
+              {t('audit.exportCsv')}
+            </Button>
           </div>
         </div>
 
@@ -121,6 +132,8 @@ export function AuditLogPage() {
           isFetchingNextPage={logs.isFetchingNextPage}
           onLoadMore={() => logs.fetchNextPage()}
           resolveAgentName={resolveAgentName}
+          resolveVaultName={resolveVaultName}
+          showVault
           emptyMessage={t('audit.emptyLog')}
           canView={canView}
         />

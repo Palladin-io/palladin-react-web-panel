@@ -143,17 +143,16 @@ export function AuditFilterBar({
           (12px) equals the outer `mb-3`, so the gap above the panel matches the
           gap below it. `overflow` is hidden only while collapsed, so the open
           dropdowns (absolute popups) are never clipped. */}
+      {/* `inert` (React 19) when collapsed removes the dropdowns/date inputs from
+          tab order + the a11y tree — avoids the aria-hidden-with-focusable-content
+          violation without needing pointer-events-none. */}
       <div
         className="grid transition-all duration-200 ease-out"
         style={{ gridTemplateRows: open ? '1fr' : '0fr', opacity: open ? 1 : 0 }}
-        aria-hidden={open ? undefined : true}
+        inert={!open || undefined}
       >
         <div className={open ? 'overflow-visible' : 'overflow-hidden'}>
-          <div
-            className={`flex flex-wrap items-center gap-2 pt-3 ${
-              open ? '' : 'pointer-events-none'
-            }`}
-          >
+          <div className="flex flex-wrap items-center gap-2 pt-3">
             <TypeFilterDropdown
               triggerClassName={TRIGGER_CLASS}
               options={eventTypeOptions}

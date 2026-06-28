@@ -15,8 +15,12 @@ export interface AuditLogListProps {
   onLoadMore: () => void
   /** Resolve an agent id to a display name (falls back inside the row otherwise). */
   resolveAgentName?: (agentId: string) => string
+  /** Resolve a vault id to a display name — drives the vault chip (global log only). */
+  resolveVaultName?: (vaultId: string) => string | undefined
   /** Show the entry chip on each row — off when the entry is fixed (entry tab). */
   showEntry?: boolean
+  /** Show the vault chip on each row — on only in the global log. */
+  showVault?: boolean
   emptyMessage: string
   /** Shown instead of the list when the viewer lacks AuditView. */
   noPermissionMessage?: string
@@ -38,7 +42,9 @@ export function AuditLogList({
   isFetchingNextPage,
   onLoadMore,
   resolveAgentName,
+  resolveVaultName,
   showEntry = true,
+  showVault = false,
   emptyMessage,
   noPermissionMessage,
   canView = true,
@@ -62,7 +68,9 @@ export function AuditLogList({
             agentName={
               item.agentId ? resolveAgentName?.(item.agentId) : undefined
             }
+            vaultName={item.vaultId ? resolveVaultName?.(item.vaultId) : undefined}
             showEntry={showEntry}
+            showVault={showVault}
             withDivider={i > 0}
           />
         ))}
