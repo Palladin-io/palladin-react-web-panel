@@ -1,0 +1,16 @@
+# Feature: notifications
+
+**Path:** `src/features/notifications/` — the highest cross-feature *consumer*.
+
+## What it does
+The Notification Center inbox plus the app's real-time plumbing. Surfaces grant/agent/system events and lets the user act on actionable ones inline. Also owns the SignalR connection and Web Push registration that drive live updates across the whole app.
+
+## How it's organized
+A segmented inbox (All / To-do / History / Grants) with search and the shared filter dropdown. Cards are immutable log entries; pending-grant and pending-agent cards embed inline approve/deny actions. A preferences dialog manages per-channel settings. The real-time layer is a singleton SignalR provider plus an invalidation hook that turns hub events into TanStack Query cache invalidations, and a Web Push hook for VAPID subscription registration.
+
+## Key patterns
+- **Two complementary channels:** SignalR (in-app, tab open) and FCM-for-Web push (system notification, tab closed).
+- Toast copy is localized client-side from names in the event payload (EN/PL), falling back to the server-rendered body.
+
+## Cross-feature deps
+Reuses the approve/deny dialogs from `grants` and `agents` for inline actions, and their queries to resolve card context. It pulls from the most other features of any surface.
