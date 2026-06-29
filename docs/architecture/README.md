@@ -20,7 +20,8 @@ Per-feature and shared-component reference for the Palladin web panel. These doc
 | [component-catalog.md](component-catalog.md) | Every shared/reusable control: name, path, purpose, props. Controls still to extract. Reuse rules. |
 | [dialogs.md](dialogs.md) | Modals: `ModalShell` + `DialogFooter`, button ratios. |
 | [forms-and-validation.md](forms-and-validation.md) | Shared field components, 3-layer validation/notification model, raw-input class, inline-edit pattern. |
-| [styling.md](styling.md) | Full `--cv-*` token set, `styles.ts` helpers, dark-mode mechanics, Astro fidelity + accepted deviations. |
+| [styling.md](styling.md) | Full `--cv-*` token set, `styles.ts` helpers, dark-mode mechanics, radius/spacing conventions, adding a token. |
+| [key-flows.md](key-flows.md) | Client-side crypto / zero-knowledge flows (unlock, entry encryption, grant approval). Keep in sync with `shared/crypto/`. |
 
 ### Feature docs
 

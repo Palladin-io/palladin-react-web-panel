@@ -11,7 +11,26 @@ A paginated log list with a filter bar above it. Filtering is **server-side** (e
 ## Key patterns
 - Server-side filter params + client-side text search over loaded pages; cursor pagination.
 - CSV export is stubbed/disabled (pending CVT-141).
-- Audit colors must match mobile — never hardcode hex; see `styling.md` and the monorepo color reference.
 
 ## Cross-feature deps
 Consumes vault queries from `vaults` for the vault filter and embedded views.
+
+## Audit Log color taxonomy
+
+When touching Audit Log UI (event colors, legend, badges), this is the canonical mapping. Full per-event-type detail lives in the monorepo memory file **`../.claude/memory/reference_audit_log_colors.md`**; Web ↔ mobile parity is required.
+
+Semantic roles map to `--cv-*` tokens (defined in `src/index.css`, consumed via `tone()` in `src/features/audit/components/audit-event-config.ts`):
+
+| Role | Token | Value |
+|------|-------|-------|
+| Success / approved | `--cv-success` | `#10B981` |
+| Pending / request access (`grant.requested`) | `--cv-pending` | `#FFAB87` |
+| Info | `--cv-info` | `#60A5FA` |
+| Danger | `--cv-primary` | `#EB4747` |
+| Neutral | `--cv-neutral` | `#8A95A6` |
+
+Rules:
+- **Never hardcode hex** — always go through `tone()` / the tokens.
+- Green is `#10B981` (never `#2EC4B6`).
+- `agent.enrolled` = info / blue.
+- Pending / peach = `grant.requested` (request access).

@@ -200,7 +200,7 @@ Items marked **missing** are duplicated 2+ times with no shared component — ex
 ### Styling
 - Tailwind utility classes directly on elements; extract repeated patterns into components, not CSS classes.
 - **Never hardcode hex/rgba in components — always use `var(--cv-*)` tokens.**
-- When styling anything beyond trivial layout (tokens, dark-mode mechanics, hover helpers, Astro fidelity, accepted design deviations), read `docs/architecture/styling.md` — it has the complete `--cv-*` token list (surfaces, text, borders, inputs, states, audit, toasts) and the `styles.ts` helpers.
+- When styling anything beyond trivial layout (tokens, dark-mode mechanics, hover helpers, radius/spacing conventions, adding a token), read `docs/architecture/styling.md` — the full styling guide with the complete `--cv-*` token list and the `styles.ts` helpers.
 
 #### Brand/Primary Red
 
@@ -215,11 +215,7 @@ The brand/primary red lives ONLY in CSS tokens — never hardcode `#FF4F4F`, `rg
 In Tailwind arbitrary values: `text-[var(--cv-primary)]`, `bg-[rgb(var(--cv-primary-rgb)/0.12)]`.
 In inline JS styles: `'var(--cv-primary)'`, `'rgb(var(--cv-primary-rgb) / 0.12)'`.
 
-#### Audit Log colors
-
-When touching Audit Log UI (event colors, legend, badges), load the canonical taxonomy: **`../.claude/memory/reference_audit_log_colors.md`** (monorepo memory). Semantic roles map to tokens: `--cv-success` (#10B981), `--cv-pending` (#FFAB87 = `grant.requested`), `--cv-info` (#60A5FA), `--cv-primary` (danger), `--cv-neutral` (#8A95A6). Defined in `src/index.css`, consumed via `tone()` in `src/features/audit/components/audit-event-config.ts`. Web ↔ mobile parity required; never hardcode hex. Green is `#10B981` (never `#2EC4B6`); `agent.enrolled` = info/blue.
-
-> Astro-reference fidelity and the list of **accepted design deviations** (which PR review agents must NOT flag as blocking) live in `docs/architecture/styling.md`.
+Audit Log event colors → see `docs/architecture/features/audit.md`.
 
 ### i18n / Localisation
 
@@ -319,31 +315,7 @@ Files: `.env.example` (committed template), `.env.local` / `.env.staging` / `.en
 
 ## Key Flows
 
-### Unlock Flow
-1. User enters master password
-2. Derive MK via Argon2id (salt fetched from `/account`)
-3. Decrypt `encrypted_private_key` with MK → `user_private_key`
-4. Store keys in Zustand (memory only)
-5. Navigate to dashboard
-
-### Entry Encryption
-1. Get VK: `user_private_key` → decrypt `wrapped_VK` → VK
-2. Serialize entry as typed JSON (`{ type, ...fields }`)
-3. Encrypt with VK via `crypto_secretbox`
-4. Send `{ label, type, encrypted_blob, nonce, url_domain? }` to API
-
-### Grant Approval (FULL)
-1. Decrypt VK using user's private key
-2. Fetch agent's public key from backend
-3. `agent_wrapped_VK = crypto_box_seal(agent_public_key, VK)`
-4. POST approve with wrapped key + policy params
-
-### Grant Approval (GRANULAR)
-1. Decrypt VK → decrypt entry → plaintext
-2. Generate random DEK
-3. Re-encrypt plaintext with DEK
-4. `agent_wrapped_DEK = crypto_box_seal(agent_public_key, DEK)`
-5. POST approve with wrapped DEK + re-encrypted blob
+Crypto / zero-knowledge flows (Unlock, Entry Encryption, Grant Approval FULL & GRANULAR) → see `docs/architecture/key-flows.md`.
 
 ## Maintaining this file
 
@@ -352,3 +324,4 @@ This file is **always loaded into context**, so keep it lean. It holds only guid
 - **Deep or concern-specific guidance does NOT belong here** — it goes in `docs/architecture/` (e.g. `dialogs.md`, `forms-and-validation.md`, `styling.md`, `component-catalog.md`, `features/*.md`), with a one-line pointer from this file.
 - When a section grows verbose code examples, full token tables, or rules only relevant when touching one concern → move it to a sub-doc and leave a pointer.
 - Extend this structure autonomously over time: as new every-iteration rules emerge, add them here concisely; as deep detail accumulates, push it down into `docs/architecture/` and link it.
+- **PR reviewers must check whether a code change requires updating this file or a `docs/architecture/` doc** (new shared component, changed convention, new feature, new token, changed crypto flow) — doc drift is a review finding.
