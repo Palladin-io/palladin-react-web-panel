@@ -31,8 +31,33 @@ vi.mock('../agents', () => ({
 vi.mock('../grants', () => ({
   usePendingGrants: () => state.pendingGrants,
   formatRelativeTime: () => '2m ago',
+  // The dashboard reuses the canonical pending-approvals panel; it has its own
+  // tests, so here it is a lightweight stub standing in for the section.
+  PendingGrantsPanel: () => <div>Pending approvals</div>,
 }))
 vi.mock('../notifications', () => ({ useWebPush: () => state.webPush }))
+
+// Recent activity is gated on AuditView (absent in these tests → the section
+// renders nothing), but its hooks still run, so stub the audit module to keep
+// the unit isolated from the real org-audit query.
+vi.mock('../audit', () => ({
+  useOrgAuditLogs: () => ({
+    data: undefined,
+    isPending: false,
+    isError: false,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    refetch: vi.fn(),
+    fetchNextPage: vi.fn(),
+  }),
+  useAuditAgentNames: () => ({
+    agentNameById: {},
+    resolveAgentName: (id: string) => id,
+    agentOptions: [],
+    userOptions: [],
+  }),
+  AuditLogList: () => null,
+}))
 
 vi.mock('../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
@@ -78,16 +103,17 @@ describe('DashboardPage', () => {
 
   it('renders the onboarding checklist when not onboarded and no skip flag', async () => {
     render(<DashboardPage />, { wrapper })
-    expect(await screen.findByText('Account Setup')).toBeInTheDocument()
+    expect(await screen.findByText('Account setup')).toBeInTheDocument()
     expect(screen.getByText('Add your first vault')).toBeInTheDocument()
   })
 
   it('does not render the checklist when onboarding_skipped is set', async () => {
     localStorage.setItem('onboarding_skipped', 'true')
     render(<DashboardPage />, { wrapper })
-    // Stats labels confirm the page rendered; the checklist header must be absent.
-    expect(await screen.findByText('Pending Approvals')).toBeInTheDocument()
-    expect(screen.queryByText('Account Setup')).not.toBeInTheDocument()
+    // The pending-approvals panel confirms the normal state rendered; the
+    // checklist header must be absent.
+    expect(await screen.findByText('Pending approvals')).toBeInTheDocument()
+    expect(screen.queryByText('Account setup')).not.toBeInTheDocument()
   })
 
   it('renders the unknown-agent card for a pending agent once onboarded', async () => {
@@ -104,7 +130,7 @@ describe('DashboardPage', () => {
     state.account = { isOnboarded: true, displayName: 'Patryk' }
     render(<DashboardPage />, { wrapper })
     await waitFor(() =>
-      expect(screen.queryByText('Account Setup')).not.toBeInTheDocument(),
+      expect(screen.queryByText('Account setup')).not.toBeInTheDocument(),
     )
     expect(screen.getByText('Vaults')).toBeInTheDocument()
     expect(screen.getByText('Entries')).toBeInTheDocument()

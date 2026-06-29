@@ -48,7 +48,7 @@ export function DashboardStatsRow({
           >
             {stat.value}
           </span>
-          <span className="text-xs font-medium uppercase tracking-wider text-[var(--cv-t3)]">
+          <span className="text-xs font-medium text-[var(--cv-t3)]">
             {stat.label}
           </span>
         </div>

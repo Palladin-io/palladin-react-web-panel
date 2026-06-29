@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../shared/api/account-api'
 import { ErrorState } from '../../shared/components/error-state'
-import { Icon } from '../../shared/components/icon'
 import { analytics } from '../../shared/lib/analytics'
 import { useAgents } from '../agents'
 import { useApiKeys } from '../api-keys'
-import { usePendingGrants } from '../grants'
+import { PendingGrantsPanel, usePendingGrants } from '../grants'
 import { useWebPush } from '../notifications'
 import { useVaults } from '../vaults'
+import { DashboardHeader } from './components/dashboard-header'
 import { DashboardStatsRow } from './components/dashboard-stats-row'
 import { OnboardingChecklist } from './components/onboarding-checklist'
+import { RecentActivitySection } from './components/recent-activity-section'
 import { UnknownAgentCard } from './components/unknown-agent-card'
 
 const ONBOARDING_SKIPPED_KEY = 'onboarding_skipped'
@@ -94,22 +94,10 @@ export function DashboardPage() {
   }
 
   const firstName = account.data?.displayName?.split(' ')[0]
-  const today = new Date().toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  })
 
   return (
     <div className="min-h-full px-4 py-4 text-[var(--cv-t1)]">
-      <header className="mb-4">
-        <h1 className="text-xl font-bold text-[var(--cv-t1)]">
-          {firstName
-            ? t('dashboard.greeting', { name: firstName })
-            : t('dashboard.greetingGeneric')}
-        </h1>
-        <p className="text-xs text-[var(--cv-t3)]">{today}</p>
-      </header>
+      <DashboardHeader firstName={firstName} />
 
       <DashboardStatsRow
         vaults={vaultCount}
@@ -129,64 +117,25 @@ export function DashboardPage() {
           onDismiss={handleDismissOnboarding}
         />
       ) : pendingAgents.length > 0 ? (
-        <>
-          <SectionHeader title={t('dashboard.pendingApprovals')} />
-          <div className="mb-4">
+        <div className="flex flex-col gap-6">
+          <section>
+            <div className="mb-2">
+              <span className="text-sm font-semibold text-[var(--cv-t1)]">
+                {t('dashboard.pendingApprovals')}
+              </span>
+            </div>
             <UnknownAgentCard agent={pendingAgents[0]} />
-          </div>
-          <SectionHeader title={t('dashboard.recentActivity')} />
-          <RecentActivityEmpty />
-        </>
+          </section>
+          <RecentActivitySection />
+        </div>
       ) : (
-        <>
-          <SectionHeader
-            title={t('dashboard.pendingApprovals')}
-            action={
-              <Link
-                to="/approvals"
-                className="text-xs font-medium text-[var(--cv-primary)] hover:underline"
-              >
-                {t('dashboard.viewAll')}
-              </Link>
-            }
-          />
-          <div className="mb-4">
-            <RecentActivityEmpty />
-          </div>
-        </>
+        <div className="flex flex-col gap-6">
+          <section>
+            <PendingGrantsPanel />
+          </section>
+          <RecentActivitySection />
+        </div>
       )}
-    </div>
-  )
-}
-
-function SectionHeader({
-  title,
-  action,
-}: {
-  title: string
-  action?: React.ReactNode
-}) {
-  return (
-    <div className="mb-2 flex items-center justify-between">
-      <span className="text-sm font-semibold text-[var(--cv-t1)]">{title}</span>
-      {action}
-    </div>
-  )
-}
-
-function RecentActivityEmpty() {
-  const { t } = useTranslation()
-  return (
-    <div className="rounded-xl bg-[var(--cv-card-bg)] px-4 py-8 text-center shadow-sm">
-      <Icon
-        name="history"
-        size={32}
-        color="var(--cv-t3)"
-        className="mb-2 block"
-      />
-      <span className="text-xs text-[var(--cv-t3)]">
-        {t('dashboard.noActivity')}
-      </span>
     </div>
   )
 }

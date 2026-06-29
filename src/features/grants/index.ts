@@ -1,6 +1,7 @@
 export { GrantsPage } from './grants-page'
 export { PendingGrantsPage } from './pending-grants-page'
 export { OrgGrantsPanel } from './components/org-grants-panel'
+export { PendingGrantsPanel } from './components/pending-grants-panel'
 export { usePendingGrants } from './use-pending-grants'
 export { GrantAccessDialog } from './components/grant-access-dialog'
 export type { GrantAccessMode } from './components/grant-access-dialog'

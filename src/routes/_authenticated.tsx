@@ -134,6 +134,16 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   {
+    key: 'home',
+    labelKey: 'nav.home',
+    icon: 'home',
+    to: '/',
+    // Exact match only: every path starts with '/', but the active check's
+    // prefix branch compares against `${matchPrefix}/` → '//', so Home lights
+    // up solely on the dashboard route itself, never on nested routes.
+    matchPrefix: '/',
+  },
+  {
     key: 'vaults',
     labelKey: 'nav.vaults',
     icon: 'shield',
