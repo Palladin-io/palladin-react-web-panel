@@ -22,7 +22,11 @@ vi.mock('../../shared/api/account-api', () => ({
   ACCOUNT_QUERY_KEY: ['account'],
   getAccount: () => Promise.resolve(state.account),
 }))
-vi.mock('../vaults', () => ({ useVaults: () => state.vaults }))
+vi.mock('../vaults', () => ({
+  useVaults: () => state.vaults,
+  // The "Your vaults" rail reuses the canonical VaultCard; stub it here.
+  VaultCard: ({ vault }: { vault: { name: string } }) => <div>{vault.name}</div>,
+}))
 vi.mock('../api-keys', () => ({ useApiKeys: () => state.apiKeys }))
 vi.mock('../agents', () => ({
   useAgents: () => state.agents,

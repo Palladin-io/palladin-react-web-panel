@@ -16,6 +16,18 @@ import { ApproveGrantDialog } from './approve-grant-dialog'
 import { DenyGrantDialog } from './deny-grant-dialog'
 import { formatGrantDate, formatRelativeTime } from './grant-format'
 
+export interface PendingGrantsPanelProps {
+  /**
+   * `list` = vertical stack (default; the Approvals/Inbox queue).
+   * `carousel` = horizontal scroll-snap row of fixed-width cards (dashboard).
+   * Only the container/card-wrapper changes — the card, mutations, and dialogs
+   * are identical across both.
+   */
+  variant?: 'list' | 'carousel'
+  /** When set, a "View all →" link renders in the header pointing at this route. */
+  viewAllTo?: string
+}
+
 /**
  * Pending approvals queue. Lists every GRANULAR grant awaiting the user's
  * decision (agent, requested entry, reason) and drives the approve/deny flows.
@@ -26,7 +38,10 @@ import { formatGrantDate, formatRelativeTime } from './grant-format'
  *
  * The skeleton/empty/error states are confined to the list area.
  */
-export function PendingGrantsPanel() {
+export function PendingGrantsPanel({
+  variant = 'list',
+  viewAllTo,
+}: PendingGrantsPanelProps = {}) {
   const { t } = useTranslation()
   const pending = usePendingGrants()
   const approve = useApproveGrant()
@@ -81,6 +96,14 @@ export function PendingGrantsPanel() {
             {t('grants.pending.subtitle')}
           </p>
         </div>
+        {viewAllTo && (
+          <Link
+            to={viewAllTo}
+            className="shrink-0 text-xs font-medium text-[var(--cv-primary)] hover:underline"
+          >
+            {t('grants.pending.viewAll')}
+          </Link>
+        )}
       </div>
 
       {pending.isPending ? (
@@ -100,6 +123,23 @@ export function PendingGrantsPanel() {
             {t('grants.pending.emptyHint')}
           </p>
         </div>
+      ) : variant === 'carousel' ? (
+        // Horizontal scroll-snap row of fixed-width cards; hidden scrollbar.
+        <ul
+          className="flex gap-3 overflow-x-auto pb-1 [scrollbar-width:none]
+            [&::-webkit-scrollbar]:hidden snap-x snap-mandatory"
+        >
+          {items.map((grant) => (
+            <li key={grant.id} className="w-[360px] shrink-0 snap-start">
+              <PendingGrantCard
+                grant={grant}
+                onApprove={() => setApproveTarget(grant)}
+                onDeny={() => setDenyTarget(grant)}
+                disabled={approve.isPending || deny.isPending}
+              />
+            </li>
+          ))}
+        </ul>
       ) : (
         <ul className="flex flex-col gap-[10px]">
           {items.map((grant) => (

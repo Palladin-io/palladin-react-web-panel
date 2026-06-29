@@ -12,8 +12,10 @@ import { useVaults } from '../vaults'
 import { DashboardHeader } from './components/dashboard-header'
 import { DashboardStatsRow } from './components/dashboard-stats-row'
 import { OnboardingChecklist } from './components/onboarding-checklist'
+import { QuickActionsCard } from './components/quick-actions-card'
 import { RecentActivitySection } from './components/recent-activity-section'
 import { UnknownAgentCard } from './components/unknown-agent-card'
+import { YourVaultsCard } from './components/your-vaults-card'
 
 const ONBOARDING_SKIPPED_KEY = 'onboarding_skipped'
 const NOTIFICATIONS_SKIPPED_KEY = 'notifications_onboarding_skipped'
@@ -129,11 +131,19 @@ export function DashboardPage() {
           <RecentActivitySection />
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
-          <section>
-            <PendingGrantsPanel />
-          </section>
-          <RecentActivitySection />
+        // Wide-screen aware: main column (pending approvals carousel + recent
+        // activity) beside a rail (quick actions + vaults). Stacks on < lg.
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="flex min-w-0 flex-col gap-6">
+            <section>
+              <PendingGrantsPanel variant="carousel" viewAllTo="/inbox" />
+            </section>
+            <RecentActivitySection />
+          </div>
+          <aside className="flex flex-col gap-6">
+            <QuickActionsCard />
+            <YourVaultsCard />
+          </aside>
         </div>
       )}
     </div>
