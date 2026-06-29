@@ -3,19 +3,15 @@
 **Path:** `src/features/audit/`
 
 ## What it does
-Audit-log viewer. Full-width (non-split-view) org-wide log, plus embedded vault-scoped and entry-scoped variants.
+The audit-log viewer: a searchable, filterable record of who did what. Exists as a full-width org-wide log and as embedded vault-scoped and entry-scoped variants.
 
-## Key components / hooks / queries
-- `audit-log-list.tsx` — log rows with cursor pagination.
-- `AuditFilterBar` — server-side filters (eventType, agentId, userId, vaultId, date range) via `TypeFilterDropdown` + `DateTimePicker`.
-- `audit-event-config.ts` — color taxonomy; `tone()` maps event type → `--cv-*` token (canonical for audit colors).
-- `useOrgAuditLogs` — cursor-paginated query. Client-side free-text filter over loaded pages.
-- Embedded: `vault-detail-audit-log.tsx` (vault-scoped), `entry-logs-tab.tsx` (entry-scoped, lives under vaults).
+## How it's organized
+A paginated log list with a filter bar above it. Filtering is **server-side** (event type, agent, user, vault, date range) via the shared filter dropdown and date picker; a **client-side** free-text search runs over the already-loaded pages. Event colors are centralized in an event-config module whose `tone()` helper maps each event type to a `--cv-*` token (the canonical audit color source). The same list renders embedded inside the vaults feature for vault- and entry-scoped views.
 
-## Patterns
-- Server-side filter params + client-side text search over loaded pages.
-- CSV export button present but disabled (pending CVT-141).
+## Key patterns
+- Server-side filter params + client-side text search over loaded pages; cursor pagination.
+- CSV export is stubbed/disabled (pending CVT-141).
+- Audit colors must match mobile — never hardcode hex; see `styling.md` and the monorepo color reference.
 
 ## Cross-feature deps
-- Consumes `useVaults`/`useVault` from `vaults` for the vault filter and embedded views.
-- Color parity with mobile required — see `.claude/memory/reference_audit_log_colors.md`.
+Consumes vault queries from `vaults` for the vault filter and embedded views.

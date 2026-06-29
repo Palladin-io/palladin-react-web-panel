@@ -3,16 +3,14 @@
 **Path:** `src/features/unlock/`
 
 ## What it does
-Single dark-forced screen; the sole entry point when `isVaultLocked === true`. Re-derives the master key from the password and decrypts the user's private key into memory.
+The lock screen — the sole reachable route while `isVaultLocked === true`. Takes the master password, re-derives the master key, and decrypts the user's private key back into memory so the session can resume.
 
-## Key components / hooks
-- `unlock-page.tsx` — password form (`FormInput`, `FieldFeedback`, `AuthSubmitButton`).
-- Unlock flow: derive MK via Argon2id (salt from `/account`) → decrypt `encrypted_private_key` → store MK + private key in Zustand memory only.
-- `unlock-page.test.tsx` — co-located test (one of the few feature tests present).
+## How it's organized
+One dark-forced page with a single password field. The unlock flow derives the master key via Argon2id (salt fetched from `/account`), decrypts the stored private key, and writes both keys into the Zustand store. Has a co-located test — one of the few feature-level tests present.
 
-## Patterns
-- `isVaultLocked` is **non-persisted** Zustand: always starts `true` on load, only set `false` by `unlockVault()`.
-- Auth-surface page: dark gradient + `class="dark"`.
+## Key patterns
+- **Non-persisted lock state:** `isVaultLocked` is never persisted; it starts `true` on every load and is only flipped `false` by `unlockVault()`. This is the security-critical routing primitive.
+- **Auth-surface page:** dark gradient + `class="dark"`; `FormInput`, `FieldFeedback`, `AuthSubmitButton`.
 
 ## Cross-feature deps
-- `useAuthStore` (`isVaultLocked`, key setters). Route guards depend on this flag.
+Reads/writes `useAuthStore` (`isVaultLocked`, key setters). All route guards depend on this flag.

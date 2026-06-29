@@ -3,16 +3,14 @@
 **Path:** `src/features/auth/`
 
 ## What it does
-OAuth 2.0 PKCE login (Google via `@react-oauth/google`, plus Apple/X provider buttons). `LoginPage` shows a rotating tagline and glass provider buttons; on success it exchanges the OAuth access token for an app JWT and establishes the session.
+The entry point to the app: OAuth 2.0 PKCE login (Google primary, Apple/X provider buttons). On a successful provider exchange it trades the OAuth token for an app JWT and establishes the session every other feature depends on.
 
-## Key components / hooks / queries
-- `LoginPage` — login surface (`AppWordmark` lg, `AuthSubmitButton`, glass provider buttons).
-- `use-login.ts` — exchanges OAuth token → JWT, writes session to `useAuthStore`.
-- `useAuthStore` (Zustand) — **app-wide session primitive**: JWT, userId, orgId, permission bits, `isVaultLocked`.
+## How it's organized
+A single login page (rotating tagline, glass provider buttons) backed by one login hook that performs the token exchange and writes the result into the app-wide auth store. No TanStack Query — auth is pure client session state.
 
-## Patterns
-- Auth-surface page: `AUTH_BACKGROUND_GRADIENT` + `class="dark"` on the outer div.
-- No TanStack Query — session mutations write directly to Zustand.
+## Key patterns
+- **Auth-surface conventions:** dark gradient background + `class="dark"` on the outer div; `AppWordmark` + `AuthSubmitButton` for the hero.
+- **`useAuthStore` (Zustand) is the session source of truth:** JWT, userId, orgId, permission bits, `isVaultLocked`. Session mutations write straight to Zustand, not through queries.
 
 ## Cross-feature deps
-- `useAuthStore` is imported by **every** feature for JWT / permissions / lock state. This is the one acceptable cross-cutting store.
+`useAuthStore` is consumed by **every** feature for JWT, permissions, and lock state — the one acceptable cross-cutting store. Route guards key off its `isVaultLocked` / `isOnboarded` flags.

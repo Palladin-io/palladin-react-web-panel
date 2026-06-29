@@ -3,20 +3,15 @@
 **Path:** `src/features/api-keys/`
 
 ## What it does
-Org API-key management. Master/detail split view (structurally identical to `agents`): key list on the left, key detail (tabs: Details / Agents) on the right. Generate and revoke keys.
+Org API-key management: generate keys, view which agents last used each key, and revoke keys.
 
-## Key components / hooks / queries
-- Page: `api-keys-page.tsx` (split-view).
-- `api-key-list-panel.tsx`, `api-key-detail-tabs.tsx` (diverged copy of `vault-detail-tabs`), `api-key-agents-tab.tsx`.
-- `GenerateApiKeyModal` — two-step: create key → show once-only value via `SecretInput`.
-- `RevokeApiKeyDialog` — confirm flow.
-- `use-api-key-agents.ts` — cursor-paginated agents for a key.
+## How it's organized
+A split-view page structurally identical to `agents` — key list on the left, key detail (tabs: Details / Agents) on the right. The Agents tab is a cursor-paginated list. Generation is a two-step modal (create → reveal the once-only secret), and revocation is a confirm dialog.
 
-## Patterns
-- Reuses `AgentCard` imported from `agents` in the Agents tab.
-- Once-shown secret value displayed through `SecretInput`.
-- Key display follows prefix+suffix standard (`pl_••••{keySuffix}`).
+## Key patterns
+- **Reuses `AgentCard` from `agents`** in the Agents tab — concrete cross-feature component reuse.
+- The freshly generated secret is shown exactly once through `SecretInput`; afterwards only the prefix+suffix hint (`pl_••••{keySuffix}`) is displayed.
+- The detail tab strip is a diverged copy of the vaults tab strip — a candidate for the shared `DetailTabBar`.
 
 ## Cross-feature deps
-- Imports `AgentCard` from `agents`.
-- `api-key-detail-tabs.tsx` duplicates the vaults tab strip (candidate for `DetailTabBar`).
+Imports `AgentCard` from `agents`.

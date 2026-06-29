@@ -3,21 +3,16 @@
 **Path:** `src/features/agents/`
 
 ## What it does
-Master/detail management of org agents. List on the left, agent detail (tabs: Overview / Grants / Logs) on the right. Approve/deny enrolment.
+Manage the org's AI agents: review enrolment requests, approve/deny them, and inspect each agent's grants and activity.
 
-## Key components / hooks / queries
-- Page: `agents-page.tsx` (split-view).
-- `agent-list-panel.tsx` + `agent-card.tsx` (left), `agent-detail.tsx` (right, inline tab strip at `:133`).
-- `agent-edit-form.tsx` — always-visible inline edit (`canEdit`-gated), footer at `:179`.
-- `ApproveAgentDialog` / `DenyAgentDialog` — enrolment status transition (no client crypto; backend handles enrolment crypto).
-- `AgentAvatar` — agent icon.
-- Hook: `useAgents`.
+## How it's organized
+A split-view page — agent list (cards) on the left, agent detail on the right. The detail view has its own tab strip (Overview / Grants / Logs) and an always-visible inline-edit form gated by `canEdit`. Enrolment approve/deny are modal dialogs; the avatar and agent card are reusable pieces. Data comes from an agents query hook.
 
-## Patterns
-- Split-view + inline tab strip (candidates for `SplitView` / `DetailTabBar`).
-- `AgentCard` hover is inlined (`agent-card.tsx:39`) — should route through `HOVERABLE_CARD_CLASSES`.
+## Key patterns
+- **Enrolment is a status transition, not client crypto** — the approve/deny dialogs flip state; the backend owns enrolment cryptography.
+- Split-view + inline tab strip — candidates for shared `SplitView` / `DetailTabBar`.
+- `AgentCard` currently inlines its hover classes instead of `HOVERABLE_CARD_CLASSES` — align on next touch.
 
 ## Cross-feature deps
-- **`AgentCard` exported and reused** by `api-keys` (Agents tab) — the main card-level cross-feature reuse.
-- `ApproveAgentDialog`/`DenyAgentDialog` reused by `notifications`.
-- Exports `AgentAvatar`, `AgentCard`, `useAgents`.
+- **Exports `AgentCard`** (reused by `api-keys` Agents tab — the main card-level cross-feature reuse), plus `AgentAvatar` and the agents query.
+- The approve/deny dialogs are reused by `notifications` for inline enrolment actions.

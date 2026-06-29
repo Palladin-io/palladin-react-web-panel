@@ -3,18 +3,15 @@
 **Path:** `src/features/recovery/`
 
 ## What it does
-Three-step account-recovery / re-key flow when the user has lost their master password but holds the recovery phrase.
+Account recovery when the user has lost their master password but still holds the recovery phrase. Re-keys the account end-to-end and issues a fresh recovery key.
 
-## Steps / key components
-- Step 1 — enter the 12-word mnemonic (`FormTextarea`).
-- Step 2 — set a new master password.
-- Step 3 — display the new recovery key.
-- `recovery-page.tsx` — orchestrator, wrapped in `RecoveryShell` layout.
-- `use-recover.ts` — full crypto re-key cycle (validate phrase, re-derive, re-wrap keys server-side).
+## How it's organized
+A three-step flow inside the shared recovery-shell layout: enter the 12-word mnemonic, set a new master password, then display the new recovery key. A single recovery hook owns the full crypto re-key cycle (validate phrase → re-derive master key → re-wrap the user's keys server-side).
 
-## Patterns
-- Auth-surface group: dark gradient, `AuthSubmitButton`, `RecoveryShell` layout.
-- Crypto in the hook only.
+## Key patterns
+- **Auth-surface group:** dark gradient, `AuthSubmitButton`, recovery-shell layout.
+- **Crypto isolation:** all key work in the recovery hook, never in step JSX.
+- Mnemonic entry uses `FormTextarea`.
 
 ## Cross-feature deps
-- Shares the `RecoveryShell` layout primitive with `onboarding`.
+Shares the recovery-shell layout with `onboarding`.
