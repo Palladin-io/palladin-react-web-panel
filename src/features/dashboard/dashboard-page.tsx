@@ -4,18 +4,19 @@ import { useTranslation } from 'react-i18next'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../shared/api/account-api'
 import { ErrorState } from '../../shared/components/error-state'
 import { analytics } from '../../shared/lib/analytics'
+import { PERMISSION_AUDIT_VIEW } from '../../shared/lib/permissions'
 import { useAgents } from '../agents'
 import { useApiKeys } from '../api-keys'
+import { useAuthStore } from '../auth'
+import { useOrgAuditLogs } from '../audit'
 import { PendingGrantsPanel, usePendingGrants } from '../grants'
 import { useWebPush } from '../notifications'
 import { useVaults } from '../vaults'
 import { DashboardHeader } from './components/dashboard-header'
 import { DashboardStatsRow } from './components/dashboard-stats-row'
 import { OnboardingChecklist } from './components/onboarding-checklist'
-import { QuickActionsCard } from './components/quick-actions-card'
 import { RecentActivitySection } from './components/recent-activity-section'
 import { UnknownAgentCard } from './components/unknown-agent-card'
-import { YourVaultsCard } from './components/your-vaults-card'
 
 const ONBOARDING_SKIPPED_KEY = 'onboarding_skipped'
 const NOTIFICATIONS_SKIPPED_KEY = 'notifications_onboarding_skipped'
@@ -33,6 +34,10 @@ export function DashboardPage() {
   const agents = useAgents()
   const pendingGrants = usePendingGrants()
   const webPush = useWebPush()
+
+  const canViewAudit =
+    (useAuthStore((s) => s.permissions) & PERMISSION_AUDIT_VIEW) !== 0
+  const auditLogs = useOrgAuditLogs({}, canViewAudit)
 
   const [dismissed, setDismissed] = useState(() => readFlag(ONBOARDING_SKIPPED_KEY))
   const [notifSkipped, setNotifSkipped] = useState(() =>
@@ -75,6 +80,12 @@ export function DashboardPage() {
   const activeAgents = agents.data?.filter((a) => a.status !== 'pending') ?? []
   const pendingAgents = agents.data?.filter((a) => a.status === 'pending') ?? []
   const pendingGrantCount = pendingGrants.data?.length ?? 0
+  // No total-count endpoint exists for audit logs (cursor-paginated), so the
+  // Logs metric reflects how many rows are loaded and marks "+" when more remain.
+  const loadedLogCount = (auditLogs.data?.pages ?? []).reduce(
+    (sum, page) => sum + page.items.length,
+    0,
+  )
 
   const notificationsDone = webPush.status === 'registered' || notifSkipped
   const vaultDone = vaultCount > 0
@@ -106,6 +117,8 @@ export function DashboardPage() {
         entries={entryCount}
         agents={activeAgents.length}
         pending={pendingGrantCount}
+        logs={canViewAudit ? loadedLogCount : undefined}
+        logsApprox={auditLogs.hasNextPage ?? false}
       />
 
       {showOnboarding ? (
@@ -131,19 +144,11 @@ export function DashboardPage() {
           <RecentActivitySection />
         </div>
       ) : (
-        // Wide-screen aware: main column (pending approvals carousel + recent
-        // activity) beside a rail (quick actions + vaults). Stacks on < lg.
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="flex min-w-0 flex-col gap-6">
-            <section>
-              <PendingGrantsPanel variant="carousel" viewAllTo="/inbox" />
-            </section>
-            <RecentActivitySection />
-          </div>
-          <aside className="flex flex-col gap-6">
-            <QuickActionsCard />
-            <YourVaultsCard />
-          </aside>
+        <div className="flex flex-col gap-6">
+          <section>
+            <PendingGrantsPanel variant="carousel" viewAllTo="/inbox" />
+          </section>
+          <RecentActivitySection />
         </div>
       )}
     </div>

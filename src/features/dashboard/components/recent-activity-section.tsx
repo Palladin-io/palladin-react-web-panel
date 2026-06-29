@@ -11,7 +11,7 @@ import {
 import { useVaults } from '../../vaults'
 
 /** How many of the most recent org events the dashboard surfaces. */
-const RECENT_LIMIT = 5
+const RECENT_LIMIT = 10
 
 /**
  * "Recent activity" block for the dashboard — the latest org audit events,
