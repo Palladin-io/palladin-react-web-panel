@@ -21,15 +21,18 @@ export interface OnboardingChecklistProps {
 type StepKey = 'notifications' | 'vault' | 'apiKey' | 'agent'
 
 /**
- * Per-step icon glyph + accent. These accents mirror the Astro onboarding
- * design (DashboardNewUserMain) one-to-one; there are no `--cv-*` tokens for
- * them, so they live here as the single source of truth for this surface.
+ * Per-step icon glyph + accent. The accent is an `--cv-onboard-step-*` rgb
+ * triplet token (defined in index.css), so the glyph colour and its tint both
+ * derive from one token — no raw hex in the component.
  */
-const STEP_VISUALS: Record<StepKey, { icon: string; color: string }> = {
-  notifications: { icon: 'notifications_active', color: '#F59E0B' },
-  vault: { icon: 'shield', color: '#60A5FA' },
-  apiKey: { icon: 'key', color: '#8B5CF6' },
-  agent: { icon: 'smart_toy', color: '#2EC4B6' },
+const STEP_VISUALS: Record<StepKey, { icon: string; accentRgb: string }> = {
+  notifications: {
+    icon: 'notifications_active',
+    accentRgb: 'var(--cv-onboard-step-notifications-rgb)',
+  },
+  vault: { icon: 'shield', accentRgb: 'var(--cv-onboard-step-vault-rgb)' },
+  apiKey: { icon: 'key', accentRgb: 'var(--cv-onboard-step-apikey-rgb)' },
+  agent: { icon: 'smart_toy', accentRgb: 'var(--cv-onboard-step-agent-rgb)' },
 }
 
 /** Opacity for a future, not-yet-active step, by distance from the active one. */
@@ -118,7 +121,7 @@ export function OnboardingChecklist({
   return (
     <div>
       {/* Progress header */}
-      <div className="mb-2 rounded-xl bg-[var(--cv-card-bg)] p-4 shadow-sm">
+      <div className="mb-2 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
         <div className="mb-4 flex items-start justify-between">
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-bold text-[var(--cv-t1)]">
@@ -131,15 +134,11 @@ export function OnboardingChecklist({
               })}
             </span>
           </div>
-          <div className="flex flex-col items-end gap-1.5">
+          <div className="flex flex-col items-end gap-1">
             <span className="text-xs text-[var(--cv-t3)]">{pct}%</span>
-            <button
-              type="button"
-              onClick={handleSkipSetup}
-              className="text-[10px] font-medium text-[var(--cv-t3)] underline underline-offset-2 hover:text-[var(--cv-t2)]"
-            >
+            <Button variant="ghost" size="sm" onClick={handleSkipSetup}>
               {t('dashboard.onboarding.skipSetup')}
-            </button>
+            </Button>
           </div>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-[rgb(var(--cv-primary-rgb)/0.15)]">
@@ -163,17 +162,15 @@ export function OnboardingChecklist({
           return (
             <div
               key={step.key}
-              className={`rounded-xl bg-[var(--cv-card-bg)] p-[18px] shadow-sm ${
-                isActive ? 'border border-amber-500/30' : ''
-              }`}
+              className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-[18px]"
               style={{ opacity }}
             >
               <div className="flex items-start gap-3">
                 <span
                   className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px]"
-                  style={{ backgroundColor: `${visual.color}26` }}
+                  style={{ backgroundColor: `rgb(${visual.accentRgb} / 0.15)` }}
                 >
-                  <Icon name={visual.icon} size={18} color={visual.color} />
+                  <Icon name={visual.icon} size={18} color={`rgb(${visual.accentRgb})`} />
                 </span>
                 <div className="flex flex-1 flex-col gap-3">
                   <div className="flex items-center justify-between gap-3">
@@ -184,7 +181,7 @@ export function OnboardingChecklist({
                       <Icon
                         name="check_circle"
                         size={18}
-                        color="#10B981"
+                        color="var(--cv-success)"
                       />
                     ) : (
                       <span className="rounded-md bg-[var(--cv-card-footer)] px-2 py-0.5 text-[10px] font-semibold text-[var(--cv-t3)]">

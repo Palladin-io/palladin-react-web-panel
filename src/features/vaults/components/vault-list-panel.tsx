@@ -13,7 +13,7 @@ import { PremiumGateDialog } from './premium-gate-dialog'
 import { vaultFooterLabel } from './vault-card'
 import { VaultIconCircle } from './vault-icon-circle'
 import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from './vault-presentation'
-import { VaultSearchBar } from './vault-search-bar'
+import { SearchBar } from '../../../shared/components/search-bar'
 
 export interface VaultListPanelProps {
   selectedVaultId?: string
@@ -76,7 +76,7 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
         <ErrorState message={t('vault.errorLoad')} onRetry={vaults.refetch} />
       ) : (
         <>
-          <VaultSearchBar
+          <SearchBar
             value={search}
             onChange={setSearch}
             placeholder={t('vault.list.searchPlaceholder')}

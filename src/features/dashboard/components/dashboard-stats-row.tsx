@@ -39,7 +39,7 @@ export function DashboardStatsRow({
       {stats.map((stat) => (
         <div
           key={stat.label}
-          className="flex flex-1 items-center gap-3 rounded-xl bg-[var(--cv-card-bg)] px-4 py-3.5 shadow-sm"
+          className="flex flex-1 items-center gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-4 py-3.5"
         >
           <span
             className={`text-2xl font-bold ${

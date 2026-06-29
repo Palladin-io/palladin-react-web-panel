@@ -11,7 +11,7 @@ import {
 import { useEntries } from '../use-entries'
 import { CreateEntryModal } from './create-entry-modal'
 import { EntryRow } from './entry-row'
-import { VaultSearchBar } from './vault-search-bar'
+import { SearchBar } from '../../../shared/components/search-bar'
 
 export interface VaultEntriesPanelProps {
   vault: Vault
@@ -71,7 +71,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
         <ErrorState message={t('vault.errorLoad')} onRetry={entries.refetch} />
       ) : (
         <>
-          <VaultSearchBar
+          <SearchBar
             value={search}
             onChange={setSearch}
             placeholder={t('vault.detail.entriesSearchPlaceholder')}

@@ -1,22 +1,30 @@
-import { Icon } from '../../../shared/components/icon'
+import { Icon } from './icon'
 
-export interface VaultSearchBarProps {
+export interface SearchBarProps {
   value: string
   onChange: (next: string) => void
   placeholder?: string
+  /**
+   * Wrapper class. Defaults to `mb-3` for the stacked list usage (vault list,
+   * entries/agents tabs). Pass e.g. `flex-1` to drop the margin and let the bar
+   * fill an inline header row.
+   */
+  className?: string
 }
 
 /**
- * Search input used across vault screens (vault list, detail entries, detail
- * agents): a rounded card with a leading magnifier glyph and a borderless input.
+ * Shared search input: a rounded field with a leading magnifier glyph and a
+ * borderless input. Used across vault screens (list, detail entries/agents) and
+ * the dashboard header — one control, identical tokens everywhere.
  */
-export function VaultSearchBar({
+export function SearchBar({
   value,
   onChange,
   placeholder,
-}: VaultSearchBarProps) {
+  className = 'mb-3',
+}: SearchBarProps) {
   return (
-    <div className="mb-3">
+    <div className={className}>
       <div
         className="flex items-center gap-2 rounded-lg border border-[var(--cv-input-border)]
           bg-[var(--cv-input-bg)] px-3 py-2 transition-colors focus-within:border-[var(--cv-t1)]"
