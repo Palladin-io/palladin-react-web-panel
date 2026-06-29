@@ -908,6 +908,7 @@
   "dashboard.statEntries": "Wpisy",
   "dashboard.statAgents": "Agenci",
   "dashboard.statPending": "Oczekujące",
+  "dashboard.statGrants": "Granty",
   "dashboard.statLogs": "Logi",
   "dashboard.pendingApprovals": "Oczekujące zatwierdzenia",
   "dashboard.recentActivity": "Ostatnia aktywność",

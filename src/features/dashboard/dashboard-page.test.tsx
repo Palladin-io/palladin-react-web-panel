@@ -34,6 +34,8 @@ vi.mock('../agents', () => ({
 }))
 vi.mock('../grants', () => ({
   usePendingGrants: () => state.pendingGrants,
+  useOrgGrants: () => ({ data: undefined }),
+  GRANT_STATUS_ACTIVE: 'active',
   formatRelativeTime: () => '2m ago',
   // The dashboard reuses the canonical pending-approvals panel; it has its own
   // tests, so here it is a lightweight stub standing in for the section.

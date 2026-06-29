@@ -4,12 +4,20 @@ import { useTranslation } from 'react-i18next'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../shared/api/account-api'
 import { ErrorState } from '../../shared/components/error-state'
 import { analytics } from '../../shared/lib/analytics'
-import { PERMISSION_AUDIT_VIEW } from '../../shared/lib/permissions'
+import {
+  PERMISSION_AUDIT_VIEW,
+  PERMISSION_GRANT_MANAGE,
+} from '../../shared/lib/permissions'
 import { useAgents } from '../agents'
 import { useApiKeys } from '../api-keys'
-import { useAuthStore } from '../auth'
 import { useOrgAuditLogs } from '../audit'
-import { PendingGrantsPanel, usePendingGrants } from '../grants'
+import { useAuthStore } from '../auth'
+import {
+  GRANT_STATUS_ACTIVE,
+  PendingGrantsPanel,
+  useOrgGrants,
+  usePendingGrants,
+} from '../grants'
 import { useWebPush } from '../notifications'
 import { useVaults } from '../vaults'
 import { DashboardHeader } from './components/dashboard-header'
@@ -35,9 +43,11 @@ export function DashboardPage() {
   const pendingGrants = usePendingGrants()
   const webPush = useWebPush()
 
-  const canViewAudit =
-    (useAuthStore((s) => s.permissions) & PERMISSION_AUDIT_VIEW) !== 0
+  const permissions = useAuthStore((s) => s.permissions)
+  const canViewAudit = (permissions & PERMISSION_AUDIT_VIEW) !== 0
+  const canManageGrants = (permissions & PERMISSION_GRANT_MANAGE) !== 0
   const auditLogs = useOrgAuditLogs({}, canViewAudit)
+  const orgGrants = useOrgGrants({ status: GRANT_STATUS_ACTIVE }, canManageGrants)
 
   const [dismissed, setDismissed] = useState(() => readFlag(ONBOARDING_SKIPPED_KEY))
   const [notifSkipped, setNotifSkipped] = useState(() =>
@@ -86,6 +96,8 @@ export function DashboardPage() {
     (sum, page) => sum + page.items.length,
     0,
   )
+  // Org grants are cursor-paginated too — same loaded-count + "+" treatment.
+  const activeGrantCount = orgGrants.data?.items.length ?? 0
 
   const notificationsDone = webPush.status === 'registered' || notifSkipped
   const vaultDone = vaultCount > 0
@@ -117,6 +129,8 @@ export function DashboardPage() {
         entries={entryCount}
         agents={activeAgents.length}
         pending={pendingGrantCount}
+        grants={canManageGrants ? activeGrantCount : undefined}
+        grantsApprox={orgGrants.data?.nextCursor != null}
         logs={canViewAudit ? loadedLogCount : undefined}
         logsApprox={auditLogs.hasNextPage ?? false}
       />

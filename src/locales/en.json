@@ -863,6 +863,7 @@
   "dashboard.statEntries": "Entries",
   "dashboard.statAgents": "Agents",
   "dashboard.statPending": "Pending",
+  "dashboard.statGrants": "Grants",
   "dashboard.statLogs": "Logs",
   "dashboard.pendingApprovals": "Pending approvals",
   "dashboard.recentActivity": "Recent activity",
