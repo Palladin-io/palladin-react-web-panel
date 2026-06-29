@@ -74,7 +74,7 @@ export function isCustomIconUrl(value: string | undefined): value is string {
 
 /**
  * Visual identity per entry type — mirrors the Astro spec
- * (`docs/obsidian/.../Entries UI.md` → "Entry Type Visual Language"
+ * (`brain/.../Entries UI.md` → "Entry Type Visual Language"
  * table). KEY entries get a teal icon-circle, CREDENTIAL entries get
  * a blue one. The default Material glyph is used unless the user
  * picked a custom icon.

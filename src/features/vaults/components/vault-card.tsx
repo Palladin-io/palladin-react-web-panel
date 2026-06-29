@@ -19,7 +19,7 @@ export interface VaultCardProps {
  * Pure presentational — no data fetching, no mutations. The parent
  * owns navigation via `onClick` so the card can be reused in different
  * contexts (search results, picker dialogs) without coupling it to a
- * route. Styling mirrors `docs/design/astro/.../VaultCard.astro` 1:1.
+ * route. Styling mirrors `../design/astro/.../VaultCard.astro` 1:1.
  */
 export function VaultCard({ vault, onClick }: VaultCardProps) {
   const { t, i18n } = useTranslation()

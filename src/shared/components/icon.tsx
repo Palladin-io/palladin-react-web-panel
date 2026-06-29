@@ -19,7 +19,7 @@ export interface IconProps {
  * `<Icon name="arrow_back" />` instead of leaking the `mi` class string
  * everywhere. Mirrors the Astro design system's `<span class="mi">…`
  * pattern so the React panel stays visually consistent with the
- * prototypes in `docs/design/astro/`.
+ * prototypes in `../design/astro/`.
  */
 export function Icon({
   name,

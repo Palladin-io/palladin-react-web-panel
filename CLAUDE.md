@@ -4,7 +4,7 @@ React SPA for managing vaults, entries, agents, and grants. Zero-knowledge archi
 
 ## Project Brain
 
-Business and architecture knowledge for the project: `../docs/obsidian/palladin/`
+Business and architecture knowledge for the project: `../brain/`
 
 Key notes for this repository:
 - `Technical/Frontend.md` — stack, structure, code conventions
@@ -13,7 +13,7 @@ Key notes for this repository:
 - `Product/Modules/Vault/` — Vault module: rules, API, events
 - `Product/Modules/Identity/API.md` — auth and account endpoints
 
-Use `/brain` to navigate, or: `grep -r "WORD" ../docs/obsidian/palladin --include="*.md"`
+Use `/brain` to navigate, or: `grep -r "WORD" ../brain --include="*.md"`
 
 **After any session that changes API, architecture, or business rules: update the relevant brain note.**
 
