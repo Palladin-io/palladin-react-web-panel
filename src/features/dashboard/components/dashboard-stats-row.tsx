@@ -2,33 +2,36 @@ import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 
-/** Routes a stat tile can deep-link to. */
-type StatRoute = '/vaults' | '/agents' | '/inbox' | '/audit'
+/**
+ * Where a tile deep-links. Inbox tiles carry a `tab` so Pending lands on the
+ * To-do segment and the grant-status tiles land on the Grants segment.
+ */
+type StatLink =
+  | { to: '/vaults' | '/agents' | '/audit' }
+  | { to: '/inbox'; search: { tab: 'todo' | 'grants' } }
 
 export interface DashboardStatsRowProps {
   vaults: number
   entries: number
   agents: number
   pending: number
-  /** Omitted when the user lacks GrantManage — no grants metric is shown then. */
-  grants?: number
-  /** Grants is a loaded-page count, not a true total; render it as "{n}+". */
-  grantsApprox?: boolean
+  /** Active/expired grant counts — omitted when the user lacks GrantManage. */
+  active?: number
+  expired?: number
   /** Omitted when the user lacks AuditView — no logs metric is shown then. */
   logs?: number
   /** Logs is a loaded-page count, not a true total; render it as "{n}+". */
   logsApprox?: boolean
 }
 
-interface Stat {
+type Stat = {
   key: string
   label: string
   value: number
   display: string
-  to: StatRoute
   /** Pending turns red once there's anything awaiting the user. */
   highlight?: boolean
-}
+} & StatLink
 
 /**
  * Metric strip at the top of every dashboard state. Each tile links to its
@@ -41,8 +44,8 @@ export function DashboardStatsRow({
   entries,
   agents,
   pending,
-  grants,
-  grantsApprox,
+  active,
+  expired,
   logs,
   logsApprox,
 }: DashboardStatsRowProps) {
@@ -58,16 +61,28 @@ export function DashboardStatsRow({
       value: pending,
       display: String(pending),
       to: '/inbox',
+      search: { tab: 'todo' },
       highlight: pending > 0,
     },
   ]
-  if (grants !== undefined) {
+  if (active !== undefined) {
     stats.push({
-      key: 'grants',
-      label: t('dashboard.statGrants'),
-      value: grants,
-      display: `${grants}${grantsApprox ? '+' : ''}`,
+      key: 'active',
+      label: t('dashboard.statActive'),
+      value: active,
+      display: String(active),
       to: '/inbox',
+      search: { tab: 'grants' },
+    })
+  }
+  if (expired !== undefined) {
+    stats.push({
+      key: 'expired',
+      label: t('dashboard.statExpired'),
+      value: expired,
+      display: String(expired),
+      to: '/inbox',
+      search: { tab: 'grants' },
     })
   }
   if (logs !== undefined) {
@@ -84,24 +99,32 @@ export function DashboardStatsRow({
 
   return (
     <div className="mb-4 flex gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      {ordered.map((stat) => (
-        <Link
-          key={stat.key}
-          to={stat.to}
-          className={`${HOVERABLE_CARD_CLASSES} flex min-w-[150px] flex-1 items-center justify-between gap-3 px-4 py-3`}
-        >
-          <span className="text-xs font-medium text-[var(--cv-t3)]">
-            {stat.label}
-          </span>
-          <span
-            className={`text-2xl font-bold ${
-              stat.highlight ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-t1)]'
-            }`}
-          >
-            {stat.display}
-          </span>
-        </Link>
-      ))}
+      {ordered.map((stat) => {
+        const className = `${HOVERABLE_CARD_CLASSES} flex min-w-[150px] flex-1 items-center justify-between gap-3 px-4 py-3`
+        const content = (
+          <>
+            <span className="text-xs font-medium text-[var(--cv-t3)]">
+              {stat.label}
+            </span>
+            <span
+              className={`text-2xl font-bold ${
+                stat.highlight ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-t1)]'
+              }`}
+            >
+              {stat.display}
+            </span>
+          </>
+        )
+        return stat.to === '/inbox' ? (
+          <Link key={stat.key} to="/inbox" search={stat.search} className={className}>
+            {content}
+          </Link>
+        ) : (
+          <Link key={stat.key} to={stat.to} className={className}>
+            {content}
+          </Link>
+        )
+      })}
     </div>
   )
 }

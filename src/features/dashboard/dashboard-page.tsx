@@ -13,9 +13,8 @@ import { useApiKeys } from '../api-keys'
 import { useOrgAuditLogs } from '../audit'
 import { useAuthStore } from '../auth'
 import {
-  GRANT_STATUS_ACTIVE,
   PendingGrantsPanel,
-  useOrgGrants,
+  useGrantSummary,
   usePendingGrants,
 } from '../grants'
 import { useWebPush } from '../notifications'
@@ -47,7 +46,7 @@ export function DashboardPage() {
   const canViewAudit = (permissions & PERMISSION_AUDIT_VIEW) !== 0
   const canManageGrants = (permissions & PERMISSION_GRANT_MANAGE) !== 0
   const auditLogs = useOrgAuditLogs({}, canViewAudit)
-  const orgGrants = useOrgGrants({ status: GRANT_STATUS_ACTIVE }, canManageGrants)
+  const grantSummary = useGrantSummary(canManageGrants)
 
   const [dismissed, setDismissed] = useState(() => readFlag(ONBOARDING_SKIPPED_KEY))
   const [notifSkipped, setNotifSkipped] = useState(() =>
@@ -96,8 +95,6 @@ export function DashboardPage() {
     (sum, page) => sum + page.items.length,
     0,
   )
-  // Org grants are cursor-paginated too — same loaded-count + "+" treatment.
-  const activeGrantCount = orgGrants.data?.items.length ?? 0
 
   const notificationsDone = webPush.status === 'registered' || notifSkipped
   const vaultDone = vaultCount > 0
@@ -129,8 +126,8 @@ export function DashboardPage() {
         entries={entryCount}
         agents={activeAgents.length}
         pending={pendingGrantCount}
-        grants={canManageGrants ? activeGrantCount : undefined}
-        grantsApprox={orgGrants.data?.nextCursor != null}
+        active={grantSummary.data?.active}
+        expired={grantSummary.data?.expired}
         logs={canViewAudit ? loadedLogCount : undefined}
         logsApprox={auditLogs.hasNextPage ?? false}
       />

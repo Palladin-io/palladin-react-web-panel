@@ -34,3 +34,6 @@ export { GRANT_TYPE_GRANULAR, GRANT_STATUS_ACTIVE } from './api/org-grants-api'
 // active-agent count, computed from the same (deduped) org-grants query the
 // embedded panel already runs.
 export { useOrgGrants } from './use-org-grants'
+// Promoted for the dashboard status tiles (CVT-186): grant counts per status.
+export { useGrantSummary } from './use-grant-summary'
+export type { GrantSummary } from './api/grant-summary-api'

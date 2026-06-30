@@ -66,7 +66,14 @@ interface AgentTarget {
  * The approve/deny flows reuse the existing zero-knowledge grant + agent flows —
  * the crypto is untouched; only the ids come from notification `metadata`.
  */
-export function NotificationCenterPage() {
+export interface NotificationCenterPageProps {
+  /** Pre-selects a segment tab when deep-linked (e.g. from a dashboard tile). */
+  initialSegment?: Segment
+}
+
+export function NotificationCenterPage({
+  initialSegment,
+}: NotificationCenterPageProps = {}) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -82,7 +89,7 @@ export function NotificationCenterPage() {
   const refreshFeed = () =>
     queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
 
-  const [segment, setSegment] = useState<Segment>('all')
+  const [segment, setSegment] = useState<Segment>(initialSegment ?? 'all')
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set())
   const [prefsOpen, setPrefsOpen] = useState(false)
