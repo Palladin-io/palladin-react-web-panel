@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -10,8 +10,10 @@ import { analytics } from '../../../shared/lib/analytics'
 import type { GeneratedApiKey } from '../api/api-keys-api'
 import { useGenerateApiKey } from '../use-generate-api-key'
 
-// TODO: point at the real CLI docs once palladin.io is live.
+// TODO: point at the real URLs once palladin.io is live.
 const DOCS_URL = 'https://palladin.io/docs'
+const SKILL_DOCS_URL = 'https://palladin.io/docs/skill'
+const MARKET_URL = 'https://palladin.io/market'
 
 export interface GenerateApiKeyModalProps {
   open: boolean
@@ -130,10 +132,15 @@ function GeneratedSecretView({
   const [copied, setCopied] = useState(false)
   const [cmdCopied, setCmdCopied] = useState(false)
   const [installCopied, setInstallCopied] = useState(false)
+  const [msgCopied, setMsgCopied] = useState(false)
   const [agentName, setAgentName] = useState(keyName)
 
   const connectCommand = `palladin connect ${generated.plaintext} --id "${agentName.trim() || keyName}"`
   const installCommand = 'npm i -g @palladin/agent'
+  const agentMessage = t('apiKeys.agentMessageBody', {
+    docs: SKILL_DOCS_URL,
+    market: MARKET_URL,
+  })
 
   const handleCopyCommand = async () => {
     try {
@@ -152,6 +159,16 @@ function GeneratedSecretView({
       window.setTimeout(() => setInstallCopied(false), 2000)
     } catch {
       // Clipboard unavailable — the command stays selectable as a fallback.
+    }
+  }
+
+  const handleCopyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(agentMessage)
+      setMsgCopied(true)
+      window.setTimeout(() => setMsgCopied(false), 2000)
+    } catch {
+      // Clipboard unavailable — the message stays selectable as a fallback.
     }
   }
 
@@ -212,10 +229,7 @@ function GeneratedSecretView({
         </p>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <span className="text-[11px] font-semibold text-[var(--cv-label-text)]">
-          {t('apiKeys.connectTitle')}
-        </span>
+      <CollapsibleSection title={t('apiKeys.connectTitle')} defaultOpen>
         <FormInput
           id="connect-agent-name"
           label={t('apiKeys.agentNameLabel')}
@@ -277,13 +291,66 @@ function GeneratedSecretView({
         >
           {t('apiKeys.connectDocs')}
         </a>
-      </div>
+      </CollapsibleSection>
+
+      <CollapsibleSection title={t('apiKeys.agentMessageTitle')}>
+        <textarea
+          readOnly
+          rows={4}
+          value={agentMessage}
+          onFocus={(e) => e.currentTarget.select()}
+          className="w-full resize-none rounded-lg border border-[var(--cv-input-border)]
+            bg-[var(--cv-input-bg)] px-3 py-2 text-[12px] leading-relaxed
+            text-[var(--cv-input-text)] transition-colors focus:border-[var(--cv-t1)]
+            focus:outline-none"
+        />
+        <Button
+          variant="subtle"
+          size="sm"
+          icon={msgCopied ? 'check' : 'content_copy'}
+          onClick={handleCopyMessage}
+          className="self-start"
+        >
+          {msgCopied ? t('apiKeys.copied') : t('apiKeys.copy')}
+        </Button>
+      </CollapsibleSection>
 
       <DialogFooter>
         <Button variant="accent" size="sm" onClick={onDone} className="w-full">
           {t('apiKeys.done')}
         </Button>
       </DialogFooter>
+    </div>
+  )
+}
+
+/** Bordered header + chevron that toggles its content open/closed. */
+function CollapsibleSection({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string
+  defaultOpen?: boolean
+  children: ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="overflow-hidden rounded-lg border border-[var(--cv-border)]">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between px-3 py-2.5 text-left
+          transition-colors hover:bg-[var(--cv-card-hover)]"
+      >
+        <span className="text-[12px] font-semibold text-[var(--cv-t1)]">{title}</span>
+        <Icon name={open ? 'expand_less' : 'expand_more'} size={18} />
+      </button>
+      {open && (
+        <div className="flex flex-col gap-2 border-t border-[var(--cv-border)] p-3">
+          {children}
+        </div>
+      )}
     </div>
   )
 }

@@ -405,6 +405,8 @@
   "apiKeys.agentNameLabel": "Nazwa agenta",
   "apiKeys.connectInstall": "Nie masz CLI? Zainstaluj:",
   "apiKeys.connectDocs": "Dokumentacja →",
+  "apiKeys.agentMessageTitle": "Wiadomość dla agenta",
+  "apiKeys.agentMessageBody": "Podłączyłem Cię do Palladin dla bezpiecznego dostępu do moich danych. Dowiedz się, jak utworzyć i używać swojego skilla Palladin: {{docs}} — albo przejrzyj gotowe skille w markecie: {{market}}.",
   "apiKeys.copy": "Kopiuj",
   "apiKeys.copied": "Skopiowano",
   "apiKeys.done": "Gotowe",
