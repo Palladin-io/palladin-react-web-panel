@@ -105,6 +105,16 @@ const activeAgent = {
 // The checklist hides only once all three setup steps are done (vault + API key
 // + active agent) — not on `isOnboarded`. Post-onboarding states seed that here.
 function completeSetup() {
+  state.account = {
+    isOnboarded: true,
+    displayName: 'Patryk',
+    onboardingSteps: {
+      vaultCreated: true,
+      apiKeyCreated: true,
+      agentEnrolled: true,
+      mobileRegistered: true,
+    },
+  }
   state.vaults = { data: { vaults: [{ id: 'v1', name: 'Work', entryCount: 3 }] } }
   state.apiKeys = { data: [{ id: 'k1' }] }
   state.agents = { data: [activeAgent] }

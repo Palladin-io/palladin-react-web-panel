@@ -17,7 +17,6 @@ import {
   useGrantSummary,
   usePendingGrants,
 } from '../grants'
-import { useWebPush } from '../notifications'
 import { useVaults } from '../vaults'
 import { DashboardHeader } from './components/dashboard-header'
 import { DashboardStatsRow } from './components/dashboard-stats-row'
@@ -26,7 +25,7 @@ import { RecentActivitySection } from './components/recent-activity-section'
 import { UnknownAgentCard } from './components/unknown-agent-card'
 
 const ONBOARDING_SKIPPED_KEY = 'onboarding_skipped'
-const NOTIFICATIONS_SKIPPED_KEY = 'notifications_onboarding_skipped'
+const MOBILE_SKIPPED_KEY = 'mobile_onboarding_skipped'
 
 function readFlag(key: string): boolean {
   return localStorage.getItem(key) === 'true'
@@ -40,7 +39,6 @@ export function DashboardPage() {
   const apiKeys = useApiKeys()
   const agents = useAgents()
   const pendingGrants = usePendingGrants()
-  const webPush = useWebPush()
 
   const permissions = useAuthStore((s) => s.permissions)
   const canViewAudit = (permissions & PERMISSION_AUDIT_VIEW) !== 0
@@ -49,8 +47,8 @@ export function DashboardPage() {
   const grantSummary = useGrantSummary(canManageGrants)
 
   const [dismissed, setDismissed] = useState(() => readFlag(ONBOARDING_SKIPPED_KEY))
-  const [notifSkipped, setNotifSkipped] = useState(() =>
-    readFlag(NOTIFICATIONS_SKIPPED_KEY),
+  const [mobileSkipped, setMobileSkipped] = useState(() =>
+    readFlag(MOBILE_SKIPPED_KEY),
   )
 
   const vaultList = vaults.data?.vaults ?? []
@@ -66,16 +64,21 @@ export function DashboardPage() {
     0,
   )
 
-  const notificationsDone = webPush.status === 'registered' || notifSkipped
   const vaultDone = vaultCount > 0
   const apiKeyDone = (apiKeys.data?.length ?? 0) > 0
   const agentDone = activeAgents.length > 0
+  // `mobileRegistered` is the one step the client can't derive locally — it
+  // comes from the server (the user's push devices). Absent on older backends.
+  const mobileRegistered =
+    account.data?.onboardingSteps?.mobileRegistered ?? false
 
-  // The checklist tracks the three setup steps (vault, API key, agent) — NOT
+  // The checklist tracks the setup steps (vault, API key, agent, mobile) — NOT
   // `account.isOnboarded`, which means account *key* setup (a routing flag,
-  // already true for anyone viewing the dashboard). Wait for the queries to
-  // resolve so an onboarded user never flashes the checklist.
-  const setupComplete = vaultDone && apiKeyDone && agentDone
+  // already true for anyone viewing the dashboard). The mobile step is
+  // skippable. Wait for the queries to resolve so an onboarded user never
+  // flashes the checklist.
+  const setupComplete =
+    vaultDone && apiKeyDone && agentDone && (mobileRegistered || mobileSkipped)
   const onboardingDataReady =
     account.data != null &&
     vaults.data != null &&
@@ -105,13 +108,13 @@ export function DashboardPage() {
     )
   }
 
-  function handleEnableNotifications() {
-    void webPush.requestPermissionAndRegister()
+  function handleGetApp() {
+    // TODO: link to the App Store / Google Play once the app is published.
   }
 
-  function handleSkipNotifications() {
-    localStorage.setItem(NOTIFICATIONS_SKIPPED_KEY, 'true')
-    setNotifSkipped(true)
+  function handleSkipMobile() {
+    localStorage.setItem(MOBILE_SKIPPED_KEY, 'true')
+    setMobileSkipped(true)
   }
 
   function handleDismissOnboarding() {
@@ -138,12 +141,13 @@ export function DashboardPage() {
 
       {showOnboarding ? (
         <OnboardingChecklist
-          notificationsDone={notificationsDone}
           vaultDone={vaultDone}
           apiKeyDone={apiKeyDone}
           agentDone={agentDone}
-          onEnableNotifications={handleEnableNotifications}
-          onSkipNotifications={handleSkipNotifications}
+          mobileRegistered={mobileRegistered}
+          mobileSkipped={mobileSkipped}
+          onGetApp={handleGetApp}
+          onSkipMobile={handleSkipMobile}
           onDismiss={handleDismissOnboarding}
         />
       ) : pendingAgents.length > 0 ? (

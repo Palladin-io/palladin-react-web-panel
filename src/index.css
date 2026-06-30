@@ -47,7 +47,7 @@
   /* Onboarding checklist step accents — decorative per-step glyph colours.
      Theme-independent (legible on both card backgrounds), defined once here so
      they cascade under `.dark` too; consumed as `rgb(var(--…) / α)`. */
-  --cv-onboard-step-notifications-rgb: 245 158 11;
+  --cv-onboard-step-mobile-rgb: 245 158 11;
   --cv-onboard-step-vault-rgb: 96 165 250;
   --cv-onboard-step-apikey-rgb: 139 92 246;
   --cv-onboard-step-agent-rgb: 46 196 182;

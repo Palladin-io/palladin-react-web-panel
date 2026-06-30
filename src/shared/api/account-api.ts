@@ -8,6 +8,17 @@ export interface AccountResponse {
   /** Backend field indicating account setup is complete. */
   isOnboarded: boolean
   /**
+   * Server-derived onboarding step completion. Optional — older backends omit
+   * it; consumers default each flag to `false`. `mobileRegistered` is the only
+   * step the client can't derive locally (it needs the user's push devices).
+   */
+  onboardingSteps?: {
+    vaultCreated: boolean
+    apiKeyCreated: boolean
+    agentEnrolled: boolean
+    mobileRegistered: boolean
+  }
+  /**
    * base64-encoded 16-byte Argon2id salt for master-key derivation.
    * Present once the user has completed onboarding.
    */

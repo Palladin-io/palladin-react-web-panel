@@ -6,19 +6,22 @@ import { Icon } from '../../../shared/components/icon'
 import { analytics } from '../../../shared/lib/analytics'
 
 export interface OnboardingChecklistProps {
-  notificationsDone: boolean
   vaultDone: boolean
   apiKeyDone: boolean
   agentDone: boolean
-  /** Request Web Push permission — the page owns the actual FCM registration. */
-  onEnableNotifications: () => void
-  /** Skip the notifications step — the page persists the skip flag + re-renders. */
-  onSkipNotifications: () => void
+  /** True once the user has a mobile push device — hides the mobile step. */
+  mobileRegistered: boolean
+  /** True once the user skipped the mobile step (persisted by the page). */
+  mobileSkipped: boolean
+  /** Open the mobile-app download — the page owns the actual action. */
+  onGetApp: () => void
+  /** Skip the mobile step — the page persists the skip flag + re-renders. */
+  onSkipMobile: () => void
   /** Dismiss the whole checklist — the page persists `onboarding_skipped`. */
   onDismiss: () => void
 }
 
-type StepKey = 'notifications' | 'vault' | 'apiKey' | 'agent'
+type StepKey = 'vault' | 'apiKey' | 'agent' | 'mobile'
 
 /**
  * Per-step icon glyph + accent. The accent is an `--cv-onboard-step-*` rgb
@@ -26,13 +29,10 @@ type StepKey = 'notifications' | 'vault' | 'apiKey' | 'agent'
  * derive from one token — no raw hex in the component.
  */
 const STEP_VISUALS: Record<StepKey, { icon: string; accentRgb: string }> = {
-  notifications: {
-    icon: 'notifications_active',
-    accentRgb: 'var(--cv-onboard-step-notifications-rgb)',
-  },
   vault: { icon: 'shield', accentRgb: 'var(--cv-onboard-step-vault-rgb)' },
   apiKey: { icon: 'key', accentRgb: 'var(--cv-onboard-step-apikey-rgb)' },
   agent: { icon: 'smart_toy', accentRgb: 'var(--cv-onboard-step-agent-rgb)' },
+  mobile: { icon: 'smartphone', accentRgb: 'var(--cv-onboard-step-mobile-rgb)' },
 }
 
 /** Opacity for a future, not-yet-active step, by distance from the active one. */
@@ -43,12 +43,13 @@ function futureOpacity(distance: number): number {
 }
 
 export function OnboardingChecklist({
-  notificationsDone,
   vaultDone,
   apiKeyDone,
   agentDone,
-  onEnableNotifications,
-  onSkipNotifications,
+  mobileRegistered,
+  mobileSkipped,
+  onGetApp,
+  onSkipMobile,
   onDismiss,
 }: OnboardingChecklistProps) {
   const { t } = useTranslation()
@@ -59,12 +60,6 @@ export function OnboardingChecklist({
   }, [])
 
   const steps: { key: StepKey; title: string; desc: string; done: boolean }[] = [
-    {
-      key: 'notifications',
-      title: t('dashboard.onboarding.notificationsTitle'),
-      desc: t('dashboard.onboarding.notificationsDesc'),
-      done: notificationsDone,
-    },
     {
       key: 'vault',
       title: t('dashboard.onboarding.vaultTitle'),
@@ -84,20 +79,30 @@ export function OnboardingChecklist({
       done: agentDone,
     },
   ]
+  // The mobile step is last and only shown when the user has no mobile device
+  // and hasn't skipped — once a phone is registered it's irrelevant.
+  if (!mobileRegistered && !mobileSkipped) {
+    steps.push({
+      key: 'mobile',
+      title: t('dashboard.onboarding.mobileTitle'),
+      desc: t('dashboard.onboarding.mobileDesc'),
+      done: false,
+    })
+  }
 
   const completedCount = steps.filter((s) => s.done).length
   const pct = Math.round((completedCount / steps.length) * 100)
   // First incomplete step drives the active highlight; -1 once everything's done.
   const activeIndex = steps.findIndex((s) => !s.done)
 
-  function handleEnable() {
-    analytics.capture('identity', 'onboarding-notifications-enabled')
-    onEnableNotifications()
+  function handleGetApp() {
+    analytics.capture('identity', 'onboarding-mobile-clicked')
+    onGetApp()
   }
 
-  function handleNotifSkip() {
-    analytics.capture('identity', 'onboarding-notifications-skipped')
-    onSkipNotifications()
+  function handleSkipMobile() {
+    analytics.capture('identity', 'onboarding-mobile-skipped')
+    onSkipMobile()
   }
 
   function handleCtaForStep(key: StepKey) {
@@ -192,21 +197,17 @@ export function OnboardingChecklist({
                   <span className="text-xs leading-relaxed text-[var(--cv-t3)]">
                     {step.desc}
                   </span>
-                  {isActive && step.key === 'notifications' && (
+                  {isActive && step.key === 'mobile' && (
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={handleEnable}>
-                        {t('dashboard.onboarding.enable')}
+                      <Button size="sm" onClick={handleGetApp}>
+                        {t('dashboard.onboarding.getApp')}
                       </Button>
-                      <Button
-                        variant="subtle"
-                        size="sm"
-                        onClick={handleNotifSkip}
-                      >
+                      <Button variant="subtle" size="sm" onClick={handleSkipMobile}>
                         {t('dashboard.onboarding.skip')}
                       </Button>
                     </div>
                   )}
-                  {isActive && step.key !== 'notifications' && (
+                  {isActive && step.key !== 'mobile' && (
                     <div className="flex">
                       <Button
                         size="sm"
