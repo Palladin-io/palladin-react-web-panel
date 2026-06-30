@@ -129,14 +129,26 @@ function GeneratedSecretView({
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   const [cmdCopied, setCmdCopied] = useState(false)
+  const [installCopied, setInstallCopied] = useState(false)
 
   const connectCommand = `palladin connect ${generated.plaintext} --id "${keyName}"`
+  const installCommand = 'npm i -g @palladin/agent'
 
   const handleCopyCommand = async () => {
     try {
       await navigator.clipboard.writeText(connectCommand)
       setCmdCopied(true)
       window.setTimeout(() => setCmdCopied(false), 2000)
+    } catch {
+      // Clipboard unavailable — the command stays selectable as a fallback.
+    }
+  }
+
+  const handleCopyInstall = async () => {
+    try {
+      await navigator.clipboard.writeText(installCommand)
+      setInstallCopied(true)
+      window.setTimeout(() => setInstallCopied(false), 2000)
     } catch {
       // Clipboard unavailable — the command stays selectable as a fallback.
     }
@@ -204,13 +216,15 @@ function GeneratedSecretView({
           {t('apiKeys.connectTitle')}
         </span>
         <div className="flex gap-2">
-          <code
-            className="flex h-9 flex-1 items-center overflow-x-auto whitespace-nowrap rounded-lg
-              border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 font-mono
-              text-[12px] text-[var(--cv-input-text)]"
-          >
-            {connectCommand}
-          </code>
+          <input
+            type="text"
+            readOnly
+            value={connectCommand}
+            onFocus={(e) => e.currentTarget.select()}
+            className="h-9 w-full flex-1 rounded-lg border border-[var(--cv-input-border)]
+              bg-[var(--cv-input-bg)] px-3 font-mono text-[12px] text-[var(--cv-input-text)]
+              transition-colors focus:border-[var(--cv-t1)] focus:outline-none"
+          />
           <Button
             variant="subtle"
             size="sm"
@@ -221,19 +235,39 @@ function GeneratedSecretView({
             {cmdCopied ? t('apiKeys.copied') : t('apiKeys.copy')}
           </Button>
         </div>
-        <p className="text-[11px] text-[var(--cv-t3)]">
-          {t('apiKeys.connectInstall')}{' '}
-          <code className="font-mono text-[var(--cv-t2)]">npm i -g @palladin/agent</code>
-          {' · '}
-          <a
-            href={DOCS_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="text-[var(--cv-primary)] hover:underline"
+
+        <span className="mt-1 text-[11px] text-[var(--cv-t3)]">
+          {t('apiKeys.connectInstall')}
+        </span>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            readOnly
+            value={installCommand}
+            onFocus={(e) => e.currentTarget.select()}
+            className="h-9 w-full flex-1 rounded-lg border border-[var(--cv-input-border)]
+              bg-[var(--cv-input-bg)] px-3 font-mono text-[12px] text-[var(--cv-input-text)]
+              transition-colors focus:border-[var(--cv-t1)] focus:outline-none"
+          />
+          <Button
+            variant="subtle"
+            size="sm"
+            icon={installCopied ? 'check' : 'content_copy'}
+            onClick={handleCopyInstall}
+            className="h-9 shrink-0"
           >
-            {t('apiKeys.connectDocs')}
-          </a>
-        </p>
+            {installCopied ? t('apiKeys.copied') : t('apiKeys.copy')}
+          </Button>
+        </div>
+
+        <a
+          href={DOCS_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[11px] font-medium text-[var(--cv-primary)] hover:underline"
+        >
+          {t('apiKeys.connectDocs')}
+        </a>
       </div>
 
       <DialogFooter>
