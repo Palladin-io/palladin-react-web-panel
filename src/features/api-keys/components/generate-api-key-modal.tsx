@@ -10,6 +10,9 @@ import { analytics } from '../../../shared/lib/analytics'
 import type { GeneratedApiKey } from '../api/api-keys-api'
 import { useGenerateApiKey } from '../use-generate-api-key'
 
+// TODO: point at the real CLI docs once palladin.io is live.
+const DOCS_URL = 'https://palladin.io/docs'
+
 export interface GenerateApiKeyModalProps {
   open: boolean
   onClose: () => void
@@ -77,7 +80,11 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
       </header>
 
       {generated ? (
-        <GeneratedSecretView generated={generated} onDone={onClose} />
+        <GeneratedSecretView
+          generated={generated}
+          keyName={trimmedName}
+          onDone={onClose}
+        />
       ) : (
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <FormInput
@@ -112,13 +119,28 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
  */
 function GeneratedSecretView({
   generated,
+  keyName,
   onDone,
 }: {
   generated: GeneratedApiKey
+  keyName: string
   onDone: () => void
 }) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
+  const [cmdCopied, setCmdCopied] = useState(false)
+
+  const connectCommand = `palladin connect ${generated.plaintext} --id "${keyName}"`
+
+  const handleCopyCommand = async () => {
+    try {
+      await navigator.clipboard.writeText(connectCommand)
+      setCmdCopied(true)
+      window.setTimeout(() => setCmdCopied(false), 2000)
+    } catch {
+      // Clipboard unavailable — the command stays selectable as a fallback.
+    }
+  }
 
   const handleCopy = async () => {
     try {
@@ -174,6 +196,43 @@ function GeneratedSecretView({
         </span>
         <p className="text-[12px] text-[var(--cv-t2)]">
           {t('apiKeys.oneTimeWarning')}
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className="text-[11px] font-semibold text-[var(--cv-label-text)]">
+          {t('apiKeys.connectTitle')}
+        </span>
+        <div className="flex gap-2">
+          <code
+            className="flex h-9 flex-1 items-center overflow-x-auto whitespace-nowrap rounded-lg
+              border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 font-mono
+              text-[12px] text-[var(--cv-input-text)]"
+          >
+            {connectCommand}
+          </code>
+          <Button
+            variant="subtle"
+            size="sm"
+            icon={cmdCopied ? 'check' : 'content_copy'}
+            onClick={handleCopyCommand}
+            className="h-9 shrink-0"
+          >
+            {cmdCopied ? t('apiKeys.copied') : t('apiKeys.copy')}
+          </Button>
+        </div>
+        <p className="text-[11px] text-[var(--cv-t3)]">
+          {t('apiKeys.connectInstall')}{' '}
+          <code className="font-mono text-[var(--cv-t2)]">npm i -g @palladin/agent</code>
+          {' · '}
+          <a
+            href={DOCS_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[var(--cv-primary)] hover:underline"
+          >
+            {t('apiKeys.connectDocs')}
+          </a>
         </p>
       </div>
 
