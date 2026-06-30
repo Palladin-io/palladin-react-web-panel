@@ -138,6 +138,7 @@ function GeneratedSecretView({
   const connectCommand = `palladin connect ${generated.plaintext} --id "${agentName.trim() || keyName}"`
   const installCommand = 'npm i -g @palladin/agent'
   const agentMessage = t('apiKeys.agentMessageBody', {
+    name: agentName.trim() || keyName,
     docs: SKILL_DOCS_URL,
     market: MARKET_URL,
   })
