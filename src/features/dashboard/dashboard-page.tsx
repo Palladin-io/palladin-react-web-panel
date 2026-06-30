@@ -53,36 +53,6 @@ export function DashboardPage() {
     readFlag(NOTIFICATIONS_SKIPPED_KEY),
   )
 
-  const isOnboarded = account.data?.isOnboarded === true
-  const showOnboarding = account.data != null && !isOnboarded && !dismissed
-
-  // Track whether the checklist was ever active so we only fire the
-  // "completed" event when onboarding finishes mid-session — never when the
-  // user was already onboarded on first render. `isOnboarded` turning true
-  // already hides the checklist (it gates `showOnboarding`), so the effect
-  // only persists the skip + fires analytics once; no state flip needed.
-  const wasActiveRef = useRef(false)
-  useEffect(() => {
-    if (showOnboarding) wasActiveRef.current = true
-  }, [showOnboarding])
-
-  const completedFiredRef = useRef(false)
-  useEffect(() => {
-    if (isOnboarded && wasActiveRef.current && !completedFiredRef.current) {
-      completedFiredRef.current = true
-      analytics.capture('identity', 'onboarding-completed')
-      localStorage.setItem(ONBOARDING_SKIPPED_KEY, 'true')
-    }
-  }, [isOnboarded])
-
-  if (account.isError) {
-    return (
-      <div className="px-4 py-4">
-        <ErrorState message={t('common.couldNotLoadAccount')} onRetry={account.refetch} />
-      </div>
-    )
-  }
-
   const vaultList = vaults.data?.vaults ?? []
   const vaultCount = vaultList.length
   const entryCount = vaultList.reduce((sum, v) => sum + v.entryCount, 0)
@@ -100,6 +70,40 @@ export function DashboardPage() {
   const vaultDone = vaultCount > 0
   const apiKeyDone = (apiKeys.data?.length ?? 0) > 0
   const agentDone = activeAgents.length > 0
+
+  // The checklist tracks the three setup steps (vault, API key, agent) — NOT
+  // `account.isOnboarded`, which means account *key* setup (a routing flag,
+  // already true for anyone viewing the dashboard). Wait for the queries to
+  // resolve so an onboarded user never flashes the checklist.
+  const setupComplete = vaultDone && apiKeyDone && agentDone
+  const onboardingDataReady =
+    account.data != null &&
+    vaults.data != null &&
+    apiKeys.data != null &&
+    agents.data != null
+  const showOnboarding = onboardingDataReady && !setupComplete && !dismissed
+
+  const wasActiveRef = useRef(false)
+  useEffect(() => {
+    if (showOnboarding) wasActiveRef.current = true
+  }, [showOnboarding])
+
+  const completedFiredRef = useRef(false)
+  useEffect(() => {
+    if (setupComplete && wasActiveRef.current && !completedFiredRef.current) {
+      completedFiredRef.current = true
+      analytics.capture('identity', 'onboarding-completed')
+      localStorage.setItem(ONBOARDING_SKIPPED_KEY, 'true')
+    }
+  }, [setupComplete])
+
+  if (account.isError) {
+    return (
+      <div className="px-4 py-4">
+        <ErrorState message={t('common.couldNotLoadAccount')} onRetry={account.refetch} />
+      </div>
+    )
+  }
 
   function handleEnableNotifications() {
     void webPush.requestPermissionAndRegister()

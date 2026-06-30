@@ -94,6 +94,22 @@ const pendingAgent = {
   createdAt: '2026-06-29T10:00:00Z',
 }
 
+const activeAgent = {
+  agentId: 'agent-2',
+  name: 'Prod Bot',
+  status: 'active',
+  publicKey: 'pk',
+  createdAt: '2026-06-01T10:00:00Z',
+}
+
+// The checklist hides only once all three setup steps are done (vault + API key
+// + active agent) — not on `isOnboarded`. Post-onboarding states seed that here.
+function completeSetup() {
+  state.vaults = { data: { vaults: [{ id: 'v1', name: 'Work', entryCount: 3 }] } }
+  state.apiKeys = { data: [{ id: 'k1' }] }
+  state.agents = { data: [activeAgent] }
+}
+
 describe('DashboardPage', () => {
   beforeEach(() => {
     localStorage.clear()
@@ -123,7 +139,8 @@ describe('DashboardPage', () => {
 
   it('renders the unknown-agent card for a pending agent once onboarded', async () => {
     state.account = { isOnboarded: true, displayName: 'Patryk' }
-    state.agents = { data: [pendingAgent] }
+    completeSetup()
+    state.agents = { data: [activeAgent, pendingAgent] }
     render(<DashboardPage />, { wrapper })
     expect(
       await screen.findByText(/unregistered agent — identify before granting access/i),
@@ -133,6 +150,7 @@ describe('DashboardPage', () => {
 
   it('shows the four stat cards in the normal state', async () => {
     state.account = { isOnboarded: true, displayName: 'Patryk' }
+    completeSetup()
     render(<DashboardPage />, { wrapper })
     await waitFor(() =>
       expect(screen.queryByText('Account setup')).not.toBeInTheDocument(),
