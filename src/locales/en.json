@@ -381,6 +381,7 @@
   "apiKeys.oneTimeWarning": "Save this key — it won't be shown again. An agent uses it to connect and request access; it can't read any credentials until you approve the agent. Keep it secret.",
   "apiKeys.secretLabel": "Your new API key",
   "apiKeys.connectTitle": "Connect your agent",
+  "apiKeys.agentNameLabel": "Agent name",
   "apiKeys.connectInstall": "Don't have the CLI? Install it:",
   "apiKeys.connectDocs": "Documentation →",
   "apiKeys.copy": "Copy",

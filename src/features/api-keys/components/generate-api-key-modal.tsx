@@ -130,8 +130,9 @@ function GeneratedSecretView({
   const [copied, setCopied] = useState(false)
   const [cmdCopied, setCmdCopied] = useState(false)
   const [installCopied, setInstallCopied] = useState(false)
+  const [agentName, setAgentName] = useState(keyName)
 
-  const connectCommand = `palladin connect ${generated.plaintext} --id "${keyName}"`
+  const connectCommand = `palladin connect ${generated.plaintext} --id "${agentName.trim() || keyName}"`
   const installCommand = 'npm i -g @palladin/agent'
 
   const handleCopyCommand = async () => {
@@ -215,6 +216,14 @@ function GeneratedSecretView({
         <span className="text-[11px] font-semibold text-[var(--cv-label-text)]">
           {t('apiKeys.connectTitle')}
         </span>
+        <FormInput
+          id="connect-agent-name"
+          label={t('apiKeys.agentNameLabel')}
+          value={agentName}
+          onChange={(e) => setAgentName(e.target.value)}
+          placeholder={t('apiKeys.namePlaceholder')}
+          maxLength={64}
+        />
         <div className="flex gap-2">
           <input
             type="text"

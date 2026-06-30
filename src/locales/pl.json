@@ -402,6 +402,7 @@
   "apiKeys.oneTimeWarning": "Zapisz ten klucz — nie pokażemy go ponownie. Agent użyje go, by się połączyć i poprosić o dostęp; nie odczyta żadnych danych, dopóki go nie zatwierdzisz. Trzymaj go w sekrecie.",
   "apiKeys.secretLabel": "Twój nowy klucz API",
   "apiKeys.connectTitle": "Podłącz agenta",
+  "apiKeys.agentNameLabel": "Nazwa agenta",
   "apiKeys.connectInstall": "Nie masz CLI? Zainstaluj:",
   "apiKeys.connectDocs": "Dokumentacja →",
   "apiKeys.copy": "Kopiuj",
