@@ -1,6 +1,5 @@
-import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { SearchBar } from '../../../shared/components/search-bar'
+import { GlobalSearchAutocomplete } from '../../search'
 
 export interface DashboardHeaderProps {
   /** First name for the greeting; falls back to a generic greeting when absent. */
@@ -8,15 +7,12 @@ export interface DashboardHeaderProps {
 }
 
 /**
- * Dashboard top row: greeting + date on the left, the shared search bar filling
- * the rest (mirrors the list-screen header scale). The search is presentational
- * for now — there is no global-search route yet, so it is a controlled input
- * wired to local state with a TODO. The visual must exist regardless.
+ * Dashboard top row: greeting + date on the left, the global-search autocomplete
+ * filling the rest (mirrors the list-screen header scale). Selecting a hit jumps
+ * straight to the matching agent/vault detail screen.
  */
 export function DashboardHeader({ firstName }: DashboardHeaderProps) {
   const { t } = useTranslation()
-  // TODO: wire to a global search route once cross-resource search lands.
-  const [query, setQuery] = useState('')
 
   const today = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -35,9 +31,7 @@ export function DashboardHeader({ firstName }: DashboardHeaderProps) {
         <p className="text-[11px] text-[var(--cv-t3)]">{today}</p>
       </div>
 
-      <SearchBar
-        value={query}
-        onChange={setQuery}
+      <GlobalSearchAutocomplete
         placeholder={t('dashboard.searchPlaceholder')}
         className="flex-1"
       />
