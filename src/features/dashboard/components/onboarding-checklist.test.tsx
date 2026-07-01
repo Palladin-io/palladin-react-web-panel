@@ -18,7 +18,7 @@ function renderChecklist(overrides: Partial<Parameters<typeof OnboardingChecklis
   const onDismiss = vi.fn()
   render(
     <OnboardingChecklist
-      vaultDone={false}
+      entryDone={false}
       apiKeyDone={false}
       agentDone={false}
       mobileRegistered={false}
@@ -39,14 +39,14 @@ describe('OnboardingChecklist', () => {
 
   it('renders all four setup steps', () => {
     renderChecklist()
-    expect(screen.getByText('Add your first vault')).toBeInTheDocument()
+    expect(screen.getByText('Add your first entry or import passwords')).toBeInTheDocument()
     expect(screen.getByText('Add an API key')).toBeInTheDocument()
     expect(screen.getByText('Register an agent')).toBeInTheDocument()
     expect(screen.getByText('Get the mobile app')).toBeInTheDocument()
   })
 
   it('shows Get the app and Skip on the active mobile step', () => {
-    renderChecklist({ vaultDone: true, apiKeyDone: true, agentDone: true })
+    renderChecklist({ entryDone: true, apiKeyDone: true, agentDone: true })
     expect(screen.getByRole('button', { name: 'Get the app' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
   })

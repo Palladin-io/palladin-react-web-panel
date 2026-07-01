@@ -13,7 +13,9 @@ import {
   wipe,
 } from '../../../shared/crypto/sodium'
 import { ACCOUNT_QUERY_KEY, setupAccount } from '../../../shared/api/account-api'
+import i18n from '../../../shared/lib/i18n'
 import { joinMnemonic } from '../../../shared/lib/mnemonic'
+import { createDefaultVaultSafe } from './create-default-vault-safe'
 
 export interface CompleteSetupInput {
   masterPassword: string
@@ -68,6 +70,16 @@ export function useCompleteSetup() {
         wipe(recoveryKey)
         wipe(keyPair.privateKey)
       }
+
+      // Auto-create the default vault right after keys are available in the
+      // auth store. The copy stored by unlockVault() above is still intact —
+      // only the original buffers were wiped by the finally block.
+      // Non-fatal: 409 (already exists) and any other error are swallowed
+      // inside createDefaultVaultSafe so they never block onboarding.
+      const privateKey = useAuthStore.getState().privateKey
+      if (privateKey) {
+        await createDefaultVaultSafe(privateKey, i18n.t('vault.defaultName'))
+      }
     },
     onSuccess: () => {
       // Reflect onboarding in the auth store so /_authenticated/ stops
@@ -75,6 +87,9 @@ export function useCompleteSetup() {
       // re-subscribing this hook to the whole store.
       useAuthStore.getState().markOnboarded()
       queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY })
+      // Invalidate the vault list so the new default vault appears
+      // immediately when the user lands on the dashboard.
+      queryClient.invalidateQueries({ queryKey: ['vaults'] })
     },
   })
 }

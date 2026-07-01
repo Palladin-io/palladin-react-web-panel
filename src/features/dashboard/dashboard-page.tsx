@@ -65,7 +65,9 @@ export function DashboardPage() {
     0,
   )
 
-  const vaultDone = vaultCount > 0
+  // The default vault is auto-created on account setup, so "entry done"
+  // (≥1 entry across all vaults) is the meaningful first step for the user.
+  const entryDone = entryCount > 0
   const apiKeyDone = (apiKeys.data?.length ?? 0) > 0
   const agentDone = activeAgents.length > 0
   // `mobileRegistered` is the one step the client can't derive locally — it
@@ -73,13 +75,13 @@ export function DashboardPage() {
   const mobileRegistered =
     account.data?.onboardingSteps?.mobileRegistered ?? false
 
-  // The checklist tracks the setup steps (vault, API key, agent, mobile) — NOT
+  // The checklist tracks the setup steps (entry, API key, agent, mobile) — NOT
   // `account.isOnboarded`, which means account *key* setup (a routing flag,
   // already true for anyone viewing the dashboard). The mobile step is
   // skippable. Wait for the queries to resolve so an onboarded user never
   // flashes the checklist.
   const setupComplete =
-    vaultDone && apiKeyDone && agentDone && (mobileRegistered || mobileSkipped)
+    entryDone && apiKeyDone && agentDone && (mobileRegistered || mobileSkipped)
   const onboardingDataReady =
     account.data != null &&
     vaults.data != null &&
@@ -142,7 +144,7 @@ export function DashboardPage() {
 
       {showOnboarding ? (
         <OnboardingChecklist
-          vaultDone={vaultDone}
+          entryDone={entryDone}
           apiKeyDone={apiKeyDone}
           agentDone={agentDone}
           mobileRegistered={mobileRegistered}

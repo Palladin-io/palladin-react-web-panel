@@ -110,7 +110,7 @@ const activeAgent = {
   createdAt: '2026-06-01T10:00:00Z',
 }
 
-// The checklist hides only once all three setup steps are done (vault + API key
+// The checklist hides only once all three setup steps are done (entry + API key
 // + active agent) — not on `isOnboarded`. Post-onboarding states seed that here.
 function completeSetup() {
   state.account = {
@@ -143,7 +143,7 @@ describe('DashboardPage', () => {
   it('renders the onboarding checklist when not onboarded and no skip flag', async () => {
     render(<DashboardPage />, { wrapper })
     expect(await screen.findByText('Account setup')).toBeInTheDocument()
-    expect(screen.getByText('Add your first vault')).toBeInTheDocument()
+    expect(screen.getByText('Add your first entry or import passwords')).toBeInTheDocument()
   })
 
   it('does not render the checklist when onboarding_skipped is set', async () => {

@@ -6,7 +6,8 @@ import { Icon } from '../../../shared/components/icon'
 import { analytics } from '../../../shared/lib/analytics'
 
 export interface OnboardingChecklistProps {
-  vaultDone: boolean
+  /** True once the user has at least one entry in any vault. */
+  entryDone: boolean
   apiKeyDone: boolean
   agentDone: boolean
   /** True once the user has a mobile push device — hides the mobile step. */
@@ -21,7 +22,7 @@ export interface OnboardingChecklistProps {
   onDismiss: () => void
 }
 
-type StepKey = 'vault' | 'apiKey' | 'agent' | 'mobile'
+type StepKey = 'entry' | 'apiKey' | 'agent' | 'mobile'
 
 /**
  * Per-step icon glyph + accent. The accent is an `--cv-onboard-step-*` rgb
@@ -29,7 +30,7 @@ type StepKey = 'vault' | 'apiKey' | 'agent' | 'mobile'
  * derive from one token — no raw hex in the component.
  */
 const STEP_VISUALS: Record<StepKey, { icon: string; accentRgb: string }> = {
-  vault: { icon: 'shield', accentRgb: 'var(--cv-onboard-step-vault-rgb)' },
+  entry: { icon: 'shield', accentRgb: 'var(--cv-onboard-step-vault-rgb)' },
   apiKey: { icon: 'key', accentRgb: 'var(--cv-onboard-step-apikey-rgb)' },
   agent: { icon: 'smart_toy', accentRgb: 'var(--cv-onboard-step-agent-rgb)' },
   mobile: { icon: 'smartphone', accentRgb: 'var(--cv-onboard-step-mobile-rgb)' },
@@ -43,7 +44,7 @@ function futureOpacity(distance: number): number {
 }
 
 export function OnboardingChecklist({
-  vaultDone,
+  entryDone,
   apiKeyDone,
   agentDone,
   mobileRegistered,
@@ -61,10 +62,10 @@ export function OnboardingChecklist({
 
   const steps: { key: StepKey; title: string; desc: string; done: boolean }[] = [
     {
-      key: 'vault',
-      title: t('dashboard.onboarding.vaultTitle'),
-      desc: t('dashboard.onboarding.vaultDesc'),
-      done: vaultDone,
+      key: 'entry',
+      title: t('dashboard.onboarding.entryTitle'),
+      desc: t('dashboard.onboarding.entryDesc'),
+      done: entryDone,
     },
     {
       key: 'apiKey',
@@ -106,8 +107,8 @@ export function OnboardingChecklist({
   }
 
   function handleCtaForStep(key: StepKey) {
-    if (key === 'vault') {
-      analytics.capture('identity', 'onboarding-vault-clicked')
+    if (key === 'entry') {
+      analytics.capture('identity', 'onboarding-entry-clicked')
       void navigate({ to: '/vaults' })
     } else if (key === 'apiKey') {
       analytics.capture('identity', 'onboarding-api-key-clicked')
