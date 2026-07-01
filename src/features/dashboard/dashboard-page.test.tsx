@@ -36,6 +36,14 @@ vi.mock('../grants', () => ({
   usePendingGrants: () => state.pendingGrants,
   useGrantSummary: () => ({ data: undefined }),
   formatRelativeTime: () => '2m ago',
+  // Recently-added/modified is gated on GrantManage (absent in these tests → the
+  // section renders nothing); its hook still runs, so keep it inert here.
+  useRecentEntries: () => ({
+    data: [],
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  }),
   // The dashboard reuses the canonical pending-approvals panel; it has its own
   // tests, so here it is a lightweight stub standing in for the section.
   PendingGrantsPanel: () => <div>Pending approvals</div>,

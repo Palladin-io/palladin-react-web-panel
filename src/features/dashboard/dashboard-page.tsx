@@ -22,6 +22,7 @@ import { DashboardHeader } from './components/dashboard-header'
 import { DashboardStatsRow } from './components/dashboard-stats-row'
 import { OnboardingChecklist } from './components/onboarding-checklist'
 import { RecentActivitySection } from './components/recent-activity-section'
+import { RecentEntriesSection } from './components/recent-entries-section'
 import { UnknownAgentCard } from './components/unknown-agent-card'
 
 const ONBOARDING_SKIPPED_KEY = 'onboarding_skipped'
@@ -160,6 +161,7 @@ export function DashboardPage() {
             </div>
             <UnknownAgentCard agent={pendingAgents[0]} />
           </section>
+          <RecentEntriesSection />
           <RecentActivitySection />
         </div>
       ) : (
@@ -167,6 +169,7 @@ export function DashboardPage() {
           <section>
             <PendingGrantsPanel variant="carousel" viewAllTo="/inbox" />
           </section>
+          <RecentEntriesSection />
           <RecentActivitySection />
         </div>
       )}

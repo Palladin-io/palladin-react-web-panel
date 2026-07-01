@@ -18,6 +18,9 @@ export const ORG_GRANTS_QUERY_KEY = ['grants', 'org'] as const
 /** Grant counts per status (dashboard metric tiles). */
 export const GRANT_SUMMARY_QUERY_KEY = ['grants', 'summary'] as const
 
+/** Recently added / modified entries (dashboard Home widget, `sort=recent`). */
+export const RECENT_ENTRIES_QUERY_KEY = ['entries', 'recent'] as const
+
 /** Approval audit history (Approvals view, when present). */
 export const APPROVAL_AUDIT_LOG_QUERY_KEY = ['audit-logs', 'approvals'] as const
 
