@@ -80,7 +80,7 @@ export function GlobalSearchAutocomplete({
   }
 
   function handleSelect(item: SearchResultItem) {
-    analytics.capture('search', 'search-result-selected', { type: item.type, id: item.id })
+    analytics.capture('identity', 'search-result-selected', { type: item.type, id: item.id })
     setOpen(false)
     setQuery('')
 

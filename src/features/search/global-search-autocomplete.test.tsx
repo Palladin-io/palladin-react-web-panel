@@ -70,7 +70,7 @@ describe('GlobalSearchAutocomplete', () => {
       to: '/agents/$agentId',
       params: { agentId: 'a1' },
     })
-    expect(captureMock).toHaveBeenCalledWith('search', 'search-result-selected', {
+    expect(captureMock).toHaveBeenCalledWith('identity', 'search-result-selected', {
       type: 'agent',
       id: 'a1',
     })
