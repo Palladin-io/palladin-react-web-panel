@@ -691,6 +691,8 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   disabled={isSaving || decrypting}
                   monospace
                   error={secretValueError}
+                  copyable
+                  copyLabel={t('vault.entry.copyKey')}
                 />
                 <FieldFeedback visible={secretValueError} color="red">
                   {t('validation.required')}
@@ -711,6 +713,8 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     }
                     disabled={isSaving || decrypting}
                     error={usernameError}
+                    copyable
+                    copyLabel={t('vault.entry.copyUsername')}
                   />
                   <FieldFeedback visible={usernameError} color="red">
                     {t('validation.required')}
@@ -732,6 +736,8 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     disabled={isSaving || decrypting}
                     monospace
                     error={passwordError}
+                    copyable
+                    copyLabel={t('vault.entry.copyPassword')}
                   />
                   <FieldFeedback visible={passwordError} color="red">
                     {t('validation.required')}

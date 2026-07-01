@@ -12,10 +12,10 @@ import {
 } from '../../grants'
 import {
   ENTRY_ICON_COLORS,
-  ENTRY_TYPE_CREDENTIAL,
   type EntryType,
   hexWithAlpha,
   isCustomIconUrl,
+  normalizeEntryType,
   presentationForType,
 } from '../../vaults'
 
@@ -77,8 +77,7 @@ export function RecentEntriesSection() {
 function RecentEntryRow({ entry }: { entry: EntrySearchItem }) {
   const { t } = useTranslation()
 
-  const type: EntryType =
-    typeof entry.type === 'number' && entry.type === 0 ? 0 : ENTRY_TYPE_CREDENTIAL
+  const type: EntryType = normalizeEntryType(entry.type)
   const presentation = presentationForType(type)
   const iconValue = entry.icon ?? presentation.defaultIcon
   const isCustomIcon = isCustomIconUrl(iconValue)

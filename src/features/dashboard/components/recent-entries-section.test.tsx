@@ -29,6 +29,8 @@ vi.mock('../../grants', () => ({
 // the test stays isolated from the real colour map.
 vi.mock('../../vaults', () => ({
   ENTRY_TYPE_CREDENTIAL: 1,
+  normalizeEntryType: (raw: unknown) =>
+    raw === 'key' || raw === 0 ? 0 : 1,
   ENTRY_ICON_COLORS: {} as Record<string, string>,
   isCustomIconUrl: () => false,
   presentationForType: () => ({

@@ -24,6 +24,7 @@ export {
   GRANT_MODE_GRANULAR,
   PERMISSION_FULL_GRANT_MODE,
   PERMISSION_MULTIPLE_VAULTS,
+  normalizeEntryType,
 } from './types'
 export { useVaults } from './use-vaults'
 export { useVault } from './use-vault'

@@ -49,6 +49,10 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
   const iconBg = hexWithAlpha(iconColor, 0.12)
 
   const [revealOpen, setRevealOpen] = useState(false)
+  // Whether we need the full (encrypted) entry — driven by BOTH reveal and
+  // copy. Copy must be able to fetch+decrypt WITHOUT opening the reveal panel,
+  // so this is kept separate from `revealOpen`.
+  const [wantDetail, setWantDetail] = useState(false)
   const [plaintext, setPlaintext] = useState<EntryPlaintext | null>(null)
   const [showSecret, setShowSecret] = useState(false)
   const [decryptError, setDecryptError] = useState<string | null>(null)
@@ -57,19 +61,14 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
   // decrypt, once more to actually copy. Reset after firing.
   const [copyAfterDecrypt, setCopyAfterDecrypt] = useState(false)
 
-  // Trigger the detail fetch only after the user opens the panel.
-  const detail = useEntryDetail(vaultId, entry.id, revealOpen)
+  // Fetch the detail once the user reveals OR copies — never on mount.
+  const detail = useEntryDetail(vaultId, entry.id, wantDetail)
 
-  // Decrypt when the blob arrives; reset state on close.
+  // Decrypt once the blob arrives. Runs for reveal AND copy; the decrypted
+  // plaintext is cached for the row's lifetime (the encrypted blob is already
+  // cached by the query), so toggling the panel or copying again is instant.
   useEffect(() => {
-    if (!revealOpen) {
-      setPlaintext(null)
-      setShowSecret(false)
-      setDecryptError(null)
-      setCopyAfterDecrypt(false)
-      return
-    }
-    if (!detail.data) return
+    if (!wantDetail || !detail.data || plaintext || decryptError) return
 
     const privateKey = useAuthStore.getState().privateKey
     if (!privateKey || !wrappedVK) {
@@ -98,7 +97,13 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
     return () => {
       cancelled = true
     }
-  }, [revealOpen, detail.data, wrappedVK, t])
+  }, [wantDetail, detail.data, wrappedVK, plaintext, decryptError, t])
+
+  // Collapsing the panel only hides the plaintext — it stays decrypted so a
+  // subsequent copy (or re-open) doesn't round-trip again.
+  useEffect(() => {
+    if (!revealOpen) setShowSecret(false)
+  }, [revealOpen])
 
   // If the user clicked "copy" before plaintext was ready, fire the copy
   // exactly once when it arrives.
@@ -107,6 +112,14 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
     copySecret(plaintext, entry.type, t)
     setCopyAfterDecrypt(false)
   }, [copyAfterDecrypt, plaintext, entry.type, t])
+
+  // Surface a decrypt failure that happened while a copy was queued (the panel
+  // may be closed, so the inline error wouldn't be visible).
+  useEffect(() => {
+    if (!decryptError || !copyAfterDecrypt) return
+    toast.error(t('vault.entries.copyFailed'))
+    setCopyAfterDecrypt(false)
+  }, [decryptError, copyAfterDecrypt, t])
 
   const meta = entry.urlDomain ?? formatLastAccessed(entry, t)
   const isLoadingDetail = revealOpen && detail.isPending
@@ -153,6 +166,7 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
               const next = !revealOpen
               setRevealOpen(next)
               if (next) {
+                setWantDetail(true)
                 analytics.capture('vault', 'entry-reveal-opened', { type: entry.type })
               }
             }}
@@ -169,10 +183,11 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
                 copySecret(plaintext, entry.type, t)
                 return
               }
-              // Trigger decrypt and queue the copy so it fires the
-              // moment plaintext lands — saves the user a second click.
+              // Fetch + decrypt and queue the copy so it fires the moment
+              // plaintext lands. Crucially this does NOT open the reveal panel
+              // — copying must never expand the row.
               setCopyAfterDecrypt(true)
-              setRevealOpen(true)
+              setWantDetail(true)
             }}
           />
           {entry.urlDomain ? (
@@ -265,6 +280,8 @@ function RevealPanel({
               icon="vpn_key"
               value={showSecret ? plaintext.value : maskValue(plaintext.value.length)}
               monospace
+              copyValue={plaintext.value}
+              copyLabel={t('vault.entry.copyKey')}
               actions={
                 <>
                   <ToggleVisibilityAction shown={showSecret} onToggle={onToggleShow} />
@@ -292,6 +309,8 @@ function RevealPanel({
                   showSecret ? plaintext.password : maskValue(plaintext.password.length)
                 }
                 monospace
+                copyValue={plaintext.password}
+                copyLabel={t('vault.entry.copyPassword')}
                 actions={
                   <>
                     <ToggleVisibilityAction shown={showSecret} onToggle={onToggleShow} />
@@ -316,22 +335,37 @@ function RevealRow({
   value,
   monospace,
   actions,
+  copyValue,
+  copyLabel,
 }: {
   icon: string
   value: string
   monospace?: boolean
   actions: React.ReactNode
+  /** When set, clicking the displayed value copies this secret to the clipboard. */
+  copyValue?: string
+  copyLabel?: string
 }) {
+  const { t } = useTranslation()
+  const valueClass = `min-w-0 flex-1 truncate text-[var(--cv-t1)] ${
+    monospace ? 'font-mono tracking-wide' : ''
+  }`
   return (
     <div className="flex items-center gap-2">
       <Icon name={icon} size={13} className="shrink-0 text-[var(--cv-t3)]" />
-      <span
-        className={`min-w-0 flex-1 truncate text-[var(--cv-t1)] ${
-          monospace ? 'font-mono tracking-wide' : ''
-        }`}
-      >
-        {value}
-      </span>
+      {copyValue !== undefined ? (
+        <button
+          type="button"
+          onClick={() => copyText(copyValue, copyLabel ?? t('common.copy'), t)}
+          title={t('vault.entry.clickToCopy')}
+          aria-label={copyLabel ?? t('common.copy')}
+          className={`${valueClass} cursor-pointer text-left hover:text-[var(--cv-primary)]`}
+        >
+          {value}
+        </button>
+      ) : (
+        <span className={valueClass}>{value}</span>
+      )}
       <span className="flex shrink-0 items-center gap-1">{actions}</span>
     </div>
   )

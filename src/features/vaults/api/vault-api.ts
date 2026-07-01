@@ -1,4 +1,5 @@
 import { api } from '../../../shared/api/client'
+import { normalizeEntryType } from '../types'
 import type {
   CreateEntryPayload,
   CreateVaultInput,
@@ -88,19 +89,29 @@ export interface EntryListResponse {
   nextCursor?: string
 }
 
-export function getEntries(vaultId: string): Promise<EntryListResponse> {
-  return api
+export async function getEntries(vaultId: string): Promise<EntryListResponse> {
+  const response = await api
     .get(`api/vaults/${vaultId}/entries`)
     .json<EntryListResponse>()
+  // The backend serialises `type` as a string ("key"/"credential"); normalise
+  // it to the numeric EntryType every consumer compares against.
+  return {
+    ...response,
+    items: response.items.map((item) => ({
+      ...item,
+      type: normalizeEntryType(item.type),
+    })),
+  }
 }
 
-export function getEntry(
+export async function getEntry(
   vaultId: string,
   entryId: string,
 ): Promise<EntryDetail> {
-  return api
+  const entry = await api
     .get(`api/vaults/${vaultId}/entries/${entryId}`)
     .json<EntryDetail>()
+  return { ...entry, type: normalizeEntryType(entry.type) }
 }
 
 export function createEntry(

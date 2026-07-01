@@ -7,6 +7,7 @@ import { createEntry } from './api/vault-api'
 import type { EntryPlaintext, EntryType } from './types'
 import { entriesQueryKey } from './use-entries'
 import { vaultQueryKey } from './use-vault'
+import { VAULTS_QUERY_KEY } from './use-vaults'
 
 /**
  * Thrown when create is invoked while the vault is still locked. The
@@ -83,6 +84,10 @@ export function useCreateEntry() {
       queryClient.invalidateQueries({ queryKey: entriesQueryKey(variables.vaultId) })
       // Entry counts on the vault summary need a refresh too.
       queryClient.invalidateQueries({ queryKey: vaultQueryKey(variables.vaultId) })
+      // The vault LIST carries its own `entryCount` per vault (drives the
+      // dashboard onboarding "add your first entry" step). It lives under a
+      // sibling key, so the entries/detail invalidations above don't reach it.
+      queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
     },
   })
 }
