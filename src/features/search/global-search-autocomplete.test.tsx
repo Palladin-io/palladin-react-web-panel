@@ -23,6 +23,21 @@ vi.mock('./use-global-search', () => ({
   useGlobalSearch: () => searchState,
 }))
 
+// Recent-entries hook (empty-state) — mocked so the component needs no QueryClient.
+const recentState = vi.hoisted(() => ({
+  data: undefined as Array<Record<string, unknown>> | undefined,
+  isPending: false,
+}))
+vi.mock('../grants', () => ({
+  useRecentEntries: () => recentState,
+}))
+
+// Caller has GrantManage (bit 32) so recent entries are fetchable.
+vi.mock('../auth', () => ({
+  useAuthStore: (selector: (s: { permissions: number }) => unknown) =>
+    selector({ permissions: 32 }),
+}))
+
 const agentResult: SearchResultItem = { type: 'agent', id: 'a1', name: 'Deploy Bot' }
 const entryResult: SearchResultItem = {
   type: 'entry',
@@ -42,12 +57,27 @@ describe('GlobalSearchAutocomplete', () => {
     captureMock.mockReset()
     searchState.data = undefined
     searchState.isFetching = false
+    recentState.data = undefined
+    recentState.isPending = false
   })
 
   it('renders the search bar and no dropdown by default', () => {
     render(<GlobalSearchAutocomplete placeholder="Search…" />)
     expect(screen.getByPlaceholderText('Search…')).toBeInTheDocument()
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+  })
+
+  it('surfaces recent entries when the empty field is focused', () => {
+    recentState.data = [
+      { id: 'e1', label: 'GitHub', vaultId: 'v9', vaultName: 'Personal' },
+    ]
+    render(<GlobalSearchAutocomplete placeholder="Search…" />)
+
+    fireEvent.focus(screen.getByRole('textbox'))
+
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    expect(screen.getByText('Recent')).toBeInTheDocument()
+    expect(screen.getByText('GitHub')).toBeInTheDocument()
   })
 
   it('shows the dropdown with typed results once the query is long enough', () => {

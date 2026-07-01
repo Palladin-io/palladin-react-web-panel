@@ -871,6 +871,8 @@
   "dashboard.searchPlaceholder": "Search agents, vaults, entries…",
   "search.noResults": "No results",
   "search.loading": "Searching…",
+  "search.recent": "Recent",
+  "search.startTyping": "Type to search agents, vaults and entries",
   "search.typeBadge.agent": "Agent",
   "search.typeBadge.vault": "Vault",
   "search.typeBadge.entry": "Entry",

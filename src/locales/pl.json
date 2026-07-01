@@ -916,6 +916,8 @@
   "dashboard.searchPlaceholder": "Szukaj agentów, sejfów, wpisów…",
   "search.noResults": "Brak wyników",
   "search.loading": "Szukam…",
+  "search.recent": "Ostatnie",
+  "search.startTyping": "Wpisz, aby wyszukać agentów, sejfy i wpisy",
   "search.typeBadge.agent": "Agent",
   "search.typeBadge.vault": "Vault",
   "search.typeBadge.entry": "Wpis",
