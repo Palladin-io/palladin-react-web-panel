@@ -92,9 +92,12 @@ export function GlobalSearchAutocomplete({
       void navigate({ to: '/vaults/$vaultId', params: { vaultId: item.id } })
       return
     }
-    // TODO CVT-184: Backend GET /api/search does not return vaultId for entry
-    // results. Navigation to /vaults/$vaultId/entries/$entryId is blocked until
-    // the backend adds vaultId to the search result contract. Tracked: CVT-184.
+    if (item.vaultId) {
+      void navigate({
+        to: '/vaults/$vaultId/entries/$entryId',
+        params: { vaultId: item.vaultId, entryId: item.id },
+      })
+    }
   }
 
   function handleKeyDown(event: React.KeyboardEvent) {

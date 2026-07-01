@@ -24,7 +24,13 @@ vi.mock('./use-global-search', () => ({
 }))
 
 const agentResult: SearchResultItem = { type: 'agent', id: 'a1', name: 'Deploy Bot' }
-const entryResult: SearchResultItem = { type: 'entry', id: 'e1', name: 'GitHub', vaultName: 'Personal' }
+const entryResult: SearchResultItem = {
+  type: 'entry',
+  id: 'e1',
+  name: 'GitHub',
+  vaultId: 'v9',
+  vaultName: 'Personal',
+}
 
 function typeQuery(value: string) {
   fireEvent.change(screen.getByRole('textbox'), { target: { value } })
@@ -73,6 +79,23 @@ describe('GlobalSearchAutocomplete', () => {
     expect(captureMock).toHaveBeenCalledWith('identity', 'search-result-selected', {
       type: 'agent',
       id: 'a1',
+    })
+  })
+
+  it('navigates to entry detail with vaultId + entryId on entry selection', () => {
+    searchState.data = [entryResult]
+    render(<GlobalSearchAutocomplete placeholder="Search…" />)
+
+    typeQuery('git')
+    fireEvent.click(screen.getByText('GitHub'))
+
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/vaults/$vaultId/entries/$entryId',
+      params: { vaultId: 'v9', entryId: 'e1' },
+    })
+    expect(captureMock).toHaveBeenCalledWith('identity', 'search-result-selected', {
+      type: 'entry',
+      id: 'e1',
     })
   })
 

@@ -1,18 +1,14 @@
 import { z } from 'zod'
 import { api } from '../../shared/api/client'
 
-/**
- * A single global-search hit. Mirrors the backend `GET /api/search` contract.
- *
- * NOTE: the backend does NOT return `vaultId` for `entry` hits, so entry →
- * detail navigation cannot be built from this payload alone. See the TODO in
- * `global-search-autocomplete.tsx` (CVT-184).
- */
+/** A single global-search hit. Mirrors the backend `GET /api/search` contract. */
 export const searchResultItemSchema = z.object({
   type: z.enum(['agent', 'vault', 'entry']),
   id: z.string(),
   name: z.string(),
-  // Only present for `entry` hits — the vault the entry lives in.
+  // Both only present for `entry` hits — the vault the entry lives in.
+  // `vaultId` drives navigation to the entry-detail route.
+  vaultId: z.string().optional(),
   vaultName: z.string().nullable().optional(),
   icon: z.string().nullable().optional(),
 })
