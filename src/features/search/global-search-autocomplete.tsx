@@ -196,9 +196,9 @@ export function GlobalSearchAutocomplete({
         inputRef={inputRef}
         trailing={
           <kbd
-            className="pointer-events-none hidden shrink-0 select-none rounded border
-              border-[var(--cv-border)] bg-[var(--cv-bg-subtle)] px-1.5 py-0.5 text-[10px]
-              font-medium text-[var(--cv-t3)] sm:inline-block"
+            className="pointer-events-none hidden shrink-0 select-none rounded-md border
+              border-[var(--cv-input-border)] bg-[var(--cv-card-hover)] px-2 py-1 text-[11px]
+              font-semibold leading-none text-[var(--cv-t2)] sm:inline-block"
           >
             {SHORTCUT_LABEL}
           </kbd>
