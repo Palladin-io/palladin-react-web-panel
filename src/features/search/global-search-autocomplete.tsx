@@ -8,6 +8,7 @@ import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
 import { HOVERABLE_CARD_CLASSES } from '../../shared/lib/styles'
 import { useAuthStore } from '../auth'
 import { type EntrySearchItem, useRecentEntries } from '../grants'
+import { isCustomIconUrl } from '../vaults'
 import type { SearchResultItem, SearchResultType } from './search-api'
 import { useGlobalSearch } from './use-global-search'
 
@@ -17,6 +18,7 @@ const MIN_QUERY_LENGTH = 2
 const RECENT_LIMIT = 5
 
 interface TypeBadge {
+  /** Fallback glyph when the item carries no custom icon. */
   icon: string
   color: string
   labelKey: string
@@ -27,6 +29,15 @@ const TYPE_BADGES: Record<SearchResultType, TypeBadge> = {
   agent: { icon: 'smart_toy', color: 'var(--cv-primary)', labelKey: 'search.typeBadge.agent' },
   vault: { icon: 'shield', color: 'var(--cv-t2)', labelKey: 'search.typeBadge.vault' },
   entry: { icon: 'key', color: 'var(--cv-t2)', labelKey: 'search.typeBadge.entry' },
+}
+
+/** Resolve the leading avatar glyph for a hit: a custom S3 icon URL or a Material glyph. */
+function avatarIcon(item: SearchResultItem): { url: string | null; glyph: string } {
+  const fallback = TYPE_BADGES[item.type].icon
+  if (item.icon && isCustomIconUrl(item.icon)) {
+    return { url: item.icon, glyph: fallback }
+  }
+  return { url: null, glyph: item.icon || fallback }
 }
 
 export interface GlobalSearchAutocompleteProps {
@@ -185,6 +196,8 @@ export function GlobalSearchAutocomplete({
               )}
               {results.map((item, index) => {
                 const badge = TYPE_BADGES[item.type]
+                const avatar = avatarIcon(item)
+                const subtitle = item.type === 'entry' ? item.vaultName : null
                 return (
                   <button
                     key={`${item.type}:${item.id}`}
@@ -193,26 +206,42 @@ export function GlobalSearchAutocomplete({
                     aria-selected={index === activeIndex}
                     onClick={() => handleSelect(item)}
                     onMouseEnter={() => setActiveIndex(index)}
-                    className={`${HOVERABLE_CARD_CLASSES} flex w-full items-center gap-2.5 rounded-lg
-                      border-transparent px-3 py-2 text-left ${
+                    className={`${HOVERABLE_CARD_CLASSES} flex w-full items-center gap-3 rounded-lg
+                      border-transparent px-2.5 py-2 text-left ${
                         index === activeIndex ? 'bg-[var(--cv-card-hover)]' : ''
                       }`}
                   >
                     <span
-                      className="flex shrink-0 items-center gap-1 text-[10px] font-semibold uppercase
-                        tracking-wide"
+                      aria-hidden
+                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center
+                        rounded-full border border-[var(--cv-border)] bg-[var(--cv-input-bg)]"
+                    >
+                      {avatar.url ? (
+                        <img
+                          src={avatar.url}
+                          alt=""
+                          className="h-5 w-5 rounded-full object-cover"
+                        />
+                      ) : (
+                        <Icon name={avatar.glyph} size={16} color={badge.color} />
+                      )}
+                    </span>
+
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-[13px] font-medium text-[var(--cv-t1)]">
+                        {item.name}
+                      </span>
+                      {subtitle && (
+                        <span className="truncate text-[11px] text-[var(--cv-t3)]">{subtitle}</span>
+                      )}
+                    </span>
+
+                    <span
+                      className="ml-auto shrink-0 rounded-md border border-[var(--cv-border)] px-1.5
+                        py-0.5 text-[10px] font-semibold uppercase tracking-wide"
                       style={{ color: badge.color }}
                     >
-                      <Icon name={badge.icon} size={14} color={badge.color} />
                       {t(badge.labelKey)}
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-[12px] text-[var(--cv-t1)]">{item.name}</span>
-                      {item.type === 'entry' && item.vaultName && (
-                        <span className="truncate text-[10px] text-[var(--cv-t3)]">
-                          {item.vaultName}
-                        </span>
-                      )}
                     </span>
                   </button>
                 )
