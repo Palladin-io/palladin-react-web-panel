@@ -128,6 +128,8 @@ interface NavItem {
   icon: string
   to?: string
   matchPrefix?: string
+  /** Active only on an exact path match (e.g. Home '/'), never on nested routes. */
+  exactMatch?: boolean
   disabled?: boolean
   requirePermission?: number
 }
@@ -138,10 +140,9 @@ const NAV_ITEMS: NavItem[] = [
     labelKey: 'nav.home',
     icon: 'home',
     to: '/',
-    // Exact match only: every path starts with '/', but the active check's
-    // prefix branch compares against `${matchPrefix}/` → '//', so Home lights
-    // up solely on the dashboard route itself, never on nested routes.
-    matchPrefix: '/',
+    // Home is the one route that must not match by prefix (every path starts
+    // with '/'), so it lights up only on the dashboard route itself.
+    exactMatch: true,
   },
   {
     key: 'vaults',
@@ -512,10 +513,12 @@ function SidebarLink({
 }: SidebarLinkProps) {
   const [hovered, setHovered] = useState(false)
 
-  const isActive = item.matchPrefix
-    ? currentPath === item.matchPrefix ||
-      currentPath.startsWith(`${item.matchPrefix}/`)
-    : false
+  const isActive = item.exactMatch
+    ? currentPath === item.to
+    : item.matchPrefix
+      ? currentPath === item.matchPrefix ||
+        currentPath.startsWith(`${item.matchPrefix}/`)
+      : false
 
   const mutedColor = TEXT_MUTED[theme]
   const textColor = NAV_TEXT[theme]

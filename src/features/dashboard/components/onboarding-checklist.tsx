@@ -57,7 +57,7 @@ export function OnboardingChecklist({
   const navigate = useNavigate()
 
   useEffect(() => {
-    analytics.capture('identity', 'onboarding-viewed')
+    analytics.capture('dashboard', 'onboarding-viewed')
   }, [])
 
   const steps: { key: StepKey; title: string; desc: string; done: boolean }[] = [
@@ -97,30 +97,30 @@ export function OnboardingChecklist({
   const activeIndex = steps.findIndex((s) => !s.done)
 
   function handleGetApp() {
-    analytics.capture('identity', 'onboarding-mobile-clicked')
+    analytics.capture('dashboard', 'onboarding-mobile-clicked')
     onGetApp()
   }
 
   function handleSkipMobile() {
-    analytics.capture('identity', 'onboarding-mobile-skipped')
+    analytics.capture('dashboard', 'onboarding-mobile-skipped')
     onSkipMobile()
   }
 
   function handleCtaForStep(key: StepKey) {
     if (key === 'entry') {
-      analytics.capture('identity', 'onboarding-entry-clicked')
+      analytics.capture('dashboard', 'onboarding-entry-clicked')
       void navigate({ to: '/vaults' })
     } else if (key === 'apiKey') {
-      analytics.capture('identity', 'onboarding-api-key-clicked')
+      analytics.capture('dashboard', 'onboarding-api-key-clicked')
       void navigate({ to: '/api-keys' })
     } else if (key === 'agent') {
-      analytics.capture('identity', 'onboarding-agent-clicked')
+      analytics.capture('dashboard', 'onboarding-agent-clicked')
       void navigate({ to: '/agents' })
     }
   }
 
   function handleSkipSetup() {
-    analytics.capture('identity', 'onboarding-skipped')
+    analytics.capture('dashboard', 'onboarding-skipped')
     onDismiss()
   }
 

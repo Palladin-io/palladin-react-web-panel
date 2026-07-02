@@ -54,7 +54,7 @@ describe('OnboardingChecklist', () => {
   it('fires onboarding-skipped analytics and dismisses on "Skip setup"', () => {
     const { onDismiss } = renderChecklist()
     fireEvent.click(screen.getByRole('button', { name: 'Skip setup' }))
-    expect(captureMock).toHaveBeenCalledWith('identity', 'onboarding-skipped')
+    expect(captureMock).toHaveBeenCalledWith('dashboard', 'onboarding-skipped')
     expect(onDismiss).toHaveBeenCalled()
   })
 })

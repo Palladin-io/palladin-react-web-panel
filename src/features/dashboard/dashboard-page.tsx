@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../shared/api/account-api'
 import { ErrorState } from '../../shared/components/error-state'
 import { analytics } from '../../shared/lib/analytics'
@@ -98,7 +99,7 @@ export function DashboardPage() {
   useEffect(() => {
     if (setupComplete && wasActiveRef.current && !completedFiredRef.current) {
       completedFiredRef.current = true
-      analytics.capture('identity', 'onboarding-completed')
+      analytics.capture('dashboard', 'onboarding-completed')
       localStorage.setItem(ONBOARDING_SKIPPED_KEY, 'true')
     }
   }, [setupComplete])
@@ -112,7 +113,9 @@ export function DashboardPage() {
   }
 
   function handleGetApp() {
-    // TODO: link to the App Store / Google Play once the app is published.
+    // The mobile app isn't published yet — keep the step visible but give the
+    // user feedback instead of a dead button. Swap for a store link on launch.
+    toast.info(t('dashboard.onboarding.getAppComingSoon'))
   }
 
   function handleSkipMobile() {
@@ -161,7 +164,11 @@ export function DashboardPage() {
                 {t('dashboard.pendingApprovals')}
               </span>
             </div>
-            <UnknownAgentCard agent={pendingAgents[0]} />
+            <div className="flex flex-col gap-2">
+              {pendingAgents.map((agent) => (
+                <UnknownAgentCard key={agent.agentId} agent={agent} />
+              ))}
+            </div>
           </section>
           <RecentEntriesSection />
           <RecentActivitySection />

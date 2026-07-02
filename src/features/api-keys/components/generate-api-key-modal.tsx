@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
+import { CopyButton } from '../../../shared/components/copy-button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { FormInput } from '../../../shared/components/form-field'
 import { Icon } from '../../../shared/components/icon'
@@ -129,10 +130,6 @@ function GeneratedSecretView({
   onDone: () => void
 }) {
   const { t } = useTranslation()
-  const [copied, setCopied] = useState(false)
-  const [cmdCopied, setCmdCopied] = useState(false)
-  const [installCopied, setInstallCopied] = useState(false)
-  const [msgCopied, setMsgCopied] = useState(false)
   const [agentName, setAgentName] = useState(keyName)
 
   const connectCommand = `palladin connect ${generated.plaintext} --id "${agentName.trim() || keyName}"`
@@ -143,80 +140,18 @@ function GeneratedSecretView({
     market: MARKET_URL,
   })
 
-  const handleCopyCommand = async () => {
-    try {
-      await navigator.clipboard.writeText(connectCommand)
-      setCmdCopied(true)
-      window.setTimeout(() => setCmdCopied(false), 2000)
-    } catch {
-      // Clipboard unavailable — the command stays selectable as a fallback.
-    }
-  }
-
-  const handleCopyInstall = async () => {
-    try {
-      await navigator.clipboard.writeText(installCommand)
-      setInstallCopied(true)
-      window.setTimeout(() => setInstallCopied(false), 2000)
-    } catch {
-      // Clipboard unavailable — the command stays selectable as a fallback.
-    }
-  }
-
-  const handleCopyMessage = async () => {
-    try {
-      await navigator.clipboard.writeText(agentMessage)
-      setMsgCopied(true)
-      window.setTimeout(() => setMsgCopied(false), 2000)
-    } catch {
-      // Clipboard unavailable — the message stays selectable as a fallback.
-    }
-  }
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(generated.plaintext)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Clipboard API may be unavailable (insecure context / denied
-      // permission). The key stays selectable in the field as a fallback.
-    }
-  }
-
   return (
     <div className="step-enter flex flex-col gap-4">
-      <div>
-        <label
-          htmlFor="generated-api-key"
-          className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-        >
-          {t('apiKeys.secretLabel')}
-        </label>
-        {/* Input + Copy share an explicit h-9 so the button matches the field
-            height exactly (the `sm` button alone is shorter than the input). */}
-        <div className="flex gap-2">
-          <input
-            id="generated-api-key"
-            type="text"
-            readOnly
-            value={generated.plaintext}
-            onFocus={(e) => e.currentTarget.select()}
-            className="h-9 w-full flex-1 rounded-lg border border-[var(--cv-input-border)]
-              bg-[var(--cv-input-bg)] px-3 font-mono text-[12px] text-[var(--cv-input-text)]
-              transition-colors focus:border-[var(--cv-t1)] focus:outline-none"
-          />
-          <Button
-            variant="subtle"
-            size="sm"
-            icon={copied ? 'check' : 'content_copy'}
-            onClick={handleCopy}
-            className="h-9 shrink-0"
-          >
-            {copied ? t('apiKeys.copied') : t('apiKeys.copy')}
-          </Button>
-        </div>
-      </div>
+      <FormInput
+        id="generated-api-key"
+        label={t('apiKeys.secretLabel')}
+        value={generated.plaintext}
+        readOnly
+        monospace
+        copyable
+        copyLabel={t('apiKeys.copy')}
+        onFocus={(e) => e.currentTarget.select()}
+      />
 
       <div
         className="flex items-start gap-2 rounded-lg border border-[rgb(var(--cv-primary-rgb)/0.25)]
@@ -239,50 +174,26 @@ function GeneratedSecretView({
           placeholder={t('apiKeys.namePlaceholder')}
           maxLength={64}
         />
-        <div className="flex gap-2">
-          <input
-            type="text"
-            readOnly
-            value={connectCommand}
-            onFocus={(e) => e.currentTarget.select()}
-            className="h-9 w-full flex-1 rounded-lg border border-[var(--cv-input-border)]
-              bg-[var(--cv-input-bg)] px-3 font-mono text-[12px] text-[var(--cv-input-text)]
-              transition-colors focus:border-[var(--cv-t1)] focus:outline-none"
-          />
-          <Button
-            variant="subtle"
-            size="sm"
-            icon={cmdCopied ? 'check' : 'content_copy'}
-            onClick={handleCopyCommand}
-            className="h-9 shrink-0"
-          >
-            {cmdCopied ? t('apiKeys.copied') : t('apiKeys.copy')}
-          </Button>
-        </div>
-
-        <span className="mt-1 text-[11px] text-[var(--cv-t3)]">
-          {t('apiKeys.connectInstall')}
-        </span>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            readOnly
-            value={installCommand}
-            onFocus={(e) => e.currentTarget.select()}
-            className="h-9 w-full flex-1 rounded-lg border border-[var(--cv-input-border)]
-              bg-[var(--cv-input-bg)] px-3 font-mono text-[12px] text-[var(--cv-input-text)]
-              transition-colors focus:border-[var(--cv-t1)] focus:outline-none"
-          />
-          <Button
-            variant="subtle"
-            size="sm"
-            icon={installCopied ? 'check' : 'content_copy'}
-            onClick={handleCopyInstall}
-            className="h-9 shrink-0"
-          >
-            {installCopied ? t('apiKeys.copied') : t('apiKeys.copy')}
-          </Button>
-        </div>
+        <FormInput
+          id="connect-command"
+          label={t('apiKeys.commandLabel')}
+          value={connectCommand}
+          readOnly
+          monospace
+          copyable
+          copyLabel={t('apiKeys.copy')}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+        <FormInput
+          id="connect-install-command"
+          label={t('apiKeys.connectInstall')}
+          value={installCommand}
+          readOnly
+          monospace
+          copyable
+          copyLabel={t('apiKeys.copy')}
+          onFocus={(e) => e.currentTarget.select()}
+        />
 
         <a
           href={DOCS_URL}
@@ -295,25 +206,18 @@ function GeneratedSecretView({
       </CollapsibleSection>
 
       <CollapsibleSection title={t('apiKeys.agentMessageTitle')}>
-        <textarea
-          readOnly
-          rows={4}
-          value={agentMessage}
-          onFocus={(e) => e.currentTarget.select()}
-          className="w-full resize-none rounded-lg border border-[var(--cv-input-border)]
-            bg-[var(--cv-input-bg)] px-3 py-2 text-[12px] leading-relaxed
-            text-[var(--cv-input-text)] transition-colors focus:border-[var(--cv-t1)]
-            focus:outline-none"
-        />
-        <Button
-          variant="subtle"
-          size="sm"
-          icon={msgCopied ? 'check' : 'content_copy'}
-          onClick={handleCopyMessage}
-          className="self-start"
-        >
-          {msgCopied ? t('apiKeys.copied') : t('apiKeys.copy')}
-        </Button>
+        <div className="relative">
+          <pre
+            className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border
+              border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2 pr-10 text-[12px]
+              leading-relaxed text-[var(--cv-input-text)]"
+          >
+            {agentMessage}
+          </pre>
+          <div className="absolute right-1.5 top-1.5">
+            <CopyButton value={agentMessage} label={t('apiKeys.copy')} />
+          </div>
+        </div>
       </CollapsibleSection>
 
       <DialogFooter>

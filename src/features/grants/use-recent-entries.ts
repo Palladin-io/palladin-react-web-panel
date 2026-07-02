@@ -11,7 +11,7 @@ import { RECENT_ENTRIES_QUERY_KEY } from './query-keys'
  */
 export function useRecentEntries(limit = 8, enabled = true) {
   return useQuery({
-    queryKey: [...RECENT_ENTRIES_QUERY_KEY, limit],
+    queryKey: [...RECENT_ENTRIES_QUERY_KEY, 'recent', limit],
     queryFn: () => searchEntries('', limit, 'recent'),
     staleTime: 30_000,
     enabled,

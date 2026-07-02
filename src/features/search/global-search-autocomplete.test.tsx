@@ -106,7 +106,7 @@ describe('GlobalSearchAutocomplete', () => {
       to: '/agents/$agentId',
       params: { agentId: 'a1' },
     })
-    expect(captureMock).toHaveBeenCalledWith('identity', 'search-result-selected', {
+    expect(captureMock).toHaveBeenCalledWith('search', 'search-result-selected', {
       type: 'agent',
       id: 'a1',
     })
@@ -123,7 +123,7 @@ describe('GlobalSearchAutocomplete', () => {
       to: '/vaults/$vaultId/entries/$entryId',
       params: { vaultId: 'v9', entryId: 'e1' },
     })
-    expect(captureMock).toHaveBeenCalledWith('identity', 'search-result-selected', {
+    expect(captureMock).toHaveBeenCalledWith('search', 'search-result-selected', {
       type: 'entry',
       id: 'e1',
     })
