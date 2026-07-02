@@ -8,7 +8,7 @@ import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
 import { HOVERABLE_CARD_CLASSES } from '../../shared/lib/styles'
 import { useAuthStore } from '../auth'
 import { type EntrySearchItem, useRecentEntries } from '../grants'
-import { isCustomIconUrl } from '../vaults'
+import { ENTRY_ICON_COLORS, isCustomIconUrl } from '../vaults'
 import type { SearchResultItem, SearchResultType } from './search-api'
 import { useGlobalSearch } from './use-global-search'
 
@@ -16,6 +16,11 @@ const DEBOUNCE_MS = 250
 const MIN_QUERY_LENGTH = 2
 /** How many recent entries fill the dropdown before the user starts typing. */
 const RECENT_LIMIT = 5
+
+const IS_MAC =
+  typeof navigator !== 'undefined' && /Mac|iP(hone|ad|od)/i.test(navigator.platform)
+/** Focus hint shown in the field; the matching handler lives in a keydown effect. */
+const SHORTCUT_LABEL = IS_MAC ? '⌘K' : 'Ctrl K'
 
 interface TypeBadge {
   /** Fallback glyph when the item carries no custom icon. */
@@ -73,6 +78,7 @@ export function GlobalSearchAutocomplete({
   const { t } = useTranslation()
   const navigate = useNavigate()
   const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const permissions = useAuthStore((s) => s.permissions)
 
   const [query, setQuery] = useState('')
@@ -111,6 +117,19 @@ export function GlobalSearchAutocomplete({
     }
     document.addEventListener('mousedown', onMouseDown)
     return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [])
+
+  // Global focus hotkey: ⌘K / Ctrl+K jumps into the search field from anywhere.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        inputRef.current?.focus()
+        setOpen(true)
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
   }, [])
 
   function handleChange(next: string) {
@@ -169,13 +188,28 @@ export function GlobalSearchAutocomplete({
       onKeyDown={handleKeyDown}
       onFocus={() => setOpen(true)}
     >
-      <SearchBar value={query} onChange={handleChange} placeholder={placeholder} className="" />
+      <SearchBar
+        value={query}
+        onChange={handleChange}
+        placeholder={placeholder}
+        className=""
+        inputRef={inputRef}
+        trailing={
+          <kbd
+            className="pointer-events-none hidden shrink-0 select-none rounded border
+              border-[var(--cv-border)] bg-[var(--cv-bg-subtle)] px-1.5 py-0.5 text-[10px]
+              font-medium text-[var(--cv-t3)] sm:inline-block"
+          >
+            {SHORTCUT_LABEL}
+          </kbd>
+        }
+      />
 
       {open && (
         <div
           role="listbox"
           className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-xl
-            border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-1 shadow-lg"
+            border border-[var(--cv-border)] bg-[var(--cv-modal-bg)] p-1 shadow-xl"
         >
           {isLoading ? (
             <div className="flex items-center gap-2 px-3 py-2.5 text-xs text-[var(--cv-t3)]">
@@ -187,10 +221,7 @@ export function GlobalSearchAutocomplete({
           ) : (
             <>
               {!isSearching && (
-                <div
-                  className="px-3 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wide
-                    text-[var(--cv-t3)]"
-                >
+                <div className="px-3 pb-1 pt-1.5 text-[11px] font-semibold text-[var(--cv-t3)]">
                   {t('search.recent')}
                 </div>
               )}
@@ -198,6 +229,12 @@ export function GlobalSearchAutocomplete({
                 const badge = TYPE_BADGES[item.type]
                 const avatar = avatarIcon(item)
                 const subtitle = item.type === 'entry' ? item.vaultName : null
+                // Entries keep their own icon colour (matches the vault entry list);
+                // agents/vaults use the type accent.
+                const iconColor =
+                  item.type === 'entry'
+                    ? (ENTRY_ICON_COLORS[avatar.glyph] ?? badge.color)
+                    : badge.color
                 return (
                   <button
                     key={`${item.type}:${item.id}`}
@@ -223,7 +260,7 @@ export function GlobalSearchAutocomplete({
                           className="h-5 w-5 rounded-full object-cover"
                         />
                       ) : (
-                        <Icon name={avatar.glyph} size={16} color={badge.color} />
+                        <Icon name={avatar.glyph} size={16} color={iconColor} />
                       )}
                     </span>
 
@@ -238,7 +275,7 @@ export function GlobalSearchAutocomplete({
 
                     <span
                       className="ml-auto shrink-0 rounded-md border border-[var(--cv-border)] px-1.5
-                        py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                        py-0.5 text-[10px] font-semibold"
                       style={{ color: badge.color }}
                     >
                       {t(badge.labelKey)}

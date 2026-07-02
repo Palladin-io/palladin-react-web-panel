@@ -1,3 +1,4 @@
+import type { ReactNode, Ref } from 'react'
 import { Icon } from './icon'
 
 export interface SearchBarProps {
@@ -10,6 +11,10 @@ export interface SearchBarProps {
    * fill an inline header row.
    */
   className?: string
+  /** Forwarded to the underlying input — lets callers focus it (e.g. a hotkey). */
+  inputRef?: Ref<HTMLInputElement>
+  /** Optional adornment after the input, e.g. a keyboard-shortcut hint. */
+  trailing?: ReactNode
 }
 
 /**
@@ -22,6 +27,8 @@ export function SearchBar({
   onChange,
   placeholder,
   className = 'mb-3',
+  inputRef,
+  trailing,
 }: SearchBarProps) {
   return (
     <div className={className}>
@@ -31,6 +38,7 @@ export function SearchBar({
       >
         <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
         <input
+          ref={inputRef}
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -38,6 +46,7 @@ export function SearchBar({
           className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)]
             placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
         />
+        {trailing}
       </div>
     </div>
   )

@@ -88,6 +88,10 @@ export function useCreateEntry() {
       // dashboard onboarding "add your first entry" step). It lives under a
       // sibling key, so the entries/detail invalidations above don't reach it.
       queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
+      // Cross-vault surfaces that list this entry: the dashboard "Recently
+      // added" widget and the global-search autocomplete (recents + hits).
+      queryClient.invalidateQueries({ queryKey: ['entries', 'recent'] })
+      queryClient.invalidateQueries({ queryKey: ['search'] })
     },
   })
 }
