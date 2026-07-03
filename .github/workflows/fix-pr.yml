@@ -1,5 +1,13 @@
 name: "Claude Code: Fix PR"
 
+# ⚠️  MAINTAINER REVIEW REQUIRED.
+# This workflow runs Claude Code with --dangerously-skip-permissions and can
+# push commits to a PR branch. It is intentionally `workflow_dispatch`-only
+# (never auto-triggered by PR events) so a maintainer must deliberately invoke
+# it. Any commits it produces MUST be human-reviewed before merge — treat them
+# as untrusted. The Bash allow-list below is deliberately narrowed to the exact
+# subcommands the fix flow needs; do not broaden it to `Bash(git:*)` / `Bash(npm:*)`.
+
 on:
   workflow_dispatch:
     inputs:
@@ -98,5 +106,5 @@ jobs:
             --model "$CLAUDE_MODEL" \
             --max-turns 120 \
             --dangerously-skip-permissions \
-            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(gh:*),Bash(jq:*),Bash(git:*),Bash(npm:*)" \
+            --allowedTools "Read,Write,Edit,Glob,Grep,Bash(jq:*),Bash(gh pr view:*),Bash(gh pr diff:*),Bash(gh pr comment:*),Bash(gh api:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git checkout:*),Bash(git switch:*),Bash(git config:*),Bash(git status:*),Bash(git diff:*),Bash(git log:*),Bash(npm ci),Bash(npm install:*),Bash(npm run:*),Bash(npm test:*)" \
             < /tmp/fix_prompt.md

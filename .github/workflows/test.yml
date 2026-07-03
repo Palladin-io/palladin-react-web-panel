@@ -14,5 +14,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Fail the build on any high/critical dependency advisory. Moderate/low
+      # are surfaced but non-blocking (see the second step). Keep this in sync
+      # with the security-hardening baseline — run `npm audit fix` when it trips.
+      - name: Audit dependencies (high/critical → blocking)
+        run: npm audit --audit-level=high
+      - name: Audit dependencies (report moderate/low)
+        run: npm audit || true
       - run: npm run build
       - run: npm test

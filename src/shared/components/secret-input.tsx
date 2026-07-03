@@ -55,7 +55,10 @@ export function SecretInput({
           data-lpignore="true"
           data-bwignore
           data-form-type="other"
-          className={`w-full rounded-lg border bg-[var(--cv-input-bg)]
+          // `ph-no-capture`: never let PostHog autocapture or a session
+          // recording read this secret value (defense in depth over the
+          // masking configured in analytics.init).
+          className={`ph-no-capture w-full rounded-lg border bg-[var(--cv-input-bg)]
             py-2 pl-3 text-[12px] text-[var(--cv-input-text)]
             placeholder:text-[var(--cv-input-placeholder)]
             focus:outline-none transition-colors duration-200 disabled:opacity-60${monospace ? ' font-mono' : ''}

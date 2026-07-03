@@ -33,3 +33,65 @@ export async function copyToClipboard(value: string): Promise<boolean> {
     return false
   }
 }
+
+/** Default window before a copied secret is auto-cleared from the clipboard. */
+export const CLIPBOARD_CLEAR_MS = 25_000
+
+let clearTimer: ReturnType<typeof setTimeout> | null = null
+let lastCopiedSecret: string | null = null
+
+/**
+ * Copy a *secret* to the clipboard and schedule an automatic clear.
+ *
+ * A left-behind password/key on the OS clipboard is a real exposure (other
+ * apps, clipboard-history managers, the next paste). After `clearAfterMs` we
+ * wipe it — but only if it is still the value we wrote:
+ *   • a newer secret copy supersedes the timer (`lastCopiedSecret` guard), and
+ *   • when the browser lets us read the clipboard back, we skip clearing if the
+ *     user has since copied something else.
+ * Clearing is best-effort: reading/writing the clipboard can be denied in an
+ * insecure context, in which case we simply leave it.
+ */
+export async function copySecretToClipboard(
+  value: string,
+  clearAfterMs: number = CLIPBOARD_CLEAR_MS,
+): Promise<boolean> {
+  const ok = await copyToClipboard(value)
+  if (!ok) return false
+
+  lastCopiedSecret = value
+  if (clearTimer !== null) clearTimeout(clearTimer)
+  clearTimer = setTimeout(() => {
+    void clearClipboardIfUnchanged(value)
+  }, clearAfterMs)
+
+  return true
+}
+
+async function clearClipboardIfUnchanged(expected: string): Promise<void> {
+  clearTimer = null
+  // A newer secret copy took ownership of the clipboard — leave it alone.
+  if (lastCopiedSecret !== expected) return
+
+  try {
+    if (navigator.clipboard?.readText) {
+      const current = await navigator.clipboard.readText()
+      // The user copied something else in the meantime — don't stomp it.
+      if (current !== expected) {
+        lastCopiedSecret = null
+        return
+      }
+    }
+  } catch {
+    // Can't read the clipboard (permission / insecure context). We still wrote
+    // this value via our own API and nothing newer replaced it, so clearing is
+    // safe.
+  }
+
+  try {
+    await navigator.clipboard?.writeText('')
+  } catch {
+    // Best-effort — nothing more we can do.
+  }
+  lastCopiedSecret = null
+}

@@ -153,6 +153,30 @@ describe('auth-store', () => {
     expect(state.accessToken).toBe('access-123')
   })
 
+  it('expireSession wipes keys + access token but keeps the refresh token', () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-123',
+      refreshToken: 'refresh-456',
+      userId: 'user-789',
+      isOnboarded: true,
+    })
+    useAuthStore
+      .getState()
+      .unlockVault(new Uint8Array([1]), new Uint8Array([2]))
+
+    useAuthStore.getState().expireSession()
+
+    const state = useAuthStore.getState()
+    expect(state.masterKey).toBeNull()
+    expect(state.privateKey).toBeNull()
+    expect(state.isVaultLocked).toBe(true)
+    // Access token dropped from memory, refresh token retained so the session
+    // is still silently restorable.
+    expect(state.accessToken).toBeNull()
+    expect(state.refreshToken).toBe('refresh-456')
+    expect(getIsAuthenticated()).toBe(true)
+  })
+
   it('markOnboarded leaves the vault lock state untouched', () => {
     useAuthStore
       .getState()

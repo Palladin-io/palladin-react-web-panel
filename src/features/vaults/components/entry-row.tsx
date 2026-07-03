@@ -8,6 +8,7 @@ import { unsealVaultKey } from '../../../shared/crypto/vault-key'
 import { Icon } from '../../../shared/components/icon'
 import { useAuthStore } from '../../auth'
 import { analytics } from '../../../shared/lib/analytics'
+import { copySecretToClipboard, copyToClipboard } from '../../../shared/lib/clipboard'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import {
   ENTRY_TYPE_CREDENTIAL,
@@ -255,7 +256,9 @@ function RevealPanel({
   const { t } = useTranslation()
 
   return (
-    <div className="border-t border-[var(--cv-divider)] bg-[var(--cv-empty-bg)] px-4 py-3">
+    // `ph-no-capture`: the reveal panel holds decrypted secrets (password/key)
+    // as well as username/URL — block PostHog from capturing any of it.
+    <div className="ph-no-capture border-t border-[var(--cv-divider)] bg-[var(--cv-empty-bg)] px-4 py-3">
       {isLoading ? (
         <div className="h-4 animate-pulse rounded bg-[var(--cv-divider)]" />
       ) : error ? (
@@ -282,10 +285,11 @@ function RevealPanel({
               monospace
               copyValue={plaintext.value}
               copyLabel={t('vault.entry.copyKey')}
+              secret
               actions={
                 <>
                   <ToggleVisibilityAction shown={showSecret} onToggle={onToggleShow} />
-                  <CopyAction value={plaintext.value} label={t('vault.entry.copyKey')} />
+                  <CopyAction value={plaintext.value} label={t('vault.entry.copyKey')} secret />
                 </>
               }
             />
@@ -311,12 +315,14 @@ function RevealPanel({
                 monospace
                 copyValue={plaintext.password}
                 copyLabel={t('vault.entry.copyPassword')}
+                secret
                 actions={
                   <>
                     <ToggleVisibilityAction shown={showSecret} onToggle={onToggleShow} />
                     <CopyAction
                       value={plaintext.password}
                       label={t('vault.entry.copyPassword')}
+                      secret
                     />
                   </>
                 }
@@ -337,6 +343,7 @@ function RevealRow({
   actions,
   copyValue,
   copyLabel,
+  secret,
 }: {
   icon: string
   value: string
@@ -345,6 +352,8 @@ function RevealRow({
   /** When set, clicking the displayed value copies this secret to the clipboard. */
   copyValue?: string
   copyLabel?: string
+  /** Route the click-to-copy through the auto-clearing clipboard path. */
+  secret?: boolean
 }) {
   const { t } = useTranslation()
   const valueClass = `min-w-0 flex-1 truncate text-[var(--cv-t1)] ${
@@ -356,7 +365,7 @@ function RevealRow({
       {copyValue !== undefined ? (
         <button
           type="button"
-          onClick={() => copyText(copyValue, copyLabel ?? t('common.copy'), t)}
+          onClick={() => copyText(copyValue, copyLabel ?? t('common.copy'), t, secret)}
           title={t('vault.entry.clickToCopy')}
           aria-label={copyLabel ?? t('common.copy')}
           className={`${valueClass} cursor-pointer text-left hover:text-[var(--cv-primary)]`}
@@ -371,12 +380,21 @@ function RevealRow({
   )
 }
 
-function CopyAction({ value, label }: { value: string; label: string }) {
+function CopyAction({
+  value,
+  label,
+  secret,
+}: {
+  value: string
+  label: string
+  /** Route through the auto-clearing clipboard path (passwords/keys). */
+  secret?: boolean
+}) {
   const { t } = useTranslation()
   return (
     <button
       type="button"
-      onClick={() => copyText(value, label, t)}
+      onClick={() => copyText(value, label, t, secret)}
       title={label}
       aria-label={label}
       className="inline-flex h-6 w-6 items-center justify-center rounded
@@ -476,17 +494,31 @@ function copySecret(
     type === ENTRY_TYPE_KEY
       ? t('vault.entry.copyKey')
       : t('vault.entry.copyPassword')
-  copyText(value, label, t)
+  copyText(value, label, t, true)
 }
 
 function copyText(
   value: string,
   label: string,
   t: ReturnType<typeof useTranslation>['t'],
+  secret = false,
 ) {
-  void navigator.clipboard
-    .writeText(value)
-    .then(() => toast.success(t('vault.entries.copied', { label })))
+  // Secrets (passwords, keys) go through the auto-clearing clipboard path so
+  // they don't linger on the OS clipboard; non-secrets (username, URL) use the
+  // plain copy.
+  const copy = secret ? copySecretToClipboard(value) : copyToClipboard(value)
+  void copy
+    .then((ok) => {
+      if (!ok) {
+        toast.error(t('vault.entries.copyFailed'))
+        return
+      }
+      toast.success(
+        secret
+          ? t('vault.entries.copiedSecret', { label })
+          : t('vault.entries.copied', { label }),
+      )
+    })
     .catch(() => toast.error(t('vault.entries.copyFailed')))
 }
 
