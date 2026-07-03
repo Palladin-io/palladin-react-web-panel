@@ -1,0 +1,14 @@
+# Security headers for the Palladin web panel (Cloudflare Pages / Netlify `_headers` format).
+# Single source of truth for the CSP — full rationale in docs/architecture/security.md.
+#
+# KEEP IN SYNC: adding a new external origin (host, CDN, WebSocket, font, image) requires updating the CSP below in the same PR, or the browser blocks it.
+# NOTE (S3): `*.s3.eu-west-1.amazonaws.com` wildcards the presigned-upload bucket; tighten to the exact bucket once known.
+# NOTE (PostHog): enabling session replay / surveys / exception autocapture requires adding *.posthog.com to script-src.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com https://*.gstatic.com; connect-src 'self' https://api.palladin.io https://api.stage.palladin.io https://accounts.google.com https://*.posthog.com https://*.googleapis.com https://www.gstatic.com https://*.s3.eu-west-1.amazonaws.com wss://api.palladin.io wss://api.stage.palladin.io; frame-src https://accounts.google.com; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  Permissions-Policy: geolocation=(), microphone=(), camera=()

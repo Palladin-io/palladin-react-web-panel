@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
-import { useAuthStore } from '../features/auth'
+import { useAuthStore, useSessionTimeout } from '../features/auth'
 import { useAgents, AGENT_STATUS_PENDING } from '../features/agents'
 import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
@@ -31,8 +31,12 @@ import {
 
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: ({ location }) => {
-    const { accessToken, isVaultLocked } = useAuthStore.getState()
-    if (!accessToken) {
+    const { accessToken, refreshToken, isVaultLocked } = useAuthStore.getState()
+    // A refresh token (persisted) is enough to be "logged in" — the access
+    // token is in-memory only and is null right after a reload/timeout, then
+    // silently restored by the ky client on the first API call. Only redirect
+    // to /login when there is no session to restore at all.
+    if (!accessToken && !refreshToken) {
       throw redirect({ to: '/login' })
     }
     // Route based on isVaultLocked, not isOnboarded. isVaultLocked is never
@@ -96,6 +100,10 @@ const DROPDOWN_BG = {
 function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const theme = useThemeStore((s) => s.theme)
+
+  // Idle + absolute session timeout: locks the vault and drops the access token
+  // when the user walks away, then routes to /unlock. No-op while locked.
+  useSessionTimeout()
 
   // Vault-lock routing is handled by `beforeLoad` (sync, fires on every
   // navigation). We avoid a mid-session `useEffect` guard here because

@@ -12,12 +12,47 @@
  * the page side.
  */
 
-importScripts(
-  'https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js',
-)
-importScripts(
-  'https://www.gstatic.com/firebasejs/11.10.0/firebase-messaging-compat.js',
-)
+// `importScripts()` has no native `integrity`, so we `fetch(url, { integrity })`
+// first (Fetch enforces SRI) and only `importScripts` the validated-and-cached bytes.
+const FIREBASE_SCRIPTS = [
+  {
+    url: 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js',
+    integrity: 'sha384-b1CWci0SaI05xAJao7+U+7e+gNKOl4vZnNQHy/DYL4qnfACkhq8nV/8rasGUskSc',
+  },
+  {
+    url: 'https://www.gstatic.com/firebasejs/11.10.0/firebase-messaging-compat.js',
+    integrity: 'sha384-EF4KAy5E+/dGt1gzZ/wxKecnD6B8E9GrdcYPbyikXv6p1EW6kh69mnCZ9JWu4/Ix',
+  },
+]
+
+async function importFirebaseWithIntegrity() {
+  for (const { url, integrity } of FIREBASE_SCRIPTS) {
+    const response = await fetch(url, {
+      integrity,
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'force-cache',
+    })
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${url}: ${response.status}`)
+    }
+    importScripts(url)
+  }
+}
+
+// Accept only same-origin absolute paths so a malicious push payload can't navigate off-origin.
+function safeInternalPath(link) {
+  if (typeof link !== 'string' || !link.startsWith('/') || link.startsWith('//')) {
+    return '/'
+  }
+  try {
+    const url = new URL(link, self.location.origin)
+    if (url.origin !== self.location.origin) return '/'
+    return url.pathname + url.search + url.hash
+  } catch {
+    return '/'
+  }
+}
 
 const params = new URLSearchParams(self.location.search)
 const firebaseConfig = {
@@ -31,28 +66,37 @@ const firebaseConfig = {
 // Only initialise when the page supplied a config — avoids throwing in dev
 // environments where Firebase isn't set up.
 if (firebaseConfig.apiKey && firebaseConfig.appId) {
-  firebase.initializeApp(firebaseConfig)
-  const messaging = firebase.messaging()
+  importFirebaseWithIntegrity()
+    .then(() => {
+      firebase.initializeApp(firebaseConfig)
+      const messaging = firebase.messaging()
 
-  messaging.onBackgroundMessage((payload) => {
-    const data = payload.data || {}
-    const title = data.title || (payload.notification && payload.notification.title) || 'Palladin'
-    const body = data.body || (payload.notification && payload.notification.body) || ''
-    const link =
-      (payload.fcmOptions && payload.fcmOptions.link) || data.link || '/'
+      messaging.onBackgroundMessage((payload) => {
+        const data = payload.data || {}
+        const title =
+          data.title || (payload.notification && payload.notification.title) || 'Palladin'
+        const body = data.body || (payload.notification && payload.notification.body) || ''
+        const link = safeInternalPath(
+          (payload.fcmOptions && payload.fcmOptions.link) || data.link || '/',
+        )
 
-    self.registration.showNotification(title, {
-      body,
-      icon: '/logo.png',
-      // Carried into the click handler for deep-linking.
-      data: { link },
+        self.registration.showNotification(title, {
+          body,
+          icon: '/logo.png',
+          data: { link },
+        })
+      })
     })
-  })
+    .catch((err) => {
+      console.error('[fcm-sw] Firebase init skipped:', err)
+    })
 }
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const link = (event.notification.data && event.notification.data.link) || '/'
+  const link = safeInternalPath(
+    (event.notification.data && event.notification.data.link) || '/',
+  )
 
   event.waitUntil(
     clients

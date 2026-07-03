@@ -337,6 +337,7 @@
   "vault.entries.decryptFailed": "Nie udało się odszyfrować wpisu. Dane mogą być uszkodzone.",
   "vault.entries.decryptVaultLocked": "Skarbiec jest zablokowany — odblokuj, aby zobaczyć wpis.",
   "vault.entries.copied": "Skopiowano {{label}}",
+  "vault.entries.copiedSecret": "Skopiowano {{label}} — schowek zostanie wyczyszczony za 25 s",
   "vault.entries.copyFailed": "Nie udało się skopiować do schowka.",
   "vault.subtitle.entryCount_one": "{{count}} wpis",
   "vault.subtitle.entryCount_few": "{{count}} wpisy",

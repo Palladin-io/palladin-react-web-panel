@@ -55,7 +55,7 @@ Use `/brain` to navigate, or: `grep -r "WORD" ../brain --include="*.md"`
 | Forms | React Hook Form + Zod | Validation for entries, grants, import wizard |
 | Crypto | libsodium-wrappers | WASM (~200KB), lazy-loaded |
 | Real-time | @microsoft/signalr | Grant approval push, browser extension bridge |
-| Auth | OAuth 2.0 PKCE redirect | Google, Apple, X providers |
+| Auth | OAuth 2.0 implicit token (`@react-oauth/google`) | Google active; Apple/X stubbed. Google returns an `access_token` client-side, POSTed to `/api/auth/oauth/google` for the app JWT. No code-exchange/PKCE endpoint on the backend today — revisit if one lands. |
 | HTTP | ky | Lightweight fetch wrapper with interceptors |
 | Icons | Lucide React | Consistent icon set |
 | Toasts | Sonner | Non-blocking notifications |
@@ -244,9 +244,11 @@ Never force all-caps on UI text — no `uppercase` Tailwind class and no `text-t
 - Never expose raw API errors to users
 
 ### Security
-- Strict CSP: no inline scripts, no eval
-- SRI hashes for external scripts (libsodium WASM)
-- No secrets in env vars except API URL
+- **CSP delivered as HTTP headers** via `public/_headers` (Cloudflare/Netlify format) — NOT a `<meta>` tag, and NOT enforced by Vite. It is the single source of truth for the allow-list and MUST be updated whenever the app talks to a new external origin. Full rationale + directive-by-directive breakdown: `docs/architecture/security.md`.
+  - `script-src` is `'self'` + Google Identity + `*.gstatic.com`; there is **no `unsafe-inline`/`unsafe-eval` for scripts** (the theme bootstrap is an external `/init-theme.js`). `style-src` DOES allow `'unsafe-inline'` — Tailwind and our inline `style={{}}` attributes require it.
+- **SRI is enforced on the Firebase compat scripts** the service worker loads (`public/firebase-messaging-sw.js`) via a pinned-SHA-384 `fetch(url, { integrity })` guard before `importScripts`. (libsodium WASM is bundled by Vite, not loaded as an external script, so it needs no SRI.)
+- **Tokens:** the access token lives in memory only (never persisted); only the refresh token is persisted to localStorage, pending a backend-coordinated move to an httpOnly cookie. See `src/features/auth/stores/auth-store.ts`. Idle + absolute session timeouts (`useSessionTimeout`) wipe keys + access token on walk-away.
+- No secrets in env vars except API URL + public Firebase/OAuth config
 - Sanitize all user-provided content before rendering
 
 ## Analytics (PostHog)

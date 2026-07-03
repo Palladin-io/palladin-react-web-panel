@@ -53,12 +53,9 @@ export const api = ky.create({
           request.headers.set('Authorization', `Bearer ${data.accessToken}`)
           return ky(request)
         } catch {
-          // Only the first caller to observe the failure triggers logout.
-          // Subsequent callers see accessToken already cleared.
-          if (useAuthStore.getState().accessToken !== null) {
-            useAuthStore.getState().logout()
-            window.location.href = '/login'
-          }
+          // Unconditional: accessToken is in-memory only (null after reload), so gating on it would strand the user.
+          useAuthStore.getState().logout()
+          window.location.href = '/login'
           return response
         }
       },

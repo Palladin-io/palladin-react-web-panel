@@ -53,7 +53,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
     >
       <div className="flex flex-col gap-3">
         <div className="rounded-lg border border-[rgba(232,234,237,0.06)] bg-[rgba(232,234,237,0.04)] p-3">
-          <ol className="grid grid-cols-4 gap-2 text-xs text-[#E8EAED]">
+          <ol className="ph-no-capture grid grid-cols-4 gap-2 text-xs text-[#E8EAED]">
             {mnemonic.map((word, index) => (
               <li
                 key={index}

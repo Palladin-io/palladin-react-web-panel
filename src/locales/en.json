@@ -319,6 +319,7 @@
   "vault.entries.decryptFailed": "Could not decrypt entry. The blob may be corrupted.",
   "vault.entries.decryptVaultLocked": "Vault is locked — unlock to view this entry.",
   "vault.entries.copied": "Copied {{label}}",
+  "vault.entries.copiedSecret": "Copied {{label}} — clipboard clears in 25s",
   "vault.entries.copyFailed": "Could not copy to clipboard.",
   "vault.subtitle.entryCount_one": "{{count}} entry",
   "vault.subtitle.entryCount_other": "{{count}} entries",
