@@ -158,10 +158,12 @@ export function presignEntryIcon(
 }
 
 /**
- * One entry in a bulk import request — identical to a single create-entry
- * payload plus the `grantEntries` re-wrap material for active FULL grants (the
- * same array the grant endpoints consume). The client encrypts each entry
- * against the vault key before building this.
+ * One entry in a bulk import request — a single create-entry payload plus the
+ * `grantEntries` re-wrap material. The backend requires exactly one entry here
+ * per ACTIVE FULL grant on the vault (empty when none): each carries the new
+ * entry's plaintext re-encrypted under a fresh DEK sealed to that grant's agent,
+ * keyed by `grantId`. The client encrypts against the vault key before building
+ * this.
  */
 export interface ImportEntryItem {
   label: string
@@ -170,7 +172,7 @@ export interface ImportEntryItem {
   type: EntryType
   content: EntryContent
   urlDomain?: string
-  grantEntries: ({ entryId: string } & GrantEntryEnvelope)[]
+  grantEntries: ({ grantId: string } & GrantEntryEnvelope)[]
 }
 
 export interface ImportEntriesBody {

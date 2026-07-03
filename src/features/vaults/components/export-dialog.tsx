@@ -43,9 +43,12 @@ function ExportDialogBody({
         onSuccess: (res) => {
           downloadTextFile(res.filename, res.content, res.mime)
           // Fire-and-forget per-vault audit — a failed write must not block the
-          // download the user already received.
+          // download the user already received. Skip empty vaults: the endpoint
+          // requires entryCount > 0.
           for (const { id, count } of res.perVault) {
-            exportAudit(id, { format: res.format, entryCount: count }).catch(() => {})
+            if (count > 0) {
+              exportAudit(id, { format: res.format, entryCount: count }).catch(() => {})
+            }
           }
           analytics.capture('vault', 'export-completed', {
             count: res.totalEntries,
