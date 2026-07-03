@@ -29,6 +29,10 @@ import { UnknownAgentCard } from './components/unknown-agent-card'
 const ONBOARDING_SKIPPED_KEY = 'onboarding_skipped'
 const MOBILE_SKIPPED_KEY = 'mobile_onboarding_skipped'
 
+// Dismissal flags are scoped per user so one account's "skip" never hides
+// onboarding for a different account (or a fresh signup) on the same browser.
+const skipKey = (base: string, userId: string) => `${base}:${userId}`
+
 function readFlag(key: string): boolean {
   return localStorage.getItem(key) === 'true'
 }
@@ -48,10 +52,20 @@ export function DashboardPage() {
   const auditLogs = useOrgAuditLogs({}, canViewAudit)
   const grantSummary = useGrantSummary(canManageGrants)
 
-  const [dismissed, setDismissed] = useState(() => readFlag(ONBOARDING_SKIPPED_KEY))
-  const [mobileSkipped, setMobileSkipped] = useState(() =>
-    readFlag(MOBILE_SKIPPED_KEY),
-  )
+  // userId (from the account query) scopes the localStorage dismissal flags.
+  // Until it resolves we treat nothing as skipped, so onboarding is never
+  // hidden without a matching user-scoped flag.
+  const userId = account.data?.userId ?? null
+
+  const [dismissed, setDismissed] = useState(false)
+  const [mobileSkipped, setMobileSkipped] = useState(false)
+
+  useEffect(() => {
+    setDismissed(userId ? readFlag(skipKey(ONBOARDING_SKIPPED_KEY, userId)) : false)
+    setMobileSkipped(
+      userId ? readFlag(skipKey(MOBILE_SKIPPED_KEY, userId)) : false,
+    )
+  }, [userId])
 
   const vaultList = vaults.data?.vaults ?? []
   const vaultCount = vaultList.length
@@ -100,9 +114,11 @@ export function DashboardPage() {
     if (setupComplete && wasActiveRef.current && !completedFiredRef.current) {
       completedFiredRef.current = true
       analytics.capture('dashboard', 'onboarding-completed')
-      localStorage.setItem(ONBOARDING_SKIPPED_KEY, 'true')
+      if (userId) {
+        localStorage.setItem(skipKey(ONBOARDING_SKIPPED_KEY, userId), 'true')
+      }
     }
-  }, [setupComplete])
+  }, [setupComplete, userId])
 
   if (account.isError) {
     return (
@@ -119,12 +135,12 @@ export function DashboardPage() {
   }
 
   function handleSkipMobile() {
-    localStorage.setItem(MOBILE_SKIPPED_KEY, 'true')
+    if (userId) localStorage.setItem(skipKey(MOBILE_SKIPPED_KEY, userId), 'true')
     setMobileSkipped(true)
   }
 
   function handleDismissOnboarding() {
-    localStorage.setItem(ONBOARDING_SKIPPED_KEY, 'true')
+    if (userId) localStorage.setItem(skipKey(ONBOARDING_SKIPPED_KEY, userId), 'true')
     setDismissed(true)
   }
 
