@@ -82,7 +82,11 @@ async function clearClipboardIfUnchanged(expected: string): Promise<void> {
       const current = await navigator.clipboard.readText()
       // The user copied something else in the meantime — don't stomp it.
       if (current !== expected) {
-        lastCopiedSecret = null
+        // Only retract our own marker: a concurrent `copySecretToClipboard`
+        // may have set `lastCopiedSecret` to a NEWER secret while we awaited
+        // `readText()`. Clearing it unconditionally would clobber that marker
+        // and strand the newer secret in the clipboard forever.
+        if (lastCopiedSecret === expected) lastCopiedSecret = null
         return
       }
     }
@@ -97,5 +101,7 @@ async function clearClipboardIfUnchanged(expected: string): Promise<void> {
   } catch {
     // Best-effort — nothing more we can do.
   }
-  lastCopiedSecret = null
+  // Same guard as above: a newer secret may have been copied while `writeText`
+  // was in flight; don't retract its marker.
+  if (lastCopiedSecret === expected) lastCopiedSecret = null
 }

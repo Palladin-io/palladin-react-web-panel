@@ -12,7 +12,13 @@
 #
 # Origins the app actually uses:
 #   • script-src   self  + accounts.google.com (Google Identity)  + *.gstatic.com (Firebase compat SW scripts)
-#   • connect-src  self  + API hosts (staging/prod)  + *.posthog.com  + *.googleapis.com (FCM)  + www.gstatic.com (SRI fetch)  + accounts.google.com  + wss://api(.stage).palladin.io (SignalR)
+#   • connect-src  self  + API hosts (staging/prod)  + *.posthog.com  + *.googleapis.com (FCM)  + www.gstatic.com (SRI fetch)  + accounts.google.com  + *.s3.eu-west-1.amazonaws.com (presigned PUT icon upload)  + wss://api(.stage).palladin.io (SignalR)
+#
+# NOTE (S3): icon uploads PUT directly to a presigned S3 URL. The bucket lives in
+#       eu-west-1 (backend `S3:Region`), so the host is `<bucket>.s3.eu-west-1.amazonaws.com`.
+#       The prod/staging bucket name is injected server-side (not committed here), hence the
+#       `*.` wildcard on the bucket. TIGHTEN to the exact bucket once it is known
+#       (e.g. `https://palladin-prod.s3.eu-west-1.amazonaws.com`).
 #
 # NOTE: if a PostHog feature (session replay, surveys, exception autocapture) is
 #       ever enabled from the PostHog UI, its lazily-injected script from
@@ -22,7 +28,7 @@
 #   • img-src      self + data: + blob: (local icon preview) + https: (S3 icons, avatars)
 
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com https://*.gstatic.com; connect-src 'self' https://api.palladin.io https://api.stage.palladin.io https://accounts.google.com https://*.posthog.com https://*.googleapis.com https://www.gstatic.com wss://api.palladin.io wss://api.stage.palladin.io; frame-src https://accounts.google.com; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com https://*.gstatic.com; connect-src 'self' https://api.palladin.io https://api.stage.palladin.io https://accounts.google.com https://*.posthog.com https://*.googleapis.com https://www.gstatic.com https://*.s3.eu-west-1.amazonaws.com wss://api.palladin.io wss://api.stage.palladin.io; frame-src https://accounts.google.com; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer

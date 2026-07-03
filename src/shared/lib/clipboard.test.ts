@@ -57,4 +57,37 @@ describe('copySecretToClipboard', () => {
     expect(writeText).toHaveBeenCalledTimes(1)
     expect(writeText).toHaveBeenCalledWith('')
   })
+
+  it('clears a newer secret via its own timer even if an earlier timer stalls mid-clear', async () => {
+    // Stall A's clear-timer inside `readText()` so B can be copied while it is
+    // suspended — the exact interleaving that used to strand B forever.
+    let resolveARead: ((value: string) => void) | undefined
+    readText.mockImplementationOnce(
+      () => new Promise<string>((resolve) => (resolveARead = resolve)),
+    )
+
+    // A copied; its clear is scheduled 10s out.
+    await copySecretToClipboard('secret-A', 10_000)
+
+    // Fire A's timer: it enters the clear path and awaits readText() (stalled).
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(resolveARead).toBeDefined()
+
+    // While A is stalled, the user copies B (schedules B's own timer 10s out).
+    await copySecretToClipboard('secret-B', 10_000)
+
+    // A's readText resolves: clipboard now holds B, so A must leave it alone AND
+    // must not clobber B's `lastCopiedSecret` marker.
+    resolveARead!('secret-B')
+    await Promise.resolve()
+
+    // Clipboard genuinely holds B until B's own timer wipes it.
+    readText.mockResolvedValue('secret-B')
+    writeText.mockClear()
+
+    await vi.advanceTimersByTimeAsync(10_000)
+
+    // B's marker survived → B's timer clears its own secret.
+    expect(writeText).toHaveBeenCalledWith('')
+  })
 })

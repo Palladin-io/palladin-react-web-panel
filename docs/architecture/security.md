@@ -29,7 +29,7 @@ a blocking finding.
 |-----------|-------|--------|
 | `default-src` | `'self'` | Deny-by-default baseline. |
 | `script-src` | `'self' https://accounts.google.com https://*.gstatic.com` | App bundle + `/init-theme.js` are self; Google Identity script; Firebase compat scripts the SW `importScripts` from gstatic. **No `unsafe-inline`/`unsafe-eval`.** |
-| `connect-src` | `'self'` + API hosts + `accounts.google.com` + `*.posthog.com` + `*.googleapis.com` + `www.gstatic.com` + `wss:` | XHR/fetch to the API, PostHog, FCM registration (`*.googleapis.com`), the SRI `fetch()` of the Firebase scripts (`www.gstatic.com`), and SignalR WebSocket (`wss:`). |
+| `connect-src` | `'self'` + API hosts + `accounts.google.com` + `*.posthog.com` + `*.googleapis.com` + `www.gstatic.com` + `*.s3.eu-west-1.amazonaws.com` + `wss:` | XHR/fetch to the API, PostHog, FCM registration (`*.googleapis.com`), the SRI `fetch()` of the Firebase scripts (`www.gstatic.com`), the presigned `PUT` icon uploads to S3 (`*.s3.eu-west-1.amazonaws.com` — bucket in `eu-west-1`, name injected server-side so wildcarded; tighten to the exact bucket once known), and SignalR WebSocket (`wss:`). |
 | `frame-src` | `https://accounts.google.com` | Google sign-in iframe/popup. |
 | `img-src` | `'self' data: blob: https:` | S3 icons + avatars (`https:`), inline data URIs, and `blob:` local icon preview during two-step create. |
 | `style-src` | `'self' 'unsafe-inline' https://fonts.googleapis.com` | Tailwind + our pervasive inline `style={{}}` attributes need `unsafe-inline`; Google Fonts stylesheet. |
