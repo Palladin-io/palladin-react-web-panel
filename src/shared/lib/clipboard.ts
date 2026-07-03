@@ -12,6 +12,9 @@ export async function copyToClipboard(value: string): Promise<boolean> {
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(value)
+      // A newer copy (secret or not) now owns the clipboard — cancel any pending
+      // auto-clear so it can't wipe this value.
+      lastCopiedSecret = null
       return true
     }
   } catch {
@@ -28,6 +31,7 @@ export async function copyToClipboard(value: string): Promise<boolean> {
     textarea.select()
     const succeeded = document.execCommand('copy')
     document.body.removeChild(textarea)
+    if (succeeded) lastCopiedSecret = null
     return succeeded
   } catch {
     return false
