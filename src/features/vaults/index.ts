@@ -1,6 +1,8 @@
 export { VaultListPage } from './vault-list-page'
 export { VaultCard } from './components/vault-card'
 export { VaultDetailPage } from './vault-detail-page'
+export { ExportDialog } from './components/export-dialog'
+export { ImportWizardModal } from './components/import-wizard-modal'
 export type { VaultDetailTab } from './components/vault-detail-tabs'
 export { VaultSettingsPage } from './vault-settings-page'
 export { EntryDetailPage } from './entry-detail-page'

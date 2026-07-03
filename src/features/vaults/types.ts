@@ -140,6 +140,13 @@ export type EntryPlaintext =
       password: string
       url?: string
       notes?: string
+      /**
+       * Full `otpauth://` URI for the entry's TOTP seed. Opaque to the
+       * backend (it only ever sees the encrypted blob) — persisted inside
+       * the plaintext JSON so import/export can round-trip 2FA seeds. UI that
+       * predates this field simply ignores it.
+       */
+      totp?: string
     }
 
 export interface CreateVaultInput {

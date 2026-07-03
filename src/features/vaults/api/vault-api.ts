@@ -1,4 +1,5 @@
 import { api } from '../../../shared/api/client'
+import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
 import { normalizeEntryType } from '../types'
 import type {
   CreateEntryPayload,
@@ -6,6 +7,7 @@ import type {
   EntryContent,
   EntryDetail,
   EntryListItem,
+  EntryType,
   GrantMode,
   UpdateVaultInput,
   Vault,
@@ -153,6 +155,56 @@ export function presignEntryIcon(
   return api
     .post(`api/vaults/${vaultId}/entries/${entryId}/icon/presign`, { json: { extension } })
     .json<PresignResponse>()
+}
+
+/**
+ * One entry in a bulk import request — identical to a single create-entry
+ * payload plus the `grantEntries` re-wrap material for active FULL grants (the
+ * same array the grant endpoints consume). The client encrypts each entry
+ * against the vault key before building this.
+ */
+export interface ImportEntryItem {
+  label: string
+  description?: string
+  icon?: string
+  type: EntryType
+  content: EntryContent
+  urlDomain?: string
+  grantEntries: ({ entryId: string } & GrantEntryEnvelope)[]
+}
+
+export interface ImportEntriesBody {
+  format: string
+  entries: ImportEntryItem[]
+}
+
+export interface ImportEntriesResponse {
+  importedCount: number
+  entryIds: string[]
+}
+
+/**
+ * Bulk-create encrypted entries. The backend caps a single request at 500
+ * items; callers chunk larger imports and sum the responses.
+ */
+export function importEntries(
+  vaultId: string,
+  body: ImportEntriesBody,
+): Promise<ImportEntriesResponse> {
+  return api
+    .post(`api/vaults/${vaultId}/entries/import`, { json: body })
+    .json<ImportEntriesResponse>()
+}
+
+/**
+ * Record that a plaintext export happened. Fire-and-forget from the UI — a
+ * failed audit write must never block the user's download.
+ */
+export async function exportAudit(
+  vaultId: string,
+  body: { format: string; entryCount: number },
+): Promise<void> {
+  await api.post(`api/vaults/${vaultId}/export-audit`, { json: body })
 }
 
 // Re-export for convenient consumption by hooks/tests.
