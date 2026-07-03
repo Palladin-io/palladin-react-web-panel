@@ -53,12 +53,14 @@ export const api = ky.create({
           request.headers.set('Authorization', `Bearer ${data.accessToken}`)
           return ky(request)
         } catch {
-          // Only the first caller to observe the failure triggers logout.
-          // Subsequent callers see accessToken already cleared.
-          if (useAuthStore.getState().accessToken !== null) {
-            useAuthStore.getState().logout()
-            window.location.href = '/login'
-          }
+          // Refresh failed (expired/revoked refresh token) → force logout.
+          // `refreshPromise` already serialises concurrent 401s onto one failed
+          // promise, and `logout()` is idempotent (resets to initial state), so
+          // an unconditional call is safe. We must NOT gate this on `accessToken`
+          // — it lives in memory only and is always null after a reload, which
+          // would otherwise strand the user on a broken-authed page.
+          useAuthStore.getState().logout()
+          window.location.href = '/login'
           return response
         }
       },
