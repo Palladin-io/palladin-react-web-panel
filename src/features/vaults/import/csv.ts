@@ -67,12 +67,12 @@ export interface CsvProfile {
  */
 export const CSV_PROFILES: CsvProfile[] = [
   {
-    id: 'firefox',
+    id: 'firefox-csv',
     signature: ['url', 'username', 'password', 'httprealm', 'formactionorigin', 'guid'],
     map: { url: ['url'], username: ['username'], password: ['password'] },
   },
   {
-    id: 'dashlane',
+    id: 'dashlane-csv',
     signature: ['title', 'password', 'otpsecret', 'username2'],
     map: {
       label: ['title'],
@@ -84,7 +84,7 @@ export const CSV_PROFILES: CsvProfile[] = [
     },
   },
   {
-    id: 'lastpass',
+    id: 'lastpass-csv',
     signature: ['url', 'username', 'password', 'extra', 'grouping', 'fav'],
     map: {
       label: ['name'],
@@ -108,7 +108,7 @@ export const CSV_PROFILES: CsvProfile[] = [
     },
   },
   {
-    id: 'onepassword-csv',
+    id: '1password-csv',
     signature: ['title', 'url', 'username', 'password', 'otpauth', 'archived', 'tags'],
     map: {
       label: ['title'],
@@ -120,7 +120,7 @@ export const CSV_PROFILES: CsvProfile[] = [
     },
   },
   {
-    id: 'safari',
+    id: 'safari-csv',
     signature: ['title', 'url', 'username', 'password', 'otpauth'],
     map: {
       label: ['title'],
@@ -132,7 +132,7 @@ export const CSV_PROFILES: CsvProfile[] = [
     },
   },
   {
-    id: 'roboform',
+    id: 'roboform-csv',
     signature: ['name', 'url', 'login', 'pwd'],
     map: {
       label: ['name'],
@@ -143,7 +143,7 @@ export const CSV_PROFILES: CsvProfile[] = [
     },
   },
   {
-    id: 'nordpass',
+    id: 'nordpass-csv',
     signature: ['name', 'url', 'username', 'password', 'cardholdername', 'folder'],
     map: {
       label: ['name'],

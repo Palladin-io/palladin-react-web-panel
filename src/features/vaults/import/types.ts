@@ -6,20 +6,24 @@ import type { EntryType } from '../types'
  * column-mapper; `palladin-json` / `palladin-csv` are our own exports so a
  * round-trip re-import is lossless (JSON) or best-effort (CSV).
  */
+// Ids mirror the backend format catalog so the `format` field lands consistently
+// in analytics (`be:vault:entries-imported`) and the audit log. `manual` is
+// web-only (column-mapper fallback) and has no backend catalog entry.
 export type ImportFormat =
   | 'generic-csv'
-  | 'firefox'
-  | 'safari'
-  | 'lastpass'
+  | 'firefox-csv'
+  | 'safari-csv'
+  | 'lastpass-csv'
   | 'bitwarden-json'
   | 'bitwarden-csv'
-  | 'onepassword-csv'
-  | 'onepassword-1pux'
-  | 'dashlane'
+  | '1password-csv'
+  | '1password-1pux'
+  | 'dashlane-zip'
+  | 'dashlane-csv'
   | 'keepass-xml'
-  | 'nordpass'
+  | 'nordpass-csv'
   | 'keeper-json'
-  | 'roboform'
+  | 'roboform-csv'
   | 'protonpass-json'
   | 'palladin-json'
   | 'palladin-csv'

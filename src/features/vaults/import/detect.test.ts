@@ -25,7 +25,7 @@ describe('parseText — CSV formats', () => {
       '"url","username","password","httpRealm","formActionOrigin","guid","timeCreated","timeLastUsed","timePasswordChanged"\n' +
       '"https://news.ycombinator.com","hnuser","pw",,"https://news.ycombinator.com","{abc}","1","",""'
     const result = parseText(csv)
-    expect(result.format).toBe('firefox')
+    expect(result.format).toBe('firefox-csv')
     expect(result.entries[0].label).toBe('news.ycombinator.com')
     expect(result.entries[0].username).toBe('hnuser')
   })
@@ -35,7 +35,7 @@ describe('parseText — CSV formats', () => {
       'Title,URL,Username,Password,Notes,OTPAuth\n' +
       'GitHub,https://github.com,octocat,pw,,otpauth://totp/GitHub:octocat?secret=JBSWY3DPEHPK3PXP&issuer=GitHub'
     const result = parseText(csv)
-    expect(result.format).toBe('safari')
+    expect(result.format).toBe('safari-csv')
     expect(result.entries[0].totp).toContain('secret=JBSWY3DPEHPK3PXP')
   })
 
@@ -45,7 +45,7 @@ describe('parseText — CSV formats', () => {
       'https://github.com,octocat,pw,,notes,GitHub,Work,0\n' +
       'http://sn,,,,secret note body,My Note,Notes,0'
     const result = parseText(csv)
-    expect(result.format).toBe('lastpass')
+    expect(result.format).toBe('lastpass-csv')
     expect(result.entries).toHaveLength(1)
     expect(result.entries[0].label).toBe('GitHub')
     expect(result.skipped.count).toBe(1)
@@ -65,17 +65,17 @@ describe('parseText — CSV formats', () => {
       'Title,Url,Username,Password,OTPAuth,Favorite,Archived,Tags,Notes\n' +
       'GitHub,https://github.com,octocat,pw,,false,false,dev,'
     const result = parseText(csv)
-    expect(result.format).toBe('onepassword-csv')
+    expect(result.format).toBe('1password-csv')
   })
 
   it('detects NordPass and RoboForm', () => {
     const nordpass =
       'name,url,username,password,note,cardholdername,cardnumber,cvc,expirydate,zipcode,folder\n' +
       'GitHub,https://github.com,octocat,pw,,,,,,,Dev'
-    expect(parseText(nordpass).format).toBe('nordpass')
+    expect(parseText(nordpass).format).toBe('nordpass-csv')
 
     const roboform = 'Name,Url,Login,Pwd,Note,Folder\nGitHub,https://github.com,octocat,pw,,Dev'
-    expect(parseText(roboform).format).toBe('roboform')
+    expect(parseText(roboform).format).toBe('roboform-csv')
   })
 
   it('handles BOM, quoted commas, and multi-line notes', () => {
@@ -227,7 +227,7 @@ describe('parseBytes — ZIP formats', () => {
       'files/photo.png': new Uint8Array([1, 2, 3, 4]),
     })
     const result = parseBytes(zip)
-    expect(result.format).toBe('onepassword-1pux')
+    expect(result.format).toBe('1password-1pux')
     expect(result.entries[0]).toMatchObject({ label: 'GitHub', username: 'octocat', password: 'pw' })
     expect(result.entries[0].totp).toContain('secret=JBSWY3DPEHPK3PXP')
   })
@@ -238,7 +238,7 @@ describe('parseBytes — ZIP formats', () => {
       'octocat,,,GitHub,pw,n,https://github.com,Dev,JBSWY3DPEHPK3PXP'
     const zip = zipSync({ 'credentials.csv': strToU8(credentials) })
     const result = parseBytes(zip)
-    expect(result.format).toBe('dashlane')
+    expect(result.format).toBe('dashlane-zip')
     expect(result.entries[0].totp).toMatch(/^otpauth:\/\/totp\//)
   })
 
@@ -246,7 +246,7 @@ describe('parseBytes — ZIP formats', () => {
     const csv =
       'username,username2,username3,title,password,note,url,category,otpSecret\n' +
       'octocat,,,GitHub,pw,n,https://github.com,Dev,'
-    expect(parseText(csv).format).toBe('dashlane')
+    expect(parseText(csv).format).toBe('dashlane-csv')
   })
 })
 

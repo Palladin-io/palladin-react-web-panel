@@ -100,17 +100,18 @@ function parseZip(files: ZipFiles): ParseResult {
       throw new ImportParseError('1Password export.data is not valid JSON', 'unsupportedJson')
     }
     const { entries, skipped } = collectRaw(extractOnePasswordData(data))
-    return { entries, skipped, format: 'onepassword-1pux' }
+    return { entries, skipped, format: '1password-1pux' }
   }
 
-  // Dashlane — credentials.csv alongside other category CSVs.
+  // Dashlane — credentials.csv alongside other category CSVs. Reuses the
+  // dashlane CSV profile's mapping but reports the ZIP-specific format id.
   const credentials = findMember(files, 'credentials.csv')
   if (credentials) {
     const { headers, rows } = parseCsv(decodeText(credentials))
     const profile = detectCsvProfile(headers)
     if (profile) {
       const { entries, skipped } = extractCsvProfile(rows, profile)
-      return { entries, skipped, format: profile.id }
+      return { entries, skipped, format: 'dashlane-zip' }
     }
   }
 

@@ -121,7 +121,7 @@ const protonpass: JsonProfile = {
 // { accounts:[{ vaults:[{ items:[{ overview:{title,url,urls}, details:{
 //   loginFields:[{value,designation}], notesPlain, sections:[{fields:[]}] } }] }] }] }
 const onepasswordJson: JsonProfile = {
-  id: 'onepassword-1pux',
+  id: '1password-1pux',
   detect: (data) =>
     isObject(data) &&
     Array.isArray(data.accounts) &&
