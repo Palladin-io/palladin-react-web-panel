@@ -116,6 +116,7 @@ function completeSetup() {
   state.account = {
     isOnboarded: true,
     displayName: 'Patryk',
+    userId: 'user-a',
     onboardingSteps: {
       vaultCreated: true,
       apiKeyCreated: true,
@@ -131,7 +132,7 @@ function completeSetup() {
 describe('DashboardPage', () => {
   beforeEach(() => {
     localStorage.clear()
-    state.account = { isOnboarded: false, displayName: 'Patryk' }
+    state.account = { isOnboarded: false, displayName: 'Patryk', userId: 'user-a' }
     state.vaults = { data: { vaults: [] } }
     state.apiKeys = { data: [] }
     state.agents = { data: [] }
@@ -146,13 +147,71 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Add your first entry or import passwords')).toBeInTheDocument()
   })
 
-  it('does not render the checklist when onboarding_skipped is set', async () => {
-    localStorage.setItem('onboarding_skipped', 'true')
+  it('does not render the checklist when the current user has skipped', async () => {
+    localStorage.setItem('onboarding_skipped:user-a', 'true')
     render(<DashboardPage />, { wrapper })
     // The pending-approvals panel confirms the normal state rendered; the
     // checklist header must be absent.
     expect(await screen.findByText('Pending approvals')).toBeInTheDocument()
     expect(screen.queryByText('Account setup')).not.toBeInTheDocument()
+  })
+
+  it('does not suppress onboarding for a different user who never skipped', async () => {
+    // user-a dismissed onboarding on this browser…
+    localStorage.setItem('onboarding_skipped:user-a', 'true')
+    // …but the signed-in account is user-b, who has no flag of their own.
+    state.account = { isOnboarded: false, displayName: 'Bea', userId: 'user-b' }
+    render(<DashboardPage />, { wrapper })
+    expect(await screen.findByText('Account setup')).toBeInTheDocument()
+  })
+
+  it('ignores an unscoped legacy skip flag (self-heals)', async () => {
+    // Pre-fix installs wrote a device-wide key; it must no longer hide onboarding.
+    localStorage.setItem('onboarding_skipped', 'true')
+    render(<DashboardPage />, { wrapper })
+    expect(await screen.findByText('Account setup')).toBeInTheDocument()
+  })
+
+  it('does not apply one user’s mobile-skip to a different user', async () => {
+    // Every setup step done except the mobile registration…
+    completeSetup()
+    state.account = {
+      isOnboarded: true,
+      displayName: 'Bea',
+      userId: 'user-b',
+      onboardingSteps: {
+        vaultCreated: true,
+        apiKeyCreated: true,
+        agentEnrolled: true,
+        mobileRegistered: false,
+      },
+    }
+    // …and user-a skipped the mobile step. user-b must NOT inherit that skip,
+    // so their checklist stays visible (setup is not complete for them).
+    localStorage.setItem('mobile_onboarding_skipped:user-a', 'true')
+    render(<DashboardPage />, { wrapper })
+    expect(await screen.findByText('Account setup')).toBeInTheDocument()
+  })
+
+  it('honours the mobile-skip flag for the user who set it', async () => {
+    completeSetup()
+    state.account = {
+      isOnboarded: true,
+      displayName: 'Patryk',
+      userId: 'user-a',
+      onboardingSteps: {
+        vaultCreated: true,
+        apiKeyCreated: true,
+        agentEnrolled: true,
+        mobileRegistered: false,
+      },
+    }
+    localStorage.setItem('mobile_onboarding_skipped:user-a', 'true')
+    render(<DashboardPage />, { wrapper })
+    // Mobile step skipped for this user → setup complete → no checklist.
+    await waitFor(() =>
+      expect(screen.queryByText('Account setup')).not.toBeInTheDocument(),
+    )
   })
 
   it('renders the unknown-agent card for a pending agent once onboarded', async () => {
