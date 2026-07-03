@@ -55,6 +55,25 @@ export const ENTRY_TYPE_CREDENTIAL = 1 as const
 export type EntryType = typeof ENTRY_TYPE_KEY | typeof ENTRY_TYPE_CREDENTIAL
 
 /**
+ * Normalise the wire `type` into an {@link EntryType}.
+ *
+ * The client models entry types numerically (KEY=0 / CREDENTIAL=1), but the
+ * backend serialises the `EntryType` enum as a camelCase **string** — the API
+ * responds with `"key"` / `"credential"` (see `JsonStringEnumConverter` in the
+ * .NET Json settings). A raw `entry.type === ENTRY_TYPE_KEY` comparison is then
+ * always false (`"key" === 0`), which silently renders every entry as a
+ * CREDENTIAL. Normalise at the API boundary so every consumer can keep
+ * comparing against the numeric constants. Accepts the numeric form too, so
+ * older builds and test fixtures that already send `0` / `1` still work.
+ */
+export function normalizeEntryType(raw: unknown): EntryType {
+  const value = typeof raw === 'string' ? raw.toLowerCase() : raw
+  return value === 'key' || value === ENTRY_TYPE_KEY
+    ? ENTRY_TYPE_KEY
+    : ENTRY_TYPE_CREDENTIAL
+}
+
+/**
  * List item shape returned by `GET /vaults/{id}/entries` — metadata only,
  * never the encrypted content. The content is fetched lazily on reveal
  * via `GET /vaults/{id}/entries/{eid}` so we don't ship every secret to

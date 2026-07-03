@@ -8,6 +8,17 @@ export interface AccountResponse {
   /** Backend field indicating account setup is complete. */
   isOnboarded: boolean
   /**
+   * Server-derived onboarding step completion. Optional — older backends omit
+   * it; consumers default each flag to `false`. `mobileRegistered` is the only
+   * step the client can't derive locally (it needs the user's push devices).
+   */
+  onboardingSteps?: {
+    vaultCreated: boolean
+    apiKeyCreated: boolean
+    agentEnrolled: boolean
+    mobileRegistered: boolean
+  }
+  /**
    * base64-encoded 16-byte Argon2id salt for master-key derivation.
    * Present once the user has completed onboarding.
    */
@@ -75,4 +86,28 @@ export function setupAccount(payload: SetupAccountPayload): Promise<void> {
  */
 export function recoverAccount(payload: RecoverAccountPayload): Promise<void> {
   return api.put('api/account/recovery', { json: payload }).json<void>()
+}
+
+/**
+ * Payload for the idempotent default-vault creation endpoint.
+ * Same fields as a regular vault creation; the server enforces the
+ * one-per-account rule and returns 409 if one already exists.
+ */
+export interface DefaultVaultPayload {
+  name: string
+  description?: string
+  icon?: string
+  color?: string
+  grantMode: number
+  /** base64-encoded sealed-box vault key (same as CreateVaultPayload). */
+  wrappedVK: string
+}
+
+/**
+ * POST /api/account/default-vault — creates the user's default vault.
+ * The backend returns 201 on first call and 409 when one already exists.
+ * Callers must handle 409 as a success (idempotent).
+ */
+export async function createDefaultVault(payload: DefaultVaultPayload): Promise<void> {
+  await api.post('api/account/default-vault', { json: payload })
 }

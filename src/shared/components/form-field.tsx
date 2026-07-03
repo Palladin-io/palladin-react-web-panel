@@ -1,4 +1,5 @@
 import type { InputHTMLAttributes, ReactNode } from 'react'
+import { CopyButton } from './copy-button'
 
 /**
  * Styled text input with label for onboarding and settings forms.
@@ -18,6 +19,10 @@ export interface FormInputProps
   monospace?: boolean
   /** Show a red border to signal a validation error. */
   error?: boolean
+  /** Render a copy-to-clipboard button that copies the current value. */
+  copyable?: boolean
+  /** Accessible label for the copy button (e.g. "Copy username"). */
+  copyLabel?: string
 }
 
 export function FormInput({
@@ -27,6 +32,8 @@ export function FormInput({
   borderClass,
   monospace,
   error,
+  copyable,
+  copyLabel,
   ...props
 }: FormInputProps) {
   return (
@@ -40,17 +47,24 @@ export function FormInput({
       >
         {label}
       </label>
-      <input
-        id={id}
-        className={`w-full rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2 text-[12px]
-          text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)]
-          focus:outline-none transition-colors duration-200 ${
-          borderClass ?? (error
-            ? 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
-            : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]')
-        }${monospace ? ' font-mono' : ''}`}
-        {...props}
-      />
+      <div className="relative">
+        <input
+          id={id}
+          className={`w-full rounded-lg border bg-[var(--cv-input-bg)] py-2 pl-3 text-[12px]
+            text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)]
+            focus:outline-none transition-colors duration-200 ${copyable ? 'pr-10' : 'pr-3'} ${
+            borderClass ?? (error
+              ? 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
+              : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]')
+          }${monospace ? ' font-mono' : ''}`}
+          {...props}
+        />
+        {copyable ? (
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+            <CopyButton value={String(props.value ?? '')} label={copyLabel} />
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

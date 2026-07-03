@@ -1,6 +1,7 @@
 export { GrantsPage } from './grants-page'
 export { PendingGrantsPage } from './pending-grants-page'
 export { OrgGrantsPanel } from './components/org-grants-panel'
+export { PendingGrantsPanel } from './components/pending-grants-panel'
 export { usePendingGrants } from './use-pending-grants'
 export { GrantAccessDialog } from './components/grant-access-dialog'
 export type { GrantAccessMode } from './components/grant-access-dialog'
@@ -33,3 +34,10 @@ export { GRANT_TYPE_GRANULAR, GRANT_STATUS_ACTIVE } from './api/org-grants-api'
 // active-agent count, computed from the same (deduped) org-grants query the
 // embedded panel already runs.
 export { useOrgGrants } from './use-org-grants'
+// Promoted for the dashboard status tiles (CVT-186): grant counts per status.
+export { useGrantSummary } from './use-grant-summary'
+export type { GrantSummary } from './api/grant-summary-api'
+// Promoted for the dashboard "Recently added / modified" widget (CVT-189):
+// reuses the cross-vault entry-search client with `sort=recent`.
+export { useRecentEntries } from './use-recent-entries'
+export type { EntrySearchItem } from './api/entry-search-api'

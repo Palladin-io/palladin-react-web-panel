@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
+import { CopyButton } from '../../../shared/components/copy-button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { FormInput } from '../../../shared/components/form-field'
 import { Icon } from '../../../shared/components/icon'
@@ -9,6 +10,11 @@ import { ModalShell } from '../../../shared/components/modal-shell'
 import { analytics } from '../../../shared/lib/analytics'
 import type { GeneratedApiKey } from '../api/api-keys-api'
 import { useGenerateApiKey } from '../use-generate-api-key'
+
+// TODO: point at the real URLs once palladin.io is live.
+const DOCS_URL = 'https://palladin.io/docs'
+const SKILL_DOCS_URL = 'https://palladin.io/docs/skill'
+const MARKET_URL = 'https://palladin.io/market'
 
 export interface GenerateApiKeyModalProps {
   open: boolean
@@ -77,7 +83,11 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
       </header>
 
       {generated ? (
-        <GeneratedSecretView generated={generated} onDone={onClose} />
+        <GeneratedSecretView
+          generated={generated}
+          keyName={trimmedName}
+          onDone={onClose}
+        />
       ) : (
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <FormInput
@@ -112,58 +122,36 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
  */
 function GeneratedSecretView({
   generated,
+  keyName,
   onDone,
 }: {
   generated: GeneratedApiKey
+  keyName: string
   onDone: () => void
 }) {
   const { t } = useTranslation()
-  const [copied, setCopied] = useState(false)
+  const [agentName, setAgentName] = useState(keyName)
 
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(generated.plaintext)
-      setCopied(true)
-      window.setTimeout(() => setCopied(false), 2000)
-    } catch {
-      // Clipboard API may be unavailable (insecure context / denied
-      // permission). The key stays selectable in the field as a fallback.
-    }
-  }
+  const connectCommand = `palladin connect ${generated.plaintext} --id "${agentName.trim() || keyName}"`
+  const installCommand = 'npm i -g @palladin/agent'
+  const agentMessage = t('apiKeys.agentMessageBody', {
+    name: agentName.trim() || keyName,
+    docs: SKILL_DOCS_URL,
+    market: MARKET_URL,
+  })
 
   return (
     <div className="step-enter flex flex-col gap-4">
-      <div>
-        <label
-          htmlFor="generated-api-key"
-          className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-        >
-          {t('apiKeys.secretLabel')}
-        </label>
-        {/* Input + Copy share an explicit h-9 so the button matches the field
-            height exactly (the `sm` button alone is shorter than the input). */}
-        <div className="flex gap-2">
-          <input
-            id="generated-api-key"
-            type="text"
-            readOnly
-            value={generated.plaintext}
-            onFocus={(e) => e.currentTarget.select()}
-            className="h-9 w-full flex-1 rounded-lg border border-[var(--cv-input-border)]
-              bg-[var(--cv-input-bg)] px-3 font-mono text-[12px] text-[var(--cv-input-text)]
-              transition-colors focus:border-[var(--cv-t1)] focus:outline-none"
-          />
-          <Button
-            variant="subtle"
-            size="sm"
-            icon={copied ? 'check' : 'content_copy'}
-            onClick={handleCopy}
-            className="h-9 shrink-0"
-          >
-            {copied ? t('apiKeys.copied') : t('apiKeys.copy')}
-          </Button>
-        </div>
-      </div>
+      <FormInput
+        id="generated-api-key"
+        label={t('apiKeys.secretLabel')}
+        value={generated.plaintext}
+        readOnly
+        monospace
+        copyable
+        copyLabel={t('apiKeys.copy')}
+        onFocus={(e) => e.currentTarget.select()}
+      />
 
       <div
         className="flex items-start gap-2 rounded-lg border border-[rgb(var(--cv-primary-rgb)/0.25)]
@@ -177,11 +165,97 @@ function GeneratedSecretView({
         </p>
       </div>
 
+      <CollapsibleSection title={t('apiKeys.connectTitle')} defaultOpen>
+        <FormInput
+          id="connect-agent-name"
+          label={t('apiKeys.agentNameLabel')}
+          value={agentName}
+          onChange={(e) => setAgentName(e.target.value)}
+          placeholder={t('apiKeys.namePlaceholder')}
+          maxLength={64}
+        />
+        <FormInput
+          id="connect-command"
+          label={t('apiKeys.commandLabel')}
+          value={connectCommand}
+          readOnly
+          monospace
+          copyable
+          copyLabel={t('apiKeys.copy')}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+        <FormInput
+          id="connect-install-command"
+          label={t('apiKeys.connectInstall')}
+          value={installCommand}
+          readOnly
+          monospace
+          copyable
+          copyLabel={t('apiKeys.copy')}
+          onFocus={(e) => e.currentTarget.select()}
+        />
+
+        <a
+          href={DOCS_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[11px] font-medium text-[var(--cv-primary)] hover:underline"
+        >
+          {t('apiKeys.connectDocs')}
+        </a>
+      </CollapsibleSection>
+
+      <CollapsibleSection title={t('apiKeys.agentMessageTitle')}>
+        <div className="relative">
+          <pre
+            className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border
+              border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2 pr-10 text-[12px]
+              leading-relaxed text-[var(--cv-input-text)]"
+          >
+            {agentMessage}
+          </pre>
+          <div className="absolute right-1.5 top-1.5">
+            <CopyButton value={agentMessage} label={t('apiKeys.copy')} />
+          </div>
+        </div>
+      </CollapsibleSection>
+
       <DialogFooter>
         <Button variant="accent" size="sm" onClick={onDone} className="w-full">
           {t('apiKeys.done')}
         </Button>
       </DialogFooter>
+    </div>
+  )
+}
+
+/** Bordered header + chevron that toggles its content open/closed. */
+function CollapsibleSection({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string
+  defaultOpen?: boolean
+  children: ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="overflow-hidden rounded-lg border border-[var(--cv-border)]">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between px-3 py-2.5 text-left
+          transition-colors hover:bg-[var(--cv-card-hover)]"
+      >
+        <span className="text-[12px] font-semibold text-[var(--cv-t1)]">{title}</span>
+        <Icon name={open ? 'expand_less' : 'expand_more'} size={18} />
+      </button>
+      {open && (
+        <div className="flex flex-col gap-2 border-t border-[var(--cv-border)] p-3">
+          {children}
+        </div>
+      )}
     </div>
   )
 }

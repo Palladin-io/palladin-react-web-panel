@@ -217,6 +217,10 @@ In inline JS styles: `'var(--cv-primary)'`, `'rgb(var(--cv-primary-rgb) / 0.12)'
 
 Audit Log event colors → see `docs/architecture/features/audit.md`.
 
+#### No forced UPPERCASE
+
+Never force all-caps on UI text — no `uppercase` Tailwind class and no `text-transform: uppercase`. Render labels, section headers, chips, badges, and buttons in the exact case written in the i18n string (sentence/label case). All-caps hurts readability and is a recurring review finding. The **only** approved exception is the established `WarningZone` amber title; do not introduce new uppercase surfaces without an explicit request.
+
 ### i18n / Localisation
 
 **Stack:** `i18next` + `react-i18next`

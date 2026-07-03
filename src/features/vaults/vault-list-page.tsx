@@ -10,7 +10,7 @@ import { CreateVaultDialog } from './components/create-vault-dialog'
 import { PremiumGateDialog } from './components/premium-gate-dialog'
 import { VaultCard } from './components/vault-card'
 import { VaultListPanel } from './components/vault-list-panel'
-import { VaultSearchBar } from './components/vault-search-bar'
+import { SearchBar } from '../../shared/components/search-bar'
 import { PERMISSION_MULTIPLE_VAULTS, type VaultSummary } from './types'
 import { useVaults } from './use-vaults'
 
@@ -124,7 +124,7 @@ export function VaultListPage() {
           </div>
         </header>
 
-        <VaultSearchBar
+        <SearchBar
           value={search}
           onChange={setSearch}
           placeholder={t('vault.list.searchPlaceholder')}

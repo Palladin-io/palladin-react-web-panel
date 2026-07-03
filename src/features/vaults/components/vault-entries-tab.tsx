@@ -10,7 +10,7 @@ import {
 import { useEntries } from '../use-entries'
 import { CreateEntryModal } from './create-entry-modal'
 import { EntryRow } from './entry-row'
-import { VaultSearchBar } from './vault-search-bar'
+import { SearchBar } from '../../../shared/components/search-bar'
 
 export interface VaultEntriesTabProps {
   vault: Vault
@@ -58,7 +58,7 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
 
   return (
     <>
-      <VaultSearchBar
+      <SearchBar
         value={search}
         onChange={setSearch}
         placeholder={t('vault.detail.entriesSearchPlaceholder')}
