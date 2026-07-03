@@ -10,10 +10,7 @@ import { RecoveryPage } from '../features/recovery'
  */
 export const Route = createFileRoute('/recovery')({
   beforeLoad: () => {
-    // A persisted refresh token counts as a restorable session: `accessToken`
-    // is in-memory only and is always null after a reload, so gating on it
-    // alone would bounce a legitimately-authenticated user off /recovery.
-    // Mirrors the guards in `_authenticated.tsx` and `login.tsx`.
+    // accessToken is in-memory only (null after reload); a persisted refresh token still counts as authenticated.
     const { accessToken, refreshToken } = useAuthStore.getState()
     if (!accessToken && !refreshToken) {
       throw redirect({ to: '/login' })

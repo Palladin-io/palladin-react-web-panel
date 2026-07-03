@@ -12,8 +12,7 @@ export async function copyToClipboard(value: string): Promise<boolean> {
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(value)
-      // A newer copy (secret or not) now owns the clipboard — cancel any pending
-      // auto-clear so it can't wipe this value.
+      // A newer copy now owns the clipboard — cancel any pending auto-clear.
       lastCopiedSecret = null
       return true
     }
@@ -45,16 +44,9 @@ let clearTimer: ReturnType<typeof setTimeout> | null = null
 let lastCopiedSecret: string | null = null
 
 /**
- * Copy a *secret* to the clipboard and schedule an automatic clear.
- *
- * A left-behind password/key on the OS clipboard is a real exposure (other
- * apps, clipboard-history managers, the next paste). After `clearAfterMs` we
- * wipe it — but only if it is still the value we wrote:
- *   • a newer secret copy supersedes the timer (`lastCopiedSecret` guard), and
- *   • when the browser lets us read the clipboard back, we skip clearing if the
- *     user has since copied something else.
- * Clearing is best-effort: reading/writing the clipboard can be denied in an
- * insecure context, in which case we simply leave it.
+ * Copy a secret to the clipboard and auto-clear it after `clearAfterMs` — a
+ * left-behind password/key is a real exposure (clipboard history, next paste).
+ * Clear is best-effort and skipped if a newer value has since taken the clipboard.
  */
 export async function copySecretToClipboard(
   value: string,
@@ -80,28 +72,20 @@ async function clearClipboardIfUnchanged(expected: string): Promise<void> {
   try {
     if (navigator.clipboard?.readText) {
       const current = await navigator.clipboard.readText()
-      // The user copied something else in the meantime — don't stomp it.
       if (current !== expected) {
-        // Only retract our own marker: a concurrent `copySecretToClipboard`
-        // may have set `lastCopiedSecret` to a NEWER secret while we awaited
-        // `readText()`. Clearing it unconditionally would clobber that marker
-        // and strand the newer secret in the clipboard forever.
+        // Only retract our own marker — a concurrent copy may have set a newer one.
         if (lastCopiedSecret === expected) lastCopiedSecret = null
         return
       }
     }
   } catch {
-    // Can't read the clipboard (permission / insecure context). We still wrote
-    // this value via our own API and nothing newer replaced it, so clearing is
-    // safe.
+    // Can't read the clipboard (permission / insecure context) — clear anyway.
   }
 
   try {
     await navigator.clipboard?.writeText('')
   } catch {
-    // Best-effort — nothing more we can do.
+    // Best-effort.
   }
-  // Same guard as above: a newer secret may have been copied while `writeText`
-  // was in flight; don't retract its marker.
   if (lastCopiedSecret === expected) lastCopiedSecret = null
 }

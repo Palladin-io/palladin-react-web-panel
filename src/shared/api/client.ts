@@ -53,12 +53,7 @@ export const api = ky.create({
           request.headers.set('Authorization', `Bearer ${data.accessToken}`)
           return ky(request)
         } catch {
-          // Refresh failed (expired/revoked refresh token) → force logout.
-          // `refreshPromise` already serialises concurrent 401s onto one failed
-          // promise, and `logout()` is idempotent (resets to initial state), so
-          // an unconditional call is safe. We must NOT gate this on `accessToken`
-          // — it lives in memory only and is always null after a reload, which
-          // would otherwise strand the user on a broken-authed page.
+          // Unconditional: accessToken is in-memory only (null after reload), so gating on it would strand the user.
           useAuthStore.getState().logout()
           window.location.href = '/login'
           return response

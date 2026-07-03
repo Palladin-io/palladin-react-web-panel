@@ -12,16 +12,8 @@
  * the page side.
  */
 
-// ─── Subresource Integrity for the Firebase compat scripts ──────────────────
-// `importScripts()` has no native `integrity`/`crossorigin` option, so we can't
-// pin the bytes the way an <script integrity="…"> tag would on the page. To get
-// the same guarantee we first `fetch(url, { integrity })` — the Fetch spec
-// enforces SRI and rejects the response if the SHA-384 doesn't match — and only
-// `importScripts` the URL once the integrity fetch has succeeded (the browser
-// then loads the already-validated bytes from the HTTP cache).
-//
-// Version is pinned to 11.10.0. If you bump it, recompute the hashes with:
-//   curl -s <url> | openssl dgst -sha384 -binary | openssl base64 -A
+// `importScripts()` has no native `integrity`, so we `fetch(url, { integrity })`
+// first (Fetch enforces SRI) and only `importScripts` the validated-and-cached bytes.
 const FIREBASE_SCRIPTS = [
   {
     url: 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js',
@@ -35,8 +27,6 @@ const FIREBASE_SCRIPTS = [
 
 async function importFirebaseWithIntegrity() {
   for (const { url, integrity } of FIREBASE_SCRIPTS) {
-    // `integrity` makes the browser reject a tampered/mismatched response;
-    // `crossorigin: anonymous` / mode 'cors' matches gstatic's CORS headers.
     const response = await fetch(url, {
       integrity,
       mode: 'cors',
@@ -46,17 +36,11 @@ async function importFirebaseWithIntegrity() {
     if (!response.ok) {
       throw new Error(`Failed to fetch ${url}: ${response.status}`)
     }
-    // The integrity check above already passed, so loading from cache is safe.
     importScripts(url)
   }
 }
 
-/**
- * Only accept same-origin, absolute-path links for deep-linking. Anything else
- * (absolute URLs, protocol-relative `//evil.com`, `javascript:` …) is rejected
- * and falls back to the app root, so a malicious push payload can never
- * navigate the user off-origin.
- */
+// Accept only same-origin absolute paths so a malicious push payload can't navigate off-origin.
 function safeInternalPath(link) {
   if (typeof link !== 'string' || !link.startsWith('/') || link.startsWith('//')) {
     return '/'
@@ -99,22 +83,17 @@ if (firebaseConfig.apiKey && firebaseConfig.appId) {
         self.registration.showNotification(title, {
           body,
           icon: '/logo.png',
-          // Carried into the click handler for deep-linking (already validated).
           data: { link },
         })
       })
     })
     .catch((err) => {
-      // Integrity failure or network error — push simply stays disabled, the
-      // panel still works fully via SignalR.
       console.error('[fcm-sw] Firebase init skipped:', err)
     })
 }
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  // Re-validate at click time (defense in depth) in case the stored value was
-  // ever set without going through `safeInternalPath`.
   const link = safeInternalPath(
     (event.notification.data && event.notification.data.link) || '/',
   )

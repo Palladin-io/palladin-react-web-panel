@@ -1,31 +1,9 @@
 # Security headers for the Palladin web panel (Cloudflare Pages / Netlify `_headers` format).
+# Single source of truth for the CSP — full rationale in docs/architecture/security.md.
 #
-# This file is served from `public/` verbatim (Vite copies it into `dist/`) and
-# is consumed by the static host to attach HTTP response headers. It is the
-# single source of truth for the Content-Security-Policy.
-#
-# ⚠️  KEEP IN SYNC: whenever the app starts talking to a NEW external origin
-#     (a new analytics host, OAuth provider, CDN, WebSocket endpoint, font
-#     source, image host, …) the corresponding CSP directive below MUST be
-#     updated in the same PR, or the browser will silently block the request.
-#     The allow-list below is intentionally tight — see docs/architecture/security.md.
-#
-# Origins the app actually uses:
-#   • script-src   self  + accounts.google.com (Google Identity)  + *.gstatic.com (Firebase compat SW scripts)
-#   • connect-src  self  + API hosts (staging/prod)  + *.posthog.com  + *.googleapis.com (FCM)  + www.gstatic.com (SRI fetch)  + accounts.google.com  + *.s3.eu-west-1.amazonaws.com (presigned PUT icon upload)  + wss://api(.stage).palladin.io (SignalR)
-#
-# NOTE (S3): icon uploads PUT directly to a presigned S3 URL. The bucket lives in
-#       eu-west-1 (backend `S3:Region`), so the host is `<bucket>.s3.eu-west-1.amazonaws.com`.
-#       The prod/staging bucket name is injected server-side (not committed here), hence the
-#       `*.` wildcard on the bucket. TIGHTEN to the exact bucket once it is known
-#       (e.g. `https://palladin-prod.s3.eu-west-1.amazonaws.com`).
-#
-# NOTE: if a PostHog feature (session replay, surveys, exception autocapture) is
-#       ever enabled from the PostHog UI, its lazily-injected script from
-#       *.posthog.com must be added to script-src or the browser will block it.
-#   • frame-src    accounts.google.com (Google sign-in popup/iframe)
-#   • style/font   Google Fonts (fonts.googleapis.com / fonts.gstatic.com)
-#   • img-src      self + data: + blob: (local icon preview) + https: (S3 icons, avatars)
+# KEEP IN SYNC: adding a new external origin (host, CDN, WebSocket, font, image) requires updating the CSP below in the same PR, or the browser blocks it.
+# NOTE (S3): `*.s3.eu-west-1.amazonaws.com` wildcards the presigned-upload bucket; tighten to the exact bucket once known.
+# NOTE (PostHog): enabling session replay / surveys / exception autocapture requires adding *.posthog.com to script-src.
 
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self' https://accounts.google.com https://*.gstatic.com; connect-src 'self' https://api.palladin.io https://api.stage.palladin.io https://accounts.google.com https://*.posthog.com https://*.googleapis.com https://www.gstatic.com https://*.s3.eu-west-1.amazonaws.com wss://api.palladin.io wss://api.stage.palladin.io; frame-src https://accounts.google.com; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'

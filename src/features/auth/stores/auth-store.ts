@@ -30,13 +30,7 @@ interface AuthState {
   markOnboarded: () => void
   unlockVault: (masterKey: Uint8Array, privateKey: Uint8Array) => void
   lockVault: () => void
-  /**
-   * Idle / absolute session timeout. Wipes the in-memory crypto keys (like
-   * `lockVault`) AND drops the in-memory access token, so a walked-away tab
-   * holds neither the vault keys nor a usable bearer token. The persisted
-   * refresh token still lets the API client silently mint a new access token on
-   * the next request; the user must re-enter their master password to unlock.
-   */
+  /** Session timeout: wipes crypto keys AND the access token, so a walked-away tab holds neither. */
   expireSession: () => void
   logout: () => void
 }
@@ -106,9 +100,6 @@ export const useAuthStore = create<AuthState>()(
           masterKey: null,
           privateKey: null,
           isVaultLocked: true,
-          // Drop the in-memory access token too. The persisted refresh token
-          // survives, so the ky client silently re-authenticates on the next
-          // request — but no bearer token sits idle in memory in the meantime.
           accessToken: null,
         }),
 
@@ -116,31 +107,10 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'palladin-auth',
-      // ─── What survives a page reload ────────────────────────────────────────
-      // Persisted (localStorage): refresh token + onboarding/permissions hints.
-      // NOT persisted:
-      //   • accessToken — kept in memory ONLY. On reload it is null; the ky
-      //     client silently mints a fresh one from the refresh token on the
-      //     first request (see shared/api/client.ts). A short-lived bearer
-      //     token no longer sits in localStorage where XSS could read it.
-      //   • masterKey / privateKey / isVaultLocked — the vault must be
-      //     re-unlocked with the master password after every reload.
-      //
-      // Threat model / mitigations:
-      //   • The refresh token alone cannot decrypt any vault content — the
-      //     zero-knowledge crypto keys (MK, privateKey, VK) are never persisted.
-      //   • Idle + absolute session timeouts (see `expireSession` +
-      //     useSessionTimeout) wipe the keys and drop the access token when the
-      //     user walks away.
-      //   • Refresh tokens rotate when within 7 days of expiry (Identity API).
-      //
-      // FOLLOW-UP (backend-coordinated, out of scope for this repo): move the
-      // refresh token itself into an httpOnly, Secure, SameSite cookie so it is
-      // never readable from JS at all. That requires the API to set/read the
-      // cookie and a CSRF-token scheme on state-changing requests; tracked
-      // separately.
+      // accessToken and crypto keys are in-memory only; only the refresh token
+      // (which alone can't decrypt any vault content) is persisted, pending a
+      // backend-coordinated move to an httpOnly cookie. See docs/architecture/security.md.
       partialize: (state) => ({
-        // Deliberately NO accessToken here — in-memory only.
         refreshToken: state.refreshToken,
         userId: state.userId,
         isOnboarded: state.isOnboarded,
@@ -151,9 +121,7 @@ export const useAuthStore = create<AuthState>()(
 )
 
 export function getIsAuthenticated() {
-  // A restorable session counts as authenticated: after a reload the access
-  // token is gone (in-memory only) but a persisted refresh token can silently
-  // mint a new one.
+  // A persisted refresh token counts as authenticated — accessToken is null after a reload.
   const { accessToken, refreshToken } = useAuthStore.getState()
   return accessToken !== null || refreshToken !== null
 }

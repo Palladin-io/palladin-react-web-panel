@@ -57,7 +57,6 @@ describe('useSessionTimeout', () => {
     const state = useAuthStore.getState()
     expect(state.isVaultLocked).toBe(true)
     expect(state.accessToken).toBeNull()
-    // Refresh token retained → session is still restorable.
     expect(state.refreshToken).toBe('refresh-1')
     expect(navigateMock).toHaveBeenCalledWith({ to: '/unlock' })
   })
@@ -66,8 +65,6 @@ describe('useSessionTimeout', () => {
     startUnlockedSession()
     renderHook(() => useSessionTimeout())
 
-    // Activity, then just under the idle threshold — repeated. Each activity
-    // event pushes `lastActivity` forward, so the idle clock never elapses.
     act(() => {
       window.dispatchEvent(new Event('keydown'))
       vi.advanceTimersByTime(IDLE_TIMEOUT_MS - 60_000)
@@ -77,7 +74,6 @@ describe('useSessionTimeout', () => {
       vi.advanceTimersByTime(IDLE_TIMEOUT_MS - 60_000)
     })
 
-    // 28 minutes of wall-clock elapsed, but never 15 idle → still unlocked.
     expect(navigateMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState().isVaultLocked).toBe(false)
     expect(useAuthStore.getState().accessToken).toBe('access-1')
@@ -87,8 +83,6 @@ describe('useSessionTimeout', () => {
     startUnlockedSession()
     renderHook(() => useSessionTimeout())
 
-    // Stay active (5-min activity cadence, never idle) right up past 8 hours.
-    // The absolute cap ignores activity and must still expire the session.
     for (
       let elapsed = 0;
       elapsed <= ABSOLUTE_TIMEOUT_MS;
