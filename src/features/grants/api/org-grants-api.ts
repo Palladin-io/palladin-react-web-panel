@@ -154,7 +154,8 @@ export async function collectActiveFullGrants(
       vaultId,
       status: GRANT_STATUS_ACTIVE,
       cursor,
-      pageSize: 200,
+      // Backend caps cursor pagination at 100 per page.
+      pageSize: 100,
     })
     for (const grant of page.items) {
       if (grant.type === GRANT_TYPE_FULL && grant.agentPublicKey) {
