@@ -30,7 +30,7 @@ export {
 } from './types'
 export { useVaults } from './use-vaults'
 export { useVault } from './use-vault'
-export { useEntries, useEntryDetail } from './use-entries'
+export { useEntriesInfinite, useAllEntries, useEntryDetail } from './use-entries'
 export { useCreateEntry } from './use-create-entry'
 // Promoted for the dashboard "Recently added / modified" widget (CVT-189) so a
 // lightweight entry row can reuse the canonical icon/colour presentation
@@ -40,4 +40,5 @@ export {
   isCustomIconUrl,
   presentationForType,
 } from './components/entry-presentation'
+export { EntryIcon } from './components/entry-icon'
 export { hexWithAlpha } from './components/vault-color'

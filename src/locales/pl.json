@@ -1015,5 +1015,10 @@
   "settings.export.title": "Eksport danych",
   "settings.export.subtitle": "Pobierz wpisy ze wszystkich sejfów jako plik CSV lub JSON jawnym tekstem.",
   "settings.export.cta": "Eksportuj wszystkie sejfy",
-  "vault.import.format.manual": "Własny CSV (ręczne mapowanie)"
+  "vault.import.format.manual": "Własny CSV (ręczne mapowanie)",
+  "vault.entries.loadMore": "Załaduj więcej",
+  "vault.import.errorStep.grants": "Import nie powiódł się przy sprawdzaniu zgód dostępu do sejfu. Nie zmieniono żadnych wpisów.",
+  "vault.import.errorStep.encrypt": "Import nie powiódł się przy szyfrowaniu wpisów. Nie zmieniono żadnych wpisów.",
+  "vault.import.errorStep.save": "Import nie powiódł się przy zapisie wpisów. Część wpisów mogła nie zostać zapisana.",
+  "vault.import.errorStep.overwrite": "Wpisy zostały zaimportowane, ale aktualizacja istniejących nie powiodła się."
 }

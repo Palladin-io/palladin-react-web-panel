@@ -10,6 +10,14 @@ const importMutate = vi.fn()
 
 vi.mock('../use-import-entries', () => ({
   useImportEntries: () => ({ mutate: importMutate, isPending: false }),
+  // Real class so the component's `instanceof ImportStepError` check works.
+  ImportStepError: class ImportStepError extends Error {
+    step: string
+    constructor(step: string, cause?: unknown) {
+      super(step, { cause })
+      this.step = step
+    }
+  },
 }))
 
 vi.mock('../use-entries', () => ({

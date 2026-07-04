@@ -7,7 +7,7 @@ import {
   type EntryListItem,
   type Vault,
 } from '../types'
-import { useEntries } from '../use-entries'
+import { useEntriesInfinite } from '../use-entries'
 import { CreateEntryModal } from './create-entry-modal'
 import { EntryRow } from './entry-row'
 import { SearchBar } from '../../../shared/components/search-bar'
@@ -27,8 +27,11 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
 
-  const entries = useEntries(vault.id)
-  const items = useMemo(() => entries.data?.items ?? [], [entries.data])
+  const entries = useEntriesInfinite(vault.id)
+  const items = useMemo(
+    () => entries.data?.pages.flatMap((p) => p.items) ?? [],
+    [entries.data],
+  )
 
   const filtered = useMemo(
     () => filterEntries(items, search),
@@ -81,6 +84,19 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
           ))}
         </div>
       )}
+
+      {entries.hasNextPage ? (
+        <div className="mt-3 flex justify-center">
+          <Button
+            variant="subtle"
+            size="sm"
+            onClick={() => entries.fetchNextPage()}
+            disabled={entries.isFetchingNextPage}
+          >
+            {t('vault.entries.loadMore')}
+          </Button>
+        </div>
+      ) : null}
 
       <CreateEntryModal
         open={createOpen}

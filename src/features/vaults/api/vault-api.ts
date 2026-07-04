@@ -210,14 +210,24 @@ export interface ImportEntriesResponse {
 /**
  * Bulk-create encrypted entries. The backend caps a single request at 500
  * items; callers chunk larger imports and sum the responses.
+ *
+ * A 2xx response with an empty body is treated as success (imported count =
+ * items sent). This guards the "data saved but the wizard shows an error" case:
+ * `.json()` throws on an empty body, which would fire the mutation's `onError`
+ * even though every entry was persisted.
  */
-export function importEntries(
+export async function importEntries(
   vaultId: string,
   body: ImportEntriesBody,
 ): Promise<ImportEntriesResponse> {
-  return api
-    .post(`api/vaults/${vaultId}/entries/import`, { json: body })
-    .json<ImportEntriesResponse>()
+  const response = await api.post(`api/vaults/${vaultId}/entries/import`, {
+    json: body,
+  })
+  const text = await response.text()
+  if (!text.trim()) {
+    return { importedCount: body.entries.length, entryIds: [] }
+  }
+  return JSON.parse(text) as ImportEntriesResponse
 }
 
 /**

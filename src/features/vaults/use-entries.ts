@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { getAllEntries, getEntries, getEntry } from './api/vault-api'
 
 export function entriesQueryKey(vaultId: string) {
@@ -14,14 +14,18 @@ export function entryDetailQueryKey(vaultId: string, entryId: string) {
 }
 
 /**
- * Fetch the metadata-only entry list for a vault. The encrypted blob
- * is intentionally omitted — see {@link useEntryDetail} for the lazy
- * single-entry fetch used by the reveal panel.
+ * Cursor-paginated, metadata-only entry list for a vault — the list UI follows
+ * `nextCursor` via "Load more" so vaults larger than one page render fully. The
+ * encrypted blob is omitted; see {@link useEntryDetail} for the lazy single-entry
+ * fetch used by the reveal panel. For the COMPLETE set in one shot (export,
+ * conflict detection) use {@link useAllEntries} / `getAllEntries`.
  */
-export function useEntries(vaultId: string) {
-  return useQuery({
+export function useEntriesInfinite(vaultId: string) {
+  return useInfiniteQuery({
     queryKey: entriesQueryKey(vaultId),
-    queryFn: () => getEntries(vaultId),
+    queryFn: ({ pageParam }) => getEntries(vaultId, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
     staleTime: 30_000,
   })
 }

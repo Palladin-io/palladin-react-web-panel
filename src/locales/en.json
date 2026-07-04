@@ -970,5 +970,10 @@
   "settings.export.title": "Data export",
   "settings.export.subtitle": "Download every vault’s entries as a plaintext CSV or JSON file.",
   "settings.export.cta": "Export all vaults",
-  "vault.import.format.manual": "Custom CSV (manual mapping)"
+  "vault.import.format.manual": "Custom CSV (manual mapping)",
+  "vault.entries.loadMore": "Load more",
+  "vault.import.errorStep.grants": "Import failed while checking vault access grants. No entries were changed.",
+  "vault.import.errorStep.encrypt": "Import failed while encrypting entries. No entries were changed.",
+  "vault.import.errorStep.save": "Import failed while saving entries. Some entries may not have been saved.",
+  "vault.import.errorStep.overwrite": "Entries were imported, but updating existing ones failed."
 }

@@ -15,6 +15,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `FormSelect` | `shared/components/form-select.tsx` | Native `<select>` styled like `FormInput` with a chevron affordance | `id`, `label?`, `labelClassName?`, `children` (`<option>`s) + passthrough `SelectHTMLAttributes`. |
 | `EncryptionNotice` | `shared/components/encryption-notice.tsx` | Success-tinted "encrypted on your device" callout (`--cv-success`) | `children` (caller's translated copy). Used by create-entry + import wizard. |
 | `FileDropzone` | `vaults/components/file-dropzone.tsx` | Drag-and-drop + click-to-browse file picker (dashed target, first file only) | `onFile`, `accept?`, `disabled?`, `label`, `hint?`. (Feature-local; promote to `shared/` if a 2nd consumer appears.) |
+| `EntryIcon` | `vaults/components/entry-icon.tsx` | Circular entry avatar — renders a favicon/blob URL as `<img>`, falls back to the type glyph on load error | `icon`, `type`, `color?`, `className?`. Exported via the vaults barrel; used by entries list + dashboard recents. |
 | `DialogFooter` | `shared/components/dialog-footer.tsx` | Modal footer strip: edge-bleed negative margin, top border, tinted bg | `children` (buttons use `flex-1` / `flex-[2]`). |
 | `ModalShell` | `shared/components/modal-shell.tsx` | Modal scaffold: backdrop, Escape dismiss, body scroll lock | `onClose?`, `ariaLabel`, `width` (default 480), `children`. |
 | `Icon` | `shared/components/icon.tsx` | Material Symbols Rounded glyph wrapper | `name`, `size` (default 18), `color`, `className`, `ariaHidden`, `style`. |

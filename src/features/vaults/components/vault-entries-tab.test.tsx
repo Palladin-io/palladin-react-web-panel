@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import type { AnchorHTMLAttributes, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -33,7 +34,7 @@ vi.mock('@tanstack/react-router', () => ({
 const useEntriesMock = vi.fn()
 
 vi.mock('../use-entries', () => ({
-  useEntries: (vaultId: string) => useEntriesMock(vaultId),
+  useEntriesInfinite: (vaultId: string) => useEntriesMock(vaultId),
   useEntryDetail: () => ({ data: undefined, isPending: false }),
   entriesQueryKey: (vaultId: string) => ['vaults', vaultId, 'entries'],
   entryDetailQueryKey: (vaultId: string, entryId: string) => [
@@ -43,6 +44,29 @@ vi.mock('../use-entries', () => ({
     entryId,
   ],
 }))
+
+/** Build the useInfiniteQuery-shaped return the component consumes. */
+function infinite(
+  items: EntryListItem[],
+  extra: Partial<{
+    isPending: boolean
+    isError: boolean
+    hasNextPage: boolean
+    isFetchingNextPage: boolean
+    fetchNextPage: () => void
+  }> = {},
+) {
+  return {
+    data: { pages: [{ items }] },
+    isPending: false,
+    isError: false,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: vi.fn(),
+    refetch: vi.fn(),
+    ...extra,
+  }
+}
 
 vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
@@ -84,11 +108,7 @@ describe('VaultEntriesTab', () => {
   })
 
   it('renders the empty state CTA when the vault has no entries', () => {
-    useEntriesMock.mockReturnValue({
-      data: { items: [] },
-      isPending: false,
-      isError: false,
-    })
+    useEntriesMock.mockReturnValue(infinite([]))
 
     render(<VaultEntriesTab vault={VAULT} />, { wrapper })
 
@@ -118,11 +138,7 @@ describe('VaultEntriesTab', () => {
         updatedAt: '2026-04-25T12:00:00Z',
       },
     ]
-    useEntriesMock.mockReturnValue({
-      data: { items },
-      isPending: false,
-      isError: false,
-    })
+    useEntriesMock.mockReturnValue(infinite(items))
 
     render(<VaultEntriesTab vault={VAULT} />, { wrapper })
 
@@ -132,22 +148,36 @@ describe('VaultEntriesTab', () => {
   })
 
   it('shows a loading skeleton while fetching', () => {
-    useEntriesMock.mockReturnValue({
-      data: undefined,
-      isPending: true,
-      isError: false,
-    })
+    useEntriesMock.mockReturnValue(infinite([], { data: undefined, isPending: true }))
     const { container } = render(<VaultEntriesTab vault={VAULT} />, { wrapper })
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
   })
 
   it('shows an error banner when the entries fetch fails', () => {
-    useEntriesMock.mockReturnValue({
-      data: undefined,
-      isPending: false,
-      isError: true,
-    })
+    useEntriesMock.mockReturnValue(infinite([], { data: undefined, isError: true }))
     render(<VaultEntriesTab vault={VAULT} />, { wrapper })
     expect(screen.getByText(/could not load vault data/i)).toBeInTheDocument()
+  })
+
+  it('shows Load more when more pages exist and calls fetchNextPage', async () => {
+    const user = userEvent.setup()
+    const fetchNextPage = vi.fn()
+    const items: EntryListItem[] = [
+      {
+        id: 'e1',
+        label: 'GitHub',
+        type: ENTRY_TYPE_CREDENTIAL,
+        accessCount: 0,
+        createdAt: '2026-04-25T12:00:00Z',
+        updatedAt: '2026-04-25T12:00:00Z',
+      },
+    ]
+    useEntriesMock.mockReturnValue(infinite(items, { hasNextPage: true, fetchNextPage }))
+
+    render(<VaultEntriesTab vault={VAULT} />, { wrapper })
+
+    const loadMore = screen.getByRole('button', { name: /load more/i })
+    await user.click(loadMore)
+    expect(fetchNextPage).toHaveBeenCalledTimes(1)
   })
 })

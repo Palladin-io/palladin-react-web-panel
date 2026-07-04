@@ -8,7 +8,7 @@ import {
   type EntryListItem,
   type Vault,
 } from '../types'
-import { useEntries } from '../use-entries'
+import { useEntriesInfinite } from '../use-entries'
 import { CreateEntryModal } from './create-entry-modal'
 import { EntryRow } from './entry-row'
 import { SearchBar } from '../../../shared/components/search-bar'
@@ -33,8 +33,11 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
 
-  const entries = useEntries(vault.id)
-  const items = useMemo(() => entries.data?.items ?? [], [entries.data])
+  const entries = useEntriesInfinite(vault.id)
+  const items = useMemo(
+    () => entries.data?.pages.flatMap((p) => p.items) ?? [],
+    [entries.data],
+  )
 
   const filtered = useMemo(
     () => filterEntries(items, search),
@@ -57,7 +60,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">{vault.name}</h2>
           <p className="text-[11px] text-[var(--cv-t3)]">
-            {t('vault.entries', { count: items.length })}
+            {t('vault.entries', { count: vault.entryCount })}
           </p>
         </div>
         <Button variant="accent" size="sm" icon="add" onClick={() => setCreateOpen(true)}>
@@ -95,6 +98,19 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
               ))}
             </div>
           )}
+
+          {entries.hasNextPage ? (
+            <div className="mt-3 flex justify-center">
+              <Button
+                variant="subtle"
+                size="sm"
+                onClick={() => entries.fetchNextPage()}
+                disabled={entries.isFetchingNextPage}
+              >
+                {t('vault.entries.loadMore')}
+              </Button>
+            </div>
+          ) : null}
         </>
       )}
 

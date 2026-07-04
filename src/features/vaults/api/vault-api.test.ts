@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getJson = vi.hoisted(() => vi.fn())
 const getFn = vi.hoisted(() => vi.fn(() => ({ json: getJson })))
+const postText = vi.hoisted(() => vi.fn())
+const postFn = vi.hoisted(() => vi.fn(() => Promise.resolve({ text: postText })))
 
 vi.mock('../../../shared/api/client', () => ({
-  api: { get: getFn },
+  api: { get: getFn, post: postFn },
 }))
 
-import { getAllEntries } from './vault-api'
+import { getAllEntries, importEntries } from './vault-api'
 
 describe('getAllEntries', () => {
   beforeEach(() => {
@@ -43,5 +45,32 @@ describe('getAllEntries', () => {
     const all = await getAllEntries('vault-1')
     expect(all).toHaveLength(1)
     expect(getFn).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('importEntries', () => {
+  beforeEach(() => {
+    postFn.mockClear()
+    postText.mockReset()
+  })
+
+  const body = {
+    format: 'generic-csv',
+    entries: [
+      { label: 'A', type: 0 as const, content: { encryptedBlob: 'x', nonce: 'y' }, grantEntries: [] },
+      { label: 'B', type: 0 as const, content: { encryptedBlob: 'x', nonce: 'y' }, grantEntries: [] },
+    ],
+  }
+
+  it('parses a JSON success body', async () => {
+    postText.mockResolvedValueOnce(JSON.stringify({ importedCount: 2, entryIds: ['e1', 'e2'] }))
+    const res = await importEntries('vault-1', body)
+    expect(res).toEqual({ importedCount: 2, entryIds: ['e1', 'e2'] })
+  })
+
+  it('treats an empty 2xx body as success (count = items sent) instead of throwing', async () => {
+    postText.mockResolvedValueOnce('')
+    const res = await importEntries('vault-1', body)
+    expect(res).toEqual({ importedCount: 2, entryIds: [] })
   })
 })

@@ -19,6 +19,7 @@ import {
 import type { Vault } from '../types'
 import { useAllEntries } from '../use-entries'
 import {
+  ImportStepError,
   useImportEntries,
   type ImportOverwrite,
 } from '../use-import-entries'
@@ -164,12 +165,19 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
           })
           setStep('done')
         },
-        onError: () => {
+        onError: (error) => {
+          // Tag the failing phase so the toast is distinguishable and analytics
+          // records which step broke (grants / encrypt / save / overwrite).
+          const step = error instanceof ImportStepError ? error.step : 'unknown'
           analytics.capture('vault', 'import-failed', {
             format: result.format,
-            reason: 'importRequest',
+            reason: step,
           })
-          toast.error(t('vault.import.errorImport'))
+          toast.error(
+            step === 'unknown'
+              ? t('vault.import.errorImport')
+              : t(`vault.import.errorStep.${step}`),
+          )
           setStep('preview')
         },
       },

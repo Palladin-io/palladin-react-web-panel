@@ -24,6 +24,24 @@ import { VAULTS_QUERY_KEY } from './use-vaults'
 /** Backend cap on entries per import request — larger imports are chunked. */
 const IMPORT_CHUNK_SIZE = 500
 
+/** Which phase of the import failed — surfaced so a failure is attributable. */
+export type ImportStep = 'grants' | 'encrypt' | 'save' | 'overwrite'
+
+/**
+ * Wraps the underlying error with the phase it happened in, so the UI can show a
+ * distinguishable message and analytics records which step broke. The message
+ * carries only the step name — never entry contents or key material.
+ */
+export class ImportStepError extends Error {
+  readonly step: ImportStep
+
+  constructor(step: ImportStep, cause: unknown) {
+    super(`Import failed during: ${step}`, { cause })
+    this.name = 'ImportStepError'
+    this.step = step
+  }
+}
+
 // Backend field limits — enforced client-side so one over-long value can't fail
 // the whole atomic batch with a 400.
 const MAX_LABEL_LENGTH = 200
@@ -107,52 +125,70 @@ export function useImportEntries() {
 
       // Fetch the vault's active FULL grants ONCE — every new entry must be
       // re-wrapped for each of them (empty list = no grants, still valid).
-      const fullGrants = await collectActiveFullGrants(input.vaultId)
+      let fullGrants
+      try {
+        fullGrants = await collectActiveFullGrants(input.vaultId)
+      } catch (error) {
+        throw new ImportStepError('grants', error)
+      }
 
       const vaultKey = await unsealVaultKey(input.wrappedVK, privateKey)
       try {
-        const items: ImportEntryItem[] = []
-        for (const entry of input.creates) {
-          const content = await encryptEntry(toPlaintext(entry), vaultKey)
-          const grantEntries = []
-          for (const grant of fullGrants) {
-            const envelope = await produceGrantEntryEnvelope({
-              entryContent: content,
-              vaultKey,
-              agentPublicKey: grant.agentPublicKey,
+        let items: ImportEntryItem[]
+        try {
+          items = []
+          for (const entry of input.creates) {
+            const content = await encryptEntry(toPlaintext(entry), vaultKey)
+            const grantEntries = []
+            for (const grant of fullGrants) {
+              const envelope = await produceGrantEntryEnvelope({
+                entryContent: content,
+                vaultKey,
+                agentPublicKey: grant.agentPublicKey,
+              })
+              grantEntries.push({ grantId: grant.grantId, ...envelope })
+            }
+            items.push({
+              label: cap(entry.label, MAX_LABEL_LENGTH),
+              type: entry.type,
+              content,
+              urlDomain: cap(extractDomain(entry.url), MAX_URL_DOMAIN_LENGTH),
+              grantEntries,
             })
-            grantEntries.push({ grantId: grant.grantId, ...envelope })
+            bump()
           }
-          items.push({
-            label: cap(entry.label, MAX_LABEL_LENGTH),
-            type: entry.type,
-            content,
-            urlDomain: cap(extractDomain(entry.url), MAX_URL_DOMAIN_LENGTH),
-            grantEntries,
-          })
-          bump()
+        } catch (error) {
+          throw new ImportStepError('encrypt', error)
         }
 
         let importedCount = 0
-        for (let i = 0; i < items.length; i += IMPORT_CHUNK_SIZE) {
-          const chunk = items.slice(i, i + IMPORT_CHUNK_SIZE)
-          const response = await importEntries(input.vaultId, {
-            format: input.format,
-            entries: chunk,
-          })
-          importedCount += response.importedCount
+        try {
+          for (let i = 0; i < items.length; i += IMPORT_CHUNK_SIZE) {
+            const chunk = items.slice(i, i + IMPORT_CHUNK_SIZE)
+            const response = await importEntries(input.vaultId, {
+              format: input.format,
+              entries: chunk,
+            })
+            importedCount += response.importedCount
+          }
+        } catch (error) {
+          throw new ImportStepError('save', error)
         }
 
         let updatedCount = 0
-        for (const { entryId, entry } of input.overwrites) {
-          const content = await encryptEntry(toPlaintext(entry), vaultKey)
-          await updateEntry(input.vaultId, entryId, {
-            label: cap(entry.label, MAX_LABEL_LENGTH),
-            urlDomain: cap(extractDomain(entry.url), MAX_URL_DOMAIN_LENGTH),
-            content,
-          })
-          updatedCount += 1
-          bump()
+        try {
+          for (const { entryId, entry } of input.overwrites) {
+            const content = await encryptEntry(toPlaintext(entry), vaultKey)
+            await updateEntry(input.vaultId, entryId, {
+              label: cap(entry.label, MAX_LABEL_LENGTH),
+              urlDomain: cap(extractDomain(entry.url), MAX_URL_DOMAIN_LENGTH),
+              content,
+            })
+            updatedCount += 1
+            bump()
+          }
+        } catch (error) {
+          throw new ImportStepError('overwrite', error)
         }
 
         return { importedCount, updatedCount }

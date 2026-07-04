@@ -11,12 +11,9 @@ import {
   useRecentEntries,
 } from '../../grants'
 import {
-  ENTRY_ICON_COLORS,
+  EntryIcon,
   type EntryType,
-  hexWithAlpha,
-  isCustomIconUrl,
   normalizeEntryType,
-  presentationForType,
 } from '../../vaults'
 
 /** How many recently modified entries the dashboard surfaces. */
@@ -78,13 +75,6 @@ function RecentEntryRow({ entry }: { entry: EntrySearchItem }) {
   const { t } = useTranslation()
 
   const type: EntryType = normalizeEntryType(entry.type)
-  const presentation = presentationForType(type)
-  const iconValue = entry.icon ?? presentation.defaultIcon
-  const isCustomIcon = isCustomIconUrl(iconValue)
-  const iconColor = !isCustomIcon
-    ? (ENTRY_ICON_COLORS[iconValue] ?? presentation.iconColor)
-    : presentation.iconColor
-  const iconBg = hexWithAlpha(iconColor, 0.12)
 
   const timestamp = entry.updatedAt ?? entry.createdAt
   const meta = [entry.vaultName, timestamp ? formatRelativeTime(timestamp, t) : null]
@@ -97,17 +87,7 @@ function RecentEntryRow({ entry }: { entry: EntrySearchItem }) {
       params={{ vaultId: entry.vaultId, entryId: entry.id }}
       className={`flex items-center gap-3 px-4 py-2.5 ${HOVERABLE_CARD_CLASSES}`}
     >
-      <span
-        aria-hidden
-        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-        style={{ backgroundColor: iconBg, color: iconColor }}
-      >
-        {isCustomIcon ? (
-          <img src={iconValue} alt="" className="h-5 w-5 rounded-full object-cover" />
-        ) : (
-          <Icon name={iconValue} size={16} color={iconColor} />
-        )}
-      </span>
+      <EntryIcon icon={entry.icon} type={type} />
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
           {entry.label}
