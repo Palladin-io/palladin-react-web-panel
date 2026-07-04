@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { HTTPError } from 'ky'
 import { toast } from 'sonner'
+import { downloadFromUrl } from '../../shared/lib/download-file'
 import { Button } from '../../shared/components/button'
 import { ModalShell } from '../../shared/components/modal-shell'
 import { ScrollArea } from '../../shared/components/scroll-area'
@@ -64,17 +65,20 @@ export function AuditLogPage() {
         from: filter.from || undefined,
         to: filter.to || undefined,
       })
-      // The export runs as a background job — poll until the file is ready (24h-valid link).
+      // The export runs as a background job — poll (exponential backoff, capped)
+      // until the file is ready (24h-valid link).
       const deadline = Date.now() + 120_000
+      let delay = 1000
       while (Date.now() < deadline) {
         const status = await getAuditExport(jobId)
         if (status.downloadable) {
-          window.location.assign(await getAuditExportDownloadUrl(jobId))
           toast.success(t('audit.exportReady'))
+          downloadFromUrl(await getAuditExportDownloadUrl(jobId))
           return
         }
         if (status.status.toLowerCase() === 'failed') break
-        await new Promise((resolve) => setTimeout(resolve, 2000))
+        await new Promise((resolve) => setTimeout(resolve, delay))
+        delay = Math.min(delay * 2, 5000)
       }
       toast.error(t('audit.exportFailed'))
     } catch (error) {

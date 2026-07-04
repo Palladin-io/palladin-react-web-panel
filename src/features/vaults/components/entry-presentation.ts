@@ -132,3 +132,8 @@ export function extractDomain(rawUrl: string | undefined): string | undefined {
     return undefined
   }
 }
+
+/** Default picker glyph for an entry type — single source for form initial state. */
+export function defaultIconFor(type: number): string {
+  return type === 0 ? 'vpn_key' : 'language'
+}

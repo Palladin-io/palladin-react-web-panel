@@ -107,7 +107,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
             <LoadMoreSentinel
               hasNextPage={entries.hasNextPage}
               isFetchingNextPage={entries.isFetchingNextPage}
-              isError={entries.isFetchNextPageError}
+              isFetchNextPageError={entries.isFetchNextPageError}
               onLoadMore={entries.fetchNextPage}
             />
           </ScrollArea>

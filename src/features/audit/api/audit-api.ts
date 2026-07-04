@@ -125,8 +125,11 @@ export interface AuditLogPage {
 
 /**
  * The backend binds `from`/`to` to NodaTime `Instant` — a bare `YYYY-MM-DD`
- * from the native date input fails model binding with a 400. Widen the local
- * calendar day to an ISO instant (from = local midnight, to = local 23:59:59.999).
+ * from the native date input fails model binding with a 400. The date is
+ * deliberately interpreted as the user's LOCAL wall-clock day and converted
+ * to UTC (from = local midnight, to = local 23:59:59), so "from July 4" in
+ * CEST reaches the API as 2026-07-03T22:00:00Z — the user's calendar day,
+ * not the UTC one.
  */
 function dateParamToInstant(value: string, endOfDay: boolean): string {
   const iso = value.includes('T')

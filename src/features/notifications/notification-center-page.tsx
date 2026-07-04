@@ -397,7 +397,7 @@ export function NotificationCenterPage({
           <LoadMoreSentinel
             hasNextPage={notifications.hasNextPage}
             isFetchingNextPage={notifications.isFetchingNextPage}
-            isError={notifications.isFetchNextPageError}
+            isFetchNextPageError={notifications.isFetchNextPageError}
             onLoadMore={() => notifications.fetchNextPage()}
           />
         </>

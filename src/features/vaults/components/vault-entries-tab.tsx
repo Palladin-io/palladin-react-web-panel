@@ -92,7 +92,7 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
         <LoadMoreSentinel
           hasNextPage={entries.hasNextPage}
           isFetchingNextPage={entries.isFetchingNextPage}
-          isError={entries.isFetchNextPageError}
+          isFetchNextPageError={entries.isFetchNextPageError}
           onLoadMore={entries.fetchNextPage}
         />
       </ScrollArea>

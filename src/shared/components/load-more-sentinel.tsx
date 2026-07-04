@@ -6,8 +6,8 @@ import { useInfiniteScroll } from '../hooks/use-infinite-scroll'
 export interface LoadMoreSentinelProps {
   hasNextPage: boolean
   isFetchingNextPage: boolean
-  /** True when the previous auto-load failed — switches to a manual retry. */
-  isError: boolean
+  /** True when the previous page load failed — switches to a manual retry. */
+  isFetchNextPageError: boolean
   /** Stable loader (TanStack Query's `fetchNextPage`). */
   onLoadMore: () => void
 }
@@ -22,7 +22,7 @@ export interface LoadMoreSentinelProps {
 export function LoadMoreSentinel({
   hasNextPage,
   isFetchingNextPage,
-  isError,
+  isFetchNextPageError,
   onLoadMore,
 }: LoadMoreSentinelProps) {
   const { t } = useTranslation()
@@ -30,14 +30,14 @@ export function LoadMoreSentinel({
 
   useInfiniteScroll(sentinelRef, {
     onLoadMore,
-    enabled: hasNextPage && !isFetchingNextPage && !isError,
+    enabled: hasNextPage && !isFetchingNextPage && !isFetchNextPageError,
   })
 
   if (!hasNextPage) return null
 
   return (
     <div ref={sentinelRef} className="pt-2">
-      {isError ? (
+      {isFetchNextPageError ? (
         <div className="flex flex-col items-center gap-2">
           <p className="text-[11px] text-[var(--cv-primary)]">
             {t('common.loadMoreError')}
@@ -45,7 +45,7 @@ export function LoadMoreSentinel({
           <Button
             variant="subtle"
             size="sm"
-            onClick={onLoadMore}
+            onClick={() => onLoadMore()}
             disabled={isFetchingNextPage}
           >
             {t('common.loadMore')}
@@ -53,6 +53,8 @@ export function LoadMoreSentinel({
         </div>
       ) : (
         <div
+          role="status"
+          aria-live="polite"
           className="h-14 animate-pulse rounded-xl bg-[var(--cv-card-bg)]"
           aria-label={t('common.loadingMore')}
         />

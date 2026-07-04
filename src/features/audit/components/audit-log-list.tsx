@@ -81,7 +81,7 @@ export function AuditLogList({
       <LoadMoreSentinel
         hasNextPage={hasNextPage}
         isFetchingNextPage={isFetchingNextPage}
-        isError={isFetchNextPageError}
+        isFetchNextPageError={isFetchNextPageError}
         onLoadMore={onLoadMore}
       />
     </>

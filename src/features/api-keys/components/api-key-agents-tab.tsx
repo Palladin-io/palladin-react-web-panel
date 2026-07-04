@@ -67,7 +67,7 @@ export function ApiKeyAgentsTab({ apiKeyId }: ApiKeyAgentsTabProps) {
       <LoadMoreSentinel
         hasNextPage={query.hasNextPage}
         isFetchingNextPage={query.isFetchingNextPage}
-        isError={query.isFetchNextPageError}
+        isFetchNextPageError={query.isFetchNextPageError}
         onLoadMore={() => query.fetchNextPage()}
       />
     </>

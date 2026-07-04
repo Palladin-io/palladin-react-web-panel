@@ -24,6 +24,7 @@ import {
   extractDomain,
 } from './entry-presentation'
 import { EntryIconPicker } from './entry-icon-picker'
+import { defaultIconFor } from './entry-presentation'
 import { resolveFavicon } from '../api/vault-api'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { EncryptionNotice } from '../../../shared/components/encryption-notice'
@@ -60,7 +61,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [color, setColor] = useState('#10B981')
   // Pre-select the type's default glyph so a tile is always visibly chosen;
   // switching type follows along until the user (or a favicon) picks something.
-  const [icon, setIcon] = useState<string | undefined>('vpn_key')
+  const [icon, setIcon] = useState<string | undefined>(defaultIconFor(ENTRY_TYPE_KEY))
   const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
   const [label, setLabel] = useState('')
   const [labelError, setLabelError] = useState(false)
@@ -254,8 +255,10 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             setType(nextType)
             if (!iconTouched) {
               setIcon((current) =>
-                current === undefined || current === 'vpn_key' || current === 'language'
-                  ? nextType === ENTRY_TYPE_KEY ? 'vpn_key' : 'language'
+                current === undefined
+                  || current === defaultIconFor(ENTRY_TYPE_KEY)
+                  || current === defaultIconFor(ENTRY_TYPE_CREDENTIAL)
+                  ? defaultIconFor(nextType)
                   : current,
               )
             }

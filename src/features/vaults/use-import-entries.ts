@@ -157,6 +157,7 @@ export function useImportEntries() {
         let items: ImportEntryItem[]
         try {
           items = []
+          let encrypted = 0
           for (const entry of input.creates) {
             const content = await encryptEntry(toPlaintext(entry), vaultKey)
             const grantEntries = []
@@ -175,7 +176,7 @@ export function useImportEntries() {
               urlDomain: cap(extractDomain(entry.url), MAX_URL_DOMAIN_LENGTH),
               grantEntries,
             })
-            input.onProgress?.(items.length, input.creates.length, 'encrypt')
+            input.onProgress?.(++encrypted, input.creates.length, 'encrypt')
           }
         } catch (error) {
           throw new ImportStepError('encrypt', error)
