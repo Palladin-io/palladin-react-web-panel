@@ -68,11 +68,11 @@ describe('useImportEntries', () => {
     useAuthStore.setState({ privateKey: new Uint8Array(32) })
   })
 
-  it('chunks creates to 500 per request and sums the imported count', async () => {
+  it('chunks creates to 50 per request and sums the imported count', async () => {
     const { wrapper } = makeWrapper()
     const { result } = renderHook(() => useImportEntries(), { wrapper })
 
-    const creates = Array.from({ length: 600 }, (_, i) => credential(`Entry ${i}`))
+    const creates = Array.from({ length: 120 }, (_, i) => credential(`Entry ${i}`))
     result.current.mutate({
       vaultId: 'vault-1',
       wrappedVK: 'WRAPPED',
@@ -82,10 +82,10 @@ describe('useImportEntries', () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(importEntriesMock).toHaveBeenCalledTimes(2)
-    expect(importEntriesMock.mock.calls[0][1].entries).toHaveLength(500)
-    expect(importEntriesMock.mock.calls[1][1].entries).toHaveLength(100)
-    expect(result.current.data).toEqual({ importedCount: 600, updatedCount: 0, failed: [] })
+    expect(importEntriesMock).toHaveBeenCalledTimes(3)
+    expect(importEntriesMock.mock.calls[0][1].entries).toHaveLength(50)
+    expect(importEntriesMock.mock.calls[2][1].entries).toHaveLength(20)
+    expect(result.current.data).toEqual({ importedCount: 120, updatedCount: 0, failed: [] })
   })
 
   it('sends overwrites as individual updates and invalidates list keys', async () => {

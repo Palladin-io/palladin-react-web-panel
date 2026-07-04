@@ -22,8 +22,9 @@ import { entriesQueryKey } from './use-entries'
 import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 
-/** Backend cap on entries per import request — larger imports are chunked. */
-const IMPORT_CHUNK_SIZE = 500
+/** Import batch size — well under the backend cap (500) so the progress bar ticks
+ * every ~50 entries instead of freezing on one huge POST. */
+const IMPORT_CHUNK_SIZE = 50
 
 /** Which phase of the import failed — surfaced so a failure is attributable. */
 export type ImportStep = 'grants' | 'encrypt' | 'save' | 'overwrite'

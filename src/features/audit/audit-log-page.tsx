@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { HTTPError } from 'ky'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
 import { ModalShell } from '../../shared/components/modal-shell'
@@ -76,7 +77,17 @@ export function AuditLogPage() {
         await new Promise((resolve) => setTimeout(resolve, 2000))
       }
       toast.error(t('audit.exportFailed'))
-    } catch {
+    } catch (error) {
+      if (error instanceof HTTPError) {
+        const body = (await error.response.clone().json().catch(() => null)) as {
+          code?: string
+          message?: string
+        } | null
+        if (body?.code === 'plan-upgrade-required') {
+          toast.info(t('audit.exportProOnly'))
+          return
+        }
+      }
       toast.error(t('audit.exportFailed'))
     } finally {
       setExporting(false)
