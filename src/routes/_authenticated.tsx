@@ -122,7 +122,7 @@ function AuthenticatedLayout() {
         style={{ background: GRADIENTS[theme] }}
       >
         <AppSidebar currentPath={pathname} />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+        <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
           <Outlet />
         </main>
       </div>

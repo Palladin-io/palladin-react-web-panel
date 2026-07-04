@@ -103,12 +103,12 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
   if (isWide) {
     return (
       <div className="flex h-full text-[var(--cv-t1)]">
-        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
+        <div className="subtle-scrollbar w-[clamp(300px,22vw,400px)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
           <div className="px-4 py-4">
             <VaultListPanel selectedVaultId={vaultId} />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto min-w-0">
+        <div className="subtle-scrollbar flex-1 overflow-y-auto min-w-0">
           <div className="px-4 py-4">{vaultContent}</div>
         </div>
       </div>

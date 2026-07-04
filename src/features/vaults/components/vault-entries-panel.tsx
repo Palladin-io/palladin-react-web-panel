@@ -46,8 +46,8 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
   )
 
   return (
-    <>
-      <div className="mb-4 flex h-10 items-center gap-2">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
         <Link
           to="/vaults/$vaultId"
           params={{ vaultId: vault.id }}
@@ -79,33 +79,37 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
             value={search}
             onChange={setSearch}
             placeholder={t('vault.detail.entriesSearchPlaceholder')}
+            className="mb-3 shrink-0"
           />
 
-          {filtered.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-              bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">
-              {t('vault.entries.emptySearch')}
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {filtered.map((entry) => (
-                <EntryRow
-                  key={entry.id}
-                  vaultId={vault.id}
-                  wrappedVK={vault.wrappedVK}
-                  entry={entry}
-                  isSelected={entry.id === selectedEntryId}
-                />
-              ))}
-            </div>
-          )}
+          {/* Only the items section scrolls — header and search stay pinned. */}
+          <div className="subtle-scrollbar -mr-2 min-h-0 flex-1 overflow-y-auto pb-4 pr-2">
+            {filtered.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
+                bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">
+                {t('vault.entries.emptySearch')}
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {filtered.map((entry) => (
+                  <EntryRow
+                    key={entry.id}
+                    vaultId={vault.id}
+                    wrappedVK={vault.wrappedVK}
+                    entry={entry}
+                    isSelected={entry.id === selectedEntryId}
+                  />
+                ))}
+              </div>
+            )}
 
-          <EntriesLoadMore
-            hasNextPage={entries.hasNextPage}
-            isFetchingNextPage={entries.isFetchingNextPage}
-            isError={entries.isFetchNextPageError}
-            onLoadMore={entries.fetchNextPage}
-          />
+            <EntriesLoadMore
+              hasNextPage={entries.hasNextPage}
+              isFetchingNextPage={entries.isFetchingNextPage}
+              isError={entries.isFetchNextPageError}
+              onLoadMore={entries.fetchNextPage}
+            />
+          </div>
         </>
       )}
 
@@ -114,7 +118,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
         vault={vault}
         onClose={() => setCreateOpen(false)}
       />
-    </>
+    </div>
   )
 }
 
