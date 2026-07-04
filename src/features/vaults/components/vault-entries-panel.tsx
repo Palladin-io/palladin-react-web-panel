@@ -12,6 +12,7 @@ import { useEntriesInfinite } from '../use-entries'
 import { CreateEntryModal } from './create-entry-modal'
 import { EntriesLoadMore } from './entries-load-more'
 import { EntryRow } from './entry-row'
+import { ScrollArea } from '../../../shared/components/scroll-area'
 import { SearchBar } from '../../../shared/components/search-bar'
 
 export interface VaultEntriesPanelProps {
@@ -83,7 +84,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
           />
 
           {/* Only the items section scrolls — header and search stay pinned. */}
-          <div className="subtle-scrollbar -mr-2 min-h-0 flex-1 overflow-y-auto pb-4 pr-2">
+          <ScrollArea>
             {filtered.length === 0 ? (
               <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
                 bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">
@@ -109,7 +110,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
               isError={entries.isFetchNextPageError}
               onLoadMore={entries.fetchNextPage}
             />
-          </div>
+          </ScrollArea>
         </>
       )}
 

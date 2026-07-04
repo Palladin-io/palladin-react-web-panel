@@ -148,6 +148,15 @@ Pages with a hardcoded dark gradient background (e.g., `/unlock`, `/login`) must
 - Props interfaces named `{ComponentName}Props`
 - Use composition over prop drilling
 
+### Scroll Model — pinned chrome, internal scroll (app-wide)
+
+**The page never scrolls as a whole on list/split views — only the content section scrolls.** Canonical reference: entry detail (`/vaults/:id/entries/:entryId`) and `VaultEntriesPanel`.
+
+- **Pattern:** panel root = `flex h-full min-h-0 flex-col`; chrome (header row, tab bar, search, filters) gets `shrink-0`; the list/content section is wrapped in the shared **`ScrollArea`** (`src/shared/components/scroll-area.tsx`) — `flex-1 min-h-0 overflow-y-auto` with the `.subtle-scrollbar` styling baked in. Never hand-roll this wrapper.
+- **Split-view columns:** both columns get `overflow-hidden` when the panel inside manages its own scroll (list panels), or `subtle-scrollbar overflow-y-auto` when the content is a plain detail/form. Page container: `flex h-full overflow-hidden`.
+- **Scrollbars:** never show a native fat scrollbar — every scrollable region uses `.subtle-scrollbar` (defined in `src/index.css`, `--cv-*` tokens). `<main>` in `_authenticated.tsx` already has it.
+- **Pagination:** paginated lists auto-load via `useInfiniteScroll` (sentinel + IntersectionObserver, `EntriesLoadMore` as reference); a manual "Load more" button appears only as the error-retry fallback.
+
 ### View Layout (new views)
 
 - New views are **left-aligned** with the standard `panel-content` container (padding `px-4 py-4`), consistent with Agents/Vaults. **Never center** view content (`mx-auto` / `justify-center` at the page level is forbidden). The one approved exception is the Settings page.
@@ -182,6 +191,7 @@ Every-iteration reuse reference. Reach for the shared component before writing m
 | Modal | `ModalShell` + `DialogFooter` | Any dialog; see `dialogs.md` |
 | Detail tabs | `VaultDetailTabs` (canonical); **extract** `DetailTabBar` | Detail-view tab strips; 4 divergent copies exist |
 | Card / list-row hover | `HOVERABLE_CARD_CLASSES` | Any interactive card/row; never inline hover classes |
+| Internal scroll section | `ScrollArea` | Any scrollable list/content region under pinned chrome; see Scroll Model |
 | Skeleton / loader | **missing** → `SkeletonBlock` | Loading placeholders; 22 inline copies — extract |
 | Empty state | **missing** → `EmptyState` | "No items" dashed box; 13 inline copies — extract |
 | Split-view layout | **missing** → `SplitView` | List + detail pages; 7 inline copies — extract |

@@ -13,6 +13,7 @@ import { PremiumGateDialog } from './premium-gate-dialog'
 import { vaultFooterLabel } from './vault-card'
 import { VaultIconCircle } from './vault-icon-circle'
 import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from './vault-presentation'
+import { ScrollArea } from '../../../shared/components/scroll-area'
 import { SearchBar } from '../../../shared/components/search-bar'
 
 export interface VaultListPanelProps {
@@ -49,8 +50,8 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
   }
 
   return (
-    <>
-      <div className="mb-4 flex h-10 items-center gap-2">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
             {t('vault.title')}
@@ -80,25 +81,28 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
             value={search}
             onChange={setSearch}
             placeholder={t('vault.list.searchPlaceholder')}
+            className="mb-3 shrink-0"
           />
-          <div className="flex flex-col gap-2">
-            {filtered.map((vault) => (
-              <VaultRow
-                key={vault.id}
-                vault={vault}
-                isSelected={vault.id === selectedVaultId}
-                onClick={() =>
-                  navigate({ to: '/vaults/$vaultId', params: { vaultId: vault.id } })
-                }
-              />
-            ))}
-            {filtered.length === 0 && (
-              <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-                bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">
-                {t('vault.list.emptySearch')}
-              </p>
-            )}
-          </div>
+          <ScrollArea>
+            <div className="flex flex-col gap-2">
+              {filtered.map((vault) => (
+                <VaultRow
+                  key={vault.id}
+                  vault={vault}
+                  isSelected={vault.id === selectedVaultId}
+                  onClick={() =>
+                    navigate({ to: '/vaults/$vaultId', params: { vaultId: vault.id } })
+                  }
+                />
+              ))}
+              {filtered.length === 0 && (
+                <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
+                  bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">
+                  {t('vault.list.emptySearch')}
+                </p>
+              )}
+            </div>
+          </ScrollArea>
         </>
       )}
 
@@ -108,7 +112,7 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
         onCreated={(id) => navigate({ to: '/vaults/$vaultId', params: { vaultId: id } })}
       />
       <PremiumGateDialog open={premiumOpen} onClose={() => setPremiumOpen(false)} />
-    </>
+    </div>
   )
 }
 
