@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
 import { ModalShell } from '../../shared/components/modal-shell'
+import { ScrollArea } from '../../shared/components/scroll-area'
 import { PERMISSION_AUDIT_VIEW } from '../../shared/lib/permissions'
 import { useAuthStore } from '../auth'
 // Imported from the module (not the vaults barrel) to avoid an import cycle:
@@ -82,9 +83,8 @@ export function AuditLogPage() {
   )
 
   return (
-    <div className="min-h-full text-[var(--cv-t1)]">
-      <div className="px-4 py-4">
-        <div className="mb-4 flex h-10 items-center gap-2">
+    <div className="flex h-full min-h-0 flex-col px-4 pt-4 text-[var(--cv-t1)]">
+      <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
               {t('audit.pageTitle')}
@@ -115,6 +115,7 @@ export function AuditLogPage() {
           </div>
         </div>
 
+      <div className="shrink-0">
         <AuditFilterBar
           value={filter}
           onChange={setFilter}
@@ -122,7 +123,9 @@ export function AuditLogPage() {
           userOptions={userOptions}
           vaultOptions={vaultOptions}
         />
+      </div>
 
+      <ScrollArea>
         <AuditLogList
           items={filtered}
           isPending={logs.isPending}
@@ -130,6 +133,7 @@ export function AuditLogPage() {
           onRetry={() => logs.refetch()}
           hasNextPage={logs.hasNextPage}
           isFetchingNextPage={logs.isFetchingNextPage}
+          isFetchNextPageError={logs.isFetchNextPageError}
           onLoadMore={() => logs.fetchNextPage()}
           resolveAgentName={resolveAgentName}
           resolveVaultName={resolveVaultName}
@@ -137,7 +141,7 @@ export function AuditLogPage() {
           emptyMessage={t('audit.emptyLog')}
           canView={canView}
         />
-      </div>
+      </ScrollArea>
 
       {legendOpen && (
         <ModalShell

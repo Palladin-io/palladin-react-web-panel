@@ -176,7 +176,7 @@ describe('VaultEntriesTab', () => {
 
     render(<VaultEntriesTab vault={VAULT} />, { wrapper })
 
-    expect(screen.getByLabelText(/loading more entries/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/loading more/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /load more/i })).not.toBeInTheDocument()
   })
 

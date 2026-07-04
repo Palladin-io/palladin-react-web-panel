@@ -62,7 +62,7 @@ describe('ExportDialog', () => {
 
     expect(exportMutate).toHaveBeenCalledTimes(1)
     const [input, options] = exportMutate.mock.calls[0]
-    expect(input).toEqual({ vaults: VAULTS, format: 'json' })
+    expect(input).toEqual({ vaults: VAULTS, format: 'json', onProgress: expect.any(Function) })
 
     options.onSuccess({
       filename: 'palladin-export-2026-07-04.json',

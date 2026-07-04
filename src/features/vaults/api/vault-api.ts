@@ -241,5 +241,20 @@ export async function exportAudit(
   await api.post(`api/vaults/${vaultId}/export-audit`, { json: body })
 }
 
+/**
+ * Shared per-domain favicon from the public cache (fetched server-side on a
+ * miss). Null = no suggestion; never throws into the form flow.
+ */
+export async function resolveFavicon(domain: string): Promise<string | null> {
+  try {
+    const res = await api
+      .get('api/vaults/favicons/resolve', { searchParams: { domain } })
+      .json<{ iconUrl: string | null }>()
+    return res.iconUrl
+  } catch {
+    return null
+  }
+}
+
 // Re-export for convenient consumption by hooks/tests.
 export type { GrantMode }

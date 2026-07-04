@@ -10,8 +10,8 @@ import {
 } from '../types'
 import { useEntriesInfinite } from '../use-entries'
 import { CreateEntryModal } from './create-entry-modal'
-import { EntriesLoadMore } from './entries-load-more'
 import { EntryRow } from './entry-row'
+import { LoadMoreSentinel } from '../../../shared/components/load-more-sentinel'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { SearchBar } from '../../../shared/components/search-bar'
 
@@ -104,7 +104,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
               </div>
             )}
 
-            <EntriesLoadMore
+            <LoadMoreSentinel
               hasNextPage={entries.hasNextPage}
               isFetchingNextPage={entries.isFetchingNextPage}
               isError={entries.isFetchNextPageError}

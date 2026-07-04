@@ -121,6 +121,17 @@ export interface AuditLogPage {
   nextCursor: string | null
 }
 
+
+/**
+ * The backend binds `from`/`to` to NodaTime `Instant` — a bare `YYYY-MM-DD`
+ * from the native date input fails model binding with a 400. Widen the local
+ * calendar day to an ISO instant (from = local midnight, to = local 23:59:59.999).
+ */
+function dateParamToInstant(value: string, endOfDay: boolean): string {
+  if (value.includes('T')) return value
+  return new Date(`${value}T${endOfDay ? '23:59:59.999' : '00:00:00'}`).toISOString()
+}
+
 /** Parse a raw page, dropping malformed rows so one bad item never blanks the list. */
 function parseAuditLogPage(raw: unknown): AuditLogPage {
   const page = auditLogPageSchema.parse(raw)
@@ -150,8 +161,8 @@ export async function getVaultAuditLogs(
   if (params.agentId) searchParams.set('agentId', params.agentId)
   if (params.userId) searchParams.set('userId', params.userId)
   if (params.entryId) searchParams.set('entryId', params.entryId)
-  if (params.from) searchParams.set('from', params.from)
-  if (params.to) searchParams.set('to', params.to)
+  if (params.from) searchParams.set('from', dateParamToInstant(params.from, false))
+  if (params.to) searchParams.set('to', dateParamToInstant(params.to, true))
   if (params.cursor) searchParams.set('cursor', params.cursor)
   if (params.pageSize) searchParams.set('pageSize', String(params.pageSize))
 
@@ -174,8 +185,8 @@ export async function getOrgAuditLogs(
   if (params.userId) searchParams.set('userId', params.userId)
   if (params.entryId) searchParams.set('entryId', params.entryId)
   if (params.eventType) searchParams.set('eventType', params.eventType)
-  if (params.from) searchParams.set('from', params.from)
-  if (params.to) searchParams.set('to', params.to)
+  if (params.from) searchParams.set('from', dateParamToInstant(params.from, false))
+  if (params.to) searchParams.set('to', dateParamToInstant(params.to, true))
   if (params.cursor) searchParams.set('cursor', params.cursor)
   if (params.pageSize) searchParams.set('pageSize', String(params.pageSize))
 

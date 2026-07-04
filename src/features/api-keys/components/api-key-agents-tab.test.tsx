@@ -74,10 +74,20 @@ describe('ApiKeyAgentsTab', () => {
     expect(screen.getByText('Deploy Bot')).toBeInTheDocument()
   })
 
-  it('shows a load-more button and fetches the next page when there is one', async () => {
+  it('renders the auto-load sentinel when there is a next page', () => {
+    queryState.value.data = { pages: [{ items: [agent] }] }
+    queryState.value.hasNextPage = true
+    render(<ApiKeyAgentsTab apiKeyId="key-1" />)
+
+    expect(screen.getByLabelText(/loading more/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /load more/i })).not.toBeInTheDocument()
+  })
+
+  it('falls back to a manual Load more retry after a failed page load', async () => {
     const user = userEvent.setup()
     queryState.value.data = { pages: [{ items: [agent] }] }
     queryState.value.hasNextPage = true
+    queryState.value.isFetchNextPageError = true
     render(<ApiKeyAgentsTab apiKeyId="key-1" />)
 
     await user.click(screen.getByRole('button', { name: /load more/i }))

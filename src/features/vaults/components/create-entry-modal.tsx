@@ -24,6 +24,7 @@ import {
   extractDomain,
 } from './entry-presentation'
 import { EntryIconPicker } from './entry-icon-picker'
+import { resolveFavicon } from '../api/vault-api'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { EncryptionNotice } from '../../../shared/components/encryption-notice'
 import { FormSelect } from '../../../shared/components/form-select'
@@ -73,6 +74,24 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState(false)
   const [notes, setNotes] = useState('')
+  // Favicon suggestion: auto-fills the icon from the typed domain unless the
+  // user picked one themselves; a manual pick always wins.
+  const [iconTouched, setIconTouched] = useState(false)
+
+  useEffect(() => {
+    const domain = extractDomain(url)
+    if (!domain || iconTouched) return
+    const handle = setTimeout(async () => {
+      const favicon = await resolveFavicon(domain)
+      setIcon((current) => {
+        if (favicon && (current === undefined || current.startsWith('https://'))) {
+          return favicon
+        }
+        return current
+      })
+    }, 500)
+    return () => clearTimeout(handle)
+  }, [url, iconTouched])
 
   useEffect(() => {
     analytics.capture('vault', 'create-entry-wizard-opened')
@@ -318,11 +337,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
         <EntryIconPicker
           value={icon}
-          onChange={(next) => { setIcon(next); setPendingIconFile(null) }}
+          onChange={(next) => { setIcon(next); setPendingIconFile(null); setIconTouched(true) }}
           onColorChange={setColor}
           selectedColor={color}
           rowClassName="flex justify-between"
-          onFileSelected={(file, previewUrl) => { setPendingIconFile(file); setIcon(previewUrl) }}
+          onFileSelected={(file, previewUrl) => { setPendingIconFile(file); setIcon(previewUrl); setIconTouched(true) }}
           disabled={isPending}
         />
 

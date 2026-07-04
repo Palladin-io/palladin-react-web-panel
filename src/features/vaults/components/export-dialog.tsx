@@ -34,11 +34,13 @@ function ExportDialogBody({
   const { t } = useTranslation()
   const exportMutation = useExportEntries()
   const [format, setFormat] = useState<ExportFormat>('json')
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const isBusy = exportMutation.isPending
 
   const handleExport = () => {
+    setProgress(null)
     exportMutation.mutate(
-      { vaults, format },
+      { vaults, format, onProgress: (done, total) => setProgress({ done, total }) },
       {
         onSuccess: (res) => {
           downloadTextFile(res.filename, res.content, res.mime)
@@ -110,6 +112,26 @@ function ExportDialogBody({
         <WarningZone title={t('vault.export.warningTitle')}>
           {t('vault.export.warningBody')}
         </WarningZone>
+
+        {isBusy && (
+          <div aria-live="polite">
+            <div className="mb-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--cv-card-bg)]">
+              <div
+                className="h-full rounded-full bg-[var(--cv-primary)] transition-[width] duration-200"
+                style={{
+                  width: progress && progress.total > 0
+                    ? `${Math.round((progress.done / progress.total) * 100)}%`
+                    : '10%',
+                }}
+              />
+            </div>
+            <p className="text-[11px] text-[var(--cv-t3)]">
+              {progress
+                ? t('vault.export.progress', { done: progress.done, total: progress.total })
+                : t('vault.export.exporting')}
+            </p>
+          </div>
+        )}
 
         <DialogFooter>
           <Button variant="subtle" size="sm" onClick={onClose} disabled={isBusy} className="flex-1">

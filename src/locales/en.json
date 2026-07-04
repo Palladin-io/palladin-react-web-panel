@@ -977,5 +977,9 @@
   "vault.import.errorStep.grants": "Import failed while checking vault access grants. No entries were changed.",
   "vault.import.errorStep.encrypt": "Import failed while encrypting entries. No entries were changed.",
   "vault.import.errorStep.save": "Import failed while saving entries. Some entries may not have been saved.",
-  "vault.import.errorStep.overwrite": "Entries were imported, but updating existing ones failed."
+  "vault.import.errorStep.overwrite": "Entries were imported, but updating existing ones failed.",
+  "common.loadMore": "Load more",
+  "common.loadMoreError": "Couldn't load more items.",
+  "common.loadingMore": "Loading more…",
+  "vault.export.progress": "Exporting {{done}} of {{total}} entries…"
 }

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
-import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
+import { LoadMoreSentinel } from '../../../shared/components/load-more-sentinel'
 import { Icon } from '../../../shared/components/icon'
 import type { AuditLogItem } from '../api/audit-api'
 import { AuditLogEntry } from './audit-log-entry'
@@ -12,6 +12,8 @@ export interface AuditLogListProps {
   onRetry: () => void
   hasNextPage: boolean
   isFetchingNextPage: boolean
+  /** True when the previous page load failed — shows the manual retry. */
+  isFetchNextPageError?: boolean
   onLoadMore: () => void
   /** Resolve an agent id to a display name (falls back inside the row otherwise). */
   resolveAgentName?: (agentId: string) => string
@@ -40,6 +42,7 @@ export function AuditLogList({
   onRetry,
   hasNextPage,
   isFetchingNextPage,
+  isFetchNextPageError = false,
   onLoadMore,
   resolveAgentName,
   resolveVaultName,
@@ -75,18 +78,12 @@ export function AuditLogList({
           />
         ))}
       </div>
-      {hasNextPage && (
-        <div className="mt-3 flex justify-center">
-          <Button
-            variant="subtle"
-            size="sm"
-            onClick={onLoadMore}
-            disabled={isFetchingNextPage}
-          >
-            {isFetchingNextPage ? t('audit.loadingMore') : t('audit.loadMore')}
-          </Button>
-        </div>
-      )}
+      <LoadMoreSentinel
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        isError={isFetchNextPageError}
+        onLoadMore={onLoadMore}
+      />
     </>
   )
 }
