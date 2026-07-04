@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
@@ -7,7 +7,6 @@ import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { GrantAccessDialog, OrgGrantsPanel } from '../grants'
 import { CreateEntryModal } from './components/create-entry-modal'
 import { ExportDialog } from './components/export-dialog'
-import { ImportWizardModal } from './components/import-wizard-modal'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import {
   VaultDetailTabs,
@@ -19,6 +18,15 @@ import { VaultListPanel } from './components/vault-list-panel'
 import { VaultSettingsForm } from './components/vault-settings-form'
 import type { Vault } from './types'
 import { useVault } from './use-vault'
+
+// The import wizard pulls in the CSV/JSON/XML/ZIP parsers (papaparse + fflate,
+// ~70KB gzip). Lazy-load it so those bytes stay out of the /vaults route bundle
+// until the user actually opens Import.
+const ImportWizardModal = lazy(() =>
+  import('./components/import-wizard-modal').then((m) => ({
+    default: m.ImportWizardModal,
+  })),
+)
 
 export interface VaultDetailPageProps {
   vaultId: string
@@ -69,11 +77,15 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
         vault={vault.data}
         onClose={() => setCreateEntryOpen(false)}
       />
-      <ImportWizardModal
-        open={importOpen}
-        vault={vault.data}
-        onClose={() => setImportOpen(false)}
-      />
+      {importOpen && (
+        <Suspense fallback={null}>
+          <ImportWizardModal
+            open
+            vault={vault.data}
+            onClose={() => setImportOpen(false)}
+          />
+        </Suspense>
+      )}
       <ExportDialog
         open={exportOpen}
         vaults={[{ id: vault.data.id, name: vault.data.name }]}

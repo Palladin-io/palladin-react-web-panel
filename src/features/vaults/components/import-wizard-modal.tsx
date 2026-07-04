@@ -43,10 +43,12 @@ export function ImportWizardModal({ open, vault, onClose }: ImportWizardModalPro
 
 function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => void }) {
   const { t } = useTranslation()
-  const entriesQuery = useAllEntries(vault.id)
   const importMutation = useImportEntries()
 
   const [step, setStep] = useState<Step>('upload')
+  // Conflicts are only needed from the preview step on, so don't fetch the full
+  // entry list while the user is still on the upload step (they may close first).
+  const entriesQuery = useAllEntries(vault.id, step !== 'upload')
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
   const [result, setResult] = useState<ParseResult | null>(null)

@@ -2,7 +2,9 @@ export { VaultListPage } from './vault-list-page'
 export { VaultCard } from './components/vault-card'
 export { VaultDetailPage } from './vault-detail-page'
 export { ExportDialog } from './components/export-dialog'
-export { ImportWizardModal } from './components/import-wizard-modal'
+// ImportWizardModal is intentionally NOT re-exported here: it is lazy-loaded in
+// vault-detail-page so its parser deps (papaparse + fflate) stay out of the
+// route bundle. A static barrel re-export would defeat that code-split.
 export type { VaultDetailTab } from './components/vault-detail-tabs'
 export { VaultSettingsPage } from './vault-settings-page'
 export { EntryDetailPage } from './entry-detail-page'

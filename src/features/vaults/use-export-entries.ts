@@ -62,6 +62,33 @@ function timestampSlug(): string {
 }
 
 /**
+ * Map over items with a bounded number of in-flight promises, preserving order.
+ * Keeps a large export from firing N simultaneous entry-detail GETs (backend
+ * spike / rate-limit risk) while staying far faster than a serial loop.
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length)
+  let cursor = 0
+  async function worker() {
+    while (cursor < items.length) {
+      const index = cursor++
+      results[index] = await fn(items[index])
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  )
+  return results
+}
+
+/** Max concurrent entry-detail fetches during an export. */
+const EXPORT_FETCH_CONCURRENCY = 8
+
+/**
  * Decrypt and serialise vault entries for a client-side export. Everything
  * happens in the browser — the plaintext file is built from locally-decrypted
  * entries and never round-trips through the server. Each vault's VK is unsealed,
@@ -86,8 +113,10 @@ export function useExportEntries() {
         const vaultKey = await unsealVaultKey(vault.wrappedVK, privateKey)
         try {
           const items = await getAllEntries(target.id)
-          const details = await Promise.all(
-            items.map((item) => getEntry(target.id, item.id)),
+          const details = await mapWithConcurrency(
+            items,
+            EXPORT_FETCH_CONCURRENCY,
+            (item) => getEntry(target.id, item.id),
           )
           const entries: ExportEntry[] = []
           for (const detail of details) {
