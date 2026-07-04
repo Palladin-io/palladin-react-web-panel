@@ -71,7 +71,12 @@ function IconColorBrowserBody({
   const [brandIcons, setBrandIcons] = useState<FaviconHit[]>([])
 
   useEffect(() => {
-    if (!showBrandIcons) return
+    // Brand icons appear only while the user is actively searching — the
+    // default view stays the curated glyph presets.
+    if (!showBrandIcons || search.trim().length === 0) {
+      setBrandIcons([])
+      return
+    }
     let cancelled = false
     const handle = setTimeout(async () => {
       const icons = await searchFavicons(search.trim())
