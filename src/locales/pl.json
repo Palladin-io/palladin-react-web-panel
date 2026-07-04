@@ -1017,6 +1017,8 @@
   "settings.export.cta": "Eksportuj wszystkie sejfy",
   "vault.import.format.manual": "Własny CSV (ręczne mapowanie)",
   "vault.entries.loadMore": "Załaduj więcej",
+  "vault.entries.loadMoreError": "Nie udało się doładować wpisów.",
+  "vault.entries.loadingMore": "Ładowanie kolejnych wpisów…",
   "vault.import.errorStep.grants": "Import nie powiódł się przy sprawdzaniu zgód dostępu do sejfu. Nie zmieniono żadnych wpisów.",
   "vault.import.errorStep.encrypt": "Import nie powiódł się przy szyfrowaniu wpisów. Nie zmieniono żadnych wpisów.",
   "vault.import.errorStep.save": "Import nie powiódł się przy zapisie wpisów. Część wpisów mogła nie zostać zapisana.",

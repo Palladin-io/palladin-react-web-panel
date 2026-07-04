@@ -53,6 +53,7 @@ function infinite(
     isError: boolean
     hasNextPage: boolean
     isFetchingNextPage: boolean
+    isFetchNextPageError: boolean
     fetchNextPage: () => void
   }> = {},
 ) {
@@ -62,6 +63,7 @@ function infinite(
     isError: false,
     hasNextPage: false,
     isFetchingNextPage: false,
+    isFetchNextPageError: false,
     fetchNextPage: vi.fn(),
     refetch: vi.fn(),
     ...extra,
@@ -159,7 +161,26 @@ describe('VaultEntriesTab', () => {
     expect(screen.getByText(/could not load vault data/i)).toBeInTheDocument()
   })
 
-  it('shows Load more when more pages exist and calls fetchNextPage', async () => {
+  it('renders the auto-load sentinel (no button) when more pages exist', () => {
+    const items: EntryListItem[] = [
+      {
+        id: 'e1',
+        label: 'GitHub',
+        type: ENTRY_TYPE_CREDENTIAL,
+        accessCount: 0,
+        createdAt: '2026-04-25T12:00:00Z',
+        updatedAt: '2026-04-25T12:00:00Z',
+      },
+    ]
+    useEntriesMock.mockReturnValue(infinite(items, { hasNextPage: true }))
+
+    render(<VaultEntriesTab vault={VAULT} />, { wrapper })
+
+    expect(screen.getByLabelText(/loading more entries/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /load more/i })).not.toBeInTheDocument()
+  })
+
+  it('falls back to a manual Load more retry after a failed page load', async () => {
     const user = userEvent.setup()
     const fetchNextPage = vi.fn()
     const items: EntryListItem[] = [
@@ -172,7 +193,9 @@ describe('VaultEntriesTab', () => {
         updatedAt: '2026-04-25T12:00:00Z',
       },
     ]
-    useEntriesMock.mockReturnValue(infinite(items, { hasNextPage: true, fetchNextPage }))
+    useEntriesMock.mockReturnValue(
+      infinite(items, { hasNextPage: true, isFetchNextPageError: true, fetchNextPage }),
+    )
 
     render(<VaultEntriesTab vault={VAULT} />, { wrapper })
 

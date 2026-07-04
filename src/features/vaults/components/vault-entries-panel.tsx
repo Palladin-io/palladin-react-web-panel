@@ -10,6 +10,7 @@ import {
 } from '../types'
 import { useEntriesInfinite } from '../use-entries'
 import { CreateEntryModal } from './create-entry-modal'
+import { EntriesLoadMore } from './entries-load-more'
 import { EntryRow } from './entry-row'
 import { SearchBar } from '../../../shared/components/search-bar'
 
@@ -99,18 +100,12 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
             </div>
           )}
 
-          {entries.hasNextPage ? (
-            <div className="mt-3 flex justify-center">
-              <Button
-                variant="subtle"
-                size="sm"
-                onClick={() => entries.fetchNextPage()}
-                disabled={entries.isFetchingNextPage}
-              >
-                {t('vault.entries.loadMore')}
-              </Button>
-            </div>
-          ) : null}
+          <EntriesLoadMore
+            hasNextPage={entries.hasNextPage}
+            isFetchingNextPage={entries.isFetchingNextPage}
+            isError={entries.isFetchNextPageError}
+            onLoadMore={entries.fetchNextPage}
+          />
         </>
       )}
 
