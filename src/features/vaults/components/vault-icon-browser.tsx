@@ -1,13 +1,16 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { Icon } from '../../../shared/components/icon'
 import { VAULT_COLOR_OPTIONS, VAULT_COLOR_NAME_KEY } from './vault-presentation'
+import { searchFavicons, type FaviconHit } from '../api/vault-api'
 import { hexWithAlpha } from './vault-color'
 import { ModalShell } from '../../../shared/components/modal-shell'
 
 export interface IconColorBrowserProps {
+  /** Show the shared brand/favicon section fed by the favicon index. */
+  showBrandIcons?: boolean
   open: boolean
   onClose: () => void
   /** All browsable icons. */
@@ -32,6 +35,7 @@ export function IconColorBrowser({
   currentColor,
   onSelectColor,
   gridCols = 8,
+  showBrandIcons = false,
 }: IconColorBrowserProps) {
   if (!open) return null
   return (
@@ -44,6 +48,7 @@ export function IconColorBrowser({
       currentColor={currentColor}
       onSelectColor={onSelectColor}
       gridCols={gridCols}
+      showBrandIcons={showBrandIcons}
     />
   )
 }
@@ -57,11 +62,31 @@ function IconColorBrowserBody({
   currentColor,
   onSelectColor,
   gridCols,
+  showBrandIcons,
 }: Omit<IconColorBrowserProps, 'open'>) {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [localIcon, setLocalIcon] = useState<string | undefined>(currentIcon)
   const [localColor, setLocalColor] = useState<string | undefined>(currentColor)
+  const [brandIcons, setBrandIcons] = useState<FaviconHit[]>([])
+
+  useEffect(() => {
+    // Brand icons appear only while the user is actively searching — the
+    // default view stays the curated glyph presets.
+    if (!showBrandIcons || search.trim().length === 0) {
+      setBrandIcons([])
+      return
+    }
+    let cancelled = false
+    const handle = setTimeout(async () => {
+      const icons = await searchFavicons(search.trim())
+      if (!cancelled) setBrandIcons(icons)
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(handle)
+    }
+  }, [search, showBrandIcons])
 
   const showSearch = icons.length > 15
   const query = search.toLowerCase().replace(/\s+/g, '_')
@@ -112,6 +137,43 @@ function IconColorBrowserBody({
                 <Icon name="close" size={14} />
               </button>
             )}
+          </div>
+        )}
+
+        {showBrandIcons && brandIcons.length > 0 && (
+          <div>
+            <p className="mb-2 text-[11px] font-semibold text-[var(--cv-label-text)]">
+              {t('vault.iconBrowserBrand')}
+            </p>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
+                gap: '6px',
+              }}
+            >
+              {brandIcons.map((hit) => {
+                const selected = hit.iconUrl === localIcon
+                const accent = localColor ?? 'var(--cv-primary)'
+                return (
+                  <button
+                    key={hit.domain}
+                    type="button"
+                    onClick={() => setLocalIcon(hit.iconUrl)}
+                    title={hit.domain}
+                    aria-pressed={selected}
+                    className="flex h-10 w-full items-center justify-center overflow-hidden rounded-xl
+                      transition-colors hover:opacity-80"
+                    style={{
+                      background: selected ? hexWithAlpha('#8A95A6', 0.18) : hexWithAlpha('#8A95A6', 0.08),
+                      border: selected ? `2px solid ${accent}` : '2px solid transparent',
+                    }}
+                  >
+                    <img src={hit.iconUrl} alt={hit.domain} className="h-5 w-5 rounded object-contain" />
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
 

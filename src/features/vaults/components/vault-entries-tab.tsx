@@ -10,6 +10,8 @@ import {
 import { useEntriesInfinite } from '../use-entries'
 import { CreateEntryModal } from './create-entry-modal'
 import { EntryRow } from './entry-row'
+import { LoadMoreSentinel } from '../../../shared/components/load-more-sentinel'
+import { ScrollArea } from '../../../shared/components/scroll-area'
 import { SearchBar } from '../../../shared/components/search-bar'
 
 export interface VaultEntriesTabProps {
@@ -60,50 +62,47 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
   }
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col">
       <SearchBar
         value={search}
         onChange={setSearch}
         placeholder={t('vault.detail.entriesSearchPlaceholder')}
+        className="mb-3 shrink-0"
       />
 
-      {filtered.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-          bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">
-          {t('vault.entries.emptySearch')}
-        </p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {filtered.map((entry) => (
-            <EntryRow
-              key={entry.id}
-              vaultId={vault.id}
-              wrappedVK={vault.wrappedVK}
-              entry={entry}
-            />
-          ))}
-        </div>
-      )}
+      <ScrollArea>
+        {filtered.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
+            bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">
+            {t('vault.entries.emptySearch')}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {filtered.map((entry) => (
+              <EntryRow
+                key={entry.id}
+                vaultId={vault.id}
+                wrappedVK={vault.wrappedVK}
+                entry={entry}
+              />
+            ))}
+          </div>
+        )}
 
-      {entries.hasNextPage ? (
-        <div className="mt-3 flex justify-center">
-          <Button
-            variant="subtle"
-            size="sm"
-            onClick={() => entries.fetchNextPage()}
-            disabled={entries.isFetchingNextPage}
-          >
-            {t('vault.entries.loadMore')}
-          </Button>
-        </div>
-      ) : null}
+        <LoadMoreSentinel
+          hasNextPage={entries.hasNextPage}
+          isFetchingNextPage={entries.isFetchingNextPage}
+          isFetchNextPageError={entries.isFetchNextPageError}
+          onLoadMore={entries.fetchNextPage}
+        />
+      </ScrollArea>
 
       <CreateEntryModal
         open={createOpen}
         vault={vault}
         onClose={() => setCreateOpen(false)}
       />
-    </>
+    </div>
   )
 }
 

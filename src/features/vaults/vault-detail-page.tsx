@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
+import { ScrollArea } from '../../shared/components/scroll-area'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { GrantAccessDialog, OrgGrantsPanel } from '../grants'
 import { CreateEntryModal } from './components/create-entry-modal'
@@ -102,14 +103,14 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
 
   if (isWide) {
     return (
-      <div className="flex h-full text-[var(--cv-t1)]">
-        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
-          <div className="px-4 py-4">
+      <div className="flex h-full overflow-hidden text-[var(--cv-t1)]">
+        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+          <div className="h-full px-4 pt-4">
             <VaultListPanel selectedVaultId={vaultId} />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto min-w-0">
-          <div className="px-4 py-4">{vaultContent}</div>
+        <div className="flex-1 overflow-hidden min-w-0">
+          <div className="h-full px-4 pt-4">{vaultContent}</div>
         </div>
       </div>
     )
@@ -149,7 +150,7 @@ function DetailBody({
   const subtitle = t('vault.subtitle.entryCount', { count: vault.entryCount })
 
   return (
-    <>
+    <div className="flex h-full min-h-0 flex-col">
       {showHeader ? (
         <VaultDetailHeader
           title={vault.name}
@@ -181,8 +182,17 @@ function DetailBody({
           )
         }
       />
-      <TabPanel activeTab={activeTab} vault={vault} />
-    </>
+      {activeTab === 'entries' ? (
+        // The entries tab pins its own search bar and scrolls only the list.
+        <div className="min-h-0 flex-1">
+          <TabPanel activeTab={activeTab} vault={vault} />
+        </div>
+      ) : (
+        <ScrollArea>
+          <TabPanel activeTab={activeTab} vault={vault} />
+        </ScrollArea>
+      )}
+    </div>
   )
 }
 

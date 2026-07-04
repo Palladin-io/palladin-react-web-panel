@@ -255,6 +255,7 @@ const SENTENCE_KEY: Record<string, string> = {
   'vault.created': 'vaultCreated',
   'vault.updated': 'vaultUpdated',
   'vault.deleted': 'vaultDeleted',
+  'vault.exported': 'vaultExported',
   'entry.created': 'entryCreated',
   'entry.updated': 'entryUpdated',
   'entry.deleted': 'entryDeleted',

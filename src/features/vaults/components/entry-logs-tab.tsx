@@ -135,6 +135,7 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
         onRetry={() => logs.refetch()}
         hasNextPage={logs.hasNextPage}
         isFetchingNextPage={logs.isFetchingNextPage}
+        isFetchNextPageError={logs.isFetchNextPageError}
         onLoadMore={() => logs.fetchNextPage()}
         resolveAgentName={resolveAgentName}
         showEntry={false}

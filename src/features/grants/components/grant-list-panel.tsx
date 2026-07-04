@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../../shared/components/error-state'
+import { ScrollArea } from '../../../shared/components/scroll-area'
 import { Icon } from '../../../shared/components/icon'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import {
@@ -83,8 +84,8 @@ export function GrantListPanel({ vaultId, selectedGrantId }: GrantListPanelProps
   const items = grants.data?.items ?? []
 
   return (
-    <>
-      <div className="mb-4 flex h-10 items-center">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="mb-4 flex h-10 shrink-0 items-center">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
             {t('grants.title')}
@@ -93,37 +94,41 @@ export function GrantListPanel({ vaultId, selectedGrantId }: GrantListPanelProps
         </div>
       </div>
 
-      <StatusFilter value={status} onChange={setStatus} />
+      <div className="shrink-0">
+        <StatusFilter value={status} onChange={setStatus} />
+      </div>
 
-      {grants.isPending ? (
-        <PanelLoadingSkeleton />
-      ) : grants.isError ? (
-        <ErrorState message={t('grants.errorLoad')} onRetry={grants.refetch} />
-      ) : items.length === 0 ? (
-        <div
-          className="flex flex-col items-center gap-2 rounded-2xl border border-dashed
-            border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
-        >
-          <Icon name="key" size={28} color="var(--cv-t3)" />
-          <p className="text-[12px] font-medium text-[var(--cv-t3)]">
-            {t('grants.empty')}
-          </p>
-          <p className="text-[11px] text-[var(--cv-t3)]">{t('grants.emptyHint')}</p>
-        </div>
-      ) : (
-        <ul className="flex flex-col gap-[10px]">
-          {items.map((grant) => (
-            <li key={grant.grantId}>
-              <GrantCard
-                grant={grant}
-                vaultId={vaultId}
-                isSelected={grant.grantId === selectedGrantId}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
+      <ScrollArea>
+        {grants.isPending ? (
+          <PanelLoadingSkeleton />
+        ) : grants.isError ? (
+          <ErrorState message={t('grants.errorLoad')} onRetry={grants.refetch} />
+        ) : items.length === 0 ? (
+          <div
+            className="flex flex-col items-center gap-2 rounded-2xl border border-dashed
+              border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
+          >
+            <Icon name="key" size={28} color="var(--cv-t3)" />
+            <p className="text-[12px] font-medium text-[var(--cv-t3)]">
+              {t('grants.empty')}
+            </p>
+            <p className="text-[11px] text-[var(--cv-t3)]">{t('grants.emptyHint')}</p>
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-[10px]">
+            {items.map((grant) => (
+              <li key={grant.grantId}>
+                <GrantCard
+                  grant={grant}
+                  vaultId={vaultId}
+                  isSelected={grant.grantId === selectedGrantId}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </ScrollArea>
+    </div>
   )
 }
 

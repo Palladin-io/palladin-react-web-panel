@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../../shared/components/error-state'
+import { ScrollArea } from '../../../shared/components/scroll-area'
 import { Icon } from '../../../shared/components/icon'
 import { AGENT_STATUS_ACTIVE } from '../api/agents-api'
 import { useAgents } from '../use-agents'
@@ -43,8 +44,8 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
   ).length
 
   return (
-    <>
-      <div className="mb-4 flex h-10 items-center gap-2">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
             {t('agents.title')}
@@ -74,7 +75,7 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
         </div>
       ) : (
         <>
-          <div className="mb-3">
+          <div className="mb-3 shrink-0">
             <div
               className="flex items-center gap-2 rounded-lg border border-[var(--cv-input-border)]
                 bg-[var(--cv-input-bg)] px-3 py-2 transition-colors focus-within:border-[var(--cv-t1)]"
@@ -95,29 +96,31 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
             </div>
           </div>
 
-          {filtered.length === 0 ? (
-            <div
-              className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-                bg-[var(--cv-empty-bg)] p-8 text-center text-[12px] text-[var(--cv-t3)]"
-            >
-              {t('agents.empty')}
-            </div>
-          ) : (
-            <ul className="flex flex-col gap-[10px]">
-              {filtered.map((agent) => (
-                <li key={agent.agentId}>
-                  <AgentCard
-                    agent={agent}
-                    isSelected={agent.agentId === selectedAgentId}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
+          <ScrollArea>
+            {filtered.length === 0 ? (
+              <div
+                className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
+                  bg-[var(--cv-empty-bg)] p-8 text-center text-[12px] text-[var(--cv-t3)]"
+              >
+                {t('agents.empty')}
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-[10px]">
+                {filtered.map((agent) => (
+                  <li key={agent.agentId}>
+                    <AgentCard
+                      agent={agent}
+                      isSelected={agent.agentId === selectedAgentId}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ScrollArea>
         </>
       )}
 
-    </>
+    </div>
   )
 }
 

@@ -26,12 +26,12 @@ export function AgentsPage({ agentId }: AgentsPageProps) {
   if (isWide) {
     return (
       <div className="flex h-full text-[var(--cv-t1)]">
-        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
-          <div className="px-4 py-4">
+        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+          <div className="h-full px-4 pt-4">
             <AgentListPanel selectedAgentId={agentId} />
           </div>
         </div>
-        <div className="min-w-0 flex-1 overflow-y-auto">
+        <div className="subtle-scrollbar min-w-0 flex-1 overflow-y-auto">
           <div className="px-4 py-4">{detailContent}</div>
         </div>
       </div>

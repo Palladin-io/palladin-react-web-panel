@@ -109,7 +109,7 @@ describe('ImportWizardModal', () => {
     expect(input.creates[0].label).toBe('GitHub')
 
     // Drive the success callback → done step.
-    options.onSuccess({ importedCount: 1, updatedCount: 0 })
+    options.onSuccess({ importedCount: 1, updatedCount: 0, failed: [] })
     expect(await screen.findByText(/import complete/i)).toBeInTheDocument()
   })
 

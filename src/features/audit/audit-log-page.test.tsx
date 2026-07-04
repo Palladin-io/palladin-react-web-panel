@@ -75,11 +75,11 @@ describe('AuditLogPage', () => {
     expect(screen.getByText(sentence)).toBeInTheDocument()
   })
 
-  it('disables CSV export until the backend export job ships', () => {
+  it('enables CSV export and requests the backend job on click', () => {
     mockOrgLogs.mockReturnValue(orgLogsReturn([row()]))
     render(<AuditLogPage />)
-
-    expect(screen.getByRole('button', { name: /Export CSV/i })).toBeDisabled()
+    const button = screen.getByRole('button', { name: /export csv/i })
+    expect(button).toBeEnabled()
   })
 
   it('shows the empty state when there is no activity', () => {

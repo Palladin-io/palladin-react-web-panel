@@ -4,6 +4,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
+import { LoadMoreSentinel } from '../../shared/components/load-more-sentinel'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
 import { TypeFilterDropdown } from '../../shared/components/type-filter-dropdown'
@@ -393,18 +394,12 @@ export function NotificationCenterPage({
             </section>
           )}
 
-          {notifications.hasNextPage && (
-            <div className="mt-2 flex justify-center">
-              <Button
-                variant="subtle"
-                size="sm"
-                disabled={notifications.isFetchingNextPage}
-                onClick={() => notifications.fetchNextPage()}
-              >
-                {t('notifications.center.loadMore')}
-              </Button>
-            </div>
-          )}
+          <LoadMoreSentinel
+            hasNextPage={notifications.hasNextPage}
+            isFetchingNextPage={notifications.isFetchingNextPage}
+            isFetchNextPageError={notifications.isFetchNextPageError}
+            onLoadMore={() => notifications.fetchNextPage()}
+          />
         </>
       )}
 

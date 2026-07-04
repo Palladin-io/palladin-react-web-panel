@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from '../types'
+import { extractDomain } from '../components/entry-presentation'
 import { normalizeEntry, normalizeTotp } from './normalize'
 
 describe('normalizeTotp', () => {
@@ -61,5 +62,22 @@ describe('normalizeEntry', () => {
     const key = normalizeEntry({ type: ENTRY_TYPE_KEY, label: 'Token', value: ' sk_1 ' })
     expect(key).toEqual({ label: 'Token', type: ENTRY_TYPE_KEY, value: 'sk_1', notes: undefined })
     expect(normalizeEntry({ type: ENTRY_TYPE_KEY, label: 'Empty' })).toBeNull()
+  })
+})
+
+describe('android app-credential URIs (Google Password Manager)', () => {
+  it('derives the domain from the reverse-DNS package id', () => {
+    expect(extractDomain('android://zQxb6hXv1MJiC1Yyotdhi8HP@com.facebook.katana/')).toBe(
+      'facebook.com',
+    )
+    expect(extractDomain('android://hash@com.spotify.music/')).toBe('spotify.com')
+  })
+
+  it('gives no domain for a package without a plausible TLD', () => {
+    expect(extractDomain('android://hash@localonly/')).toBeUndefined()
+  })
+
+  it('never yields a dotless hostname', () => {
+    expect(extractDomain('android')).toBeUndefined()
   })
 })

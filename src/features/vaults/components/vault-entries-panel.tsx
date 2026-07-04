@@ -11,6 +11,8 @@ import {
 import { useEntriesInfinite } from '../use-entries'
 import { CreateEntryModal } from './create-entry-modal'
 import { EntryRow } from './entry-row'
+import { LoadMoreSentinel } from '../../../shared/components/load-more-sentinel'
+import { ScrollArea } from '../../../shared/components/scroll-area'
 import { SearchBar } from '../../../shared/components/search-bar'
 
 export interface VaultEntriesPanelProps {
@@ -45,8 +47,8 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
   )
 
   return (
-    <>
-      <div className="mb-4 flex h-10 items-center gap-2">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
         <Link
           to="/vaults/$vaultId"
           params={{ vaultId: vault.id }}
@@ -78,39 +80,37 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
             value={search}
             onChange={setSearch}
             placeholder={t('vault.detail.entriesSearchPlaceholder')}
+            className="mb-3 shrink-0"
           />
 
-          {filtered.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-              bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">
-              {t('vault.entries.emptySearch')}
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {filtered.map((entry) => (
-                <EntryRow
-                  key={entry.id}
-                  vaultId={vault.id}
-                  wrappedVK={vault.wrappedVK}
-                  entry={entry}
-                  isSelected={entry.id === selectedEntryId}
-                />
-              ))}
-            </div>
-          )}
+          {/* Only the items section scrolls — header and search stay pinned. */}
+          <ScrollArea>
+            {filtered.length === 0 ? (
+              <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
+                bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">
+                {t('vault.entries.emptySearch')}
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {filtered.map((entry) => (
+                  <EntryRow
+                    key={entry.id}
+                    vaultId={vault.id}
+                    wrappedVK={vault.wrappedVK}
+                    entry={entry}
+                    isSelected={entry.id === selectedEntryId}
+                  />
+                ))}
+              </div>
+            )}
 
-          {entries.hasNextPage ? (
-            <div className="mt-3 flex justify-center">
-              <Button
-                variant="subtle"
-                size="sm"
-                onClick={() => entries.fetchNextPage()}
-                disabled={entries.isFetchingNextPage}
-              >
-                {t('vault.entries.loadMore')}
-              </Button>
-            </div>
-          ) : null}
+            <LoadMoreSentinel
+              hasNextPage={entries.hasNextPage}
+              isFetchingNextPage={entries.isFetchingNextPage}
+              isFetchNextPageError={entries.isFetchNextPageError}
+              onLoadMore={entries.fetchNextPage}
+            />
+          </ScrollArea>
         </>
       )}
 
@@ -119,7 +119,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
         vault={vault}
         onClose={() => setCreateOpen(false)}
       />
-    </>
+    </div>
   )
 }
 

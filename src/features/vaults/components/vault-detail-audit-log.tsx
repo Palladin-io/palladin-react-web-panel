@@ -82,6 +82,7 @@ export function VaultDetailAuditLog({ vaultId }: VaultDetailAuditLogProps) {
         onRetry={() => logs.refetch()}
         hasNextPage={logs.hasNextPage}
         isFetchingNextPage={logs.isFetchingNextPage}
+        isFetchNextPageError={logs.isFetchNextPageError}
         onLoadMore={() => logs.fetchNextPage()}
         resolveAgentName={resolveAgentName}
         emptyMessage={t('audit.emptyLog')}

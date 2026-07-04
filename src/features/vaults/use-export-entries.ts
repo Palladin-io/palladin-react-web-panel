@@ -19,6 +19,8 @@ export interface ExportEntriesInput {
   /** Vaults to export — each fetched fresh to obtain its wrapped VK. */
   vaults: { id: string; name: string }[]
   format: ExportFormat
+  /** Progress callback — fires once per fetched entry so the dialog can render a bar. */
+  onProgress?: (done: number, total: number) => void
 }
 
 export interface ExportEntriesResult {
@@ -106,17 +108,30 @@ export function useExportEntries() {
       const exportVaults: ExportVault[] = []
       const perVault: { id: string; count: number }[] = []
 
-      for (const target of input.vaults) {
+      const vaultItems = await Promise.all(
+        input.vaults.map(async (target) => ({
+          target,
+          items: await getAllEntries(target.id),
+        })),
+      )
+      const total = vaultItems.reduce((sum, v) => sum + v.items.length, 0)
+      let done = 0
+      input.onProgress?.(0, total)
+
+      for (const { target, items } of vaultItems) {
         const vault = await getVault(target.id)
         if (!vault.wrappedVK) throw new MissingWrappedVaultKeyError()
 
         const vaultKey = await unsealVaultKey(vault.wrappedVK, privateKey)
         try {
-          const items = await getAllEntries(target.id)
           const details = await mapWithConcurrency(
             items,
             EXPORT_FETCH_CONCURRENCY,
-            (item) => getEntry(target.id, item.id),
+            async (item) => {
+              const detail = await getEntry(target.id, item.id)
+              input.onProgress?.(++done, total)
+              return detail
+            },
           )
           const entries: ExportEntry[] = []
           for (const detail of details) {

@@ -49,12 +49,12 @@ export function VaultListPage() {
   if (isWide) {
     return (
       <div className="flex h-full text-[var(--cv-t1)]">
-        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
-          <div className="px-4 py-4">
+        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+          <div className="h-full px-4 pt-4">
             <VaultListPanel />
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto min-w-0">
+        <div className="subtle-scrollbar flex-1 overflow-y-auto min-w-0">
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
             <Icon name="shield" size={48} color="var(--cv-t3)" />
             {list.length === 0 ? (

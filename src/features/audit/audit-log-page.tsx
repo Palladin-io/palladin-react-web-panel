@@ -1,13 +1,22 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { HTTPError } from 'ky'
+import { toast } from 'sonner'
+import { downloadFromUrl } from '../../shared/lib/download-file'
 import { Button } from '../../shared/components/button'
 import { ModalShell } from '../../shared/components/modal-shell'
+import { ScrollArea } from '../../shared/components/scroll-area'
 import { PERMISSION_AUDIT_VIEW } from '../../shared/lib/permissions'
 import { useAuthStore } from '../auth'
 // Imported from the module (not the vaults barrel) to avoid an import cycle:
 // the vaults barrel pulls in the vault detail page, which renders this feature.
 import { useVaults } from '../vaults/use-vaults'
 import { filterAuditLogs } from './audit-log-filter'
+import {
+  getAuditExport,
+  getAuditExportDownloadUrl,
+  requestAuditExport,
+} from './api/audit-api'
 import { csvParam } from './filter-params'
 import { AuditFilterBar, type AuditFilterState } from './components/audit-filter-bar'
 import { AuditLogLegend } from './components/audit-log-legend'
@@ -43,6 +52,51 @@ export function AuditLogPage() {
 
   const [filter, setFilter] = useState<AuditFilterState>(EMPTY_FILTER)
   const [legendOpen, setLegendOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  const handleExportCsv = async () => {
+    setExporting(true)
+    try {
+      const jobId = await requestAuditExport({
+        eventType: csvParam(filter.eventType),
+        agentId: csvParam(filter.agentId),
+        userId: csvParam(filter.userId),
+        vaultId: csvParam(filter.vaultId),
+        from: filter.from || undefined,
+        to: filter.to || undefined,
+      })
+      // The export runs as a background job — poll (exponential backoff, capped)
+      // until the file is ready (24h-valid link).
+      const deadline = Date.now() + 120_000
+      let delay = 1000
+      while (Date.now() < deadline) {
+        const status = await getAuditExport(jobId)
+        if (status.downloadable) {
+          toast.success(t('audit.exportReady'))
+          downloadFromUrl(await getAuditExportDownloadUrl(jobId))
+          return
+        }
+        if (status.status.toLowerCase() === 'failed') break
+        await new Promise((resolve) => setTimeout(resolve, delay))
+        delay = Math.min(delay * 2, 5000)
+      }
+      toast.error(t('audit.exportFailed'))
+    } catch (error) {
+      if (error instanceof HTTPError) {
+        const body = (await error.response.clone().json().catch(() => null)) as {
+          code?: string
+          message?: string
+        } | null
+        if (body?.code === 'plan-upgrade-required') {
+          toast.info(t('audit.exportProOnly'))
+          return
+        }
+      }
+      toast.error(t('audit.exportFailed'))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const vaults = useVaults({ enabled: canView })
   const vaultList = vaults.data?.vaults
@@ -82,9 +136,8 @@ export function AuditLogPage() {
   )
 
   return (
-    <div className="min-h-full text-[var(--cv-t1)]">
-      <div className="px-4 py-4">
-        <div className="mb-4 flex h-10 items-center gap-2">
+    <div className="flex h-full min-h-0 flex-col px-4 pt-4 text-[var(--cv-t1)]">
+      <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
           <div className="min-w-0 flex-1">
             <h1 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
               {t('audit.pageTitle')}
@@ -100,21 +153,19 @@ export function AuditLogPage() {
             >
               {t('audit.legend.action')}
             </Button>
-            {/* TODO(CVT-141): wire to the backend async CSV export job once it ships.
-                Native `title` (not the truncation-only Tooltip) so the hint shows
-                on the disabled button. */}
             <Button
               variant="subtle"
               size="sm"
               icon="download"
-              disabled
-              title={t('audit.exportComingSoon')}
+              disabled={!canView || exporting}
+              onClick={handleExportCsv}
             >
-              {t('audit.exportCsv')}
+              {exporting ? t('audit.exporting') : t('audit.exportCsv')}
             </Button>
           </div>
         </div>
 
+      <div className="shrink-0">
         <AuditFilterBar
           value={filter}
           onChange={setFilter}
@@ -122,7 +173,9 @@ export function AuditLogPage() {
           userOptions={userOptions}
           vaultOptions={vaultOptions}
         />
+      </div>
 
+      <ScrollArea>
         <AuditLogList
           items={filtered}
           isPending={logs.isPending}
@@ -130,6 +183,7 @@ export function AuditLogPage() {
           onRetry={() => logs.refetch()}
           hasNextPage={logs.hasNextPage}
           isFetchingNextPage={logs.isFetchingNextPage}
+          isFetchNextPageError={logs.isFetchNextPageError}
           onLoadMore={() => logs.fetchNextPage()}
           resolveAgentName={resolveAgentName}
           resolveVaultName={resolveVaultName}
@@ -137,7 +191,7 @@ export function AuditLogPage() {
           emptyMessage={t('audit.emptyLog')}
           canView={canView}
         />
-      </div>
+      </ScrollArea>
 
       {legendOpen && (
         <ModalShell

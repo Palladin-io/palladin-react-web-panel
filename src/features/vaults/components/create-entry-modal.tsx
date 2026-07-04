@@ -24,6 +24,8 @@ import {
   extractDomain,
 } from './entry-presentation'
 import { EntryIconPicker } from './entry-icon-picker'
+import { defaultIconFor } from './entry-presentation'
+import { resolveFavicon } from '../api/vault-api'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { EncryptionNotice } from '../../../shared/components/encryption-notice'
 import { FormSelect } from '../../../shared/components/form-select'
@@ -57,7 +59,9 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
   const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
   const [color, setColor] = useState('#10B981')
-  const [icon, setIcon] = useState<string | undefined>(undefined)
+  // Pre-select the type's default glyph so a tile is always visibly chosen;
+  // switching type follows along until the user (or a favicon) picks something.
+  const [icon, setIcon] = useState<string | undefined>(defaultIconFor(ENTRY_TYPE_KEY))
   const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
   const [label, setLabel] = useState('')
   const [labelError, setLabelError] = useState(false)
@@ -73,6 +77,26 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState(false)
   const [notes, setNotes] = useState('')
+  // Favicon suggestion: auto-fills the icon from the typed domain unless the
+  // user picked one themselves; a manual pick always wins.
+  const [iconTouched, setIconTouched] = useState(false)
+
+  useEffect(() => {
+    const domain = extractDomain(url)
+    // Wait for a plausible full domain — mid-typing values ("https", "gith")
+    // would fire pointless resolve calls.
+    if (!domain || !domain.includes('.') || iconTouched) return
+    let cancelled = false
+    const handle = setTimeout(async () => {
+      const favicon = await resolveFavicon(domain)
+      // iconTouched guards manual picks; a favicon may replace the type default.
+      if (favicon && !cancelled) setIcon(favicon)
+    }, 500)
+    return () => {
+      cancelled = true
+      clearTimeout(handle)
+    }
+  }, [url, iconTouched])
 
   useEffect(() => {
     analytics.capture('vault', 'create-entry-wizard-opened')
@@ -226,7 +250,19 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           id="entry-type"
           label={t('vault.entries.typeLabel')}
           value={String(type)}
-          onChange={(e) => setType(Number(e.target.value) as EntryType)}
+          onChange={(e) => {
+            const nextType = Number(e.target.value) as EntryType
+            setType(nextType)
+            if (!iconTouched) {
+              setIcon((current) =>
+                current === undefined
+                  || current === defaultIconFor(ENTRY_TYPE_KEY)
+                  || current === defaultIconFor(ENTRY_TYPE_CREDENTIAL)
+                  ? defaultIconFor(nextType)
+                  : current,
+              )
+            }
+          }}
           disabled={isPending}
         >
           <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
@@ -318,11 +354,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
         <EntryIconPicker
           value={icon}
-          onChange={(next) => { setIcon(next); setPendingIconFile(null) }}
+          onChange={(next) => { setIcon(next); setPendingIconFile(null); setIconTouched(true) }}
           onColorChange={setColor}
           selectedColor={color}
           rowClassName="flex justify-between"
-          onFileSelected={(file, previewUrl) => { setPendingIconFile(file); setIcon(previewUrl) }}
+          onFileSelected={(file, previewUrl) => { setPendingIconFile(file); setIcon(previewUrl); setIconTouched(true) }}
           disabled={isPending}
         />
 

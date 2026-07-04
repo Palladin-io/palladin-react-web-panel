@@ -59,7 +59,8 @@ export function EntryIconPicker({
     value != null &&
     !candidatePresets.includes(value)
 
-  const presetCount = isFromBrowser ? maxVisible - 2 : maxVisible - 1
+  const isUrlIcon = isCustomIconUrl(value)
+  const presetCount = isFromBrowser || isUrlIcon ? maxVisible - 2 : maxVisible - 1
   const visiblePresets = ENTRY_ICON_OPTIONS.slice(0, presetCount)
 
   return (
@@ -110,6 +111,25 @@ export function EntryIconPicker({
           </button>
         )}
 
+        {/* Favicon / uploaded image icon — its own selected slot before 3-dots */}
+        {isUrlIcon && value != null && (
+          <button
+            type="button"
+            onClick={() => onChange(undefined)}
+            disabled={disabled}
+            aria-pressed={true}
+            aria-label={t('vault.entries.iconFromUrl')}
+            className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl
+              transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
+            style={{
+              background: hexWithAlpha(selectedColor, 0.25),
+              border: `2px solid ${selectedColor}`,
+            }}
+          >
+            <img src={value} alt="" className="h-5 w-5 rounded object-contain" />
+          </button>
+        )}
+
         {/* "More" button — always last */}
         <button
           type="button"
@@ -125,6 +145,7 @@ export function EntryIconPicker({
       </div>
 
       <IconColorBrowser
+        showBrandIcons
         open={showBrowser}
         onClose={() => setShowBrowser(false)}
         icons={VAULT_ICON_ALL}

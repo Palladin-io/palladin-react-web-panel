@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../../../shared/components/button'
+import { LoadMoreSentinel } from '../../../shared/components/load-more-sentinel'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import { AgentCard } from '../../agents'
@@ -64,18 +64,12 @@ export function ApiKeyAgentsTab({ apiKeyId }: ApiKeyAgentsTabProps) {
         ))}
       </ul>
 
-      {query.hasNextPage ? (
-        <div className="mt-3 flex justify-center">
-          <Button
-            variant="subtle"
-            size="sm"
-            onClick={() => query.fetchNextPage()}
-            disabled={query.isFetchingNextPage}
-          >
-            {t('apiKeys.detail.loadMore')}
-          </Button>
-        </div>
-      ) : null}
+      <LoadMoreSentinel
+        hasNextPage={query.hasNextPage}
+        isFetchingNextPage={query.isFetchingNextPage}
+        isFetchNextPageError={query.isFetchNextPageError}
+        onLoadMore={() => query.fetchNextPage()}
+      />
     </>
   )
 }

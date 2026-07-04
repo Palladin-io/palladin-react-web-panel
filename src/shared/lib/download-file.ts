@@ -21,3 +21,17 @@ export function downloadTextFile(
     URL.revokeObjectURL(url)
   }
 }
+
+/**
+ * Trigger a browser download of an already-hosted file via a transient anchor —
+ * unlike `window.location.assign` this never navigates the SPA away (which would
+ * drop in-memory keys) even when the server omits Content-Disposition.
+ */
+export function downloadFromUrl(url: string): void {
+  const link = document.createElement('a')
+  link.href = url
+  link.download = ''
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+}

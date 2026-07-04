@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
+import { ScrollArea } from '../../../shared/components/scroll-area'
 import { Icon } from '../../../shared/components/icon'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import type { ApiKeySummary } from '../api/api-keys-api'
@@ -54,8 +55,8 @@ export function ApiKeyListPanel({ selectedApiKeyId }: ApiKeyListPanelProps) {
   const list = useMemo(() => keys.data ?? [], [keys.data])
 
   return (
-    <>
-      <div className="mb-4 flex h-10 items-center gap-2">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
             {t('apiKeys.sectionTitle')}
@@ -76,33 +77,35 @@ export function ApiKeyListPanel({ selectedApiKeyId }: ApiKeyListPanelProps) {
         ) : null}
       </div>
 
-      {keys.isPending ? (
-        <PanelLoadingSkeleton />
-      ) : keys.isError ? (
-        <ErrorState message={t('apiKeys.errorLoad')} onRetry={keys.refetch} />
-      ) : list.length === 0 ? (
-        <div
-          className="flex flex-col items-center gap-2 rounded-2xl border border-dashed
-            border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
-        >
-          <Icon name="key" size={28} color="var(--cv-t3)" />
-          <p className="text-[12px] text-[var(--cv-t3)]">{t('apiKeys.empty')}</p>
-        </div>
-      ) : (
-        <ul className="flex flex-col gap-2">
-          {list.map((key) => (
-            <li key={key.apiKeyId}>
-              <ApiKeyRow
-                apiKey={key}
-                isSelected={key.apiKeyId === selectedApiKeyId}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+      <ScrollArea>
+        {keys.isPending ? (
+          <PanelLoadingSkeleton />
+        ) : keys.isError ? (
+          <ErrorState message={t('apiKeys.errorLoad')} onRetry={keys.refetch} />
+        ) : list.length === 0 ? (
+          <div
+            className="flex flex-col items-center gap-2 rounded-2xl border border-dashed
+              border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
+          >
+            <Icon name="key" size={28} color="var(--cv-t3)" />
+            <p className="text-[12px] text-[var(--cv-t3)]">{t('apiKeys.empty')}</p>
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {list.map((key) => (
+              <li key={key.apiKeyId}>
+                <ApiKeyRow
+                  apiKey={key}
+                  isSelected={key.apiKeyId === selectedApiKeyId}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </ScrollArea>
 
       <GenerateApiKeyModal open={generateOpen} onClose={() => setGenerateOpen(false)} />
-    </>
+    </div>
   )
 }
 
