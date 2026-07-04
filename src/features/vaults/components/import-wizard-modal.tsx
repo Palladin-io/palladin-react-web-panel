@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
+import { EncryptionNotice } from '../../../shared/components/encryption-notice'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { analytics } from '../../../shared/lib/analytics'
@@ -16,7 +17,7 @@ import {
   type ParseResult,
 } from '../import'
 import type { Vault } from '../types'
-import { useEntries } from '../use-entries'
+import { useAllEntries } from '../use-entries'
 import {
   useImportEntries,
   type ImportOverwrite,
@@ -41,7 +42,7 @@ export function ImportWizardModal({ open, vault, onClose }: ImportWizardModalPro
 
 function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => void }) {
   const { t } = useTranslation()
-  const entriesQuery = useEntries(vault.id)
+  const entriesQuery = useAllEntries(vault.id)
   const importMutation = useImportEntries()
 
   const [step, setStep] = useState<Step>('upload')
@@ -67,7 +68,7 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
 
   const existingByLabel = useMemo(() => {
     const map = new Map<string, string>()
-    for (const item of entriesQuery.data?.items ?? []) {
+    for (const item of entriesQuery.data ?? []) {
       map.set(item.label.trim().toLowerCase(), item.id)
     }
     return map
@@ -312,7 +313,9 @@ function PreviewStep({
           className="rounded-md bg-[var(--cv-card-bg)] px-2 py-0.5 text-[11px] font-semibold
             text-[var(--cv-t1)]"
         >
-          {formatName(result.format)}
+          {result.format === 'manual'
+            ? t('vault.import.format.manual')
+            : formatName(result.format)}
         </span>
       </div>
 
@@ -327,7 +330,7 @@ function PreviewStep({
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
         <Counter color="var(--cv-t1)" label={t('vault.import.countToImport')} value={entries.length} />
         {conflictCount > 0 ? (
-          <Counter color="#D4820A" label={t('vault.import.countConflicts')} value={conflictCount} />
+          <Counter color="var(--cv-premium)" label={t('vault.import.countConflicts')} value={conflictCount} />
         ) : null}
         {skippedCount > 0 ? (
           <Counter color="var(--cv-t3)" label={t('vault.import.countSkipped')} value={skippedCount} />
@@ -355,7 +358,7 @@ function PreviewStep({
         <ConflictStrategyPicker value={strategy} onChange={onStrategyChange} />
       ) : null}
 
-      <EncryptionNotice />
+      <EncryptionNotice>{t('vault.import.encryptionNotice')}</EncryptionNotice>
 
       <DialogFooter>
         <Button variant="subtle" size="sm" onClick={onBack} className="flex-1">
@@ -404,7 +407,7 @@ function DoneStep({
   return (
     <>
       <div className="flex flex-col items-center gap-2 py-4 text-center">
-        <Icon name="check_circle" size={36} color="#10B981" />
+        <Icon name="check_circle" size={36} color="var(--cv-success)" />
         <p className="text-[13px] font-semibold text-[var(--cv-t1)]">
           {t('vault.import.doneTitle')}
         </p>
@@ -462,7 +465,7 @@ function Badge({ children, amber }: { children: ReactNode; amber?: boolean }) {
     <span
       className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${
         amber
-          ? 'bg-[rgba(212,130,10,0.12)] text-[#D4820A] dark:text-[#F0C040]'
+          ? 'bg-[color-mix(in_srgb,var(--cv-premium)_12%,transparent)] text-[var(--cv-premium)]'
           : 'bg-[var(--cv-card-hover)] text-[var(--cv-t2)]'
       }`}
     >
@@ -502,21 +505,6 @@ function ConflictStrategyPicker({
           </button>
         ))}
       </div>
-    </div>
-  )
-}
-
-function EncryptionNotice() {
-  const { t } = useTranslation()
-  return (
-    <div
-      className="flex items-center gap-2 rounded-lg border border-[rgba(16,185,129,0.25)]
-        bg-[rgba(16,185,129,0.08)] px-3 py-2"
-    >
-      <Icon name="enhanced_encryption" size={14} className="shrink-0" color="#10B981" />
-      <span className="text-[11px] text-[var(--cv-t2)]">
-        {t('vault.import.encryptionNotice')}
-      </span>
     </div>
   )
 }

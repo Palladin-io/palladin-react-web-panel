@@ -3,7 +3,7 @@ import { decryptEntry } from '../../shared/crypto/entry-crypto'
 import { wipe } from '../../shared/crypto/sodium'
 import { unsealVaultKey } from '../../shared/crypto/vault-key'
 import { useAuthStore } from '../auth'
-import { getEntries, getEntry, getVault } from './api/vault-api'
+import { getAllEntries, getEntry, getVault } from './api/vault-api'
 import {
   toPalladinCsv,
   toPalladinJson,
@@ -85,7 +85,7 @@ export function useExportEntries() {
 
         const vaultKey = await unsealVaultKey(vault.wrappedVK, privateKey)
         try {
-          const { items } = await getEntries(target.id)
+          const items = await getAllEntries(target.id)
           const details = await Promise.all(
             items.map((item) => getEntry(target.id, item.id)),
           )

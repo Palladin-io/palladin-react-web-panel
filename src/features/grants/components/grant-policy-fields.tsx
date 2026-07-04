@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DateTimePicker } from '../../../shared/components/datetime-picker'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { FormSelect } from '../../../shared/components/form-select'
 import { Icon } from '../../../shared/components/icon'
 import { WarningZone } from '../../../shared/components/warning-zone'
 import { POLICY_ERROR_KEY, type GrantPolicyKind } from '../grant-policy'
@@ -25,14 +26,6 @@ const POLICY_KINDS: { value: GrantPolicyKind; labelKey: string }[] = [
   { value: 'uses', labelKey: 'grants.approve.policyUses' },
   { value: 'lifetime', labelKey: 'grants.approve.policyLifetime' },
 ]
-
-// appearance-none + pr-9 + a custom chevron so the dropdown arrow sits exactly
-// where the combobox chevron does (right-3), instead of the native select arrow.
-const SELECT_CLASS =
-  'w-full appearance-none rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] ' +
-  'px-3 py-2 pr-9 text-[12px] text-[var(--cv-input-text)] ' +
-  'focus:border-[var(--cv-t1)] focus:outline-none transition-colors ' +
-  'disabled:cursor-not-allowed disabled:opacity-40'
 
 const CHIP_CLASS =
   'rounded-md border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] ' +
@@ -93,32 +86,19 @@ export function GrantPolicyFields({
 
   return (
     <>
-      <div>
-        <label
-          htmlFor={`${idPrefix}-policy-kind`}
-          className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-        >
-          {t('grants.approve.accessTypeLabel')}
-        </label>
-        <div className="relative">
-          <select
-            id={`${idPrefix}-policy-kind`}
-            value={kind}
-            disabled={disabled}
-            onChange={(e) => onKindChange(e.target.value as GrantPolicyKind)}
-            className={SELECT_CLASS}
-          >
-            {POLICY_KINDS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {t(option.labelKey)}
-              </option>
-            ))}
-          </select>
-          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-            <Icon name="expand_more" size={16} color="var(--cv-t3)" />
-          </div>
-        </div>
-      </div>
+      <FormSelect
+        id={`${idPrefix}-policy-kind`}
+        label={t('grants.approve.accessTypeLabel')}
+        value={kind}
+        disabled={disabled}
+        onChange={(e) => onKindChange(e.target.value as GrantPolicyKind)}
+      >
+        {POLICY_KINDS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {t(option.labelKey)}
+          </option>
+        ))}
+      </FormSelect>
 
       {kind === 'time' && (
         <div className="-mb-4">

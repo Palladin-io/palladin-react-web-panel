@@ -45,7 +45,7 @@ function pick(row: CsvRow, candidates: string[] | undefined): string | undefined
   return undefined
 }
 
-type FieldColumns = Partial<Record<Exclude<MappableField, never> | 'value', string[]>>
+type FieldColumns = Partial<Record<MappableField | 'value', string[]>>
 
 /**
  * Declarative CSV format profile. Adding a flat-CSV format means adding one of

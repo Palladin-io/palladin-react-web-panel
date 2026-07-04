@@ -12,6 +12,9 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `FeedbackSlot` | `shared/components/form-field.tsx` | Animated-height wrapper that slides content in below a field | `visible`, `color`, `children` (grid `0fr→1fr` reveal). |
 | `SecretInput` | `shared/components/secret-input.tsx` | Password field masked via `.secret-mask` font (never `type=password`) with show/hide toggle | `id`, `label`, `value`, `onChange`, `shown`, `onToggleShown`, `placeholder`, `disabled`, `monospace`, `error`, `onBlur`. |
 | `FormTextarea` | `shared/components/form-textarea.tsx` | Labelled textarea matching `FormInput` tokens | `label`, `id`, `labelClassName`, `borderClass`, `hasError`, `monospace`. |
+| `FormSelect` | `shared/components/form-select.tsx` | Native `<select>` styled like `FormInput` with a chevron affordance | `id`, `label?`, `labelClassName?`, `children` (`<option>`s) + passthrough `SelectHTMLAttributes`. |
+| `EncryptionNotice` | `shared/components/encryption-notice.tsx` | Success-tinted "encrypted on your device" callout (`--cv-success`) | `children` (caller's translated copy). Used by create-entry + import wizard. |
+| `FileDropzone` | `vaults/components/file-dropzone.tsx` | Drag-and-drop + click-to-browse file picker (dashed target, first file only) | `onFile`, `accept?`, `disabled?`, `label`, `hint?`. (Feature-local; promote to `shared/` if a 2nd consumer appears.) |
 | `DialogFooter` | `shared/components/dialog-footer.tsx` | Modal footer strip: edge-bleed negative margin, top border, tinted bg | `children` (buttons use `flex-1` / `flex-[2]`). |
 | `ModalShell` | `shared/components/modal-shell.tsx` | Modal scaffold: backdrop, Escape dismiss, body scroll lock | `onClose?`, `ariaLabel`, `width` (default 480), `children`. |
 | `Icon` | `shared/components/icon.tsx` | Material Symbols Rounded glyph wrapper | `name`, `size` (default 18), `color`, `className`, `ariaHidden`, `style`. |
@@ -36,6 +39,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `mnemonic` | `shared/lib/mnemonic.ts` | BIP39 recovery-phrase helpers. |
 | `shorten-key` | `shared/lib/shorten-key.ts` | Prefix+suffix shortening for non-secret IDs/keys. |
 | `analytics` | `shared/lib/analytics.ts` | `capture(module, event)` → auto-prefixes `fe:`. |
+| `download-file` | `shared/lib/download-file.ts` | `downloadTextFile(filename, content, mime?)` — Blob → object-URL → click → revoke. |
 | `permissions` / `jwt` | `shared/lib/permissions.ts`, `shared/lib/jwt.ts` | Permission-bit checks, JWT decode. |
 
 ## Controls to extract (missing shared components)
@@ -48,7 +52,6 @@ These patterns are duplicated 2+ times with no shared component. Extract on next
 | `EmptyState` | `<EmptyState title? description? action?:ReactNode />` | **13 inline instances / 9 files** — dashed `border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center`. Richer CTA variant at `vaults/vault-list-page.tsx:228`. |
 | `DetailTabBar<T>` | `<DetailTabBar tabs={{id,label}[]} active onChange wide? actions? />` | **4 implementations** — `vaults/components/vault-detail-tabs.tsx` (canonical) + `api-keys/components/api-key-detail-tabs.tsx` (diverged copy) + inline at `vaults/entry-detail-page.tsx:255` and `agents/components/agent-detail.tsx:133`. |
 | `SplitView` | `<SplitView left right />` | **7 pages** — `useWideScreen(1280)` + `flex h-full` + left `w-[clamp(300px,22vw,400px)] shrink-0 border-r` + right `min-w-0 flex-1`. agents, api-keys, grants (×2), vaults (×3). |
-| `FormSelect` | `<FormSelect label options value onChange disabled? error? />` | **2 instances** — local unexported `SELECT_CLASS` at `grants/components/grant-policy-fields.tsx:31` re-inlined at `vaults/components/create-entry-modal.tsx:231` (relative wrapper + chevron `Icon`). |
 | `InlineEditFooter` | `<InlineEditFooter onCancel onSave saving? disabled? cancelLabel? saveLabel? />` | **3 instances** — `mt-4 flex justify-end gap-2 border-t pt-4` at `agents/components/agent-edit-form.tsx:179`, `vaults/entry-detail-page.tsx:772`, `vaults/components/vault-settings-form.tsx:163` (in-page forms, `justify-end` — not modal `DialogFooter`). |
 
 ## Reuse rules

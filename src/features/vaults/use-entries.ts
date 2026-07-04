@@ -1,8 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { getEntries, getEntry } from './api/vault-api'
+import { getAllEntries, getEntries, getEntry } from './api/vault-api'
 
 export function entriesQueryKey(vaultId: string) {
   return ['vaults', vaultId, 'entries'] as const
+}
+
+export function allEntriesQueryKey(vaultId: string) {
+  return ['vaults', vaultId, 'entries', 'all'] as const
 }
 
 export function entryDetailQueryKey(vaultId: string, entryId: string) {
@@ -18,6 +22,21 @@ export function useEntries(vaultId: string) {
   return useQuery({
     queryKey: entriesQueryKey(vaultId),
     queryFn: () => getEntries(vaultId),
+    staleTime: 30_000,
+  })
+}
+
+/**
+ * Fetch the COMPLETE entry list (all pages) for a vault. Used by the import
+ * wizard to detect label conflicts against every existing entry, not just the
+ * first page. Kept under a distinct key so it doesn't clash with the paged
+ * {@link useEntries} cache.
+ */
+export function useAllEntries(vaultId: string, enabled = true) {
+  return useQuery({
+    queryKey: allEntriesQueryKey(vaultId),
+    queryFn: () => getAllEntries(vaultId),
+    enabled,
     staleTime: 30_000,
   })
 }

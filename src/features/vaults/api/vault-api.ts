@@ -91,9 +91,14 @@ export interface EntryListResponse {
   nextCursor?: string
 }
 
-export async function getEntries(vaultId: string): Promise<EntryListResponse> {
+export async function getEntries(
+  vaultId: string,
+  cursor?: string,
+): Promise<EntryListResponse> {
   const response = await api
-    .get(`api/vaults/${vaultId}/entries`)
+    .get(`api/vaults/${vaultId}/entries`, {
+      searchParams: cursor ? { cursor } : undefined,
+    })
     .json<EntryListResponse>()
   // The backend serialises `type` as a string ("key"/"credential"); normalise
   // it to the numeric EntryType every consumer compares against.
@@ -104,6 +109,23 @@ export async function getEntries(vaultId: string): Promise<EntryListResponse> {
       type: normalizeEntryType(item.type),
     })),
   }
+}
+
+/**
+ * Fetch EVERY entry of a vault by following the cursor to the last page. Use
+ * this when the caller needs the complete set — bulk export and import
+ * conflict-detection — rather than {@link getEntries}, which returns only the
+ * first page and would silently miss entries in vaults larger than one page.
+ */
+export async function getAllEntries(vaultId: string): Promise<EntryListItem[]> {
+  const all: EntryListItem[] = []
+  let cursor: string | undefined
+  do {
+    const page = await getEntries(vaultId, cursor)
+    all.push(...page.items)
+    cursor = page.nextCursor
+  } while (cursor)
+  return all
 }
 
 export async function getEntry(

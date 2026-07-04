@@ -1014,5 +1014,6 @@
   "vault.export.error": "Eksport nie powiódł się. Spróbuj ponownie.",
   "settings.export.title": "Eksport danych",
   "settings.export.subtitle": "Pobierz wpisy ze wszystkich sejfów jako plik CSV lub JSON jawnym tekstem.",
-  "settings.export.cta": "Eksportuj wszystkie sejfy"
+  "settings.export.cta": "Eksportuj wszystkie sejfy",
+  "vault.import.format.manual": "Własny CSV (ręczne mapowanie)"
 }

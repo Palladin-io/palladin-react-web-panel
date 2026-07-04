@@ -25,6 +25,8 @@ import {
 } from './entry-presentation'
 import { EntryIconPicker } from './entry-icon-picker'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
+import { EncryptionNotice } from '../../../shared/components/encryption-notice'
+import { FormSelect } from '../../../shared/components/form-select'
 import { ModalShell } from '../../../shared/components/modal-shell'
 
 export interface CreateEntryModalProps {
@@ -220,36 +222,18 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           </FieldFeedback>
         </div>
 
-        <div>
-          <label
-            htmlFor="entry-type"
-            className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-          >
-            {t('vault.entries.typeLabel')}
-          </label>
-          <div className="relative">
-            <select
-              id="entry-type"
-              value={String(type)}
-              onChange={(e) => setType(Number(e.target.value) as EntryType)}
-              disabled={isPending}
-              className="w-full appearance-none rounded-lg border border-[var(--cv-input-border)]
-                bg-[var(--cv-input-bg)] pl-3 pr-10 py-2 text-[12px] text-[var(--cv-input-text)]
-                focus:border-[var(--cv-t1)] focus:outline-none disabled:cursor-not-allowed
-                disabled:opacity-40"
-            >
-              <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
-              <option value={String(ENTRY_TYPE_CREDENTIAL)}>
-                {t('vault.entries.typeCredentialOption')}
-              </option>
-            </select>
-            <Icon
-              name="expand_more"
-              size={16}
-              className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--cv-t3)]"
-            />
-          </div>
-        </div>
+        <FormSelect
+          id="entry-type"
+          label={t('vault.entries.typeLabel')}
+          value={String(type)}
+          onChange={(e) => setType(Number(e.target.value) as EntryType)}
+          disabled={isPending}
+        >
+          <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
+          <option value={String(ENTRY_TYPE_CREDENTIAL)}>
+            {t('vault.entries.typeCredentialOption')}
+          </option>
+        </FormSelect>
 
         {type === ENTRY_TYPE_KEY ? (
           <div className="-mb-3">
@@ -342,15 +326,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           disabled={isPending}
         />
 
-        <div
-          className="flex items-center gap-2 rounded-lg border
-            border-[rgba(16,185,129,0.25)] bg-[rgba(16,185,129,0.08)] px-3 py-2"
-        >
-          <Icon name="enhanced_encryption" size={14} className="shrink-0" color="#10B981" />
-          <span className="text-[11px] text-[var(--cv-t2)]">
-            {t('vault.entries.encryptionNotice')}
-          </span>
-        </div>
+        <EncryptionNotice>{t('vault.entries.encryptionNotice')}</EncryptionNotice>
 
         <DialogFooter>
           <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">

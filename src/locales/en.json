@@ -969,5 +969,6 @@
   "vault.export.error": "Export failed. Please try again.",
   "settings.export.title": "Data export",
   "settings.export.subtitle": "Download every vault’s entries as a plaintext CSV or JSON file.",
-  "settings.export.cta": "Export all vaults"
+  "settings.export.cta": "Export all vaults",
+  "vault.import.format.manual": "Custom CSV (manual mapping)"
 }

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Icon } from '../../../shared/components/icon'
+import { FormSelect } from '../../../shared/components/form-select'
 import type {
   ColumnMapping,
   MappableField,
@@ -49,36 +49,20 @@ export function ImportColumnMapper({
 
       <div className="grid grid-cols-2 gap-2">
         {FIELDS.map((field) => (
-          <div key={field}>
-            <label
-              htmlFor={`map-${field}`}
-              className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
-            >
-              {t(`vault.import.field.${field}`)}
-            </label>
-            <div className="relative">
-              <select
-                id={`map-${field}`}
-                value={mapping[field] ?? ''}
-                onChange={(e) => setField(field, e.target.value)}
-                className="w-full appearance-none rounded-lg border border-[var(--cv-input-border)]
-                  bg-[var(--cv-input-bg)] pl-3 pr-9 py-2 text-[12px] text-[var(--cv-input-text)]
-                  focus:border-[var(--cv-t1)] focus:outline-none"
-              >
-                <option value="">{t('vault.import.mapper.unset')}</option>
-                {unmapped.headers.map((header) => (
-                  <option key={header} value={header}>
-                    {header}
-                  </option>
-                ))}
-              </select>
-              <Icon
-                name="expand_more"
-                size={16}
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--cv-t3)]"
-              />
-            </div>
-          </div>
+          <FormSelect
+            key={field}
+            id={`map-${field}`}
+            label={t(`vault.import.field.${field}`)}
+            value={mapping[field] ?? ''}
+            onChange={(e) => setField(field, e.target.value)}
+          >
+            <option value="">{t('vault.import.mapper.unset')}</option>
+            {unmapped.headers.map((header) => (
+              <option key={header} value={header}>
+                {header}
+              </option>
+            ))}
+          </FormSelect>
         ))}
       </div>
 

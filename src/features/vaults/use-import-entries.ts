@@ -29,6 +29,8 @@ const IMPORT_CHUNK_SIZE = 500
 const MAX_LABEL_LENGTH = 200
 const MAX_URL_DOMAIN_LENGTH = 255
 
+function cap(value: string, max: number): string
+function cap(value: string | undefined, max: number): string | undefined
 function cap(value: string | undefined, max: number): string | undefined {
   if (value == null) return undefined
   return value.length > max ? value.slice(0, max) : value
@@ -122,7 +124,7 @@ export function useImportEntries() {
             grantEntries.push({ grantId: grant.grantId, ...envelope })
           }
           items.push({
-            label: cap(entry.label, MAX_LABEL_LENGTH) ?? entry.label,
+            label: cap(entry.label, MAX_LABEL_LENGTH),
             type: entry.type,
             content,
             urlDomain: cap(extractDomain(entry.url), MAX_URL_DOMAIN_LENGTH),
@@ -145,7 +147,7 @@ export function useImportEntries() {
         for (const { entryId, entry } of input.overwrites) {
           const content = await encryptEntry(toPlaintext(entry), vaultKey)
           await updateEntry(input.vaultId, entryId, {
-            label: cap(entry.label, MAX_LABEL_LENGTH) ?? entry.label,
+            label: cap(entry.label, MAX_LABEL_LENGTH),
             urlDomain: cap(extractDomain(entry.url), MAX_URL_DOMAIN_LENGTH),
             content,
           })
@@ -161,6 +163,7 @@ export function useImportEntries() {
     onSuccess: (_result, variables) => {
       // Same invalidations as a single create — entries list, vault detail +
       // summary counts, and the cross-vault recent/search surfaces.
+      // Prefix match — also covers the entries/all + entry-detail sub-keys.
       queryClient.invalidateQueries({ queryKey: entriesQueryKey(variables.vaultId) })
       queryClient.invalidateQueries({ queryKey: vaultQueryKey(variables.vaultId) })
       queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })

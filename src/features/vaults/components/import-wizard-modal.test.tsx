@@ -13,7 +13,7 @@ vi.mock('../use-import-entries', () => ({
 }))
 
 vi.mock('../use-entries', () => ({
-  useEntries: () => ({ data: { items: [] } }),
+  useAllEntries: () => ({ data: [] }),
 }))
 
 vi.mock('../../../shared/lib/analytics', () => ({
