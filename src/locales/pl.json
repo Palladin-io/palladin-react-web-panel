@@ -1037,5 +1037,6 @@
   "audit.exportFailed": "Nie udało się wyeksportować dziennika. Spróbuj ponownie.",
   "audit.legend.desc.vaultExported": "Wpisy sejfu wyeksportowano do pliku (deszyfrowanie po stronie klienta; zapisany tylko licznik).",
   "audit.exportProOnly": "Eksport dziennika audytu jest dostępny od planu Pro wzwyż.",
-  "audit.sentence.vaultExported": "{{actor}} wyeksportował sejf {{object}}"
+  "audit.sentence.vaultExported": "{{actor}} wyeksportował sejf {{object}}",
+  "vault.iconBrowserBrand": "Ikony serwisów"
 }

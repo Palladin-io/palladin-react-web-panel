@@ -992,5 +992,6 @@
   "audit.exportFailed": "Couldn't export the audit log. Try again.",
   "audit.legend.desc.vaultExported": "Vault entries were exported to a file (client-side decryption; count only is recorded).",
   "audit.exportProOnly": "Audit log export is available on the Pro plan and higher.",
-  "audit.sentence.vaultExported": "{{actor}} exported vault {{object}}"
+  "audit.sentence.vaultExported": "{{actor}} exported vault {{object}}",
+  "vault.iconBrowserBrand": "Website icons"
 }

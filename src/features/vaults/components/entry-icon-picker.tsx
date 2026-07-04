@@ -145,6 +145,7 @@ export function EntryIconPicker({
       </div>
 
       <IconColorBrowser
+        showBrandIcons
         open={showBrowser}
         onClose={() => setShowBrowser(false)}
         icons={VAULT_ICON_ALL}

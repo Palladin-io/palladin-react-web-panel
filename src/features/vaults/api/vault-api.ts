@@ -258,3 +258,20 @@ export async function resolveFavicon(domain: string): Promise<string | null> {
 
 // Re-export for convenient consumption by hooks/tests.
 export type { GrantMode }
+
+export interface FaviconHit {
+  domain: string
+  iconUrl: string
+}
+
+/** Search the shared favicon index (brand icons section of the icon browser). */
+export async function searchFavicons(query: string): Promise<FaviconHit[]> {
+  try {
+    const res = await api
+      .get('api/vaults/favicons/search', { searchParams: query ? { query } : {} })
+      .json<{ icons: FaviconHit[] }>()
+    return res.icons
+  } catch {
+    return []
+  }
+}

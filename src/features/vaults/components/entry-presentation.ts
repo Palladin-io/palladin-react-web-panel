@@ -107,13 +107,27 @@ export function presentationForType(type: EntryType): EntryPresentation {
  * the field is optional on the wire so we never want to block a save
  * just because the user typed a partial host.
  */
+/** Google Password Manager app-credential URI: android://<signing-cert hash>@<package>/ */
+const ANDROID_CREDENTIAL_URI = /^android:\/\/[^@]+@([a-z0-9_.]+)\/?$/i
+
+/** Package ids are reverse-DNS — com.facebook.katana → facebook.com. */
+function domainFromAndroidPackage(packageId: string): string | undefined {
+  const [tld, name] = packageId.toLowerCase().split('.')
+  if (!name || !/^[a-z]{2,6}$/.test(tld)) return undefined
+  return `${name}.${tld}`
+}
+
 export function extractDomain(rawUrl: string | undefined): string | undefined {
   const trimmed = rawUrl?.trim()
   if (!trimmed) return undefined
+  const androidMatch = ANDROID_CREDENTIAL_URI.exec(trimmed)
+  if (androidMatch) return domainFromAndroidPackage(androidMatch[1])
   try {
     // Add a scheme if the user typed a bare domain so URL() accepts it.
     const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
-    return new URL(withScheme).hostname || undefined
+    const hostname = new URL(withScheme).hostname
+    // A dotless "hostname" (stray scheme, app id) is useless as a urlDomain.
+    return hostname.includes('.') ? hostname : undefined
   } catch {
     return undefined
   }
