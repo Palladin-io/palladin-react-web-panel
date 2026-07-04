@@ -82,17 +82,19 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
   useEffect(() => {
     const domain = extractDomain(url)
-    if (!domain || iconTouched) return
+    // Wait for a plausible full domain — mid-typing values ("https", "gith")
+    // would fire pointless resolve calls.
+    if (!domain || !domain.includes('.') || iconTouched) return
+    let cancelled = false
     const handle = setTimeout(async () => {
       const favicon = await resolveFavicon(domain)
-      setIcon((current) => {
-        if (favicon && (current === undefined || current.startsWith('https://'))) {
-          return favicon
-        }
-        return current
-      })
+      // iconTouched guards manual picks; a favicon may replace the type default.
+      if (favicon && !cancelled) setIcon(favicon)
     }, 500)
-    return () => clearTimeout(handle)
+    return () => {
+      cancelled = true
+      clearTimeout(handle)
+    }
   }, [url, iconTouched])
 
   useEffect(() => {
