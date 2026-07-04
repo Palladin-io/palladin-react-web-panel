@@ -103,6 +103,7 @@ const SENTENCE_DESC: Record<AuditEventType, string> = {
   'vault.created': 'vaultCreated',
   'vault.updated': 'vaultUpdated',
   'vault.deleted': 'vaultDeleted',
+  'vault.exported': 'vaultExported',
   'entry.created': 'entryCreated',
   'entry.updated': 'entryUpdated',
   'entry.deleted': 'entryDeleted',

@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { HTTPError } from 'ky'
 import { encryptEntry } from '../../shared/crypto/entry-crypto'
 import { produceGrantEntryEnvelope } from '../../shared/crypto/grant-envelope'
 import { wipe } from '../../shared/crypto/sodium'
@@ -70,13 +71,36 @@ export interface ImportEntriesInput {
   creates: ParsedEntry[]
   /** Existing entries to replace (conflict strategy = overwrite). */
   overwrites: ImportOverwrite[]
-  /** Progress callback — invoked after each entry is encrypted + sent. */
-  onProgress?: (done: number, total: number) => void
+  /** Progress callback — `phase` distinguishes local encryption from server saves. */
+  onProgress?: (done: number, total: number, phase: ImportPhase) => void
 }
 
 export interface ImportEntriesResult {
   importedCount: number
   updatedCount: number
+  /** Entries the server rejected — imported around via bisection, never silently dropped. */
+  failed: { label: string; reason: string }[]
+}
+
+export type ImportPhase = 'encrypt' | 'save'
+
+/** Human-readable reason from a ky HTTPError (FastEndpoints problem details), or a generic fallback. */
+async function readErrorReason(error: unknown): Promise<string> {
+  if (error instanceof HTTPError) {
+    try {
+      const body = (await error.response.clone().json()) as {
+        message?: string
+        errors?: Record<string, string[]>
+      }
+      const details = Object.entries(body.errors ?? {})
+        .map(([field, messages]) => `${field}: ${messages.join('; ')}`)
+        .join(' | ')
+      return details || body.message || error.message
+    } catch {
+      return error.message
+    }
+  }
+  return error instanceof Error ? error.message : String(error)
 }
 
 /** Map a parsed entry to the plaintext payload that gets encrypted under VK. */
@@ -117,11 +141,6 @@ export function useImportEntries() {
       if (!input.wrappedVK) throw new MissingWrappedVaultKeyError()
 
       const total = input.creates.length + input.overwrites.length
-      let done = 0
-      const bump = () => {
-        done += 1
-        input.onProgress?.(done, total)
-      }
 
       // Fetch the vault's active FULL grants ONCE — every new entry must be
       // re-wrapped for each of them (empty list = no grants, still valid).
@@ -155,29 +174,46 @@ export function useImportEntries() {
               urlDomain: cap(extractDomain(entry.url), MAX_URL_DOMAIN_LENGTH),
               grantEntries,
             })
-            bump()
+            input.onProgress?.(items.length, input.creates.length, 'encrypt')
           }
         } catch (error) {
           throw new ImportStepError('encrypt', error)
         }
 
         let importedCount = 0
-        try {
-          for (let i = 0; i < items.length; i += IMPORT_CHUNK_SIZE) {
-            const chunk = items.slice(i, i + IMPORT_CHUNK_SIZE)
+        const failed: { label: string; reason: string }[] = []
+        input.onProgress?.(0, total, 'save')
+
+        // A batch is atomic on the server — one bad row 400s the whole chunk. Bisect a
+        // failed chunk so every valid entry still lands and only the offenders are
+        // reported back, with the server's validation message attached.
+        const saveChunk = async (chunk: ImportEntryItem[]): Promise<void> => {
+          try {
             const response = await importEntries(input.vaultId, {
               format: input.format,
               entries: chunk,
             })
             importedCount += response.importedCount
+            input.onProgress?.(importedCount + failed.length, total, 'save')
+          } catch (error) {
+            if (chunk.length === 1) {
+              failed.push({ label: chunk[0].label ?? '', reason: await readErrorReason(error) })
+              input.onProgress?.(importedCount + failed.length, total, 'save')
+              return
+            }
+            const mid = Math.ceil(chunk.length / 2)
+            await saveChunk(chunk.slice(0, mid))
+            await saveChunk(chunk.slice(mid))
           }
-        } catch (error) {
-          throw new ImportStepError('save', error)
+        }
+
+        for (let i = 0; i < items.length; i += IMPORT_CHUNK_SIZE) {
+          await saveChunk(items.slice(i, i + IMPORT_CHUNK_SIZE))
         }
 
         let updatedCount = 0
-        try {
-          for (const { entryId, entry } of input.overwrites) {
+        for (const { entryId, entry } of input.overwrites) {
+          try {
             const content = await encryptEntry(toPlaintext(entry), vaultKey)
             await updateEntry(input.vaultId, entryId, {
               label: cap(entry.label, MAX_LABEL_LENGTH),
@@ -185,13 +221,13 @@ export function useImportEntries() {
               content,
             })
             updatedCount += 1
-            bump()
+          } catch (error) {
+            failed.push({ label: entry.label ?? '', reason: await readErrorReason(error) })
           }
-        } catch (error) {
-          throw new ImportStepError('overwrite', error)
+          input.onProgress?.(importedCount + updatedCount + failed.length, total, 'save')
         }
 
-        return { importedCount, updatedCount }
+        return { importedCount, updatedCount, failed }
       } finally {
         wipe(vaultKey)
       }

@@ -981,5 +981,14 @@
   "common.loadMore": "Load more",
   "common.loadMoreError": "Couldn't load more items.",
   "common.loadingMore": "Loading more…",
-  "vault.export.progress": "Exporting {{done}} of {{total}} entries…"
+  "vault.export.progress": "Exporting {{done}} of {{total}} entries…",
+  "vault.import.encrypting": "Encrypting {{done}} of {{total}}…",
+  "vault.import.saving": "Saving {{done}} of {{total}}…",
+  "vault.import.failedTitle": "{{count}} entries were rejected by the server:",
+  "vault.entries.iconFromUrl": "Website icon",
+  "audit.event.vaultExported": "Vault exported",
+  "audit.exporting": "Exporting…",
+  "audit.exportReady": "Audit log export downloaded.",
+  "audit.exportFailed": "Couldn't export the audit log. Try again.",
+  "audit.legend.desc.vaultExported": "Vault entries were exported to a file (client-side decryption; count only is recorded)."
 }

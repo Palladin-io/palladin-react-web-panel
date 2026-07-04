@@ -23,6 +23,7 @@ export const AUDIT_EVENT_TYPES = [
   'vault.created',
   'vault.updated',
   'vault.deleted',
+  'vault.exported',
   'entry.created',
   'entry.updated',
   'entry.deleted',
@@ -128,8 +129,11 @@ export interface AuditLogPage {
  * calendar day to an ISO instant (from = local midnight, to = local 23:59:59.999).
  */
 function dateParamToInstant(value: string, endOfDay: boolean): string {
-  if (value.includes('T')) return value
-  return new Date(`${value}T${endOfDay ? '23:59:59.999' : '00:00:00'}`).toISOString()
+  const iso = value.includes('T')
+    ? value
+    : new Date(`${value}T${endOfDay ? '23:59:59' : '00:00:00'}`).toISOString()
+  // NodaTime's Instant binder rejects fractional seconds — strip milliseconds.
+  return iso.replace(/\.\d{3}Z$/, 'Z')
 }
 
 /** Parse a raw page, dropping malformed rows so one bad item never blanks the list. */
@@ -192,4 +196,42 @@ export async function getOrgAuditLogs(
 
   const raw = await api.get('api/audit-logs', { searchParams }).json()
   return parseAuditLogPage(raw)
+}
+
+export interface AuditExportStatus {
+  jobId: string
+  status: string
+  rowCount: number | null
+  downloadable: boolean
+}
+
+/** Queue an async CSV export with the same filters as the list. Returns the job id. */
+export async function requestAuditExport(params: {
+  vaultId?: string
+  agentId?: string
+  userId?: string
+  eventType?: string
+  from?: string
+  to?: string
+}): Promise<string> {
+  const body: Record<string, unknown> = {}
+  if (params.vaultId) body.vaultId = params.vaultId
+  if (params.agentId) body.agentId = params.agentId
+  if (params.userId) body.userId = params.userId
+  if (params.eventType) body.eventType = params.eventType
+  if (params.from) body.from = dateParamToInstant(params.from, false)
+  if (params.to) body.to = dateParamToInstant(params.to, true)
+  const res = await api.post('api/audit-logs/export', { json: body }).json<{ jobId: string }>()
+  return res.jobId
+}
+
+export async function getAuditExport(jobId: string): Promise<AuditExportStatus> {
+  return api.get(`api/audit-logs/export/${jobId}`).json<AuditExportStatus>()
+}
+
+export async function getAuditExportDownloadUrl(jobId: string): Promise<string> {
+  const res = await api
+    .get(`api/audit-logs/export/${jobId}/download`)
+    .json<{ downloadUrl: string }>()
+  return res.downloadUrl
 }

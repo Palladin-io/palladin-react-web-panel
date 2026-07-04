@@ -1026,5 +1026,14 @@
   "common.loadMore": "Załaduj więcej",
   "common.loadMoreError": "Nie udało się doładować pozycji.",
   "common.loadingMore": "Ładowanie…",
-  "vault.export.progress": "Eksportowanie {{done}} z {{total}} wpisów…"
+  "vault.export.progress": "Eksportowanie {{done}} z {{total}} wpisów…",
+  "vault.import.encrypting": "Szyfrowanie {{done}} z {{total}}…",
+  "vault.import.saving": "Zapisywanie {{done}} z {{total}}…",
+  "vault.import.failedTitle": "Serwer odrzucił {{count}} wpisów:",
+  "vault.entries.iconFromUrl": "Ikona serwisu",
+  "audit.event.vaultExported": "Sejf wyeksportowany",
+  "audit.exporting": "Eksportowanie…",
+  "audit.exportReady": "Eksport dziennika pobrany.",
+  "audit.exportFailed": "Nie udało się wyeksportować dziennika. Spróbuj ponownie.",
+  "audit.legend.desc.vaultExported": "Wpisy sejfu wyeksportowano do pliku (deszyfrowanie po stronie klienta; zapisany tylko licznik)."
 }

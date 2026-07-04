@@ -54,8 +54,17 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
   const [result, setResult] = useState<ParseResult | null>(null)
   const [mapping, setMapping] = useState<ColumnMapping>({})
   const [strategy, setStrategy] = useState<ConflictStrategy>('skip')
-  const [progress, setProgress] = useState({ done: 0, total: 0 })
-  const [summary, setSummary] = useState({ imported: 0, updated: 0, skipped: 0 })
+  const [progress, setProgress] = useState<{
+    done: number
+    total: number
+    phase: 'encrypt' | 'save'
+  }>({ done: 0, total: 0, phase: 'encrypt' })
+  const [summary, setSummary] = useState<{
+    imported: number
+    updated: number
+    skipped: number
+    failed: { label: string; reason: string }[]
+  }>({ imported: 0, updated: 0, skipped: 0, failed: [] })
 
   // Entries after (for manual CSVs) applying the user's column mapping.
   const derived = useMemo(() => {
@@ -141,7 +150,7 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
       return
     }
     const total = creates.length + overwrites.length
-    setProgress({ done: 0, total })
+    setProgress({ done: 0, total, phase: 'encrypt' })
     setStep('importing')
     importMutation.mutate(
       {
@@ -150,7 +159,7 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
         format: result.format,
         creates,
         overwrites,
-        onProgress: (done, count) => setProgress({ done, total: count }),
+        onProgress: (done, count, phase) => setProgress({ done, total: count, phase }),
       },
       {
         onSuccess: (res) => {
@@ -158,12 +167,14 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
             imported: res.importedCount,
             updated: res.updatedCount,
             skipped: skippedCount + (entries.length - total),
+            failed: res.failed,
           })
           analytics.capture('vault', 'import-wizard-completed', {
             count: res.importedCount + res.updatedCount,
             format: result.format,
             skipped: skippedCount,
             conflicts: conflictCount,
+            failed: res.failed.length,
           })
           setStep('done')
         },
@@ -388,13 +399,22 @@ function PreviewStep({
   )
 }
 
-function ImportingStep({ progress }: { progress: { done: number; total: number } }) {
+function ImportingStep({
+  progress,
+}: {
+  progress: { done: number; total: number; phase: 'encrypt' | 'save' }
+}) {
   const { t } = useTranslation()
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0
   return (
     <div className="flex flex-col gap-3 py-4">
       <p className="text-[12px] text-[var(--cv-t2)]">
-        {t('vault.import.importing', { done: progress.done, total: progress.total })}
+        {t(
+          progress.phase === 'encrypt'
+            ? 'vault.import.encrypting'
+            : 'vault.import.saving',
+          { done: progress.done, total: progress.total },
+        )}
       </p>
       <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--cv-card-bg)]">
         <div
@@ -410,14 +430,24 @@ function DoneStep({
   summary,
   onClose,
 }: {
-  summary: { imported: number; updated: number; skipped: number }
+  summary: {
+    imported: number
+    updated: number
+    skipped: number
+    failed: { label: string; reason: string }[]
+  }
   onClose: () => void
 }) {
   const { t } = useTranslation()
+  const hasFailures = summary.failed.length > 0
   return (
     <>
       <div className="flex flex-col items-center gap-2 py-4 text-center">
-        <Icon name="check_circle" size={36} color="var(--cv-success)" />
+        <Icon
+          name={hasFailures ? 'warning' : 'check_circle'}
+          size={36}
+          color={hasFailures ? 'var(--cv-premium)' : 'var(--cv-success)'}
+        />
         <p className="text-[13px] font-semibold text-[var(--cv-t1)]">
           {t('vault.import.doneTitle')}
         </p>
@@ -428,6 +458,22 @@ function DoneStep({
             skipped: summary.skipped,
           })}
         </p>
+        {hasFailures && (
+          <div className="mt-1 w-full rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3 text-left">
+            <p className="mb-1 text-[11px] font-semibold text-[var(--cv-t1)]">
+              {t('vault.import.failedTitle', { count: summary.failed.length })}
+            </p>
+            <ul className="max-h-32 overflow-y-auto subtle-scrollbar">
+              {summary.failed.slice(0, 20).map((item, i) => (
+                <li key={i} className="truncate text-[11px] text-[var(--cv-t3)]">
+                  <span className="text-[var(--cv-t1)]">{item.label || '—'}</span>
+                  {' — '}
+                  {item.reason}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
       <DialogFooter>
         <Button variant="accent" size="sm" onClick={onClose} className="flex-1">

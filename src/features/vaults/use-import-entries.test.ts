@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from './types'
 import type { ParsedEntry } from './import'
-import { ImportStepError, useImportEntries } from './use-import-entries'
+import { useImportEntries } from './use-import-entries'
 import { entriesQueryKey } from './use-entries'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 
@@ -85,7 +85,7 @@ describe('useImportEntries', () => {
     expect(importEntriesMock).toHaveBeenCalledTimes(2)
     expect(importEntriesMock.mock.calls[0][1].entries).toHaveLength(500)
     expect(importEntriesMock.mock.calls[1][1].entries).toHaveLength(100)
-    expect(result.current.data).toEqual({ importedCount: 600, updatedCount: 0 })
+    expect(result.current.data).toEqual({ importedCount: 600, updatedCount: 0, failed: [] })
   })
 
   it('sends overwrites as individual updates and invalidates list keys', async () => {
@@ -103,15 +103,17 @@ describe('useImportEntries', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(updateEntryMock).toHaveBeenCalledTimes(1)
     expect(updateEntryMock.mock.calls[0][0]).toBe('vault-1')
-    expect(result.current.data).toEqual({ importedCount: 1, updatedCount: 1 })
+    expect(result.current.data).toEqual({ importedCount: 1, updatedCount: 1, failed: [] })
 
     const keys = invalidateSpy.mock.calls.map((c) => c[0]?.queryKey)
     expect(keys).toContainEqual(VAULTS_QUERY_KEY)
     expect(keys).toContainEqual(entriesQueryKey('vault-1'))
   })
 
-  it('tags a failing import POST as the "save" step', async () => {
-    importEntriesMock.mockRejectedValueOnce(new Error('500'))
+  it('reports a rejected entry as failed instead of dropping the batch', async () => {
+    // The chunk is atomic on the server — bisection retries down to the single
+    // offender and reports it with the reason, so no other entry is lost.
+    importEntriesMock.mockRejectedValueOnce(new Error('label: too long'))
     const { wrapper } = makeWrapper()
     const { result } = renderHook(() => useImportEntries(), { wrapper })
 
@@ -123,9 +125,35 @@ describe('useImportEntries', () => {
       overwrites: [],
     })
 
-    await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(result.current.error).toBeInstanceOf(ImportStepError)
-    expect((result.current.error as ImportStepError).step).toBe('save')
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.importedCount).toBe(0)
+    expect(result.current.data?.failed).toEqual([
+      { label: 'GitHub', reason: 'label: too long' },
+    ])
+  })
+
+  it('bisects a failed chunk so valid entries still import', async () => {
+    // 2-item chunk: whole chunk 400s, then each half retries — one succeeds,
+    // the other is reported as failed.
+    importEntriesMock.mockRejectedValueOnce(new Error('bad item'))
+    importEntriesMock.mockResolvedValueOnce({ importedCount: 1, entryIds: ['e1'] })
+    importEntriesMock.mockRejectedValueOnce(new Error('bad item'))
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useImportEntries(), { wrapper })
+
+    result.current.mutate({
+      vaultId: 'vault-1',
+      wrappedVK: 'WRAPPED',
+      format: 'generic-csv',
+      creates: [credential('GitHub'), credential('GitLab')],
+      overwrites: [],
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.importedCount).toBe(1)
+    expect(result.current.data?.failed).toEqual([
+      { label: 'GitLab', reason: 'bad item' },
+    ])
   })
 
   it('re-wraps each created entry for every active FULL grant (keyed by grantId)', async () => {

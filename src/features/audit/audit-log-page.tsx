@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
 import { ModalShell } from '../../shared/components/modal-shell'
 import { ScrollArea } from '../../shared/components/scroll-area'
@@ -9,6 +10,11 @@ import { useAuthStore } from '../auth'
 // the vaults barrel pulls in the vault detail page, which renders this feature.
 import { useVaults } from '../vaults/use-vaults'
 import { filterAuditLogs } from './audit-log-filter'
+import {
+  getAuditExport,
+  getAuditExportDownloadUrl,
+  requestAuditExport,
+} from './api/audit-api'
 import { csvParam } from './filter-params'
 import { AuditFilterBar, type AuditFilterState } from './components/audit-filter-bar'
 import { AuditLogLegend } from './components/audit-log-legend'
@@ -44,6 +50,38 @@ export function AuditLogPage() {
 
   const [filter, setFilter] = useState<AuditFilterState>(EMPTY_FILTER)
   const [legendOpen, setLegendOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  const handleExportCsv = async () => {
+    setExporting(true)
+    try {
+      const jobId = await requestAuditExport({
+        eventType: csvParam(filter.eventType),
+        agentId: csvParam(filter.agentId),
+        userId: csvParam(filter.userId),
+        vaultId: csvParam(filter.vaultId),
+        from: filter.from || undefined,
+        to: filter.to || undefined,
+      })
+      // The export runs as a background job — poll until the file is ready (24h-valid link).
+      const deadline = Date.now() + 120_000
+      while (Date.now() < deadline) {
+        const status = await getAuditExport(jobId)
+        if (status.downloadable) {
+          window.location.assign(await getAuditExportDownloadUrl(jobId))
+          toast.success(t('audit.exportReady'))
+          return
+        }
+        if (status.status.toLowerCase() === 'failed') break
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+      }
+      toast.error(t('audit.exportFailed'))
+    } catch {
+      toast.error(t('audit.exportFailed'))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const vaults = useVaults({ enabled: canView })
   const vaultList = vaults.data?.vaults
@@ -100,17 +138,14 @@ export function AuditLogPage() {
             >
               {t('audit.legend.action')}
             </Button>
-            {/* TODO(CVT-141): wire to the backend async CSV export job once it ships.
-                Native `title` (not the truncation-only Tooltip) so the hint shows
-                on the disabled button. */}
             <Button
               variant="subtle"
               size="sm"
               icon="download"
-              disabled
-              title={t('audit.exportComingSoon')}
+              disabled={!canView || exporting}
+              onClick={handleExportCsv}
             >
-              {t('audit.exportCsv')}
+              {exporting ? t('audit.exporting') : t('audit.exportCsv')}
             </Button>
           </div>
         </div>
