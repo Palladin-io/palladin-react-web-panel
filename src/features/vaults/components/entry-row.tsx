@@ -17,8 +17,7 @@ import {
   type EntryPlaintext,
 } from '../types'
 import { useEntryDetail } from '../use-entries'
-import { ENTRY_ICON_COLORS, isCustomIconUrl, presentationForType } from './entry-presentation'
-import { hexWithAlpha } from './vault-color'
+import { EntryIcon } from './entry-icon'
 
 export interface EntryRowProps {
   vaultId: string
@@ -41,13 +40,6 @@ export interface EntryRowProps {
  */
 export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProps) {
   const { t } = useTranslation()
-  const presentation = presentationForType(entry.type)
-  const iconValue = entry.icon ?? presentation.defaultIcon
-  const isCustomIcon = isCustomIconUrl(iconValue)
-  const iconColor =
-    entry.color ??
-    (!isCustomIcon ? (ENTRY_ICON_COLORS[iconValue] ?? presentation.iconColor) : presentation.iconColor)
-  const iconBg = hexWithAlpha(iconColor, 0.12)
 
   const [revealOpen, setRevealOpen] = useState(false)
   // Whether we need the full (encrypted) entry — driven by BOTH reveal and
@@ -139,17 +131,7 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
             focus-visible:ring-[var(--cv-t1)] focus-visible:ring-offset-2
             focus-visible:ring-offset-[var(--cv-card-bg)]"
         >
-          <span
-            aria-hidden
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
-            style={{ backgroundColor: iconBg, color: iconColor }}
-          >
-            {isCustomIcon ? (
-              <img src={iconValue} alt="" className="h-5 w-5 rounded-full object-cover" />
-            ) : (
-              <Icon name={iconValue} size={16} color={iconColor} />
-            )}
-          </span>
+          <EntryIcon icon={entry.icon} type={entry.type} color={entry.color} />
           <div className="flex min-w-0 flex-1 flex-col">
             <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
               {entry.label}

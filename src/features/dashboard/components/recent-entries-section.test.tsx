@@ -31,14 +31,8 @@ vi.mock('../../vaults', () => ({
   ENTRY_TYPE_CREDENTIAL: 1,
   normalizeEntryType: (raw: unknown) =>
     raw === 'key' || raw === 0 ? 0 : 1,
-  ENTRY_ICON_COLORS: {} as Record<string, string>,
-  isCustomIconUrl: () => false,
-  presentationForType: () => ({
-    defaultIcon: 'vpn_key',
-    iconColor: '#10B981',
-    iconBg: 'rgba(16,185,129,0.12)',
-  }),
-  hexWithAlpha: () => 'rgba(16,185,129,0.12)',
+  // Icon rendering is covered by entry-icon's own tests — stub here.
+  EntryIcon: () => null,
 }))
 
 vi.mock('@tanstack/react-router', () => ({

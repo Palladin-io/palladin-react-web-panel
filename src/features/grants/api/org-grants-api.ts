@@ -132,6 +132,41 @@ export async function getOrgGrants(
   return { items, nextCursor: page.nextCursor ?? null }
 }
 
+/** A vault's active FULL grant, reduced to what a re-wrap needs. */
+export interface ActiveFullGrant {
+  grantId: string
+  agentPublicKey: string
+}
+
+/**
+ * Collect every ACTIVE FULL grant on a vault, paginating the org-grants list.
+ * Rows without an agent public key are dropped — the client cannot seal a DEK
+ * without it. Used by the Import Wizard to re-wrap each new entry for the agents
+ * that already hold vault-wide access (the backend requires exactly these).
+ */
+export async function collectActiveFullGrants(
+  vaultId: string,
+): Promise<ActiveFullGrant[]> {
+  const grants: ActiveFullGrant[] = []
+  let cursor: string | undefined
+  do {
+    const page = await getOrgGrants({
+      vaultId,
+      status: GRANT_STATUS_ACTIVE,
+      cursor,
+      // Backend caps cursor pagination at 100 per page.
+      pageSize: 100,
+    })
+    for (const grant of page.items) {
+      if (grant.type === GRANT_TYPE_FULL && grant.agentPublicKey) {
+        grants.push({ grantId: grant.id, agentPublicKey: grant.agentPublicKey })
+      }
+    }
+    cursor = page.nextCursor ?? undefined
+  } while (cursor)
+  return grants
+}
+
 /** Revoke an active grant (optional reason, max 500 chars). */
 export async function revokeGrant(
   vaultId: string,

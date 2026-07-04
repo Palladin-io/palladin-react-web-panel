@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
@@ -6,6 +6,7 @@ import { ErrorState } from '../../shared/components/error-state'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { GrantAccessDialog, OrgGrantsPanel } from '../grants'
 import { CreateEntryModal } from './components/create-entry-modal'
+import { ExportDialog } from './components/export-dialog'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import {
   VaultDetailTabs,
@@ -17,6 +18,15 @@ import { VaultListPanel } from './components/vault-list-panel'
 import { VaultSettingsForm } from './components/vault-settings-form'
 import type { Vault } from './types'
 import { useVault } from './use-vault'
+
+// The import wizard pulls in the CSV/JSON/XML/ZIP parsers (papaparse + fflate,
+// ~70KB gzip). Lazy-load it so those bytes stay out of the /vaults route bundle
+// until the user actually opens Import.
+const ImportWizardModal = lazy(() =>
+  import('./components/import-wizard-modal').then((m) => ({
+    default: m.ImportWizardModal,
+  })),
+)
 
 export interface VaultDetailPageProps {
   vaultId: string
@@ -40,6 +50,8 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
   const vault = useVault(vaultId)
   const [activeTab, setActiveTab] = useState<VaultDetailTab>(initialTab ?? 'entries')
   const [createEntryOpen, setCreateEntryOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
   const [addAgentOpen, setAddAgentOpen] = useState(false)
   const isWide = useWideScreen(1280)
 
@@ -55,6 +67,8 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
         onTabChange={setActiveTab}
         onBack={() => navigate({ to: '/vaults' })}
         onAddEntry={() => setCreateEntryOpen(true)}
+        onImport={() => setImportOpen(true)}
+        onExport={() => setExportOpen(true)}
         onAddAgent={() => setAddAgentOpen(true)}
         showHeader={!isWide}
       />
@@ -62,6 +76,20 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
         open={createEntryOpen}
         vault={vault.data}
         onClose={() => setCreateEntryOpen(false)}
+      />
+      {importOpen && (
+        <Suspense fallback={null}>
+          <ImportWizardModal
+            open
+            vault={vault.data}
+            onClose={() => setImportOpen(false)}
+          />
+        </Suspense>
+      )}
+      <ExportDialog
+        open={exportOpen}
+        vaults={[{ id: vault.data.id, name: vault.data.name }]}
+        onClose={() => setExportOpen(false)}
       />
       {addAgentOpen && (
         <GrantAccessDialog
@@ -100,6 +128,8 @@ interface DetailBodyProps {
   onTabChange: (next: VaultDetailTab) => void
   onBack?: () => void
   onAddEntry: () => void
+  onImport: () => void
+  onExport: () => void
   onAddAgent: () => void
   showHeader?: boolean
 }
@@ -110,6 +140,8 @@ function DetailBody({
   onTabChange,
   onBack,
   onAddEntry,
+  onImport,
+  onExport,
   onAddAgent,
   showHeader = true,
 }: DetailBodyProps) {
@@ -127,6 +159,8 @@ function DetailBody({
             <TabActions
               activeTab={activeTab}
               onAddEntry={onAddEntry}
+              onImport={onImport}
+              onExport={onExport}
               onAddAgent={onAddAgent}
             />
           }
@@ -140,6 +174,8 @@ function DetailBody({
             <TabActions
               activeTab={activeTab}
               onAddEntry={onAddEntry}
+              onImport={onImport}
+              onExport={onExport}
               onAddAgent={onAddAgent}
             />
           )
@@ -153,17 +189,22 @@ function DetailBody({
 interface TabActionsProps {
   activeTab: VaultDetailTab
   onAddEntry: () => void
+  onImport: () => void
+  onExport: () => void
   onAddAgent: () => void
 }
 
-function TabActions({ activeTab, onAddEntry, onAddAgent }: TabActionsProps) {
+function TabActions({ activeTab, onAddEntry, onImport, onExport, onAddAgent }: TabActionsProps) {
   const { t } = useTranslation()
 
   switch (activeTab) {
     case 'entries':
       return (
         <>
-          <Button variant="subtle" size="sm" icon="file_upload">
+          <Button variant="subtle" size="sm" icon="file_download" onClick={onExport}>
+            {t('vault.detail.export')}
+          </Button>
+          <Button variant="subtle" size="sm" icon="file_upload" onClick={onImport}>
             {t('vault.detail.import')}
           </Button>
           <Button variant="accent" size="sm" icon="add" onClick={onAddEntry}>

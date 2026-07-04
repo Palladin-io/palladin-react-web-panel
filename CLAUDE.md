@@ -177,7 +177,7 @@ Every-iteration reuse reference. Reach for the shared component before writing m
 | Text / URL / email input | `FormInput` | Any labelled single-line field |
 | Password input | `SecretInput` | Secrets with show/hide; masks via `.secret-mask`, never `type=password` |
 | Textarea | `FormTextarea` | Multi-line; `monospace` for code/keys |
-| Select / dropdown | **missing** → `FormSelect` | Native `<select>` styling; currently inlined 2× — extract |
+| Select / dropdown | `FormSelect` | Native `<select>` styling with chevron; pass `<option>`s as children |
 | Button | `Button` | All buttons; always `size="sm"` |
 | Modal | `ModalShell` + `DialogFooter` | Any dialog; see `dialogs.md` |
 | Detail tabs | `VaultDetailTabs` (canonical); **extract** `DetailTabBar` | Detail-view tab strips; 4 divergent copies exist |

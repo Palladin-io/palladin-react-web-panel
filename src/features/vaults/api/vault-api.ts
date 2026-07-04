@@ -1,4 +1,5 @@
 import { api } from '../../../shared/api/client'
+import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
 import { normalizeEntryType } from '../types'
 import type {
   CreateEntryPayload,
@@ -6,6 +7,7 @@ import type {
   EntryContent,
   EntryDetail,
   EntryListItem,
+  EntryType,
   GrantMode,
   UpdateVaultInput,
   Vault,
@@ -89,9 +91,14 @@ export interface EntryListResponse {
   nextCursor?: string
 }
 
-export async function getEntries(vaultId: string): Promise<EntryListResponse> {
+export async function getEntries(
+  vaultId: string,
+  cursor?: string,
+): Promise<EntryListResponse> {
   const response = await api
-    .get(`api/vaults/${vaultId}/entries`)
+    .get(`api/vaults/${vaultId}/entries`, {
+      searchParams: cursor ? { cursor } : undefined,
+    })
     .json<EntryListResponse>()
   // The backend serialises `type` as a string ("key"/"credential"); normalise
   // it to the numeric EntryType every consumer compares against.
@@ -102,6 +109,23 @@ export async function getEntries(vaultId: string): Promise<EntryListResponse> {
       type: normalizeEntryType(item.type),
     })),
   }
+}
+
+/**
+ * Fetch EVERY entry of a vault by following the cursor to the last page. Use
+ * this when the caller needs the complete set — bulk export and import
+ * conflict-detection — rather than {@link getEntries}, which returns only the
+ * first page and would silently miss entries in vaults larger than one page.
+ */
+export async function getAllEntries(vaultId: string): Promise<EntryListItem[]> {
+  const all: EntryListItem[] = []
+  let cursor: string | undefined
+  do {
+    const page = await getEntries(vaultId, cursor)
+    all.push(...page.items)
+    cursor = page.nextCursor
+  } while (cursor)
+  return all
 }
 
 export async function getEntry(
@@ -153,6 +177,68 @@ export function presignEntryIcon(
   return api
     .post(`api/vaults/${vaultId}/entries/${entryId}/icon/presign`, { json: { extension } })
     .json<PresignResponse>()
+}
+
+/**
+ * One entry in a bulk import request — a single create-entry payload plus the
+ * `grantEntries` re-wrap material. The backend requires exactly one entry here
+ * per ACTIVE FULL grant on the vault (empty when none): each carries the new
+ * entry's plaintext re-encrypted under a fresh DEK sealed to that grant's agent,
+ * keyed by `grantId`. The client encrypts against the vault key before building
+ * this.
+ */
+export interface ImportEntryItem {
+  label: string
+  description?: string
+  icon?: string
+  type: EntryType
+  content: EntryContent
+  urlDomain?: string
+  grantEntries: ({ grantId: string } & GrantEntryEnvelope)[]
+}
+
+export interface ImportEntriesBody {
+  format: string
+  entries: ImportEntryItem[]
+}
+
+export interface ImportEntriesResponse {
+  importedCount: number
+  entryIds: string[]
+}
+
+/**
+ * Bulk-create encrypted entries. The backend caps a single request at 500
+ * items; callers chunk larger imports and sum the responses.
+ *
+ * A 2xx response with an empty body is treated as success (imported count =
+ * items sent). This guards the "data saved but the wizard shows an error" case:
+ * `.json()` throws on an empty body, which would fire the mutation's `onError`
+ * even though every entry was persisted.
+ */
+export async function importEntries(
+  vaultId: string,
+  body: ImportEntriesBody,
+): Promise<ImportEntriesResponse> {
+  const response = await api.post(`api/vaults/${vaultId}/entries/import`, {
+    json: body,
+  })
+  const text = await response.text()
+  if (!text.trim()) {
+    return { importedCount: body.entries.length, entryIds: [] }
+  }
+  return JSON.parse(text) as ImportEntriesResponse
+}
+
+/**
+ * Record that a plaintext export happened. Fire-and-forget from the UI — a
+ * failed audit write must never block the user's download.
+ */
+export async function exportAudit(
+  vaultId: string,
+  body: { format: string; entryCount: number },
+): Promise<void> {
+  await api.post(`api/vaults/${vaultId}/export-audit`, { json: body })
 }
 
 // Re-export for convenient consumption by hooks/tests.

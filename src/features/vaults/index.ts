@@ -1,6 +1,10 @@
 export { VaultListPage } from './vault-list-page'
 export { VaultCard } from './components/vault-card'
 export { VaultDetailPage } from './vault-detail-page'
+export { ExportDialog } from './components/export-dialog'
+// ImportWizardModal is intentionally NOT re-exported here: it is lazy-loaded in
+// vault-detail-page so its parser deps (papaparse + fflate) stay out of the
+// route bundle. A static barrel re-export would defeat that code-split.
 export type { VaultDetailTab } from './components/vault-detail-tabs'
 export { VaultSettingsPage } from './vault-settings-page'
 export { EntryDetailPage } from './entry-detail-page'
@@ -28,7 +32,7 @@ export {
 } from './types'
 export { useVaults } from './use-vaults'
 export { useVault } from './use-vault'
-export { useEntries, useEntryDetail } from './use-entries'
+export { useEntriesInfinite, useAllEntries, useEntryDetail } from './use-entries'
 export { useCreateEntry } from './use-create-entry'
 // Promoted for the dashboard "Recently added / modified" widget (CVT-189) so a
 // lightweight entry row can reuse the canonical icon/colour presentation
@@ -38,4 +42,5 @@ export {
   isCustomIconUrl,
   presentationForType,
 } from './components/entry-presentation'
+export { EntryIcon } from './components/entry-icon'
 export { hexWithAlpha } from './components/vault-color'

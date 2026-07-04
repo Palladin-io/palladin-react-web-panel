@@ -1,8 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
-import { getEntries, getEntry } from './api/vault-api'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { getAllEntries, getEntries, getEntry } from './api/vault-api'
 
 export function entriesQueryKey(vaultId: string) {
   return ['vaults', vaultId, 'entries'] as const
+}
+
+export function allEntriesQueryKey(vaultId: string) {
+  return ['vaults', vaultId, 'entries', 'all'] as const
 }
 
 export function entryDetailQueryKey(vaultId: string, entryId: string) {
@@ -10,14 +14,33 @@ export function entryDetailQueryKey(vaultId: string, entryId: string) {
 }
 
 /**
- * Fetch the metadata-only entry list for a vault. The encrypted blob
- * is intentionally omitted — see {@link useEntryDetail} for the lazy
- * single-entry fetch used by the reveal panel.
+ * Cursor-paginated, metadata-only entry list for a vault — the list UI follows
+ * `nextCursor` via "Load more" so vaults larger than one page render fully. The
+ * encrypted blob is omitted; see {@link useEntryDetail} for the lazy single-entry
+ * fetch used by the reveal panel. For the COMPLETE set in one shot (export,
+ * conflict detection) use {@link useAllEntries} / `getAllEntries`.
  */
-export function useEntries(vaultId: string) {
-  return useQuery({
+export function useEntriesInfinite(vaultId: string) {
+  return useInfiniteQuery({
     queryKey: entriesQueryKey(vaultId),
-    queryFn: () => getEntries(vaultId),
+    queryFn: ({ pageParam }) => getEntries(vaultId, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    staleTime: 30_000,
+  })
+}
+
+/**
+ * Fetch the COMPLETE entry list (all pages) for a vault. Used by the import
+ * wizard to detect label conflicts against every existing entry, not just the
+ * first page. Kept under a distinct key so it doesn't clash with the paged
+ * {@link useEntries} cache.
+ */
+export function useAllEntries(vaultId: string, enabled = true) {
+  return useQuery({
+    queryKey: allEntriesQueryKey(vaultId),
+    queryFn: () => getAllEntries(vaultId),
+    enabled,
     staleTime: 30_000,
   })
 }
