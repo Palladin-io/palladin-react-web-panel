@@ -58,7 +58,9 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
   const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
   const [color, setColor] = useState('#10B981')
-  const [icon, setIcon] = useState<string | undefined>(undefined)
+  // Pre-select the type's default glyph so a tile is always visibly chosen;
+  // switching type follows along until the user (or a favicon) picks something.
+  const [icon, setIcon] = useState<string | undefined>('vpn_key')
   const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
   const [label, setLabel] = useState('')
   const [labelError, setLabelError] = useState(false)
@@ -245,7 +247,17 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           id="entry-type"
           label={t('vault.entries.typeLabel')}
           value={String(type)}
-          onChange={(e) => setType(Number(e.target.value) as EntryType)}
+          onChange={(e) => {
+            const nextType = Number(e.target.value) as EntryType
+            setType(nextType)
+            if (!iconTouched) {
+              setIcon((current) =>
+                current === undefined || current === 'vpn_key' || current === 'language'
+                  ? nextType === ENTRY_TYPE_KEY ? 'vpn_key' : 'language'
+                  : current,
+              )
+            }
+          }}
           disabled={isPending}
         >
           <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
