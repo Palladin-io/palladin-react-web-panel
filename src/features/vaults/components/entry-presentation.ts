@@ -1,4 +1,4 @@
-import { ENTRY_TYPE_KEY, type EntryType } from '../types'
+import { ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT, type EntryType } from '../types'
 
 export const ENTRY_ICON_OPTIONS = [
   // Auth / Security
@@ -97,8 +97,16 @@ const CREDENTIAL_PRESENTATION: EntryPresentation = {
   iconBg: 'rgba(96,165,250,0.12)',
 }
 
+const SCRIPT_PRESENTATION: EntryPresentation = {
+  defaultIcon: 'terminal',
+  iconColor: '#A78BFA',
+  iconBg: 'rgba(167,139,250,0.12)',
+}
+
 export function presentationForType(type: EntryType): EntryPresentation {
-  return type === ENTRY_TYPE_KEY ? KEY_PRESENTATION : CREDENTIAL_PRESENTATION
+  if (type === ENTRY_TYPE_KEY) return KEY_PRESENTATION
+  if (type === ENTRY_TYPE_SCRIPT) return SCRIPT_PRESENTATION
+  return CREDENTIAL_PRESENTATION
 }
 
 /**
@@ -135,5 +143,12 @@ export function extractDomain(rawUrl: string | undefined): string | undefined {
 
 /** Default picker glyph for an entry type — single source for form initial state. */
 export function defaultIconFor(type: number): string {
-  return type === 0 ? 'vpn_key' : 'language'
+  if (type === ENTRY_TYPE_KEY) return 'vpn_key'
+  if (type === ENTRY_TYPE_SCRIPT) return 'terminal'
+  return 'language'
+}
+
+/** Default icon-circle colour for an entry type — used as the form default. */
+export function defaultColorFor(type: EntryType): string {
+  return presentationForType(type).iconColor
 }
