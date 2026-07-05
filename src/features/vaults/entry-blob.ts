@@ -20,6 +20,9 @@ export function newFieldId(): string {
   return crypto.randomUUID()
 }
 
+/** Default label stored for the dedicated credential 2FA field. */
+export const DEFAULT_TOTP_LABEL = '2FA'
+
 /** Build a blank editable field of the given kind (empty label + value). */
 export function blankField(type: CustomFieldType): CustomField {
   if (type === 'totp') {
@@ -28,8 +31,78 @@ export function blankField(type: CustomFieldType): CustomField {
   return { id: newFieldId(), label: '', type, value: '' }
 }
 
+/** A blank dedicated credential-2FA field (fixed label, empty seed). */
+export function newTotpField(): CustomField {
+  return { id: newFieldId(), label: DEFAULT_TOTP_LABEL, type: 'totp', value: emptyTotp() }
+}
+
 function emptyTotp(): TotpParams {
   return { secret: '', algorithm: 'SHA1', digits: 6, period: 30 }
+}
+
+/**
+ * Split the dedicated credential 2FA field (the FIRST totp field) from the rest.
+ * The pinned field renders as a first-class row under the password; any further
+ * totp fields stay in Additional fields. Order of the remaining fields is kept.
+ */
+export function splitCredentialTotp(fields: CustomField[]): {
+  pinned: CustomField | null
+  rest: CustomField[]
+} {
+  const index = fields.findIndex((f) => f.type === 'totp')
+  if (index === -1) return { pinned: null, rest: fields }
+  return {
+    pinned: fields[index],
+    rest: fields.filter((_, i) => i !== index),
+  }
+}
+
+/** Merge the dedicated 2FA field back in front of the additional fields. */
+export function mergeCredentialTotp(
+  pinned: CustomField | null,
+  rest: CustomField[],
+): CustomField[] {
+  return pinned ? [pinned, ...rest] : rest
+}
+
+export type CustomFieldError = 'label-required' | 'duplicate-label'
+
+export interface CustomFieldValidation {
+  /** Per-field-id error, if any. */
+  errors: Record<string, CustomFieldError>
+  hasError: boolean
+}
+
+/** Does an editable field carry a value worth persisting? */
+function fieldHasValue(field: CustomField): boolean {
+  if (isTotpField(field)) return field.value.secret.trim() !== ''
+  return typeof field.value === 'string' && field.value.trim() !== ''
+}
+
+/**
+ * Validate an editable field set: a row with a value must have a label (else its
+ * value would be silently dropped at fold time), and labels must be unique
+ * (case-insensitive) because the agent CLI rejects duplicate field labels.
+ */
+export function validateCustomFields(fields: CustomField[]): CustomFieldValidation {
+  const errors: Record<string, CustomFieldError> = {}
+
+  const byLabel = new Map<string, string[]>()
+  for (const field of fields) {
+    const label = field.label.trim().toLowerCase()
+    if (!label) {
+      if (fieldHasValue(field)) errors[field.id] = 'label-required'
+      continue
+    }
+    byLabel.set(label, [...(byLabel.get(label) ?? []), field.id])
+  }
+  for (const ids of byLabel.values()) {
+    if (ids.length > 1) {
+      for (const id of ids) errors[id] = errors[id] ?? 'duplicate-label'
+    }
+  }
+
+  return { errors, hasError: Object.keys(errors).length > 0 }
 }
 
 /**

@@ -45,14 +45,21 @@ import {
   type Vault,
 } from './types'
 import {
+  DEFAULT_TOTP_LABEL,
   foldCustomFields,
   foldScriptRefs,
+  mergeCredentialTotp,
+  newFieldId,
   plaintextsEqual,
   readCustomFields,
+  splitCredentialTotp,
+  validateCustomFields,
 } from './entry-blob'
+import { parseOtpauthUri } from '../../shared/crypto/totp'
 import { CustomFieldsEditor } from './components/custom-fields-editor'
+import { CredentialTotpField } from './components/credential-totp-field'
+import { ScriptEditor } from './components/script-editor'
 import { ScriptRefsEditor } from './components/script-refs-editor'
-import { OtpauthTotp } from './components/totp-display'
 import { FormSelect } from '../../shared/components/form-select'
 import { WarningZone } from '../../shared/components/warning-zone'
 import { useDeleteEntry } from './use-delete-entry'
@@ -365,6 +372,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
 
   // Custom fields + script state (populated after decrypt).
   const [customFields, setCustomFields] = useState<CustomField[]>([])
+  const [credentialTotp, setCredentialTotp] = useState<CustomField | null>(null) // CREDENTIAL only
   const [script, setScript] = useState('') // SCRIPT only
   const [scriptError, setScriptError] = useState(false)
   const [interpreter, setInterpreter] = useState<ScriptInterpreter>('bash')
@@ -414,17 +422,27 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         try {
           const pt = await decryptEntry(entry.content, vaultKey)
           if (cancelled) return
-          setOriginalPlaintext(pt)
-          setCustomFields(readCustomFields(pt))
           if (pt.type === ENTRY_TYPE_KEY) {
+            setOriginalPlaintext(pt)
+            setCustomFields(readCustomFields(pt))
             setSecretValue(pt.value)
             setNotes(pt.notes ?? '')
           } else if (pt.type === ENTRY_TYPE_SCRIPT) {
+            setOriginalPlaintext(pt)
+            setCustomFields(readCustomFields(pt))
             setScript(pt.script)
             setInterpreter(pt.interpreter)
             setRefs(pt.refs ?? [])
             setNotes(pt.notes ?? '')
           } else {
+            // CREDENTIAL: pin the first TOTP field into the dedicated 2FA row.
+            // A legacy top-level `totp` URI (string) with no TOTP field is
+            // migrated to a field object; the baseline reflects that migration
+            // so the form isn't spuriously dirty on load.
+            const { pinned, rest, baseline } = pinCredentialTotp(pt)
+            setOriginalPlaintext(baseline)
+            setCredentialTotp(pinned)
+            setCustomFields(rest)
             setUsername(pt.username)
             setPassword(pt.password)
             setUrl(pt.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : ''))
@@ -471,6 +489,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       interpreter,
       refs,
       customFields,
+      credentialTotp,
     })
   }, [
     originalPlaintext,
@@ -484,7 +503,16 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     interpreter,
     refs,
     customFields,
+    credentialTotp,
   ])
+
+  // Merged field set for a credential (pinned 2FA + additional) — the shape
+  // validated and folded to the blob. KEY/SCRIPT have no pinned 2FA.
+  const mergedFields =
+    entry.type === ENTRY_TYPE_CREDENTIAL
+      ? mergeCredentialTotp(credentialTotp, customFields)
+      : customFields
+  const fieldsInvalid = validateCustomFields(mergedFields).hasError
 
   const contentChanged = useMemo(() => {
     const current = currentPlaintext()
@@ -517,17 +545,21 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setUrlError(false)
     setScriptError(false)
     if (originalPlaintext) {
-      setCustomFields(readCustomFields(originalPlaintext))
       if (originalPlaintext.type === ENTRY_TYPE_KEY) {
+        setCustomFields(readCustomFields(originalPlaintext))
         setSecretValue(originalPlaintext.value)
         setNotes(originalPlaintext.notes ?? '')
         setUrl(entry.urlDomain ? `https://${entry.urlDomain}` : '')
       } else if (originalPlaintext.type === ENTRY_TYPE_SCRIPT) {
+        setCustomFields(readCustomFields(originalPlaintext))
         setScript(originalPlaintext.script)
         setInterpreter(originalPlaintext.interpreter)
         setRefs(originalPlaintext.refs ?? [])
         setNotes(originalPlaintext.notes ?? '')
       } else {
+        const { pinned, rest } = pinCredentialTotp(originalPlaintext)
+        setCredentialTotp(pinned)
+        setCustomFields(rest)
         setUsername(originalPlaintext.username)
         setPassword(originalPlaintext.password)
         setUrl(originalPlaintext.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : ''))
@@ -541,6 +573,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       setLabelError(true)
       return
     }
+    if (fieldsInvalid) return
     if (originalPlaintext) {
       if (entry.type === ENTRY_TYPE_KEY && !secretValue.trim()) {
         setSecretValueError(true)
@@ -729,35 +762,36 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               </div>
             ) : entry.type === ENTRY_TYPE_SCRIPT ? (
               <div className="flex flex-col gap-3">
-                <div className="-mb-4">
-                  <FormTextarea
-                    id="entry-detail-script"
-                    label={t('vault.entries.script.bodyLabel')}
+                <div>
+                  <div className="mb-1 flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-semibold text-[var(--cv-label-text)]">
+                      {t('vault.entries.script.bodyLabel')}
+                    </span>
+                    <div className="w-32">
+                      <FormSelect
+                        id="entry-detail-interpreter"
+                        aria-label={t('vault.entries.script.interpreterLabel')}
+                        value={interpreter}
+                        onChange={(e) => setInterpreter(e.target.value as ScriptInterpreter)}
+                        disabled={isSaving || decrypting}
+                      >
+                        {SCRIPT_INTERPRETERS.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </FormSelect>
+                    </div>
+                  </div>
+                  <ScriptEditor
                     value={script}
-                    onChange={(e) => { setScript(e.target.value); setScriptError(false) }}
-                    onBlur={() => setScriptError(!script.trim())}
-                    placeholder={t('vault.entries.script.bodyPlaceholder')}
+                    onChange={(next) => { setScript(next); setScriptError(false) }}
+                    interpreter={interpreter}
                     disabled={isSaving || decrypting}
-                    rows={8}
-                    monospace
-                    hasError={scriptError}
-                    maxLength={20000}
+                    placeholder={t('vault.entries.script.bodyPlaceholder')}
                   />
                   <FieldFeedback visible={scriptError} color="red">
                     {t('validation.required')}
                   </FieldFeedback>
                 </div>
-                <FormSelect
-                  id="entry-detail-interpreter"
-                  label={t('vault.entries.script.interpreterLabel')}
-                  value={interpreter}
-                  onChange={(e) => setInterpreter(e.target.value as ScriptInterpreter)}
-                  disabled={isSaving || decrypting}
-                >
-                  {SCRIPT_INTERPRETERS.map((option) => (
-                    <option key={option} value={option}>{option}</option>
-                  ))}
-                </FormSelect>
                 <ScriptRefsEditor
                   vaultId={vault.id}
                   currentEntryId={entry.id}
@@ -816,14 +850,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   </FieldFeedback>
                 </div>
               </div>
-              {originalPlaintext?.type === ENTRY_TYPE_CREDENTIAL && originalPlaintext.totp ? (
-                <div className="flex items-center gap-3">
-                  <span className="text-[11px] font-semibold text-[var(--cv-label-text)]">
-                    {t('vault.entries.totp.label')}
-                  </span>
-                  <OtpauthTotp uri={originalPlaintext.totp} compact />
-                </div>
-              ) : null}
+              <CredentialTotpField
+                value={credentialTotp}
+                onChange={setCredentialTotp}
+                disabled={isSaving || decrypting}
+              />
               </>
             )}
             <FormTextarea
@@ -877,7 +908,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             variant="accent"
             size="sm"
             onClick={handleSave}
-            disabled={isSaving || !hasChanges}
+            disabled={isSaving || !hasChanges || fieldsInvalid}
           >
             {isSaving ? t('vault.entry.detail.saving') : t('vault.entry.detail.save')}
           </Button>
@@ -997,13 +1028,18 @@ interface CurrentFormValues {
   interpreter: ScriptInterpreter
   refs: ScriptRef[]
   customFields: CustomField[]
+  /** Pinned credential 2FA field (CREDENTIAL only). */
+  credentialTotp: CustomField | null
 }
 
+type CredentialPlaintext = Extract<EntryPlaintext, { type: typeof ENTRY_TYPE_CREDENTIAL }>
+
 /**
- * Rebuild the entry's plaintext from the current inline-edit form state. Only
- * the fields this UI exposes are set from form values; a credential's stored
- * `totp` URI (import/export round-trip data) is preserved. `v: 2` is stamped
- * only when custom fields are present, so a plain KEY/CREDENTIAL blob stays v1.
+ * Rebuild the entry's plaintext from the current inline-edit form state. For a
+ * credential the pinned 2FA field is merged back into `fields[]`; a legacy
+ * top-level `totp` URI is preserved only while it hasn't been pinned (malformed
+ * seed that couldn't be parsed), so nothing is lost. `v: 2` is stamped only when
+ * fields are present, so a plain KEY/CREDENTIAL blob stays v1.
  */
 function buildCurrentPlaintext(
   original: EntryPlaintext,
@@ -1011,13 +1047,13 @@ function buildCurrentPlaintext(
   values: CurrentFormValues,
 ): EntryPlaintext {
   const notes = values.notes.trim() || undefined
-  const folded = foldCustomFields(values.customFields)
-  const fieldsPart = folded ? { v: BLOB_VERSION_V2, fields: folded } : {}
 
   if (entry.type === ENTRY_TYPE_KEY) {
+    const fieldsPart = foldFieldsPart(values.customFields)
     return { type: ENTRY_TYPE_KEY, value: values.secretValue.trim(), notes, ...fieldsPart }
   }
   if (entry.type === ENTRY_TYPE_SCRIPT) {
+    const fieldsPart = foldFieldsPart(values.customFields)
     const scriptRefs = foldScriptRefs(values.refs)
     return {
       v: BLOB_VERSION_V2,
@@ -1029,16 +1065,60 @@ function buildCurrentPlaintext(
       ...fieldsPart,
     }
   }
-  const totp = original.type === ENTRY_TYPE_CREDENTIAL ? original.totp : undefined
+  const fieldsPart = foldFieldsPart(mergeCredentialTotp(values.credentialTotp, values.customFields))
+  // Keep an unparseable legacy totp string only while no 2FA field is pinned.
+  const legacyTotp =
+    !values.credentialTotp && original.type === ENTRY_TYPE_CREDENTIAL ? original.totp : undefined
   return {
     type: ENTRY_TYPE_CREDENTIAL,
     username: values.username.trim(),
     password: values.password,
     url: values.url.trim() || undefined,
     notes,
-    ...(totp ? { totp } : {}),
+    ...(legacyTotp ? { totp: legacyTotp } : {}),
     ...fieldsPart,
   }
+}
+
+function foldFieldsPart(fields: CustomField[]): { v?: typeof BLOB_VERSION_V2; fields?: CustomField[] } {
+  const folded = foldCustomFields(fields)
+  return folded ? { v: BLOB_VERSION_V2, fields: folded } : {}
+}
+
+/**
+ * Pin the dedicated credential 2FA field for editing. If a TOTP field already
+ * exists it is used as-is; otherwise a legacy top-level `totp` URI is parsed and
+ * migrated into a field object, with the returned `baseline` reflecting that
+ * migration so the form doesn't read as dirty on load.
+ */
+function pinCredentialTotp(pt: CredentialPlaintext): {
+  pinned: CustomField | null
+  rest: CustomField[]
+  baseline: EntryPlaintext
+} {
+  const fields = readCustomFields(pt)
+  const split = splitCredentialTotp(fields)
+  if (split.pinned) return { pinned: split.pinned, rest: split.rest, baseline: pt }
+
+  if (pt.totp) {
+    const params = parseOtpauthUri(pt.totp)
+    if (params) {
+      const pinned: CustomField = {
+        id: newFieldId(),
+        label: DEFAULT_TOTP_LABEL,
+        type: 'totp',
+        value: params,
+      }
+      const baseline: EntryPlaintext = {
+        ...pt,
+        totp: undefined,
+        v: BLOB_VERSION_V2,
+        fields: mergeCredentialTotp(pinned, fields),
+      }
+      return { pinned, rest: fields, baseline }
+    }
+  }
+  return { pinned: null, rest: fields, baseline: pt }
 }
 
 interface BuildPatchInput {

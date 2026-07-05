@@ -17,17 +17,24 @@ function Harness({ initial = [] as CustomField[] }) {
   )
 }
 
+/** Open the "+ Add field" menu and pick a type. */
+async function addField(user: ReturnType<typeof userEvent.setup>, type: RegExp) {
+  await user.click(screen.getByRole('button', { name: /add field/i }))
+  await user.click(screen.getByRole('menuitem', { name: type }))
+}
+
 describe('CustomFieldsEditor', () => {
-  it('renders an empty hint with no fields', () => {
+  it('shows the add-field trigger and no rows initially', () => {
     render(<Harness />)
-    expect(screen.getByText(/add extra fields/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add field/i })).toBeInTheDocument()
+    expect(screen.getByTestId('count')).toHaveTextContent('0')
   })
 
-  it('adds a field, edits it, and reports it upward', async () => {
+  it('adds a Text field via the type menu, edits it, and reports upward', async () => {
     const user = userEvent.setup()
     render(<Harness />)
 
-    await user.click(screen.getByRole('button', { name: /add field/i }))
+    await addField(user, /^text$/i)
     expect(screen.getByTestId('count')).toHaveTextContent('1')
 
     await user.type(screen.getByPlaceholderText(/recovery email/i), 'PIN')
@@ -37,18 +44,44 @@ describe('CustomFieldsEditor', () => {
     expect(dump[0]).toMatchObject({ label: 'PIN', type: 'text', value: '1234' })
   })
 
-  it('switches a field to a TOTP setup when the type changes', async () => {
+  it('keeps the field id stable when the type changes', async () => {
     const user = userEvent.setup()
     render(<Harness />)
 
-    await user.click(screen.getByRole('button', { name: /add field/i }))
-    await user.selectOptions(screen.getByLabelText(/^type$/i), 'totp')
+    await addField(user, /^text$/i)
+    const idBefore = JSON.parse(screen.getByTestId('dump').textContent!)[0].id
 
-    // The TOTP setup input replaces the plain value input.
+    // The row type control opens the same menu; switch to TOTP.
+    await user.click(screen.getByRole('button', { name: /^type$/i }))
+    await user.click(screen.getByRole('menuitem', { name: /one-time code/i }))
+
+    const field = JSON.parse(screen.getByTestId('dump').textContent!)[0]
+    expect(field.id).toBe(idBefore)
+    expect(field.type).toBe('totp')
+    expect(field.value).toMatchObject({ algorithm: 'SHA1', digits: 6, period: 30 })
     expect(screen.getByLabelText(/otpauth/i)).toBeInTheDocument()
-    const dump = JSON.parse(screen.getByTestId('dump').textContent!)
-    expect(dump[0].type).toBe('totp')
-    expect(dump[0].value).toMatchObject({ algorithm: 'SHA1', digits: 6, period: 30 })
+  })
+
+  it('flags a value without a label', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    await addField(user, /^text$/i)
+    await user.type(screen.getByPlaceholderText(/^field value$/i), 'orphan')
+
+    expect(screen.getByText(/add a label for this field/i)).toBeInTheDocument()
+  })
+
+  it('flags duplicate labels', () => {
+    render(
+      <Harness
+        initial={[
+          { id: 'a', label: 'Note', type: 'text', value: '1' },
+          { id: 'b', label: 'note', type: 'text', value: '2' },
+        ]}
+      />,
+    )
+    expect(screen.getAllByText(/must be unique/i).length).toBeGreaterThan(0)
   })
 
   it('removes a field', async () => {

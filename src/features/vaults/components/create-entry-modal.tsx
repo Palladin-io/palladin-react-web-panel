@@ -23,8 +23,15 @@ import {
   type ScriptRef,
   type Vault,
 } from '../types'
-import { foldScriptRefs, withCustomFields } from '../entry-blob'
+import {
+  foldScriptRefs,
+  mergeCredentialTotp,
+  validateCustomFields,
+  withCustomFields,
+} from '../entry-blob'
 import { CustomFieldsEditor } from './custom-fields-editor'
+import { CredentialTotpField } from './credential-totp-field'
+import { ScriptEditor } from './script-editor'
 import { ScriptRefsEditor } from './script-refs-editor'
 import { useCreateEntry } from '../use-create-entry'
 import { entriesQueryKey } from '../use-entries'
@@ -88,6 +95,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [urlError, setUrlError] = useState(false)
   const [notes, setNotes] = useState('')
   const [customFields, setCustomFields] = useState<CustomField[]>([])
+  const [credentialTotp, setCredentialTotp] = useState<CustomField | null>(null)
   const [script, setScript] = useState('')
   const [scriptError, setScriptError] = useState(false)
   const [interpreter, setInterpreter] = useState<ScriptInterpreter>('bash')
@@ -134,9 +142,17 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     return username.trim().length > 0 && password.trim().length > 0
   }, [isPending, label, type, keyValue, username, password, script])
 
+  // Credential 2FA is stored as the first fields[] TOTP entry; merge it with the
+  // additional fields for validation and folding.
+  const allFields =
+    type === ENTRY_TYPE_CREDENTIAL
+      ? mergeCredentialTotp(credentialTotp, customFields)
+      : customFields
+  const fieldsInvalid = validateCustomFields(allFields).hasError
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!canSubmit) return
+    if (!canSubmit || fieldsInvalid) return
 
     const payload = buildPlaintext({
       type,
@@ -145,7 +161,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       password,
       url,
       notes,
-      customFields,
+      fields: allFields,
       script,
       interpreter,
       refs,
@@ -199,10 +215,10 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     <ModalShell
       onClose={isPending ? undefined : onClose}
       ariaLabel={t('vault.entries.addEntry')}
-      width={520}
+      width={type === ENTRY_TYPE_SCRIPT ? 640 : 520}
     >
-      <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
-        <header className="flex items-center justify-between">
+      <form className="flex max-h-[82vh] flex-col" onSubmit={handleSubmit}>
+        <header className="mb-3 flex shrink-0 items-center justify-between">
           <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
             {t('vault.entries.addEntry')}
           </h2>
@@ -218,6 +234,10 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           </button>
         </header>
 
+        {/* Only this middle region scrolls; header + footer stay pinned. The
+            negative margin bleeds ModalShell's padding so the scrollbar hugs the
+            modal edge while content keeps its inset. */}
+        <div className="-mx-6 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto subtle-scrollbar px-6 py-1">
         <div className="-mb-3">
           <FormInput
             id="entry-label"
@@ -336,6 +356,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             </FieldFeedback>
           </div>
         ) : type === ENTRY_TYPE_CREDENTIAL ? (
+          <>
           <div className="flex gap-3 -mb-3">
             <div className="flex-1">
               <FormInput
@@ -379,37 +400,44 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               </FieldFeedback>
             </div>
           </div>
+          <CredentialTotpField
+            value={credentialTotp}
+            onChange={setCredentialTotp}
+            disabled={isPending}
+          />
+          </>
         ) : (
           <div className="flex flex-col gap-3">
-            <div className="-mb-3">
-              <FormTextarea
-                id="entry-script"
-                label={t('vault.entries.script.bodyLabel')}
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-3">
+                <span className="text-[11px] font-semibold text-[var(--cv-label-text)]">
+                  {t('vault.entries.script.bodyLabel')}
+                </span>
+                <div className="w-32">
+                  <FormSelect
+                    id="entry-interpreter"
+                    aria-label={t('vault.entries.script.interpreterLabel')}
+                    value={interpreter}
+                    onChange={(e) => setInterpreter(e.target.value as ScriptInterpreter)}
+                    disabled={isPending}
+                  >
+                    {SCRIPT_INTERPRETERS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
+                  </FormSelect>
+                </div>
+              </div>
+              <ScriptEditor
                 value={script}
-                onChange={(e) => { setScript(e.target.value); setScriptError(false) }}
-                onBlur={() => setScriptError(!script.trim())}
-                placeholder={t('vault.entries.script.bodyPlaceholder')}
+                onChange={(next) => { setScript(next); setScriptError(false) }}
+                interpreter={interpreter}
                 disabled={isPending}
-                rows={6}
-                monospace
-                hasError={scriptError}
-                maxLength={20000}
+                placeholder={t('vault.entries.script.bodyPlaceholder')}
               />
               <FieldFeedback visible={scriptError} color="red">
                 {t('validation.required')}
               </FieldFeedback>
             </div>
-            <FormSelect
-              id="entry-interpreter"
-              label={t('vault.entries.script.interpreterLabel')}
-              value={interpreter}
-              onChange={(e) => setInterpreter(e.target.value as ScriptInterpreter)}
-              disabled={isPending}
-            >
-              {SCRIPT_INTERPRETERS.map((option) => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </FormSelect>
             <ScriptRefsEditor
               vaultId={vault.id}
               refs={refs}
@@ -451,15 +479,18 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         />
 
         <EncryptionNotice>{t('vault.entries.encryptionNotice')}</EncryptionNotice>
+        </div>
 
-        <DialogFooter>
-          <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
-            {t('vault.cancel')}
-          </Button>
-          <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
-            {isPending ? t('vault.entries.saving') : t('vault.entries.saveEntry')}
-          </Button>
-        </DialogFooter>
+        <div className="mt-3 shrink-0">
+          <DialogFooter>
+            <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
+              {t('vault.cancel')}
+            </Button>
+            <Button variant="accent" size="sm" type="submit" disabled={!canSubmit || fieldsInvalid} className="flex-[2]">
+              {isPending ? t('vault.entries.saving') : t('vault.entries.saveEntry')}
+            </Button>
+          </DialogFooter>
+        </div>
       </form>
     </ModalShell>
   )
@@ -476,7 +507,8 @@ interface BuildPayloadInput {
   password: string
   url: string
   notes: string
-  customFields: CustomField[]
+  /** Merged fields (additional + pinned credential TOTP). */
+  fields: CustomField[]
   script: string
   interpreter: ScriptInterpreter
   refs: ScriptRef[]
@@ -487,7 +519,7 @@ function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
   if (input.type === ENTRY_TYPE_KEY) {
     return withCustomFields(
       { type: ENTRY_TYPE_KEY, value: input.keyValue.trim(), notes: trimmedNotes },
-      input.customFields,
+      input.fields,
     )
   }
   if (input.type === ENTRY_TYPE_SCRIPT) {
@@ -501,7 +533,7 @@ function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
         notes: trimmedNotes,
         ...(refs.length > 0 ? { refs } : {}),
       },
-      input.customFields,
+      input.fields,
     )
   }
   const trimmedUrl = input.url.trim() || undefined
@@ -513,6 +545,6 @@ function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
       url: trimmedUrl,
       notes: trimmedNotes,
     },
-    input.customFields,
+    input.fields,
   )
 }

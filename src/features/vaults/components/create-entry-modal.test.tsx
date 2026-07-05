@@ -29,6 +29,26 @@ vi.mock('../use-entries', async (orig) => ({
   useAllEntries: () => ({ data: [] }),
 }))
 
+// CodeMirror needs layout APIs jsdom lacks — stub it with a plain textarea.
+vi.mock('./script-editor', () => ({
+  ScriptEditor: ({
+    value,
+    onChange,
+    placeholder,
+  }: {
+    value: string
+    onChange: (v: string) => void
+    placeholder?: string
+  }) => (
+    <textarea
+      aria-label="script editor"
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  ),
+}))
+
 vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
 }))
@@ -164,7 +184,9 @@ describe('CreateEntryModal', () => {
 
     await user.type(screen.getByLabelText(/^label$/i), 'API')
     await user.type(screen.getByLabelText(/^value$/i), 'sk_live')
+    // "+ Add field" opens a type menu; pick Text.
     await user.click(screen.getByRole('button', { name: /add field/i }))
+    await user.click(screen.getByRole('menuitem', { name: /^text$/i }))
     await user.type(screen.getByPlaceholderText(/recovery email/i), '  Recovery email  ')
     await user.type(screen.getByPlaceholderText(/^field value$/i), '  backup@example.com ')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
@@ -184,7 +206,7 @@ describe('CreateEntryModal', () => {
 
     await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_SCRIPT))
     await user.type(screen.getByLabelText(/^label$/i), 'Deploy')
-    await user.type(screen.getByLabelText(/^script$/i), '  echo hi  ')
+    await user.type(screen.getByLabelText(/script editor/i), '  echo hi  ')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
     // URL is hidden for scripts.
@@ -197,6 +219,30 @@ describe('CreateEntryModal', () => {
       type: ENTRY_TYPE_SCRIPT,
       script: 'echo hi',
       interpreter: 'bash',
+    })
+  })
+
+  it('adds a dedicated 2FA (TOTP) field to a credential', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'e-5' }))
+
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_CREDENTIAL))
+    await user.type(screen.getByLabelText(/^label$/i), 'GitHub')
+    await user.type(screen.getByLabelText(/^username$/i), 'octocat')
+    await user.type(screen.getByLabelText(/^password$/i), 'secret')
+    await user.click(screen.getByRole('button', { name: /add 2fa/i }))
+    await user.type(screen.getByLabelText(/otpauth/i), 'JBSWY3DPEHPK3PXP')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    const [input] = mutateMock.mock.calls[0]
+    expect(input.payload.v).toBe(2)
+    expect(input.payload.fields).toHaveLength(1)
+    expect(input.payload.fields[0]).toMatchObject({
+      label: '2FA',
+      type: 'totp',
+      value: { secret: 'JBSWY3DPEHPK3PXP', algorithm: 'SHA1', digits: 6, period: 30 },
     })
   })
 

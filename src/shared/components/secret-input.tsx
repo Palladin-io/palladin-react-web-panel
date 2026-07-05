@@ -5,6 +5,8 @@ import { Icon } from './icon'
 export interface SecretInputProps {
   id: string
   label: string
+  /** Override the label className — pass `sr-only` for compact single-line rows. */
+  labelClassName?: string
   value: string
   onChange: (next: string) => void
   shown: boolean
@@ -23,14 +25,17 @@ export interface SecretInputProps {
 }
 
 export function SecretInput({
-  id, label, value, onChange, shown, onToggleShown,
+  id, label, labelClassName, value, onChange, shown, onToggleShown,
   placeholder, disabled, monospace, autoComplete = 'off', error, onBlur,
   copyable, copyLabel,
 }: SecretInputProps) {
   const { t } = useTranslation()
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]">
+      <label
+        htmlFor={id}
+        className={labelClassName ?? 'mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]'}
+      >
         {label}
       </label>
       <div className="relative">
