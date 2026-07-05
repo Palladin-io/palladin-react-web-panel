@@ -48,29 +48,103 @@ export interface Vault extends VaultSummary {
  * Entry types match the backend `EntryType` enum — serialised as integers
  * on the wire. KEY (0) is a single secret value (API key, token, env
  * variable); CREDENTIAL (1) is a username + password pair, optionally
- * with a URL.
+ * with a URL; SCRIPT (2) is an agent-run script with declared vault-data refs.
  */
 export const ENTRY_TYPE_KEY = 0 as const
 export const ENTRY_TYPE_CREDENTIAL = 1 as const
-export type EntryType = typeof ENTRY_TYPE_KEY | typeof ENTRY_TYPE_CREDENTIAL
+export const ENTRY_TYPE_SCRIPT = 2 as const
+export type EntryType =
+  | typeof ENTRY_TYPE_KEY
+  | typeof ENTRY_TYPE_CREDENTIAL
+  | typeof ENTRY_TYPE_SCRIPT
 
 /**
  * Normalise the wire `type` into an {@link EntryType}.
  *
- * The client models entry types numerically (KEY=0 / CREDENTIAL=1), but the
- * backend serialises the `EntryType` enum as a camelCase **string** — the API
- * responds with `"key"` / `"credential"` (see `JsonStringEnumConverter` in the
- * .NET Json settings). A raw `entry.type === ENTRY_TYPE_KEY` comparison is then
- * always false (`"key" === 0`), which silently renders every entry as a
- * CREDENTIAL. Normalise at the API boundary so every consumer can keep
- * comparing against the numeric constants. Accepts the numeric form too, so
- * older builds and test fixtures that already send `0` / `1` still work.
+ * The client models entry types numerically (KEY=0 / CREDENTIAL=1 / SCRIPT=2),
+ * but the backend serialises the `EntryType` enum as a camelCase **string** —
+ * the API responds with `"key"` / `"credential"` / `"script"` (see
+ * `JsonStringEnumConverter` in the .NET Json settings). A raw
+ * `entry.type === ENTRY_TYPE_KEY` comparison is then always false
+ * (`"key" === 0`), which silently renders every entry as a CREDENTIAL.
+ * Normalise at the API boundary so every consumer can keep comparing against
+ * the numeric constants. Accepts the numeric form too, so older builds and
+ * test fixtures that already send `0` / `1` / `2` still work.
  */
 export function normalizeEntryType(raw: unknown): EntryType {
   const value = typeof raw === 'string' ? raw.toLowerCase() : raw
-  return value === 'key' || value === ENTRY_TYPE_KEY
-    ? ENTRY_TYPE_KEY
-    : ENTRY_TYPE_CREDENTIAL
+  if (value === 'key' || value === ENTRY_TYPE_KEY) return ENTRY_TYPE_KEY
+  if (value === 'script' || value === ENTRY_TYPE_SCRIPT) return ENTRY_TYPE_SCRIPT
+  return ENTRY_TYPE_CREDENTIAL
+}
+
+/**
+ * Encrypted-blob schema version. Its absence means v1 (well-known fields only,
+ * no `fields[]`). v2 is additive — well-known fields stay top-level and custom
+ * `fields[]` sit alongside them. Clients only stamp `v: 2` when the blob
+ * actually carries v2 content (custom fields, or a SCRIPT entry) so existing
+ * KEY/CREDENTIAL blobs stay byte-identical and older clients keep reading them.
+ */
+export const BLOB_VERSION_V2 = 2 as const
+
+/** Custom-field kinds a client renders. Unknown values are tolerated on read. */
+export type CustomFieldType = 'text' | 'concealed' | 'totp'
+
+/**
+ * Parsed TOTP seed. Stored as the `value` of a `totp` custom field (never the
+ * raw `otpauth://` URI) so the code can be generated without re-parsing. The
+ * backend never sees this — it lives inside the encrypted blob.
+ */
+export interface TotpParams {
+  /** Base32 (RFC 4648) shared secret, no spaces/padding. */
+  secret: string
+  algorithm: 'SHA1' | 'SHA256' | 'SHA512'
+  digits: number
+  period: number
+  issuer?: string
+  account?: string
+}
+
+/**
+ * A user-defined field carried in the encrypted blob's `fields[]` (v2). `id` is
+ * a client-generated uuid, stable across edits (drives reorder/remove keys and
+ * agent field-id addressing). `type` is left as a string so unknown future
+ * types round-trip without throwing; renderers switch on the known values and
+ * ignore the rest. For `totp` fields `value` is a {@link TotpParams} object; for
+ * `text`/`concealed` it is a plain string.
+ */
+export interface CustomField {
+  id: string
+  label: string
+  type: string
+  value: string | TotpParams
+}
+
+export function isKnownFieldType(type: string): type is CustomFieldType {
+  return type === 'text' || type === 'concealed' || type === 'totp'
+}
+
+/** Narrow a custom field to a TOTP field (value is {@link TotpParams}). */
+export function isTotpField(
+  field: CustomField,
+): field is CustomField & { value: TotpParams } {
+  return field.type === 'totp' && typeof field.value === 'object' && field.value !== null
+}
+
+/** Interpreters an agent may run a SCRIPT entry under (validated, never arbitrary). */
+export const SCRIPT_INTERPRETERS = ['bash', 'sh', 'node', 'python'] as const
+export type ScriptInterpreter = (typeof SCRIPT_INTERPRETERS)[number]
+
+/**
+ * An explicit `ENV_NAME → (entry, field)` mapping declared on a SCRIPT entry.
+ * The agent injects the referenced field's value as the named env var before
+ * exec — there is no `{{...}}` substitution in the script body (v1 decision).
+ */
+export interface ScriptRef {
+  env: string
+  entryId: string
+  /** Well-known alias (`value`/`username`/`password`/`url`) or a custom-field label. */
+  field: string
 }
 
 /**
@@ -128,13 +202,24 @@ export interface CreateEntryPayload {
 }
 
 /**
+ * Fields shared by every v2 plaintext. Absent `v` means a v1 blob (no custom
+ * fields). Written only when the blob carries v2 content — see
+ * {@link BLOB_VERSION_V2}.
+ */
+export interface EntryPlaintextV2Common {
+  v?: typeof BLOB_VERSION_V2
+  /** Ordered custom fields (v2+). Display order = array order. */
+  fields?: CustomField[]
+}
+
+/**
  * Plaintext payload that gets encrypted into `EntryContent.encryptedBlob`.
  * Discriminated union so the encrypt/decrypt helpers can switch on
  * `type` without tripping over optional fields.
  */
 export type EntryPlaintext =
-  | { type: typeof ENTRY_TYPE_KEY; value: string; notes?: string }
-  | {
+  | (EntryPlaintextV2Common & { type: typeof ENTRY_TYPE_KEY; value: string; notes?: string })
+  | (EntryPlaintextV2Common & {
       type: typeof ENTRY_TYPE_CREDENTIAL
       username: string
       password: string
@@ -147,7 +232,16 @@ export type EntryPlaintext =
        * predates this field simply ignores it.
        */
       totp?: string
-    }
+    })
+  | (EntryPlaintextV2Common & {
+      type: typeof ENTRY_TYPE_SCRIPT
+      /** Script body — plain text, run verbatim by the agent under `interpreter`. */
+      script: string
+      interpreter: ScriptInterpreter
+      notes?: string
+      /** Declared env-var → vault-field mappings injected at exec time. */
+      refs?: ScriptRef[]
+    })
 
 export interface CreateVaultInput {
   name: string
