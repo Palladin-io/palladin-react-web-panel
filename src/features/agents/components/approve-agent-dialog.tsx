@@ -88,17 +88,23 @@ export function ApproveAgentDialog({
     <ModalShell
       onClose={isPending || isUploading ? undefined : onCancel}
       ariaLabel={t('agents.approveSetup')}
+      title={t('agents.approveSetup')}
       width={420}
+      footer={
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending || isUploading} className="flex-1">
+            {t('agents.cancel')}
+          </Button>
+          <Button variant="positive" size="sm" icon="check_circle" onClick={handleConfirm} disabled={isPending || isUploading} className="flex-[2]">
+            {isPending || isUploading ? t('agents.approving') : t('agents.approve')}
+          </Button>
+        </DialogFooter>
+      }
     >
       <div className="flex flex-col gap-3">
-        <div>
-          <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-            {t('agents.approveSetup')}
-          </h2>
-          <p className="mt-1 text-[12px] text-[var(--cv-t2)]">
-            {t('agents.approveHint')}
-          </p>
-        </div>
+        <p className="text-[12px] text-[var(--cv-t2)]">
+          {t('agents.approveHint')}
+        </p>
 
         {/* Name */}
         <FormInput
@@ -136,27 +142,6 @@ export function ApproveAgentDialog({
           disabled={isPending || isUploading}
         />
 
-        <DialogFooter>
-        <Button
-          variant="subtle"
-          size="sm"
-          onClick={onCancel}
-          disabled={isPending || isUploading}
-          className="flex-1"
-        >
-          {t('agents.cancel')}
-        </Button>
-        <Button
-          variant="positive"
-          size="sm"
-          icon="check_circle"
-          onClick={handleConfirm}
-          disabled={isPending || isUploading}
-          className="flex-[2]"
-        >
-          {isPending || isUploading ? t('agents.approving') : t('agents.approve')}
-        </Button>
-        </DialogFooter>
       </div>
     </ModalShell>
   )

@@ -30,6 +30,7 @@ import {
   openExternalUrl,
 } from './components/entry-presentation'
 import { ModalShell } from '../../shared/components/modal-shell'
+import { DialogFooter } from '../../shared/components/dialog-footer'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import { VaultEntriesPanel } from './components/vault-entries-panel'
 import {
@@ -1008,26 +1009,21 @@ function DeleteEntryDialog({
     <ModalShell
       onClose={isPending ? undefined : onCancel}
       ariaLabel={t('vault.entry.detail.deleteConfirmTitle', { label: entryLabel })}
-    >
-      <div className="flex flex-col gap-4">
-        <h2 className="text-lg font-bold text-[var(--cv-t1)]">
-          {t('vault.entry.detail.deleteConfirmTitle', { label: entryLabel })}
-        </h2>
-        <p className="text-sm text-[var(--cv-t2)]">
-          {t('vault.entry.detail.deleteConfirmText')}
-        </p>
-
-        <div className="mt-2 flex items-center justify-end gap-2">
-          <Button variant="outline" onClick={onCancel} disabled={isPending}>
+      title={t('vault.entry.detail.deleteConfirmTitle', { label: entryLabel })}
+      footer={
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('vault.cancel')}
           </Button>
-          <Button variant="accent" onClick={onConfirm} disabled={isPending}>
-            {isPending
-              ? t('vault.deleting')
-              : t('vault.entry.detail.deleteButton')}
+          <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
+            {isPending ? t('vault.deleting') : t('vault.entry.detail.deleteButton')}
           </Button>
-        </div>
-      </div>
+        </DialogFooter>
+      }
+    >
+      <p className="text-[12px] text-[var(--cv-t2)]">
+        {t('vault.entry.detail.deleteConfirmText')}
+      </p>
     </ModalShell>
   )
 }

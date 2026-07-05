@@ -201,25 +201,10 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
     <ModalShell
       onClose={isBusy ? undefined : onClose}
       ariaLabel={t('vault.import.title')}
+      title={t('vault.import.title')}
       width={560}
     >
       <div className="flex flex-col gap-3">
-        <header className="flex items-center justify-between">
-          <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-            {t('vault.import.title')}
-          </h2>
-          <button
-            type="button"
-            onClick={isBusy ? undefined : onClose}
-            disabled={isBusy}
-            aria-label={t('common.close')}
-            className="text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]
-              disabled:cursor-not-allowed"
-          >
-            <Icon name="close" size={18} />
-          </button>
-        </header>
-
         {step === 'upload' ? (
           <UploadStep
             parsing={parsing}

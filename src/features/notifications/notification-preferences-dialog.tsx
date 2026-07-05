@@ -76,16 +76,24 @@ export function NotificationPreferencesDialog({ onClose }: { onClose: () => void
   }
 
   return (
-    <ModalShell onClose={onClose} ariaLabel={t('notifications.prefs.title')} width={560}>
+    <ModalShell
+      onClose={onClose}
+      ariaLabel={t('notifications.prefs.title')}
+      title={t('notifications.prefs.title')}
+      width={560}
+      footer={
+        // Preferences auto-save on toggle; the footer gives an explicit dismissal.
+        <DialogFooter>
+          <Button variant="subtle" size="sm" className="flex-1" onClick={onClose}>
+            {t('common.close')}
+          </Button>
+        </DialogFooter>
+      }
+    >
       <div className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-            {t('notifications.prefs.title')}
-          </h2>
-          <p className="mt-1 text-[12px] leading-relaxed text-[var(--cv-t2)]">
-            {t('notifications.prefs.subtitle')}
-          </p>
-        </div>
+        <p className="text-[12px] leading-relaxed text-[var(--cv-t2)]">
+          {t('notifications.prefs.subtitle')}
+        </p>
 
         {preferences.isPending ? (
           <PrefsSkeleton />
@@ -141,14 +149,6 @@ export function NotificationPreferencesDialog({ onClose }: { onClose: () => void
             {t('notifications.pushBlocked')}
           </p>
         )}
-
-        {/* Preferences auto-save on toggle; the footer gives an explicit
-            dismissal instead of forcing a backdrop click. */}
-        <DialogFooter>
-          <Button variant="subtle" size="sm" className="flex-1" onClick={onClose}>
-            {t('common.close')}
-          </Button>
-        </DialogFooter>
       </div>
     </ModalShell>
   )

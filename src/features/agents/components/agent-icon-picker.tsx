@@ -203,22 +203,23 @@ function AgentIconBrowser({
   }
 
   return (
-    <ModalShell onClose={onClose} ariaLabel={t('vault.iconBrowserTitle')} width={440}>
+    <ModalShell
+      onClose={onClose}
+      ariaLabel={t('vault.iconBrowserTitle')}
+      title={t('vault.iconBrowserTitle')}
+      width={440}
+      footer={
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onClose} className="flex-1">
+            {t('vault.cancel')}
+          </Button>
+          <Button variant="accent" size="sm" onClick={handleConfirm} disabled={localIcon === undefined} className="flex-[2]">
+            {t('vault.iconBrowserChoose')}
+          </Button>
+        </DialogFooter>
+      }
+    >
       <div className="flex flex-col gap-3">
-        <header className="flex items-center justify-between">
-          <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-            {t('vault.iconBrowserTitle')}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t('common.close')}
-            className="text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
-          >
-            <Icon name="close" size={18} />
-          </button>
-        </header>
-
         <div className="flex items-center gap-2 rounded-lg border border-[var(--cv-input-border)]
           bg-[var(--cv-input-bg)] px-3 py-2">
           <Icon name="search" size={14} color="var(--cv-t3)" />
@@ -301,14 +302,6 @@ function AgentIconBrowser({
           </>
         )}
 
-        <DialogFooter>
-          <Button variant="subtle" size="sm" onClick={onClose} className="flex-1">
-            {t('vault.cancel')}
-          </Button>
-          <Button variant="accent" size="sm" onClick={handleConfirm} disabled={localIcon === undefined} className="flex-[2]">
-            {t('vault.iconBrowserChoose')}
-          </Button>
-        </DialogFooter>
       </div>
     </ModalShell>
   )
