@@ -86,7 +86,7 @@ export function TotpSetupInputs({
 
   return (
     <div
-      className="flex flex-col gap-2"
+      className="flex flex-col gap-1.5"
       onPaste={(event) => {
         const image = [...event.clipboardData.items].find((i) => i.type.startsWith('image/'))
         if (image) {

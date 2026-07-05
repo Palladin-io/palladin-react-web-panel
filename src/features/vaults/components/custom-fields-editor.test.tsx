@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
@@ -129,5 +129,25 @@ describe('CustomFieldsEditor', () => {
     await user.click(screen.getByRole('button', { name: /more actions/i }))
     await user.click(screen.getByRole('menuitem', { name: /^remove$/i }))
     expect(screen.getByTestId('count')).toHaveTextContent('0')
+  })
+
+  it('reorders fields by dragging the grip', () => {
+    const onChange = vi.fn()
+    const fields = [
+      { id: 'f1', type: 'text' as const, label: 'Alpha', value: 'a' },
+      { id: 'f2', type: 'text' as const, label: 'Beta', value: 'b' },
+    ]
+    render(<CustomFieldsEditor fields={fields} onChange={onChange} />)
+
+    // i18n init differs per test-run shape — match the translated label or the raw key.
+    const grips = screen.getAllByLabelText(/drag to reorder|dragToReorder/i)
+    fireEvent.dragStart(grips[0], { dataTransfer: { effectAllowed: '' } })
+    // dragOver bubbles from the second row's label input up to the row wrapper.
+    fireEvent.dragOver(screen.getByDisplayValue('Beta'))
+
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'f2' }),
+      expect.objectContaining({ id: 'f1' }),
+    ])
   })
 })

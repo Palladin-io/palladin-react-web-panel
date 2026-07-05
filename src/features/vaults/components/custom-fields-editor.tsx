@@ -45,6 +45,7 @@ const TYPE_ORDER: CustomFieldType[] = ['text', 'multiline', 'concealed', 'totp']
 export function CustomFieldsEditor({ fields, onChange, disabled, copyable }: CustomFieldsEditorProps) {
   const { t } = useTranslation()
   const { errors } = validateCustomFields(fields)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
 
   const update = (id: string, patch: Partial<CustomField>) =>
     onChange(fields.map((f) => (f.id === id ? { ...f, ...patch } : f)))
@@ -60,6 +61,16 @@ export function CustomFieldsEditor({ fields, onChange, disabled, copyable }: Cus
   }
 
   const add = (type: CustomFieldType) => onChange([...fields, blankField(type)])
+
+  // Live-reorder while dragging — the list previews its final order before drop.
+  const dragOver = (index: number) => {
+    if (dragIndex === null || dragIndex === index) return
+    const next = [...fields]
+    const [dragged] = next.splice(dragIndex, 1)
+    next.splice(index, 0, dragged)
+    setDragIndex(index)
+    onChange(next)
+  }
 
   const addItems: MenuEntry[] = TYPE_ORDER.map((type) => ({
     icon: FIELD_TYPE_META[type].icon,
@@ -80,6 +91,10 @@ export function CustomFieldsEditor({ fields, onChange, disabled, copyable }: Cus
           first={index === 0}
           canMoveUp={index > 0}
           canMoveDown={index < fields.length - 1}
+          dragging={dragIndex === index}
+          onDragStart={() => setDragIndex(index)}
+          onDragOver={() => dragOver(index)}
+          onDragEnd={() => setDragIndex(null)}
           onChange={(patch) => update(field.id, patch)}
           onRemove={() => remove(field.id)}
           onMoveUp={() => move(index, -1)}
@@ -115,6 +130,10 @@ interface FieldRowProps {
   first: boolean
   canMoveUp: boolean
   canMoveDown: boolean
+  dragging: boolean
+  onDragStart: () => void
+  onDragOver: () => void
+  onDragEnd: () => void
   onChange: (patch: Partial<CustomField>) => void
   onRemove: () => void
   onMoveUp: () => void
@@ -129,6 +148,10 @@ function FieldRow({
   first,
   canMoveUp,
   canMoveDown,
+  dragging,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
   onChange,
   onRemove,
   onMoveUp,
@@ -184,12 +207,31 @@ function FieldRow({
     { icon: 'delete', label: t('common.remove'), danger: true, onSelect: onRemove },
   ]
 
-  const alignStart = rowType === 'multiline' || rowType === 'totp'
+  // Multiline + TOTP get a stacked layout: label row on top, the value below at
+  // full row width — an inline value column is too cramped for either.
+  const stacked = rowType === 'multiline' || rowType === 'totp'
 
   return (
-    <div className={first ? '' : 'border-t border-[var(--cv-divider)]'}>
-      <div className={`flex gap-2 px-2.5 py-2 ${alignStart ? 'items-start' : 'items-center'}`}>
-        <span className="mt-0.5 flex text-[var(--cv-icon-muted)] opacity-60" aria-hidden>
+    <div
+      className={`${first ? '' : 'border-t border-[var(--cv-divider)]'} ${dragging ? 'opacity-50' : ''}`}
+      onDragOver={(e) => {
+        e.preventDefault()
+        onDragOver()
+      }}
+      onDrop={(e) => e.preventDefault()}
+    >
+      <div className="flex items-center gap-2 px-2.5 py-2">
+        <span
+          draggable={!disabled}
+          onDragStart={(e) => {
+            e.dataTransfer.effectAllowed = 'move'
+            onDragStart()
+          }}
+          onDragEnd={onDragEnd}
+          className="flex cursor-grab text-[var(--cv-icon-muted)] opacity-60 active:cursor-grabbing"
+          aria-label={t('vault.entries.customFields.dragToReorder')}
+          role="button"
+        >
           <Icon name="drag_indicator" size={14} />
         </span>
 
@@ -211,21 +253,25 @@ function FieldRow({
           placeholder={t('vault.entries.customFields.labelPlaceholder')}
           disabled={disabled}
           maxLength={80}
-          className={`mt-px w-[126px] shrink-0 border-0 bg-transparent p-0 text-[12px] outline-none
-            placeholder:text-[var(--cv-input-placeholder)] ${error ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-t2)]'}`}
+          className={`mt-px border-0 bg-transparent p-0 text-[12px] outline-none
+            placeholder:text-[11px] placeholder:text-[var(--cv-input-placeholder)]
+            ${stacked ? 'min-w-0 flex-1' : 'w-[126px] shrink-0'}
+            ${error ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-t2)]'}`}
         />
 
-        <div className="flex min-w-0 flex-1 items-start">
-          <FieldValue
-            type={rowType}
-            value={field.value}
-            stringValue={stringValue}
-            shown={shown}
-            disabled={disabled}
-            onChangeString={(v) => onChange({ value: v })}
-            onChangeTotp={(v) => onChange({ value: v })}
-          />
-        </div>
+        {!stacked ? (
+          <div className="flex min-w-0 flex-1 items-start">
+            <FieldValue
+              type={rowType}
+              value={field.value}
+              stringValue={stringValue}
+              shown={shown}
+              disabled={disabled}
+              onChangeString={(v) => onChange({ value: v })}
+              onChangeTotp={(v) => onChange({ value: v })}
+            />
+          </div>
+        ) : null}
 
         <div className="flex shrink-0 items-center gap-0.5">
           {agentVisible ? <AgentVisibleBadge /> : null}
@@ -253,6 +299,20 @@ function FieldRow({
           />
         </div>
       </div>
+
+      {stacked ? (
+        <div className="px-2.5 pb-2.5 pl-[54px]">
+          <FieldValue
+            type={rowType}
+            value={field.value}
+            stringValue={stringValue}
+            shown={shown}
+            disabled={disabled}
+            onChangeString={(v) => onChange({ value: v })}
+            onChangeTotp={(v) => onChange({ value: v })}
+          />
+        </div>
+      ) : null}
 
       {error ? (
         <p role="alert" className="px-2.5 pb-1.5 pl-[76px] text-[10px] text-[var(--cv-primary)]">
