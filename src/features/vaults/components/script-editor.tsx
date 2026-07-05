@@ -104,15 +104,14 @@ const CV_THEME: Extension = EditorView.theme({
 })
 
 /**
- * Restrained syntax palette reusing the app's established accent hexes (the same
- * literals as the entry-type presentation): script violet for keywords, success
- * green for strings, credential blue for numbers, muted `--cv-t3` for comments.
+ * Restrained syntax palette bound to design tokens: script violet for keywords,
+ * success green for strings, info blue for numbers, muted `--cv-t3` for comments.
  */
 const CV_HIGHLIGHT = HighlightStyle.define([
   { tag: tags.comment, color: 'var(--cv-t3)', fontStyle: 'italic' },
-  { tag: [tags.keyword, tags.controlKeyword, tags.moduleKeyword], color: '#A78BFA' },
-  { tag: [tags.string, tags.special(tags.string)], color: '#10B981' },
-  { tag: [tags.number, tags.bool, tags.null], color: '#60A5FA' },
+  { tag: [tags.keyword, tags.controlKeyword, tags.moduleKeyword], color: 'var(--cv-script)' },
+  { tag: [tags.string, tags.special(tags.string)], color: 'var(--cv-success)' },
+  { tag: [tags.number, tags.bool, tags.null], color: 'var(--cv-info)' },
   { tag: [tags.function(tags.variableName), tags.function(tags.propertyName)], color: 'var(--cv-input-text)' },
   { tag: [tags.operator, tags.punctuation], color: 'var(--cv-t2)' },
 ])

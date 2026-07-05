@@ -949,7 +949,7 @@ function DangerZone({
     <section
       className="rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
     >
-      <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--cv-primary)]">
+      <h2 className="text-[11px] font-semibold text-[var(--cv-primary)]">
         {t('vault.entry.detail.dangerZoneTitle')}
       </h2>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-3">

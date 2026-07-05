@@ -39,6 +39,7 @@
   --cv-success-rgb: 16 185 129;
   --cv-info: #60A5FA;
   --cv-info-rgb: 96 165 250;
+  --cv-script: #A78BFA;
   --cv-neutral: #8A95A6;
   --cv-neutral-rgb: 138 149 166;
   /* Pending / awaiting human action (peach) — mirrors mobile AppColors. */
@@ -91,6 +92,7 @@
   --cv-success-rgb: 16 185 129;
   --cv-info: #60A5FA;
   --cv-info-rgb: 96 165 250;
+  --cv-script: #A78BFA;
   --cv-neutral: #8A95A6;
   --cv-neutral-rgb: 138 149 166;
   /* Pending / awaiting human action (peach) — mirrors mobile AppColors. */

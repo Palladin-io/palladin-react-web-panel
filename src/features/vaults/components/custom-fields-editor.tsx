@@ -254,8 +254,8 @@ function FieldTypeMenu({ trigger, ariaLabel, current, disabled, onPick }: FieldT
         aria-label={ariaLabel}
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex h-7 items-center justify-center gap-1 rounded-md px-1.5
-          text-[11px] font-semibold text-[var(--cv-t2)] transition-colors
+        className="inline-flex h-7 items-center justify-center gap-1 rounded-lg px-1.5
+          text-[11px] font-semibold text-[var(--cv-btn-ghost-text)] transition-colors
           hover:bg-[var(--cv-btn-ghost-hover)] hover:text-[var(--cv-t1)]
           disabled:cursor-not-allowed disabled:opacity-40"
       >
@@ -277,7 +277,7 @@ function FieldTypeMenu({ trigger, ariaLabel, current, disabled, onPick }: FieldT
                 setOpen(false)
               }}
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px]
-                text-[var(--cv-t1)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)]"
+                text-[var(--cv-t1)] transition-colors hover:bg-[var(--cv-bg-subtle)]"
             >
               <Icon name={FIELD_TYPE_META[type].icon} size={15} className="text-[var(--cv-t3)]" />
               <span className="flex-1">{t(FIELD_TYPE_META[type].labelKey)}</span>
