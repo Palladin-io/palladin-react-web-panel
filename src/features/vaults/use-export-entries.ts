@@ -10,7 +10,12 @@ import {
   type ExportEntry,
   type ExportVault,
 } from './export'
-import { ENTRY_TYPE_KEY, type EntryDetail, type EntryPlaintext } from './types'
+import {
+  ENTRY_TYPE_KEY,
+  ENTRY_TYPE_SCRIPT,
+  type EntryDetail,
+  type EntryPlaintext,
+} from './types'
 import { MissingWrappedVaultKeyError, VaultLockedError } from './use-create-entry'
 
 export type ExportFormat = 'csv' | 'json'
@@ -43,6 +48,18 @@ function toExportEntry(
       name: detail.label,
       type: ENTRY_TYPE_KEY,
       value: plaintext.value,
+      notes: plaintext.notes,
+      folder,
+    }
+  }
+  if (plaintext.type === ENTRY_TYPE_SCRIPT) {
+    // Best-effort: the script body goes in `value` (like a KEY). Interpreter and
+    // refs[] are not represented in the flat export model — a lossless SCRIPT
+    // round-trip is a follow-up (see report).
+    return {
+      name: detail.label,
+      type: ENTRY_TYPE_SCRIPT,
+      value: plaintext.script,
       notes: plaintext.notes,
       folder,
     }

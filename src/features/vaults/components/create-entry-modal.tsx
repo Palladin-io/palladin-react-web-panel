@@ -9,13 +9,23 @@ import { Icon } from '../../../shared/components/icon'
 import { SecretInput } from '../../../shared/components/secret-input'
 import { analytics } from '../../../shared/lib/analytics'
 import { firstError, required, validUrl } from '../../../shared/lib/validation'
+import { WarningZone } from '../../../shared/components/warning-zone'
 import {
+  BLOB_VERSION_V2,
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,
+  ENTRY_TYPE_SCRIPT,
+  SCRIPT_INTERPRETERS,
+  type CustomField,
   type EntryPlaintext,
   type EntryType,
+  type ScriptInterpreter,
+  type ScriptRef,
   type Vault,
 } from '../types'
+import { foldScriptRefs, withCustomFields } from '../entry-blob'
+import { CustomFieldsEditor } from './custom-fields-editor'
+import { ScriptRefsEditor } from './script-refs-editor'
 import { useCreateEntry } from '../use-create-entry'
 import { entriesQueryKey } from '../use-entries'
 import { extensionFromMime } from '../use-vault-icon-upload'
@@ -24,7 +34,7 @@ import {
   extractDomain,
 } from './entry-presentation'
 import { EntryIconPicker } from './entry-icon-picker'
-import { defaultIconFor } from './entry-presentation'
+import { defaultColorFor, defaultIconFor } from './entry-presentation'
 import { resolveFavicon } from '../api/vault-api'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { EncryptionNotice } from '../../../shared/components/encryption-notice'
@@ -77,6 +87,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState(false)
   const [notes, setNotes] = useState('')
+  const [customFields, setCustomFields] = useState<CustomField[]>([])
+  const [script, setScript] = useState('')
+  const [scriptError, setScriptError] = useState(false)
+  const [interpreter, setInterpreter] = useState<ScriptInterpreter>('bash')
+  const [refs, setRefs] = useState<ScriptRef[]>([])
   // Favicon suggestion: auto-fills the icon from the typed domain unless the
   // user picked one themselves; a manual pick always wins.
   const [iconTouched, setIconTouched] = useState(false)
@@ -106,6 +121,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     setKeyValueError(false)
     setUsernameError(false)
     setPasswordError(false)
+    setScriptError(false)
   }, [type])
 
   const isPending = create.isPending
@@ -114,14 +130,26 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     if (isPending) return false
     if (!label.trim()) return false
     if (type === ENTRY_TYPE_KEY) return keyValue.trim().length > 0
+    if (type === ENTRY_TYPE_SCRIPT) return script.trim().length > 0
     return username.trim().length > 0 && password.trim().length > 0
-  }, [isPending, label, type, keyValue, username, password])
+  }, [isPending, label, type, keyValue, username, password, script])
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit) return
 
-    const payload = buildPlaintext({ type, keyValue, username, password, url, notes })
+    const payload = buildPlaintext({
+      type,
+      keyValue,
+      username,
+      password,
+      url,
+      notes,
+      customFields,
+      script,
+      interpreter,
+      refs,
+    })
 
     if (!vault.wrappedVK) {
       toast.error(t('vault.entries.errorMissingVaultKey'))
@@ -140,7 +168,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         color,
         type,
         payload,
-        urlDomain: extractDomain(url) || undefined,
+        urlDomain: type === ENTRY_TYPE_SCRIPT ? undefined : extractDomain(url) || undefined,
       },
       {
         onSuccess: async (data) => {
@@ -224,27 +252,29 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           maxLength={500}
         />
 
-        <div className="-mb-3">
-          <FormInput
-            id="entry-url"
-            label={t('vault.entries.urlLabel')}
-            value={url}
-            onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
-            onBlur={() =>
-              setUrlError(
-                firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null,
-              )
-            }
-            placeholder={t('vault.entries.urlPlaceholder')}
-            autoComplete="off"
-            disabled={isPending}
-            inputMode="url"
-            error={urlError}
-          />
-          <FieldFeedback visible={urlError} color="red">
-            {t('validation.invalidUrl')}
-          </FieldFeedback>
-        </div>
+        {type !== ENTRY_TYPE_SCRIPT ? (
+          <div className="-mb-3">
+            <FormInput
+              id="entry-url"
+              label={t('vault.entries.urlLabel')}
+              value={url}
+              onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
+              onBlur={() =>
+                setUrlError(
+                  firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null,
+                )
+              }
+              placeholder={t('vault.entries.urlPlaceholder')}
+              autoComplete="off"
+              disabled={isPending}
+              inputMode="url"
+              error={urlError}
+            />
+            <FieldFeedback visible={urlError} color="red">
+              {t('validation.invalidUrl')}
+            </FieldFeedback>
+          </div>
+        ) : null}
 
         <FormSelect
           id="entry-type"
@@ -252,14 +282,22 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           value={String(type)}
           onChange={(e) => {
             const nextType = Number(e.target.value) as EntryType
+            const previousType = type
             setType(nextType)
             if (!iconTouched) {
+              const typeDefaults = [
+                defaultIconFor(ENTRY_TYPE_KEY),
+                defaultIconFor(ENTRY_TYPE_CREDENTIAL),
+                defaultIconFor(ENTRY_TYPE_SCRIPT),
+              ]
               setIcon((current) =>
-                current === undefined
-                  || current === defaultIconFor(ENTRY_TYPE_KEY)
-                  || current === defaultIconFor(ENTRY_TYPE_CREDENTIAL)
+                current === undefined || typeDefaults.includes(current)
                   ? defaultIconFor(nextType)
                   : current,
+              )
+              // Follow the type's default colour too, unless the user picked one.
+              setColor((current) =>
+                current === defaultColorFor(previousType) ? defaultColorFor(nextType) : current,
               )
             }
           }}
@@ -268,6 +306,9 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
           <option value={String(ENTRY_TYPE_CREDENTIAL)}>
             {t('vault.entries.typeCredentialOption')}
+          </option>
+          <option value={String(ENTRY_TYPE_SCRIPT)}>
+            {t('vault.entries.typeScriptOption')}
           </option>
         </FormSelect>
 
@@ -294,7 +335,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               {t('validation.required')}
             </FieldFeedback>
           </div>
-        ) : (
+        ) : type === ENTRY_TYPE_CREDENTIAL ? (
           <div className="flex gap-3 -mb-3">
             <div className="flex-1">
               <FormInput
@@ -338,6 +379,47 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               </FieldFeedback>
             </div>
           </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div className="-mb-3">
+              <FormTextarea
+                id="entry-script"
+                label={t('vault.entries.script.bodyLabel')}
+                value={script}
+                onChange={(e) => { setScript(e.target.value); setScriptError(false) }}
+                onBlur={() => setScriptError(!script.trim())}
+                placeholder={t('vault.entries.script.bodyPlaceholder')}
+                disabled={isPending}
+                rows={6}
+                monospace
+                hasError={scriptError}
+                maxLength={20000}
+              />
+              <FieldFeedback visible={scriptError} color="red">
+                {t('validation.required')}
+              </FieldFeedback>
+            </div>
+            <FormSelect
+              id="entry-interpreter"
+              label={t('vault.entries.script.interpreterLabel')}
+              value={interpreter}
+              onChange={(e) => setInterpreter(e.target.value as ScriptInterpreter)}
+              disabled={isPending}
+            >
+              {SCRIPT_INTERPRETERS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </FormSelect>
+            <ScriptRefsEditor
+              vaultId={vault.id}
+              refs={refs}
+              onChange={setRefs}
+              disabled={isPending}
+            />
+            <WarningZone title={t('vault.entries.script.warningTitle')}>
+              {t('vault.entries.script.warningBody')}
+            </WarningZone>
+          </div>
         )}
 
         <FormTextarea
@@ -350,6 +432,12 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           disabled={isPending}
           rows={2}
           maxLength={2000}
+        />
+
+        <CustomFieldsEditor
+          fields={customFields}
+          onChange={setCustomFields}
+          disabled={isPending}
         />
 
         <EntryIconPicker
@@ -388,23 +476,43 @@ interface BuildPayloadInput {
   password: string
   url: string
   notes: string
+  customFields: CustomField[]
+  script: string
+  interpreter: ScriptInterpreter
+  refs: ScriptRef[]
 }
 
 function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
   const trimmedNotes = input.notes.trim() || undefined
   if (input.type === ENTRY_TYPE_KEY) {
-    return {
-      type: ENTRY_TYPE_KEY,
-      value: input.keyValue.trim(),
-      notes: trimmedNotes,
-    }
+    return withCustomFields(
+      { type: ENTRY_TYPE_KEY, value: input.keyValue.trim(), notes: trimmedNotes },
+      input.customFields,
+    )
+  }
+  if (input.type === ENTRY_TYPE_SCRIPT) {
+    const refs = foldScriptRefs(input.refs)
+    return withCustomFields(
+      {
+        v: BLOB_VERSION_V2,
+        type: ENTRY_TYPE_SCRIPT,
+        script: input.script.trim(),
+        interpreter: input.interpreter,
+        notes: trimmedNotes,
+        ...(refs.length > 0 ? { refs } : {}),
+      },
+      input.customFields,
+    )
   }
   const trimmedUrl = input.url.trim() || undefined
-  return {
-    type: ENTRY_TYPE_CREDENTIAL,
-    username: input.username.trim(),
-    password: input.password.trim(),
-    url: trimmedUrl,
-    notes: trimmedNotes,
-  }
+  return withCustomFields(
+    {
+      type: ENTRY_TYPE_CREDENTIAL,
+      username: input.username.trim(),
+      password: input.password.trim(),
+      url: trimmedUrl,
+      notes: trimmedNotes,
+    },
+    input.customFields,
+  )
 }

@@ -1,4 +1,4 @@
-import { ENTRY_TYPE_KEY, type EntryType } from '../types'
+import { ENTRY_TYPE_CREDENTIAL, type EntryType } from '../types'
 
 /**
  * A decrypted entry ready for export. `value` holds a KEY entry's single secret;
@@ -46,7 +46,8 @@ function csvField(value: string | undefined): string {
 export function toPalladinCsv(entries: ExportEntry[]): string {
   const lines = [CSV_HEADERS.join(',')]
   for (const entry of entries) {
-    const password = entry.type === ENTRY_TYPE_KEY ? entry.value : entry.password
+    // KEY and SCRIPT carry their secret in `value`; CREDENTIAL in `password`.
+    const password = entry.type === ENTRY_TYPE_CREDENTIAL ? entry.password : entry.value
     lines.push(
       [
         csvField(entry.name),

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,
+  ENTRY_TYPE_SCRIPT,
   type Vault,
 } from '../types'
 import { CreateEntryModal } from './create-entry-modal'
@@ -20,6 +21,12 @@ vi.mock('../use-create-entry', () => ({
       return isPending
     },
   }),
+}))
+
+// The Script refs editor loads the vault's entries for its source picker.
+vi.mock('../use-entries', async (orig) => ({
+  ...(await orig<typeof import('../use-entries')>()),
+  useAllEntries: () => ({ data: [] }),
 }))
 
 vi.mock('../../../shared/lib/analytics', () => ({
@@ -146,6 +153,50 @@ describe('CreateEntryModal', () => {
       password: 'secret',
       url: 'https://github.com/path',
       notes: undefined,
+    })
+  })
+
+  it('folds a custom field into the encrypted payload (v2)', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'e-3' }))
+
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.type(screen.getByLabelText(/^label$/i), 'API')
+    await user.type(screen.getByLabelText(/^value$/i), 'sk_live')
+    await user.click(screen.getByRole('button', { name: /add field/i }))
+    await user.type(screen.getByPlaceholderText(/recovery email/i), '  Recovery email  ')
+    await user.type(screen.getByPlaceholderText(/^field value$/i), '  backup@example.com ')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    const [input] = mutateMock.mock.calls[0]
+    expect(input.payload.v).toBe(2)
+    expect(input.payload.fields).toEqual([
+      { id: expect.any(String), label: 'Recovery email', type: 'text', value: 'backup@example.com' },
+    ])
+  })
+
+  it('submits a SCRIPT entry with a trimmed body and interpreter', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'e-4' }))
+
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_SCRIPT))
+    await user.type(screen.getByLabelText(/^label$/i), 'Deploy')
+    await user.type(screen.getByLabelText(/^script$/i), '  echo hi  ')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    // URL is hidden for scripts.
+    expect(screen.queryByLabelText(/^url$/i)).not.toBeInTheDocument()
+
+    const [input] = mutateMock.mock.calls[0]
+    expect(input.type).toBe(ENTRY_TYPE_SCRIPT)
+    expect(input.payload).toMatchObject({
+      v: 2,
+      type: ENTRY_TYPE_SCRIPT,
+      script: 'echo hi',
+      interpreter: 'bash',
     })
   })
 
