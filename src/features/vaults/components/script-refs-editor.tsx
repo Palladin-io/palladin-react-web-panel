@@ -58,7 +58,8 @@ export function ScriptRefsEditor({
 
   const remove = (index: number) => onChange(refs.filter((_, i) => i !== index))
 
-  const add = () => onChange([...refs, { env: '', entryId: '', field: '' }])
+  // Sources are scoped to this vault, so every ref written here carries its vaultId.
+  const add = () => onChange([...refs, { env: '', vaultId, entryId: '', field: '' }])
 
   return (
     <section className="flex flex-col gap-2">
@@ -82,6 +83,7 @@ export function ScriptRefsEditor({
             <RefRow
               key={index}
               ref_={ref}
+              vaultId={vaultId}
               sources={sources}
               disabled={disabled}
               onChange={(patch) => update(index, patch)}
@@ -96,12 +98,14 @@ export function ScriptRefsEditor({
 
 function RefRow({
   ref_,
+  vaultId,
   sources,
   disabled,
   onChange,
   onRemove,
 }: {
   ref_: ScriptRef
+  vaultId: string
   sources: EntryListItem[]
   disabled?: boolean
   onChange: (patch: Partial<ScriptRef>) => void
@@ -132,7 +136,7 @@ function RefRow({
           id={`ref-entry-${ref_.env}`}
           label={t('vault.entries.script.sourceEntry')}
           value={ref_.entryId}
-          onChange={(e) => onChange({ entryId: e.target.value, field: '' })}
+          onChange={(e) => onChange({ entryId: e.target.value, vaultId, field: '' })}
           disabled={disabled}
         >
           <option value="">{t('vault.entries.script.selectEntry')}</option>

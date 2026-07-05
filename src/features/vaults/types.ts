@@ -142,6 +142,12 @@ export type ScriptInterpreter = (typeof SCRIPT_INTERPRETERS)[number]
  */
 export interface ScriptRef {
   env: string
+  /**
+   * Vault of the referenced entry. Optional for backward-compat: old blobs
+   * omit it and the agent CLI defaults a missing `vaultId` to the script's own
+   * vault. New refs are always written with it (same-vault today).
+   */
+  vaultId?: string
   entryId: string
   /** Well-known alias (`value`/`username`/`password`/`url`) or a custom-field label. */
   field: string
