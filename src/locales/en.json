@@ -361,7 +361,7 @@
   "vault.entries.script.refsTitle": "Injected vault data",
   "vault.entries.script.refsHint": "Map an environment variable to a field from another entry. The agent injects it at run time.",
   "vault.entries.script.refsEmpty": "No injected data. The script runs with no vault values.",
-  "vault.entries.script.addRef": "Add mapping",
+  "vault.entries.script.addRef": "Add reference",
   "vault.entries.script.envLabel": "Env variable",
   "vault.entries.script.sourceEntry": "Entry",
   "vault.entries.script.sourceField": "Field",
@@ -1057,5 +1057,6 @@
   "audit.legend.desc.vaultExported": "Vault entries were exported to a file (client-side decryption; count only is recorded).",
   "audit.exportProOnly": "Audit log export is available on the Pro plan and higher.",
   "audit.sentence.vaultExported": "{{actor}} exported vault {{object}}",
-  "vault.iconBrowserBrand": "Website icons"
+  "vault.iconBrowserBrand": "Website icons",
+  "vault.entries.customFields.dragToReorder": "Drag to reorder"
 }

@@ -381,7 +381,7 @@
   "vault.entries.script.refsTitle": "Wstrzykiwane dane z sejfu",
   "vault.entries.script.refsHint": "Przypisz zmienną środowiskową do pola z innego wpisu. Agent wstrzyknie ją przy uruchomieniu.",
   "vault.entries.script.refsEmpty": "Brak wstrzykiwanych danych. Skrypt uruchamia się bez wartości z sejfu.",
-  "vault.entries.script.addRef": "Dodaj mapowanie",
+  "vault.entries.script.addRef": "Dodaj referencję",
   "vault.entries.script.envLabel": "Zmienna środ.",
   "vault.entries.script.sourceEntry": "Wpis",
   "vault.entries.script.sourceField": "Pole",
@@ -1104,5 +1104,6 @@
   "audit.legend.desc.vaultExported": "Wpisy sejfu wyeksportowano do pliku (deszyfrowanie po stronie klienta; zapisany tylko licznik).",
   "audit.exportProOnly": "Eksport dziennika audytu jest dostępny od planu Pro wzwyż.",
   "audit.sentence.vaultExported": "{{actor}} wyeksportował sejf {{object}}",
-  "vault.iconBrowserBrand": "Ikony serwisów"
+  "vault.iconBrowserBrand": "Ikony serwisów",
+  "vault.entries.customFields.dragToReorder": "Przeciągnij, aby zmienić kolejność"
 }

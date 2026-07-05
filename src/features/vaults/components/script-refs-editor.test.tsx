@@ -24,15 +24,15 @@ function Harness() {
 describe('ScriptRefsEditor', () => {
   it('renders the "Add reference" ghost row with visible text when empty', () => {
     render(<Harness />)
-    const add = screen.getByRole('button', { name: /add mapping/i })
+    const add = screen.getByRole('button', { name: /add reference/i })
     expect(add).toBeInTheDocument()
-    expect(add).toHaveTextContent(/add mapping/i)
+    expect(add).toHaveTextContent(/add reference/i)
   })
 
   it('adds a ref row carrying the vault id', async () => {
     const user = userEvent.setup()
     render(<Harness />)
-    await user.click(screen.getByRole('button', { name: /add mapping/i }))
+    await user.click(screen.getByRole('button', { name: /add reference/i }))
     expect(screen.getByTestId('count')).toHaveTextContent('1')
     // The new row exposes the env-var input.
     expect(screen.getByLabelText(/env variable/i)).toBeInTheDocument()
