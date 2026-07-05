@@ -22,7 +22,7 @@ import {
   OrgGrantsPanel,
   useOrgGrants,
 } from '../grants'
-import { EntryIconPicker } from './components/entry-icon-picker'
+import { EntryIconButton } from './components/entry-icon-button'
 import { EntryLogsTab } from './components/entry-logs-tab'
 import {
   ENTRY_ICON_COLORS,
@@ -686,31 +686,48 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
           dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
-        <div className="flex gap-5 items-start">
-          <div className="flex-1 flex flex-col gap-4 min-w-0">
-            <div className="-mb-4">
-              <FormInput
-                id="entry-detail-label"
-                label={t('vault.entries.labelLabel')}
-                value={label}
-                onChange={(e) => { setLabel(e.target.value); setLabelError(false) }}
-                onBlur={() =>
-                  setLabelError(
-                    firstError(label, [required(t('validation.required'))]) !== null,
-                  )
-                }
-                placeholder={t('vault.entries.labelPlaceholder')}
-                disabled={isSaving}
-                maxLength={120}
-                error={labelError}
-              />
-              <FieldFeedback visible={labelError} color="red">
-                {t('validation.required')}
-              </FieldFeedback>
+        <div className="flex flex-col gap-3">
+            <div>
+              <label
+                htmlFor="entry-detail-label"
+                className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
+              >
+                {t('vault.entries.labelLabel')}
+                <span className="ml-1.5 font-normal text-[var(--cv-t3)]">· {t('vault.entries.agentVisibleNote')}</span>
+              </label>
+              <div className="flex gap-2">
+                <EntryIconButton
+                  icon={icon}
+                  color={color}
+                  type={entry.type}
+                  onChange={(next) => { setIcon(next); setPendingIconFile(null) }}
+                  onColorChange={setColor}
+                  onFileSelected={(file, previewUrl) => { setPendingIconFile(file); setIcon(previewUrl) }}
+                  disabled={isSaving}
+                />
+                <div className="min-w-0 flex-1">
+                  <FormInput
+                    id="entry-detail-label"
+                    label={t('vault.entries.labelLabel')}
+                    labelClassName="sr-only"
+                    value={label}
+                    onChange={(e) => { setLabel(e.target.value); setLabelError(false) }}
+                    onBlur={() => setLabelError(firstError(label, [required(t('validation.required'))]) !== null)}
+                    placeholder={t('vault.entries.labelPlaceholder')}
+                    disabled={isSaving}
+                    maxLength={120}
+                    error={labelError}
+                  />
+                  <FieldFeedback visible={labelError} color="red">
+                    {t('validation.required')}
+                  </FieldFeedback>
+                </div>
+              </div>
             </div>
             <FormInput
               id="entry-detail-description"
               label={t('vault.entries.descriptionLabel')}
+              labelSuffix={<>· {t('vault.entries.agentVisibleNote')}</>}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('vault.entries.descriptionPlaceholder')}
@@ -718,7 +735,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               maxLength={500}
             />
             {entry.type !== ENTRY_TYPE_SCRIPT ? (
-              <div className="-mb-4">
+              <div className="-mb-3">
                 <FormInput
                   id="entry-detail-url"
                   label={t('vault.entries.urlLabel')}
@@ -744,7 +761,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 {decryptError}
               </div>
             ) : entry.type === ENTRY_TYPE_KEY ? (
-              <div className="-mb-4">
+              <div className="-mb-3">
                 <SecretInput
                   id="entry-detail-value"
                   label={t('vault.entries.valueLabel')}
@@ -814,7 +831,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               </div>
             ) : (
               <>
-              <div className="flex gap-3 -mb-4">
+              <div className="flex gap-3 -mb-3">
                 <div className="flex-1 min-w-0">
                   <FormInput
                     id="entry-detail-username"
@@ -887,25 +904,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 />
               </>
             ) : null}
-          </div>
-          <div className="w-60 shrink-0 flex flex-col gap-4">
-            <EntryIconPicker
-              value={icon}
-              onChange={(next) => {
-                setIcon(next)
-                setPendingIconFile(null)
-              }}
-              onColorChange={setColor}
-              selectedColor={color}
-              disabled={isSaving}
-              rowClassName="grid grid-cols-5 gap-1.5 justify-items-center"
-              maxVisible={35}
-              onFileSelected={(file, previewUrl) => {
-                setPendingIconFile(file)
-                setIcon(previewUrl)
-              }}
-            />
-          </div>
         </div>
 
         <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">

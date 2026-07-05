@@ -73,7 +73,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const queryClient = useQueryClient()
 
   const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
-  const [color, setColor] = useState('#10B981')
+  const [color, setColor] = useState(defaultColorFor(ENTRY_TYPE_KEY))
   // Pre-select the type's default glyph so a tile is always visibly chosen;
   // switching type follows along until the user (or a favicon) picks something.
   const [icon, setIcon] = useState<string | undefined>(defaultIconFor(ENTRY_TYPE_KEY))
@@ -233,14 +233,13 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             section rules hug the modal edge while content keeps its inset. */}
         <div className="-mx-6 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden subtle-scrollbar px-6 py-4">
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]">
-                {t('vault.vault')}
-              </label>
-              <div className="flex h-[38px] items-center rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 text-[12px] text-[var(--cv-t2)]">
-                <span className="truncate">{vault.name}</span>
-              </div>
-            </div>
+            <FormInput
+              id="entry-vault"
+              label={t('vault.vault')}
+              value={vault.name}
+              disabled
+              readOnly
+            />
             <FormSelect
               id="entry-type"
               label={t('vault.entries.typeLabel')}

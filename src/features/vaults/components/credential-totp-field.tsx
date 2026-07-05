@@ -122,7 +122,7 @@ function ConfiguredCard({
         </div>
         <div className="truncate text-[11.5px] text-[var(--cv-t3)]">{subtitle}</div>
       </div>
-      <TotpDisplay params={params} compact />
+      <TotpDisplay params={params} compact tone="success" />
       <PopoverMenu
         trigger={<Icon name="more_horiz" size={16} />}
         items={menu}

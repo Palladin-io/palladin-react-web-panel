@@ -9,6 +9,8 @@ export interface TotpDisplayProps {
   params: TotpParams
   /** Compact variant for inline rows (smaller code, no issuer subtitle). */
   compact?: boolean
+  /** `success` tints the code + ring green (the credential 2FA card). */
+  tone?: 'default' | 'success'
 }
 
 /**
@@ -17,21 +19,27 @@ export interface TotpDisplayProps {
  * auto-rolls at the window boundary. Copy uses the plain clipboard path — the
  * code is inherently short-lived (≤ one period), unlike a stored secret.
  */
-export function TotpDisplay({ params, compact }: TotpDisplayProps) {
+export function TotpDisplay({ params, compact, tone = 'default' }: TotpDisplayProps) {
   const { t } = useTranslation()
   const code = useTotp(params)
 
   const grouped = code ? groupDigits(code.code) : '••• •••'
   const fraction = code ? code.expiresIn / code.period : 0
   const almostGone = code ? code.expiresIn <= 5 : false
+  const success = tone === 'success'
 
   return (
     <div className="flex items-center gap-2">
-      <CountdownRing fraction={fraction} label={code ? String(code.expiresIn) : ''} urgent={almostGone} />
+      <CountdownRing
+        fraction={fraction}
+        label={code ? String(code.expiresIn) : ''}
+        urgent={almostGone}
+        tone={tone}
+      />
       <span
-        className={`ph-no-capture font-mono tracking-[0.15em] tabular-nums text-[var(--cv-t1)] ${
-          compact ? 'text-[13px]' : 'text-[15px] font-semibold'
-        }`}
+        className={`ph-no-capture font-mono tracking-[0.15em] tabular-nums ${
+          success ? 'text-[var(--cv-success)]' : 'text-[var(--cv-t1)]'
+        } ${compact ? 'text-[13px]' : 'text-[15px] font-semibold'}`}
         aria-label={t('vault.entries.totp.currentCode')}
       >
         {grouped}
@@ -61,16 +69,22 @@ function CountdownRing({
   fraction,
   label,
   urgent,
+  tone,
 }: {
   fraction: number
   label: string
   urgent: boolean
+  tone: 'default' | 'success'
 }) {
   const size = 22
   const stroke = 2.5
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
-  const color = urgent ? 'var(--cv-primary)' : 'var(--cv-t2)'
+  const color = urgent
+    ? 'var(--cv-primary)'
+    : tone === 'success'
+      ? 'var(--cv-success)'
+      : 'var(--cv-t2)'
   return (
     <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90" aria-hidden>
