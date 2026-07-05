@@ -28,10 +28,23 @@ async function addField(user: User, type: RegExp) {
 const dump = () => JSON.parse(screen.getByTestId('dump').textContent!)
 
 describe('CustomFieldsEditor', () => {
-  it('shows the add-field trigger and no rows initially', () => {
+  it('shows the add-field ghost row with visible text and no rows initially', () => {
     render(<Harness />)
-    expect(screen.getByRole('button', { name: /add field/i })).toBeInTheDocument()
+    const add = screen.getByRole('button', { name: /add field/i })
+    // The ghost row must render its label (regression: it once collapsed empty).
+    expect(add).toHaveTextContent(/add field/i)
     expect(screen.getByTestId('count')).toHaveTextContent('0')
+  })
+
+  it('opens the type menu on the add trigger', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    await user.click(screen.getByRole('button', { name: /add field/i }))
+    // All four type options appear (the menu is portaled, but present in the DOM).
+    expect(screen.getByRole('menuitem', { name: /^text/i })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /multiline/i })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /hidden/i })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /one-time password/i })).toBeInTheDocument()
   })
 
   it('adds a Text field via the type menu, edits it, and reports upward', async () => {
