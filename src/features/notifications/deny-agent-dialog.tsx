@@ -38,12 +38,20 @@ export function DenyAgentDialog({
     <ModalShell
       onClose={isPending ? undefined : onCancel}
       ariaLabel={t('agents.denyConfirmTitle')}
+      title={t('agents.denyConfirmTitle')}
       width={440}
+      footer={
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
+            {t('agents.cancel')}
+          </Button>
+          <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
+            {isPending ? t('agents.deactivating') : t('agents.denyConfirmAction')}
+          </Button>
+        </DialogFooter>
+      }
     >
       <div className="flex flex-col gap-4">
-        <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-          {t('agents.denyConfirmTitle')}
-        </h2>
         <p className="text-[12px] text-[var(--cv-t2)]">
           {t('agents.denyConfirmBody', { name: agentName })}
         </p>
@@ -70,15 +78,6 @@ export function DenyAgentDialog({
             </Link>
           )}
         </WarningZone>
-
-        <DialogFooter>
-          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
-            {t('agents.cancel')}
-          </Button>
-          <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
-            {isPending ? t('agents.deactivating') : t('agents.denyConfirmAction')}
-          </Button>
-        </DialogFooter>
       </div>
     </ModalShell>
   )

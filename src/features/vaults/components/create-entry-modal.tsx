@@ -40,7 +40,7 @@ import { useCreateEntry } from '../use-create-entry'
 import { entriesQueryKey } from '../use-entries'
 import { extensionFromMime } from '../use-vault-icon-upload'
 import { presignEntryIcon, updateEntry, uploadToS3 } from '../api/vault-api'
-import { extractDomain } from './entry-presentation'
+import { extractDomain, openExternalUrl } from './entry-presentation'
 import { defaultColorFor, defaultIconFor } from './entry-presentation'
 import { resolveFavicon } from '../api/vault-api'
 import { FormSelect } from '../../../shared/components/form-select'
@@ -213,25 +213,30 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const visibleNote = <>· {t('vault.entries.agentVisibleNote')}</>
 
   return (
-    <ModalShell onClose={isPending ? undefined : onClose} ariaLabel={t('vault.entries.addEntry')} width={560}>
-      <form className="flex max-h-[86vh] flex-col" onSubmit={handleSubmit}>
-        <header className="-mx-6 -mt-6 flex shrink-0 items-center justify-between border-b border-[var(--cv-divider)] px-6 py-3.5">
-          <h2 className="text-[14px] font-semibold text-[var(--cv-t1)]">{t('vault.entries.addEntry')}</h2>
-          <button
-            type="button"
-            onClick={isPending ? undefined : onClose}
-            disabled={isPending}
-            aria-label={t('common.close')}
-            className="flex text-[var(--cv-icon-muted)] transition-colors hover:text-[var(--cv-t1)] disabled:cursor-not-allowed"
+    <ModalShell
+      onClose={isPending ? undefined : onClose}
+      ariaLabel={t('vault.entries.addEntry')}
+      title={t('vault.entries.addEntry')}
+      width={560}
+      footer={
+        <div className="flex gap-2.5">
+          <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
+            {t('vault.cancel')}
+          </Button>
+          <Button
+            variant="accent"
+            size="sm"
+            type="submit"
+            form="entry-create-form"
+            disabled={!canSubmit || fieldsInvalid}
+            className="flex-[2]"
           >
-            <Icon name="close" size={18} />
-          </button>
-        </header>
-
-        {/* Only this middle region scrolls; header + footer stay pinned. The
-            negative margin bleeds ModalShell's padding so the scrollbar and
-            section rules hug the modal edge while content keeps its inset. */}
-        <div className="-mx-6 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden subtle-scrollbar px-6 py-4">
+            {isPending ? t('vault.entries.saving') : t('vault.entries.saveEntry')}
+          </Button>
+        </div>
+      }
+    >
+      <form id="entry-create-form" className="flex flex-col gap-3" onSubmit={handleSubmit}>
           <div className="grid grid-cols-2 gap-3">
             <FormInput
               id="entry-vault"
@@ -272,7 +277,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             </FormSelect>
           </div>
 
-          <div>
+          <div className="-mb-4">
             <label
               htmlFor="entry-label"
               className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
@@ -326,7 +331,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
           {type === ENTRY_TYPE_KEY ? (
             <>
-              <div className="-mb-3">
+              <div className="-mb-4">
                 <SecretInput
                   id="entry-value"
                   label={t('vault.entries.valueLabel')}
@@ -348,7 +353,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             </>
           ) : type === ENTRY_TYPE_CREDENTIAL ? (
             <>
-              <div className="-mb-3">
+              <div className="-mb-4">
                 <FormInput
                   id="entry-username"
                   label={t('vault.entries.usernameLabel')}
@@ -364,7 +369,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   {t('validation.required')}
                 </FieldFeedback>
               </div>
-              <div className="-mb-3">
+              <div className="-mb-4">
                 <SecretInput
                   id="entry-password"
                   label={t('vault.entries.passwordLabel')}
@@ -440,16 +445,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             rows={2}
             maxLength={2000}
           />
-        </div>
-
-        <footer className="-mx-6 -mb-6 flex shrink-0 gap-2.5 border-t border-[var(--cv-divider)] px-6 py-3.5">
-          <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
-            {t('vault.cancel')}
-          </Button>
-          <Button variant="accent" size="sm" type="submit" disabled={!canSubmit || fieldsInvalid} className="flex-[2]">
-            {isPending ? t('vault.entries.saving') : t('vault.entries.saveEntry')}
-          </Button>
-        </footer>
       </form>
     </ModalShell>
   )
@@ -471,7 +466,7 @@ function WebsiteField({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="-mb-3">
+    <div className="-mb-4">
       <FormInput
         id="entry-url"
         label={t('vault.entries.urlLabel')}
@@ -483,6 +478,12 @@ function WebsiteField({
         disabled={disabled}
         inputMode="url"
         error={urlError}
+        trailingAction={{
+          icon: 'open_in_new',
+          label: t('vault.entry.openInBrowser'),
+          onClick: () => openExternalUrl(url),
+          show: !!extractDomain(url),
+        }}
       />
       <FieldFeedback visible={urlError} color="red">
         {t('validation.invalidUrl')}

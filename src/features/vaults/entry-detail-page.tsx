@@ -27,6 +27,7 @@ import { EntryLogsTab } from './components/entry-logs-tab'
 import {
   ENTRY_ICON_COLORS,
   extractDomain,
+  openExternalUrl,
 } from './components/entry-presentation'
 import { ModalShell } from '../../shared/components/modal-shell'
 import { VaultDetailHeader } from './components/vault-detail-header'
@@ -687,7 +688,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
           dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
         <div className="flex flex-col gap-3">
-            <div>
+            <div className="-mb-4">
               <label
                 htmlFor="entry-detail-label"
                 className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
@@ -735,7 +736,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               maxLength={500}
             />
             {entry.type !== ENTRY_TYPE_SCRIPT ? (
-              <div className="-mb-3">
+              <div className="-mb-4">
                 <FormInput
                   id="entry-detail-url"
                   label={t('vault.entries.urlLabel')}
@@ -750,6 +751,12 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   disabled={isSaving}
                   inputMode="url"
                   error={urlError}
+                  trailingAction={{
+                    icon: 'open_in_new',
+                    label: t('vault.entry.openInBrowser'),
+                    onClick: () => openExternalUrl(url),
+                    show: !!extractDomain(url),
+                  }}
                 />
                 <FieldFeedback visible={urlError} color="red">
                   {t('validation.invalidUrl')}
@@ -761,7 +768,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 {decryptError}
               </div>
             ) : entry.type === ENTRY_TYPE_KEY ? (
-              <div className="-mb-3">
+              <div className="-mb-4">
                 <SecretInput
                   id="entry-detail-value"
                   label={t('vault.entries.valueLabel')}
@@ -831,7 +838,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               </div>
             ) : (
               <>
-              <div className="flex gap-3 -mb-3">
+              <div className="flex gap-3 -mb-4">
                 <div className="flex-1 min-w-0">
                   <FormInput
                     id="entry-detail-username"

@@ -343,7 +343,7 @@
   "vault.entries.totp.replace": "Replace secret",
   "vault.entries.totp.label": "One-time code",
   "vault.entries.totp.setupLabel": "otpauth:// URI or base32 secret",
-  "vault.entries.totp.setupPlaceholder": "otpauth://totp/... or JBSWY3DPEHPK3PXP",
+  "vault.entries.totp.setupPlaceholder": "otpauth:// link or base32 secret",
   "vault.entries.totp.uploadQr": "Scan QR",
   "vault.entries.totp.invalidSeed": "Not a valid TOTP secret or otpauth:// URI.",
   "vault.entries.totp.reconfigure": "Reconfigure",

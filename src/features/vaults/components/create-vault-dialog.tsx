@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
-import { Icon } from '../../../shared/components/icon'
 import { FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { analytics } from '../../../shared/lib/analytics'
@@ -115,25 +114,20 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
     <ModalShell
       onClose={isPending ? undefined : onClose}
       ariaLabel={t('vault.createVault')}
-      width={400}
+      title={t('vault.createVault')}
+      width={440}
+      footer={
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
+            {t('vault.cancel')}
+          </Button>
+          <Button variant="accent" size="sm" type="submit" form="create-vault-form" disabled={!canSubmit} className="flex-[2]">
+            {isPending ? t('vault.creating') : t('vault.createVault')}
+          </Button>
+        </DialogFooter>
+      }
     >
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-        <header className="flex items-center justify-between">
-          <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-            {t('vault.createVault')}
-          </h2>
-          <button
-            type="button"
-            onClick={isPending ? undefined : onClose}
-            disabled={isPending}
-            aria-label={t('common.close')}
-            className="text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]
-              disabled:cursor-not-allowed"
-          >
-            <Icon name="close" size={18} />
-          </button>
-        </header>
-
+      <form id="create-vault-form" className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <FormInput
           id="vault-name"
           label={t('vault.nameLabel')}
@@ -168,15 +162,6 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
           disabled={isPending}
           rowClassName="flex justify-between"
         />
-
-        <DialogFooter>
-          <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
-            {t('vault.cancel')}
-          </Button>
-          <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
-            {isPending ? t('vault.creating') : t('vault.createVault')}
-          </Button>
-        </DialogFooter>
       </form>
     </ModalShell>
   )

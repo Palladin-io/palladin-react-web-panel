@@ -141,6 +141,18 @@ export function extractDomain(rawUrl: string | undefined): string | undefined {
   }
 }
 
+/**
+ * Open a user-entered website value in a new tab, prepending `https://` when it
+ * has no scheme. No-ops for values that don't parse as a domain — callers gate
+ * the affordance on {@link extractDomain} so the button only shows for real URLs.
+ */
+export function openExternalUrl(raw: string | undefined): void {
+  const trimmed = raw?.trim()
+  if (!trimmed || !extractDomain(trimmed)) return
+  const target = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+  window.open(target, '_blank', 'noopener,noreferrer')
+}
+
 /** Default picker glyph for an entry type — single source for form initial state. */
 export function defaultIconFor(type: number): string {
   if (type === ENTRY_TYPE_KEY) return 'vpn_key'

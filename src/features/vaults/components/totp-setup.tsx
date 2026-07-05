@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
+import { Icon } from '../../../shared/components/icon'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 import { parseOtpauthUri, totpParamsFromSecret } from '../../../shared/crypto/totp'
 import type { TotpParams } from '../types'
@@ -94,34 +95,36 @@ export function TotpSetupInputs({
         }
       }}
     >
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
-          <FormInput
-            id="totp-seed-input"
-            label={t('vault.entries.totp.setupLabel')}
-            value={raw}
-            onChange={(e) => {
-              setRaw(e.target.value)
-              setError(false)
-            }}
-            onBlur={() => resolveText(raw)}
-            placeholder={t('vault.entries.totp.setupPlaceholder')}
-            autoComplete="off"
-            disabled={disabled}
-            monospace
-            error={error}
-          />
-        </div>
-        <Button
-          variant="subtle"
-          size="sm"
-          icon="qr_code_scanner"
+      {/* Scan-QR as a subtle text action at the top of the setup (near the
+          header/close), not a heavy button — matches the app's red text actions. */}
+      <div className="flex justify-end">
+        <button
+          type="button"
           onClick={() => fileRef.current?.click()}
           disabled={disabled}
+          className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--cv-primary)]
+            transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
         >
+          <Icon name="qr_code_scanner" size={13} />
           {t('vault.entries.totp.uploadQr')}
-        </Button>
+        </button>
       </div>
+      <FormInput
+        id="totp-seed-input"
+        label={t('vault.entries.totp.setupLabel')}
+        labelClassName="sr-only"
+        value={raw}
+        onChange={(e) => {
+          setRaw(e.target.value)
+          setError(false)
+        }}
+        onBlur={() => resolveText(raw)}
+        placeholder={t('vault.entries.totp.setupPlaceholder')}
+        autoComplete="off"
+        disabled={disabled}
+        monospace
+        error={error}
+      />
       <FieldFeedback visible={error} color="red">
         {t('vault.entries.totp.invalidSeed')}
       </FieldFeedback>
