@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  agentFieldsFrom,
   blankField,
   foldCustomFields,
   foldScriptRefs,
@@ -128,6 +129,46 @@ describe('plaintextsEqual', () => {
       type: ENTRY_TYPE_CREDENTIAL,
     } as EntryPlaintext
     expect(plaintextsEqual(a, b)).toBe(true)
+  })
+})
+
+describe('agentVisible fold + agentFieldsFrom', () => {
+  const visible = (id: string, label: string, value: string, type: 'text' | 'multiline' = 'text'): CustomField => ({
+    id,
+    label,
+    type,
+    value,
+    agentVisible: true,
+  })
+
+  it('keeps agentVisible on folded text/multiline fields', () => {
+    const folded = foldCustomFields([visible('1', 'Account ID', 'acme-prod')])
+    expect(folded?.[0]).toMatchObject({ label: 'Account ID', agentVisible: true })
+  })
+
+  it('drops agentVisible on secret types even if set', () => {
+    const folded = foldCustomFields([
+      { id: '1', label: 'Recovery', type: 'concealed', value: 'x', agentVisible: true },
+    ])
+    expect(folded?.[0]).not.toHaveProperty('agentVisible')
+  })
+
+  it('mirrors only marked text/multiline fields, in order, trimmed', () => {
+    expect(
+      agentFieldsFrom([
+        visible('1', '  Account ID ', ' acme-prod '),
+        textField('2', 'Private', 'secret'),
+        visible('3', 'Region', 'eu', 'multiline'),
+        { id: '4', label: 'Code', type: 'concealed', value: 'x', agentVisible: true },
+      ]),
+    ).toEqual([
+      { label: 'Account ID', value: 'acme-prod' },
+      { label: 'Region', value: 'eu' },
+    ])
+  })
+
+  it('returns undefined when nothing is agent-visible', () => {
+    expect(agentFieldsFrom([textField('1', 'X', 'y')])).toBeUndefined()
   })
 })
 

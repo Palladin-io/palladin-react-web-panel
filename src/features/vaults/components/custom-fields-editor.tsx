@@ -1,47 +1,48 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { toast } from 'sonner'
 import { Icon } from '../../../shared/components/icon'
-import { SecretInput } from '../../../shared/components/secret-input'
+import { copySecretToClipboard, copyToClipboard } from '../../../shared/lib/clipboard'
 import {
   type CustomField,
   type CustomFieldType,
   type TotpParams,
+  canBeAgentVisible,
   isKnownFieldType,
 } from '../types'
 import { blankField, validateCustomFields, type CustomFieldError } from '../entry-blob'
+import { PopoverMenu, type MenuEntry } from './popover-menu'
 import { TotpSetup } from './totp-setup'
 
 export interface CustomFieldsEditorProps {
   fields: CustomField[]
   onChange: (next: CustomField[]) => void
   disabled?: boolean
-  /** Render copy buttons on value inputs (used in the edit-detail surface). */
+  /** Show copy buttons on value rows (the edit-detail surface). */
   copyable?: boolean
 }
 
-const FIELD_TYPE_META: Record<CustomFieldType, { icon: string; labelKey: string }> = {
-  text: { icon: 'text_fields', labelKey: 'vault.entries.customFields.typeText' },
-  concealed: { icon: 'password', labelKey: 'vault.entries.customFields.typeConcealed' },
-  totp: { icon: 'lock_clock', labelKey: 'vault.entries.customFields.typeTotp' },
+const FIELD_TYPE_META: Record<CustomFieldType, { icon: string; labelKey: string; descKey: string }> = {
+  text: { icon: 'text_fields', labelKey: 'vault.entries.customFields.typeText', descKey: 'vault.entries.customFields.typeTextDesc' },
+  multiline: { icon: 'notes', labelKey: 'vault.entries.customFields.typeMultiline', descKey: 'vault.entries.customFields.typeMultilineDesc' },
+  concealed: { icon: 'password', labelKey: 'vault.entries.customFields.typeConcealed', descKey: 'vault.entries.customFields.typeConcealedDesc' },
+  totp: { icon: 'lock_clock', labelKey: 'vault.entries.customFields.typeTotp', descKey: 'vault.entries.customFields.typeTotpDesc' },
 }
 
+const TYPE_ORDER: CustomFieldType[] = ['text', 'multiline', 'concealed', 'totp']
+
 /**
- * "Additional fields" — a compact, add-on-demand list of user-defined fields
- * shared by the create-entry modal and the entry-detail edit panel. Field type
- * is chosen at add time from a small menu (Text / Hidden / TOTP) and can be
- * changed per row; rows are single-line (text/hidden) and reorderable with
- * arrows. Ids are stable across edits and reorder (the agent CLI addresses
- * fields by id). Trimming/dropping empty rows happens at fold time; this editor
- * only surfaces the validation the parent gates save on (required label when a
- * value is present, unique labels).
+ * "Additional fields" — a grouped, bordered list shared by the create-entry
+ * modal and the entry-detail edit panel (approved redesign). Each row is a
+ * single line: drag grip, a type-icon menu (Text / Multiline / Hidden / TOTP),
+ * an inline label, a type-appropriate value, and a right action cluster
+ * (agent-visible marker, copy, ⋯ menu). The "+ Add field" ghost row opens the
+ * type menu. Ids are stable across edits/reorder (the agent CLI addresses fields
+ * by id); trimming/dropping empty rows happens at fold time. Validation
+ * (required label when valued, unique labels) is surfaced inline and gated by
+ * the parent on save.
  */
-export function CustomFieldsEditor({
-  fields,
-  onChange,
-  disabled,
-  copyable,
-}: CustomFieldsEditorProps) {
+export function CustomFieldsEditor({ fields, onChange, disabled, copyable }: CustomFieldsEditorProps) {
   const { t } = useTranslation()
   const { errors } = validateCustomFields(fields)
 
@@ -60,44 +61,49 @@ export function CustomFieldsEditor({
 
   const add = (type: CustomFieldType) => onChange([...fields, blankField(type)])
 
-  return (
-    <section className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <h3 className="text-[11px] font-semibold text-[var(--cv-label-text)]">
-          {t('vault.entries.customFields.title')}
-        </h3>
-        <FieldTypeMenu
-          trigger={
-            <span className="inline-flex items-center gap-1">
-              <Icon name="add" size={14} />
-              {t('vault.entries.customFields.add')}
-            </span>
-          }
-          disabled={disabled}
-          onPick={add}
-        />
-      </div>
+  const addItems: MenuEntry[] = TYPE_ORDER.map((type) => ({
+    icon: FIELD_TYPE_META[type].icon,
+    label: t(FIELD_TYPE_META[type].labelKey),
+    hint: t(FIELD_TYPE_META[type].descKey),
+    onSelect: () => add(type),
+  }))
 
-      {fields.length > 0 ? (
-        <div className="flex flex-col gap-1.5">
-          {fields.map((field, index) => (
-            <FieldRow
-              key={field.id}
-              field={field}
-              error={errors[field.id]}
-              disabled={disabled}
-              copyable={copyable}
-              canMoveUp={index > 0}
-              canMoveDown={index < fields.length - 1}
-              onChange={(patch) => update(field.id, patch)}
-              onRemove={() => remove(field.id)}
-              onMoveUp={() => move(index, -1)}
-              onMoveDown={() => move(index, 1)}
-            />
-          ))}
-        </div>
-      ) : null}
-    </section>
+  return (
+    <div className="overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
+      {fields.map((field, index) => (
+        <FieldRow
+          key={field.id}
+          field={field}
+          error={errors[field.id]}
+          disabled={disabled}
+          copyable={copyable}
+          first={index === 0}
+          canMoveUp={index > 0}
+          canMoveDown={index < fields.length - 1}
+          onChange={(patch) => update(field.id, patch)}
+          onRemove={() => remove(field.id)}
+          onMoveUp={() => move(index, -1)}
+          onMoveDown={() => move(index, 1)}
+        />
+      ))}
+      <PopoverMenu
+        trigger={
+          <span className="inline-flex items-center gap-2">
+            <Icon name="add" size={14} />
+            {t('vault.entries.customFields.add')}
+          </span>
+        }
+        items={addItems}
+        ariaLabel={t('vault.entries.customFields.add')}
+        disabled={disabled}
+        alignLeft
+        openUp
+        triggerClassName={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12px]
+          text-[var(--cv-btn-ghost-text)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)]
+          ${fields.length > 0 ? 'border-t border-[var(--cv-divider)]' : ''}
+          disabled:cursor-not-allowed disabled:opacity-40`}
+      />
+    </div>
   )
 }
 
@@ -106,6 +112,7 @@ interface FieldRowProps {
   error?: CustomFieldError
   disabled?: boolean
   copyable?: boolean
+  first: boolean
   canMoveUp: boolean
   canMoveDown: boolean
   onChange: (patch: Partial<CustomField>) => void
@@ -119,6 +126,7 @@ function FieldRow({
   error,
   disabled,
   copyable,
+  first,
   canMoveUp,
   canMoveDown,
   onChange,
@@ -129,164 +137,209 @@ function FieldRow({
   const { t } = useTranslation()
   const [shown, setShown] = useState(false)
   const rowType = isKnownFieldType(field.type) ? field.type : 'text'
+  const stringValue = typeof field.value === 'string' ? field.value : ''
+  const agentVisible = !!field.agentVisible && canBeAgentVisible(rowType)
 
   const changeType = (nextType: CustomFieldType) => {
-    if (nextType === field.type) return
+    if (nextType === rowType) return
     // Reset value to the new type's empty shape; keep the stable id + label.
-    onChange({ type: nextType, value: blankField(nextType).value })
+    // agentVisible is only valid for text-ish types — drop it otherwise.
+    const patch: Partial<CustomField> = { type: nextType, value: blankField(nextType).value }
+    if (!canBeAgentVisible(nextType)) patch.agentVisible = undefined
+    onChange(patch)
   }
 
-  const valueInput =
-    rowType === 'concealed' ? (
-      <SecretInput
-        id={`field-value-${field.id}`}
-        label={t('vault.entries.customFields.valueLabel')}
-        labelClassName="sr-only"
-        value={typeof field.value === 'string' ? field.value : ''}
-        onChange={(next) => onChange({ value: next })}
-        shown={shown}
-        onToggleShown={() => setShown((v) => !v)}
-        placeholder={t('vault.entries.customFields.valuePlaceholder')}
-        disabled={disabled}
-        monospace
-        copyable={copyable}
-        copyLabel={t('common.copy')}
-      />
-    ) : (
-      <FormInput
-        id={`field-value-${field.id}`}
-        label={t('vault.entries.customFields.valueLabel')}
-        labelClassName="sr-only"
-        value={typeof field.value === 'string' ? field.value : ''}
-        onChange={(e) => onChange({ value: e.target.value })}
-        placeholder={t('vault.entries.customFields.valuePlaceholder')}
-        autoComplete="off"
-        disabled={disabled}
-        copyable={copyable}
-        copyLabel={t('common.copy')}
-      />
+  const copy = async (secret: boolean) => {
+    const ok = await (secret ? copySecretToClipboard(stringValue) : copyToClipboard(stringValue))
+    toast[ok ? 'success' : 'error'](
+      ok
+        ? t('vault.entries.copied', { label: field.label || t('vault.entries.customFields.title') })
+        : t('vault.entries.copyFailed'),
     )
+  }
+
+  const typeMenuItems: MenuEntry[] = TYPE_ORDER.map((type) => ({
+    icon: FIELD_TYPE_META[type].icon,
+    label: t(FIELD_TYPE_META[type].labelKey),
+    hint: type === rowType ? '✓' : undefined,
+    hintColor: 'var(--cv-primary)',
+    onSelect: () => changeType(type),
+  }))
+
+  const dotsItems: MenuEntry[] = [
+    ...(canBeAgentVisible(rowType)
+      ? ([
+          {
+            icon: 'smart_toy',
+            label: t('vault.entries.customFields.visibleToAgents'),
+            hint: agentVisible ? t('common.on') : t('common.off'),
+            hintColor: agentVisible ? 'var(--cv-info)' : undefined,
+            onSelect: () => onChange({ agentVisible: agentVisible ? undefined : true }),
+          },
+        ] as MenuEntry[])
+      : []),
+    { icon: 'keyboard_arrow_up', label: t('common.moveUp'), disabled: !canMoveUp, onSelect: onMoveUp },
+    { icon: 'keyboard_arrow_down', label: t('common.moveDown'), disabled: !canMoveDown, onSelect: onMoveDown },
+    'separator',
+    { icon: 'delete', label: t('common.remove'), danger: true, onSelect: onRemove },
+  ]
+
+  const alignStart = rowType === 'multiline' || rowType === 'totp'
 
   return (
-    <div className="rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-empty-bg)] px-2 py-1.5">
-      <div className="flex items-center gap-1.5">
-        <FieldTypeMenu
-          trigger={<Icon name={FIELD_TYPE_META[rowType].icon} size={16} />}
+    <div className={first ? '' : 'border-t border-[var(--cv-divider)]'}>
+      <div className={`flex gap-2 px-2.5 py-2 ${alignStart ? 'items-start' : 'items-center'}`}>
+        <span className="mt-0.5 flex text-[var(--cv-icon-muted)] opacity-60" aria-hidden>
+          <Icon name="drag_indicator" size={14} />
+        </span>
+
+        <PopoverMenu
+          trigger={<Icon name={FIELD_TYPE_META[rowType].icon} size={14} />}
+          items={typeMenuItems}
           ariaLabel={t('vault.entries.customFields.typeLabel')}
-          current={rowType}
           disabled={disabled}
-          onPick={changeType}
+          alignLeft
+          triggerClassName="mt-px inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md
+            bg-[var(--cv-bg-subtle)] text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]
+            disabled:cursor-not-allowed disabled:opacity-40"
         />
-        <div className="w-32 shrink-0">
-          <FormInput
-            id={`field-label-${field.id}`}
-            label={t('vault.entries.customFields.labelLabel')}
-            labelClassName="sr-only"
-            value={field.label}
-            onChange={(e) => onChange({ label: e.target.value })}
-            placeholder={t('vault.entries.customFields.labelPlaceholder')}
-            autoComplete="off"
+
+        <input
+          aria-label={t('vault.entries.customFields.labelLabel')}
+          value={field.label}
+          onChange={(e) => onChange({ label: e.target.value })}
+          placeholder={t('vault.entries.customFields.labelPlaceholder')}
+          disabled={disabled}
+          maxLength={80}
+          className={`mt-px w-[126px] shrink-0 border-0 bg-transparent p-0 text-[12px] outline-none
+            placeholder:text-[var(--cv-input-placeholder)] ${error ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-t2)]'}`}
+        />
+
+        <div className="flex min-w-0 flex-1 items-start">
+          <FieldValue
+            type={rowType}
+            value={field.value}
+            stringValue={stringValue}
+            shown={shown}
             disabled={disabled}
-            maxLength={80}
-            error={error === 'label-required'}
+            onChangeString={(v) => onChange({ value: v })}
+            onChangeTotp={(v) => onChange({ value: v })}
           />
         </div>
-        {rowType !== 'totp' ? (
-          <div className="min-w-0 flex-1">{valueInput}</div>
-        ) : (
-          <div className="flex-1" />
-        )}
-        <div className="flex shrink-0 items-center">
-          <RowIconButton icon="keyboard_arrow_up" label={t('common.moveUp')} onClick={onMoveUp} disabled={disabled || !canMoveUp} />
-          <RowIconButton icon="keyboard_arrow_down" label={t('common.moveDown')} onClick={onMoveDown} disabled={disabled || !canMoveDown} />
-          <RowIconButton icon="delete" label={t('common.remove')} onClick={onRemove} disabled={disabled} />
+
+        <div className="flex shrink-0 items-center gap-0.5">
+          {agentVisible ? <AgentVisibleBadge /> : null}
+          {rowType === 'concealed' ? (
+            <RowIconButton
+              icon={shown ? 'visibility_off' : 'visibility'}
+              label={shown ? t('vault.entry.hide') : t('vault.entry.reveal')}
+              onClick={() => setShown((v) => !v)}
+              disabled={disabled}
+            />
+          ) : null}
+          {copyable && rowType !== 'totp' && stringValue ? (
+            <RowIconButton
+              icon="content_copy"
+              label={t('common.copy')}
+              onClick={() => void copy(rowType === 'concealed')}
+              disabled={disabled}
+            />
+          ) : null}
+          <PopoverMenu
+            trigger={<Icon name="more_horiz" size={16} />}
+            items={dotsItems}
+            ariaLabel={t('common.moreActions')}
+            disabled={disabled}
+          />
         </div>
       </div>
 
-      {rowType === 'totp' ? (
-        <div className="mt-1.5">
-          <TotpSetup
-            value={field.value as TotpParams}
-            onChange={(params) => onChange({ value: params })}
-            disabled={disabled}
-          />
-        </div>
+      {error ? (
+        <p role="alert" className="px-2.5 pb-1.5 pl-[76px] text-[10px] text-[var(--cv-primary)]">
+          {error === 'duplicate-label'
+            ? t('vault.entries.customFields.duplicateLabel')
+            : t('vault.entries.customFields.labelRequired')}
+        </p>
       ) : null}
-
-      <FieldFeedback visible={!!error} color="red">
-        {error === 'duplicate-label'
-          ? t('vault.entries.customFields.duplicateLabel')
-          : t('vault.entries.customFields.labelRequired')}
-      </FieldFeedback>
     </div>
   )
 }
 
-interface FieldTypeMenuProps {
-  trigger: React.ReactNode
-  ariaLabel?: string
-  current?: CustomFieldType
+interface FieldValueProps {
+  type: CustomFieldType
+  value: string | TotpParams
+  stringValue: string
+  shown: boolean
   disabled?: boolean
-  onPick: (type: CustomFieldType) => void
+  onChangeString: (v: string) => void
+  onChangeTotp: (v: TotpParams) => void
 }
 
-/** Small popover menu of field types — used for "+ Add field" and per-row type change. */
-function FieldTypeMenu({ trigger, ariaLabel, current, disabled, onPick }: FieldTypeMenuProps) {
+function FieldValue({ type, stringValue, value, shown, disabled, onChangeString, onChangeTotp }: FieldValueProps) {
   const { t } = useTranslation()
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!open) return
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
-
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-label={ariaLabel}
+  if (type === 'totp') {
+    return (
+      <div className="min-w-0 flex-1">
+        <TotpSetup value={value as TotpParams} onChange={onChangeTotp} disabled={disabled} />
+      </div>
+    )
+  }
+  if (type === 'multiline') {
+    return (
+      <textarea
+        aria-label={t('vault.entries.customFields.valueLabel')}
+        value={stringValue}
+        onChange={(e) => onChangeString(e.target.value)}
+        placeholder={t('vault.entries.customFields.valuePlaceholder')}
         disabled={disabled}
-        onClick={() => setOpen((o) => !o)}
-        className="inline-flex h-7 items-center justify-center gap-1 rounded-lg px-1.5
-          text-[11px] font-semibold text-[var(--cv-btn-ghost-text)] transition-colors
-          hover:bg-[var(--cv-btn-ghost-hover)] hover:text-[var(--cv-t1)]
-          disabled:cursor-not-allowed disabled:opacity-40"
+        rows={2}
+        className="ph-no-capture min-h-[42px] w-full resize-y border-0 bg-transparent p-0 font-mono
+          text-[11.5px] leading-relaxed text-[var(--cv-t1)] outline-none
+          placeholder:text-[var(--cv-input-placeholder)]"
+      />
+    )
+  }
+  // text + concealed share an inline input; concealed masks unless revealed.
+  return (
+    <input
+      aria-label={t('vault.entries.customFields.valueLabel')}
+      value={stringValue}
+      onChange={(e) => onChangeString(e.target.value)}
+      placeholder={t('vault.entries.customFields.valuePlaceholder')}
+      disabled={disabled}
+      type="text"
+      autoComplete="off"
+      data-1p-ignore
+      data-lpignore="true"
+      className={`ph-no-capture w-full border-0 bg-transparent p-0 text-[12.5px] text-[var(--cv-t1)]
+        outline-none placeholder:text-[var(--cv-input-placeholder)]
+        ${type === 'concealed' ? 'font-mono' : ''} ${type === 'concealed' && !shown ? 'secret-mask' : ''}`}
+    />
+  )
+}
+
+/** The info marker shown on an agent-visible field, with an explanatory hover hint. */
+function AgentVisibleBadge() {
+  const { t } = useTranslation()
+  return (
+    <span className="group relative inline-flex">
+      <span
+        className="inline-flex h-6 w-6 items-center justify-center text-[var(--cv-info)]"
+        aria-label={t('vault.entries.customFields.agentVisibleHint')}
       >
-        {trigger}
-      </button>
-      {open ? (
-        <div
-          role="menu"
-          className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border
-            border-[var(--cv-border)] bg-[var(--cv-modal-bg)] py-1 shadow-xl"
-        >
-          {(Object.keys(FIELD_TYPE_META) as CustomFieldType[]).map((type) => (
-            <button
-              key={type}
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                onPick(type)
-                setOpen(false)
-              }}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px]
-                text-[var(--cv-t1)] transition-colors hover:bg-[var(--cv-bg-subtle)]"
-            >
-              <Icon name={FIELD_TYPE_META[type].icon} size={15} className="text-[var(--cv-t3)]" />
-              <span className="flex-1">{t(FIELD_TYPE_META[type].labelKey)}</span>
-              {current === type ? <Icon name="check" size={14} className="text-[var(--cv-primary)]" /> : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
-    </div>
+        <Icon name="smart_toy" size={13} />
+      </span>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 w-52 -translate-x-1/2
+          rounded-lg border border-[var(--cv-border)] bg-[var(--cv-modal-bg)] px-2.5 py-1.5 text-[11px]
+          leading-snug text-[var(--cv-t1)] opacity-0 shadow-[0_10px_28px_rgba(0,0,0,0.25)]
+          transition-opacity group-hover:opacity-100"
+      >
+        {t('vault.entries.customFields.agentVisibleHint')}
+      </span>
+    </span>
   )
 }
 
@@ -308,11 +361,11 @@ function RowIconButton({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="inline-flex h-6 w-6 items-center justify-center rounded
-        text-[var(--cv-t3)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)]
-        hover:text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--cv-icon-muted)]
+        transition-colors hover:bg-[var(--cv-btn-ghost-hover)] hover:text-[var(--cv-t1)]
+        disabled:cursor-not-allowed disabled:opacity-40"
     >
-      <Icon name={icon} size={16} />
+      <Icon name={icon} size={14} />
     </button>
   )
 }

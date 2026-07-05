@@ -5,6 +5,7 @@ import {
   type EntryPlaintext,
   type ScriptRef,
   type TotpParams,
+  canBeAgentVisible,
   isTotpField,
 } from './types'
 
@@ -137,12 +138,42 @@ export function foldCustomFields(fields: CustomField[]): CustomField[] | undefin
     } else if (typeof field.value === 'string') {
       const value = field.value.trim()
       if (!value) continue
-      folded.push({ id: field.id, label, type: field.type, value })
+      // `agentVisible` only rides along on the text-ish types that may be exposed.
+      const agentVisible = field.agentVisible && canBeAgentVisible(field.type) ? true : undefined
+      folded.push({ id: field.id, label, type: field.type, value, ...(agentVisible ? { agentVisible } : {}) })
     } else {
       folded.push({ ...field, label })
     }
   }
   return folded.length > 0 ? folded : undefined
+}
+
+/** Max agent-visible fields mirrored to entry metadata (backend AgentFieldRules). */
+export const MAX_AGENT_FIELDS = 20
+const AGENT_LABEL_MAX = 200
+const AGENT_VALUE_MAX = 2000
+
+/**
+ * Build the plaintext `agentFields` mirror for the create/update request: the
+ * subset of fields the owner marked agent-visible (text/multiline only, with a
+ * label and value), in display order, capped to the backend limits. This is the
+ * discovery-metadata view (like Label/Description) — the encrypted blob remains
+ * the source of truth. Returns undefined when there are none.
+ */
+export function agentFieldsFrom(
+  fields: CustomField[],
+): { label: string; value: string }[] | undefined {
+  const out: { label: string; value: string }[] = []
+  for (const field of fields) {
+    if (!field.agentVisible || !canBeAgentVisible(field.type)) continue
+    if (typeof field.value !== 'string') continue
+    const label = field.label.trim()
+    const value = field.value.trim()
+    if (!label || !value) continue
+    out.push({ label: label.slice(0, AGENT_LABEL_MAX), value: value.slice(0, AGENT_VALUE_MAX) })
+    if (out.length >= MAX_AGENT_FIELDS) break
+  }
+  return out.length > 0 ? out : undefined
 }
 
 /**

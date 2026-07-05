@@ -87,8 +87,12 @@ export function normalizeEntryType(raw: unknown): EntryType {
  */
 export const BLOB_VERSION_V2 = 2 as const
 
-/** Custom-field kinds a client renders. Unknown values are tolerated on read. */
-export type CustomFieldType = 'text' | 'concealed' | 'totp'
+/**
+ * Custom-field kinds a client renders. `text` = single line, `multiline` = a
+ * growing monospace block (notes/config), `concealed` = masked secret, `totp` =
+ * one-time-code seed. Unknown values are tolerated on read (forward-compat).
+ */
+export type CustomFieldType = 'text' | 'multiline' | 'concealed' | 'totp'
 
 /**
  * Parsed TOTP seed. Stored as the `value` of a `totp` custom field (never the
@@ -118,10 +122,22 @@ export interface CustomField {
   label: string
   type: string
   value: string | TotpParams
+  /**
+   * When true, the owner marked this field as plaintext discovery metadata
+   * (like Label/Description) — mirrored to `agentFields` on the entry so org
+   * agents see it without a grant (CVT-204). Only valid for `text`/`multiline`;
+   * never `concealed`/`totp`. Absent/false = private (default).
+   */
+  agentVisible?: boolean
 }
 
 export function isKnownFieldType(type: string): type is CustomFieldType {
-  return type === 'text' || type === 'concealed' || type === 'totp'
+  return type === 'text' || type === 'multiline' || type === 'concealed' || type === 'totp'
+}
+
+/** Only non-secret text-ish fields may be exposed to agents as discovery metadata. */
+export function canBeAgentVisible(type: string): boolean {
+  return type === 'text' || type === 'multiline'
 }
 
 /** Narrow a custom field to a TOTP field (value is {@link TotpParams}). */
@@ -197,6 +213,16 @@ export interface EntryDetail extends EntryListItem {
  * payload (serialised JSON of {@link EntryPlaintext}) is encrypted with
  * the vault key client-side before this object is built.
  */
+/**
+ * Plaintext mirror of an owner-marked agent-visible field (CVT-204). Sent
+ * alongside the encrypted content so the backend can store it as discovery
+ * metadata (like Label/Description) — never a secret.
+ */
+export interface AgentField {
+  label: string
+  value: string
+}
+
 export interface CreateEntryPayload {
   label: string
   description?: string
@@ -205,6 +231,7 @@ export interface CreateEntryPayload {
   type: EntryType
   content: EntryContent
   urlDomain?: string
+  agentFields?: AgentField[]
 }
 
 /**

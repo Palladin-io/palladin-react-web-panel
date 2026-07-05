@@ -10,6 +10,8 @@ export interface UpdateEntryInput {
   color?: string
   urlDomain?: string
   content?: EntryContent
+  /** Plaintext mirror of agent-visible fields (CVT-204) — never a secret. */
+  agentFields?: { label: string; value: string }[]
 }
 
 /**

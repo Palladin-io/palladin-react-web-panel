@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
+import { Icon } from '../../shared/components/icon'
 import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { FormTextarea } from '../../shared/components/form-textarea'
 import { SecretInput } from '../../shared/components/secret-input'
@@ -46,6 +47,7 @@ import {
 } from './types'
 import {
   DEFAULT_TOTP_LABEL,
+  agentFieldsFrom,
   foldCustomFields,
   foldScriptRefs,
   mergeCredentialTotp,
@@ -59,9 +61,9 @@ import { parseOtpauthUri } from '../../shared/crypto/totp'
 import { CustomFieldsEditor } from './components/custom-fields-editor'
 import { CredentialTotpField } from './components/credential-totp-field'
 import { ScriptEditor } from './components/script-editor'
+import { ScriptExecHint } from './components/script-exec-hint'
 import { ScriptRefsEditor } from './components/script-refs-editor'
-import { FormSelect } from '../../shared/components/form-select'
-import { WarningZone } from '../../shared/components/warning-zone'
+import { SectionHeader } from './components/section-header'
 import { useDeleteEntry } from './use-delete-entry'
 import { useEntryDetail } from './use-entries'
 import { useEntryIconUpload } from './use-entry-icon-upload'
@@ -641,7 +643,12 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       entry,
       url,
     })
-    if (newContent) patch.content = newContent
+    if (newContent) {
+      patch.content = newContent
+      // Content changed → refresh the plaintext agent-field mirror (empty array
+      // clears it server-side when the last visible field is removed).
+      patch.agentFields = agentFieldsFrom(mergedFields) ?? []
+    }
 
     if (Object.keys(patch).length === 0) {
       toast.success(t('vault.entry.detail.saveSuccess'))
@@ -763,24 +770,27 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             ) : entry.type === ENTRY_TYPE_SCRIPT ? (
               <div className="flex flex-col gap-3">
                 <div>
-                  <div className="mb-1 flex items-center justify-between gap-3">
-                    <span className="text-[11px] font-semibold text-[var(--cv-label-text)]">
-                      {t('vault.entries.script.bodyLabel')}
-                    </span>
-                    <div className="w-32">
-                      <FormSelect
-                        id="entry-detail-interpreter"
-                        aria-label={t('vault.entries.script.interpreterLabel')}
-                        value={interpreter}
-                        onChange={(e) => setInterpreter(e.target.value as ScriptInterpreter)}
-                        disabled={isSaving || decrypting}
-                      >
-                        {SCRIPT_INTERPRETERS.map((option) => (
-                          <option key={option} value={option}>{option}</option>
-                        ))}
-                      </FormSelect>
-                    </div>
-                  </div>
+                  <label
+                    htmlFor="entry-detail-interpreter"
+                    className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-[var(--cv-label-text)]"
+                  >
+                    <span>{t('vault.entries.script.bodyLabel')}</span>
+                    <span className="flex-1" />
+                    <select
+                      id="entry-detail-interpreter"
+                      aria-label={t('vault.entries.script.interpreterLabel')}
+                      value={interpreter}
+                      onChange={(e) => setInterpreter(e.target.value as ScriptInterpreter)}
+                      disabled={isSaving || decrypting}
+                      className="cursor-pointer appearance-none border-0 bg-transparent pr-1 text-[11.5px]
+                        font-normal text-[var(--cv-t2)] outline-none disabled:cursor-not-allowed"
+                    >
+                      {SCRIPT_INTERPRETERS.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                    <Icon name="expand_more" size={13} className="-ml-1 text-[var(--cv-icon-muted)]" />
+                  </label>
                   <ScriptEditor
                     value={script}
                     onChange={(next) => { setScript(next); setScriptError(false) }}
@@ -791,7 +801,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   <FieldFeedback visible={scriptError} color="red">
                     {t('validation.required')}
                   </FieldFeedback>
+                  <ScriptExecHint />
                 </div>
+                <SectionHeader>{t('vault.entries.script.refsTitle')}</SectionHeader>
                 <ScriptRefsEditor
                   vaultId={vault.id}
                   currentEntryId={entry.id}
@@ -799,9 +811,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   onChange={setRefs}
                   disabled={isSaving || decrypting}
                 />
-                <WarningZone title={t('vault.entries.script.warningTitle')}>
-                  {t('vault.entries.script.warningBody')}
-                </WarningZone>
               </div>
             ) : (
               <>
@@ -850,6 +859,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   </FieldFeedback>
                 </div>
               </div>
+              <SectionHeader>{t('vault.entries.totp.section')}</SectionHeader>
               <CredentialTotpField
                 value={credentialTotp}
                 onChange={setCredentialTotp}
@@ -867,12 +877,15 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               placeholder={t('vault.entries.notesPlaceholder')}
             />
             {!decryptError ? (
-              <CustomFieldsEditor
-                fields={customFields}
-                onChange={setCustomFields}
-                disabled={isSaving || decrypting}
-                copyable
-              />
+              <>
+                <SectionHeader>{t('vault.entries.customFields.title')}</SectionHeader>
+                <CustomFieldsEditor
+                  fields={customFields}
+                  onChange={setCustomFields}
+                  disabled={isSaving || decrypting}
+                  copyable
+                />
+              </>
             ) : null}
           </div>
           <div className="w-60 shrink-0 flex flex-col gap-4">

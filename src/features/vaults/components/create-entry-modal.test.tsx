@@ -186,7 +186,7 @@ describe('CreateEntryModal', () => {
     await user.type(screen.getByLabelText(/^value$/i), 'sk_live')
     // "+ Add field" opens a type menu; pick Text.
     await user.click(screen.getByRole('button', { name: /add field/i }))
-    await user.click(screen.getByRole('menuitem', { name: /^text$/i }))
+    await user.click(screen.getByRole('menuitem', { name: /^text/i }))
     await user.type(screen.getByPlaceholderText(/recovery email/i), '  Recovery email  ')
     await user.type(screen.getByPlaceholderText(/^field value$/i), '  backup@example.com ')
     await user.click(screen.getByRole('button', { name: /save entry/i }))

@@ -4,7 +4,7 @@ import { wipe } from '../../shared/crypto/sodium'
 import { unsealVaultKey } from '../../shared/crypto/vault-key'
 import { useAuthStore } from '../auth'
 import { createEntry } from './api/vault-api'
-import type { EntryPlaintext, EntryType } from './types'
+import type { AgentField, EntryPlaintext, EntryType } from './types'
 import { entriesQueryKey } from './use-entries'
 import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
@@ -47,6 +47,8 @@ export interface CreateEntryInput {
   payload: EntryPlaintext
   /** Domain extracted from a CREDENTIAL's URL (browser extension hint). */
   urlDomain?: string
+  /** Plaintext mirror of agent-visible fields (CVT-204) — never a secret. */
+  agentFields?: AgentField[]
 }
 
 export function useCreateEntry() {
@@ -73,6 +75,7 @@ export function useCreateEntry() {
           type: input.type,
           content,
           urlDomain: input.urlDomain,
+          agentFields: input.agentFields,
         })
       } finally {
         // VK is rederivable from `wrappedVK + privateKey`; wiping it

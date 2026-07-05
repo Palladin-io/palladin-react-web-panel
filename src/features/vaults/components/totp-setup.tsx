@@ -46,7 +46,12 @@ export function TotpSetup({ value, onChange, disabled }: TotpSetupProps) {
   )
 }
 
-function TotpSetupInputs({
+/**
+ * The seed-entry controls only (paste otpauth URI / base32 / QR upload) — no
+ * live-code preview. Used by the credential 2FA card for its setup / replace
+ * flow, where the configured state renders as a card rather than a preview.
+ */
+export function TotpSetupInputs({
   onResolved,
   disabled,
 }: {

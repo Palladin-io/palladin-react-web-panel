@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import CodeMirror from '@uiw/react-codemirror'
 import { EditorView } from '@codemirror/view'
 import { HighlightStyle, StreamLanguage, syntaxHighlighting } from '@codemirror/language'
@@ -32,32 +33,46 @@ export function ScriptEditor({
   interpreter,
   disabled,
   placeholder,
-  height = '300px',
+  height = '190px',
 }: ScriptEditorProps) {
+  const { t } = useTranslation()
   const extensions = useMemo<Extension[]>(
     () => [languageFor(interpreter), CV_THEME, syntaxHighlighting(CV_HIGHLIGHT)],
     [interpreter],
   )
+  const lineCount = value.length === 0 ? 1 : value.split('\n').length
 
   return (
-    <CodeMirror
-      value={value}
-      onChange={onChange}
-      height={height}
-      editable={!disabled}
-      readOnly={disabled}
-      placeholder={placeholder}
-      theme={CV_THEME}
-      extensions={extensions}
-      basicSetup={{
-        lineNumbers: true,
-        foldGutter: false,
-        autocompletion: false,
-        highlightActiveLine: true,
-        highlightActiveLineGutter: true,
-        bracketMatching: true,
-      }}
-    />
+    <div className="overflow-hidden rounded-[10px] border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]">
+      {/* `min-w-0` lets the editor shrink inside the modal so a long line scrolls
+          the editor internally instead of pushing the whole dialog wider. */}
+      <div className="min-w-0">
+        <CodeMirror
+          value={value}
+          onChange={onChange}
+          height={height}
+          editable={!disabled}
+          readOnly={disabled}
+          placeholder={placeholder}
+          theme={CV_THEME}
+          extensions={extensions}
+          basicSetup={{
+            lineNumbers: true,
+            foldGutter: false,
+            autocompletion: false,
+            highlightActiveLine: true,
+            highlightActiveLineGutter: true,
+            bracketMatching: true,
+          }}
+        />
+      </div>
+      <div className="flex items-center gap-1.5 border-t border-[var(--cv-divider)] px-2.5 py-1 text-[11px] text-[var(--cv-t3)]">
+        <span style={{ color: 'var(--cv-script)' }} aria-hidden>●</span>
+        <span>{interpreter}</span>
+        <span>·</span>
+        <span>{t('vault.entries.script.lineCount', { count: lineCount })}</span>
+      </div>
+    </div>
   )
 }
 
@@ -68,23 +83,24 @@ function languageFor(interpreter: ScriptInterpreter): Extension {
 }
 
 /**
- * Editor chrome bound to the app's design tokens. `&` is the CodeMirror root, so
- * background/border/radius live there; gutters, cursor, active line, and
- * selection all resolve through `--cv-*`, keeping the editor on-palette in both
- * themes with zero hard-coded chrome colours.
+ * Editor chrome bound to the app's design tokens. The border/radius live on the
+ * outer wrapper (so the footer joins seamlessly); gutters, cursor, active line,
+ * and selection all resolve through `--cv-*`, keeping the editor on-palette in
+ * both themes with zero hard-coded chrome colours. `maxWidth`/scroller overflow
+ * keep a long line inside the editor rather than widening the modal.
  */
 const CV_THEME: Extension = EditorView.theme({
   '&': {
     fontSize: '12px',
-    backgroundColor: 'var(--cv-input-bg)',
+    maxWidth: '100%',
+    backgroundColor: 'transparent',
     color: 'var(--cv-input-text)',
-    borderRadius: '8px',
-    border: '1px solid var(--cv-input-border)',
   },
-  '&.cm-focused': { outline: 'none', borderColor: 'var(--cv-t1)' },
+  '&.cm-focused': { outline: 'none' },
   '.cm-scroller': {
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
     lineHeight: '1.6',
+    overflowX: 'auto',
   },
   '.cm-content': { caretColor: 'var(--cv-t1)' },
   '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--cv-t1)' },
@@ -92,8 +108,6 @@ const CV_THEME: Extension = EditorView.theme({
     backgroundColor: 'var(--cv-empty-bg)',
     color: 'var(--cv-t3)',
     border: 'none',
-    borderTopLeftRadius: '8px',
-    borderBottomLeftRadius: '8px',
   },
   '.cm-activeLine': { backgroundColor: 'rgb(var(--cv-primary-rgb) / 0.04)' },
   '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--cv-t2)' },

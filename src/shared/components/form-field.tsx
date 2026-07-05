@@ -11,6 +11,8 @@ import { CopyButton } from './copy-button'
 export interface FormInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className'> {
   label: string
+  /** Optional muted adornment after the label (e.g. "· visible to agents"). */
+  labelSuffix?: ReactNode
   /** Override the default label className when different styling is needed. */
   labelClassName?: string
   /** Override border + focus-border classes. Defaults to subtle/teal. */
@@ -27,6 +29,7 @@ export interface FormInputProps
 
 export function FormInput({
   label,
+  labelSuffix,
   id,
   labelClassName,
   borderClass,
@@ -46,6 +49,7 @@ export function FormInput({
         }
       >
         {label}
+        {labelSuffix ? <span className="ml-1.5 font-normal text-[var(--cv-t3)]">{labelSuffix}</span> : null}
       </label>
       <div className="relative">
         <input

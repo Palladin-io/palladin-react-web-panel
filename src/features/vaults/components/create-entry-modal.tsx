@@ -9,7 +9,6 @@ import { Icon } from '../../../shared/components/icon'
 import { SecretInput } from '../../../shared/components/secret-input'
 import { analytics } from '../../../shared/lib/analytics'
 import { firstError, required, validUrl } from '../../../shared/lib/validation'
-import { WarningZone } from '../../../shared/components/warning-zone'
 import {
   BLOB_VERSION_V2,
   ENTRY_TYPE_CREDENTIAL,
@@ -24,6 +23,7 @@ import {
   type Vault,
 } from '../types'
 import {
+  agentFieldsFrom,
   foldScriptRefs,
   mergeCredentialTotp,
   validateCustomFields,
@@ -31,20 +31,18 @@ import {
 } from '../entry-blob'
 import { CustomFieldsEditor } from './custom-fields-editor'
 import { CredentialTotpField } from './credential-totp-field'
+import { EntryIconButton } from './entry-icon-button'
 import { ScriptEditor } from './script-editor'
+import { ScriptExecHint } from './script-exec-hint'
 import { ScriptRefsEditor } from './script-refs-editor'
+import { SectionHeader } from './section-header'
 import { useCreateEntry } from '../use-create-entry'
 import { entriesQueryKey } from '../use-entries'
 import { extensionFromMime } from '../use-vault-icon-upload'
 import { presignEntryIcon, updateEntry, uploadToS3 } from '../api/vault-api'
-import {
-  extractDomain,
-} from './entry-presentation'
-import { EntryIconPicker } from './entry-icon-picker'
+import { extractDomain } from './entry-presentation'
 import { defaultColorFor, defaultIconFor } from './entry-presentation'
 import { resolveFavicon } from '../api/vault-api'
-import { DialogFooter } from '../../../shared/components/dialog-footer'
-import { EncryptionNotice } from '../../../shared/components/encryption-notice'
 import { FormSelect } from '../../../shared/components/form-select'
 import { ModalShell } from '../../../shared/components/modal-shell'
 
@@ -185,6 +183,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         type,
         payload,
         urlDomain: type === ENTRY_TYPE_SCRIPT ? undefined : extractDomain(url) || undefined,
+        agentFields: agentFieldsFrom(allFields),
       },
       {
         onSuccess: async (data) => {
@@ -211,290 +210,288 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     )
   }
 
+  const visibleNote = <>· {t('vault.entries.agentVisibleNote')}</>
+
   return (
-    <ModalShell
-      onClose={isPending ? undefined : onClose}
-      ariaLabel={t('vault.entries.addEntry')}
-      width={type === ENTRY_TYPE_SCRIPT ? 640 : 520}
-    >
-      <form className="flex max-h-[82vh] flex-col" onSubmit={handleSubmit}>
-        <header className="mb-3 flex shrink-0 items-center justify-between">
-          <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-            {t('vault.entries.addEntry')}
-          </h2>
+    <ModalShell onClose={isPending ? undefined : onClose} ariaLabel={t('vault.entries.addEntry')} width={560}>
+      <form className="flex max-h-[86vh] flex-col" onSubmit={handleSubmit}>
+        <header className="-mx-6 -mt-6 flex shrink-0 items-center justify-between border-b border-[var(--cv-divider)] px-6 py-3.5">
+          <h2 className="text-[14px] font-semibold text-[var(--cv-t1)]">{t('vault.entries.addEntry')}</h2>
           <button
             type="button"
             onClick={isPending ? undefined : onClose}
             disabled={isPending}
             aria-label={t('common.close')}
-            className="text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]
-              disabled:cursor-not-allowed"
+            className="flex text-[var(--cv-icon-muted)] transition-colors hover:text-[var(--cv-t1)] disabled:cursor-not-allowed"
           >
             <Icon name="close" size={18} />
           </button>
         </header>
 
         {/* Only this middle region scrolls; header + footer stay pinned. The
-            negative margin bleeds ModalShell's padding so the scrollbar hugs the
-            modal edge while content keeps its inset. */}
-        <div className="-mx-6 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto subtle-scrollbar px-6 py-1">
-        <div className="-mb-3">
+            negative margin bleeds ModalShell's padding so the scrollbar and
+            section rules hug the modal edge while content keeps its inset. */}
+        <div className="-mx-6 flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden subtle-scrollbar px-6 py-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]">
+                {t('vault.vault')}
+              </label>
+              <div className="flex h-[38px] items-center rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 text-[12px] text-[var(--cv-t2)]">
+                <span className="truncate">{vault.name}</span>
+              </div>
+            </div>
+            <FormSelect
+              id="entry-type"
+              label={t('vault.entries.typeLabel')}
+              value={String(type)}
+              onChange={(e) => {
+                const nextType = Number(e.target.value) as EntryType
+                const previousType = type
+                setType(nextType)
+                if (!iconTouched) {
+                  const typeDefaults = [
+                    defaultIconFor(ENTRY_TYPE_KEY),
+                    defaultIconFor(ENTRY_TYPE_CREDENTIAL),
+                    defaultIconFor(ENTRY_TYPE_SCRIPT),
+                  ]
+                  setIcon((current) =>
+                    current === undefined || typeDefaults.includes(current)
+                      ? defaultIconFor(nextType)
+                      : current,
+                  )
+                  setColor((current) =>
+                    current === defaultColorFor(previousType) ? defaultColorFor(nextType) : current,
+                  )
+                }
+              }}
+              disabled={isPending}
+            >
+              <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
+              <option value={String(ENTRY_TYPE_CREDENTIAL)}>{t('vault.entries.typeCredentialOption')}</option>
+              <option value={String(ENTRY_TYPE_SCRIPT)}>{t('vault.entries.typeScriptOption')}</option>
+            </FormSelect>
+          </div>
+
+          <div>
+            <label
+              htmlFor="entry-label"
+              className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
+            >
+              {t('vault.entries.labelLabel')}
+              <span className="ml-1.5 font-normal text-[var(--cv-t3)]">{visibleNote}</span>
+            </label>
+            <div className="flex gap-2">
+              <EntryIconButton
+                icon={icon}
+                color={color}
+                type={type}
+                onChange={(next) => { setIcon(next); setPendingIconFile(null); setIconTouched(true) }}
+                onColorChange={(next) => { setColor(next); setIconTouched(true) }}
+                onFileSelected={(file, previewUrl) => { setPendingIconFile(file); setIcon(previewUrl); setIconTouched(true) }}
+                disabled={isPending}
+              />
+              <div className="min-w-0 flex-1">
+                <FormInput
+                  id="entry-label"
+                  label={t('vault.entries.labelLabel')}
+                  labelClassName="sr-only"
+                  value={label}
+                  onChange={(e) => { setLabel(e.target.value); setLabelError(false) }}
+                  onBlur={() => setLabelError(firstError(label, [required(t('validation.required'))]) !== null)}
+                  placeholder={t('vault.entries.labelPlaceholder')}
+                  autoFocus
+                  autoComplete="off"
+                  disabled={isPending}
+                  maxLength={120}
+                  error={labelError}
+                />
+                <FieldFeedback visible={labelError} color="red">
+                  {t('validation.required')}
+                </FieldFeedback>
+              </div>
+            </div>
+          </div>
+
           <FormInput
-            id="entry-label"
-            label={t('vault.entries.labelLabel')}
-            value={label}
-            onChange={(e) => { setLabel(e.target.value); setLabelError(false) }}
-            onBlur={() =>
-              setLabelError(
-                firstError(label, [required(t('validation.required'))]) !== null,
-              )
-            }
-            placeholder={t('vault.entries.labelPlaceholder')}
-            autoFocus
+            id="entry-description"
+            label={t('vault.entries.descriptionLabel')}
+            labelSuffix={visibleNote}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t('vault.entries.descriptionPlaceholder')}
             autoComplete="off"
             disabled={isPending}
-            maxLength={120}
-            error={labelError}
+            maxLength={500}
           />
-          <FieldFeedback visible={labelError} color="red">
-            {t('validation.required')}
-          </FieldFeedback>
-        </div>
 
-        <FormInput
-          id="entry-description"
-          label={t('vault.entries.descriptionLabel')}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder={t('vault.entries.descriptionPlaceholder')}
-          autoComplete="off"
-          disabled={isPending}
-          maxLength={500}
-        />
-
-        {type !== ENTRY_TYPE_SCRIPT ? (
-          <div className="-mb-3">
-            <FormInput
-              id="entry-url"
-              label={t('vault.entries.urlLabel')}
-              value={url}
-              onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
-              onBlur={() =>
-                setUrlError(
-                  firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null,
-                )
-              }
-              placeholder={t('vault.entries.urlPlaceholder')}
-              autoComplete="off"
-              disabled={isPending}
-              inputMode="url"
-              error={urlError}
-            />
-            <FieldFeedback visible={urlError} color="red">
-              {t('validation.invalidUrl')}
-            </FieldFeedback>
-          </div>
-        ) : null}
-
-        <FormSelect
-          id="entry-type"
-          label={t('vault.entries.typeLabel')}
-          value={String(type)}
-          onChange={(e) => {
-            const nextType = Number(e.target.value) as EntryType
-            const previousType = type
-            setType(nextType)
-            if (!iconTouched) {
-              const typeDefaults = [
-                defaultIconFor(ENTRY_TYPE_KEY),
-                defaultIconFor(ENTRY_TYPE_CREDENTIAL),
-                defaultIconFor(ENTRY_TYPE_SCRIPT),
-              ]
-              setIcon((current) =>
-                current === undefined || typeDefaults.includes(current)
-                  ? defaultIconFor(nextType)
-                  : current,
-              )
-              // Follow the type's default colour too, unless the user picked one.
-              setColor((current) =>
-                current === defaultColorFor(previousType) ? defaultColorFor(nextType) : current,
-              )
-            }
-          }}
-          disabled={isPending}
-        >
-          <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
-          <option value={String(ENTRY_TYPE_CREDENTIAL)}>
-            {t('vault.entries.typeCredentialOption')}
-          </option>
-          <option value={String(ENTRY_TYPE_SCRIPT)}>
-            {t('vault.entries.typeScriptOption')}
-          </option>
-        </FormSelect>
-
-        {type === ENTRY_TYPE_KEY ? (
-          <div className="-mb-3">
-            <SecretInput
-              id="entry-value"
-              label={t('vault.entries.valueLabel')}
-              value={keyValue}
-              onChange={(next) => { setKeyValue(next); setKeyValueError(false) }}
-              onBlur={() =>
-                setKeyValueError(
-                  firstError(keyValue, [required(t('validation.required'))]) !== null,
-                )
-              }
-              shown={keyVisible}
-              onToggleShown={() => setKeyVisible((prev) => !prev)}
-              placeholder={t('vault.entries.valuePlaceholder')}
-              disabled={isPending}
-              monospace
-              error={keyValueError}
-            />
-            <FieldFeedback visible={keyValueError} color="red">
-              {t('validation.required')}
-            </FieldFeedback>
-          </div>
-        ) : type === ENTRY_TYPE_CREDENTIAL ? (
-          <>
-          <div className="flex gap-3 -mb-3">
-            <div className="flex-1">
-              <FormInput
-                id="entry-username"
-                label={t('vault.entries.usernameLabel')}
-                value={username}
-                onChange={(e) => { setUsername(e.target.value); setUsernameError(false) }}
-                onBlur={() =>
-                  setUsernameError(
-                    firstError(username, [required(t('validation.required'))]) !== null,
-                  )
-                }
-                placeholder={t('vault.entries.usernamePlaceholder')}
-                autoComplete="off"
-                disabled={isPending}
-                error={usernameError}
-              />
-              <FieldFeedback visible={usernameError} color="red">
-                {t('validation.required')}
-              </FieldFeedback>
-            </div>
-            <div className="flex-1">
-              <SecretInput
-                id="entry-password"
-                label={t('vault.entries.passwordLabel')}
-                value={password}
-                onChange={(next) => { setPassword(next); setPasswordError(false) }}
-                onBlur={() =>
-                  setPasswordError(
-                    firstError(password, [required(t('validation.required'))]) !== null,
-                  )
-                }
-                shown={passwordVisible}
-                onToggleShown={() => setPasswordVisible((prev) => !prev)}
-                placeholder={t('vault.entries.passwordPlaceholder')}
-                disabled={isPending}
-                error={passwordError}
-              />
-              <FieldFeedback visible={passwordError} color="red">
-                {t('validation.required')}
-              </FieldFeedback>
-            </div>
-          </div>
-          <CredentialTotpField
-            value={credentialTotp}
-            onChange={setCredentialTotp}
-            disabled={isPending}
-          />
-          </>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <div>
-              <div className="mb-1 flex items-center justify-between gap-3">
-                <span className="text-[11px] font-semibold text-[var(--cv-label-text)]">
-                  {t('vault.entries.script.bodyLabel')}
-                </span>
-                <div className="w-32">
-                  <FormSelect
+          {type === ENTRY_TYPE_KEY ? (
+            <>
+              <div className="-mb-3">
+                <SecretInput
+                  id="entry-value"
+                  label={t('vault.entries.valueLabel')}
+                  value={keyValue}
+                  onChange={(next) => { setKeyValue(next); setKeyValueError(false) }}
+                  onBlur={() => setKeyValueError(firstError(keyValue, [required(t('validation.required'))]) !== null)}
+                  shown={keyVisible}
+                  onToggleShown={() => setKeyVisible((prev) => !prev)}
+                  placeholder={t('vault.entries.valuePlaceholder')}
+                  disabled={isPending}
+                  monospace
+                  error={keyValueError}
+                />
+                <FieldFeedback visible={keyValueError} color="red">
+                  {t('validation.required')}
+                </FieldFeedback>
+              </div>
+              <WebsiteField url={url} setUrl={setUrl} urlError={urlError} setUrlError={setUrlError} disabled={isPending} />
+            </>
+          ) : type === ENTRY_TYPE_CREDENTIAL ? (
+            <>
+              <div className="-mb-3">
+                <FormInput
+                  id="entry-username"
+                  label={t('vault.entries.usernameLabel')}
+                  value={username}
+                  onChange={(e) => { setUsername(e.target.value); setUsernameError(false) }}
+                  onBlur={() => setUsernameError(firstError(username, [required(t('validation.required'))]) !== null)}
+                  placeholder={t('vault.entries.usernamePlaceholder')}
+                  autoComplete="off"
+                  disabled={isPending}
+                  error={usernameError}
+                />
+                <FieldFeedback visible={usernameError} color="red">
+                  {t('validation.required')}
+                </FieldFeedback>
+              </div>
+              <div className="-mb-3">
+                <SecretInput
+                  id="entry-password"
+                  label={t('vault.entries.passwordLabel')}
+                  value={password}
+                  onChange={(next) => { setPassword(next); setPasswordError(false) }}
+                  onBlur={() => setPasswordError(firstError(password, [required(t('validation.required'))]) !== null)}
+                  shown={passwordVisible}
+                  onToggleShown={() => setPasswordVisible((prev) => !prev)}
+                  placeholder={t('vault.entries.passwordPlaceholder')}
+                  disabled={isPending}
+                  error={passwordError}
+                />
+                <FieldFeedback visible={passwordError} color="red">
+                  {t('validation.required')}
+                </FieldFeedback>
+              </div>
+              <WebsiteField url={url} setUrl={setUrl} urlError={urlError} setUrlError={setUrlError} disabled={isPending} />
+              <SectionHeader>{t('vault.entries.totp.section')}</SectionHeader>
+              <CredentialTotpField value={credentialTotp} onChange={setCredentialTotp} disabled={isPending} />
+            </>
+          ) : (
+            <>
+              <div>
+                <label
+                  htmlFor="entry-interpreter"
+                  className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-[var(--cv-label-text)]"
+                >
+                  <span>{t('vault.entries.script.bodyLabel')}</span>
+                  <span className="flex-1" />
+                  <select
                     id="entry-interpreter"
                     aria-label={t('vault.entries.script.interpreterLabel')}
                     value={interpreter}
                     onChange={(e) => setInterpreter(e.target.value as ScriptInterpreter)}
                     disabled={isPending}
+                    className="cursor-pointer appearance-none border-0 bg-transparent pr-1 text-[11.5px]
+                      font-normal text-[var(--cv-t2)] outline-none disabled:cursor-not-allowed"
                   >
                     {SCRIPT_INTERPRETERS.map((option) => (
                       <option key={option} value={option}>{option}</option>
                     ))}
-                  </FormSelect>
-                </div>
+                  </select>
+                  <Icon name="expand_more" size={13} className="-ml-1 text-[var(--cv-icon-muted)]" />
+                </label>
+                <ScriptEditor
+                  value={script}
+                  onChange={(next) => { setScript(next); setScriptError(false) }}
+                  interpreter={interpreter}
+                  disabled={isPending}
+                  placeholder={t('vault.entries.script.bodyPlaceholder')}
+                />
+                <FieldFeedback visible={scriptError} color="red">
+                  {t('validation.required')}
+                </FieldFeedback>
+                <ScriptExecHint />
               </div>
-              <ScriptEditor
-                value={script}
-                onChange={(next) => { setScript(next); setScriptError(false) }}
-                interpreter={interpreter}
-                disabled={isPending}
-                placeholder={t('vault.entries.script.bodyPlaceholder')}
-              />
-              <FieldFeedback visible={scriptError} color="red">
-                {t('validation.required')}
-              </FieldFeedback>
-            </div>
-            <ScriptRefsEditor
-              vaultId={vault.id}
-              refs={refs}
-              onChange={setRefs}
-              disabled={isPending}
-            />
-            <WarningZone title={t('vault.entries.script.warningTitle')}>
-              {t('vault.entries.script.warningBody')}
-            </WarningZone>
-          </div>
-        )}
+              <SectionHeader>{t('vault.entries.script.refsTitle')}</SectionHeader>
+              <ScriptRefsEditor vaultId={vault.id} refs={refs} onChange={setRefs} disabled={isPending} />
+            </>
+          )}
 
-        <FormTextarea
-          id="entry-notes"
-          label={t('vault.entries.notesLabel')}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder={t('vault.entries.notesPlaceholder')}
-          autoComplete="off"
-          disabled={isPending}
-          rows={2}
-          maxLength={2000}
-        />
+          <SectionHeader>{t('vault.entries.customFields.title')}</SectionHeader>
+          <CustomFieldsEditor fields={customFields} onChange={setCustomFields} disabled={isPending} />
 
-        <CustomFieldsEditor
-          fields={customFields}
-          onChange={setCustomFields}
-          disabled={isPending}
-        />
-
-        <EntryIconPicker
-          value={icon}
-          onChange={(next) => { setIcon(next); setPendingIconFile(null); setIconTouched(true) }}
-          onColorChange={setColor}
-          selectedColor={color}
-          rowClassName="flex justify-between"
-          onFileSelected={(file, previewUrl) => { setPendingIconFile(file); setIcon(previewUrl); setIconTouched(true) }}
-          disabled={isPending}
-        />
-
-        <EncryptionNotice>{t('vault.entries.encryptionNotice')}</EncryptionNotice>
+          <FormTextarea
+            id="entry-notes"
+            label={t('vault.entries.notesLabel')}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder={t('vault.entries.notesPlaceholder')}
+            autoComplete="off"
+            disabled={isPending}
+            rows={2}
+            maxLength={2000}
+          />
         </div>
 
-        <div className="mt-3 shrink-0">
-          <DialogFooter>
-            <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
-              {t('vault.cancel')}
-            </Button>
-            <Button variant="accent" size="sm" type="submit" disabled={!canSubmit || fieldsInvalid} className="flex-[2]">
-              {isPending ? t('vault.entries.saving') : t('vault.entries.saveEntry')}
-            </Button>
-          </DialogFooter>
-        </div>
+        <footer className="-mx-6 -mb-6 flex shrink-0 gap-2.5 border-t border-[var(--cv-divider)] px-6 py-3.5">
+          <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
+            {t('vault.cancel')}
+          </Button>
+          <Button variant="accent" size="sm" type="submit" disabled={!canSubmit || fieldsInvalid} className="flex-[2]">
+            {isPending ? t('vault.entries.saving') : t('vault.entries.saveEntry')}
+          </Button>
+        </footer>
       </form>
     </ModalShell>
   )
 }
+
+/** Shared Website/URL field (KEY + CREDENTIAL) — feeds the favicon and urlDomain. */
+function WebsiteField({
+  url,
+  setUrl,
+  urlError,
+  setUrlError,
+  disabled,
+}: {
+  url: string
+  setUrl: (v: string) => void
+  urlError: boolean
+  setUrlError: (v: boolean) => void
+  disabled: boolean
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="-mb-3">
+      <FormInput
+        id="entry-url"
+        label={t('vault.entries.urlLabel')}
+        value={url}
+        onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
+        onBlur={() => setUrlError(firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null)}
+        placeholder={t('vault.entries.urlPlaceholder')}
+        autoComplete="off"
+        disabled={disabled}
+        inputMode="url"
+        error={urlError}
+      />
+      <FieldFeedback visible={urlError} color="red">
+        {t('validation.invalidUrl')}
+      </FieldFeedback>
+    </div>
+  )
+}
+
 
 // ---------------------------------------------------------------------------
 // Helpers

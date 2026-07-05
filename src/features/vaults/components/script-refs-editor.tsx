@@ -1,8 +1,5 @@
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../../../shared/components/button'
-import { FormInput } from '../../../shared/components/form-field'
-import { FormSelect } from '../../../shared/components/form-select'
 import { Icon } from '../../../shared/components/icon'
 import {
   ENTRY_TYPE_CREDENTIAL,
@@ -11,6 +8,7 @@ import {
   type ScriptRef,
 } from '../types'
 import { useAllEntries } from '../use-entries'
+import { PopoverMenu, type MenuEntry } from './popover-menu'
 
 export interface ScriptRefsEditorProps {
   vaultId: string
@@ -28,12 +26,11 @@ const FIELD_ALIASES: Record<number, string[]> = {
 }
 
 /**
- * Builds the SCRIPT `refs[]` — explicit `ENV_NAME → (entry, field)` mappings the
- * agent injects as environment variables before running the script. There is no
- * `{{...}}` substitution in the script body (v1); the script just reads the env
- * vars named here. Only KEY/CREDENTIAL entries are offered as sources (a script
- * can't inject another script). Field options are the well-known aliases for the
- * chosen entry's type — custom-field refs are out of scope for v1.
+ * "Injected vault data" — the SCRIPT `refs[]` as a grouped list matching the
+ * approved redesign: each row is `$ ENV → entry · field`. Every ref written here
+ * carries its vault id (sources are same-vault). Only KEY/CREDENTIAL entries are
+ * offered (a script can't inject another script); fields are the well-known
+ * aliases for the chosen entry's type.
  */
 export function ScriptRefsEditor({
   vaultId,
@@ -58,41 +55,35 @@ export function ScriptRefsEditor({
 
   const remove = (index: number) => onChange(refs.filter((_, i) => i !== index))
 
-  // Sources are scoped to this vault, so every ref written here carries its vaultId.
   const add = () => onChange([...refs, { env: '', vaultId, entryId: '', field: '' }])
 
   return (
-    <section className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-[11px] font-semibold text-[var(--cv-label-text)]">
-            {t('vault.entries.script.refsTitle')}
-          </h3>
-          <p className="text-[10px] text-[var(--cv-t3)]">{t('vault.entries.script.refsHint')}</p>
-        </div>
-        <Button variant="ghost" size="sm" icon="add" onClick={add} disabled={disabled}>
-          {t('vault.entries.script.addRef')}
-        </Button>
-      </div>
-
-      {refs.length === 0 ? (
-        <p className="text-[11px] text-[var(--cv-t3)]">{t('vault.entries.script.refsEmpty')}</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {refs.map((ref, index) => (
-            <RefRow
-              key={index}
-              ref_={ref}
-              vaultId={vaultId}
-              sources={sources}
-              disabled={disabled}
-              onChange={(patch) => update(index, patch)}
-              onRemove={() => remove(index)}
-            />
-          ))}
-        </div>
-      )}
-    </section>
+    <div className="overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
+      {refs.map((ref, index) => (
+        <RefRow
+          key={index}
+          ref_={ref}
+          vaultId={vaultId}
+          sources={sources}
+          first={index === 0}
+          disabled={disabled}
+          onChange={(patch) => update(index, patch)}
+          onRemove={() => remove(index)}
+        />
+      ))}
+      <button
+        type="button"
+        onClick={add}
+        disabled={disabled}
+        className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12px]
+          text-[var(--cv-btn-ghost-text)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)]
+          ${refs.length > 0 ? 'border-t border-[var(--cv-divider)]' : ''}
+          disabled:cursor-not-allowed disabled:opacity-40`}
+      >
+        <Icon name="add" size={14} />
+        {t('vault.entries.script.addRef')}
+      </button>
+    </div>
   )
 }
 
@@ -100,6 +91,7 @@ function RefRow({
   ref_,
   vaultId,
   sources,
+  first,
   disabled,
   onChange,
   onRemove,
@@ -107,6 +99,7 @@ function RefRow({
   ref_: ScriptRef
   vaultId: string
   sources: EntryListItem[]
+  first: boolean
   disabled?: boolean
   onChange: (patch: Partial<ScriptRef>) => void
   onRemove: () => void
@@ -115,29 +108,37 @@ function RefRow({
   const selectedEntry = sources.find((e) => e.id === ref_.entryId)
   const fieldOptions = selectedEntry ? (FIELD_ALIASES[selectedEntry.type] ?? []) : []
 
+  const selectClass =
+    'min-w-0 max-w-[130px] cursor-pointer appearance-none border-0 bg-transparent p-0 text-[12px] text-[var(--cv-t1)] outline-none disabled:cursor-not-allowed'
+
   return (
-    <div className="flex items-end gap-2">
-      <div className="w-40 shrink-0">
-        <FormInput
-          id={`ref-env-${ref_.entryId}-${ref_.field}`}
-          label={t('vault.entries.script.envLabel')}
-          value={ref_.env}
-          onChange={(e) => onChange({ env: e.target.value })}
-          placeholder="GITHUB_TOKEN"
-          autoComplete="off"
-          disabled={disabled}
-          monospace
-          maxLength={100}
-        />
-      </div>
-      <Icon name="arrow_back" size={16} className="mb-2 shrink-0 text-[var(--cv-t3)]" />
-      <div className="flex-1 min-w-0">
-        <FormSelect
-          id={`ref-entry-${ref_.env}`}
-          label={t('vault.entries.script.sourceEntry')}
+    <div className={`flex items-center gap-2 px-2.5 py-2 ${first ? '' : 'border-t border-[var(--cv-divider)]'}`}>
+      <span className="flex text-[var(--cv-icon-muted)] opacity-60" aria-hidden>
+        <Icon name="drag_indicator" size={14} />
+      </span>
+      <span className="flex text-[var(--cv-info)]" aria-hidden>
+        <Icon name="attach_money" size={14} />
+      </span>
+      <input
+        aria-label={t('vault.entries.script.envLabel')}
+        value={ref_.env}
+        onChange={(e) => onChange({ env: e.target.value })}
+        placeholder="GITHUB_TOKEN"
+        disabled={disabled}
+        maxLength={100}
+        className="w-36 shrink-0 border-0 bg-transparent p-0 font-mono text-[11.5px] text-[var(--cv-info)]
+          outline-none placeholder:text-[var(--cv-input-placeholder)]"
+      />
+      <span className="flex flex-1 justify-center text-[var(--cv-t3)]" aria-hidden>
+        <Icon name="arrow_back" size={14} />
+      </span>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <select
+          aria-label={t('vault.entries.script.sourceEntry')}
           value={ref_.entryId}
           onChange={(e) => onChange({ entryId: e.target.value, vaultId, field: '' })}
           disabled={disabled}
+          className={selectClass}
         >
           <option value="">{t('vault.entries.script.selectEntry')}</option>
           {sources.map((entry) => (
@@ -145,15 +146,14 @@ function RefRow({
               {entry.label}
             </option>
           ))}
-        </FormSelect>
-      </div>
-      <div className="w-32 shrink-0">
-        <FormSelect
-          id={`ref-field-${ref_.env}`}
-          label={t('vault.entries.script.sourceField')}
+        </select>
+        <span className="text-[var(--cv-t3)]">·</span>
+        <select
+          aria-label={t('vault.entries.script.sourceField')}
           value={ref_.field}
           onChange={(e) => onChange({ field: e.target.value })}
           disabled={disabled || !selectedEntry}
+          className={selectClass}
         >
           <option value="">{t('vault.entries.script.selectField')}</option>
           {fieldOptions.map((alias) => (
@@ -161,20 +161,14 @@ function RefRow({
               {alias}
             </option>
           ))}
-        </FormSelect>
+        </select>
       </div>
-      <button
-        type="button"
-        onClick={onRemove}
+      <PopoverMenu
+        trigger={<Icon name="more_horiz" size={16} />}
+        items={[{ icon: 'delete', label: t('common.remove'), danger: true, onSelect: onRemove } as MenuEntry]}
+        ariaLabel={t('common.moreActions')}
         disabled={disabled}
-        aria-label={t('common.remove')}
-        title={t('common.remove')}
-        className="mb-1 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded
-          text-[var(--cv-t3)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)]
-          hover:text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <Icon name="delete" size={16} />
-      </button>
+      />
     </div>
   )
 }
