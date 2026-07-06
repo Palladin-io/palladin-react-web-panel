@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
-import { FieldFeedback, FormInput } from '../../shared/components/form-field'
+import { FeedbackSlot, FormInput } from '../../shared/components/form-field'
 import { FormTextarea } from '../../shared/components/form-textarea'
 import { SecretInput } from '../../shared/components/secret-input'
 import { firstError, required, validUrl } from '../../shared/lib/validation'
@@ -689,7 +689,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
           dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
         <div className="flex flex-col gap-3">
-            <div className="-mb-4">
+            <div>
               <label
                 htmlFor="entry-detail-label"
                 className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
@@ -720,9 +720,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     maxLength={120}
                     error={labelError}
                   />
-                  <FieldFeedback visible={labelError} color="red">
+                  <FeedbackSlot visible={labelError} color="red">
                     {t('validation.required')}
-                  </FieldFeedback>
+                  </FeedbackSlot>
                 </div>
               </div>
             </div>
@@ -737,7 +737,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               maxLength={500}
             />
             {entry.type !== ENTRY_TYPE_SCRIPT ? (
-              <div className="-mb-4">
+              <div>
                 <FormInput
                   id="entry-detail-url"
                   label={t('vault.entries.urlLabel')}
@@ -759,9 +759,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     show: !!extractDomain(url),
                   }}
                 />
-                <FieldFeedback visible={urlError} color="red">
+                <FeedbackSlot visible={urlError} color="red">
                   {t('validation.invalidUrl')}
-                </FieldFeedback>
+                </FeedbackSlot>
               </div>
             ) : null}
             {decryptError ? (
@@ -769,7 +769,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 {decryptError}
               </div>
             ) : entry.type === ENTRY_TYPE_KEY ? (
-              <div className="-mb-4">
+              <div>
                 <SecretInput
                   id="entry-detail-value"
                   label={t('vault.entries.valueLabel')}
@@ -788,9 +788,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   copyable
                   copyLabel={t('vault.entry.copyKey')}
                 />
-                <FieldFeedback visible={secretValueError} color="red">
+                <FeedbackSlot visible={secretValueError} color="red">
                   {t('validation.required')}
-                </FieldFeedback>
+                </FeedbackSlot>
               </div>
             ) : entry.type === ENTRY_TYPE_SCRIPT ? (
               <div className="flex flex-col gap-3">
@@ -823,9 +823,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     disabled={isSaving || decrypting}
                     placeholder={t('vault.entries.script.bodyPlaceholder')}
                   />
-                  <FieldFeedback visible={scriptError} color="red">
+                  <FeedbackSlot visible={scriptError} color="red">
                     {t('validation.required')}
-                  </FieldFeedback>
+                  </FeedbackSlot>
                   <ScriptExecHint />
                 </div>
                 <SectionHeader>{t('vault.entries.script.refsTitle')}</SectionHeader>
@@ -839,7 +839,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               </div>
             ) : (
               <>
-              <div className="flex gap-3 -mb-4">
+              <div className="flex gap-3">
                 <div className="flex-1 min-w-0">
                   <FormInput
                     id="entry-detail-username"
@@ -856,9 +856,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     copyable
                     copyLabel={t('vault.entry.copyUsername')}
                   />
-                  <FieldFeedback visible={usernameError} color="red">
+                  <FeedbackSlot visible={usernameError} color="red">
                     {t('validation.required')}
-                  </FieldFeedback>
+                  </FeedbackSlot>
                 </div>
                 <div className="flex-1 min-w-0">
                   <SecretInput
@@ -879,9 +879,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     copyable
                     copyLabel={t('vault.entry.copyPassword')}
                   />
-                  <FieldFeedback visible={passwordError} color="red">
+                  <FeedbackSlot visible={passwordError} color="red">
                     {t('validation.required')}
-                  </FieldFeedback>
+                  </FeedbackSlot>
                 </div>
               </div>
               <SectionHeader>{t('vault.entries.totp.section')}</SectionHeader>
