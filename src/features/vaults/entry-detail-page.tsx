@@ -782,6 +782,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   }
                   shown={showSecret}
                   onToggleShown={() => setShowSecret((v) => !v)}
+                  onGenerate={(pw) => { setSecretValue(pw); setShowSecret(true); setSecretValueError(false) }}
                   disabled={isSaving || decrypting}
                   monospace
                   error={secretValueError}
@@ -873,6 +874,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     }
                     shown={showPassword}
                     onToggleShown={() => setShowPassword((v) => !v)}
+                    onGenerate={(pw) => { setPassword(pw); setShowPassword(true); setPasswordError(false) }}
                     disabled={isSaving || decrypting}
                     monospace
                     error={passwordError}

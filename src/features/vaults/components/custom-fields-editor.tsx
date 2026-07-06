@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Icon } from '../../../shared/components/icon'
+import { PasswordGeneratorPopover } from '../../../shared/components/password-generator-popover'
 import { copySecretToClipboard, copyToClipboard } from '../../../shared/lib/clipboard'
 import {
   type CustomField,
@@ -273,12 +274,20 @@ function FieldRow({
         <div className="flex shrink-0 items-center gap-0.5">
           {agentVisible ? <AgentVisibleBadge /> : null}
           {rowType === 'concealed' ? (
-            <RowIconButton
-              icon={shown ? 'visibility_off' : 'visibility'}
-              label={shown ? t('vault.entry.hide') : t('vault.entry.reveal')}
-              onClick={() => setShown((v) => !v)}
-              disabled={disabled}
-            />
+            <>
+              <PasswordGeneratorPopover
+                onUse={(pw) => { onChange({ value: pw }); setShown(true) }}
+                disabled={disabled}
+                triggerClassName="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--cv-icon-muted)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)] hover:text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
+                iconSize={14}
+              />
+              <RowIconButton
+                icon={shown ? 'visibility_off' : 'visibility'}
+                label={shown ? t('vault.entry.hide') : t('vault.entry.reveal')}
+                onClick={() => setShown((v) => !v)}
+                disabled={disabled}
+              />
+            </>
           ) : null}
           {rowType !== 'totp' && stringValue ? (
             <RowIconButton

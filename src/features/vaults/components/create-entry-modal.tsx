@@ -340,6 +340,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   onBlur={() => setKeyValueError(firstError(keyValue, [required(t('validation.required'))]) !== null)}
                   shown={keyVisible}
                   onToggleShown={() => setKeyVisible((prev) => !prev)}
+                  onGenerate={(pw) => { setKeyValue(pw); setKeyVisible(true); setKeyValueError(false) }}
                   placeholder={t('vault.entries.valuePlaceholder')}
                   disabled={isPending}
                   monospace
@@ -378,6 +379,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   onBlur={() => setPasswordError(firstError(password, [required(t('validation.required'))]) !== null)}
                   shown={passwordVisible}
                   onToggleShown={() => setPasswordVisible((prev) => !prev)}
+                  onGenerate={(pw) => { setPassword(pw); setPasswordVisible(true); setPasswordError(false) }}
                   placeholder={t('vault.entries.passwordPlaceholder')}
                   disabled={isPending}
                   error={passwordError}

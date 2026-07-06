@@ -175,7 +175,7 @@ When building or editing a modal/dialog, read `docs/architecture/dialogs.md` (Mo
 
 When building a form, wiring field validation, or implementing an inline-edit detail panel, read `docs/architecture/forms-and-validation.md` (shared field components, the 3-layer validation/notification model, raw-input class string, inline-edit `canEdit` pattern).
 
-Quick rule: never inline-style a raw `<input>`/`<textarea>` — use `FormInput`, `SecretInput`, or `FormTextarea`. Inline field errors use `FieldFeedback` (`onBlur`); API results use Sonner toasts — never mix the two.
+Quick rule: never inline-style a raw `<input>`/`<textarea>` — use `FormInput`, `SecretInput`, or `FormTextarea`. Inline field errors use `FeedbackSlot` (`onBlur`, animated/self-collapsing — never the fixed-height `+ -mb-4` pattern); API results use Sonner toasts — never mix the two.
 
 ### Shared controls inventory
 
@@ -199,7 +199,8 @@ Every-iteration reuse reference. Reach for the shared component before writing m
 | Icon | `Icon` | Material Symbols glyph; never hand-write `<span class="mi">` |
 | Filter dropdown | `TypeFilterDropdown` | Multi-select filter (checkbox listbox + Clear) |
 | Date/time picker | `DateTimePicker` | Date/time selection; never native `datetime-local` |
-| Inline field feedback | `FieldFeedback` / `FeedbackSlot` | Inline validation messages (fixed / animated height) |
+| Inline field feedback | `FeedbackSlot` (canonical) / `FieldFeedback` | Inline validation messages; prefer `FeedbackSlot` (animated, self-collapsing). See `forms-and-validation.md` |
+| Password generator | `PasswordGeneratorPopover` | In-field "generate" affordance for secret inputs; via `SecretInput`'s `onGenerate`. See `forms-and-validation.md` |
 | Error panel | `ErrorState` | Failed-query panel with Retry |
 | Route error boundary | `ErrorBoundary` | Wrap feature routes |
 | Password strength | `PasswordStrengthBar` | Master-password fields |
