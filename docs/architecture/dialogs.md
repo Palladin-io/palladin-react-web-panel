@@ -54,8 +54,9 @@ All modal actions go in `DialogFooter` (`shared/components/dialog-footer.tsx`), 
 
 - **Always pass `title` + `footer` to `ModalShell`** — don't hand-roll a header row or a footer strip inside `children`. No double borders.
 - **Always use `DialogFooter`** inside `footer` for confirm/cancel actions.
+- **`DialogFooter` is chrome-less** — it only lays out the buttons (`flex gap`). The footer's top divider, padding, and pinned position come from ModalShell's `footer` slot. Never give `DialogFooter` (or a footer passed to the slot) its own `border`, background tint, or negative-margin bleed — that double-chromes against the slot (a second divider + an empty band). This was a real regression.
 - **Every button in the app is `size="sm"` (h-7 / 28px) — ONE single height, no exceptions.** (`size="md"` exists in the type but must not be used.)
 - Cancel: `variant="subtle"`, `className="flex-1"` (1/3). Primary: `variant="accent"` / `positive` / `danger`, `className="flex-[2]"` (2/3).
 - Single-action footer ("Done" / "Close"): one `size="sm"` button, `flex-1` or `w-full`.
 - Router `<Link>` styled as a footer button: use `PREMIUM_BUTTON_SM_CLASS` / `POSITIVE_BUTTON_SM_CLASS` from `button.tsx`.
-- Field-feedback rhythm: a field with a `FieldFeedback` slot (fixed `h-4`) needs a `-mb-4` wrapper so the reserved 16px is cancelled and the gap to the next field stays consistent in both the no-error and error states.
+- Field-feedback rhythm: use `FeedbackSlot` (animated, self-collapsing) below a field — **never** the fixed-`h-4` `FieldFeedback` + `-mb-4` wrapper (it overlaps the next label when an error shows). See `forms-and-validation.md`.
