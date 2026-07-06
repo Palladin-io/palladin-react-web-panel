@@ -68,7 +68,7 @@ export function SecretInput({
             placeholder:text-[var(--cv-input-placeholder)]
             focus:outline-none transition-colors duration-200 disabled:opacity-60${monospace ? ' font-mono' : ''}
             ${copyable ? ' pr-16' : ' pr-10'}
-            ${shown ? '' : ' secret-mask'}
+            ${!shown && value ? ' secret-mask' : ''}
             ${error
               ? 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
               : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'

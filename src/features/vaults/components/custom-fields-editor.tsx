@@ -42,7 +42,7 @@ const TYPE_ORDER: CustomFieldType[] = ['text', 'multiline', 'concealed', 'totp']
  * (required label when valued, unique labels) is surfaced inline and gated by
  * the parent on save.
  */
-export function CustomFieldsEditor({ fields, onChange, disabled, copyable }: CustomFieldsEditorProps) {
+export function CustomFieldsEditor({ fields, onChange, disabled }: CustomFieldsEditorProps) {
   const { t } = useTranslation()
   const { errors } = validateCustomFields(fields)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
@@ -87,7 +87,6 @@ export function CustomFieldsEditor({ fields, onChange, disabled, copyable }: Cus
           field={field}
           error={errors[field.id]}
           disabled={disabled}
-          copyable={copyable}
           first={index === 0}
           canMoveUp={index > 0}
           canMoveDown={index < fields.length - 1}
@@ -126,7 +125,6 @@ interface FieldRowProps {
   field: CustomField
   error?: CustomFieldError
   disabled?: boolean
-  copyable?: boolean
   first: boolean
   canMoveUp: boolean
   canMoveDown: boolean
@@ -144,7 +142,6 @@ function FieldRow({
   field,
   error,
   disabled,
-  copyable,
   first,
   canMoveUp,
   canMoveDown,
@@ -283,7 +280,7 @@ function FieldRow({
               disabled={disabled}
             />
           ) : null}
-          {copyable && rowType !== 'totp' && stringValue ? (
+          {rowType !== 'totp' && stringValue ? (
             <RowIconButton
               icon="content_copy"
               label={t('common.copy')}

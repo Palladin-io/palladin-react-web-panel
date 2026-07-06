@@ -106,12 +106,12 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t('audit.searchPlaceholder')}
-            className="h-8 flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)]
+            className="h-9 flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)]
               placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
           />
         </div>
         <TypeFilterDropdown
-          triggerClassName="h-8"
+          triggerClassName="h-9"
           options={agentOptions}
           selected={new Set(agentId)}
           onChange={(next) => setAgentId([...next])}
@@ -119,7 +119,7 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
           ariaLabel={t('audit.filterAgent')}
         />
         <TypeFilterDropdown
-          triggerClassName="h-8"
+          triggerClassName="h-9"
           options={eventOptions}
           selected={new Set(eventType)}
           onChange={(next) => setEventType([...next])}

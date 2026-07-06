@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { Icon } from '../../../shared/components/icon'
 import { SecretInput } from '../../../shared/components/secret-input'
@@ -277,7 +277,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             </FormSelect>
           </div>
 
-          <div className="-mb-4">
+          <div>
             <label
               htmlFor="entry-label"
               className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
@@ -310,9 +310,9 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   maxLength={120}
                   error={labelError}
                 />
-                <FieldFeedback visible={labelError} color="red">
+                <FeedbackSlot visible={labelError} color="red">
                   {t('validation.required')}
-                </FieldFeedback>
+                </FeedbackSlot>
               </div>
             </div>
           </div>
@@ -331,7 +331,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
           {type === ENTRY_TYPE_KEY ? (
             <>
-              <div className="-mb-4">
+              <div>
                 <SecretInput
                   id="entry-value"
                   label={t('vault.entries.valueLabel')}
@@ -345,15 +345,15 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   monospace
                   error={keyValueError}
                 />
-                <FieldFeedback visible={keyValueError} color="red">
+                <FeedbackSlot visible={keyValueError} color="red">
                   {t('validation.required')}
-                </FieldFeedback>
+                </FeedbackSlot>
               </div>
               <WebsiteField url={url} setUrl={setUrl} urlError={urlError} setUrlError={setUrlError} disabled={isPending} />
             </>
           ) : type === ENTRY_TYPE_CREDENTIAL ? (
             <>
-              <div className="-mb-4">
+              <div>
                 <FormInput
                   id="entry-username"
                   label={t('vault.entries.usernameLabel')}
@@ -365,11 +365,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   disabled={isPending}
                   error={usernameError}
                 />
-                <FieldFeedback visible={usernameError} color="red">
+                <FeedbackSlot visible={usernameError} color="red">
                   {t('validation.required')}
-                </FieldFeedback>
+                </FeedbackSlot>
               </div>
-              <div className="-mb-4">
+              <div>
                 <SecretInput
                   id="entry-password"
                   label={t('vault.entries.passwordLabel')}
@@ -382,9 +382,9 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   disabled={isPending}
                   error={passwordError}
                 />
-                <FieldFeedback visible={passwordError} color="red">
+                <FeedbackSlot visible={passwordError} color="red">
                   {t('validation.required')}
-                </FieldFeedback>
+                </FeedbackSlot>
               </div>
               <WebsiteField url={url} setUrl={setUrl} urlError={urlError} setUrlError={setUrlError} disabled={isPending} />
               <SectionHeader>{t('vault.entries.totp.section')}</SectionHeader>
@@ -421,9 +421,9 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   disabled={isPending}
                   placeholder={t('vault.entries.script.bodyPlaceholder')}
                 />
-                <FieldFeedback visible={scriptError} color="red">
+                <FeedbackSlot visible={scriptError} color="red">
                   {t('validation.required')}
-                </FieldFeedback>
+                </FeedbackSlot>
                 <ScriptExecHint />
               </div>
               <SectionHeader>{t('vault.entries.script.refsTitle')}</SectionHeader>
@@ -466,7 +466,7 @@ function WebsiteField({
 }) {
   const { t } = useTranslation()
   return (
-    <div className="-mb-4">
+    <div>
       <FormInput
         id="entry-url"
         label={t('vault.entries.urlLabel')}
@@ -485,9 +485,9 @@ function WebsiteField({
           show: !!extractDomain(url),
         }}
       />
-      <FieldFeedback visible={urlError} color="red">
+      <FeedbackSlot visible={urlError} color="red">
         {t('validation.invalidUrl')}
-      </FieldFeedback>
+      </FeedbackSlot>
     </div>
   )
 }
