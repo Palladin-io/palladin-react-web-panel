@@ -6,7 +6,7 @@ import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
 import { FeedbackSlot, FormInput } from '../../shared/components/form-field'
-import { FormTextarea } from '../../shared/components/form-textarea'
+import { NotesField } from './components/notes-field'
 import { SecretInput } from '../../shared/components/secret-input'
 import { firstError, required, validUrl } from '../../shared/lib/validation'
 import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
@@ -892,15 +892,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               />
               </>
             )}
-            <FormTextarea
-              id="entry-detail-notes"
-              label={t('vault.entries.notesLabel')}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              disabled={isSaving || decrypting}
-              placeholder={t('vault.entries.notesPlaceholder')}
-            />
             {!decryptError ? (
               <>
                 <SectionHeader>{t('vault.entries.customFields.title')}</SectionHeader>
@@ -912,6 +903,12 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 />
               </>
             ) : null}
+            <NotesField
+              id="entry-detail-notes"
+              value={notes}
+              onChange={setNotes}
+              disabled={isSaving || decrypting}
+            />
         </div>
 
         <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">

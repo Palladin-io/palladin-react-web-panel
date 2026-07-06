@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
-import { FormTextarea } from '../../../shared/components/form-textarea'
+import { NotesField } from './notes-field'
 import { Icon } from '../../../shared/components/icon'
 import { SecretInput } from '../../../shared/components/secret-input'
 import { analytics } from '../../../shared/lib/analytics'
@@ -434,17 +434,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           <SectionHeader>{t('vault.entries.customFields.title')}</SectionHeader>
           <CustomFieldsEditor fields={customFields} onChange={setCustomFields} disabled={isPending} />
 
-          <FormTextarea
-            id="entry-notes"
-            label={t('vault.entries.notesLabel')}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={t('vault.entries.notesPlaceholder')}
-            autoComplete="off"
-            disabled={isPending}
-            rows={2}
-            maxLength={2000}
-          />
+          <NotesField id="entry-notes" value={notes} onChange={setNotes} disabled={isPending} />
       </form>
     </ModalShell>
   )

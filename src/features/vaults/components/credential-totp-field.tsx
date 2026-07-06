@@ -45,7 +45,7 @@ export function CredentialTotpField({ value, onChange, disabled }: CredentialTot
           <div className="text-[12.5px] text-[var(--cv-t1)]">{t('vault.entries.totp.emptyTitle')}</div>
           <div className="text-[11.5px] text-[var(--cv-t3)]">{t('vault.entries.totp.emptySubtitle')}</div>
         </div>
-        <Button variant="subtle" size="sm" icon="shield" onClick={() => setSetup(true)} disabled={disabled}>
+        <Button variant="accent" size="sm" icon="shield" onClick={() => setSetup(true)} disabled={disabled}>
           {t('vault.entries.totp.addCredential')}
         </Button>
       </div>

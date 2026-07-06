@@ -332,6 +332,7 @@
   "vault.entries.urlPlaceholder": "https://example.com",
   "vault.entries.notesLabel": "Notatki",
   "vault.entries.notesPlaceholder": "Opcjonalne notatki…",
+  "vault.entries.addNotes": "Dodaj notatki",
   "vault.entries.encryptionNotice": "Wartość szyfrowana po stronie klienta — nigdy jej nie widzimy.",
   "vault.entries.customFields.title": "Pola niestandardowe",
   "vault.entries.customFields.add": "Dodaj pole",

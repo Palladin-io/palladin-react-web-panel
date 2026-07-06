@@ -197,21 +197,49 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
     )
   }
 
+  // Footer lives on ModalShell (pinned) rather than inside each step, so it never
+  // scrolls with the body. The importing step has no footer (not dismissible).
+  const footer =
+    step === 'upload' ? (
+      <DialogFooter>
+        <Button variant="subtle" size="sm" onClick={onClose} className="flex-1">
+          {t('vault.cancel')}
+        </Button>
+      </DialogFooter>
+    ) : step === 'preview' ? (
+      <DialogFooter>
+        <Button variant="subtle" size="sm" onClick={() => setStep('upload')} className="flex-1">
+          {t('vault.import.back')}
+        </Button>
+        <Button
+          variant="accent"
+          size="sm"
+          onClick={handleImport}
+          disabled={entries.length === 0}
+          className="flex-[2]"
+        >
+          {t('vault.import.importCta')}
+        </Button>
+      </DialogFooter>
+    ) : step === 'done' ? (
+      <DialogFooter>
+        <Button variant="accent" size="sm" onClick={onClose} className="flex-1">
+          {t('vault.import.close')}
+        </Button>
+      </DialogFooter>
+    ) : undefined
+
   return (
     <ModalShell
       onClose={isBusy ? undefined : onClose}
       ariaLabel={t('vault.import.title')}
       title={t('vault.import.title')}
       width={560}
+      footer={footer}
     >
       <div className="flex flex-col gap-3">
         {step === 'upload' ? (
-          <UploadStep
-            parsing={parsing}
-            error={parseError}
-            onFile={handleFile}
-            onCancel={onClose}
-          />
+          <UploadStep parsing={parsing} error={parseError} onFile={handleFile} />
         ) : null}
 
         {step === 'preview' && result ? (
@@ -225,16 +253,12 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
             onMappingChange={setMapping}
             strategy={strategy}
             onStrategyChange={setStrategy}
-            onBack={() => setStep('upload')}
-            onImport={handleImport}
           />
         ) : null}
 
         {step === 'importing' ? <ImportingStep progress={progress} /> : null}
 
-        {step === 'done' ? (
-          <DoneStep summary={summary} onClose={onClose} />
-        ) : null}
+        {step === 'done' ? <DoneStep summary={summary} /> : null}
       </div>
     </ModalShell>
   )
@@ -246,12 +270,10 @@ function UploadStep({
   parsing,
   error,
   onFile,
-  onCancel,
 }: {
   parsing: boolean
   error: string | null
   onFile: (file: File) => void
-  onCancel: () => void
 }) {
   const { t } = useTranslation()
   return (
@@ -274,11 +296,6 @@ function UploadStep({
           {error}
         </p>
       ) : null}
-      <DialogFooter>
-        <Button variant="subtle" size="sm" onClick={onCancel} className="flex-1">
-          {t('vault.cancel')}
-        </Button>
-      </DialogFooter>
     </>
   )
 }
@@ -293,8 +310,6 @@ function PreviewStep({
   onMappingChange,
   strategy,
   onStrategyChange,
-  onBack,
-  onImport,
 }: {
   result: ParseResult
   entries: ParsedEntry[]
@@ -305,8 +320,6 @@ function PreviewStep({
   onMappingChange: (next: ColumnMapping) => void
   strategy: ConflictStrategy
   onStrategyChange: (next: ConflictStrategy) => void
-  onBack: () => void
-  onImport: () => void
 }) {
   const { t } = useTranslation()
   const isManual = result.format === 'manual' && result.unmapped
@@ -365,21 +378,6 @@ function PreviewStep({
       ) : null}
 
       <EncryptionNotice>{t('vault.import.encryptionNotice')}</EncryptionNotice>
-
-      <DialogFooter>
-        <Button variant="subtle" size="sm" onClick={onBack} className="flex-1">
-          {t('vault.import.back')}
-        </Button>
-        <Button
-          variant="accent"
-          size="sm"
-          onClick={onImport}
-          disabled={entries.length === 0}
-          className="flex-[2]"
-        >
-          {t('vault.import.importCta')}
-        </Button>
-      </DialogFooter>
     </>
   )
 }
@@ -413,7 +411,6 @@ function ImportingStep({
 
 function DoneStep({
   summary,
-  onClose,
 }: {
   summary: {
     imported: number
@@ -421,7 +418,6 @@ function DoneStep({
     skipped: number
     failed: { label: string; reason: string }[]
   }
-  onClose: () => void
 }) {
   const { t } = useTranslation()
   const hasFailures = summary.failed.length > 0
@@ -460,11 +456,6 @@ function DoneStep({
           </div>
         )}
       </div>
-      <DialogFooter>
-        <Button variant="accent" size="sm" onClick={onClose} className="flex-1">
-          {t('vault.import.close')}
-        </Button>
-      </DialogFooter>
     </>
   )
 }

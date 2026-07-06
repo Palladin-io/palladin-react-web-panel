@@ -314,6 +314,7 @@
   "vault.entries.urlPlaceholder": "https://example.com",
   "vault.entries.notesLabel": "Notes",
   "vault.entries.notesPlaceholder": "Optional notes…",
+  "vault.entries.addNotes": "Add notes",
   "vault.entries.encryptionNotice": "Value encrypted client-side before upload — we never see it.",
   "vault.entries.customFields.title": "Custom fields",
   "vault.entries.customFields.add": "Add field",
