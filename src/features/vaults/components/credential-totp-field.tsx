@@ -55,22 +55,12 @@ export function CredentialTotpField({ value, onChange, disabled }: CredentialTot
   if (setup || !params) {
     return (
       <div className="rounded-xl border border-[var(--cv-input-border)] p-3">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-[11.5px] font-semibold text-[var(--cv-label-text)]">
-            {t('vault.entries.totp.credentialLabel')}
-          </span>
-          <button
-            type="button"
-            onClick={() => setSetup(false)}
-            disabled={disabled}
-            aria-label={t('vault.cancel')}
-            className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--cv-icon-muted)]
-              transition-colors hover:text-[var(--cv-t1)]"
-          >
-            <Icon name="close" size={15} />
-          </button>
-        </div>
-        <TotpSetupInputs onResolved={resolve} disabled={disabled} />
+        <TotpSetupInputs
+          onResolved={resolve}
+          disabled={disabled}
+          title={t('vault.entries.totp.credentialLabel')}
+          onClose={() => setSetup(false)}
+        />
       </div>
     )
   }

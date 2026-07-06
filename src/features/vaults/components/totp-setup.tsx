@@ -55,9 +55,15 @@ export function TotpSetup({ value, onChange, disabled }: TotpSetupProps) {
 export function TotpSetupInputs({
   onResolved,
   disabled,
+  title,
+  onClose,
 }: {
   onResolved: (params: TotpParams) => void
   disabled?: boolean
+  /** When set, renders a header row (title + Scan-QR + close) so the QR action
+   *  sits on the same line as the close button instead of a separate row. */
+  title?: string
+  onClose?: () => void
 }) {
   const { t } = useTranslation()
   const [raw, setRaw] = useState('')
@@ -84,6 +90,19 @@ export function TotpSetupInputs({
     if (!decoded || !resolveText(decoded)) setError(true)
   }
 
+  const scanQrButton = (
+    <button
+      type="button"
+      onClick={() => fileRef.current?.click()}
+      disabled={disabled}
+      className="inline-flex h-6 items-center gap-1 text-[11px] font-medium text-[var(--cv-primary)]
+        transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      <Icon name="qr_code_scanner" size={13} />
+      {t('vault.entries.totp.uploadQr')}
+    </button>
+  )
+
   return (
     <div
       className="flex flex-col gap-1.5"
@@ -95,20 +114,28 @@ export function TotpSetupInputs({
         }
       }}
     >
-      {/* Scan-QR as a subtle text action at the top of the setup (near the
-          header/close), not a heavy button — matches the app's red text actions. */}
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={disabled}
-          className="inline-flex items-center gap-1 text-[11px] font-medium text-[var(--cv-primary)]
-            transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Icon name="qr_code_scanner" size={13} />
-          {t('vault.entries.totp.uploadQr')}
-        </button>
-      </div>
+      {onClose ? (
+        // Header row: title on the left, Scan-QR + close aligned on the right —
+        // the QR action shares the close button's line/height.
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11.5px] font-semibold text-[var(--cv-label-text)]">{title}</span>
+          <div className="flex items-center gap-2">
+            {scanQrButton}
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={disabled}
+              aria-label={t('vault.cancel')}
+              className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--cv-icon-muted)]
+                transition-colors hover:text-[var(--cv-t1)]"
+            >
+              <Icon name="close" size={15} />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex justify-end">{scanQrButton}</div>
+      )}
       <FormInput
         id="totp-seed-input"
         label={t('vault.entries.totp.setupLabel')}
