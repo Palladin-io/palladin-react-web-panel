@@ -157,6 +157,7 @@ export async function updateEntry(
     color?: string
     urlDomain?: string
     content?: EntryContent
+    agentFields?: { label: string; value: string }[]
   },
 ): Promise<void> {
   await api.put(`api/vaults/${vaultId}/entries/${entryId}`, { json: payload })

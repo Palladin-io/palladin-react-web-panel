@@ -13,11 +13,15 @@ import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import {
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,
+  ENTRY_TYPE_SCRIPT,
   type EntryListItem,
   type EntryPlaintext,
 } from '../types'
+import { readCustomFields } from '../entry-blob'
 import { useEntryDetail } from '../use-entries'
 import { EntryIcon } from './entry-icon'
+import { CustomFieldsView } from './custom-fields-view'
+import { OtpauthTotp } from './totp-display'
 
 export interface EntryRowProps {
   vaultId: string
@@ -159,7 +163,9 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
             label={
               entry.type === ENTRY_TYPE_KEY
                 ? t('vault.entry.copyKey')
-                : t('vault.entry.copyPassword')
+                : entry.type === ENTRY_TYPE_SCRIPT
+                  ? t('vault.entry.copyScript')
+                  : t('vault.entry.copyPassword')
             }
             onClick={() => {
               if (plaintext) {
@@ -309,9 +315,40 @@ function RevealPanel({
                   </>
                 }
               />
+              {plaintext.totp ? (
+                <div className="flex items-center gap-2">
+                  <Icon name="schedule" size={13} className="shrink-0 text-[var(--cv-t3)]" />
+                  <OtpauthTotp uri={plaintext.totp} compact />
+                </div>
+              ) : null}
             </>
           ) : null}
 
+          {plaintext.type === ENTRY_TYPE_SCRIPT ? (
+            <>
+              <RevealRow
+                icon="terminal"
+                value={
+                  showSecret
+                    ? firstLine(plaintext.script)
+                    : maskValue(plaintext.script.length)
+                }
+                monospace
+                copyValue={plaintext.script}
+                copyLabel={t('vault.entry.copyScript')}
+                secret
+                actions={
+                  <>
+                    <ToggleVisibilityAction shown={showSecret} onToggle={onToggleShow} />
+                    <CopyAction value={plaintext.script} label={t('vault.entry.copyScript')} secret />
+                  </>
+                }
+              />
+              <RevealRow icon="code" value={plaintext.interpreter} actions={null} />
+            </>
+          ) : null}
+
+          <CustomFieldsView fields={readCustomFields(plaintext)} />
         </div>
       ) : null}
     </div>
@@ -435,6 +472,12 @@ function maskValue(length: number): string {
   return '•'.repeat(target)
 }
 
+/** First non-empty line of a script, so the reveal row stays single-line. */
+function firstLine(script: string): string {
+  const line = script.split('\n').find((l) => l.trim().length > 0) ?? script
+  return line.length > 80 ? `${line.slice(0, 80)}…` : line
+}
+
 function formatLastAccessed(
   entry: EntryListItem,
   t: ReturnType<typeof useTranslation>['t'],
@@ -471,11 +514,17 @@ function copySecret(
 ) {
   if (!plaintext) return
   const value =
-    plaintext.type === ENTRY_TYPE_KEY ? plaintext.value : plaintext.password
+    plaintext.type === ENTRY_TYPE_KEY
+      ? plaintext.value
+      : plaintext.type === ENTRY_TYPE_SCRIPT
+        ? plaintext.script
+        : plaintext.password
   const label =
     type === ENTRY_TYPE_KEY
       ? t('vault.entry.copyKey')
-      : t('vault.entry.copyPassword')
+      : type === ENTRY_TYPE_SCRIPT
+        ? t('vault.entry.copyScript')
+        : t('vault.entry.copyPassword')
   copyText(value, label, t, true)
 }
 

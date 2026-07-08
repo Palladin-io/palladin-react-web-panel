@@ -57,20 +57,26 @@ export function GrantAgainDialog({
     <ModalShell
       onClose={isPending ? undefined : onCancel}
       ariaLabel={t('grants.regrant.title')}
+      title={t('grants.regrant.title')}
       width={440}
+      footer={
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
+            {t('grants.cancel')}
+          </Button>
+          <Button variant="accent" size="sm" onClick={handleConfirm} disabled={isPending} className="flex-[2]">
+            {isPending ? t('grants.regrant.granting') : t('grants.regrant.confirm')}
+          </Button>
+        </DialogFooter>
+      }
     >
       <div className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-            {t('grants.regrant.title')}
-          </h2>
-          <p className="mt-1 text-[12px] leading-relaxed text-[var(--cv-t2)]">
-            {t('grants.regrant.subtitlePrefix')}{' '}
-            <span className="font-semibold text-[var(--cv-t1)]">{agentName}</span>{' '}
-            {t('grants.regrant.subtitleAccessTo')}{' '}
-            <span className="font-semibold text-[var(--cv-t1)]">{entryLabel}</span>.
-          </p>
-        </div>
+        <p className="text-[12px] leading-relaxed text-[var(--cv-t2)]">
+          {t('grants.regrant.subtitlePrefix')}{' '}
+          <span className="font-semibold text-[var(--cv-t1)]">{agentName}</span>{' '}
+          {t('grants.regrant.subtitleAccessTo')}{' '}
+          <span className="font-semibold text-[var(--cv-t1)]">{entryLabel}</span>.
+        </p>
 
         <GrantPolicyFields
           idPrefix="regrant"
@@ -93,26 +99,6 @@ export function GrantAgainDialog({
           }}
         />
 
-        <DialogFooter>
-          <Button
-            variant="subtle"
-            size="sm"
-            onClick={onCancel}
-            disabled={isPending}
-            className="flex-1"
-          >
-            {t('grants.cancel')}
-          </Button>
-          <Button
-            variant="accent"
-            size="sm"
-            onClick={handleConfirm}
-            disabled={isPending}
-            className="flex-[2]"
-          >
-            {isPending ? t('grants.regrant.granting') : t('grants.regrant.confirm')}
-          </Button>
-        </DialogFooter>
       </div>
     </ModalShell>
   )

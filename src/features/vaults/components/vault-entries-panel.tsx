@@ -9,6 +9,7 @@ import {
   type Vault,
 } from '../types'
 import { useEntriesInfinite } from '../use-entries'
+import { usePersistedEntriesList } from '../use-entries-list-ui'
 import { CreateEntryModal } from './create-entry-modal'
 import { EntryRow } from './entry-row'
 import { LoadMoreSentinel } from '../../../shared/components/load-more-sentinel'
@@ -32,10 +33,11 @@ export interface VaultEntriesPanelProps {
  */
 export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelProps) {
   const { t } = useTranslation()
-  const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
 
   const entries = useEntriesInfinite(vault.id)
+  // Persist search + scroll per vault so selecting an entry never resets the list.
+  const { search, setSearch, scrollRef, onScroll } = usePersistedEntriesList(vault.id, !entries.isPending)
   const items = useMemo(
     () => entries.data?.pages.flatMap((p) => p.items) ?? [],
     [entries.data],
@@ -84,7 +86,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
           />
 
           {/* Only the items section scrolls — header and search stay pinned. */}
-          <ScrollArea>
+          <ScrollArea scrollRef={scrollRef} onScroll={onScroll}>
             {filtered.length === 0 ? (
               <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
                 bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">

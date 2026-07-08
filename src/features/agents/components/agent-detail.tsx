@@ -498,15 +498,9 @@ function DeactivateAgentDialog({ open, agentName, isPending, onConfirm, onCancel
     <ModalShell
       onClose={isPending ? undefined : onCancel}
       ariaLabel={t('agents.deactivateConfirmTitle')}
+      title={t('agents.deactivateConfirmTitle')}
       width={420}
-    >
-      <div className="flex flex-col gap-4">
-        <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-          {t('agents.deactivateConfirmTitle')}
-        </h2>
-        <p className="text-[12px] text-[var(--cv-t2)]">
-          {t('agents.deactivateConfirmBody', { name: agentName })}
-        </p>
+      footer={
         <DialogFooter>
           <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('agents.cancel')}
@@ -515,7 +509,11 @@ function DeactivateAgentDialog({ open, agentName, isPending, onConfirm, onCancel
             {isPending ? t('agents.deactivating') : t('agents.deactivate')}
           </Button>
         </DialogFooter>
-      </div>
+      }
+    >
+      <p className="text-[12px] text-[var(--cv-t2)]">
+        {t('agents.deactivateConfirmBody', { name: agentName })}
+      </p>
     </ModalShell>
   )
 }
@@ -535,15 +533,9 @@ function DeleteAgentDialog({ open, agentName, isPending, onConfirm, onCancel }: 
     <ModalShell
       onClose={isPending ? undefined : onCancel}
       ariaLabel={t('agents.deleteConfirmTitle')}
+      title={t('agents.deleteConfirmTitle')}
       width={420}
-    >
-      <div className="flex flex-col gap-4">
-        <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-          {t('agents.deleteConfirmTitle')}
-        </h2>
-        <p className="text-[12px] text-[var(--cv-t2)]">
-          {t('agents.deleteConfirmBody', { name: agentName })}
-        </p>
+      footer={
         <DialogFooter>
           <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('agents.cancel')}
@@ -552,7 +544,11 @@ function DeleteAgentDialog({ open, agentName, isPending, onConfirm, onCancel }: 
             {isPending ? t('agents.deleting') : t('agents.delete')}
           </Button>
         </DialogFooter>
-      </div>
+      }
+    >
+      <p className="text-[12px] text-[var(--cv-t2)]">
+        {t('agents.deleteConfirmBody', { name: agentName })}
+      </p>
     </ModalShell>
   )
 }

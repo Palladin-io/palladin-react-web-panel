@@ -84,4 +84,18 @@ describe('filterAuditLogs', () => {
   it('returns an empty array when nothing matches', () => {
     expect(filterAuditLogs(rows, { entryId: 'missing' })).toEqual([])
   })
+
+  it('narrows by inclusive date bounds (from/to on the createdAt day)', () => {
+    const dated = [
+      item({ id: 'jun25', createdAt: '2026-06-25T23:00:00Z' }),
+      item({ id: 'jun27', createdAt: '2026-06-27T10:00:00Z' }),
+      item({ id: 'jun29', createdAt: '2026-06-29T01:00:00Z' }),
+    ]
+    expect(filterAuditLogs(dated, { from: '2026-06-27' }).map((r) => r.id)).toEqual(['jun27', 'jun29'])
+    expect(filterAuditLogs(dated, { to: '2026-06-27' }).map((r) => r.id)).toEqual(['jun25', 'jun27'])
+    // The `to` bound is inclusive of the whole day regardless of time-of-day.
+    expect(
+      filterAuditLogs(dated, { from: '2026-06-27', to: '2026-06-27' }).map((r) => r.id),
+    ).toEqual(['jun27'])
+  })
 })

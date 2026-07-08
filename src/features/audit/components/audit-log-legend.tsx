@@ -28,9 +28,6 @@ export function AuditLogLegend({
   const { t } = useTranslation()
   return (
     <div>
-      <div className="mb-1 text-[14px] font-semibold text-[var(--cv-t1)]">
-        {t('audit.legend.title')}
-      </div>
       <p className="mb-4 text-[11px] text-[var(--cv-t3)]">
         {t('audit.legend.subtitle')}
       </p>

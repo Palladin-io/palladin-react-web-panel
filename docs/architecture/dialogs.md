@@ -1,34 +1,62 @@
 # Dialogs & Modal Footers
 
-Read this when building or editing any modal/dialog. Every modal uses `ModalShell` for the shell and `DialogFooter` for its actions — never a hand-rolled wrapper.
+Read this when building or editing any modal/dialog. Every modal uses `ModalShell` for the shell (including its header + footer chrome) and `DialogFooter` for its action buttons — never a hand-rolled header/footer wrapper.
 
-## Shell
+## Canonical dialog anatomy
 
-`ModalShell` (`shared/components/modal-shell.tsx`) owns the backdrop, Escape-to-dismiss, and body scroll-lock. Props: `onClose?`, `ariaLabel`, `width` (default 480), `children`.
+A dialog is: **titled header (with a bottom divider) → internally-scrolling body → footer (with a top divider)**. `ModalShell` renders all three centrally so no dialog hand-rolls its own header row or footer strip.
+
+```tsx
+<ModalShell
+  ariaLabel={t('vault.createVault')}
+  title={t('vault.createVault')}
+  onClose={isPending ? undefined : onClose}
+  width={440}
+  footer={
+    <DialogFooter>
+      <Button variant="subtle" size="sm" onClick={onClose} className="flex-1">
+        {t('vault.cancel')}
+      </Button>
+      <Button variant="accent" size="sm" type="submit" form="create-vault-form" disabled={!canSubmit} className="flex-[2]">
+        {t('vault.createVault')}
+      </Button>
+    </DialogFooter>
+  }
+>
+  <form id="create-vault-form" className="flex flex-col gap-4" onSubmit={handleSubmit}>
+    {/* fields only — no header, no footer */}
+  </form>
+</ModalShell>
+```
+
+### Shell (`shared/components/modal-shell.tsx`)
+
+Owns the backdrop, Escape-to-dismiss, and body scroll-lock. Props:
+
+- `ariaLabel` (required), `onClose?`, `width` (default **480**; use **560 for forms**), `children`.
+- `title?` — **pass it to opt into the canonical chrome.** ModalShell then renders the header row (title + close button + `border-b border-[var(--cv-divider)]`), a scrollable body (`max-h-[86vh]`, `overflow-y-auto`, **`overflow-x-hidden`**, `subtle-scrollbar`), and — if `footer` is set — a footer with `border-t`. `title` accepts a `ReactNode` (e.g. an icon + text).
+- `footer?` — the `DialogFooter` element (only used with `title`).
+- Omit `title` for the legacy bare padded box (children own everything). New dialogs should always pass `title`.
+
+### Form dialogs: submit from the footer
+
+The footer lives outside the `<form>` (ModalShell renders them as siblings). Give the form an `id` and point the footer's submit button at it with `form="<id>"` (`<Button type="submit" form="create-vault-form">`). The form's `onSubmit` still fires.
+
+### Body scroll + popovers
+
+The body is the only scroll region and it clips horizontal overflow. **Any popover/menu inside a dialog must render through a portal to `document.body`** (fixed position, anchored to its trigger) — an absolutely-positioned menu is clipped by the body's `overflow`. See `PopoverMenu` / `EntryIconButton` (`features/vaults/components/`). This was a real bug: in-dialog menus opened but were invisible.
 
 ## Footer button pattern
 
-All modal actions go in `DialogFooter` (`shared/components/dialog-footer.tsx`). Cancel + primary use a **1:2 flex ratio** — never `justify-center` or `justify-end`.
-
-```tsx
-import { DialogFooter } from '../../../shared/components/dialog-footer'
-
-<DialogFooter>
-  <Button variant="subtle" size="sm" onClick={onClose} className="flex-1">
-    {t('vault.cancel')}
-  </Button>
-  <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
-    {t('...')}
-  </Button>
-</DialogFooter>
-```
+All modal actions go in `DialogFooter` (`shared/components/dialog-footer.tsx`), passed to ModalShell's `footer` prop. Cancel + primary use a **1:2 flex ratio** — never `justify-center` or `justify-end`.
 
 ## Rules
 
-- **Always use `DialogFooter`** — it owns the edge-bleed, top border, subtle tint, and the spacing above the footer (`mt-3` + `py-3.5`). Don't reproduce the strip inline.
-- **Every button in the app is `size="sm"` (h-7 / 28px) — ONE single height, no exceptions.** Dialog footers are NOT taller than card/in-content buttons; opening a dialog must show a button the exact same height as the buttons on the cards. (`size="md"` exists in the type but must not be used.)
-- Cancel: `variant="subtle"`, `className="flex-1"` (occupies 1/3).
-- Primary: `variant="accent"` (or `positive` / `danger` per intent), `className="flex-[2]"` (occupies 2/3).
-- Single-action footer (e.g. "Done" / "Close"): one `size="sm"` button with `className="flex-1"` or `w-full`.
-- Router `<Link>` styled as a footer button: use `PREMIUM_BUTTON_SM_CLASS` / `POSITIVE_BUTTON_SM_CLASS` (the `sm` class exports from `button.tsx`) so it matches every other button's height.
-- Apply to **every** `ModalShell` with confirm/cancel — create dialogs, icon browsers, approve/deny/revoke/grant-again, preferences, delete confirms.
+- **Always pass `title` + `footer` to `ModalShell`** — don't hand-roll a header row or a footer strip inside `children`. No double borders.
+- **Always use `DialogFooter`** inside `footer` for confirm/cancel actions.
+- **`DialogFooter` is chrome-less** — it only lays out the buttons (`flex gap`). The footer's top divider, padding, and pinned position come from ModalShell's `footer` slot. Never give `DialogFooter` (or a footer passed to the slot) its own `border`, background tint, or negative-margin bleed — that double-chromes against the slot (a second divider + an empty band). This was a real regression.
+- **Every button in the app is `size="sm"` (h-7 / 28px) — ONE single height, no exceptions.** (`size="md"` exists in the type but must not be used.)
+- Cancel: `variant="subtle"`, `className="flex-1"` (1/3). Primary: `variant="accent"` / `positive` / `danger`, `className="flex-[2]"` (2/3).
+- Single-action footer ("Done" / "Close"): one `size="sm"` button, `flex-1` or `w-full`.
+- Router `<Link>` styled as a footer button: use `PREMIUM_BUTTON_SM_CLASS` / `POSITIVE_BUTTON_SM_CLASS` from `button.tsx`.
+- Field-feedback rhythm: use `FeedbackSlot` (animated, self-collapsing) below a field — **never** the fixed-`h-4` `FieldFeedback` + `-mb-4` wrapper (it overlaps the next label when an error shows). See `forms-and-validation.md`.

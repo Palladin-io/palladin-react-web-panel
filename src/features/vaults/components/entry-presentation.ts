@@ -1,4 +1,5 @@
-import { ENTRY_TYPE_KEY, type EntryType } from '../types'
+import { getDomain } from 'tldts'
+import { ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT, type EntryType } from '../types'
 
 export const ENTRY_ICON_OPTIONS = [
   // Auth / Security
@@ -97,8 +98,16 @@ const CREDENTIAL_PRESENTATION: EntryPresentation = {
   iconBg: 'rgba(96,165,250,0.12)',
 }
 
+const SCRIPT_PRESENTATION: EntryPresentation = {
+  defaultIcon: 'terminal',
+  iconColor: '#A78BFA',
+  iconBg: 'rgba(167,139,250,0.12)',
+}
+
 export function presentationForType(type: EntryType): EntryPresentation {
-  return type === ENTRY_TYPE_KEY ? KEY_PRESENTATION : CREDENTIAL_PRESENTATION
+  if (type === ENTRY_TYPE_KEY) return KEY_PRESENTATION
+  if (type === ENTRY_TYPE_SCRIPT) return SCRIPT_PRESENTATION
+  return CREDENTIAL_PRESENTATION
 }
 
 /**
@@ -110,11 +119,27 @@ export function presentationForType(type: EntryType): EntryPresentation {
 /** Google Password Manager app-credential URI: android://<signing-cert hash>@<package>/ */
 const ANDROID_CREDENTIAL_URI = /^android:\/\/[^@]+@([a-z0-9_.]+)\/?$/i
 
-/** Package ids are reverse-DNS — com.facebook.katana → facebook.com. */
+/**
+ * Derive a website domain from a reverse-DNS Android package id by reversing its
+ * first two segments — `com.empik.empikapp` → `empik.com`, `com.binance.dev` →
+ * `binance.com`. The candidate is validated with the public-suffix list
+ * (`allowPrivateDomains` so code-hosting suffixes like `github.io` count as
+ * suffixes, not domains), which rejects both packages with fewer than two
+ * segments and platform-hosted apps such as `io.github.<user>` (→ `github.io`,
+ * not a registrable domain) — those get no domain, exactly as before this
+ * heuristic existed.
+ *
+ * NOTE: the domain we infer here is stored as the entry's `urlDomain`, which
+ * also seeds the origin used for `inject` form-filling. That is an acceptable
+ * trade-off: the value comes from the user's own password-manager export and
+ * stays editable in the entry, so a wrong guess is correctable and never
+ * silently binds a secret to an origin the user can't see.
+ */
 function domainFromAndroidPackage(packageId: string): string | undefined {
-  const [tld, name] = packageId.toLowerCase().split('.')
-  if (!name || !/^[a-z]{2,6}$/.test(tld)) return undefined
-  return `${name}.${tld}`
+  const segments = packageId.toLowerCase().split('.')
+  if (segments.length < 2) return undefined
+  const candidate = `${segments[1]}.${segments[0]}`
+  return getDomain(candidate, { allowPrivateDomains: true }) ?? undefined
 }
 
 export function extractDomain(rawUrl: string | undefined): string | undefined {
@@ -133,7 +158,26 @@ export function extractDomain(rawUrl: string | undefined): string | undefined {
   }
 }
 
+/**
+ * Open a user-entered website value in a new tab, prepending `https://` when it
+ * has no scheme. No-ops for values that don't parse as a domain — callers gate
+ * the affordance on {@link extractDomain} so the button only shows for real URLs.
+ */
+export function openExternalUrl(raw: string | undefined): void {
+  const trimmed = raw?.trim()
+  if (!trimmed || !extractDomain(trimmed)) return
+  const target = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+  window.open(target, '_blank', 'noopener,noreferrer')
+}
+
 /** Default picker glyph for an entry type — single source for form initial state. */
 export function defaultIconFor(type: number): string {
-  return type === 0 ? 'vpn_key' : 'language'
+  if (type === ENTRY_TYPE_KEY) return 'vpn_key'
+  if (type === ENTRY_TYPE_SCRIPT) return 'terminal'
+  return 'language'
+}
+
+/** Default icon-circle colour for an entry type — used as the form default. */
+export function defaultColorFor(type: EntryType): string {
+  return presentationForType(type).iconColor
 }

@@ -79,24 +79,30 @@ export function ApproveGrantDialog({
     <ModalShell
       onClose={isPending ? undefined : onCancel}
       ariaLabel={t('grants.approve.title')}
+      title={t('grants.approve.title')}
       width={440}
+      footer={
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
+            {t('grants.cancel')}
+          </Button>
+          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={isPending} className="flex-[2]">
+            {isPending ? t('grants.approve.approving') : t('grants.approve.approve')}
+          </Button>
+        </DialogFooter>
+      }
     >
       <div className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-            {t('grants.approve.title')}
-          </h2>
-          {/* "Grant {agent} access to {entry} in {vault}." — agent + vault are
-              emphasised; entry shows its actual name, not "this credential". */}
-          <p className="mt-1 text-[12px] leading-relaxed text-[var(--cv-t2)]">
-            {t('grants.approve.subtitlePrefix')}{' '}
-            <span className="font-semibold text-[var(--cv-t1)]">{agentName}</span>{' '}
-            {t('grants.approve.subtitleAccessTo')}{' '}
-            <span className="font-semibold text-[var(--cv-t1)]">{entryLabel}</span>{' '}
-            {t('grants.approve.subtitleIn')}{' '}
-            <span className="font-semibold text-[var(--cv-t1)]">{vaultName}</span>.
-          </p>
-        </div>
+        {/* "Grant {agent} access to {entry} in {vault}." — agent + vault are
+            emphasised; entry shows its actual name, not "this credential". */}
+        <p className="text-[12px] leading-relaxed text-[var(--cv-t2)]">
+          {t('grants.approve.subtitlePrefix')}{' '}
+          <span className="font-semibold text-[var(--cv-t1)]">{agentName}</span>{' '}
+          {t('grants.approve.subtitleAccessTo')}{' '}
+          <span className="font-semibold text-[var(--cv-t1)]">{entryLabel}</span>{' '}
+          {t('grants.approve.subtitleIn')}{' '}
+          <span className="font-semibold text-[var(--cv-t1)]">{vaultName}</span>.
+        </p>
 
         <GrantPolicyFields
           idPrefix="approve"
@@ -131,26 +137,6 @@ export function ApproveGrantDialog({
           }}
         />
 
-        <DialogFooter>
-          <Button
-            variant="subtle"
-            size="sm"
-            onClick={onCancel}
-            disabled={isPending}
-            className="flex-1"
-          >
-            {t('grants.cancel')}
-          </Button>
-          <Button
-            variant="positive"
-            size="sm"
-            onClick={handleConfirm}
-            disabled={isPending}
-            className="flex-[2]"
-          >
-            {isPending ? t('grants.approve.approving') : t('grants.approve.approve')}
-          </Button>
-        </DialogFooter>
       </div>
     </ModalShell>
   )

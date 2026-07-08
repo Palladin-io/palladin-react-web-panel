@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
-import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { WarningZone } from '../../../shared/components/warning-zone'
 import { analytics } from '../../../shared/lib/analytics'
@@ -68,25 +67,20 @@ function ExportDialogBody({
     <ModalShell
       onClose={isBusy ? undefined : onClose}
       ariaLabel={t('vault.export.title')}
+      title={t('vault.export.title')}
       width={460}
+      footer={
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onClose} disabled={isBusy} className="flex-1">
+            {t('vault.cancel')}
+          </Button>
+          <Button variant="accent" size="sm" icon="download" onClick={handleExport} disabled={isBusy} className="flex-[2]">
+            {isBusy ? t('vault.export.exporting') : t('vault.export.exportCta')}
+          </Button>
+        </DialogFooter>
+      }
     >
       <div className="flex flex-col gap-3">
-        <header className="flex items-center justify-between">
-          <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-            {t('vault.export.title')}
-          </h2>
-          <button
-            type="button"
-            onClick={isBusy ? undefined : onClose}
-            disabled={isBusy}
-            aria-label={t('common.close')}
-            className="text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]
-              disabled:cursor-not-allowed"
-          >
-            <Icon name="close" size={18} />
-          </button>
-        </header>
-
         <fieldset>
           <legend className="mb-1.5 text-[11px] font-semibold text-[var(--cv-label-text)]">
             {t('vault.export.formatLabel')}
@@ -133,21 +127,6 @@ function ExportDialogBody({
           </div>
         )}
 
-        <DialogFooter>
-          <Button variant="subtle" size="sm" onClick={onClose} disabled={isBusy} className="flex-1">
-            {t('vault.cancel')}
-          </Button>
-          <Button
-            variant="accent"
-            size="sm"
-            icon="download"
-            onClick={handleExport}
-            disabled={isBusy}
-            className="flex-[2]"
-          >
-            {isBusy ? t('vault.export.exporting') : t('vault.export.exportCta')}
-          </Button>
-        </DialogFooter>
       </div>
     </ModalShell>
   )

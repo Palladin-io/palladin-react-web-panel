@@ -197,12 +197,10 @@ export function AuditLogPage() {
         <ModalShell
           onClose={() => setLegendOpen(false)}
           ariaLabel={t('audit.legend.title')}
+          title={t('audit.legend.title')}
           width={560}
         >
-          {/* The full taxonomy is tall — keep it scrollable inside the modal. */}
-          <div className="max-h-[70vh] overflow-y-auto pr-1">
-            <AuditLogLegend categories={AUDIT_EVENT_CATEGORIES} />
-          </div>
+          <AuditLogLegend categories={AUDIT_EVENT_CATEGORIES} />
         </ModalShell>
       )}
     </div>

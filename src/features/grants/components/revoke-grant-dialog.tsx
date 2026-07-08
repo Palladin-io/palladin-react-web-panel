@@ -46,12 +46,20 @@ export function RevokeGrantDialog({
     <ModalShell
       onClose={isPending ? undefined : onCancel}
       ariaLabel={t('grants.revoke.confirmTitle', { name: targetLabel })}
+      title={t('grants.revoke.confirmTitle', { name: targetLabel })}
       width={420}
+      footer={
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
+            {t('grants.cancel')}
+          </Button>
+          <Button variant="danger" size="sm" onClick={handleConfirm} disabled={isPending || tooLong} className="flex-[2]">
+            {isPending ? t('grants.revoke.revoking') : t('grants.revoke.confirm')}
+          </Button>
+        </DialogFooter>
+      }
     >
       <div className="flex flex-col gap-4">
-        <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-          {t('grants.revoke.confirmTitle', { name: targetLabel })}
-        </h2>
         <p className="text-[12px] text-[var(--cv-t2)]">
           {t('grants.revoke.confirmText')}
         </p>
@@ -76,26 +84,6 @@ export function RevokeGrantDialog({
           </FieldFeedback>
         </div>
 
-        <DialogFooter>
-          <Button
-            variant="subtle"
-            size="sm"
-            onClick={onCancel}
-            disabled={isPending}
-            className="flex-1"
-          >
-            {t('grants.cancel')}
-          </Button>
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={handleConfirm}
-            disabled={isPending || tooLong}
-            className="flex-[2]"
-          >
-            {isPending ? t('grants.revoke.revoking') : t('grants.revoke.confirm')}
-          </Button>
-        </DialogFooter>
       </div>
     </ModalShell>
   )

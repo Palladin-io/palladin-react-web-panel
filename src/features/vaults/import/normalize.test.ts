@@ -73,8 +73,20 @@ describe('android app-credential URIs (Google Password Manager)', () => {
     expect(extractDomain('android://hash@com.spotify.music/')).toBe('spotify.com')
   })
 
+  it('derives domains for real password-manager exports', () => {
+    // Signatures use base64url (includes _ and -); the package is after the @.
+    expect(extractDomain('android://8XwXgIDMJ7pXw-_a@com.empik.empikapp/')).toBe('empik.com')
+    expect(extractDomain('android://YJzPrGM_qk1v@com.binance.dev/')).toBe('binance.com')
+  })
+
   it('gives no domain for a package without a plausible TLD', () => {
     expect(extractDomain('android://hash@localonly/')).toBeUndefined()
+  })
+
+  it('gives no domain for platform-hosted apps (github.io is a public suffix)', () => {
+    // io.github.<user> reverses to github.io — a code-hosting suffix, not a
+    // registrable domain, so it must not become a (wrong) urlDomain.
+    expect(extractDomain('android://hash@io.github.someuser/')).toBeUndefined()
   })
 
   it('never yields a dotless hostname', () => {

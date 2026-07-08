@@ -1,10 +1,13 @@
 import { useTranslation } from 'react-i18next'
 import { CopyButton } from './copy-button'
 import { Icon } from './icon'
+import { PasswordGeneratorPopover } from './password-generator-popover'
 
 export interface SecretInputProps {
   id: string
   label: string
+  /** Override the label className — pass `sr-only` for compact single-line rows. */
+  labelClassName?: string
   value: string
   onChange: (next: string) => void
   shown: boolean
@@ -20,17 +23,29 @@ export interface SecretInputProps {
   copyable?: boolean
   /** Accessible label for the copy button (e.g. "Copy password"). */
   copyLabel?: string
+  /**
+   * Render a password-generator affordance. Receives the generated value — the
+   * caller both stores it and reveals the field so the user sees what they got.
+   */
+  onGenerate?: (password: string) => void
 }
 
+const PADDING_FOR_ACTION_COUNT: Record<number, string> = { 1: ' pr-10', 2: ' pr-16', 3: ' pr-[86px]' }
+
 export function SecretInput({
-  id, label, value, onChange, shown, onToggleShown,
+  id, label, labelClassName, value, onChange, shown, onToggleShown,
   placeholder, disabled, monospace, autoComplete = 'off', error, onBlur,
-  copyable, copyLabel,
+  copyable, copyLabel, onGenerate,
 }: SecretInputProps) {
   const { t } = useTranslation()
+  const actionCount = 1 + (copyable ? 1 : 0) + (onGenerate ? 1 : 0)
+  const paddingRight = PADDING_FOR_ACTION_COUNT[actionCount] ?? ' pr-10'
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]">
+      <label
+        htmlFor={id}
+        className={labelClassName ?? 'mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]'}
+      >
         {label}
       </label>
       <div className="relative">
@@ -62,14 +77,15 @@ export function SecretInput({
             py-2 pl-3 text-[12px] text-[var(--cv-input-text)]
             placeholder:text-[var(--cv-input-placeholder)]
             focus:outline-none transition-colors duration-200 disabled:opacity-60${monospace ? ' font-mono' : ''}
-            ${copyable ? ' pr-16' : ' pr-10'}
-            ${shown ? '' : ' secret-mask'}
+            ${paddingRight}
+            ${!shown && value ? ' secret-mask' : ''}
             ${error
               ? 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
               : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
             }`}
         />
         <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+          {onGenerate ? <PasswordGeneratorPopover onUse={onGenerate} disabled={disabled} /> : null}
           {copyable ? <CopyButton value={value} label={copyLabel} /> : null}
           <button
             type="button"

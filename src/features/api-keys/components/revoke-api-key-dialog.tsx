@@ -30,16 +30,9 @@ export function RevokeApiKeyDialog({
     <ModalShell
       onClose={isPending ? undefined : onCancel}
       ariaLabel={t('apiKeys.revokeConfirmTitle', { name: keyName })}
+      title={t('apiKeys.revokeConfirmTitle', { name: keyName })}
       width={420}
-    >
-      <div className="flex flex-col gap-4">
-        <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-          {t('apiKeys.revokeConfirmTitle', { name: keyName })}
-        </h2>
-        <p className="text-[12px] text-[var(--cv-t2)]">
-          {t('apiKeys.revokeConfirmText')}
-        </p>
-
+      footer={
         <DialogFooter>
           <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('apiKeys.cancel')}
@@ -48,7 +41,11 @@ export function RevokeApiKeyDialog({
             {isPending ? t('apiKeys.revoking') : t('apiKeys.confirmRevoke')}
           </Button>
         </DialogFooter>
-      </div>
+      }
+    >
+      <p className="text-[12px] text-[var(--cv-t2)]">
+        {t('apiKeys.revokeConfirmText')}
+      </p>
     </ModalShell>
   )
 }

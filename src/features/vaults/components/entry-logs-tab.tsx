@@ -1,18 +1,27 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Icon } from '../../../shared/components/icon'
-import { TypeFilterDropdown } from '../../../shared/components/type-filter-dropdown'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
 import { shortenKey } from '../../../shared/lib/shorten-key'
 import { useAgentNames } from '../../agents'
 import {
+  AuditFilterBar,
+  type AuditFilterState,
   AuditLogList,
   ENTRY_RELEVANT_EVENT_TYPES,
-  auditEventConfig,
   filterAuditLogs,
   useVaultAuditLogs,
 } from '../../audit'
+
+const EMPTY_FILTER: AuditFilterState = {
+  search: '',
+  eventType: [],
+  agentId: [],
+  userId: [],
+  vaultId: [],
+  from: '',
+  to: '',
+}
 
 export interface EntryLogsTabProps {
   vaultId: string
@@ -34,9 +43,7 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
   const permissions = useAuthStore((s) => s.permissions)
   const canView = (permissions & PERMISSION_AUDIT_VIEW) !== 0
 
-  const [search, setSearch] = useState('')
-  const [agentId, setAgentId] = useState<string[]>([])
-  const [eventType, setEventType] = useState<string[]>([])
+  const [filter, setFilter] = useState<AuditFilterState>(EMPTY_FILTER)
 
   const agents = useAgentNames(canView)
   const logs = useVaultAuditLogs(vaultId, {}, canView)
@@ -65,12 +72,14 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
     () =>
       filterAuditLogs(allItems, {
         entryId,
-        agentId,
-        eventType,
-        search,
+        agentId: filter.agentId,
+        eventType: filter.eventType,
+        search: filter.search,
+        from: filter.from,
+        to: filter.to,
         agentNameById,
       }),
-    [allItems, entryId, agentId, eventType, search, agentNameById],
+    [allItems, entryId, filter, agentNameById],
   )
 
   // Agents that actually appear in this entry's log — keeps the dropdown short.
@@ -83,50 +92,16 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allItems, entryId, agentNameById])
 
-  const eventOptions = useMemo(
-    () =>
-      ENTRY_RELEVANT_EVENT_TYPES.map((type) => ({
-        value: type,
-        label: t(auditEventConfig(type).labelKey),
-      })),
-    [t],
-  )
-
   return (
     <div className="min-w-0">
-      <div className="mb-3 flex flex-wrap items-stretch gap-2">
-        <div
-          className="flex min-w-[180px] flex-1 items-center gap-2 rounded-lg border
-            border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3
-            transition-colors focus-within:border-[var(--cv-t1)]"
-        >
-          <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('audit.searchPlaceholder')}
-            className="h-8 flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)]
-              placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
-          />
-        </div>
-        <TypeFilterDropdown
-          triggerClassName="h-8"
-          options={agentOptions}
-          selected={new Set(agentId)}
-          onChange={(next) => setAgentId([...next])}
-          placeholder={t('audit.filterAgentLabel')}
-          ariaLabel={t('audit.filterAgent')}
-        />
-        <TypeFilterDropdown
-          triggerClassName="h-8"
-          options={eventOptions}
-          selected={new Set(eventType)}
-          onChange={(next) => setEventType([...next])}
-          placeholder={t('audit.filterEventLabel')}
-          ariaLabel={t('audit.filterEvent')}
-        />
-      </div>
+      {/* Same search + collapsible filter control as the vault/global Audit Log —
+          restricted to entry-relevant event types; no user/vault filters here. */}
+      <AuditFilterBar
+        value={filter}
+        onChange={setFilter}
+        agentOptions={agentOptions}
+        eventTypes={ENTRY_RELEVANT_EVENT_TYPES}
+      />
 
       <AuditLogList
         items={filtered}

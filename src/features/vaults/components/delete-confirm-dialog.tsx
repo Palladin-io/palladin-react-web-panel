@@ -25,22 +25,19 @@ export function DeleteConfirmDialog({
     <ModalShell
       onClose={isPending ? undefined : onCancel}
       ariaLabel={t('vault.deleteConfirmTitle', { name: vaultName })}
-    >
-      <div className="flex flex-col gap-4">
-        <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-          {t('vault.deleteConfirmTitle', { name: vaultName })}
-        </h2>
-        <p className="text-[12px] text-[var(--cv-t2)]">{t('vault.deleteConfirmText')}</p>
-
+      title={t('vault.deleteConfirmTitle', { name: vaultName })}
+      footer={
         <DialogFooter>
-        <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
-          {t('vault.cancel')}
-        </Button>
-        <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
-          {isPending ? t('vault.deleting') : t('vault.confirmDelete')}
-        </Button>
+          <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
+            {t('vault.cancel')}
+          </Button>
+          <Button variant="danger" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
+            {isPending ? t('vault.deleting') : t('vault.confirmDelete')}
+          </Button>
         </DialogFooter>
-      </div>
+      }
+    >
+      <p className="text-[12px] text-[var(--cv-t2)]">{t('vault.deleteConfirmText')}</p>
     </ModalShell>
   )
 }

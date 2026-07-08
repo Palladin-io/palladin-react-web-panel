@@ -11,6 +11,10 @@ export interface AuditLogFilter {
   search?: string
   /** id → display name lookup so search can match agents by name. */
   agentNameById?: Record<string, string>
+  /** Inclusive lower date bound as `YYYY-MM-DD` (from a native date input). */
+  from?: string
+  /** Inclusive upper date bound as `YYYY-MM-DD`. */
+  to?: string
 }
 
 /** Normalise an optional single/array filter value to an array. */
@@ -37,6 +41,10 @@ export function filterAuditLogs(
     if (filter.entryId && item.entryId !== filter.entryId) return false
     if (agentIds.length && (!item.agentId || !agentIds.includes(item.agentId))) return false
     if (eventTypes.length && !eventTypes.includes(item.eventType)) return false
+    // Date-only comparison on the ISO string — YYYY-MM-DD sorts lexically.
+    const day = item.createdAt.slice(0, 10)
+    if (filter.from && day < filter.from) return false
+    if (filter.to && day > filter.to) return false
     if (!q) return true
     const agentName = item.agentId
       ? filter.agentNameById?.[item.agentId]

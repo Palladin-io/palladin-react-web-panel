@@ -42,45 +42,22 @@ export function PremiumGateDialog({ open, onClose }: PremiumGateDialogProps) {
       onClose={onClose}
       ariaLabel={t('vault.premiumGate.title')}
       width={400}
-    >
-      <div className="flex flex-col gap-4">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span
-              aria-hidden
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full"
-              style={{
-                backgroundColor:
-                  'color-mix(in srgb, var(--cv-premium) 15%, transparent)',
-                color: 'var(--cv-premium)',
-              }}
-            >
-              <Icon name="workspace_premium" size={20} color="var(--cv-premium)" />
-            </span>
-            <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-              {t('vault.premiumGate.title')}
-            </h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t('common.close')}
-            className="text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
+      title={
+        <span className="flex items-center gap-2">
+          <span
+            aria-hidden
+            className="inline-flex h-7 w-7 items-center justify-center rounded-full"
+            style={{
+              backgroundColor: 'color-mix(in srgb, var(--cv-premium) 15%, transparent)',
+              color: 'var(--cv-premium)',
+            }}
           >
-            <Icon name="close" size={18} />
-          </button>
-        </header>
-
-        <p className="text-[13px] leading-relaxed text-[var(--cv-t2)]">
-          {t('vault.premiumGate.description')}
-        </p>
-
-        <ul className="flex flex-col gap-2 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-bg-subtle)] p-3">
-          <PremiumPerk label={t('vault.premiumGate.perkUnlimitedVaults')} />
-          <PremiumPerk label={t('vault.premiumGate.perkFullMode')} />
-          <PremiumPerk label={t('vault.premiumGate.perkPriority')} />
-        </ul>
-
+            <Icon name="workspace_premium" size={16} color="var(--cv-premium)" />
+          </span>
+          {t('vault.premiumGate.title')}
+        </span>
+      }
+      footer={
         <DialogFooter>
           <Button variant="subtle" size="sm" onClick={onClose} className="flex-1">
             {t('vault.premiumGate.maybeLater')}
@@ -99,6 +76,18 @@ export function PremiumGateDialog({ open, onClose }: PremiumGateDialogProps) {
             {t('vault.premiumGate.upgradeCta')}
           </Link>
         </DialogFooter>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <p className="text-[13px] leading-relaxed text-[var(--cv-t2)]">
+          {t('vault.premiumGate.description')}
+        </p>
+
+        <ul className="flex flex-col gap-2 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-bg-subtle)] p-3">
+          <PremiumPerk label={t('vault.premiumGate.perkUnlimitedVaults')} />
+          <PremiumPerk label={t('vault.premiumGate.perkFullMode')} />
+          <PremiumPerk label={t('vault.premiumGate.perkPriority')} />
+        </ul>
       </div>
     </ModalShell>
   )

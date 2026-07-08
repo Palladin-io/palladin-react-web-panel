@@ -1,5 +1,6 @@
 import type { InputHTMLAttributes, ReactNode } from 'react'
 import { CopyButton } from './copy-button'
+import { Icon } from './icon'
 
 /**
  * Styled text input with label for onboarding and settings forms.
@@ -11,6 +12,8 @@ import { CopyButton } from './copy-button'
 export interface FormInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className'> {
   label: string
+  /** Optional muted adornment after the label (e.g. "· visible to agents"). */
+  labelSuffix?: ReactNode
   /** Override the default label className when different styling is needed. */
   labelClassName?: string
   /** Override border + focus-border classes. Defaults to subtle/teal. */
@@ -23,10 +26,22 @@ export interface FormInputProps
   copyable?: boolean
   /** Accessible label for the copy button (e.g. "Copy username"). */
   copyLabel?: string
+  /**
+   * A trailing icon-button inside the input (like the eye/copy on a password) —
+   * e.g. "open URL". Rendered only when `trailingAction.show` is not false, so
+   * callers can gate it on a valid value.
+   */
+  trailingAction?: {
+    icon: string
+    onClick: () => void
+    label: string
+    show?: boolean
+  }
 }
 
 export function FormInput({
   label,
+  labelSuffix,
   id,
   labelClassName,
   borderClass,
@@ -34,8 +49,11 @@ export function FormInput({
   error,
   copyable,
   copyLabel,
+  trailingAction,
   ...props
 }: FormInputProps) {
+  const showAction = trailingAction && trailingAction.show !== false
+  const hasTrailing = copyable || showAction
   return (
     <div>
       <label
@@ -46,22 +64,35 @@ export function FormInput({
         }
       >
         {label}
+        {labelSuffix ? <span className="ml-1.5 font-normal text-[var(--cv-t3)]">{labelSuffix}</span> : null}
       </label>
       <div className="relative">
         <input
           id={id}
           className={`w-full rounded-lg border bg-[var(--cv-input-bg)] py-2 pl-3 text-[12px]
             text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)]
-            focus:outline-none transition-colors duration-200 ${copyable ? 'pr-10' : 'pr-3'} ${
+            focus:outline-none transition-colors duration-200 ${hasTrailing ? 'pr-10' : 'pr-3'} ${
             borderClass ?? (error
               ? 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
               : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]')
           }${monospace ? ' font-mono' : ''}`}
           {...props}
         />
-        {copyable ? (
-          <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
-            <CopyButton value={String(props.value ?? '')} label={copyLabel} />
+        {hasTrailing ? (
+          <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
+            {showAction ? (
+              <button
+                type="button"
+                onClick={trailingAction!.onClick}
+                aria-label={trailingAction!.label}
+                title={trailingAction!.label}
+                className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--cv-t3)]
+                  transition-colors hover:text-[var(--cv-t1)]"
+              >
+                <Icon name={trailingAction!.icon} size={15} />
+              </button>
+            ) : null}
+            {copyable ? <CopyButton value={String(props.value ?? '')} label={copyLabel} /> : null}
           </div>
         ) : null}
       </div>

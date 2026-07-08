@@ -137,17 +137,23 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
     <ModalShell
       onClose={createGrant.isPending ? undefined : onClose}
       ariaLabel={t('grants.create.title')}
+      title={t('grants.create.title')}
       width={460}
+      footer={
+        <DialogFooter>
+          <Button variant="subtle" size="sm" onClick={onClose} disabled={createGrant.isPending} className="flex-1">
+            {t('grants.cancel')}
+          </Button>
+          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={createGrant.isPending} className="flex-[2]">
+            {createGrant.isPending ? t('grants.create.granting') : t('grants.create.confirm')}
+          </Button>
+        </DialogFooter>
+      }
     >
       <div className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-            {t('grants.create.title')}
-          </h2>
-          <p className="mt-1 text-[12px] text-[var(--cv-t2)]">
-            {t('grants.create.subtitle')}
-          </p>
-        </div>
+        <p className="text-[12px] text-[var(--cv-t2)]">
+          {t('grants.create.subtitle')}
+        </p>
 
         {/* Swappable subject segment. -mb-4 absorbs the fixed-height (16px)
             FieldFeedback row so the gap to the policy segment matches the rest. */}
@@ -198,28 +204,6 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           }}
         />
 
-        <DialogFooter>
-          <Button
-            variant="subtle"
-            size="sm"
-            onClick={onClose}
-            disabled={createGrant.isPending}
-            className="flex-1"
-          >
-            {t('grants.cancel')}
-          </Button>
-          <Button
-            variant="positive"
-            size="sm"
-            onClick={handleConfirm}
-            disabled={createGrant.isPending}
-            className="flex-[2]"
-          >
-            {createGrant.isPending
-              ? t('grants.create.granting')
-              : t('grants.create.confirm')}
-          </Button>
-        </DialogFooter>
       </div>
     </ModalShell>
   )

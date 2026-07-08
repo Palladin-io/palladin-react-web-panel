@@ -64,32 +64,31 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
     <ModalShell
       onClose={isPending ? undefined : onClose}
       ariaLabel={t('apiKeys.generateTitle')}
+      title={generated ? t('apiKeys.generatedTitle') : t('apiKeys.generateTitle')}
       width={440}
+      footer={
+        generated ? (
+          <DialogFooter>
+            <Button variant="accent" size="sm" onClick={onClose} className="w-full">
+              {t('apiKeys.done')}
+            </Button>
+          </DialogFooter>
+        ) : (
+          <DialogFooter>
+            <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
+              {t('apiKeys.cancel')}
+            </Button>
+            <Button variant="accent" size="sm" type="submit" form="api-key-form" disabled={!canSubmit} className="flex-[2]">
+              {isPending ? t('apiKeys.generating') : t('apiKeys.generate')}
+            </Button>
+          </DialogFooter>
+        )
+      }
     >
-      <header className="mb-4 flex items-center justify-between">
-        <h2 className="text-[15px] font-bold text-[var(--cv-t1)]">
-          {generated ? t('apiKeys.generatedTitle') : t('apiKeys.generateTitle')}
-        </h2>
-        <button
-          type="button"
-          onClick={isPending ? undefined : onClose}
-          disabled={isPending}
-          aria-label={t('apiKeys.close')}
-          className="text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]
-            disabled:cursor-not-allowed"
-        >
-          <Icon name="close" size={18} />
-        </button>
-      </header>
-
       {generated ? (
-        <GeneratedSecretView
-          generated={generated}
-          keyName={trimmedName}
-          onDone={onClose}
-        />
+        <GeneratedSecretView generated={generated} keyName={trimmedName} />
       ) : (
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+        <form id="api-key-form" className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <FormInput
             id="api-key-name"
             label={t('apiKeys.nameLabel')}
@@ -100,15 +99,6 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
             disabled={isPending}
             maxLength={64}
           />
-
-          <DialogFooter>
-            <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
-              {t('apiKeys.cancel')}
-            </Button>
-            <Button variant="accent" size="sm" type="submit" disabled={!canSubmit} className="flex-[2]">
-              {isPending ? t('apiKeys.generating') : t('apiKeys.generate')}
-            </Button>
-          </DialogFooter>
         </form>
       )}
     </ModalShell>
@@ -123,11 +113,9 @@ function GenerateApiKeyModalBody({ onClose }: { onClose: () => void }) {
 function GeneratedSecretView({
   generated,
   keyName,
-  onDone,
 }: {
   generated: GeneratedApiKey
   keyName: string
-  onDone: () => void
 }) {
   const { t } = useTranslation()
   const [agentName, setAgentName] = useState(keyName)
@@ -219,12 +207,6 @@ function GeneratedSecretView({
           </div>
         </div>
       </CollapsibleSection>
-
-      <DialogFooter>
-        <Button variant="accent" size="sm" onClick={onDone} className="w-full">
-          {t('apiKeys.done')}
-        </Button>
-      </DialogFooter>
     </div>
   )
 }

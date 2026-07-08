@@ -14,6 +14,7 @@ import {
 } from './api/vault-api'
 import { extractDomain } from './components/entry-presentation'
 import {
+  ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,
   type EntryPlaintext,
 } from './types'
@@ -109,8 +110,9 @@ function toPlaintext(entry: ParsedEntry): EntryPlaintext {
   if (entry.type === ENTRY_TYPE_KEY) {
     return { type: ENTRY_TYPE_KEY, value: entry.value ?? '', notes: entry.notes }
   }
+  // External importers only ever produce KEY or CREDENTIAL entries.
   return {
-    type: entry.type,
+    type: ENTRY_TYPE_CREDENTIAL,
     username: entry.username ?? '',
     password: entry.password ?? '',
     url: entry.url,
