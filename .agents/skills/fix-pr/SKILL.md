@@ -9,19 +9,21 @@ effort: high
 
 # Fix PR — Palladin React Web Panel
 
+`PR_NUMBER` below is a symbolic placeholder. Parse the PR number from the explicit user request and replace the placeholder in every command before executing it. Never guess a PR number.
+
 ## Kontekst PR
 
 **Metadane:**
-!`gh pr view $ARGUMENTS --json number,title,headRefName,baseRefName,author 2>/dev/null`
+- Run: `gh pr view $PR_NUMBER --json number,title,headRefName,baseRefName,author 2>/dev/null`
 
 **Poprzednie review (REQUEST_CHANGES do naprawy):**
-!`gh pr view $ARGUMENTS --json reviews 2>/dev/null`
+- Run: `gh pr view $PR_NUMBER --json reviews 2>/dev/null`
 
 **Komentarze inline:**
-!`gh api repos/$(gh repo view --json nameWithOwner --jq '.nameWithOwner')/pulls/$ARGUMENTS/comments 2>/dev/null`
+- Run: `gh api repos/$(gh repo view --json nameWithOwner --jq '.nameWithOwner')/pulls/$PR_NUMBER/comments 2>/dev/null`
 
 **Zmienione pliki:**
-!`gh pr diff $ARGUMENTS --name-only 2>/dev/null`
+- Run: `gh pr diff $PR_NUMBER --name-only 2>/dev/null`
 
 ---
 
@@ -31,7 +33,7 @@ effort: high
 
 Upewnij się że jesteś na właściwym branchu PR. Jeśli nie:
 ```bash
-HEAD=$(gh pr view $ARGUMENTS --json headRefName --jq '.headRefName')
+HEAD=$(gh pr view $PR_NUMBER --json headRefName --jq '.headRefName')
 git fetch origin "$HEAD"
 git checkout "$HEAD"
 ```
@@ -45,7 +47,7 @@ Przeczytaj wszystkie nierozwiązane komentarze z review (powyżej). Dla każdego
 
 ### Krok 3 — wprowadź poprawki
 
-Edytuj pliki używając `Edit`. Przestrzegaj konwencji projektu (CLAUDE.md):
+Edytuj pliki używając `Edit`. Przestrzegaj konwencji projektu (AGENTS.md):
 - Crypto wyłącznie w `src/shared/crypto/` — nigdy w feature hookach
 - Klucze (MK, private key, VK) wyłącznie w Zustand w pamięci — nigdy localStorage
 - TanStack Query dla stanu serwerowego, Zustand dla stanu klienta
@@ -87,7 +89,7 @@ Dla każdego zaadresowanego komentarza:
 REPO=$(gh repo view --json nameWithOwner --jq '.nameWithOwner')
 
 # Odpowiedz na komentarz (COMMENT_ID = .id z listy komentarzy powyżej)
-gh api "repos/${REPO}/pulls/$ARGUMENTS/comments/{COMMENT_ID}/replies" \
+gh api "repos/${REPO}/pulls/$PR_NUMBER/comments/{COMMENT_ID}/replies" \
   --method POST \
   --field body="✅ Naprawione — [jednozdaniowy opis co zostało zrobione i gdzie]."
 
@@ -108,7 +110,7 @@ gh api graphql -f query='
   }
 ' -f owner="$(echo $REPO | cut -d/ -f1)" \
   -f repo="$(echo $REPO | cut -d/ -f2)" \
-  -F pr=$ARGUMENTS
+  -F pr=$PR_NUMBER
 
 # Resolvuj wątek (THREAD_NODE_ID to .id z powyższego query)
 gh api graphql \
@@ -123,7 +125,7 @@ Dla komentarzy których świadomie **nie naprawiasz** — odpowiedz z uzasadnien
 Po obsłużeniu wszystkich komentarzy dodaj komentarz podsumowujący:
 
 ```bash
-gh pr comment $ARGUMENTS --body "..."
+gh pr comment $PR_NUMBER --body "..."
 ```
 
 Format:
