@@ -3,7 +3,7 @@ name: fix-pr
 description: Implementuje poprawki na podstawie komentarzy review — czyta nierozwiązane uwagi, modyfikuje kod, buduje, testuje, commituje, odpowiada na komentarze i resolvuje wątki.
 argument-hint: <pr-number>
 disable-model-invocation: true
-allowed-tools: Read Write Edit Grep Glob Bash(gh pr *) Bash(gh api *) Bash(gh api graphql *) Bash(git *) Bash(npm *) Bash(jq *)
+allowed-tools: Read Write Edit Grep Glob Bash(gh pr *) Bash(gh api *) Bash(gh api graphql *) Bash(git fetch *) Bash(git checkout *) Bash(git add *) Bash(git commit *) Bash(git push) Bash(npm *) Bash(jq *)
 effort: high
 ---
 
@@ -69,10 +69,17 @@ Jeśli build lub testy nie przechodzą — napraw przed przejściem dalej. Nie c
 ```bash
 git add [konkretne pliki]
 git commit -m "fix: [opis co naprawiono, odwołanie do review]"
-git push
 ```
 
 Commit message po polsku, zwięzły, opisuje efekt a nie mechanikę zmiany.
+
+### Krok 5b — wypchnij dopiero po weryfikacji
+
+Uruchom `git push` wyłącznie jeśli pełny build i wszystkie testy z Kroku 4 zakończyły się powodzeniem. Jeśli którakolwiek komenda weryfikacyjna nie przeszła, zatrzymaj workflow i nie publikuj commita.
+
+```bash
+git push
+```
 
 ### Krok 6 — odpowiedz na każdy komentarz i resolvuj wątki
 
