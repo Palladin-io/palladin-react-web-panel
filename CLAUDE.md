@@ -342,3 +342,4 @@ This file is **always loaded into context**, so keep it lean. It holds only guid
 - When a section grows verbose code examples, full token tables, or rules only relevant when touching one concern → move it to a sub-doc and leave a pointer.
 - Extend this structure autonomously over time: as new every-iteration rules emerge, add them here concisely; as deep detail accumulates, push it down into `docs/architecture/` and link it.
 - **PR reviewers must check whether a code change requires updating this file or a `docs/architecture/` doc** (new shared component, changed convention, new feature, new token, changed crypto flow) — doc drift is a review finding.
+- `AGENTS.md` and `CLAUDE.md` are intentionally maintained as complete, byte-for-byte identical copies by product-owner decision. Every instruction change must update both files in the same commit and verify them with `cmp`.
