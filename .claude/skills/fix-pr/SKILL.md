@@ -3,7 +3,7 @@ name: fix-pr
 description: Implementuje poprawki na podstawie komentarzy review — czyta nierozwiązane uwagi, modyfikuje kod, buduje, testuje, commituje, odpowiada na komentarze i resolvuje wątki.
 argument-hint: <pr-number>
 disable-model-invocation: true
-allowed-tools: Read Write Edit Grep Glob Bash(gh pr *) Bash(gh api *) Bash(gh api graphql *) Bash(git *) Bash(npm *) Bash(jq *)
+allowed-tools: Read Write Edit Grep Glob Bash(gh pr *) Bash(gh api *) Bash(gh api graphql *) Bash(git fetch *) Bash(git checkout *) Bash(git add *) Bash(git commit *) Bash(git push) Bash(npm *) Bash(jq *)
 effort: high
 ---
 
