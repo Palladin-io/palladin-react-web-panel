@@ -67,10 +67,17 @@ Jeśli build lub testy nie przechodzą — napraw przed przejściem dalej. Nie c
 ```bash
 git add [konkretne pliki]
 git commit -m "fix: [opis co naprawiono, odwołanie do review]"
-git push
 ```
 
 Commit message po polsku, zwięzły, opisuje efekt a nie mechanikę zmiany.
+
+### Krok 5b — wypchnij dopiero po weryfikacji
+
+Uruchom `git push` wyłącznie jeśli pełny build i wszystkie testy z Kroku 4 zakończyły się powodzeniem. Jeśli którakolwiek komenda weryfikacyjna nie przeszła, zatrzymaj workflow i nie publikuj commita.
+
+```bash
+git push
+```
 
 ### Krok 6 — odpowiedz na każdy komentarz i resolvuj wątki
 
