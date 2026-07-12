@@ -1120,13 +1120,6 @@
   "verifyEmail.expiredSubtitle": "This verification link has expired. Sign in and request a new one.",
   "verifyEmail.invalidTitle": "Invalid Link",
   "verifyEmail.invalidSubtitle": "This verification link is invalid or has already been used.",
-  "verifyEmail.banner.title": "Verify your email.",
-  "verifyEmail.banner.body": "Check your inbox for a verification link.",
-  "verifyEmail.banner.bodyWithEmail": "Check {{email}} for a verification link.",
-  "verifyEmail.banner.resend": "Resend",
-  "verifyEmail.banner.sending": "Sending…",
-  "verifyEmail.banner.sent": "Sent",
-  "verifyEmail.banner.resendIn": "Resend in {{seconds}}s",
   "security.title": "Security",
   "security.subtitle": "Manage your master password and two-factor authentication.",
   "security.password.title": "Master Password",
@@ -1180,5 +1173,13 @@
   "totpEnroll.copyCodes": "Copy Codes",
   "totpEnroll.downloadCodes": "Download",
   "settings.security.title": "Security",
-  "settings.security.subtitle": "Master password and two-factor authentication."
+  "settings.security.subtitle": "Master password and two-factor authentication.",
+  "verifyEmail.pendingTitle": "Verify Your Email",
+  "verifyEmail.pendingSubtitle": "Confirm your email to unlock your account.",
+  "verifyEmail.pendingBody": "We sent a verification link to {{email}}. Click it, then come back here.",
+  "verifyEmail.pendingBodyNoEmail": "We sent you a verification link. Click it, then come back here.",
+  "verifyEmail.resend": "Resend Email",
+  "verifyEmail.sending": "Sending…",
+  "verifyEmail.sent": "Email Sent",
+  "verifyEmail.resendIn": "Resend in {{seconds}}s"
 }
