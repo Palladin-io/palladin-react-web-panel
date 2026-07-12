@@ -1144,7 +1144,7 @@
   "security.password.mustDiffer": "New password must be different from the current one",
   "security.password.doNotMatch": "Passwords don't match",
   "security.password.warningTitle": "Warning zone",
-  "security.password.warningBody": "Changing your master password re-encrypts your keys. Your recovery phrase stays the same. If you forget the new password, only your recovery phrase can restore access.",
+  "security.password.warningBody": "Changing your master password re-encrypts your keys and signs you out on your other devices. Your recovery phrase stays the same. If you forget the new password, only your recovery phrase can restore access.",
   "security.password.save": "Change Password",
   "security.password.saving": "Changing…",
   "security.password.success": "Master password changed",

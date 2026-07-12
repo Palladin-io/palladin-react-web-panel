@@ -1191,7 +1191,7 @@
   "security.password.mustDiffer": "Nowe hasło musi różnić się od obecnego",
   "security.password.doNotMatch": "Hasła nie są takie same",
   "security.password.warningTitle": "Uwaga",
-  "security.password.warningBody": "Zmiana hasła głównego ponownie szyfruje Twoje klucze. Fraza odzyskiwania pozostaje bez zmian. Jeśli zapomnisz nowego hasła, dostęp przywróci tylko fraza odzyskiwania.",
+  "security.password.warningBody": "Zmiana hasła głównego ponownie szyfruje Twoje klucze i wylogowuje Cię na innych urządzeniach. Fraza odzyskiwania pozostaje bez zmian. Jeśli zapomnisz nowego hasła, dostęp przywróci tylko fraza odzyskiwania.",
   "security.password.save": "Zmień hasło",
   "security.password.saving": "Zmienianie…",
   "security.password.success": "Hasło główne zmienione",

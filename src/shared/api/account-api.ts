@@ -101,32 +101,35 @@ export function recoverAccount(payload: RecoverAccountPayload): Promise<void> {
 
 /**
  * Payload for an authenticated master-password change (Variant A: the login
- * password is the master password). The client re-derives both keys from the
- * new password and ships the fresh master-side material + the new auth
- * credential. Recovery material is deliberately NOT included — a change-password
- * flow doesn't hold the recovery mnemonic, so the recovery wrapping is left
- * untouched and the old recovery phrase keeps working.
+ * password is the master password). The client proves knowledge of the current
+ * password via `currentAuthHash` (server verifies constant-time before applying
+ * — a stolen JWT alone can't rewrite key material) and ships fresh master-side
+ * material + the new auth credential. Recovery material is deliberately NOT
+ * included — this flow doesn't hold the recovery mnemonic, so the recovery
+ * wrapping and the old recovery phrase keep working.
  */
 export interface ChangeMasterPasswordPayload {
+  /** base64 Argon2id(current password, current authSalt) — proves the current password. */
+  currentAuthHash: string
+  /** base64 Argon2id(new password, newAuthSalt) — the new server-side auth credential. */
+  newAuthHash: string
+  /** base64 new 16-byte salt used to derive `newAuthHash`. */
+  newAuthSalt: string
   /** base64 new 16-byte Argon2id salt for the new master key. */
-  salt: string
+  newSalt: string
   /** base64 private key re-wrapped with the new master key (nonce prepended). */
-  encryptedPrivateKey: string
-  /** base64 new Argon2id auth-hash sent to the server (server re-hashes at rest). */
-  authHash: string
-  /** base64 new 16-byte salt used to derive `authHash` (returned pre-login). */
-  authSalt: string
+  newEncryptedPrivateKey: string
 }
 
 /**
- * Change the master password while authenticated. Endpoint pending backend
- * confirmation (CVT-268) — expected to be a JWT-authed route that updates the
- * master + auth material without touching recovery.
+ * Change the master password while authenticated (CVT-268). Server verifies
+ * `currentAuthHash`, replaces the master + auth material (recovery untouched),
+ * and revokes the account's other sessions.
  */
 export function changeMasterPassword(
   payload: ChangeMasterPasswordPayload,
 ): Promise<void> {
-  return api.put('api/account/master-password', { json: payload }).json<void>()
+  return api.put('api/account/password', { json: payload }).json<void>()
 }
 
 /**
