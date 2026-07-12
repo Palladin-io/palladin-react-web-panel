@@ -28,14 +28,14 @@ export function AuditLogLegend({
   const { t } = useTranslation()
   return (
     <div>
-      <p className="mb-4 text-[11px] text-[var(--cv-t3)]">
+      <p className="mb-4 text-meta text-[var(--cv-t3)]">
         {t('audit.legend.subtitle')}
       </p>
       {categories ? (
         <div className="flex flex-col gap-4">
           {categories.map((category) => (
             <div key={category.labelKey}>
-              <div className="mb-1.5 text-[10px] font-bold uppercase tracking-wide text-[var(--cv-t3)]">
+              <div className="mb-1.5 text-micro font-bold uppercase tracking-wide text-[var(--cv-t3)]">
                 {t(category.labelKey)}
               </div>
               <LegendRows types={category.types} />
@@ -68,10 +68,10 @@ function LegendRows({ types }: { types: AuditEventType[] }) {
               <Icon name={cfg.icon} size={15} style={{ color: cfg.color }} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="mb-0.5 text-[12px] font-bold" style={{ color: cfg.color }}>
+              <div className="mb-0.5 text-ui font-bold" style={{ color: cfg.color }}>
                 {t(cfg.labelKey)}
               </div>
-              <p className="text-[11px] leading-snug text-[var(--cv-t3)]">
+              <p className="text-meta leading-snug text-[var(--cv-t3)]">
                 {t(`audit.legend.desc.${SENTENCE_DESC[type]}`)}
               </p>
             </div>

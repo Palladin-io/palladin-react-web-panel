@@ -24,8 +24,8 @@ export function AuthSubmitButton({
       {...rest}
       type={type}
       className={
-        'flex w-full items-center justify-center gap-1.5 rounded-lg bg-[var(--cv-primary)] px-4 py-2.5 ' +
-        'text-xs font-semibold text-white ' +
+        'flex h-control w-full items-center justify-center gap-2 rounded-lg bg-[var(--cv-primary)] px-4 ' +
+        'text-ui font-semibold text-white ' +
         'shadow-[0_2px_10px_rgb(var(--cv-primary-rgb)/0.22)] transition-[background-color,box-shadow] ' +
         'hover:bg-[var(--cv-primary-hover)] hover:shadow-[0_2px_14px_rgb(var(--cv-primary-rgb)/0.3)] ' +
         'disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none' +

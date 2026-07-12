@@ -45,7 +45,7 @@ export function UnlockPage() {
   if (account.isPending) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-[#6B7A8E]">{t('common.loading')}</p>
+        <p className="text-ui text-[#6B7A8E]">{t('common.loading')}</p>
       </div>
     )
   }
@@ -110,17 +110,17 @@ function UnlockForm() {
           'linear-gradient(160deg, #15171B 0%, #212429 30%, #1A1D22 60%, #15171B 100%)',
       }}
     >
-      <div className="w-full max-w-[440px] px-6">
+      <div className="w-full max-w-[27.5rem] px-6">
         <div className="text-center">
           <img
             src="/logo.png"
             alt={t('auth.appName')}
             className="mx-auto mb-4 h-16 w-16"
           />
-          <h1 className="mb-1 text-[28px] font-bold leading-tight text-[#E8EAED]">
+          <h1 className="mb-1 text-display font-bold leading-tight text-[#E8EAED]">
             {t('unlock.title')}
           </h1>
-          <p className="mb-7 text-[13px] text-[#6B7A8E]">
+          <p className="mb-7 text-heading-sm text-[#6B7A8E]">
             {t('unlock.subtitle')}
           </p>
         </div>
@@ -155,7 +155,7 @@ function UnlockForm() {
             {isPending ? t('unlock.unlocking') : t('unlock.button')}
           </AuthSubmitButton>
 
-          <div className="mt-3 flex flex-col items-center gap-2 text-[12px]">
+          <div className="mt-3 flex flex-col items-center gap-2 text-ui">
             <Link
               to="/recovery"
               className="text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"

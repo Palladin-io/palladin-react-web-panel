@@ -25,7 +25,7 @@ export function EncryptionNotice({ children }: EncryptionNoticeProps) {
         className="shrink-0"
         color="var(--cv-success)"
       />
-      <span className="text-[11px] text-[var(--cv-t2)]">{children}</span>
+      <span className="text-meta text-[var(--cv-t2)]">{children}</span>
     </div>
   )
 }

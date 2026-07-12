@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react'
 export interface IconProps {
   /** Material Symbols Rounded glyph name (e.g. `shield`, `arrow_back`). */
   name: string
-  /** Pixel size of the glyph. Defaults to 18 to match the Astro design defaults. */
+  /** Design-pixel size before the global comfortable-density scale is applied. */
   size?: number
   /** Optional inline colour — falls back to `currentColor`. */
   color?: string
@@ -33,7 +33,7 @@ export function Icon({
     <span
       aria-hidden={ariaHidden || undefined}
       className={`mi${className ? ` ${className}` : ''}`}
-      style={{ fontSize: size, color, ...style }}
+      style={{ fontSize: `calc(${size}px * var(--cv-density-scale))`, color, ...style }}
     >
       {name}
     </span>

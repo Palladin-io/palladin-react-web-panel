@@ -37,7 +37,7 @@ export function DeleteConfirmDialog({
         </DialogFooter>
       }
     >
-      <p className="text-[12px] text-[var(--cv-t2)]">{t('vault.deleteConfirmText')}</p>
+      <p className="text-ui text-[var(--cv-t2)]">{t('vault.deleteConfirmText')}</p>
     </ModalShell>
   )
 }

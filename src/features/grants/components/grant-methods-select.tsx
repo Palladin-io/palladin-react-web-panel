@@ -52,7 +52,7 @@ export function GrantMethodsSelect({
     <div>
       <label
         htmlFor={`${idPrefix}-methods`}
-        className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
+        className="mb-1 block text-meta font-semibold text-[var(--cv-label-text)]"
       >
         {t('grants.methods.legend')}
       </label>
@@ -69,7 +69,7 @@ export function GrantMethodsSelect({
           onClick={() => setOpen((o) => !o)}
           onBlur={() => setTimeout(() => setOpen(false), 120)}
           className="flex w-full items-center justify-between rounded-lg border border-[var(--cv-input-border)]
-            bg-[var(--cv-input-bg)] px-3 py-2 pr-9 text-left text-[12px]
+            bg-[var(--cv-input-bg)] px-3 py-2 pr-9 text-left text-ui
             focus:border-[var(--cv-t1)] focus:outline-none transition-colors
             disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -109,15 +109,15 @@ export function GrantMethodsSelect({
                       {checked && <Icon name="check" size={16} color="var(--cv-t1)" />}
                     </span>
                     <span className="flex flex-col gap-0.5">
-                      <span className="flex items-center gap-1.5 text-[12px] font-medium text-[var(--cv-t1)]">
+                      <span className="flex items-center gap-1.5 text-ui font-medium text-[var(--cv-t1)]">
                         {t(GRANT_METHOD_LABEL_KEY[method])}
                         {wasRequested && (
-                          <span className="rounded-[4px] border border-[var(--cv-input-border)] px-1 text-[9px] font-semibold uppercase tracking-wide text-[var(--cv-t3)]">
+                          <span className="rounded-[0.25rem] border border-[var(--cv-input-border)] px-1 text-micro font-semibold uppercase tracking-wide text-[var(--cv-t3)]">
                             {t('grants.methods.requested')}
                           </span>
                         )}
                       </span>
-                      <span className="text-[11px] leading-snug text-[var(--cv-t3)]">
+                      <span className="text-meta leading-snug text-[var(--cv-t3)]">
                         {t(GRANT_METHOD_DESC_KEY[method])}
                       </span>
                     </span>

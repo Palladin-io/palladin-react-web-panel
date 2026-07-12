@@ -31,7 +31,7 @@ export function FormSelect({
           htmlFor={id}
           className={
             labelClassName ??
-            'mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]'
+            'mb-1.5 block text-meta font-semibold text-[var(--cv-label-text)]'
           }
         >
           {label}
@@ -40,8 +40,8 @@ export function FormSelect({
       <div className="relative">
         <select
           id={id}
-          className="w-full appearance-none rounded-lg border border-[var(--cv-input-border)]
-            bg-[var(--cv-input-bg)] pl-3 pr-9 py-2 text-[12px] text-[var(--cv-input-text)]
+          className="h-control w-full appearance-none rounded-lg border border-[var(--cv-input-border)]
+            bg-[var(--cv-input-bg)] pl-3 pr-10 text-ui text-[var(--cv-input-text)]
             focus:border-[var(--cv-t1)] focus:outline-none disabled:cursor-not-allowed
             disabled:opacity-40"
           {...props}
@@ -50,7 +50,7 @@ export function FormSelect({
         </select>
         <Icon
           name="expand_more"
-          size={16}
+          size={18}
           className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[var(--cv-t3)]"
         />
       </div>

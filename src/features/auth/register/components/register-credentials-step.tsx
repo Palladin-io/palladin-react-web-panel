@@ -132,14 +132,14 @@ export function RegisterCredentialsStep({
         )}
 
         <div className="rounded-lg border border-[rgba(232,234,237,0.06)] bg-[rgba(232,234,237,0.04)] px-3 py-2">
-          <p className="text-[11px] text-[#E8EAED]">{t('register.encryptionNote')}</p>
+          <p className="text-meta text-[#E8EAED]">{t('register.encryptionNote')}</p>
         </div>
 
         <AuthSubmitButton disabled={!canSubmit}>
           {t('register.continue')}
         </AuthSubmitButton>
 
-        <p className="mt-1 text-center text-[12px] text-[#6B7A8E]">
+        <p className="mt-1 text-center text-ui text-[#6B7A8E]">
           {t('register.haveAccount')}{' '}
           <Link
             to="/login"

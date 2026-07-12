@@ -130,10 +130,10 @@ export function OnboardingChecklist({
       <div className="mb-2 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
         <div className="mb-4 flex items-start justify-between">
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-bold text-[var(--cv-t1)]">
+            <span className="text-ui font-bold text-[var(--cv-t1)]">
               {t('dashboard.onboarding.title')}
             </span>
-            <span className="text-xs text-[var(--cv-t3)]">
+            <span className="text-meta text-[var(--cv-t3)]">
               {t('dashboard.onboarding.completed', {
                 done: completedCount,
                 total: steps.length,
@@ -141,7 +141,7 @@ export function OnboardingChecklist({
             </span>
           </div>
           <div className="flex flex-col items-end gap-1">
-            <span className="text-xs text-[var(--cv-t3)]">{pct}%</span>
+            <span className="text-meta text-[var(--cv-t3)]">{pct}%</span>
             <Button variant="ghost" size="sm" onClick={handleSkipSetup}>
               {t('dashboard.onboarding.skipSetup')}
             </Button>
@@ -168,19 +168,19 @@ export function OnboardingChecklist({
           return (
             <div
               key={step.key}
-              className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-[18px]"
+              className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-[1.125rem]"
               style={{ opacity }}
             >
               <div className="flex items-start gap-3">
                 <span
-                  className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px]"
+                  className="flex h-[2.125rem] w-[2.125rem] shrink-0 items-center justify-center rounded-[0.625rem]"
                   style={{ backgroundColor: `rgb(${visual.accentRgb} / 0.15)` }}
                 >
                   <Icon name={visual.icon} size={18} color={`rgb(${visual.accentRgb})`} />
                 </span>
                 <div className="flex flex-1 flex-col gap-3">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-bold text-[var(--cv-t1)]">
+                    <span className="text-ui font-bold text-[var(--cv-t1)]">
                       {step.title}
                     </span>
                     {step.done ? (
@@ -190,12 +190,12 @@ export function OnboardingChecklist({
                         color="var(--cv-success)"
                       />
                     ) : (
-                      <span className="rounded-md bg-[var(--cv-card-footer)] px-2 py-0.5 text-[10px] font-semibold text-[var(--cv-t3)]">
+                      <span className="rounded-md bg-[var(--cv-card-footer)] px-2 py-0.5 text-micro font-semibold text-[var(--cv-t3)]">
                         {t('dashboard.onboarding.stepBadge', { n: index + 1 })}
                       </span>
                     )}
                   </div>
-                  <span className="text-xs leading-relaxed text-[var(--cv-t3)]">
+                  <span className="text-meta leading-relaxed text-[var(--cv-t3)]">
                     {step.desc}
                   </span>
                   {isActive && step.key === 'mobile' && (

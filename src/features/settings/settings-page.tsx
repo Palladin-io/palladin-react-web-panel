@@ -20,12 +20,12 @@ export function SettingsPage() {
 
   return (
     <div className="min-h-full text-[var(--cv-t1)]">
-      <div className="mx-auto max-w-[820px] px-6 py-8">
+      <div className="mx-auto max-w-[51.25rem] px-6 py-8">
         <header className="mb-6">
-          <h1 className="text-[20px] font-bold leading-tight text-[var(--cv-t1)]">
+          <h1 className="text-page-title font-bold leading-tight text-[var(--cv-t1)]">
             {t('settings.title')}
           </h1>
-          <p className="mt-1 text-[12px] text-[var(--cv-t3)]">
+          <p className="mt-1 text-ui text-[var(--cv-t3)]">
             {t('settings.subtitle')}
           </p>
         </header>
@@ -62,10 +62,10 @@ function SecuritySection() {
         bg-[var(--cv-card-bg)] p-5 transition-colors hover:bg-[var(--cv-card-hover)]"
     >
       <div className="min-w-0">
-        <h2 className="text-[13px] font-bold text-[var(--cv-t1)]">
+        <h2 className="text-heading-sm font-bold text-[var(--cv-t1)]">
           {t('settings.security.title')}
         </h2>
-        <p className="mt-1 text-[12px] text-[var(--cv-t3)]">{t('settings.security.subtitle')}</p>
+        <p className="mt-1 text-ui text-[var(--cv-t3)]">{t('settings.security.subtitle')}</p>
       </div>
       <Icon name="chevron_right" size={20} className="shrink-0 text-[var(--cv-t3)]" />
     </Link>
@@ -82,10 +82,10 @@ function DataExportSection() {
 
   return (
     <section className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5">
-      <h2 className="text-[13px] font-bold text-[var(--cv-t1)]">
+      <h2 className="text-heading-sm font-bold text-[var(--cv-t1)]">
         {t('settings.export.title')}
       </h2>
-      <p className="mt-1 text-[12px] text-[var(--cv-t3)]">
+      <p className="mt-1 text-ui text-[var(--cv-t3)]">
         {t('settings.export.subtitle')}
       </p>
       <div className="mt-3">

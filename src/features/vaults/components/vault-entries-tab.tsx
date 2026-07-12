@@ -75,7 +75,7 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
       <ScrollArea scrollRef={scrollRef} onScroll={onScroll}>
         {filtered.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-            bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">
+            bg-[var(--cv-empty-bg)] p-6 text-center text-ui text-[var(--cv-t3)]">
             {t('vault.entries.emptySearch')}
           </p>
         ) : (
@@ -126,10 +126,10 @@ function EntriesEmptyState({ onAdd }: EntriesEmptyStateProps) {
       >
         <Icon name="inbox" size={24} />
       </span>
-      <h3 className="text-[14px] font-bold text-[var(--cv-t1)]">
+      <h3 className="text-heading font-bold text-[var(--cv-t1)]">
         {t('vault.entries.emptyTitle')}
       </h3>
-      <p className="max-w-xs text-[12px] text-[var(--cv-t3)]">
+      <p className="max-w-xs text-ui text-[var(--cv-t3)]">
         {t('vault.entries.emptySubtitle')}
       </p>
       <Button variant="accent" size="sm" icon="add" onClick={onAdd}>

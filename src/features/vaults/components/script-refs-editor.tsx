@@ -75,7 +75,7 @@ export function ScriptRefsEditor({
         type="button"
         onClick={add}
         disabled={disabled}
-        className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12px]
+        className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-ui
           text-[var(--cv-btn-ghost-text)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)]
           ${refs.length > 0 ? 'border-t border-[var(--cv-divider)]' : ''}
           disabled:cursor-not-allowed disabled:opacity-40`}
@@ -109,7 +109,7 @@ function RefRow({
   const fieldOptions = selectedEntry ? (FIELD_ALIASES[selectedEntry.type] ?? []) : []
 
   const selectClass =
-    'min-w-0 max-w-[130px] cursor-pointer appearance-none border-0 bg-transparent p-0 text-[12px] text-[var(--cv-t1)] outline-none disabled:cursor-not-allowed'
+    'min-w-0 max-w-[8.125rem] cursor-pointer appearance-none border-0 bg-transparent p-0 text-ui text-[var(--cv-t1)] outline-none disabled:cursor-not-allowed'
 
   return (
     <div className={`flex items-center gap-2 px-2.5 py-2 ${first ? '' : 'border-t border-[var(--cv-divider)]'}`}>
@@ -126,7 +126,7 @@ function RefRow({
         placeholder="GITHUB_TOKEN"
         disabled={disabled}
         maxLength={100}
-        className="w-36 shrink-0 border-0 bg-transparent p-0 font-mono text-[11.5px] text-[var(--cv-info)]
+        className="w-36 shrink-0 border-0 bg-transparent p-0 font-mono text-meta text-[var(--cv-info)]
           outline-none placeholder:text-[var(--cv-input-placeholder)]"
       />
       <span className="flex flex-1 justify-center text-[var(--cv-t3)]" aria-hidden>

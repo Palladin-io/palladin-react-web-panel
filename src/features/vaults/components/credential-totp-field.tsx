@@ -42,8 +42,8 @@ export function CredentialTotpField({ value, onChange, disabled }: CredentialTot
     return (
       <div className="flex items-center gap-3 rounded-xl border border-dashed border-[var(--cv-input-border)] px-3 py-2.5">
         <div className="min-w-0 flex-1">
-          <div className="text-[12.5px] text-[var(--cv-t1)]">{t('vault.entries.totp.emptyTitle')}</div>
-          <div className="text-[11.5px] text-[var(--cv-t3)]">{t('vault.entries.totp.emptySubtitle')}</div>
+          <div className="text-ui text-[var(--cv-t1)]">{t('vault.entries.totp.emptyTitle')}</div>
+          <div className="text-meta text-[var(--cv-t3)]">{t('vault.entries.totp.emptySubtitle')}</div>
         </div>
         <Button variant="accent" size="sm" icon="shield" onClick={() => setSetup(true)} disabled={disabled}>
           {t('vault.entries.totp.addCredential')}
@@ -100,17 +100,17 @@ function ConfiguredCard({
   return (
     <div className="flex items-center gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-3 py-2.5">
       <span
-        className="grid h-[30px] w-[30px] shrink-0 place-items-center rounded-[9px] text-[var(--cv-success)]"
+        className="grid h-[1.875rem] w-[1.875rem] shrink-0 place-items-center rounded-[0.5625rem] text-[var(--cv-success)]"
         style={{ background: 'rgb(var(--cv-success-rgb) / 0.1)' }}
         aria-hidden
       >
         <Icon name="shield" size={16} />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[12.5px] text-[var(--cv-t1)]">
+        <div className="truncate text-ui text-[var(--cv-t1)]">
           {params.issuer || t('vault.entries.totp.label')}
         </div>
-        <div className="truncate text-[11.5px] text-[var(--cv-t3)]">{subtitle}</div>
+        <div className="truncate text-meta text-[var(--cv-t3)]">{subtitle}</div>
       </div>
       <TotpDisplay params={params} compact tone="success" />
       <PopoverMenu

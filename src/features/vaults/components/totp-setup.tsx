@@ -95,7 +95,7 @@ export function TotpSetupInputs({
       type="button"
       onClick={() => fileRef.current?.click()}
       disabled={disabled}
-      className="inline-flex h-6 items-center gap-1 text-[11px] font-medium text-[var(--cv-primary)]
+      className="inline-flex h-6 items-center gap-1 text-meta font-medium text-[var(--cv-primary)]
         transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
     >
       <Icon name="qr_code_scanner" size={13} />
@@ -118,7 +118,7 @@ export function TotpSetupInputs({
         // Header row: title on the left, Scan-QR + close aligned on the right —
         // the QR action shares the close button's line/height.
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[11.5px] font-semibold text-[var(--cv-label-text)]">{title}</span>
+          <span className="text-meta font-semibold text-[var(--cv-label-text)]">{title}</span>
           <div className="flex items-center gap-2">
             {scanQrButton}
             <button

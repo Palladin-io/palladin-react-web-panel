@@ -27,7 +27,7 @@ export function ApiKeyStatusBadge({ status }: { status: ApiKeySummary['status'] 
   const isActive = status === 'active'
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px]
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-micro
         font-semibold ${
         isActive
           ? 'bg-[rgba(16,185,129,0.14)] text-[#10B981]'
@@ -58,10 +58,10 @@ export function ApiKeyListPanel({ selectedApiKeyId }: ApiKeyListPanelProps) {
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
+          <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {t('apiKeys.sectionTitle')}
           </h2>
-          <p className="text-[11px] text-[var(--cv-t3)]">
+          <p className="text-meta text-[var(--cv-t3)]">
             {t('apiKeys.countLabel', { count: list.length })}
           </p>
         </div>
@@ -88,7 +88,7 @@ export function ApiKeyListPanel({ selectedApiKeyId }: ApiKeyListPanelProps) {
               border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
           >
             <Icon name="key" size={28} color="var(--cv-t3)" />
-            <p className="text-[12px] text-[var(--cv-t3)]">{t('apiKeys.empty')}</p>
+            <p className="text-ui text-[var(--cv-t3)]">{t('apiKeys.empty')}</p>
           </div>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -126,21 +126,21 @@ function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
     >
       <div className="flex flex-col gap-1 px-4 py-3">
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
+          <span className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
             {apiKey.name}
           </span>
           <ApiKeyStatusBadge status={apiKey.status} />
         </div>
-        <span className="font-mono text-[11px] text-[var(--cv-t3)]">
+        <span className="font-mono text-meta text-[var(--cv-t3)]">
           pl_••••{apiKey.keySuffix || '••••'}
         </span>
       </div>
       <div className="flex items-center justify-between gap-2 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
-        <span className="flex min-w-0 items-center gap-1.5 truncate text-[10px] text-[var(--cv-t3)]">
+        <span className="flex min-w-0 items-center gap-1.5 truncate text-micro text-[var(--cv-t3)]">
           <Icon name="schedule" size={12} color="var(--cv-t3)" className="shrink-0" />
           {t('apiKeys.createdLabel', { date: formatDate(apiKey.createdAt) })}
         </span>
-        <span className="flex shrink-0 items-center gap-1 text-[10px] text-[var(--cv-t3)]">
+        <span className="flex shrink-0 items-center gap-1 text-micro text-[var(--cv-t3)]">
           <Icon name="smart_toy" size={12} color="var(--cv-t3)" className="shrink-0" />
           {t('apiKeys.agentsUsing', { count: apiKey.activeAgentCount ?? 0 })}
         </span>
@@ -155,7 +155,7 @@ function PanelLoadingSkeleton() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="h-[58px] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]"
+          className="h-[3.625rem] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]"
         />
       ))}
     </div>

@@ -87,7 +87,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
           dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
       >
         <div className="flex items-center justify-between gap-3 min-w-0">
-          <h2 className="truncate text-[16px] font-bold text-[var(--cv-t1)]">
+          <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {apiKey.name}
           </h2>
           <div className="shrink-0">
@@ -119,11 +119,11 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
         <section
           className="mt-4 rounded-xl border border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.12)] p-4"
         >
-          <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#10B981]">
+          <h2 className="text-meta font-semibold uppercase tracking-[0.06em] text-[#10B981]">
             {t('apiKeys.activateZone')}
           </h2>
           <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-[11px] text-[var(--cv-t3)]">
+            <p className="text-meta text-[var(--cv-t3)]">
               {t('apiKeys.activateSubtitle')}
             </p>
             <Button
@@ -142,13 +142,13 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
       {canWrite ? <section
         className="mt-4 rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
       >
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--cv-primary)]">
+        <h2 className="text-meta font-semibold uppercase tracking-[0.06em] text-[var(--cv-primary)]">
           {t('apiKeys.dangerZone')}
         </h2>
 
         {isActive ? (
           <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-[11px] text-[var(--cv-t3)]">
+            <p className="text-meta text-[var(--cv-t3)]">
               {t('apiKeys.revokeSubtitle')}
             </p>
             <Button
@@ -162,7 +162,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
           </div>
         ) : (
           <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-[11px] text-[var(--cv-t3)]">
+            <p className="text-meta text-[var(--cv-t3)]">
               {t('apiKeys.deleteSubtitle')}
             </p>
             <Button
@@ -200,8 +200,8 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
 function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <dt className="shrink-0 text-[12px] text-[var(--cv-t3)]">{label}</dt>
-      <dd className={`text-right text-[12px] font-medium text-[var(--cv-t1)]${mono ? ' font-mono' : ''}`}>{value}</dd>
+      <dt className="shrink-0 text-ui text-[var(--cv-t3)]">{label}</dt>
+      <dd className={`text-right text-ui font-medium text-[var(--cv-t1)]${mono ? ' font-mono' : ''}`}>{value}</dd>
     </div>
   )
 }
@@ -210,14 +210,14 @@ function DetailRow({ label, value, mono }: { label: string; value: string; mono?
 export function ApiKeyDetailEmpty() {
   const { t } = useTranslation()
   return (
-    <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-3 text-center">
+    <div className="flex h-full min-h-[17.5rem] flex-col items-center justify-center gap-3 text-center">
       <span
         className="flex h-14 w-14 items-center justify-center rounded-full
           bg-[var(--cv-empty-bg)]"
       >
         <Icon name="key" size={26} color="var(--cv-t3)" />
       </span>
-      <p className="text-[13px] text-[var(--cv-t3)]">
+      <p className="text-heading-sm text-[var(--cv-t3)]">
         {t('apiKeys.detail.noSelection')}
       </p>
     </div>
@@ -262,7 +262,7 @@ function DeleteApiKeyDialog({
         </DialogFooter>
       }
     >
-      <p className="text-[12px] text-[var(--cv-t2)]">
+      <p className="text-ui text-[var(--cv-t2)]">
         {t('apiKeys.deleteConfirmText')}
       </p>
     </ModalShell>

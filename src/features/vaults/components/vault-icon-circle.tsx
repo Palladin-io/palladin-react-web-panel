@@ -6,7 +6,7 @@ export interface VaultIconCircleProps {
   icon: string
   /** Vault accent colour (hex). Used for both glyph and tinted background. */
   color: string
-  /** Outer diameter in pixels. */
+  /** Design-pixel diameter before the global comfortable-density scale. */
   size?: number
   /** Inner glyph font size. Defaults to ~55 % of the diameter. */
   iconSize?: number
@@ -30,8 +30,8 @@ export function VaultIconCircle({
       aria-hidden
       className="inline-flex shrink-0 items-center justify-center rounded-full"
       style={{
-        width: size,
-        height: size,
+        width: `calc(${size}px * var(--cv-density-scale))`,
+        height: `calc(${size}px * var(--cv-density-scale))`,
         backgroundColor: hexWithAlpha(color, 0.15),
         color,
       }}

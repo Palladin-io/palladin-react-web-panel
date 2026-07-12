@@ -94,7 +94,7 @@ export function PopoverMenu({
   }, [open])
 
   const transform = `${alignLeft ? '' : 'translateX(-100%)'} ${
-    openUp ? 'translateY(calc(-100% - 4px))' : 'translateY(4px)'
+    openUp ? 'translateY(calc(-100% - 0.25rem))' : 'translateY(0.25rem)'
   }`
 
   return (
@@ -122,8 +122,8 @@ export function PopoverMenu({
               id={menuId}
               role="menu"
               style={{ position: 'fixed', left: coords.left, top: coords.top, transform }}
-              className="z-[100] min-w-[210px] rounded-xl border border-[var(--cv-border)]
-                bg-[var(--cv-modal-bg)] p-[5px] shadow-[0_12px_32px_rgba(0,0,0,0.25)]"
+              className="z-[100] min-w-[13.125rem] rounded-xl border border-[var(--cv-border)]
+                bg-[var(--cv-modal-bg)] p-[0.3125rem] shadow-[0_12px_32px_rgba(0,0,0,0.25)]"
             >
               {items.map((entry, i) =>
                 entry === 'separator' ? (
@@ -138,7 +138,7 @@ export function PopoverMenu({
                       entry.onSelect()
                       setOpen(false)
                     }}
-                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-[12px]
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-ui
                       transition-colors hover:bg-[var(--cv-bg-subtle)] disabled:cursor-not-allowed disabled:opacity-40
                       ${entry.danger ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-t1)]'}`}
                   >
@@ -151,7 +151,7 @@ export function PopoverMenu({
                     ) : null}
                     <span className="flex-1">{entry.label}</span>
                     {entry.hint ? (
-                      <span className="text-[11px]" style={{ color: entry.hintColor ?? 'var(--cv-t3)' }}>
+                      <span className="text-meta" style={{ color: entry.hintColor ?? 'var(--cv-t3)' }}>
                         {entry.hint}
                       </span>
                     ) : null}

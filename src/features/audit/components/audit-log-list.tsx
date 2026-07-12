@@ -95,7 +95,7 @@ function EmptyState({ icon, message }: { icon: string; message: string }) {
         border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
     >
       <Icon name={icon} size={28} color="var(--cv-t3)" />
-      <p className="text-[12px] font-medium text-[var(--cv-t3)]">{message}</p>
+      <p className="text-ui font-medium text-[var(--cv-t3)]">{message}</p>
     </div>
   )
 }
@@ -104,7 +104,7 @@ function ListSkeleton() {
   return (
     <div className="flex flex-col gap-2">
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="h-[72px] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
+        <div key={i} className="h-[4.5rem] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
       ))}
     </div>
   )

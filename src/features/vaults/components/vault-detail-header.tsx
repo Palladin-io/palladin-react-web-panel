@@ -44,10 +44,10 @@ export function VaultDetailHeader({
         ) : null}
         {iconElement}
         <div className="min-w-0">
-          <div className="truncate text-[20px] font-bold leading-tight text-[var(--cv-t1)]">
+          <div className="truncate text-page-title font-bold leading-tight text-[var(--cv-t1)]">
             {title}
           </div>
-          <div className="mt-1 text-[12px] text-[var(--cv-t3)]">{subtitle}</div>
+          <div className="mt-1 text-ui text-[var(--cv-t3)]">{subtitle}</div>
         </div>
       </div>
       {actions ? (

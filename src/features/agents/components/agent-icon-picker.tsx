@@ -4,6 +4,7 @@ import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
+import { SearchBar } from '../../../shared/components/search-bar'
 import { hexWithAlpha } from '../../vaults/components/vault-color'
 import {
   AGENT_ICON_ALL,
@@ -50,7 +51,7 @@ export function AgentIconPicker({
 
   return (
     <fieldset>
-      <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
+      <legend className="mb-2 block text-meta font-semibold text-[var(--cv-label-text)]">
         {t('agents.agentIcon')}
       </legend>
       <div className={rowClassName}>
@@ -145,7 +146,7 @@ export function AgentIconPicker({
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled}
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border
-              border-dashed border-[var(--cv-input-border)] px-3 py-2.5 text-[11px]
+              border-dashed border-[var(--cv-input-border)] px-3 py-2.5 text-meta
               text-[var(--cv-t3)] transition-colors hover:border-[var(--cv-t1)]
               hover:text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -220,19 +221,13 @@ function AgentIconBrowser({
       }
     >
       <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 rounded-lg border border-[var(--cv-input-border)]
-          bg-[var(--cv-input-bg)] px-3 py-2">
-          <Icon name="search" size={14} color="var(--cv-t3)" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('vault.iconBrowserSearch')}
-            autoFocus
-            className="flex-1 bg-transparent text-[12px] text-[var(--cv-input-text)]
-              placeholder:text-[var(--cv-t3)] outline-none"
-          />
-          {search && (
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder={t('vault.iconBrowserSearch')}
+          autoFocus
+          className=""
+          trailing={search ? (
             <button
               type="button"
               onClick={() => setSearch('')}
@@ -240,11 +235,11 @@ function AgentIconBrowser({
             >
               <Icon name="close" size={14} />
             </button>
-          )}
-        </div>
+          ) : null}
+        />
 
         {filtered.length > 0 ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '6px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: '0.375rem' }}>
             {filtered.map((icon) => {
               const selected = icon === localIcon
               const iconColor = AGENT_ICON_COLORS[icon] ?? '#8A95A6'
@@ -271,7 +266,7 @@ function AgentIconBrowser({
             })}
           </div>
         ) : (
-          <p className="py-6 text-center text-[12px] text-[var(--cv-t3)]">
+          <p className="py-6 text-center text-ui text-[var(--cv-t3)]">
             {t('vault.iconBrowserEmpty')}
           </p>
         )}
@@ -280,7 +275,7 @@ function AgentIconBrowser({
           <>
             <div className="h-px bg-[var(--cv-divider)]" />
             <div>
-              <p className="mb-2 text-[11px] font-semibold text-[var(--cv-label-text)]">
+              <p className="mb-2 text-meta font-semibold text-[var(--cv-label-text)]">
                 {t('vault.colorLabel')}
               </p>
               <div className="grid grid-cols-6 gap-2">

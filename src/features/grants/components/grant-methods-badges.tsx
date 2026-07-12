@@ -19,7 +19,7 @@ export function GrantMethodsBadges({ methods }: GrantMethodsBadgesProps) {
       {methods.map((method) => (
         <span
           key={method}
-          className="rounded-[4px] border border-[var(--cv-input-border)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[var(--cv-t2)]"
+          className="rounded-[0.25rem] border border-[var(--cv-input-border)] px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-[var(--cv-t2)]"
         >
           {t(GRANT_METHOD_LABEL_KEY[method])}
         </span>

@@ -60,7 +60,7 @@ export function FormInput({
         htmlFor={id}
         className={
           labelClassName ??
-          'mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]'
+          'mb-1.5 block text-meta font-semibold text-[var(--cv-label-text)]'
         }
       >
         {label}
@@ -69,7 +69,7 @@ export function FormInput({
       <div className="relative">
         <input
           id={id}
-          className={`w-full rounded-lg border bg-[var(--cv-input-bg)] py-2 pl-3 text-[12px]
+          className={`h-control w-full rounded-lg border bg-[var(--cv-input-bg)] pl-3 text-ui
             text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)]
             focus:outline-none transition-colors duration-200 ${hasTrailing ? 'pr-10' : 'pr-3'} ${
             borderClass ?? (error
@@ -86,10 +86,10 @@ export function FormInput({
                 onClick={trailingAction!.onClick}
                 aria-label={trailingAction!.label}
                 title={trailingAction!.label}
-                className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--cv-t3)]
+                className="inline-flex h-action w-action items-center justify-center rounded text-[var(--cv-t3)]
                   transition-colors hover:text-[var(--cv-t1)]"
               >
-                <Icon name={trailingAction!.icon} size={15} />
+                <Icon name={trailingAction!.icon} size={16} />
               </button>
             ) : null}
             {copyable ? <CopyButton value={String(props.value ?? '')} label={copyLabel} /> : null}
@@ -101,11 +101,10 @@ export function FormInput({
 }
 
 /**
- * Fixed-height (16 px) feedback row that sits below an input.
+ * Fixed-height (`h-feedback`, 20 px rendered) feedback row below an input.
  *
- * Always occupies h-4 (16 px) regardless of visibility — the parent wrapper
- * uses a matching negative margin (`-mb-4`) so this height replaces the
- * container gap rather than adding to it. No layout shift when errors toggle.
+ * Always occupies the same height regardless of visibility. Legacy callers may still
+ * compensate for this fixed row; new forms should prefer FeedbackSlot below.
  */
 export interface FieldFeedbackProps {
   visible: boolean
@@ -117,7 +116,7 @@ export function FieldFeedback({ visible, color, children }: FieldFeedbackProps) 
   return (
     <p
       role={color === 'red' && visible ? 'alert' : undefined}
-      className={`h-4 pt-[3px] pl-2 text-[9px] font-medium leading-3
+      className={`h-feedback pt-1 pl-2 text-micro font-medium
         transition-[opacity,transform] duration-200 ease-out ${
         color === 'teal' ? 'text-[#10B981]' : 'text-[var(--cv-primary)]'
       } ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}

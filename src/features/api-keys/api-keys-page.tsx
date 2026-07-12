@@ -30,7 +30,7 @@ export interface ApiKeysPageProps {
  */
 export function ApiKeysPage({ keyId }: ApiKeysPageProps) {
   const { t } = useTranslation()
-  const isWide = useWideScreen(1280)
+  const isWide = useWideScreen()
   const keys = useApiKeys()
   const [activeTab, setActiveTab] = useState<ApiKeyDetailTab>('details')
 
@@ -53,7 +53,7 @@ export function ApiKeysPage({ keyId }: ApiKeysPageProps) {
     if (!selectedKey) {
       return (
         <div className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-          bg-[var(--cv-empty-bg)] p-8 text-center text-sm text-[var(--cv-t3)]">
+          bg-[var(--cv-empty-bg)] p-8 text-center text-ui text-[var(--cv-t3)]">
           {t('apiKeys.detail.notFound')}
         </div>
       )
@@ -72,7 +72,7 @@ export function ApiKeysPage({ keyId }: ApiKeysPageProps) {
   if (isWide) {
     return (
       <div className="flex h-full text-[var(--cv-t1)]">
-        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+        <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
           <div className="h-full px-4 pt-4">
             <ApiKeyListPanel selectedApiKeyId={keyId} />
           </div>

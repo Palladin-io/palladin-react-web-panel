@@ -91,7 +91,7 @@ export function NotificationPreferencesDialog({ onClose }: { onClose: () => void
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-[12px] leading-relaxed text-[var(--cv-t2)]">
+        <p className="text-ui leading-relaxed text-[var(--cv-t2)]">
           {t('notifications.prefs.subtitle')}
         </p>
 
@@ -105,7 +105,7 @@ export function NotificationPreferencesDialog({ onClose }: { onClose: () => void
         ) : (
           <div className="overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
             {/* Column headers */}
-            <div className="grid grid-cols-[1fr_repeat(3,64px)] items-center gap-2 border-b border-[var(--cv-divider)] px-4 py-2.5 text-[11px] font-semibold text-[var(--cv-t3)]">
+            <div className="grid grid-cols-[1fr_repeat(3,4rem)] items-center gap-2 border-b border-[var(--cv-divider)] px-4 py-2.5 text-meta font-semibold text-[var(--cv-t3)]">
               <span>{t('notifications.prefs.colType')}</span>
               {PREFERENCE_CHANNELS.map((channel) => (
                 <span key={channel} className="text-center">
@@ -117,13 +117,13 @@ export function NotificationPreferencesDialog({ onClose }: { onClose: () => void
             {(preferences.data ?? []).map((item) => (
               <div
                 key={item.type}
-                className="grid grid-cols-[1fr_repeat(3,64px)] items-center gap-2 border-b border-[var(--cv-divider)] px-4 py-3 last:border-b-0"
+                className="grid grid-cols-[1fr_repeat(3,4rem)] items-center gap-2 border-b border-[var(--cv-divider)] px-4 py-3 last:border-b-0"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-[12px] font-medium text-[var(--cv-t1)]">
+                  <p className="truncate text-ui font-medium text-[var(--cv-t1)]">
                     {t(`notifications.prefs.type.${item.type}`, { defaultValue: item.type })}
                   </p>
-                  <p className="truncate text-[11px] text-[var(--cv-t3)]">
+                  <p className="truncate text-meta text-[var(--cv-t3)]">
                     {t(`notifications.prefs.typeHint.${item.type}`, { defaultValue: '' })}
                   </p>
                 </div>
@@ -144,7 +144,7 @@ export function NotificationPreferencesDialog({ onClose }: { onClose: () => void
         )}
 
         {pushUnavailable && (
-          <p className="flex items-center gap-1.5 text-[11px] text-[var(--cv-t3)]">
+          <p className="flex items-center gap-1.5 text-meta text-[var(--cv-t3)]">
             <Icon name="notifications_off" size={13} />
             {t('notifications.pushBlocked')}
           </p>
@@ -202,17 +202,17 @@ function ChannelToggle({
       disabled={isDisabled}
       onClick={() => onToggle(!checked)}
       title={locked ? t('notifications.prefs.locked') : undefined}
-      className="relative h-[18px] w-[32px] shrink-0 rounded-[9px] disabled:cursor-not-allowed disabled:opacity-60"
+      className="relative h-[1.125rem] w-[2rem] shrink-0 rounded-[0.5625rem] disabled:cursor-not-allowed disabled:opacity-60"
     >
       {/* Track — only this dims when OFF, matching the prototype's
           `toggle-track.off` (#8A95A6 @0.3) without fading the white thumb. */}
       <span
-        className="absolute inset-0 rounded-[9px] transition-colors"
+        className="absolute inset-0 rounded-[0.5625rem] transition-colors"
         style={{ background: checked ? 'var(--cv-primary)' : '#8A95A6', opacity: checked ? undefined : 0.3 }}
       />
       <span
-        className="absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white transition-[left]"
-        style={{ left: checked ? '16px' : '2px' }}
+        className="absolute top-[0.125rem] h-[0.875rem] w-[0.875rem] rounded-full bg-white transition-[left]"
+        style={{ left: checked ? '1rem' : '0.125rem' }}
       />
     </button>
   )
@@ -222,7 +222,7 @@ function PrefsSkeleton() {
   return (
     <div className="flex flex-col gap-2">
       {[0, 1, 2, 3, 4, 5].map((index) => (
-        <div key={index} className="h-[52px] animate-pulse rounded-xl bg-[var(--cv-card-bg)]" />
+        <div key={index} className="h-[3.25rem] animate-pulse rounded-xl bg-[var(--cv-card-bg)]" />
       ))}
     </div>
   )

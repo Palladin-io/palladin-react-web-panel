@@ -82,7 +82,7 @@ function ExportDialogBody({
     >
       <div className="flex flex-col gap-3">
         <fieldset>
-          <legend className="mb-1.5 text-[11px] font-semibold text-[var(--cv-label-text)]">
+          <legend className="mb-1.5 text-meta font-semibold text-[var(--cv-label-text)]">
             {t('vault.export.formatLabel')}
           </legend>
           <div className="flex gap-1.5">
@@ -119,7 +119,7 @@ function ExportDialogBody({
                 }}
               />
             </div>
-            <p className="text-[11px] text-[var(--cv-t3)]">
+            <p className="text-meta text-[var(--cv-t3)]">
               {progress
                 ? t('vault.export.progress', { done: progress.done, total: progress.total })
                 : t('vault.export.exporting')}
@@ -158,8 +158,8 @@ function FormatOption({
             : 'border-[var(--cv-input-border)] hover:border-[var(--cv-t1)]'
         }`}
     >
-      <p className="text-[12px] font-semibold text-[var(--cv-t1)]">{title}</p>
-      <p className="text-[10px] text-[var(--cv-t3)]">{subtitle}</p>
+      <p className="text-ui font-semibold text-[var(--cv-t1)]">{title}</p>
+      <p className="text-micro text-[var(--cv-t3)]">{subtitle}</p>
     </button>
   )
 }

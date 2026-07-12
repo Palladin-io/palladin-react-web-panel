@@ -95,7 +95,7 @@ export function ApproveGrantDialog({
       <div className="flex flex-col gap-4">
         {/* "Grant {agent} access to {entry} in {vault}." — agent + vault are
             emphasised; entry shows its actual name, not "this credential". */}
-        <p className="text-[12px] leading-relaxed text-[var(--cv-t2)]">
+        <p className="text-ui leading-relaxed text-[var(--cv-t2)]">
           {t('grants.approve.subtitlePrefix')}{' '}
           <span className="font-semibold text-[var(--cv-t1)]">{agentName}</span>{' '}
           {t('grants.approve.subtitleAccessTo')}{' '}

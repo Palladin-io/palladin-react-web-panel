@@ -30,7 +30,7 @@ export interface SecretInputProps {
   onGenerate?: (password: string) => void
 }
 
-const PADDING_FOR_ACTION_COUNT: Record<number, string> = { 1: ' pr-10', 2: ' pr-16', 3: ' pr-[86px]' }
+const PADDING_FOR_ACTION_COUNT: Record<number, string> = { 1: ' pr-10', 2: ' pr-16', 3: ' pr-[5.375rem]' }
 
 export function SecretInput({
   id, label, labelClassName, value, onChange, shown, onToggleShown,
@@ -44,7 +44,7 @@ export function SecretInput({
     <div>
       <label
         htmlFor={id}
-        className={labelClassName ?? 'mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]'}
+        className={labelClassName ?? 'mb-1.5 block text-meta font-semibold text-[var(--cv-label-text)]'}
       >
         {label}
       </label>
@@ -73,8 +73,8 @@ export function SecretInput({
           // `ph-no-capture`: never let PostHog autocapture or a session
           // recording read this secret value (defense in depth over the
           // masking configured in analytics.init).
-          className={`ph-no-capture w-full rounded-lg border bg-[var(--cv-input-bg)]
-            py-2 pl-3 text-[12px] text-[var(--cv-input-text)]
+          className={`ph-no-capture h-control w-full rounded-lg border bg-[var(--cv-input-bg)]
+            pl-3 text-ui text-[var(--cv-input-text)]
             placeholder:text-[var(--cv-input-placeholder)]
             focus:outline-none transition-colors duration-200 disabled:opacity-60${monospace ? ' font-mono' : ''}
             ${paddingRight}
@@ -91,10 +91,10 @@ export function SecretInput({
             type="button"
             onClick={onToggleShown}
             aria-label={shown ? t('vault.entry.hide') : t('vault.entry.reveal')}
-            className="inline-flex h-7 w-7 items-center justify-center rounded
+            className="inline-flex h-action w-action items-center justify-center rounded
               text-[var(--cv-t3)] hover:text-[var(--cv-t1)] transition-colors"
           >
-            <Icon name={shown ? 'visibility_off' : 'visibility'} size={15} />
+            <Icon name={shown ? 'visibility_off' : 'visibility'} size={16} />
           </button>
         </div>
       </div>

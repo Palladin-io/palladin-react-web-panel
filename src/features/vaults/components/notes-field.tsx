@@ -36,7 +36,7 @@ export function NotesField({ id, value, onChange, disabled }: NotesFieldProps) {
         type="button"
         onClick={() => setUserOpened(true)}
         disabled={disabled}
-        className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-[12px]
+        className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-ui
           text-[var(--cv-btn-ghost-text)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)]
           disabled:cursor-not-allowed disabled:opacity-40"
       >

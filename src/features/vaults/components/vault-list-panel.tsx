@@ -53,10 +53,10 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
+          <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {t('vault.title')}
           </h2>
-          <p className="text-[11px] text-[var(--cv-t3)]">
+          <p className="text-micro text-[var(--cv-t3)]">
             {vaults.isPending
               ? ' '
               : t('vault.list.subtitle', {
@@ -97,7 +97,7 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
               ))}
               {filtered.length === 0 && (
                 <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-                  bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">
+                  bg-[var(--cv-empty-bg)] p-6 text-center text-ui text-[var(--cv-t3)]">
                   {t('vault.list.emptySearch')}
                 </p>
               )}
@@ -141,8 +141,8 @@ function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
       <div className="flex items-center gap-3 px-4 py-2.5">
         <VaultIconCircle icon={icon} color={accent} size={32} iconSize={16} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">{vault.name}</p>
-          <p className="text-[11px] text-[var(--cv-t3)]">
+          <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">{vault.name}</p>
+          <p className="text-meta text-[var(--cv-t3)]">
             {t('vault.entries', { count: vault.entryCount ?? 0 })}
           </p>
         </div>
@@ -150,7 +150,7 @@ function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
       {footerLabel ? (
         <div className="flex items-center gap-1.5 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
           <Icon name="schedule" size={12} color="var(--cv-t3)" className="shrink-0" />
-          <span className="truncate text-[10px] text-[var(--cv-t3)]">{footerLabel}</span>
+          <span className="truncate text-micro text-[var(--cv-t3)]">{footerLabel}</span>
         </div>
       ) : null}
     </button>

@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { Icon } from './icon'
 
 export interface ModalShellProps {
   /** Optional handler — when omitted, the backdrop and Escape key are inert. */
@@ -13,7 +14,7 @@ export interface ModalShellProps {
   title?: ReactNode
   /** Footer content (usually the DialogFooter buttons). Only used with `title`. */
   footer?: ReactNode
-  /** Max width of the dialog in px. Defaults to 480 (use 560 for forms). */
+  /** Design-pixel max width before density scaling. Defaults to 480 (560 for forms). */
   width?: number
   children: ReactNode
 }
@@ -70,10 +71,10 @@ export function ModalShell({
         <div
           className="relative z-10 flex max-h-[86vh] w-full flex-col overflow-hidden rounded-2xl
             border border-[var(--cv-border)] bg-[var(--cv-modal-bg)] shadow-xl"
-          style={{ maxWidth: width }}
+          style={{ maxWidth: `calc(${width}px * var(--cv-density-scale))` }}
         >
-          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--cv-divider)] px-5 py-3.5">
-            <h2 className="text-[14px] font-semibold text-[var(--cv-t1)]">{title}</h2>
+          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--cv-divider)] px-6 py-4">
+            <h2 className="text-heading font-semibold text-[var(--cv-t1)]">{title}</h2>
             {onClose ? (
               <button
                 type="button"
@@ -81,15 +82,15 @@ export function ModalShell({
                 aria-label="Close"
                 className="flex shrink-0 text-[var(--cv-icon-muted)] transition-colors hover:text-[var(--cv-t1)]"
               >
-                <span className="mi" style={{ fontSize: 18 }} aria-hidden>close</span>
+                <Icon name="close" size={18} />
               </button>
             ) : null}
           </header>
-          <div className="subtle-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 py-4">
+          <div className="subtle-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-5">
             {children}
           </div>
           {footer ? (
-            <div className="shrink-0 border-t border-[var(--cv-divider)] px-5 py-3.5">{footer}</div>
+            <div className="shrink-0 border-t border-[var(--cv-divider)] px-6 py-4">{footer}</div>
           ) : null}
         </div>
       </div>
@@ -107,7 +108,7 @@ export function ModalShell({
       <div
         className="relative z-10 w-full rounded-2xl border border-[var(--cv-border)]
           bg-[var(--cv-modal-bg)] p-6 shadow-xl"
-        style={{ maxWidth: width }}
+        style={{ maxWidth: `calc(${width}px * var(--cv-density-scale))` }}
       >
         {children}
       </div>

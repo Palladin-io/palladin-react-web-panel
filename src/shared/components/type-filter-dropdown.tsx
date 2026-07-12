@@ -71,7 +71,7 @@ export function TypeFilterDropdown({
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className={`flex items-center gap-1.5 rounded-lg border border-[var(--cv-input-border)]
-          bg-[var(--cv-input-bg)] px-3 text-[12px] text-[var(--cv-t2)]
+          bg-[var(--cv-search-bg)] px-3 text-ui text-[var(--cv-t2)]
           transition-colors hover:border-[var(--cv-t1)] ${triggerClassName}`}
       >
         <Icon name="filter_list" size={15} />
@@ -95,7 +95,7 @@ export function TypeFilterDropdown({
                 role="option"
                 aria-selected={checked}
                 onClick={() => toggle(option.value)}
-                className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px]
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-ui
                   text-[var(--cv-t1)] transition-colors hover:bg-[var(--cv-bg-subtle)]"
               >
                 <span
@@ -117,7 +117,7 @@ export function TypeFilterDropdown({
               type="button"
               onClick={() => onChange(new Set())}
               className="mt-1 w-full border-t border-[var(--cv-divider)] px-3 py-1.5
-                text-left text-[11px] text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
+                text-left text-meta text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
             >
               {t('common.clear')}
             </button>

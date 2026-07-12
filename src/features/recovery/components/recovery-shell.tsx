@@ -24,7 +24,7 @@ export function RecoveryShell({ title, subtitle, children, onBack }: RecoveryShe
       className="dark flex min-h-screen items-center justify-center"
       style={{ background: AUTH_BACKGROUND_GRADIENT }}
     >
-      <div className="w-full max-w-[440px] px-6 py-10">
+      <div className="w-full max-w-[27.5rem] px-6 py-10">
         {onBack && (
           <button
             type="button"
@@ -43,10 +43,10 @@ export function RecoveryShell({ title, subtitle, children, onBack }: RecoveryShe
             alt={t('auth.appName')}
             className="mx-auto mb-4 h-16 w-16"
           />
-          <h1 className="mb-1 text-[22px] font-bold leading-tight text-[#E8EAED]">
+          <h1 className="mb-1 text-auth-title font-bold leading-tight text-[#E8EAED]">
             {title}
           </h1>
-          <p className="mb-7 text-[13px] text-[#6B7A8E]">{subtitle}</p>
+          <p className="mb-7 text-heading-sm text-[#6B7A8E]">{subtitle}</p>
         </div>
 
         {children}

@@ -23,12 +23,12 @@ export function DashboardHeader({ firstName }: DashboardHeaderProps) {
   return (
     <header className="mb-4 flex h-10 items-center gap-4">
       <div className="shrink-0">
-        <h1 className="text-[14px] font-bold text-[var(--cv-t1)]">
+        <h1 className="text-heading font-bold text-[var(--cv-t1)]">
           {firstName
             ? t('dashboard.greeting', { name: firstName })
             : t('dashboard.greetingGeneric')}
         </h1>
-        <p className="text-[11px] text-[var(--cv-t3)]">{today}</p>
+        <p className="text-meta text-[var(--cv-t3)]">{today}</p>
       </div>
 
       <GlobalSearchAutocomplete

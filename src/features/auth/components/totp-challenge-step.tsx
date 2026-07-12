@@ -81,7 +81,7 @@ export function TotpChallengeStep({
         {isPending ? t('totpChallenge.verifying') : t('totpChallenge.verify')}
       </AuthSubmitButton>
 
-      <div className="flex flex-col items-center gap-2 text-[12px]">
+      <div className="flex flex-col items-center gap-2 text-ui">
         <button
           type="button"
           onClick={() => {

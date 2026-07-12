@@ -29,7 +29,7 @@ export function AgentStatusBadge({ status }: { status: AgentStatus }) {
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5
-        text-[10px] font-bold ${className}`}
+        text-micro font-bold ${className}`}
     >
       ● {label}
     </span>

@@ -148,7 +148,7 @@ function GeneratedSecretView({
         <span className="mt-0.5 shrink-0 text-[var(--cv-primary)]">
           <Icon name="warning" size={16} />
         </span>
-        <p className="text-[12px] text-[var(--cv-t2)]">
+        <p className="text-ui text-[var(--cv-t2)]">
           {t('apiKeys.oneTimeWarning')}
         </p>
       </div>
@@ -187,7 +187,7 @@ function GeneratedSecretView({
           href={DOCS_URL}
           target="_blank"
           rel="noreferrer"
-          className="text-[11px] font-medium text-[var(--cv-primary)] hover:underline"
+          className="text-meta font-medium text-[var(--cv-primary)] hover:underline"
         >
           {t('apiKeys.connectDocs')}
         </a>
@@ -197,7 +197,7 @@ function GeneratedSecretView({
         <div className="relative">
           <pre
             className="max-h-40 overflow-auto whitespace-pre-wrap rounded-lg border
-              border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2 pr-10 text-[12px]
+              border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2 pr-10 text-ui
               leading-relaxed text-[var(--cv-input-text)]"
           >
             {agentMessage}
@@ -230,7 +230,7 @@ function CollapsibleSection({
         className="flex w-full items-center justify-between px-3 py-2.5 text-left
           transition-colors hover:bg-[var(--cv-card-hover)]"
       >
-        <span className="text-[12px] font-semibold text-[var(--cv-t1)]">{title}</span>
+        <span className="text-ui font-semibold text-[var(--cv-t1)]">{title}</span>
         <Icon name={open ? 'expand_less' : 'expand_more'} size={18} />
       </button>
       {open && (

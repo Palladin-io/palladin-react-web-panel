@@ -50,7 +50,7 @@ export function RegisterRecoveryStep({
             disabled={isSubmitting}
             className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--cv-primary)]"
           />
-          <span className="text-[11px] text-[#B8C5D4]">
+          <span className="text-meta text-[#B8C5D4]">
             {t('register.recoveryAcknowledge')}
           </span>
         </label>

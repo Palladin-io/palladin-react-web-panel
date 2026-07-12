@@ -40,15 +40,15 @@ export function FormTextarea({
         htmlFor={id}
         className={
           labelClassName ??
-          'mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]'
+          'mb-1.5 block text-meta font-semibold text-[var(--cv-label-text)]'
         }
       >
         {label}
       </label>
       <textarea
         id={id}
-        className={`w-full resize-none rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2
-          text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none ${resolvedBorder}${monospace ? ' font-mono' : ''}`}
+        className={`w-full resize-none rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2.5
+          text-ui text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none ${resolvedBorder}${monospace ? ' font-mono' : ''}`}
         {...props}
       />
     </div>

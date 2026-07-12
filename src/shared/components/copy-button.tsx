@@ -20,7 +20,7 @@ export interface CopyButtonProps {
  * Copying a secret to the user's own clipboard is fine; the value is never
  * logged or sent anywhere. Disabled when there is nothing to copy.
  */
-export function CopyButton({ value, label, size = 15, className }: CopyButtonProps) {
+export function CopyButton({ value, label, size = 16, className }: CopyButtonProps) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   const timeoutRef = useRef<number | null>(null)
@@ -49,7 +49,7 @@ export function CopyButton({ value, label, size = 15, className }: CopyButtonPro
       disabled={!value}
       aria-label={ariaLabel}
       title={ariaLabel}
-      className={`inline-flex h-7 w-7 items-center justify-center rounded
+      className={`inline-flex h-action w-action items-center justify-center rounded
         text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]
         disabled:cursor-not-allowed disabled:opacity-40 ${className ?? ''}`}
     >

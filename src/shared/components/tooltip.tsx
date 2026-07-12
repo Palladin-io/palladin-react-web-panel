@@ -76,11 +76,11 @@ export function Tooltip({ content, children, className, delayMs = 150 }: Tooltip
                 position: 'fixed',
                 left: coords.x,
                 top: coords.y,
-                transform: 'translate(-50%, calc(-100% - 6px))',
-                maxWidth: 'min(320px, 90vw)',
+                transform: 'translate(-50%, calc(-100% - 0.375rem))',
+                maxWidth: 'min(20rem, 90vw)',
               }}
               className="pointer-events-none z-[100] block rounded-md border border-[var(--cv-border)]
-                bg-[var(--cv-modal-bg)] px-2 py-1 text-[11px] leading-snug text-[var(--cv-t1)]
+                bg-[var(--cv-modal-bg)] px-2 py-1 text-meta leading-snug text-[var(--cv-t1)]
                 shadow-[0_4px_20px_rgba(0,0,0,0.18)]"
             >
               {content}

@@ -51,13 +51,13 @@ export function RecoveryMnemonicPanel({
   return (
     <div className="flex flex-col gap-3">
       <div className="rounded-lg border border-[rgba(232,234,237,0.06)] bg-[rgba(232,234,237,0.04)] p-3">
-        <ol className="ph-no-capture grid grid-cols-4 gap-2 text-[11px] text-[#E8EAED]">
+        <ol className="ph-no-capture grid grid-cols-4 gap-2 text-meta text-[#E8EAED]">
           {mnemonic.map((word, index) => (
             <li
               key={index}
               className="flex items-center gap-1 rounded bg-[rgba(232,234,237,0.04)] px-2 py-1.5"
             >
-              <span className="text-[10px] text-[#6B7A8E]">{index + 1}</span>
+              <span className="text-micro text-[#6B7A8E]">{index + 1}</span>
               <span className="font-mono">{word}</span>
             </li>
           ))}
@@ -69,7 +69,7 @@ export function RecoveryMnemonicPanel({
         className="flex items-start gap-2 rounded-lg bg-[rgb(var(--cv-primary-rgb)/0.1)] px-3 py-2"
       >
         <TriangleAlert size={14} className="mt-0.5 shrink-0 text-[var(--cv-primary)]" />
-        <p className="text-[11px] text-[var(--cv-primary)]">
+        <p className="text-meta text-[var(--cv-primary)]">
           {t('recoveryPhrase.warning')}
         </p>
       </div>
@@ -79,7 +79,7 @@ export function RecoveryMnemonicPanel({
           type="button"
           onClick={handleCopy}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg
-            border border-[rgba(232,234,237,0.1)] bg-transparent px-3 py-2 text-[11px]
+            border border-[rgba(232,234,237,0.1)] bg-transparent px-3 py-2 text-meta
             font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.04)]"
         >
           {copied ? <Check size={14} /> : <Copy size={14} />}
@@ -89,7 +89,7 @@ export function RecoveryMnemonicPanel({
           type="button"
           onClick={handleExport}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-lg
-            border border-[rgba(232,234,237,0.1)] bg-transparent px-3 py-2 text-[11px]
+            border border-[rgba(232,234,237,0.1)] bg-transparent px-3 py-2 text-meta
             font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.04)]"
         >
           <Download size={14} />

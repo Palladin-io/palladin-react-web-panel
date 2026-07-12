@@ -64,10 +64,10 @@ export function ChangeMasterPasswordSection() {
 
   return (
     <section className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5">
-      <h2 className="text-[13px] font-bold text-[var(--cv-t1)]">
+      <h2 className="text-heading-sm font-bold text-[var(--cv-t1)]">
         {t('security.password.title')}
       </h2>
-      <p className="mt-1 text-[12px] text-[var(--cv-t3)]">{t('security.password.subtitle')}</p>
+      <p className="mt-1 text-ui text-[var(--cv-t3)]">{t('security.password.subtitle')}</p>
 
       <form className="mt-4 flex max-w-[26rem] flex-col gap-3" onSubmit={handleSubmit}>
         <div>

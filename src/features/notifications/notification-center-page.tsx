@@ -7,6 +7,7 @@ import { Button } from '../../shared/components/button'
 import { LoadMoreSentinel } from '../../shared/components/load-more-sentinel'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
+import { SearchBar } from '../../shared/components/search-bar'
 import { TypeFilterDropdown } from '../../shared/components/type-filter-dropdown'
 import {
   ApproveGrantDialog,
@@ -265,10 +266,10 @@ export function NotificationCenterPage({
           Title/subtitle on the left; segment tabs + actions inline on the right. */}
       <div className="mb-4 flex h-10 items-center gap-2">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
+          <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {t('notifications.center.title')}
           </h2>
-          <p className="text-[11px] text-[var(--cv-t3)]">
+          <p className="text-meta text-[var(--cv-t3)]">
             {t('notifications.center.subtitle')}
           </p>
         </div>
@@ -302,16 +303,12 @@ export function NotificationCenterPage({
           Hidden on the Grants tab, where OrgGrantsPanel owns its own filtering. */}
       {!showGrants && (
         <div className="mb-3 flex items-stretch gap-2">
-          <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2 transition-colors focus-within:border-[var(--cv-t1)]">
-            <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
-            <input
-              type="text"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t('notifications.center.search')}
-              className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
-            />
-          </div>
+          <SearchBar
+            value={query}
+            onChange={setQuery}
+            placeholder={t('notifications.center.search')}
+            className="flex-1"
+          />
           <TypeFilterDropdown
             options={typeFilterOptions}
             selected={typeFilter}
@@ -370,7 +367,7 @@ export function NotificationCenterPage({
               {/* Section label only when a To-do section with cards is rendered
                   above it — never show "History" as the first/only section. */}
               {showActions && filteredActions.length > 0 && (
-                <p className="mb-3 flex items-center gap-2 text-[11px] font-semibold text-[var(--cv-t3)]">
+                <p className="mb-3 flex items-center gap-2 text-meta font-semibold text-[var(--cv-t3)]">
                   {t('notifications.center.history')}
                   <span className="font-medium" title={t('notifications.center.auditLogSoon')}>
                     ({t('notifications.center.auditLog')})
@@ -705,7 +702,7 @@ function SegmentTabs({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(option.key)}
-            className={`flex items-center gap-1.5 border-b-2 px-2.5 py-1 text-[12px] transition-colors ${
+            className={`flex items-center gap-1.5 border-b-2 px-2.5 py-1 text-ui transition-colors ${
               isActive
                 ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
                 : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
@@ -713,7 +710,7 @@ function SegmentTabs({
           >
             {option.label}
             {option.count ? (
-              <span className="inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-[rgb(var(--cv-primary-rgb)/0.15)] px-1 text-[10px] font-bold text-[var(--cv-primary)]">
+              <span className="inline-flex h-[1rem] min-w-[1rem] items-center justify-center rounded-full bg-[rgb(var(--cv-primary-rgb)/0.15)] px-1 text-micro font-bold text-[var(--cv-primary)]">
                 {option.count}
               </span>
             ) : null}
@@ -725,14 +722,14 @@ function SegmentTabs({
 }
 
 /**
- * Responsive card grid — same auto-fill/min-340/`gap-[10px]` as the
+ * Responsive card grid — same auto-fill/min-340/`gap-[0.625rem]` as the
  * org-grants-panel list, but `items-stretch` so every card in a row shares the
  * tallest card's height (cards are `h-full` flex columns). This gives the
  * uniform-height pending grid.
  */
 function Grid({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] items-stretch gap-[10px]">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,21.25rem),1fr))] items-stretch gap-[0.625rem]">
       {children}
     </div>
   )
@@ -743,7 +740,7 @@ function EmptyState({ filtered }: { filtered: boolean }) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center">
       <Icon name={filtered ? 'filter_alt_off' : 'check_circle'} size={28} color="var(--cv-t3)" />
-      <p className="text-[12px] font-medium text-[var(--cv-t3)]">
+      <p className="text-ui font-medium text-[var(--cv-t3)]">
         {t(filtered ? 'notifications.center.emptyFiltered' : 'notifications.center.empty')}
       </p>
     </div>
@@ -752,11 +749,11 @@ function EmptyState({ filtered }: { filtered: boolean }) {
 
 function LoadingSkeleton() {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] items-start gap-[10px]">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,21.25rem),1fr))] items-start gap-[0.625rem]">
       {[0, 1, 2, 3].map((index) => (
         <div
           key={index}
-          className="h-[150px] animate-pulse rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]"
+          className="h-[9.375rem] animate-pulse rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]"
         />
       ))}
     </div>

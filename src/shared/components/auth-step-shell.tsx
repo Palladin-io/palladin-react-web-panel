@@ -87,10 +87,10 @@ export function AuthStepShell({
           {showLogo && (
             <img src="/logo.png" alt={logoAlt} className="mx-auto mb-4 h-16 w-16" />
           )}
-          <h1 className="mb-1 text-[22px] font-bold leading-tight text-[#E8EAED]">
+          <h1 className="mb-1 text-auth-title font-bold leading-tight text-[#E8EAED]">
             {title}
           </h1>
-          <p className="text-[13px] text-[#6B7A8E]">{subtitle}</p>
+          <p className="text-heading-sm text-[#6B7A8E]">{subtitle}</p>
         </div>
 
         {children}

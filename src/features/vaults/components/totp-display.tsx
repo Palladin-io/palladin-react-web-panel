@@ -39,7 +39,7 @@ export function TotpDisplay({ params, compact, tone = 'default' }: TotpDisplayPr
       <span
         className={`ph-no-capture font-mono tracking-[0.15em] tabular-nums ${
           success ? 'text-[var(--cv-success)]' : 'text-[var(--cv-t1)]'
-        } ${compact ? 'text-[13px]' : 'text-[15px] font-semibold'}`}
+        } ${compact ? 'text-heading-sm' : 'text-heading font-semibold'}`}
         aria-label={t('vault.entries.totp.currentCode')}
       >
         {grouped}
@@ -76,8 +76,8 @@ function CountdownRing({
   urgent: boolean
   tone: 'default' | 'success'
 }) {
-  const size = 22
-  const stroke = 2.5
+  const size = 28
+  const stroke = 3
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
   const color = urgent
@@ -103,7 +103,7 @@ function CountdownRing({
         />
       </svg>
       <span
-        className="absolute text-[8px] font-semibold tabular-nums"
+        className="absolute text-micro font-semibold tabular-nums"
         style={{ color }}
         aria-hidden
       >

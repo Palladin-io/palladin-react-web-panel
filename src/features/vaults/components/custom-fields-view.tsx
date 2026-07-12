@@ -29,7 +29,7 @@ export function CustomFieldsView({ fields }: CustomFieldsViewProps) {
 
   return (
     <section className="ph-no-capture flex flex-col gap-1.5">
-      <h3 className="text-[11px] font-semibold text-[var(--cv-label-text)]">
+      <h3 className="text-meta font-semibold text-[var(--cv-label-text)]">
         {t('vault.entries.customFields.title')}
       </h3>
       <div className="flex flex-col divide-y divide-[var(--cv-divider)] rounded-lg border border-[var(--cv-input-border)]">
@@ -47,7 +47,7 @@ function FieldViewRow({ field }: { field: CustomField }) {
 
   return (
     <div className="flex items-center gap-3 px-3 py-2">
-      <Tooltip content={field.label} className="w-32 shrink-0 truncate text-[11px] text-[var(--cv-t3)]">
+      <Tooltip content={field.label} className="w-32 shrink-0 truncate text-meta text-[var(--cv-t3)]">
         {field.label}
       </Tooltip>
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
@@ -55,7 +55,7 @@ function FieldViewRow({ field }: { field: CustomField }) {
           <TotpDisplay params={field.value} compact />
         ) : field.type === 'concealed' ? (
           <>
-            <span className="min-w-0 flex-1 truncate text-right font-mono text-[12px] tracking-wide text-[var(--cv-t1)]">
+            <span className="min-w-0 flex-1 truncate text-right font-mono text-ui tracking-wide text-[var(--cv-t1)]">
               {shown ? String(field.value) : maskValue(String(field.value).length)}
             </span>
             <button
@@ -72,7 +72,7 @@ function FieldViewRow({ field }: { field: CustomField }) {
           </>
         ) : (
           <>
-            <span className="min-w-0 flex-1 truncate text-right text-[12px] text-[var(--cv-t1)]">
+            <span className="min-w-0 flex-1 truncate text-right text-ui text-[var(--cv-t1)]">
               {String(field.value)}
             </span>
             <CopyButton value={String(field.value)} label={t('common.copy')} />

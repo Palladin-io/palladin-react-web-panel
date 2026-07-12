@@ -137,11 +137,11 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
         >
           <EntryIcon icon={entry.icon} type={entry.type} color={entry.color} />
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
+            <span className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
               {entry.label}
             </span>
             {meta ? (
-              <span className="truncate text-[11px] text-[var(--cv-t3)]">{meta}</span>
+              <span className="truncate text-meta text-[var(--cv-t3)]">{meta}</span>
             ) : null}
           </div>
         </Link>
@@ -250,9 +250,9 @@ function RevealPanel({
       {isLoading ? (
         <div className="h-4 animate-pulse rounded bg-[var(--cv-divider)]" />
       ) : error ? (
-        <p className="text-[11px] text-[var(--cv-primary)]">{error}</p>
+        <p className="text-meta text-[var(--cv-primary)]">{error}</p>
       ) : plaintext ? (
-        <div className="flex flex-col gap-2 text-[11px]">
+        <div className="flex flex-col gap-2 text-meta">
           {plaintext.type === ENTRY_TYPE_CREDENTIAL && plaintext.url ? (
             <RevealRow
               icon="link"

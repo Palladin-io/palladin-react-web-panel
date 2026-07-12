@@ -146,7 +146,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
                 aria-selected={isActive}
                 disabled={disabled}
                 onClick={() => setActiveTab(id)}
-                className={`-mb-px border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
+                className={`-mb-px border-b-2 px-3.5 py-2 text-ui transition-colors ${
                   disabled
                     ? 'cursor-not-allowed border-transparent font-medium text-[var(--cv-t3)] opacity-35'
                     : isActive
@@ -186,7 +186,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               <AgentAvatar agent={agent} size={40} />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">{name}</h2>
+                  <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">{name}</h2>
                   <span className="ml-auto"><AgentStatusBadge status={agent.status} /></span>
                 </div>
               </div>
@@ -408,10 +408,10 @@ function LogsTabContent({ agent }: { agent: Agent }) {
               <span className="h-1.5 w-1.5 rounded-full bg-[var(--cv-t3)]" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[12px] font-medium text-[var(--cv-t1)]">{t(labelKey)}</p>
-              {detail ? <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">{detail}</p> : null}
+              <p className="text-ui font-medium text-[var(--cv-t1)]">{t(labelKey)}</p>
+              {detail ? <p className="mt-0.5 text-meta text-[var(--cv-t3)]">{detail}</p> : null}
             </div>
-            <span className="shrink-0 text-[11px] text-[var(--cv-t3)]">{date}</span>
+            <span className="shrink-0 text-meta text-[var(--cv-t3)]">{date}</span>
           </li>
         ))}
       </ul>
@@ -441,14 +441,14 @@ function ActionZone({ tone, title, hint, action }: ActionZoneProps) {
       }`}
     >
       <h2
-        className={`text-[11px] font-semibold uppercase tracking-[0.06em] ${
+        className={`text-meta font-semibold uppercase tracking-[0.06em] ${
           isPositive ? 'text-[#10B981]' : 'text-[var(--cv-primary)]'
         }`}
       >
         {title}
       </h2>
       <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[11px] text-[var(--cv-t3)]">{hint}</p>
+        <p className="text-meta text-[var(--cv-t3)]">{hint}</p>
         {action}
       </div>
     </section>
@@ -458,8 +458,8 @@ function ActionZone({ tone, title, hint, action }: ActionZoneProps) {
 function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4">
-      <dt className="shrink-0 text-[12px] text-[var(--cv-t3)]">{label}</dt>
-      <dd className={`text-right text-[12px] font-medium text-[var(--cv-t1)]${mono ? ' font-mono' : ''}`}>
+      <dt className="shrink-0 text-ui text-[var(--cv-t3)]">{label}</dt>
+      <dd className={`text-right text-ui font-medium text-[var(--cv-t1)]${mono ? ' font-mono' : ''}`}>
         {value}
       </dd>
     </div>
@@ -470,11 +470,11 @@ function DetailRow({ label, value, mono }: { label: string; value: string; mono?
 export function AgentDetailEmpty() {
   const { t } = useTranslation()
   return (
-    <div className="flex h-full min-h-[280px] flex-col items-center justify-center gap-3 text-center">
+    <div className="flex h-full min-h-[17.5rem] flex-col items-center justify-center gap-3 text-center">
       <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--cv-empty-bg)]">
         <Icon name="smart_toy" size={26} color="var(--cv-t3)" />
       </span>
-      <p className="text-[13px] text-[var(--cv-t3)]">{t('agents.selectAgent')}</p>
+      <p className="text-heading-sm text-[var(--cv-t3)]">{t('agents.selectAgent')}</p>
     </div>
   )
 }
@@ -511,7 +511,7 @@ function DeactivateAgentDialog({ open, agentName, isPending, onConfirm, onCancel
         </DialogFooter>
       }
     >
-      <p className="text-[12px] text-[var(--cv-t2)]">
+      <p className="text-ui text-[var(--cv-t2)]">
         {t('agents.deactivateConfirmBody', { name: agentName })}
       </p>
     </ModalShell>
@@ -546,7 +546,7 @@ function DeleteAgentDialog({ open, agentName, isPending, onConfirm, onCancel }: 
         </DialogFooter>
       }
     >
-      <p className="text-[12px] text-[var(--cv-t2)]">
+      <p className="text-ui text-[var(--cv-t2)]">
         {t('agents.deleteConfirmBody', { name: agentName })}
       </p>
     </ModalShell>
