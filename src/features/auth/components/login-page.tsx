@@ -211,17 +211,18 @@ export function LoginPage() {
                 </div>
               </div>
 
-              <p className="mt-5 text-ui text-[#6B7A8E]">
-                {t('login.noAccount')}{' '}
-                <Link
-                  to="/register"
-                  className="font-semibold text-[#E8EAED] transition-colors hover:text-white"
-                >
-                  {t('login.signUp')}
-                </Link>
-              </p>
+              {/* Sign up — a ghost button so it reads as a distinct mode switch,
+                  not another OAuth provider in the filled-card list above. */}
+              <Link
+                to="/register"
+                className="mt-5 flex w-full items-center justify-center rounded-lg border
+                  border-[rgba(232,234,237,0.14)] bg-transparent px-3.5 py-2.5 text-heading-sm
+                  font-medium text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.06)]"
+              >
+                {t('login.createAccount')}
+              </Link>
 
-              <p className="mt-3 text-micro text-[#6B7A8E]">{t('auth.legalFooter')}</p>
+              <p className="mt-4 text-micro text-[#6B7A8E]">{t('auth.legalFooter')}</p>
             </>
           )}
         </div>
