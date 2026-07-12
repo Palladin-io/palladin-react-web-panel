@@ -1143,7 +1143,6 @@
   "login.passwordPlaceholder": "Wpisz hasło główne",
   "login.signingIn": "Logowanie…",
   "login.signIn": "Zaloguj się",
-  "login.forgotPassword": "Nie pamiętasz hasła?",
   "login.errorInvalid": "Nieprawidłowy e-mail lub hasło",
   "login.orContinueWith": "lub kontynuuj przez",
   "login.createAccount": "Załóż konto",

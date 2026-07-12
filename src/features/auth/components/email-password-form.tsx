@@ -86,15 +86,6 @@ export function EmailPasswordForm({
       >
         {t('login.createAccount')}
       </Link>
-
-      <div className="flex justify-center">
-        <Link
-          to="/recovery"
-          className="text-micro text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
-        >
-          {t('login.forgotPassword')}
-        </Link>
-      </div>
     </form>
   )
 }

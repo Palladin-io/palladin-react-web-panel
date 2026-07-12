@@ -1096,7 +1096,6 @@
   "login.passwordPlaceholder": "Enter your master password",
   "login.signingIn": "Signing in…",
   "login.signIn": "Sign In",
-  "login.forgotPassword": "Forgot your password?",
   "login.errorInvalid": "Incorrect email or password",
   "login.orContinueWith": "or continue with",
   "login.createAccount": "Create an account",
