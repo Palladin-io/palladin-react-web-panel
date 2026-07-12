@@ -52,7 +52,7 @@ export function VerifyEmailPage({ token }: VerifyEmailPageProps) {
         subtitle={t('verifyEmail.successSubtitle')}
       >
         <div className="flex flex-col items-center gap-4">
-          <CheckCircle2 className="h-10 w-10 text-[#10B981]" />
+          <CheckCircle2 className="h-10 w-10 text-[var(--cv-success)]" />
           {authenticated ? (
             <AuthSubmitButton type="button" onClick={() => navigate({ to: '/' })}>
               {t('verifyEmail.goToApp')}

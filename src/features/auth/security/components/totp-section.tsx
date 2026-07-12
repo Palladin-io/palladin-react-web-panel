@@ -37,7 +37,7 @@ export function TotpSection() {
           className={
             'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ' +
             (enabled
-              ? 'bg-[rgba(16,185,129,0.12)] text-[#10B981]'
+              ? 'bg-[rgb(var(--cv-success-rgb)/0.12)] text-[var(--cv-success)]'
               : 'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-t3)]')
           }
         >
