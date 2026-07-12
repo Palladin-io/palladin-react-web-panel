@@ -1,6 +1,6 @@
 import { useGoogleLogin } from '@react-oauth/google'
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppWordmark } from '../../../shared/components/app-wordmark'
@@ -141,18 +141,6 @@ export function LoginPage() {
                 onSubmit={handleCredentials}
                 onFieldChange={() => setPasswordError(null)}
               />
-
-              {/* Sign up sits with the email+password block: OAuth already creates
-                  an account on first sign-in, so explicit registration only applies
-                  to the email path. Ghost button so it reads as a distinct action. */}
-              <Link
-                to="/register"
-                className="mt-4 flex w-full items-center justify-center rounded-lg border
-                  border-[rgba(232,234,237,0.14)] bg-transparent px-3.5 py-2.5 text-heading-sm
-                  font-medium text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.06)]"
-              >
-                {t('login.createAccount')}
-              </Link>
 
               {/* Divider */}
               <div className="my-5 flex items-center gap-3">
