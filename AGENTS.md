@@ -213,6 +213,13 @@ Items marked **missing** are duplicated 2+ times with no shared component — ex
 - **Never hardcode hex/rgba in components — always use `var(--cv-*)` tokens.**
 - When styling anything beyond trivial layout (tokens, dark-mode mechanics, hover helpers, radius/spacing conventions, adding a token), read `docs/architecture/styling.md` — the full styling guide with the complete `--cv-*` token list and the `styles.ts` helpers.
 
+#### Semantic UI density
+
+- Choose typography and geometry by **semantic role**, not by copying a nearby pixel value: use `text-micro`, `text-meta`, `text-action`, `text-ui`, `text-heading-*`, `h-action`, `h-control`, and `w-sidebar`.
+- Do not add arbitrary `text-[Npx]`, fixed pixel dimensions for standard controls, CSS `zoom`, or `transform: scale()`. Context-specific dimensions use `rem`; reusable roles get a token in `src/index.css` and documentation in `docs/architecture/styling.md`.
+- All list/global searches use the shared `SearchBar` and `--cv-search-bg`; do not assemble search fields from raw `<input>` markup. Form controls remain on `--cv-input-bg` so editable data stays visually distinct.
+- Informational text must not render below `text-micro` (12px). Buttons use `size="sm"` / `h-action` with `text-action`; inputs and search controls use `h-control` with `text-ui`.
+
 #### Brand/Primary Red
 
 The brand/primary red lives ONLY in CSS tokens — never hardcode `#FF4F4F`, `rgba(255,79,79,…)`, or `#E04545` in components.
