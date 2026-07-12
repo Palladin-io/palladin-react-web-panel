@@ -10,7 +10,7 @@
   "auth.continueWithX": "Kontynuuj z X",
   "auth.errorSignInFailed": "Logowanie nie powiodło się. Spróbuj ponownie.",
   "auth.errorGoogleSignInFailed": "Logowanie przez Google nie powiodło się. Spróbuj ponownie.",
-  "auth.legalFooter": "Kontynuując, akceptujesz nasze Warunki i Politykę prywatności",
+  "auth.legalFooter": "Kontynuując, akceptujesz nasze <terms>Warunki</terms> i <privacy>Politykę prywatności</privacy>",
   "auth.comingSoon": "Wkrótce",
   "unlock.title": "Odblokuj skarbiec",
   "unlock.subtitle": "Wprowadź hasło główne, aby uzyskać dostęp do danych.",

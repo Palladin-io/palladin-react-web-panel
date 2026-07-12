@@ -1,7 +1,7 @@
 import { useGoogleLogin } from '@react-oauth/google'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppWordmark } from '../../../shared/components/app-wordmark'
 import { useLogin } from '../hooks/use-login'
@@ -142,6 +142,18 @@ export function LoginPage() {
                 onFieldChange={() => setPasswordError(null)}
               />
 
+              {/* Sign up sits with the email+password block: OAuth already creates
+                  an account on first sign-in, so explicit registration only applies
+                  to the email path. Ghost button so it reads as a distinct action. */}
+              <Link
+                to="/register"
+                className="mt-4 flex w-full items-center justify-center rounded-lg border
+                  border-[rgba(232,234,237,0.14)] bg-transparent px-3.5 py-2.5 text-heading-sm
+                  font-medium text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.06)]"
+              >
+                {t('login.createAccount')}
+              </Link>
+
               {/* Divider */}
               <div className="my-5 flex items-center gap-3">
                 <span className="h-px flex-1 bg-[rgba(232,234,237,0.1)]" />
@@ -211,18 +223,29 @@ export function LoginPage() {
                 </div>
               </div>
 
-              {/* Sign up — a ghost button so it reads as a distinct mode switch,
-                  not another OAuth provider in the filled-card list above. */}
-              <Link
-                to="/register"
-                className="mt-5 flex w-full items-center justify-center rounded-lg border
-                  border-[rgba(232,234,237,0.14)] bg-transparent px-3.5 py-2.5 text-heading-sm
-                  font-medium text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.06)]"
-              >
-                {t('login.createAccount')}
-              </Link>
-
-              <p className="mt-4 text-micro text-[#6B7A8E]">{t('auth.legalFooter')}</p>
+              <p className="mt-5 text-micro text-[#6B7A8E]">
+                <Trans
+                  i18nKey="auth.legalFooter"
+                  components={{
+                    terms: (
+                      <a
+                        href="https://palladin.io/terms/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline transition-colors hover:text-[#E8EAED]"
+                      />
+                    ),
+                    privacy: (
+                      <a
+                        href="https://palladin.io/privacy/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline transition-colors hover:text-[#E8EAED]"
+                      />
+                    ),
+                  }}
+                />
+              </p>
             </>
           )}
         </div>
