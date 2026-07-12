@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as RecoveryRouteImport } from './routes/recovery'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DevToastsRouteImport } from './routes/dev-toasts'
@@ -17,6 +19,7 @@ import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated/vaults'
 import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
@@ -31,6 +34,16 @@ import { Route as AuthenticatedVaultsVaultIdGrantsRouteImport } from './routes/_
 import { Route as AuthenticatedVaultsVaultIdGrantsGrantIdRouteImport } from './routes/_authenticated/vaults_.$vaultId_.grants_.$grantId'
 import { Route as AuthenticatedVaultsVaultIdEntriesEntryIdRouteImport } from './routes/_authenticated/vaults_.$vaultId_.entries_.$entryId'
 
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecoveryRoute = RecoveryRouteImport.update({
   id: '/recovery',
   path: '/recovery',
@@ -68,6 +81,11 @@ const AuthenticatedUnlockRoute = AuthenticatedUnlockRouteImport.update({
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSecurityRoute = AuthenticatedSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
@@ -148,12 +166,15 @@ export interface FileRoutesByFullPath {
   '/dev-toasts': typeof DevToastsRoute
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
+  '/register': typeof RegisterRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/agents': typeof AuthenticatedAgentsRoute
   '/api-keys': typeof AuthenticatedApiKeysRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/inbox': typeof AuthenticatedInboxRoute
+  '/security': typeof AuthenticatedSecurityRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
@@ -169,12 +190,15 @@ export interface FileRoutesByTo {
   '/dev-toasts': typeof DevToastsRoute
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
+  '/register': typeof RegisterRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/agents': typeof AuthenticatedAgentsRoute
   '/api-keys': typeof AuthenticatedApiKeysRoute
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/billing': typeof AuthenticatedBillingRoute
   '/inbox': typeof AuthenticatedInboxRoute
+  '/security': typeof AuthenticatedSecurityRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
@@ -193,12 +217,15 @@ export interface FileRoutesById {
   '/dev-toasts': typeof DevToastsRoute
   '/login': typeof LoginRoute
   '/recovery': typeof RecoveryRoute
+  '/register': typeof RegisterRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/_authenticated/agents': typeof AuthenticatedAgentsRoute
   '/_authenticated/api-keys': typeof AuthenticatedApiKeysRoute
   '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
+  '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
   '/_authenticated/vaults': typeof AuthenticatedVaultsRoute
@@ -218,12 +245,15 @@ export interface FileRouteTypes {
     | '/dev-toasts'
     | '/login'
     | '/recovery'
+    | '/register'
+    | '/verify-email'
     | '/agents'
     | '/api-keys'
     | '/approvals'
     | '/audit'
     | '/billing'
     | '/inbox'
+    | '/security'
     | '/settings'
     | '/unlock'
     | '/vaults'
@@ -239,12 +269,15 @@ export interface FileRouteTypes {
     | '/dev-toasts'
     | '/login'
     | '/recovery'
+    | '/register'
+    | '/verify-email'
     | '/agents'
     | '/api-keys'
     | '/approvals'
     | '/audit'
     | '/billing'
     | '/inbox'
+    | '/security'
     | '/settings'
     | '/unlock'
     | '/vaults'
@@ -262,12 +295,15 @@ export interface FileRouteTypes {
     | '/dev-toasts'
     | '/login'
     | '/recovery'
+    | '/register'
+    | '/verify-email'
     | '/_authenticated/agents'
     | '/_authenticated/api-keys'
     | '/_authenticated/approvals'
     | '/_authenticated/audit'
     | '/_authenticated/billing'
     | '/_authenticated/inbox'
+    | '/_authenticated/security'
     | '/_authenticated/settings'
     | '/_authenticated/unlock'
     | '/_authenticated/vaults'
@@ -286,10 +322,26 @@ export interface RootRouteChildren {
   DevToastsRoute: typeof DevToastsRoute
   LoginRoute: typeof LoginRoute
   RecoveryRoute: typeof RecoveryRoute
+  RegisterRoute: typeof RegisterRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recovery': {
       id: '/recovery'
       path: '/recovery'
@@ -344,6 +396,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/security': {
+      id: '/_authenticated/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof AuthenticatedSecurityRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/inbox': {
@@ -447,6 +506,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
+  AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedUnlockRoute: typeof AuthenticatedUnlockRoute
   AuthenticatedVaultsRoute: typeof AuthenticatedVaultsRoute
@@ -467,6 +527,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
+  AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedUnlockRoute: AuthenticatedUnlockRoute,
   AuthenticatedVaultsRoute: AuthenticatedVaultsRoute,
@@ -492,6 +553,8 @@ const rootRouteChildren: RootRouteChildren = {
   DevToastsRoute: DevToastsRoute,
   LoginRoute: LoginRoute,
   RecoveryRoute: RecoveryRoute,
+  RegisterRoute: RegisterRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

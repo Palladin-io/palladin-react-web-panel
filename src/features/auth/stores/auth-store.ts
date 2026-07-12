@@ -7,6 +7,13 @@ interface AuthState {
   refreshToken: string | null
   userId: string | null
   isOnboarded: boolean
+  /**
+   * Whether the account's email is verified. OAuth accounts are always
+   * verified; password accounts start unverified until they consume the
+   * verification link. Drives the soft verify-email banner. Persisted so a
+   * reload doesn't flash the banner before the account query resolves.
+   */
+  emailVerified: boolean
   permissions: number
 
   /**
@@ -25,9 +32,12 @@ interface AuthState {
     refreshToken: string
     userId: string
     isOnboarded: boolean
+    emailVerified?: boolean
     permissions?: number
   }) => void
   markOnboarded: () => void
+  /** Flip to verified after the user consumes their verification link. */
+  markEmailVerified: () => void
   unlockVault: (masterKey: Uint8Array, privateKey: Uint8Array) => void
   lockVault: () => void
   /** Session timeout: wipes crypto keys AND the access token, so a walked-away tab holds neither. */
@@ -40,6 +50,7 @@ const initialState = {
   refreshToken: null,
   userId: null,
   isOnboarded: false,
+  emailVerified: false,
   permissions: 0,
   isVaultLocked: true,
   masterKey: null,
@@ -62,6 +73,15 @@ export const useAuthStore = create<AuthState>()(
                 ? parseInt(rawPerm, 10)
                 : (data.permissions ?? 0)
 
+          // Prefer the JWT `email_verified` claim; fall back to the response
+          // body. Like isOnboarded, this never regresses true→false: a stale
+          // refresh claim must not resurrect the banner for a verified user.
+          const claimVerified = jwtPayload['email_verified']
+          const emailVerified =
+            state.emailVerified ||
+            claimVerified === true ||
+            data.emailVerified === true
+
           return {
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
@@ -71,12 +91,15 @@ export const useAuthStore = create<AuthState>()(
             // claim), which would break the lock-redirect logic and cause the
             // wizard to appear for already-onboarded users.
             isOnboarded: state.isOnboarded || data.isOnboarded,
+            emailVerified,
             permissions,
             // isVaultLocked is intentionally NOT set here — see lockVault().
           }
         }),
 
       markOnboarded: () => set({ isOnboarded: true }),
+
+      markEmailVerified: () => set({ emailVerified: true }),
 
       unlockVault: (masterKey, privateKey) =>
         // Store independent copies — callers routinely `wipe()` their local
@@ -114,6 +137,7 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         userId: state.userId,
         isOnboarded: state.isOnboarded,
+        emailVerified: state.emailVerified,
         permissions: state.permissions,
       }),
     },

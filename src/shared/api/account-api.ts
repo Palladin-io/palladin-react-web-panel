@@ -8,6 +8,17 @@ export interface AccountResponse {
   /** Backend field indicating account setup is complete. */
   isOnboarded: boolean
   /**
+   * Whether the account's email is verified. OAuth accounts are always true.
+   * Optional — older backends omit it; consumers default to `true` so the
+   * verify banner never shows for accounts the server can't report on.
+   */
+  emailVerified?: boolean
+  /**
+   * Whether TOTP two-factor authentication is enabled on the account. Optional —
+   * older backends omit it; the security screen defaults it to `false`.
+   */
+  totpEnabled?: boolean
+  /**
    * Server-derived onboarding step completion. Optional — older backends omit
    * it; consumers default each flag to `false`. `mobileRegistered` is the only
    * step the client can't derive locally (it needs the user's push devices).
@@ -86,6 +97,39 @@ export function setupAccount(payload: SetupAccountPayload): Promise<void> {
  */
 export function recoverAccount(payload: RecoverAccountPayload): Promise<void> {
   return api.put('api/account/recovery', { json: payload }).json<void>()
+}
+
+/**
+ * Payload for an authenticated master-password change (Variant A: the login
+ * password is the master password). The client proves knowledge of the current
+ * password via `currentAuthHash` (server verifies constant-time before applying
+ * — a stolen JWT alone can't rewrite key material) and ships fresh master-side
+ * material + the new auth credential. Recovery material is deliberately NOT
+ * included — this flow doesn't hold the recovery mnemonic, so the recovery
+ * wrapping and the old recovery phrase keep working.
+ */
+export interface ChangeMasterPasswordPayload {
+  /** base64 Argon2id(current password, current authSalt) — proves the current password. */
+  currentAuthHash: string
+  /** base64 Argon2id(new password, newAuthSalt) — the new server-side auth credential. */
+  newAuthHash: string
+  /** base64 new 16-byte salt used to derive `newAuthHash`. */
+  newAuthSalt: string
+  /** base64 new 16-byte Argon2id salt for the new master key. */
+  newSalt: string
+  /** base64 private key re-wrapped with the new master key (nonce prepended). */
+  newEncryptedPrivateKey: string
+}
+
+/**
+ * Change the master password while authenticated (CVT-268). Server verifies
+ * `currentAuthHash`, replaces the master + auth material (recovery untouched),
+ * and revokes the account's other sessions.
+ */
+export function changeMasterPassword(
+  payload: ChangeMasterPasswordPayload,
+): Promise<void> {
+  return api.put('api/account/password', { json: payload }).json<void>()
 }
 
 /**
