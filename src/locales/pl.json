@@ -1167,13 +1167,6 @@
   "verifyEmail.expiredSubtitle": "Ten link weryfikacyjny wygasł. Zaloguj się i poproś o nowy.",
   "verifyEmail.invalidTitle": "Nieprawidłowy link",
   "verifyEmail.invalidSubtitle": "Ten link weryfikacyjny jest nieprawidłowy lub został już użyty.",
-  "verifyEmail.banner.title": "Zweryfikuj adres e-mail.",
-  "verifyEmail.banner.body": "Sprawdź skrzynkę — wysłaliśmy link weryfikacyjny.",
-  "verifyEmail.banner.bodyWithEmail": "Sprawdź {{email}} — wysłaliśmy link weryfikacyjny.",
-  "verifyEmail.banner.resend": "Wyślij ponownie",
-  "verifyEmail.banner.sending": "Wysyłanie…",
-  "verifyEmail.banner.sent": "Wysłano",
-  "verifyEmail.banner.resendIn": "Ponownie za {{seconds}} s",
   "security.title": "Bezpieczeństwo",
   "security.subtitle": "Zarządzaj hasłem głównym i uwierzytelnianiem dwuskładnikowym.",
   "security.password.title": "Hasło główne",
@@ -1227,5 +1220,13 @@
   "totpEnroll.copyCodes": "Kopiuj kody",
   "totpEnroll.downloadCodes": "Pobierz",
   "settings.security.title": "Bezpieczeństwo",
-  "settings.security.subtitle": "Hasło główne i uwierzytelnianie dwuskładnikowe."
+  "settings.security.subtitle": "Hasło główne i uwierzytelnianie dwuskładnikowe.",
+  "verifyEmail.pendingTitle": "Zweryfikuj adres e-mail",
+  "verifyEmail.pendingSubtitle": "Potwierdź e-mail, aby odblokować konto.",
+  "verifyEmail.pendingBody": "Wysłaliśmy link weryfikacyjny na {{email}}. Kliknij go i wróć tutaj.",
+  "verifyEmail.pendingBodyNoEmail": "Wysłaliśmy Ci link weryfikacyjny. Kliknij go i wróć tutaj.",
+  "verifyEmail.resend": "Wyślij ponownie",
+  "verifyEmail.sending": "Wysyłanie…",
+  "verifyEmail.sent": "Wysłano",
+  "verifyEmail.resendIn": "Ponownie za {{seconds}} s"
 }

@@ -7,10 +7,10 @@ import {
   useRouterState,
 } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
-import { useAuthStore, useSessionTimeout, VerifyEmailBanner } from '../features/auth'
+import { useAuthStore, useSessionTimeout } from '../features/auth'
 import { useAgents, AGENT_STATUS_PENDING } from '../features/agents'
 import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
@@ -31,13 +31,24 @@ import {
 
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: ({ location }) => {
-    const { accessToken, refreshToken, isVaultLocked } = useAuthStore.getState()
+    const { accessToken, refreshToken, isVaultLocked, emailVerified } =
+      useAuthStore.getState()
     // A refresh token (persisted) is enough to be "logged in" — the access
     // token is in-memory only and is null right after a reload/timeout, then
     // silently restored by the ky client on the first API call. Only redirect
     // to /login when there is no session to restore at all.
     if (!accessToken && !refreshToken) {
       throw redirect({ to: '/login' })
+    }
+    // Hard email-verification gate (fast path). A password account must verify
+    // its email before it can reach any authenticated surface. We gate on the
+    // IN-MEMORY `accessToken` (never persisted) so this only fires when we hold
+    // a token whose `email_verified` claim we trust from THIS session — a cold
+    // reload (accessToken null) falls through to the layout's account-query
+    // gate, which is server-authoritative and can't be fooled by a stale
+    // persisted flag. OAuth accounts are always verified, so they never gate.
+    if (accessToken && !emailVerified) {
+      throw redirect({ to: '/verify-email' })
     }
     // Route based on isVaultLocked, not isOnboarded. isVaultLocked is never
     // persisted — it always starts as true and is set to false only by
@@ -100,10 +111,27 @@ const DROPDOWN_BG = {
 function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const theme = useThemeStore((s) => s.theme)
+  const navigate = useNavigate()
 
   // Idle + absolute session timeout: locks the vault and drops the access token
   // when the user walks away, then routes to /unlock. No-op while locked.
   useSessionTimeout()
+
+  // Server-authoritative half of the hard email-verification gate. The
+  // `beforeLoad` fast path covers fresh sessions; this covers cold reloads
+  // (where the in-memory token — and its claim — isn't available yet) and any
+  // mid-session change. We only gate on an EXPLICIT `false` from the server, so
+  // an unknown/undefined value (older backend, still loading) never locks a
+  // user out, and a stale persisted flag can't grant access.
+  const account = useQuery({
+    queryKey: ACCOUNT_QUERY_KEY,
+    queryFn: getAccount,
+    staleTime: 5 * 60 * 1000,
+  })
+  const emailUnverified = account.data?.emailVerified === false
+  useEffect(() => {
+    if (emailUnverified) navigate({ to: '/verify-email' })
+  }, [emailUnverified, navigate])
 
   // Vault-lock routing is handled by `beforeLoad` (sync, fires on every
   // navigation). We avoid a mid-session `useEffect` guard here because
@@ -111,6 +139,10 @@ function AuthenticatedLayout() {
   // outside `logout()`, which already redirects to `/login`. When a
   // real `lockVault()` caller lands, prefer `useRouter().invalidate()`
   // after the lock so `beforeLoad` re-runs.
+
+  // Don't render any authenticated surface (shell or unlock) for an unverified
+  // account — the redirect above is in flight.
+  if (emailUnverified) return null
 
   if (pathname === '/unlock') return <Outlet />
   return (
@@ -122,14 +154,9 @@ function AuthenticatedLayout() {
         style={{ background: GRADIENTS[theme] }}
       >
         <AppSidebar currentPath={pathname} />
-        <div className="flex min-w-0 flex-1 flex-col">
-          {/* Pinned above the scroll area; renders nothing when the email is
-              verified (or the account can't report on it). */}
-          <VerifyEmailBanner />
-          <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
-            <Outlet />
-          </main>
-        </div>
+        <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+          <Outlet />
+        </main>
       </div>
     </SignalRProvider>
   )

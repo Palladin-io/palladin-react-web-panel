@@ -1,7 +1,6 @@
 export { LoginPage } from './components/login-page'
 export { RegisterPage } from './register/register-page'
 export { VerifyEmailPage } from './verify-email/verify-email-page'
-export { VerifyEmailBanner } from './components/verify-email-banner'
 export { SecurityPage } from './security/security-page'
 export { useAuthStore, getIsAuthenticated } from './stores/auth-store'
 export { useSessionTimeout } from './hooks/use-session-timeout'
