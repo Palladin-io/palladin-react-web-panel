@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { CheckCircle2, Loader2, XCircle } from 'lucide-react'
 import { AuthStepShell } from '../../../shared/components/auth-step-shell'
 import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
@@ -85,9 +85,11 @@ function VerifyEmailGate() {
     >
       <div className="flex flex-col items-center gap-4">
         <p className="text-center text-ui text-[#B8C5D4]">
-          {account.data?.email
-            ? t('verifyEmail.pendingBody', { email: account.data.email })
-            : t('verifyEmail.pendingBodyNoEmail')}
+          {account.data?.email ? (
+            <Trans i18nKey="verifyEmail.pendingBody" values={{ email: account.data.email }} />
+          ) : (
+            <Trans i18nKey="verifyEmail.pendingBodyNoEmail" />
+          )}
         </p>
 
         <AuthSubmitButton
