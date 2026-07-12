@@ -121,4 +121,12 @@ describe('getAnalyticsHeaders', () => {
 
     expect(headers['x-user-agent']).toMatch(/^Palladin\/web \(.+; .+\)$/)
   })
+
+  it('always includes x-platform header set to web', () => {
+    mockGetSessionId.mockReturnValue(undefined)
+
+    const headers = getAnalyticsHeaders()
+
+    expect(headers['x-platform']).toBe('web')
+  })
 })
