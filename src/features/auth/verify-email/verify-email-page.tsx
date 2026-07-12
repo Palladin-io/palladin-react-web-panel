@@ -78,6 +78,7 @@ function VerifyEmailGate() {
   return (
     <AuthStepShell
       showLogo
+      align="center"
       logoAlt={t('auth.appName')}
       title={t('verifyEmail.pendingTitle')}
       subtitle={t('verifyEmail.pendingSubtitle')}
@@ -146,6 +147,7 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
     return (
       <AuthStepShell
         showLogo
+        align="center"
         logoAlt={t('auth.appName')}
         title={t('verifyEmail.verifyingTitle')}
         subtitle={t('verifyEmail.verifyingSubtitle')}
@@ -161,6 +163,7 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
     return (
       <AuthStepShell
         showLogo
+        align="center"
         logoAlt={t('auth.appName')}
         title={t('verifyEmail.successTitle')}
         subtitle={t('verifyEmail.successSubtitle')}
@@ -178,6 +181,7 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
   return (
     <AuthStepShell
       showLogo
+      align="center"
       logoAlt={t('auth.appName')}
       title={isExpired ? t('verifyEmail.expiredTitle') : t('verifyEmail.invalidTitle')}
       subtitle={isExpired ? t('verifyEmail.expiredSubtitle') : t('verifyEmail.invalidSubtitle')}
