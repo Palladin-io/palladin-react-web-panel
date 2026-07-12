@@ -15,7 +15,7 @@ import {
 import { ACCOUNT_QUERY_KEY, setupAccount } from '../../../shared/api/account-api'
 import i18n from '../../../shared/lib/i18n'
 import { joinMnemonic } from '../../../shared/lib/mnemonic'
-import { createDefaultVaultSafe } from './create-default-vault-safe'
+import { createDefaultVaultSafe } from '../../../shared/lib/create-default-vault-safe'
 
 export interface CompleteSetupInput {
   masterPassword: string

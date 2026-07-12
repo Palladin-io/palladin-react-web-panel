@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
-import { useAuthStore, useSessionTimeout } from '../features/auth'
+import { useAuthStore, useSessionTimeout, VerifyEmailBanner } from '../features/auth'
 import { useAgents, AGENT_STATUS_PENDING } from '../features/agents'
 import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
@@ -122,9 +122,14 @@ function AuthenticatedLayout() {
         style={{ background: GRADIENTS[theme] }}
       >
         <AppSidebar currentPath={pathname} />
-        <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
-          <Outlet />
-        </main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Pinned above the scroll area; renders nothing when the email is
+              verified (or the account can't report on it). */}
+          <VerifyEmailBanner />
+          <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+            <Outlet />
+          </main>
+        </div>
       </div>
     </SignalRProvider>
   )

@@ -4,12 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const sealVaultKeyMock = vi.hoisted(() => vi.fn<[Uint8Array], Promise<string>>())
 const createDefaultVaultMock = vi.hoisted(() => vi.fn<[unknown], Promise<void>>())
 
-vi.mock('../../../shared/crypto/vault-key', () => ({
+vi.mock('../crypto/vault-key', () => ({
   sealVaultKey: sealVaultKeyMock,
 }))
 
-vi.mock('../../../shared/api/account-api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../shared/api/account-api')>()
+vi.mock('../api/account-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../api/account-api')>()
   return { ...actual, createDefaultVault: createDefaultVaultMock }
 })
 

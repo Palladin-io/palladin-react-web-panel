@@ -189,4 +189,42 @@ describe('auth-store', () => {
     expect(state.isOnboarded).toBe(true)
     expect(state.isVaultLocked).toBe(false)
   })
+
+  it('setTokens reflects emailVerified from the response body', () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-123',
+      refreshToken: 'refresh-456',
+      userId: 'user-789',
+      isOnboarded: true,
+      emailVerified: false,
+    })
+    expect(useAuthStore.getState().emailVerified).toBe(false)
+  })
+
+  it('does not regress emailVerified from true to false on a stale refresh', () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-123',
+      refreshToken: 'refresh-456',
+      userId: 'user-789',
+      isOnboarded: true,
+      emailVerified: true,
+    })
+    expect(useAuthStore.getState().emailVerified).toBe(true)
+
+    // A later refresh omits / regresses the flag — the banner must not resurrect.
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-new',
+      refreshToken: 'refresh-new',
+      userId: 'user-789',
+      isOnboarded: true,
+      emailVerified: false,
+    })
+    expect(useAuthStore.getState().emailVerified).toBe(true)
+  })
+
+  it('markEmailVerified flips the flag to true', () => {
+    expect(useAuthStore.getState().emailVerified).toBe(false)
+    useAuthStore.getState().markEmailVerified()
+    expect(useAuthStore.getState().emailVerified).toBe(true)
+  })
 })

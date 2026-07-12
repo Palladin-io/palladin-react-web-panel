@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
+import { Icon } from '../../shared/components/icon'
 import { ExportDialog, useVaults } from '../vaults'
 import { OrgSettingsForm } from './components/org-settings-form'
 import { useOrg } from './use-org'
@@ -42,10 +44,31 @@ export function SettingsPage() {
             <OrgSettingsForm key={org.data.orgId} org={org.data} />
           )}
 
+          <SecuritySection />
           <DataExportSection />
         </div>
       </div>
     </div>
+  )
+}
+
+/** Link card to the account security screen (password + 2FA). */
+function SecuritySection() {
+  const { t } = useTranslation()
+  return (
+    <Link
+      to="/security"
+      className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--cv-border)]
+        bg-[var(--cv-card-bg)] p-5 transition-colors hover:bg-[var(--cv-card-hover)]"
+    >
+      <div className="min-w-0">
+        <h2 className="text-[13px] font-bold text-[var(--cv-t1)]">
+          {t('settings.security.title')}
+        </h2>
+        <p className="mt-1 text-[12px] text-[var(--cv-t3)]">{t('settings.security.subtitle')}</p>
+      </div>
+      <Icon name="chevron_right" size={20} className="shrink-0 text-[var(--cv-t3)]" />
+    </Link>
   )
 }
 

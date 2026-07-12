@@ -8,6 +8,17 @@ export interface AccountResponse {
   /** Backend field indicating account setup is complete. */
   isOnboarded: boolean
   /**
+   * Whether the account's email is verified. OAuth accounts are always true.
+   * Optional — older backends omit it; consumers default to `true` so the
+   * verify banner never shows for accounts the server can't report on.
+   */
+  emailVerified?: boolean
+  /**
+   * Whether TOTP two-factor authentication is enabled on the account. Optional —
+   * older backends omit it; the security screen defaults it to `false`.
+   */
+  totpEnabled?: boolean
+  /**
    * Server-derived onboarding step completion. Optional — older backends omit
    * it; consumers default each flag to `false`. `mobileRegistered` is the only
    * step the client can't derive locally (it needs the user's push devices).
@@ -86,6 +97,36 @@ export function setupAccount(payload: SetupAccountPayload): Promise<void> {
  */
 export function recoverAccount(payload: RecoverAccountPayload): Promise<void> {
   return api.put('api/account/recovery', { json: payload }).json<void>()
+}
+
+/**
+ * Payload for an authenticated master-password change (Variant A: the login
+ * password is the master password). The client re-derives both keys from the
+ * new password and ships the fresh master-side material + the new auth
+ * credential. Recovery material is deliberately NOT included — a change-password
+ * flow doesn't hold the recovery mnemonic, so the recovery wrapping is left
+ * untouched and the old recovery phrase keeps working.
+ */
+export interface ChangeMasterPasswordPayload {
+  /** base64 new 16-byte Argon2id salt for the new master key. */
+  salt: string
+  /** base64 private key re-wrapped with the new master key (nonce prepended). */
+  encryptedPrivateKey: string
+  /** base64 new Argon2id auth-hash sent to the server (server re-hashes at rest). */
+  authHash: string
+  /** base64 new 16-byte salt used to derive `authHash` (returned pre-login). */
+  authSalt: string
+}
+
+/**
+ * Change the master password while authenticated. Endpoint pending backend
+ * confirmation (CVT-268) — expected to be a JWT-authed route that updates the
+ * master + auth material without touching recovery.
+ */
+export function changeMasterPassword(
+  payload: ChangeMasterPasswordPayload,
+): Promise<void> {
+  return api.put('api/account/master-password', { json: payload }).json<void>()
 }
 
 /**
