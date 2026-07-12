@@ -66,6 +66,10 @@ export function getAnalyticsHeaders(): Record<string, string> {
   const { browser, os } = parseUserAgent()
   headers['x-user-agent'] = `Palladin/web (${browser}; ${os})`
 
+  // Explicit platform dimension for backend analytics (be:* events → platform).
+  // A dedicated header, not parsed from the user-agent — robust and unambiguous.
+  headers['x-platform'] = 'web'
+
   return headers
 }
 

@@ -4,9 +4,7 @@ import type { AuthResponse } from '../../../shared/api/types'
 import { useAuthStore } from '../stores/auth-store'
 
 export function oauthGoogle(token: string): Promise<AuthResponse> {
-  return api
-    .post('api/auth/oauth/google', { json: { token, platform: 'web' } })
-    .json()
+  return api.post('api/auth/oauth/google', { json: { token } }).json()
 }
 
 // ─── Email + password (Variant A: login password IS the master password) ──────
@@ -47,10 +45,7 @@ export function isTotpRequired(
 }
 
 export function register(payload: RegisterPayload): Promise<AuthResponse> {
-  // Tag the sign-up platform for analytics (be:identity:user-signed-up →
-  // platform). Hardcoded at the API boundary like the OAuth call, so every
-  // web registration reports "web" instead of the server's "unknown" default.
-  return api.post('api/auth/register', { json: { ...payload, platform: 'web' } }).json()
+  return api.post('api/auth/register', { json: payload }).json()
 }
 
 /**
