@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
 import { ACCOUNT_QUERY_KEY } from '../../../shared/api/account-api'
 import { verifyEmail } from '../api/auth-api'
-import { useAuthStore } from '../stores/auth-store'
+import { getIsAuthenticated, useAuthStore } from '../stores/auth-store'
 
 /** Outcome the verification-result screen renders. */
 export type VerifyEmailOutcome = 'verified' | 'expired' | 'invalid'
@@ -32,10 +32,16 @@ export function useVerifyEmail() {
     mutationFn: async (token: string) => {
       try {
         await verifyEmail(token)
-        // Reflect verification in the session if the user is logged in, so the
-        // banner (which reads the account query) disappears immediately.
-        useAuthStore.getState().markEmailVerified()
-        queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY })
+        // Only reflect verification into THIS browser's session when it's the
+        // logged-in user's own session. The verification link may be opened
+        // anonymously (or after signing into a different account on the same
+        // browser) — writing `emailVerified: true` there would poison the
+        // persisted, anti-regress store and hide the banner for a later account
+        // that genuinely isn't verified.
+        if (getIsAuthenticated()) {
+          useAuthStore.getState().markEmailVerified()
+          queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY })
+        }
         return 'verified'
       } catch (error) {
         return classifyError(error)

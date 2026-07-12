@@ -33,11 +33,11 @@ export function VerifyEmailBanner() {
   return (
     <div
       role="status"
-      className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-[rgba(212,130,10,0.3)]
-        bg-[rgba(212,130,10,0.08)] px-4 py-2.5 text-[11px] text-[var(--cv-t1)]
-        dark:border-[rgba(240,192,64,0.25)] dark:bg-[rgba(240,192,64,0.1)]"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b
+        border-[rgb(var(--cv-premium-rgb)/0.3)] bg-[rgb(var(--cv-premium-rgb)/0.08)]
+        px-4 py-2.5 text-[11px] text-[var(--cv-t1)]"
     >
-      <MailWarning size={16} className="shrink-0 text-[#D4820A] dark:text-[#F0C040]" />
+      <MailWarning size={16} className="shrink-0 text-[var(--cv-premium)]" />
       <span className="flex-1">
         <span className="font-semibold">{t('verifyEmail.banner.title')}</span>{' '}
         <span className="text-[var(--cv-t2)]">
@@ -50,9 +50,9 @@ export function VerifyEmailBanner() {
         type="button"
         onClick={resend}
         disabled={isPending || cooldown > 0}
-        className="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-semibold text-[#D4820A]
-          transition-colors hover:bg-[rgba(212,130,10,0.12)] disabled:cursor-not-allowed
-          disabled:opacity-60 dark:text-[#F0C040] dark:hover:bg-[rgba(240,192,64,0.14)]"
+        className="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-semibold text-[var(--cv-premium)]
+          transition-colors hover:bg-[rgb(var(--cv-premium-rgb)/0.12)] disabled:cursor-not-allowed
+          disabled:opacity-60"
       >
         {resendLabel}
       </button>

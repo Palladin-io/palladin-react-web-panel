@@ -22,7 +22,7 @@ export function useResendVerification() {
     return () => window.clearInterval(id)
   }, [cooldown])
 
-  const mutation = useMutation({
+  const { mutate, isPending, isError, isSuccess } = useMutation({
     mutationFn: resendVerificationEmail,
     onSuccess: () => {
       analytics.capture('auth', 'verification-email-resent')
@@ -30,16 +30,18 @@ export function useResendVerification() {
     },
   })
 
+  // `mutate` is referentially stable across renders (React Query guarantee), so
+  // the callback identity only changes with the values it actually reads.
   const resend = useCallback(() => {
-    if (cooldown > 0 || mutation.isPending) return
-    mutation.mutate()
-  }, [cooldown, mutation])
+    if (cooldown > 0 || isPending) return
+    mutate()
+  }, [cooldown, isPending, mutate])
 
   return {
     resend,
-    isPending: mutation.isPending,
-    isError: mutation.isError,
-    isSuccess: mutation.isSuccess,
+    isPending,
+    isError,
+    isSuccess,
     cooldown,
   }
 }
