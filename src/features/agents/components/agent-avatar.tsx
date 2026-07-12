@@ -8,7 +8,7 @@ import {
 
 export interface AgentAvatarProps {
   agent: Pick<Agent, 'name' | 'agentId' | 'iconKey'>
-  /** Outer diameter in pixels. */
+  /** Design-pixel diameter before the global comfortable-density scale. */
   size?: number
 }
 
@@ -45,11 +45,11 @@ export function AgentAvatar({ agent, size = 32 }: AgentAvatarProps) {
       aria-hidden
       className="inline-flex shrink-0 items-center justify-center rounded-full font-bold"
       style={{
-        width: size,
-        height: size,
+        width: `calc(${size}px * var(--cv-density-scale))`,
+        height: `calc(${size}px * var(--cv-density-scale))`,
         backgroundColor: hexWithAlpha(color, 0.15),
         color,
-        fontSize: Math.round(size * 0.38),
+        fontSize: `calc(${Math.round(size * 0.38)}px * var(--cv-density-scale))`,
       }}
     >
       {content}

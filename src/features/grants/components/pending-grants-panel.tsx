@@ -89,17 +89,17 @@ export function PendingGrantsPanel({
     <>
       <div className="mb-4 flex h-10 items-center gap-2">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
+          <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {t('grants.pending.title')}
           </h2>
-          <p className="text-[11px] text-[var(--cv-t3)]">
+          <p className="text-meta text-[var(--cv-t3)]">
             {t('grants.pending.subtitle')}
           </p>
         </div>
         {viewAllTo && (
           <Link
             to={viewAllTo}
-            className="shrink-0 text-xs font-medium text-[var(--cv-primary)] hover:underline"
+            className="shrink-0 text-meta font-medium text-[var(--cv-primary)] hover:underline"
           >
             {t('grants.pending.viewAll')}
           </Link>
@@ -116,10 +116,10 @@ export function PendingGrantsPanel({
             border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
         >
           <Icon name="check_circle" size={28} color="var(--cv-t3)" />
-          <p className="text-[12px] font-medium text-[var(--cv-t3)]">
+          <p className="text-ui font-medium text-[var(--cv-t3)]">
             {t('grants.pending.empty')}
           </p>
-          <p className="text-[11px] text-[var(--cv-t3)]">
+          <p className="text-meta text-[var(--cv-t3)]">
             {t('grants.pending.emptyHint')}
           </p>
         </div>
@@ -130,7 +130,7 @@ export function PendingGrantsPanel({
             [&::-webkit-scrollbar]:hidden snap-x snap-mandatory"
         >
           {items.map((grant) => (
-            <li key={grant.id} className="w-[360px] shrink-0 snap-start">
+            <li key={grant.id} className="w-[22.5rem] shrink-0 snap-start">
               <PendingGrantCard
                 grant={grant}
                 onApprove={() => setApproveTarget(grant)}
@@ -141,7 +141,7 @@ export function PendingGrantsPanel({
           ))}
         </ul>
       ) : (
-        <ul className="flex flex-col gap-[10px]">
+        <ul className="flex flex-col gap-[0.625rem]">
           {items.map((grant) => (
             <li key={grant.id}>
               <PendingGrantCard
@@ -195,7 +195,7 @@ function PendingGrantCard({
     <div className="overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
       {/* Header: agent icon + name with "requests access" as a subtitle below
           (timestamp lives in the Requested row, not the corner). */}
-      <div className="flex items-center gap-2.5 px-[14px] py-3">
+      <div className="flex items-center gap-2.5 px-[0.875rem] py-3">
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full
             bg-[rgba(16,185,129,0.12)]"
@@ -205,19 +205,19 @@ function PendingGrantCard({
         </span>
         <div className="min-w-0 flex-1">
           <p
-            className="truncate text-[13px] font-semibold text-[var(--cv-t1)]"
+            className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]"
             title={`${t('grants.pending.grantIdLabel')}: ${grant.id}`}
           >
             {agentName}
           </p>
-          <p className="truncate text-[11px] text-[var(--cv-t3)]">
+          <p className="truncate text-meta text-[var(--cv-t3)]">
             {t('grants.pending.requestsAccess')}
           </p>
         </div>
       </div>
 
       {/* Detail rows: aligned label column + value, all rows equal height. */}
-      <div className="flex flex-col gap-2 border-t border-[var(--cv-divider)] px-[14px] py-3">
+      <div className="flex flex-col gap-2 border-t border-[var(--cv-divider)] px-[0.875rem] py-3">
         <DetailRow label={t('grants.pending.rowEntry')}>
           {grant.entryId ? (
             <Link
@@ -249,7 +249,7 @@ function PendingGrantCard({
       </div>
 
       <div
-        className="flex items-center gap-2 border-t border-[var(--cv-divider)] px-[14px] py-2
+        className="flex items-center gap-2 border-t border-[var(--cv-divider)] px-[0.875rem] py-2
           bg-[var(--cv-card-footer)]"
       >
         <Button
@@ -284,7 +284,7 @@ function DetailRow({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex gap-3 text-[11px] leading-relaxed">
+    <div className="flex gap-3 text-meta leading-relaxed">
       <span className="w-20 shrink-0 font-medium text-[var(--cv-t3)]">{label}</span>
       <span className="min-w-0 flex-1">{children}</span>
     </div>
@@ -297,7 +297,7 @@ function PanelLoadingSkeleton() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="h-[96px] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]"
+          className="h-[6rem] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]"
         />
       ))}
     </div>

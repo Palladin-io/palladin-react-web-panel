@@ -92,12 +92,12 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
           </DialogFooter>
         }
       >
-        <p className="mb-3 text-[12px] text-[var(--cv-t2)]">
+        <p className="mb-3 text-ui text-[var(--cv-t2)]">
           {t('totpEnroll.recoverySubtitle')}
         </p>
         <ol className="ph-no-capture grid grid-cols-2 gap-2 rounded-lg border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3">
           {recoveryCodes.map((rc) => (
-            <li key={rc} className="font-mono text-[12px] text-[var(--cv-t1)]">
+            <li key={rc} className="font-mono text-ui text-[var(--cv-t1)]">
               {rc}
             </li>
           ))}
@@ -157,10 +157,10 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
       }
     >
       {enroll.isError ? (
-        <p className="text-[12px] text-[var(--cv-primary)]">{t('totpEnroll.errorEnroll')}</p>
+        <p className="text-ui text-[var(--cv-primary)]">{t('totpEnroll.errorEnroll')}</p>
       ) : (
         <div className="flex flex-col items-center gap-3">
-          <p className="text-center text-[12px] text-[var(--cv-t2)]">
+          <p className="text-center text-ui text-[var(--cv-t2)]">
             {t('totpEnroll.setupSubtitle')}
           </p>
 
@@ -172,7 +172,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
 
           {enroll.data && (
             <div className="w-full">
-              <p className="mb-1 text-center text-[11px] text-[var(--cv-t3)]">
+              <p className="mb-1 text-center text-meta text-[var(--cv-t3)]">
                 {t('totpEnroll.manualEntry')}
               </p>
               <FormInput

@@ -110,7 +110,7 @@ export function PasswordGeneratorPopover({
         onClick={toggle}
         className={
           triggerClassName ??
-          'inline-flex h-7 w-7 items-center justify-center rounded text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40'
+          'inline-flex h-action w-action items-center justify-center rounded text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40'
         }
       >
         <Icon name="casino" size={iconSize} />
@@ -122,14 +122,14 @@ export function PasswordGeneratorPopover({
               id={panelId}
               role="dialog"
               aria-label={t('vault.entries.generator.title')}
-              style={{ position: 'fixed', left: coords.left, top: coords.top, transform: 'translateX(-100%) translateY(6px)' }}
-              className="z-[100] w-[268px] rounded-xl border border-[var(--cv-border)]
+              style={{ position: 'fixed', left: coords.left, top: coords.top, transform: 'translateX(-100%) translateY(0.375rem)' }}
+              className="z-[100] w-[16.75rem] rounded-xl border border-[var(--cv-border)]
                 bg-[var(--cv-modal-bg)] p-3 shadow-[0_12px_32px_rgba(0,0,0,0.25)]"
             >
               <div className="mb-2.5 flex items-center gap-2">
                 <div
                   className="ph-no-capture min-w-0 flex-1 break-all rounded-lg border border-[var(--cv-input-border)]
-                    bg-[var(--cv-input-bg)] px-2.5 py-1.5 font-mono text-[12px] leading-snug text-[var(--cv-input-text)]"
+                    bg-[var(--cv-input-bg)] px-2.5 py-1.5 font-mono text-ui leading-snug text-[var(--cv-input-text)]"
                 >
                   {preview}
                 </div>
@@ -138,7 +138,7 @@ export function PasswordGeneratorPopover({
                   onClick={regenerate}
                   aria-label={t('vault.entries.generator.regenerate')}
                   title={t('vault.entries.generator.regenerate')}
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded
+                  className="inline-flex h-action w-action shrink-0 items-center justify-center rounded
                     text-[var(--cv-t3)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)] hover:text-[var(--cv-t1)]"
                 >
                   <Icon name="autorenew" size={16} />
@@ -146,7 +146,7 @@ export function PasswordGeneratorPopover({
               </div>
 
               <div className="mb-2.5">
-                <div className="mb-1 flex items-center justify-between text-[11px] font-semibold text-[var(--cv-label-text)]">
+                <div className="mb-1 flex items-center justify-between text-meta font-semibold text-[var(--cv-label-text)]">
                   <span>{t('vault.entries.generator.length')}</span>
                   <span className="tabular-nums text-[var(--cv-t2)]">{length}</span>
                 </div>
@@ -172,7 +172,7 @@ export function PasswordGeneratorPopover({
                   checked={symbols}
                   onChange={setSymbols}
                 />
-                <p className="text-[10.5px] leading-snug text-[var(--cv-t3)]">
+                <p className="text-micro leading-snug text-[var(--cv-t3)]">
                   {t('vault.entries.generator.alwaysHint')}
                 </p>
               </div>
@@ -198,7 +198,7 @@ function GeneratorToggle({
   onChange: (next: boolean) => void
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between text-[12px] text-[var(--cv-t1)]">
+    <label className="flex cursor-pointer items-center justify-between text-ui text-[var(--cv-t1)]">
       <span>{label}</span>
       <button
         type="button"
@@ -206,13 +206,13 @@ function GeneratorToggle({
         aria-checked={checked}
         aria-label={label}
         onClick={() => onChange(!checked)}
-        className={`relative h-[18px] w-[30px] shrink-0 rounded-full transition-colors ${
+        className={`relative h-[1.125rem] w-[1.875rem] shrink-0 rounded-full transition-colors ${
           checked ? 'bg-[var(--cv-primary)]' : 'bg-[var(--cv-input-border)]'
         }`}
       >
         <span
-          className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white transition-[left] ${
-            checked ? 'left-[14px]' : 'left-[2px]'
+          className={`absolute top-[0.125rem] h-[0.875rem] w-[0.875rem] rounded-full bg-white transition-[left] ${
+            checked ? 'left-[0.875rem]' : 'left-[0.125rem]'
           }`}
         />
       </button>

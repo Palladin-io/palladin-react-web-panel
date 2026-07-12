@@ -75,11 +75,11 @@ export function AuditLogEntry({
       </div>
       <div className="min-w-0 flex-1">
         <div className="mb-2 flex items-start justify-between gap-2">
-          <p className="min-w-0 text-[12px] font-normal leading-snug text-[var(--cv-t2)]">
+          <p className="min-w-0 text-ui font-normal leading-snug text-[var(--cv-t2)]">
             {primary}
           </p>
           <time
-            className="shrink-0 text-[10px] tabular-nums text-[var(--cv-t3)]"
+            className="shrink-0 text-micro tabular-nums text-[var(--cv-t3)]"
             dateTime={item.createdAt}
             title={formatAbsolute(item.createdAt)}
           >
@@ -90,7 +90,7 @@ export function AuditLogEntry({
           {chips.map((chip, i) => (
             <span
               key={i}
-              className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px]"
+              className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-micro"
               style={{ color: chip.color, background: chip.bg, border: `1px solid ${chip.border}` }}
             >
               {chip.icon ? <Icon name={chip.icon} size={11} /> : null}

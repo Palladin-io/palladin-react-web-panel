@@ -28,6 +28,7 @@ Every token has a light value in `:root` and a dark value in `.dark`. Use the to
 | Token | Role |
 |-------|------|
 | `--cv-card-bg` | Card / list-row surface |
+| `--cv-search-bg` | Search/filter chrome; aliases the card surface, not the form input surface |
 | `--cv-card-hover` | Card hover lift (used by `HOVERABLE_CARD_CLASSES`) |
 | `--cv-card-footer` | Card footer strip |
 | `--cv-modal-bg` | Modal background |
@@ -104,12 +105,35 @@ Tailwind utilities, applied consistently (no radius/spacing tokens exist — the
 | Input / button radius | `rounded-lg` |
 | Avatars, pills, chips | `rounded-full` |
 | Page container padding | `px-4 py-4` (the `panel-content` standard) |
-| Body / control text | `text-[12px]` (inputs, buttons, most UI) |
-| Secondary / meta text | `text-[11px]` |
-| Micro labels | `text-[10px]` |
-| Section / card headings | `text-[13px]`–`text-[15px]` |
+| Body / control text | `text-ui` (15px) |
+| Secondary / meta text | `text-meta` (14px) |
+| Button label | `text-action` (14px, semibold) |
+| Micro labels | `text-micro` (12px minimum) |
+| Small heading | `text-heading-sm` (16px) |
+| Section / card heading | `text-heading` (18px) |
+| Page title | `text-page-title` (24px) |
+| Auth title | `text-auth-title` (27.5px) |
+| Display / hero | `text-display` (35px) |
 
-When in doubt, copy the prevailing value from a neighbouring canonical component (Vaults / Agents / org-grants) rather than introducing a new one.
+The semantic type utilities above are generated from `--text-*` tokens in the
+`@theme` block in `src/index.css`. The root `html` font size is 125%, matching
+the panel's former comfortable browser-zoom working size. This scales standard
+Tailwind spacing, radii and dimensions together; `--cv-density-scale` covers
+numeric icon/avatar sizes that cannot inherit rem sizing.
+
+Use semantic utilities instead of arbitrary `text-[Npx]` values. Inputs are
+44px high (`h-control`), default buttons are 36px high (`h-action`) with
+14px `text-action` labels, the sidebar
+is 250px wide (`w-sidebar`), and no informational text renders below 12px.
+Never add CSS `zoom` or `transform: scale()` to simulate density.
+
+All list/search surfaces use the shared `SearchBar`: `h-control`, `text-ui`, a
+16-design-pixel search icon, and `--cv-search-bg` (the same surface as cards).
+Form fields deliberately remain on `--cv-input-bg` so editable data stands out.
+
+When in doubt, choose the token by semantic role rather than copying a nearby
+pixel value. Monospace content (keys, hashes, script) uses the same size token
+as its surrounding role; only the font family changes.
 
 ## Adding a new token
 

@@ -31,28 +31,28 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`group flex min-w-[280px] flex-1 flex-col items-stretch overflow-hidden text-left ${HOVERABLE_CARD_CLASSES}`}
+      className={`group flex min-w-[17.5rem] flex-1 flex-col items-stretch overflow-hidden text-left ${HOVERABLE_CARD_CLASSES}`}
     >
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-2">
           <VaultIconCircle icon={icon} color={accent} size={32} iconSize={16} />
           <div className="flex flex-col gap-0.5 text-left">
-            <span className="text-[13px] font-bold text-[var(--cv-t1)]">
+            <span className="text-heading-sm font-bold text-[var(--cv-t1)]">
               {vault.name}
             </span>
-            <span className="text-[11px] text-[var(--cv-t3)]">
+            <span className="text-micro text-[var(--cv-t3)]">
               {t('vault.entries', { count: vault.entryCount ?? 0 })}
             </span>
           </div>
         </div>
-        <span className="text-[11px] text-[var(--cv-t3)]">
+        <span className="text-meta text-[var(--cv-t3)]">
           {t('vault.grants', { count: vault.activeGrantCount ?? 0 })}
         </span>
       </div>
 
       {footerLabel ? (
         <div className="flex items-center justify-end border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
-          <span className="text-[11px] text-[var(--cv-t3)]">{footerLabel}</span>
+          <span className="text-meta text-[var(--cv-t3)]">{footerLabel}</span>
         </div>
       ) : null}
     </button>

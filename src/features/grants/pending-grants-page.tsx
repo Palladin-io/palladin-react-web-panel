@@ -24,7 +24,7 @@ import { usePendingGrants } from './use-pending-grants'
  * never blank.
  */
 export function PendingGrantsPage() {
-  const isWide = useWideScreen(1280)
+  const isWide = useWideScreen()
   const permissions = useAuthStore((s) => s.permissions)
   const canManageGrants = (permissions & PERMISSION_GRANT_MANAGE) !== 0
 
@@ -37,7 +37,7 @@ export function PendingGrantsPage() {
     return (
       <div className="flex h-full text-[var(--cv-t1)]">
         {showPending && (
-          <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
+          <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
             <div className="px-4 py-4">
               <PendingGrantsPanel />
             </div>

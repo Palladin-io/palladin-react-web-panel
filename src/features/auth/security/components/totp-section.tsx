@@ -28,14 +28,14 @@ export function TotpSection() {
     <section className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="text-[13px] font-bold text-[var(--cv-t1)]">
+          <h2 className="text-heading-sm font-bold text-[var(--cv-t1)]">
             {t('security.totp.title')}
           </h2>
-          <p className="mt-1 text-[12px] text-[var(--cv-t3)]">{t('security.totp.subtitle')}</p>
+          <p className="mt-1 text-ui text-[var(--cv-t3)]">{t('security.totp.subtitle')}</p>
         </div>
         <span
           className={
-            'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ' +
+            'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-meta font-semibold ' +
             (enabled
               ? 'bg-[rgb(var(--cv-success-rgb)/0.12)] text-[var(--cv-success)]'
               : 'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-t3)]')

@@ -76,7 +76,7 @@ export function EntryIconButton({
         aria-label={t('vault.entries.iconLabel')}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="grid h-9 w-9 place-items-center rounded-[10px] border border-[var(--cv-input-border)]
+        className="grid h-9 w-9 place-items-center rounded-[0.625rem] border border-[var(--cv-input-border)]
           transition-colors hover:border-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         <EntryIcon icon={icon} type={type} color={color} className="grid h-8 w-8 place-items-center rounded-lg" />
@@ -87,7 +87,7 @@ export function EntryIconButton({
               ref={popRef}
               role="dialog"
               style={{ position: 'fixed', left: coords.left, top: coords.top }}
-              className="z-[100] w-[288px] rounded-xl border border-[var(--cv-border)]
+              className="z-[100] w-[18rem] rounded-xl border border-[var(--cv-border)]
                 bg-[var(--cv-modal-bg)] p-3 shadow-[0_12px_32px_rgba(0,0,0,0.25)]"
             >
               <EntryIconPicker

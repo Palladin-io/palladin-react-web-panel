@@ -176,7 +176,7 @@ export function DashboardPage() {
         <div className="flex flex-col gap-6">
           <section>
             <div className="mb-2">
-              <span className="text-sm font-semibold text-[var(--cv-t1)]">
+              <span className="text-ui font-semibold text-[var(--cv-t1)]">
                 {t('dashboard.pendingApprovals')}
               </span>
             </div>

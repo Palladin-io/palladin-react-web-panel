@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
+import { SearchBar } from '../../../shared/components/search-bar'
 import { Tooltip } from '../../../shared/components/tooltip'
 import { TypeFilterDropdown } from '../../../shared/components/type-filter-dropdown'
 import { useAuthStore } from '../../auth'
@@ -168,30 +169,22 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
       {!embedded && !bare && (
         <div className="mb-4 flex h-10 items-center gap-2">
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
+            <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
               {t('grants.org.title')}
             </h2>
-            {summary && <p className="text-[11px] text-[var(--cv-t3)]">{summary}</p>}
+            {summary && <p className="text-meta text-[var(--cv-t3)]">{summary}</p>}
           </div>
         </div>
       )}
 
       {/* Search (left) + status multi-select dropdown (right) */}
       <div className="mb-3 flex items-stretch gap-2">
-        <div
-          className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--cv-input-border)]
-            bg-[var(--cv-input-bg)] px-3 py-2 transition-colors focus-within:border-[var(--cv-t1)]"
-        >
-          <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('grants.org.searchPlaceholder')}
-            className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)]
-              placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
-          />
-        </div>
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder={t('grants.org.searchPlaceholder')}
+          className="flex-1"
+        />
         <TypeFilterDropdown
           options={statusOptions}
           selected={statusFilter as Set<string>}
@@ -214,7 +207,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
             border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
         >
           <Icon name="lock" size={28} color="var(--cv-t3)" />
-          <p className="text-[12px] font-medium text-[var(--cv-t3)]">
+          <p className="text-ui font-medium text-[var(--cv-t3)]">
             {t('grants.org.noPermission')}
           </p>
         </div>
@@ -228,13 +221,13 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
             border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
         >
           <Icon name="history" size={28} color="var(--cv-t3)" />
-          <p className="text-[12px] font-medium text-[var(--cv-t3)]">
+          <p className="text-ui font-medium text-[var(--cv-t3)]">
             {t('grants.org.empty')}
           </p>
         </div>
       ) : bare ? (
         // Flat grid — no time-bucket headers (inbox Grants segment).
-        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] items-start gap-[10px]">
+        <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,21.25rem),1fr))] items-start gap-[0.625rem]">
           {filtered.map((grant) => (
             <li key={grant.id}>
               <OrgGrantRow
@@ -252,7 +245,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
             <div key={bucket}>
               {/* "Today" gets no header (it's obvious the newest are today). */}
               {bucket !== 'today' && (
-                <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--cv-t3)]">
+                <p className="mb-2 text-micro font-semibold uppercase tracking-wide text-[var(--cv-t3)]">
                   {t(`grants.org.group.${bucket}`)}
                 </p>
               )}
@@ -260,7 +253,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
                   columns when the panel is wide, so cards stay compact instead
                   of stretching full-width. items-start keeps each card at its
                   natural height. */}
-              <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,340px),1fr))] items-start gap-[10px]">
+              <ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,21.25rem),1fr))] items-start gap-[0.625rem]">
                 {rows.map((grant) => (
                   <li key={grant.id}>
                     <OrgGrantRow
@@ -323,19 +316,19 @@ function OrgGrantRow({
       {/* Agent section — compact single row: real avatar + name + a small
           self-contained status pill + relative time. The pill keeps the status
           colour contained so the card doesn't flood with colour. */}
-      <div className="flex items-center gap-2 px-[14px] py-2.5">
+      <div className="flex items-center gap-2 px-[0.875rem] py-2.5">
         <AgentAvatar
           agent={{ name: agentName, agentId: grant.agentId ?? '', iconKey: grant.agentIconKey ?? null }}
           size={28}
         />
         <p
-          className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--cv-t1)]"
+          className="min-w-0 flex-1 truncate text-heading-sm font-semibold text-[var(--cv-t1)]"
           title={`${t('grants.pending.grantIdLabel')}: ${grant.id}`}
         >
           {agentName}
         </p>
         <span
-          className="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-micro font-semibold"
           style={{ color: presentation.color, background: presentation.bg }}
         >
           <span
@@ -346,7 +339,7 @@ function OrgGrantRow({
           {t(presentation.labelKey)}
         </span>
         <span
-          className="shrink-0 text-[10px] text-[var(--cv-t3)]"
+          className="shrink-0 text-micro text-[var(--cv-t3)]"
           title={formatGrantDate(grant.createdAt)}
         >
           {formatRelativeTime(grant.createdAt, t)}
@@ -357,7 +350,7 @@ function OrgGrantRow({
           Reason) so every card is the same height in the grid. Each value is
           single-line truncated with a hover tooltip showing the full content
           (e.g. a long Access reason). */}
-      <div className="flex flex-col gap-2 border-t border-[var(--cv-divider)] px-[14px] py-3 text-[11px]">
+      <div className="flex flex-col gap-2 border-t border-[var(--cv-divider)] px-[0.875rem] py-3 text-meta">
         {isFull ? (
           // FULL grant covers the whole vault — show "Vault", not a (missing) entry.
           <Row label={t('grants.org.rowVault')} tooltip={vaultName}>
@@ -405,7 +398,7 @@ function OrgGrantRow({
 
       {(grant.canRevoke || grant.canGrantAgain) && (
         <div
-          className="flex min-h-[46px] items-center gap-2 border-t border-[var(--cv-divider)] px-[14px] py-2
+          className="flex min-h-[2.875rem] items-center gap-2 border-t border-[var(--cv-divider)] px-[0.875rem] py-2
             bg-[var(--cv-card-footer)]"
         >
           {grant.canRevoke && (
@@ -439,12 +432,12 @@ function OrgGrantRow({
           empty footer — centred, same height as the action footer. */}
       {isTerminal(grant.status) && !grant.canGrantAgain && !grant.canRevoke && (
         <div
-          className="flex min-h-[46px] items-center justify-center gap-1.5 border-t border-[var(--cv-divider)]
-            px-[14px] py-2 bg-[var(--cv-card-footer)]"
+          className="flex min-h-[2.875rem] items-center justify-center gap-1.5 border-t border-[var(--cv-divider)]
+            px-[0.875rem] py-2 bg-[var(--cv-card-footer)]"
           title={t('grants.org.alreadyActiveHint')}
         >
           <Icon name="check_circle" size={14} color="#10B981" />
-          <span className="text-[11px] font-semibold text-[#10B981]">
+          <span className="text-meta font-semibold text-[#10B981]">
             {t('grants.org.alreadyActive')}
           </span>
         </div>
@@ -476,7 +469,7 @@ function PanelLoadingSkeleton() {
   return (
     <div className="flex flex-col gap-2">
       {[0, 1, 2].map((i) => (
-        <div key={i} className="h-[140px] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
+        <div key={i} className="h-[8.75rem] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
       ))}
     </div>
   )

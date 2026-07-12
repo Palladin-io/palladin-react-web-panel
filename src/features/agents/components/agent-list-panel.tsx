@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../../shared/components/error-state'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { Icon } from '../../../shared/components/icon'
+import { SearchBar } from '../../../shared/components/search-bar'
 import { AGENT_STATUS_ACTIVE } from '../api/agents-api'
 import { useAgents } from '../use-agents'
 import { AgentCard } from './agent-card'
@@ -47,10 +48,10 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
+          <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {t('agents.title')}
           </h2>
-          <p className="text-[11px] text-[var(--cv-t3)]">
+          <p className="text-meta text-[var(--cv-t3)]">
             {t('agents.summary', { total: list.length, active: activeCount })}
           </p>
         </div>
@@ -66,46 +67,33 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
             border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
         >
           <Icon name="smart_toy" size={28} color="var(--cv-t3)" />
-          <p className="text-[12px] font-medium text-[var(--cv-t3)]">
+          <p className="text-ui font-medium text-[var(--cv-t3)]">
             {t('agents.empty')}
           </p>
-          <p className="text-[11px] text-[var(--cv-t3)]">
+          <p className="text-meta text-[var(--cv-t3)]">
             {t('agents.emptyHint')}
           </p>
         </div>
       ) : (
         <>
-          <div className="mb-3 shrink-0">
-            <div
-              className="flex items-center gap-2 rounded-lg border border-[var(--cv-input-border)]
-                bg-[var(--cv-input-bg)] px-3 py-2 transition-colors focus-within:border-[var(--cv-t1)]"
-            >
-              <Icon
-                name="search"
-                size={16}
-                className="shrink-0 text-[var(--cv-input-placeholder)]"
-              />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('agents.searchPlaceholder')}
-                className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)]
-                  placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
-              />
-            </div>
-          </div>
+          <SearchBar
+            name="search"
+            value={search}
+            onChange={setSearch}
+            placeholder={t('agents.searchPlaceholder')}
+            className="mb-3 shrink-0"
+          />
 
           <ScrollArea>
             {filtered.length === 0 ? (
               <div
                 className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-                  bg-[var(--cv-empty-bg)] p-8 text-center text-[12px] text-[var(--cv-t3)]"
+                  bg-[var(--cv-empty-bg)] p-8 text-center text-ui text-[var(--cv-t3)]"
               >
                 {t('agents.empty')}
               </div>
             ) : (
-              <ul className="flex flex-col gap-[10px]">
+              <ul className="flex flex-col gap-[0.625rem]">
                 {filtered.map((agent) => (
                   <li key={agent.agentId}>
                     <AgentCard
@@ -130,7 +118,7 @@ function PanelLoadingSkeleton() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="h-[62px] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]"
+          className="h-[3.875rem] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]"
         />
       ))}
     </div>

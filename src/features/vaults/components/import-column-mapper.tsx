@@ -43,7 +43,7 @@ export function ImportColumnMapper({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[11px] text-[var(--cv-t3)]">
+      <p className="text-meta text-[var(--cv-t3)]">
         {t('vault.import.mapper.description')}
       </p>
 
@@ -68,7 +68,7 @@ export function ImportColumnMapper({
 
       {previewRows.length > 0 ? (
         <div className="overflow-x-auto rounded-lg border border-[var(--cv-border)]">
-          <table className="w-full text-left text-[11px]">
+          <table className="w-full text-left text-meta">
             <thead>
               <tr className="border-b border-[var(--cv-border)] text-[var(--cv-t3)]">
                 {unmapped.headers.map((header) => (
@@ -82,7 +82,7 @@ export function ImportColumnMapper({
               {previewRows.map((row, i) => (
                 <tr key={i} className="border-b border-[var(--cv-divider)] last:border-0">
                   {unmapped.headers.map((header) => (
-                    <td key={header} className="max-w-[160px] truncate px-2 py-1.5 text-[var(--cv-t2)]">
+                    <td key={header} className="max-w-[10rem] truncate px-2 py-1.5 text-[var(--cv-t2)]">
                       {row[header]}
                     </td>
                   ))}

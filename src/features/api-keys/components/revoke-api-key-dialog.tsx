@@ -43,7 +43,7 @@ export function RevokeApiKeyDialog({
         </DialogFooter>
       }
     >
-      <p className="text-[12px] text-[var(--cv-t2)]">
+      <p className="text-ui text-[var(--cv-t2)]">
         {t('apiKeys.revokeConfirmText')}
       </p>
     </ModalShell>

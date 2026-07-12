@@ -79,7 +79,7 @@ export function PremiumGateDialog({ open, onClose }: PremiumGateDialogProps) {
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-[13px] leading-relaxed text-[var(--cv-t2)]">
+        <p className="text-heading-sm leading-relaxed text-[var(--cv-t2)]">
           {t('vault.premiumGate.description')}
         </p>
 
@@ -95,7 +95,7 @@ export function PremiumGateDialog({ open, onClose }: PremiumGateDialogProps) {
 
 function PremiumPerk({ label }: { label: string }) {
   return (
-    <li className="flex items-center gap-2 text-[12px] text-[var(--cv-t2)]">
+    <li className="flex items-center gap-2 text-ui text-[var(--cv-t2)]">
       <Icon
         name="check_circle"
         size={14}

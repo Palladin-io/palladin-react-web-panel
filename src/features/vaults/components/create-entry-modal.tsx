@@ -280,7 +280,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           <div>
             <label
               htmlFor="entry-label"
-              className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
+              className="mb-1 block text-meta font-semibold text-[var(--cv-label-text)]"
             >
               {t('vault.entries.labelLabel')}
               <span className="ml-1.5 font-normal text-[var(--cv-t3)]">{visibleNote}</span>
@@ -397,7 +397,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               <div>
                 <label
                   htmlFor="entry-interpreter"
-                  className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-[var(--cv-label-text)]"
+                  className="mb-1 flex items-center gap-2 text-meta font-semibold text-[var(--cv-label-text)]"
                 >
                   <span>{t('vault.entries.script.bodyLabel')}</span>
                   <span className="flex-1" />
@@ -407,7 +407,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                     value={interpreter}
                     onChange={(e) => setInterpreter(e.target.value as ScriptInterpreter)}
                     disabled={isPending}
-                    className="cursor-pointer appearance-none border-0 bg-transparent pr-1 text-[11.5px]
+                    className="cursor-pointer appearance-none border-0 bg-transparent pr-1 text-meta
                       font-normal text-[var(--cv-t2)] outline-none disabled:cursor-not-allowed"
                   >
                     {SCRIPT_INTERPRETERS.map((option) => (

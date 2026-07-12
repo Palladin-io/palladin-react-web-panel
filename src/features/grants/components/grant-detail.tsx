@@ -20,10 +20,10 @@ export interface GrantDetailProps {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-4 py-2">
-      <span className="shrink-0 text-[11px] font-semibold text-[var(--cv-t3)]">
+      <span className="shrink-0 text-meta font-semibold text-[var(--cv-t3)]">
         {label}
       </span>
-      <span className="min-w-0 break-words text-right text-[12px] text-[var(--cv-t1)]">
+      <span className="min-w-0 break-words text-right text-ui text-[var(--cv-t1)]">
         {value}
       </span>
     </div>
@@ -78,15 +78,15 @@ export function GrantDetail({ grant }: GrantDetailProps) {
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[16px] font-bold text-[var(--cv-t1)]">
+          <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {target}
           </h2>
-          <p className="mt-0.5 text-[11px] text-[var(--cv-t3)]">
+          <p className="mt-0.5 text-meta text-[var(--cv-t3)]">
             {grant.agentName ?? t('grants.unknownAgent')}
           </p>
         </div>
         <span
-          className="inline-flex shrink-0 items-center gap-1 text-[11px] font-bold"
+          className="inline-flex shrink-0 items-center gap-1 text-meta font-bold"
           style={{ color: presentation.color }}
         >
           ● {t(presentation.labelKey)}
@@ -108,7 +108,7 @@ export function GrantDetail({ grant }: GrantDetailProps) {
         )}
         {grantMethods.length > 0 && (
           <div className="flex items-start justify-between gap-4 py-2">
-            <span className="shrink-0 text-[11px] font-semibold text-[var(--cv-t3)]">
+            <span className="shrink-0 text-meta font-semibold text-[var(--cv-t3)]">
               {t('grants.detail.methods')}
             </span>
             <GrantMethodsBadges methods={grantMethods} />
@@ -146,10 +146,10 @@ export function GrantDetail({ grant }: GrantDetailProps) {
           className="rounded-2xl border border-[rgb(var(--cv-primary-rgb)/0.25)]
             bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
         >
-          <p className="text-[12px] font-semibold text-[var(--cv-t1)]">
+          <p className="text-ui font-semibold text-[var(--cv-t1)]">
             {t('grants.revokeZoneTitle')}
           </p>
-          <p className="mt-1 text-[11px] text-[var(--cv-t3)]">
+          <p className="mt-1 text-meta text-[var(--cv-t3)]">
             {t('grants.revokeZoneHint')}
           </p>
           <Button
@@ -180,9 +180,9 @@ export function GrantDetailEmpty() {
   const { t } = useTranslation()
   return (
     <div
-      className="flex h-full min-h-[200px] items-center justify-center rounded-2xl
+      className="flex h-full min-h-[12.5rem] items-center justify-center rounded-2xl
         border border-dashed border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)]
-        p-8 text-center text-[12px] text-[var(--cv-t3)]"
+        p-8 text-center text-ui text-[var(--cv-t3)]"
     >
       {t('grants.selectGrant')}
     </div>

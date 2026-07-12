@@ -43,17 +43,17 @@ export function AgentCard({ agent, isSelected }: AgentCardProps) {
       <Link
         to="/agents/$agentId"
         params={{ agentId: agent.agentId }}
-        className="flex items-center gap-[10px] px-[14px] py-3"
+        className="flex items-center gap-[0.625rem] px-[0.875rem] py-3"
       >
         <AgentAvatar agent={agent} size={36} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--cv-t1)]">
+            <p className="min-w-0 flex-1 truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
               {agentDisplayName(agent, t('agents.unnamed'))}
             </p>
             <AgentStatusBadge status={agent.status} />
           </div>
-          <p className={`mt-0.5 truncate text-[var(--cv-t3)] ${agent.type ? 'text-[11px]' : 'font-mono text-[10px]'}`}>
+          <p className={`mt-0.5 truncate text-[var(--cv-t3)] ${agent.type ? 'text-meta' : 'font-mono text-micro'}`}>
             {subtitle}
           </p>
         </div>
@@ -61,7 +61,7 @@ export function AgentCard({ agent, isSelected }: AgentCardProps) {
 
       {/* Footer */}
       <div
-        className="flex items-center justify-between px-[14px] py-2
+        className="flex items-center justify-between px-[0.875rem] py-2
           border-t border-[var(--cv-divider)]
           bg-[var(--cv-card-footer)]"
       >
@@ -72,7 +72,7 @@ export function AgentCard({ agent, isSelected }: AgentCardProps) {
             color={isDeactivated ? 'var(--cv-primary)' : 'var(--cv-t3)'}
             className="shrink-0"
           />
-          <span className="truncate text-[10px] text-[var(--cv-t3)]">
+          <span className="truncate text-micro text-[var(--cv-t3)]">
             {cardFooterText(agent, t)}
           </span>
         </div>

@@ -284,7 +284,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
 
   return (
     <aside
-      className="flex h-full w-[200px] flex-shrink-0 flex-col border-r"
+      className="flex h-full w-sidebar flex-shrink-0 flex-col border-r"
       style={{
         background: SIDEBAR_BG[theme],
         borderRightColor: borderColor,
@@ -292,14 +292,14 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
     >
       {/* Logo header — logo + wordmark + rotating welcome, divider mirrors the profile's */}
       <div
-        className="border-b px-4 py-5"
+        className="border-b px-5 py-5"
         style={{ borderBottomColor: borderColor }}
       >
         <AppWordmark
           size="sm"
           subtitle={
             <p
-              className="mt-0.5 truncate text-[10px] font-medium"
+              className="mt-1 truncate text-micro font-medium"
               style={{ color: mutedColor }}
             >
               {displayName || email
@@ -327,45 +327,45 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
 
       {/* Profile */}
       <div
-        className="mt-auto border-t px-4 py-3"
+        className="mt-auto border-t px-4 py-4"
         style={{ borderTopColor: borderColor }}
       >
         {/* Avatar + name */}
-        <div className="mb-3 flex items-center gap-2">
+        <div className="mb-3.5 flex items-center gap-2.5">
           <span
-            className="flex h-7 w-7 shrink-0 items-center justify-center
-              rounded-full text-[10px] font-bold"
+            className="flex h-8 w-8 shrink-0 items-center justify-center
+              rounded-full text-micro font-bold"
             style={{ background: '#FFAB87', color: '#0C0E12' }}
           >
             {initials || '?'}
           </span>
           <div className="min-w-0">
             <p
-              className="truncate text-[11px] font-medium"
+              className="truncate text-meta font-medium"
               style={{ color: textColor }}
             >
               {displayName || email}
             </p>
-            <p className="text-[10px]" style={{ color: mutedColor }}>
+            <p className="text-micro" style={{ color: mutedColor }}>
               {t('sidebar.freePlan')}
             </p>
           </div>
         </div>
 
         {/* Actions row */}
-        <div className="relative flex items-center gap-1">
+        <div className="relative flex items-center justify-between gap-2">
           {/* Language dropdown trigger */}
           <button
             type="button"
             onClick={() => setLangOpen((o) => !o)}
-            className="flex h-6 items-center gap-1 rounded px-1.5 text-[11px]
+            className="flex h-action items-center gap-1.5 rounded px-2 text-meta
               transition-colors hover:bg-[rgba(232,234,237,0.06)]"
             style={{ color: mutedColor }}
             title={t('nav.languageMenu')}
           >
             <span>{currentFlag}</span>
-            <span className="text-[9px] font-semibold">{currentLang.toUpperCase()}</span>
-            <Icon name="expand_more" size={12} />
+            <span className="text-micro font-semibold">{currentLang.toUpperCase()}</span>
+            <Icon name="expand_more" size={14} />
           </button>
 
           {/* Language dropdown */}
@@ -377,7 +377,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
                 onClick={() => setLangOpen(false)}
               />
               <div
-                className="absolute bottom-8 left-0 z-20 min-w-[120px] overflow-hidden
+                className="absolute bottom-8 left-0 z-20 min-w-[7.5rem] overflow-hidden
                   rounded-lg border shadow-xl"
                 style={{
                   background: DROPDOWN_BG[theme],
@@ -390,7 +390,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
                     type="button"
                     onClick={() => selectLanguage(lang.code)}
                     className="flex w-full items-center gap-2 px-3 py-2 text-left
-                      text-[12px] transition-colors"
+                      text-ui transition-colors"
                     style={{
                       color: lang.code === currentLang ? 'var(--cv-primary)' : textColor,
                       background:
@@ -407,56 +407,56 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             </>
           )}
 
-          {/* Theme toggle */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="flex h-6 w-6 items-center justify-center rounded
-              transition-colors hover:bg-[rgba(232,234,237,0.06)]"
-            style={{ color: mutedColor }}
-            title={theme === 'dark' ? t('nav.themeSwitchToLight') : t('nav.themeSwitchToDark')}
-          >
-            <Icon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size={14} />
-          </button>
-
-          {/* Enable push notifications — only while supported and not yet
-              registered. Deliberate user action triggers the permission prompt;
-              we never request permission automatically on load. */}
-          {webPush.isSupported && webPush.status !== 'registered' && (
+          <div className="flex items-center gap-1">
+            {/* Theme toggle */}
             <button
               type="button"
-              onClick={() => void webPush.requestPermissionAndRegister()}
-              disabled={webPush.status === 'denied'}
-              className="flex h-6 w-6 items-center justify-center rounded
-                transition-colors hover:bg-[rgba(232,234,237,0.06)]
-                disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={toggleTheme}
+              className="flex h-action w-action items-center justify-center rounded
+                transition-colors hover:bg-[rgba(232,234,237,0.06)]"
               style={{ color: mutedColor }}
-              title={
-                webPush.status === 'denied'
-                  ? t('notifications.pushBlocked')
-                  : t('notifications.enablePush')
-              }
+              title={theme === 'dark' ? t('nav.themeSwitchToLight') : t('nav.themeSwitchToDark')}
             >
-              <Icon
-                name={webPush.status === 'denied' ? 'notifications_off' : 'notifications'}
-                size={14}
-              />
+              <Icon name={theme === 'dark' ? 'light_mode' : 'dark_mode'} size={14} />
             </button>
-          )}
 
-          <div className="flex-1" />
+            {/* Enable push notifications — only while supported and not yet
+                registered. Deliberate user action triggers the permission prompt;
+                we never request permission automatically on load. */}
+            {webPush.isSupported && webPush.status !== 'registered' && (
+              <button
+                type="button"
+                onClick={() => void webPush.requestPermissionAndRegister()}
+                disabled={webPush.status === 'denied'}
+                className="flex h-action w-action items-center justify-center rounded
+                  transition-colors hover:bg-[rgba(232,234,237,0.06)]
+                  disabled:cursor-not-allowed disabled:opacity-40"
+                style={{ color: mutedColor }}
+                title={
+                  webPush.status === 'denied'
+                    ? t('notifications.pushBlocked')
+                    : t('notifications.enablePush')
+                }
+              >
+                <Icon
+                  name={webPush.status === 'denied' ? 'notifications_off' : 'notifications'}
+                  size={14}
+                />
+              </button>
+            )}
 
-          {/* Logout */}
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex h-6 w-6 items-center justify-center rounded
-              transition-colors hover:bg-[rgb(var(--cv-primary-rgb)/0.08)] hover:text-[var(--cv-primary)]"
-            style={{ color: mutedColor }}
-            title={t('common.logout')}
-          >
-            <Icon name="logout" size={14} />
-          </button>
+            {/* Logout */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex h-action w-action items-center justify-center rounded
+                transition-colors hover:bg-[rgb(var(--cv-primary-rgb)/0.08)] hover:text-[var(--cv-primary)]"
+              style={{ color: mutedColor }}
+              title={t('common.logout')}
+            >
+              <Icon name="logout" size={14} />
+            </button>
+          </div>
         </div>
       </div>
     </aside>
@@ -491,23 +491,13 @@ function NavBadge({ count, theme }: { count: number; theme: 'dark' | 'light' }) 
   return (
     <span
       aria-label={`${count} pending`}
+      className="absolute -right-[0.15rem] -top-[0.15rem] inline-flex h-[0.9rem]
+        min-w-[0.9rem] items-center justify-center rounded-full px-[0.15rem] text-micro font-bold"
       style={{
-        position: 'absolute',
-        top: '-3px',
-        right: '-3px',
-        minWidth: '14px',
-        height: '14px',
-        padding: '0 3px',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: '9999px',
         background: 'var(--cv-primary)',
         color: '#FFFFFF',
-        fontSize: '9px',
-        fontWeight: 700,
         lineHeight: 1,
-        boxShadow: `0 0 0 1.5px ${NAV_BADGE_RING[theme]}`,
+        boxShadow: `0 0 0 calc(1.5px * var(--cv-density-scale)) ${NAV_BADGE_RING[theme]}`,
         pointerEvents: 'none',
       }}
     >
@@ -537,23 +527,14 @@ function SidebarLink({
   const textColor = NAV_TEXT[theme]
   const hoverTextColor = theme === 'dark' ? '#E8EAED' : '#0C0E12'
 
-  const baseStyle: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '7px 14px',
-    margin: '1px 8px',
-    borderRadius: '7px',
-    fontSize: '12px',
-    fontWeight: 500,
-    transition: 'background 0.15s, color 0.15s',
-  }
+  const baseClassName =
+    'mx-2.5 my-0.5 flex items-center gap-2 rounded-lg px-4 py-1.5 text-ui font-medium transition-colors'
 
   if (item.disabled || !item.to) {
     return (
       <div
+        className={baseClassName}
         style={{
-          ...baseStyle,
           color: mutedColor,
           cursor: 'not-allowed',
           opacity: 0.55,
@@ -573,8 +554,8 @@ function SidebarLink({
   return (
     <Link
       to={item.to}
+      className={baseClassName}
       style={{
-        ...baseStyle,
         color: isActive ? 'var(--cv-primary)' : hovered ? hoverTextColor : textColor,
         background: isActive ? activeBg : hovered ? hoverBg : 'transparent',
         textDecoration: 'none',

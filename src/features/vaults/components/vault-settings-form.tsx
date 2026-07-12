@@ -186,15 +186,15 @@ export function VaultSettingsForm({
         className="mt-4 rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)]
           bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
       >
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--cv-primary)]">
+        <h2 className="text-meta font-semibold uppercase tracking-[0.06em] text-[var(--cv-primary)]">
           {t('vault.dangerZone')}
         </h2>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="text-[12px] font-semibold text-[var(--cv-t1)]">
+            <div className="text-ui font-semibold text-[var(--cv-t1)]">
               {t('vault.deleteVault')}
             </div>
-            <p className="mt-1 text-[11px] text-[var(--cv-t3)]">
+            <p className="mt-1 text-meta text-[var(--cv-t3)]">
               {t('vault.deleteVaultDescription')}
             </p>
           </div>

@@ -78,8 +78,8 @@ export function ToastsShowcase() {
       {/* All controls on the LEFT — the top-right is where toasts pop, so
           keeping buttons here means they never get covered. */}
       <div className="mb-5">
-        <h2 className="text-[14px] font-bold">Toast showcase</h2>
-        <p className="text-[11px] text-[var(--cv-t3)]">
+        <h2 className="text-heading font-bold">Toast showcase</h2>
+        <p className="text-meta text-[var(--cv-t3)]">
           Theme: <span className="font-semibold text-[var(--cv-t1)]">{theme}</span> · toasts stay open (Infinity) for styling
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
@@ -114,7 +114,7 @@ export function ToastsShowcase() {
         ))}
       </Section>
 
-      <p className="mt-6 max-w-[640px] text-[11px] leading-relaxed text-[var(--cv-t3)]">
+      <p className="mt-6 max-w-[40rem] text-meta leading-relaxed text-[var(--cv-t3)]">
         Note: <code>agent_approved</code>, <code>agent_deactivated</code> and <code>agent_resolved</code> intentionally
         raise <strong>no</strong> toast (the actor already sees a success toast / they’re collapse markers), so they’re
         not listed here. Toast look &amp; feel: the <code>&lt;Toaster&gt;</code> in <code>src/app/providers.tsx</code>{' '}
@@ -128,7 +128,7 @@ export function ToastsShowcase() {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="mb-5">
-      <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--cv-t3)]">{title}</h3>
+      <h3 className="mb-2 text-meta font-semibold uppercase tracking-[0.06em] text-[var(--cv-t3)]">{title}</h3>
       <div className="flex flex-wrap gap-2">{children}</div>
     </section>
   )

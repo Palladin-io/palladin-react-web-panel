@@ -40,12 +40,12 @@ export function RecentEntriesSection() {
   return (
     <section>
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-semibold text-[var(--cv-t1)]">
+        <span className="text-ui font-semibold text-[var(--cv-t1)]">
           {t('dashboard.recentlyModified')}
         </span>
         <Link
           to="/vaults"
-          className="text-xs font-medium text-[var(--cv-primary)] hover:underline"
+          className="text-meta font-medium text-[var(--cv-primary)] hover:underline"
         >
           {t('dashboard.viewAll')}
         </Link>
@@ -89,11 +89,11 @@ function RecentEntryRow({ entry }: { entry: EntrySearchItem }) {
     >
       <EntryIcon icon={entry.icon} type={type} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
+        <span className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
           {entry.label}
         </span>
         {meta ? (
-          <span className="truncate text-[11px] text-[var(--cv-t3)]">{meta}</span>
+          <span className="truncate text-meta text-[var(--cv-t3)]">{meta}</span>
         ) : null}
       </div>
     </Link>
@@ -107,7 +107,7 @@ function EmptyState({ message }: { message: string }) {
         border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
     >
       <Icon name="key" size={28} color="var(--cv-t3)" />
-      <p className="text-[12px] font-medium text-[var(--cv-t3)]">{message}</p>
+      <p className="text-ui font-medium text-[var(--cv-t3)]">{message}</p>
     </div>
   )
 }
@@ -116,7 +116,7 @@ function ListSkeleton() {
   return (
     <div className="flex flex-col gap-2">
       {[0, 1, 2, 3].map((i) => (
-        <div key={i} className="h-[57px] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
+        <div key={i} className="h-[3.5625rem] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
       ))}
     </div>
   )

@@ -34,7 +34,7 @@ function RotatingWelcome() {
 
   return (
     <p
-      className="mb-7 h-4 text-[12px] text-[#8A95A6] transition-opacity duration-300"
+      className="mb-7 h-4 text-ui text-[#8A95A6] transition-opacity duration-300"
       style={{ opacity: visible ? 1 : 0 }}
     >
       {t(WELCOME_MESSAGE_KEYS[index])}
@@ -145,7 +145,7 @@ export function LoginPage() {
               {/* Divider */}
               <div className="my-5 flex items-center gap-3">
                 <span className="h-px flex-1 bg-[rgba(232,234,237,0.1)]" />
-                <span className="text-[10px] text-[#6B7A8E]">{t('login.orContinueWith')}</span>
+                <span className="text-micro text-[#6B7A8E]">{t('login.orContinueWith')}</span>
                 <span className="h-px flex-1 bg-[rgba(232,234,237,0.1)]" />
               </div>
 
@@ -157,12 +157,12 @@ export function LoginPage() {
                   onClick={() => googleLogin()}
                   disabled={oauth.isPending}
                   className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232,234,237,0.06)]
-                    bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-[13px] font-medium
+                    bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-heading-sm font-medium
                     text-[#E8EAED] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
                     transition-colors hover:bg-[rgba(232,234,237,0.08)]
                     disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#4285F4] text-[11px] font-bold text-white">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#4285F4] text-meta font-bold text-white">
                     G
                   </span>
                   <span>
@@ -178,11 +178,11 @@ export function LoginPage() {
                     onMouseEnter={() => setTooltipTarget('apple')}
                     onMouseLeave={() => setTooltipTarget(null)}
                     className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232,234,237,0.06)]
-                      bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-[13px] font-medium
+                      bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-heading-sm font-medium
                       text-[#E8EAED] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
                       disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-[11px] font-bold text-black">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-meta font-bold text-black">
                       &#63743;
                     </span>
                     <span>{t('auth.continueWithApple')}</span>
@@ -198,11 +198,11 @@ export function LoginPage() {
                     onMouseEnter={() => setTooltipTarget('x')}
                     onMouseLeave={() => setTooltipTarget(null)}
                     className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232,234,237,0.06)]
-                      bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-[13px] font-medium
+                      bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-heading-sm font-medium
                       text-[#E8EAED] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
                       disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-[11px] font-bold text-black">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-meta font-bold text-black">
                       &#120143;
                     </span>
                     <span>{t('auth.continueWithX')}</span>
@@ -211,7 +211,7 @@ export function LoginPage() {
                 </div>
               </div>
 
-              <p className="mt-5 text-[12px] text-[#6B7A8E]">
+              <p className="mt-5 text-ui text-[#6B7A8E]">
                 {t('login.noAccount')}{' '}
                 <Link
                   to="/register"
@@ -221,7 +221,7 @@ export function LoginPage() {
                 </Link>
               </p>
 
-              <p className="mt-3 text-[10px] text-[#6B7A8E]">{t('auth.legalFooter')}</p>
+              <p className="mt-3 text-micro text-[#6B7A8E]">{t('auth.legalFooter')}</p>
             </>
           )}
         </div>
@@ -236,7 +236,7 @@ function Tooltip() {
     <span
       role="tooltip"
       className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded
-        bg-[#20242C] px-2 py-1 text-[10px] text-[#6B7A8E] shadow-lg"
+        bg-[#20242C] px-2 py-1 text-micro text-[#6B7A8E] shadow-lg"
     >
       {t('auth.comingSoon')}
     </span>

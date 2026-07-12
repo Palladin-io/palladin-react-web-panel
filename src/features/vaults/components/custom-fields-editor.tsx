@@ -113,7 +113,7 @@ export function CustomFieldsEditor({ fields, onChange, disabled }: CustomFieldsE
         disabled={disabled}
         alignLeft
         openUp
-        triggerClassName={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12px]
+        triggerClassName={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-ui
           text-[var(--cv-btn-ghost-text)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)]
           ${fields.length > 0 ? 'border-t border-[var(--cv-divider)]' : ''}
           disabled:cursor-not-allowed disabled:opacity-40`}
@@ -251,9 +251,9 @@ function FieldRow({
           placeholder={t('vault.entries.customFields.labelPlaceholder')}
           disabled={disabled}
           maxLength={80}
-          className={`mt-px border-0 bg-transparent p-0 text-[12px] outline-none
-            placeholder:text-[11px] placeholder:text-[var(--cv-input-placeholder)]
-            ${stacked ? 'min-w-0 flex-1' : 'w-[126px] shrink-0'}
+          className={`mt-px border-0 bg-transparent p-0 text-ui outline-none
+            placeholder:text-meta placeholder:text-[var(--cv-input-placeholder)]
+            ${stacked ? 'min-w-0 flex-1' : 'w-[7.875rem] shrink-0'}
             ${error ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-t2)]'}`}
         />
 
@@ -307,7 +307,7 @@ function FieldRow({
       </div>
 
       {stacked ? (
-        <div className="px-2.5 pb-2.5 pl-[54px]">
+        <div className="px-2.5 pb-2.5 pl-[3.375rem]">
           <FieldValue
             type={rowType}
             value={field.value}
@@ -321,7 +321,7 @@ function FieldRow({
       ) : null}
 
       {error ? (
-        <p role="alert" className="px-2.5 pb-1.5 pl-[76px] text-[10px] text-[var(--cv-primary)]">
+        <p role="alert" className="px-2.5 pb-1.5 pl-[4.75rem] text-micro text-[var(--cv-primary)]">
           {error === 'duplicate-label'
             ? t('vault.entries.customFields.duplicateLabel')
             : t('vault.entries.customFields.labelRequired')}
@@ -360,8 +360,8 @@ function FieldValue({ type, stringValue, value, shown, disabled, onChangeString,
         placeholder={t('vault.entries.customFields.valuePlaceholder')}
         disabled={disabled}
         rows={2}
-        className="ph-no-capture min-h-[42px] w-full resize-y border-0 bg-transparent p-0 font-mono
-          text-[11.5px] leading-relaxed text-[var(--cv-t1)] outline-none
+        className="ph-no-capture min-h-[2.625rem] w-full resize-y border-0 bg-transparent p-0 font-mono
+          text-meta leading-relaxed text-[var(--cv-t1)] outline-none
           placeholder:text-[var(--cv-input-placeholder)]"
       />
     )
@@ -378,7 +378,7 @@ function FieldValue({ type, stringValue, value, shown, disabled, onChangeString,
       autoComplete="off"
       data-1p-ignore
       data-lpignore="true"
-      className={`ph-no-capture w-full border-0 bg-transparent p-0 text-[12.5px] text-[var(--cv-t1)]
+      className={`ph-no-capture w-full border-0 bg-transparent p-0 text-ui text-[var(--cv-t1)]
         outline-none placeholder:text-[var(--cv-input-placeholder)]
         ${type === 'concealed' ? 'font-mono' : ''} ${type === 'concealed' && !shown ? 'secret-mask' : ''}`}
     />
@@ -399,7 +399,7 @@ function AgentVisibleBadge() {
       <span
         role="tooltip"
         className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-2 w-52 -translate-x-1/2
-          rounded-lg border border-[var(--cv-border)] bg-[var(--cv-modal-bg)] px-2.5 py-1.5 text-[11px]
+          rounded-lg border border-[var(--cv-border)] bg-[var(--cv-modal-bg)] px-2.5 py-1.5 text-meta
           leading-snug text-[var(--cv-t1)] opacity-0 shadow-[0_10px_28px_rgba(0,0,0,0.25)]
           transition-opacity group-hover:opacity-100"
       >

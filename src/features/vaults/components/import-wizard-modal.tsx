@@ -285,14 +285,14 @@ function UploadStep({
         label={parsing ? t('vault.import.parsing') : t('vault.import.dropLabel')}
         hint={t('vault.import.dropHint')}
       />
-      <p className="text-[11px] leading-relaxed text-[var(--cv-t3)]">
+      <p className="text-meta leading-relaxed text-[var(--cv-t3)]">
         <span className="font-semibold text-[var(--cv-t2)]">
           {t('vault.import.supportedLabel')}:
         </span>{' '}
         {SUPPORTED_FORMAT_NAMES.join(', ')}
       </p>
       {error ? (
-        <p role="alert" className="text-[11px] font-medium text-[var(--cv-primary)]">
+        <p role="alert" className="text-meta font-medium text-[var(--cv-primary)]">
           {error}
         </p>
       ) : null}
@@ -326,10 +326,10 @@ function PreviewStep({
 
   return (
     <>
-      <div className="flex items-center gap-2 text-[12px]">
+      <div className="flex items-center gap-2 text-ui">
         <span className="text-[var(--cv-t3)]">{t('vault.import.detectedFormat')}:</span>
         <span
-          className="rounded-md bg-[var(--cv-card-bg)] px-2 py-0.5 text-[11px] font-semibold
+          className="rounded-md bg-[var(--cv-card-bg)] px-2 py-0.5 text-meta font-semibold
             text-[var(--cv-t1)]"
         >
           {result.format === 'manual'
@@ -346,7 +346,7 @@ function PreviewStep({
         />
       ) : null}
 
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-meta">
         <Counter color="var(--cv-t1)" label={t('vault.import.countToImport')} value={entries.length} />
         {conflictCount > 0 ? (
           <Counter color="var(--cv-premium)" label={t('vault.import.countConflicts')} value={conflictCount} />
@@ -357,7 +357,7 @@ function PreviewStep({
       </div>
 
       {entries.length > 0 ? (
-        <ul className="flex max-h-[240px] flex-col gap-1 overflow-y-auto">
+        <ul className="flex max-h-[15rem] flex-col gap-1 overflow-y-auto">
           {entries.slice(0, 200).map((entry, i) => (
             <EntryPreviewRow
               key={i}
@@ -368,7 +368,7 @@ function PreviewStep({
         </ul>
       ) : (
         <p className="rounded-lg border border-dashed border-[var(--cv-empty-border)]
-          bg-[var(--cv-empty-bg)] px-3 py-4 text-center text-[11px] text-[var(--cv-t3)]">
+          bg-[var(--cv-empty-bg)] px-3 py-4 text-center text-meta text-[var(--cv-t3)]">
           {isManual ? t('vault.import.mapper.empty') : t('vault.import.noEntries')}
         </p>
       )}
@@ -391,7 +391,7 @@ function ImportingStep({
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0
   return (
     <div className="flex flex-col gap-3 py-4">
-      <p className="text-[12px] text-[var(--cv-t2)]">
+      <p className="text-ui text-[var(--cv-t2)]">
         {t(
           progress.phase === 'encrypt'
             ? 'vault.import.encrypting'
@@ -429,10 +429,10 @@ function DoneStep({
           size={36}
           color={hasFailures ? 'var(--cv-premium)' : 'var(--cv-success)'}
         />
-        <p className="text-[13px] font-semibold text-[var(--cv-t1)]">
+        <p className="text-heading-sm font-semibold text-[var(--cv-t1)]">
           {t('vault.import.doneTitle')}
         </p>
-        <p className="text-[11px] text-[var(--cv-t3)]">
+        <p className="text-meta text-[var(--cv-t3)]">
           {t('vault.import.doneSummary', {
             imported: summary.imported,
             updated: summary.updated,
@@ -441,12 +441,12 @@ function DoneStep({
         </p>
         {hasFailures && (
           <div className="mt-1 w-full rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3 text-left">
-            <p className="mb-1 text-[11px] font-semibold text-[var(--cv-t1)]">
+            <p className="mb-1 text-meta font-semibold text-[var(--cv-t1)]">
               {t('vault.import.failedTitle', { count: summary.failed.length })}
             </p>
             <ul className="max-h-32 overflow-y-auto subtle-scrollbar">
               {summary.failed.slice(0, 20).map((item, i) => (
-                <li key={i} className="truncate text-[11px] text-[var(--cv-t3)]">
+                <li key={i} className="truncate text-meta text-[var(--cv-t3)]">
                   <span className="text-[var(--cv-t1)]">{item.label || '—'}</span>
                   {' — '}
                   {item.reason}
@@ -475,8 +475,8 @@ function EntryPreviewRow({ entry, conflict }: { entry: ParsedEntry; conflict: bo
   return (
     <li className="flex items-center gap-2 rounded-lg bg-[var(--cv-card-bg)] px-2.5 py-1.5">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[12px] font-medium text-[var(--cv-t1)]">{entry.label}</p>
-        <p className="truncate text-[10px] text-[var(--cv-t3)]">
+        <p className="truncate text-ui font-medium text-[var(--cv-t1)]">{entry.label}</p>
+        <p className="truncate text-micro text-[var(--cv-t3)]">
           {entry.username || entry.url || '—'}
         </p>
       </div>
@@ -495,7 +495,7 @@ function EntryPreviewRow({ entry, conflict }: { entry: ParsedEntry; conflict: bo
 function Badge({ children, amber }: { children: ReactNode; amber?: boolean }) {
   return (
     <span
-      className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${
+      className={`rounded px-1.5 py-0.5 text-micro font-semibold ${
         amber
           ? 'bg-[color-mix(in_srgb,var(--cv-premium)_12%,transparent)] text-[var(--cv-premium)]'
           : 'bg-[var(--cv-card-hover)] text-[var(--cv-t2)]'
@@ -517,7 +517,7 @@ function ConflictStrategyPicker({
   const options: ConflictStrategy[] = ['skip', 'overwrite', 'rename']
   return (
     <div>
-      <p className="mb-1.5 text-[11px] font-semibold text-[var(--cv-label-text)]">
+      <p className="mb-1.5 text-meta font-semibold text-[var(--cv-label-text)]">
         {t('vault.import.conflictLabel')}
       </p>
       <div className="flex gap-1.5">
@@ -527,7 +527,7 @@ function ConflictStrategyPicker({
             type="button"
             onClick={() => onChange(option)}
             aria-pressed={value === option}
-            className={`flex-1 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-colors ${
+            className={`flex-1 rounded-lg border px-2 py-1.5 text-meta font-medium transition-colors ${
               value === option
                 ? 'border-[var(--cv-primary)] bg-[rgb(var(--cv-primary-rgb)/0.1)] text-[var(--cv-t1)]'
                 : 'border-[var(--cv-input-border)] text-[var(--cv-t2)] hover:border-[var(--cv-t1)]'

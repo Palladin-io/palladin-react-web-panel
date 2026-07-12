@@ -33,7 +33,7 @@ export function ScriptEditor({
   interpreter,
   disabled,
   placeholder,
-  height = '190px',
+  height = '11.875rem',
 }: ScriptEditorProps) {
   const { t } = useTranslation()
   const extensions = useMemo<Extension[]>(
@@ -43,7 +43,7 @@ export function ScriptEditor({
   const lineCount = value.length === 0 ? 1 : value.split('\n').length
 
   return (
-    <div className="overflow-hidden rounded-[10px] border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]">
+    <div className="overflow-hidden rounded-[0.625rem] border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]">
       {/* `min-w-0` lets the editor shrink inside the modal so a long line scrolls
           the editor internally instead of pushing the whole dialog wider. */}
       <div className="min-w-0">
@@ -66,7 +66,7 @@ export function ScriptEditor({
           }}
         />
       </div>
-      <div className="flex items-center gap-1.5 border-t border-[var(--cv-divider)] px-2.5 py-1 text-[11px] text-[var(--cv-t3)]">
+      <div className="flex items-center gap-1.5 border-t border-[var(--cv-divider)] px-2.5 py-1 text-meta text-[var(--cv-t3)]">
         <span style={{ color: 'var(--cv-script)' }} aria-hidden>●</span>
         <span>{interpreter}</span>
         <span>·</span>
@@ -91,7 +91,7 @@ function languageFor(interpreter: ScriptInterpreter): Extension {
  */
 const CV_THEME: Extension = EditorView.theme({
   '&': {
-    fontSize: '12px',
+    fontSize: 'var(--text-ui)',
     maxWidth: '100%',
     backgroundColor: 'transparent',
     color: 'var(--cv-input-text)',

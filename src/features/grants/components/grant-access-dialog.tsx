@@ -151,7 +151,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-[12px] text-[var(--cv-t2)]">
+        <p className="text-ui text-[var(--cv-t2)]">
           {t('grants.create.subtitle')}
         </p>
 
@@ -383,7 +383,7 @@ function ToggleButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex-1 rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors ${
+      className={`flex-1 rounded-md px-3 py-1.5 text-ui font-semibold transition-colors ${
         active
           ? 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
           : 'text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'

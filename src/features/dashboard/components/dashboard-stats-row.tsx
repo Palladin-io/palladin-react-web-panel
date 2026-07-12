@@ -100,10 +100,10 @@ export function DashboardStatsRow({
   return (
     <div className="mb-4 flex gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {ordered.map((stat) => {
-        const className = `${HOVERABLE_CARD_CLASSES} flex min-w-[150px] flex-1 items-center justify-between gap-3 px-4 py-3`
+        const className = `${HOVERABLE_CARD_CLASSES} flex min-w-[9.375rem] flex-1 items-center justify-between gap-3 px-4 py-3`
         const content = (
           <>
-            <span className="text-xs font-medium text-[var(--cv-t3)]">
+            <span className="text-meta font-medium text-[var(--cv-t3)]">
               {stat.label}
             </span>
             <span

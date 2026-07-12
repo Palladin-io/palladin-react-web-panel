@@ -39,7 +39,7 @@ export function LoadMoreSentinel({
     <div ref={sentinelRef} className="pt-2">
       {isFetchNextPageError ? (
         <div className="flex flex-col items-center gap-2">
-          <p className="text-[11px] text-[var(--cv-primary)]">
+          <p className="text-meta text-[var(--cv-primary)]">
             {t('common.loadMoreError')}
           </p>
           <Button

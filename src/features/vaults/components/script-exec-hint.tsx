@@ -9,7 +9,7 @@ import { Icon } from '../../../shared/components/icon'
 export function ScriptExecHint() {
   const { t } = useTranslation()
   return (
-    <p className="mt-1.5 flex items-start gap-2 text-[11.5px] text-[var(--cv-t3)]">
+    <p className="mt-1.5 flex items-start gap-2 text-meta text-[var(--cv-t3)]">
       <Icon name="terminal" size={13} className="mt-px shrink-0 text-[var(--cv-script)]" />
       <span>{t('vault.entries.script.execHint')}</span>
     </p>

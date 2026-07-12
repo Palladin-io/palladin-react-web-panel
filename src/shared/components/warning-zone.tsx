@@ -20,10 +20,10 @@ export function WarningZone({ title, children }: WarningZoneProps) {
       className="rounded-xl border border-[rgba(212,130,10,0.3)] bg-[rgba(212,130,10,0.06)] p-3
         dark:border-[rgba(240,192,64,0.3)] dark:bg-[rgba(240,192,64,0.08)]"
     >
-      <h3 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#D4820A] dark:text-[#F0C040]">
+      <h3 className="text-meta font-semibold uppercase tracking-[0.06em] text-[#D4820A] dark:text-[#F0C040]">
         {title}
       </h3>
-      <p className="mt-1 text-[11px] leading-snug text-[var(--cv-t2)]">{children}</p>
+      <p className="mt-1 text-meta leading-snug text-[var(--cv-t2)]">{children}</p>
     </section>
   )
 }

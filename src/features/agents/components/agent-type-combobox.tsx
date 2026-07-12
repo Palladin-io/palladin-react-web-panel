@@ -38,7 +38,7 @@ export function AgentTypeCombobox({
     <div>
       <label
         htmlFor={inputId}
-        className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
+        className="mb-1 block text-meta font-semibold text-[var(--cv-label-text)]"
       >
         {t('agents.agentType')}
       </label>
@@ -60,7 +60,7 @@ export function AgentTypeCombobox({
           disabled={disabled}
           autoComplete="off"
           className="w-full rounded-lg border border-[var(--cv-input-border)]
-            bg-[var(--cv-input-bg)] px-3 py-2 pr-9 text-[12px] text-[var(--cv-input-text)]
+            bg-[var(--cv-input-bg)] px-3 py-2 pr-9 text-ui text-[var(--cv-input-text)]
             placeholder:text-[var(--cv-input-placeholder)]
             focus:border-[var(--cv-t1)] focus:outline-none transition-colors
             disabled:cursor-not-allowed disabled:opacity-40"
@@ -86,7 +86,7 @@ export function AgentTypeCombobox({
                     onSelect(value, typeLabel(value, t))
                     setOpen(false)
                   }}
-                  className="w-full px-3 py-2 text-left text-[12px] text-[var(--cv-t1)]
+                  className="w-full px-3 py-2 text-left text-ui text-[var(--cv-t1)]
                     transition-colors hover:bg-[var(--cv-list-item-hover)]"
                 >
                   {typeLabel(value, t)}

@@ -12,15 +12,16 @@ Never inline-style a raw `<input>` or `<textarea>`. Use the shared components:
 | Password with show/hide toggle | `SecretInput` | `shared/components/secret-input` |
 | Multi-line textarea with label | `FormTextarea` | `shared/components/form-textarea` (add `monospace` for code/key fields) |
 
-All share `text-[12px]`, `border-[var(--cv-input-border)]`, `focus:border-[var(--cv-t1)]`. Full props in `component-catalog.md`.
+All share `h-control` (44px), `text-ui`, `border-[var(--cv-input-border)]`, and
+`focus:border-[var(--cv-t1)]`. Full props in `component-catalog.md`.
 
 ### Raw `<input>` — only for custom composites (combobox, search bar)
 
 When a raw `<input>` is unavoidable (e.g. combobox with `role="combobox"`, search bar with embedded icon), use this exact class string so styling stays consistent:
 
 ```tsx
-className="w-full rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
-  px-3 py-2 text-[12px] text-[var(--cv-input-text)]
+className="h-control w-full rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
+  px-3 text-ui text-[var(--cv-input-text)]
   placeholder:text-[var(--cv-input-placeholder)]
   focus:border-[var(--cv-t1)] focus:outline-none transition-colors
   disabled:cursor-not-allowed disabled:opacity-40"
@@ -42,7 +43,7 @@ Never add hardcoded hex or rgba colors to an input — always use `var(--cv-*)` 
 3. **Shared validators live in `src/shared/lib/validation.ts`** — use `required(message)`, `validUrl(message)`, `maxLen(n, message)`, `firstError(value, validators)`. Never write inline validation logic.
 4. **`FieldFeedback` is for field-level errors only** — never use it to display API success/error results.
 5. **All API results → Sonner toast** — `toast.error(t('key'))` in `onError`, `toast.success(t('key'))` in `onSuccess`. Toaster is mounted once in `Providers` at `position="top-right"`.
-6. **No inline `<p>` error elements** — remove any `<p className="text-[11px] text-[#FF4F4F]">` or state-driven error JSX for API errors. Use a toast instead.
+6. **No inline `<p>` error elements** — remove any one-off error paragraph or state-driven error JSX for API errors. Use a toast instead.
 
 ### URL validation pattern
 
@@ -87,7 +88,7 @@ const [nameError, setNameError] = useState(false)
 Both live in `shared/components/form-field`. **Default to `FeedbackSlot`.**
 
 - **`FeedbackSlot`** — animates its *own* height via the CSS grid `0fr → 1fr` rows trick. It occupies **zero height when hidden** and expands to reveal the message when shown, pushing the fields below it down smoothly. Because it reserves its own space only when visible, it never overlaps neighbouring content. This is the canonical inline-feedback control.
-- **`FieldFeedback`** — a fixed 16 px (`h-4`) row that is always present (opacity-toggled). Use it **only** in a rigid grid/table cell whose row height is already fixed and must not reflow (rare). It has no importers in feature forms today.
+- **`FieldFeedback`** — a fixed `h-feedback` (20px rendered) row that is always present (opacity-toggled). Use it **only** in a rigid grid/table cell whose row height is already fixed and must not reflow (rare). It has no importers in feature forms today.
 
 **Forbidden pattern — do not reintroduce:** `FieldFeedback` wrapped in a negative-margin compensator (`<div className="-mb-4">…`) to "hide" its reserved height when there's no error. This looks fine with no error but, when the error appears, the message renders *on top of the next field's label* (the `-mb-4` pulls the following field up into the feedback's box). This exact pattern caused a label-overlap regression. If you find a `-mb-4`/`-mb-3` around a feedback row, replace the pair with a plain `FeedbackSlot`.
 
@@ -96,7 +97,7 @@ Both live in `shared/components/form-field`. **Default to `FeedbackSlot`.**
 A form body is a single vertical stack with a consistent gap:
 
 ```tsx
-<form className="flex flex-col gap-3">   {/* 12px rhythm between fields */}
+<form className="flex flex-col gap-3">   {/* 15px rendered rhythm between fields */}
   <div>
     <FormInput … error={urlError} onBlur={…} />
     <FeedbackSlot visible={urlError} color="red">{t('validation.invalidUrl')}</FeedbackSlot>

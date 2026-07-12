@@ -60,7 +60,7 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-2.5 py-1 text-[10px] font-semibold transition-colors ${
+      className={`rounded-full px-2.5 py-1 text-micro font-semibold transition-colors ${
         active
           ? 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
           : 'bg-[var(--cv-bg-subtle)] text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
@@ -87,10 +87,10 @@ export function GrantListPanel({ vaultId, selectedGrantId }: GrantListPanelProps
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-4 flex h-10 shrink-0 items-center">
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
+          <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {t('grants.title')}
           </h2>
-          <p className="text-[11px] text-[var(--cv-t3)]">{t('grants.subtitle')}</p>
+          <p className="text-meta text-[var(--cv-t3)]">{t('grants.subtitle')}</p>
         </div>
       </div>
 
@@ -109,13 +109,13 @@ export function GrantListPanel({ vaultId, selectedGrantId }: GrantListPanelProps
               border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
           >
             <Icon name="key" size={28} color="var(--cv-t3)" />
-            <p className="text-[12px] font-medium text-[var(--cv-t3)]">
+            <p className="text-ui font-medium text-[var(--cv-t3)]">
               {t('grants.empty')}
             </p>
-            <p className="text-[11px] text-[var(--cv-t3)]">{t('grants.emptyHint')}</p>
+            <p className="text-meta text-[var(--cv-t3)]">{t('grants.emptyHint')}</p>
           </div>
         ) : (
-          <ul className="flex flex-col gap-[10px]">
+          <ul className="flex flex-col gap-[0.625rem]">
             {items.map((grant) => (
               <li key={grant.grantId}>
                 <GrantCard
@@ -150,22 +150,22 @@ function GrantCard({
     <Link
       to="/vaults/$vaultId/grants/$grantId"
       params={{ vaultId, grantId: grant.grantId }}
-      className={`block overflow-hidden px-[14px] py-3 ${HOVERABLE_CARD_CLASSES}${
+      className={`block overflow-hidden px-[0.875rem] py-3 ${HOVERABLE_CARD_CLASSES}${
         isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
       }`}
     >
       <div className="flex items-center gap-2">
-        <p className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[var(--cv-t1)]">
+        <p className="min-w-0 flex-1 truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
           {target}
         </p>
         <span
-          className="inline-flex shrink-0 items-center gap-1 text-[10px] font-bold"
+          className="inline-flex shrink-0 items-center gap-1 text-micro font-bold"
           style={{ color: presentation.color }}
         >
           ● {t(presentation.labelKey)}
         </span>
       </div>
-      <p className="mt-0.5 truncate text-[11px] text-[var(--cv-t3)]">
+      <p className="mt-0.5 truncate text-meta text-[var(--cv-t3)]">
         {grant.agentName ?? t('grants.unknownAgent')} ·{' '}
         {t(
           grant.mode === 'full' ? 'grants.modeFull' : 'grants.modeGranular',
@@ -182,7 +182,7 @@ function PanelLoadingSkeleton() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="h-[58px] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]"
+          className="h-[3.625rem] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]"
         />
       ))}
     </div>

@@ -56,7 +56,7 @@ export function EntityCombobox({
     <div>
       <label
         htmlFor={inputId}
-        className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
+        className="mb-1 block text-meta font-semibold text-[var(--cv-label-text)]"
       >
         {label}
       </label>
@@ -78,7 +78,7 @@ export function EntityCombobox({
           disabled={disabled}
           autoComplete="off"
           className="w-full rounded-lg border border-[var(--cv-input-border)]
-            bg-[var(--cv-input-bg)] px-3 py-2 pr-9 text-[12px] text-[var(--cv-input-text)]
+            bg-[var(--cv-input-bg)] px-3 py-2 pr-9 text-ui text-[var(--cv-input-text)]
             placeholder:text-[var(--cv-input-placeholder)]
             focus:border-[var(--cv-t1)] focus:outline-none transition-colors
             disabled:cursor-not-allowed disabled:opacity-40"
@@ -96,9 +96,9 @@ export function EntityCombobox({
               shadow-[0_4px_20px_rgba(0,0,0,0.15)]"
           >
             {loading ? (
-              <li className="px-3 py-2 text-[12px] text-[var(--cv-t3)]">…</li>
+              <li className="px-3 py-2 text-ui text-[var(--cv-t3)]">…</li>
             ) : options.length === 0 ? (
-              <li className="px-3 py-2 text-[12px] text-[var(--cv-t3)]">
+              <li className="px-3 py-2 text-ui text-[var(--cv-t3)]">
                 {emptyText ?? '—'}
               </li>
             ) : (
@@ -114,9 +114,9 @@ export function EntityCombobox({
                     className="flex w-full flex-col px-3 py-2 text-left
                       transition-colors hover:bg-[var(--cv-list-item-hover)]"
                   >
-                    <span className="text-[12px] text-[var(--cv-t1)]">{option.label}</span>
+                    <span className="text-ui text-[var(--cv-t1)]">{option.label}</span>
                     {option.sublabel && (
-                      <span className="text-[10px] text-[var(--cv-t3)]">
+                      <span className="text-micro text-[var(--cv-t3)]">
                         {option.sublabel}
                       </span>
                     )}

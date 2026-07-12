@@ -71,7 +71,7 @@ export function GrantAgainDialog({
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-[12px] leading-relaxed text-[var(--cv-t2)]">
+        <p className="text-ui leading-relaxed text-[var(--cv-t2)]">
           {t('grants.regrant.subtitlePrefix')}{' '}
           <span className="font-semibold text-[var(--cv-t1)]">{agentName}</span>{' '}
           {t('grants.regrant.subtitleAccessTo')}{' '}

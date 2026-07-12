@@ -44,10 +44,10 @@ export function ApiKeyAgentsTab({ apiKeyId }: ApiKeyAgentsTabProps) {
           border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center"
       >
         <Icon name="smart_toy" size={28} color="var(--cv-t3)" />
-        <p className="text-[12px] font-medium text-[var(--cv-t3)]">
+        <p className="text-ui font-medium text-[var(--cv-t3)]">
           {t('apiKeys.detail.agentsEmpty')}
         </p>
-        <p className="text-[11px] text-[var(--cv-t3)]">
+        <p className="text-meta text-[var(--cv-t3)]">
           {t('apiKeys.detail.agentsEmptyHint')}
         </p>
       </div>
@@ -56,7 +56,7 @@ export function ApiKeyAgentsTab({ apiKeyId }: ApiKeyAgentsTabProps) {
 
   return (
     <>
-      <ul className="flex flex-col gap-[10px]">
+      <ul className="flex flex-col gap-[0.625rem]">
         {agents.map((agent) => (
           <li key={agent.agentId}>
             <AgentCard agent={agent} isSelected={false} />
@@ -80,7 +80,7 @@ function ListLoadingSkeleton() {
       {[0, 1, 2].map((i) => (
         <div
           key={i}
-          className="h-[62px] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]"
+          className="h-[3.875rem] animate-pulse rounded-2xl bg-[var(--cv-card-bg)]"
         />
       ))}
     </div>

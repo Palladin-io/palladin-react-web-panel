@@ -43,7 +43,7 @@ export function VaultDetailTabs({ active, onChange, actions }: VaultDetailTabsPr
         role="tab"
         aria-selected={isActive}
         onClick={() => onChange(tab.id)}
-        className={`-mb-px border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
+        className={`-mb-px border-b-2 px-3.5 py-2 text-ui transition-colors ${
           isActive
             ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
             : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'

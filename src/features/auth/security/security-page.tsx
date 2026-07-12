@@ -14,10 +14,10 @@ export function SecurityPage() {
     <div className="min-h-full text-[var(--cv-t1)]">
       <div className="mx-auto max-w-[51.25rem] px-6 py-8">
         <header className="mb-6">
-          <h1 className="text-[20px] font-bold leading-tight text-[var(--cv-t1)]">
+          <h1 className="text-page-title font-bold leading-tight text-[var(--cv-t1)]">
             {t('security.title')}
           </h1>
-          <p className="mt-1 text-[12px] text-[var(--cv-t3)]">{t('security.subtitle')}</p>
+          <p className="mt-1 text-ui text-[var(--cv-t3)]">{t('security.subtitle')}</p>
         </header>
 
         <div className="flex flex-col gap-4">

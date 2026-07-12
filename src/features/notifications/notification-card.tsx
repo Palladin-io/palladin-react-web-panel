@@ -107,18 +107,18 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
       aria-label={title}
     >
       {/* Header — relative time sits top-right on the title line. */}
-      <div className="flex items-start gap-2.5 px-[14px] py-2.5">
+      <div className="flex items-start gap-2.5 px-[0.875rem] py-2.5">
         <CardAvatar header={card.header} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-[var(--cv-t1)]">
+          <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
             {title}
           </p>
-          <p className="truncate text-[11px] text-[var(--cv-t3)]">
+          <p className="truncate text-meta text-[var(--cv-t3)]">
             {subtitle}
           </p>
         </div>
         <span
-          className="shrink-0 whitespace-nowrap text-[10px] text-[var(--cv-t3)]"
+          className="shrink-0 whitespace-nowrap text-micro text-[var(--cv-t3)]"
           title={formatGrantDate(item.occurredAt)}
         >
           {formatRelativeTime(item.occurredAt, t)}
@@ -127,9 +127,9 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
 
       {/* Detail rows — grow to fill so the footer pins to the card bottom */}
       {card.rows.length > 0 && (
-        <div className="flex flex-1 flex-col gap-2 border-t border-[var(--cv-divider)] px-[14px] py-3">
+        <div className="flex flex-1 flex-col gap-2 border-t border-[var(--cv-divider)] px-[0.875rem] py-3">
           {card.rows.map((row) => (
-            <div key={row.labelKey} className="flex gap-3 text-[11px] leading-relaxed">
+            <div key={row.labelKey} className="flex gap-3 text-meta leading-relaxed">
               <span className="w-20 shrink-0 font-medium text-[var(--cv-t3)]">
                 {t(row.labelKey)}
               </span>
@@ -143,7 +143,7 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
 
       {/* Footer */}
       {footer && (
-        <div className="flex min-h-[46px] items-center gap-2 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-[14px] py-2">
+        <div className="flex min-h-[2.875rem] items-center gap-2 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-[0.875rem] py-2">
           {footer}
         </div>
       )}
@@ -179,7 +179,7 @@ function CardAvatar({ header }: { header: CardHeaderIcon }) {
   return (
     <span
       aria-hidden
-      className="flex h-[36px] w-[36px] shrink-0 items-center justify-center rounded-[9px]"
+      className="flex h-[2.25rem] w-[2.25rem] shrink-0 items-center justify-center rounded-[0.5625rem]"
       style={{ background: tone.bg }}
     >
       <Icon name={header.glyph} size={18} color={tone.color} />

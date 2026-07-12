@@ -55,10 +55,10 @@ export function OrgSettingsForm({ org }: OrgSettingsFormProps) {
       className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
         dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
     >
-      <h2 className="text-[14px] font-bold text-[var(--cv-t1)]">
+      <h2 className="text-heading font-bold text-[var(--cv-t1)]">
         {t('settings.org.sectionTitle')}
       </h2>
-      <p className="mt-1 text-[12px] text-[var(--cv-t3)]">
+      <p className="mt-1 text-ui text-[var(--cv-t3)]">
         {t('settings.org.sectionSubtitle')}
       </p>
 

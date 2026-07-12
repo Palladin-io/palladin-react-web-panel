@@ -99,7 +99,7 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
   const entry = useEntryDetail(vaultId, entryId, true)
   const [activeTab, setActiveTab] = useState<EntryDetailTab>('details')
   const [addAgentOpen, setAddAgentOpen] = useState(false)
-  const isWide = useWideScreen(1280)
+  const isWide = useWideScreen()
 
   const handleBack = () => navigate({ to: '/vaults/$vaultId', params: { vaultId } })
   const onDeleted = () => navigate({ to: '/vaults/$vaultId', params: { vaultId } })
@@ -137,7 +137,7 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
   if (isWide) {
     return (
       <div className="flex h-full overflow-hidden text-[var(--cv-t1)]">
-        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+        <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
           <div className="h-full px-4 pt-4">
             {vault.data ? (
               <VaultEntriesPanel vault={vault.data} selectedEntryId={entryId} />
@@ -224,7 +224,7 @@ function DetailBody({
 
   const agentAction = (
     <div className="flex items-center gap-2">
-      <span className="text-[11px] text-[var(--cv-t3)]">
+      <span className="text-meta text-[var(--cv-t3)]">
         {t('vault.entry.detail.agentsWithAccess', { count: agentCount })}
       </span>
       <Button variant="accent" size="sm" icon="add" onClick={onAddAgent}>
@@ -293,7 +293,7 @@ function EntryDetailTabs({ active, onChange, wide, actions }: EntryDetailTabsPro
         role="tab"
         aria-selected={isActive}
         onClick={() => onChange(tab.id)}
-        className={`-mb-px border-b-2 px-3.5 py-2 text-[12px] transition-colors ${
+        className={`-mb-px border-b-2 px-3.5 py-2 text-ui transition-colors ${
           isActive
             ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
             : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
@@ -692,7 +692,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             <div>
               <label
                 htmlFor="entry-detail-label"
-                className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]"
+                className="mb-1 block text-meta font-semibold text-[var(--cv-label-text)]"
               >
                 {t('vault.entries.labelLabel')}
                 <span className="ml-1.5 font-normal text-[var(--cv-t3)]">· {t('vault.entries.agentVisibleNote')}</span>
@@ -765,7 +765,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               </div>
             ) : null}
             {decryptError ? (
-              <div className="rounded-lg border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.06)] px-3 py-2 text-[11px] text-[var(--cv-primary)]">
+              <div className="rounded-lg border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.06)] px-3 py-2 text-meta text-[var(--cv-primary)]">
                 {decryptError}
               </div>
             ) : entry.type === ENTRY_TYPE_KEY ? (
@@ -798,7 +798,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 <div>
                   <label
                     htmlFor="entry-detail-interpreter"
-                    className="mb-1 flex items-center gap-2 text-[11px] font-semibold text-[var(--cv-label-text)]"
+                    className="mb-1 flex items-center gap-2 text-meta font-semibold text-[var(--cv-label-text)]"
                   >
                     <span>{t('vault.entries.script.bodyLabel')}</span>
                     <span className="flex-1" />
@@ -808,7 +808,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                       value={interpreter}
                       onChange={(e) => setInterpreter(e.target.value as ScriptInterpreter)}
                       disabled={isSaving || decrypting}
-                      className="cursor-pointer appearance-none border-0 bg-transparent pr-1 text-[11.5px]
+                      className="cursor-pointer appearance-none border-0 bg-transparent pr-1 text-meta
                         font-normal text-[var(--cv-t2)] outline-none disabled:cursor-not-allowed"
                     >
                       {SCRIPT_INTERPRETERS.map((option) => (
@@ -967,15 +967,15 @@ function DangerZone({
     <section
       className="rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
     >
-      <h2 className="text-[11px] font-semibold text-[var(--cv-primary)]">
+      <h2 className="text-meta font-semibold text-[var(--cv-primary)]">
         {t('vault.entry.detail.dangerZoneTitle')}
       </h2>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-[12px] font-semibold text-[var(--cv-t1)]">
+          <div className="text-ui font-semibold text-[var(--cv-t1)]">
             {t('vault.entry.detail.deleteTitle')}
           </div>
-          <p className="mt-1 text-[11px] text-[var(--cv-t3)]">
+          <p className="mt-1 text-meta text-[var(--cv-t3)]">
             {t('vault.entry.detail.deleteSubtitle')}
           </p>
         </div>
@@ -1020,7 +1020,7 @@ function DeleteEntryDialog({
         </DialogFooter>
       }
     >
-      <p className="text-[12px] text-[var(--cv-t2)]">
+      <p className="text-ui text-[var(--cv-t2)]">
         {t('vault.entry.detail.deleteConfirmText')}
       </p>
     </ModalShell>

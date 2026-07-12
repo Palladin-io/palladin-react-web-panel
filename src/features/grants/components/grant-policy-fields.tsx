@@ -29,7 +29,7 @@ const POLICY_KINDS: { value: GrantPolicyKind; labelKey: string }[] = [
 
 const CHIP_CLASS =
   'rounded-md border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] ' +
-  'px-2 py-1 text-[11px] font-medium text-[var(--cv-t2)] ' +
+  'px-2 py-1 text-meta font-medium text-[var(--cv-t2)] ' +
   'transition-colors hover:border-[var(--cv-primary)] hover:text-[var(--cv-t1)] ' +
   'disabled:cursor-not-allowed disabled:opacity-40'
 
@@ -102,7 +102,7 @@ export function GrantPolicyFields({
 
       {kind === 'time' && (
         <div className="-mb-4">
-          <span className="mb-1 block text-[11px] font-semibold text-[var(--cv-label-text)]">
+          <span className="mb-1 block text-meta font-semibold text-[var(--cv-label-text)]">
             {t('grants.approve.expiresAtLabel')}
           </span>
           {/* Quick durations — even 4-col grid (2 rows). Custom is qualitatively
@@ -151,11 +151,11 @@ export function GrantPolicyFields({
               className="mt-2 flex items-center justify-between gap-2 rounded-lg
                 border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2"
             >
-              <span className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--cv-t1)]">
+              <span className="flex items-center gap-1.5 text-ui font-semibold text-[var(--cv-t1)]">
                 <Icon name="schedule" size={14} className="text-[#10B981]" />
                 {formatExpiresInLong(expiresAt, t)}
               </span>
-              <span className="shrink-0 text-[11px] text-[var(--cv-t3)]">
+              <span className="shrink-0 text-meta text-[var(--cv-t3)]">
                 {formatGrantDate(expiresAt)}
               </span>
             </div>

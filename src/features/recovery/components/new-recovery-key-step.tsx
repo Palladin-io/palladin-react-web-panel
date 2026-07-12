@@ -26,7 +26,7 @@ export function NewRecoveryKeyStep({ mnemonic, onFinish }: NewRecoveryKeyStepPro
       <div className="flex flex-col gap-3">
         <RecoveryMnemonicPanel mnemonic={mnemonic} />
 
-        <label className="flex cursor-pointer items-center gap-2 text-xs text-[#B8C5D4]">
+        <label className="flex cursor-pointer items-center gap-2 text-meta text-[#B8C5D4]">
           <input
             type="checkbox"
             checked={acknowledged}

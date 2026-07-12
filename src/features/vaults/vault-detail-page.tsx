@@ -54,7 +54,7 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [addAgentOpen, setAddAgentOpen] = useState(false)
-  const isWide = useWideScreen(1280)
+  const isWide = useWideScreen()
 
   const vaultContent = vault.isPending ? (
     <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
@@ -104,7 +104,7 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
   if (isWide) {
     return (
       <div className="flex h-full overflow-hidden text-[var(--cv-t1)]">
-        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+        <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
           <div className="h-full px-4 pt-4">
             <VaultListPanel selectedVaultId={vaultId} />
           </div>
@@ -270,7 +270,7 @@ function ComingSoonTab({ translationKey }: { translationKey: string }) {
 function EmptyMessage({ message }: { message: string }) {
   return (
     <div className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-      bg-[var(--cv-empty-bg)] p-8 text-center text-sm text-[var(--cv-t3)]">
+      bg-[var(--cv-empty-bg)] p-8 text-center text-ui text-[var(--cv-t3)]">
       {message}
     </div>
   )

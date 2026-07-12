@@ -81,7 +81,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
         </div>
 
         <div className="rounded-lg border border-[rgba(232,234,237,0.06)] bg-[rgba(232,234,237,0.04)] px-3 py-2">
-          <p className="text-xs text-[#E8EAED]">
+          <p className="text-meta text-[#E8EAED]">
             {t('onboarding.encryptionNote')}
           </p>
         </div>

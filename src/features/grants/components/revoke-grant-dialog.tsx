@@ -60,7 +60,7 @@ export function RevokeGrantDialog({
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-[12px] text-[var(--cv-t2)]">
+        <p className="text-ui text-[var(--cv-t2)]">
           {t('grants.revoke.confirmText')}
         </p>
 

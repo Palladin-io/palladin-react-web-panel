@@ -55,7 +55,7 @@ export function VaultIconPicker({
 
   return (
     <fieldset>
-      <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
+      <legend className="mb-2 block text-meta font-semibold text-[var(--cv-label-text)]">
         {t('vault.iconLabel')}
       </legend>
       <div className={rowClassName}>
@@ -74,7 +74,7 @@ export function VaultIconPicker({
               disabled={disabled}
               aria-pressed={selected}
               aria-label={t(`vault.iconName.${opt}`, { defaultValue: opt })}
-              className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
+              className="flex h-8 w-8 items-center justify-center rounded-[0.625rem] transition-colors
                 text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
               style={{ background, border }}
             >
@@ -91,7 +91,7 @@ export function VaultIconPicker({
             disabled={disabled}
             aria-pressed={true}
             aria-label={t(`vault.iconName.${value}`, { defaultValue: value.replace(/_/g, ' ') })}
-            className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
+            className="flex h-8 w-8 items-center justify-center rounded-[0.625rem] transition-colors
               text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
             style={{
               background: hexWithAlpha(selectedColor, 0.15),
@@ -108,7 +108,7 @@ export function VaultIconPicker({
           onClick={() => setShowBrowser(true)}
           disabled={disabled}
           aria-label={t('vault.iconMore')}
-          className="flex h-8 w-8 items-center justify-center rounded-[10px] transition-colors
+          className="flex h-8 w-8 items-center justify-center rounded-[0.625rem] transition-colors
             disabled:cursor-not-allowed disabled:opacity-40"
           style={{ background: hexWithAlpha('#8A95A6', 0.10) }}
         >
@@ -141,7 +141,7 @@ export function VaultIconPicker({
             onClick={() => fileInputRef.current?.click()}
             disabled={disabled || isUploading}
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border
-              border-dashed border-[var(--cv-input-border)] px-3 py-2.5 text-[11px]
+              border-dashed border-[var(--cv-input-border)] px-3 py-2.5 text-meta
               text-[var(--cv-t3)] transition-colors hover:border-[var(--cv-t1)]
               hover:text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -156,7 +156,7 @@ export function VaultIconPicker({
       )}
 
       {error && (
-        <p className="mt-1.5 text-[11px] text-red-400">{error}</p>
+        <p className="mt-1.5 text-meta text-red-400">{error}</p>
       )}
 
       <IconColorBrowser

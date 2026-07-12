@@ -35,7 +35,7 @@ export function VerifyEmailBanner() {
       role="status"
       className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b
         border-[rgb(var(--cv-premium-rgb)/0.3)] bg-[rgb(var(--cv-premium-rgb)/0.08)]
-        px-4 py-2.5 text-[11px] text-[var(--cv-t1)]"
+        px-4 py-2.5 text-meta text-[var(--cv-t1)]"
     >
       <MailWarning size={16} className="shrink-0 text-[var(--cv-premium)]" />
       <span className="flex-1">
@@ -50,7 +50,7 @@ export function VerifyEmailBanner() {
         type="button"
         onClick={resend}
         disabled={isPending || cooldown > 0}
-        className="shrink-0 rounded-md px-2.5 py-1 text-[11px] font-semibold text-[var(--cv-premium)]
+        className="shrink-0 rounded-md px-2.5 py-1 text-meta font-semibold text-[var(--cv-premium)]
           transition-colors hover:bg-[rgb(var(--cv-premium-rgb)/0.12)] disabled:cursor-not-allowed
           disabled:opacity-60"
       >

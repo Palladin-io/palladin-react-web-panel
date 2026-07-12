@@ -7,6 +7,7 @@ import { VAULT_COLOR_OPTIONS, VAULT_COLOR_NAME_KEY } from './vault-presentation'
 import { searchFavicons, type FaviconHit } from '../api/vault-api'
 import { hexWithAlpha } from './vault-color'
 import { ModalShell } from '../../../shared/components/modal-shell'
+import { SearchBar } from '../../../shared/components/search-bar'
 
 export interface IconColorBrowserProps {
   /** Show the shared brand/favicon section fed by the favicon index. */
@@ -117,19 +118,13 @@ function IconColorBrowserBody({
     >
       <div className="flex flex-col gap-3">
         {showSearch && (
-          <div className="flex items-center gap-2 rounded-lg border border-[var(--cv-input-border)]
-            bg-[var(--cv-input-bg)] px-3 py-2">
-            <Icon name="search" size={14} color="var(--cv-t3)" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t('vault.iconBrowserSearch')}
-              autoFocus
-              className="flex-1 bg-transparent text-[12px] text-[var(--cv-input-text)]
-                placeholder:text-[var(--cv-t3)] outline-none"
-            />
-            {search && (
+          <SearchBar
+            value={search}
+            onChange={setSearch}
+            placeholder={t('vault.iconBrowserSearch')}
+            autoFocus
+            className=""
+            trailing={search ? (
               <button
                 type="button"
                 onClick={() => setSearch('')}
@@ -137,20 +132,20 @@ function IconColorBrowserBody({
               >
                 <Icon name="close" size={14} />
               </button>
-            )}
-          </div>
+            ) : null}
+          />
         )}
 
         {showBrandIcons && brandIcons.length > 0 && (
           <div>
-            <p className="mb-2 text-[11px] font-semibold text-[var(--cv-label-text)]">
+            <p className="mb-2 text-meta font-semibold text-[var(--cv-label-text)]">
               {t('vault.iconBrowserBrand')}
             </p>
             <div
               style={{
                 display: 'grid',
                 gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
-                gap: '6px',
+                gap: '0.375rem',
               }}
             >
               {brandIcons.map((hit) => {
@@ -183,7 +178,7 @@ function IconColorBrowserBody({
             style={{
               display: 'grid',
               gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
-              gap: '6px',
+              gap: '0.375rem',
             }}
           >
             {filtered.map((icon) => {
@@ -212,7 +207,7 @@ function IconColorBrowserBody({
             })}
           </div>
         ) : (
-          <p className="py-6 text-center text-[12px] text-[var(--cv-t3)]">
+          <p className="py-6 text-center text-ui text-[var(--cv-t3)]">
             {t('vault.iconBrowserEmpty')}
           </p>
         )}
@@ -221,7 +216,7 @@ function IconColorBrowserBody({
           <>
             <div className="h-px bg-[var(--cv-divider)]" />
             <div>
-              <p className="mb-2 text-[11px] font-semibold text-[var(--cv-label-text)]">
+              <p className="mb-2 text-meta font-semibold text-[var(--cv-label-text)]">
                 {t('vault.colorLabel')}
               </p>
               <div className="flex justify-between">

@@ -45,12 +45,12 @@ export function RecentActivitySection() {
   return (
     <section>
       <div className="mb-2 flex items-center justify-between">
-        <span className="text-sm font-semibold text-[var(--cv-t1)]">
+        <span className="text-ui font-semibold text-[var(--cv-t1)]">
           {t('dashboard.recentActivity')}
         </span>
         <Link
           to="/audit"
-          className="text-xs font-medium text-[var(--cv-primary)] hover:underline"
+          className="text-meta font-medium text-[var(--cv-primary)] hover:underline"
         >
           {t('dashboard.fullLog')}
         </Link>

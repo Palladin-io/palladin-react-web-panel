@@ -102,7 +102,7 @@ export function ApproveAgentDialog({
       }
     >
       <div className="flex flex-col gap-3">
-        <p className="text-[12px] text-[var(--cv-t2)]">
+        <p className="text-ui text-[var(--cv-t2)]">
           {t('agents.approveHint')}
         </p>
 

@@ -24,14 +24,15 @@ export interface ButtonProps
 
 // Fixed height per size (no `py`) so a button's height is constant regardless
 // of content — an `icon` glyph (14/16px) has a taller line-box than the text
-// (11/13px), which previously made icon buttons taller than plain ones even
-// with `leading-none`. With `h-7`/`h-9` every button of a given size is
-// pixel-identical: icon vs no icon, bordered vs borderless.
-//   sm → 28px (h-7), was ~27px (py-1.5 + 11px text + 1px border) → +1px
-//   md → 36px (h-9), was ~34px (py-2 + 13px text + 1px border) → +2px
+// (14/15px), which previously made icon buttons taller than plain ones even
+// with `leading-none`. Semantic height tokens keep every button aligned with
+// the app-wide comfortable-density scale.
+// Buttons remain pixel-identical: icon vs no icon, bordered vs borderless.
+//   sm → 36px, 14px text — default desktop action
+//   md → 44px, 15px text — rare prominent action
 const SIZE_CLASS: Record<ButtonSize, string> = {
-  sm: 'h-7 px-2.5 text-[11px] font-semibold rounded-lg gap-1.5',
-  md: 'h-9 px-3.5 text-[13px] font-semibold rounded-lg gap-2',
+  sm: 'h-action px-3 text-action font-semibold rounded-lg gap-1.5',
+  md: 'h-control px-4 text-ui font-semibold rounded-lg gap-2',
 }
 
 const VARIANT_CLASS: Record<ButtonVariant, string> = {

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
+import { SearchBar } from '../../../shared/components/search-bar'
 import {
   TypeFilterDropdown,
   type TypeFilterOption,
@@ -42,7 +43,7 @@ export interface AuditFilterBarProps {
 const TRIGGER_CLASS = 'h-9'
 const DATE_CLASS =
   'h-9 rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-2.5 ' +
-  'text-[12px] text-[var(--cv-input-text)] transition-colors focus:border-[var(--cv-t1)] focus:outline-none'
+  'text-ui text-[var(--cv-input-text)] transition-colors focus:border-[var(--cv-t1)] focus:outline-none'
 
 /**
  * Search + collapsible filter bar shared by the vault Audit Log tab and the
@@ -101,41 +102,35 @@ export function AuditFilterBar({
 
   return (
     <div className="mb-3">
-      <div
-        className="flex h-9 items-center gap-2 rounded-lg border border-[var(--cv-input-border)]
-          bg-[var(--cv-input-bg)] px-3 transition-colors focus-within:border-[var(--cv-t1)]"
-      >
-        <Icon name="search" size={16} className="shrink-0 text-[var(--cv-input-placeholder)]" />
-        <input
-          type="text"
-          value={value.search}
-          onChange={(e) => set('search', e.target.value)}
-          placeholder={t('audit.searchPlaceholder')}
-          className="flex-1 border-none bg-transparent text-[12px] text-[var(--cv-input-text)]
-            placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
-        />
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          aria-label={t('audit.filtersToggle')}
-          title={t('audit.filtersToggle')}
-          className="relative flex shrink-0 items-center justify-center rounded transition-colors
-            hover:bg-[var(--cv-card-hover)]"
-          style={{ color: activeCount > 0 ? 'var(--cv-primary)' : 'var(--cv-t3)' }}
-        >
-          <Icon name="tune" size={18} />
-          {activeCount > 0 && (
-            <span
-              className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center
-                rounded-full px-1 text-[9px] font-bold text-white"
-              style={{ background: 'var(--cv-primary)' }}
-            >
-              {activeCount}
-            </span>
-          )}
-        </button>
-      </div>
+      <SearchBar
+        value={value.search}
+        onChange={(next) => set('search', next)}
+        placeholder={t('audit.searchPlaceholder')}
+        className=""
+        trailing={
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            aria-expanded={open}
+            aria-label={t('audit.filtersToggle')}
+            title={t('audit.filtersToggle')}
+            className="relative flex shrink-0 items-center justify-center rounded transition-colors
+              hover:bg-[var(--cv-card-hover)]"
+            style={{ color: activeCount > 0 ? 'var(--cv-primary)' : 'var(--cv-t3)' }}
+          >
+            <Icon name="tune" size={18} />
+            {activeCount > 0 && (
+              <span
+                className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center
+                  rounded-full px-1 text-micro font-bold text-white"
+                style={{ background: 'var(--cv-primary)' }}
+              >
+                {activeCount}
+              </span>
+            )}
+          </button>
+        }
+      />
 
       {/* Animated expand/collapse: the grid-rows 0fr→1fr trick animates to the
           panel's natural height; it clips the inner padding when collapsed so the
@@ -193,7 +188,7 @@ export function AuditFilterBar({
               />
             )}
 
-            <label className="flex items-center gap-1.5 text-[11px] text-[var(--cv-t3)]">
+            <label className="flex items-center gap-1.5 text-meta text-[var(--cv-t3)]">
               {t('audit.dateFrom')}
               <input
                 type="date"
@@ -205,7 +200,7 @@ export function AuditFilterBar({
                 style={{ colorScheme: theme }}
               />
             </label>
-            <label className="flex items-center gap-1.5 text-[11px] text-[var(--cv-t3)]">
+            <label className="flex items-center gap-1.5 text-meta text-[var(--cv-t3)]">
               {t('audit.dateTo')}
               <input
                 type="date"
@@ -222,7 +217,7 @@ export function AuditFilterBar({
               <button
                 type="button"
                 onClick={clearFilters}
-                className="flex h-8 items-center gap-1 rounded-lg px-2.5 text-[11px]
+                className="flex h-8 items-center gap-1 rounded-lg px-2.5 text-meta
                   font-semibold text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-primary)]"
               >
                 <Icon name="close" size={14} />

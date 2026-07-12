@@ -27,10 +27,10 @@ export function OnboardingShell({
 }: OnboardingShellProps) {
   return (
     <div
-      className="dark flex min-h-screen items-start justify-center pt-[max(2rem,calc(50vh-360px))]"
+      className="dark flex min-h-screen items-start justify-center pt-[max(2rem,calc(50vh-22.5rem))]"
       style={{ background: AUTH_BACKGROUND_GRADIENT }}
     >
-      <div className="step-enter w-full max-w-[440px] px-6 py-10">
+      <div className="step-enter w-full max-w-[27.5rem] px-6 py-10">
         <div className="relative flex items-center justify-center">
           {onBack && (
             <button
@@ -47,8 +47,8 @@ export function OnboardingShell({
         </div>
 
         <div className="mt-6 mb-6 text-center">
-          <h1 className="mb-1 text-[22px] font-bold leading-tight text-[#E8EAED]">{title}</h1>
-          <p className="text-[13px] text-[#6B7A8E]">{subtitle}</p>
+          <h1 className="mb-1 text-auth-title font-bold leading-tight text-[#E8EAED]">{title}</h1>
+          <p className="text-heading-sm text-[#6B7A8E]">{subtitle}</p>
         </div>
 
         {children}

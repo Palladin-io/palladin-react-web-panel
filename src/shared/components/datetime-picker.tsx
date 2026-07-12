@@ -211,7 +211,7 @@ export function DateTimePicker({
       ref={popoverRef}
       role="dialog"
       aria-label={t('datetimePicker.ariaLabel')}
-      className="fixed z-[120] w-[260px] rounded-xl border border-[var(--cv-border)]
+      className="fixed z-[120] w-[16.25rem] rounded-xl border border-[var(--cv-border)]
         bg-[var(--cv-modal-bg)] p-3 text-[var(--cv-t1)]
         shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
       style={{ left: coords.left, top: coords.top, minWidth: coords.width }}
@@ -229,7 +229,7 @@ export function DateTimePicker({
         >
           <Icon name="chevron_left" size={18} />
         </button>
-        <span className="text-[12px] font-semibold capitalize text-[var(--cv-t1)]">
+        <span className="text-ui font-semibold capitalize text-[var(--cv-t1)]">
           {monthLabel}
         </span>
         <button
@@ -248,7 +248,7 @@ export function DateTimePicker({
         {weekdays.map((w, i) => (
           <span
             key={i}
-            className="flex h-6 items-center justify-center text-[9px] font-semibold uppercase text-[var(--cv-t3)]"
+            className="flex h-6 items-center justify-center text-micro font-semibold uppercase text-[var(--cv-t3)]"
           >
             {w}
           </span>
@@ -269,7 +269,7 @@ export function DateTimePicker({
               disabled={disabled}
               aria-pressed={selected}
               onClick={() => selectDay(day)}
-              className={`flex h-7 items-center justify-center rounded-md text-[11px] transition-colors
+              className={`flex h-7 items-center justify-center rounded-md text-meta transition-colors
                 disabled:cursor-not-allowed disabled:opacity-25 ${
                   selected
                     ? 'font-semibold text-white'
@@ -293,7 +293,7 @@ export function DateTimePicker({
           value={hours}
           onChange={(e) => setHours(Number(e.target.value))}
           className="flex-1 rounded-md border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
-            px-2 py-1 text-[12px] text-[var(--cv-input-text)] focus:border-[var(--cv-t1)] focus:outline-none"
+            px-2 py-1 text-ui text-[var(--cv-input-text)] focus:border-[var(--cv-t1)] focus:outline-none"
         >
           {Array.from({ length: 24 }, (_, h) => (
             <option key={h} value={h} disabled={isTimeDisabled(h, minutes)}>
@@ -301,13 +301,13 @@ export function DateTimePicker({
             </option>
           ))}
         </select>
-        <span className="text-[12px] font-semibold text-[var(--cv-t3)]">:</span>
+        <span className="text-ui font-semibold text-[var(--cv-t3)]">:</span>
         <select
           aria-label={t('datetimePicker.minutes')}
           value={minutes}
           onChange={(e) => setMinutes(Number(e.target.value))}
           className="flex-1 rounded-md border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
-            px-2 py-1 text-[12px] text-[var(--cv-input-text)] focus:border-[var(--cv-t1)] focus:outline-none"
+            px-2 py-1 text-ui text-[var(--cv-input-text)] focus:border-[var(--cv-t1)] focus:outline-none"
         >
           {Array.from({ length: 60 }, (_, m) => (
             <option key={m} value={m} disabled={isTimeDisabled(hours, m)}>
@@ -323,7 +323,7 @@ export function DateTimePicker({
           type="button"
           onClick={goToday}
           className="flex-1 rounded-md border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]
-            px-2 py-1.5 text-[11px] font-medium text-[var(--cv-t2)] transition-colors
+            px-2 py-1.5 text-meta font-medium text-[var(--cv-t2)] transition-colors
             hover:border-[var(--cv-primary)] hover:text-[var(--cv-t1)]"
         >
           {t('datetimePicker.today')}
@@ -332,7 +332,7 @@ export function DateTimePicker({
           type="button"
           onClick={confirm}
           disabled={confirmDisabled}
-          className="flex-[2] rounded-md px-2 py-1.5 text-[11px] font-semibold text-white
+          className="flex-[2] rounded-md px-2 py-1.5 text-meta font-semibold text-white
             transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           style={{ backgroundColor: ACCENT }}
         >

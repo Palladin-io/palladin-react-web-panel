@@ -197,7 +197,7 @@ export function GlobalSearchAutocomplete({
         trailing={
           <kbd
             className="pointer-events-none hidden shrink-0 select-none rounded-md border
-              border-[var(--cv-input-border)] bg-[var(--cv-card-hover)] px-2 py-1 text-[11px]
+              border-[var(--cv-input-border)] bg-[var(--cv-card-hover)] px-2 py-1 text-meta
               font-semibold leading-none text-[var(--cv-t2)] sm:inline-block"
           >
             {SHORTCUT_LABEL}
@@ -212,16 +212,16 @@ export function GlobalSearchAutocomplete({
             border border-[var(--cv-border)] bg-[var(--cv-modal-bg)] p-1 shadow-xl"
         >
           {isLoading ? (
-            <div className="flex items-center gap-2 px-3 py-2.5 text-xs text-[var(--cv-t3)]">
+            <div className="flex items-center gap-2 px-3 py-2.5 text-meta text-[var(--cv-t3)]">
               <Icon name="progress_activity" size={16} className="animate-spin" />
               {t('search.loading')}
             </div>
           ) : results.length === 0 ? (
-            <div className="px-3 py-2.5 text-xs text-[var(--cv-t3)]">{emptyMessage}</div>
+            <div className="px-3 py-2.5 text-meta text-[var(--cv-t3)]">{emptyMessage}</div>
           ) : (
             <>
               {!isSearching && (
-                <div className="px-3 pb-1 pt-1.5 text-[11px] font-semibold text-[var(--cv-t3)]">
+                <div className="px-3 pb-1 pt-1.5 text-meta font-semibold text-[var(--cv-t3)]">
                   {t('search.recent')}
                 </div>
               )}
@@ -265,17 +265,17 @@ export function GlobalSearchAutocomplete({
                     </span>
 
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-[13px] font-medium text-[var(--cv-t1)]">
+                      <span className="truncate text-heading-sm font-medium text-[var(--cv-t1)]">
                         {item.name}
                       </span>
                       {subtitle && (
-                        <span className="truncate text-[11px] text-[var(--cv-t3)]">{subtitle}</span>
+                        <span className="truncate text-meta text-[var(--cv-t3)]">{subtitle}</span>
                       )}
                     </span>
 
                     <span
                       className="ml-auto shrink-0 rounded-md border border-[var(--cv-border)] px-1.5
-                        py-0.5 text-[10px] font-semibold"
+                        py-0.5 text-micro font-semibold"
                       style={{ color: badge.color }}
                     >
                       {t(badge.labelKey)}

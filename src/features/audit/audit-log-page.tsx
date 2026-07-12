@@ -139,10 +139,10 @@ export function AuditLogPage() {
     <div className="flex h-full min-h-0 flex-col px-4 pt-4 text-[var(--cv-t1)]">
       <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">
+            <h1 className="truncate text-heading font-bold text-[var(--cv-t1)]">
               {t('audit.pageTitle')}
             </h1>
-            <p className="text-[11px] text-[var(--cv-t3)]">{t('audit.pageSubtitle')}</p>
+            <p className="text-meta text-[var(--cv-t3)]">{t('audit.pageSubtitle')}</p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
             <Button

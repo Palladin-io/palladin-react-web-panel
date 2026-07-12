@@ -22,7 +22,7 @@ export function VaultListPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [premiumOpen, setPremiumOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const isWide = useWideScreen(1280)
+  const isWide = useWideScreen()
 
   const list = vaults.data?.vaults ?? []
   const filteredList = useFilteredVaults(list, search)
@@ -49,7 +49,7 @@ export function VaultListPage() {
   if (isWide) {
     return (
       <div className="flex h-full text-[var(--cv-t1)]">
-        <div className="w-[clamp(300px,22vw,400px)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+        <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
           <div className="h-full px-4 pt-4">
             <VaultListPanel />
           </div>
@@ -62,7 +62,7 @@ export function VaultListPage() {
                 <h2 className="text-lg font-semibold text-[var(--cv-t1)]">
                   {t('vault.noVaults')}
                 </h2>
-                <p className="max-w-sm text-sm text-[var(--cv-t3)]">
+                <p className="max-w-sm text-ui text-[var(--cv-t3)]">
                   {t('vault.noVaultsSubtitle')}
                 </p>
                 <Button
@@ -76,7 +76,7 @@ export function VaultListPage() {
                 </Button>
               </>
             ) : (
-              <p className="max-w-sm text-sm text-[var(--cv-t3)]">
+              <p className="max-w-sm text-ui text-[var(--cv-t3)]">
                 {t('vault.selectVaultPrompt')}
               </p>
             )}
@@ -101,10 +101,10 @@ export function VaultListPage() {
       <div className="px-6 py-8">
         <header className="mb-6 flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-[20px] font-bold leading-tight text-[var(--cv-t1)]">
+            <h1 className="text-page-title font-bold leading-tight text-[var(--cv-t1)]">
               {t('vault.title')}
             </h1>
-            <p className="mt-1 text-[12px] text-[var(--cv-t3)]">
+            <p className="mt-1 text-meta text-[var(--cv-t3)]">
               {t('vault.list.subtitle', {
                 vaultCount: list.length,
                 entryCount: totalEntries,
@@ -143,7 +143,7 @@ export function VaultListPage() {
           onCreate={handleCreateClick}
           onRetry={vaults.refetch}
         >
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-6">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(17.5rem,1fr))] gap-6">
             {filteredList.map((vault) => (
               <VaultCard
                 key={vault.id}
@@ -211,7 +211,7 @@ function Body({
         {Array.from({ length: 3 }).map((_, idx) => (
           <div
             key={idx}
-            className="h-[110px] min-w-[280px] flex-1 animate-pulse rounded-2xl
+            className="h-[6.875rem] min-w-[17.5rem] flex-1 animate-pulse rounded-2xl
               border border-[var(--cv-border)] bg-[var(--cv-card-bg)]"
           />
         ))}
@@ -229,7 +229,7 @@ function Body({
         <h2 className="text-lg font-semibold text-[var(--cv-t1)]">
           {t('vault.noVaults')}
         </h2>
-        <p className="max-w-sm text-sm text-[var(--cv-t3)]">
+        <p className="max-w-sm text-ui text-[var(--cv-t3)]">
           {t('vault.noVaultsSubtitle')}
         </p>
         <Button
@@ -247,7 +247,7 @@ function Body({
 
   if (isEmptyAfterFilter) {
     return (
-      <div className="rounded-2xl border border-dashed border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center text-sm text-[var(--cv-t3)]">
+      <div className="rounded-2xl border border-dashed border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center text-ui text-[var(--cv-t3)]">
         {t('vault.list.emptySearch')}
       </div>
     )

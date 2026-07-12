@@ -20,7 +20,7 @@ export function AppWordmark({ size = 'sm', subtitle }: AppWordmarkProps) {
     return (
       <div className="flex flex-col items-center gap-2">
         <img src="/logo.png" alt={appName} className="h-16 w-auto" />
-        <h1 className="text-[28px] font-extrabold tracking-tight">
+        <h1 className="text-display font-extrabold tracking-tight">
           <span className="text-[#E8EAED]">Palladin</span>
           <span className="text-[var(--cv-primary)]">.io</span>
         </h1>
@@ -33,7 +33,7 @@ export function AppWordmark({ size = 'sm', subtitle }: AppWordmarkProps) {
       <img src="/logo.png" alt={appName} className="h-11 w-auto" />
       <div className="min-w-0">
         <span
-          className="block text-[20px] font-extrabold leading-tight"
+          className="block text-page-title font-extrabold leading-tight"
           style={{ letterSpacing: '-0.01em' }}
         >
           <span className="text-[var(--cv-t1)]">Palladin</span>

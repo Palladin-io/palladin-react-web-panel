@@ -62,8 +62,8 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
           <Icon name="arrow_back" size={16} />
         </Link>
         <div className="min-w-0 flex-1">
-          <h2 className="truncate text-[14px] font-bold text-[var(--cv-t1)]">{vault.name}</h2>
-          <p className="text-[11px] text-[var(--cv-t3)]">
+          <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">{vault.name}</h2>
+          <p className="text-meta text-[var(--cv-t3)]">
             {t('vault.entries', { count: vault.entryCount })}
           </p>
         </div>
@@ -89,7 +89,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
           <ScrollArea scrollRef={scrollRef} onScroll={onScroll}>
             {filtered.length === 0 ? (
               <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-                bg-[var(--cv-empty-bg)] p-6 text-center text-sm text-[var(--cv-t3)]">
+                bg-[var(--cv-empty-bg)] p-6 text-center text-ui text-[var(--cv-t3)]">
                 {t('vault.entries.emptySearch')}
               </p>
             ) : (

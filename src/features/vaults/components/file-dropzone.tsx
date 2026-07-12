@@ -70,8 +70,8 @@ export function FileDropzone({
         }`}
     >
       <Icon name="upload_file" size={28} className="text-[var(--cv-t3)]" />
-      <span className="text-[12px] font-medium text-[var(--cv-t1)]">{label}</span>
-      {hint ? <span className="text-[11px] text-[var(--cv-t3)]">{hint}</span> : null}
+      <span className="text-ui font-medium text-[var(--cv-t1)]">{label}</span>
+      {hint ? <span className="text-meta text-[var(--cv-t3)]">{hint}</span> : null}
       <input
         ref={inputRef}
         type="file"

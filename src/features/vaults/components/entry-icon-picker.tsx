@@ -65,7 +65,7 @@ export function EntryIconPicker({
 
   return (
     <fieldset>
-      <legend className="mb-2 block text-[11px] font-semibold text-[var(--cv-label-text)]">
+      <legend className="mb-2 block text-meta font-semibold text-[var(--cv-label-text)]">
         {t('vault.entries.iconLabel')}
       </legend>
       <div className={rowClassName}>
@@ -178,7 +178,7 @@ export function EntryIconPicker({
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled}
               className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border
-                border-dashed border-[var(--cv-input-border)] px-3 py-2.5 text-[11px]
+                border-dashed border-[var(--cv-input-border)] px-3 py-2.5 text-meta
                 text-[var(--cv-t3)] transition-colors hover:border-[var(--cv-t1)]
                 hover:text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
             >
