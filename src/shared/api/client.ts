@@ -6,6 +6,21 @@ import type { AuthResponse } from './types'
 
 let refreshPromise: Promise<AuthResponse> | null = null
 
+/** Backend error key for a 403 caused specifically by an unverified email. */
+const EMAIL_NOT_VERIFIED_KEY = 'errors.backend.email-not-verified'
+
+/**
+ * True only when a 403 carries the distinguishable email-not-verification key.
+ * Reads a clone so the original body stays intact for the calling query.
+ */
+async function isEmailNotVerified(response: Response): Promise<boolean> {
+  try {
+    return (await response.clone().text()).includes(EMAIL_NOT_VERIFIED_KEY)
+  } catch {
+    return false
+  }
+}
+
 export const api = ky.create({
   prefixUrl: env.apiUrl,
   hooks: {
@@ -24,6 +39,16 @@ export const api = ky.create({
     ],
     afterResponse: [
       async (request, _options, response) => {
+        // Targeted email-verification backstop. The router gate is the primary
+        // mechanism; this only catches the window where a stale in-memory token
+        // lets a request through before the gate resolves. The backend marks
+        // exactly this case with a distinguishable key — every OTHER 403 (a real
+        // permission denial) is left untouched for the caller to handle.
+        if (response.status === 403 && (await isEmailNotVerified(response))) {
+          window.location.href = '/verify-email'
+          return response
+        }
+
         if (response.status !== 401) return response
 
         const { refreshToken, setTokens } = useAuthStore.getState()

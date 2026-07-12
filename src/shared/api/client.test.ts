@@ -51,8 +51,7 @@ describe('api client — 401 with failing refresh', () => {
   })
 
   it('forces logout and redirects to /login when the refresh POST fails', async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = typeof input === 'string' ? input : (input as Request).url
+    const fetchMock = vi.fn(async () => {
       // Both the original request and the refresh POST reject with 401.
       // The failing refresh is what must trigger the unconditional logout.
       return new Response('unauthorized', {
@@ -83,5 +82,58 @@ describe('api client — 401 with failing refresh', () => {
 
     // Navigation to the login screen happened.
     expect(window.location.href).toBe('/login')
+  })
+})
+
+describe('api client — 403 email-verification backstop', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    stubLocation()
+    useAuthStore.setState({
+      accessToken: 'access-token-abc',
+      refreshToken: 'refresh-token-abc',
+      userId: 'user-123',
+      isOnboarded: true,
+      emailVerified: false,
+      permissions: 42,
+    })
+  })
+
+  afterEach(() => {
+    restoreLocation()
+    useAuthStore.getState().logout()
+  })
+
+  it('redirects to /verify-email on a 403 carrying the email-not-verified key', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: 'errors.backend.email-not-verified' }), {
+            status: 403,
+            statusText: 'Forbidden',
+          }),
+      ),
+    )
+
+    await expect(api.get('vaults').json()).rejects.toBeInstanceOf(HTTPError)
+    expect(window.location.href).toBe('/verify-email')
+  })
+
+  it('leaves an ordinary permission-denied 403 untouched', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ error: 'errors.backend.forbidden' }), {
+            status: 403,
+            statusText: 'Forbidden',
+          }),
+      ),
+    )
+
+    await expect(api.get('vaults').json()).rejects.toBeInstanceOf(HTTPError)
+    // No email-verification key → no redirect; the caller handles the 403.
+    expect(window.location.href).toBe('http://localhost:5000/')
   })
 })
