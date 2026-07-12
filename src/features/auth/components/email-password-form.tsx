@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 
 export interface EmailPasswordFormProps {
   isPending: boolean
@@ -66,9 +66,9 @@ export function EmailPasswordForm({
           disabled={isPending}
           error={hasError}
         />
-        <FieldFeedback visible={hasError} color="red">
+        <FeedbackSlot visible={hasError} color="red">
           {errorMessage}
-        </FieldFeedback>
+        </FeedbackSlot>
       </div>
 
       <AuthSubmitButton disabled={!canSubmit}>
