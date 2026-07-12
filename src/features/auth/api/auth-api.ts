@@ -47,7 +47,10 @@ export function isTotpRequired(
 }
 
 export function register(payload: RegisterPayload): Promise<AuthResponse> {
-  return api.post('api/auth/register', { json: payload }).json()
+  // Tag the sign-up platform for analytics (be:identity:user-signed-up →
+  // platform). Hardcoded at the API boundary like the OAuth call, so every
+  // web registration reports "web" instead of the server's "unknown" default.
+  return api.post('api/auth/register', { json: { ...payload, platform: 'web' } }).json()
 }
 
 /**
