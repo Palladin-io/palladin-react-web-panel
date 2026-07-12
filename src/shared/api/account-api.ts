@@ -9,8 +9,10 @@ export interface AccountResponse {
   isOnboarded: boolean
   /**
    * Whether the account's email is verified. OAuth accounts are always true.
-   * Optional — older backends omit it; consumers default to `true` so the
-   * verify banner never shows for accounts the server can't report on.
+   * Server-authoritative half of the hard email-verification gate. Optional —
+   * older backends omit it; consumers treat only an explicit `false` as
+   * unverified (unknown/undefined never gates), so an account the server can't
+   * report on is never locked out.
    */
   emailVerified?: boolean
   /**

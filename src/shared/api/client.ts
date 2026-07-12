@@ -10,12 +10,15 @@ let refreshPromise: Promise<AuthResponse> | null = null
 const EMAIL_NOT_VERIFIED_KEY = 'errors.backend.email-not-verified'
 
 /**
- * True only when a 403 carries the distinguishable email-not-verification key.
- * Reads a clone so the original body stays intact for the calling query.
+ * True only when a 403 carries the distinguishable email-not-verification key
+ * in its `error` field. Parses a clone (so the original body stays intact for
+ * the calling query) and matches the field exactly — a substring scan could
+ * false-positive on an unrelated 403 that merely mentions the phrase.
  */
 async function isEmailNotVerified(response: Response): Promise<boolean> {
   try {
-    return (await response.clone().text()).includes(EMAIL_NOT_VERIFIED_KEY)
+    const body = (await response.clone().json()) as { error?: string }
+    return body?.error === EMAIL_NOT_VERIFIED_KEY
   } catch {
     return false
   }

@@ -10,8 +10,10 @@ interface AuthState {
   /**
    * Whether the account's email is verified. OAuth accounts are always
    * verified; password accounts start unverified until they consume the
-   * verification link. Drives the soft verify-email banner. Persisted so a
-   * reload doesn't flash the banner before the account query resolves.
+   * verification link. Feeds the hard email-verification gate's `beforeLoad`
+   * fast path (see `_authenticated.tsx`) — a `false` here redirects to
+   * `/verify-email`. Persisted so a reload has an immediate signal before the
+   * server-authoritative account query resolves.
    */
   emailVerified: boolean
   permissions: number

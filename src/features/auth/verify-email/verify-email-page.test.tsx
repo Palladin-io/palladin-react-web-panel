@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { VerifyEmailPage } from './verify-email-page'
 
 const authState = vi.hoisted(() => ({ authenticated: false }))
+const navigateMock = vi.hoisted(() => vi.fn())
+const markVerifiedMock = vi.hoisted(() => vi.fn())
 const verifyState = vi.hoisted(() => ({
   mutate: vi.fn(),
   isPending: false,
@@ -22,12 +24,14 @@ const getAccountMock = vi.hoisted(() => vi.fn())
 const logoutMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigateMock,
   Link: ({ children, ...props }: { children: ReactNode }) => <a {...props}>{children}</a>,
 }))
 vi.mock('../stores/auth-store', () => ({
   getIsAuthenticated: () => authState.authenticated,
-  useAuthStore: { getState: () => ({ logout: logoutMock }) },
+  useAuthStore: {
+    getState: () => ({ logout: logoutMock, markEmailVerified: markVerifiedMock }),
+  },
 }))
 vi.mock('../hooks/use-verify-email', () => ({ useVerifyEmail: () => verifyState }))
 vi.mock('../hooks/use-resend-verification', () => ({ useResendVerification: () => resendState }))
@@ -52,6 +56,8 @@ beforeEach(() => {
   resendState.isPending = false
   resendState.isSuccess = false
   resendState.cooldown = 0
+  navigateMock.mockReset()
+  markVerifiedMock.mockReset()
   getAccountMock.mockReset().mockResolvedValue({ email: 'user@example.com', emailVerified: false })
 })
 
@@ -108,5 +114,17 @@ describe('VerifyEmailPage — hard gate (signed in, no token)', () => {
     renderPage(<VerifyEmailPage token={undefined} />)
     await user.click(await screen.findByRole('button', { name: /log out/i }))
     expect(logoutMock).toHaveBeenCalledOnce()
+  })
+
+  it('syncs the store before leaving when the account is already verified (no redirect loop)', async () => {
+    // Stale-store scenario: the persisted flag says unverified (that's how the
+    // user landed here), but the server reports verified. The gate must clear
+    // the store flag so beforeLoad doesn't bounce them straight back.
+    authState.authenticated = true
+    getAccountMock.mockResolvedValue({ email: 'user@example.com', emailVerified: true })
+    renderPage(<VerifyEmailPage token={undefined} />)
+
+    await waitFor(() => expect(markVerifiedMock).toHaveBeenCalledOnce())
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/' })
   })
 })

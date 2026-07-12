@@ -48,9 +48,17 @@ function VerifyEmailGate() {
   const { resend, isPending, isSuccess, cooldown } = useResendVerification()
 
   // If the account turns out to be verified after all (e.g. verified in another
-  // tab), leave the gate.
+  // tab), sync the persisted store BEFORE leaving. Skipping this deadlocks the
+  // user: the router's `beforeLoad` fast path reads the (stale `false`) store,
+  // redirects back here, the query still says verified, we navigate away again —
+  // an infinite loop whose deps never change, stranding a verified account on
+  // the gate. `markEmailVerified()` clears the stale flag so `beforeLoad` lets
+  // them through.
   useEffect(() => {
-    if (account.data?.emailVerified === true) navigate({ to: '/' })
+    if (account.data?.emailVerified === true) {
+      useAuthStore.getState().markEmailVerified()
+      navigate({ to: '/' })
+    }
   }, [account.data?.emailVerified, navigate])
 
   const handleLogout = () => {
