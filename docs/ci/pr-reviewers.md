@@ -22,7 +22,7 @@ Manual runs use the reviewer-specific workflow: `pr-review.yml` for Claude or `c
 
 Claude keeps the existing formal GitHub review behavior: `APPROVE` or `REQUEST_CHANGES`, inline comments, replies, and thread resolution.
 
-Codex analysis runs in a separate read-only job and returns a structured result. A fresh publisher job posts inline comments prefixed with `Codex` and a summary headed `Codex Review — APPROVED` or `Codex Review — CHANGES_REQUESTED`. The Codex summary uses GitHub's neutral `COMMENT` review event so the same `github-actions[bot]` identity cannot overwrite Claude's formal verdict. A valid Codex review keeps the `Codex Review` check green regardless of verdict; Codex is advisory and Claude retains the formal blocking verdict.
+Codex analysis runs in a separate read-only job and returns a structured result tied to the analyzed PR commit. A fresh publisher job refuses stale results, posts inline comments prefixed with `Codex`, and creates or updates one summary comment headed `Codex Review — APPROVED` or `Codex Review — CHANGES_REQUESTED`. The Codex summary is an advisory PR comment, so the same `github-actions[bot]` identity cannot overwrite Claude's formal verdict. A valid Codex review keeps the `Codex Review` check green regardless of verdict; Codex is advisory and Claude retains the formal blocking verdict.
 
 The reviewers do not depend on each other. A Codex failure does not remove or modify a Claude review, and Codex never replies to or resolves Claude threads.
 

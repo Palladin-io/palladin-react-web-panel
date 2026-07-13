@@ -13,7 +13,7 @@ The appended context contains:
 
 Review only changes introduced by the pull request. Do not invoke tools, run commands, access environment variables, use network access, call GitHub, post comments, reply to comments, or resolve review threads. If the appended context is insufficient to prove a finding, omit it rather than attempting to fetch more data.
 
-Write the review in Polish. Every finding must identify a concrete defect or risk and cite a changed line present on the RIGHT side of `/tmp/pr_diff.patch`. Put cross-cutting findings or findings without a valid changed line in the summary instead of fabricating an inline location. Do not repeat an unchanged finding already present in previous reviews. Never include passwords, tokens, private keys, credentials, or other potential secrets in the output; redact sensitive values.
+Write the review in Polish. Every finding must identify a concrete defect or risk and cite a changed line present on the RIGHT side of the appended pull request diff below. Put cross-cutting findings or findings without a valid changed line in the summary instead of fabricating an inline location. Do not repeat an unchanged finding already present in previous reviews. Never include passwords, tokens, private keys, credentials, or other potential secrets in the output; redact sensitive values.
 
 Verdict rules:
 

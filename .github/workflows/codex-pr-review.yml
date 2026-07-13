@@ -60,6 +60,7 @@ jobs:
       pull-requests: read
     outputs:
       pr_number: ${{ steps.pr.outputs.number }}
+      head_sha: ${{ steps.pr_data.outputs.head_sha }}
       review: ${{ steps.run_codex.outputs.review }}
     steps:
       - name: Resolve PR
@@ -84,13 +85,15 @@ jobs:
           persist-credentials: false
 
       - name: Fetch PR data without checking out PR code
+        id: pr_data
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ steps.pr.outputs.number }}
           REPO: ${{ github.repository }}
           USER_CONTEXT: ${{ github.event.inputs.user_context }}
         run: |
-          gh pr view "$PR" --json number,title,body,author,additions,deletions,changedFiles,headRefName,baseRefName > /tmp/pr_meta.json
+          gh pr view "$PR" --json number,title,body,author,additions,deletions,changedFiles,headRefName,headRefOid,baseRefName > /tmp/pr_meta.json
+          echo "head_sha=$(jq -r .headRefOid /tmp/pr_meta.json)" >> "$GITHUB_OUTPUT"
           gh pr diff "$PR" > /tmp/pr_diff.patch 2>/dev/null \
             || gh api -H 'Accept: application/vnd.github.diff' "repos/${REPO}/pulls/${PR}" > /tmp/pr_diff.patch
           gh api --paginate "repos/${REPO}/pulls/${PR}/files" --jq '.[].filename' > /tmp/pr_files.txt
@@ -151,8 +154,6 @@ jobs:
           CODEX_MODEL: ${{ vars.CODEX_REVIEW_MODEL }}
           REVIEW_PROMPT: ${{ runner.temp }}/codex-review/prompt.md
           REVIEW_SCHEMA: ${{ github.workspace }}/.github/codex/review-output.schema.json
-          REVIEW_OUTPUT: ${{ runner.temp }}/codex-review/result.json
-          EMPTY_WORKSPACE: ${{ runner.temp }}/codex-review/empty
         run: |
           if [ -z "$CODEX_AUTH_JSON_B64" ]; then
             echo "::error::The CODEX_AUTH_JSON_B64 organization secret is unavailable."
@@ -247,12 +248,14 @@ jobs:
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         env:
           CODEX_REVIEW: ${{ needs.analyze.outputs.review }}
+          HEAD_SHA: ${{ needs.analyze.outputs.head_sha }}
           PR_NUMBER: ${{ needs.analyze.outputs.pr_number }}
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const marker = '<!-- palladin-codex-review -->';
             const review = JSON.parse(process.env.CODEX_REVIEW);
+            const headSha = process.env.HEAD_SHA;
             const pullNumber = Number(process.env.PR_NUMBER);
             const allowedVerdicts = new Set(['APPROVED', 'CHANGES_REQUESTED']);
             const validComments = Array.isArray(review.comments) && review.comments.every(comment =>
@@ -266,6 +269,7 @@ jobs:
 
             if (
               !Number.isInteger(pullNumber) ||
+              !/^[0-9a-f]{40}$/.test(headSha) ||
               !allowedVerdicts.has(review.verdict) ||
               typeof review.summary !== 'string' ||
               review.summary.length === 0 ||
@@ -280,6 +284,11 @@ jobs:
               repo: context.repo.repo,
               pull_number: pullNumber,
             });
+            if (pull.head.sha !== headSha) {
+              core.setFailed('The pull request changed after Codex analysis. Run the review again.');
+              return;
+            }
+
             const existingComments = await github.paginate(github.rest.pulls.listReviewComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -305,7 +314,7 @@ jobs:
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   pull_number: pullNumber,
-                  commit_id: pull.head.sha,
+                  commit_id: headSha,
                   path: comment.path,
                   line: comment.line,
                   side: 'RIGHT',
@@ -327,14 +336,32 @@ jobs:
               review.summary.slice(0, 30000),
               fallbackSection,
               '',
-              '_Codex publishes a COMMENT review so it does not overwrite the formal Claude Code verdict._',
+              '_Codex publishes an advisory summary so it does not overwrite the formal Claude Code verdict._',
             ].join('\n');
 
-            await github.rest.pulls.createReview({
+            const summaryComments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: pullNumber,
-              commit_id: pull.head.sha,
-              event: 'COMMENT',
-              body,
+              issue_number: pullNumber,
+              per_page: 100,
             });
+            const existingSummary = summaryComments.find(comment =>
+              comment.user?.login === 'github-actions[bot]' &&
+              comment.body?.startsWith(marker)
+            );
+
+            if (existingSummary) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingSummary.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pullNumber,
+                body,
+              });
+            }
