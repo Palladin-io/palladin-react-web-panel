@@ -1133,6 +1133,7 @@
   "register.createAccount": "Utwórz konto",
   "register.creatingAccount": "Tworzenie konta…",
   "register.errorGeneric": "Nie udało się utworzyć konta. Spróbuj ponownie.",
+  "register.errorEmailTaken": "Ten adres e-mail jest już zarejestrowany. Zaloguj się.",
   "recoveryPhrase.warning": "Bez tego klucza nie odzyskasz sejfu. Przechowuj go bezpiecznie — offline i nigdy nie udostępniaj.",
   "recoveryPhrase.copied": "Skopiowano",
   "recoveryPhrase.copyToClipboard": "Kopiuj do schowka",

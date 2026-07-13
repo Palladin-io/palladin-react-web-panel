@@ -1086,6 +1086,7 @@
   "register.createAccount": "Create Account",
   "register.creatingAccount": "Creating account…",
   "register.errorGeneric": "We couldn't create your account. Please try again.",
+  "register.errorEmailTaken": "This email is already registered. Sign in instead.",
   "recoveryPhrase.warning": "You cannot recover your vault without this key. Store it safely — save offline, and never share it.",
   "recoveryPhrase.copied": "Copied",
   "recoveryPhrase.copyToClipboard": "Copy to Clipboard",
