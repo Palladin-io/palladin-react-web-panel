@@ -1,8 +1,6 @@
 name: "Claude Code: PR Review"
 
 on:
-  pull_request:
-    types: [opened, synchronize]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -20,21 +18,12 @@ env:
   CLAUDE_MODEL: claude-opus-4-7
 
 concurrency:
-  group: claude-review-pr-${{ github.event.pull_request.number || github.event.inputs.pr_number || github.run_id }}
+  group: claude-review-pr-${{ github.event.inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
   review:
-    # Manual dispatch always runs. Auto PR review is skipped for draft or WIP-titled
-    # PRs and when Codex is the configured default reviewer.
-    if: >
-      (github.event_name == 'workflow_dispatch' &&
-       github.ref == 'refs/heads/main') ||
-      (github.event_name == 'pull_request' &&
-       github.actor != 'github-actions[bot]' &&
-       github.event.pull_request.draft == false &&
-       !startsWith(github.event.pull_request.title, 'WIP') &&
-       vars.DEFAULT_PR_REVIEWER != 'codex')
+    if: github.ref == 'refs/heads/main'
     name: Claude Code Review
     runs-on: ubuntu-latest
     timeout-minutes: 30

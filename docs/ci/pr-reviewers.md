@@ -1,22 +1,23 @@
 # Pull Request Reviewers
 
-The web panel supports Claude Code and Codex as independent pull request reviewers. Claude remains the default reviewer and the existing Claude implementation is also used by `fix-pr.yml`.
+The web panel supports Claude Code and Codex as independent pull request reviewers. Both are manual by default, and the existing Claude implementation is also used by `fix-pr.yml`.
 
-## Automatic flow
+## Trigger flow
 
-Ready, non-WIP pull requests use the repository variable `DEFAULT_PR_REVIEWER`:
+Claude Review is `workflow_dispatch`-only and never runs automatically when a pull request is opened or updated. Run `pr-review.yml` from `main` and provide the pull request number.
+
+Codex Review is also manual by default. Automatic Codex review is an explicit opt-in through the repository variable `DEFAULT_PR_REVIEWER`:
 
 | Value | Automatic review |
 |---|---|
-| unset, `claude`, or an unsupported value | Claude Code |
-| `codex` | Codex |
-| `both` | Claude Code and Codex in parallel |
+| unset, `claude`, `both`, or an unsupported value | None |
+| `codex` | Codex only |
 
 Draft pull requests, titles starting with `WIP`, and pull requests created by `github-actions[bot]` are skipped. The default can be changed without a code change under **Settings → Secrets and variables → Actions → Variables**.
 
 The Codex authorization job refuses runs triggered by users without write access to the repository. Review external-contributor pull requests with Claude or dispatch Codex only after a maintainer has validated the diff.
 
-Manual runs use the reviewer-specific workflow from `main`: `pr-review.yml` for Claude or `codex-pr-review.yml` for Codex. The manual selection does not change the repository default.
+Manual runs use the reviewer-specific workflow from `main`: `pr-review.yml` for Claude or `codex-pr-review.yml` for Codex. Both accept a pull request number and publish the result on that pull request. Manual selection does not change the repository default.
 
 ## Results and failure isolation
 
@@ -53,4 +54,4 @@ Current provider details:
 
 ## Rollback
 
-Set `DEFAULT_PR_REVIEWER=claude` or remove the variable. Automatic pull request review immediately returns to the existing Claude-only path without changing `fix-pr.yml` or the Claude job. Manual Codex runs remain available for diagnosis; removing access to `CODEX_AUTH_JSON_B64` disables them completely.
+Remove `DEFAULT_PR_REVIEWER` to disable automatic AI review completely. Manual Claude and Codex runs remain available; removing access to `CODEX_AUTH_JSON_B64` disables Codex completely.
