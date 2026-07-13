@@ -417,6 +417,7 @@
   "nav.approvals": "Approvals",
   "nav.inbox": "Inbox",
   "nav.auditLog": "Audit Log",
+  "nav.team": "Team",
   "nav.apiKeys": "API Keys",
   "nav.settings": "Settings",
   "nav.billing": "Billing",
@@ -1181,5 +1182,18 @@
   "verifyEmail.resend": "Resend Email",
   "verifyEmail.sending": "Sending…",
   "verifyEmail.sent": "Email Sent",
-  "verifyEmail.resendIn": "Resend in {{seconds}}s"
+  "verifyEmail.resendIn": "Resend in {{seconds}}s",
+  "team.title": "Team",
+  "team.subtitle": "People and roles in this organization.",
+  "team.memberCount_one": "{{count}} member in this organization",
+  "team.memberCount_other": "{{count}} members in this organization",
+  "team.listLabel": "Organization members",
+  "team.rolesLabel": "Roles",
+  "team.noRoles": "No roles assigned",
+  "team.owner": "Owner",
+  "team.joinedLabel": "Joined {{date}}",
+  "team.loading": "Loading organization members",
+  "team.errorLoad": "We couldn't load the organization members.",
+  "team.empty": "No members yet",
+  "team.emptyHint": "Invited people will appear here after they join the organization."
 }

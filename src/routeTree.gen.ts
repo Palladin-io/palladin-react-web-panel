@@ -18,6 +18,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated/vaults'
 import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
+import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
@@ -76,6 +77,11 @@ const AuthenticatedVaultsRoute = AuthenticatedVaultsRouteImport.update({
 const AuthenticatedUnlockRoute = AuthenticatedUnlockRouteImport.update({
   id: '/unlock',
   path: '/unlock',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -176,6 +182,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AuthenticatedInboxRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/team': typeof AuthenticatedTeamRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
@@ -200,6 +207,7 @@ export interface FileRoutesByTo {
   '/inbox': typeof AuthenticatedInboxRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/team': typeof AuthenticatedTeamRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
   '/': typeof AuthenticatedIndexRoute
@@ -227,6 +235,7 @@ export interface FileRoutesById {
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
   '/_authenticated/vaults': typeof AuthenticatedVaultsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -255,6 +264,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/security'
     | '/settings'
+    | '/team'
     | '/unlock'
     | '/vaults'
     | '/agents/$agentId'
@@ -279,6 +289,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/security'
     | '/settings'
+    | '/team'
     | '/unlock'
     | '/vaults'
     | '/'
@@ -305,6 +316,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inbox'
     | '/_authenticated/security'
     | '/_authenticated/settings'
+    | '/_authenticated/team'
     | '/_authenticated/unlock'
     | '/_authenticated/vaults'
     | '/_authenticated/'
@@ -389,6 +401,13 @@ declare module '@tanstack/react-router' {
       path: '/unlock'
       fullPath: '/unlock'
       preLoaderRoute: typeof AuthenticatedUnlockRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/team': {
+      id: '/_authenticated/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof AuthenticatedTeamRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/settings': {
@@ -508,6 +527,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedUnlockRoute: typeof AuthenticatedUnlockRoute
   AuthenticatedVaultsRoute: typeof AuthenticatedVaultsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
@@ -529,6 +549,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedUnlockRoute: AuthenticatedUnlockRoute,
   AuthenticatedVaultsRoute: AuthenticatedVaultsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,

@@ -39,8 +39,9 @@ Use `/brain` to navigate, or: `grep -r "WORD" ../brain --include="*.md"`
 | API Keys | `docs/architecture/features/api-keys.md` |
 | Notifications | `docs/architecture/features/notifications.md` |
 | Settings | `docs/architecture/features/settings.md` |
+| Teams | `docs/architecture/features/teams.md` |
 
-`billing/`, `teams/`, `dashboard/` are not yet implemented (placeholder dirs).
+`billing/` and `dashboard/` are not yet implemented (placeholder dirs).
 
 ## Tech Stack
 
