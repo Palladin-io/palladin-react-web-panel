@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Trans, useTranslation } from 'react-i18next'
-import { CheckCircle2, Loader2, XCircle } from 'lucide-react'
+import { Loader2, XCircle } from 'lucide-react'
 import { AuthStepShell } from '../../../shared/components/auth-step-shell'
 import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../../shared/api/account-api'
@@ -191,7 +191,9 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
         subtitle={t('verifyEmail.successSubtitle')}
       >
         <div className="flex flex-col items-center gap-4">
-          <CheckCircle2 className="h-10 w-10 text-[var(--cv-success)]" />
+          <p className="text-heading-md font-bold text-[var(--cv-success)]">
+            {t('verifyEmail.verified')}
+          </p>
           {forwardAction}
         </div>
       </AuthStepShell>

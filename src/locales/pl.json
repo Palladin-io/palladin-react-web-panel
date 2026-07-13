@@ -1159,6 +1159,7 @@
   "verifyEmail.verifyingTitle": "Weryfikacja adresu e-mail",
   "verifyEmail.verifyingSubtitle": "Chwileczkę…",
   "verifyEmail.successTitle": "E-mail zweryfikowany",
+  "verifyEmail.verified": "Zweryfikowano",
   "verifyEmail.successSubtitle": "Twój adres e-mail został potwierdzony.",
   "verifyEmail.goToApp": "Przejdź do Palladin",
   "verifyEmail.goToLogin": "Przejdź do logowania",

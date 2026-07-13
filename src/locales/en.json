@@ -1112,6 +1112,7 @@
   "verifyEmail.verifyingTitle": "Verifying Your Email",
   "verifyEmail.verifyingSubtitle": "Just a moment…",
   "verifyEmail.successTitle": "Email Verified",
+  "verifyEmail.verified": "Verified",
   "verifyEmail.successSubtitle": "Your email address has been confirmed.",
   "verifyEmail.goToApp": "Continue to Palladin",
   "verifyEmail.goToLogin": "Go to Sign In",
