@@ -28,7 +28,8 @@ jobs:
     # Manual dispatch always runs. Auto PR review is skipped for draft or WIP-titled
     # PRs and when Codex is the configured default reviewer.
     if: >
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref == 'refs/heads/main') ||
       (github.event_name == 'pull_request' &&
        github.actor != 'github-actions[bot]' &&
        github.event.pull_request.draft == false &&

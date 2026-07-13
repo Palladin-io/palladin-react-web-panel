@@ -28,6 +28,7 @@ env:
 
 jobs:
   fix:
+    if: github.ref == 'refs/heads/main'
     name: Claude Code Fix
     runs-on: ubuntu-latest
     timeout-minutes: 30
