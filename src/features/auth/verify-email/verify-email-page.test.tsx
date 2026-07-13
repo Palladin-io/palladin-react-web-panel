@@ -1,11 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { VerifyEmailPage } from './verify-email-page'
 
-const authState = vi.hoisted(() => ({ authenticated: false }))
+const authState = vi.hoisted(() => ({ authenticated: false, emailVerified: false }))
 const navigateMock = vi.hoisted(() => vi.fn())
 const markVerifiedMock = vi.hoisted(() => vi.fn())
 const verifyState = vi.hoisted(() => ({
@@ -29,9 +29,11 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 vi.mock('../stores/auth-store', () => ({
   getIsAuthenticated: () => authState.authenticated,
-  useAuthStore: {
-    getState: () => ({ logout: logoutMock, markEmailVerified: markVerifiedMock }),
-  },
+  useAuthStore: Object.assign(
+    (selector: (s: { emailVerified: boolean }) => unknown) =>
+      selector({ emailVerified: authState.emailVerified }),
+    { getState: () => ({ logout: logoutMock, markEmailVerified: markVerifiedMock }) },
+  ),
 }))
 vi.mock('../hooks/use-verify-email', () => ({ useVerifyEmail: () => verifyState }))
 vi.mock('../hooks/use-resend-verification', () => ({ useResendVerification: () => resendState }))
@@ -48,6 +50,7 @@ function renderPage(ui: ReactNode) {
 
 beforeEach(() => {
   authState.authenticated = false
+  authState.emailVerified = false
   verifyState.mutate.mockReset()
   verifyState.isPending = false
   verifyState.isIdle = false
@@ -86,6 +89,29 @@ describe('VerifyEmailPage — token result flow', () => {
     renderPage(<VerifyEmailPage token={undefined} />)
     expect(screen.getByText(/invalid link/i)).toBeInTheDocument()
     expect(verifyState.mutate).not.toHaveBeenCalled()
+  })
+
+  it('auto-forwards after a successful verification', () => {
+    vi.useFakeTimers()
+    try {
+      verifyState.data = 'verified'
+      renderPage(<VerifyEmailPage token="tok-123" />)
+      expect(navigateMock).not.toHaveBeenCalled()
+      act(() => vi.advanceTimersByTime(1500))
+      expect(navigateMock).toHaveBeenCalledWith({ to: '/login' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('treats an already-verified session as verified when the token was consumed', () => {
+    // Double-fire: the first call verified + consumed the token, the second got
+    // "invalid" — but this session is verified, so still show success.
+    authState.authenticated = true
+    authState.emailVerified = true
+    verifyState.data = 'invalid'
+    renderPage(<VerifyEmailPage token="tok-123" />)
+    expect(screen.getByText(/email verified/i)).toBeInTheDocument()
   })
 })
 

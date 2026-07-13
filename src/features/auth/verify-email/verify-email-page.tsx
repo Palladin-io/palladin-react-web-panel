@@ -122,6 +122,7 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const verify = useVerifyEmail()
+  const emailVerified = useAuthStore((s) => s.emailVerified)
 
   // Fire exactly once for a given token, even under StrictMode double-mount.
   const attempted = useRef(false)
@@ -131,7 +132,26 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
     verify.mutate(token)
   }, [token, verify])
 
-  const outcome = !token ? 'invalid' : verify.isPending || verify.isIdle ? 'pending' : verify.data
+  const rawOutcome =
+    !token ? 'invalid' : verify.isPending || verify.isIdle ? 'pending' : verify.data
+  // A double-fire (StrictMode / a remount) consumes the token on the first call
+  // and gets "token invalid" on the second — but the first success already
+  // flipped this session's emailVerified flag. Trust it: the address IS verified,
+  // so don't strand the user on an error/spinner for a token we ourselves used.
+  const outcome =
+    rawOutcome !== 'verified' && authenticated && emailVerified ? 'verified' : rawOutcome
+
+  // Auto-forward once verified — the user shouldn't have to click through. An
+  // authenticated session lands on /unlock (via the vault-lock guard) after a
+  // brief "verified" confirmation; an anonymous one goes to /login.
+  useEffect(() => {
+    if (outcome !== 'verified') return
+    const id = window.setTimeout(
+      () => navigate({ to: authenticated ? '/' : '/login' }),
+      1500,
+    )
+    return () => window.clearTimeout(id)
+  }, [outcome, authenticated, navigate])
 
   const forwardAction = authenticated ? (
     <AuthSubmitButton type="button" onClick={() => navigate({ to: '/' })}>
