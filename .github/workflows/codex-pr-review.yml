@@ -22,7 +22,8 @@ concurrency:
 jobs:
   authorize:
     if: >
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' &&
+       github.ref == 'refs/heads/main') ||
       (github.event_name == 'pull_request_target' &&
        github.actor != 'github-actions[bot]' &&
        github.event.pull_request.draft == false &&
