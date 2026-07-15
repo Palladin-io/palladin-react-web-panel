@@ -16,6 +16,12 @@ export interface AuthStepShellProps {
   showLogo?: boolean
   /** Alt text for the logo when shown. */
   logoAlt?: string
+  /**
+   * Vertical placement. `'top'` (default) keeps the tall register wizard biased
+   * toward the top so it never overflows off-screen. `'center'` truly centers
+   * short standalone screens (verify-email gate/result) in the viewport.
+   */
+  align?: 'top' | 'center'
 }
 
 /**
@@ -37,10 +43,15 @@ export function AuthStepShell({
   progress,
   showLogo,
   logoAlt,
+  align = 'top',
 }: AuthStepShellProps) {
+  const placement =
+    align === 'center'
+      ? 'items-center justify-center py-8'
+      : 'items-start justify-center pt-[max(2rem,calc(50vh-22.5rem))]'
   return (
     <div
-      className="dark flex min-h-screen items-start justify-center pt-[max(2rem,calc(50vh-22.5rem))]"
+      className={`dark flex min-h-screen ${placement}`}
       style={{ background: AUTH_BACKGROUND_GRADIENT }}
     >
       <div className="step-enter w-full max-w-[27.5rem] px-6 py-10">

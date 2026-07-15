@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { HTTPError } from 'ky'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { generateRecoveryMnemonic } from '../../../shared/lib/mnemonic'
@@ -54,7 +55,12 @@ export function RegisterPage() {
       },
       {
         onSuccess: () => navigate({ to: '/' }),
-        onError: () => setErrorMessage(t('register.errorGeneric')),
+        onError: (err) => {
+          // A 409 means the email is already registered — tell the user exactly
+          // that (and to sign in) instead of a generic "try again" they'd loop on.
+          const emailTaken = err instanceof HTTPError && err.response.status === 409
+          setErrorMessage(t(emailTaken ? 'register.errorEmailTaken' : 'register.errorGeneric'))
+        },
       },
     )
   }

@@ -75,14 +75,17 @@ export function EmailPasswordForm({
         {isPending ? t('login.signingIn') : t('login.signIn')}
       </AuthSubmitButton>
 
-      <div className="flex justify-center">
-        <Link
-          to="/recovery"
-          className="text-ui text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
-        >
-          {t('login.forgotPassword')}
-        </Link>
-      </div>
+      {/* Register is the email path's explicit sign-up (OAuth, below in LoginPage,
+          creates its account implicitly). Ghost button so it reads as a distinct
+          action, not another provider. */}
+      <Link
+        to="/register"
+        className="flex w-full items-center justify-center rounded-lg border
+          border-[rgba(232,234,237,0.14)] bg-transparent px-3.5 py-2.5 text-heading-sm
+          font-medium text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.06)]"
+      >
+        {t('login.createAccount')}
+      </Link>
     </form>
   )
 }

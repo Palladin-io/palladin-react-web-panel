@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
-import { useTranslation } from 'react-i18next'
-import { CheckCircle2, Loader2, MailCheck, XCircle } from 'lucide-react'
+import { Trans, useTranslation } from 'react-i18next'
+import { Loader2, XCircle } from 'lucide-react'
 import { AuthStepShell } from '../../../shared/components/auth-step-shell'
 import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../../shared/api/account-api'
@@ -78,17 +78,18 @@ function VerifyEmailGate() {
   return (
     <AuthStepShell
       showLogo
+      align="center"
       logoAlt={t('auth.appName')}
       title={t('verifyEmail.pendingTitle')}
       subtitle={t('verifyEmail.pendingSubtitle')}
     >
       <div className="flex flex-col items-center gap-4">
-        <MailCheck className="h-10 w-10 text-[var(--cv-premium)]" />
-
         <p className="text-center text-ui text-[#B8C5D4]">
-          {account.data?.email
-            ? t('verifyEmail.pendingBody', { email: account.data.email })
-            : t('verifyEmail.pendingBodyNoEmail')}
+          {account.data?.email ? (
+            <Trans i18nKey="verifyEmail.pendingBody" values={{ email: account.data.email }} />
+          ) : (
+            <Trans i18nKey="verifyEmail.pendingBodyNoEmail" />
+          )}
         </p>
 
         <AuthSubmitButton
@@ -121,6 +122,7 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const verify = useVerifyEmail()
+  const emailVerified = useAuthStore((s) => s.emailVerified)
 
   // Fire exactly once for a given token, even under StrictMode double-mount.
   const attempted = useRef(false)
@@ -130,7 +132,26 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
     verify.mutate(token)
   }, [token, verify])
 
-  const outcome = !token ? 'invalid' : verify.isPending || verify.isIdle ? 'pending' : verify.data
+  const rawOutcome =
+    !token ? 'invalid' : verify.isPending || verify.isIdle ? 'pending' : verify.data
+  // A double-fire (StrictMode / a remount) consumes the token on the first call
+  // and gets "token invalid" on the second — but the first success already
+  // flipped this session's emailVerified flag. Trust it: the address IS verified,
+  // so don't strand the user on an error/spinner for a token we ourselves used.
+  const outcome =
+    rawOutcome !== 'verified' && authenticated && emailVerified ? 'verified' : rawOutcome
+
+  // Auto-forward once verified — the user shouldn't have to click through. An
+  // authenticated session lands on /unlock (via the vault-lock guard) after a
+  // brief "verified" confirmation; an anonymous one goes to /login.
+  useEffect(() => {
+    if (outcome !== 'verified') return
+    const id = window.setTimeout(
+      () => navigate({ to: authenticated ? '/' : '/login' }),
+      1500,
+    )
+    return () => window.clearTimeout(id)
+  }, [outcome, authenticated, navigate])
 
   const forwardAction = authenticated ? (
     <AuthSubmitButton type="button" onClick={() => navigate({ to: '/' })}>
@@ -148,6 +169,7 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
     return (
       <AuthStepShell
         showLogo
+        align="center"
         logoAlt={t('auth.appName')}
         title={t('verifyEmail.verifyingTitle')}
         subtitle={t('verifyEmail.verifyingSubtitle')}
@@ -163,12 +185,15 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
     return (
       <AuthStepShell
         showLogo
+        align="center"
         logoAlt={t('auth.appName')}
         title={t('verifyEmail.successTitle')}
         subtitle={t('verifyEmail.successSubtitle')}
       >
         <div className="flex flex-col items-center gap-4">
-          <CheckCircle2 className="h-10 w-10 text-[var(--cv-success)]" />
+          <p className="text-heading-md font-bold text-[var(--cv-success)]">
+            {t('verifyEmail.verified')}
+          </p>
           {forwardAction}
         </div>
       </AuthStepShell>
@@ -180,6 +205,7 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
   return (
     <AuthStepShell
       showLogo
+      align="center"
       logoAlt={t('auth.appName')}
       title={isExpired ? t('verifyEmail.expiredTitle') : t('verifyEmail.invalidTitle')}
       subtitle={isExpired ? t('verifyEmail.expiredSubtitle') : t('verifyEmail.invalidSubtitle')}

@@ -4,9 +4,7 @@ import type { AuthResponse } from '../../../shared/api/types'
 import { useAuthStore } from '../stores/auth-store'
 
 export function oauthGoogle(token: string): Promise<AuthResponse> {
-  return api
-    .post('api/auth/oauth/google', { json: { token, platform: 'web' } })
-    .json()
+  return api.post('api/auth/oauth/google', { json: { token } }).json()
 }
 
 // ─── Email + password (Variant A: login password IS the master password) ──────

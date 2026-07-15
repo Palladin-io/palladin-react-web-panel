@@ -55,9 +55,11 @@ export function RegisterRecoveryStep({
           </span>
         </label>
 
-        <FieldFeedback visible={hasError} color="red">
-          {errorMessage}
-        </FieldFeedback>
+        {hasError && (
+          <FieldFeedback visible color="red">
+            {errorMessage}
+          </FieldFeedback>
+        )}
 
         <AuthSubmitButton
           type="button"
