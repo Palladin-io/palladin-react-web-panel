@@ -55,7 +55,7 @@ export function RegisterRecoveryConfirmStep({
       title={t('onboarding.confirmTitle')}
       subtitle={t('onboarding.confirmSubtitle')}
       progress={{ current: 2, total: 3 }}
-      onBack={onBack}
+      onBack={isSubmitting ? undefined : onBack}
       backLabel={t('common.back')}
     >
       <RecoveryKeyConfirmationForm

@@ -101,7 +101,9 @@ export function RecoveryKeyConfirmationForm({
 type WordState = 'empty' | 'correct' | 'wrong'
 
 function borderClassForState(state: WordState): string {
-  if (state === 'correct') return 'border-[#10B981] focus:border-[#10B981]'
+  if (state === 'correct') {
+    return 'border-[var(--cv-success)] focus:border-[var(--cv-success)]'
+  }
   if (state === 'wrong') return 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
-  return 'border-[rgba(232,234,237,0.1)] focus:border-[#10B981]'
+  return 'border-[var(--cv-input-border)] focus:border-[var(--cv-success)]'
 }
