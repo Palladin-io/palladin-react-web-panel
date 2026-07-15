@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { Trans, useTranslation } from 'react-i18next'
@@ -124,13 +124,13 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
   const verify = useVerifyEmail()
   const emailVerified = useAuthStore((s) => s.emailVerified)
 
-  // Fire exactly once for a given token, even under StrictMode double-mount.
-  const attempted = useRef(false)
+  const verifyToken = verify.mutate
   useEffect(() => {
-    if (!token || attempted.current) return
-    attempted.current = true
-    verify.mutate(token)
-  }, [token, verify])
+    if (!token) return
+
+    const timeoutId = window.setTimeout(() => verifyToken(token), 0)
+    return () => window.clearTimeout(timeoutId)
+  }, [token, verifyToken])
 
   const rawOutcome =
     !token ? 'invalid' : verify.isPending || verify.isIdle ? 'pending' : verify.data

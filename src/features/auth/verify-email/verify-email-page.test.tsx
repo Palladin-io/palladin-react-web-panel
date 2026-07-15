@@ -65,10 +65,12 @@ beforeEach(() => {
 })
 
 describe('VerifyEmailPage — token result flow', () => {
-  it('POSTs the token on mount', () => {
+  it('POSTs the token on mount', async () => {
     verifyState.isPending = true
     renderPage(<VerifyEmailPage token="tok-123" />)
-    expect(verifyState.mutate).toHaveBeenCalledWith('tok-123')
+    await waitFor(() => {
+      expect(verifyState.mutate).toHaveBeenCalledWith('tok-123')
+    })
     expect(screen.getByText(/verifying your email/i)).toBeInTheDocument()
   })
 
