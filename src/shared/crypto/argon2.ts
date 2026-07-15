@@ -1,48 +1,12 @@
-import { argon2id } from 'hash-wasm'
-
 /**
- * KDF parameters used across the app. Keep these in one place so onboarding,
- * unlock, and recovery all derive identical keys from the same inputs.
- *
- * These match the values specified in the zero-knowledge spec:
- *   m = 19456 (KiB, ~19MB), t = 2 iterations, p = 1 lane, 32-byte output.
+ * Thin re-export from the shared `@palladin/crypto` package (CVT-365).
+ * The crypto now lives in one audited module shared with the browser extension;
+ * this shim keeps existing `shared/crypto/argon2` import paths working unchanged.
  */
-export const ARGON2_PARAMS = {
-  memorySize: 19456,
-  iterations: 2,
-  parallelism: 1,
-  hashLength: 32,
-} as const
-
-export const MASTER_KEY_SALT_BYTES = 16
-export const RECOVERY_KEY_SALT_BYTES = 16
-
-/**
- * Salt length for the authentication hash. In the email+password model
- * (Variant A) the one password feeds two independent Argon2id derivations:
- *   • MK        = deriveKey(password, salt)      — never leaves the client
- *   • authHash  = deriveKey(password, authSalt)  — sent to the server for login
- * Distinct salts guarantee the two outputs are unrelated, so the authHash the
- * server sees can never be used to recover the master key.
- */
-export const AUTH_SALT_BYTES = 16
-
-/**
- * Derive a 32-byte key from a password + salt using Argon2id.
- * Returns raw bytes (not hex/base64) so callers can feed it directly
- * into libsodium's crypto_secretbox.
- */
-export async function deriveKey(
-  password: string,
-  salt: Uint8Array,
-): Promise<Uint8Array> {
-  return argon2id({
-    password,
-    salt,
-    parallelism: ARGON2_PARAMS.parallelism,
-    iterations: ARGON2_PARAMS.iterations,
-    memorySize: ARGON2_PARAMS.memorySize,
-    hashLength: ARGON2_PARAMS.hashLength,
-    outputType: 'binary',
-  })
-}
+export {
+  ARGON2_PARAMS,
+  MASTER_KEY_SALT_BYTES,
+  RECOVERY_KEY_SALT_BYTES,
+  AUTH_SALT_BYTES,
+  deriveKey,
+} from '@palladin/crypto'

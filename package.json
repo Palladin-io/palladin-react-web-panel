@@ -13,6 +13,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@palladin/crypto": "github:Palladin-io/palladin-crypto#660e958829cf2eb378aa5afca289a2c6468f676e",
     "@codemirror/lang-javascript": "^6.2.5",
     "@codemirror/lang-python": "^6.2.1",
     "@codemirror/language": "^6.12.4",
