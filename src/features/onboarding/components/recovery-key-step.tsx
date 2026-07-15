@@ -1,9 +1,7 @@
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
-import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
-import { RecoveryMnemonicPanel } from '../../../shared/components/recovery-mnemonic-panel'
+import { RecoveryKeyDisplay } from '../../../shared/components/recovery-key-display'
 import { OnboardingShell } from './onboarding-shell'
 
 export interface RecoveryKeyStepProps {
@@ -27,14 +25,11 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
       totalSteps={3}
       onBack={onBack}
     >
-      <div className="flex flex-col gap-3">
-        <RecoveryMnemonicPanel mnemonic={mnemonic} />
-
-        <AuthSubmitButton type="button" onClick={onContinue}>
-          <Check size={14} />
-          {t('onboarding.savedRecoveryKey')}
-        </AuthSubmitButton>
-      </div>
+      <RecoveryKeyDisplay
+        mnemonic={mnemonic}
+        continueLabel={t('onboarding.savedRecoveryKey')}
+        onContinue={onContinue}
+      />
     </OnboardingShell>
   )
 }
