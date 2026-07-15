@@ -8,9 +8,10 @@ import {
   RegisterCredentialsStep,
   type RegisterCredentialsValues,
 } from './components/register-credentials-step'
-import { RegisterRecoveryStep } from './components/register-recovery-step'
+import { RecoveryKeyConfirmStep } from '../../onboarding/components/recovery-key-confirm-step'
+import { RecoveryKeyStep } from '../../onboarding/components/recovery-key-step'
 
-type Step = 'credentials' | 'recovery'
+type Step = 'credentials' | 'recovery' | 'confirm'
 
 /**
  * Email + password registration wizard.
@@ -75,12 +76,22 @@ export function RegisterPage() {
     )
   }
 
+  if (step === 'recovery') {
+    return (
+      <RecoveryKeyStep
+        mnemonic={mnemonic}
+        onBack={() => setStep('credentials')}
+        onContinue={() => setStep('confirm')}
+      />
+    )
+  }
+
   return (
-    <RegisterRecoveryStep
+    <RecoveryKeyConfirmStep
       mnemonic={mnemonic}
       isSubmitting={register.isPending}
-      errorMessage={errorMessage}
-      onBack={() => setStep('credentials')}
+      error={errorMessage}
+      onBack={() => setStep('recovery')}
       onConfirmed={handleCreate}
     />
   )
