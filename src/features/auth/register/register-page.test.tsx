@@ -60,10 +60,7 @@ beforeEach(() => {
   registerState.isPending = false
 })
 
-it('requires recovery words instead of a checkbox before email registration', async () => {
-  const user = userEvent.setup()
-  render(<RegisterPage />)
-
+async function reachRecoveryConfirmation(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/^email$/i), 'user@example.com')
   await user.type(screen.getByLabelText(/^master password$/i), 'StrongPass123!')
   await user.type(screen.getByLabelText(/^confirm master password$/i), 'StrongPass123!')
@@ -75,11 +72,25 @@ it('requires recovery words instead of a checkbox before email registration', as
 
   const inputs = await screen.findAllByLabelText(/^word #\d+$/i)
   expect(inputs).toHaveLength(3)
+  return inputs
+}
 
+async function enterRequestedWords(
+  user: ReturnType<typeof userEvent.setup>,
+  inputs: HTMLElement[],
+) {
   for (const input of inputs) {
     const index = Number(input.id.replace('recovery-word-', ''))
     await user.type(input, SAMPLE_WORDS[index])
   }
+}
+
+it('requires recovery words instead of a checkbox before email registration', async () => {
+  const user = userEvent.setup()
+  render(<RegisterPage />)
+
+  const inputs = await reachRecoveryConfirmation(user)
+  await enterRequestedWords(user, inputs)
 
   await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
 
@@ -90,5 +101,23 @@ it('requires recovery words instead of a checkbox before email registration', as
       recoveryMnemonic: SAMPLE_WORDS,
     },
     expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+  )
+})
+
+it('shows the registration error on the recovery confirmation step', async () => {
+  registerState.mutate.mockImplementation(
+    (_input: unknown, options: { onError: (error: Error) => void }) => {
+      options.onError(new Error('Registration failed'))
+    },
+  )
+  const user = userEvent.setup()
+  render(<RegisterPage />)
+
+  const inputs = await reachRecoveryConfirmation(user)
+  await enterRequestedWords(user, inputs)
+  await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    /couldn't create your account/i,
   )
 })
