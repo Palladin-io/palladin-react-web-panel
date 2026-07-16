@@ -1,7 +1,7 @@
 import { useGoogleLogin } from '@react-oauth/google'
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
+import { useNavigate } from '@tanstack/react-router'
+import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppWordmark } from '../../../shared/components/app-wordmark'
 import { useLogin } from '../hooks/use-login'
@@ -211,17 +211,29 @@ export function LoginPage() {
                 </div>
               </div>
 
-              <p className="mt-5 text-ui text-[#6B7A8E]">
-                {t('login.noAccount')}{' '}
-                <Link
-                  to="/register"
-                  className="font-semibold text-[#E8EAED] transition-colors hover:text-white"
-                >
-                  {t('login.signUp')}
-                </Link>
+              <p className="mt-5 text-micro text-[#6B7A8E]">
+                <Trans
+                  i18nKey="auth.legalFooter"
+                  components={{
+                    terms: (
+                      <a
+                        href="https://palladin.io/terms/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline transition-colors hover:text-[#E8EAED]"
+                      />
+                    ),
+                    privacy: (
+                      <a
+                        href="https://palladin.io/privacy/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline transition-colors hover:text-[#E8EAED]"
+                      />
+                    ),
+                  }}
+                />
               </p>
-
-              <p className="mt-3 text-micro text-[#6B7A8E]">{t('auth.legalFooter')}</p>
             </>
           )}
         </div>

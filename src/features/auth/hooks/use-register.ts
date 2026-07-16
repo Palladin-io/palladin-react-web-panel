@@ -15,7 +15,6 @@ import {
 import { ACCOUNT_QUERY_KEY } from '../../../shared/api/account-api'
 import i18n from '../../../shared/lib/i18n'
 import { joinMnemonic } from '../../../shared/lib/mnemonic'
-import { createDefaultVaultSafe } from '../../../shared/lib/create-default-vault-safe'
 import { register } from '../api/auth-api'
 import { useAuthStore } from '../stores/auth-store'
 
@@ -86,17 +85,15 @@ export function useRegister() {
         wipe(keyPair.privateKey)
       }
 
-      // Auto-create the default vault (parity with onboarding). Non-fatal:
-      // 409 / any error is swallowed inside the helper so it never blocks
-      // registration. The store still holds a live copy of the private key.
-      const privateKey = useAuthStore.getState().privateKey
-      if (privateKey) {
-        await createDefaultVaultSafe(privateKey, i18n.t('vault.defaultName'))
-      }
+      // No default vault here. CreateDefaultVault sits behind the email-verified
+      // gate, so a fresh (still unverified) password account always gets a 403 —
+      // and the client's 403 interceptor would fire a hard `window.location`
+      // redirect to /verify-email in the middle of this mutation, stranding the
+      // "Creating account" spinner. Registration now resolves cleanly and the
+      // gate routes the user to /verify-email; the first vault is created later.
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY })
-      queryClient.invalidateQueries({ queryKey: ['vaults'] })
     },
   })
 }

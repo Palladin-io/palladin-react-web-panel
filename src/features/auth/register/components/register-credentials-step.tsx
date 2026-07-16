@@ -70,7 +70,7 @@ export function RegisterCredentialsStep({
     <AuthStepShell
       title={t('register.title')}
       subtitle={t('register.subtitle')}
-      progress={{ current: 0, total: 2 }}
+      progress={{ current: 0, total: 3 }}
     >
       <form
         className="flex flex-col gap-3"
@@ -126,9 +126,11 @@ export function RegisterCredentialsStep({
         </div>
 
         {pwnedCount !== null && (
-          <WarningZone title={t('register.pwnedTitle')}>
-            {t('register.pwnedBody')}
-          </WarningZone>
+          <div className="step-enter">
+            <WarningZone title={t('register.pwnedTitle')}>
+              {t('register.pwnedBody')}
+            </WarningZone>
+          </div>
         )}
 
         <div className="rounded-lg border border-[rgba(232,234,237,0.06)] bg-[rgba(232,234,237,0.04)] px-3 py-2">

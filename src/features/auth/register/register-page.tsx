@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { HTTPError } from 'ky'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { generateRecoveryMnemonic } from '../../../shared/lib/mnemonic'
@@ -7,9 +8,12 @@ import {
   RegisterCredentialsStep,
   type RegisterCredentialsValues,
 } from './components/register-credentials-step'
-import { RegisterRecoveryStep } from './components/register-recovery-step'
+import {
+  RegisterRecoveryConfirmStep,
+  RegisterRecoveryStep,
+} from './components/register-recovery-steps'
 
-type Step = 'credentials' | 'recovery'
+type Step = 'credentials' | 'recovery' | 'confirm'
 
 /**
  * Email + password registration wizard.
@@ -54,7 +58,12 @@ export function RegisterPage() {
       },
       {
         onSuccess: () => navigate({ to: '/' }),
-        onError: () => setErrorMessage(t('register.errorGeneric')),
+        onError: (err) => {
+          // A 409 means the email is already registered — tell the user exactly
+          // that (and to sign in) instead of a generic "try again" they'd loop on.
+          const emailTaken = err instanceof HTTPError && err.response.status === 409
+          setErrorMessage(t(emailTaken ? 'register.errorEmailTaken' : 'register.errorGeneric'))
+        },
       },
     )
   }
@@ -69,12 +78,22 @@ export function RegisterPage() {
     )
   }
 
+  if (step === 'recovery') {
+    return (
+      <RegisterRecoveryStep
+        mnemonic={mnemonic}
+        onBack={() => setStep('credentials')}
+        onContinue={() => setStep('confirm')}
+      />
+    )
+  }
+
   return (
-    <RegisterRecoveryStep
+    <RegisterRecoveryConfirmStep
       mnemonic={mnemonic}
       isSubmitting={register.isPending}
-      errorMessage={errorMessage}
-      onBack={() => setStep('credentials')}
+      error={errorMessage}
+      onBack={() => setStep('recovery')}
       onConfirmed={handleCreate}
     />
   )
