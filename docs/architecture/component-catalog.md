@@ -27,6 +27,8 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `Tooltip` | `shared/components/tooltip.tsx` | 150ms-delay tooltip portaled to body; shows only when text is truncated | `content`, `children`, `className`, `delayMs`. |
 | `WarningZone` | `shared/components/warning-zone.tsx` | Amber callout for security/irreversible actions | `title` (uppercase heading), `children`. |
 | `ErrorState` | `shared/components/error-state.tsx` | Red-tinted error card with Retry button | `message?`, `onRetry`. |
+| `EmptyState` | `shared/components/empty-state.tsx` | Canonical dashed empty-list state with optional guidance and action | `title`, `description?`, `action?`, `icon?`, `className?`. |
+| `SkeletonBlock` | `shared/components/skeleton-block.tsx` | Theme-aware loading placeholder | `height?`, `rounded?` (`xl` / `2xl`), `className?`. |
 | `TypeFilterDropdown` | `shared/components/type-filter-dropdown.tsx` | Multi-select filter dropdown (checkbox listbox + Clear row) | `options`, `selected` (Set\<string\>), `onChange`, `placeholder`, `ariaLabel?`, `triggerClassName?`, `optionPrefix?`. |
 | `DateTimePicker` | `shared/components/datetime-picker.tsx` | Anchored calendar popover replacing native `datetime-local`, portaled to body | `value` (datetime-local string), `min?`, `onChange`, `onClose`, `anchorRef`. Tested. |
 | `PasswordStrengthBar` | `shared/components/password-strength-bar.tsx` | 4-segment strength bar (score 0–4) | `score: PasswordStrength`. |
@@ -56,8 +58,6 @@ These patterns are duplicated 2+ times with no shared component. Extract on next
 
 | Proposed component | Proposed API | Duplication found |
 |--------------------|-------------|-------------------|
-| `SkeletonBlock` (+ `SkeletonList`) | `<SkeletonBlock height={number\|string} rounded?='xl'\|'2xl' />` | **22 inline instances / 11 files** — `animate-pulse rounded-* bg-[var(--cv-card-bg)]` with inconsistent heights (h-4…h-[150px]). |
-| `EmptyState` | `<EmptyState title? description? action?:ReactNode />` | **13 inline instances / 9 files** — dashed `border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center`. Richer CTA variant at `vaults/vault-list-page.tsx:228`. |
 | `DetailTabBar<T>` | `<DetailTabBar tabs={{id,label}[]} active onChange wide? actions? />` | **4 implementations** — `vaults/components/vault-detail-tabs.tsx` (canonical) + `api-keys/components/api-key-detail-tabs.tsx` (diverged copy) + inline at `vaults/entry-detail-page.tsx:255` and `agents/components/agent-detail.tsx:133`. |
 | `SplitView` | `<SplitView left right />` | **7 pages** — `useWideScreen()` (comfortable-density breakpoint 1600) + `flex h-full` + left `w-[clamp(18.75rem,22vw,25rem)] shrink-0 border-r` + right `min-w-0 flex-1`. agents, api-keys, grants (×2), vaults (×3). |
 | `InlineEditFooter` | `<InlineEditFooter onCancel onSave saving? disabled? cancelLabel? saveLabel? />` | **3 instances** — `mt-4 flex justify-end gap-2 border-t pt-4` at `agents/components/agent-edit-form.tsx:179`, `vaults/entry-detail-page.tsx:772`, `vaults/components/vault-settings-form.tsx:163` (in-page forms, `justify-end` — not modal `DialogFooter`). |

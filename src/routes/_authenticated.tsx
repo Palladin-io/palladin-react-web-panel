@@ -222,6 +222,13 @@ const NAV_ITEMS: NavItem[] = [
     matchPrefix: '/billing',
   },
   {
+    key: 'team',
+    labelKey: 'nav.team',
+    icon: 'group',
+    to: '/team',
+    matchPrefix: '/team',
+  },
+  {
     key: 'api-keys',
     labelKey: 'nav.apiKeys',
     icon: 'key',
