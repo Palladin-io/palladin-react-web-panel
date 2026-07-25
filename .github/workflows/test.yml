@@ -2,13 +2,19 @@ name: Test
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, epic/cvt-387-vault-v2]
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout pinned Vault protocol fixtures
+        uses: actions/checkout@v4
+        with:
+          repository: Palladin-io/palladin
+          ref: 355663cd9de57343160aed4ed633f7687a2fb647
+          path: .contract-root
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -23,3 +29,5 @@ jobs:
         run: npm audit || true
       - run: npm run build
       - run: npm test
+        env:
+          PALLADIN_VAULT_V2_FIXTURES: ${{ github.workspace }}/.contract-root/contracts/vault-v2/fixtures/v2
