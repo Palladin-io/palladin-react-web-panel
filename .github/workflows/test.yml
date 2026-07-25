@@ -12,7 +12,7 @@ jobs:
       - name: Checkout pinned Vault protocol fixtures
         uses: actions/checkout@v4
         with:
-          repository: Palladin-io/palladin
+          repository: Flamingo-Co/palladin
           ref: 355663cd9de57343160aed4ed633f7687a2fb647
           path: .contract-root
       - uses: actions/setup-node@v4
