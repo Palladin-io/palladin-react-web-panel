@@ -67,5 +67,17 @@ export function encodeBase64Url(value: Uint8Array): string {
 
 export function encodeUtf8(value: string): Uint8Array {
   if (value.normalize('NFC') !== value || value.includes('\0')) throw new Error('string must be NFC without NUL')
+  for (let index = 0; index < value.length; index += 1) {
+    const codeUnit = value.charCodeAt(index)
+    if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
+      const next = value.charCodeAt(index + 1)
+      if (index + 1 >= value.length || next < 0xdc00 || next > 0xdfff) {
+        throw new Error('string contains an unpaired UTF-16 surrogate')
+      }
+      index += 1
+    } else if (codeUnit >= 0xdc00 && codeUnit <= 0xdfff) {
+      throw new Error('string contains an unpaired UTF-16 surrogate')
+    }
+  }
   return new TextEncoder().encode(value)
 }

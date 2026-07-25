@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { decodeBase64Url, decodeHex, encodeHex } from './vault-v2-bytes'
+import { decodeBase64Url, decodeHex, encodeHex, encodeUtf8 } from './vault-v2-bytes'
 import { decryptVaultEnvelope, openVaultProtocolPackage, type VaultCiphertextEnvelope, type VaultEnvelopeExpectations } from './vault-v2-envelope'
 import { deriveVaultProjectionKey, type VaultKdfPurpose } from './vault-v2-kdf'
 import { encodeVaultAad, type VaultAadContext, type VaultAadProfile } from './vault-v2-protocol'
@@ -49,11 +49,7 @@ const envelopeByVector = new Map(envelopes.aeadVectors.map((vector) => [vector.i
 
 function expectations(envelope: VaultCiphertextEnvelope): VaultEnvelopeExpectations {
   return {
-    organizationId: envelope.organizationId as string,
-    vaultId: envelope.vaultId as string,
-    entryId: envelope.entryId as string | undefined,
-    resourceRevision: envelope.header.resourceRevision,
-    keyVersion: envelope.header.keyVersion,
+    aadContext: envelope,
     minimumMemberKeyGeneration: envelope.header.memberKeyGeneration,
   }
 }
@@ -138,6 +134,19 @@ describe('canonical Vault protocol 2 fixtures', () => {
     const vector = envelopes.aeadVectors.find((candidate) => candidate.id === 'encrypted-reason')!
     const oversized = { ...vector.envelope, ciphertext: 'A'.repeat(5_500) }
     await expect(decryptVaultEnvelope(vector.aadProfile, oversized, decodeHex(vector.decryptionKeyHex), expectations(vector.envelope))).rejects.toThrow('limit')
+  })
+
+  it('rejects profile-specific identity substitution even when generic versions match', async () => {
+    const vector = envelopes.aeadVectors.find((candidate) => candidate.id === 'grant-entry')!
+    const substituted = { ...vector.envelope, grantId: '77777777-7777-4777-8777-777777777777' }
+    await expect(decryptVaultEnvelope(vector.aadProfile, substituted, decodeHex(vector.decryptionKeyHex), expectations(vector.envelope))).rejects.toThrow('context mismatch')
+  })
+
+  it('rejects non-scalar Unicode while preserving valid surrogate pairs', () => {
+    expect(() => encodeUtf8(String.fromCharCode(0xd800))).toThrow('surrogate')
+    expect(() => canonicalizeVaultJson({ value: String.fromCharCode(0xd800) })).toThrow('surrogate')
+    expect(() => canonicalizeVaultJson({ value: String.fromCharCode(0xdc00) })).toThrow('surrogate')
+    expect(canonicalizeVaultJson({ value: '🔐' })).toBe('{"value":"🔐"}')
   })
 })
 }

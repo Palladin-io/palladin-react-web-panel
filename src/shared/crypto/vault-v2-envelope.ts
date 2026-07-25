@@ -9,12 +9,15 @@ export interface VaultCiphertextEnvelope extends VaultAadContext {
 }
 
 export interface VaultEnvelopeExpectations {
-  organizationId: string
-  vaultId: string
-  entryId?: string
-  resourceRevision: string
-  keyVersion: number
+  aadContext: VaultAadContext
   minimumMemberKeyGeneration: number
+}
+
+function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.length !== right.length) return false
+  let difference = 0
+  for (let index = 0; index < left.length; index += 1) difference |= left[index] ^ right[index]
+  return difference === 0
 }
 
 function ciphertextOf(envelope: VaultCiphertextEnvelope): string {
@@ -42,15 +45,14 @@ export async function decryptVaultEnvelope(
 ): Promise<Uint8Array> {
   if (key.length !== 32) throw new Error('Vault envelope key must be 32 bytes')
   assertEnvelopeBindings(profile, envelope)
-  if (envelope.organizationId !== expected.organizationId || envelope.vaultId !== expected.vaultId) throw new Error('Vault envelope tenant scope mismatch')
-  if (envelope.entryId !== expected.entryId) throw new Error('Vault envelope Entry scope mismatch')
-  if (envelope.header.resourceRevision !== expected.resourceRevision) throw new Error('Vault envelope revision mismatch')
-  if (envelope.header.keyVersion !== expected.keyVersion) throw new Error('Vault envelope key version mismatch')
+  assertEnvelopeBindings(profile, expected.aadContext)
+  const aad = encodeVaultAad(profile, envelope)
+  const expectedAad = encodeVaultAad(profile, expected.aadContext)
+  if (!bytesEqual(aad, expectedAad)) throw new Error('Vault envelope authenticated context mismatch')
   assertMinimumGeneration(envelope.header.memberKeyGeneration, expected.minimumMemberKeyGeneration)
   const nonce = decodeBase64Url(envelope.header.nonce)
   if (nonce.length !== 24) throw new Error('Vault envelope nonce must be 24 bytes')
   const ciphertext = decodeBase64Url(ciphertextOf(envelope), maximumCiphertextBytes[profile])
-  const aad = encodeVaultAad(profile, envelope)
   const sodium = await loadSodium()
   return new Uint8Array(sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, aad, nonce, key))
 }
