@@ -136,6 +136,13 @@ describe('canonical Vault protocol 2 fixtures', () => {
     await expect(decryptVaultEnvelope(vector.aadProfile, oversized, decodeHex(vector.decryptionKeyHex), expectations(vector.envelope))).rejects.toThrow('limit')
   })
 
+  it('rejects sealed packages outside the protocol size bounds before opening', async () => {
+    const sodium = await loadSodium()
+    const recipient = sodium.crypto_box_keypair()
+    await expect(openVaultProtocolPackage(new Uint8Array(sodium.crypto_box_SEALBYTES), recipient.publicKey, recipient.privateKey)).rejects.toThrow('limit')
+    await expect(openVaultProtocolPackage(new Uint8Array(4_096 + sodium.crypto_box_SEALBYTES + 1), recipient.publicKey, recipient.privateKey)).rejects.toThrow('limit')
+  })
+
   it('rejects profile-specific identity substitution even when generic versions match', async () => {
     const vector = envelopes.aeadVectors.find((candidate) => candidate.id === 'grant-entry')!
     const substituted = { ...vector.envelope, grantId: '77777777-7777-4777-8777-777777777777' }

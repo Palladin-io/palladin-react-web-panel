@@ -13,6 +13,8 @@ export interface VaultEnvelopeExpectations {
   minimumMemberKeyGeneration: number
 }
 
+const MAXIMUM_SEALED_PACKAGE_PLAINTEXT_BYTES = 4_096
+
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
   if (left.length !== right.length) return false
   let difference = 0
@@ -54,7 +56,7 @@ export async function decryptVaultEnvelope(
   if (nonce.length !== 24) throw new Error('Vault envelope nonce must be 24 bytes')
   const ciphertext = decodeBase64Url(ciphertextOf(envelope), maximumCiphertextBytes[profile])
   const sodium = await loadSodium()
-  return new Uint8Array(sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, aad, nonce, key))
+  return sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, aad, nonce, key)
 }
 
 export async function encryptVaultEnvelope(
@@ -78,14 +80,16 @@ export async function encryptVaultEnvelope(
 }
 
 export async function sealVaultProtocolPackage(packageBytes: Uint8Array, recipientPublicKey: Uint8Array): Promise<Uint8Array> {
-  if (packageBytes.length === 0 || packageBytes.length > 4096 || recipientPublicKey.length !== 32) throw new Error('invalid Vault package or recipient key length')
+  if (packageBytes.length === 0 || packageBytes.length > MAXIMUM_SEALED_PACKAGE_PLAINTEXT_BYTES || recipientPublicKey.length !== 32) throw new Error('invalid Vault package or recipient key length')
   const sodium = await loadSodium()
-  return new Uint8Array(sodium.crypto_box_seal(packageBytes, recipientPublicKey))
+  return sodium.crypto_box_seal(packageBytes, recipientPublicKey)
 }
 
 export async function openVaultProtocolPackage(ciphertext: Uint8Array, recipientPublicKey: Uint8Array, recipientPrivateKey: Uint8Array): Promise<Uint8Array> {
   if (recipientPublicKey.length !== 32 || recipientPrivateKey.length !== 32) throw new Error('invalid recipient key length')
   const sodium = await loadSodium()
-  const opened = sodium.crypto_box_seal_open(ciphertext, recipientPublicKey, recipientPrivateKey)
-  return new Uint8Array(opened)
+  if (ciphertext.length <= sodium.crypto_box_SEALBYTES || ciphertext.length > MAXIMUM_SEALED_PACKAGE_PLAINTEXT_BYTES + sodium.crypto_box_SEALBYTES) {
+    throw new Error('sealed Vault package exceeds protocol limits')
+  }
+  return sodium.crypto_box_seal_open(ciphertext, recipientPublicKey, recipientPrivateKey)
 }
