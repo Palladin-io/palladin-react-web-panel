@@ -2,13 +2,29 @@ name: Test
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, epic/cvt-387-vault-v2]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      CONTRACTS_TOKEN: ${{ secrets.PALLADIN_CONTRACTS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout pinned Vault protocol fixtures
+        if: env.CONTRACTS_TOKEN != ''
+        uses: actions/checkout@v4
+        with:
+          repository: Flamingo-Co/palladin
+          ref: 355663cd9de57343160aed4ed633f7687a2fb647
+          path: .contract-root
+          token: ${{ env.CONTRACTS_TOKEN }}
+      - name: Configure Vault protocol fixture path
+        if: env.CONTRACTS_TOKEN != ''
+        run: echo "PALLADIN_VAULT_V2_FIXTURES=${GITHUB_WORKSPACE}/.contract-root/contracts/vault-v2/fixtures/v2" >> "$GITHUB_ENV"
+      - name: Report unavailable cross-repository fixtures
+        if: env.CONTRACTS_TOKEN == ''
+        run: echo "::warning::PALLADIN_CONTRACTS_TOKEN is not configured; canonical cross-language fixture tests are skipped."
       - uses: actions/setup-node@v4
         with:
           node-version: 22
