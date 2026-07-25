@@ -12,10 +12,9 @@ const PINNED_ROOT_COMMIT = '355663cd9de57343160aed4ed633f7687a2fb647'
 const PINNED_MANIFEST_SHA256 = '9fe1868a8378fdf8922c8dd5c1c4c4bc29a5851914c644f8f4f5f2d1ac628762'
 const monorepoFixtureRoot = resolve(process.cwd(), '../contracts/vault-v2/fixtures/v2')
 const fixtureRoot = process.env.PALLADIN_VAULT_V2_FIXTURES ?? (existsSync(monorepoFixtureRoot) ? monorepoFixtureRoot : undefined)
-if (!fixtureRoot) throw new Error(`PALLADIN_VAULT_V2_FIXTURES must point to Vault v2 fixtures at root commit ${PINNED_ROOT_COMMIT}`)
 
-function fixture<T>(relativePath: string): T {
-  return JSON.parse(readFileSync(join(fixtureRoot, relativePath), 'utf8')) as T
+function fixture<T>(root: string, relativePath: string): T {
+  return JSON.parse(readFileSync(join(root, relativePath), 'utf8')) as T
 }
 
 interface AadVector { id: string; profile: VaultAadProfile; aadHex: string; fields: unknown[] }
@@ -33,11 +32,16 @@ interface SignatureVector {
   canonicalUnsignedObject: string; unsignedObject: Parameters<typeof canonicalizeVaultJson>[0]; signedObject: Record<string, unknown> & { signature?: string; agentSignature?: string }
 }
 
-const aad = fixture<{ vectors: AadVector[] }>('vectors/aad.json')
-const keyDerivation = fixture<{ hkdfVectors: HkdfVector[] }>('vectors/key-derivation.json')
-const envelopes = fixture<{ aeadVectors: AeadVector[]; sealedBoxVectors: SealedVector[] }>('vectors/envelopes.json')
-const signatures = fixture<{ vectors: SignatureVector[] }>('vectors/signatures.json')
-const negatives = fixture<{ cases: Array<Record<string, unknown> & { id: string; sourceVector: string }> }>('negative/corruption.json')
+if (!fixtureRoot) {
+  describe.skip(`canonical Vault protocol 2 fixtures require root commit ${PINNED_ROOT_COMMIT}`, () => {
+    it('requires PALLADIN_VAULT_V2_FIXTURES or a monorepo checkout', () => {})
+  })
+} else {
+const aad = fixture<{ vectors: AadVector[] }>(fixtureRoot, 'vectors/aad.json')
+const keyDerivation = fixture<{ hkdfVectors: HkdfVector[] }>(fixtureRoot, 'vectors/key-derivation.json')
+const envelopes = fixture<{ aeadVectors: AeadVector[]; sealedBoxVectors: SealedVector[] }>(fixtureRoot, 'vectors/envelopes.json')
+const signatures = fixture<{ vectors: SignatureVector[] }>(fixtureRoot, 'vectors/signatures.json')
+const negatives = fixture<{ cases: Array<Record<string, unknown> & { id: string; sourceVector: string }> }>(fixtureRoot, 'negative/corruption.json')
 
 const profileByVector = new Map(envelopes.aeadVectors.map((vector) => [vector.id, vector.aadProfile]))
 const keyByVector = new Map(envelopes.aeadVectors.map((vector) => [vector.id, vector.decryptionKeyHex]))
@@ -136,3 +140,4 @@ describe('canonical Vault protocol 2 fixtures', () => {
     await expect(decryptVaultEnvelope(vector.aadProfile, oversized, decodeHex(vector.decryptionKeyHex), expectations(vector.envelope))).rejects.toThrow('limit')
   })
 })
+}
