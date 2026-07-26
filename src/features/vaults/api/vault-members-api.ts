@@ -36,8 +36,3 @@ export async function getVaultMembers(
   }).json()
   return vaultMemberPageSchema.parse(raw)
 }
-
-/** Starts organization-wide staged removal. A 204 means requested, not completed. */
-export async function requestOrganizationMemberRemoval(memberId: string): Promise<void> {
-  await api.delete(`api/organization/members/${memberId}`)
-}

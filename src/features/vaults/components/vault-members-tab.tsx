@@ -90,7 +90,9 @@ export function VaultMembersTab({
         </p>
       </div>
 
-      {list.some((member) => member.deprovisioningStatus !== 'Active') ? (
+      {requestedIds.size > 0 || list.some((member) =>
+        member.deprovisioningStatus === 'Pending'
+        || member.deprovisioningStatus === 'WaitingForRotation') ? (
         <div className="flex items-start gap-2 rounded-xl border border-[var(--cv-pending)] bg-[var(--cv-card-bg)] p-3">
           <Icon name="sync" size={18} color="var(--cv-pending)" className="mt-0.5 shrink-0" />
           <p className="text-meta text-[var(--cv-t2)]">{t('vault.members.rotationNotice')}</p>
@@ -105,6 +107,8 @@ export function VaultMembersTab({
           const rotation = member.rotationId ? pendingById.get(member.rotationId) : undefined
           const isLocalRotation = member.rotationId === localRotation.rotationId
           const hasLease = Boolean(rotation?.leaseOwnerId && rotation.leaseExpiresAt)
+          const localRetryRequired = isLocalRotation && localRotation.phase === 'error'
+          const localProcessing = isLocalRotation && isProcessingPhase(localRotation.phase)
           const removable = canRemove && status === 'Active' && memberCount > 1
 
           return (
@@ -127,8 +131,8 @@ export function VaultMembersTab({
                     <p className="mt-1 text-meta text-[var(--cv-t2)]">
                       <StatusDetail
                         status={status}
-                        retryRequired={Boolean(rotation?.lastFailureCode)}
-                        processing={hasLease || (isLocalRotation && localRotation.phase !== 'idle')}
+                        retryRequired={Boolean(rotation?.lastFailureCode) || localRetryRequired}
+                        processing={hasLease || localProcessing}
                       />
                     </p>
                   ) : null}
@@ -165,6 +169,10 @@ export function VaultMembersTab({
       />
     </section>
   )
+}
+
+function isProcessingPhase(phase: string): boolean {
+  return phase !== 'idle' && phase !== 'paused' && phase !== 'error'
 }
 
 function StatusBadge({ status }: { status: string }) {

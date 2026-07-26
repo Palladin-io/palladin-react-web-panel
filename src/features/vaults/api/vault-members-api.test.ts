@@ -2,13 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const getJson = vi.hoisted(() => vi.fn())
 const getFn = vi.hoisted(() => vi.fn(() => ({ json: getJson })))
-const deleteFn = vi.hoisted(() => vi.fn())
 
 vi.mock('../../../shared/api/client', () => ({
-  api: { get: getFn, delete: deleteFn },
+  api: { get: getFn },
 }))
 
-import { getVaultMembers, requestOrganizationMemberRemoval } from './vault-members-api'
+import { getVaultMembers } from './vault-members-api'
 
 const member = {
   memberId: '123e4567-e89b-42d3-a456-426614174000',
@@ -22,7 +21,6 @@ describe('vault members API', () => {
   beforeEach(() => {
     getFn.mockClear()
     getJson.mockReset()
-    deleteFn.mockReset()
   })
 
   it('keeps keyset pagination bounded and parses structural status', async () => {
@@ -44,9 +42,4 @@ describe('vault members API', () => {
     await expect(getVaultMembers('vault-1')).rejects.toThrow()
   })
 
-  it('treats DELETE as a staged removal request', async () => {
-    deleteFn.mockResolvedValue(undefined)
-    await requestOrganizationMemberRemoval(member.memberId)
-    expect(deleteFn).toHaveBeenCalledWith(`api/organization/members/${member.memberId}`)
-  })
 })

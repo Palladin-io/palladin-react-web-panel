@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { VaultMembersTab } from './vault-members-tab'
 
@@ -8,10 +8,12 @@ const memberHooks = vi.hoisted(() => ({
 }))
 const pendingRotations = vi.hoisted(() => vi.fn())
 const rotationStore = vi.hoisted(() => vi.fn())
+const toastMocks = vi.hoisted(() => ({ info: vi.fn(), error: vi.fn() }))
 
 vi.mock('../use-vault-members', () => memberHooks)
 vi.mock('../use-pending-rotations', () => ({ usePendingRotations: pendingRotations }))
 vi.mock('../rotation/rotation-store', () => ({ useRotationStore: rotationStore }))
+vi.mock('sonner', () => ({ toast: toastMocks }))
 vi.mock('../../auth', () => ({
   useAuthStore: (selector: (state: { permissions: number }) => unknown) =>
     selector({ permissions: 10 }),
@@ -39,10 +41,15 @@ function membersResult(member = activeMember) {
 }
 
 describe('VaultMembersTab', () => {
+  const mutate = vi.fn()
+
   beforeEach(() => {
+    mutate.mockReset()
+    toastMocks.info.mockReset()
+    toastMocks.error.mockReset()
     memberHooks.useVaultMembers.mockReturnValue(membersResult())
     memberHooks.useRequestMemberRemoval.mockReturnValue({
-      mutate: vi.fn(),
+      mutate,
       isPending: false,
     })
     pendingRotations.mockReturnValue({ data: [] })
@@ -75,14 +82,47 @@ describe('VaultMembersTab', () => {
     expect(screen.getByText('Safety blocked')).toBeInTheDocument()
     expect(screen.getByText(/leave no capable member/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Remove' })).toBeDisabled()
+    expect(screen.queryByText(/A staged removal is in progress/)).not.toBeInTheDocument()
   })
 
-  it('describes removal as staged before sending the request', () => {
+  it('submits staged removal, closes the dialog, and reports only the request', () => {
     render(<VaultMembersTab vaultId="vault-1" memberCount={2} />)
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
 
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText(/Access is removed only after every affected Vault rotation commits/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Request removal' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Request removal' }))
+
+    expect(mutate).toHaveBeenCalledWith(activeMember.memberId, expect.any(Object))
+    const callbacks = mutate.mock.calls[0][1] as { onSuccess: () => void }
+    act(() => callbacks.onSuccess())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(toastMocks.info).toHaveBeenCalledWith(expect.stringMatching(/removal was requested/i))
+  })
+
+  it('keeps the dialog open and reports a failed removal request', () => {
+    render(<VaultMembersTab vaultId="vault-1" memberCount={2} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Remove' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Request removal' }))
+
+    const callbacks = mutate.mock.calls[0][1] as { onError: () => void }
+    act(() => callbacks.onError())
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(toastMocks.error).toHaveBeenCalledWith(expect.stringMatching(/could not be requested/i))
+  })
+
+  it('shows local rotation errors as retry-required instead of processing', () => {
+    const rotationId = '223e4567-e89b-42d3-a456-426614174000'
+    memberHooks.useVaultMembers.mockReturnValue(membersResult({
+      ...activeMember,
+      deprovisioningStatus: 'WaitingForRotation',
+      rotationId,
+    }))
+    rotationStore.mockReturnValue({ phase: 'error', rotationId })
+
+    render(<VaultMembersTab vaultId="vault-1" memberCount={2} />)
+
+    expect(screen.getByText(/needs a safe retry/)).toBeInTheDocument()
+    expect(screen.queryByText(/Rotation is processing/)).not.toBeInTheDocument()
   })
 })

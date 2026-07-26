@@ -9,7 +9,7 @@ Shows the people in the active organization with their e-mail address, all dynam
 ## How it is organized
 
 - `api/team-members-api.ts` validates `GET /api/organization/members` with Zod and owns the member/role types.
-- `use-team-members.ts` owns the TanStack Query. Its cache key includes the active `org_id` JWT claim so switching organizations cannot reuse another tenant's member list. The query stays disabled until that claim is available after session refresh.
+- `use-team-members.ts` owns the TanStack Query. Its cache key uses the shared `ORGANIZATION_MEMBERS_QUERY_KEY` prefix and includes the active `org_id` JWT claim so switching organizations cannot reuse another tenant's member list. The query stays disabled until that claim is available after session refresh.
 - `team-members-page.tsx` owns loading, empty, error/retry, and list states.
 - `components/team-member-card.tsx` renders every role returned by the API and treats `isOwner` as a separate membership property.
 
@@ -20,4 +20,4 @@ Shows the people in the active organization with their e-mail address, all dynam
 
 ## Follow-up surfaces
 
-Inviting a member and changing roles/removing a member are separate tasks. Keep those mutations in this feature and invalidate the organization-specific team members query after success.
+Inviting a member and changing roles remain separate tasks. Organization-wide staged removal can also be initiated from a Vault's Members tab, so its minimal API mutation and cache prefix live in `shared/api/organization-members-api.ts`. A successful request invalidates the organization-member prefix, but the person remains effective and may remain listed until every affected Vault rotation commits.

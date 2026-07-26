@@ -1,7 +1,10 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  getVaultMembers,
+  ORGANIZATION_MEMBERS_QUERY_KEY,
   requestOrganizationMemberRemoval,
+} from '../../shared/api/organization-members-api'
+import {
+  getVaultMembers,
 } from './api/vault-members-api'
 
 export const vaultMembersQueryKey = (vaultId: string) =>
@@ -24,8 +27,11 @@ export function useRequestMemberRemoval(vaultId: string) {
 
   return useMutation({
     mutationFn: requestOrganizationMemberRemoval,
-    onSuccess: () => queryClient.invalidateQueries({
-      queryKey: vaultMembersQueryKey(vaultId),
-    }),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: vaultMembersQueryKey(vaultId) }),
+        queryClient.invalidateQueries({ queryKey: ORGANIZATION_MEMBERS_QUERY_KEY }),
+      ])
+    },
   })
 }
