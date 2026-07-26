@@ -27,7 +27,7 @@ import {
   useNotificationsSummary,
   useWebPush,
 } from '../features/notifications'
-
+import { MemberSyncProvider } from '../features/vaults'
 
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: ({ location }) => {
@@ -148,17 +148,19 @@ function AuthenticatedLayout() {
   return (
     // SignalRProvider self-gates on auth + unlocked vault, so it only opens a
     // connection once we're past the guards above.
-    <SignalRProvider>
-      <div
-        className="flex h-screen overflow-hidden"
-        style={{ background: GRADIENTS[theme] }}
-      >
-        <AppSidebar currentPath={pathname} />
-        <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
-          <Outlet />
-        </main>
-      </div>
-    </SignalRProvider>
+    <MemberSyncProvider>
+      <SignalRProvider>
+        <div
+          className="flex h-screen overflow-hidden"
+          style={{ background: GRADIENTS[theme] }}
+        >
+          <AppSidebar currentPath={pathname} />
+          <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+            <Outlet />
+          </main>
+        </div>
+      </SignalRProvider>
+    </MemberSyncProvider>
   )
 }
 
