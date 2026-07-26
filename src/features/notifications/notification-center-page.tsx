@@ -10,14 +10,9 @@ import { Icon } from '../../shared/components/icon'
 import { SearchBar } from '../../shared/components/search-bar'
 import { TypeFilterDropdown } from '../../shared/components/type-filter-dropdown'
 import {
-  ApproveGrantDialog,
   DenyGrantDialog,
   OrgGrantsPanel,
-  useApproveGrant,
   useDenyGrant,
-  type GrantMethod,
-  type GrantPolicyBody,
-  type PendingGrant,
 } from '../grants'
 import { DenyAgentDialog } from './deny-agent-dialog'
 import {
@@ -107,11 +102,9 @@ export function NotificationCenterPage({
 
   // Pending-action mutations + dialog targets. Only the two action-required
   // pending types mutate from the inbox; everything else just deep-links out.
-  const approve = useApproveGrant()
   const deny = useDenyGrant()
   const approveAgent = useApproveAgent()
   const deactivateAgent = useDeactivateAgent()
-  const [approveTarget, setApproveTarget] = useState<NotificationGrantContext | null>(null)
   const [denyTarget, setDenyTarget] = useState<NotificationGrantContext | null>(null)
   // Agent approval target — opens the existing agent-activation modal.
   const [agentApproveTarget, setAgentApproveTarget] = useState<AgentTarget | null>(null)
@@ -125,7 +118,6 @@ export function NotificationCenterPage({
     apiKeySuffix?: string
   } | null>(null)
   const busy =
-    approve.isPending ||
     deny.isPending ||
     approveAgent.isPending ||
     deactivateAgent.isPending
@@ -170,28 +162,6 @@ export function NotificationCenterPage({
   const showGrants = segment === 'grants'
   const showActions = segment === 'all' || segment === 'todo'
   const showHistory = segment === 'all' || segment === 'history'
-
-  function handleApprove(policy: GrantPolicyBody, methods: GrantMethod[]) {
-    if (!approveTarget) return
-    approve.mutate(
-      {
-        grantId: approveTarget.grantId,
-        vaultId: approveTarget.vaultId,
-        entryId: approveTarget.entryId,
-        agentId: approveTarget.agentId,
-        policy,
-        methods,
-      },
-      {
-        onSuccess: () => {
-          toast.success(t('grants.approve.success'))
-          setApproveTarget(null)
-          refreshFeed()
-        },
-        onError: () => toast.error(t('grants.approve.error')),
-      },
-    )
-  }
 
   function handleDeny(reason: string) {
     if (!denyTarget) return
@@ -351,7 +321,7 @@ export function NotificationCenterPage({
                         <ActionFooter
                           item={item}
                           busy={busy}
-                          onApprove={setApproveTarget}
+                          onApprove={() => setSegment('grants')}
                           onDeny={setDenyTarget}
                           onApproveAgent={setAgentApproveTarget}
                           onDenyAgent={handleDenyAgent}
@@ -404,14 +374,6 @@ export function NotificationCenterPage({
 
       {/* Dialogs — only the two pending types mutate; reuse the existing
           zero-knowledge grant + agent flows (crypto unchanged). */}
-      {approveTarget && (
-        <ApproveGrantDialog
-          grant={toPendingGrant(approveTarget)}
-          isPending={approve.isPending}
-          onConfirm={handleApprove}
-          onCancel={() => setApproveTarget(null)}
-        />
-      )}
       <DenyGrantDialog
         open={denyTarget !== null}
         targetLabel={denyTarget?.entryLabel ?? t('grants.unknownTarget')}
@@ -618,22 +580,6 @@ function ViewFooter({
       {t(viewLabelKey(item))}
     </Button>
   )
-}
-
-/** Synthesize the minimal PendingGrant the approve dialog needs from metadata. */
-function toPendingGrant(ctx: NotificationGrantContext): PendingGrant {
-  return {
-    id: ctx.grantId,
-    vaultId: ctx.vaultId,
-    vaultName: ctx.vaultName,
-    agentId: ctx.agentId,
-    agentName: ctx.agentName,
-    entryId: ctx.entryId,
-    entryLabel: ctx.entryLabel,
-    methods: ctx.methods,
-    agentPublicKey: ctx.agentPublicKey,
-    createdAt: new Date().toISOString(),
-  } as PendingGrant
 }
 
 /** Notification types offered in the filter dropdown (matches the taxonomy). */

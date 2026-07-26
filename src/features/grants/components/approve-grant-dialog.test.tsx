@@ -15,6 +15,17 @@ const grant: PendingGrant = {
   entryLabel: 'Gmail',
   reason: 'Need it',
   createdAt: '2026-06-01T10:00:00Z',
+  encryptedReason: { requestedMethods: 6 },
+} as PendingGrant
+
+const review = {
+  entryLabel: 'Gmail',
+  reason: 'Need it for deployment',
+  entryRevision: '7',
+  fields: [
+    { id: 'password', label: 'password', access: 'onGrantValue' as const },
+    { id: 'totp', label: 'totp', access: 'onGrantDerived' as const },
+  ],
 }
 
 describe('ApproveGrantDialog — access type dropdown', () => {
@@ -30,6 +41,7 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     render(
       <ApproveGrantDialog
         grant={grant}
+        review={review}
         isPending={false}
         onConfirm={onConfirm}
         onCancel={onCancel}
@@ -102,7 +114,7 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
     // Methods default to the privacy-preserving set when the grant requested none.
-    expect(onConfirm).toHaveBeenCalledWith({ queryLimit: 3 }, ['exec', 'inject'])
+    expect(onConfirm).toHaveBeenCalledWith({ queryLimit: 3 }, ['exec', 'inject'], ['password', 'totp'])
   })
 
   it('confirms with an empty body when Lifetime is selected (neither field)', async () => {
@@ -111,7 +123,7 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     await user.selectOptions(screen.getByLabelText(/Access type/i), 'lifetime')
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    expect(onConfirm).toHaveBeenCalledWith({}, ['exec', 'inject'])
+    expect(onConfirm).toHaveBeenCalledWith({}, ['exec', 'inject'], ['password', 'totp'])
   })
 
   it('rejects an invalid usage limit', async () => {
@@ -121,5 +133,24 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     await user.type(screen.getByLabelText(/Maximum uses/i), '0')
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
     expect(onConfirm).not.toHaveBeenCalled()
+  })
+
+  it('defaults approval to exactly the methods in the encrypted request', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    const methods = screen.getByRole('combobox', { name: /how the agent may use it/i })
+    expect(methods).toHaveTextContent('Exec, Inject')
+    await user.click(screen.getByRole('button', { name: /^approve access$/i }))
+    expect(onConfirm.mock.calls[0][1]).toEqual(['exec', 'inject'])
+  })
+
+  it('requires at least one policy-approved field', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    await user.click(screen.getByRole('checkbox', { name: /password/i }))
+    await user.click(screen.getByRole('checkbox', { name: /totp/i }))
+    await user.click(screen.getByRole('button', { name: /^approve access$/i }))
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Select at least one field')
   })
 })

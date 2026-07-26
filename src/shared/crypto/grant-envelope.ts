@@ -26,6 +26,29 @@ export interface GrantPayload {
   fields: Record<string, GrantPayloadField>
 }
 
+export interface GrantableField {
+  id: string
+  label: string
+  access: GrantFieldAccess
+}
+
+export function listGrantableFields(memberSecret: MemberSecretPlaintext): GrantableField[] {
+  const policy = validateAgentVisibilityPolicy(
+    memberSecret.entryType,
+    memberSecret.agentVisibilityPolicy,
+    memberSecret.content.fields ?? [],
+  )
+  const customLabels = new Map<string, string>((memberSecret.content.fields ?? [])
+    .map((field) => [`custom:${field.id}`, field.label] as const))
+  const fields: GrantableField[] = []
+  for (const [id, access] of Object.entries(policy.fields)) {
+    if (access === 'onGrantValue' || access === 'onGrantDerived' || access === 'onGrantRuntime') {
+      fields.push({ id, access, label: customLabels.get(id) ?? id })
+    }
+  }
+  return fields.sort((left, right) => left.label.localeCompare(right.label))
+}
+
 /** Complete protocol-2 envelope accepted by Vault's revision-bound grant endpoints. */
 export interface GrantEntryEnvelope {
   organizationId: string

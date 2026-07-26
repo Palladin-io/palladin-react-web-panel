@@ -1,6 +1,25 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
+import type { EncryptedReasonEnvelope } from '../../../shared/crypto/encrypted-reason'
+import { canonicalU64Schema, canonicalUuidSchema, u32Schema, vaultEnvelopeHeaderSchema } from '../../vaults/sync/vault-key-material-schema'
+
+const encryptedReasonSchema: z.ZodType<EncryptedReasonEnvelope> = z.object({
+  organizationId: canonicalUuidSchema,
+  vaultId: canonicalUuidSchema,
+  entryId: canonicalUuidSchema,
+  grantRequestId: canonicalUuidSchema,
+  agentId: canonicalUuidSchema,
+  requestRevision: canonicalU64Schema,
+  header: vaultEnvelopeHeaderSchema,
+  reasonKeyVersion: u32Schema,
+  agentMessageKeyVersion: u32Schema,
+  recipientAgentMessageKeyFingerprint: z.string().length(43),
+  requestedMethods: z.number().int().min(1).max(7),
+  ciphertext: z.string().max(Math.ceil(4_096 * 4 / 3)),
+  agentMessageWrappedReasonDek: z.string().max(Math.ceil(128 * 4 / 3)),
+  agentSignature: z.string().length(86),
+}).strict()
 
 /**
  * A pending grant awaiting the user's approval. Cross-vault — returned by
@@ -25,7 +44,6 @@ const pendingGrantSchema = z.object({
   entryLabel: z.string().nullable().optional(),
   // Optional — rendered after the entry label as "· {urlDomain}" when present.
   urlDomain: z.string().nullable().optional(),
-  reason: z.string().nullable().optional(),
   // Combined-flags string the agent requested, e.g. "get, exec" (CVT-149). Optional for
   // pre-methods backends; the approve dialog falls back to a sensible default when absent.
   methods: z.string().nullable().optional(),
@@ -41,6 +59,14 @@ const pendingGrantSchema = z.object({
   // Not yet returned by the endpoint — optional until the backend adds it.
   agentPublicKey: z.string().nullable().optional(),
   recipientAgentKeyVersion: z.number().int().positive().max(0xffffffff).nullable().optional(),
+  encryptedReason: encryptedReasonSchema,
+}).superRefine((grant, context) => {
+  if (grant.encryptedReason.vaultId !== grant.vaultId
+    || grant.encryptedReason.grantRequestId !== grant.id
+    || grant.encryptedReason.agentId !== grant.agentId
+    || grant.encryptedReason.entryId !== grant.entryId) {
+    context.addIssue({ code: 'custom', message: 'Pending grant encrypted reason scope mismatch' })
+  }
 })
 
 export type PendingGrant = z.infer<typeof pendingGrantSchema>

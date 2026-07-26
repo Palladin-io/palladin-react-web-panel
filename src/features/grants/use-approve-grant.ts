@@ -26,6 +26,13 @@ export class MissingGrantMaterialError extends Error {
   }
 }
 
+export class StaleGrantReviewError extends Error {
+  constructor() {
+    super('Entry changed after the approval review')
+    this.name = 'StaleGrantReviewError'
+  }
+}
+
 export interface ApproveGrantInput {
   grantId: string
   vaultId: string
@@ -33,6 +40,9 @@ export interface ApproveGrantInput {
   agentId: string | null | undefined
   policy: GrantPolicyBody
   methods: GrantMethod[]
+  fieldIds: string[]
+  reviewedEntryRevision: string
+  requestedMethods: number
 }
 
 export function useApproveGrant() {
@@ -46,10 +56,17 @@ export function useApproveGrant() {
       agentId,
       policy,
       methods,
+      fieldIds,
+      reviewedEntryRevision,
+      requestedMethods,
     }: ApproveGrantInput) => {
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new VaultLockedError()
       if (!entryId || !agentId) {
+        throw new MissingGrantMaterialError()
+      }
+      const approvedMethods = grantMethodsMask(methods)
+      if (approvedMethods === 0 || (approvedMethods & requestedMethods) !== approvedMethods) {
         throw new MissingGrantMaterialError()
       }
 
@@ -59,6 +76,9 @@ export function useApproveGrant() {
         getAgent(agentId),
       ])
       if (!agent.publicKey) throw new MissingGrantMaterialError()
+      if (detail.currentRevision !== reviewedEntryRevision || (detail.state !== 'active' && detail.state !== 1)) {
+        throw new StaleGrantReviewError()
+      }
       const vaultKey = await openMemberVaultKey(vault.memberVaultKey, {
         organizationId: detail.organizationId,
         vaultId,
@@ -82,15 +102,21 @@ export function useApproveGrant() {
             grantKeyVersion: 1,
             memberKeyGeneration: vault.memberKeyGeneration,
             recipientAgentKeyVersion: agent.recipientKeyVersion,
-            approvedMethods: grantMethodsMask(methods),
+            approvedMethods,
             ...policy,
             ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
           },
+          fieldIds,
         })
         const body: ApproveGrantBody = {
           grantEntry: envelope,
           ...policy,
           methods: serializeGrantMethods(methods),
+        }
+        if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
+        const latest = await getCanonicalEntry(vaultId, entryId)
+        if (latest.currentRevision !== reviewedEntryRevision || (latest.state !== 'active' && latest.state !== 1)) {
+          throw new StaleGrantReviewError()
         }
         await approveGrant(vaultId, grantId, body)
       } finally {

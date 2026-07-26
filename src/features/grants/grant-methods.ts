@@ -63,3 +63,9 @@ export function grantMethodsMask(methods: readonly GrantMethod[]): number {
   const bits: Record<GrantMethod, number> = { get: 1, exec: 2, inject: 4 }
   return GRANT_METHODS.reduce((value, method) => value | (methods.includes(method) ? bits[method] : 0), 0)
 }
+
+export function grantMethodsFromMask(mask: number): GrantMethod[] {
+  if (!Number.isInteger(mask) || mask < 0 || mask > 7) return []
+  const bits: Record<GrantMethod, number> = { get: 1, exec: 2, inject: 4 }
+  return GRANT_METHODS.filter((method) => (mask & bits[method]) !== 0)
+}

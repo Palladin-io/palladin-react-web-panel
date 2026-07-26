@@ -20,13 +20,13 @@ import {
 // Real backend shape (GrantResponse projection) — the actual `/pending-grants`
 // payload, with the new `agentName` / `entryLabel` enrichment.
 const samplePending = {
-  id: 'g1',
-  vaultId: 'v1',
-  agentId: 'a1',
+  id: '33333333-3333-4333-8333-333333333333',
+  vaultId: '22222222-2222-4222-8222-222222222222',
+  agentId: '44444444-4444-4444-8444-444444444444',
   agentName: 'Deploy Bot',
   type: 'granular',
   status: 'pending',
-  entryId: 'e1',
+  entryId: '55555555-5555-4555-8555-555555555555',
   entryLabel: 'Gmail',
   reason: 'Need to send email',
   expiresAt: null,
@@ -38,6 +38,22 @@ const samplePending = {
   revokedAt: null,
   revokedBy: null,
   revokeReason: null,
+  encryptedReason: {
+    organizationId: '11111111-1111-4111-8111-111111111111',
+    vaultId: '22222222-2222-4222-8222-222222222222',
+    entryId: '55555555-5555-4555-8555-555555555555',
+    grantRequestId: '33333333-3333-4333-8333-333333333333',
+    agentId: '44444444-4444-4444-8444-444444444444',
+    requestRevision: '1',
+    header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 6, projectionKind: 8, resourceRevision: '1', keyVersion: 1, memberKeyGeneration: 1, nonce: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA' },
+    reasonKeyVersion: 1,
+    agentMessageKeyVersion: 1,
+    recipientAgentMessageKeyFingerprint: 'A'.repeat(43),
+    requestedMethods: 6,
+    ciphertext: 'ciphertext',
+    agentMessageWrappedReasonDek: 'wrapped',
+    agentSignature: 'A'.repeat(86),
+  },
 }
 
 describe('pending-grants-api', () => {
@@ -51,10 +67,10 @@ describe('pending-grants-api', () => {
     getJson.mockResolvedValue({ items: [samplePending], nextCursor: null })
     const items = await getPendingGrants()
     expect(items).toHaveLength(1)
-    expect(items[0].id).toBe('g1')
+    expect(items[0].id).toBe(samplePending.id)
     expect(items[0].agentName).toBe('Deploy Bot')
     expect(items[0].entryLabel).toBe('Gmail')
-    expect(items[0].entryId).toBe('e1')
+    expect(items[0].entryId).toBe(samplePending.entryId)
   })
 
   it('strips unknown (crypto) fields at the parse boundary', async () => {
@@ -80,7 +96,7 @@ describe('pending-grants-api', () => {
     })
     const items = await getPendingGrants()
     expect(items).toHaveLength(1)
-    expect(items[0].id).toBe('g1')
+    expect(items[0].id).toBe(samplePending.id)
   })
 
   it('PUTs the approve envelope with an expiresAt policy', async () => {
