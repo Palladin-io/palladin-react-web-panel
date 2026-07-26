@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { IndexedDbMemberSyncCache } from './member-sync-cache'
 import { MemberSyncEngine } from './member-sync-engine'
 import { useMemberSyncStore } from './member-sync-store'
@@ -16,6 +16,8 @@ interface MemberSyncProviderProps {
 }
 
 export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey }: MemberSyncProviderProps) {
+  const retryGeneration = useMemberSyncStore((state) => state.retryGeneration)
+  const retrySync = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     if (!memberSyncEngine || !enabled || !userId || !memberPrivateKey) {
@@ -40,6 +42,7 @@ export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey
     }
     const synchronizeWhenOnline = () => synchronize()
 
+    retrySync.current = synchronize
     synchronize()
     window.addEventListener('online', synchronizeWhenOnline)
     document.addEventListener('visibilitychange', synchronizeWhenVisible)
@@ -47,6 +50,7 @@ export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey
       if (document.visibilityState === 'visible' && navigator.onLine) synchronize(false)
     }, MEMBER_DELTA_POLL_INTERVAL_MS)
     return () => {
+      retrySync.current = null
       active?.abort()
       window.clearInterval(pollTimer)
       window.removeEventListener('online', synchronizeWhenOnline)
@@ -54,6 +58,10 @@ export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey
       useMemberSyncStore.getState().clear()
     }
   }, [enabled, memberPrivateKey, userId])
+
+  useEffect(() => {
+    if (retryGeneration > 0) retrySync.current?.()
+  }, [retryGeneration])
 
   return children
 }

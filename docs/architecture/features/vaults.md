@@ -13,7 +13,7 @@ Three nested levels, each a split-view page with its own tab strip:
 
 Protocol 2 list/search data comes from `sync/`: after unlock, `MemberSyncProvider` opens the Member Vault key, builds an initial snapshot, applies the closing delta, and then follows incremental deltas. IndexedDB stores only authenticated ciphertext envelopes, structural metadata, and sequence cursors. Decrypted Vault metadata and normalized MemberIndex records live in Zustand memory and are cleared immediately on lock/logout. Entry secrets remain lazy and are never part of Member sync.
 
-Legacy screens still consume the exported vault/entry queries (`useVaults`, `useVault`, `useEntries`) until their individual protocol 2 migration tasks land. Entry rows and the entry-detail page own the decrypt-on-demand logic; create/edit flows follow the inline-edit and modal conventions.
+The Vault list and split-view list panel consume decrypted `MemberVaultMetadata` directly from the in-memory sync store and search names/descriptions locally. They expose locked, syncing, reset, partial-error and anonymous-corruption states without falling back to server-side name search. Remaining legacy entry/detail screens still consume the exported vault/entry queries (`useVault`, `useEntries`) until their individual protocol 2 migration tasks land. Entry rows and the entry-detail page own the decrypt-on-demand logic; create/edit flows follow the inline-edit and modal conventions.
 
 ## Key patterns
 - **Zero-knowledge on-demand:** the vault key is unsealed and the entry decrypted only at reveal/open time; plaintext lives in component `useState` and never leaves memory.

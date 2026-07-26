@@ -1,4 +1,9 @@
-import { decryptMemberIndex, decryptMemberVaultMetadata, openMemberVaultKey } from '../../../shared/crypto/vault-v2-member-sync'
+import {
+  decryptMemberIndex,
+  decryptMemberVaultMetadata,
+  openMemberVaultKey,
+  type MemberVaultMetadata,
+} from '../../../shared/crypto/vault-v2-member-sync'
 import { wipe } from '../../../shared/crypto/sodium'
 import {
   getMemberDeltaPage,
@@ -10,7 +15,7 @@ import {
   type MemberSyncItem,
 } from './member-sync-api'
 import type { MemberSyncCache } from './member-sync-cache'
-import { useMemberSyncStore, type MemberIndexRecord } from './member-sync-store'
+import { memberVaultStructure, useMemberSyncStore, type MemberIndexRecord } from './member-sync-store'
 
 const CACHE_PAGE_ITEMS = 100
 const PROJECTION_CHUNK_ITEMS = 25
@@ -19,6 +24,17 @@ const MAXIMUM_UNLOCKED_MEMBER_ENTRIES = 10_000
 
 interface ProjectionBudget {
   count: number
+}
+
+class MemberVaultSyncFailure extends Error {
+  readonly failureKind: 'metadata' | 'sync'
+  readonly metadata?: MemberVaultMetadata
+
+  constructor(failureKind: 'metadata' | 'sync', cause: unknown, metadata?: MemberVaultMetadata) {
+    super(`Vault ${failureKind} synchronization failed`, { cause })
+    this.failureKind = failureKind
+    this.metadata = metadata
+  }
 }
 
 export interface MemberSyncTransport {
@@ -97,7 +113,11 @@ export class MemberSyncEngine {
         } catch (error) {
           if (signal.aborted) throw error
           failures += 1
-          useMemberSyncStore.getState().failVault(vault.id)
+          if (error instanceof MemberVaultSyncFailure) {
+            useMemberSyncStore.getState().failVault(vault, error.failureKind, error.metadata)
+          } else {
+            useMemberSyncStore.getState().failVault(vault, 'sync')
+          }
           projectionBudget.count = publishedEntryCount()
         }
       }
@@ -118,21 +138,31 @@ export class MemberSyncEngine {
   ): Promise<void> {
     const budgetBeforeVault = projectionBudget.count
     const organizationId = vault.memberVaultKey.organizationId
-    const vaultKey = await openMemberVaultKey(vault.memberVaultKey, {
-      organizationId,
-      vaultId: vault.id,
-      memberId: userId,
-      vkVersion: vault.currentKeyEpoch.vaultKeyVersion,
-      memberKeyGeneration: vault.memberKeyGeneration,
-    }, memberPrivateKey)
+    let vaultKey: Uint8Array
     try {
-      assertNotAborted(signal)
-      const metadata = await decryptMemberVaultMetadata(vault.memberVaultMetadata, {
+      vaultKey = await openMemberVaultKey(vault.memberVaultKey, {
         organizationId,
         vaultId: vault.id,
-        keyVersion: vault.currentKeyEpoch.vaultKeyVersion,
+        memberId: userId,
+        vkVersion: vault.currentKeyEpoch.vaultKeyVersion,
         memberKeyGeneration: vault.memberKeyGeneration,
-      }, vaultKey)
+      }, memberPrivateKey)
+    } catch (error) {
+      throw new MemberVaultSyncFailure('sync', error)
+    }
+    let metadata: MemberVaultMetadata | undefined
+    try {
+      assertNotAborted(signal)
+      try {
+        metadata = await decryptMemberVaultMetadata(vault.memberVaultMetadata, {
+          organizationId,
+          vaultId: vault.id,
+          keyVersion: vault.currentKeyEpoch.vaultKeyVersion,
+          memberKeyGeneration: vault.memberKeyGeneration,
+        }, vaultKey)
+      } catch (error) {
+        throw new MemberVaultSyncFailure('metadata', error)
+      }
       const cached = await this.cache.getActiveState(userId, vault.id)
       if (!cached || !isCacheCompatible(cached.vault, vault) || compareSequence(cached.appliedThroughSequence, vault.memberSequence) > 0) {
         await this.rebuildSnapshot(userId, vault, vaultKey, metadata, projectionBudget, signal)
@@ -154,11 +184,13 @@ export class MemberSyncEngine {
       } catch (error) {
         if (!(error instanceof MemberSyncResetRequiredError)) throw error
         projectionBudget.count = budgetBeforeVault
+        useMemberSyncStore.getState().resetVault(vault.id)
         await this.rebuildSnapshot(userId, vault, vaultKey, metadata, projectionBudget, signal)
       }
     } catch (error) {
       projectionBudget.count = budgetBeforeVault
-      throw error
+      if (error instanceof MemberVaultSyncFailure || signal.aborted) throw error
+      throw new MemberVaultSyncFailure('sync', error, metadata)
     } finally {
       wipe(vaultKey)
     }
@@ -236,7 +268,7 @@ export class MemberSyncEngine {
     const appliedThrough = await this.applyPendingDelta(userId, vault, namespace, vaultKey, entries, baseSequence, projectionBudget, signal)
     await this.cache.completeSnapshot(userId, vault, namespace, appliedThrough)
     assertNotAborted(signal)
-    this.publish(vault.id, metadata, entries, appliedThrough, 'ready')
+    this.publish(vault, metadata, entries, appliedThrough, 'ready')
   }
 
   private async applyPendingDelta(
@@ -286,7 +318,7 @@ export class MemberSyncEngine {
       appliedThrough = page.appliedThroughSequence
       continuation = page.continuationCursor
       assertNotAborted(signal)
-      this.publish(vault.id, metadata, entries, appliedThrough, continuation ? 'syncing' : 'ready')
+      this.publish(vault, metadata, entries, appliedThrough, continuation ? 'syncing' : 'ready')
     } while (continuation)
   }
 
@@ -384,18 +416,20 @@ export class MemberSyncEngine {
   }
 
   private publish(
-    vaultId: string,
+    vault: EncryptedVaultSummary,
     metadata: Awaited<ReturnType<typeof decryptMemberVaultMetadata>>,
     entries: Map<string, MemberIndexRecord>,
     appliedThroughSequence: string,
     status: 'syncing' | 'ready',
   ): void {
     useMemberSyncStore.getState().publishVault({
-      vaultId,
+      vaultId: vault.id,
       metadata,
+      structure: memberVaultStructure(vault),
       entries: new Map(entries),
       appliedThroughSequence,
       status,
+      failureKind: null,
     })
   }
 }
