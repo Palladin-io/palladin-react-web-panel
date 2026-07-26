@@ -68,4 +68,20 @@ describe('OrgGrantsPanel regrant boundary', () => {
     render(<OrgGrantsPanel vaultId="vault-1" />)
     expect(screen.getByRole('button', { name: 'Grant again' })).toBeInTheDocument()
   })
+
+  it('renders only the explanatory footer when a terminal grant has active coverage', () => {
+    mockOrgGrants.mockReturnValue({
+      data: {
+        items: [{ ...expiredGrant, canGrantAgain: false }],
+        nextCursor: null,
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useOrgGrants>)
+
+    const { container } = render(<OrgGrantsPanel vaultId="vault-1" />)
+    expect(screen.getByText('Already Active')).toBeInTheDocument()
+    expect(container.querySelectorAll('[class*="bg-[var(--cv-card-footer)]"]')).toHaveLength(1)
+  })
 })

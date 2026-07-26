@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next'
+import { EmptyState } from '../../../shared/components/empty-state'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
+import { SkeletonBlock } from '../../../shared/components/skeleton-block'
 import { shortenKey } from '../../../shared/lib/shorten-key'
 import { OrgGrantsPanel } from '../../grants'
 import { DISCOVERY_STATUS_CURRENT, type AgentDiscoveryProvisioningItem } from '../api/agent-discovery-api'
@@ -26,7 +28,7 @@ export function VaultAgentsTab({ vaultId }: { vaultId: string }) {
           <p className="text-meta text-[var(--cv-t2)]">{t('vault.agents.discoveryBoundary')}</p>
         </div>
         {!discovery.canManageVault ? (
-          <StateMessage icon="lock" message={t('vault.agents.noPermission')} />
+          <EmptyState icon="lock" title={t('vault.agents.noPermission')} />
         ) : discovery.isPending ? (
           <DiscoverySkeleton />
         ) : discovery.isError ? (
@@ -36,7 +38,7 @@ export function VaultAgentsTab({ vaultId }: { vaultId: string }) {
             {discovery.data.map((agent) => <DiscoveryAgentRow key={agent.agentId} agent={agent} />)}
           </ul>
         ) : (
-          <StateMessage icon="smart_toy" message={t('vault.agents.noActiveAgents')} />
+          <EmptyState icon="smart_toy" title={t('vault.agents.noActiveAgents')} />
         )}
         <p className="mt-3 text-micro text-[var(--cv-t3)]">{t('vault.agents.deactivatedNote')}</p>
       </section>
@@ -95,20 +97,11 @@ function DiscoveryAgentRow({ agent }: { agent: AgentDiscoveryProvisioningItem })
   )
 }
 
-function StateMessage({ icon, message }: { icon: string; message: string }) {
-  return (
-    <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-6 text-ui text-[var(--cv-t3)]">
-      <Icon name={icon} size={20} color="var(--cv-t3)" />
-      <span>{message}</span>
-    </div>
-  )
-}
-
 function DiscoverySkeleton() {
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-3">
       {[0, 1].map((item) => (
-        <div key={item} className="h-32 animate-pulse rounded-xl bg-[var(--cv-card-bg)]" />
+        <SkeletonBlock key={item} rounded="xl" className="h-32" />
       ))}
     </div>
   )

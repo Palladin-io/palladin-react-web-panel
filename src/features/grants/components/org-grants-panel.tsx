@@ -397,7 +397,7 @@ function OrgGrantRow({
         </Row>
       </div>
 
-      {(grant.canRevoke || onRegrant) && (
+      {(grant.canRevoke || (grant.canGrantAgain && onRegrant)) && (
         <div
           className="flex min-h-[2.875rem] items-center gap-2 border-t border-[var(--cv-divider)] px-[0.875rem] py-2
             bg-[var(--cv-card-footer)]"
