@@ -1,30 +1,23 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 import { readBoundedJson, vaultEntryKeyEnvelopeSchema } from '../sync/member-sync-api'
+import {
+  canonicalU64Schema as u64,
+  canonicalUuidSchema as uuid,
+  u32Schema as u32,
+  vaultDiscoveryKeyEnvelopeSchema as discoveryKeySchema,
+  vaultEnvelopeHeaderSchema as header,
+  vaultPrivateKeyEnvelopeSchema as privateKeySchema,
+} from '../sync/vault-key-material-schema'
 
-const uuid = z.string().uuid()
-const u64 = z.string().regex(/^(0|[1-9][0-9]{0,19})$/)
-const u32 = z.number().int().min(0).max(0xffffffff)
-const header = z.object({
-  protocolVersion: z.literal(2), algorithmSuite: z.literal(1),
-  resourceKind: z.number().int(), projectionKind: z.number().int(),
-  resourceRevision: u64, keyVersion: u32, memberKeyGeneration: u32, nonce: z.string(),
-}).strict()
 
 export const memberVaultKeySchema = z.object({
   protocolVersion: z.literal(2), algorithmSuite: z.literal(1), organizationId: uuid,
   vaultId: uuid, memberId: uuid, vkVersion: u32, memberKeyGeneration: u32,
   recipientMemberKeyVersion: u32, recipientMemberKeyFingerprint: z.string(), sealedVaultKeyPackage: z.string(),
 }).strict()
-export const discoveryKeySchema = z.object({
-  organizationId: uuid, vaultId: uuid, discoveryKeyRevision: u64, vdkVersion: u32,
-  memberKeyGeneration: u32, wrappingKeyVersion: u32, header, ciphertext: z.string(),
-}).strict()
-export const privateKeySchema = z.object({
-  organizationId: uuid, vaultId: uuid, privateKeyKind: z.union([z.literal(1), z.literal(2)]),
-  privateKeyRevision: u64, privateKeyVersion: u32, memberKeyGeneration: u32,
-  wrappingKeyVersion: u32, header, ciphertext: z.string(),
-}).strict()
+export { vaultDiscoveryKeyEnvelopeSchema as discoveryKeySchema,
+  vaultPrivateKeyEnvelopeSchema as privateKeySchema } from '../sync/vault-key-material-schema'
 const epoch = z.object({
   vaultKeyVersion: u32, vdkVersion: u32, agentMessageKeyVersion: u32, manifestSigningKeyVersion: u32,
 }).strict()

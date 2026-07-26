@@ -1,9 +1,9 @@
 import { api } from '../../../shared/api/client'
 import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
 import type { InitialVaultMaterial } from '../../../shared/crypto/vault-v2-creation'
+import type { InitialEntryMaterial } from '../../../shared/crypto/vault-v2-entry'
 import { normalizeEntryType } from '../types'
 import type {
-  CreateEntryPayload,
   EntryContent,
   EntryDetail,
   EntryListItem,
@@ -116,11 +116,20 @@ export async function getEntry(
 
 export function createEntry(
   vaultId: string,
-  payload: CreateEntryPayload,
-): Promise<{ id: string }> {
+  payload: { entryId: string; grantEnvelopes: unknown[] } & InitialEntryMaterial,
+): Promise<{ id: string; currentRevision: string }> {
   return api
     .post(`api/vaults/${vaultId}/entries`, { json: payload })
-    .json<{ id: string }>()
+    .json<{ id: string; currentRevision: string }>()
+}
+
+export async function issueEntryCreationChallenge(vaultId: string): Promise<{ entryId: string; expiresAt: string }> {
+  const response = await api.post(`api/vaults/${vaultId}/entries/creation-challenges`, {
+    json: { vaultId, count: 1 },
+  }).json<{ items: { entryId: string; expiresAt: string }[] }>()
+  const challenge = response.items[0]
+  if (!challenge) throw new Error('Entry creation challenge response was empty')
+  return challenge
 }
 
 export async function updateEntry(

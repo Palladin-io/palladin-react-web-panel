@@ -1,0 +1,339 @@
+import { z } from 'zod'
+import type { CustomField, EntryPlaintext, EntryType } from '../../features/vaults/types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from '../../features/vaults/types'
+import { encodeUtf8 } from './vault-v2-bytes'
+import { encryptVaultEnvelope, type VaultCiphertextEnvelope } from './vault-v2-envelope'
+import { deriveVaultProjectionKey } from './vault-v2-kdf'
+import type { VaultEnvelopeHeader } from './vault-v2-protocol'
+import { canonicalizeVaultJson, type CanonicalJson } from './vault-v2-signatures'
+import { randomBytes, wipe } from './sodium'
+
+export const AGENT_FIELD_ACCESS = [
+  'never',
+  'discovery',
+  'onGrantValue',
+  'onGrantDerived',
+  'onGrantRuntime',
+] as const
+export type AgentFieldAccess = (typeof AGENT_FIELD_ACCESS)[number]
+
+export const ENTRY_FIELD = {
+  agentLabel: 'agentLabel',
+  description: 'description',
+  value: 'value',
+  username: 'username',
+  password: 'password',
+  url: 'url',
+  urlDomain: 'urlDomain',
+  notes: 'notes',
+  totp: 'totp',
+  interpreter: 'interpreter',
+  script: 'script',
+  refs: 'refs',
+} as const
+
+export interface AgentVisibilityPolicy {
+  discoverable: boolean
+  fields: Record<string, AgentFieldAccess>
+}
+
+const DISCOVERY_OR_NEVER = ['never', 'discovery'] as const
+const VALUE_OR_NEVER = ['never', 'onGrantValue'] as const
+const DERIVED_OR_NEVER = ['never', 'onGrantDerived'] as const
+const RUNTIME_OR_NEVER = ['never', 'onGrantRuntime'] as const
+
+export function allowedAgentFieldAccess(
+  type: EntryType,
+  fieldId: string,
+  customFieldType?: CustomField['type'],
+): readonly AgentFieldAccess[] {
+  if (fieldId === ENTRY_FIELD.agentLabel || fieldId === ENTRY_FIELD.description) return DISCOVERY_OR_NEVER
+  if (fieldId === ENTRY_FIELD.notes) return type === ENTRY_TYPE_SCRIPT ? RUNTIME_OR_NEVER : VALUE_OR_NEVER
+  if (fieldId === ENTRY_FIELD.totp || customFieldType === 'totp') return DERIVED_OR_NEVER
+  if (fieldId.startsWith('custom:')) {
+    return type === ENTRY_TYPE_SCRIPT
+      ? RUNTIME_OR_NEVER
+      : ['never', 'discovery', 'onGrantValue'] as const
+  }
+  if (type === ENTRY_TYPE_KEY && fieldId === ENTRY_FIELD.value) return VALUE_OR_NEVER
+  if (type === ENTRY_TYPE_CREDENTIAL) {
+    if (fieldId === ENTRY_FIELD.username) return ['never', 'discovery', 'onGrantValue'] as const
+    if (fieldId === ENTRY_FIELD.urlDomain) return DISCOVERY_OR_NEVER
+    if (fieldId === ENTRY_FIELD.url || fieldId === ENTRY_FIELD.password) return VALUE_OR_NEVER
+  }
+  if (type === ENTRY_TYPE_SCRIPT) {
+    if (fieldId === ENTRY_FIELD.interpreter) return DISCOVERY_OR_NEVER
+    if (fieldId === ENTRY_FIELD.script || fieldId === ENTRY_FIELD.refs) return RUNTIME_OR_NEVER
+  }
+  return ['never'] as const
+}
+
+export interface CanonicalEntryDraft {
+  memberLabel: string
+  agentLabel: string
+  description?: string
+  iconReference?: string
+  entryType: EntryType
+  content: EntryPlaintext
+  policy: AgentVisibilityPolicy
+}
+
+export interface MemberIndexPlaintext {
+  memberLabel: string
+  entryType: EntryType
+  searchFields: string[]
+  iconReference?: string
+}
+
+export interface MemberSecretPlaintext {
+  schemaVersion: 1
+  memberLabel: string
+  agentLabel: string
+  description?: string
+  iconReference?: string
+  entryType: EntryType
+  content: EntryPlaintext
+  agentVisibilityPolicy: AgentVisibilityPolicy
+}
+
+export interface AgentDiscoveryPlaintext {
+  schemaVersion: 1
+  agentLabel: string
+  entryType: EntryType
+  capabilities: string[]
+  fields: Record<string, string>
+}
+
+export interface VaultEntryKeyEnvelope extends VaultCiphertextEnvelope {
+  organizationId: string
+  vaultId: string
+  entryId: string
+  wrapperRevision: string
+  keyVersion: number
+  memberKeyGeneration: number
+  wrappingKeyVersion: number
+  header: VaultEnvelopeHeader
+  wrappedEntryDekByVk: string
+}
+
+export interface MemberSecretEnvelope extends VaultCiphertextEnvelope {
+  organizationId: string
+  vaultId: string
+  entryId: string
+  revision: string
+  operation: 1
+  header: VaultEnvelopeHeader
+  ciphertext: string
+}
+
+export interface AgentDiscoveryEnvelope extends VaultCiphertextEnvelope {
+  organizationId: string
+  vaultId: string
+  entryId: string
+  agentDiscoveryRevision: string
+  vdkVersion: number
+  header: VaultEnvelopeHeader
+  ciphertext: string
+}
+
+export interface InitialEntryMaterial {
+  entryKey: VaultEntryKeyEnvelope
+  memberIndex: import('./vault-v2-member-sync').MemberIndexEnvelope
+  memberSecret: MemberSecretEnvelope
+  agentDiscovery?: AgentDiscoveryEnvelope
+}
+
+const policySchema = z.object({
+  discoverable: z.boolean(),
+  fields: z.record(z.string().min(1).max(128), z.enum(AGENT_FIELD_ACCESS)),
+}).strict()
+
+export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomField[] = []): AgentVisibilityPolicy {
+  const defaults: Record<string, AgentFieldAccess> = {
+    [ENTRY_FIELD.agentLabel]: 'discovery',
+    [ENTRY_FIELD.description]: 'never',
+    [ENTRY_FIELD.notes]: type === ENTRY_TYPE_SCRIPT ? 'never' : 'onGrantValue',
+  }
+  if (type === ENTRY_TYPE_KEY) defaults[ENTRY_FIELD.value] = 'onGrantValue'
+  if (type === ENTRY_TYPE_CREDENTIAL) {
+    defaults[ENTRY_FIELD.username] = 'discovery'
+    defaults[ENTRY_FIELD.urlDomain] = 'discovery'
+    defaults[ENTRY_FIELD.url] = 'onGrantValue'
+    defaults[ENTRY_FIELD.password] = 'onGrantValue'
+    defaults[ENTRY_FIELD.totp] = 'onGrantDerived'
+  }
+  if (type === ENTRY_TYPE_SCRIPT) {
+    defaults[ENTRY_FIELD.interpreter] = 'discovery'
+    defaults[ENTRY_FIELD.script] = 'onGrantRuntime'
+    defaults[ENTRY_FIELD.refs] = 'onGrantRuntime'
+  }
+  for (const field of fields) {
+    defaults[`custom:${field.id}`] = field.type === 'totp'
+      ? 'onGrantDerived'
+      : type === ENTRY_TYPE_SCRIPT ? 'onGrantRuntime' : 'onGrantValue'
+  }
+  return { discoverable: true, fields: defaults }
+}
+
+export function validateAgentVisibilityPolicy(
+  type: EntryType,
+  policy: AgentVisibilityPolicy,
+  fields: CustomField[] = [],
+): AgentVisibilityPolicy {
+  const parsed = policySchema.parse(policy)
+  const next = { discoverable: parsed.discoverable, fields: { ...parsed.fields } }
+  if (next.discoverable && next.fields[ENTRY_FIELD.agentLabel] !== 'discovery') {
+    throw new Error('A discoverable Entry requires an Agent-facing label')
+  }
+  const customTypes = new Map(fields.map((field) => [`custom:${field.id}`, field.type]))
+  for (const [fieldId, access] of Object.entries(next.fields)) {
+    if (!allowedAgentFieldAccess(type, fieldId, customTypes.get(fieldId)).includes(access)) {
+      throw new Error(`Unsupported Agent access mode for ${fieldId}`)
+    }
+  }
+  return next
+}
+
+export function buildEntryProjections(draft: CanonicalEntryDraft): {
+  memberIndex: MemberIndexPlaintext
+  memberSecret: MemberSecretPlaintext
+  agentDiscovery?: AgentDiscoveryPlaintext
+} {
+  const customFields = draft.content.fields ?? []
+  const policy = validateAgentVisibilityPolicy(draft.entryType, draft.policy, customFields)
+  const memberSecret: MemberSecretPlaintext = {
+    schemaVersion: 1,
+    memberLabel: draft.memberLabel,
+    agentLabel: draft.agentLabel,
+    ...(draft.description ? { description: draft.description } : {}),
+    ...(draft.iconReference ? { iconReference: draft.iconReference } : {}),
+    entryType: draft.entryType,
+    content: draft.content,
+    agentVisibilityPolicy: policy,
+  }
+  const memberIndex: MemberIndexPlaintext = {
+    memberLabel: draft.memberLabel,
+    entryType: draft.entryType,
+    searchFields: memberSearchFields(draft),
+    ...(draft.iconReference ? { iconReference: draft.iconReference } : {}),
+  }
+  if (!policy.discoverable) return { memberIndex, memberSecret }
+
+  const discoveryFields: Record<string, string> = {}
+  const include = (id: string, value?: string) => {
+    if (policy.fields[id] === 'discovery' && value) discoveryFields[id] = value
+  }
+  include(ENTRY_FIELD.description, draft.description)
+  if (draft.content.type === ENTRY_TYPE_CREDENTIAL) {
+    include(ENTRY_FIELD.username, draft.content.username)
+    include(ENTRY_FIELD.urlDomain, domainFrom(draft.content.url))
+  } else if (draft.content.type === ENTRY_TYPE_SCRIPT) {
+    include(ENTRY_FIELD.interpreter, draft.content.interpreter)
+  }
+  for (const field of customFields) {
+    if (field.type === 'totp' || typeof field.value !== 'string') continue
+    include(`custom:${field.id}`, field.value)
+  }
+  const capabilities = draft.entryType === ENTRY_TYPE_SCRIPT ? ['exec'] : ['get', 'inject']
+  return {
+    memberIndex,
+    memberSecret,
+    agentDiscovery: {
+      schemaVersion: 1,
+      agentLabel: draft.agentLabel,
+      entryType: draft.entryType,
+      capabilities,
+      fields: discoveryFields,
+    },
+  }
+}
+
+function memberSearchFields(draft: CanonicalEntryDraft): string[] {
+  const values = [draft.memberLabel, draft.description]
+  if (draft.content.type === ENTRY_TYPE_CREDENTIAL) values.push(draft.content.username, draft.content.url)
+  if (draft.content.type === ENTRY_TYPE_SCRIPT) values.push(draft.content.interpreter)
+  for (const field of draft.content.fields ?? []) {
+    if (field.type === 'concealed' || field.type === 'totp' || typeof field.value !== 'string') continue
+    values.push(field.label, field.value)
+  }
+  return [...new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)))].slice(0, 16)
+}
+
+function domainFrom(url?: string): string | undefined {
+  if (!url) return undefined
+  try { return new URL(url).hostname.toLowerCase() } catch { return undefined }
+}
+
+function canonicalBytes(value: CanonicalJson): Uint8Array {
+  return encodeUtf8(canonicalizeVaultJson(value))
+}
+
+export async function createInitialEntryMaterial(
+  draft: CanonicalEntryDraft,
+  scope: {
+    organizationId: string
+    vaultId: string
+    entryId: string
+    vaultKeyVersion: number
+    vdkVersion: number
+    memberKeyGeneration: number
+  },
+  vaultKey: Uint8Array,
+  discoveryKey: Uint8Array,
+): Promise<InitialEntryMaterial> {
+  const projections = buildEntryProjections(draft)
+  const entryDek = await randomBytes(32)
+  let memberIndexKey: Uint8Array | undefined
+  let memberSecretKey: Uint8Array | undefined
+  let agentDiscoveryKey: Uint8Array | undefined
+  let memberIndexBytes: Uint8Array | undefined
+  let memberSecretBytes: Uint8Array | undefined
+  let discoveryBytes: Uint8Array | undefined
+  try {
+    const common = { organizationId: scope.organizationId, vaultId: scope.vaultId, entryId: scope.entryId }
+    const entryKeyContext = {
+      ...common,
+      wrapperRevision: '1', keyVersion: 1, memberKeyGeneration: scope.memberKeyGeneration,
+      wrappingKeyVersion: scope.vaultKeyVersion,
+      header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 8,
+        resourceRevision: '1', keyVersion: 1, memberKeyGeneration: scope.memberKeyGeneration, nonce: '' },
+    }
+    const wrapped = await encryptVaultEnvelope('entry-key-wrapper', entryKeyContext, entryDek, vaultKey)
+    memberIndexKey = await deriveVaultProjectionKey({ baseKey: entryDek, purpose: 'member-index', resourceKind: 2,
+      ...common, keyVersion: 1, memberKeyGeneration: scope.memberKeyGeneration })
+    memberSecretKey = await deriveVaultProjectionKey({ baseKey: entryDek, purpose: 'member-secret', resourceKind: 2,
+      ...common, keyVersion: 1, memberKeyGeneration: scope.memberKeyGeneration })
+    memberIndexBytes = canonicalBytes(projections.memberIndex as unknown as CanonicalJson)
+    memberSecretBytes = canonicalBytes(projections.memberSecret as unknown as CanonicalJson)
+    const memberIndexContext = { ...common, memberIndexRevision: '1',
+      header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 2,
+        resourceRevision: '1', keyVersion: 1, memberKeyGeneration: scope.memberKeyGeneration, nonce: '' } }
+    const memberSecretContext = { ...common, revision: '1', operation: 1 as const,
+      header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 3,
+        resourceRevision: '1', keyVersion: 1, memberKeyGeneration: scope.memberKeyGeneration, nonce: '' } }
+    const [memberIndexEncrypted, memberSecretEncrypted] = await Promise.all([
+      encryptVaultEnvelope('member-index', memberIndexContext, memberIndexBytes, memberIndexKey),
+      encryptVaultEnvelope('member-secret', memberSecretContext, memberSecretBytes, memberSecretKey),
+    ])
+    let agentDiscovery: AgentDiscoveryEnvelope | undefined
+    if (projections.agentDiscovery) {
+      agentDiscoveryKey = await deriveVaultProjectionKey({ baseKey: discoveryKey, purpose: 'agent-discovery', resourceKind: 2,
+        ...common, keyVersion: scope.vdkVersion, memberKeyGeneration: scope.memberKeyGeneration })
+      discoveryBytes = canonicalBytes(projections.agentDiscovery as unknown as CanonicalJson)
+      const context = { ...common, agentDiscoveryRevision: '1', vdkVersion: scope.vdkVersion,
+        header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 4,
+          resourceRevision: '1', keyVersion: scope.vdkVersion, memberKeyGeneration: scope.memberKeyGeneration, nonce: '' } }
+      const encrypted = await encryptVaultEnvelope('agent-discovery', context, discoveryBytes, agentDiscoveryKey)
+      agentDiscovery = { ...context, header: { ...context.header, nonce: encrypted.nonce }, ciphertext: encrypted.ciphertext }
+    }
+    return {
+      entryKey: { ...entryKeyContext, header: { ...entryKeyContext.header, nonce: wrapped.nonce }, wrappedEntryDekByVk: wrapped.ciphertext },
+      memberIndex: { ...memberIndexContext, header: { ...memberIndexContext.header, nonce: memberIndexEncrypted.nonce }, ciphertext: memberIndexEncrypted.ciphertext },
+      memberSecret: { ...memberSecretContext, header: { ...memberSecretContext.header, nonce: memberSecretEncrypted.nonce }, ciphertext: memberSecretEncrypted.ciphertext },
+      ...(agentDiscovery ? { agentDiscovery } : {}),
+    }
+  } finally {
+    for (const value of [entryDek, memberIndexKey, memberSecretKey, agentDiscoveryKey,
+      memberIndexBytes, memberSecretBytes, discoveryBytes]) if (value) wipe(value)
+  }
+}
