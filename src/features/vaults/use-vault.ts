@@ -43,7 +43,9 @@ export function useVault(id: string) {
   return {
     data,
     isPending: !record && (status === 'idle' || status === 'syncing'),
-    isError: Boolean(record?.failureKind === 'metadata' || (record && !metadata) || status === 'error'),
+    isError: record
+      ? Boolean(record.failureKind === 'metadata' || !metadata)
+      : status === 'error',
     refetch: async () => { retry() },
   }
 }

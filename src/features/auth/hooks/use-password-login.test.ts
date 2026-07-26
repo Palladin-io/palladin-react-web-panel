@@ -2,12 +2,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { toBase64 } from '../../../shared/crypto/encoding'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { usePasswordLogin } from './use-password-login'
 
 const fetchLoginKdfMock = vi.hoisted(() => vi.fn())
 const passwordLoginMock = vi.hoisted(() => vi.fn())
 const totpLoginMock = vi.hoisted(() => vi.fn())
+const deriveKeyMock = vi.hoisted(() => vi.fn())
 const deriveIdentityV2Mock = vi.hoisted(() => vi.fn())
 const decryptWithKeyMock = vi.hoisted(() => vi.fn())
 const getAccountMock = vi.hoisted(() => vi.fn())
@@ -22,7 +24,7 @@ vi.mock('../api/auth-api', () => ({
   isTotpRequired: (response: { totpRequired?: boolean }) => response.totpRequired === true,
 }))
 vi.mock('../../../shared/api/account-api', () => ({ getAccount: getAccountMock }))
-vi.mock('../../../shared/crypto/argon2', () => ({ deriveKey: vi.fn() }))
+vi.mock('../../../shared/crypto/argon2', () => ({ deriveKey: deriveKeyMock }))
 vi.mock('../../../shared/crypto/identity-kdf', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../../shared/crypto/identity-kdf')>(),
   deriveIdentityV2: deriveIdentityV2Mock,
@@ -75,6 +77,7 @@ describe('usePasswordLogin Identity KDF v2', () => {
       authCredential: new Uint8Array(32).fill(3),
       masterKey: new Uint8Array(32).fill(4),
     })
+    deriveKeyMock.mockResolvedValue(new Uint8Array(32).fill(7))
     decryptWithKeyMock.mockResolvedValue(new Uint8Array(32).fill(5))
     getAccountMock.mockResolvedValue({
       userId: accountId,
@@ -140,5 +143,51 @@ describe('usePasswordLogin Identity KDF v2', () => {
 
     expect(unlockVaultMock).not.toHaveBeenCalled()
     expect(logoutMock).toHaveBeenCalledOnce()
+  })
+
+  it('unlocks a legacy account whose persisted crypto fields use padded standard Base64', async () => {
+    const legacySalt = toBase64(new Uint8Array(16).fill(0xfb))
+    fetchLoginKdfMock.mockResolvedValueOnce({
+      profileId: 'identity-argon2id-legacy-v1',
+      securityVersion: 1,
+      kdfSalt,
+      memoryKiB: 65_536,
+      iterations: 3,
+      parallelism: 1,
+      accountSecretRequired: false,
+    })
+    passwordLoginMock.mockResolvedValue(authResponse)
+    getAccountMock.mockResolvedValueOnce({
+      userId: accountId,
+      salt: legacySalt,
+      encryptedPrivateKey: toBase64(new Uint8Array(73).fill(0xff)),
+      kdf: {
+        securityVersion: 1,
+        minimumSecurityVersion: 1,
+        profileId: 'identity-argon2id-legacy-v1',
+        kdfSalt,
+      },
+    }).mockResolvedValueOnce({
+      userId: accountId,
+      salt: legacySalt,
+      encryptedPrivateKey: toBase64(new Uint8Array(73).fill(0xff)),
+      kdf: {
+        securityVersion: 1,
+        minimumSecurityVersion: 1,
+        profileId: 'identity-argon2id-legacy-v1',
+        kdfSalt,
+      },
+    })
+    const { result } = renderHook(() => usePasswordLogin(), { wrapper })
+
+    await act(async () => {
+      await result.current.start.mutateAsync({
+        email: 'legacy@example.com',
+        password: 'correct horse battery staple',
+      })
+    })
+
+    expect(unlockVaultMock).toHaveBeenCalledOnce()
+    expect(logoutMock).not.toHaveBeenCalled()
   })
 })

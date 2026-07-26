@@ -46,4 +46,30 @@ describe('useVault protocol 2 projection', () => {
     })
     expect(result.current.isError).toBe(false)
   })
+
+  it('keeps a healthy selected vault usable when another vault makes the aggregate sync fail', () => {
+    useAuthStore.setState({ accessToken: 'token' })
+    act(() => useMemberSyncStore.getState().publishVault({
+      vaultId: '11112233-4455-4677-8899-aabbccddeeff',
+      metadata: { name: 'Healthy vault' },
+      structure: {
+        isDefault: false,
+        createdAt: '2026-07-01T00:00:00Z',
+        updatedAt: '2026-07-02T00:00:00Z',
+        memberCount: 1,
+        entryCount: 0,
+        activeGrantCount: 0,
+      },
+      entries: new Map(),
+      appliedThroughSequence: '4',
+      status: 'ready',
+      failureKind: null,
+    }))
+    act(() => useMemberSyncStore.setState({ status: 'error', error: 'another-vault-failed' }))
+
+    const { result } = renderHook(() => useVault('11112233-4455-4677-8899-aabbccddeeff'))
+
+    expect(result.current.data?.name).toBe('Healthy vault')
+    expect(result.current.isError).toBe(false)
+  })
 })

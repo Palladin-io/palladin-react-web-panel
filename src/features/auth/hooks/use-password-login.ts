@@ -9,6 +9,7 @@ import {
   IDENTITY_SECURITY_VERSION,
   LEGACY_IDENTITY_KDF_PROFILE_ID,
 } from '../../../shared/crypto/identity-kdf'
+import { fromBase64, toBase64 } from '../../../shared/crypto/encoding'
 import { decodeBase64Url, encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { decryptWithKey, wipe } from '../../../shared/crypto/sodium'
 import { getAccount, type AccountResponse } from '../../../shared/api/account-api'
@@ -26,6 +27,17 @@ interface PendingV2Unlock {
   masterKey: Uint8Array
   accountSecret: Uint8Array
   bootstrap: LoginKdfBootstrap & { accountId: string }
+}
+
+function decodeLegacyBase64(value: string, maximumBytes: number, exactBytes?: number): Uint8Array {
+  if (value.length > Math.ceil(maximumBytes / 3) * 4) throw new Error('legacy base64 payload exceeds limit')
+  const decoded = fromBase64(value)
+  if (decoded.length > maximumBytes || (exactBytes !== undefined && decoded.length !== exactBytes)
+    || toBase64(decoded) !== value) {
+    wipe(decoded)
+    throw new Error('invalid canonical legacy base64')
+  }
+  return decoded
 }
 
 function assertAuthenticatedV2Account(
@@ -54,6 +66,7 @@ async function unlockWithMasterKey(
   masterKey: Uint8Array,
   accountSecret?: Uint8Array,
   bootstrap?: LoginKdfBootstrap & { accountId: string },
+  legacyEncoding = false,
 ): Promise<AccountResponse> {
   useAuthStore.getState().setTokens(response)
   try {
@@ -61,7 +74,9 @@ async function unlockWithMasterKey(
     if (!account.encryptedPrivateKey) throw new Error('Account key material is missing')
     if (bootstrap) assertAuthenticatedV2Account(account, bootstrap)
 
-    const encryptedPrivateKey = decodeBase64Url(account.encryptedPrivateKey, 4096)
+    const encryptedPrivateKey = legacyEncoding
+      ? decodeLegacyBase64(account.encryptedPrivateKey, 4096)
+      : decodeBase64Url(account.encryptedPrivateKey, 4096)
     let privateKey: Uint8Array | null = null
     try {
       privateKey = await decryptWithKey(encryptedPrivateKey, masterKey)
@@ -92,9 +107,9 @@ async function establishLegacySession(
       || account.kdf.profileId !== LEGACY_IDENTITY_KDF_PROFILE_ID) {
       throw new Error('security-version-downgrade')
     }
-    salt = decodeBase64Url(account.salt, 16)
+    salt = decodeLegacyBase64(account.salt, 16, 16)
     masterKey = await deriveKey(password, salt)
-    return await unlockWithMasterKey(response, masterKey)
+    return await unlockWithMasterKey(response, masterKey, undefined, undefined, true)
   } catch (error) {
     useAuthStore.getState().logout()
     throw error

@@ -9,6 +9,12 @@ import { VaultEntriesTab } from './vault-entries-tab'
 
 const restoreMutate = vi.hoisted(() => vi.fn())
 const destroyMutate = vi.hoisted(() => vi.fn())
+const fetchDeletedNextPage = vi.hoisted(() => vi.fn())
+const recentlyDeletedState = vi.hoisted(() => ({
+  hasNextPage: false,
+  isFetchingNextPage: false,
+  isFetchNextPageError: false,
+}))
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to, ...rest }: { children: ReactNode; to: string } & AnchorHTMLAttributes<HTMLAnchorElement>) => (
@@ -28,8 +34,8 @@ vi.mock('../use-restore-archived-entries', () => ({
 vi.mock('../use-recently-deleted-entries', () => ({
   useRecentlyDeletedEntries: (_vaultId: string, enabled: boolean) => ({
     data: enabled ? { pages: [{ items: [{ id: 'entry-c', retentionExpiresAt: '2026-08-25T12:00:00Z' }] }] } : undefined,
-    isLoading: false, isError: false, hasNextPage: false, isFetchingNextPage: false,
-    fetchNextPage: vi.fn(), refetch: vi.fn(),
+    isLoading: false, isError: false, ...recentlyDeletedState,
+    fetchNextPage: fetchDeletedNextPage, refetch: vi.fn(),
   }),
   useDestroyEntry: () => ({ mutateAsync: destroyMutate, isPending: false }),
 }))
@@ -93,6 +99,12 @@ beforeEach(() => {
   useEntriesListUi.setState({ search: {}, scrollTop: {}, lifecycleState: {} })
   restoreMutate.mockReset()
   destroyMutate.mockReset()
+  fetchDeletedNextPage.mockReset()
+  Object.assign(recentlyDeletedState, {
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    isFetchNextPageError: false,
+  })
   restoreMutate.mockResolvedValue({ restored: [], failed: [] })
   destroyMutate.mockResolvedValue(undefined)
 })
@@ -139,6 +151,18 @@ describe('VaultEntriesTab', () => {
     await user.click(screen.getByRole('button', { name: /Recently Deleted \(1\)/ }))
     expect(screen.getByText('Deleted item')).toBeInTheDocument()
     expect(screen.getByText(/permanently deleted after/i)).toBeInTheDocument()
+  })
+
+  it('mounts the automatic pagination sentinel for additional deleted-entry pages', async () => {
+    const user = userEvent.setup()
+    recentlyDeletedState.hasNextPage = true
+    publish([record('entry-c', 'Deleted item', 'deleted')])
+
+    render(<VaultEntriesTab vault={VAULT} />)
+    await user.click(screen.getByRole('button', { name: /Recently Deleted \(1\)/ }))
+
+    expect(screen.getByRole('status', { name: 'Loading more…' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument()
   })
 
   it('requires explicit confirmation before permanently deleting an Entry', async () => {

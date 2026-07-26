@@ -6,6 +6,7 @@ import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { FormSelect } from '../../../shared/components/form-select'
 import { Icon } from '../../../shared/components/icon'
+import { LoadMoreSentinel } from '../../../shared/components/load-more-sentinel'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import { shortenKey } from '../../../shared/lib/shorten-key'
 import type { Vault } from '../types'
@@ -235,14 +236,12 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
               />
             ))}
             {lifecycleState === 'deleted' && recentlyDeleted.hasNextPage ? (
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={recentlyDeleted.isFetchingNextPage}
-                onClick={() => recentlyDeleted.fetchNextPage()}
-              >
-                {recentlyDeleted.isFetchingNextPage ? t('vault.entries.loadingMore') : t('vault.entries.loadMore')}
-              </Button>
+              <LoadMoreSentinel
+                hasNextPage
+                isFetchingNextPage={recentlyDeleted.isFetchingNextPage}
+                isFetchNextPageError={recentlyDeleted.isFetchNextPageError}
+                onLoadMore={recentlyDeleted.fetchNextPage}
+              />
             ) : null}
           </div>
         )}
