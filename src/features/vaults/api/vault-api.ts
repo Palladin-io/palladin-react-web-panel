@@ -239,7 +239,7 @@ const entryHistoryItemSchema = z.object({
 
 const entryHistoryResponseSchema = z.object({
   currentRevision: canonicalU64Schema,
-  items: z.array(entryHistoryItemSchema),
+  items: z.array(entryHistoryItemSchema).max(20),
   nextBeforeRevision: canonicalU64Schema.nullable(),
   policy: z.object({ maximumVersions: z.number().int().positive(), maximumAgeDays: z.number().int().positive() }).strict(),
 }).strict()
@@ -251,9 +251,11 @@ export async function getEntryHistory(
   vaultId: string,
   entryId: string,
   beforeRevision?: string,
+  signal?: AbortSignal,
 ): Promise<EntryHistoryResponse> {
   const raw = await api.get(`api/vaults/${vaultId}/entries/${entryId}/history`, {
     searchParams: { pageSize: '20', ...(beforeRevision ? { beforeRevision } : {}) },
+    signal,
   }).json()
   const page = entryHistoryResponseSchema.parse(raw)
   if (page.items.some((item) => item.entryKey.vaultId !== vaultId || item.entryKey.entryId !== entryId)) {
@@ -262,8 +264,12 @@ export async function getEntryHistory(
   return page
 }
 
-export async function getCanonicalEntry(vaultId: string, entryId: string): Promise<CanonicalEntryDetail> {
-  const raw = await api.get(`api/vaults/${vaultId}/entries/${entryId}`).json()
+export async function getCanonicalEntry(
+  vaultId: string,
+  entryId: string,
+  signal?: AbortSignal,
+): Promise<CanonicalEntryDetail> {
+  const raw = await api.get(`api/vaults/${vaultId}/entries/${entryId}`, { signal }).json()
   return canonicalEntryDetailSchema.parse(raw)
 }
 

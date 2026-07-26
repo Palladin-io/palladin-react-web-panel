@@ -15,6 +15,9 @@ export interface ExportEntry {
   notes?: string
   totp?: string
   folder?: string
+  state?: 'active' | 'archived' | 'deleted'
+  revision?: string
+  historical?: boolean
 }
 
 export interface ExportVault {
@@ -23,7 +26,7 @@ export interface ExportVault {
   entries: ExportEntry[]
 }
 
-const CSV_HEADERS = ['name', 'url', 'username', 'password', 'note', 'totp', 'folder']
+const CSV_HEADERS = ['name', 'url', 'username', 'password', 'note', 'totp', 'folder', 'state', 'revision', 'historical']
 
 /** Quote a field per RFC 4180 when it contains a delimiter, quote, or newline. */
 function csvField(value: string | undefined): string {
@@ -57,6 +60,9 @@ export function toPalladinCsv(entries: ExportEntry[]): string {
         csvField(entry.notes),
         csvField(entry.totp),
         csvField(entry.folder),
+        csvField(entry.state),
+        csvField(entry.revision),
+        csvField(entry.historical ? 'true' : 'false'),
       ].join(','),
     )
   }
@@ -87,6 +93,9 @@ export function toPalladinJson(vaults: ExportVault[]): string {
         urlDomain: entry.url,
         notes: entry.notes,
         totp: entry.totp,
+        state: entry.state,
+        revision: entry.revision,
+        historical: entry.historical,
       })),
     })),
   }

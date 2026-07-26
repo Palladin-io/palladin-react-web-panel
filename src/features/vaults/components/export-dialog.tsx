@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -6,7 +6,7 @@ import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { WarningZone } from '../../../shared/components/warning-zone'
 import { analytics } from '../../../shared/lib/analytics'
-import { downloadTextFile } from '../../../shared/lib/download-file'
+import { downloadBytesFile } from '../../../shared/lib/download-file'
 import { exportAudit } from '../api/vault-api'
 import { useExportEntries, type ExportFormat } from '../use-export-entries'
 
@@ -33,16 +33,41 @@ function ExportDialogBody({
   const { t } = useTranslation()
   const exportMutation = useExportEntries()
   const [format, setFormat] = useState<ExportFormat>('json')
+  const [includeArchived, setIncludeArchived] = useState(false)
+  const [includeDeleted, setIncludeDeleted] = useState(false)
+  const [includeHistory, setIncludeHistory] = useState(false)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
   const isBusy = exportMutation.isPending
+
+  useEffect(() => () => abortRef.current?.abort(), [])
+
+  const handleClose = () => {
+    abortRef.current?.abort()
+    abortRef.current = null
+    exportMutation.reset()
+    setProgress(null)
+    onClose()
+  }
 
   const handleExport = () => {
     setProgress(null)
+    const controller = new AbortController()
+    abortRef.current = controller
     exportMutation.mutate(
-      { vaults, format, onProgress: (done, total) => setProgress({ done, total }) },
+      {
+        vaults,
+        format,
+        includeArchived,
+        includeDeleted,
+        includeHistory,
+        signal: controller.signal,
+        onProgress: (done, total) => setProgress({ done, total }),
+        onFileReady: ({ filename, content, mime }) => downloadBytesFile(filename, content, mime),
+      },
       {
         onSuccess: (res) => {
-          downloadTextFile(res.filename, res.content, res.mime)
+          abortRef.current = null
           // Fire-and-forget per-vault audit — a failed write must not block the
           // download the user already received. Skip empty vaults: the endpoint
           // requires entryCount > 0.
@@ -56,23 +81,28 @@ function ExportDialogBody({
             format: res.format,
           })
           toast.success(t('vault.export.success', { count: res.totalEntries }))
-          onClose()
+          handleClose()
         },
-        onError: () => toast.error(t('vault.export.error')),
+        onError: (error) => {
+          abortRef.current = null
+          if (!(error instanceof DOMException && error.name === 'AbortError')) {
+            toast.error(t('vault.export.error'))
+          }
+        },
       },
     )
   }
 
   return (
     <ModalShell
-      onClose={isBusy ? undefined : onClose}
+      onClose={handleClose}
       ariaLabel={t('vault.export.title')}
       title={t('vault.export.title')}
       width={460}
       footer={
         <DialogFooter>
-          <Button variant="subtle" size="sm" onClick={onClose} disabled={isBusy} className="flex-1">
-            {t('vault.cancel')}
+          <Button variant="subtle" size="sm" onClick={handleClose} className="flex-1">
+            {isBusy ? t('vault.export.cancelExport') : t('vault.cancel')}
           </Button>
           <Button variant="accent" size="sm" icon="download" onClick={handleExport} disabled={isBusy} className="flex-[2]">
             {isBusy ? t('vault.export.exporting') : t('vault.export.exportCta')}
@@ -103,6 +133,15 @@ function ExportDialogBody({
           </div>
         </fieldset>
 
+        <fieldset disabled={isBusy} className="flex flex-col gap-2">
+          <legend className="mb-1 text-meta font-semibold text-[var(--cv-label-text)]">
+            {t('vault.export.scopeLabel')}
+          </legend>
+          <ScopeOption checked={includeArchived} onChange={setIncludeArchived} label={t('vault.export.includeArchived')} />
+          <ScopeOption checked={includeDeleted} onChange={setIncludeDeleted} label={t('vault.export.includeDeleted')} />
+          <ScopeOption checked={includeHistory} onChange={setIncludeHistory} label={t('vault.export.includeHistory')} />
+        </fieldset>
+
         <WarningZone title={t('vault.export.warningTitle')}>
           {t('vault.export.warningBody')}
         </WarningZone>
@@ -129,6 +168,19 @@ function ExportDialogBody({
 
       </div>
     </ModalShell>
+  )
+}
+
+function ScopeOption({ checked, onChange, label }: {
+  checked: boolean
+  onChange: (checked: boolean) => void
+  label: string
+}) {
+  return (
+    <label className="flex items-center gap-2 text-ui text-[var(--cv-t1)]">
+      <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+      {label}
+    </label>
   )
 }
 
