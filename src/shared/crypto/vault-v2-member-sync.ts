@@ -1,9 +1,9 @@
 import { z } from 'zod'
 import { concatBytes, decodeBase64Url, encodeBase64Url, encodeU16, encodeUtf8 } from './vault-v2-bytes'
-import { decryptVaultEnvelope, openVaultProtocolPackage, type VaultCiphertextEnvelope } from './vault-v2-envelope'
+import { decryptVaultEnvelope, encryptVaultEnvelope, openVaultProtocolPackage, type VaultCiphertextEnvelope } from './vault-v2-envelope'
 import { deriveVaultProjectionKey } from './vault-v2-kdf'
 import { VAULT_PROTOCOL_VERSION, type VaultEnvelopeHeader } from './vault-v2-protocol'
-import { canonicalizeVaultJson } from './vault-v2-signatures'
+import { canonicalizeVaultJson, type CanonicalJson } from './vault-v2-signatures'
 import { loadSodium, wipe } from './sodium'
 
 function nfcString(maximumBytes: number) {
@@ -176,6 +176,56 @@ export async function decryptMemberVaultMetadata(
   } finally {
     wipe(derivedKey)
     if (plaintext) wipe(plaintext)
+  }
+}
+
+export async function encryptMemberVaultMetadata(
+  metadata: MemberVaultMetadata,
+  scope: {
+    organizationId: string
+    vaultId: string
+    metadataRevision: string
+    keyVersion: number
+    memberKeyGeneration: number
+  },
+  vaultKey: Uint8Array,
+): Promise<MemberVaultMetadataEnvelope> {
+  const validated = memberVaultMetadataSchema.parse(metadata)
+  const plaintext = encodeUtf8(canonicalizeVaultJson(validated as CanonicalJson))
+  const derivedKey = await deriveVaultProjectionKey({
+    baseKey: vaultKey,
+    purpose: 'member-vault-metadata',
+    resourceKind: 1,
+    organizationId: scope.organizationId,
+    vaultId: scope.vaultId,
+    keyVersion: scope.keyVersion,
+    memberKeyGeneration: scope.memberKeyGeneration,
+  })
+  const context = {
+    organizationId: scope.organizationId,
+    vaultId: scope.vaultId,
+    metadataRevision: scope.metadataRevision,
+    header: {
+      protocolVersion: 2,
+      algorithmSuite: 1,
+      resourceKind: 1,
+      projectionKind: 1,
+      resourceRevision: scope.metadataRevision,
+      keyVersion: scope.keyVersion,
+      memberKeyGeneration: scope.memberKeyGeneration,
+      nonce: '',
+    },
+  }
+  try {
+    const encrypted = await encryptVaultEnvelope('member-vault-metadata', context, plaintext, derivedKey)
+    return {
+      ...context,
+      header: { ...context.header, nonce: encrypted.nonce },
+      ciphertext: encrypted.ciphertext,
+    }
+  } finally {
+    wipe(plaintext)
+    wipe(derivedKey)
   }
 }
 

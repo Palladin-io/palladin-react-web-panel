@@ -2,7 +2,40 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { decodeHex } from './vault-v2-bytes'
-import { decryptMemberIndex, type MemberIndexEnvelope, type VaultEntryKeyEnvelope } from './vault-v2-member-sync'
+import {
+  decryptMemberIndex,
+  decryptMemberVaultMetadata,
+  encryptMemberVaultMetadata,
+  type MemberIndexEnvelope,
+  type VaultEntryKeyEnvelope,
+} from './vault-v2-member-sync'
+
+describe('Member Vault metadata writes', () => {
+  it('round-trips a new authenticated revision under an isolated VK-derived key', async () => {
+    const vaultKey = new Uint8Array(32).fill(7)
+    const scope = {
+      organizationId: '00112233-4455-4677-8899-aabbccddeeff',
+      vaultId: '11112233-4455-4677-8899-aabbccddeeff',
+      metadataRevision: '9',
+      keyVersion: 4,
+      memberKeyGeneration: 3,
+    }
+    const envelope = await encryptMemberVaultMetadata({
+      name: 'Production',
+      description: 'Encrypted locally',
+      iconReference: 'asset:22222233-4455-4677-8899-aabbccddeeff',
+      color: '#EB4747',
+    }, scope, vaultKey)
+
+    expect(envelope).not.toHaveProperty('name')
+    await expect(decryptMemberVaultMetadata(envelope, scope, vaultKey)).resolves.toEqual({
+      name: 'Production',
+      description: 'Encrypted locally',
+      iconReference: 'asset:22222233-4455-4677-8899-aabbccddeeff',
+      color: '#EB4747',
+    })
+  })
+})
 
 interface AeadVector {
   id: string
