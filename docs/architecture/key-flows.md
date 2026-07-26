@@ -35,6 +35,15 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 6. Apply later delta pages and their cursors in one IndexedDB transaction. A retention-floor reset builds another private namespace; tombstones remove entries.
 7. Lock, logout, abort, or provider teardown clears every decrypted projection from Zustand. Persistent storage contains ciphertext and structural cursors only.
 
+## Protocol 2 Vault creation
+
+1. Request a short-lived server-owned creation challenge whose opaque Vault ID scopes every envelope in the attempt.
+2. In browser memory, generate a fresh VK, VDK, Agent-message private key and manifest-signing seed. Encrypt canonical MemberVaultMetadata under a VK-derived key, seal VK to the authenticated Member's current server-authoritative key version, and wrap VDK plus both private seeds under VK.
+3. Submit the complete ciphertext-only bootstrap in one create request. The backend consumes the challenge and persists the usable Vault atomically; no plaintext name, description, icon reference, color or raw key crosses the network.
+4. Keep only the ciphertext payload while a response is ambiguous. A retry with the same challenge resends those exact bytes; a changed challenge is reconciled against normal encrypted Vault listing before any new material is generated, preventing duplicate Vaults after a lost success response.
+5. Wipe every generated raw key, derived metadata key and plaintext serialization in `finally`. After success, close the dialog and trigger normal Member sync instead of placing plaintext metadata into an optimistic cache or navigating to the legacy detail flow.
+6. Active organization Agents are eligible for encrypted Discovery by default. Discovery does not grant secret access; a separate scoped grant remains mandatory.
+
 ## Planned Vault key rotation
 
 1. After unlock, independently of transient Member-sync polling state, list pending rotations and claim one server lease with a fencing token. The current Vault generation remains usable throughout preparation.

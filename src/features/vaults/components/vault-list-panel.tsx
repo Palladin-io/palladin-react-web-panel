@@ -110,10 +110,6 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
       <CreateVaultDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreated={(id) => {
-          vaults.retry()
-          navigate({ to: '/vaults/$vaultId', params: { vaultId: id } })
-        }}
       />
       <PremiumGateDialog open={premiumOpen} onClose={() => setPremiumOpen(false)} />
     </div>

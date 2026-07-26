@@ -1,9 +1,9 @@
 import { api } from '../../../shared/api/client'
 import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
+import type { InitialVaultMaterial } from '../../../shared/crypto/vault-v2-creation'
 import { normalizeEntryType } from '../types'
 import type {
   CreateEntryPayload,
-  CreateVaultInput,
   EntryContent,
   EntryDetail,
   EntryListItem,
@@ -18,16 +18,12 @@ export interface VaultListResponse {
   vaults: VaultSummary[]
 }
 
-/**
- * Server-side payload for vault creation. Mirrors {@link CreateVaultInput}
- * but adds the wrapped Vault Key — produced client-side by sealing a fresh
- * 32-byte VK to the user's X25519 public key. The server never sees the
- * raw VK; it just stores the wrapped blob alongside the metadata.
- */
-export interface CreateVaultPayload extends CreateVaultInput {
-  /** base64-encoded sealed-box ciphertext: `crypto_box_seal(VK, userPubKey)`. */
-  wrappedVK: string
+export interface VaultCreationChallengeResponse {
+  vaultId: string
+  expiresAt: string
 }
+
+export type CreateVaultPayload = InitialVaultMaterial
 
 export function getVaults(): Promise<VaultListResponse> {
   return api.get('api/vaults').json<VaultListResponse>()
@@ -37,8 +33,12 @@ export function getVault(id: string): Promise<Vault> {
   return api.get(`api/vaults/${id}`).json<Vault>()
 }
 
-export function createVault(payload: CreateVaultPayload): Promise<Vault> {
-  return api.post('api/vaults', { json: payload }).json<Vault>()
+export function issueVaultCreationChallenge(): Promise<VaultCreationChallengeResponse> {
+  return api.post('api/vaults/creation-challenges').json<VaultCreationChallengeResponse>()
+}
+
+export async function createVault(payload: CreateVaultPayload): Promise<void> {
+  await api.post('api/vaults', { json: payload })
 }
 
 /**

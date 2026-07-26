@@ -1,16 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { analytics } from '../../../shared/lib/analytics'
-import { GRANT_MODE_GRANULAR } from '../types'
 import { useCreateVault } from '../use-create-vault'
-import { extensionFromMime } from '../use-vault-icon-upload'
-import { VAULTS_QUERY_KEY } from '../use-vaults'
-import { presignVaultIcon, uploadToS3, updateVault } from '../api/vault-api'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { VaultIconPicker } from './vault-icon-picker'
@@ -22,7 +17,6 @@ import {
 export interface CreateVaultDialogProps {
   open: boolean
   onClose: () => void
-  onCreated?: (vaultId: string) => void
 }
 
 /**
@@ -33,27 +27,23 @@ export interface CreateVaultDialogProps {
 export function CreateVaultDialog({
   open,
   onClose,
-  onCreated,
 }: CreateVaultDialogProps) {
   if (!open) return null
-  return <CreateVaultDialogBody onClose={onClose} onCreated={onCreated} />
+  return <CreateVaultDialogBody onClose={onClose} />
 }
 
 interface CreateVaultDialogBodyProps {
   onClose: () => void
-  onCreated?: (vaultId: string) => void
 }
 
-function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProps) {
+function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
   const { t } = useTranslation()
   const create = useCreateVault()
-  const queryClient = useQueryClient()
 
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [icon, setIcon] = useState<string>(DEFAULT_VAULT_ICON)
-  const [color, setColor] = useState<string>(DEFAULT_VAULT_COLOR)
-  const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
+  const [name, setName] = useState(create.pendingInput?.name ?? '')
+  const [description, setDescription] = useState(create.pendingInput?.description ?? '')
+  const [icon, setIcon] = useState<string>(create.pendingInput?.icon ?? DEFAULT_VAULT_ICON)
+  const [color, setColor] = useState<string>(create.pendingInput?.color ?? DEFAULT_VAULT_COLOR)
 
   // Mount-only side effect: emit analytics for "wizard opened". The form
   // reset that used to live here is now implicit — opening the dialog
@@ -63,6 +53,7 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
   }, [])
 
   const isPending = create.isPending
+  const isRetryLocked = create.pendingInput !== null
   const trimmedName = name.trim()
   const canSubmit = trimmedName.length > 0 && !isPending
 
@@ -70,36 +61,16 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
     event.preventDefault()
     if (!canSubmit) return
 
-    // Grant mode selector intentionally omitted from the create dialog
-    // (per CVT-30 design): mode is a property of grants, not the vault.
-    // The vault still needs a default — granular is the safe default
-    // since any account can use it; users with the Pro permission can
-    // switch to Full from the settings tab.
     create.mutate(
       {
         name: trimmedName,
         description: description.trim() || undefined,
-        // Use a material icon for the initial create; custom icon is uploaded
-        // as a second step once the vault ID is known.
-        icon: pendingIconFile ? DEFAULT_VAULT_ICON : icon,
+        icon,
         color,
-        grantMode: GRANT_MODE_GRANULAR,
       },
       {
-        onSuccess: async (vault) => {
-          if (pendingIconFile) {
-            try {
-              const ext = extensionFromMime(pendingIconFile.type)
-              const { uploadUrl, publicUrl } = await presignVaultIcon(vault.id, ext)
-              await uploadToS3(uploadUrl, pendingIconFile)
-              await updateVault(vault.id, { icon: publicUrl })
-              queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
-            } catch {
-              // Icon upload failed — vault was created, proceed without custom icon
-            }
-          }
+        onSuccess: () => {
           analytics.capture('vault', 'create-wizard-completed')
-          onCreated?.(vault.id)
           onClose()
         },
         onError: () => {
@@ -135,7 +106,7 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
           onChange={(e) => setName(e.target.value)}
           placeholder={t('vault.namePlaceholder')}
           autoFocus
-          disabled={isPending}
+          disabled={isPending || isRetryLocked}
           maxLength={64}
         />
 
@@ -145,7 +116,7 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={t('vault.descriptionPlaceholder')}
-          disabled={isPending}
+          disabled={isPending || isRetryLocked}
           rows={2}
           maxLength={500}
         />
@@ -155,15 +126,14 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
           onChange={setIcon}
           onColorChange={setColor}
           selectedColor={color}
-          onFileSelected={(file, previewUrl) => {
-            setPendingIconFile(file)
-            setIcon(previewUrl)
-          }}
-          disabled={isPending}
+          disabled={isPending || isRetryLocked}
           rowClassName="flex justify-between"
         />
+
+        <p className="text-meta text-[var(--cv-t3)]">
+          {isRetryLocked ? t('vault.pendingCreateRetry') : t('vault.discoveryPolicyDefault')}
+        </p>
       </form>
     </ModalShell>
   )
 }
-

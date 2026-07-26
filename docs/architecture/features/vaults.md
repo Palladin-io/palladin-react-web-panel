@@ -23,7 +23,7 @@ The Vault Detail Agents tab keeps encrypted Discovery provisioning separate from
 - **Atomic completeness:** snapshot pages build a private cache namespace; the namespace becomes active only after its closing delta commits. Each active delta page and cursor update share one IndexedDB transaction. `resetRequired` discards the pending namespace and rebuilds without exposing a partial view.
 - **Offline local search:** the unlocked, normalized MemberIndex supports local search across 10,000 entries. Optimistic projections reconcile by monotonic MemberIndex revision and never write plaintext to IndexedDB.
 - **Freshness:** while an unlocked tab remains visible and online, a non-overlapping incremental delta poll runs every 60 seconds; online and visibility transitions trigger an immediate refresh.
-- **Two-step resource creation** for vault icons (create → receive ID → PATCH via S3 presign).
+- **Atomic encrypted Vault creation:** a server-issued opaque ID scopes one client-generated VK, VDK and private-key set. The create request contains encrypted metadata and key envelopes only; the resulting Vault enters the UI through normal Member sync. Custom encrypted presentation assets are handled by their dedicated protocol-2 flow, not by legacy plaintext S3 icon upload.
 - Split-view layout (3 pages) and an inline entry-detail tab strip — both candidates for the shared `SplitView` / `DetailTabBar` (see component-catalog).
 
 ## Cross-feature deps
