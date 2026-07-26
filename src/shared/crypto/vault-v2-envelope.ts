@@ -71,12 +71,15 @@ export async function encryptVaultEnvelope(
   assertEnvelopeBindings(profile, context)
   const aad = encodeVaultAad(profile, context)
   const sodium = await loadSodium()
+  const message = sodium.from_base64(encodeBase64Url(plaintext), sodium.base64_variants.URLSAFE_NO_PADDING)
+  const authenticatedData = sodium.from_base64(encodeBase64Url(aad), sodium.base64_variants.URLSAFE_NO_PADDING)
+  const encryptionKey = sodium.from_base64(encodeBase64Url(key), sodium.base64_variants.URLSAFE_NO_PADDING)
   const nonce = sodium.randombytes_buf(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES)
   try {
-    const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plaintext, aad, null, nonce, key)
+    const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(message, authenticatedData, null, nonce, encryptionKey)
     return { nonce: encodeBase64Url(nonce), ciphertext: encodeBase64Url(ciphertext) }
   } finally {
-    wipe(nonce)
+    wipe(message); wipe(encryptionKey); wipe(authenticatedData); wipe(nonce)
   }
 }
 

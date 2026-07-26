@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { toBase64 } from './encoding'
 import { decodeBase64Url, encodeBase64Url } from './vault-v2-bytes'
 import { decryptVaultEnvelope, encryptVaultEnvelope, openVaultProtocolPackage } from './vault-v2-envelope'
-import { createAgentDiscoveryMaterial, rewrapEntryKey, vaultKeyFingerprint } from './vault-v2-rotation'
+import { deriveVaultProjectionKey } from './vault-v2-kdf'
+import { decryptMemberVaultMetadata } from './vault-v2-member-sync'
+import { createAgentDiscoveryMaterial, rewrapEntryKey, rotateVaultMetadata, vaultKeyFingerprint } from './vault-v2-rotation'
 import { canonicalizeVaultJson, verifyVaultSignature } from './vault-v2-signatures'
 import { loadSodium, randomBytes, wipe } from './sodium'
 
@@ -12,6 +14,31 @@ const entryId = '33333333-3333-4333-8333-333333333333'
 const agentId = '44444444-4444-4444-8444-444444444444'
 
 describe('Vault rotation crypto', () => {
+  it('rotates MemberVaultMetadata between HKDF-isolated Vault generations', async () => {
+    const sodium = await loadSodium()
+    const currentVk = await randomBytes(32)
+    const targetVk = await randomBytes(32)
+    const currentKey = await deriveVaultProjectionKey({ baseKey: currentVk, purpose: 'member-vault-metadata',
+      resourceKind: 1, organizationId, vaultId, keyVersion: 2, memberKeyGeneration: 4 })
+    try {
+      const context = { organizationId, vaultId, metadataRevision: '9',
+        header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 1, projectionKind: 1,
+          resourceRevision: '9', keyVersion: 2, memberKeyGeneration: 4, nonce: '' } }
+      const metadata = sodium.from_string(canonicalizeVaultJson({ name: 'Primary', color: 'red' }))
+      const encrypted = await encryptVaultEnvelope('member-vault-metadata', context, metadata, currentKey)
+      const source = { ...context, header: { ...context.header, nonce: encrypted.nonce }, ciphertext: encrypted.ciphertext }
+
+      const rotated = await rotateVaultMetadata(source, currentVk, targetVk, { vaultKeyVersion: 3, memberKeyGeneration: 5 })
+
+      expect(rotated.metadataRevision).toBe('10')
+      await expect(decryptMemberVaultMetadata(rotated, { organizationId, vaultId,
+        keyVersion: 3, memberKeyGeneration: 5 }, targetVk)).resolves.toEqual({ name: 'Primary', color: 'red' })
+      await expect(decryptMemberVaultMetadata(rotated, { organizationId, vaultId,
+        keyVersion: 3, memberKeyGeneration: 5 }, currentVk)).rejects.toThrow()
+      wipe(metadata)
+    } finally { wipe(currentVk); wipe(targetVk); wipe(currentKey) }
+  })
+
   it('rewraps one EntryDEK without retaining or decrypting any other Entry', async () => {
     const currentVk = await randomBytes(32)
     const targetVk = await randomBytes(32)

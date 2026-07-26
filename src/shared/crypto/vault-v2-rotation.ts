@@ -140,18 +140,30 @@ export async function rotateDiscovery(source: RotationDiscoveryEnvelope, current
 }
 
 export async function rotateVaultMetadata(source: RotationKeyEnvelope & { metadataRevision: string }, currentVaultKey: Uint8Array, targetVaultKey: Uint8Array, target: { vaultKeyVersion: number; memberKeyGeneration: number }) {
-  const plaintext = await decryptVaultEnvelope('member-vault-metadata', source, currentVaultKey, {
-    aadContext: source, minimumMemberKeyGeneration: source.header.memberKeyGeneration,
-  })
+  const currentKey = await deriveVaultProjectionKey({ baseKey: currentVaultKey, purpose: 'member-vault-metadata',
+    resourceKind: 1, organizationId: source.organizationId, vaultId: source.vaultId,
+    keyVersion: source.header.keyVersion, memberKeyGeneration: source.header.memberKeyGeneration })
+  let plaintext: Uint8Array | undefined
+  let targetKey: Uint8Array | undefined
   try {
+    plaintext = await decryptVaultEnvelope('member-vault-metadata', source, currentKey, {
+      aadContext: source, minimumMemberKeyGeneration: source.header.memberKeyGeneration,
+    })
+    targetKey = await deriveVaultProjectionKey({ baseKey: targetVaultKey, purpose: 'member-vault-metadata',
+      resourceKind: 1, organizationId: source.organizationId, vaultId: source.vaultId,
+      keyVersion: target.vaultKeyVersion, memberKeyGeneration: target.memberKeyGeneration })
     const metadataRevision = nextRevision(source.metadataRevision)
     const context = { organizationId: source.organizationId, vaultId: source.vaultId, metadataRevision,
       header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 1, projectionKind: 1,
         resourceRevision: metadataRevision, keyVersion: target.vaultKeyVersion,
         memberKeyGeneration: target.memberKeyGeneration, nonce: '' } }
-    const encrypted = await encryptVaultEnvelope('member-vault-metadata', context, plaintext, targetVaultKey)
+    const encrypted = await encryptVaultEnvelope('member-vault-metadata', context, plaintext, targetKey)
     return { ...context, header: { ...context.header, nonce: encrypted.nonce }, ciphertext: encrypted.ciphertext }
-  } finally { wipe(plaintext) }
+  } finally {
+    wipe(currentKey)
+    if (plaintext) wipe(plaintext)
+    if (targetKey) wipe(targetKey)
+  }
 }
 
 function canonicalInstant(now: Date): string {
