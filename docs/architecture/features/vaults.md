@@ -17,9 +17,10 @@ Legacy screens still consume the exported vault/entry queries (`useVaults`, `use
 
 ## Key patterns
 - **Zero-knowledge on-demand:** the vault key is unsealed and the entry decrypted only at reveal/open time; plaintext lives in component `useState` and never leaves memory.
-- **Bounded Member sync:** pages contain at most 200 items, responses fail above 4 MiB, projection work runs in chunks of 25 with at most four concurrent AEAD operations, and each chunk yields to the browser.
+- **Bounded Member sync:** pages contain at most 200 items, responses fail above 4 MiB, projection work runs in chunks of 25 with at most four concurrent AEAD operations, and each chunk yields to the browser. The unlocked account index fails closed above 10,000 actual heads; it is never silently truncated.
 - **Atomic completeness:** snapshot pages build a private cache namespace; the namespace becomes active only after its closing delta commits. Each active delta page and cursor update share one IndexedDB transaction. `resetRequired` discards the pending namespace and rebuilds without exposing a partial view.
 - **Offline local search:** the unlocked, normalized MemberIndex supports local search across 10,000 entries. Optimistic projections reconcile by monotonic MemberIndex revision and never write plaintext to IndexedDB.
+- **Freshness:** while an unlocked tab remains visible and online, a non-overlapping incremental delta poll runs every 60 seconds; online and visibility transitions trigger an immediate refresh.
 - **Two-step resource creation** for vault icons (create → receive ID → PATCH via S3 presign).
 - Split-view layout (3 pages) and an inline entry-detail tab strip — both candidates for the shared `SplitView` / `DetailTabBar` (see component-catalog).
 

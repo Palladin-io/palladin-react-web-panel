@@ -7,6 +7,7 @@ import { useMemberSyncStore } from './member-sync-store'
 const memberSyncEngine = typeof indexedDB === 'undefined'
   ? null
   : new MemberSyncEngine(new IndexedDbMemberSyncCache())
+const MEMBER_DELTA_POLL_INTERVAL_MS = 60_000
 
 export function MemberSyncProvider({ children }: { children: ReactNode }) {
   const accessToken = useAuthStore((state) => state.accessToken)
@@ -21,21 +22,32 @@ export function MemberSyncProvider({ children }: { children: ReactNode }) {
     }
 
     let active: AbortController | null = null
-    const synchronize = () => {
+    const synchronize = (replaceActive = true) => {
+      if (active && !replaceActive) return
       active?.abort()
-      active = new AbortController()
-      void memberSyncEngine.synchronize(userId, privateKey, active.signal).catch(() => {})
+      const controller = new AbortController()
+      active = controller
+      void memberSyncEngine.synchronize(userId, privateKey, controller.signal)
+        .catch(() => {})
+        .finally(() => {
+          if (active === controller) active = null
+        })
     }
     const synchronizeWhenVisible = () => {
       if (document.visibilityState === 'visible') synchronize()
     }
+    const synchronizeWhenOnline = () => synchronize()
 
     synchronize()
-    window.addEventListener('online', synchronize)
+    window.addEventListener('online', synchronizeWhenOnline)
     document.addEventListener('visibilitychange', synchronizeWhenVisible)
+    const pollTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && navigator.onLine) synchronize(false)
+    }, MEMBER_DELTA_POLL_INTERVAL_MS)
     return () => {
       active?.abort()
-      window.removeEventListener('online', synchronize)
+      window.clearInterval(pollTimer)
+      window.removeEventListener('online', synchronizeWhenOnline)
       document.removeEventListener('visibilitychange', synchronizeWhenVisible)
       useMemberSyncStore.getState().clear()
     }

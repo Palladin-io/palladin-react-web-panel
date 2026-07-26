@@ -6,11 +6,12 @@ interface CachedVaultState {
   vaultId: string
   activeNamespace: string | null
   activeAppliedThroughSequence: string | null
+  activeVault: EncryptedVaultSummary | null
   pendingNamespace: string | null
   pendingSnapshotBaseSequence: string | null
   pendingAppliedThroughSequence: string | null
   pendingCursor: string | null
-  vault: EncryptedVaultSummary
+  pendingVault: EncryptedVaultSummary | null
 }
 
 interface CachedMemberItem {
@@ -42,7 +43,7 @@ export interface MemberSyncCache {
 }
 
 const DATABASE_NAME = 'palladin-vault-ciphertext-cache'
-const DATABASE_VERSION = 1
+const DATABASE_VERSION = 2
 const VAULT_STORE = 'member-vaults'
 const ITEM_STORE = 'member-items'
 const USER_INDEX = 'userId'
@@ -90,12 +91,20 @@ async function abortTransaction(transaction: IDBTransaction, done: Promise<void>
 function openDatabase(databaseName: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const operation = indexedDB.open(databaseName, DATABASE_VERSION)
-    operation.onupgradeneeded = () => {
+    operation.onupgradeneeded = (event) => {
       const database = operation.result
-      const vaults = database.createObjectStore(VAULT_STORE, { keyPath: 'scopeId' })
-      vaults.createIndex(USER_INDEX, 'userId')
-      const items = database.createObjectStore(ITEM_STORE, { keyPath: ['scopeNamespace', 'entryId'] })
-      items.createIndex(SCOPE_NAMESPACE_INDEX, 'scopeNamespace')
+      if (event.oldVersion === 0) {
+        const vaults = database.createObjectStore(VAULT_STORE, { keyPath: 'scopeId' })
+        vaults.createIndex(USER_INDEX, 'userId')
+        const items = database.createObjectStore(ITEM_STORE, { keyPath: ['scopeNamespace', 'entryId'] })
+        items.createIndex(SCOPE_NAMESPACE_INDEX, 'scopeNamespace')
+      } else if (event.oldVersion < 2) {
+        // V1 stored one summary for both active and pending namespaces. That
+        // state cannot be disambiguated safely after an interrupted rekey, so
+        // discard the disposable ciphertext cache and rebuild after unlock.
+        operation.transaction!.objectStore(VAULT_STORE).clear()
+        operation.transaction!.objectStore(ITEM_STORE).clear()
+      }
     }
     operation.onsuccess = () => resolve(operation.result)
     operation.onerror = () => reject(operation.error ?? new Error('Unable to open Vault ciphertext cache'))
@@ -164,8 +173,8 @@ export class IndexedDbMemberSyncCache implements MemberSyncCache {
     const done = transactionDone(transaction)
     const state = await request(transaction.objectStore(VAULT_STORE).get(scopeId(userId, vaultId))) as CachedVaultState | undefined
     await done
-    if (!state?.activeNamespace || state.activeAppliedThroughSequence === null) return null
-    return { namespace: state.activeNamespace, appliedThroughSequence: state.activeAppliedThroughSequence, vault: state.vault }
+    if (!state?.activeNamespace || state.activeAppliedThroughSequence === null || !state.activeVault) return null
+    return { namespace: state.activeNamespace, appliedThroughSequence: state.activeAppliedThroughSequence, vault: state.activeVault }
   }
 
   async readActiveItemPage(userId: string, vaultId: string, afterEntryId: string | null, limit: number): Promise<CachedItemPage> {
@@ -211,11 +220,12 @@ export class IndexedDbMemberSyncCache implements MemberSyncCache {
       vaultId: vault.id,
       activeNamespace: previous?.activeNamespace ?? null,
       activeAppliedThroughSequence: previous?.activeAppliedThroughSequence ?? null,
+      activeVault: previous?.activeVault ?? null,
       pendingNamespace: namespace,
       pendingSnapshotBaseSequence: baseSequence,
       pendingAppliedThroughSequence: baseSequence,
       pendingCursor: null,
-      vault,
+      pendingVault: vault,
     } satisfies CachedVaultState))
     await done
     if (previous?.pendingNamespace && previous.pendingNamespace !== namespace) {
@@ -268,11 +278,12 @@ export class IndexedDbMemberSyncCache implements MemberSyncCache {
       ...state,
       activeNamespace: namespace,
       activeAppliedThroughSequence: appliedThroughSequence,
+      activeVault: vault,
       pendingNamespace: null,
       pendingSnapshotBaseSequence: null,
       pendingAppliedThroughSequence: null,
       pendingCursor: null,
-      vault,
+      pendingVault: null,
     }))
     await done
     if (previousNamespace && previousNamespace !== namespace) {
@@ -291,7 +302,7 @@ export class IndexedDbMemberSyncCache implements MemberSyncCache {
       return abortTransaction(transaction, done, new Error('Vault active delta cursor changed concurrently'))
     }
     await applyItems(transaction.objectStore(ITEM_STORE), scopeNamespace(userId, vault.id, state.activeNamespace), page.items)
-    await request(vaultStore.put({ ...state, activeAppliedThroughSequence: page.appliedThroughSequence, vault }))
+    await request(vaultStore.put({ ...state, activeAppliedThroughSequence: page.appliedThroughSequence, activeVault: vault }))
     await done
   }
 

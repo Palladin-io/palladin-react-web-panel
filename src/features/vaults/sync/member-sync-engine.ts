@@ -15,6 +15,11 @@ import { useMemberSyncStore, type MemberIndexRecord } from './member-sync-store'
 const CACHE_PAGE_ITEMS = 100
 const PROJECTION_CHUNK_ITEMS = 25
 const MAXIMUM_AEAD_CONCURRENCY = 4
+const MAXIMUM_UNLOCKED_MEMBER_ENTRIES = 10_000
+
+interface ProjectionBudget {
+  count: number
+}
 
 export interface MemberSyncTransport {
   listVaults(signal?: AbortSignal): Promise<EncryptedVaultSummary[]>
@@ -48,6 +53,12 @@ function defaultYield(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+function publishedEntryCount(): number {
+  let count = 0
+  for (const vault of useMemberSyncStore.getState().vaults.values()) count += vault.entries.size
+  return count
+}
+
 export class MemberSyncEngine {
   private readonly cache: MemberSyncCache
   private readonly transport: MemberSyncTransport
@@ -69,18 +80,25 @@ export class MemberSyncEngine {
     try {
       const vaults = await this.transport.listVaults(signal)
       assertNotAborted(signal)
+      const declaredEntries = vaults.reduce((total, vault) => total + vault.entryCount, 0)
+      if (!Number.isSafeInteger(declaredEntries) || declaredEntries > MAXIMUM_UNLOCKED_MEMBER_ENTRIES) {
+        throw new Error('Vault Member index exceeds the supported unlocked entry budget')
+      }
       const retainedVaultIds = new Set(vaults.map((vault) => vault.id))
       await this.cache.removeMissingVaults(userId, retainedVaultIds)
       useMemberSyncStore.getState().retainVaults(retainedVaultIds)
       let failures = 0
+      const projectionBudget: ProjectionBudget = { count: publishedEntryCount() }
       for (const vault of vaults) {
         assertNotAborted(signal)
+        projectionBudget.count -= useMemberSyncStore.getState().vaults.get(vault.id)?.entries.size ?? 0
         try {
-          await this.synchronizeVault(userId, memberPrivateKey, vault, signal)
+          await this.synchronizeVault(userId, memberPrivateKey, vault, projectionBudget, signal)
         } catch (error) {
           if (signal.aborted) throw error
           failures += 1
           useMemberSyncStore.getState().failVault(vault.id)
+          projectionBudget.count = publishedEntryCount()
         }
       }
       if (failures > 0) useMemberSyncStore.getState().fail()
@@ -95,8 +113,10 @@ export class MemberSyncEngine {
     userId: string,
     memberPrivateKey: Uint8Array,
     vault: EncryptedVaultSummary,
+    projectionBudget: ProjectionBudget,
     signal: AbortSignal,
   ): Promise<void> {
+    const budgetBeforeVault = projectionBudget.count
     const organizationId = vault.memberVaultKey.organizationId
     const vaultKey = await openMemberVaultKey(vault.memberVaultKey, {
       organizationId,
@@ -115,16 +135,20 @@ export class MemberSyncEngine {
       }, vaultKey)
       const cached = await this.cache.getActiveState(userId, vault.id)
       if (!cached || !isCacheCompatible(cached.vault, vault) || compareSequence(cached.appliedThroughSequence, vault.memberSequence) > 0) {
-        await this.rebuildSnapshot(userId, vault, vaultKey, metadata, signal)
+        await this.rebuildSnapshot(userId, vault, vaultKey, metadata, projectionBudget, signal)
         return
       }
-      const entries = await this.decryptCachedIndex(userId, vault, vaultKey, signal)
+      const entries = await this.decryptCachedIndex(userId, vault, vaultKey, projectionBudget, signal)
       try {
-        await this.applyActiveDelta(userId, vault, vaultKey, metadata, entries, cached.appliedThroughSequence, signal)
+        await this.applyActiveDelta(userId, vault, vaultKey, metadata, entries, cached.appliedThroughSequence, projectionBudget, signal)
       } catch (error) {
         if (!(error instanceof MemberSyncResetRequiredError)) throw error
-        await this.rebuildSnapshot(userId, vault, vaultKey, metadata, signal)
+        projectionBudget.count = budgetBeforeVault
+        await this.rebuildSnapshot(userId, vault, vaultKey, metadata, projectionBudget, signal)
       }
+    } catch (error) {
+      projectionBudget.count = budgetBeforeVault
+      throw error
     } finally {
       wipe(vaultKey)
     }
@@ -134,6 +158,7 @@ export class MemberSyncEngine {
     userId: string,
     vault: EncryptedVaultSummary,
     vaultKey: Uint8Array,
+    projectionBudget: ProjectionBudget,
     signal: AbortSignal,
   ): Promise<Map<string, MemberIndexRecord>> {
     const entries = new Map<string, MemberIndexRecord>()
@@ -141,7 +166,7 @@ export class MemberSyncEngine {
     do {
       assertNotAborted(signal)
       const page = await this.cache.readActiveItemPage(userId, vault.id, afterEntryId, CACHE_PAGE_ITEMS)
-      await this.decryptAndApply(page.items, entries, vault, vaultKey, signal)
+      await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
       afterEntryId = page.nextEntryId
     } while (afterEntryId)
     return entries
@@ -152,13 +177,16 @@ export class MemberSyncEngine {
     vault: EncryptedVaultSummary,
     vaultKey: Uint8Array,
     metadata: Awaited<ReturnType<typeof decryptMemberVaultMetadata>>,
+    projectionBudget: ProjectionBudget,
     signal: AbortSignal,
   ): Promise<void> {
     for (let attempt = 0; attempt < 2; attempt += 1) {
+      const budgetBeforeAttempt = projectionBudget.count
       try {
-        await this.rebuildSnapshotAttempt(userId, vault, vaultKey, metadata, signal)
+        await this.rebuildSnapshotAttempt(userId, vault, vaultKey, metadata, projectionBudget, signal)
         return
       } catch (error) {
+        projectionBudget.count = budgetBeforeAttempt
         if (!(error instanceof MemberSyncResetRequiredError) || attempt === 1) throw error
       }
     }
@@ -169,6 +197,7 @@ export class MemberSyncEngine {
     vault: EncryptedVaultSummary,
     vaultKey: Uint8Array,
     metadata: Awaited<ReturnType<typeof decryptMemberVaultMetadata>>,
+    projectionBudget: ProjectionBudget,
     signal: AbortSignal,
   ): Promise<void> {
     const entries = new Map<string, MemberIndexRecord>()
@@ -185,11 +214,11 @@ export class MemberSyncEngine {
         throw new Error('Vault snapshot boundary changed between pages')
       }
       await this.cache.applySnapshotPage(userId, vault.id, namespace, page.items, page.nextCursor)
-      await this.decryptAndApply(page.items, entries, vault, vaultKey, signal)
+      await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
       cursor = page.nextCursor
     } while (cursor)
     if (baseSequence === null) throw new Error('Vault snapshot returned no boundary')
-    const appliedThrough = await this.applyPendingDelta(userId, vault, namespace, vaultKey, entries, baseSequence, signal)
+    const appliedThrough = await this.applyPendingDelta(userId, vault, namespace, vaultKey, entries, baseSequence, projectionBudget, signal)
     await this.cache.completeSnapshot(userId, vault, namespace, appliedThrough)
     this.publish(vault.id, metadata, entries, appliedThrough, 'ready')
   }
@@ -201,6 +230,7 @@ export class MemberSyncEngine {
     vaultKey: Uint8Array,
     entries: Map<string, MemberIndexRecord>,
     afterSequence: string,
+    projectionBudget: ProjectionBudget,
     signal: AbortSignal,
   ): Promise<string> {
     let appliedThrough = afterSequence
@@ -211,7 +241,7 @@ export class MemberSyncEngine {
       const page = await this.transport.delta(vault.id, continuation ? null : afterSequence, continuation, signal)
       deltaUpperBound = this.assertDeltaProgress(appliedThrough, deltaUpperBound, page)
       await this.cache.applyPendingDeltaPage(userId, vault.id, namespace, appliedThrough, page)
-      await this.decryptAndApply(page.items, entries, vault, vaultKey, signal)
+      await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
       appliedThrough = page.appliedThroughSequence
       continuation = page.continuationCursor
     } while (continuation)
@@ -225,6 +255,7 @@ export class MemberSyncEngine {
     metadata: Awaited<ReturnType<typeof decryptMemberVaultMetadata>>,
     entries: Map<string, MemberIndexRecord>,
     afterSequence: string,
+    projectionBudget: ProjectionBudget,
     signal: AbortSignal,
   ): Promise<void> {
     let appliedThrough = afterSequence
@@ -235,7 +266,7 @@ export class MemberSyncEngine {
       const page = await this.transport.delta(vault.id, continuation ? null : afterSequence, continuation, signal)
       deltaUpperBound = this.assertDeltaProgress(appliedThrough, deltaUpperBound, page)
       await this.cache.applyActiveDeltaPage(userId, vault, appliedThrough, page)
-      await this.decryptAndApply(page.items, entries, vault, vaultKey, signal)
+      await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
       appliedThrough = page.appliedThroughSequence
       continuation = page.continuationCursor
       this.publish(vault.id, metadata, entries, appliedThrough, continuation ? 'syncing' : 'ready')
@@ -264,6 +295,7 @@ export class MemberSyncEngine {
     entries: Map<string, MemberIndexRecord>,
     vault: EncryptedVaultSummary,
     vaultKey: Uint8Array,
+    projectionBudget: ProjectionBudget,
     signal: AbortSignal,
   ): Promise<void> {
     for (let offset = 0; offset < items.length; offset += PROJECTION_CHUNK_ITEMS) {
@@ -314,6 +346,7 @@ export class MemberSyncEngine {
       })
       await Promise.all(workers)
       assertNotAborted(signal)
+      const sizeBeforeChunk = entries.size
       for (let index = 0; index < chunk.length; index += 1) {
         const item = chunk[index]
         const result = results[index]
@@ -324,6 +357,11 @@ export class MemberSyncEngine {
         const current = entries.get(item.entryId)
         if (!current || compareSequence(current.memberIndexRevision, item.memberIndexRevision) <= 0) entries.set(item.entryId, result!)
       }
+      const nextCount = projectionBudget.count + entries.size - sizeBeforeChunk
+      if (nextCount > MAXIMUM_UNLOCKED_MEMBER_ENTRIES) {
+        throw new Error('Vault Member index exceeds the supported unlocked entry budget')
+      }
+      projectionBudget.count = nextCount
       await this.yieldControl()
     }
   }

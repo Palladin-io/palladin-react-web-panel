@@ -64,6 +64,19 @@ describe('encrypted Member sync cache', () => {
     expect((await subject.readActiveItemPage(userId, vaultId, null, 100)).items.map((item) => item.entryId)).toEqual([newEntry])
   })
 
+  it('keeps the active summary paired with its old namespace when a rekey snapshot is interrupted', async () => {
+    const subject = cache()
+    await subject.beginSnapshot(userId, vault('1'), 'old', '1')
+    await subject.applySnapshotPage(userId, vaultId, 'old', [head('33333333-3333-4333-8333-333333333333', '1')], null)
+    await subject.completeSnapshot(userId, vault('1'), 'old', '1')
+
+    await subject.beginSnapshot(userId, vault('9'), 'replacement', '9')
+
+    const active = await subject.getActiveState(userId, vaultId)
+    expect(active?.namespace).toBe('old')
+    expect(active?.vault.memberSequence).toBe('1')
+  })
+
   it('rolls back item writes when the active delta cursor compare-and-swap fails', async () => {
     const subject = cache()
     const entryId = '33333333-3333-4333-8333-333333333333'

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const cryptoProbe = vi.hoisted(() => ({ active: 0, maximum: 0 }))
+const cryptoProbe = vi.hoisted(() => ({ active: 0, maximum: 0, delay: false }))
 
 vi.mock('../../../shared/crypto/vault-v2-member-sync', () => ({
   openMemberVaultKey: async () => new Uint8Array(32),
@@ -8,7 +8,7 @@ vi.mock('../../../shared/crypto/vault-v2-member-sync', () => ({
   decryptMemberIndex: async (envelope: { testLabel?: string }) => {
     cryptoProbe.active += 1
     cryptoProbe.maximum = Math.max(cryptoProbe.maximum, cryptoProbe.active)
-    await new Promise((resolve) => setTimeout(resolve, 1))
+    if (cryptoProbe.delay) await new Promise((resolve) => setTimeout(resolve, 1))
     cryptoProbe.active -= 1
     return { memberLabel: envelope.testLabel ?? 'Entry', entryType: 1, searchFields: ['entry'] }
   },
@@ -27,6 +27,7 @@ function vault(): EncryptedVaultSummary {
   return {
     id: vaultId,
     memberSequence: '20',
+    entryCount: 20,
     memberKeyGeneration: 4,
     currentKeyEpoch: { vaultKeyVersion: 3 },
     memberVaultMetadata: {},
@@ -80,6 +81,7 @@ describe('Member sync engine', () => {
   beforeEach(() => {
     cryptoProbe.active = 0
     cryptoProbe.maximum = 0
+    cryptoProbe.delay = false
     useMemberSyncStore.getState().clear()
   })
 
@@ -101,6 +103,7 @@ describe('Member sync engine', () => {
     }
     const cache = new RecordingCache()
     const engine = new MemberSyncEngine(cache, transport, async () => {})
+    cryptoProbe.delay = true
 
     await engine.synchronize(userId, new Uint8Array(32), new AbortController().signal)
 
@@ -130,6 +133,36 @@ describe('Member sync engine', () => {
 
     expect(cache.events).not.toContain('complete:19')
     expect(cache.active).toBeNull()
+    expect(useMemberSyncStore.getState().status).toBe('error')
+  })
+
+  it('fails closed when an underreported account exceeds 10,000 actual projections', async () => {
+    const cache = new RecordingCache()
+    const underreported = { ...vault(), entryCount: 1 }
+    const transport: MemberSyncTransport = {
+      listVaults: async () => [underreported],
+      snapshot: async (_vaultId, cursor) => {
+        const page = Number(cursor ?? '0')
+        const offset = page * 200
+        const remaining = 10_001 - offset
+        const count = Math.min(200, remaining)
+        return {
+          snapshotBaseSequence: '18',
+          items: Array.from({ length: count }, (_, index) => head(offset + index)),
+          nextCursor: remaining > 200 ? String(page + 1) : null,
+        }
+      },
+      delta: async () => ({ deltaUpperBound: '18', appliedThroughSequence: '18', continuationCursor: null, items: [] }),
+    }
+
+    await new MemberSyncEngine(cache, transport, async () => {}).synchronize(
+      userId,
+      new Uint8Array(32),
+      new AbortController().signal,
+    )
+
+    expect(cache.active).toBeNull()
+    expect(cache.events.some((event) => event.startsWith('complete:'))).toBe(false)
     expect(useMemberSyncStore.getState().status).toBe('error')
   })
 })
