@@ -84,10 +84,6 @@ export function VaultListPage() {
         <CreateVaultDialog
           open={createOpen}
           onClose={() => setCreateOpen(false)}
-          onCreated={(id) => {
-            vaults.retry()
-            goToVault(id)
-          }}
         />
         <PremiumGateDialog
           open={premiumOpen}
@@ -154,10 +150,6 @@ export function VaultListPage() {
       <CreateVaultDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreated={(id) => {
-          vaults.retry()
-          goToVault(id)
-        }}
       />
       <PremiumGateDialog
         open={premiumOpen}

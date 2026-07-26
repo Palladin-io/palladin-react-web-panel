@@ -79,9 +79,8 @@ describe('CreateVaultDialog', () => {
     expect(screen.getByRole('button', { name: /^create vault$/i })).toBeEnabled()
   })
 
-  it('calls onCreated and onClose on successful submit', async () => {
+  it('closes after successful submission without navigating to legacy detail', async () => {
     const user = userEvent.setup()
-    const onCreated = vi.fn()
     const onClose = vi.fn()
 
     // Resolve the mutation synchronously through the success path so
@@ -91,7 +90,7 @@ describe('CreateVaultDialog', () => {
     })
 
     render(
-      <CreateVaultDialog open={true} onClose={onClose} onCreated={onCreated} />,
+      <CreateVaultDialog open={true} onClose={onClose} />,
       { wrapper },
     )
 
@@ -99,7 +98,6 @@ describe('CreateVaultDialog', () => {
     await user.click(screen.getByRole('button', { name: /^create vault$/i }))
 
     expect(mutateMock).toHaveBeenCalledTimes(1)
-    expect(onCreated).toHaveBeenCalledWith('vault-1')
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
