@@ -3,10 +3,10 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { deriveKey, RECOVERY_KEY_SALT_BYTES } from '../../shared/crypto/argon2'
-import { toBase64 } from '../../shared/crypto/encoding'
+import { encodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
 import { encryptWithKey, randomBytes } from '../../shared/crypto/sodium'
 import { generateRecoveryMnemonic, joinMnemonic } from '../../shared/lib/mnemonic'
-import { InvalidRecoveryKeyError, useRecover } from './use-recover'
+import { InvalidRecoveryKeyError, useRecover, type RecoverResult } from './use-recover'
 
 const getAccountMock = vi.fn()
 const recoverAccountMock = vi.fn()
@@ -38,8 +38,8 @@ async function buildFakeAccount(mnemonic: string[]) {
   const fakePrivateKey = await randomBytes(32)
   const blob = await encryptWithKey(fakePrivateKey, recoveryKey)
   return {
-    recoverySalt: toBase64(recoverySalt),
-    encryptedPrivateKeyByRecovery: toBase64(blob),
+    recoverySalt: encodeBase64Url(recoverySalt),
+    encryptedPrivateKeyByRecovery: encodeBase64Url(blob),
     fakePrivateKey,
   }
 }
@@ -54,12 +54,17 @@ describe('useRecover', () => {
     const mnemonic = generateRecoveryMnemonic()
     const { recoverySalt, encryptedPrivateKeyByRecovery } = await buildFakeAccount(mnemonic)
 
-    getAccountMock.mockResolvedValue({ recoverySalt, encryptedPrivateKeyByRecovery })
+    getAccountMock.mockResolvedValue({
+      userId: '00112233-4455-4677-8899-aabbccddeeff',
+      recoverySalt,
+      encryptedPrivateKeyByRecovery,
+      kdf: { credentialRevision: 1, privateKeyWrapRevision: 2 },
+    })
     recoverAccountMock.mockResolvedValue(undefined)
 
     const { result } = renderHook(() => useRecover(), { wrapper })
 
-    let returned: string[] | undefined
+    let returned: RecoverResult | undefined
     await act(async () => {
       returned = await result.current.mutateAsync({
         recoveryMnemonic: mnemonic,
@@ -69,13 +74,17 @@ describe('useRecover', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    expect(returned).toHaveLength(24)
+    expect(returned?.recoveryMnemonic).toHaveLength(24)
+    expect(returned?.accountSecret).toHaveLength(32)
     expect(recoverAccountMock).toHaveBeenCalledTimes(1)
 
     const payload = recoverAccountMock.mock.calls[0][0]
     expect(payload).toEqual(
       expect.objectContaining({
-        newSalt: expect.any(String),
+        securityVersion: 2,
+        kdfProfileId: 'identity-argon2id-account-secret-v2',
+        newKdfSalt: expect.any(String),
+        newAuthCredential: expect.any(String),
         newEncryptedPrivateKey: expect.any(String),
         newRecoverySalt: expect.any(String),
         newEncryptedPrivateKeyByRecovery: expect.any(String),
@@ -87,7 +96,12 @@ describe('useRecover', () => {
     const realMnemonic = generateRecoveryMnemonic()
     const { recoverySalt, encryptedPrivateKeyByRecovery } = await buildFakeAccount(realMnemonic)
 
-    getAccountMock.mockResolvedValue({ recoverySalt, encryptedPrivateKeyByRecovery })
+    getAccountMock.mockResolvedValue({
+      userId: '00112233-4455-4677-8899-aabbccddeeff',
+      recoverySalt,
+      encryptedPrivateKeyByRecovery,
+      kdf: { credentialRevision: 1, privateKeyWrapRevision: 2 },
+    })
 
     const { result } = renderHook(() => useRecover(), { wrapper })
 

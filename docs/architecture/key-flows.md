@@ -6,6 +6,16 @@ This file documents the client-side cryptographic and zero-knowledge flows of th
 
 Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry data encryption key, **VDK** = Agent Discovery key. Keys live only in Zustand memory; closing the tab destroys them.
 
+## Identity KDF v2
+
+1. The client holds a user-saved 32-byte Account Secret and the exact UTF-8 master password in memory only. Neither value is sent to the backend or persisted by the web panel.
+2. The registered profile `identity-argon2id-account-secret-v2` frames the password, computes an HMAC-SHA-256 prehash keyed by the Account Secret, then runs Argon2id once (`m=32768 KiB`, `t=2`, `p=1`, 32-byte output) with the account's 16-byte KDF salt.
+3. HKDF-SHA-256 binds the result to the immutable RFC 4122 AccountId and KDF salt, then derives separate `AuthCredential` and MK domains. Only AuthCredential crosses the network; MK stays in memory and unwraps the member private key.
+4. Registration generates the AccountId and Account Secret client-side. Login validates the pre-auth bootstrap and then compares the authenticated account's AccountId, profile, security version and KDF salt before unlocking. Unsupported profiles, parameter changes and downgrade attempts fail closed.
+5. A legacy password account unlocks with `identity-argon2id-legacy-v1`, then creates a new Account Secret and sends one idempotent CAS migration containing only AuthCredential and rewrapped ciphertext. An interrupted request retries the exact same migration ID and payload.
+6. TOTP does not repeat Argon2: the derived MK and Account Secret remain only in the login hook's in-memory pending state until the challenge succeeds, fails, is replaced or the component unmounts.
+7. Password change and recovery use fresh KDF salts and rewrap the private key client-side. Recovery also rotates the Account Secret and recovery mnemonic. All owned raw buffers are wiped in `finally`; Zustand stores independent in-memory copies and excludes MK, private key and Account Secret from persistence.
+
 ## Vault protocol 2 primitives
 
 - Versioned envelopes use XChaCha20-Poly1305 with canonical projection-specific TLV AAD. Protocol, suite, tenant, Vault, Entry, revision, key version and member generation are authenticated before plaintext is returned.
@@ -36,11 +46,11 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 7. Every opened/generated VK, VDK, private seed, EntryDEK and plaintext projection is wiped in `finally`. Zustand rotation progress contains only phase, opaque IDs, item count and an allow-listed error code; keys, ciphertext, cursors and plaintext are never persisted there.
 
 ## Unlock Flow
-1. User enters master password.
-2. Derive MK via Argon2id (salt fetched from `/account`).
-3. Decrypt `encrypted_private_key` with MK → `user_private_key`.
-4. Store keys in Zustand (memory only).
-5. Navigate to dashboard.
+1. User enters the master password and, for Identity v2, the Account Secret.
+2. Validate the authenticated account KDF state and derive MK through the registered Identity profile.
+3. Decrypt `encryptedPrivateKey` with MK → member private key.
+4. Store independent copies of MK, private key and Account Secret in Zustand memory only.
+5. A legacy account must complete the idempotent client-side migration before leaving unlock; a v2 account navigates directly to the dashboard.
 
 ## Legacy Entry Encryption (removed by protocol 2 cutover consumers)
 1. Get VK: `user_private_key` → decrypt `wrapped_VK` → VK.

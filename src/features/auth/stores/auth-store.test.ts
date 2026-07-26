@@ -16,6 +16,7 @@ describe('auth-store', () => {
     expect(state.isVaultLocked).toBe(true)
     expect(state.masterKey).toBeNull()
     expect(state.privateKey).toBeNull()
+    expect(state.accountSecret).toBeNull()
   })
 
   it('is not authenticated initially', () => {
@@ -130,6 +131,24 @@ describe('auth-store', () => {
     expect(state.isVaultLocked).toBe(false)
     expect(Array.from(state.masterKey!)).toEqual([1, 2, 3, 4])
     expect(Array.from(state.privateKey!)).toEqual([9, 8, 7, 6])
+  })
+
+  it('keeps Account Secret memory-only and wipes it when locking', () => {
+    const secret = new Uint8Array([7, 8, 9])
+    useAuthStore.getState().unlockVault(
+      new Uint8Array([1]),
+      new Uint8Array([2]),
+      secret,
+    )
+    secret.fill(0)
+
+    const storedSecret = useAuthStore.getState().accountSecret!
+    expect(Array.from(storedSecret)).toEqual([7, 8, 9])
+    expect(localStorage.getItem('palladin-auth')).not.toContain('accountSecret')
+
+    useAuthStore.getState().lockVault()
+    expect(useAuthStore.getState().accountSecret).toBeNull()
+    expect(Array.from(storedSecret)).toEqual([0, 0, 0])
   })
 
   it('lockVault clears the keys but keeps the session', () => {
