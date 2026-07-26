@@ -4,6 +4,7 @@ import type { EncryptedVaultSummary } from './member-sync-api'
 
 export type MemberEntryState = 'active' | 'archived' | 'deleted'
 export type MemberSyncStatus = 'idle' | 'syncing' | 'resetting' | 'ready' | 'error'
+export type MemberVaultFailureKind = 'metadata' | 'sync'
 
 export interface MemberVaultStructure {
   isDefault: boolean
@@ -31,6 +32,7 @@ export interface DecryptedMemberVault {
   entries: ReadonlyMap<string, MemberIndexRecord>
   appliedThroughSequence: string
   status: Exclude<MemberSyncStatus, 'idle'>
+  failureKind: MemberVaultFailureKind | null
 }
 
 interface MemberSyncState {
@@ -42,7 +44,11 @@ interface MemberSyncState {
   retainVaults: (vaultIds: ReadonlySet<string>) => void
   reconcileEntry: (vaultId: string, entry: MemberIndexRecord | { entryId: string; tombstone: true }) => void
   resetVault: (vaultId: string) => void
-  failVault: (vault: EncryptedVaultSummary) => void
+  failVault: (
+    vault: EncryptedVaultSummary,
+    failureKind: MemberVaultFailureKind,
+    metadata?: MemberVaultMetadata,
+  ) => void
   retryGeneration: number
   retry: () => void
   complete: () => void
@@ -99,18 +105,25 @@ export const useMemberSyncStore = create<MemberSyncState>((set) => ({
     vaults.set(vaultId, { ...current, status: 'resetting' })
     return { vaults }
   }),
-  failVault: (vault) => set((state) => {
+  failVault: (vault, failureKind, metadata) => set((state) => {
     const current = state.vaults.get(vault.id)
     const vaults = new Map(state.vaults)
-    vaults.set(vault.id, current
-      ? { ...current, structure: memberVaultStructure(vault), status: 'error' }
+    vaults.set(vault.id, current && failureKind === 'sync'
+      ? {
+          ...current,
+          metadata: metadata ?? current.metadata,
+          structure: memberVaultStructure(vault),
+          status: 'error',
+          failureKind,
+        }
       : {
           vaultId: vault.id,
-          metadata: null,
+          metadata: failureKind === 'sync' ? metadata ?? null : null,
           structure: memberVaultStructure(vault),
           entries: new Map(),
           appliedThroughSequence: vault.memberSequence,
           status: 'error',
+          failureKind,
         })
     return { vaults }
   }),

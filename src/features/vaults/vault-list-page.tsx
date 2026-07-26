@@ -260,12 +260,17 @@ function Body({
 function VaultListCard({ vault, onClick }: { vault: MemberVaultListItem; onClick: () => void }) {
   const { t } = useTranslation()
   if (vault.name === null) {
+    const metadataCorrupt = vault.failureKind === 'metadata'
     return (
       <div role="alert" className="flex min-h-[6.875rem] min-w-[17.5rem] flex-1 items-center gap-3 rounded-2xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] p-4">
         <Icon name="encrypted" size={28} color="var(--cv-primary)" />
         <div>
-          <p className="text-heading-sm font-semibold text-[var(--cv-t1)]">{t('vault.list.corruptTitle')}</p>
-          <p className="text-meta text-[var(--cv-t3)]">{t('vault.list.corruptDescription')}</p>
+          <p className="text-heading-sm font-semibold text-[var(--cv-t1)]">
+            {t(metadataCorrupt ? 'vault.list.corruptTitle' : 'vault.list.unavailableTitle')}
+          </p>
+          <p className="text-meta text-[var(--cv-t3)]">
+            {t(metadataCorrupt ? 'vault.list.corruptDescription' : 'vault.list.unavailableDescription')}
+          </p>
         </div>
       </div>
     )

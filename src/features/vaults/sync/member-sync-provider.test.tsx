@@ -58,6 +58,7 @@ describe('MemberSyncProvider refresh lifecycle', () => {
       entries: new Map(),
       appliedThroughSequence: '1',
       status: 'ready',
+      failureKind: null,
     })
     const view = render(
       <MemberSyncProvider

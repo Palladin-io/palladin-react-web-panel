@@ -22,6 +22,7 @@ function vault(
     entries: new Map(),
     appliedThroughSequence: '1',
     status,
+    failureKind: name === null ? 'metadata' : null,
   }
 }
 
@@ -43,6 +44,7 @@ describe('decrypted Member vault list', () => {
       activeGrantCount: 1,
       memberCount: 2,
       syncStatus: 'ready',
+      failureKind: null,
     })
     expect(Object.keys(item)).not.toContain('ciphertext')
   })

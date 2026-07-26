@@ -142,6 +142,26 @@ describe('Member sync engine', () => {
     expect(useMemberSyncStore.getState().status).toBe('error')
   })
 
+  it('keeps authenticated metadata distinct from a transient snapshot failure', async () => {
+    const transport: MemberSyncTransport = {
+      listVaults: async () => [vault()],
+      snapshot: async () => { throw new Error('temporary cache failure') },
+      delta: async () => { throw new Error('unexpected delta') },
+    }
+
+    await new MemberSyncEngine(new RecordingCache(), transport, async () => {}).synchronize(
+      userId,
+      new Uint8Array(32),
+      new AbortController().signal,
+    )
+
+    expect(useMemberSyncStore.getState().vaults.get(vaultId)).toMatchObject({
+      metadata: { name: 'Encrypted Vault' },
+      status: 'error',
+      failureKind: 'sync',
+    })
+  })
+
   it('fails closed when an underreported account exceeds 10,000 actual projections', async () => {
     const cache = new RecordingCache()
     const underreported = { ...vault(), entryCount: 1 }
@@ -181,7 +201,10 @@ describe('Member sync engine', () => {
     }
     useMemberSyncStore.getState().publishVault({
       vaultId, metadata: { name: 'Encrypted Vault' }, entries: new Map([[record.entryId, record]]),
-      appliedThroughSequence: '20', status: 'ready',
+      structure: {
+        isDefault: false, createdAt: '', updatedAt: '', memberCount: 1, entryCount: 1, activeGrantCount: 0,
+      },
+      appliedThroughSequence: '20', status: 'ready', failureKind: null,
     })
     const cache = new RecordingCache()
     cache.active = { namespace: 'active', appliedThroughSequence: '20', vault: currentVault }

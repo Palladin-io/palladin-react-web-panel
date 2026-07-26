@@ -26,7 +26,7 @@ describe('in-memory Member index search', () => {
     }
     useMemberSyncStore.getState().publishVault({
       vaultId: '22222222-2222-4222-8222-222222222222', metadata: { name: 'Vault' }, entries,
-      structure, appliedThroughSequence: '1', status: 'ready',
+      structure, appliedThroughSequence: '1', status: 'ready', failureKind: null,
     })
 
     const started = performance.now()
@@ -45,7 +45,7 @@ describe('in-memory Member index search', () => {
     }
     useMemberSyncStore.getState().publishVault({
       vaultId: '22222222-2222-4222-8222-222222222222', metadata: { name: 'Vault' },
-      structure, entries: new Map([[original.entryId, original]]), appliedThroughSequence: '1', status: 'ready',
+      structure, entries: new Map([[original.entryId, original]]), appliedThroughSequence: '1', status: 'ready', failureKind: null,
     })
     const optimistic = { ...original, memberIndexRevision: '3', currentRevision: '3', payload: { ...original.payload!, memberLabel: 'Optimistic' } }
 
@@ -63,6 +63,7 @@ describe('in-memory Member index search', () => {
       entries: new Map(),
       appliedThroughSequence: '1',
       status: 'ready',
+      failureKind: null,
     })
 
     useMemberSyncStore.getState().clear()
@@ -79,6 +80,7 @@ describe('in-memory Member index search', () => {
       entries: new Map(),
       appliedThroughSequence: '1',
       status: 'ready',
+      failureKind: null,
     })
 
     useMemberSyncStore.getState().resetVault('22222222-2222-4222-8222-222222222222')
@@ -94,13 +96,28 @@ describe('in-memory Member index search', () => {
       id: '22222222-2222-4222-8222-222222222222',
       memberSequence: '7',
       ...structure,
-    } as unknown as EncryptedVaultSummary)
+    } as unknown as EncryptedVaultSummary, 'metadata')
 
     expect(useMemberSyncStore.getState().vaults.get('22222222-2222-4222-8222-222222222222')).toMatchObject({
       metadata: null,
       entries: new Map(),
       appliedThroughSequence: '7',
       status: 'error',
+      failureKind: 'metadata',
+    })
+  })
+
+  it('preserves authenticated metadata for a transient synchronization failure', () => {
+    useMemberSyncStore.getState().failVault({
+      id: '22222222-2222-4222-8222-222222222222',
+      memberSequence: '7',
+      ...structure,
+    } as unknown as EncryptedVaultSummary, 'sync', { name: 'Verified vault' })
+
+    expect(useMemberSyncStore.getState().vaults.get('22222222-2222-4222-8222-222222222222')).toMatchObject({
+      metadata: { name: 'Verified vault' },
+      status: 'error',
+      failureKind: 'sync',
     })
   })
 

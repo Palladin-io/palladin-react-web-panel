@@ -13,6 +13,7 @@ export interface MemberVaultListItem {
   activeGrantCount: number
   memberCount: number
   syncStatus: DecryptedMemberVault['status']
+  failureKind: DecryptedMemberVault['failureKind']
 }
 
 function materialIconReference(reference: string | undefined): string | null {
@@ -38,6 +39,7 @@ export function buildMemberVaultList(vaults: ReadonlyMap<string, DecryptedMember
     activeGrantCount: vault.structure.activeGrantCount,
     memberCount: vault.structure.memberCount,
     syncStatus: vault.status,
+    failureKind: vault.failureKind,
   }))
 }
 

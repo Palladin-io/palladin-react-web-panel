@@ -163,6 +163,8 @@
   "vault.list.partialSyncError": "Some encrypted vault data could not be refreshed. Existing verified results remain available.",
   "vault.list.corruptTitle": "Encrypted vault unavailable",
   "vault.list.corruptDescription": "Its metadata failed authentication and was not displayed.",
+  "vault.list.unavailableTitle": "Vault temporarily unavailable",
+  "vault.list.unavailableDescription": "Synchronization did not complete. Retry to restore this Vault.",
   "vault.list.resetting": "Refreshing encrypted index…",
   "vault.list.retry": "Retry",
   "vault.list.toggleFiltersShow": "Show filters",

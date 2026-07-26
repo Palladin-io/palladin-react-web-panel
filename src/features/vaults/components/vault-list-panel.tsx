@@ -73,8 +73,9 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
       ) : (
         <>
           {vaults.status === 'error' ? (
-            <div role="alert" className="mb-3 rounded-xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] p-3 text-meta text-[var(--cv-t1)]">
-              {t('vault.list.partialSyncError')}
+            <div role="alert" className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] p-3 text-meta text-[var(--cv-t1)]">
+              <span>{t('vault.list.partialSyncError')}</span>
+              <Button variant="ghost" size="sm" onClick={vaults.retry}>{t('vault.list.retry')}</Button>
             </div>
           ) : null}
           <SearchBar
@@ -128,12 +129,17 @@ interface VaultRowProps {
 function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
   const { t, i18n } = useTranslation()
   if (vault.name === null) {
+    const metadataCorrupt = vault.failureKind === 'metadata'
     return (
       <div role="alert" className="flex items-center gap-3 rounded-2xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] px-4 py-3">
         <Icon name="encrypted" size={20} color="var(--cv-primary)" />
         <div className="min-w-0">
-          <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">{t('vault.list.corruptTitle')}</p>
-          <p className="text-micro text-[var(--cv-t3)]">{t('vault.list.corruptDescription')}</p>
+          <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
+            {t(metadataCorrupt ? 'vault.list.corruptTitle' : 'vault.list.unavailableTitle')}
+          </p>
+          <p className="text-micro text-[var(--cv-t3)]">
+            {t(metadataCorrupt ? 'vault.list.corruptDescription' : 'vault.list.unavailableDescription')}
+          </p>
         </div>
       </div>
     )
