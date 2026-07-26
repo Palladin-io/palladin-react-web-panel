@@ -7,6 +7,8 @@ import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, type Vault } from '../types'
 import { useEntriesListUi } from '../use-entries-list-ui'
 import { VaultEntriesTab } from './vault-entries-tab'
 
+const restoreMutate = vi.hoisted(() => vi.fn())
+
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to, ...rest }: { children: ReactNode; to: string } & AnchorHTMLAttributes<HTMLAnchorElement>) => (
     <a href={to} {...rest}>{children}</a>
@@ -18,6 +20,9 @@ vi.mock('./create-entry-modal', () => ({
 }))
 vi.mock('./entry-row', () => ({
   EntryRow: ({ entry }: { entry: { label: string } }) => <div data-testid="active-entry">{entry.label}</div>,
+}))
+vi.mock('../use-restore-archived-entries', () => ({
+  useRestoreArchivedEntries: () => ({ mutateAsync: restoreMutate, isPending: false }),
 }))
 
 const VAULT: Vault = {
@@ -77,6 +82,8 @@ function publish(entries: MemberIndexRecord[]) {
 beforeEach(() => {
   useMemberSyncStore.getState().clear()
   useEntriesListUi.setState({ search: {}, scrollTop: {}, lifecycleState: {} })
+  restoreMutate.mockReset()
+  restoreMutate.mockResolvedValue({ restored: [], failed: [] })
 })
 
 describe('VaultEntriesTab', () => {
@@ -121,6 +128,20 @@ describe('VaultEntriesTab', () => {
     await user.click(screen.getByRole('button', { name: /Recently Deleted \(1\)/ }))
     expect(screen.getByText('Deleted item')).toBeInTheDocument()
     expect(screen.getByText(/recoverable during retention/i)).toBeInTheDocument()
+  })
+
+  it('restores one or selected Archived Entries through the lifecycle mutation', async () => {
+    const user = userEvent.setup()
+    restoreMutate.mockImplementation(async (ids: string[]) => ({ restored: ids, failed: [] }))
+    publish([record('entry-a', 'Archived A', 'archived'), record('entry-b', 'Archived B', 'archived')])
+    render(<VaultEntriesTab vault={VAULT} />)
+    await user.click(screen.getByRole('button', { name: /Archived \(2\)/ }))
+    await user.click(screen.getAllByRole('button', { name: /^Restore$/ })[0])
+    expect(restoreMutate).toHaveBeenCalledWith(['entry-a'])
+
+    await user.click(screen.getByRole('checkbox', { name: /select all archived/i }))
+    await user.click(screen.getByRole('button', { name: /Restore selected \(2\)/i }))
+    expect(restoreMutate).toHaveBeenLastCalledWith(['entry-a', 'entry-b'])
   })
 
   it('isolates a corrupt entry while keeping healthy rows usable', () => {

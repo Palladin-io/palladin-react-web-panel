@@ -150,6 +150,7 @@ export interface CanonicalEntryDetail {
   currentRevision: string
   memberIndexRevision: string
   agentDiscoveryRevision?: string | null
+  agentDiscoveryRevisionHighWatermark: string
   currentKeyVersion: number
   state: 'active' | 'archived' | 'deleted' | 1 | 2 | 3
   createdAt: string
@@ -160,6 +161,12 @@ export interface CanonicalEntryDetail {
   memberSecret: MemberSecretEnvelope
   agentDiscovery?: AgentDiscoveryEnvelope | null
   entryKey: VaultEntryKeyEnvelope
+}
+
+export interface EntryLifecycleMaterial {
+  baseRevision: string
+  memberSecret: MemberSecretEnvelope
+  agentDiscovery?: AgentDiscoveryEnvelope
 }
 
 export interface EntryUpdateMaterial {
@@ -476,6 +483,64 @@ export async function createEntryUpdateMaterial(
       agentDiscoveryChanged: discoveryChanged, ...(agentDiscovery ? { agentDiscovery } : {}), grantEnvelopes: [] }
   } finally {
     for (const value of [entryDek, secretKey, indexKey, discoveryProjectionKey, secretBytes, indexBytes, discoveryBytes]) {
+      if (value) wipe(value)
+    }
+  }
+}
+
+export async function createEntryRestoreMaterial(
+  detail: CanonicalEntryDetail,
+  plaintext: MemberSecretPlaintext,
+  vaultKey: Uint8Array,
+  vdkVersion: number,
+  discoveryKey: Uint8Array,
+): Promise<EntryLifecycleMaterial> {
+  if (detail.state !== 'archived' && detail.state !== 2) throw new Error('Only an Archived Entry can be restored here')
+  const projections = buildEntryProjections({
+    memberLabel: plaintext.memberLabel,
+    agentLabel: plaintext.agentLabel,
+    ...(plaintext.description ? { description: plaintext.description } : {}),
+    ...(plaintext.iconReference ? { iconReference: plaintext.iconReference } : {}),
+    entryType: plaintext.entryType,
+    content: plaintext.content,
+    policy: plaintext.agentVisibilityPolicy,
+  })
+  const revision = (BigInt(detail.currentRevision) + 1n).toString()
+  const common = { organizationId: detail.organizationId, vaultId: detail.vaultId, entryId: detail.id }
+  const entryDek = await openEntryDek(detail, vaultKey)
+  let secretKey: Uint8Array | undefined
+  let discoveryProjectionKey: Uint8Array | undefined
+  let secretBytes: Uint8Array | undefined
+  let discoveryBytes: Uint8Array | undefined
+  try {
+    secretKey = await deriveVaultProjectionKey({ baseKey: entryDek, purpose: 'member-secret', resourceKind: 2,
+      ...common, keyVersion: detail.currentKeyVersion, memberKeyGeneration: detail.entryKey.memberKeyGeneration })
+    secretBytes = canonicalBytes(projections.memberSecret as unknown as CanonicalJson)
+    const secretContext = { ...common, revision, operation: 4 as const,
+      header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 3,
+        resourceRevision: revision, keyVersion: detail.currentKeyVersion,
+        memberKeyGeneration: detail.entryKey.memberKeyGeneration, nonce: '' } }
+    const encryptedSecret = await encryptVaultEnvelope('member-secret', secretContext, secretBytes, secretKey)
+    const memberSecret: MemberSecretEnvelope = { ...secretContext,
+      header: { ...secretContext.header, nonce: encryptedSecret.nonce }, ciphertext: encryptedSecret.ciphertext }
+
+    let agentDiscovery: AgentDiscoveryEnvelope | undefined
+    if (projections.agentDiscovery) {
+      const discoveryRevision = (BigInt(detail.agentDiscoveryRevisionHighWatermark) + 1n).toString()
+      discoveryProjectionKey = await deriveVaultProjectionKey({ baseKey: discoveryKey, purpose: 'agent-discovery',
+        resourceKind: 2, ...common, keyVersion: vdkVersion,
+        memberKeyGeneration: detail.entryKey.memberKeyGeneration })
+      discoveryBytes = canonicalBytes(projections.agentDiscovery as unknown as CanonicalJson)
+      const context = { ...common, agentDiscoveryRevision: discoveryRevision, vdkVersion,
+        header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 4,
+          resourceRevision: discoveryRevision, keyVersion: vdkVersion,
+          memberKeyGeneration: detail.entryKey.memberKeyGeneration, nonce: '' } }
+      const encrypted = await encryptVaultEnvelope('agent-discovery', context, discoveryBytes, discoveryProjectionKey)
+      agentDiscovery = { ...context, header: { ...context.header, nonce: encrypted.nonce }, ciphertext: encrypted.ciphertext }
+    }
+    return { baseRevision: detail.currentRevision, memberSecret, ...(agentDiscovery ? { agentDiscovery } : {}) }
+  } finally {
+    for (const value of [entryDek, secretKey, discoveryProjectionKey, secretBytes, discoveryBytes]) {
       if (value) wipe(value)
     }
   }

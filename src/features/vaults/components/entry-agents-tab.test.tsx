@@ -29,7 +29,8 @@ vi.mock('../../grants', () => ({ OrgGrantsPanel: () => <div data-testid="grants"
 
 const detail = {
   organizationId: 'org', vaultId: 'vault', id: 'entry', state: 'active' as const,
-  currentRevision: '4', memberIndexRevision: '4', agentDiscoveryRevision: '4', currentKeyVersion: 1,
+  currentRevision: '4', memberIndexRevision: '4', agentDiscoveryRevision: '4',
+  agentDiscoveryRevisionHighWatermark: '4', currentKeyVersion: 1,
   createdAt: '', createdBy: 'member', updatedAt: '', updatedBy: 'member',
   memberIndex: {}, memberSecret: {}, agentDiscovery: {}, entryKey: {},
 }

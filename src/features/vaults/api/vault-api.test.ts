@@ -3,13 +3,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const getJson = vi.hoisted(() => vi.fn())
 const getFn = vi.hoisted(() => vi.fn(() => ({ json: getJson })))
 const postText = vi.hoisted(() => vi.fn())
-const postFn = vi.hoisted(() => vi.fn(() => Promise.resolve({ text: postText })))
+const postJson = vi.hoisted(() => vi.fn())
+const postFn = vi.hoisted(() => vi.fn(() => ({ text: postText, json: postJson })))
 
 vi.mock('../../../shared/api/client', () => ({
   api: { get: getFn, post: postFn },
 }))
 
-import { getAllEntries, getCanonicalEntry, getEntryHistory, importEntries } from './vault-api'
+import { getAllEntries, getCanonicalEntry, getEntryHistory, importEntries, restoreCanonicalEntry } from './vault-api'
 
 describe('getEntryHistory', () => {
   const organizationId = '00112233-4455-4677-8899-aabbccddeeff'
@@ -57,7 +58,7 @@ describe('getCanonicalEntry', () => {
       resourceRevision: '1', keyVersion: 1, memberKeyGeneration: 1, nonce: 'nonce' }
     const scope = { organizationId, vaultId, entryId: id }
     getJson.mockResolvedValueOnce({ organizationId, vaultId, id, state: 'active', currentRevision: '1',
-      memberIndexRevision: '1', agentDiscoveryRevision: null, currentKeyVersion: 1,
+      memberIndexRevision: '1', agentDiscoveryRevision: null, agentDiscoveryRevisionHighWatermark: '0', currentKeyVersion: 1,
       createdAt: '2026-07-26T00:00:00Z', createdBy: organizationId,
       updatedAt: '2026-07-26T00:00:00Z', updatedBy: organizationId,
       memberIndex: { ...scope, vaultId: '33332233-4455-4677-8899-aabbccddeeff', memberIndexRevision: '1',
@@ -132,5 +133,24 @@ describe('importEntries', () => {
     postText.mockResolvedValueOnce('')
     const res = await importEntries('vault-1', body)
     expect(res).toEqual({ importedCount: 2, entryIds: [] })
+  })
+})
+
+describe('restoreCanonicalEntry', () => {
+  beforeEach(() => {
+    postFn.mockClear()
+    postJson.mockReset()
+  })
+
+  it('accepts only a canonical Active lifecycle response', async () => {
+    postJson.mockResolvedValueOnce({ state: 'active', currentRevision: '8' })
+    await expect(restoreCanonicalEntry('vault', 'entry', {
+      baseRevision: '7', memberSecret: {} as never,
+    })).resolves.toEqual({ state: 'active', currentRevision: '8' })
+
+    postJson.mockResolvedValueOnce({ state: 'archived', currentRevision: '8' })
+    await expect(restoreCanonicalEntry('vault', 'entry', {
+      baseRevision: '7', memberSecret: {} as never,
+    })).rejects.toThrow()
   })
 })

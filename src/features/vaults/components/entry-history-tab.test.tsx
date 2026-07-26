@@ -36,6 +36,7 @@ const detail = {
   vaultId: '11112233-4455-4677-8899-aabbccddeeff',
   id: '22222233-4455-4677-8899-aabbccddeeff',
   currentRevision: '2', memberIndexRevision: '2', agentDiscoveryRevision: null,
+  agentDiscoveryRevisionHighWatermark: '1',
   currentKeyVersion: 2, state: 'active' as const,
   createdAt: '2026-07-25T10:00:00Z', updatedAt: '2026-07-26T10:00:00Z',
   createdBy: '00112233-4455-4677-8899-aabbccddeeff', updatedBy: '00112233-4455-4677-8899-aabbccddeeff',

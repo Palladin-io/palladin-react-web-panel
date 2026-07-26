@@ -192,6 +192,7 @@ function canonicalEntry(id: string): CanonicalEntryDetail {
     currentRevision: '1',
     memberIndexRevision: '1',
     agentDiscoveryRevision: null,
+    agentDiscoveryRevisionHighWatermark: '0',
     currentKeyVersion: 1,
     createdAt: '2026-04-25T12:00:00Z',
     createdBy: '00000000-0000-4000-8000-000000000003',

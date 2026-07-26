@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { FormSelect } from '../../../shared/components/form-select'
@@ -20,6 +21,7 @@ import { EntryRow } from './entry-row'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { SearchBar } from '../../../shared/components/search-bar'
 import { EntryIcon } from './entry-icon'
+import { useRestoreArchivedEntries } from '../use-restore-archived-entries'
 
 export interface VaultEntriesTabProps {
   vault: Vault
@@ -35,6 +37,8 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
   const { t } = useTranslation()
   const [createOpen, setCreateOpen] = useState(false)
   const [sort, setSort] = useState<MemberEntrySort>('name-asc')
+  const [selectedArchived, setSelectedArchived] = useState<Set<string>>(new Set())
+  const restore = useRestoreArchivedEntries(vault.id)
 
   const hasMemberProjection = useMemberSyncStore((store) => store.vaults.has(vault.id))
   // Persist list context per vault so it survives navigating into an entry.
@@ -47,6 +51,18 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
     setLifecycleState,
   } = usePersistedEntriesList(vault.id, hasMemberProjection)
   const entries = useMemberEntryList(vault.id, lifecycleState, search, sort)
+  const restorableArchived = entries.items.filter((entry) => entry.state === 'archived' && !entry.corrupt)
+
+  const restoreEntries = async (entryIds: string[]) => {
+    try {
+      const result = await restore.mutateAsync(entryIds)
+      setSelectedArchived((current) => new Set([...current].filter((id) => !result.restored.includes(id))))
+      if (result.restored.length > 0) toast.success(t('vault.entries.restoreSuccess', { count: result.restored.length }))
+      if (result.failed.length > 0) toast.error(t('vault.entries.restoreFailed', { count: result.failed.length }))
+    } catch {
+      toast.error(t('vault.entries.restoreFailed', { count: entryIds.length }))
+    }
+  }
 
   if ((entries.status === 'idle' || entries.status === 'syncing') && entries.vaultStatus === null) {
     return <EntriesLoadingSkeleton />
@@ -96,7 +112,10 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
               variant={lifecycleState === value ? 'subtle' : 'outline'}
               size="sm"
               aria-pressed={lifecycleState === value}
-              onClick={() => setLifecycleState(value)}
+              onClick={() => {
+                setSelectedArchived(new Set())
+                setLifecycleState(value)
+              }}
             >
               {t(`vault.entries.state.${value}`)} ({entries.counts[value]})
             </Button>
@@ -113,6 +132,32 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
           <option value="type">{t('vault.entries.sort.type')}</option>
         </FormSelect>
       </div>
+
+      {lifecycleState === 'archived' && restorableArchived.length > 0 ? (
+        <div className="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-3 py-2">
+          <label className="flex items-center gap-2 text-ui text-[var(--cv-t2)]">
+            <input
+              type="checkbox"
+              checked={selectedArchived.size === restorableArchived.length}
+              onChange={(event) => setSelectedArchived(event.target.checked
+                ? new Set(restorableArchived.map((entry) => entry.id))
+                : new Set())}
+            />
+            {t('vault.entries.selectAllArchived')}
+          </label>
+          <Button
+            variant="outline"
+            size="sm"
+            icon="restore"
+            disabled={selectedArchived.size === 0 || restore.isPending}
+            onClick={() => restoreEntries([...selectedArchived])}
+          >
+            {restore.isPending
+              ? t('vault.entries.restoring')
+              : t('vault.entries.restoreSelected', { count: selectedArchived.size })}
+          </Button>
+        </div>
+      ) : null}
 
       <ScrollArea scrollRef={scrollRef} onScroll={onScroll}>
         {entries.items.length === 0 ? (
@@ -138,7 +183,20 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
                 }}
               />
             ) : (
-              <LifecycleEntryRow key={entry.id} vaultId={vault.id} entry={entry} />
+              <LifecycleEntryRow
+                key={entry.id}
+                vaultId={vault.id}
+                entry={entry}
+                selected={selectedArchived.has(entry.id)}
+                restoring={restore.isPending}
+                onSelected={(selected) => setSelectedArchived((current) => {
+                  const next = new Set(current)
+                  if (selected) next.add(entry.id)
+                  else next.delete(entry.id)
+                  return next
+                })}
+                onRestore={() => restoreEntries([entry.id])}
+              />
             ))}
           </div>
         )}
@@ -153,7 +211,14 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
   )
 }
 
-function LifecycleEntryRow({ vaultId, entry }: { vaultId: string; entry: MemberEntryListItem }) {
+function LifecycleEntryRow({ vaultId, entry, selected, restoring, onSelected, onRestore }: {
+  vaultId: string
+  entry: MemberEntryListItem
+  selected: boolean
+  restoring: boolean
+  onSelected: (selected: boolean) => void
+  onRestore: () => void
+}) {
   const { t } = useTranslation()
   const content = (
     <>
@@ -170,12 +235,33 @@ function LifecycleEntryRow({ vaultId, entry }: { vaultId: string; entry: MemberE
   )
   const staticClasses = "flex items-center gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-4 py-2.5"
   const interactiveClasses = `flex items-center gap-3 px-4 py-2.5 ${HOVERABLE_CARD_CLASSES}`
-  return entry.corrupt ? (
+  if (entry.corrupt) return (
     <div className={staticClasses}>{content}</div>
-  ) : (
+  )
+  if (entry.state !== 'archived') return (
     <Link to="/vaults/$vaultId/entries/$entryId" params={{ vaultId, entryId: entry.id }} className={interactiveClasses}>
       {content}
     </Link>
+  )
+  return (
+    <div className={`${interactiveClasses} cursor-default`}>
+      <input
+        type="checkbox"
+        aria-label={t('vault.entries.selectArchived', { name: entry.label })}
+        checked={selected}
+        onChange={(event) => onSelected(event.target.checked)}
+      />
+      <Link
+        to="/vaults/$vaultId/entries/$entryId"
+        params={{ vaultId, entryId: entry.id }}
+        className="flex min-w-0 flex-1 items-center gap-3"
+      >
+        {content}
+      </Link>
+      <Button variant="outline" size="sm" icon="restore" disabled={restoring} onClick={onRestore}>
+        {t('vault.entries.restore')}
+      </Button>
+    </div>
   )
 }
 

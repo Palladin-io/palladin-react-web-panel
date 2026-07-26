@@ -3,7 +3,7 @@ import { z } from 'zod'
 import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
 import type { InitialVaultMaterial } from '../../../shared/crypto/vault-v2-creation'
 import type { InitialEntryMaterial } from '../../../shared/crypto/vault-v2-entry'
-import type { CanonicalEntryDetail, EntryUpdateMaterial } from '../../../shared/crypto/vault-v2-entry'
+import type { CanonicalEntryDetail, EntryLifecycleMaterial, EntryUpdateMaterial } from '../../../shared/crypto/vault-v2-entry'
 import { memberIndexEnvelopeSchema, vaultEntryKeyEnvelopeSchema } from '../sync/entry-envelope-schema'
 import { canonicalU64Schema, canonicalUuidSchema, u32Schema, vaultEnvelopeHeaderSchema } from '../sync/vault-key-material-schema'
 import { normalizeEntryType } from '../types'
@@ -151,6 +151,7 @@ const canonicalEntryDetailSchema = z.object({
   currentRevision: canonicalU64Schema,
   memberIndexRevision: canonicalU64Schema,
   agentDiscoveryRevision: canonicalU64Schema.nullable(),
+  agentDiscoveryRevisionHighWatermark: canonicalU64Schema,
   currentKeyVersion: u32Schema,
   createdAt: z.string(),
   createdBy: canonicalUuidSchema,
@@ -172,7 +173,16 @@ const canonicalEntryDetailSchema = z.object({
     || entry.agentDiscoveryRevision !== (entry.agentDiscovery?.agentDiscoveryRevision ?? null)) {
     context.addIssue({ code: 'custom', message: 'Entry projection head mismatch' })
   }
+  if (entry.agentDiscoveryRevision !== null
+    && BigInt(entry.agentDiscoveryRevision) > BigInt(entry.agentDiscoveryRevisionHighWatermark)) {
+    context.addIssue({ code: 'custom', message: 'Entry Discovery watermark mismatch' })
+  }
 })
+
+const restoreEntryResponseSchema = z.object({
+  state: z.union([z.literal('active'), z.literal(1)]),
+  currentRevision: canonicalU64Schema,
+}).strict()
 
 const actorTypeSchema = z.union([
   z.enum(['member', 'agent', 'system']), z.literal(1), z.literal(2), z.literal(3),
@@ -242,6 +252,15 @@ export async function updateCanonicalEntry(
 ): Promise<{ currentRevision: string }> {
   return api.put(`api/vaults/${vaultId}/entries/${entryId}`, { json: material })
     .json<{ currentRevision: string }>()
+}
+
+export async function restoreCanonicalEntry(
+  vaultId: string,
+  entryId: string,
+  material: EntryLifecycleMaterial,
+): Promise<{ state: 'active' | 1; currentRevision: string }> {
+  const raw = await api.post(`api/vaults/${vaultId}/entries/${entryId}/restore`, { json: material }).json()
+  return restoreEntryResponseSchema.parse(raw)
 }
 
 export function createEntry(
