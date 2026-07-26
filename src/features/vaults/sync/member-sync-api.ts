@@ -178,7 +178,7 @@ const syncHeaders = {
   'X-Palladin-Sync-Policy': '1',
 }
 
-async function readBoundedJson(response: Response): Promise<unknown> {
+export async function readBoundedJson(response: Response): Promise<unknown> {
   const declaredLength = response.headers.get('content-length')
   if (declaredLength !== null) {
     const bytes = Number(declaredLength)

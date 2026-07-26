@@ -10,6 +10,7 @@ export type VaultAadProfile =
   | 'agent-discovery'
   | 'entry-key-wrapper'
   | 'vault-private-key'
+  | 'vault-discovery-key'
   | 'encrypted-reason'
   | 'grant-payload'
 
@@ -43,6 +44,7 @@ const profiles: Record<VaultAadProfile, Binding[]> = {
   'agent-discovery': [...common, { tag: 3, type: 'u16', source: 'header.resourceKind', constant: 2 }, { tag: 6, type: 'uuid', source: 'entryId' }, { tag: 7, type: 'u16', source: 'header.projectionKind', constant: 4 }, { tag: 8, type: 'u64', source: 'agentDiscoveryRevision' }, { tag: 9, type: 'u32', source: 'vdkVersion' }, { tag: 10, type: 'u32', source: 'header.memberKeyGeneration' }],
   'entry-key-wrapper': [...common, { tag: 3, type: 'u16', source: 'header.resourceKind', constant: 2 }, { tag: 6, type: 'uuid', source: 'entryId' }, { tag: 7, type: 'u16', source: 'header.projectionKind', constant: 8 }, { tag: 8, type: 'u64', source: 'wrapperRevision' }, { tag: 9, type: 'u32', source: 'keyVersion' }, { tag: 10, type: 'u32', source: 'memberKeyGeneration' }, { tag: 21, type: 'u32', source: 'wrappingKeyVersion' }],
   'vault-private-key': [...common, { tag: 3, type: 'u16', source: 'header.resourceKind', constant: 1 }, { tag: 7, type: 'u16', source: 'header.projectionKind', constant: 7 }, { tag: 8, type: 'u64', source: 'privateKeyRevision' }, { tag: 9, type: 'u32', source: 'privateKeyVersion' }, { tag: 10, type: 'u32', source: 'memberKeyGeneration' }, { tag: 21, type: 'u32', source: 'wrappingKeyVersion' }, { tag: 22, type: 'u16', source: 'privateKeyKind' }],
+  'vault-discovery-key': [...common, { tag: 3, type: 'u16', source: 'header.resourceKind', constant: 1 }, { tag: 7, type: 'u16', source: 'header.projectionKind', constant: 12 }, { tag: 8, type: 'u64', source: 'discoveryKeyRevision' }, { tag: 9, type: 'u32', source: 'vdkVersion' }, { tag: 10, type: 'u32', source: 'memberKeyGeneration' }, { tag: 21, type: 'u32', source: 'wrappingKeyVersion' }],
   'encrypted-reason': [...common, { tag: 3, type: 'u16', source: 'header.resourceKind', constant: 3 }, { tag: 6, type: 'uuid', source: 'entryId' }, { tag: 7, type: 'u16', source: 'header.projectionKind', constant: 5 }, { tag: 8, type: 'u64', source: 'requestRevision' }, { tag: 9, type: 'u32', source: 'reasonKeyVersion' }, { tag: 10, type: 'u32', source: 'header.memberKeyGeneration' }, { tag: 12, type: 'uuid', source: 'grantRequestId' }, { tag: 13, type: 'uuid', source: 'agentId' }, { tag: 14, type: 'u16', source: 'requestedMethods' }, { tag: 17, type: 'u32', source: 'agentMessageKeyVersion' }, { tag: 18, type: 'bytes', source: 'recipientAgentMessageKeyFingerprint' }],
   'grant-payload': [...common, { tag: 3, type: 'u16', source: 'header.resourceKind', constant: 4 }, { tag: 6, type: 'uuid', source: 'entryId' }, { tag: 7, type: 'u16', source: 'header.projectionKind', constant: 6 }, { tag: 8, type: 'u64', source: 'grantEnvelopeRevision' }, { tag: 9, type: 'u32', source: 'grantKeyVersion' }, { tag: 10, type: 'u32', source: 'header.memberKeyGeneration' }, { tag: 11, type: 'uuid', source: 'grantId' }, { tag: 13, type: 'uuid', source: 'agentId' }, { tag: 14, type: 'u16', source: 'approvedMethods' }, { tag: 15, type: 'instant', source: 'expiresAt', optional: true }, { tag: 16, type: 'u32', source: 'useLimit', optional: true }, { tag: 17, type: 'u32', source: 'recipientAgentKeyVersion' }, { tag: 18, type: 'bytes', source: 'recipientAgentKeyFingerprint' }, { tag: 19, type: 'u64', source: 'entryRevision' }],
 }
@@ -90,13 +92,13 @@ export function assertEnvelopeBindings(profile: VaultAadProfile, context: VaultA
   encodeVaultAad(profile, context)
   const { header } = context
   const revisionSource: Partial<Record<VaultAadProfile, string>> = {
-    'member-vault-metadata': 'metadataRevision', 'member-index': 'memberIndexRevision', 'member-secret': 'revision', 'agent-discovery': 'agentDiscoveryRevision', 'entry-key-wrapper': 'wrapperRevision', 'vault-private-key': 'privateKeyRevision', 'encrypted-reason': 'requestRevision', 'grant-payload': 'grantEnvelopeRevision',
+    'member-vault-metadata': 'metadataRevision', 'member-index': 'memberIndexRevision', 'member-secret': 'revision', 'agent-discovery': 'agentDiscoveryRevision', 'entry-key-wrapper': 'wrapperRevision', 'vault-private-key': 'privateKeyRevision', 'vault-discovery-key': 'discoveryKeyRevision', 'encrypted-reason': 'requestRevision', 'grant-payload': 'grantEnvelopeRevision',
   }
   if (context[revisionSource[profile]!] !== header.resourceRevision) throw new Error('resource revision/header mismatch')
-  const keySource: Partial<Record<VaultAadProfile, string>> = { 'agent-discovery': 'vdkVersion', 'entry-key-wrapper': 'keyVersion', 'vault-private-key': 'privateKeyVersion', 'encrypted-reason': 'reasonKeyVersion', 'grant-payload': 'grantKeyVersion' }
+  const keySource: Partial<Record<VaultAadProfile, string>> = { 'agent-discovery': 'vdkVersion', 'entry-key-wrapper': 'keyVersion', 'vault-private-key': 'privateKeyVersion', 'vault-discovery-key': 'vdkVersion', 'encrypted-reason': 'reasonKeyVersion', 'grant-payload': 'grantKeyVersion' }
   const key = keySource[profile]
   if (key && context[key] !== header.keyVersion) throw new Error('key version/header mismatch')
-  if (profile === 'entry-key-wrapper' || profile === 'vault-private-key') {
+  if (profile === 'entry-key-wrapper' || profile === 'vault-private-key' || profile === 'vault-discovery-key') {
     if (context.memberKeyGeneration !== header.memberKeyGeneration) throw new Error('member generation/header mismatch')
   }
 }

@@ -27,7 +27,7 @@ import {
   useNotificationsSummary,
   useWebPush,
 } from '../features/notifications'
-import { MemberSyncProvider } from '../features/vaults'
+import { MemberSyncProvider, RotationProvider, useMemberSyncStore } from '../features/vaults'
 
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: ({ location }) => {
@@ -116,6 +116,7 @@ function AuthenticatedLayout() {
   const userId = useAuthStore((state) => state.userId)
   const memberPrivateKey = useAuthStore((state) => state.privateKey)
   const isVaultLocked = useAuthStore((state) => state.isVaultLocked)
+  const memberSyncStatus = useMemberSyncStore((state) => state.status)
 
   // Idle + absolute session timeout: locks the vault and drops the access token
   // when the user walks away, then routes to /unlock. No-op while locked.
@@ -157,6 +158,11 @@ function AuthenticatedLayout() {
       userId={userId}
       memberPrivateKey={memberPrivateKey}
     >
+      <RotationProvider
+        enabled={Boolean(accessToken) && !isVaultLocked && memberSyncStatus === 'ready'}
+        memberId={userId}
+        memberPrivateKey={memberPrivateKey}
+      >
       <SignalRProvider>
         <div
           className="flex h-screen overflow-hidden"
@@ -168,6 +174,7 @@ function AuthenticatedLayout() {
           </main>
         </div>
       </SignalRProvider>
+      </RotationProvider>
     </MemberSyncProvider>
   )
 }

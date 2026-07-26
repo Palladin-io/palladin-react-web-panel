@@ -1,8 +1,8 @@
-import { concatBytes, decodeBase64Url, encodeU16, encodeUtf8 } from './vault-v2-bytes'
+import { concatBytes, decodeBase64Url, encodeBase64Url, encodeU16, encodeUtf8 } from './vault-v2-bytes'
 import { loadSodium } from './sodium'
 import { VAULT_PROTOCOL_VERSION } from './vault-v2-protocol'
 
-type CanonicalJson = null | boolean | number | string | CanonicalJson[] | { [key: string]: CanonicalJson }
+export type CanonicalJson = null | boolean | number | string | CanonicalJson[] | { [key: string]: CanonicalJson }
 
 export function canonicalizeVaultJson(value: CanonicalJson): string {
   if (value === null || typeof value === 'boolean') return JSON.stringify(value)
@@ -26,4 +26,10 @@ export async function verifyVaultSignature(domainPrefix: string, unsignedObject:
   if (signatureBytes.length !== 64) throw new Error('Ed25519 signature must be 64 bytes')
   const sodium = await loadSodium()
   return sodium.crypto_sign_verify_detached(signatureBytes, vaultSignatureInput(domainPrefix, unsignedObject), publicKey)
+}
+
+export async function signVaultObject(domainPrefix: string, unsignedObject: CanonicalJson, privateKey: Uint8Array): Promise<string> {
+  if (privateKey.length !== 64) throw new Error('Ed25519 private key must be 64 bytes')
+  const sodium = await loadSodium()
+  return encodeBase64Url(sodium.crypto_sign_detached(vaultSignatureInput(domainPrefix, unsignedObject), privateKey))
 }

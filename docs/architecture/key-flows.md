@@ -13,7 +13,7 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 - EntryDEK and Vault private-key wrappers use the same authenticated envelope boundary; Member/Agent key packages use X25519 sealed boxes.
 - Vault manifests and encrypted reasons use canonical JSON plus domain-separated Ed25519 signatures.
 - Unknown protocol/suite values, non-canonical encodings, stale generations, substitution and authentication failures fail closed. Raw plaintext/key buffers are owned by the caller and must be wiped immediately after use.
-- Cross-language conformance tests read the canonical root fixture set pinned at root commit `355663cd9de57343160aed4ed633f7687a2fb647`; expected crypto bytes are not duplicated in this repository.
+- Cross-language conformance tests read the canonical root fixture set pinned at root epic commit `b370b56e4f65ecf5350bc4f9203fee6429572955`; expected crypto bytes are not duplicated in this repository.
 
 ## Protocol 2 Member sync
 
