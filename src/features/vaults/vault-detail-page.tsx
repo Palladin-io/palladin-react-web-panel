@@ -5,7 +5,6 @@ import { Button } from '../../shared/components/button'
 import { ErrorState } from '../../shared/components/error-state'
 import { ScrollArea } from '../../shared/components/scroll-area'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
-import { GrantAccessDialog, OrgGrantsPanel } from '../grants'
 import { CreateEntryModal } from './components/create-entry-modal'
 import { ExportDialog } from './components/export-dialog'
 import { VaultDetailHeader } from './components/vault-detail-header'
@@ -17,6 +16,7 @@ import { VaultDetailAuditLog } from './components/vault-detail-audit-log'
 import { VaultEntriesTab } from './components/vault-entries-tab'
 import { VaultListPanel } from './components/vault-list-panel'
 import { VaultSettingsForm } from './components/vault-settings-form'
+import { VaultAgentsTab } from './components/vault-agents-tab'
 import type { Vault } from './types'
 import { useVault } from './use-vault'
 
@@ -53,7 +53,6 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
   const [createEntryOpen, setCreateEntryOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
-  const [addAgentOpen, setAddAgentOpen] = useState(false)
   const isWide = useWideScreen()
 
   const vaultContent = vault.isPending ? (
@@ -70,7 +69,6 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
         onAddEntry={() => setCreateEntryOpen(true)}
         onImport={() => setImportOpen(true)}
         onExport={() => setExportOpen(true)}
-        onAddAgent={() => setAddAgentOpen(true)}
         showHeader={!isWide}
       />
       <CreateEntryModal
@@ -92,12 +90,6 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
         vaults={[{ id: vault.data.id, name: vault.data.name }]}
         onClose={() => setExportOpen(false)}
       />
-      {addAgentOpen && (
-        <GrantAccessDialog
-          mode={{ kind: 'agent-for-vault', vaultId: vault.data.id }}
-          onClose={() => setAddAgentOpen(false)}
-        />
-      )}
     </>
   )
 
@@ -131,7 +123,6 @@ interface DetailBodyProps {
   onAddEntry: () => void
   onImport: () => void
   onExport: () => void
-  onAddAgent: () => void
   showHeader?: boolean
 }
 
@@ -143,7 +134,6 @@ function DetailBody({
   onAddEntry,
   onImport,
   onExport,
-  onAddAgent,
   showHeader = true,
 }: DetailBodyProps) {
   const { t } = useTranslation()
@@ -162,7 +152,6 @@ function DetailBody({
               onAddEntry={onAddEntry}
               onImport={onImport}
               onExport={onExport}
-              onAddAgent={onAddAgent}
             />
           }
         />
@@ -177,7 +166,6 @@ function DetailBody({
               onAddEntry={onAddEntry}
               onImport={onImport}
               onExport={onExport}
-              onAddAgent={onAddAgent}
             />
           )
         }
@@ -201,10 +189,9 @@ interface TabActionsProps {
   onAddEntry: () => void
   onImport: () => void
   onExport: () => void
-  onAddAgent: () => void
 }
 
-function TabActions({ activeTab, onAddEntry, onImport, onExport, onAddAgent }: TabActionsProps) {
+function TabActions({ activeTab, onAddEntry, onImport, onExport }: TabActionsProps) {
   const { t } = useTranslation()
 
   switch (activeTab) {
@@ -222,12 +209,6 @@ function TabActions({ activeTab, onAddEntry, onImport, onExport, onAddAgent }: T
           </Button>
         </>
       )
-    case 'agents':
-      return (
-        <Button variant="accent" size="sm" icon="add" onClick={onAddAgent}>
-          {t('vault.detail.addAgent')}
-        </Button>
-      )
     default:
       return null
   }
@@ -244,7 +225,7 @@ function TabPanel({
     case 'entries':
       return <VaultEntriesTab vault={vault} />
     case 'agents':
-      return <AgentsTab vault={vault} />
+      return <VaultAgentsTab vaultId={vault.id} />
     case 'audit-log':
       return <VaultDetailAuditLog vaultId={vault.id} />
     case 'members':
@@ -254,12 +235,6 @@ function TabPanel({
     default:
       return null
   }
-}
-
-function AgentsTab({ vault }: { vault: Vault }) {
-  // Reuses the Approvals org-grants panel, scoped to this vault (FULL grants on
-  // the vault + GRANULAR grants on its entries) — one component, many locations.
-  return <OrgGrantsPanel vaultId={vault.id} />
 }
 
 function ComingSoonTab({ translationKey }: { translationKey: string }) {

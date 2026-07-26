@@ -15,6 +15,8 @@ Protocol 2 list/search data comes from `sync/`: after unlock, `MemberSyncProvide
 
 The Vault list and split-view list panel consume decrypted `MemberVaultMetadata` directly from the in-memory sync store and search names/descriptions locally. They expose locked, syncing, reset, partial-error and anonymous-corruption states without falling back to server-side name search. Remaining legacy entry/detail screens still consume the exported vault/entry queries (`useVault`, `useEntries`) until their individual protocol 2 migration tasks land. Entry rows and the entry-detail page own the decrypt-on-demand logic; create/edit flows follow the inline-edit and modal conventions.
 
+The Vault Detail Agents tab keeps encrypted Discovery provisioning separate from secret authorization. It lists active organization Agents as `current` or `pending` against the Vault's VDK/manifest epoch, identifies them by server-resolved name with a shortened opaque ID fallback, and explains that deactivated Agents are excluded from future Discovery updates. Scoped grant history remains visible below, including expired and revoked grants. This protocol 2 surface suppresses the legacy regrant action because an Agent must never receive a VK or EntryDEK; revocation remains available.
+
 ## Key patterns
 - **Zero-knowledge on-demand:** the vault key is unsealed and the entry decrypted only at reveal/open time; plaintext lives in component `useState` and never leaves memory.
 - **Bounded Member sync:** pages contain at most 200 items, responses fail above 4 MiB, projection work runs in chunks of 25 with at most four concurrent AEAD operations, and each chunk yields to the browser. The unlocked account index fails closed above 10,000 actual heads; it is never silently truncated.
