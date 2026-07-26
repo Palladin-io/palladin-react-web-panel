@@ -14,7 +14,7 @@ import {
   type MemberEntryListItem,
   type MemberEntrySort,
 } from '../sync/member-entry-list'
-import type { MemberEntryState } from '../sync/member-sync-store'
+import { useMemberSyncStore } from '../sync/member-sync-store'
 import { CreateEntryModal } from './create-entry-modal'
 import { EntryRow } from './entry-row'
 import { ScrollArea } from '../../../shared/components/scroll-area'
@@ -34,12 +34,19 @@ export interface VaultEntriesTabProps {
 export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
   const { t } = useTranslation()
   const [createOpen, setCreateOpen] = useState(false)
-  const [state, setState] = useState<MemberEntryState>('active')
   const [sort, setSort] = useState<MemberEntrySort>('name-asc')
 
-  // Persist search + scroll per vault so it survives navigating into an entry.
-  const { search, setSearch, scrollRef, onScroll } = usePersistedEntriesList(vault.id, true)
-  const entries = useMemberEntryList(vault.id, state, search, sort)
+  const hasMemberProjection = useMemberSyncStore((store) => store.vaults.has(vault.id))
+  // Persist list context per vault so it survives navigating into an entry.
+  const {
+    search,
+    setSearch,
+    scrollRef,
+    onScroll,
+    lifecycleState,
+    setLifecycleState,
+  } = usePersistedEntriesList(vault.id, hasMemberProjection)
+  const entries = useMemberEntryList(vault.id, lifecycleState, search, sort)
 
   if ((entries.status === 'idle' || entries.status === 'syncing') && entries.vaultStatus === null) {
     return <EntriesLoadingSkeleton />
@@ -86,10 +93,10 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
           {(['active', 'archived', 'deleted'] as const).map((value) => (
             <Button
               key={value}
-              variant={state === value ? 'subtle' : 'outline'}
+              variant={lifecycleState === value ? 'subtle' : 'outline'}
               size="sm"
-              aria-pressed={state === value}
-              onClick={() => setState(value)}
+              aria-pressed={lifecycleState === value}
+              onClick={() => setLifecycleState(value)}
             >
               {t(`vault.entries.state.${value}`)} ({entries.counts[value]})
             </Button>

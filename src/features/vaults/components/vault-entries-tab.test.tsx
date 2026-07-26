@@ -76,7 +76,7 @@ function publish(entries: MemberIndexRecord[]) {
 
 beforeEach(() => {
   useMemberSyncStore.getState().clear()
-  useEntriesListUi.setState({ search: {}, scrollTop: {} })
+  useEntriesListUi.setState({ search: {}, scrollTop: {}, lifecycleState: {} })
 })
 
 describe('VaultEntriesTab', () => {
