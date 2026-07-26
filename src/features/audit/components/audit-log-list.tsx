@@ -17,6 +17,8 @@ export interface AuditLogListProps {
   onLoadMore: () => void
   /** Resolve an agent id to a display name (falls back inside the row otherwise). */
   resolveAgentName?: (agentId: string) => string
+  /** Resolve an opaque entry id from client-only decrypted state. */
+  resolveEntryName?: (entryId: string) => string
   /** Resolve a vault id to a display name — drives the vault chip (global log only). */
   resolveVaultName?: (vaultId: string) => string | undefined
   /** Show the entry chip on each row — off when the entry is fixed (entry tab). */
@@ -45,6 +47,7 @@ export function AuditLogList({
   isFetchNextPageError = false,
   onLoadMore,
   resolveAgentName,
+  resolveEntryName,
   resolveVaultName,
   showEntry = true,
   showVault = false,
@@ -71,6 +74,7 @@ export function AuditLogList({
             agentName={
               item.agentId ? resolveAgentName?.(item.agentId) : undefined
             }
+            entryName={item.entryId ? resolveEntryName?.(item.entryId) : undefined}
             vaultName={item.vaultId ? resolveVaultName?.(item.vaultId) : undefined}
             showEntry={showEntry}
             showVault={showVault}

@@ -29,6 +29,7 @@ describe('AuditLogEntry', () => {
       <AuditLogEntry
         item={item({ metadata: { grantType: 'granular', method: 'get' } })}
         agentName="github-copilot"
+        entryName="Stripe API Key"
       />,
     )
     expect(
@@ -59,6 +60,7 @@ describe('AuditLogEntry', () => {
           agentId: null,
           actorName: 'Patryk',
         })}
+        entryName="Stripe API Key"
       />,
     )
     // actor (human) + action + bold object (entry name).
@@ -155,7 +157,12 @@ describe('AuditLogEntry', () => {
 
   it('hides the entry chip when showEntry is false', () => {
     render(
-      <AuditLogEntry item={item({})} agentName="copilot" showEntry={false} />,
+      <AuditLogEntry
+        item={item({})}
+        agentName="copilot"
+        entryName="Stripe API Key"
+        showEntry={false}
+      />,
     )
     // The entry name still appears in the sentence (bold), but not duplicated as
     // a standalone chip — so it occurs exactly once.
