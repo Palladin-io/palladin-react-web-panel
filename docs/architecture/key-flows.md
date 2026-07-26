@@ -13,7 +13,7 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 - EntryDEK and Vault private-key wrappers use the same authenticated envelope boundary; Member/Agent key packages use X25519 sealed boxes.
 - Vault manifests and encrypted reasons use canonical JSON plus domain-separated Ed25519 signatures.
 - Unknown protocol/suite values, non-canonical encodings, stale generations, substitution and authentication failures fail closed. Raw plaintext/key buffers are owned by the caller and must be wiped immediately after use.
-- Cross-language conformance tests read the canonical root fixture set pinned at root commit `355663cd9de57343160aed4ed633f7687a2fb647`; expected crypto bytes are not duplicated in this repository.
+- Cross-language conformance tests read the canonical root fixture set pinned at root epic commit `b370b56e4f65ecf5350bc4f9203fee6429572955`; expected crypto bytes are not duplicated in this repository.
 
 ## Protocol 2 Member sync
 
@@ -24,6 +24,16 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 5. Apply the closing delta to the pending namespace. Only then atomically swap it active and publish the normalized in-memory index.
 6. Apply later delta pages and their cursors in one IndexedDB transaction. A retention-floor reset builds another private namespace; tombstones remove entries.
 7. Lock, logout, abort, or provider teardown clears every decrypted projection from Zustand. Persistent storage contains ciphertext and structural cursors only.
+
+## Planned Vault key rotation
+
+1. After unlock, independently of transient Member-sync polling state, list pending rotations and claim one server lease with a fencing token. The current Vault generation remains usable throughout preparation.
+2. Open the current Member VK package and current VDK/private-key envelopes in memory. Generate missing target VK, VDK, Agent-message and manifest-signing seeds locally, then upload only authenticated pending envelopes. A resumed rotation opens the existing pending seed instead of creating another one.
+3. On every lease renewal, verify the rotation plan and decrypt/constant-time compare the server's pending seed with the in-memory target keys. A reset, replacement or stale generation fails closed before another batch is accepted.
+4. Read Members, Entry-key wrappers, Discovery projections and eligible Agents through deterministic pages of at most 100 items. Transform and submit one page at a time; renew the lease again after expensive cryptography and before submitting a batch, so neither the browser nor backend must retain the full Vault in memory.
+5. Submit the fenced atomic commit only after all required pending material is prepared. A dirty-set conflict triggers at most three complete bounded reconciliation passes; pending data never becomes partially current.
+6. Lock, logout, offline, hidden-page/navigation teardown or an abort stops the worker. Returning online/visible schedules one resume after in-flight cleanup rather than running concurrent workers.
+7. Every opened/generated VK, VDK, private seed, EntryDEK and plaintext projection is wiped in `finally`. Zustand rotation progress contains only phase, opaque IDs, item count and an allow-listed error code; keys, ciphertext, cursors and plaintext are never persisted there.
 
 ## Unlock Flow
 1. User enters master password.

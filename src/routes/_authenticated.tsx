@@ -27,7 +27,7 @@ import {
   useNotificationsSummary,
   useWebPush,
 } from '../features/notifications'
-import { MemberSyncProvider } from '../features/vaults'
+import { MemberSyncProvider, RotationProvider } from '../features/vaults'
 
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: ({ location }) => {
@@ -157,6 +157,11 @@ function AuthenticatedLayout() {
       userId={userId}
       memberPrivateKey={memberPrivateKey}
     >
+      <RotationProvider
+        enabled={Boolean(accessToken) && !isVaultLocked}
+        memberId={userId}
+        memberPrivateKey={memberPrivateKey}
+      >
       <SignalRProvider>
         <div
           className="flex h-screen overflow-hidden"
@@ -168,6 +173,7 @@ function AuthenticatedLayout() {
           </main>
         </div>
       </SignalRProvider>
+      </RotationProvider>
     </MemberSyncProvider>
   )
 }

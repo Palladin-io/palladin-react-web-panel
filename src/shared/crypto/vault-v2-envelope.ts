@@ -35,6 +35,7 @@ const maximumCiphertextBytes: Record<VaultAadProfile, number> = {
   'agent-discovery': 16_384,
   'entry-key-wrapper': 48,
   'vault-private-key': 4_096,
+  'vault-discovery-key': 256,
   'encrypted-reason': 4_096,
   'grant-payload': 262_144,
 }
@@ -70,19 +71,30 @@ export async function encryptVaultEnvelope(
   assertEnvelopeBindings(profile, context)
   const aad = encodeVaultAad(profile, context)
   const sodium = await loadSodium()
+  const message = sodium.from_base64(encodeBase64Url(plaintext), sodium.base64_variants.URLSAFE_NO_PADDING)
+  const authenticatedData = sodium.from_base64(encodeBase64Url(aad), sodium.base64_variants.URLSAFE_NO_PADDING)
+  const encryptionKey = sodium.from_base64(encodeBase64Url(key), sodium.base64_variants.URLSAFE_NO_PADDING)
   const nonce = sodium.randombytes_buf(sodium.crypto_aead_xchacha20poly1305_ietf_NPUBBYTES)
   try {
-    const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(plaintext, aad, null, nonce, key)
+    const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(message, authenticatedData, null, nonce, encryptionKey)
     return { nonce: encodeBase64Url(nonce), ciphertext: encodeBase64Url(ciphertext) }
   } finally {
-    wipe(nonce)
+    wipe(message); wipe(encryptionKey); wipe(authenticatedData); wipe(nonce)
   }
 }
 
 export async function sealVaultProtocolPackage(packageBytes: Uint8Array, recipientPublicKey: Uint8Array): Promise<Uint8Array> {
   if (packageBytes.length === 0 || packageBytes.length > MAXIMUM_SEALED_PACKAGE_PLAINTEXT_BYTES || recipientPublicKey.length !== 32) throw new Error('invalid Vault package or recipient key length')
   const sodium = await loadSodium()
-  return sodium.crypto_box_seal(packageBytes, recipientPublicKey)
+  // Normalize cross-realm typed arrays (e.g. Web Worker/jsdom boundaries)
+  // through libsodium before handling plaintext key packages.
+  const plaintext = sodium.from_base64(encodeBase64Url(packageBytes), sodium.base64_variants.URLSAFE_NO_PADDING)
+  const publicKey = sodium.from_base64(encodeBase64Url(recipientPublicKey), sodium.base64_variants.URLSAFE_NO_PADDING)
+  try {
+    return sodium.crypto_box_seal(plaintext, publicKey)
+  } finally {
+    wipe(plaintext)
+  }
 }
 
 export async function openVaultProtocolPackage(ciphertext: Uint8Array, recipientPublicKey: Uint8Array, recipientPrivateKey: Uint8Array): Promise<Uint8Array> {

@@ -71,5 +71,12 @@ export async function decryptWithKey(
  * is resistant to compiler dead-store elimination.
  */
 export function wipe(arr: Uint8Array): void {
-  sodium.memzero(arr)
+  try {
+    sodium.memzero(arr)
+  } catch {
+    // Vitest/jsdom may hand us a Uint8Array from a different JS realm, which
+    // libsodium rejects by constructor identity even though it is writable.
+    // Overwrite it directly rather than allowing cleanup to leave a secret.
+    arr.fill(0)
+  }
 }

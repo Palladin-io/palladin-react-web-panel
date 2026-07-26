@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Flamingo-Co/palladin
-          ref: 355663cd9de57343160aed4ed633f7687a2fb647
+          ref: b370b56e4f65ecf5350bc4f9203fee6429572955
           path: .contract-root
           token: ${{ env.CONTRACTS_TOKEN }}
       - name: Configure Vault protocol fixture path

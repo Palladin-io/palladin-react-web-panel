@@ -8,8 +8,8 @@ import { encodeVaultAad, type VaultAadContext, type VaultAadProfile } from './va
 import { canonicalizeVaultJson, verifyVaultSignature, vaultSignatureInput } from './vault-v2-signatures'
 import { loadSodium } from './sodium'
 
-const PINNED_ROOT_COMMIT = '355663cd9de57343160aed4ed633f7687a2fb647'
-const PINNED_MANIFEST_SHA256 = '9fe1868a8378fdf8922c8dd5c1c4c4bc29a5851914c644f8f4f5f2d1ac628762'
+const PINNED_ROOT_COMMIT = 'b370b56e4f65ecf5350bc4f9203fee6429572955'
+const PINNED_MANIFEST_SHA256 = '13c43defd459e95d50bf2f0a76a5a5446ca41903c36a38beef8b8af3aa208050'
 const monorepoFixtureRoot = resolve(process.cwd(), '../contracts/vault-v2/fixtures/v2')
 const fixtureRoot = process.env.PALLADIN_VAULT_V2_FIXTURES ?? (existsSync(monorepoFixtureRoot) ? monorepoFixtureRoot : undefined)
 
@@ -40,6 +40,7 @@ if (!fixtureRoot) {
 const aad = fixture<{ vectors: AadVector[] }>(fixtureRoot, 'vectors/aad.json')
 const keyDerivation = fixture<{ hkdfVectors: HkdfVector[] }>(fixtureRoot, 'vectors/key-derivation.json')
 const envelopes = fixture<{ aeadVectors: AeadVector[]; sealedBoxVectors: SealedVector[] }>(fixtureRoot, 'vectors/envelopes.json')
+const rotation = fixture<{ pendingAeadVectors: AeadVector[]; pendingSealedBoxVectors: SealedVector[] }>(fixtureRoot, 'vectors/rotation.json')
 const signatures = fixture<{ vectors: SignatureVector[] }>(fixtureRoot, 'vectors/signatures.json')
 const negatives = fixture<{ cases: Array<Record<string, unknown> & { id: string; sourceVector: string }> }>(fixtureRoot, 'negative/corruption.json')
 
@@ -81,6 +82,19 @@ describe('canonical Vault protocol 2 fixtures', () => {
   it.each(envelopes.aeadVectors)('decrypts authenticated $id envelope', async (vector) => {
     const plaintext = await decryptVaultEnvelope(vector.aadProfile, vector.envelope, decodeHex(vector.decryptionKeyHex), expectations(vector.envelope))
     expect(encodeHex(plaintext)).toBe(vector.plaintextHex)
+  })
+
+  it.each(rotation.pendingAeadVectors)('decrypts canonical pending $id rotation envelope', async (vector) => {
+    const plaintext = await decryptVaultEnvelope(vector.aadProfile, vector.envelope, decodeHex(vector.decryptionKeyHex), expectations(vector.envelope))
+    expect(encodeHex(plaintext)).toBe(vector.plaintextHex)
+  })
+
+  it.each(rotation.pendingSealedBoxVectors)('opens canonical pending $id rotation package', async (vector) => {
+    const ciphertext = vector.envelope.sealedVaultKeyPackage ?? vector.envelope.agentWrappedVdk
+    const plaintext = await openVaultProtocolPackage(
+      decodeBase64Url(ciphertext!), decodeHex(vector.recipientPublicKeyHex), decodeHex(vector.recipientPrivateKeyHex),
+    )
+    expect(new TextDecoder().decode(plaintext)).toBe(vector.plaintextCanonical)
   })
 
   it.each(envelopes.sealedBoxVectors)('opens $id sealed package', async (vector) => {
