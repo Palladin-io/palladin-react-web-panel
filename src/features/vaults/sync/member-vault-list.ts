@@ -21,13 +21,17 @@ function materialIconReference(reference: string | undefined): string | null {
   return reference.includes(':') ? null : reference
 }
 
+function safeVaultColor(color: string | undefined): string | null {
+  return color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null
+}
+
 export function buildMemberVaultList(vaults: ReadonlyMap<string, DecryptedMemberVault>): MemberVaultListItem[] {
   return Array.from(vaults.values(), (vault) => ({
     id: vault.vaultId,
     name: vault.metadata?.name ?? null,
     description: vault.metadata?.description ?? null,
     icon: materialIconReference(vault.metadata?.iconReference),
-    color: vault.metadata?.color ?? null,
+    color: safeVaultColor(vault.metadata?.color),
     createdAt: vault.structure.createdAt,
     updatedAt: vault.structure.updatedAt,
     entryCount: vault.structure.entryCount,

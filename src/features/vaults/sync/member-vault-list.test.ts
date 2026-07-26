@@ -71,6 +71,13 @@ describe('decrypted Member vault list', () => {
     })])
   })
 
+  it('rejects decrypted presentation colors that are not canonical hex', () => {
+    const unsafe = vault('vault-1', 'Personal')
+    unsafe.metadata = { ...unsafe.metadata!, color: 'url(https://example.test)' }
+
+    expect(buildMemberVaultList(new Map([['vault-1', unsafe]))[0].color).toBeNull()
+  })
+
   it('filters a large in-memory vault list within the render-search budget', () => {
     const source = new Map<string, DecryptedMemberVault>()
     for (let index = 0; index < 10_000; index += 1) {
