@@ -68,7 +68,6 @@ import { ScriptRefsEditor } from './components/script-refs-editor'
 import { SectionHeader } from './components/section-header'
 import { useDeleteEntry } from './use-delete-entry'
 import { useEntryDetail } from './use-entries'
-import { useEntryIconUpload } from './use-entry-icon-upload'
 import { useUpdateEntry } from './use-update-entry'
 import { useVault } from './use-vault'
 import type { UpdateEntryInput } from './use-update-entry'
@@ -347,7 +346,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [label, setLabel] = useState(entry.label)
   const [description, setDescription] = useState(entry.description ?? '')
   const [icon, setIcon] = useState<string | undefined>(entry.icon)
-  const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
   const [color, setColor] = useState<string>(
     entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#10B981' : '#60A5FA'))
   )
@@ -391,7 +389,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setLabel(entry.label)
     setDescription(entry.description ?? '')
     setIcon(entry.icon)
-    setPendingIconFile(null)
     setColor(
       entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#10B981' : '#60A5FA'))
     )
@@ -467,12 +464,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vault.wrappedVK, entry.id])
 
-  const iconUpload = useEntryIconUpload(vault.id, entry.id, (publicUrl) => {
-    setIcon(publicUrl)
-    setPendingIconFile(null)
-  })
-
-  const isSaving = update.isPending || iconUpload.isUploading
+  const isSaving = update.isPending
   const isRemoving = remove.isPending
 
   const defaultColor =
@@ -528,7 +520,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     if ((description.trim() || undefined) !== (entry.description ?? undefined)) return true
     if (icon !== entry.icon) return true
     if (color !== defaultColor) return true
-    if (pendingIconFile) return true
     // For KEY/SCRIPT the URL field feeds only `urlDomain` metadata (CREDENTIAL's
     // url lives in the blob and is covered by contentChanged).
     if (entry.type !== ENTRY_TYPE_CREDENTIAL) {
@@ -536,7 +527,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       if (url !== origKeyUrl) return true
     }
     return false
-  }, [label, description, icon, color, defaultColor, pendingIconFile, url, entry])
+  }, [label, description, icon, color, defaultColor, url, entry])
 
   const hasChanges = metadataChanged || contentChanged
 
@@ -545,7 +536,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setDescription(entry.description ?? '')
     setIcon(entry.icon)
     setColor(defaultColor)
-    setPendingIconFile(null)
     setUrlError(false)
     setScriptError(false)
     if (originalPlaintext) {
@@ -596,19 +586,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       }
     }
 
-    // Pending icon file → upload first, then PATCH metadata. Upload
-    // already PATCHes `icon`; only ship the remaining fields here so we
-    // don't overwrite the freshly-set URL. We trust the boolean return
-    // value rather than `iconUpload.error` — that field belongs to the
-    // captured render and stays `null` for the rest of this callback.
-    if (pendingIconFile) {
-      const uploaded = await iconUpload.upload(pendingIconFile)
-      if (!uploaded) {
-        toast.error(t('vault.iconUploadError.failed'))
-        return
-      }
-    }
-
     // Re-encrypt if the blob content changed. `currentPlaintext` rebuilds the
     // full plaintext (well-known + custom fields + script) from form state,
     // preserving fields this UI doesn't expose.
@@ -639,7 +616,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     const patch = buildPatch({
       label,
       description,
-      icon: pendingIconFile ? undefined : icon,
+      icon,
       color,
       defaultColor,
       entry,
@@ -702,9 +679,8 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   icon={icon}
                   color={color}
                   type={entry.type}
-                  onChange={(next) => { setIcon(next); setPendingIconFile(null) }}
+                  onChange={setIcon}
                   onColorChange={setColor}
-                  onFileSelected={(file, previewUrl) => { setPendingIconFile(file); setIcon(previewUrl) }}
                   disabled={isSaving}
                 />
                 <div className="min-w-0 flex-1">

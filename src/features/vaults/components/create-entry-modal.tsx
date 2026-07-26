@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
@@ -37,12 +36,8 @@ import { ScriptExecHint } from './script-exec-hint'
 import { ScriptRefsEditor } from './script-refs-editor'
 import { SectionHeader } from './section-header'
 import { useCreateEntry } from '../use-create-entry'
-import { entriesQueryKey } from '../use-entries'
-import { extensionFromMime } from '../use-vault-icon-upload'
-import { presignEntryIcon, updateEntry, uploadToS3 } from '../api/vault-api'
 import { extractDomain, openExternalUrl } from './entry-presentation'
 import { defaultColorFor, defaultIconFor } from './entry-presentation'
-import { resolveFavicon } from '../api/vault-api'
 import { FormSelect } from '../../../shared/components/form-select'
 import { ModalShell } from '../../../shared/components/modal-shell'
 
@@ -70,14 +65,12 @@ interface CreateEntryModalBodyProps {
 function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const { t } = useTranslation()
   const create = useCreateEntry()
-  const queryClient = useQueryClient()
 
   const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
   const [color, setColor] = useState(defaultColorFor(ENTRY_TYPE_KEY))
   // Pre-select the type's default glyph so a tile is always visibly chosen;
-  // switching type follows along until the user (or a favicon) picks something.
+  // switching type follows along until the user picks a local icon.
   const [icon, setIcon] = useState<string | undefined>(defaultIconFor(ENTRY_TYPE_KEY))
-  const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
   const [label, setLabel] = useState('')
   const [labelError, setLabelError] = useState(false)
   const [description, setDescription] = useState('')
@@ -98,26 +91,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [scriptError, setScriptError] = useState(false)
   const [interpreter, setInterpreter] = useState<ScriptInterpreter>('bash')
   const [refs, setRefs] = useState<ScriptRef[]>([])
-  // Favicon suggestion: auto-fills the icon from the typed domain unless the
-  // user picked one themselves; a manual pick always wins.
   const [iconTouched, setIconTouched] = useState(false)
-
-  useEffect(() => {
-    const domain = extractDomain(url)
-    // Wait for a plausible full domain — mid-typing values ("https", "gith")
-    // would fire pointless resolve calls.
-    if (!domain || !domain.includes('.') || iconTouched) return
-    let cancelled = false
-    const handle = setTimeout(async () => {
-      const favicon = await resolveFavicon(domain)
-      // iconTouched guards manual picks; a favicon may replace the type default.
-      if (favicon && !cancelled) setIcon(favicon)
-    }, 500)
-    return () => {
-      cancelled = true
-      clearTimeout(handle)
-    }
-  }, [url, iconTouched])
 
   useEffect(() => {
     analytics.capture('vault', 'create-entry-wizard-opened')
@@ -176,9 +150,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         wrappedVK: vault.wrappedVK,
         label: label.trim(),
         description: description.trim() || undefined,
-        // Custom image uploaded after creation — send no icon so the list
-        // uses the type default until the PATCH lands.
-        icon: pendingIconFile ? undefined : icon,
+        icon,
         color,
         type,
         payload,
@@ -186,18 +158,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         agentFields: agentFieldsFrom(allFields),
       },
       {
-        onSuccess: async (data) => {
-          if (pendingIconFile) {
-            try {
-              const ext = extensionFromMime(pendingIconFile.type)
-              const { uploadUrl, publicUrl } = await presignEntryIcon(vault.id, data.id, ext)
-              await uploadToS3(uploadUrl, pendingIconFile)
-              await updateEntry(vault.id, data.id, { icon: publicUrl })
-              queryClient.invalidateQueries({ queryKey: entriesQueryKey(vault.id) })
-            } catch {
-              // Icon upload failed — entry was created, proceed without custom icon
-            }
-          }
+        onSuccess: () => {
           analytics.capture('vault', 'create-entry-wizard-completed', { type })
           toast.success(t('vault.entries.createSuccess'))
           onClose()
@@ -290,9 +251,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 icon={icon}
                 color={color}
                 type={type}
-                onChange={(next) => { setIcon(next); setPendingIconFile(null); setIconTouched(true) }}
+                onChange={(next) => { setIcon(next); setIconTouched(true) }}
                 onColorChange={(next) => { setColor(next); setIconTouched(true) }}
-                onFileSelected={(file, previewUrl) => { setPendingIconFile(file); setIcon(previewUrl); setIconTouched(true) }}
                 disabled={isPending}
               />
               <div className="min-w-0 flex-1">

@@ -27,7 +27,6 @@ const {
   useEntryDetailMock,
   updateMutateMock,
   deleteMutateMock,
-  iconUploadMock,
   navigateMock,
   toastSuccess,
   toastError,
@@ -37,14 +36,12 @@ const {
   useEntryDetailMock: vi.fn(),
   updateMutateMock: vi.fn(),
   deleteMutateMock: vi.fn(),
-  iconUploadMock: vi.fn(async () => true),
   navigateMock: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   state: {
     updateIsPending: false,
     deleteIsPending: false,
-    iconIsUploading: false,
     decryptResult: null as EntryPlaintextLite | null,
     decryptShouldThrow: false,
   },
@@ -94,17 +91,6 @@ vi.mock('./use-delete-entry', () => ({
     get isPending() {
       return state.deleteIsPending
     },
-  }),
-}))
-
-vi.mock('./use-entry-icon-upload', () => ({
-  useEntryIconUpload: () => ({
-    upload: iconUploadMock,
-    get isUploading() {
-      return state.iconIsUploading
-    },
-    state: 'idle',
-    error: null,
   }),
 }))
 
@@ -218,14 +204,11 @@ describe('EntryDetailPage — DetailsTab', () => {
     useEntryDetailMock.mockReset()
     updateMutateMock.mockReset()
     deleteMutateMock.mockReset()
-    iconUploadMock.mockReset()
-    iconUploadMock.mockResolvedValue(true)
     navigateMock.mockReset()
     toastSuccess.mockReset()
     toastError.mockReset()
     state.updateIsPending = false
     state.deleteIsPending = false
-    state.iconIsUploading = false
     state.decryptResult = null
     state.decryptShouldThrow = false
     useAuthStore.setState({ privateKey: null, isVaultLocked: true })

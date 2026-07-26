@@ -20,6 +20,8 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 
 - Versioned envelopes use XChaCha20-Poly1305 with canonical projection-specific TLV AAD. Protocol, suite, tenant, Vault, Entry, revision, key version and member generation are authenticated before plaintext is returned.
 - Member projections derive isolated 32-byte keys with HKDF-SHA-256: MemberVaultMetadata from VK, MemberIndex/MemberSecret from EntryDEK and AgentDiscovery from VDK.
+- Presentation assets use the same `encrypted-asset` HKDF purpose for both clients: Vault icons derive from VK and Entry icons derive from EntryDEK. The immutable `PLDNV2AS` binary container carries only protocol/key-generation metadata, target IDs, a fresh XChaCha20-Poly1305 nonce and ciphertext. Its AAD binds organization, Vault, asset, optional Entry, media-type enum, key version and Member generation. The API receives only the opaque container plus its SHA-256 digest.
+- Asset downloads are bounded by the server-declared ciphertext length, digest-checked before decryption and image-decoded locally for type/dimension validation. Decrypted object URLs are short-lived and revoked on scope change, lock or unmount. Remote favicon/domain enrichment is not part of protocol 2.
 - EntryDEK and Vault private-key wrappers use the same authenticated envelope boundary; Member/Agent key packages use X25519 sealed boxes.
 - Vault manifests and encrypted reasons use canonical JSON plus domain-separated Ed25519 signatures.
 - Unknown protocol/suite values, non-canonical encodings, stale generations, substitution and authentication failures fail closed. Raw plaintext/key buffers are owned by the caller and must be wiped immediately after use.

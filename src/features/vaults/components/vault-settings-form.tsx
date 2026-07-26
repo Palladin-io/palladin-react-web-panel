@@ -154,7 +154,6 @@ export function VaultSettingsForm({
               onColorChange={setColor}
               selectedColor={color}
               disabled={isPending}
-              vaultId={vault.id}
               rowClassName="grid grid-cols-5 gap-1.5 justify-items-center"
             />
           </div>

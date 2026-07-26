@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
-import { useVaultIconUpload } from '../use-vault-icon-upload'
 import { hexWithAlpha } from './vault-color'
 import { IconColorBrowser } from './vault-icon-browser'
 import { VAULT_ICON_ALL, VAULT_ICON_COLORS, VAULT_ICON_OPTIONS } from './vault-presentation'
@@ -13,8 +12,6 @@ export interface VaultIconPickerProps {
   onColorChange?: (color: string) => void
   selectedColor?: string
   disabled?: boolean
-  /** Edit mode: enables upload + immediate S3 upload tied to this vault. */
-  vaultId?: string
   /**
    * Create mode: called with the selected File and a local blob preview URL.
    * The caller is responsible for uploading the file after the vault is created.
@@ -28,7 +25,7 @@ export interface VaultIconPickerProps {
 }
 
 function isCustomUrl(value: string) {
-  return value.startsWith('https://') || value.startsWith('blob:')
+  return value.startsWith('blob:')
 }
 
 export function VaultIconPicker({
@@ -37,18 +34,12 @@ export function VaultIconPicker({
   onColorChange,
   selectedColor = '#EB4747',
   disabled = false,
-  vaultId,
   onFileSelected,
   rowClassName = 'flex flex-wrap gap-2',
 }: VaultIconPickerProps) {
   const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showBrowser, setShowBrowser] = useState(false)
-
-  const { upload, isUploading, error } = useVaultIconUpload(
-    vaultId ?? '',
-    (publicUrl) => onChange(publicUrl),
-  )
 
   const isFromBrowser =
     !isCustomUrl(value) && !(VAULT_ICON_OPTIONS as readonly string[]).includes(value)
@@ -116,7 +107,7 @@ export function VaultIconPicker({
         </button>
       </div>
 
-      {(vaultId || onFileSelected) && (
+      {onFileSelected && (
         <>
           <input
             ref={fileInputRef}
@@ -126,12 +117,8 @@ export function VaultIconPicker({
             onChange={(e) => {
               const file = e.target.files?.[0]
               if (file) {
-                if (vaultId) {
-                  upload(file)
-                } else if (onFileSelected) {
-                  const previewUrl = URL.createObjectURL(file)
-                  onFileSelected(file, previewUrl)
-                }
+                const previewUrl = URL.createObjectURL(file)
+                onFileSelected(file, previewUrl)
               }
               e.target.value = ''
             }}
@@ -139,24 +126,16 @@ export function VaultIconPicker({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={disabled || isUploading}
+            disabled={disabled}
             className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border
               border-dashed border-[var(--cv-input-border)] px-3 py-2.5 text-meta
               text-[var(--cv-t3)] transition-colors hover:border-[var(--cv-t1)]
               hover:text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isUploading ? (
-              <Icon name="progress_activity" size={13} />
-            ) : (
-              <Icon name="upload" size={13} />
-            )}
+            <Icon name="upload" size={13} />
             <span>{isCustomUrl(value) ? t('vault.iconChange') : t('vault.iconUpload')}</span>
           </button>
         </>
-      )}
-
-      {error && (
-        <p className="mt-1.5 text-meta text-red-400">{error}</p>
       )}
 
       <IconColorBrowser
