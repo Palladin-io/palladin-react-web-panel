@@ -10,7 +10,36 @@ vi.mock('../../../shared/api/client', () => ({
   api: { get: getFn, post: postFn },
 }))
 
-import { getAllEntries, getCanonicalEntry, getEntryHistory, importEntries, restoreCanonicalEntry } from './vault-api'
+import { getAllEntries, getCanonicalEntry, getEntryHistory, getRecentlyDeletedEntries, importEntries, restoreCanonicalEntry } from './vault-api'
+
+describe('getRecentlyDeletedEntries', () => {
+  const organizationId = '00112233-4455-4677-8899-aabbccddeeff'
+  const vaultId = '11112233-4455-4677-8899-aabbccddeeff'
+  const entryId = '22222233-4455-4677-8899-aabbccddeeff'
+  const item = {
+    id: entryId, state: 'deleted', currentRevision: '5', updatedAt: '2026-07-26T00:00:00Z',
+    archivedAt: null, deletedAt: '2026-07-26T00:00:00Z', retentionExpiresAt: '2026-08-25T00:00:00Z',
+    memberIndex: { organizationId, vaultId, entryId, memberIndexRevision: '5',
+      header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 2,
+        resourceRevision: '5', keyVersion: 1, memberKeyGeneration: 1, nonce: 'nonce' }, ciphertext: 'cipher' },
+  }
+
+  it('validates the authoritative deadline and sends a bounded page request', async () => {
+    getJson.mockResolvedValueOnce({ items: [item], nextCursor: 'next' })
+    const page = await getRecentlyDeletedEntries(vaultId, 'cursor')
+    expect(page.items[0].retentionExpiresAt).toBe('2026-08-25T00:00:00Z')
+    expect(getFn).toHaveBeenCalledWith(expect.stringContaining('/recently-deleted'), {
+      searchParams: { pageSize: '100', cursor: 'cursor' },
+    })
+  })
+
+  it('fails closed when an encrypted index belongs to another Vault', async () => {
+    getJson.mockResolvedValueOnce({ items: [{ ...item, memberIndex: {
+      ...item.memberIndex, vaultId: '33332233-4455-4677-8899-aabbccddeeff',
+    } }], nextCursor: null })
+    await expect(getRecentlyDeletedEntries(vaultId)).rejects.toThrow('scope mismatch')
+  })
+})
 
 describe('getEntryHistory', () => {
   const organizationId = '00112233-4455-4677-8899-aabbccddeeff'

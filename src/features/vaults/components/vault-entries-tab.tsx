@@ -22,6 +22,8 @@ import { ScrollArea } from '../../../shared/components/scroll-area'
 import { SearchBar } from '../../../shared/components/search-bar'
 import { EntryIcon } from './entry-icon'
 import { useRestoreArchivedEntries } from '../use-restore-archived-entries'
+import { useDestroyEntry, useRecentlyDeletedEntries } from '../use-recently-deleted-entries'
+import { DestroyEntryDialog } from './destroy-entry-dialog'
 
 export interface VaultEntriesTabProps {
   vault: Vault
@@ -38,7 +40,9 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
   const [createOpen, setCreateOpen] = useState(false)
   const [sort, setSort] = useState<MemberEntrySort>('name-asc')
   const [selectedArchived, setSelectedArchived] = useState<Set<string>>(new Set())
+  const [destroyCandidate, setDestroyCandidate] = useState<MemberEntryListItem | null>(null)
   const restore = useRestoreArchivedEntries(vault.id)
+  const destroy = useDestroyEntry(vault.id)
 
   const hasMemberProjection = useMemberSyncStore((store) => store.vaults.has(vault.id))
   // Persist list context per vault so it survives navigating into an entry.
@@ -51,6 +55,21 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
     setLifecycleState,
   } = usePersistedEntriesList(vault.id, hasMemberProjection)
   const entries = useMemberEntryList(vault.id, lifecycleState, search, sort)
+  const recentlyDeleted = useRecentlyDeletedEntries(vault.id, lifecycleState === 'deleted')
+  const deletedMetadata = new Map(
+    recentlyDeleted.data?.pages.flatMap((page) => page.items).map((item) => [item.id, item]) ?? [],
+  )
+  const localDeletedById = new Map(entries.items.map((entry) => [entry.id, entry]))
+  const visibleEntries = lifecycleState === 'deleted'
+    ? [...deletedMetadata.keys()].flatMap((entryId): MemberEntryListItem[] => {
+        const local = localDeletedById.get(entryId)
+        if (local) return [local]
+        // A missing or unauthenticated local projection must not hide an
+        // authoritative retained row. Show only a shortened opaque identifier.
+        return search ? [] : [{ id: entryId, state: 'deleted', label: shortenKey(entryId), type: 1,
+          icon: null, searchFields: [], currentRevision: '0', corrupt: true }]
+      })
+    : entries.items
   const restorableArchived = entries.items.filter((entry) => entry.state === 'archived' && !entry.corrupt)
 
   const restoreEntries = async (entryIds: string[]) => {
@@ -61,6 +80,17 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
       if (result.failed.length > 0) toast.error(t('vault.entries.restoreFailed', { count: result.failed.length }))
     } catch {
       toast.error(t('vault.entries.restoreFailed', { count: entryIds.length }))
+    }
+  }
+
+  const destroyEntry = async () => {
+    if (!destroyCandidate) return
+    try {
+      await destroy.mutateAsync(destroyCandidate.id)
+      toast.success(t('vault.entries.destroySuccess'))
+      setDestroyCandidate(null)
+    } catch {
+      toast.error(t('vault.entries.destroyFailed'))
     }
   }
 
@@ -160,14 +190,18 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
       ) : null}
 
       <ScrollArea scrollRef={scrollRef} onScroll={onScroll}>
-        {entries.items.length === 0 ? (
+        {lifecycleState === 'deleted' && recentlyDeleted.isLoading ? (
+          <EntriesLoadingSkeleton />
+        ) : lifecycleState === 'deleted' && recentlyDeleted.isError ? (
+          <ErrorState message={t('vault.entries.deletedLoadError')} onRetry={() => recentlyDeleted.refetch()} />
+        ) : visibleEntries.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
             bg-[var(--cv-empty-bg)] p-6 text-center text-ui text-[var(--cv-t3)]">
             {t('vault.entries.emptySearch')}
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {entries.items.map((entry) => entry.state === 'active' && !entry.corrupt ? (
+            {visibleEntries.map((entry) => entry.state === 'active' && !entry.corrupt ? (
               <EntryRow
                 key={entry.id}
                 vaultId={vault.id}
@@ -189,6 +223,7 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
                 entry={entry}
                 selected={selectedArchived.has(entry.id)}
                 restoring={restore.isPending}
+                retentionExpiresAt={deletedMetadata.get(entry.id)?.retentionExpiresAt}
                 onSelected={(selected) => setSelectedArchived((current) => {
                   const next = new Set(current)
                   if (selected) next.add(entry.id)
@@ -196,8 +231,19 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
                   return next
                 })}
                 onRestore={() => restoreEntries([entry.id])}
+                onDestroy={() => setDestroyCandidate(entry)}
               />
             ))}
+            {lifecycleState === 'deleted' && recentlyDeleted.hasNextPage ? (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={recentlyDeleted.isFetchingNextPage}
+                onClick={() => recentlyDeleted.fetchNextPage()}
+              >
+                {recentlyDeleted.isFetchingNextPage ? t('vault.entries.loadingMore') : t('vault.entries.loadMore')}
+              </Button>
+            ) : null}
           </div>
         )}
       </ScrollArea>
@@ -207,19 +253,29 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
         vault={vault}
         onClose={() => setCreateOpen(false)}
       />
+      {destroyCandidate ? (
+        <DestroyEntryDialog
+          entryName={destroyCandidate.label}
+          isPending={destroy.isPending}
+          onCancel={() => setDestroyCandidate(null)}
+          onConfirm={destroyEntry}
+        />
+      ) : null}
     </div>
   )
 }
 
-function LifecycleEntryRow({ vaultId, entry, selected, restoring, onSelected, onRestore }: {
+function LifecycleEntryRow({ vaultId, entry, selected, restoring, retentionExpiresAt, onSelected, onRestore, onDestroy }: {
   vaultId: string
   entry: MemberEntryListItem
   selected: boolean
   restoring: boolean
+  retentionExpiresAt?: string
   onSelected: (selected: boolean) => void
   onRestore: () => void
+  onDestroy: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const content = (
     <>
       <EntryIcon icon={entry.icon ?? undefined} type={entry.type} />
@@ -228,7 +284,12 @@ function LifecycleEntryRow({ vaultId, entry, selected, restoring, onSelected, on
         <p className="text-meta text-[var(--cv-t3)]">
           {entry.corrupt
             ? t('vault.entries.corrupt', { id: shortenKey(entry.id) })
-            : t(`vault.entries.stateDescription.${entry.state}`)}
+            : entry.state === 'deleted' && retentionExpiresAt
+              ? t('vault.entries.retentionDeadline', {
+                  date: new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' })
+                    .format(new Date(retentionExpiresAt)),
+                })
+              : t(`vault.entries.stateDescription.${entry.state}`)}
         </p>
       </div>
     </>
@@ -238,10 +299,16 @@ function LifecycleEntryRow({ vaultId, entry, selected, restoring, onSelected, on
   if (entry.corrupt) return (
     <div className={staticClasses}>{content}</div>
   )
-  if (entry.state !== 'archived') return (
-    <Link to="/vaults/$vaultId/entries/$entryId" params={{ vaultId, entryId: entry.id }} className={interactiveClasses}>
+  if (entry.state === 'deleted') return (
+    <div className={`${interactiveClasses} cursor-default`}>
       {content}
-    </Link>
+      <Button variant="outline" size="sm" icon="restore" disabled={restoring} onClick={onRestore}>
+        {t('vault.entries.restore')}
+      </Button>
+      <Button variant="danger" size="sm" icon="delete" disabled={restoring} onClick={onDestroy}>
+        {t('vault.entries.destroy')}
+      </Button>
+    </div>
   )
   return (
     <div className={`${interactiveClasses} cursor-default`}>

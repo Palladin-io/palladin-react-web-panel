@@ -8,6 +8,7 @@ import { useEntriesListUi } from '../use-entries-list-ui'
 import { VaultEntriesTab } from './vault-entries-tab'
 
 const restoreMutate = vi.hoisted(() => vi.fn())
+const destroyMutate = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to, ...rest }: { children: ReactNode; to: string } & AnchorHTMLAttributes<HTMLAnchorElement>) => (
@@ -23,6 +24,14 @@ vi.mock('./entry-row', () => ({
 }))
 vi.mock('../use-restore-archived-entries', () => ({
   useRestoreArchivedEntries: () => ({ mutateAsync: restoreMutate, isPending: false }),
+}))
+vi.mock('../use-recently-deleted-entries', () => ({
+  useRecentlyDeletedEntries: (_vaultId: string, enabled: boolean) => ({
+    data: enabled ? { pages: [{ items: [{ id: 'entry-c', retentionExpiresAt: '2026-08-25T12:00:00Z' }] }] } : undefined,
+    isLoading: false, isError: false, hasNextPage: false, isFetchingNextPage: false,
+    fetchNextPage: vi.fn(), refetch: vi.fn(),
+  }),
+  useDestroyEntry: () => ({ mutateAsync: destroyMutate, isPending: false }),
 }))
 
 const VAULT: Vault = {
@@ -83,7 +92,9 @@ beforeEach(() => {
   useMemberSyncStore.getState().clear()
   useEntriesListUi.setState({ search: {}, scrollTop: {}, lifecycleState: {} })
   restoreMutate.mockReset()
+  destroyMutate.mockReset()
   restoreMutate.mockResolvedValue({ restored: [], failed: [] })
+  destroyMutate.mockResolvedValue(undefined)
 })
 
 describe('VaultEntriesTab', () => {
@@ -127,7 +138,21 @@ describe('VaultEntriesTab', () => {
 
     await user.click(screen.getByRole('button', { name: /Recently Deleted \(1\)/ }))
     expect(screen.getByText('Deleted item')).toBeInTheDocument()
-    expect(screen.getByText(/recoverable during retention/i)).toBeInTheDocument()
+    expect(screen.getByText(/permanently deleted after/i)).toBeInTheDocument()
+  })
+
+  it('requires explicit confirmation before permanently deleting an Entry', async () => {
+    const user = userEvent.setup()
+    publish([record('entry-c', 'Deleted item', 'deleted')])
+    render(<VaultEntriesTab vault={VAULT} />)
+
+    await user.click(screen.getByRole('button', { name: /Recently Deleted \(1\)/ }))
+    await user.click(screen.getByRole('button', { name: 'Delete permanently' }))
+    expect(destroyMutate).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog', { name: /Permanently delete/ })).toBeInTheDocument()
+
+    await user.click(screen.getAllByRole('button', { name: 'Delete permanently' })[1])
+    expect(destroyMutate).toHaveBeenCalledWith('entry-c')
   })
 
   it('restores one or selected Archived Entries through the lifecycle mutation', async () => {

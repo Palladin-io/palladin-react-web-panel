@@ -184,6 +184,29 @@ const restoreEntryResponseSchema = z.object({
   currentRevision: canonicalU64Schema,
 }).strict()
 
+const recentlyDeletedEntrySchema = z.object({
+  id: canonicalUuidSchema,
+  state: z.union([z.literal('deleted'), z.literal(3)]),
+  currentRevision: canonicalU64Schema,
+  updatedAt: z.string().datetime({ offset: true }),
+  archivedAt: z.string().datetime({ offset: true }).nullable(),
+  deletedAt: z.string().datetime({ offset: true }),
+  retentionExpiresAt: z.string().datetime({ offset: true }),
+  memberIndex: memberIndexEnvelopeSchema,
+}).strict().superRefine((item, context) => {
+  if (item.memberIndex.entryId !== item.id) {
+    context.addIssue({ code: 'custom', message: 'Recently Deleted Entry scope mismatch' })
+  }
+})
+
+const recentlyDeletedResponseSchema = z.object({
+  items: z.array(recentlyDeletedEntrySchema),
+  nextCursor: z.string().nullable(),
+}).strict()
+
+export type RecentlyDeletedEntry = z.infer<typeof recentlyDeletedEntrySchema>
+export type RecentlyDeletedResponse = z.infer<typeof recentlyDeletedResponseSchema>
+
 const actorTypeSchema = z.union([
   z.enum(['member', 'agent', 'system']), z.literal(1), z.literal(2), z.literal(3),
 ]).transform((actor) => typeof actor === 'number'
@@ -261,6 +284,25 @@ export async function restoreCanonicalEntry(
 ): Promise<{ state: 'active' | 1; currentRevision: string }> {
   const raw = await api.post(`api/vaults/${vaultId}/entries/${entryId}/restore`, { json: material }).json()
   return restoreEntryResponseSchema.parse(raw)
+}
+
+export async function getRecentlyDeletedEntries(
+  vaultId: string,
+  cursor?: string,
+): Promise<RecentlyDeletedResponse> {
+  const raw = await api.get(`api/vaults/${vaultId}/entries/recently-deleted`, {
+    searchParams: { pageSize: '100', ...(cursor ? { cursor } : {}) },
+  }).json()
+  const page = recentlyDeletedResponseSchema.parse(raw)
+  if (page.items.some((item) => item.memberIndex.vaultId !== vaultId)) {
+    throw new Error('Recently Deleted response scope mismatch')
+  }
+  return page
+}
+
+/** Irreversible, server-transactional purge. Missing Entries are a successful no-op. */
+export async function destroyCanonicalEntry(vaultId: string, entryId: string): Promise<void> {
+  await api.post(`api/vaults/${vaultId}/entries/${entryId}/destroy`)
 }
 
 export function createEntry(

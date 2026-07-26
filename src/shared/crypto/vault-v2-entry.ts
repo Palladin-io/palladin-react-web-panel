@@ -495,7 +495,10 @@ export async function createEntryRestoreMaterial(
   vdkVersion: number,
   discoveryKey: Uint8Array,
 ): Promise<EntryLifecycleMaterial> {
-  if (detail.state !== 'archived' && detail.state !== 2) throw new Error('Only an Archived Entry can be restored here')
+  if (detail.state !== 'archived' && detail.state !== 2
+    && detail.state !== 'deleted' && detail.state !== 3) {
+    throw new Error('Only an Archived or Deleted Entry can be restored here')
+  }
   const projections = buildEntryProjections({
     memberLabel: plaintext.memberLabel,
     agentLabel: plaintext.agentLabel,
