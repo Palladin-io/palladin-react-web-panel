@@ -5,15 +5,17 @@ import { useTranslation } from 'react-i18next'
 import { AuthSubmitButton } from '../../shared/components/auth-submit-button'
 import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { analytics } from '../../shared/lib/analytics'
-import { useAuthStore } from '../auth'
+import {
+  IdentityKdfMigrationStep,
+  useAuthStore,
+  useIdentityKdfMigration,
+} from '../auth'
 import { clearPushTokenOnLogout } from '../notifications'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../shared/api/account-api'
 import { OnboardingWizard } from '../onboarding'
 import { IncorrectMasterPasswordError, useUnlock } from './use-unlock'
 import { generateAccountSecret } from '../../shared/crypto/identity-kdf'
 import { wipe } from '../../shared/crypto/sodium'
-import { useIdentityKdfMigration } from '../auth/hooks/use-identity-kdf-migration'
-import { IdentityKdfMigrationStep } from '../auth/components/identity-kdf-migration-step'
 
 /**
  * Entry point for any vault-locked state. Decides what to show:

@@ -17,10 +17,10 @@ export function IdentityKdfMigrationStep({
   const { t } = useTranslation()
   return (
     <div className="text-left">
-      <h1 className="mb-1 text-display font-bold text-[#E8EAED]">
+      <h1 className="mb-1 text-display font-bold text-[var(--cv-t1)]">
         {t('accountSecret.upgradeTitle')}
       </h1>
-      <p className="mb-6 text-heading-sm text-[#6B7A8E]">
+      <p className="mb-6 text-heading-sm text-[var(--cv-t3)]">
         {t('accountSecret.upgradeSubtitle')}
       </p>
       <AccountSecretDisplay

@@ -40,10 +40,10 @@ export function AccountSecretDisplay({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-[rgba(232,234,237,0.12)] bg-[rgba(232,234,237,0.04)] p-4">
+      <div className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
         <code
           data-testid="account-secret"
-          className="block break-all text-ui leading-6 text-[#E8EAED]"
+          className="block break-all text-ui leading-6 text-[var(--cv-t1)]"
         >
           {encoded}
         </code>
@@ -53,20 +53,22 @@ export function AccountSecretDisplay({
         <button
           type="button"
           onClick={() => void copy()}
-          className="rounded-lg border border-[rgba(232,234,237,0.14)] px-3 py-2.5 text-ui text-[#E8EAED]"
+          className="rounded-lg border border-[var(--cv-btn-outline-border)] px-3 py-2.5 text-ui
+            text-[var(--cv-btn-outline-text)] transition-colors hover:bg-[var(--cv-btn-outline-hover)]"
         >
           {copied ? t('accountSecret.copied') : t('accountSecret.copy')}
         </button>
         <button
           type="button"
           onClick={download}
-          className="rounded-lg border border-[rgba(232,234,237,0.14)] px-3 py-2.5 text-ui text-[#E8EAED]"
+          className="rounded-lg border border-[var(--cv-btn-outline-border)] px-3 py-2.5 text-ui
+            text-[var(--cv-btn-outline-text)] transition-colors hover:bg-[var(--cv-btn-outline-hover)]"
         >
           {t('accountSecret.download')}
         </button>
       </div>
 
-      <label className="flex cursor-pointer items-start gap-3 text-ui text-[#AAB2BF]">
+      <label className="flex cursor-pointer items-start gap-3 text-ui text-[var(--cv-t2)]">
         <input
           type="checkbox"
           checked={saved}
