@@ -75,7 +75,7 @@ describe('decrypted Member vault list', () => {
     const unsafe = vault('vault-1', 'Personal')
     unsafe.metadata = { ...unsafe.metadata!, color: 'url(https://example.test)' }
 
-    expect(buildMemberVaultList(new Map([['vault-1', unsafe]))[0].color).toBeNull()
+    expect(buildMemberVaultList(new Map([['vault-1', unsafe]]))[0].color).toBeNull()
   })
 
   it('filters a large in-memory vault list within the render-search budget', () => {
