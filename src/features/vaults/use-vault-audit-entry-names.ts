@@ -1,10 +1,16 @@
 import { useCallback, useMemo } from 'react'
 import { shortenKey } from '../../shared/lib/shorten-key'
-import type { AuditLogItem } from '../audit'
 import { useMemberSyncStore } from './sync/member-sync-store'
 
+interface OpaqueEntryReference {
+  entryId?: string | null
+}
+
 /** Resolve opaque audit entry ids from the unlocked, in-memory member index. */
-export function useVaultAuditEntryNames(vaultId: string, items: AuditLogItem[]) {
+export function useVaultAuditEntryNames(
+  vaultId: string,
+  items: ReadonlyArray<OpaqueEntryReference>,
+) {
   const vault = useMemberSyncStore((state) => state.vaults.get(vaultId))
 
   const entryNameById = useMemo(() => {

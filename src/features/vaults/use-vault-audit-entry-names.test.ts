@@ -1,12 +1,11 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { AuditLogItem } from '../audit'
 import { useMemberSyncStore, type MemberIndexRecord } from './sync/member-sync-store'
 import { useVaultAuditEntryNames } from './use-vault-audit-entry-names'
 
 const vaultId = '22222222-2222-4222-8222-222222222222'
 const entryId = '33333333-3333-4333-8333-333333333333'
-const item = { entryId } as AuditLogItem
+const item = { entryId }
 
 beforeEach(() => useMemberSyncStore.getState().clear())
 
