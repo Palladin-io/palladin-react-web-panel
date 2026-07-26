@@ -105,9 +105,11 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
 
     // The agent's full public key only comes from the single-agent endpoint.
     let agentPublicKey: string | null | undefined
+    let recipientAgentKeyVersion: number | null | undefined
     try {
       const agent = await getAgent(subject.agentId)
       agentPublicKey = agent.publicKey
+      recipientAgentKeyVersion = agent.recipientKeyVersion
     } catch {
       toast.error(t('grants.create.error'))
       return
@@ -118,6 +120,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         vaultId: subject.vaultId,
         agentId: subject.agentId,
         agentPublicKey,
+        recipientAgentKeyVersion,
         type: subject.type,
         entryId: subject.entryId,
         policy: grantPolicyToBody(policyInput),

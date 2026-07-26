@@ -57,3 +57,9 @@ export function serializeGrantMethods(methods: GrantMethod[]): string {
     .map((m) => pascal[m])
     .join(', ')
 }
+
+/** Frozen AAD uses the backend flags value as an unsigned 16-bit integer. */
+export function grantMethodsMask(methods: readonly GrantMethod[]): number {
+  const bits: Record<GrantMethod, number> = { get: 1, exec: 2, inject: 4 }
+  return GRANT_METHODS.reduce((value, method) => value | (methods.includes(method) ? bits[method] : 0), 0)
+}

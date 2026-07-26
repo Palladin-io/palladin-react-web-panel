@@ -40,6 +40,7 @@ const pendingGrantSchema = z.object({
   revokeReason: z.string().nullable().optional(),
   // Not yet returned by the endpoint — optional until the backend adds it.
   agentPublicKey: z.string().nullable().optional(),
+  recipientAgentKeyVersion: z.number().int().positive().max(0xffffffff).nullable().optional(),
 })
 
 export type PendingGrant = z.infer<typeof pendingGrantSchema>

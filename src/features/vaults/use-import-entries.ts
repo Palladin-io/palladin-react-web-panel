@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
 import { encryptEntry } from '../../shared/crypto/entry-crypto'
-import { produceGrantEntryEnvelope } from '../../shared/crypto/grant-envelope'
 import { wipe } from '../../shared/crypto/sodium'
 import { unsealVaultKey } from '../../shared/crypto/vault-key'
 import { useAuthStore } from '../auth'
@@ -127,12 +126,10 @@ function toPlaintext(entry: ParsedEntry): EntryPlaintext {
  * cap, and overwrites go out as individual PUTs. The VK is wiped in `finally`
  * regardless of outcome.
  *
- * FULL-grant re-wrap: the backend requires each created entry to carry re-wrap
- * material for every ACTIVE FULL grant on the vault. We fetch those grants once,
- * then for each new entry produce a fresh DEK-sealed envelope per grant (keyed
- * by `grantId`). Overwrites go through the existing entry-update endpoint, which
- * re-wraps server-side. Same crypto as the single-grant flow — delegated to
- * `shared/crypto/grant-envelope`.
+ * Protocol 2 requires exact canonical envelopes for every ACTIVE FULL grant.
+ * This legacy importer cannot derive those envelopes from its old plaintext
+ * model, so it checks grant coverage before opening keys and fails closed when
+ * any such grant exists. The canonical import migration owns that follow-up.
  */
 export function useImportEntries() {
   const queryClient = useQueryClient()
@@ -145,13 +142,18 @@ export function useImportEntries() {
 
       const total = input.creates.length + input.overwrites.length
 
-      // Fetch the vault's active FULL grants ONCE — every new entry must be
-      // re-wrapped for each of them (empty list = no grants, still valid).
+      // Fetch active FULL grants once before opening keys. An empty list is valid.
       let fullGrants
       try {
         fullGrants = await collectActiveFullGrants(input.vaultId)
       } catch (error) {
         throw new ImportStepError('grants', error)
+      }
+      if (fullGrants.length > 0) {
+        // This legacy importer cannot construct protocol-2 MemberSecret/AAD material. Refuse the
+        // import instead of producing legacy ciphertext or committing Entries without exact FULL
+        // grant refreshes. The canonical importer task replaces this boundary.
+        throw new ImportStepError('grants', new MissingWrappedVaultKeyError())
       }
 
       const vaultKey = await unsealVaultKey(input.wrappedVK, privateKey)
@@ -162,15 +164,7 @@ export function useImportEntries() {
           let encrypted = 0
           for (const entry of input.creates) {
             const content = await encryptEntry(toPlaintext(entry), vaultKey)
-            const grantEntries = []
-            for (const grant of fullGrants) {
-              const envelope = await produceGrantEntryEnvelope({
-                entryContent: content,
-                vaultKey,
-                agentPublicKey: grant.agentPublicKey,
-              })
-              grantEntries.push({ grantId: grant.grantId, ...envelope })
-            }
+            const grantEntries: ImportEntryItem['grantEntries'] = []
             items.push({
               label: cap(entry.label, MAX_LABEL_LENGTH),
               type: entry.type,

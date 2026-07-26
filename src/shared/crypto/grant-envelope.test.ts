@@ -1,102 +1,111 @@
 import { describe, expect, it } from 'vitest'
-import { fromBase64, toBase64 } from './encoding'
-import { produceGrantEntryEnvelope } from './grant-envelope'
+import { ENTRY_TYPE_CREDENTIAL } from '../../features/vaults/types'
+import { toBase64 } from './encoding'
+import { buildGrantPayload, produceGrantEntryEnvelope } from './grant-envelope'
+import { decodeBase64Url } from './vault-v2-bytes'
+import { encodeVaultAad } from './vault-v2-protocol'
 import { loadSodium } from './sodium'
 
-/**
- * Wrap TextEncoder output in a fresh Uint8Array — in jsdom it can be a Buffer,
- * which fails libsodium's strict `instanceof Uint8Array` check (same workaround
- * documented in entry-crypto.ts). Production never hits this: it feeds libsodium
- * bytes from `fromBase64`, which already returns a plain Uint8Array.
- */
-function encode(text: string): Uint8Array {
-  return new Uint8Array(new TextEncoder().encode(text))
+const memberSecret = {
+  schemaVersion: 1 as const,
+  memberLabel: 'Private label',
+  agentLabel: 'Work login',
+  entryType: ENTRY_TYPE_CREDENTIAL,
+  content: {
+    type: ENTRY_TYPE_CREDENTIAL,
+    username: 'octocat',
+    password: 'secret',
+    url: 'https://github.com/login',
+    totp: 'otpauth://totp/example?secret=ABC',
+    notes: 'member only',
+  },
+  agentVisibilityPolicy: {
+    discoverable: true,
+    fields: {
+      agentLabel: 'discovery' as const,
+      username: 'discovery' as const,
+      password: 'onGrantValue' as const,
+      url: 'onGrantValue' as const,
+      totp: 'onGrantDerived' as const,
+      notes: 'never' as const,
+    },
+  },
 }
 
-/**
- * Round-trip test: the web client (producer) builds a grant envelope, and we
- * decrypt it exactly as the MCP agent (consumer) would. This is the byte-compat
- * guarantee — if the producer ever drifts from the agent's `crypto_box_seal_open`
- * + `crypto_secretbox_open_easy` expectations, this test fails.
- */
+const scope = {
+  organizationId: '11111111-1111-4111-8111-111111111111',
+  vaultId: '22222222-2222-4222-8222-222222222222',
+  grantId: '33333333-3333-4333-8333-333333333333',
+  agentId: '44444444-4444-4444-8444-444444444444',
+  entryId: '55555555-5555-4555-8555-555555555555',
+  entryRevision: '7',
+  grantEnvelopeRevision: '2',
+  grantKeyVersion: 2,
+  memberKeyGeneration: 3,
+  recipientAgentKeyVersion: 4,
+  approvedMethods: 6,
+  remainingUses: 5,
+}
+
 describe('produceGrantEntryEnvelope', () => {
-  it('produces an envelope the agent can decrypt back to the original plaintext', async () => {
+  it('round-trips the filtered canonical payload with the frozen AAD', async () => {
     const sodium = await loadSodium()
-
-    // --- Setup: a Vault Key, an entry sealed under it, and an agent keypair ---
-    const vaultKey = sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES)
-    const plaintext = encode(
-      JSON.stringify({ type: 0, value: 'super-secret-token', notes: 'prod' }),
-    )
-    const vkNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES)
-    const sealedBlob = sodium.crypto_secretbox_easy(plaintext, vkNonce, vaultKey)
-    const entryContent = {
-      encryptedBlob: toBase64(sealedBlob),
-      nonce: toBase64(vkNonce),
-    }
-
-    const agentKeypair = sodium.crypto_box_keypair()
-    const agentPublicKey = toBase64(agentKeypair.publicKey)
-
-    // --- Producer (web client) ---
+    const agent = sodium.crypto_box_keypair()
     const envelope = await produceGrantEntryEnvelope({
-      entryContent,
-      vaultKey,
-      agentPublicKey,
+      memberSecret,
+      scope,
+      agentPublicKey: toBase64(agent.publicKey),
     })
-
-    // --- Consumer (MCP agent) ---
-    const dek = sodium.crypto_box_seal_open(
-      fromBase64(envelope.agentWrappedDek),
-      agentKeypair.publicKey,
-      agentKeypair.privateKey,
+    const grantDek = sodium.crypto_box_seal_open(
+      decodeBase64Url(envelope.agentWrappedGrantDek),
+      agent.publicKey,
+      agent.privateKey,
     )
-    const recovered = sodium.crypto_secretbox_open_easy(
-      fromBase64(envelope.reEncryptedBlob),
-      fromBase64(envelope.nonce),
-      dek,
+    const context = {
+      ...scope,
+      useLimit: scope.remainingUses,
+      recipientAgentKeyFingerprint: envelope.agentKeyFingerprint,
+      header: {
+        protocolVersion: 2,
+        algorithmSuite: 1,
+        resourceKind: 4,
+        projectionKind: 6,
+        resourceRevision: scope.grantEnvelopeRevision,
+        keyVersion: scope.grantKeyVersion,
+        memberKeyGeneration: scope.memberKeyGeneration,
+        nonce: envelope.nonce,
+      },
+    }
+    const recovered = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
+      null,
+      decodeBase64Url(envelope.ciphertext),
+      encodeVaultAad('grant-payload', context),
+      decodeBase64Url(envelope.nonce),
+      grantDek,
     )
-
-    expect(new TextDecoder().decode(recovered)).toBe(
-      new TextDecoder().decode(plaintext),
-    )
+    const payload = JSON.parse(new TextDecoder().decode(recovered))
+    expect(payload.fields).toEqual({
+      password: { access: 'onGrantValue', value: 'secret' },
+      totp: { access: 'onGrantDerived', value: 'otpauth://totp/example?secret=ABC' },
+      url: { access: 'onGrantValue', value: 'https://github.com/login' },
+    })
+    expect(JSON.stringify(payload)).not.toContain('member only')
+    expect(JSON.stringify(payload)).not.toContain('Private label')
   })
 
-  it('uses a fresh DEK + nonce per call (no reuse)', async () => {
+  it('uses a fresh GrantDEK and nonce for every revision envelope', async () => {
     const sodium = await loadSodium()
-    const vaultKey = sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES)
-    const plaintext = encode('same-input')
-    const vkNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES)
-    const entryContent = {
-      encryptedBlob: toBase64(sodium.crypto_secretbox_easy(plaintext, vkNonce, vaultKey)),
-      nonce: toBase64(vkNonce),
-    }
     const agentPublicKey = toBase64(sodium.crypto_box_keypair().publicKey)
-
-    const a = await produceGrantEntryEnvelope({ entryContent, vaultKey, agentPublicKey })
-    const b = await produceGrantEntryEnvelope({ entryContent, vaultKey, agentPublicKey })
-
-    // Different nonce and different ciphertext/wrapped DEK each time.
-    expect(a.nonce).not.toBe(b.nonce)
-    expect(a.reEncryptedBlob).not.toBe(b.reEncryptedBlob)
-    expect(a.agentWrappedDek).not.toBe(b.agentWrappedDek)
+    const first = await produceGrantEntryEnvelope({ memberSecret, scope, agentPublicKey })
+    const second = await produceGrantEntryEnvelope({ memberSecret, scope, agentPublicKey })
+    expect(first.nonce).not.toBe(second.nonce)
+    expect(first.ciphertext).not.toBe(second.ciphertext)
+    expect(first.agentWrappedGrantDek).not.toBe(second.agentWrappedGrantDek)
   })
 
-  it('throws when the entry content cannot be decrypted with the given VK', async () => {
-    const sodium = await loadSodium()
-    const realVk = sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES)
-    const wrongVk = sodium.randombytes_buf(sodium.crypto_secretbox_KEYBYTES)
-    const vkNonce = sodium.randombytes_buf(sodium.crypto_secretbox_NONCEBYTES)
-    const entryContent = {
-      encryptedBlob: toBase64(
-        sodium.crypto_secretbox_easy(encode('x'), vkNonce, realVk),
-      ),
-      nonce: toBase64(vkNonce),
-    }
-    const agentPublicKey = toBase64(sodium.crypto_box_keypair().publicKey)
-
-    await expect(
-      produceGrantEntryEnvelope({ entryContent, vaultKey: wrongVk, agentPublicKey }),
-    ).rejects.toBeDefined()
+  it('fails closed when a concrete grant attempts to exceed policy', () => {
+    expect(() => buildGrantPayload(memberSecret, ['password', 'notes'])).toThrow(
+      'exceeds Agent Visibility Policy',
+    )
   })
 })
