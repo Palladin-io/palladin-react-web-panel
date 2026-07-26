@@ -1,5 +1,15 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import type { EncryptedVaultSummary } from './member-sync-api'
 import { searchMemberIndex, useMemberSyncStore, type MemberIndexRecord } from './member-sync-store'
+
+const structure = {
+  isDefault: false,
+  createdAt: '2026-07-01T00:00:00Z',
+  updatedAt: '2026-07-02T00:00:00Z',
+  memberCount: 2,
+  entryCount: 10_000,
+  activeGrantCount: 1,
+}
 
 describe('in-memory Member index search', () => {
   beforeEach(() => useMemberSyncStore.getState().clear())
@@ -16,7 +26,7 @@ describe('in-memory Member index search', () => {
     }
     useMemberSyncStore.getState().publishVault({
       vaultId: '22222222-2222-4222-8222-222222222222', metadata: { name: 'Vault' }, entries,
-      appliedThroughSequence: '1', status: 'ready',
+      structure, appliedThroughSequence: '1', status: 'ready',
     })
 
     const started = performance.now()
@@ -35,7 +45,7 @@ describe('in-memory Member index search', () => {
     }
     useMemberSyncStore.getState().publishVault({
       vaultId: '22222222-2222-4222-8222-222222222222', metadata: { name: 'Vault' },
-      entries: new Map([[original.entryId, original]]), appliedThroughSequence: '1', status: 'ready',
+      structure, entries: new Map([[original.entryId, original]]), appliedThroughSequence: '1', status: 'ready',
     })
     const optimistic = { ...original, memberIndexRevision: '3', currentRevision: '3', payload: { ...original.payload!, memberLabel: 'Optimistic' } }
 
@@ -43,5 +53,65 @@ describe('in-memory Member index search', () => {
     useMemberSyncStore.getState().reconcileEntry('22222222-2222-4222-8222-222222222222', { ...original, memberIndexRevision: '2' })
 
     expect(searchMemberIndex('optimistic')[0]?.memberIndexRevision).toBe('3')
+  })
+
+  it('clears all decrypted presentation state on lock', () => {
+    useMemberSyncStore.getState().publishVault({
+      vaultId: '22222222-2222-4222-8222-222222222222',
+      metadata: { name: 'Private vault' },
+      structure,
+      entries: new Map(),
+      appliedThroughSequence: '1',
+      status: 'ready',
+    })
+
+    useMemberSyncStore.getState().clear()
+
+    expect(useMemberSyncStore.getState().status).toBe('idle')
+    expect(useMemberSyncStore.getState().vaults.size).toBe(0)
+  })
+
+  it('marks a retained vault as resetting without discarding its complete view', () => {
+    useMemberSyncStore.getState().publishVault({
+      vaultId: '22222222-2222-4222-8222-222222222222',
+      metadata: { name: 'Private vault' },
+      structure,
+      entries: new Map(),
+      appliedThroughSequence: '1',
+      status: 'ready',
+    })
+
+    useMemberSyncStore.getState().resetVault('22222222-2222-4222-8222-222222222222')
+
+    expect(useMemberSyncStore.getState().vaults.get('22222222-2222-4222-8222-222222222222')).toMatchObject({
+      metadata: { name: 'Private vault' },
+      status: 'resetting',
+    })
+  })
+
+  it('creates an anonymous corrupt row when metadata cannot be decrypted', () => {
+    useMemberSyncStore.getState().failVault({
+      id: '22222222-2222-4222-8222-222222222222',
+      memberSequence: '7',
+      ...structure,
+    } as unknown as EncryptedVaultSummary)
+
+    expect(useMemberSyncStore.getState().vaults.get('22222222-2222-4222-8222-222222222222')).toMatchObject({
+      metadata: null,
+      entries: new Map(),
+      appliedThroughSequence: '7',
+      status: 'error',
+    })
+  })
+
+  it('signals retries with a monotonic generation', () => {
+    useMemberSyncStore.getState().fail()
+
+    useMemberSyncStore.getState().retry()
+
+    expect(useMemberSyncStore.getState()).toMatchObject({
+      retryGeneration: 1,
+      error: 'member-sync-failed',
+    })
   })
 })

@@ -10,7 +10,7 @@ import {
   type MemberSyncItem,
 } from './member-sync-api'
 import type { MemberSyncCache } from './member-sync-cache'
-import { useMemberSyncStore, type MemberIndexRecord } from './member-sync-store'
+import { memberVaultStructure, useMemberSyncStore, type MemberIndexRecord } from './member-sync-store'
 
 const CACHE_PAGE_ITEMS = 100
 const PROJECTION_CHUNK_ITEMS = 25
@@ -97,7 +97,7 @@ export class MemberSyncEngine {
         } catch (error) {
           if (signal.aborted) throw error
           failures += 1
-          useMemberSyncStore.getState().failVault(vault.id)
+          useMemberSyncStore.getState().failVault(vault)
           projectionBudget.count = publishedEntryCount()
         }
       }
@@ -154,6 +154,7 @@ export class MemberSyncEngine {
       } catch (error) {
         if (!(error instanceof MemberSyncResetRequiredError)) throw error
         projectionBudget.count = budgetBeforeVault
+        useMemberSyncStore.getState().resetVault(vault.id)
         await this.rebuildSnapshot(userId, vault, vaultKey, metadata, projectionBudget, signal)
       }
     } catch (error) {
@@ -236,7 +237,7 @@ export class MemberSyncEngine {
     const appliedThrough = await this.applyPendingDelta(userId, vault, namespace, vaultKey, entries, baseSequence, projectionBudget, signal)
     await this.cache.completeSnapshot(userId, vault, namespace, appliedThrough)
     assertNotAborted(signal)
-    this.publish(vault.id, metadata, entries, appliedThrough, 'ready')
+    this.publish(vault, metadata, entries, appliedThrough, 'ready')
   }
 
   private async applyPendingDelta(
@@ -286,7 +287,7 @@ export class MemberSyncEngine {
       appliedThrough = page.appliedThroughSequence
       continuation = page.continuationCursor
       assertNotAborted(signal)
-      this.publish(vault.id, metadata, entries, appliedThrough, continuation ? 'syncing' : 'ready')
+      this.publish(vault, metadata, entries, appliedThrough, continuation ? 'syncing' : 'ready')
     } while (continuation)
   }
 
@@ -384,15 +385,16 @@ export class MemberSyncEngine {
   }
 
   private publish(
-    vaultId: string,
+    vault: EncryptedVaultSummary,
     metadata: Awaited<ReturnType<typeof decryptMemberVaultMetadata>>,
     entries: Map<string, MemberIndexRecord>,
     appliedThroughSequence: string,
     status: 'syncing' | 'ready',
   ): void {
     useMemberSyncStore.getState().publishVault({
-      vaultId,
+      vaultId: vault.id,
       metadata,
+      structure: memberVaultStructure(vault),
       entries: new Map(entries),
       appliedThroughSequence,
       status,
