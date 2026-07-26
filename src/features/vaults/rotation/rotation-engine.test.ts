@@ -95,4 +95,27 @@ describe('VaultRotationEngine', () => {
     expect(mocks.commitRotation).not.toHaveBeenCalled()
     for (const secret of Object.values(generated)) expect(Array.from(secret).every((value) => value === 0)).toBe(true)
   })
+
+  it('verifies an existing seed when claimant lookup renews the lease', async () => {
+    const vaultKeyRotation = {
+      ...rotation,
+      scope: ['VaultKey'],
+      targetMemberKeyGeneration: 5,
+      targetKeyEpoch: { ...rotation.targetKeyEpoch, vaultKeyVersion: 4 },
+    }
+    const pendingMemberVaultKey = { ...currentMemberVaultKey, memberKeyGeneration: 5, vkVersion: 4 }
+    const resumedClaim = { ...baseClaim, rotation: vaultKeyRotation, pendingMemberVaultKey }
+    vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValue(60_000)
+    mocks.listPendingRotations.mockResolvedValue([vaultKeyRotation])
+    mocks.claimRotation
+      .mockResolvedValueOnce(resumedClaim)
+      .mockResolvedValueOnce({ ...resumedClaim, preparedMaterialReset: true,
+        fencingToken: '44444444-4444-4444-8444-444444444444' })
+
+    await expect(new VaultRotationEngine().run(currentMemberVaultKey.memberId, new Uint8Array(32), new AbortController().signal))
+      .rejects.toThrow('rotation-seed-reset')
+
+    expect(mocks.getRotationMembers).not.toHaveBeenCalled()
+    expect(mocks.prepareRotationBatch).not.toHaveBeenCalled()
+  })
 })

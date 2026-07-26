@@ -201,7 +201,7 @@ export class VaultRotationEngine {
     try {
       progress('seeding', rotation)
       if (isScope(rotation, 'VaultKey')) {
-        const self = await this.findMember(rotation, lease, memberId, signal)
+        const self = await this.findMember(rotation, lease, memberId, seedEstablished, signal)
         const selfEnvelope = await sealMemberVaultKey(self, {
           organizationId: lease.claim.currentMemberVaultKey.organizationId, vaultId: rotation.vaultId,
           vkVersion: rotation.targetKeyEpoch.vaultKeyVersion, memberKeyGeneration: rotation.targetMemberKeyGeneration,
@@ -229,10 +229,10 @@ export class VaultRotationEngine {
     } finally { secrets.destroy() }
   }
 
-  private async findMember(rotation: VaultRotation, lease: RotationLease, memberId: string, signal: AbortSignal) {
+  private async findMember(rotation: VaultRotation, lease: RotationLease, memberId: string, seedEstablished: boolean, signal: AbortSignal) {
     let cursor: string | null = null
     do {
-      await lease.renewIfNeeded(false)
+      await lease.renewIfNeeded(seedEstablished)
       const page = await getRotationMembers(rotation.vaultId, rotation.id, lease.token, cursor, signal)
       const self = page.items.find((item) => item.memberId === memberId)
       if (self) return self
