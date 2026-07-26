@@ -10,12 +10,16 @@ import { CreateVaultDialog } from './create-vault-dialog'
 // through the real crypto + HTTP stack.
 const mutateMock = vi.fn()
 let isPending = false
+let pendingInput: { name: string; description?: string; icon?: string; color?: string } | null = null
 
 vi.mock('../use-create-vault', () => ({
   useCreateVault: () => ({
     mutate: mutateMock,
     get isPending() {
       return isPending
+    },
+    get pendingInput() {
+      return pendingInput
     },
   }),
 }))
@@ -47,6 +51,7 @@ describe('CreateVaultDialog', () => {
     mutateMock.mockReset()
     toastError.mockReset()
     isPending = false
+    pendingInput = null
   })
 
   it('renders nothing when closed', () => {
@@ -76,6 +81,23 @@ describe('CreateVaultDialog', () => {
     render(<CreateVaultDialog open={true} onClose={vi.fn()} />, { wrapper })
 
     await user.type(screen.getByLabelText(/vault name/i), 'Production')
+    expect(screen.getByRole('button', { name: /^create vault$/i })).toBeEnabled()
+  })
+
+  it('restores and freezes fields while an ambiguous attempt awaits retry', () => {
+    pendingInput = {
+      name: 'Production',
+      description: 'Primary',
+      icon: 'shield',
+      color: 'red',
+    }
+
+    render(<CreateVaultDialog open={true} onClose={vi.fn()} />, { wrapper })
+
+    expect(screen.getByLabelText(/vault name/i)).toHaveValue('Production')
+    expect(screen.getByLabelText(/vault name/i)).toBeDisabled()
+    expect(screen.getByLabelText(/description/i)).toBeDisabled()
+    expect(screen.getByText(/previous result is still unknown/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^create vault$/i })).toBeEnabled()
   })
 

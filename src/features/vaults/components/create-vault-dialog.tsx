@@ -40,10 +40,10 @@ function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
   const { t } = useTranslation()
   const create = useCreateVault()
 
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [icon, setIcon] = useState<string>(DEFAULT_VAULT_ICON)
-  const [color, setColor] = useState<string>(DEFAULT_VAULT_COLOR)
+  const [name, setName] = useState(create.pendingInput?.name ?? '')
+  const [description, setDescription] = useState(create.pendingInput?.description ?? '')
+  const [icon, setIcon] = useState<string>(create.pendingInput?.icon ?? DEFAULT_VAULT_ICON)
+  const [color, setColor] = useState<string>(create.pendingInput?.color ?? DEFAULT_VAULT_COLOR)
 
   // Mount-only side effect: emit analytics for "wizard opened". The form
   // reset that used to live here is now implicit — opening the dialog
@@ -53,6 +53,7 @@ function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
   }, [])
 
   const isPending = create.isPending
+  const isRetryLocked = create.pendingInput !== null
   const trimmedName = name.trim()
   const canSubmit = trimmedName.length > 0 && !isPending
 
@@ -105,7 +106,7 @@ function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
           onChange={(e) => setName(e.target.value)}
           placeholder={t('vault.namePlaceholder')}
           autoFocus
-          disabled={isPending}
+          disabled={isPending || isRetryLocked}
           maxLength={64}
         />
 
@@ -115,7 +116,7 @@ function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder={t('vault.descriptionPlaceholder')}
-          disabled={isPending}
+          disabled={isPending || isRetryLocked}
           rows={2}
           maxLength={500}
         />
@@ -125,12 +126,12 @@ function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
           onChange={setIcon}
           onColorChange={setColor}
           selectedColor={color}
-          disabled={isPending}
+          disabled={isPending || isRetryLocked}
           rowClassName="flex justify-between"
         />
 
         <p className="text-meta text-[var(--cv-t3)]">
-          {t('vault.discoveryPolicyDefault')}
+          {isRetryLocked ? t('vault.pendingCreateRetry') : t('vault.discoveryPolicyDefault')}
         </p>
       </form>
     </ModalShell>

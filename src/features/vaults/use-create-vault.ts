@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
 import { createInitialVaultMaterial } from '../../shared/crypto/vault-v2-creation'
@@ -26,11 +26,36 @@ export class VaultLockedError extends Error {
   }
 }
 
+interface PendingVaultCreationAttempt {
+  input: CreateVaultInput
+  payload: CreateVaultPayload
+}
+
+// Ciphertext-only state deliberately lives in module memory: it survives a dialog
+// remount, but never enters persistent browser storage and disappears with the tab.
+const pendingAttempts = new Map<string, PendingVaultCreationAttempt>()
+
+function sessionKey(organizationId: string, memberId: string): string {
+  return `${organizationId}:${memberId}`
+}
+
+function currentSessionKey(): string | null {
+  const auth = useAuthStore.getState()
+  if (!auth.userId || !auth.accessToken) return null
+  const organizationId = parseJwtPayload(auth.accessToken)['org_id']
+  return typeof organizationId === 'string' ? sessionKey(organizationId, auth.userId) : null
+}
+
 export function useCreateVault() {
   const queryClient = useQueryClient()
-  const pendingAttempt = useRef<CreateVaultPayload | null>(null)
+  const [pendingInput, setPendingInput] = useState<CreateVaultInput | null>(
+    () => {
+      const key = currentSessionKey()
+      return key ? pendingAttempts.get(key)?.input ?? null : null
+    },
+  )
 
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: async (input: CreateVaultInput) => {
       // Read the private key inside the mutation (not at hook level) so we
       // pick up the latest value at click time — `unlockVault` may have
@@ -41,21 +66,32 @@ export function useCreateVault() {
       }
       const organizationId = parseJwtPayload(auth.accessToken)['org_id']
       if (typeof organizationId !== 'string') throw new Error('Authenticated organization is missing')
+      const key = sessionKey(organizationId, auth.userId)
 
       const challenge = await issueVaultCreationChallenge()
-      if (pendingAttempt.current && pendingAttempt.current.vaultId !== challenge.vaultId) {
+      let pendingAttempt = pendingAttempts.get(key)
+      if (pendingAttempt && pendingAttempt.payload.vaultId !== challenge.vaultId) {
+        const pendingVaultId = pendingAttempt.payload.vaultId
         const vaults = await listEncryptedVaults()
-        if (vaults.some((vault) => vault.id === pendingAttempt.current?.vaultId)) {
-          const vaultId = pendingAttempt.current.vaultId
-          pendingAttempt.current = null
-          return { vaultId }
+        if (vaults.some((vault) => vault.id === pendingVaultId)) {
+          pendingAttempts.delete(key)
+          setPendingInput(null)
+          return { vaultId: pendingVaultId }
         }
-        pendingAttempt.current = null
+        pendingAttempts.delete(key)
+        setPendingInput(null)
+        pendingAttempt = undefined
       }
-      if (pendingAttempt.current?.vaultId !== challenge.vaultId) {
+      if (pendingAttempt?.payload.vaultId !== challenge.vaultId) {
         const account = await getAccount()
         if (!account.memberKeyVersion) throw new Error('Current Member key version is missing')
-        pendingAttempt.current = await createInitialVaultMaterial({
+        const normalizedInput: CreateVaultInput = {
+          name: input.name,
+          ...(input.description ? { description: input.description } : {}),
+          ...(input.icon ? { icon: input.icon } : {}),
+          ...(input.color ? { color: input.color } : {}),
+        }
+        const payload = await createInitialVaultMaterial({
           organizationId,
           vaultId: challenge.vaultId,
           memberId: auth.userId,
@@ -68,15 +104,19 @@ export function useCreateVault() {
             ...(input.color ? { color: input.color } : {}),
           },
         })
+        pendingAttempt = { input: normalizedInput, payload }
+        pendingAttempts.set(key, pendingAttempt)
+        setPendingInput(normalizedInput)
       }
 
-      const attempt = pendingAttempt.current
+      const attempt = pendingAttempt.payload
       try {
         await createVault(attempt)
       } catch (error) {
         try {
           if ((await listEncryptedVaults()).some((vault) => vault.id === attempt.vaultId)) {
-            pendingAttempt.current = null
+            pendingAttempts.delete(key)
+            setPendingInput(null)
             return { vaultId: attempt.vaultId }
           }
         } catch {
@@ -84,11 +124,13 @@ export function useCreateVault() {
         }
         if (error instanceof HTTPError && error.response.status < 500
           && error.response.status !== 408 && error.response.status !== 429) {
-          pendingAttempt.current = null
+          pendingAttempts.delete(key)
+          setPendingInput(null)
         }
         throw error
       }
-      pendingAttempt.current = null
+      pendingAttempts.delete(key)
+      setPendingInput(null)
       return { vaultId: attempt.vaultId }
     },
     onSuccess: () => {
@@ -96,4 +138,6 @@ export function useCreateVault() {
       useMemberSyncStore.getState().retry()
     },
   })
+
+  return { ...mutation, pendingInput }
 }

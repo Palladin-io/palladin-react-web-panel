@@ -87,6 +87,7 @@
   "vault.selectVaultPrompt": "Select a vault from the list to view its entries",
   "vault.createVault": "Create Vault",
   "vault.discoveryPolicyDefault": "Active organization Agents are eligible for encrypted Discovery. Secret access still requires a separate scoped grant.",
+  "vault.pendingCreateRetry": "The previous result is still unknown. Retry the unchanged Vault before editing its details.",
   "vault.entries_one": "{{count}} entry",
   "vault.entries_other": "{{count}} entries",
   "vault.grants_one": "{{count}} active grant",

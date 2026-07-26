@@ -125,6 +125,25 @@ describe('useCreateVault', () => {
     expect(mocks.createVault.mock.calls[1][0]).toEqual(mocks.createVault.mock.calls[0][0])
   })
 
+  it('preserves an ambiguous attempt across remounts and ignores edited retry input', async () => {
+    unlock()
+    const transient = new TypeError('response lost')
+    mocks.createVault.mockRejectedValueOnce(transient).mockResolvedValueOnce(undefined)
+    mocks.listVaults.mockRejectedValueOnce(new TypeError('offline'))
+    const first = renderHook(() => useCreateVault(), { wrapper: wrapperWith(client) })
+
+    await expect(act(() => first.result.current.mutateAsync({ name: 'Production' })))
+      .rejects.toBe(transient)
+    first.unmount()
+
+    const second = renderHook(() => useCreateVault(), { wrapper: wrapperWith(client) })
+    expect(second.result.current.pendingInput).toEqual({ name: 'Production' })
+    await act(() => second.result.current.mutateAsync({ name: 'Edited after ambiguity' }))
+
+    expect(mocks.createMaterial).toHaveBeenCalledTimes(1)
+    expect(mocks.createVault.mock.calls[1][0]).toEqual(mocks.createVault.mock.calls[0][0])
+  })
+
   it('reconciles a consumed challenge without creating a duplicate Vault', async () => {
     unlock()
     mocks.createVault.mockRejectedValueOnce(new TypeError('response lost'))
