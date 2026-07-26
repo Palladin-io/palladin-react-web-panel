@@ -9,6 +9,8 @@ export interface AuditLogEntryProps {
   item: AuditLogItem
   /** Agent display name resolved by the caller (backend audit rows carry only the id). */
   agentName?: string
+  /** Entry display label resolved from the unlocked client-side member index. */
+  entryName?: string
   /** Vault display name resolved by the caller — drives the vault chip. */
   vaultName?: string
   /** Show the entry chip — off on the Entry Logs tab where the entry is fixed. */
@@ -29,6 +31,7 @@ export interface AuditLogEntryProps {
 export function AuditLogEntry({
   item,
   agentName,
+  entryName,
   vaultName,
   showEntry = true,
   showVault = false,
@@ -37,6 +40,7 @@ export function AuditLogEntry({
   const { t } = useTranslation()
   const cfg = auditEventConfig(item.eventType)
   const agent = agentName ?? item.agentName ?? t('audit.unknownAgent')
+  const entry = entryName ?? item.entryLabel ?? t('audit.unknownEntry')
   // Sentence slots. Names are never a raw id/public key — they fall back to a
   // localised "unknown"/"unnamed". `agent` is the caller-resolved agent (its own
   // action for grant/credential, the target for agent lifecycle); `object` is
@@ -50,13 +54,14 @@ export function AuditLogEntry({
     agent,
     actor:
       item.actorType === 'agent' ? agent : item.actorName ?? t('audit.unknownUser'),
-    entry: item.entryLabel ?? t('audit.unknownEntry'),
-    object: resolveObject(item, t),
+    entry,
+    object: resolveObject(item, t, item.entryId ? entry : undefined),
   }
 
   const primary = buildPrimary(item.eventType, t, slots)
   const chips = buildChips(item, t, cfg.labelKey, cfg.color, cfg.bg, cfg.border, {
     showEntry,
+    entryName: entryName ?? item.entryLabel ?? undefined,
     vaultName: showVault ? vaultName : undefined,
   })
 
@@ -135,14 +140,14 @@ function buildChips(
   typeColor: string,
   typeBg: string,
   typeBorder: string,
-  options: { showEntry: boolean; vaultName?: string },
+  options: { showEntry: boolean; entryName?: string; vaultName?: string },
 ): Chip[] {
   const chips: Chip[] = [
     { text: t(typeLabelKey), color: typeColor, bg: typeBg, border: typeBorder },
   ]
 
-  if (options.showEntry && item.entryLabel) {
-    chips.push({ icon: 'article', text: item.entryLabel, ...CHIP_STYLES.indigo })
+  if (options.showEntry && item.entryId && options.entryName) {
+    chips.push({ icon: 'article', text: options.entryName, ...CHIP_STYLES.indigo })
   }
 
   // Vault chip — only in the global log, where rows span vaults; resolved name
@@ -186,9 +191,9 @@ interface SentenceSlots {
 /** Resolve the "what" of an event to a display name, never an id. Backend
  *  denormalises: entry → `entryLabel`, vault/org → `metadata.name`,
  *  api-key → `metadata.keyName`; otherwise a localised "unnamed". */
-function resolveObject(item: AuditLogItem, t: TFunction): string {
+function resolveObject(item: AuditLogItem, t: TFunction, entryName?: string): string {
   return (
-    item.entryLabel ??
+    entryName ??
     item.metadata.name ??
     item.metadata.keyName ??
     t('audit.object.unnamed')

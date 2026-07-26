@@ -9,7 +9,7 @@ function item(overrides: Partial<AuditLogItem>): AuditLogItem {
     actorType: 'agent',
     agentId: 'agent-1',
     entryId: 'entry-1',
-    entryLabel: 'Stripe API Key',
+    entryLabel: 'Legacy server label',
     agentReason: null,
     metadata: {},
     createdAt: '2026-06-27T10:00:00Z',
@@ -61,6 +61,15 @@ describe('filterAuditLogs', () => {
       agentNameById: { 'agent-2': 'github-copilot' },
     })
     expect(result.map((r) => r.id)).toEqual(['b'])
+  })
+
+  it('searches locally resolved entry names without requiring a server label', () => {
+    const result = filterAuditLogs(rows, {
+      search: 'stripe',
+      entryNameById: { 'entry-1': 'Stripe API Key' },
+    })
+    expect(result.map((r) => r.id)).toEqual(['a', 'b', 'd'])
+    expect(filterAuditLogs(rows, { search: 'stripe' })).toEqual([])
   })
 
   it('narrows to multiple agents (multi-select)', () => {
