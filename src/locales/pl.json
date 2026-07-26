@@ -1221,6 +1221,7 @@
   "vault.import.conflict.overwrite": "Nadpisz",
   "vault.import.conflict.rename": "Zachowaj oba",
   "vault.import.encryptionNotice": "Każdy wpis jest szyfrowany w przeglądarce, zanim opuści to urządzenie.",
+  "vault.import.policyReview": "Sprawdziłem domyślne zasady: nazwy i loginy są wykrywalne; sekrety i notatki wymagają grantu; TOTP jest tylko wyliczany.",
   "vault.import.mapper.description": "Nie rozpoznaliśmy tego pliku. Dopasuj każdą kolumnę do pola.",
   "vault.import.mapper.unset": "— brak —",
   "vault.import.mapper.empty": "Zmapuj przynajmniej kolumnę loginu lub hasła, aby zobaczyć podgląd.",

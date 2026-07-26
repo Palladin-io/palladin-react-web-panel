@@ -1174,6 +1174,7 @@
   "vault.import.conflict.overwrite": "Overwrite",
   "vault.import.conflict.rename": "Keep both",
   "vault.import.encryptionNotice": "Every entry is encrypted in your browser before it leaves this device.",
+  "vault.import.policyReview": "I reviewed the defaults: names and usernames are discoverable; secret values and notes require a grant; TOTP is derived-only.",
   "vault.import.mapper.description": "We didn’t recognise this file. Match each column to a field.",
   "vault.import.mapper.unset": "— none —",
   "vault.import.mapper.empty": "Map at least a username or password column to preview entries.",

@@ -146,8 +146,12 @@ export async function getOrgGrants(
 /** A vault's active FULL grant, reduced to what a re-wrap needs. */
 export interface ActiveFullGrant {
   grantId: string
+  agentId: string
   agentPublicKey: string
   recipientAgentKeyVersion: number
+  methods: string
+  expiresAt?: string
+  remainingUses?: number
 }
 
 /**
@@ -170,11 +174,18 @@ export async function collectActiveFullGrants(
       pageSize: 100,
     })
     for (const grant of page.items) {
-      if (grant.type === GRANT_TYPE_FULL && grant.agentPublicKey && grant.recipientAgentKeyVersion) {
+      if (grant.type === GRANT_TYPE_FULL && grant.agentId && grant.agentPublicKey
+        && grant.recipientAgentKeyVersion && grant.methods) {
         grants.push({
           grantId: grant.id,
+          agentId: grant.agentId,
           agentPublicKey: grant.agentPublicKey,
           recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
+          methods: grant.methods,
+          ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
+          ...(grant.queryLimit !== null && grant.queryLimit !== undefined
+            ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }
+            : {}),
         })
       }
     }

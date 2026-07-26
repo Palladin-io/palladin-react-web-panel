@@ -5,32 +5,61 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from './types'
 import type { ParsedEntry } from './import'
-import { ImportStepError, useImportEntries } from './use-import-entries'
+import { useImportEntries } from './use-import-entries'
 import { entriesQueryKey } from './use-entries'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 
-const { importEntriesMock, updateEntryMock, fullGrantsMock } = vi.hoisted(() => ({
+const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock } = vi.hoisted(() => ({
   importEntriesMock: vi.fn(async (_vaultId: string, body: { entries: unknown[] }) => ({
     importedCount: body.entries.length,
     entryIds: body.entries.map((_, i) => `e${i}`),
   })),
   updateEntryMock: vi.fn(async () => undefined),
-  fullGrantsMock: vi.fn(async () => [] as { grantId: string; agentPublicKey: string }[]),
+  fullGrantsMock: vi.fn(async () => [] as unknown[]),
+  grantEnvelopeMock: vi.fn(async ({ scope }: { scope: { grantId: string; entryId: string } }) => ({
+    grantId: scope.grantId, entryId: scope.entryId,
+  })),
 }))
 
 vi.mock('./api/vault-api', () => ({
   importEntries: importEntriesMock,
-  updateEntry: updateEntryMock,
+  updateCanonicalEntry: updateEntryMock,
+  issueEntryCreationChallenges: vi.fn(async (_vaultId: string, count: number) =>
+    Array.from({ length: count }, (_, index) => ({ entryId: `entry-${index}`, expiresAt: '2026-07-27T00:00:00Z' }))),
+  getCanonicalEntry: vi.fn(async () => ({ currentRevision: '1' })),
 }))
 
-vi.mock('../grants', () => ({ collectActiveFullGrants: fullGrantsMock }))
-
-vi.mock('../../shared/crypto/vault-key', () => ({
-  unsealVaultKey: vi.fn(async () => new Uint8Array(32)),
+vi.mock('../grants', () => ({
+  collectActiveFullGrants: fullGrantsMock,
+  getOrgGrants: vi.fn(async () => ({ items: [], nextCursor: null })),
+  GRANT_STATUS_ACTIVE: 'active',
+  GRANT_TYPE_FULL: 'full',
 }))
 
-vi.mock('../../shared/crypto/entry-crypto', () => ({
-  encryptEntry: vi.fn(async () => ({ encryptedBlob: 'ENC', nonce: 'NCE' })),
+vi.mock('./sync/member-sync-api', () => ({
+  getEncryptedVault: vi.fn(async () => ({
+    id: 'vault-1', memberKeyGeneration: 1,
+    currentKeyEpoch: { vaultKeyVersion: 1, vdkVersion: 1 },
+    memberVaultKey: { organizationId: 'org-1', memberId: 'member-1' },
+    discoveryKey: {},
+  })),
+}))
+
+vi.mock('../../shared/crypto/vault-v2-member-sync', () => ({
+  openMemberVaultKey: vi.fn(async () => new Uint8Array(32)),
+}))
+vi.mock('../../shared/crypto/vault-v2-rotation', () => ({
+  openDiscoveryKey: vi.fn(async () => new Uint8Array(32)),
+}))
+vi.mock('../../shared/crypto/vault-v2-entry', () => ({
+  defaultAgentVisibilityPolicy: vi.fn(() => ({ discoverable: true, fields: {} })),
+  buildEntryProjections: vi.fn(() => ({ memberSecret: { schemaVersion: 1, content: { fields: [] }, agentVisibilityPolicy: { fields: {} } } })),
+  createInitialEntryMaterial: vi.fn(async () => ({ entryKey: {}, memberIndex: {}, memberSecret: {}, agentDiscovery: {} })),
+  decryptMemberSecret: vi.fn(async () => ({ memberLabel: 'old' })),
+  createEntryUpdateMaterial: vi.fn(async () => ({ memberSecret: { revision: '2' }, grantEnvelopes: [] })),
+}))
+vi.mock('../../shared/crypto/grant-envelope', () => ({
+  produceGrantEntryEnvelope: grantEnvelopeMock,
 }))
 
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: vi.fn() }))
@@ -65,7 +94,6 @@ describe('useImportEntries', () => {
     const creates = Array.from({ length: 120 }, (_, i) => credential(`Entry ${i}`))
     result.current.mutate({
       vaultId: 'vault-1',
-      wrappedVK: 'WRAPPED',
       format: 'generic-csv',
       creates,
       overwrites: [],
@@ -84,7 +112,6 @@ describe('useImportEntries', () => {
 
     result.current.mutate({
       vaultId: 'vault-1',
-      wrappedVK: 'WRAPPED',
       format: 'palladin-json',
       creates: [{ label: 'Token', type: ENTRY_TYPE_KEY, value: 'sk_1' }],
       overwrites: [{ entryId: 'old-1', entry: credential('GitHub') }],
@@ -109,7 +136,6 @@ describe('useImportEntries', () => {
 
     result.current.mutate({
       vaultId: 'vault-1',
-      wrappedVK: 'WRAPPED',
       format: 'generic-csv',
       creates: [credential('GitHub')],
       overwrites: [],
@@ -133,7 +159,6 @@ describe('useImportEntries', () => {
 
     result.current.mutate({
       vaultId: 'vault-1',
-      wrappedVK: 'WRAPPED',
       format: 'generic-csv',
       creates: [credential('GitHub'), credential('GitLab')],
       overwrites: [],
@@ -146,25 +171,23 @@ describe('useImportEntries', () => {
     ])
   })
 
-  it('fails closed before importing when an active FULL grant requires canonical envelopes', async () => {
+  it('creates exact canonical envelopes for every active FULL grant', async () => {
     fullGrantsMock.mockResolvedValue([
-      { grantId: 'g1', agentPublicKey: 'pk1' },
-      { grantId: 'g2', agentPublicKey: 'pk2' },
+      { grantId: 'g1', agentId: 'a1', agentPublicKey: 'pk1', recipientAgentKeyVersion: 1, methods: 'exec' },
+      { grantId: 'g2', agentId: 'a2', agentPublicKey: 'pk2', recipientAgentKeyVersion: 1, methods: 'inject' },
     ])
     const { wrapper } = makeWrapper()
     const { result } = renderHook(() => useImportEntries(), { wrapper })
 
     result.current.mutate({
       vaultId: 'vault-1',
-      wrappedVK: 'WRAPPED',
       format: 'generic-csv',
       creates: [credential('GitHub'), credential('GitLab')],
       overwrites: [],
     })
 
-    await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(result.current.error).toBeInstanceOf(ImportStepError)
-    expect((result.current.error as ImportStepError).step).toBe('grants')
-    expect(importEntriesMock).not.toHaveBeenCalled()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(grantEnvelopeMock).toHaveBeenCalledTimes(4)
+    expect(importEntriesMock.mock.calls[0][1].entries[0].grantEnvelopes).toHaveLength(2)
   })
 })

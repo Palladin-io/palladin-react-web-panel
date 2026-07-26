@@ -11,7 +11,6 @@ import type {
   EntryContent,
   EntryDetail,
   EntryListItem,
-  EntryType,
   GrantMode,
   UpdateVaultInput,
   Vault,
@@ -314,11 +313,19 @@ export function createEntry(
     .json<{ id: string; currentRevision: string }>()
 }
 
-export async function issueEntryCreationChallenge(vaultId: string): Promise<{ entryId: string; expiresAt: string }> {
+export async function issueEntryCreationChallenges(
+  vaultId: string,
+  count: number,
+): Promise<{ entryId: string; expiresAt: string }[]> {
   const response = await api.post(`api/vaults/${vaultId}/entries/creation-challenges`, {
-    json: { vaultId, count: 1 },
+    json: { vaultId, count },
   }).json<{ items: { entryId: string; expiresAt: string }[] }>()
-  const challenge = response.items[0]
+  if (response.items.length !== count) throw new Error('Entry creation challenge count mismatch')
+  return response.items
+}
+
+export async function issueEntryCreationChallenge(vaultId: string): Promise<{ entryId: string; expiresAt: string }> {
+  const [challenge] = await issueEntryCreationChallenges(vaultId, 1)
   if (!challenge) throw new Error('Entry creation challenge response was empty')
   return challenge
 }
@@ -355,13 +362,12 @@ export async function deleteEntry(
  * this.
  */
 export interface ImportEntryItem {
-  label: string
-  description?: string
-  icon?: string
-  type: EntryType
-  content: EntryContent
-  urlDomain?: string
-  grantEntries: ({ grantId: string } & GrantEntryEnvelope)[]
+  entryId: string
+  entryKey: InitialEntryMaterial['entryKey']
+  memberIndex: InitialEntryMaterial['memberIndex']
+  memberSecret: InitialEntryMaterial['memberSecret']
+  agentDiscovery?: InitialEntryMaterial['agentDiscovery']
+  grantEnvelopes: GrantEntryEnvelope[]
 }
 
 export interface ImportEntriesBody {
