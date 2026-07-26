@@ -23,6 +23,8 @@ The Vault Detail Members tab reads the structural Member directory in keyset pag
 
 Create Entry uses a server-issued opaque Entry ID and builds MemberIndex, canonical MemberSecret and optional AgentDiscovery from one editable Agent Visibility Policy. The three projections share revision 1 but use isolated keys and authenticated projection-specific scopes. Username and URL domain are discoverable by default for Credentials; secret values and Notes remain post-grant; TOTP is derived-only and Script material runtime-only. The request is ciphertext-only and the backend commits the complete projection set atomically.
 
+Entry Detail reads presentation from the in-memory MemberIndex and opens MemberSecret only after an explicit reveal. Edits create the next immutable MemberSecret revision and include MemberIndex or AgentDiscovery only when their canonical plaintext changed. The update is optimistic on `baseRevision`; active covering grants require an exact same-transaction envelope refresh, so the current Details surface fails closed before a write until that refresh is supplied by the scoped-grant flow.
+
 ## Key patterns
 - **Zero-knowledge on-demand:** the vault key is unsealed and the entry decrypted only at reveal/open time; plaintext lives in component `useState` and never leaves memory.
 - **Bounded Member sync:** pages contain at most 200 items, responses fail above 4 MiB, projection work runs in chunks of 25 with at most four concurrent AEAD operations, and each chunk yields to the browser. The unlocked account index fails closed above 10,000 actual heads; it is never silently truncated.

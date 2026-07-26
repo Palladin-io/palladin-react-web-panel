@@ -55,6 +55,14 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 5. If the Vault has active FULL grants, creation fails closed until the client can provide the exact canonical per-grant envelope set in the same transaction; the Entry is never committed partially.
 6. Wipe VK, VDK, EntryDEK, derived keys and serialized projection plaintext in `finally`. After success, refresh normal Member sync consumers rather than persisting plaintext optimistically.
 
+## Protocol 2 Entry detail and update
+
+1. Render list presentation only from the already-decrypted in-memory MemberIndex. Fetch the canonical encrypted Entry head for the detail route, but do not open MemberSecret until the Member explicitly reveals or edits the protected fields.
+2. On reveal, validate the response's organization, Vault, Entry, revision and key-head bindings, open the authenticated EntryDEK wrapper with VK, derive the isolated MemberSecret key and authenticate/decrypt MemberSecret. Wipe VK, EntryDEK, the derived key and serialized plaintext buffers.
+3. Preserve the complete decrypted MemberSecret draft, including Agent Visibility Policy and fields the Details tab does not edit. Build the next projections locally and assign exactly `baseRevision + 1` with operation `Updated`.
+4. Always emit the new immutable MemberSecret. Emit MemberIndex and AgentDiscovery only when their canonical plaintext changed; removing Discovery is represented by `agentDiscoveryChanged: true` with no replacement envelope.
+5. Submit the optimistic `baseRevision`, changed ciphertext projections and the exact refreshed envelope set for every active covering grant in one backend transaction. Until the scoped-grant refresh flow is available, the Details tab fails before opening keys or writing whenever any covering grant exists; the backend independently enforces the exact set and rolls back the whole update on mismatch.
+
 ## Planned Vault key rotation
 
 1. After unlock, independently of transient Member-sync polling state, list pending rotations and claim one server lease with a fencing token. The current Vault generation remains usable throughout preparation.

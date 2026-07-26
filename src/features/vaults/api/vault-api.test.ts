@@ -9,7 +9,30 @@ vi.mock('../../../shared/api/client', () => ({
   api: { get: getFn, post: postFn },
 }))
 
-import { getAllEntries, importEntries } from './vault-api'
+import { getAllEntries, getCanonicalEntry, importEntries } from './vault-api'
+
+describe('getCanonicalEntry', () => {
+  it('rejects a projection whose authenticated scope differs from the Entry head', async () => {
+    const organizationId = '00112233-4455-4677-8899-aabbccddeeff'
+    const vaultId = '11112233-4455-4677-8899-aabbccddeeff'
+    const id = '22222233-4455-4677-8899-aabbccddeeff'
+    const header = { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 3,
+      resourceRevision: '1', keyVersion: 1, memberKeyGeneration: 1, nonce: 'nonce' }
+    const scope = { organizationId, vaultId, entryId: id }
+    getJson.mockResolvedValueOnce({ organizationId, vaultId, id, state: 'active', currentRevision: '1',
+      memberIndexRevision: '1', agentDiscoveryRevision: null, currentKeyVersion: 1,
+      createdAt: '2026-07-26T00:00:00Z', createdBy: organizationId,
+      updatedAt: '2026-07-26T00:00:00Z', updatedBy: organizationId,
+      memberIndex: { ...scope, vaultId: '33332233-4455-4677-8899-aabbccddeeff', memberIndexRevision: '1',
+        header: { ...header, projectionKind: 2 }, ciphertext: 'cipher' },
+      memberSecret: { ...scope, revision: '1', operation: 1, header, ciphertext: 'cipher' },
+      agentDiscovery: null,
+      entryKey: { ...scope, wrapperRevision: '1', keyVersion: 1, memberKeyGeneration: 1,
+        wrappingKeyVersion: 1, header: { ...header, projectionKind: 8 }, wrappedEntryDekByVk: 'wrapped' },
+    })
+    await expect(getCanonicalEntry(vaultId, id)).rejects.toThrow('Entry envelope scope mismatch')
+  })
+})
 
 describe('getAllEntries', () => {
   beforeEach(() => {

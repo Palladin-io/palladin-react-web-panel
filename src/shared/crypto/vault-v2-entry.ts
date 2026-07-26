@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { CustomField, EntryPlaintext, EntryType } from '../../features/vaults/types'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from '../../features/vaults/types'
 import { encodeUtf8 } from './vault-v2-bytes'
-import { encryptVaultEnvelope, type VaultCiphertextEnvelope } from './vault-v2-envelope'
+import { decryptVaultEnvelope, encryptVaultEnvelope, type VaultCiphertextEnvelope } from './vault-v2-envelope'
 import { deriveVaultProjectionKey } from './vault-v2-kdf'
 import type { VaultEnvelopeHeader } from './vault-v2-protocol'
 import { canonicalizeVaultJson, type CanonicalJson } from './vault-v2-signatures'
@@ -121,7 +121,7 @@ export interface MemberSecretEnvelope extends VaultCiphertextEnvelope {
   vaultId: string
   entryId: string
   revision: string
-  operation: 1
+  operation: 1 | 2 | 3 | 4 | 5
   header: VaultEnvelopeHeader
   ciphertext: string
 }
@@ -141,6 +141,34 @@ export interface InitialEntryMaterial {
   memberIndex: import('./vault-v2-member-sync').MemberIndexEnvelope
   memberSecret: MemberSecretEnvelope
   agentDiscovery?: AgentDiscoveryEnvelope
+}
+
+export interface CanonicalEntryDetail {
+  organizationId: string
+  vaultId: string
+  id: string
+  currentRevision: string
+  memberIndexRevision: string
+  agentDiscoveryRevision?: string | null
+  currentKeyVersion: number
+  state: 'active' | 'archived' | 'deleted' | 1 | 2 | 3
+  createdAt: string
+  createdBy: string
+  updatedAt: string
+  updatedBy: string
+  memberIndex: import('./vault-v2-member-sync').MemberIndexEnvelope
+  memberSecret: MemberSecretEnvelope
+  agentDiscovery?: AgentDiscoveryEnvelope | null
+  entryKey: VaultEntryKeyEnvelope
+}
+
+export interface EntryUpdateMaterial {
+  baseRevision: string
+  memberSecret: MemberSecretEnvelope
+  memberIndex?: import('./vault-v2-member-sync').MemberIndexEnvelope
+  agentDiscoveryChanged: boolean
+  agentDiscovery?: AgentDiscoveryEnvelope
+  grantEnvelopes: unknown[]
 }
 
 const policySchema = z.object({
@@ -266,6 +294,146 @@ function domainFrom(url?: string): string | undefined {
 
 function canonicalBytes(value: CanonicalJson): Uint8Array {
   return encodeUtf8(canonicalizeVaultJson(value))
+}
+
+function decodeCanonicalJson(bytes: Uint8Array): unknown {
+  const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  const parsed: unknown = JSON.parse(text)
+  if (canonicalizeVaultJson(parsed as CanonicalJson) !== text) throw new Error('Vault payload is not canonical JSON')
+  return parsed
+}
+
+async function openEntryDek(
+  detail: CanonicalEntryDetail,
+  vaultKey: Uint8Array,
+): Promise<Uint8Array> {
+  const entryDek = await decryptVaultEnvelope('entry-key-wrapper', detail.entryKey, vaultKey, {
+    aadContext: detail.entryKey,
+    minimumMemberKeyGeneration: detail.entryKey.memberKeyGeneration,
+  })
+  if (entryDek.length !== 32) {
+    wipe(entryDek)
+    throw new Error('EntryDEK must be 32 bytes')
+  }
+  return entryDek
+}
+
+export async function decryptMemberSecret(
+  detail: CanonicalEntryDetail,
+  vaultKey: Uint8Array,
+): Promise<MemberSecretPlaintext> {
+  const entryDek = await openEntryDek(detail, vaultKey)
+  let key: Uint8Array | undefined
+  let plaintext: Uint8Array | undefined
+  try {
+    key = await deriveVaultProjectionKey({
+      baseKey: entryDek,
+      purpose: 'member-secret',
+      resourceKind: 2,
+      organizationId: detail.organizationId,
+      vaultId: detail.vaultId,
+      entryId: detail.id,
+      keyVersion: detail.currentKeyVersion,
+      memberKeyGeneration: detail.entryKey.memberKeyGeneration,
+    })
+    plaintext = await decryptVaultEnvelope('member-secret', detail.memberSecret, key, {
+      aadContext: detail.memberSecret,
+      minimumMemberKeyGeneration: detail.entryKey.memberKeyGeneration,
+    })
+    const value = decodeCanonicalJson(plaintext) as MemberSecretPlaintext
+    validateAgentVisibilityPolicy(value.entryType, value.agentVisibilityPolicy, value.content.fields ?? [])
+    if (value.schemaVersion !== 1 || value.content.type !== value.entryType) throw new Error('Invalid MemberSecret payload')
+    return value
+  } finally {
+    wipe(entryDek)
+    if (key) wipe(key)
+    if (plaintext) wipe(plaintext)
+  }
+}
+
+export async function createEntryUpdateMaterial(
+  detail: CanonicalEntryDetail,
+  previous: MemberSecretPlaintext,
+  draft: CanonicalEntryDraft,
+  vaultKey: Uint8Array,
+  vdkVersion: number,
+  discoveryKey?: Uint8Array,
+): Promise<EntryUpdateMaterial> {
+  const projections = buildEntryProjections(draft)
+  const previousProjections = buildEntryProjections({
+    memberLabel: previous.memberLabel,
+    agentLabel: previous.agentLabel,
+    ...(previous.description ? { description: previous.description } : {}),
+    ...(previous.iconReference ? { iconReference: previous.iconReference } : {}),
+    entryType: previous.entryType,
+    content: previous.content,
+    policy: previous.agentVisibilityPolicy,
+  })
+  const memberIndexChanged = canonicalizeVaultJson(projections.memberIndex as unknown as CanonicalJson)
+    !== canonicalizeVaultJson(previousProjections.memberIndex as unknown as CanonicalJson)
+  const discoveryChanged = canonicalizeVaultJson((projections.agentDiscovery ?? null) as unknown as CanonicalJson)
+    !== canonicalizeVaultJson((previousProjections.agentDiscovery ?? null) as unknown as CanonicalJson)
+  if (discoveryChanged && projections.agentDiscovery && !discoveryKey) throw new Error('Discovery key is required')
+
+  const revision = (BigInt(detail.currentRevision) + 1n).toString()
+  const common = { organizationId: detail.organizationId, vaultId: detail.vaultId, entryId: detail.id }
+  const entryDek = await openEntryDek(detail, vaultKey)
+  let secretKey: Uint8Array | undefined
+  let indexKey: Uint8Array | undefined
+  let discoveryProjectionKey: Uint8Array | undefined
+  let secretBytes: Uint8Array | undefined
+  let indexBytes: Uint8Array | undefined
+  let discoveryBytes: Uint8Array | undefined
+  try {
+    secretKey = await deriveVaultProjectionKey({ baseKey: entryDek, purpose: 'member-secret', resourceKind: 2,
+      ...common, keyVersion: detail.currentKeyVersion, memberKeyGeneration: detail.entryKey.memberKeyGeneration })
+    secretBytes = canonicalBytes(projections.memberSecret as unknown as CanonicalJson)
+    const secretContext = { ...common, revision, operation: 2 as const,
+      header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 3,
+        resourceRevision: revision, keyVersion: detail.currentKeyVersion,
+        memberKeyGeneration: detail.entryKey.memberKeyGeneration, nonce: '' } }
+    const encryptedSecret = await encryptVaultEnvelope('member-secret', secretContext, secretBytes, secretKey)
+    const memberSecret: MemberSecretEnvelope = {
+      ...secretContext,
+      header: { ...secretContext.header, nonce: encryptedSecret.nonce },
+      ciphertext: encryptedSecret.ciphertext,
+    }
+
+    let memberIndex: import('./vault-v2-member-sync').MemberIndexEnvelope | undefined
+    if (memberIndexChanged) {
+      indexKey = await deriveVaultProjectionKey({ baseKey: entryDek, purpose: 'member-index', resourceKind: 2,
+        ...common, keyVersion: detail.currentKeyVersion, memberKeyGeneration: detail.entryKey.memberKeyGeneration })
+      indexBytes = canonicalBytes(projections.memberIndex as unknown as CanonicalJson)
+      const indexContext = { ...common, memberIndexRevision: revision,
+        header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 2,
+          resourceRevision: revision, keyVersion: detail.currentKeyVersion,
+          memberKeyGeneration: detail.entryKey.memberKeyGeneration, nonce: '' } }
+      const encrypted = await encryptVaultEnvelope('member-index', indexContext, indexBytes, indexKey)
+      memberIndex = { ...indexContext, header: { ...indexContext.header, nonce: encrypted.nonce }, ciphertext: encrypted.ciphertext }
+    }
+
+    let agentDiscovery: AgentDiscoveryEnvelope | undefined
+    if (discoveryChanged && projections.agentDiscovery && discoveryKey) {
+      discoveryProjectionKey = await deriveVaultProjectionKey({ baseKey: discoveryKey, purpose: 'agent-discovery',
+        resourceKind: 2, ...common, keyVersion: vdkVersion,
+        memberKeyGeneration: detail.entryKey.memberKeyGeneration })
+      discoveryBytes = canonicalBytes(projections.agentDiscovery as unknown as CanonicalJson)
+      const discoveryRevision = revision
+      const context = { ...common, agentDiscoveryRevision: discoveryRevision,
+        vdkVersion,
+        header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 4,
+          resourceRevision: discoveryRevision, keyVersion: vdkVersion,
+          memberKeyGeneration: detail.entryKey.memberKeyGeneration, nonce: '' } }
+      const encrypted = await encryptVaultEnvelope('agent-discovery', context, discoveryBytes, discoveryProjectionKey)
+      agentDiscovery = { ...context, header: { ...context.header, nonce: encrypted.nonce }, ciphertext: encrypted.ciphertext }
+    }
+    return { baseRevision: detail.currentRevision, memberSecret, ...(memberIndex ? { memberIndex } : {}),
+      agentDiscoveryChanged: discoveryChanged, ...(agentDiscovery ? { agentDiscovery } : {}), grantEnvelopes: [] }
+  } finally {
+    for (const value of [entryDek, secretKey, indexKey, discoveryProjectionKey, secretBytes, indexBytes, discoveryBytes]) {
+      if (value) wipe(value)
+    }
+  }
 }
 
 export async function createInitialEntryMaterial(

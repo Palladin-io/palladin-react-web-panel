@@ -4,7 +4,9 @@ import { decryptVaultEnvelope } from './vault-v2-envelope'
 import { deriveVaultProjectionKey } from './vault-v2-kdf'
 import {
   buildEntryProjections,
+  createEntryUpdateMaterial,
   createInitialEntryMaterial,
+  decryptMemberSecret,
   defaultAgentVisibilityPolicy,
   ENTRY_FIELD,
   validateAgentVisibilityPolicy,
@@ -140,5 +142,79 @@ describe('canonical Entry create material', () => {
         minimumMemberKeyGeneration: scope.memberKeyGeneration,
       },
     )).rejects.toThrow('context mismatch')
+  })
+})
+
+describe('canonical Entry versioned update', () => {
+  it('creates exactly the next revision and emits only projections whose plaintext changed', async () => {
+    const vaultKey = new Uint8Array(32).fill(7)
+    const discoveryKey = new Uint8Array(32).fill(9)
+    const policy = defaultAgentVisibilityPolicy(ENTRY_TYPE_KEY)
+    const initial = await createInitialEntryMaterial({
+      memberLabel: 'API key',
+      agentLabel: 'API key',
+      entryType: ENTRY_TYPE_KEY,
+      content: { type: ENTRY_TYPE_KEY, value: 'old-secret' },
+      policy,
+    }, scope, vaultKey, discoveryKey)
+    const detail = {
+      organizationId: scope.organizationId,
+      vaultId: scope.vaultId,
+      id: scope.entryId,
+      state: 'active' as const,
+      currentRevision: '1',
+      memberIndexRevision: '1',
+      agentDiscoveryRevision: '1',
+      currentKeyVersion: 1,
+      createdAt: '2026-07-26T00:00:00Z',
+      createdBy: '33333333-4455-4677-8899-aabbccddeeff',
+      updatedAt: '2026-07-26T00:00:00Z',
+      updatedBy: '33333333-4455-4677-8899-aabbccddeeff',
+      memberIndex: initial.memberIndex,
+      memberSecret: initial.memberSecret,
+      agentDiscovery: initial.agentDiscovery,
+      entryKey: initial.entryKey,
+    }
+    const previous = await decryptMemberSecret(detail, vaultKey)
+    const update = await createEntryUpdateMaterial(detail, previous, {
+      memberLabel: 'API key',
+      agentLabel: 'API key',
+      entryType: ENTRY_TYPE_KEY,
+      content: { type: ENTRY_TYPE_KEY, value: 'new-secret' },
+      policy,
+    }, vaultKey, scope.vdkVersion, discoveryKey)
+
+    expect(update.baseRevision).toBe('1')
+    expect(update.memberSecret).toMatchObject({ revision: '2', operation: 2 })
+    expect(update.memberIndex).toBeUndefined()
+    expect(update.agentDiscoveryChanged).toBe(false)
+    expect(update.grantEnvelopes).toEqual([])
+
+    const decrypted = await decryptMemberSecret({
+      ...detail,
+      currentRevision: '2',
+      memberSecret: update.memberSecret,
+    }, vaultKey)
+    expect(decrypted.content).toEqual({ type: ENTRY_TYPE_KEY, value: 'new-secret' })
+  })
+
+  it('binds a changed MemberIndex to the new canonical revision', async () => {
+    const vaultKey = new Uint8Array(32).fill(7)
+    const discoveryKey = new Uint8Array(32).fill(9)
+    const policy = defaultAgentVisibilityPolicy(ENTRY_TYPE_KEY)
+    const initial = await createInitialEntryMaterial({ memberLabel: 'Old', agentLabel: 'Agent',
+      entryType: ENTRY_TYPE_KEY, content: { type: ENTRY_TYPE_KEY, value: 'secret' }, policy }, scope, vaultKey, discoveryKey)
+    const detail = { organizationId: scope.organizationId, vaultId: scope.vaultId, id: scope.entryId,
+      state: 'active' as const, currentRevision: '1', memberIndexRevision: '1', agentDiscoveryRevision: '1',
+      currentKeyVersion: 1, createdAt: '', createdBy: scope.entryId, updatedAt: '', updatedBy: scope.entryId,
+      memberIndex: initial.memberIndex, memberSecret: initial.memberSecret,
+      agentDiscovery: initial.agentDiscovery, entryKey: initial.entryKey }
+    const previous = await decryptMemberSecret(detail, vaultKey)
+    const update = await createEntryUpdateMaterial(detail, previous, { memberLabel: 'New', agentLabel: 'Agent',
+      entryType: ENTRY_TYPE_KEY, content: previous.content, policy }, vaultKey, scope.vdkVersion, discoveryKey)
+
+    expect(update.memberIndex?.memberIndexRevision).toBe('2')
+    expect(update.memberIndex?.header.resourceRevision).toBe('2')
+    expect(update.agentDiscoveryChanged).toBe(false)
   })
 })

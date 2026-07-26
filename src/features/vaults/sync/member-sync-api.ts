@@ -8,36 +8,11 @@ import {
   vaultEnvelopeHeaderSchema as envelopeHeaderSchema,
   vaultPrivateKeyEnvelopeSchema,
 } from './vault-key-material-schema'
+import { memberIndexEnvelopeSchema, vaultEntryKeyEnvelopeSchema } from './entry-envelope-schema'
+export { memberIndexEnvelopeSchema, vaultEntryKeyEnvelopeSchema } from './entry-envelope-schema'
 
 const MAXIMUM_SYNC_RESPONSE_BYTES = 4 * 1024 * 1024
 const syncCursor = z.string().max(2_048)
-
-export const memberIndexEnvelopeSchema = z.object({
-  organizationId: canonicalUuid,
-  vaultId: canonicalUuid,
-  entryId: canonicalUuid,
-  memberIndexRevision: canonicalU64,
-  header: envelopeHeaderSchema,
-  ciphertext: z.string(),
-}).strict()
-
-export const vaultEntryKeyEnvelopeSchema = z.object({
-  organizationId: canonicalUuid,
-  vaultId: canonicalUuid,
-  entryId: canonicalUuid,
-  wrapperRevision: canonicalU64,
-  keyVersion: u32,
-  memberKeyGeneration: u32,
-  wrappingKeyVersion: u32,
-  header: envelopeHeaderSchema,
-  wrappedEntryDekByVk: z.string(),
-}).strict().superRefine((entryKey, context) => {
-  if (entryKey.wrapperRevision !== entryKey.header.resourceRevision
-    || entryKey.keyVersion !== entryKey.header.keyVersion
-    || entryKey.memberKeyGeneration !== entryKey.header.memberKeyGeneration) {
-    context.addIssue({ code: 'custom', message: 'Entry key envelope binding mismatch' })
-  }
-})
 
 const memberVaultMetadataEnvelopeSchema = z.object({
   organizationId: canonicalUuid,

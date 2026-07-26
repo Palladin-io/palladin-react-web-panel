@@ -1,7 +1,11 @@
 import { api } from '../../../shared/api/client'
+import { z } from 'zod'
 import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
 import type { InitialVaultMaterial } from '../../../shared/crypto/vault-v2-creation'
 import type { InitialEntryMaterial } from '../../../shared/crypto/vault-v2-entry'
+import type { CanonicalEntryDetail, EntryUpdateMaterial } from '../../../shared/crypto/vault-v2-entry'
+import { memberIndexEnvelopeSchema, vaultEntryKeyEnvelopeSchema } from '../sync/entry-envelope-schema'
+import { canonicalU64Schema, canonicalUuidSchema, u32Schema, vaultEnvelopeHeaderSchema } from '../sync/vault-key-material-schema'
 import { normalizeEntryType } from '../types'
 import type {
   EntryContent,
@@ -112,6 +116,76 @@ export async function getEntry(
     .get(`api/vaults/${vaultId}/entries/${entryId}`)
     .json<EntryDetail>()
   return { ...entry, type: normalizeEntryType(entry.type) }
+}
+
+const memberSecretEnvelopeSchema = z.object({
+  organizationId: canonicalUuidSchema,
+  vaultId: canonicalUuidSchema,
+  entryId: canonicalUuidSchema,
+  revision: canonicalU64Schema,
+  operation: z.union([
+    z.enum(['created', 'updated', 'archived', 'restored', 'deleted']),
+    z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5),
+  ]).transform((operation) => typeof operation === 'number'
+    ? operation
+    : ({ created: 1, updated: 2, archived: 3, restored: 4, deleted: 5 } as const)[operation]),
+  header: vaultEnvelopeHeaderSchema,
+  ciphertext: z.string(),
+}).strict()
+
+const agentDiscoveryEnvelopeSchema = z.object({
+  organizationId: canonicalUuidSchema,
+  vaultId: canonicalUuidSchema,
+  entryId: canonicalUuidSchema,
+  agentDiscoveryRevision: canonicalU64Schema,
+  vdkVersion: u32Schema,
+  header: vaultEnvelopeHeaderSchema,
+  ciphertext: z.string(),
+}).strict()
+
+const canonicalEntryDetailSchema = z.object({
+  organizationId: canonicalUuidSchema,
+  vaultId: canonicalUuidSchema,
+  id: canonicalUuidSchema,
+  state: z.union([z.enum(['active', 'archived', 'deleted']), z.literal(1), z.literal(2), z.literal(3)]),
+  currentRevision: canonicalU64Schema,
+  memberIndexRevision: canonicalU64Schema,
+  agentDiscoveryRevision: canonicalU64Schema.nullable(),
+  currentKeyVersion: u32Schema,
+  createdAt: z.string(),
+  createdBy: canonicalUuidSchema,
+  updatedAt: z.string(),
+  updatedBy: canonicalUuidSchema,
+  memberIndex: memberIndexEnvelopeSchema,
+  memberSecret: memberSecretEnvelopeSchema,
+  agentDiscovery: agentDiscoveryEnvelopeSchema.nullable(),
+  entryKey: vaultEntryKeyEnvelopeSchema,
+}).strict().superRefine((entry, context) => {
+  const envelopes = [entry.memberIndex, entry.memberSecret, entry.entryKey, entry.agentDiscovery].filter(Boolean)
+  if (envelopes.some((envelope) => envelope!.organizationId !== entry.organizationId
+    || envelope!.vaultId !== entry.vaultId || envelope!.entryId !== entry.id)) {
+    context.addIssue({ code: 'custom', message: 'Entry envelope scope mismatch' })
+  }
+  if (entry.currentRevision !== entry.memberSecret.revision
+    || entry.memberIndexRevision !== entry.memberIndex.memberIndexRevision
+    || entry.currentKeyVersion !== entry.entryKey.keyVersion
+    || entry.agentDiscoveryRevision !== (entry.agentDiscovery?.agentDiscoveryRevision ?? null)) {
+    context.addIssue({ code: 'custom', message: 'Entry projection head mismatch' })
+  }
+})
+
+export async function getCanonicalEntry(vaultId: string, entryId: string): Promise<CanonicalEntryDetail> {
+  const raw = await api.get(`api/vaults/${vaultId}/entries/${entryId}`).json()
+  return canonicalEntryDetailSchema.parse(raw)
+}
+
+export async function updateCanonicalEntry(
+  vaultId: string,
+  entryId: string,
+  material: EntryUpdateMaterial,
+): Promise<{ currentRevision: string }> {
+  return api.put(`api/vaults/${vaultId}/entries/${entryId}`, { json: material })
+    .json<{ currentRevision: string }>()
 }
 
 export function createEntry(

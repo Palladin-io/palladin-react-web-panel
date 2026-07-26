@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { getAllEntries, getEntries, getEntry } from './api/vault-api'
+import { getAllEntries, getCanonicalEntry, getEntries, getEntry } from './api/vault-api'
 
 export function entriesQueryKey(vaultId: string) {
   return ['vaults', vaultId, 'entries'] as const
@@ -63,6 +63,15 @@ export function useEntryDetail(
     // Reveal-only — keep the blob in cache for the rest of the session
     // so toggling visibility doesn't refetch. Closing the tab still
     // wipes everything because TanStack Query lives in-memory only.
+    staleTime: Infinity,
+  })
+}
+
+export function useCanonicalEntryDetail(vaultId: string, entryId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...entryDetailQueryKey(vaultId, entryId), 'canonical'] as const,
+    queryFn: () => getCanonicalEntry(vaultId, entryId),
+    enabled,
     staleTime: Infinity,
   })
 }
