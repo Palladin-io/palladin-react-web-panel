@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { shortenKey } from '../../shared/lib/shorten-key'
-import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
-import type { AuditLogItem } from './api/audit-api'
+import type { AuditLogItem } from '../audit'
+import { useMemberSyncStore } from './sync/member-sync-store'
 
 /** Resolve opaque audit entry ids from the unlocked, in-memory member index. */
 export function useVaultAuditEntryNames(vaultId: string, items: AuditLogItem[]) {
@@ -12,9 +12,10 @@ export function useVaultAuditEntryNames(vaultId: string, items: AuditLogItem[]) 
     for (const item of items) {
       if (!item.entryId) continue
       const record = vault?.entries.get(item.entryId)
-      if (!record?.corrupt && record?.payload?.memberLabel) {
-        names[item.entryId] = record.payload.memberLabel
-      }
+      names[item.entryId] =
+        !record?.corrupt && record?.payload?.memberLabel
+          ? record.payload.memberLabel
+          : shortenKey(item.entryId)
     }
     return names
   }, [items, vault])

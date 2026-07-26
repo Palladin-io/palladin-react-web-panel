@@ -2,8 +2,9 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
 import type { AuditLogItem } from '../../audit'
-import { useAuditAgentNames, useVaultAuditEntryNames, useVaultAuditLogs } from '../../audit'
+import { useAuditAgentNames, useVaultAuditLogs } from '../../audit'
 import { useAuthStore } from '../../auth'
+import { useVaultAuditEntryNames } from '../use-vault-audit-entry-names'
 import { VaultDetailAuditLog } from './vault-detail-audit-log'
 
 vi.mock('../../audit', async (importActual) => {
@@ -12,9 +13,9 @@ vi.mock('../../audit', async (importActual) => {
     ...actual,
     useVaultAuditLogs: vi.fn(),
     useAuditAgentNames: vi.fn(),
-    useVaultAuditEntryNames: vi.fn(),
   }
 })
+vi.mock('../use-vault-audit-entry-names')
 vi.mock('../../auth', () => ({ useAuthStore: vi.fn() }))
 
 const mockLogs = vi.mocked(useVaultAuditLogs)

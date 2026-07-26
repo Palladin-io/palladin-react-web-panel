@@ -8,10 +8,10 @@ import {
   csvParam,
   filterAuditLogs,
   useAuditAgentNames,
-  useVaultAuditEntryNames,
   useVaultAuditLogs,
   type AuditFilterState,
 } from '../../audit'
+import { useVaultAuditEntryNames } from '../use-vault-audit-entry-names'
 
 export interface VaultDetailAuditLogProps {
   vaultId: string

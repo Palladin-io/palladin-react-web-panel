@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { useMemberSyncStore, type MemberIndexRecord } from '../vaults/sync/member-sync-store'
-import type { AuditLogItem } from './api/audit-api'
+import type { AuditLogItem } from '../audit'
+import { useMemberSyncStore, type MemberIndexRecord } from './sync/member-sync-store'
 import { useVaultAuditEntryNames } from './use-vault-audit-entry-names'
 
 const vaultId = '22222222-2222-4222-8222-222222222222'
@@ -42,11 +42,12 @@ describe('useVaultAuditEntryNames', () => {
     expect(result.current.resolveEntryName(entryId)).toBe('Stripe API Key')
   })
 
-  it('falls back to a prefix-and-suffix id after purge or lock', () => {
+  it('keeps a searchable prefix-and-suffix fallback after purge or lock', () => {
     const { result } = renderHook(() => useVaultAuditEntryNames(vaultId, [item]))
     expect(result.current.resolveEntryName(entryId)).toBe('33333333…333333')
+    expect(result.current.entryNameById).toEqual({ [entryId]: '33333333…333333' })
 
     act(() => useMemberSyncStore.getState().clear())
-    expect(result.current.entryNameById).toEqual({})
+    expect(result.current.entryNameById).toEqual({ [entryId]: '33333333…333333' })
   })
 })
