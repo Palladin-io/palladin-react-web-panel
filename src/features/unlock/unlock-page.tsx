@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -10,6 +10,10 @@ import { clearPushTokenOnLogout } from '../notifications'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../shared/api/account-api'
 import { OnboardingWizard } from '../onboarding'
 import { IncorrectMasterPasswordError, useUnlock } from './use-unlock'
+import { generateAccountSecret } from '../../shared/crypto/identity-kdf'
+import { wipe } from '../../shared/crypto/sodium'
+import { useIdentityKdfMigration } from '../auth/hooks/use-identity-kdf-migration'
+import { IdentityKdfMigrationStep } from '../auth/components/identity-kdf-migration-step'
 
 /**
  * Entry point for any vault-locked state. Decides what to show:
@@ -33,10 +37,10 @@ export function UnlockPage() {
   // Leave /unlock as soon as the vault is unlocked, regardless of whether
   // it was the wizard or the unlock form that did it.
   useEffect(() => {
-    if (!isVaultLocked) {
+    if (!isVaultLocked && account.data?.kdf?.securityVersion !== 1) {
       navigate({ to: '/' })
     }
-  }, [isVaultLocked, navigate])
+  }, [account.data?.kdf?.securityVersion, isVaultLocked, navigate])
 
   useEffect(() => {
     analytics.capture('unlock', 'page-viewed')
@@ -65,9 +69,24 @@ function UnlockForm() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const unlock = useUnlock()
+  const migrateKdf = useIdentityKdfMigration()
   const logout = useAuthStore((s) => s.logout)
   const [password, setPassword] = useState('')
+  const [accountSecret, setAccountSecret] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [migrationError, setMigrationError] = useState<string | null>(null)
+  const [migrationSecret, setMigrationSecret] = useState<Uint8Array | null>(null)
+  const migrationSecretRef = useRef<Uint8Array | null>(null)
+  const disposed = useRef(false)
+
+  useEffect(() => {
+    disposed.current = false
+    return () => {
+      disposed.current = true
+      if (migrationSecretRef.current) wipe(migrationSecretRef.current)
+      migrationSecretRef.current = null
+    }
+  }, [])
 
   // Same logout flow as the app shell: best-effort push-token cleanup, clear
   // session, redirect to login. The only escape hatch from a locked vault when
@@ -86,10 +105,22 @@ function UnlockForm() {
     if (isPending || password.length === 0) return
 
     setErrorMessage(null)
-    unlock.mutate(password, {
-      onSuccess: () => {
+    unlock.mutate({ password, accountSecret: accountSecret.trim() || undefined }, {
+      onSuccess: (legacyAccount) => {
         analytics.capture('unlock', 'vault-unlocked')
-        navigate({ to: '/' })
+        if (legacyAccount) {
+          void generateAccountSecret().then((secret) => {
+            if (disposed.current) {
+              wipe(secret)
+              return
+            }
+            if (migrationSecretRef.current) wipe(migrationSecretRef.current)
+            migrationSecretRef.current = secret
+            setMigrationSecret(secret)
+          })
+        } else {
+          navigate({ to: '/' })
+        }
       },
       onError: (err) => {
         analytics.capture('unlock', 'unlock-failed')
@@ -100,6 +131,39 @@ function UnlockForm() {
         )
       },
     })
+  }
+
+  const handleMigration = () => {
+    if (!migrationSecret || migrateKdf.isPending) return
+    setMigrationError(null)
+    migrateKdf.mutate(
+      { password, accountSecret: migrationSecret },
+      {
+        onSuccess: () => navigate({ to: '/' }),
+        onError: () => setMigrationError(t('accountSecret.upgradeError')),
+      },
+    )
+  }
+
+  if (migrationSecret) {
+    return (
+      <div
+        className="dark flex min-h-screen items-center justify-center"
+        style={{
+          background:
+            'linear-gradient(160deg, #15171B 0%, #212429 30%, #1A1D22 60%, #15171B 100%)',
+        }}
+      >
+        <div className="w-full max-w-[27.5rem] px-6">
+          <IdentityKdfMigrationStep
+            accountSecret={migrationSecret}
+            isPending={migrateKdf.isPending}
+            error={migrationError}
+            onMigrate={handleMigration}
+          />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -146,6 +210,29 @@ function UnlockForm() {
                   : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
               }
             />
+            <div className="mt-3">
+              <FormInput
+                id="unlock-account-secret"
+                label={t('accountSecret.loginLabel')}
+                type="password"
+                autoComplete="off"
+                value={accountSecret}
+                onChange={(event) => {
+                  setAccountSecret(event.target.value)
+                  if (errorMessage) setErrorMessage(null)
+                }}
+                placeholder={t('accountSecret.loginPlaceholder')}
+                disabled={isPending}
+                borderClass={
+                  hasError
+                    ? 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
+                    : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
+                }
+              />
+              <p className="mt-1 text-micro text-[#6B7A8E]">
+                {t('accountSecret.loginHint')}
+              </p>
+            </div>
             <FieldFeedback visible={hasError} color="red">
               {errorMessage}
             </FieldFeedback>

@@ -29,6 +29,8 @@ interface AuthState {
   masterKey: Uint8Array | null
   /** 32-byte X25519 private key recovered by decrypting the server blob. */
   privateKey: Uint8Array | null
+  /** 32-byte Identity v2 Account Secret. Memory-only; never partialized. */
+  accountSecret: Uint8Array | null
 
   setTokens: (data: {
     accessToken: string
@@ -41,7 +43,11 @@ interface AuthState {
   markOnboarded: () => void
   /** Flip to verified after the user consumes their verification link. */
   markEmailVerified: () => void
-  unlockVault: (masterKey: Uint8Array, privateKey: Uint8Array) => void
+  unlockVault: (
+    masterKey: Uint8Array,
+    privateKey: Uint8Array,
+    accountSecret?: Uint8Array,
+  ) => void
   lockVault: () => void
   /** Session timeout: wipes crypto keys AND the access token, so a walked-away tab holds neither. */
   expireSession: () => void
@@ -58,6 +64,7 @@ const initialState = {
   isVaultLocked: true,
   masterKey: null,
   privateKey: null,
+  accountSecret: null,
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -104,16 +111,18 @@ export const useAuthStore = create<AuthState>()(
 
       markEmailVerified: () => set({ emailVerified: true }),
 
-      unlockVault: (masterKey, privateKey) =>
+      unlockVault: (masterKey, privateKey, accountSecret) =>
         // Store independent copies — callers routinely `wipe()` their local
         // buffers right after handing them off, which would zero out our
         // references too if we kept them.
         set((state) => {
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
+          if (state.accountSecret) wipe(state.accountSecret)
           return {
             masterKey: new Uint8Array(masterKey),
             privateKey: new Uint8Array(privateKey),
+            accountSecret: accountSecret ? new Uint8Array(accountSecret) : null,
             isVaultLocked: false,
           }
         }),
@@ -122,19 +131,22 @@ export const useAuthStore = create<AuthState>()(
         set((state) => {
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
-          return { masterKey: null, privateKey: null, isVaultLocked: true }
+          if (state.accountSecret) wipe(state.accountSecret)
+          return { masterKey: null, privateKey: null, accountSecret: null, isVaultLocked: true }
         }),
 
       expireSession: () =>
         set((state) => {
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
-          return { masterKey: null, privateKey: null, isVaultLocked: true, accessToken: null }
+          if (state.accountSecret) wipe(state.accountSecret)
+          return { masterKey: null, privateKey: null, accountSecret: null, isVaultLocked: true, accessToken: null }
         }),
 
       logout: () => set((state) => {
         if (state.masterKey) wipe(state.masterKey)
         if (state.privateKey) wipe(state.privateKey)
+        if (state.accountSecret) wipe(state.accountSecret)
         return initialState
       }),
     }),

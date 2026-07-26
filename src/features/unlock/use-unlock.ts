@@ -1,64 +1,95 @@
 import { useMutation } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
 import { deriveKey } from '../../shared/crypto/argon2'
-import { fromBase64 } from '../../shared/crypto/encoding'
+import {
+  assertIdentityKdfProfile,
+  decodeAccountSecret,
+  deriveIdentityV2,
+  IDENTITY_KDF_PROFILE,
+  IDENTITY_KDF_PROFILE_ID,
+  IDENTITY_SECURITY_VERSION,
+  LEGACY_IDENTITY_KDF_PROFILE_ID,
+} from '../../shared/crypto/identity-kdf'
+import { decodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
 import { decryptWithKey, wipe } from '../../shared/crypto/sodium'
 import { getAccount } from '../../shared/api/account-api'
 
-/**
- * Thrown when the derived master key cannot decrypt the wrapped private key.
- * This is the "wrong password" signal that the UI surfaces inline.
- */
 export class IncorrectMasterPasswordError extends Error {
   constructor() {
-    super('Incorrect master password')
+    super('Incorrect master password or Account Secret')
     this.name = 'IncorrectMasterPasswordError'
   }
 }
 
-/**
- * Runs the client-side unlock dance:
- *   1. Pull the user's Argon2 salt + wrapped private key from the server
- *   2. Derive the master key from `password + salt`
- *   3. Decrypt the private key with the master key
- *   4. Hand both keys to the auth store (it copies them internally)
- *
- * The master key is intentionally NOT wiped here — it lives in the auth
- * store for the rest of the session so we can unwrap vault keys on demand.
- * Intermediate buffers (nonce/cipher splits) contain only cipher material
- * and don't require wiping.
- */
+export interface UnlockInput {
+  password: string
+  accountSecret?: string
+}
+
 export function useUnlock() {
   return useMutation({
-    mutationFn: async (password: string) => {
+    mutationFn: async ({ password, accountSecret: encodedSecret }: UnlockInput) => {
       const account = await getAccount()
-      if (!account.salt || !account.encryptedPrivateKey) {
-        throw new Error('Account setup incomplete — salt or key missing')
+      if (!account.kdf || !account.encryptedPrivateKey) {
+        throw new Error('Account setup incomplete')
       }
-      const saltBytes = fromBase64(account.salt)
+      if (account.kdf.minimumSecurityVersion > IDENTITY_SECURITY_VERSION) {
+        throw new Error('upgrade-required')
+      }
 
-      const masterKey = await deriveKey(password, saltBytes)
-
+      const salt = decodeBase64Url(account.kdf.kdfSalt, 16)
+      let accountSecret: Uint8Array | null = null
+      let masterKey: Uint8Array | null = null
+      let authCredential: Uint8Array | null = null
       let privateKey: Uint8Array | null = null
+      let encryptedPrivateKey: Uint8Array | null = null
       try {
-        const combined = fromBase64(account.encryptedPrivateKey)
-
-        // decryptWithKey throws on MAC failure — catch and translate into
-        // our typed error. Either way, the derived master key is useless
-        // and must be wiped before we bail.
-        try {
-          privateKey = await decryptWithKey(combined, masterKey)
-        } catch {
-          wipe(masterKey)
-          throw new IncorrectMasterPasswordError()
+        if (account.kdf.securityVersion === IDENTITY_SECURITY_VERSION) {
+          assertIdentityKdfProfile({
+            ...account.kdf,
+            memoryKiB: IDENTITY_KDF_PROFILE.memoryKiB,
+            iterations: IDENTITY_KDF_PROFILE.iterations,
+            parallelism: IDENTITY_KDF_PROFILE.parallelism,
+            accountSecretRequired: true,
+          })
+          if (account.kdf.profileId !== IDENTITY_KDF_PROFILE_ID || !encodedSecret) {
+            throw new IncorrectMasterPasswordError()
+          }
+          accountSecret = decodeAccountSecret(encodedSecret)
+          const identity = await deriveIdentityV2(
+            password,
+            accountSecret,
+            account.userId,
+            salt,
+          )
+          masterKey = identity.masterKey
+          authCredential = identity.authCredential
+        } else if (account.kdf.securityVersion === 1
+          && account.kdf.profileId === LEGACY_IDENTITY_KDF_PROFILE_ID) {
+          masterKey = await deriveKey(password, salt)
+        } else {
+          throw new Error('unsupported-kdf-profile')
         }
 
-        useAuthStore.getState().unlockVault(masterKey, privateKey)
+        encryptedPrivateKey = decodeBase64Url(account.encryptedPrivateKey, 4096)
+        try {
+          privateKey = await decryptWithKey(encryptedPrivateKey, masterKey)
+        } catch {
+          throw new IncorrectMasterPasswordError()
+        }
+        useAuthStore.getState().unlockVault(
+          masterKey,
+          privateKey,
+          accountSecret ?? undefined,
+        )
+        return account.kdf.securityVersion === 1 ? account : null
       } finally {
-        // The store holds its own copies — zero our locals so the raw key
-        // material doesn't linger beyond this function's stack.
+        wipe(salt)
+        if (accountSecret) wipe(accountSecret)
+        if (masterKey) wipe(masterKey)
+        if (authCredential) wipe(authCredential)
         if (privateKey) wipe(privateKey)
-        wipe(masterKey)
+        if (encryptedPrivateKey) wipe(encryptedPrivateKey)
       }
     },
   })
