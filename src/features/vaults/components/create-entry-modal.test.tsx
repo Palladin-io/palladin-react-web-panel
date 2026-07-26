@@ -137,14 +137,15 @@ describe('CreateEntryModal', () => {
     expect(mutateMock).toHaveBeenCalledTimes(1)
     const [input] = mutateMock.mock.calls[0]
     expect(input.vaultId).toBe('vault-1')
-    expect(input.wrappedVK).toBe('AAAAAAAA')
     expect(input.label).toBe('Stripe Key')
+    expect(input.agentLabel).toBe('Stripe Key')
     expect(input.type).toBe(ENTRY_TYPE_KEY)
     expect(input.payload).toEqual({ type: ENTRY_TYPE_KEY, value: 'sk_live_123' })
+    expect(input.policy.fields.value).toBe('onGrantValue')
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('extracts urlDomain on CREDENTIAL submit and trims fields', async () => {
+  it('submits Credential plaintext only to the local projection builder', async () => {
     const user = userEvent.setup()
 
     mutateMock.mockImplementation((_input, options) => {
@@ -166,7 +167,9 @@ describe('CreateEntryModal', () => {
     expect(mutateMock).toHaveBeenCalledTimes(1)
     const [input] = mutateMock.mock.calls[0]
     expect(input.type).toBe(ENTRY_TYPE_CREDENTIAL)
-    expect(input.urlDomain).toBe('github.com')
+    expect(input.policy.fields.username).toBe('discovery')
+    expect(input.policy.fields.urlDomain).toBe('discovery')
+    expect(input.policy.fields.password).toBe('onGrantValue')
     expect(input.payload).toEqual({
       type: ENTRY_TYPE_CREDENTIAL,
       username: 'user@example.com',
@@ -261,20 +264,19 @@ describe('CreateEntryModal', () => {
     expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/could not save the entry/i))
   })
 
-  it('blocks submit when the vault has no wrappedVK', async () => {
+  it('lets the Member disable Discovery while retaining post-grant defaults', async () => {
     const user = userEvent.setup()
-    const vaultNoKey: Vault = { ...VAULT, wrappedVK: undefined }
-
-    render(
-      <CreateEntryModal open vault={vaultNoKey} onClose={vi.fn()} />,
-      { wrapper },
-    )
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'entry-private' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
 
     await user.type(screen.getByLabelText(/^label$/i), 'API')
     await user.type(screen.getByLabelText(/^value$/i), 'sk')
+    await user.selectOptions(screen.getByLabelText(/entry discovery/i), 'disabled')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
-    expect(mutateMock).not.toHaveBeenCalled()
-    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/encryption key unavailable/i))
+    const [input] = mutateMock.mock.calls[0]
+    expect(input.policy.discoverable).toBe(false)
+    expect(input.policy.fields.agentLabel).toBe('never')
+    expect(input.policy.fields.value).toBe('onGrantValue')
   })
 })

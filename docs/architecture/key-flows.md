@@ -46,6 +46,15 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 5. Wipe every generated raw key, derived metadata key and plaintext serialization in `finally`. After success, close the dialog and trigger normal Member sync instead of placing plaintext metadata into an optimistic cache or navigating to the legacy detail flow.
 6. Active organization Agents are eligible for encrypted Discovery by default. Discovery does not grant secret access; a separate scoped grant remains mandatory.
 
+## Protocol 2 Entry creation
+
+1. Request a short-lived server-owned Entry ID challenge, then open the authenticated Member Vault key and encrypted VDK in browser memory.
+2. Build `MemberIndex`, canonical `MemberSecret` and optional `AgentDiscovery` from one draft and one closed Agent Visibility Policy. TOTP source material can only be `onGrantDerived` or `never`; Script source and refs can only be `onGrantRuntime` or `never`.
+3. Generate one fresh EntryDEK. Wrap it under VK, derive isolated Member projection keys from EntryDEK and the Discovery projection key from VDK, then encrypt every emitted projection at revision `1` with projection-specific AAD.
+4. Submit the challenge ID and ciphertext envelopes in one create request. No label, username, domain, password, Notes, policy or other Entry plaintext crosses the network.
+5. If the Vault has active FULL grants, creation fails closed until the client can provide the exact canonical per-grant envelope set in the same transaction; the Entry is never committed partially.
+6. Wipe VK, VDK, EntryDEK, derived keys and serialized projection plaintext in `finally`. After success, refresh normal Member sync consumers rather than persisting plaintext optimistically.
+
 ## Planned Vault key rotation
 
 1. After unlock, independently of transient Member-sync polling state, list pending rotations and claim one server lease with a fencing token. The current Vault generation remains usable throughout preparation.

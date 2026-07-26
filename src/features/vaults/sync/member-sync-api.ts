@@ -1,22 +1,16 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
+import {
+  canonicalU64Schema as canonicalU64,
+  canonicalUuidSchema as canonicalUuid,
+  u32Schema as u32,
+  vaultDiscoveryKeyEnvelopeSchema,
+  vaultEnvelopeHeaderSchema as envelopeHeaderSchema,
+  vaultPrivateKeyEnvelopeSchema,
+} from './vault-key-material-schema'
 
-const canonicalUuid = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
-const canonicalU64 = z.string().regex(/^(0|[1-9][0-9]{0,19})$/).refine((value) => BigInt(value) <= 0xffffffffffffffffn)
-const u32 = z.number().int().min(0).max(0xffffffff)
 const MAXIMUM_SYNC_RESPONSE_BYTES = 4 * 1024 * 1024
 const syncCursor = z.string().max(2_048)
-
-const envelopeHeaderSchema = z.object({
-  protocolVersion: z.literal(2),
-  algorithmSuite: z.literal(1),
-  resourceKind: z.number().int().min(0).max(0xffff),
-  projectionKind: z.number().int().min(0).max(0xffff),
-  resourceRevision: canonicalU64,
-  keyVersion: u32,
-  memberKeyGeneration: u32,
-  nonce: z.string(),
-}).strict()
 
 export const memberIndexEnvelopeSchema = z.object({
   organizationId: canonicalUuid,
@@ -83,6 +77,8 @@ export const encryptedVaultSummarySchema = z.object({
   currentKeyEpoch: vaultKeyEpochSchema,
   memberVaultMetadata: memberVaultMetadataEnvelopeSchema,
   memberVaultKey: memberVaultKeyEnvelopeSchema,
+  discoveryKey: vaultDiscoveryKeyEnvelopeSchema,
+  vaultPrivateKeys: z.array(vaultPrivateKeyEnvelopeSchema).length(2),
   createdAt: z.string(),
   updatedAt: z.string(),
   memberCount: z.number().int().nonnegative(),
