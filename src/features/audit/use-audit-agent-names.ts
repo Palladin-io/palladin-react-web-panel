@@ -2,30 +2,28 @@ import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { shortenKey } from '../../shared/lib/shorten-key'
 import { useAgentNames } from '../agents'
+import { useTeamMembers } from '../teams/use-team-members'
 import type { AuditLogItem } from './api/audit-api'
 import type { AuditFilterOption } from './components/audit-filter-bar'
 
 export interface AuditAgentNames {
-  /** id → display name, server-denormalised name preferred, agents list as fallback. */
+  /** id → display name from the authorized Agent cache only. */
   agentNameById: Record<string, string>
   /** Resolve an id to a name, falling back to a shortened id (never a misleading "unknown"). */
   resolveAgentName: (agentId: string) => string
   /** Distinct agents present in `items`, as filter-dropdown options. */
   agentOptions: AuditFilterOption[]
-  /** Distinct human actors (users) present in `items`, as filter-dropdown options.
-   *  There is no org users endpoint yet, so options are derived from the rows,
-   *  labelled with the server-denormalised `actorName` — never a raw id; when the
-   *  name is genuinely unknown the label is a localised "Unknown user". The
-   *  option value stays the `userId`. */
+  /** id → display name from the authorized organization Member cache only. */
+  memberNameById: Record<string, string>
+  /** Resolve a human/system actor without trusting the audit row. */
+  resolveActorName: (item: AuditLogItem) => string | undefined
+  /** Distinct human actors present in `items`, labelled locally. */
   userOptions: AuditFilterOption[]
 }
 
 /**
- * Resolves agent ids to display names for an audit view. Prefers the
- * server-denormalised `agentName` on each row (CVT-181), falling back to the
- * agents list (readable by any AuditView holder, not just managers) and finally
- * to a shortened id. The dropdown options are derived from the rows so they list
- * only agents that actually appear in the log.
+ * Resolves principals from authorized structural caches. Audit-row names are
+ * deliberately ignored; deleted/unresolved ids use prefix+suffix shortening.
  */
 export function useAuditAgentNames(
   items: AuditLogItem[],
@@ -33,17 +31,23 @@ export function useAuditAgentNames(
 ): AuditAgentNames {
   const { t } = useTranslation()
   const agents = useAgentNames(enabled)
+  const members = useTeamMembers(enabled)
 
   const agentNameById = useMemo(() => {
     const map: Record<string, string> = {}
     for (const a of agents.data ?? []) {
       if (a.name) map[a.agentId] = a.name
     }
-    for (const item of items) {
-      if (item.agentId && item.agentName) map[item.agentId] = item.agentName
+    return map
+  }, [agents.data])
+
+  const memberNameById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const member of members.data ?? []) {
+      if (member.displayName.trim()) map[member.userId] = member.displayName.trim()
     }
     return map
-  }, [agents.data, items])
+  }, [members.data])
 
   const resolveAgentName = useCallback(
     (id: string) => agentNameById[id] ?? shortenKey(id),
@@ -61,20 +65,31 @@ export function useAuditAgentNames(
     }))
   }, [items, agentNameById])
 
-  const unknownUser = t('audit.unknownUser')
   const userOptions = useMemo(() => {
-    const labelById = new Map<string, string>()
+    const ids = new Set<string>()
     for (const item of items) {
-      if (!item.userId) continue
-      // Always label by name; upgrade a placeholder once a real name shows up,
-      // but never fall back to the raw id.
-      const current = labelById.get(item.userId)
-      if (current === undefined || current === unknownUser) {
-        labelById.set(item.userId, item.actorName ?? unknownUser)
-      }
+      if (item.userId) ids.add(item.userId)
     }
-    return [...labelById].map(([value, label]) => ({ value, label }))
-  }, [items, unknownUser])
+    return [...ids].map((value) => ({
+      value,
+      label: memberNameById[value] ?? shortenKey(value),
+    }))
+  }, [items, memberNameById])
 
-  return { agentNameById, resolveAgentName, agentOptions, userOptions }
+  const resolveActorName = useCallback((item: AuditLogItem) => {
+    if (item.actorType === 'system') return t('audit.systemActor')
+    if (item.actorType === 'agent') {
+      return item.agentId ? agentNameById[item.agentId] ?? shortenKey(item.agentId) : undefined
+    }
+    return item.userId ? memberNameById[item.userId] ?? shortenKey(item.userId) : undefined
+  }, [agentNameById, memberNameById, t])
+
+  return {
+    agentNameById,
+    memberNameById,
+    resolveAgentName,
+    resolveActorName,
+    agentOptions,
+    userOptions,
+  }
 }

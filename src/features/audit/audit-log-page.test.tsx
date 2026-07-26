@@ -5,19 +5,17 @@ import type { AuditLogItem } from './api/audit-api'
 import { AuditLogPage } from './audit-log-page'
 import { useOrgAuditLogs } from './use-org-audit-logs'
 import { useAuditAgentNames } from './use-audit-agent-names'
-import { useVaults } from '../vaults/use-vaults'
 import { useAuthStore } from '../auth'
+import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
 
 vi.mock('./use-org-audit-logs')
 vi.mock('./use-audit-agent-names')
-vi.mock('../vaults/use-vaults')
 vi.mock('../auth', () => ({
   useAuthStore: vi.fn(),
 }))
 
 const mockOrgLogs = vi.mocked(useOrgAuditLogs)
 const mockAgentNames = vi.mocked(useAuditAgentNames)
-const mockVaults = vi.mocked(useVaults)
 const mockAuthStore = vi.mocked(useAuthStore)
 
 function row(overrides: Partial<AuditLogItem> = {}): AuditLogItem {
@@ -26,9 +24,10 @@ function row(overrides: Partial<AuditLogItem> = {}): AuditLogItem {
     eventType: 'credential.accessed',
     actorType: 'agent',
     agentId: 'agent-1',
-    agentName: 'github-copilot',
+    vaultId: 'vault-1',
+    agentName: 'MALICIOUS SERVER AGENT',
     entryId: 'entry-1',
-    entryLabel: 'Stripe API Key',
+    entryLabel: 'MALICIOUS SERVER ENTRY',
     agentReason: null,
     metadata: {},
     createdAt: '2026-06-27T10:00:00Z',
@@ -53,12 +52,36 @@ beforeEach(() => {
   mockAuthStore.mockImplementation((selector: (s: unknown) => unknown) =>
     selector({ permissions: PERMISSION_AUDIT_VIEW }),
   )
-  mockVaults.mockReturnValue({
-    data: { vaults: [] },
-  } as unknown as ReturnType<typeof useVaults>)
+  useMemberSyncStore.getState().clear()
+  useMemberSyncStore.getState().publishVault({
+    vaultId: 'vault-1',
+    metadata: { name: 'Production' },
+    structure: {
+      isDefault: false,
+      createdAt: '2026-06-01T00:00:00Z',
+      updatedAt: '2026-06-01T00:00:00Z',
+      memberCount: 1,
+      entryCount: 1,
+      activeGrantCount: 0,
+    },
+    entries: new Map([['entry-1', {
+      entryId: 'entry-1',
+      state: 'active',
+      currentRevision: '1',
+      memberIndexRevision: '1',
+      currentKeyVersion: 1,
+      payload: { memberLabel: 'Stripe API Key', entryType: 0, searchFields: [] },
+      corrupt: false,
+    }]]),
+    appliedThroughSequence: '1',
+    status: 'ready',
+    failureKind: null,
+  })
   mockAgentNames.mockReturnValue({
     agentNameById: { 'agent-1': 'github-copilot' },
+    memberNameById: {},
     resolveAgentName: (id: string) => (id === 'agent-1' ? 'github-copilot' : id),
+    resolveActorName: () => 'github-copilot',
     agentOptions: [{ value: 'agent-1', label: 'github-copilot' }],
     userOptions: [],
   })
@@ -73,6 +96,7 @@ describe('AuditLogPage', () => {
     const sentence = (_: string, el: Element | null) =>
       el?.tagName === 'P' && /github-copilot accessed Stripe API Key/i.test(el.textContent ?? '')
     expect(screen.getByText(sentence)).toBeInTheDocument()
+    expect(screen.queryByText(/MALICIOUS SERVER/)).not.toBeInTheDocument()
   })
 
   it('enables CSV export and requests the backend job on click', () => {

@@ -59,7 +59,7 @@ export function AuditLogList({
   emptyMessage,
   noPermissionMessage,
   canView = true,
-  allowDenormalizedNames = true,
+  allowDenormalizedNames = false,
 }: AuditLogListProps) {
   const { t } = useTranslation()
 

@@ -2,6 +2,7 @@ import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Icon } from '../../../shared/components/icon'
+import { shortenKey } from '../../../shared/lib/shorten-key'
 import type { AuditLogItem } from '../api/audit-api'
 import { auditEventConfig } from './audit-event-config'
 
@@ -41,12 +42,12 @@ export function AuditLogEntry({
   showEntry = true,
   showVault = false,
   withDivider = false,
-  allowDenormalizedNames = true,
+  allowDenormalizedNames = false,
 }: AuditLogEntryProps) {
   const { t } = useTranslation()
   const cfg = auditEventConfig(item.eventType)
-  const agent = agentName ?? (allowDenormalizedNames ? item.agentName : undefined) ?? t('audit.unknownAgent')
-  const entry = entryName ?? (allowDenormalizedNames ? item.entryLabel : undefined) ?? t('audit.unknownEntry')
+  const agent = agentName ?? (item.agentId ? shortenKey(item.agentId) : t('audit.unknownAgent'))
+  const entry = entryName ?? (item.entryId ? shortenKey(item.entryId) : t('audit.unknownEntry'))
   // Sentence slots. Names are never a raw id/public key — they fall back to a
   // localised "unknown"/"unnamed". `agent` is the caller-resolved agent (its own
   // action for grant/credential, the target for agent lifecycle); `object` is
@@ -61,15 +62,21 @@ export function AuditLogEntry({
     actor:
       item.actorType === 'agent'
         ? agent
-        : actorName ?? (allowDenormalizedNames ? item.actorName : undefined) ?? t('audit.unknownUser'),
+        : actorName ?? (item.userId ? shortenKey(item.userId) : t('audit.unknownUser')),
     entry,
-    object: resolveObject(item, t, item.entryId ? entry : undefined),
+    object: resolveObject(
+      item,
+      t,
+      item.entryId ? entry : undefined,
+      item.vaultId ? vaultName : undefined,
+      allowDenormalizedNames,
+    ),
   }
 
   const primary = buildPrimary(item.eventType, t, slots)
   const chips = buildChips(item, t, cfg.labelKey, cfg.color, cfg.bg, cfg.border, {
     showEntry,
-    entryName: entryName ?? (allowDenormalizedNames ? item.entryLabel ?? undefined : undefined),
+    entryName: entryName ?? (item.entryId ? shortenKey(item.entryId) : undefined),
     vaultName: showVault ? vaultName : undefined,
   })
 
@@ -178,10 +185,6 @@ function buildChips(
     chips.push({ icon: 'bolt', text: method, ...CHIP_STYLES.gray })
   }
 
-  if (item.agentReason) {
-    chips.push({ icon: 'chat_bubble', text: item.agentReason, ...CHIP_STYLES.blue })
-  }
-
   return chips
 }
 
@@ -196,14 +199,20 @@ interface SentenceSlots {
   object: string
 }
 
-/** Resolve the "what" of an event to a display name, never an id. Backend
- *  denormalises: entry → `entryLabel`, vault/org → `metadata.name`,
- *  api-key → `metadata.keyName`; otherwise a localised "unnamed". */
-function resolveObject(item: AuditLogItem, t: TFunction, entryName?: string): string {
+/** Resolve the event object from caller-provided local names. Legacy metadata
+ *  is available only behind an explicit transitional opt-in. */
+function resolveObject(
+  item: AuditLogItem,
+  t: TFunction,
+  entryName?: string,
+  vaultName?: string,
+  allowDenormalizedNames = true,
+): string {
   return (
     entryName ??
-    item.metadata.name ??
-    item.metadata.keyName ??
+    vaultName ??
+    (allowDenormalizedNames ? item.metadata.name : undefined) ??
+    (allowDenormalizedNames ? item.metadata.keyName : undefined) ??
     t('audit.object.unnamed')
   )
 }

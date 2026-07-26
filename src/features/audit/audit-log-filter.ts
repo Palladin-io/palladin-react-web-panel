@@ -13,6 +13,10 @@ export interface AuditLogFilter {
   agentNameById?: Record<string, string>
   /** id → locally decrypted member label. Never populated by the audit API. */
   entryNameById?: Record<string, string>
+  /** id → locally decrypted Vault name. Never populated by the audit API. */
+  vaultNameById?: Record<string, string>
+  /** id → authorized local Member display name. */
+  memberNameById?: Record<string, string>
   /** Inclusive lower date bound as `YYYY-MM-DD` (from a native date input). */
   from?: string
   /** Inclusive upper date bound as `YYYY-MM-DD`. */
@@ -54,7 +58,13 @@ export function filterAuditLogs(
     const entryName = item.entryId
       ? filter.entryNameById?.[item.entryId]
       : undefined
-    return [entryName ?? item.entryLabel, item.agentReason, item.eventType, agentName]
+    const vaultName = item.vaultId
+      ? filter.vaultNameById?.[item.vaultId]
+      : undefined
+    const memberName = item.userId
+      ? filter.memberNameById?.[item.userId]
+      : undefined
+    return [entryName, vaultName, memberName, item.eventType, agentName]
       .filter(Boolean)
       .some((v) => v!.toLowerCase().includes(q))
   })

@@ -46,10 +46,10 @@ export type AuditActorType = (typeof AUDIT_ACTOR_TYPES)[number]
 
 /**
  * One audit row from `GET /api/vaults/{id}/audit-logs` (`AuditLogListItem`).
- * No secrets or ciphertext are ever returned. `entryLabel` is denormalised
- * server-side today; `agentName`/`actorName` are not yet (tracked by CVT-181) —
- * they are accepted here as optional so the UI uses the server value the moment
- * the backend ships it, falling back to client-side resolution until then.
+ * No secrets, ciphertext or presentation names are accepted here. The canonical
+ * audit contract is structural; every display label is resolved from authorized
+ * client state after parsing. Zod strips legacy denormalized fields from older
+ * servers so they can never silently become a presentation fallback.
  *
  * `eventType` is parsed loosely (`z.string()`) so a future backend event type
  * never collapses the whole page; the row component falls back to a neutral
@@ -61,12 +61,8 @@ export const auditLogItemSchema = z.object({
   actorType: z.enum(AUDIT_ACTOR_TYPES).catch('system'),
   userId: z.string().nullable().optional(),
   agentId: z.string().nullable().optional(),
-  agentName: z.string().nullable().optional(),
-  actorName: z.string().nullable().optional(),
   vaultId: z.string().nullable().optional(),
   entryId: z.string().nullable().optional(),
-  entryLabel: z.string().nullable().optional(),
-  agentReason: z.string().nullable().optional(),
   metadata: z.record(z.string(), z.string()).default({}),
   createdAt: z.string(),
 })

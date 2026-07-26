@@ -16,7 +16,6 @@ function item(overrides: Partial<AuditLogItem>): AuditLogItem {
     agentId: 'agent-1',
     entryId: 'entry-1',
     entryLabel: 'Stripe API Key',
-    agentReason: null,
     metadata: {},
     createdAt: '2026-06-27T10:00:00Z',
     ...overrides,
@@ -41,19 +40,20 @@ describe('AuditLogEntry', () => {
     expect(screen.getByText('get')).toBeInTheDocument()
   })
 
-  it('falls back to "Unknown agent" when no name resolves', () => {
+  it('falls back to the opaque agent id when no name resolves', () => {
     render(<AuditLogEntry item={item({})} />)
-    expect(screen.getByText(sentence(/Unknown agent accessed/i))).toBeInTheDocument()
+    expect(screen.getByText(sentence(/agent-1 accessed entry-1/i))).toBeInTheDocument()
   })
 
-  it('prefers the server-denormalised agentName on the row (no prop needed)', () => {
+  it('ignores a server-denormalised agentName on the row', () => {
     render(<AuditLogEntry item={item({ agentName: 'deploy-bot' })} />)
-    expect(screen.getByText(sentence(/deploy-bot accessed/i))).toBeInTheDocument()
+    expect(screen.getByText(sentence(/agent-1 accessed/i))).toBeInTheDocument()
+    expect(screen.queryByText('deploy-bot')).not.toBeInTheDocument()
   })
 
   it('can fail closed instead of rendering denormalized row names', () => {
     render(<AuditLogEntry item={item({ agentName: 'SERVER NAME' })} allowDenormalizedNames={false} />)
-    expect(screen.getByText(sentence(/Unknown agent accessed this entry/i))).toBeInTheDocument()
+    expect(screen.getByText(sentence(/agent-1 accessed entry-1/i))).toBeInTheDocument()
     expect(screen.queryByText('SERVER NAME')).not.toBeInTheDocument()
   })
 
@@ -66,6 +66,7 @@ describe('AuditLogEntry', () => {
           agentId: null,
           actorName: 'Patryk',
         })}
+        actorName="Patryk"
         entryName="Stripe API Key"
       />,
     )
@@ -75,18 +76,21 @@ describe('AuditLogEntry', () => {
     ).toBeInTheDocument()
   })
 
-  it('builds actor + object sentences for vault/api-key events from the right object source', () => {
+  it('uses local Vault names and requires an explicit opt-in for legacy API-key metadata', () => {
     const { rerender } = render(
       <AuditLogEntry
         item={item({
           eventType: 'vault.created',
           actorType: 'user',
           agentId: null,
+          vaultId: 'vault-1',
           entryId: null,
           entryLabel: null,
           actorName: 'Patryk',
           metadata: { name: 'Production Keys' },
         })}
+        actorName="Patryk"
+        vaultName="Production Keys"
       />,
     )
     expect(
@@ -104,6 +108,8 @@ describe('AuditLogEntry', () => {
           actorName: 'Patryk',
           metadata: { keyName: 'CI Token' },
         })}
+        actorName="Patryk"
+        allowDenormalizedNames
       />,
     )
     expect(
@@ -123,6 +129,7 @@ describe('AuditLogEntry', () => {
           actorName: 'Patryk',
           metadata: {},
         })}
+        actorName="Patryk"
       />,
     )
     expect(
@@ -143,6 +150,8 @@ describe('AuditLogEntry', () => {
           agentId: 'agent-1',
           agentName: 'Claude',
         })}
+        actorName="Unknown user"
+        agentName="Claude"
       />,
     )
     expect(
@@ -154,6 +163,7 @@ describe('AuditLogEntry', () => {
     render(
       <AuditLogEntry
         item={item({ eventType: 'agent.enrolled', actorType: 'agent', agentName: 'deploy-bot' })}
+        agentName="deploy-bot"
       />,
     )
     expect(
