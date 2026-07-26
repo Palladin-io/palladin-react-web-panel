@@ -15,6 +15,16 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 - Unknown protocol/suite values, non-canonical encodings, stale generations, substitution and authentication failures fail closed. Raw plaintext/key buffers are owned by the caller and must be wiped immediately after use.
 - Cross-language conformance tests read the canonical root fixture set pinned at root commit `355663cd9de57343160aed4ed633f7687a2fb647`; expected crypto bytes are not duplicated in this repository.
 
+## Protocol 2 Member sync
+
+1. After unlock, open the authenticated MemberVaultKey package with the in-memory Member private key.
+2. Decrypt MemberVaultMetadata with an HKDF key derived from VK.
+3. Fetch the bounded Member snapshot. Persist its ciphertext envelopes into a private IndexedDB namespace; do not expose it yet.
+4. For every head, decrypt the authenticated EntryKey wrapper with the current VK to obtain the 32-byte EntryDEK, derive the MemberIndex key from EntryDEK, decrypt MemberIndex, and wipe both keys and plaintext buffers.
+5. Apply the closing delta to the pending namespace. Only then atomically swap it active and publish the normalized in-memory index.
+6. Apply later delta pages and their cursors in one IndexedDB transaction. A retention-floor reset builds another private namespace; tombstones remove entries.
+7. Lock, logout, abort, or provider teardown clears every decrypted projection from Zustand. Persistent storage contains ciphertext and structural cursors only.
+
 ## Unlock Flow
 1. User enters master password.
 2. Derive MK via Argon2id (salt fetched from `/account`).
