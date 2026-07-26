@@ -165,7 +165,7 @@ export function NotificationCenterPage({
         grantId: approveTarget.grantId,
         vaultId: approveTarget.vaultId,
         entryId: approveTarget.entryId,
-        agentPublicKey: approveTarget.agentPublicKey,
+        agentId: approveTarget.agentId,
         policy,
         methods,
       },

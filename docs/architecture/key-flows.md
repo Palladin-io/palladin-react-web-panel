@@ -61,7 +61,8 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 2. On reveal, validate the response's organization, Vault, Entry, revision and key-head bindings, open the authenticated EntryDEK wrapper with VK, derive the isolated MemberSecret key and authenticate/decrypt MemberSecret. Wipe VK, EntryDEK, the derived key and serialized plaintext buffers.
 3. Preserve the complete decrypted MemberSecret draft, including Agent Visibility Policy and fields the Details tab does not edit. Build the next projections locally and assign exactly `baseRevision + 1` with operation `Updated`.
 4. Always emit the new immutable MemberSecret. Emit MemberIndex and AgentDiscovery only when their canonical plaintext changed; removing Discovery is represented by `agentDiscoveryChanged: true` with no replacement envelope.
-5. Submit the optimistic `baseRevision`, changed ciphertext projections and the exact refreshed envelope set for every active covering grant in one backend transaction. Until the scoped-grant refresh flow is available, the Details tab fails before opening keys or writing whenever any covering grant exists; the backend independently enforces the exact set and rolls back the whole update on mismatch.
+5. List every active covering grant, authenticate its exact frozen scope and current recipient key context, and build a new per-Entry grant envelope against the new Entry revision. Policy changes may only narrow the previous durable field scope.
+6. Submit the optimistic `baseRevision`, changed ciphertext projections and the complete refreshed envelope set in one backend transaction. A missing covering grant, stale revision/key context or broadened field scope fails closed and rolls back the whole update.
 
 ## Planned Vault key rotation
 
@@ -86,15 +87,10 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 3. Encrypt with VK via `crypto_secretbox`.
 4. Send `{ label, type, encrypted_blob, nonce, url_domain? }` to API.
 
-## Grant Approval — FULL
-1. Decrypt VK using the user's private key.
-2. Fetch the agent's public key from backend.
-3. `agent_wrapped_VK = crypto_box_seal(agent_public_key, VK)`.
-4. POST approve with the wrapped key + policy params.
-
-## Grant Approval — GRANULAR
-1. Decrypt VK → decrypt entry → plaintext.
-2. Generate a random DEK.
-3. Re-encrypt plaintext with the DEK.
-4. `agent_wrapped_DEK = crypto_box_seal(agent_public_key, DEK)`.
-5. POST approve with the wrapped DEK + re-encrypted blob.
+## Protocol 2 Grant Approval — FULL and GRANULAR
+1. Resolve the Agent's current X25519 public key and recipient key version from the backend, then open the Member's current VK package in browser memory.
+2. For each in-scope active Entry, authenticate and decrypt its canonical MemberSecret at the exact head revision. FULL processes every active Entry; GRANULAR processes the selected Entry only.
+3. Project only fields allowed by both the Entry's Agent Visibility Policy and the grant's approved method. Discovery-only, member-only and `never` fields are excluded; TOTP is `onGrantDerived` and Script material is `onGrantRuntime` only.
+4. Generate a fresh GrantDEK per Entry, encrypt the canonical grant payload with XChaCha20-Poly1305, and seal the GrantDEK to the current Agent key. Bind the envelope AAD to organization, Vault, grant, Agent, Entry, methods, exact revisions, key generations, field IDs and key fingerprint.
+5. Submit the complete ciphertext-only envelope set atomically. The backend rejects stale member generation, recipient key version, Entry revision or incomplete coverage. VK, VDK and EntryDEK never cross the client boundary.
+6. Process Entries sequentially to bound plaintext residency, and wipe VK, EntryDEK, GrantDEK, Agent-key copies and serialized plaintext bytes in `finally`.

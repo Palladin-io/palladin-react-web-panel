@@ -47,6 +47,7 @@ const orgGrantSchema = z.object({
   // initials/deterministic colour when absent.
   agentIconKey: z.string().nullable().optional(),
   agentPublicKey: z.string().nullable().optional(),
+  recipientAgentKeyVersion: z.number().int().positive().max(0xffffffff).nullable().optional(),
   type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]).nullable().optional(),
   status: z.enum(GRANT_STATUSES),
   // Combined-flags string of permitted methods, e.g. "get, exec" (CVT-149). Optional for
@@ -54,6 +55,16 @@ const orgGrantSchema = z.object({
   methods: z.string().nullable().optional(),
   entryId: z.string().nullable().optional(),
   entryLabel: z.string().nullable().optional(),
+  entryScopes: z.array(z.object({
+    entryId: z.string(),
+    fieldIds: z.array(z.string()),
+    grantEnvelopeRevision: z.string().nullable(),
+    entryRevision: z.string().nullable(),
+    grantKeyVersion: z.number().int().positive().nullable(),
+    memberKeyGeneration: z.number().int().positive().nullable(),
+    recipientAgentKeyVersion: z.number().int().positive().nullable(),
+    agentKeyFingerprint: z.string().nullable(),
+  }).strict()).optional().default([]),
   reason: z.string().nullable().optional(),
   expiresAt: z.string().nullable().optional(),
   queryLimit: z.number().nullable().optional(),
@@ -136,6 +147,7 @@ export async function getOrgGrants(
 export interface ActiveFullGrant {
   grantId: string
   agentPublicKey: string
+  recipientAgentKeyVersion: number
 }
 
 /**
@@ -158,8 +170,12 @@ export async function collectActiveFullGrants(
       pageSize: 100,
     })
     for (const grant of page.items) {
-      if (grant.type === GRANT_TYPE_FULL && grant.agentPublicKey) {
-        grants.push({ grantId: grant.id, agentPublicKey: grant.agentPublicKey })
+      if (grant.type === GRANT_TYPE_FULL && grant.agentPublicKey && grant.recipientAgentKeyVersion) {
+        grants.push({
+          grantId: grant.id,
+          agentPublicKey: grant.agentPublicKey,
+          recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
+        })
       }
     }
     cursor = page.nextCursor ?? undefined
@@ -188,6 +204,7 @@ export async function revokeGrant(
  * - FULL: `entryId` omitted + `grantEntries` covering every vault entry.
  */
 export interface CreateGrantBody {
+  grantId: string
   agentId: string
   type: GrantType
   entryId?: string

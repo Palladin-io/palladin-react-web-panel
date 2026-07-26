@@ -147,8 +147,10 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
         agentId: grant.agentId,
         entryId: grant.entryId,
         agentPublicKey: grant.agentPublicKey,
+        recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
         type: grant.type,
         policy,
+        methods: grant.methods,
       },
       {
         onSuccess: () => {

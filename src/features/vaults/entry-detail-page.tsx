@@ -19,10 +19,10 @@ import { useAuthStore } from '../auth'
 import {
   GRANT_STATUS_ACTIVE,
   GrantAccessDialog,
-  OrgGrantsPanel,
   useOrgGrants,
 } from '../grants'
 import { EntryIconButton } from './components/entry-icon-button'
+import { EntryAgentsTab } from './components/entry-agents-tab'
 import { EntryLogsTab } from './components/entry-logs-tab'
 import {
   ENTRY_ICON_COLORS,
@@ -279,9 +279,14 @@ function DetailBody({
         />
       ) : null}
       {activeTab === 'agents' ? (
-        // Same org-grants panel, scoped strictly to this entry (GRANULAR grants
-        // on this exact entry only) — one component, many locations.
-        <OrgGrantsPanel entryId={entry.id} />
+        <EntryAgentsTab
+          key={`${entry.id}:${entry.canonical.currentRevision}`}
+          vaultId={vault.id}
+          entryId={entry.id}
+          entryType={entry.type}
+          memberLabel={entry.label}
+          detail={entry.canonical}
+        />
       ) : null}
       {activeTab === 'logs' ? (
         <EntryLogsTab vaultId={vault.id} entryId={entry.id} />

@@ -58,7 +58,7 @@ export function PendingGrantsPanel({
         grantId: grant.id,
         vaultId: grant.vaultId,
         entryId: grant.entryId,
-        agentPublicKey: grant.agentPublicKey,
+        agentId: grant.agentId,
         policy,
         methods,
       },

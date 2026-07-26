@@ -9,10 +9,11 @@ The access-control surface: agents request access to vaults/entries, and admins 
 Two split-view route pages — a per-vault grant master/detail view and an org-wide pending-approvals queue alongside an org grants panel. The approval dialog is the heaviest piece; a policy-fields component captures the time/IP/use-count/lifetime matrix (with a `DateTimePicker`); a grant-access dialog initiates requests from the vault side.
 
 ## Key patterns
-- **Crypto on approve, two modes:** FULL wraps the vault key to the agent's public key (`crypto_box_seal`); GRANULAR generates a DEK, re-encrypts the entry blob, and wraps the DEK. All inside the dialog submit handler — keys never leave memory.
-- **Protocol 2 boundary:** `OrgGrantsPanel` accepts `allowRegrant={false}` for migrated Vault surfaces. This preserves revoke and terminal grant history while withholding the legacy regrant affordance that can wrap a VK. Other consumers retain the existing behavior until their dedicated protocol migration lands.
+- **Protocol 2 grant envelopes:** FULL and GRANULAR grants both receive per-Entry canonical payloads encrypted under a fresh GrantDEK. The GrantDEK is sealed to the Agent's current X25519 key; VK, VDK and EntryDEK are never granted. Every envelope is bound to the grant, Agent, Entry, exact Entry revision, member key generation and recipient key version.
+- **Field-policy enforcement:** the encrypted payload contains only fields whose policy permits the approved method. Discovery-only, member-only and `never` fields are excluded; TOTP source material is derived-only and Script source material is runtime-only. Refreshes may narrow the persisted field scope but never broaden it.
+- **Atomic refresh:** Entry updates produce the next immutable projections and the exact refreshed envelope set for all active covering grants in one backend transaction. Missing, stale or over-broad envelope context fails closed and rolls the whole update back.
 - Split-view layout (2 pages).
 - The policy fields hold an unexported select-class constant — a candidate for the shared `FormSelect`.
 
 ## Cross-feature deps
-The org grants panel, grant-access dialog, and approve/deny dialogs are **exported and consumed by `vaults`** (entry/vault Agents tabs) and **`notifications`** (inline approve/deny). Changes here ripple into both.
+The org grants panel, grant-access dialog, and approve/deny dialogs are **exported and consumed by `vaults`** (entry/vault Agents tabs) and **`notifications`** (inline approve/deny). Approval and regrant always resolve the current Agent key metadata before producing envelopes; notification metadata is not trusted as cryptographic context. Changes here ripple into both.
