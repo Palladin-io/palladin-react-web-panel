@@ -31,9 +31,10 @@ export function EntryIcon({ icon, type, color, className }: EntryIconProps) {
   const presentation = presentationForType(type)
   const value = icon ?? presentation.defaultIcon
   const isUrl = isCustomIconUrl(value)
+  const safeGlyph = !isUrl && value.includes(':') ? presentation.defaultIcon : value
   const glyphColor =
     color ??
-    (!isUrl ? (ENTRY_ICON_COLORS[value] ?? presentation.iconColor) : presentation.iconColor)
+    (!isUrl ? (ENTRY_ICON_COLORS[safeGlyph] ?? presentation.iconColor) : presentation.iconColor)
 
   return (
     <span
@@ -53,7 +54,7 @@ export function EntryIcon({ icon, type, color, className }: EntryIconProps) {
         />
       ) : (
         <Icon
-          name={isUrl ? presentation.defaultIcon : value}
+          name={isUrl ? presentation.defaultIcon : safeGlyph}
           size={16}
           color={glyphColor}
         />

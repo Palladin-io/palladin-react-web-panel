@@ -56,30 +56,6 @@ export async function deleteVault(id: string): Promise<void> {
   await api.delete(`api/vaults/${id}`)
 }
 
-export interface PresignResponse {
-  uploadUrl: string
-  publicUrl: string
-  expiresAt: string
-}
-
-export function presignVaultIcon(
-  vaultId: string,
-  extension: string,
-): Promise<PresignResponse> {
-  return api
-    .post(`api/vaults/${vaultId}/icon/presign`, { json: { vaultId, extension } })
-    .json<PresignResponse>()
-}
-
-export async function uploadToS3(uploadUrl: string, file: File): Promise<void> {
-  const response = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': file.type },
-    body: file,
-  })
-  if (!response.ok) throw new Error(`S3 upload failed: ${response.status}`)
-}
-
 /**
  * Cursor-paginated entries listing. The list intentionally omits the
  * encrypted blob and nonce — those are fetched lazily on reveal via
@@ -170,16 +146,6 @@ export async function deleteEntry(
   await api.delete(`api/vaults/${vaultId}/entries/${entryId}`)
 }
 
-export function presignEntryIcon(
-  vaultId: string,
-  entryId: string,
-  extension: string,
-): Promise<PresignResponse> {
-  return api
-    .post(`api/vaults/${vaultId}/entries/${entryId}/icon/presign`, { json: { extension } })
-    .json<PresignResponse>()
-}
-
 /**
  * One entry in a bulk import request — a single create-entry payload plus the
  * `grantEntries` re-wrap material. The backend requires exactly one entry here
@@ -242,37 +208,5 @@ export async function exportAudit(
   await api.post(`api/vaults/${vaultId}/export-audit`, { json: body })
 }
 
-/**
- * Shared per-domain favicon from the public cache (fetched server-side on a
- * miss). Null = no suggestion; never throws into the form flow.
- */
-export async function resolveFavicon(domain: string): Promise<string | null> {
-  try {
-    const res = await api
-      .get('api/vaults/favicons/resolve', { searchParams: { domain } })
-      .json<{ iconUrl: string | null }>()
-    return res.iconUrl
-  } catch {
-    return null
-  }
-}
-
 // Re-export for convenient consumption by hooks/tests.
 export type { GrantMode }
-
-export interface FaviconHit {
-  domain: string
-  iconUrl: string
-}
-
-/** Search the shared favicon index (brand icons section of the icon browser). */
-export async function searchFavicons(query: string): Promise<FaviconHit[]> {
-  try {
-    const res = await api
-      .get('api/vaults/favicons/search', { searchParams: query ? { query } : {} })
-      .json<{ icons: FaviconHit[] }>()
-    return res.icons
-  } catch {
-    return []
-  }
-}

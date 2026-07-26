@@ -11,14 +11,13 @@ export interface EntryIconButtonProps {
   type: EntryType
   onChange: (icon: string | undefined) => void
   onColorChange: (color: string) => void
-  onFileSelected: (file: File, previewUrl: string) => void
+  onFileSelected?: (file: File, previewUrl: string) => void
   disabled?: boolean
 }
 
 /**
  * The entry icon shown inline next to the Label input (approved redesign). It
- * auto-fills from the site favicon; clicking opens the full icon/colour picker
- * in a popover. The popover is portaled to `document.body` with fixed position
+ * opens the full local icon/colour picker in a popover. The popover is portaled to `document.body` with fixed position
  * anchored to the button, so the entry modal's scrolling/overflow body can't
  * clip it.
  */
@@ -97,10 +96,12 @@ export function EntryIconButton({
                 selectedColor={color}
                 rowClassName="grid grid-cols-6 gap-1.5 justify-items-center"
                 maxVisible={30}
-                onFileSelected={(file, previewUrl) => {
-                  onFileSelected(file, previewUrl)
-                  setOpen(false)
-                }}
+                onFileSelected={onFileSelected
+                  ? (file, previewUrl) => {
+                      onFileSelected(file, previewUrl)
+                      setOpen(false)
+                    }
+                  : undefined}
                 disabled={disabled}
               />
             </div>,
