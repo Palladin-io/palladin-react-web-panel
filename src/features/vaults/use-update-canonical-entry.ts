@@ -20,7 +20,7 @@ import {
 import { grantMethodsMask, parseGrantMethods } from '../grants/grant-methods'
 import { updateCanonicalEntry } from './api/vault-api'
 import { getEncryptedVault } from './sync/member-sync-api'
-import { entriesQueryKey, entryDetailQueryKey } from './use-entries'
+import { entriesQueryKey, entryDetailQueryKey, entryHistoryQueryKey } from './use-entries'
 
 export class ActiveGrantRefreshRequiredError extends Error {
   constructor() {
@@ -122,6 +122,7 @@ export function useUpdateCanonicalEntry(vaultId: string, entryId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: entryDetailQueryKey(vaultId, entryId) })
       queryClient.invalidateQueries({ queryKey: entriesQueryKey(vaultId) })
+      queryClient.invalidateQueries({ queryKey: entryHistoryQueryKey(vaultId, entryId) })
     },
   })
 }

@@ -153,6 +153,9 @@ vi.mock('./components/vault-detail-header', () => ({
 vi.mock('./components/vault-entries-panel', () => ({
   VaultEntriesPanel: () => <div data-testid="vault-entries-panel" />,
 }))
+vi.mock('./components/entry-history-tab', () => ({
+  EntryHistoryTab: () => <div data-testid="history-loaded">History loaded</div>,
+}))
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -221,6 +224,17 @@ function unlockedAuthStore() {
 // ---------------------------------------------------------------------------
 
 describe('EntryDetailPage — DetailsTab', () => {
+  it('does not mount history until the History tab is selected', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    expect(screen.queryByTestId('history-loaded')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: /history/i }))
+    expect(screen.getByTestId('history-loaded')).toBeInTheDocument()
+  })
+
   beforeEach(() => {
     useVaultMock.mockReset()
     useEntryDetailMock.mockReset()

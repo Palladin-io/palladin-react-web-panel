@@ -64,6 +64,13 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 5. List every active covering grant, authenticate its exact frozen scope and current recipient key context, and build a new per-Entry grant envelope against the new Entry revision. Policy changes may only narrow the previous durable field scope.
 6. Submit the optimistic `baseRevision`, changed ciphertext projections and the complete refreshed envelope set in one backend transaction. A missing covering grant, stale revision/key context or broadened field scope fails closed and rolls back the whole update.
 
+## Protocol 2 Entry history and restore
+
+1. Mount the bounded history query only while the History tab is active. Each row carries structural metadata, encrypted MemberSecret and the exact historical Entry-key wrapper; no plaintext or raw key is fetched.
+2. Open only the version explicitly selected by the Member. Authenticate its organization/Vault/Entry scope and key version, unwrap that historical EntryDEK with VK, derive the version's MemberSecret key, decrypt locally, then wipe VK, EntryDEK, derived key and serialized plaintext buffers.
+3. Drop the selected plaintext immediately on lock or tab unmount. Historical ciphertext may remain only in the in-memory query cache and is never copied to persistent client storage.
+4. To restore, decrypt the current head separately and submit the selected historical plaintext as a new draft through the normal update flow. The request remains optimistic against the current revision, creates exactly the next immutable revision and refreshes every active covering grant envelope in the same backend transaction; it never overwrites an old history row.
+
 ## Planned Vault key rotation
 
 1. After unlock, independently of transient Member-sync polling state, list pending rotations and claim one server lease with a fencing token. The current Vault generation remains usable throughout preparation.

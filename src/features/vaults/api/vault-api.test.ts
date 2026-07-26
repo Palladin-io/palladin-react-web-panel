@@ -9,7 +9,44 @@ vi.mock('../../../shared/api/client', () => ({
   api: { get: getFn, post: postFn },
 }))
 
-import { getAllEntries, getCanonicalEntry, importEntries } from './vault-api'
+import { getAllEntries, getCanonicalEntry, getEntryHistory, importEntries } from './vault-api'
+
+describe('getEntryHistory', () => {
+  const organizationId = '00112233-4455-4677-8899-aabbccddeeff'
+  const vaultId = '11112233-4455-4677-8899-aabbccddeeff'
+  const entryId = '22222233-4455-4677-8899-aabbccddeeff'
+  const historyItem = (overrides = {}) => ({
+    revision: '7', memberSequence: '9', discoverySequence: null,
+    changedAt: '2026-07-26T00:00:00Z', changedByType: 'member', changedById: organizationId,
+    operation: 'updated', keyVersion: 2,
+    entryKey: { organizationId, vaultId, entryId, wrapperRevision: '2', keyVersion: 2,
+      memberKeyGeneration: 1, wrappingKeyVersion: 1,
+      header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 8,
+        resourceRevision: '2', keyVersion: 2, memberKeyGeneration: 1, nonce: 'nonce' },
+      wrappedEntryDekByVk: 'wrapped' },
+    memberSecret: { organizationId, vaultId, entryId, revision: '7', operation: 'updated',
+      header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 3,
+        resourceRevision: '7', keyVersion: 2, memberKeyGeneration: 1, nonce: 'nonce' }, ciphertext: 'cipher' },
+    ...overrides,
+  })
+
+  it('normalizes wire enums and sends the revision cursor', async () => {
+    getJson.mockResolvedValueOnce({ currentRevision: '7', items: [historyItem()], nextBeforeRevision: '7',
+      policy: { maximumVersions: 100, maximumAgeDays: 365 } })
+    const page = await getEntryHistory(vaultId, entryId, '8')
+    expect(page.items[0]).toMatchObject({ operation: 2, changedByType: 1 })
+    expect(getFn).toHaveBeenCalledWith(expect.stringContaining('/history'), {
+      searchParams: { pageSize: '20', beforeRevision: '8' },
+    })
+  })
+
+  it('fails closed when a historical key envelope belongs to another Entry', async () => {
+    getJson.mockResolvedValueOnce({ currentRevision: '7', items: [historyItem({
+      entryKey: { ...historyItem().entryKey, entryId: '33332233-4455-4677-8899-aabbccddeeff' },
+    })], nextBeforeRevision: null, policy: { maximumVersions: 100, maximumAgeDays: 365 } })
+    await expect(getEntryHistory(vaultId, entryId)).rejects.toThrow('scope mismatch')
+  })
+})
 
 describe('getCanonicalEntry', () => {
   it('rejects a projection whose authenticated scope differs from the Entry head', async () => {

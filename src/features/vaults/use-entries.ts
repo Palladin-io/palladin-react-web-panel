@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { getAllEntries, getCanonicalEntry, getEntries, getEntry } from './api/vault-api'
+import { getAllEntries, getCanonicalEntry, getEntries, getEntry, getEntryHistory } from './api/vault-api'
 
 export function entriesQueryKey(vaultId: string) {
   return ['vaults', vaultId, 'entries'] as const
@@ -11,6 +11,21 @@ export function allEntriesQueryKey(vaultId: string) {
 
 export function entryDetailQueryKey(vaultId: string, entryId: string) {
   return ['vaults', vaultId, 'entries', entryId] as const
+}
+
+export function entryHistoryQueryKey(vaultId: string, entryId: string) {
+  return [...entryDetailQueryKey(vaultId, entryId), 'history'] as const
+}
+
+export function useEntryHistory(vaultId: string, entryId: string, enabled: boolean) {
+  return useInfiniteQuery({
+    queryKey: entryHistoryQueryKey(vaultId, entryId),
+    queryFn: ({ pageParam }) => getEntryHistory(vaultId, entryId, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextBeforeRevision ?? undefined,
+    enabled,
+    staleTime: 30_000,
+  })
 }
 
 /**

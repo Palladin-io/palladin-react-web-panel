@@ -9,7 +9,7 @@ Vault and entry management: the core of the product. Users browse vaults, drill 
 Three nested levels, each a split-view page with its own tab strip:
 - **Vault list** → list panel + create/settings flows.
 - **Vault detail** — tabs: Entries / Agents / Audit / Members / Settings.
-- **Entry detail** — tabs: Details / Agents / Logs.
+- **Entry detail** — tabs: Details / Agents / History / Logs.
 
 Protocol 2 list/search data comes from `sync/`: after unlock, `MemberSyncProvider` opens the Member Vault key, builds an initial snapshot, applies the closing delta, and then follows incremental deltas. IndexedDB stores only authenticated ciphertext envelopes, structural metadata, and sequence cursors. Decrypted Vault metadata and normalized MemberIndex records live in Zustand memory and are cleared immediately on lock/logout. Entry secrets remain lazy and are never part of Member sync.
 
@@ -24,6 +24,8 @@ The Vault Detail Members tab reads the structural Member directory in keyset pag
 Create Entry uses a server-issued opaque Entry ID and builds MemberIndex, canonical MemberSecret and optional AgentDiscovery from one editable Agent Visibility Policy. The three projections share revision 1 but use isolated keys and authenticated projection-specific scopes. Username and URL domain are discoverable by default for Credentials; secret values and Notes remain post-grant; TOTP is derived-only and Script material runtime-only. The request is ciphertext-only and the backend commits the complete projection set atomically.
 
 Entry Detail reads presentation from the in-memory MemberIndex and opens MemberSecret only after an explicit reveal. Edits create the next immutable MemberSecret revision and include MemberIndex or AgentDiscovery only when their canonical plaintext changed. The update is optimistic on `baseRevision`; active covering grants are paged completely and refreshed against the exact new revision in the same transaction. Policy tightening may narrow an existing grant scope, while missing, stale or broadened envelope context fails closed before commit.
+
+Entry History is a separate lazy query mounted only while its tab is open. Pages contain ciphertext metadata plus the exact encrypted Entry-key envelope referenced by each immutable revision, which permits local decryption across Entry rekeys without exposing raw keys. A version is decrypted only after explicit reveal; changing tabs, unmounting, or locking drops the selected plaintext, while temporary byte buffers are wiped. Restoring an old version uses the normal optimistic update path against the current head, so the old record is never mutated: the selected plaintext becomes the draft for a newly encrypted revision, and all active covering grant envelopes are refreshed atomically.
 
 ## Key patterns
 - **Zero-knowledge on-demand:** the vault key is unsealed and the entry decrypted only at reveal/open time; plaintext lives in component `useState` and never leaves memory.

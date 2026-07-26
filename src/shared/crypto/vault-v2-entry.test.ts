@@ -7,6 +7,7 @@ import {
   createEntryUpdateMaterial,
   createInitialEntryMaterial,
   decryptMemberSecret,
+  decryptHistoricalMemberSecret,
   defaultAgentVisibilityPolicy,
   ENTRY_FIELD,
   validateAgentVisibilityPolicy,
@@ -146,6 +147,22 @@ describe('canonical Entry create material', () => {
 })
 
 describe('canonical Entry versioned update', () => {
+  it('decrypts an immutable version with its exact historical Entry key and rejects substituted scope', async () => {
+    const vaultKey = new Uint8Array(32).fill(7)
+    const discoveryKey = new Uint8Array(32).fill(9)
+    const initial = await createInitialEntryMaterial({ memberLabel: 'Old label', agentLabel: 'Agent',
+      entryType: ENTRY_TYPE_KEY, content: { type: ENTRY_TYPE_KEY, value: 'old-secret' },
+      policy: defaultAgentVisibilityPolicy(ENTRY_TYPE_KEY) }, scope, vaultKey, discoveryKey)
+    const detailScope = { organizationId: scope.organizationId, vaultId: scope.vaultId, id: scope.entryId }
+    const historical = await decryptHistoricalMemberSecret(
+      detailScope, initial.memberSecret, initial.entryKey, vaultKey,
+    )
+    expect(historical.content).toEqual({ type: ENTRY_TYPE_KEY, value: 'old-secret' })
+    await expect(decryptHistoricalMemberSecret(detailScope, initial.memberSecret, {
+      ...initial.entryKey, entryId: '33332233-4455-4677-8899-aabbccddeeff',
+    }, vaultKey)).rejects.toThrow('scope mismatch')
+  })
+
   it('creates exactly the next revision and emits only projections whose plaintext changed', async () => {
     const vaultKey = new Uint8Array(32).fill(7)
     const discoveryKey = new Uint8Array(32).fill(9)

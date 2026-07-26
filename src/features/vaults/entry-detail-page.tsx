@@ -24,6 +24,7 @@ import {
 import { EntryIconButton } from './components/entry-icon-button'
 import { EntryAgentsTab } from './components/entry-agents-tab'
 import { EntryLogsTab } from './components/entry-logs-tab'
+import { EntryHistoryTab } from './components/entry-history-tab'
 import {
   ENTRY_ICON_COLORS,
   extractDomain,
@@ -76,7 +77,7 @@ export interface EntryDetailPageProps {
   entryId: string
 }
 
-type EntryDetailTab = 'details' | 'agents' | 'logs'
+type EntryDetailTab = 'details' | 'agents' | 'history' | 'logs'
 
 /**
  * Full entry detail screen — opened from the `arrow_forward` action on
@@ -291,6 +292,9 @@ function DetailBody({
       {activeTab === 'logs' ? (
         <EntryLogsTab vaultId={vault.id} entryId={entry.id} />
       ) : null}
+      {activeTab === 'history' ? (
+        <EntryHistoryTab detail={entry.canonical} />
+      ) : null}
     </>
   )
 }
@@ -307,6 +311,7 @@ function EntryDetailTabs({ active, onChange, wide, actions }: EntryDetailTabsPro
   const tabs: { id: EntryDetailTab; labelKey: string }[] = [
     { id: 'details', labelKey: 'vault.entry.detail.detailsTab' },
     { id: 'agents', labelKey: 'vault.entry.detail.agentsTab' },
+    { id: 'history', labelKey: 'vault.entry.detail.historyTab' },
     { id: 'logs', labelKey: 'vault.entry.detail.logsTab' },
   ]
 

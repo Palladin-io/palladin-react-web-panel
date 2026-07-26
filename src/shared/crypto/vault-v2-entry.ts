@@ -318,6 +318,51 @@ async function openEntryDek(
   return entryDek
 }
 
+export async function decryptHistoricalMemberSecret(
+  detail: Pick<CanonicalEntryDetail, 'organizationId' | 'vaultId' | 'id'>,
+  memberSecret: MemberSecretEnvelope,
+  entryKey: VaultEntryKeyEnvelope,
+  vaultKey: Uint8Array,
+): Promise<MemberSecretPlaintext> {
+  if (entryKey.organizationId !== detail.organizationId || entryKey.vaultId !== detail.vaultId
+    || entryKey.entryId !== detail.id || memberSecret.organizationId !== detail.organizationId
+    || memberSecret.vaultId !== detail.vaultId || memberSecret.entryId !== detail.id
+    || memberSecret.header.keyVersion !== entryKey.keyVersion) {
+    throw new Error('Historical Entry envelope scope mismatch')
+  }
+  const entryDek = await decryptVaultEnvelope('entry-key-wrapper', entryKey, vaultKey, {
+    aadContext: entryKey,
+    minimumMemberKeyGeneration: entryKey.memberKeyGeneration,
+  })
+  let key: Uint8Array | undefined
+  let plaintext: Uint8Array | undefined
+  try {
+    if (entryDek.length !== 32) throw new Error('EntryDEK must be 32 bytes')
+    key = await deriveVaultProjectionKey({
+      baseKey: entryDek,
+      purpose: 'member-secret',
+      resourceKind: 2,
+      organizationId: detail.organizationId,
+      vaultId: detail.vaultId,
+      entryId: detail.id,
+      keyVersion: entryKey.keyVersion,
+      memberKeyGeneration: entryKey.memberKeyGeneration,
+    })
+    plaintext = await decryptVaultEnvelope('member-secret', memberSecret, key, {
+      aadContext: memberSecret,
+      minimumMemberKeyGeneration: entryKey.memberKeyGeneration,
+    })
+    const value = decodeCanonicalJson(plaintext) as MemberSecretPlaintext
+    validateAgentVisibilityPolicy(value.entryType, value.agentVisibilityPolicy, value.content.fields ?? [])
+    if (value.schemaVersion !== 1 || value.content.type !== value.entryType) throw new Error('Invalid MemberSecret payload')
+    return value
+  } finally {
+    wipe(entryDek)
+    if (key) wipe(key)
+    if (plaintext) wipe(plaintext)
+  }
+}
+
 export async function decryptMemberSecret(
   detail: CanonicalEntryDetail,
   vaultKey: Uint8Array,

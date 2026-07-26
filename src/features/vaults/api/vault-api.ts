@@ -118,7 +118,7 @@ export async function getEntry(
   return { ...entry, type: normalizeEntryType(entry.type) }
 }
 
-const memberSecretEnvelopeSchema = z.object({
+export const memberSecretEnvelopeSchema = z.object({
   organizationId: canonicalUuidSchema,
   vaultId: canonicalUuidSchema,
   entryId: canonicalUuidSchema,
@@ -173,6 +173,62 @@ const canonicalEntryDetailSchema = z.object({
     context.addIssue({ code: 'custom', message: 'Entry projection head mismatch' })
   }
 })
+
+const actorTypeSchema = z.union([
+  z.enum(['member', 'agent', 'system']), z.literal(1), z.literal(2), z.literal(3),
+]).transform((actor) => typeof actor === 'number'
+  ? actor
+  : ({ member: 1, agent: 2, system: 3 } as const)[actor])
+
+const entryHistoryItemSchema = z.object({
+  revision: canonicalU64Schema,
+  memberSequence: canonicalU64Schema,
+  discoverySequence: canonicalU64Schema.nullable(),
+  changedAt: z.string(),
+  changedByType: actorTypeSchema,
+  changedById: canonicalUuidSchema,
+  operation: memberSecretEnvelopeSchema.shape.operation,
+  keyVersion: u32Schema,
+  entryKey: vaultEntryKeyEnvelopeSchema,
+  memberSecret: memberSecretEnvelopeSchema,
+}).strict().superRefine((item, context) => {
+  if (item.revision !== item.memberSecret.revision
+    || item.operation !== item.memberSecret.operation
+    || item.keyVersion !== item.entryKey.keyVersion
+    || item.keyVersion !== item.memberSecret.header.keyVersion) {
+    context.addIssue({ code: 'custom', message: 'Entry history envelope head mismatch' })
+  }
+  if (item.entryKey.organizationId !== item.memberSecret.organizationId
+    || item.entryKey.vaultId !== item.memberSecret.vaultId
+    || item.entryKey.entryId !== item.memberSecret.entryId) {
+    context.addIssue({ code: 'custom', message: 'Entry history envelope scope mismatch' })
+  }
+})
+
+const entryHistoryResponseSchema = z.object({
+  currentRevision: canonicalU64Schema,
+  items: z.array(entryHistoryItemSchema),
+  nextBeforeRevision: canonicalU64Schema.nullable(),
+  policy: z.object({ maximumVersions: z.number().int().positive(), maximumAgeDays: z.number().int().positive() }).strict(),
+}).strict()
+
+export type EntryHistoryItem = z.infer<typeof entryHistoryItemSchema>
+export type EntryHistoryResponse = z.infer<typeof entryHistoryResponseSchema>
+
+export async function getEntryHistory(
+  vaultId: string,
+  entryId: string,
+  beforeRevision?: string,
+): Promise<EntryHistoryResponse> {
+  const raw = await api.get(`api/vaults/${vaultId}/entries/${entryId}/history`, {
+    searchParams: { pageSize: '20', ...(beforeRevision ? { beforeRevision } : {}) },
+  }).json()
+  const page = entryHistoryResponseSchema.parse(raw)
+  if (page.items.some((item) => item.entryKey.vaultId !== vaultId || item.entryKey.entryId !== entryId)) {
+    throw new Error('Entry history response scope mismatch')
+  }
+  return page
+}
 
 export async function getCanonicalEntry(vaultId: string, entryId: string): Promise<CanonicalEntryDetail> {
   const raw = await api.get(`api/vaults/${vaultId}/entries/${entryId}`).json()
