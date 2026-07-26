@@ -1,10 +1,5 @@
 import { z } from 'zod'
 
-/**
- * Notification types pushed by the backend over SignalR (`ReceiveNotification`)
- * and delivered as FCM data messages. Snake_case strings match the backend
- * `payload.type` contract exactly.
- */
 export const NOTIFICATION_TYPES = [
   'grant_pending',
   'grant_approved',
@@ -19,31 +14,46 @@ export const NOTIFICATION_TYPES = [
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
 
-/**
- * Shape of the `payload` object delivered with every notification.
- *
- * `data` carries resource identifiers (grantId / vaultId / agentId / entryId,
- * all strings). We intentionally keep it loose (`record of optional strings`)
- * because the exact id set varies per type and the UI only reads ids
- * opportunistically for query invalidation / deep-linking.
- */
-export const notificationPayloadSchema = z.object({
-  // `type` may arrive as an unknown string if the backend adds a new type the
-  // client doesn't know yet — keep it as a plain string and narrow at use.
-  type: z.string(),
-  // title/body are display-only; tolerate absence so a thin payload still
-  // drives invalidation. The real work keys off `type` + `data`.
-  title: z.string().optional().default(''),
-  body: z.string().optional().default(''),
-  data: z.record(z.string(), z.string()).optional().default({}),
-  // `timestamp` is display-only and its wire shape varies (ISO string today, a
-  // NodaTime object during the backend transition). It must NEVER cause the
-  // payload to be rejected — accept anything, normalise to string|undefined.
-  timestamp: z
-    .unknown()
-    .optional()
-    .transform((v) => (typeof v === 'string' ? v : undefined)),
-})
+const notificationCategorySchema = z.enum(['actionRequired', 'update'])
+const wireMetadataSchema = z.record(z.string(), z.string())
+
+// Presentation is never trusted from realtime/push input. Canonical Vault
+// notifications do not carry these fields; stripping them also fails safely
+// against a stale or compromised producer during the cutover.
+const FORBIDDEN_PRESENTATION_KEYS = new Set([
+  'account', 'accountName', 'actionDeepLink', 'actorName', 'agentName',
+  'domain', 'entryLabel', 'host', 'ip', 'note', 'reason', 'vaultName',
+  'agentIconKey', 'agentPublicKey',
+])
+const OPAQUE_ID_KEYS = new Set([
+  'agentId', 'entityId', 'entryId', 'grantId', 'requestId', 'vaultId',
+])
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export function sanitizeNotificationMetadata(
+  metadata: Record<string, string> | null | undefined,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(metadata ?? {}).filter(([key, value]) =>
+      !FORBIDDEN_PRESENTATION_KEYS.has(key)
+      && (!OPAQUE_ID_KEYS.has(key) || UUID.test(value))),
+  )
+}
+
+const notificationPayloadSchema = z.object({
+  subjectId: z.string().uuid(),
+  type: z.string().min(1),
+  category: notificationCategorySchema,
+  titleKey: z.string().optional(),
+  metadata: wireMetadataSchema.optional(),
+  occurredAt: z.string().datetime({ offset: true }),
+}).passthrough().transform((payload) => ({
+  subjectId: payload.subjectId,
+  type: payload.type,
+  category: payload.category,
+  occurredAt: payload.occurredAt,
+  data: sanitizeNotificationMetadata(payload.metadata),
+}))
 
 export type NotificationPayload = z.infer<typeof notificationPayloadSchema>
 
@@ -51,11 +61,6 @@ export function isKnownNotificationType(type: string): type is NotificationType 
   return (NOTIFICATION_TYPES as readonly string[]).includes(type)
 }
 
-/**
- * Parse a raw payload received from SignalR or FCM. Returns `null` on a
- * malformed payload rather than throwing — a single bad message must never
- * tear down the connection or the messaging handler.
- */
 export function parseNotificationPayload(raw: unknown): NotificationPayload | null {
   const result = notificationPayloadSchema.safeParse(raw)
   return result.success ? result.data : null

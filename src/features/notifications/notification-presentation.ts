@@ -4,8 +4,8 @@ import type { NotificationItem } from './notifications-api'
 /**
  * Client-side presentation for Notification Center cards (CVT-164).
  *
- * The backend sends a `titleKey` (i18n key) + presentational `metadata` (names
- * + ids, never secrets). This module turns a `NotificationItem` into the visual
+ * The backend sends structural metadata. A preceding local resolver enriches
+ * a transient item from unlocked/authenticated caches. This module turns it into the visual
  * pieces of a card — header avatar, name, subtitle and detail rows. It is PURE
  * DATA (no JSX/hooks) so it is trivial to unit-test and the card component owns
  * all rendering + localisation.
@@ -88,10 +88,17 @@ function metaRow(item: NotificationItem, labelKey: string, key: string): DetailR
   return textRow(labelKey, meta(item, key))
 }
 
+function idRow(item: NotificationItem, labelKey: string, key: string): DetailRow {
+  const value = meta(item, key)
+  return textRow(labelKey, value ? shortenKey(value) : undefined)
+}
+
 /** Entry row: bold entry label + optional vault suffix. */
 function entryRow(item: NotificationItem): DetailRow {
-  const entry = meta(item, 'entryLabel') ?? FALLBACK
-  const vault = meta(item, 'vaultName') ?? null
+  const entry = meta(item, 'entryLabel')
+    ?? (meta(item, 'entryId') ? shortenKey(meta(item, 'entryId')!) : FALLBACK)
+  const vault = meta(item, 'vaultName')
+    ?? (meta(item, 'vaultId') ? shortenKey(meta(item, 'vaultId')!) : null)
   return { labelKey: 'notifications.card.rowEntry', value: { kind: 'entry', entry, vault } }
 }
 
@@ -121,7 +128,7 @@ function agentPublicKeyShort(item: NotificationItem): string | undefined {
 function agentRows(item: NotificationItem): DetailRow[] {
   return [
     textRow('notifications.card.rowPublicKey', agentPublicKeyShort(item)),
-    metaRow(item, 'notifications.card.rowAgentId', 'agentId'),
+    idRow(item, 'notifications.card.rowAgentId', 'agentId'),
     metaRow(item, 'notifications.card.rowType', 'agentType'),
     textRow('notifications.card.rowHostIp', agentHostIp(item)),
   ]
@@ -158,7 +165,8 @@ export function notificationTypeNameKey(type: string): string {
 export function notificationCardPresentation(
   item: NotificationItem,
 ): CardPresentation {
-  const agentName = meta(item, 'agentName') ?? null
+  const agentName = meta(item, 'agentName')
+    ?? (meta(item, 'agentId') ? shortenKey(meta(item, 'agentId')!) : null)
   const agentId = meta(item, 'agentId') ?? null
   const agentIconKey = meta(item, 'agentIconKey') ?? null
 
@@ -206,7 +214,7 @@ export function notificationCardPresentation(
         subtitleAgentFallbackKey: UNKNOWN,
         // Approved record: Agent Id first, no public key, approver ("By") last.
         rows: [
-          metaRow(item, 'notifications.card.rowAgentId', 'agentId'),
+          idRow(item, 'notifications.card.rowAgentId', 'agentId'),
           metaRow(item, 'notifications.card.rowType', 'agentType'),
           textRow('notifications.card.rowHostIp', agentHostIp(item)),
           metaRow(item, 'notifications.card.rowBy', 'actorName'),
@@ -221,7 +229,7 @@ export function notificationCardPresentation(
         subtitleAgent: agentName,
         subtitleAgentFallbackKey: UNKNOWN,
         rows: [
-          metaRow(item, 'notifications.card.rowAgentId', 'agentId'),
+          idRow(item, 'notifications.card.rowAgentId', 'agentId'),
           metaRow(item, 'notifications.card.rowType', 'agentType'),
           textRow('notifications.card.rowHostIp', agentHostIp(item)),
           metaRow(item, 'notifications.card.rowBy', 'actorName'),

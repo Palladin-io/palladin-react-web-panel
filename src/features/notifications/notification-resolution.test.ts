@@ -1,0 +1,47 @@
+import { describe, expect, it } from 'vitest'
+import type { Agent } from '../agents'
+import type { DecryptedMemberVault } from '../vaults/sync/member-sync-store'
+import type { NotificationItem } from './notifications-api'
+import { notificationDeepLink, resolveNotificationItem } from './notification-resolution'
+
+const vaultId = '11112233-4455-4677-8899-aabbccddeeff'
+const entryId = '22222233-4455-4677-8899-aabbccddeeff'
+const agentId = '33332233-4455-4677-8899-aabbccddeeff'
+
+const item: NotificationItem = {
+  id: 'notification', type: 'grant_pending', category: 'actionRequired', titleKey: 'ignored',
+  metadata: { vaultId, entryId, agentId, grantId: 'grant' },
+  occurredAt: '2026-07-26T12:00:00Z', readAt: null, actionState: 'pending',
+}
+
+describe('notification local resolution', () => {
+  it('adds presentation only from unlocked MemberIndex and the authorized Agent cache', () => {
+    const vault = {
+      vaultId,
+      metadata: { name: 'Production' },
+      entries: new Map([[entryId, {
+        entryId, corrupt: false, payload: { memberLabel: 'GitHub', entryType: 0, searchFields: [] },
+      }]]),
+    } as unknown as DecryptedMemberVault
+    const agent = {
+      agentId, name: 'Deploy Bot', type: 'codex', lastHostname: 'runner.local', lastIp: '127.0.0.1',
+      iconKey: 'robot',
+    } as Agent
+
+    expect(resolveNotificationItem(item, {
+      vaults: new Map([[vaultId, vault]]), agents: new Map([[agentId, agent]]),
+    }).metadata).toEqual(expect.objectContaining({
+      vaultName: 'Production', entryLabel: 'GitHub', agentName: 'Deploy Bot',
+      agentType: 'codex', host: 'runner.local', ip: '127.0.0.1',
+    }))
+  })
+
+  it('keeps missing/deleted references opaque and derives only internal routes', () => {
+    const unresolved = resolveNotificationItem(item, { vaults: new Map(), agents: new Map() })
+    expect(unresolved.metadata).not.toHaveProperty('vaultName')
+    expect(notificationDeepLink(unresolved)).toEqual({
+      to: '/vaults/$vaultId', params: { vaultId }, search: { tab: 'agents' },
+    })
+    expect(notificationDeepLink({ ...item, type: 'future', metadata: {} })).toBeNull()
+  })
+})

@@ -22,10 +22,12 @@ import {
 import { DenyAgentDialog } from './deny-agent-dialog'
 import {
   ApproveAgentDialog,
+  useAgents,
   useApproveAgent,
   useDeactivateAgent,
   type ApproveAgentInput,
 } from '../agents'
+import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
 import { NotificationCard } from './notification-card'
 import { NotificationPreferencesDialog } from './notification-preferences-dialog'
 import {
@@ -40,6 +42,7 @@ import {
   useNotifications,
   useNotificationsSummary,
 } from './notification-queries'
+import { notificationDeepLink, resolveNotificationItem } from './notification-resolution'
 
 type Segment = 'all' | 'todo' | 'history' | 'grants'
 
@@ -83,6 +86,12 @@ export function NotificationCenterPage({
   const summary = useNotificationsSummary()
   const markRead = useMarkNotificationRead()
   const markAllRead = useMarkAllNotificationsRead()
+  const agents = useAgents()
+  const memberVaults = useMemberSyncStore((state) => state.vaults)
+  const agentsById = useMemo(
+    () => new Map((agents.data ?? []).map((agent) => [agent.agentId, agent])),
+    [agents.data],
+  )
 
   // Refresh the feed + summary after a grant action so the resolved card drops
   // out (and its buttons disable) immediately, instead of lingering up to the
@@ -129,8 +138,12 @@ export function NotificationCenterPage({
   }
 
   const items = useMemo(
-    () => notifications.data?.pages.flatMap((page) => page.items) ?? [],
-    [notifications.data],
+    () => (notifications.data?.pages.flatMap((page) => page.items) ?? [])
+      .map((item) => resolveNotificationItem(item, {
+        vaults: memberVaults,
+        agents: agentsById,
+      })),
+    [notifications.data, memberVaults, agentsById],
   )
 
   const { actionItems, historyItems } = useMemo(() => splitByCategory(items), [items])
@@ -239,24 +252,13 @@ export function NotificationCenterPage({
     })
   }
 
-  // Open a card's deep-link to the resource detail and mark it read. The link is
-  // a backend-supplied app path (`metadata.actionDeepLink`); state changes
-  // (revoke / grant again) live on that detail, not on the immutable log card.
+  // Construct navigation locally from opaque identifiers. The destination's
+  // normal route/API authorization remains authoritative.
   function handleView(item: NotificationItem) {
-    // Access (grant) cards open the vault on its Agents tab — that's where the
-    // live grant state and revoke/re-grant actions live, not the grant deep-link.
-    const vaultId = item.metadata?.vaultId
-    if (isAccessNotification(item) && vaultId) {
-      markReadNow(item.id)
-      navigate({ to: '/vaults/$vaultId', params: { vaultId }, search: { tab: 'agents' } })
-      return
-    }
-    const deepLink = item.metadata?.actionDeepLink
-    if (!deepLink || !isKnownDeepLink(deepLink)) return
+    const destination = notificationDeepLink(item)
+    if (!destination) return
     markReadNow(item.id)
-    // Validated against the app's route prefixes above, so the backend string is
-    // safe to hand to the type-safe navigator (which otherwise trusts the path).
-    navigate({ to: deepLink })
+    navigate(destination)
   }
 
   return (
@@ -564,34 +566,11 @@ function ActionFooter({
 }
 
 /**
- * Backend-supplied deep links are arbitrary strings; the type-safe navigator
- * trusts whatever it's handed and an unknown path can break navigation. Only
- * allow paths that match a real top-level route prefix before navigating.
- */
-const KNOWN_DEEP_LINK_ROOTS = ['/vaults', '/agents', '/inbox', '/approvals']
-
-function isKnownDeepLink(path: string): boolean {
-  return KNOWN_DEEP_LINK_ROOTS.some(
-    (root) => path === root || path.startsWith(`${root}/`) || path.startsWith(`${root}?`),
-  )
-}
-
-/** Access (grant) notifications resolve their View to the vault's Agents tab. */
-function isAccessNotification(item: NotificationItem): boolean {
-  return (
-    item.type === 'grant_approved' ||
-    item.type === 'grant_denied' ||
-    item.type === 'grant_revoked'
-  )
-}
-
-/**
  * Contextual label for the "View" link — names the deep-link target so the CTA
  * reads "View Access" / "View Agent" / "View Entry" instead of a generic "View".
  *
  * The notification `type` is the most reliable signal; for unmodelled types we
- * fall back to the `actionDeepLink` path prefix (`/agents` → agent, `/vaults` →
- * entry). Defaults to the access label (grants are the dominant inbox target).
+ * use the available opaque identifiers. Defaults to access (the dominant type).
  */
 function viewLabelKey(item: NotificationItem): string {
   switch (item.type) {
@@ -605,9 +584,8 @@ function viewLabelKey(item: NotificationItem): string {
     case 'grant_revoked':
       return 'notifications.center.viewAccess'
     default: {
-      const link = item.metadata?.actionDeepLink ?? ''
-      if (link.startsWith('/agents')) return 'notifications.center.viewAgent'
-      if (link.startsWith('/vaults')) return 'notifications.center.viewEntry'
+      if (item.metadata?.agentId) return 'notifications.center.viewAgent'
+      if (item.metadata?.entryId) return 'notifications.center.viewEntry'
       return 'notifications.center.viewAccess'
     }
   }
@@ -617,8 +595,8 @@ function viewLabelKey(item: NotificationItem): string {
  * Footer for every non-pending card (History + non-actionable To-do): a single
  * non-mutating "View" link that deep-links to the resource detail, with a label
  * naming the target (Access / Agent / Entry). The card is an immutable log, so
- * it never mutates state inline. Renders nothing when the backend supplied no
- * `actionDeepLink` — the card then stands as a pure log.
+ * it never mutates state inline. Renders nothing when the opaque identifiers
+ * cannot form a local route.
  */
 function ViewFooter({
   item,
@@ -628,7 +606,7 @@ function ViewFooter({
   onView: (item: NotificationItem) => void
 }) {
   const { t } = useTranslation()
-  if (!item.metadata?.actionDeepLink) return null
+  if (!notificationDeepLink(item)) return null
   return (
     <Button
       variant="subtle"

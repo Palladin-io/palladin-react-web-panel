@@ -10,7 +10,10 @@ A segmented inbox (All / To-do / History / Grants) with search and the shared fi
 
 ## Key patterns
 - **Two complementary channels:** SignalR (in-app, tab open) and FCM-for-Web push (system notification, tab closed).
-- Toast copy is localized client-side from names in the event payload (EN/PL), falling back to the server-rendered body.
+- **Generic wire contract:** FCM carries only type/category/opaque subject/time; SignalR and Inbox may additionally carry structural opaque IDs. Server title/body, presentation names and deep links are never trusted or rendered.
+- **Local resolution after unlock:** Vault and Entry presentation comes only from the in-memory Member sync store; Agent presentation comes from the authorized Agent cache. Missing/deleted references use prefix-and-suffix IDs.
+- **Bounded cross-channel deduplication:** foreground FCM and SignalR occurrences share a bounded two-minute identity window keyed by type, subject and occurrence time.
+- **Authorization-preserving navigation:** internal routes are constructed locally from opaque IDs. Opening a notification still passes through normal route guards and authorized endpoints.
 
 ## Cross-feature deps
 Reuses the approve/deny dialogs from `grants` and `agents` for inline actions, and their queries to resolve card context. It pulls from the most other features of any surface.
