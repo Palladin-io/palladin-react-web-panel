@@ -3,7 +3,9 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
+import { FormSelect } from '../../../shared/components/form-select'
 import { Icon } from '../../../shared/components/icon'
+import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import { shortenKey } from '../../../shared/lib/shorten-key'
 import type { Vault } from '../types'
 import { usePersistedEntriesList } from '../use-entries-list-ui'
@@ -44,7 +46,10 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
   }
 
   const totalCount = entries.counts.active + entries.counts.archived + entries.counts.deleted
-  if ((entries.status === 'error' || entries.vaultStatus === 'error') && totalCount === 0) {
+  const selectedVaultHasError = entries.vaultStatus === null
+    ? entries.status === 'error'
+    : entries.vaultStatus === 'error'
+  if (selectedVaultHasError && totalCount === 0) {
     return <ErrorState message={t('vault.entries.syncError')} onRetry={entries.retry} />
   }
 
@@ -63,7 +68,7 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {entries.status === 'error' || entries.vaultStatus === 'error' ? (
+      {selectedVaultHasError ? (
         <div className="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.06)] px-3 py-2 text-meta text-[var(--cv-t2)]">
           <span>{t('vault.entries.partialSyncError')}</span>
           <Button variant="ghost" size="sm" onClick={entries.retry}>{t('vault.list.retry')}</Button>
@@ -79,31 +84,27 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
       <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('vault.entries.lifecycleFilter')}>
           {(['active', 'archived', 'deleted'] as const).map((value) => (
-            <button
+            <Button
               key={value}
-              type="button"
+              variant={state === value ? 'subtle' : 'outline'}
+              size="sm"
               aria-pressed={state === value}
               onClick={() => setState(value)}
-              className={`rounded-full border px-3 py-1.5 text-meta transition-colors ${
-                state === value
-                  ? 'border-[var(--cv-primary)] bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
-                  : 'border-[var(--cv-border)] text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
-              }`}
             >
               {t(`vault.entries.state.${value}`)} ({entries.counts[value]})
-            </button>
+            </Button>
           ))}
         </div>
-        <select
+        <FormSelect
+          id="vault-entry-sort"
           value={sort}
           onChange={(event) => setSort(event.target.value as MemberEntrySort)}
           aria-label={t('vault.entries.sort.label')}
-          className="h-8 rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-2 text-meta text-[var(--cv-input-text)]"
         >
           <option value="name-asc">{t('vault.entries.sort.nameAsc')}</option>
           <option value="name-desc">{t('vault.entries.sort.nameDesc')}</option>
           <option value="type">{t('vault.entries.sort.type')}</option>
-        </select>
+        </FormSelect>
       </div>
 
       <ScrollArea scrollRef={scrollRef} onScroll={onScroll}>
@@ -160,11 +161,12 @@ function LifecycleEntryRow({ vaultId, entry }: { vaultId: string; entry: MemberE
       </div>
     </>
   )
-  const classes = "flex items-center gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-4 py-2.5"
+  const staticClasses = "flex items-center gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-4 py-2.5"
+  const interactiveClasses = `flex items-center gap-3 px-4 py-2.5 ${HOVERABLE_CARD_CLASSES}`
   return entry.corrupt ? (
-    <div className={classes}>{content}</div>
+    <div className={staticClasses}>{content}</div>
   ) : (
-    <Link to="/vaults/$vaultId/entries/$entryId" params={{ vaultId, entryId: entry.id }} className={classes}>
+    <Link to="/vaults/$vaultId/entries/$entryId" params={{ vaultId, entryId: entry.id }} className={interactiveClasses}>
       {content}
     </Link>
   )

@@ -145,9 +145,21 @@ describe('VaultEntriesTab', () => {
     expect(screen.getAllByTestId('active-entry').map((row) => row.textContent)).toEqual(['Zulu', 'Alpha'])
   })
 
-  it('keeps verified rows visible when a refresh fails', () => {
+  it('ignores an account-wide error when the selected vault remains ready', () => {
     publish([record('entry-1', 'Verified')])
     useMemberSyncStore.setState({ status: 'error', error: 'member-sync-failed' })
+    render(<VaultEntriesTab vault={VAULT} />)
+
+    expect(screen.getByText('Verified')).toBeInTheDocument()
+    expect(screen.queryByText(/existing verified entries remain available/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps verified rows visible when the selected vault refresh fails', () => {
+    publish([record('entry-1', 'Verified')])
+    const current = useMemberSyncStore.getState().vaults.get(VAULT.id)!
+    useMemberSyncStore.setState({
+      vaults: new Map([[VAULT.id, { ...current, status: 'error', failureKind: 'sync' }]]),
+    })
     render(<VaultEntriesTab vault={VAULT} />)
 
     expect(screen.getByText('Verified')).toBeInTheDocument()
