@@ -43,7 +43,7 @@ export interface MemberSyncCache {
 }
 
 const DATABASE_NAME = 'palladin-vault-ciphertext-cache'
-const DATABASE_VERSION = 2
+const DATABASE_VERSION = 3
 const VAULT_STORE = 'member-vaults'
 const ITEM_STORE = 'member-items'
 const USER_INDEX = 'userId'
@@ -98,10 +98,10 @@ function openDatabase(databaseName: string): Promise<IDBDatabase> {
         vaults.createIndex(USER_INDEX, 'userId')
         const items = database.createObjectStore(ITEM_STORE, { keyPath: ['scopeNamespace', 'entryId'] })
         items.createIndex(SCOPE_NAMESPACE_INDEX, 'scopeNamespace')
-      } else if (event.oldVersion < 2) {
-        // V1 stored one summary for both active and pending namespaces. That
-        // state cannot be disambiguated safely after an interrupted rekey, so
-        // discard the disposable ciphertext cache and rebuild after unlock.
+      } else if (event.oldVersion < DATABASE_VERSION) {
+        // Older caches either conflate active/pending state or omit the
+        // structural UpdatedAt required for deterministic local recents. The
+        // cache is disposable ciphertext, so rebuild rather than guessing.
         operation.transaction!.objectStore(VAULT_STORE).clear()
         operation.transaction!.objectStore(ITEM_STORE).clear()
       }

@@ -1,0 +1,37 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const postJson = vi.hoisted(() => vi.fn())
+const postFn = vi.hoisted(() => vi.fn(() => ({ json: postJson })))
+vi.mock('../../shared/api/client', () => ({ api: { post: postFn } }))
+
+import { getAdministrativeSearch } from './search-api'
+
+const agentId = '11111111-1111-4111-8111-111111111111'
+const memberId = '22222222-2222-4222-8222-222222222222'
+
+describe('getAdministrativeSearch', () => {
+  beforeEach(() => {
+    postFn.mockClear()
+    postJson.mockReset()
+  })
+
+  it('sends the ephemeral query only in a POST body with cancellation', async () => {
+    postJson.mockResolvedValue({ results: [
+      { type: 'agent', id: agentId, name: 'Deploy Bot' },
+      { type: 'member', id: memberId, name: 'Ada' },
+    ] })
+    const controller = new AbortController()
+    const result = await getAdministrativeSearch('private query', controller.signal, 8)
+    expect(result).toHaveLength(2)
+    expect(postFn).toHaveBeenCalledWith('api/search', {
+      json: { q: 'private query', limit: 8 },
+      signal: controller.signal,
+    })
+    expect(postFn.mock.calls[0][0]).not.toContain('private query')
+  })
+
+  it('rejects Vault or Entry projections from the administrative provider', async () => {
+    postJson.mockResolvedValue({ results: [{ type: 'entry', id: agentId, name: 'Must stay local' }] })
+    await expect(getAdministrativeSearch('entry', new AbortController().signal)).rejects.toThrow()
+  })
+})

@@ -18,6 +18,7 @@ export interface MemberVaultStructure {
 export interface MemberIndexRecord {
   entryId: string
   state: MemberEntryState
+  updatedAt: string
   currentRevision: string
   memberIndexRevision: string
   currentKeyVersion: number

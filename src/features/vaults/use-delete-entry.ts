@@ -22,9 +22,6 @@ export function useDeleteEntry(vaultId: string) {
       // Keep the vault list's per-vault `entryCount` in sync (dashboard
       // onboarding + summaries) — it sits under a sibling query key.
       queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
-      // Cross-vault surfaces: dashboard "Recently added" + global search.
-      queryClient.invalidateQueries({ queryKey: ['entries', 'recent'] })
-      queryClient.invalidateQueries({ queryKey: ['search'] })
     },
   })
 }

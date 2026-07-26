@@ -18,6 +18,7 @@ function head(entryId: string, revision: string): MemberSyncItem {
     kind: 'head',
     entryId,
     state: 'active',
+    updatedAt: '2026-07-26T12:00:00Z',
     currentRevision: revision,
     memberIndexRevision: revision,
     currentKeyVersion: 1,

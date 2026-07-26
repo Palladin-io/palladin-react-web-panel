@@ -39,6 +39,7 @@ function head(index: number, revision = String(index + 1)): MemberSyncItem {
   const entryId = `33333333-3333-4333-8333-${String(index).padStart(12, '0')}`
   return {
     kind: 'head', entryId, state: 'active', currentRevision: revision,
+    updatedAt: '2026-07-26T12:00:00Z',
     memberIndexRevision: revision, currentKeyVersion: 5,
     memberIndex: { testLabel: `Entry ${index}` }, entryKey: {},
   } as unknown as MemberSyncItem
@@ -47,6 +48,7 @@ function head(index: number, revision = String(index + 1)): MemberSyncItem {
 function tombstone(item: MemberSyncItem): MemberSyncItem {
   return {
     kind: 'tombstone', entryId: item.entryId, state: null, currentRevision: null,
+    updatedAt: null,
     memberIndexRevision: null, currentKeyVersion: null, memberIndex: null, entryKey: null,
   }
 }

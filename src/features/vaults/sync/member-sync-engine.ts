@@ -373,6 +373,7 @@ export class MemberSyncEngine {
             results[index] = {
               entryId: item.entryId,
               state: item.state,
+              updatedAt: item.updatedAt,
               currentRevision: item.currentRevision,
               memberIndexRevision: item.memberIndexRevision,
               currentKeyVersion: item.currentKeyVersion,
@@ -384,6 +385,7 @@ export class MemberSyncEngine {
             results[index] = {
               entryId: item.entryId,
               state: item.state,
+              updatedAt: item.updatedAt,
               currentRevision: item.currentRevision,
               memberIndexRevision: item.memberIndexRevision,
               currentKeyVersion: item.currentKeyVersion,

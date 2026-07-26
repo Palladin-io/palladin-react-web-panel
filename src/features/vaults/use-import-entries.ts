@@ -321,14 +321,12 @@ export function useImportEntries() {
       }
     },
     onSuccess: (_result, variables) => {
-      // Same invalidations as a single create — entries list, vault detail +
-      // summary counts, and the cross-vault recent/search surfaces.
+      // Same server-state invalidations as a single create. Local recents and
+      // search update through the synchronized MemberIndex store.
       // Prefix match — also covers the entries/all + entry-detail sub-keys.
       queryClient.invalidateQueries({ queryKey: entriesQueryKey(variables.vaultId) })
       queryClient.invalidateQueries({ queryKey: vaultQueryKey(variables.vaultId) })
       queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
-      queryClient.invalidateQueries({ queryKey: ['entries', 'recent'] })
-      queryClient.invalidateQueries({ queryKey: ['search'] })
     },
   })
 }

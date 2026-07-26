@@ -99,8 +99,6 @@ export function useCreateEntry() {
       queryClient.invalidateQueries({ queryKey: entriesQueryKey(variables.vaultId) })
       queryClient.invalidateQueries({ queryKey: vaultQueryKey(variables.vaultId) })
       queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
-      queryClient.invalidateQueries({ queryKey: ['entries', 'recent'] })
-      queryClient.invalidateQueries({ queryKey: ['search'] })
     },
   })
 }
