@@ -17,6 +17,7 @@ import { VaultEntriesTab } from './components/vault-entries-tab'
 import { VaultListPanel } from './components/vault-list-panel'
 import { VaultSettingsForm } from './components/vault-settings-form'
 import { VaultAgentsTab } from './components/vault-agents-tab'
+import { VaultMembersTab } from './components/vault-members-tab'
 import type { Vault } from './types'
 import { useVault } from './use-vault'
 
@@ -229,24 +230,10 @@ function TabPanel({
     case 'audit-log':
       return <VaultDetailAuditLog vaultId={vault.id} />
     case 'members':
-      return <ComingSoonTab translationKey="vault.detail.membersComingSoon" />
+      return <VaultMembersTab vaultId={vault.id} memberCount={vault.memberCount} />
     case 'settings':
       return <VaultSettingsForm vault={vault} />
     default:
       return null
   }
-}
-
-function ComingSoonTab({ translationKey }: { translationKey: string }) {
-  const { t } = useTranslation()
-  return <EmptyMessage message={t(translationKey)} />
-}
-
-function EmptyMessage({ message }: { message: string }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
-      bg-[var(--cv-empty-bg)] p-8 text-center text-ui text-[var(--cv-t3)]">
-      {message}
-    </div>
-  )
 }
