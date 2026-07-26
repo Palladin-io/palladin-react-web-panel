@@ -112,6 +112,10 @@ function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const theme = useThemeStore((s) => s.theme)
   const navigate = useNavigate()
+  const accessToken = useAuthStore((state) => state.accessToken)
+  const userId = useAuthStore((state) => state.userId)
+  const memberPrivateKey = useAuthStore((state) => state.privateKey)
+  const isVaultLocked = useAuthStore((state) => state.isVaultLocked)
 
   // Idle + absolute session timeout: locks the vault and drops the access token
   // when the user walks away, then routes to /unlock. No-op while locked.
@@ -148,7 +152,11 @@ function AuthenticatedLayout() {
   return (
     // SignalRProvider self-gates on auth + unlocked vault, so it only opens a
     // connection once we're past the guards above.
-    <MemberSyncProvider>
+    <MemberSyncProvider
+      enabled={Boolean(accessToken) && !isVaultLocked}
+      userId={userId}
+      memberPrivateKey={memberPrivateKey}
+    >
       <SignalRProvider>
         <div
           className="flex h-screen overflow-hidden"

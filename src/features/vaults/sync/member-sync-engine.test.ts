@@ -55,9 +55,13 @@ class RecordingCache implements MemberSyncCache {
   readonly events: string[] = []
   active: ActiveCacheState | null = null
   partialProjectionWasVisible = false
+  activeReads = 0
 
   async getActiveState(): Promise<ActiveCacheState | null> { return this.active }
-  async readActiveItemPage(): Promise<CachedItemPage> { return { items: [], nextEntryId: null } }
+  async readActiveItemPage(): Promise<CachedItemPage> {
+    this.activeReads += 1
+    return { items: [], nextEntryId: null }
+  }
   async beginSnapshot(_userId: string, _vault: EncryptedVaultSummary, _namespace: string, baseSequence: string): Promise<void> {
     this.events.push(`begin:${baseSequence}`)
   }
@@ -73,7 +77,9 @@ class RecordingCache implements MemberSyncCache {
     this.events.push(`complete:${sequence}`)
     this.active = { namespace, appliedThroughSequence: sequence, vault: currentVault }
   }
-  async applyActiveDeltaPage(): Promise<void> { throw new Error('unexpected active delta') }
+  async applyActiveDeltaPage(_userId: string, _vault: EncryptedVaultSummary, expected: string, page: MemberDeltaPage): Promise<void> {
+    this.events.push(`active-delta:${expected}->${page.appliedThroughSequence}`)
+  }
   async removeMissingVaults(): Promise<void> { this.events.push('retain') }
 }
 
@@ -164,5 +170,92 @@ describe('Member sync engine', () => {
     expect(cache.active).toBeNull()
     expect(cache.events.some((event) => event.startsWith('complete:'))).toBe(false)
     expect(useMemberSyncStore.getState().status).toBe('error')
+  })
+
+  it('reuses the aligned in-memory projection for a warm incremental poll', async () => {
+    const currentVault = vault()
+    const cachedEntry = head(1)
+    const record = {
+      entryId: cachedEntry.entryId, state: 'active' as const, currentRevision: '2', memberIndexRevision: '2',
+      currentKeyVersion: 5, payload: { memberLabel: 'Cached', entryType: 1 as const, searchFields: ['cached'] }, corrupt: false,
+    }
+    useMemberSyncStore.getState().publishVault({
+      vaultId, metadata: { name: 'Encrypted Vault' }, entries: new Map([[record.entryId, record]]),
+      appliedThroughSequence: '20', status: 'ready',
+    })
+    const cache = new RecordingCache()
+    cache.active = { namespace: 'active', appliedThroughSequence: '20', vault: currentVault }
+    const transport: MemberSyncTransport = {
+      listVaults: async () => [currentVault],
+      snapshot: async () => { throw new Error('unexpected snapshot') },
+      delta: async () => ({ deltaUpperBound: '20', appliedThroughSequence: '20', continuationCursor: null, items: [] }),
+    }
+
+    await new MemberSyncEngine(cache, transport, async () => {}).synchronize(
+      userId,
+      new Uint8Array(32),
+      new AbortController().signal,
+    )
+
+    expect(cache.activeReads).toBe(0)
+    expect(cryptoProbe.maximum).toBe(0)
+    expect(useMemberSyncStore.getState().vaults.get(vaultId)?.entries.get(record.entryId)?.payload?.memberLabel).toBe('Cached')
+  })
+
+  it('rejects a cycling snapshot cursor without activating partial data', async () => {
+    const cache = new RecordingCache()
+    const transport: MemberSyncTransport = {
+      listVaults: async () => [vault()],
+      snapshot: async () => ({ snapshotBaseSequence: '18', items: [head(1)], nextCursor: 'same' }),
+      delta: async () => { throw new Error('unexpected delta') },
+    }
+
+    await new MemberSyncEngine(cache, transport, async () => {}).synchronize(
+      userId,
+      new Uint8Array(32),
+      new AbortController().signal,
+    )
+
+    expect(cache.active).toBeNull()
+    expect(useMemberSyncStore.getState().status).toBe('error')
+  })
+
+  it('does not republish decrypted snapshot state after lock aborts an IndexedDB commit', async () => {
+    let enteredCommit!: () => void
+    let releaseCommit!: () => void
+    const entered = new Promise<void>((resolve) => { enteredCommit = resolve })
+    const release = new Promise<void>((resolve) => { releaseCommit = resolve })
+    class PausingCache extends RecordingCache {
+      override async completeSnapshot(
+        currentUserId: string,
+        currentVault: EncryptedVaultSummary,
+        namespace: string,
+        sequence: string,
+      ): Promise<void> {
+        enteredCommit()
+        await release
+        await super.completeSnapshot(currentUserId, currentVault, namespace, sequence)
+      }
+    }
+    const cache = new PausingCache()
+    const transport: MemberSyncTransport = {
+      listVaults: async () => [vault()],
+      snapshot: async () => ({ snapshotBaseSequence: '18', items: [head(1)], nextCursor: null }),
+      delta: async () => ({ deltaUpperBound: '18', appliedThroughSequence: '18', continuationCursor: null, items: [] }),
+    }
+    const controller = new AbortController()
+    const synchronization = new MemberSyncEngine(cache, transport, async () => {}).synchronize(
+      userId,
+      new Uint8Array(32),
+      controller.signal,
+    )
+    await entered
+
+    controller.abort()
+    useMemberSyncStore.getState().clear()
+    releaseCommit()
+
+    await expect(synchronization).rejects.toMatchObject({ name: 'AbortError' })
+    expect(useMemberSyncStore.getState().vaults.has(vaultId)).toBe(false)
   })
 })

@@ -138,7 +138,17 @@ export class MemberSyncEngine {
         await this.rebuildSnapshot(userId, vault, vaultKey, metadata, projectionBudget, signal)
         return
       }
-      const entries = await this.decryptCachedIndex(userId, vault, vaultKey, projectionBudget, signal)
+      const published = useMemberSyncStore.getState().vaults.get(vault.id)
+      let entries: Map<string, MemberIndexRecord>
+      if (published?.appliedThroughSequence === cached.appliedThroughSequence) {
+        entries = new Map(published.entries)
+        projectionBudget.count += entries.size
+        if (projectionBudget.count > MAXIMUM_UNLOCKED_MEMBER_ENTRIES) {
+          throw new Error('Vault Member index exceeds the supported unlocked entry budget')
+        }
+      } else {
+        entries = await this.decryptCachedIndex(userId, vault, vaultKey, projectionBudget, signal)
+      }
       try {
         await this.applyActiveDelta(userId, vault, vaultKey, metadata, entries, cached.appliedThroughSequence, projectionBudget, signal)
       } catch (error) {
@@ -204,6 +214,7 @@ export class MemberSyncEngine {
     const namespace = crypto.randomUUID()
     let cursor: string | null = null
     let baseSequence: string | null = null
+    const seenCursors = new Set<string>()
     do {
       assertNotAborted(signal)
       const page = await this.transport.snapshot(vault.id, cursor, signal)
@@ -215,11 +226,16 @@ export class MemberSyncEngine {
       }
       await this.cache.applySnapshotPage(userId, vault.id, namespace, page.items, page.nextCursor)
       await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
+      if (page.nextCursor) {
+        if (seenCursors.has(page.nextCursor)) throw new Error('Vault snapshot cursor did not make progress')
+        seenCursors.add(page.nextCursor)
+      }
       cursor = page.nextCursor
     } while (cursor)
     if (baseSequence === null) throw new Error('Vault snapshot returned no boundary')
     const appliedThrough = await this.applyPendingDelta(userId, vault, namespace, vaultKey, entries, baseSequence, projectionBudget, signal)
     await this.cache.completeSnapshot(userId, vault, namespace, appliedThrough)
+    assertNotAborted(signal)
     this.publish(vault.id, metadata, entries, appliedThrough, 'ready')
   }
 
@@ -269,6 +285,7 @@ export class MemberSyncEngine {
       await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
       appliedThrough = page.appliedThroughSequence
       continuation = page.continuationCursor
+      assertNotAborted(signal)
       this.publish(vault.id, metadata, entries, appliedThrough, continuation ? 'syncing' : 'ready')
     } while (continuation)
   }

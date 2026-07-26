@@ -1,5 +1,4 @@
 import { useEffect, type ReactNode } from 'react'
-import { useAuthStore } from '../../auth'
 import { IndexedDbMemberSyncCache } from './member-sync-cache'
 import { MemberSyncEngine } from './member-sync-engine'
 import { useMemberSyncStore } from './member-sync-store'
@@ -9,14 +8,17 @@ const memberSyncEngine = typeof indexedDB === 'undefined'
   : new MemberSyncEngine(new IndexedDbMemberSyncCache())
 const MEMBER_DELTA_POLL_INTERVAL_MS = 60_000
 
-export function MemberSyncProvider({ children }: { children: ReactNode }) {
-  const accessToken = useAuthStore((state) => state.accessToken)
-  const userId = useAuthStore((state) => state.userId)
-  const privateKey = useAuthStore((state) => state.privateKey)
-  const isVaultLocked = useAuthStore((state) => state.isVaultLocked)
+interface MemberSyncProviderProps {
+  children: ReactNode
+  enabled: boolean
+  userId: string | null
+  memberPrivateKey: Uint8Array | null
+}
+
+export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey }: MemberSyncProviderProps) {
 
   useEffect(() => {
-    if (!memberSyncEngine || !accessToken || !userId || !privateKey || isVaultLocked) {
+    if (!memberSyncEngine || !enabled || !userId || !memberPrivateKey) {
       useMemberSyncStore.getState().clear()
       return
     }
@@ -27,7 +29,7 @@ export function MemberSyncProvider({ children }: { children: ReactNode }) {
       active?.abort()
       const controller = new AbortController()
       active = controller
-      void memberSyncEngine.synchronize(userId, privateKey, controller.signal)
+      void memberSyncEngine.synchronize(userId, memberPrivateKey, controller.signal)
         .catch(() => {})
         .finally(() => {
           if (active === controller) active = null
@@ -51,7 +53,7 @@ export function MemberSyncProvider({ children }: { children: ReactNode }) {
       document.removeEventListener('visibilitychange', synchronizeWhenVisible)
       useMemberSyncStore.getState().clear()
     }
-  }, [accessToken, isVaultLocked, privateKey, userId])
+  }, [enabled, memberPrivateKey, userId])
 
   return children
 }

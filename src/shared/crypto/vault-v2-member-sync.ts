@@ -161,20 +161,21 @@ export async function decryptMemberVaultMetadata(
     keyVersion: trusted.keyVersion,
     memberKeyGeneration: trusted.memberKeyGeneration,
   })
-  const plaintext = await decryptVaultEnvelope('member-vault-metadata', envelope, derivedKey, {
-    aadContext: {
-      ...envelope,
-      organizationId: trusted.organizationId,
-      vaultId: trusted.vaultId,
-      header: { ...envelope.header, keyVersion: trusted.keyVersion, memberKeyGeneration: trusted.memberKeyGeneration },
-    },
-    minimumMemberKeyGeneration: trusted.memberKeyGeneration,
-  })
+  let plaintext: Uint8Array | undefined
   try {
+    plaintext = await decryptVaultEnvelope('member-vault-metadata', envelope, derivedKey, {
+      aadContext: {
+        ...envelope,
+        organizationId: trusted.organizationId,
+        vaultId: trusted.vaultId,
+        header: { ...envelope.header, keyVersion: trusted.keyVersion, memberKeyGeneration: trusted.memberKeyGeneration },
+      },
+      minimumMemberKeyGeneration: trusted.memberKeyGeneration,
+    })
     return memberVaultMetadataSchema.parse(decodeCanonicalJson(plaintext))
   } finally {
     wipe(derivedKey)
-    wipe(plaintext)
+    if (plaintext) wipe(plaintext)
   }
 }
 
