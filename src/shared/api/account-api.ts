@@ -54,6 +54,8 @@ export interface AccountResponse {
    * the recovery flow to re-wrap the private key with a new MK.
    */
   encryptedPrivateKeyByRecovery?: string
+  /** Current server-authoritative X25519 Member public-key version. */
+  memberKeyVersion?: number | null
   kdf?: IdentityKdfState | null
 }
 

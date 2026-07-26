@@ -86,6 +86,7 @@
   "vault.noVaultsSubtitle": "Utwórz swój pierwszy skarbiec, aby zacząć porządkować dane logowania.",
   "vault.selectVaultPrompt": "Wybierz skarbiec z listy, aby zobaczyć jego wpisy",
   "vault.createVault": "Utwórz skarbiec",
+  "vault.discoveryPolicyDefault": "Aktywni Agenci organizacji kwalifikują się do szyfrowanego Discovery. Dostęp do sekretów nadal wymaga osobnego grantu o ograniczonym zakresie.",
   "vault.entries_one": "{{count}} wpis",
   "vault.entries_few": "{{count}} wpisy",
   "vault.entries_many": "{{count}} wpisów",

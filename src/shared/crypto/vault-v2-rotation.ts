@@ -56,7 +56,7 @@ export async function openVaultPrivateKey(envelope: RotationPrivateKeyEnvelope, 
   return key
 }
 
-export async function createDiscoveryKeyEnvelope(source: RotationDiscoveryKeyEnvelope, rawKey: Uint8Array, vaultKey: Uint8Array, target: { vdkVersion: number; memberKeyGeneration: number; vaultKeyVersion: number }) {
+export async function createDiscoveryKeyEnvelope(source: Pick<RotationDiscoveryKeyEnvelope, 'organizationId' | 'vaultId' | 'discoveryKeyRevision'>, rawKey: Uint8Array, vaultKey: Uint8Array, target: { vdkVersion: number; memberKeyGeneration: number; vaultKeyVersion: number }) {
   const discoveryKeyRevision = nextRevision(source.discoveryKeyRevision)
   const context = {
     organizationId: source.organizationId, vaultId: source.vaultId, discoveryKeyRevision,
@@ -70,7 +70,7 @@ export async function createDiscoveryKeyEnvelope(source: RotationDiscoveryKeyEnv
   return { ...context, header: { ...context.header, nonce: encrypted.nonce }, ciphertext: encrypted.ciphertext }
 }
 
-export async function createPrivateKeyEnvelope(source: RotationPrivateKeyEnvelope, seed: Uint8Array, vaultKey: Uint8Array, target: { privateKeyVersion: number; memberKeyGeneration: number; vaultKeyVersion: number }) {
+export async function createPrivateKeyEnvelope(source: Pick<RotationPrivateKeyEnvelope, 'organizationId' | 'vaultId' | 'privateKeyKind' | 'privateKeyRevision'>, seed: Uint8Array, vaultKey: Uint8Array, target: { privateKeyVersion: number; memberKeyGeneration: number; vaultKeyVersion: number }) {
   const privateKeyRevision = nextRevision(source.privateKeyRevision)
   const context = {
     organizationId: source.organizationId, vaultId: source.vaultId, privateKeyKind: source.privateKeyKind,

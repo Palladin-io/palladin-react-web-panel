@@ -29,15 +29,6 @@ vi.mock('../../../shared/lib/analytics', () => ({
 const toastError = vi.hoisted(() => vi.fn())
 vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }))
 
-// Icon upload helpers are not exercised in these tests (no file
-// selected through the picker), but the dialog imports them at module
-// load — stub them so the module graph resolves cleanly.
-vi.mock('../api/vault-api', () => ({
-  presignVaultIcon: vi.fn(),
-  uploadToS3: vi.fn(),
-  updateVault: vi.fn(),
-}))
-
 // Picker children render real DOM (icons, file inputs) we don't care
 // about here. Stubbing them keeps the test focused on form behaviour.
 vi.mock('./vault-icon-picker', () => ({
@@ -69,6 +60,7 @@ describe('CreateVaultDialog', () => {
   it('renders the form with name field and Create button when open', () => {
     render(<CreateVaultDialog open={true} onClose={vi.fn()} />, { wrapper })
     expect(screen.getByLabelText(/vault name/i)).toBeInTheDocument()
+    expect(screen.getByText(/active organization agents/i)).toBeInTheDocument()
     // The submit button shares its label with the heading; scope the
     // assertion to the button role to avoid the duplicate-text trap.
     expect(screen.getByRole('button', { name: /^create vault$/i })).toBeInTheDocument()
@@ -95,7 +87,7 @@ describe('CreateVaultDialog', () => {
     // Resolve the mutation synchronously through the success path so
     // we can assert the dialog reaction without juggling async timers.
     mutateMock.mockImplementation((_input, options) => {
-      options.onSuccess({ id: 'vault-1' })
+      options.onSuccess({ vaultId: 'vault-1' })
     })
 
     render(

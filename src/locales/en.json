@@ -86,6 +86,7 @@
   "vault.noVaultsSubtitle": "Create your first vault to start organizing credentials.",
   "vault.selectVaultPrompt": "Select a vault from the list to view its entries",
   "vault.createVault": "Create Vault",
+  "vault.discoveryPolicyDefault": "Active organization Agents are eligible for encrypted Discovery. Secret access still requires a separate scoped grant.",
   "vault.entries_one": "{{count}} entry",
   "vault.entries_other": "{{count}} entries",
   "vault.grants_one": "{{count}} active grant",

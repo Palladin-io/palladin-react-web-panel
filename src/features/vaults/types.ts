@@ -281,7 +281,6 @@ export interface CreateVaultInput {
   description?: string
   icon?: string
   color?: string
-  grantMode: GrantMode
 }
 
 export interface UpdateVaultInput {
