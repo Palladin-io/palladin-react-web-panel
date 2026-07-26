@@ -241,6 +241,11 @@ export async function listEncryptedVaults(signal?: AbortSignal): Promise<Encrypt
   return vaults
 }
 
+export async function getEncryptedVault(vaultId: string, signal?: AbortSignal): Promise<EncryptedVaultSummary> {
+  const response = await api.get(`api/vaults/${vaultId}`, { signal, throwHttpErrors: false })
+  return parseResponse(response, encryptedVaultSummarySchema)
+}
+
 export async function getMemberSnapshotPage(
   vaultId: string,
   cursor: string | null,

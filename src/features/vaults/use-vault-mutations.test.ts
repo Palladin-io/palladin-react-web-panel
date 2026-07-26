@@ -7,11 +7,12 @@ import { useDeleteVault } from './use-delete-vault'
 import { useUpdateVault } from './use-update-vault'
 
 const api = vi.hoisted(() => ({
-  updateVault: vi.fn(async () => ({})),
   deleteVault: vi.fn(async () => undefined),
 }))
+const updateEncryptedVaultSettings = vi.hoisted(() => vi.fn(async (input: { nextMetadata: { name: string } }) => input.nextMetadata))
 
 vi.mock('./api/vault-api', () => api)
+vi.mock('./vault-settings-service', () => ({ updateEncryptedVaultSettings }))
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({
@@ -22,7 +23,7 @@ function wrapper({ children }: { children: ReactNode }) {
 
 describe('Vault mutations and Member Sync', () => {
   beforeEach(() => {
-    api.updateVault.mockClear()
+    updateEncryptedVaultSettings.mockClear()
     api.deleteVault.mockClear()
     useMemberSyncStore.getState().clear()
   })
@@ -30,7 +31,10 @@ describe('Vault mutations and Member Sync', () => {
   it('refreshes decrypted metadata after updating a Vault', async () => {
     const { result } = renderHook(() => useUpdateVault('vault-1'), { wrapper })
 
-    result.current.mutate({ name: 'Updated' })
+    result.current.mutate({
+      expectedMetadata: { name: 'Old' },
+      nextMetadata: { name: 'Updated' },
+    })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(useMemberSyncStore.getState().retryGeneration).toBe(1)
