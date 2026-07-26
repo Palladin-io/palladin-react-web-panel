@@ -4,6 +4,7 @@ import { useAuthStore } from '../../auth'
 import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
 import { shortenKey } from '../../../shared/lib/shorten-key'
 import { useAgentNames } from '../../agents'
+import type { AuditLogItem } from '../../audit'
 import {
   AuditFilterBar,
   type AuditFilterState,
@@ -12,6 +13,7 @@ import {
   filterAuditLogs,
   useVaultAuditLogs,
 } from '../../audit'
+import { useVaultMembers } from '../use-vault-members'
 
 const EMPTY_FILTER: AuditFilterState = {
   search: '',
@@ -26,19 +28,19 @@ const EMPTY_FILTER: AuditFilterState = {
 export interface EntryLogsTabProps {
   vaultId: string
   entryId: string
+  entryName: string
 }
 
 /**
  * Entry Detail · Logs tab — the audit trail scoped to one entry. Read-only.
  *
- * The backend has no entry-level audit filter, so this over-fetches the vault
- * log and narrows to this entry client-side (`filterAuditLogs`, with `entryId`
- * acting as a security guard). Agent names are taken from the row when the
- * backend denormalises them (CVT-181); until then they fall back to the agents
- * list (via `useAgentNames`, NOT gated on AgentManage) and finally to a
- * shortened agent id — never a misleading "unknown" for an agent that exists.
+ * The composite opaque VaultId + EntryId scope is filtered server-side so
+ * cursor pages contain only relevant events; a repeated local EntryId check is
+ * defense-in-depth. Entry, Agent and Member presentation comes only from local
+ * unlocked/structural state. Missing or deleted principals use shortened
+ * prefix+suffix identifiers instead of trusting denormalized audit-row names.
  */
-export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
+export function EntryLogsTab({ vaultId, entryId, entryName }: EntryLogsTabProps) {
   const { t } = useTranslation()
   const permissions = useAuthStore((s) => s.permissions)
   const canView = (permissions & PERMISSION_AUDIT_VIEW) !== 0
@@ -46,40 +48,60 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
   const [filter, setFilter] = useState<AuditFilterState>(EMPTY_FILTER)
 
   const agents = useAgentNames(canView)
-  const logs = useVaultAuditLogs(vaultId, {}, canView)
+  // Actor labels are presentation-only; unlike the Members lifecycle tab they
+  // do not need five-second deprovisioning polling.
+  const members = useVaultMembers(vaultId, canView, false)
+  const serverFilters = useMemo(() => ({
+    entryId,
+    ...(filter.agentId.length ? { agentId: filter.agentId.join(',') } : {}),
+    ...(filter.eventType.length ? { actions: filter.eventType.join(',') } : {}),
+    ...(filter.from ? { from: filter.from } : {}),
+    ...(filter.to ? { to: filter.to } : {}),
+  }), [entryId, filter.agentId, filter.eventType, filter.from, filter.to])
+  const logs = useVaultAuditLogs(vaultId, serverFilters, canView)
 
   const allItems = useMemo(
     () => (logs.data?.pages ?? []).flatMap((p) => p.items),
     [logs.data],
   )
 
-  // Prefer the server-denormalised name on the row (CVT-181); fall back to the
-  // agents list for everyone who can read it (not just managers).
   const agentNameById = useMemo(() => {
     const map: Record<string, string> = {}
     for (const a of agents.data ?? []) {
       if (a.name) map[a.agentId] = a.name
     }
-    for (const item of allItems) {
-      if (item.agentId && item.agentName) map[item.agentId] = item.agentName
+    return map
+  }, [agents.data])
+
+  const memberNameById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const page of members.data?.pages ?? []) {
+      for (const member of page.items) {
+        if (member.memberName?.trim()) map[member.memberId] = member.memberName.trim()
+      }
     }
     return map
-  }, [agents.data, allItems])
+  }, [members.data])
 
   const resolveAgentName = (id: string) => agentNameById[id] ?? shortenKey(id)
+  const resolveActorName = (item: AuditLogItem) => {
+    if (item.actorType === 'agent') return item.agentId ? resolveAgentName(item.agentId) : undefined
+    if (item.actorType === 'system') return t('audit.systemActor')
+    return item.userId ? memberNameById[item.userId] ?? shortenKey(item.userId) : undefined
+  }
 
   const filtered = useMemo(
     () =>
       filterAuditLogs(allItems, {
         entryId,
-        agentId: filter.agentId,
-        eventType: filter.eventType,
+        // Structured filters are already server-side so pagination represents
+        // the requested result set. Keep EntryId locally as defense-in-depth;
+        // free-text remains local and never reaches the API.
         search: filter.search,
-        from: filter.from,
-        to: filter.to,
         agentNameById,
+        entryNameById: { [entryId]: entryName },
       }),
-    [allItems, entryId, filter, agentNameById],
+    [allItems, entryId, entryName, filter.search, agentNameById],
   )
 
   // Agents that actually appear in this entry's log — keeps the dropdown short.
@@ -113,9 +135,12 @@ export function EntryLogsTab({ vaultId, entryId }: EntryLogsTabProps) {
         isFetchNextPageError={logs.isFetchNextPageError}
         onLoadMore={() => logs.fetchNextPage()}
         resolveAgentName={resolveAgentName}
+        resolveActorName={resolveActorName}
+        resolveEntryName={() => entryName}
         showEntry={false}
         emptyMessage={t('audit.emptyLog')}
         canView={canView}
+        allowDenormalizedNames={false}
       />
     </div>
   )

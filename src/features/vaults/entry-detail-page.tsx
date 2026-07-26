@@ -290,7 +290,7 @@ function DetailBody({
         />
       ) : null}
       {activeTab === 'logs' ? (
-        <EntryLogsTab vaultId={vault.id} entryId={entry.id} />
+        <EntryLogsTab vaultId={vault.id} entryId={entry.id} entryName={entry.label} />
       ) : null}
       {activeTab === 'history' ? (
         <EntryHistoryTab detail={entry.canonical} />

@@ -1061,6 +1061,7 @@
   "audit.errorLog": "Could not load the audit log",
   "audit.filterUser": "Filter by user",
   "audit.unknownUser": "Unknown user",
+  "audit.systemActor": "System",
   "audit.object.unnamed": "(unnamed)",
   "common.filterCount": "{{label}} ({{n}})",
   "common.clear": "Clear",

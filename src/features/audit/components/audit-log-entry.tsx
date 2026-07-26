@@ -9,6 +9,8 @@ export interface AuditLogEntryProps {
   item: AuditLogItem
   /** Agent display name resolved by the caller (backend audit rows carry only the id). */
   agentName?: string
+  /** Human/system actor resolved from local structural state. */
+  actorName?: string
   /** Entry display label resolved from the unlocked client-side member index. */
   entryName?: string
   /** Vault display name resolved by the caller — drives the vault chip. */
@@ -19,6 +21,8 @@ export interface AuditLogEntryProps {
   showVault?: boolean
   /** Hairline divider above the row (every row except the first in a list). */
   withDivider?: boolean
+  /** Transitional legacy fallback; opaque canonical surfaces disable it. */
+  allowDenormalizedNames?: boolean
 }
 
 /**
@@ -31,16 +35,18 @@ export interface AuditLogEntryProps {
 export function AuditLogEntry({
   item,
   agentName,
+  actorName,
   entryName,
   vaultName,
   showEntry = true,
   showVault = false,
   withDivider = false,
+  allowDenormalizedNames = true,
 }: AuditLogEntryProps) {
   const { t } = useTranslation()
   const cfg = auditEventConfig(item.eventType)
-  const agent = agentName ?? item.agentName ?? t('audit.unknownAgent')
-  const entry = entryName ?? item.entryLabel ?? t('audit.unknownEntry')
+  const agent = agentName ?? (allowDenormalizedNames ? item.agentName : undefined) ?? t('audit.unknownAgent')
+  const entry = entryName ?? (allowDenormalizedNames ? item.entryLabel : undefined) ?? t('audit.unknownEntry')
   // Sentence slots. Names are never a raw id/public key — they fall back to a
   // localised "unknown"/"unnamed". `agent` is the caller-resolved agent (its own
   // action for grant/credential, the target for agent lifecycle); `object` is
@@ -53,7 +59,9 @@ export function AuditLogEntry({
   const slots: SentenceSlots = {
     agent,
     actor:
-      item.actorType === 'agent' ? agent : item.actorName ?? t('audit.unknownUser'),
+      item.actorType === 'agent'
+        ? agent
+        : actorName ?? (allowDenormalizedNames ? item.actorName : undefined) ?? t('audit.unknownUser'),
     entry,
     object: resolveObject(item, t, item.entryId ? entry : undefined),
   }
@@ -61,7 +69,7 @@ export function AuditLogEntry({
   const primary = buildPrimary(item.eventType, t, slots)
   const chips = buildChips(item, t, cfg.labelKey, cfg.color, cfg.bg, cfg.border, {
     showEntry,
-    entryName: entryName ?? item.entryLabel ?? undefined,
+    entryName: entryName ?? (allowDenormalizedNames ? item.entryLabel ?? undefined : undefined),
     vaultName: showVault ? vaultName : undefined,
   })
 

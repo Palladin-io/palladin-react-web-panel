@@ -51,6 +51,12 @@ describe('AuditLogEntry', () => {
     expect(screen.getByText(sentence(/deploy-bot accessed/i))).toBeInTheDocument()
   })
 
+  it('can fail closed instead of rendering denormalized row names', () => {
+    render(<AuditLogEntry item={item({ agentName: 'SERVER NAME' })} allowDenormalizedNames={false} />)
+    expect(screen.getByText(sentence(/Unknown agent accessed this entry/i))).toBeInTheDocument()
+    expect(screen.queryByText('SERVER NAME')).not.toBeInTheDocument()
+  })
+
   it('renders an actor + object sentence for entry lifecycle events', () => {
     render(
       <AuditLogEntry

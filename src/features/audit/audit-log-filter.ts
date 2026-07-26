@@ -26,10 +26,10 @@ function toArray(value: string | string[] | undefined): string[] {
 }
 
 /**
- * Pure client-side filter for audit rows. The Entry Logs tab over-fetches the
- * vault log (no entry-level backend filter exists yet) and narrows here — the
- * `entryId` match is a security guard that keeps other entries' rows out of an
- * entry's tab regardless of what the server returns. `agentId`/`eventType`
+ * Pure client-side filter for already authorized audit rows. The Entry Logs
+ * tab also sends EntryId to the backend for correctly scoped pagination; the
+ * local `entryId` match remains a defense-in-depth guard that keeps an invalid
+ * response row out of the Entry surface. `agentId`/`eventType`
  * accept a single value or a list (multi-select); an empty list means "any".
  */
 export function filterAuditLogs(

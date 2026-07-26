@@ -1108,6 +1108,7 @@
   "audit.errorLog": "Nie udało się wczytać dziennika audytu",
   "audit.filterUser": "Filtruj po użytkowniku",
   "audit.unknownUser": "Nieznany użytkownik",
+  "audit.systemActor": "System",
   "audit.object.unnamed": "(bez nazwy)",
   "common.filterCount": "{{label}} ({{n}})",
   "common.clear": "Wyczyść",

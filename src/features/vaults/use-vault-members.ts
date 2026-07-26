@@ -10,14 +10,14 @@ import {
 export const vaultMembersQueryKey = (vaultId: string) =>
   ['vaults', vaultId, 'members'] as const
 
-export function useVaultMembers(vaultId: string, enabled = true) {
+export function useVaultMembers(vaultId: string, enabled = true, poll = true) {
   return useInfiniteQuery({
     queryKey: vaultMembersQueryKey(vaultId),
     queryFn: ({ pageParam }) => getVaultMembers(vaultId, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextAfterId ?? undefined,
     staleTime: 5_000,
-    refetchInterval: 5_000,
+    refetchInterval: poll ? 5_000 : false,
     enabled,
   })
 }
