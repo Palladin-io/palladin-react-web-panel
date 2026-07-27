@@ -153,7 +153,12 @@ function AuthenticatedLayout() {
     // SignalRProvider self-gates on auth + unlocked vault, so it only opens a
     // connection once we're past the guards above.
     <MemberSyncProvider
-      enabled={Boolean(accessToken) && !isVaultLocked}
+      // The access token is deliberately memory-only and can be absent after
+      // a reload. Member sync may safely start once the Vault is unlocked;
+      // the API client restores the access token through the persisted refresh
+      // token on its first authenticated request. Gating on accessToken here
+      // otherwise leaves the decrypted session permanently stuck in `idle`.
+      enabled={!isVaultLocked}
       userId={userId}
       memberPrivateKey={memberPrivateKey}
     >
