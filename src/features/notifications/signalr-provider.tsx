@@ -111,10 +111,7 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
           accessTokenFactory: () => useAuthStore.getState().accessToken ?? '',
         })
         .withAutomaticReconnect()
-        // In DEV surface SignalR's own transport diagnostics (negotiate 401,
-        // CORS, transport fallback) — the decisive signal when the connection
-        // won't come up. Quiet in production.
-        .configureLogging(import.meta.env.DEV ? LogLevel.Information : LogLevel.Warning)
+        .configureLogging(LogLevel.None)
         .build()
 
       // type + payload — server pushes both; we forward both so the handler can

@@ -131,7 +131,7 @@ describe('MemberSyncProvider refresh lifecycle', () => {
     expect(probe.synchronize).toHaveBeenCalledTimes(2)
   })
 
-  it('does not restart reconciliation when a conflicting Vault remains invisible', async () => {
+  it('resyncs once without restarting creation when a concurrent creator wins', async () => {
     probe.createDefaultVault.mockResolvedValue('already-exists')
     const privateKey = new Uint8Array(32).fill(9)
     render(
@@ -150,7 +150,8 @@ describe('MemberSyncProvider refresh lifecycle', () => {
       await Promise.resolve()
     })
     expect(probe.createDefaultVault).toHaveBeenCalledTimes(1)
-    expect(useMemberSyncStore.getState().retryGeneration).toBe(0)
+    expect(useMemberSyncStore.getState().retryGeneration).toBe(1)
+    expect(probe.synchronize).toHaveBeenCalledTimes(2)
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(60_000)
@@ -159,6 +160,7 @@ describe('MemberSyncProvider refresh lifecycle', () => {
     })
 
     expect(probe.createDefaultVault).toHaveBeenCalledTimes(1)
-    expect(useMemberSyncStore.getState().retryGeneration).toBe(0)
+    expect(useMemberSyncStore.getState().retryGeneration).toBe(1)
+    expect(probe.synchronize).toHaveBeenCalledTimes(3)
   })
 })

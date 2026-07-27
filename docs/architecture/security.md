@@ -69,6 +69,10 @@ so they are covered by the supply-chain review of `package-lock.json` + the CI
 - **Session timeouts:** `useSessionTimeout` (mounted in the authenticated
   layout) locks the vault and drops the access token after 15 min idle or 8 h
   absolute, then routes to `/unlock`.
+- **SignalR diagnostics:** the SDK logger is disabled because WebSocket
+  transport URLs carry `access_token` in the query string. The application
+  logger emits lifecycle-only diagnostics and defensively redacts query-token
+  values and JWT-shaped strings before writing to the development console.
 
 ### Follow-up (backend-coordinated, out of scope here)
 

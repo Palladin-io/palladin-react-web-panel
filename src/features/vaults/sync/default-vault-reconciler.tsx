@@ -47,6 +47,7 @@ export function DefaultVaultReconciler({ enabled, memberPrivateKey }: DefaultVau
         }
         if (result === 'already-exists') {
           conflictSeen.current = true
+          if (!cancelled) useMemberSyncStore.getState().retry()
           return
         }
       }

@@ -14,6 +14,7 @@ interface FakeConnection {
 }
 
 const connections: FakeConnection[] = []
+const configuredLogLevels: number[] = []
 let startBehaviour: () => Promise<void> = () => Promise.resolve()
 
 function makeConnection(): FakeConnection {
@@ -45,7 +46,8 @@ vi.mock('@microsoft/signalr', () => {
     withAutomaticReconnect() {
       return this
     }
-    configureLogging() {
+    configureLogging(level: number) {
+      configuredLogLevels.push(level)
       return this
     }
     build() {
@@ -55,7 +57,7 @@ vi.mock('@microsoft/signalr', () => {
   return {
     HubConnectionBuilder,
     HubConnectionState: { Disconnected: 'Disconnected', Connected: 'Connected' },
-    LogLevel: { Warning: 3 },
+    LogLevel: { None: 6 },
   }
 })
 
@@ -90,6 +92,7 @@ function renderProvider() {
 describe('SignalRProvider lifecycle', () => {
   beforeEach(() => {
     connections.length = 0
+    configuredLogLevels.length = 0
     startBehaviour = () => Promise.resolve()
   })
 
@@ -101,6 +104,7 @@ describe('SignalRProvider lifecycle', () => {
     const started = connections.filter((c) => c.start.mock.calls.length > 0)
     expect(started).toHaveLength(1)
     expect(started[0].state).toBe('Connected')
+    expect(configuredLogLevels).toEqual([6])
   })
 
   it('does not throw and leaves no live connection after mount→unmount with a slow start (StrictMode race)', async () => {
