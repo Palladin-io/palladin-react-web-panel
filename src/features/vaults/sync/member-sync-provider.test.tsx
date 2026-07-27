@@ -2,7 +2,10 @@ import 'fake-indexeddb/auto'
 import { act, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const probe = vi.hoisted(() => ({ synchronize: vi.fn(async () => {}) }))
+const probe = vi.hoisted(() => ({
+  synchronize: vi.fn(async () => {}),
+  createDefaultVault: vi.fn(async () => true),
+}))
 
 vi.mock('./member-sync-engine', () => ({
   MemberSyncEngine: class {
@@ -10,6 +13,9 @@ vi.mock('./member-sync-engine', () => ({
   },
 }))
 vi.mock('./member-sync-cache', () => ({ IndexedDbMemberSyncCache: class {} }))
+vi.mock('../../../shared/lib/create-default-vault-safe', () => ({
+  createDefaultVaultSafe: probe.createDefaultVault,
+}))
 
 import { MemberSyncProvider } from './member-sync-provider'
 import { useMemberSyncStore } from './member-sync-store'
@@ -17,6 +23,7 @@ import { useMemberSyncStore } from './member-sync-store'
 describe('MemberSyncProvider refresh lifecycle', () => {
   beforeEach(() => {
     probe.synchronize.mockClear()
+    probe.createDefaultVault.mockClear()
     useMemberSyncStore.getState().clear()
     vi.useFakeTimers()
   })
@@ -98,5 +105,29 @@ describe('MemberSyncProvider refresh lifecycle', () => {
 
     expect(probe.synchronize).toHaveBeenCalledTimes(2)
     expect(useMemberSyncStore.getState().retryGeneration).toBe(1)
+  })
+
+  it('repairs a missing default Vault only after authoritative sync completes', async () => {
+    const privateKey = new Uint8Array(32).fill(9)
+    render(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={privateKey}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+    await act(async () => { await Promise.resolve() })
+    expect(probe.createDefaultVault).not.toHaveBeenCalled()
+
+    await act(async () => {
+      useMemberSyncStore.getState().complete()
+      await Promise.resolve()
+    })
+
+    expect(probe.createDefaultVault).toHaveBeenCalledWith(privateKey, expect.any(String))
+    expect(useMemberSyncStore.getState().retryGeneration).toBe(1)
+    expect(probe.synchronize).toHaveBeenCalledTimes(2)
   })
 })
