@@ -6,41 +6,32 @@ import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import { useAuthStore } from '../../auth'
-import { PERMISSION_MULTIPLE_VAULTS, type VaultSummary } from '../types'
-import { useVaults } from '../use-vaults'
+import { PERMISSION_MULTIPLE_VAULTS } from '../types'
 import { CreateVaultDialog } from './create-vault-dialog'
 import { PremiumGateDialog } from './premium-gate-dialog'
-import { vaultFooterLabel } from './vault-card'
+import { vaultFooterLabel } from './vault-card-model'
 import { VaultIconCircle } from './vault-icon-circle'
 import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from './vault-presentation'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { SearchBar } from '../../../shared/components/search-bar'
+import { useMemberVaultList, type MemberVaultListItem } from '../sync/member-vault-list'
 
 export interface VaultListPanelProps {
   selectedVaultId?: string
 }
 
-/**
- * Compact left-side panel of the vault detail split view. Renders the
- * vault list with search, highlighting the currently viewed vault.
- * Clicking a row navigates to that vault's detail page (right panel).
- */
 export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const vaults = useVaults()
   const permissions = useAuthStore((s) => s.permissions)
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [premiumOpen, setPremiumOpen] = useState(false)
+  const vaults = useMemberVaultList(search)
 
-  const list = vaults.data?.vaults ?? []
-  const totalEntries = list.reduce((sum, v) => sum + (v.entryCount ?? 0), 0)
-  const filtered = search.trim()
-    ? list.filter((v) =>
-        `${v.name} ${v.description ?? ''}`.toLowerCase().includes(search.trim().toLowerCase()),
-      )
-    : list
+  const list = vaults.allItems
+  const filtered = vaults.items
+  const totalEntries = list.reduce((sum, vault) => sum + vault.entryCount, 0)
 
   const canCreateMore = list.length === 0 || (permissions & PERMISSION_MULTIPLE_VAULTS) !== 0
 
@@ -57,7 +48,7 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
             {t('vault.title')}
           </h2>
           <p className="text-micro text-[var(--cv-t3)]">
-            {vaults.isPending
+            {vaults.status === 'syncing' && list.length === 0
               ? ' '
               : t('vault.list.subtitle', {
                   vaultCount: list.length,
@@ -71,12 +62,22 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
         </Button>
       </div>
 
-      {vaults.isPending ? (
+      {vaults.status === 'syncing' && list.length === 0 ? (
         <PanelLoadingSkeleton />
-      ) : vaults.isError ? (
-        <ErrorState message={t('vault.errorLoad')} onRetry={vaults.refetch} />
+      ) : vaults.status === 'idle' ? (
+        <p role="status" className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4 text-ui text-[var(--cv-t3)]">
+          {t('vault.list.locked')}
+        </p>
+      ) : vaults.status === 'error' && list.length === 0 ? (
+        <ErrorState message={t('vault.list.syncError')} onRetry={vaults.retry} />
       ) : (
         <>
+          {vaults.status === 'error' ? (
+            <div role="alert" className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] p-3 text-meta text-[var(--cv-t1)]">
+              <span>{t('vault.list.partialSyncError')}</span>
+              <Button variant="ghost" size="sm" onClick={vaults.retry}>{t('vault.list.retry')}</Button>
+            </div>
+          ) : null}
           <SearchBar
             value={search}
             onChange={setSearch}
@@ -109,7 +110,6 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
       <CreateVaultDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        onCreated={(id) => navigate({ to: '/vaults/$vaultId', params: { vaultId: id } })}
       />
       <PremiumGateDialog open={premiumOpen} onClose={() => setPremiumOpen(false)} />
     </div>
@@ -117,13 +117,29 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
 }
 
 interface VaultRowProps {
-  vault: VaultSummary
+  vault: MemberVaultListItem
   isSelected: boolean
   onClick: () => void
 }
 
 function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
   const { t, i18n } = useTranslation()
+  if (vault.name === null) {
+    const metadataCorrupt = vault.failureKind === 'metadata'
+    return (
+      <div role="alert" className="flex items-center gap-3 rounded-2xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] px-4 py-3">
+        <Icon name="encrypted" size={20} color="var(--cv-primary)" />
+        <div className="min-w-0">
+          <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
+            {t(metadataCorrupt ? 'vault.list.corruptTitle' : 'vault.list.unavailableTitle')}
+          </p>
+          <p className="text-micro text-[var(--cv-t3)]">
+            {t(metadataCorrupt ? 'vault.list.corruptDescription' : 'vault.list.unavailableDescription')}
+          </p>
+        </div>
+      </div>
+    )
+  }
   const accent = vault.color ?? DEFAULT_VAULT_COLOR
   const icon = vault.icon ?? DEFAULT_VAULT_ICON
   const footerLabel = vaultFooterLabel(vault, i18n.language, t)
@@ -143,7 +159,9 @@ function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">{vault.name}</p>
           <p className="text-meta text-[var(--cv-t3)]">
-            {t('vault.entries', { count: vault.entryCount ?? 0 })}
+            {vault.syncStatus === 'resetting'
+              ? t('vault.list.resetting')
+              : t('vault.entries', { count: vault.entryCount })}
           </p>
         </div>
       </div>

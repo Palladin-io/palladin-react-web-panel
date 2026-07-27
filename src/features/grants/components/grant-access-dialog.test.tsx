@@ -34,7 +34,7 @@ vi.mock('../use-org-grants', () => ({
 }))
 
 vi.mock('../../vaults/api/vault-api', () => ({ getVaults: vi.fn() }))
-vi.mock('../api/entry-search-api', () => ({ searchEntries: vi.fn() }))
+vi.mock('../use-local-entry-search', () => ({ useLocalEntrySearch: () => [] }))
 
 const toastError = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())

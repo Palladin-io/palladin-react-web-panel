@@ -1,6 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { getAllEntries, getEntries, getEntry } from './api/vault-api'
-import { useAuthStore } from '../auth'
+import { getAllEntries, getCanonicalEntry, getEntries, getEntry, getEntryHistory } from './api/vault-api'
 
 export function entriesQueryKey(vaultId: string) {
   return ['vaults', vaultId, 'entries'] as const
@@ -14,6 +13,21 @@ export function entryDetailQueryKey(vaultId: string, entryId: string) {
   return ['vaults', vaultId, 'entries', entryId] as const
 }
 
+export function entryHistoryQueryKey(vaultId: string, entryId: string) {
+  return [...entryDetailQueryKey(vaultId, entryId), 'history'] as const
+}
+
+export function useEntryHistory(vaultId: string, entryId: string, enabled: boolean) {
+  return useInfiniteQuery({
+    queryKey: entryHistoryQueryKey(vaultId, entryId),
+    queryFn: ({ pageParam }) => getEntryHistory(vaultId, entryId, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextBeforeRevision ?? undefined,
+    enabled,
+    staleTime: 30_000,
+  })
+}
+
 /**
  * Cursor-paginated, metadata-only entry list for a vault — the list UI follows
  * `nextCursor` via "Load more" so vaults larger than one page render fully. The
@@ -22,14 +36,9 @@ export function entryDetailQueryKey(vaultId: string, entryId: string) {
  * conflict detection) use {@link useAllEntries} / `getAllEntries`.
  */
 export function useEntriesInfinite(vaultId: string) {
-  const vaultKey = useAuthStore((state) => state.vaultKeys[vaultId] ?? null)
   return useInfiniteQuery({
     queryKey: entriesQueryKey(vaultId),
-    queryFn: ({ pageParam }) => {
-      if (!vaultKey) throw new Error('Vault is locked')
-      return getEntries(vaultId, new Uint8Array(vaultKey), pageParam)
-    },
-    enabled: vaultKey !== null,
+    queryFn: ({ pageParam }) => getEntries(vaultId, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     staleTime: 30_000,
@@ -43,14 +52,10 @@ export function useEntriesInfinite(vaultId: string) {
  * {@link useEntries} cache.
  */
 export function useAllEntries(vaultId: string, enabled = true) {
-  const vaultKey = useAuthStore((state) => state.vaultKeys[vaultId] ?? null)
   return useQuery({
     queryKey: allEntriesQueryKey(vaultId),
-    queryFn: () => {
-      if (!vaultKey) throw new Error('Vault is locked')
-      return getAllEntries(vaultId, new Uint8Array(vaultKey))
-    },
-    enabled: enabled && vaultKey !== null,
+    queryFn: () => getAllEntries(vaultId),
+    enabled,
     staleTime: 30_000,
   })
 }
@@ -66,17 +71,22 @@ export function useEntryDetail(
   entryId: string,
   enabled: boolean,
 ) {
-  const vaultKey = useAuthStore((state) => state.vaultKeys[vaultId] ?? null)
   return useQuery({
     queryKey: entryDetailQueryKey(vaultId, entryId),
-    queryFn: () => {
-      if (!vaultKey) throw new Error('Vault is locked')
-      return getEntry(vaultId, entryId, new Uint8Array(vaultKey))
-    },
-    enabled: enabled && vaultKey !== null,
+    queryFn: () => getEntry(vaultId, entryId),
+    enabled,
     // Reveal-only — keep the blob in cache for the rest of the session
     // so toggling visibility doesn't refetch. Closing the tab still
     // wipes everything because TanStack Query lives in-memory only.
+    staleTime: Infinity,
+  })
+}
+
+export function useCanonicalEntryDetail(vaultId: string, entryId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...entryDetailQueryKey(vaultId, entryId), 'canonical'] as const,
+    queryFn: () => getCanonicalEntry(vaultId, entryId),
+    enabled,
     staleTime: Infinity,
   })
 }

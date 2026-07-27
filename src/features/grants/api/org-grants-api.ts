@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
+import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
 
 /**
  * Grant lifecycle status — camelCase strings matching the backend
@@ -37,6 +38,7 @@ export type GrantType = typeof GRANT_TYPE_FULL | typeof GRANT_TYPE_GRANULAR
 const orgGrantSchema = z.object({
   id: z.string(),
   vaultId: z.string(),
+  vaultName: z.string().nullable().optional(),
   agentId: z.string().nullable().optional(),
   agentName: z.string().nullable().optional(),
   // Agent's chosen icon — a Material glyph name or an uploaded S3 URL. Lets the
@@ -45,12 +47,25 @@ const orgGrantSchema = z.object({
   // initials/deterministic colour when absent.
   agentIconKey: z.string().nullable().optional(),
   agentPublicKey: z.string().nullable().optional(),
+  recipientAgentKeyVersion: z.number().int().positive().max(0xffffffff).nullable().optional(),
   type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]).nullable().optional(),
   status: z.enum(GRANT_STATUSES),
   // Combined-flags string of permitted methods, e.g. "get, exec" (CVT-149). Optional for
   // pre-methods backends; the badge is hidden when absent/empty.
   methods: z.string().nullable().optional(),
   entryId: z.string().nullable().optional(),
+  entryLabel: z.string().nullable().optional(),
+  entryScopes: z.array(z.object({
+    entryId: z.string(),
+    fieldIds: z.array(z.string()),
+    grantEnvelopeRevision: z.string().nullable(),
+    entryRevision: z.string().nullable(),
+    grantKeyVersion: z.number().int().positive().nullable(),
+    memberKeyGeneration: z.number().int().positive().nullable(),
+    recipientAgentKeyVersion: z.number().int().positive().nullable(),
+    agentKeyFingerprint: z.string().nullable(),
+  }).strict()).optional().default([]),
+  reason: z.string().nullable().optional(),
   expiresAt: z.string().nullable().optional(),
   queryLimit: z.number().nullable().optional(),
   queryCount: z.number().nullable().optional(),
@@ -59,6 +74,8 @@ const orgGrantSchema = z.object({
   createdByName: z.string().nullable().optional(),
   revokedByName: z.string().nullable().optional(),
   deniedByName: z.string().nullable().optional(),
+  revokeReason: z.string().nullable().optional(),
+  denyReason: z.string().nullable().optional(),
   lastAccessedAt: z.string().nullable().optional(),
   lastAccessIp: z.string().nullable().optional(),
   lastAccessHostname: z.string().nullable().optional(),
@@ -70,13 +87,7 @@ const orgGrantSchema = z.object({
   canGrantAgain: z.boolean().optional().default(false),
 })
 
-export type OrgGrant = z.infer<typeof orgGrantSchema> & {
-  vaultName?: string | null
-  entryLabel?: string | null
-  reason?: string | null
-  revokeReason?: string | null
-  denyReason?: string | null
-}
+export type OrgGrant = z.infer<typeof orgGrantSchema>
 
 const orgGrantPageSchema = z.object({
   items: z.array(z.unknown()),
@@ -112,8 +123,7 @@ export async function getOrgGrants(
   if (params.agentId) searchParams.set('agentId', params.agentId)
   if (params.vaultId) searchParams.set('vaultId', params.vaultId)
   if (params.entryId) searchParams.set('entryId', params.entryId)
-  // Free-text search is local-only: user text and decrypted presentation
-  // metadata must never be sent to the grants API.
+  if (params.query) searchParams.set('query', params.query)
   if (params.cursor) searchParams.set('cursor', params.cursor)
   if (params.pageSize) searchParams.set('pageSize', String(params.pageSize))
 
@@ -136,11 +146,12 @@ export async function getOrgGrants(
 /** A vault's active FULL grant, reduced to what a re-wrap needs. */
 export interface ActiveFullGrant {
   grantId: string
-  agentPublicKey: string
   agentId: string
-  methods: string | null | undefined
-  expiresAt: string | null | undefined
-  remainingUses: number | undefined
+  agentPublicKey: string
+  recipientAgentKeyVersion: number
+  methods: string
+  expiresAt?: string
+  remainingUses?: number
 }
 
 /**
@@ -163,10 +174,19 @@ export async function collectActiveFullGrants(
       pageSize: 100,
     })
     for (const grant of page.items) {
-      if (grant.type === GRANT_TYPE_FULL && grant.agentPublicKey && grant.agentId) {
-        grants.push({ grantId: grant.id, agentPublicKey: grant.agentPublicKey, agentId: grant.agentId,
-          methods: grant.methods, expiresAt: grant.expiresAt,
-          remainingUses: grant.queryLimit == null ? undefined : grant.queryLimit - (grant.queryCount ?? 0) })
+      if (grant.type === GRANT_TYPE_FULL && grant.agentId && grant.agentPublicKey
+        && grant.recipientAgentKeyVersion && grant.methods) {
+        grants.push({
+          grantId: grant.id,
+          agentId: grant.agentId,
+          agentPublicKey: grant.agentPublicKey,
+          recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
+          methods: grant.methods,
+          ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
+          ...(grant.queryLimit !== null && grant.queryLimit !== undefined
+            ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }
+            : {}),
+        })
       }
     }
     cursor = page.nextCursor ?? undefined
@@ -178,10 +198,12 @@ export async function collectActiveFullGrants(
 export async function revokeGrant(
   vaultId: string,
   grantId: string,
-  _reason?: string,
+  reason?: string,
 ): Promise<void> {
-  void _reason
-  await api.delete(`api/vaults/${vaultId}/grants/${grantId}`)
+  const trimmed = reason?.trim()
+  await api.delete(`api/vaults/${vaultId}/grants/${grantId}`, {
+    json: trimmed ? { reason: trimmed } : {},
+  })
 }
 
 /**
@@ -197,7 +219,7 @@ export interface CreateGrantBody {
   agentId: string
   type: GrantType
   entryId?: string
-  grantEntries: unknown[]
+  grantEntries: ({ entryId: string } & GrantEntryEnvelope)[]
   expiresAt?: string
   queryLimit?: number
   /** Combined-flags string of permitted methods, e.g. "Exec, Inject" (CVT-149). */

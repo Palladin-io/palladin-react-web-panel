@@ -159,14 +159,14 @@ function FieldRow({
   const [shown, setShown] = useState(false)
   const rowType = isKnownFieldType(field.type) ? field.type : 'text'
   const stringValue = typeof field.value === 'string' ? field.value : ''
-  const agentDiscoverable = field.agentAccess === 'discovery' && canBeAgentVisible(rowType)
+  const agentVisible = !!field.agentVisible && canBeAgentVisible(rowType)
 
   const changeType = (nextType: CustomFieldType) => {
     if (nextType === rowType) return
     // Reset value to the new type's empty shape; keep the stable id + label.
-    // agentDiscoverable is only valid for text-ish types — drop it otherwise.
+    // agentVisible is only valid for text-ish types — drop it otherwise.
     const patch: Partial<CustomField> = { type: nextType, value: blankField(nextType).value }
-    if (!canBeAgentVisible(nextType)) patch.agentAccess = undefined
+    if (!canBeAgentVisible(nextType)) patch.agentVisible = undefined
     onChange(patch)
   }
 
@@ -193,9 +193,9 @@ function FieldRow({
           {
             icon: 'smart_toy',
             label: t('vault.entries.customFields.visibleToAgents'),
-            hint: agentDiscoverable ? t('common.on') : t('common.off'),
-            hintColor: agentDiscoverable ? 'var(--cv-info)' : undefined,
-            onSelect: () => onChange({ agentAccess: agentDiscoverable ? 'never' : 'discovery' }),
+            hint: agentVisible ? t('common.on') : t('common.off'),
+            hintColor: agentVisible ? 'var(--cv-info)' : undefined,
+            onSelect: () => onChange({ agentVisible: agentVisible ? undefined : true }),
           },
         ] as MenuEntry[])
       : []),
@@ -272,7 +272,7 @@ function FieldRow({
         ) : null}
 
         <div className="flex shrink-0 items-center gap-0.5">
-          {agentDiscoverable ? <AgentVisibleBadge /> : null}
+          {agentVisible ? <AgentVisibleBadge /> : null}
           {rowType === 'concealed' ? (
             <>
               <PasswordGeneratorPopover
@@ -392,7 +392,7 @@ function AgentVisibleBadge() {
     <span className="group relative inline-flex">
       <span
         className="inline-flex h-6 w-6 items-center justify-center text-[var(--cv-info)]"
-        aria-label={t('vault.entries.customFields.agentAccessHint')}
+        aria-label={t('vault.entries.customFields.agentVisibleHint')}
       >
         <Icon name="smart_toy" size={13} />
       </span>
@@ -403,7 +403,7 @@ function AgentVisibleBadge() {
           leading-snug text-[var(--cv-t1)] opacity-0 shadow-[0_10px_28px_rgba(0,0,0,0.25)]
           transition-opacity group-hover:opacity-100"
       >
-        {t('vault.entries.customFields.agentAccessHint')}
+        {t('vault.entries.customFields.agentVisibleHint')}
       </span>
     </span>
   )

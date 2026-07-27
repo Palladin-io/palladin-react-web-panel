@@ -2,6 +2,7 @@ import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { Icon } from '../../../shared/components/icon'
+import { shortenKey } from '../../../shared/lib/shorten-key'
 import type { AuditLogItem } from '../api/audit-api'
 import { auditEventConfig } from './audit-event-config'
 
@@ -9,6 +10,10 @@ export interface AuditLogEntryProps {
   item: AuditLogItem
   /** Agent display name resolved by the caller (backend audit rows carry only the id). */
   agentName?: string
+  /** Human/system actor resolved from local structural state. */
+  actorName?: string
+  /** Entry display label resolved from the unlocked client-side member index. */
+  entryName?: string
   /** Vault display name resolved by the caller — drives the vault chip. */
   vaultName?: string
   /** Show the entry chip — off on the Entry Logs tab where the entry is fixed. */
@@ -17,6 +22,8 @@ export interface AuditLogEntryProps {
   showVault?: boolean
   /** Hairline divider above the row (every row except the first in a list). */
   withDivider?: boolean
+  /** Transitional legacy fallback; opaque canonical surfaces disable it. */
+  allowDenormalizedNames?: boolean
 }
 
 /**
@@ -29,14 +36,18 @@ export interface AuditLogEntryProps {
 export function AuditLogEntry({
   item,
   agentName,
+  actorName,
+  entryName,
   vaultName,
   showEntry = true,
   showVault = false,
   withDivider = false,
+  allowDenormalizedNames = false,
 }: AuditLogEntryProps) {
   const { t } = useTranslation()
   const cfg = auditEventConfig(item.eventType)
-  const agent = agentName ?? item.agentName ?? t('audit.unknownAgent')
+  const agent = agentName ?? (item.agentId ? shortenKey(item.agentId) : t('audit.unknownAgent'))
+  const entry = entryName ?? (item.entryId ? shortenKey(item.entryId) : t('audit.unknownEntry'))
   // Sentence slots. Names are never a raw id/public key — they fall back to a
   // localised "unknown"/"unnamed". `agent` is the caller-resolved agent (its own
   // action for grant/credential, the target for agent lifecycle); `object` is
@@ -49,14 +60,23 @@ export function AuditLogEntry({
   const slots: SentenceSlots = {
     agent,
     actor:
-      item.actorType === 'agent' ? agent : item.actorName ?? t('audit.unknownUser'),
-    entry: item.entryLabel ?? t('audit.unknownEntry'),
-    object: resolveObject(item, t),
+      item.actorType === 'agent'
+        ? agent
+        : actorName ?? (item.userId ? shortenKey(item.userId) : t('audit.unknownUser')),
+    entry,
+    object: resolveObject(
+      item,
+      t,
+      item.entryId ? entry : undefined,
+      item.vaultId ? vaultName : undefined,
+      allowDenormalizedNames,
+    ),
   }
 
   const primary = buildPrimary(item.eventType, t, slots)
   const chips = buildChips(item, t, cfg.labelKey, cfg.color, cfg.bg, cfg.border, {
     showEntry,
+    entryName: entryName ?? (item.entryId ? shortenKey(item.entryId) : undefined),
     vaultName: showVault ? vaultName : undefined,
   })
 
@@ -135,14 +155,14 @@ function buildChips(
   typeColor: string,
   typeBg: string,
   typeBorder: string,
-  options: { showEntry: boolean; vaultName?: string },
+  options: { showEntry: boolean; entryName?: string; vaultName?: string },
 ): Chip[] {
   const chips: Chip[] = [
     { text: t(typeLabelKey), color: typeColor, bg: typeBg, border: typeBorder },
   ]
 
-  if (options.showEntry && item.entryLabel) {
-    chips.push({ icon: 'article', text: item.entryLabel, ...CHIP_STYLES.indigo })
+  if (options.showEntry && item.entryId && options.entryName) {
+    chips.push({ icon: 'article', text: options.entryName, ...CHIP_STYLES.indigo })
   }
 
   // Vault chip — only in the global log, where rows span vaults; resolved name
@@ -165,10 +185,6 @@ function buildChips(
     chips.push({ icon: 'bolt', text: method, ...CHIP_STYLES.gray })
   }
 
-  if (item.agentReason) {
-    chips.push({ icon: 'chat_bubble', text: item.agentReason, ...CHIP_STYLES.blue })
-  }
-
   return chips
 }
 
@@ -183,14 +199,20 @@ interface SentenceSlots {
   object: string
 }
 
-/** Resolve the "what" of an event to a display name, never an id. Backend
- *  denormalises: entry → `entryLabel`, vault/org → `metadata.name`,
- *  api-key → `metadata.keyName`; otherwise a localised "unnamed". */
-function resolveObject(item: AuditLogItem, t: TFunction): string {
+/** Resolve the event object from caller-provided local names. Legacy metadata
+ *  is available only behind an explicit transitional opt-in. */
+function resolveObject(
+  item: AuditLogItem,
+  t: TFunction,
+  entryName?: string,
+  vaultName?: string,
+  allowDenormalizedNames = true,
+): string {
   return (
-    item.entryLabel ??
-    item.metadata.name ??
-    item.metadata.keyName ??
+    entryName ??
+    vaultName ??
+    (allowDenormalizedNames ? item.metadata.name : undefined) ??
+    (allowDenormalizedNames ? item.metadata.keyName : undefined) ??
     t('audit.object.unnamed')
   )
 }

@@ -1,29 +1,27 @@
 import { z } from 'zod'
 import { api } from '../../shared/api/client'
 
-/** A single global-search hit. Mirrors the backend `GET /api/search` contract. */
-export const searchResultItemSchema = z.object({
-  type: z.enum(['agent', 'vault', 'entry']),
-  id: z.string(),
-  name: z.string(),
-  // Both only present for `entry` hits — the vault the entry lives in.
-  // `vaultId` drives navigation to the entry-detail route.
-  vaultId: z.string().optional(),
-  vaultName: z.string().nullable().optional(),
-  icon: z.string().nullable().optional(),
-})
+const remoteSearchResultSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('agent'), id: z.string().uuid(), name: z.string().max(256) }).strict(),
+  z.object({ type: z.literal('member'), id: z.string().uuid(), name: z.string().max(256) }).strict(),
+])
 
-export type SearchResultItem = z.infer<typeof searchResultItemSchema>
-export type SearchResultType = SearchResultItem['type']
+const searchResponseSchema = z.object({
+  results: z.array(remoteSearchResultSchema).max(25),
+}).strict()
 
-const searchResponseSchema = z.object({ results: z.array(searchResultItemSchema) })
+export type RemoteSearchResult = z.infer<typeof remoteSearchResultSchema>
 
-/**
- * Fetches global-search autocomplete hits. The backend returns an empty list
- * for queries shorter than 2 characters; callers still gate on length to avoid
- * a needless round-trip.
- */
-export async function getGlobalSearch(q: string, limit = 8): Promise<SearchResultItem[]> {
-  const raw = await api.get('api/search', { searchParams: { q, limit } }).json()
+/** Ephemeral administrative search. The query is sent in the request body and
+ * is never placed in a URL or TanStack Query cache key. */
+export async function getAdministrativeSearch(
+  query: string,
+  signal: AbortSignal,
+  limit = 8,
+): Promise<RemoteSearchResult[]> {
+  const raw = await api.post('api/search', {
+    json: { q: query, limit },
+    signal,
+  }).json()
   return searchResponseSchema.parse(raw).results
 }

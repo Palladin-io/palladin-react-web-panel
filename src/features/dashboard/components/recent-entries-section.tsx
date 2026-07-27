@@ -3,8 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
-import { PERMISSION_GRANT_MANAGE } from '../../../shared/lib/permissions'
-import { useAuthStore } from '../../auth'
 import {
   type EntrySearchItem,
   formatRelativeTime,
@@ -23,19 +21,11 @@ const RECENT_LIMIT = 8
  * "Recently added / modified" block for the dashboard — the latest entries
  * across every vault, ordered by `updatedAt` desc. Metadata only (label,
  * vault, timestamp): no secret is ever fetched or shown here. Reuses the
- * cross-vault entry-search client (`sort=recent`) and the canonical entry
- * icon presentation. Gated on GrantManage (the endpoint requires it) — hidden
- * entirely for viewers without it, so a lower-privilege user simply sees the
- * rest of the dashboard.
+ * synchronized local MemberIndex and the canonical entry icon presentation.
  */
 export function RecentEntriesSection() {
   const { t } = useTranslation()
-  const permissions = useAuthStore((s) => s.permissions)
-  const canView = (permissions & PERMISSION_GRANT_MANAGE) !== 0
-
-  const entries = useRecentEntries(RECENT_LIMIT, canView)
-
-  if (!canView) return null
+  const entries = useRecentEntries(RECENT_LIMIT)
 
   return (
     <section>
@@ -76,8 +66,7 @@ function RecentEntryRow({ entry }: { entry: EntrySearchItem }) {
 
   const type: EntryType = normalizeEntryType(entry.type)
 
-  const timestamp = entry.updatedAt ?? entry.createdAt
-  const meta = [entry.vaultName, timestamp ? formatRelativeTime(timestamp, t) : null]
+  const meta = [entry.vaultName, formatRelativeTime(entry.updatedAt, t)]
     .filter(Boolean)
     .join(' · ')
 

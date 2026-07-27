@@ -24,7 +24,11 @@ const item = {
   type: 'grant_pending',
   category: 'actionRequired',
   titleKey: 'notifications.grantPending.title',
-  metadata: { grantId: 'g1', agentName: 'Deploy Bot', vaultId: 'v1' },
+  metadata: {
+    grantId: '11112233-4455-4677-8899-aabbccddeeff',
+    agentName: 'Deploy Bot',
+    vaultId: '22222233-4455-4677-8899-aabbccddeeff',
+  },
   occurredAt: '2026-06-15T10:00:00Z',
   readAt: null,
   actionState: 'pending',
@@ -50,6 +54,10 @@ describe('notifications-api', () => {
     expect(params.get('category')).toBe('actionRequired')
     expect(page.items[0].id).toBe('n1')
     expect(page.items[0].actionState).toBe('pending')
+    expect(page.items[0].metadata).toEqual({
+      grantId: '11112233-4455-4677-8899-aabbccddeeff',
+      vaultId: '22222233-4455-4677-8899-aabbccddeeff',
+    })
     expect(page.nextCursor).toBe('next')
   })
 

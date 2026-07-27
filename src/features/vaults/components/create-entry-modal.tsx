@@ -2,11 +2,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 import { NotesField } from './notes-field'
 import { Icon } from '../../../shared/components/icon'
 import { SecretInput } from '../../../shared/components/secret-input'
 import { analytics } from '../../../shared/lib/analytics'
+import {
+  allowedAgentFieldAccess,
+  defaultAgentVisibilityPolicy,
+  ENTRY_FIELD,
+  type AgentVisibilityPolicy,
+} from '../../../shared/crypto/vault-v2-entry'
 import { firstError, required, validUrl } from '../../../shared/lib/validation'
 import {
   BLOB_VERSION_V2,
@@ -22,7 +29,6 @@ import {
   type Vault,
 } from '../types'
 import {
-  agentFieldsFrom,
   foldScriptRefs,
   mergeCredentialTotp,
   validateCustomFields,
@@ -38,9 +44,9 @@ import { SectionHeader } from './section-header'
 import { useCreateEntry } from '../use-create-entry'
 import { extractDomain, openExternalUrl } from './entry-presentation'
 import { defaultColorFor, defaultIconFor } from './entry-presentation'
-import { resolveFavicon } from '../api/vault-api'
 import { FormSelect } from '../../../shared/components/form-select'
 import { ModalShell } from '../../../shared/components/modal-shell'
+import { AgentVisibilityPolicyEditor } from './agent-visibility-policy-editor'
 
 export interface CreateEntryModalProps {
   open: boolean
@@ -70,10 +76,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
   const [color, setColor] = useState(defaultColorFor(ENTRY_TYPE_KEY))
   // Pre-select the type's default glyph so a tile is always visibly chosen;
-  // switching type follows along until the user (or a favicon) picks something.
+  // switching type follows along until the user picks a local icon.
   const [icon, setIcon] = useState<string | undefined>(defaultIconFor(ENTRY_TYPE_KEY))
-  const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
   const [label, setLabel] = useState('')
+  const [agentLabelOverride, setAgentLabelOverride] = useState<string | null>(null)
+  const [agentLabelError, setAgentLabelError] = useState(false)
   const [labelError, setLabelError] = useState(false)
   const [description, setDescription] = useState('')
   const [keyValue, setKeyValue] = useState('')
@@ -93,54 +100,47 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [scriptError, setScriptError] = useState(false)
   const [interpreter, setInterpreter] = useState<ScriptInterpreter>('bash')
   const [refs, setRefs] = useState<ScriptRef[]>([])
-  // Favicon suggestion: auto-fills the icon from the typed domain unless the
-  // user picked one themselves; a manual pick always wins.
   const [iconTouched, setIconTouched] = useState(false)
+  const [discoverable, setDiscoverable] = useState(true)
+  const [policyOverrides, setPolicyOverrides] = useState<AgentVisibilityPolicy['fields']>({})
 
-  useEffect(() => {
-    const domain = extractDomain(url)
-    // Wait for a plausible full domain — mid-typing values ("https", "gith")
-    // would fire pointless resolve calls.
-    if (!domain || !domain.includes('.') || iconTouched) return
-    let cancelled = false
-    const handle = setTimeout(async () => {
-      const favicon = await resolveFavicon(domain)
-      // iconTouched guards manual picks; a favicon may replace the type default.
-      if (favicon && !cancelled) setIcon(favicon)
-    }, 500)
-    return () => {
-      cancelled = true
-      clearTimeout(handle)
+  const allFields = useMemo(
+    () => type === ENTRY_TYPE_CREDENTIAL
+      ? mergeCredentialTotp(credentialTotp, customFields)
+      : customFields,
+    [credentialTotp, customFields, type],
+  )
+  const agentLabel = agentLabelOverride ?? label
+  const policy = useMemo<AgentVisibilityPolicy>(() => {
+    const defaults = defaultAgentVisibilityPolicy(type, allFields)
+    const customTypes = new Map(allFields.map((field) => [`custom:${field.id}`, field.type]))
+    return {
+      discoverable,
+      fields: Object.fromEntries(Object.entries(defaults.fields).map(([fieldId, fallback]) => {
+        const candidate = policyOverrides[fieldId]
+        const access = candidate && allowedAgentFieldAccess(type, fieldId, customTypes.get(fieldId)).includes(candidate)
+          ? candidate
+          : fallback
+        return [fieldId, fieldId === ENTRY_FIELD.agentLabel ? (discoverable ? 'discovery' : 'never') : access]
+      })),
     }
-  }, [url, iconTouched])
+  }, [allFields, discoverable, policyOverrides, type])
 
   useEffect(() => {
     analytics.capture('vault', 'create-entry-wizard-opened')
   }, [])
-
-  useEffect(() => {
-    setKeyValueError(false)
-    setUsernameError(false)
-    setPasswordError(false)
-    setScriptError(false)
-  }, [type])
 
   const isPending = create.isPending
 
   const canSubmit = useMemo(() => {
     if (isPending) return false
     if (!label.trim()) return false
+    if (policy.discoverable && !agentLabel.trim()) return false
     if (type === ENTRY_TYPE_KEY) return keyValue.trim().length > 0
     if (type === ENTRY_TYPE_SCRIPT) return script.trim().length > 0
     return username.trim().length > 0 && password.trim().length > 0
-  }, [isPending, label, type, keyValue, username, password, script])
+  }, [isPending, label, policy.discoverable, agentLabel, type, keyValue, username, password, script])
 
-  // Credential 2FA is stored as the first fields[] TOTP entry; merge it with the
-  // additional fields for validation and folding.
-  const allFields =
-    type === ENTRY_TYPE_CREDENTIAL
-      ? mergeCredentialTotp(credentialTotp, customFields)
-      : customFields
   const fieldsInvalid = validateCustomFields(allFields).hasError
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -164,20 +164,15 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       {
         vaultId: vault.id,
         label: label.trim(),
+        agentLabel: agentLabel.trim(),
         description: description.trim() || undefined,
-        // Custom image uploaded after creation — send no icon so the list
-        // uses the type default until the PATCH lands.
-        icon: pendingIconFile ? undefined : icon,
-        color,
+        iconReference: icon,
         type,
         payload,
-        urlDomain: type === ENTRY_TYPE_SCRIPT ? undefined : extractDomain(url) || undefined,
-        agentFields: agentFieldsFrom(allFields),
+        policy,
       },
       {
-        onSuccess: async () => {
-          // Custom image assets need an encrypted-asset envelope. Until that
-          // endpoint lands, creation deliberately keeps the selected glyph.
+        onSuccess: () => {
           analytics.capture('vault', 'create-entry-wizard-completed', { type })
           toast.success(t('vault.entries.createSuccess'))
           onClose()
@@ -190,8 +185,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     )
   }
 
-  const visibleNote = <>· {t('vault.entries.agentAccessNote')}</>
-
   return (
     <ModalShell
       onClose={isPending ? undefined : onClose}
@@ -199,7 +192,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       title={t('vault.entries.addEntry')}
       width={560}
       footer={
-        <div className="flex gap-2.5">
+        <DialogFooter>
           <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
             {t('vault.cancel')}
           </Button>
@@ -213,7 +206,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           >
             {isPending ? t('vault.entries.saving') : t('vault.entries.saveEntry')}
           </Button>
-        </div>
+        </DialogFooter>
       }
     >
       <form id="entry-create-form" className="flex flex-col gap-3" onSubmit={handleSubmit}>
@@ -233,6 +226,12 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 const nextType = Number(e.target.value) as EntryType
                 const previousType = type
                 setType(nextType)
+                setDiscoverable(true)
+                setPolicyOverrides({})
+                setKeyValueError(false)
+                setUsernameError(false)
+                setPasswordError(false)
+                setScriptError(false)
                 if (!iconTouched) {
                   const typeDefaults = [
                     defaultIconFor(ENTRY_TYPE_KEY),
@@ -263,16 +262,14 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               className="mb-1 block text-meta font-semibold text-[var(--cv-label-text)]"
             >
               {t('vault.entries.labelLabel')}
-              <span className="ml-1.5 font-normal text-[var(--cv-t3)]">{visibleNote}</span>
             </label>
             <div className="flex gap-2">
               <EntryIconButton
                 icon={icon}
                 color={color}
                 type={type}
-                onChange={(next) => { setIcon(next); setPendingIconFile(null); setIconTouched(true) }}
+                onChange={(next) => { setIcon(next); setIconTouched(true) }}
                 onColorChange={(next) => { setColor(next); setIconTouched(true) }}
-                onFileSelected={(file, previewUrl) => { setPendingIconFile(file); setIcon(previewUrl); setIconTouched(true) }}
                 disabled={isPending}
               />
               <div className="min-w-0 flex-1">
@@ -300,7 +297,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           <FormInput
             id="entry-description"
             label={t('vault.entries.descriptionLabel')}
-            labelSuffix={visibleNote}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t('vault.entries.descriptionPlaceholder')}
@@ -308,6 +304,30 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             disabled={isPending}
             maxLength={500}
           />
+
+          <div>
+            <FormInput
+              id="entry-agent-label"
+              label={t('vault.entries.visibility.agentLabel')}
+              value={agentLabel}
+              onChange={(event) => {
+                setAgentLabelOverride(event.target.value)
+                setAgentLabelError(false)
+              }}
+              onBlur={() => setAgentLabelError(
+                policy.discoverable
+                  && firstError(agentLabel, [required(t('validation.required'))]) !== null,
+              )}
+              placeholder={t('vault.entries.visibility.agentLabelPlaceholder')}
+              autoComplete="off"
+              disabled={isPending}
+              maxLength={120}
+              error={agentLabelError}
+            />
+            <FeedbackSlot visible={agentLabelError} color="red">
+              {t('validation.required')}
+            </FeedbackSlot>
+          </div>
 
           {type === ENTRY_TYPE_KEY ? (
             <>
@@ -417,6 +437,17 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           <CustomFieldsEditor fields={customFields} onChange={setCustomFields} disabled={isPending} />
 
           <NotesField id="entry-notes" value={notes} onChange={setNotes} disabled={isPending} />
+
+          <AgentVisibilityPolicyEditor
+            type={type}
+            customFields={allFields}
+            policy={policy}
+            onChange={(next) => {
+              setDiscoverable(next.discoverable)
+              setPolicyOverrides(next.fields)
+            }}
+            disabled={isPending}
+          />
       </form>
     </ModalShell>
   )

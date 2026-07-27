@@ -16,6 +16,7 @@ export interface GrantMethodsSelectProps {
   value: GrantMethod[]
   /** Methods the agent requested — flagged in the list so the approver sees what was asked for. */
   requested?: GrantMethod[]
+  allowed?: GrantMethod[]
   disabled?: boolean
   error?: string | null
   onChange: (methods: GrantMethod[]) => void
@@ -31,6 +32,7 @@ export function GrantMethodsSelect({
   idPrefix,
   value,
   requested,
+  allowed,
   disabled,
   error,
   onChange,
@@ -93,17 +95,19 @@ export function GrantMethodsSelect({
             {GRANT_METHODS.map((method) => {
               const checked = value.includes(method)
               const wasRequested = requested?.includes(method)
+              const canSelect = allowed?.includes(method) ?? true
               return (
                 <li key={method} role="option" aria-selected={checked}>
                   <button
                     type="button"
+                    disabled={!canSelect}
                     onMouseDown={(e) => {
                       // Keep focus on the trigger so the popup stays open for multi-select.
                       e.preventDefault()
-                      toggle(method)
+                      if (canSelect) toggle(method)
                     }}
                     className="flex w-full items-start gap-2 px-3 py-2 text-left
-                      transition-colors hover:bg-[var(--cv-list-item-hover)]"
+                      transition-colors hover:bg-[var(--cv-list-item-hover)] disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <span className="mt-0.5 w-4 shrink-0">
                       {checked && <Icon name="check" size={16} color="var(--cv-t1)" />}

@@ -22,12 +22,12 @@ const E = 'AWS Root Key'
 const V = 'Production'
 const BY = 'Patryk'
 
-const mk = (type: string, body: string, data: Record<string, string>): NotificationPayload => ({
+const mk = (type: string, _body: string, data: Record<string, string>): NotificationPayload => ({
+  subjectId: '11112233-4455-4677-8899-aabbccddeeff',
   type,
-  title: body,
-  body,
+  category: type.endsWith('pending') ? 'actionRequired' : 'update',
+  occurredAt: '2026-07-26T12:00:00Z',
   data,
-  timestamp: undefined,
 })
 
 const NOTIFICATIONS: { label: string; payload: NotificationPayload }[] = [

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -17,6 +17,7 @@ import {
   type ParseResult,
 } from '../import'
 import type { Vault } from '../types'
+import { useAuthStore } from '../../auth'
 import { useAllEntries } from '../use-entries'
 import {
   ImportStepError,
@@ -44,6 +45,7 @@ export function ImportWizardModal({ open, vault, onClose }: ImportWizardModalPro
 function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => void }) {
   const { t } = useTranslation()
   const importMutation = useImportEntries()
+  const privateKey = useAuthStore((state) => state.privateKey)
 
   const [step, setStep] = useState<Step>('upload')
   // Conflicts are only needed from the preview step on, so don't fetch the full
@@ -54,6 +56,7 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
   const [result, setResult] = useState<ParseResult | null>(null)
   const [mapping, setMapping] = useState<ColumnMapping>({})
   const [strategy, setStrategy] = useState<ConflictStrategy>('skip')
+  const [policyReviewed, setPolicyReviewed] = useState(false)
   const [progress, setProgress] = useState<{
     done: number
     total: number
@@ -75,7 +78,7 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
     return { entries: result.entries, skipped: result.skipped }
   }, [result, mapping])
 
-  const entries = derived?.entries ?? []
+  const entries = useMemo(() => derived?.entries ?? [], [derived])
   const skippedCount = derived?.skipped.count ?? 0
 
   const existingByLabel = useMemo(() => {
@@ -98,6 +101,10 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
 
   const isBusy = parsing || step === 'importing'
 
+  useEffect(() => {
+    if (!privateKey) onClose()
+  }, [onClose, privateKey])
+
   const handleFile = async (file: File) => {
     setParsing(true)
     setParseError(null)
@@ -106,6 +113,7 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
       setResult(parsed)
       setMapping({})
       setStrategy('skip')
+      setPolicyReviewed(false)
       setStep('preview')
     } catch (error) {
       const reason = error instanceof Error && 'reason' in error ? String((error as { reason: unknown }).reason) : 'unknown'
@@ -210,7 +218,7 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
           variant="accent"
           size="sm"
           onClick={handleImport}
-          disabled={entries.length === 0}
+          disabled={entries.length === 0 || !policyReviewed}
           className="flex-[2]"
         >
           {t('vault.import.importCta')}
@@ -248,6 +256,8 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
             onMappingChange={setMapping}
             strategy={strategy}
             onStrategyChange={setStrategy}
+            policyReviewed={policyReviewed}
+            onPolicyReviewedChange={setPolicyReviewed}
           />
         ) : null}
 
@@ -305,6 +315,8 @@ function PreviewStep({
   onMappingChange,
   strategy,
   onStrategyChange,
+  policyReviewed,
+  onPolicyReviewedChange,
 }: {
   result: ParseResult
   entries: ParsedEntry[]
@@ -315,6 +327,8 @@ function PreviewStep({
   onMappingChange: (next: ColumnMapping) => void
   strategy: ConflictStrategy
   onStrategyChange: (next: ConflictStrategy) => void
+  policyReviewed: boolean
+  onPolicyReviewedChange: (next: boolean) => void
 }) {
   const { t } = useTranslation()
   const isManual = result.format === 'manual' && result.unmapped
@@ -371,6 +385,15 @@ function PreviewStep({
       {conflictCount > 0 ? (
         <ConflictStrategyPicker value={strategy} onChange={onStrategyChange} />
       ) : null}
+
+      <label className="flex items-start gap-2 rounded-lg border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3 text-meta text-[var(--cv-t2)]">
+        <input
+          type="checkbox"
+          checked={policyReviewed}
+          onChange={(event) => onPolicyReviewedChange(event.target.checked)}
+        />
+        <span>{t('vault.import.policyReview')}</span>
+      </label>
 
       <EncryptionNotice>{t('vault.import.encryptionNotice')}</EncryptionNotice>
     </>

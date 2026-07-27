@@ -1,19 +1,22 @@
-import { useQuery } from '@tanstack/react-query'
-import { searchEntries } from './api/entry-search-api'
-import { RECENT_ENTRIES_QUERY_KEY } from './query-keys'
+import { useAuthStore } from '../auth'
+import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
+import { useLocalEntrySearch } from './use-local-entry-search'
 
 /**
- * Most recently added/modified entries across the organization (metadata only)
- * for the dashboard "Recently added / modified" widget. Orders by `updatedAt`
- * descending server-side. `enabled` gates the fetch on the GrantManage
- * permission — the `/api/entries` endpoint requires it, so users without it
- * never trigger a 403 and the widget simply stays hidden.
+ * Most recently changed active entries across the Member's synchronized Vaults.
+ * Presentation and ordering are resolved in unlocked memory; no Entry query or
+ * plaintext projection is sent to the backend.
  */
 export function useRecentEntries(limit = 8, enabled = true) {
-  return useQuery({
-    queryKey: [...RECENT_ENTRIES_QUERY_KEY, 'recent', limit],
-    queryFn: () => searchEntries('', limit, 'recent'),
-    staleTime: 30_000,
-    enabled,
-  })
+  const unlocked = useAuthStore((state) => state.privateKey !== null)
+  const status = useMemberSyncStore((state) => state.status)
+  const retry = useMemberSyncStore((state) => state.retry)
+  const active = enabled && unlocked
+  const data = useLocalEntrySearch('', limit, 'recent', active)
+  return {
+    data,
+    isPending: active && (status === 'idle' || status === 'syncing'),
+    isError: active && status === 'error',
+    refetch: retry,
+  }
 }

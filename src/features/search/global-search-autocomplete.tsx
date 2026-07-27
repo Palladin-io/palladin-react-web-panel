@@ -4,13 +4,14 @@ import { useNavigate } from '@tanstack/react-router'
 import { Icon } from '../../shared/components/icon'
 import { SearchBar } from '../../shared/components/search-bar'
 import { analytics } from '../../shared/lib/analytics'
-import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
 import { HOVERABLE_CARD_CLASSES } from '../../shared/lib/styles'
-import { useAuthStore } from '../auth'
-import { type EntrySearchItem, useRecentEntries } from '../grants'
 import { ENTRY_ICON_COLORS, isCustomIconUrl } from '../vaults'
-import type { SearchResultItem, SearchResultType } from './search-api'
-import { useGlobalSearch } from './use-global-search'
+import {
+  useGlobalSearch,
+  useRecentLocalEntries,
+  type SearchResultItem,
+  type SearchResultType,
+} from './use-global-search'
 
 const DEBOUNCE_MS = 250
 const MIN_QUERY_LENGTH = 2
@@ -32,17 +33,20 @@ interface TypeBadge {
 /** Per-type badge glyph + colour. Colours map to design tokens, never hex. */
 const TYPE_BADGES: Record<SearchResultType, TypeBadge> = {
   agent: { icon: 'smart_toy', color: 'var(--cv-primary)', labelKey: 'search.typeBadge.agent' },
+  member: { icon: 'person', color: 'var(--cv-info)', labelKey: 'search.typeBadge.member' },
   vault: { icon: 'shield', color: 'var(--cv-t2)', labelKey: 'search.typeBadge.vault' },
   entry: { icon: 'key', color: 'var(--cv-t2)', labelKey: 'search.typeBadge.entry' },
 }
 
-/** Resolve the leading avatar glyph for a hit: a custom S3 icon URL or a Material glyph. */
+/** Resolve the leading local presentation glyph; encrypted custom assets fall
+ * back safely until an asset-aware result renderer is mounted. */
 function avatarIcon(item: SearchResultItem): { url: string | null; glyph: string } {
   const fallback = TYPE_BADGES[item.type].icon
-  if (item.icon && isCustomIconUrl(item.icon)) {
-    return { url: item.icon, glyph: fallback }
+  const icon = item.type === 'entry' ? item.icon : undefined
+  if (icon && isCustomIconUrl(icon)) {
+    return { url: icon, glyph: fallback }
   }
-  return { url: null, glyph: item.icon || fallback }
+  return { url: null, glyph: icon || fallback }
 }
 
 export interface GlobalSearchAutocompleteProps {
@@ -51,25 +55,12 @@ export interface GlobalSearchAutocompleteProps {
   className?: string
 }
 
-/** Recent-entry metadata → the flat search-result shape the dropdown renders. */
-function recentEntryToResult(entry: EntrySearchItem): SearchResultItem {
-  return {
-    type: 'entry',
-    id: entry.id,
-    name: entry.label,
-    vaultId: entry.vaultId,
-    vaultName: entry.vaultName ?? undefined,
-    icon: entry.icon ?? undefined,
-  }
-}
-
 /**
  * Global search field with a live autocomplete dropdown. Owns the input state,
  * debounces it, and renders a keyboard-navigable result list below the shared
  * `SearchBar`. Focusing the empty field surfaces the caller's most recent
- * entries (metadata only — no secrets); typing 2+ characters switches to the
- * backend typeahead across agents, vaults, and entries. Selecting a hit
- * navigates to the matching detail screen.
+ * entries from the synchronized index; typing 2+ characters merges local
+ * Vault/Entry matches with an ephemeral administrative Member/Agent request.
  */
 export function GlobalSearchAutocomplete({
   placeholder,
@@ -79,8 +70,6 @@ export function GlobalSearchAutocomplete({
   const navigate = useNavigate()
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-  const permissions = useAuthStore((s) => s.permissions)
-
   const [query, setQuery] = useState('')
   const [debounced, setDebounced] = useState('')
   const [open, setOpen] = useState(false)
@@ -93,20 +82,29 @@ export function GlobalSearchAutocomplete({
 
   const trimmed = query.trim()
   const isSearching = trimmed.length >= MIN_QUERY_LENGTH
-  // Recent entries come from `GET /api/entries`, which requires GrantManage — mirror the
-  // dashboard widget's gating so a lower-privilege caller never triggers a 403.
-  const canViewRecent = (permissions & PERMISSION_GRANT_MANAGE) !== 0
-
   const search = useGlobalSearch(debounced)
-  const recent = useRecentEntries(RECENT_LIMIT, open && !isSearching && canViewRecent)
+  const recent = useRecentLocalEntries(RECENT_LIMIT)
+  const isDebouncing = isSearching && debounced.trim() !== trimmed
+
+  useEffect(() => {
+    if (!search.isLocked) return
+    let active = true
+    queueMicrotask(() => {
+      if (!active) return
+      setQuery('')
+      setDebounced('')
+      setActiveIndex(-1)
+    })
+    return () => { active = false }
+  }, [search.isLocked])
 
   const results: SearchResultItem[] = isSearching
-    ? (search.data ?? [])
-    : (recent.data ?? []).map(recentEntryToResult)
+    ? (isDebouncing ? [] : search.data)
+    : recent
 
   const isLoading = isSearching
-    ? search.isFetching && results.length === 0
-    : recent.isPending && open && canViewRecent
+    ? (isDebouncing || search.isRemoteLoading) && results.length === 0
+    : false
 
   // Close on outside click.
   useEffect(() => {
@@ -133,6 +131,10 @@ export function GlobalSearchAutocomplete({
   }, [])
 
   function handleChange(next: string) {
+    if (search.isLocked) {
+      setOpen(true)
+      return
+    }
     setQuery(next)
     setActiveIndex(-1)
     setOpen(true)
@@ -147,16 +149,18 @@ export function GlobalSearchAutocomplete({
       void navigate({ to: '/agents/$agentId', params: { agentId: item.id } })
       return
     }
+    if (item.type === 'member') {
+      void navigate({ to: '/team' })
+      return
+    }
     if (item.type === 'vault') {
       void navigate({ to: '/vaults/$vaultId', params: { vaultId: item.id } })
       return
     }
-    if (item.vaultId) {
-      void navigate({
-        to: '/vaults/$vaultId/entries/$entryId',
-        params: { vaultId: item.vaultId, entryId: item.id },
-      })
-    }
+    void navigate({
+      to: '/vaults/$vaultId/entries/$entryId',
+      params: { vaultId: item.vaultId, entryId: item.id },
+    })
   }
 
   function handleKeyDown(event: React.KeyboardEvent) {
@@ -179,7 +183,13 @@ export function GlobalSearchAutocomplete({
     }
   }
 
-  const emptyMessage = isSearching ? t('search.noResults') : t('search.startTyping')
+  const emptyMessage = search.isLocked
+    ? t('search.locked')
+    : search.isSyncing
+      ? t('search.syncing')
+      : isSearching && search.isRemoteError
+        ? t('search.remoteUnavailable')
+        : isSearching ? t('search.noResults') : t('search.startTyping')
 
   return (
     <div
@@ -237,7 +247,7 @@ export function GlobalSearchAutocomplete({
                     : badge.color
                 return (
                   <button
-                    key={`${item.type}:${item.id}`}
+                    key={item.type === 'entry' ? `entry:${item.vaultId}:${item.id}` : `${item.type}:${item.id}`}
                     type="button"
                     role="option"
                     aria-selected={index === activeIndex}
@@ -283,6 +293,17 @@ export function GlobalSearchAutocomplete({
                   </button>
                 )
               })}
+              {isSearching && search.isRemoteLoading && (
+                <div className="flex items-center gap-2 px-3 py-2 text-meta text-[var(--cv-t3)]">
+                  <Icon name="progress_activity" size={14} className="animate-spin" />
+                  {t('search.searchingDirectory')}
+                </div>
+              )}
+              {isSearching && search.isRemoteError && (
+                <div className="px-3 py-2 text-meta text-[var(--cv-warning)]">
+                  {t('search.remoteUnavailableLocalShown')}
+                </div>
+              )}
             </>
           )}
         </div>

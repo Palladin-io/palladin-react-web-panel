@@ -91,12 +91,12 @@ describe('CustomFieldsEditor', () => {
     await addField(user, /^text/i)
     await user.click(screen.getByRole('button', { name: /more actions/i }))
     await user.click(screen.getByRole('menuitem', { name: /visible to agents/i }))
-    expect(dump()[0].agentAccess).toBe('discovery')
+    expect(dump()[0].agentVisible).toBe(true)
 
-    // Switching to a secret type must strip agentAccess.
+    // Switching to a secret type must strip agentVisible.
     await user.click(screen.getByRole('button', { name: /^type$/i }))
     await user.click(screen.getByRole('menuitem', { name: /hidden/i }))
-    expect(dump()[0].agentAccess).toBeUndefined()
+    expect(dump()[0].agentVisible).toBeUndefined()
   })
 
   it('flags a value without a label', async () => {

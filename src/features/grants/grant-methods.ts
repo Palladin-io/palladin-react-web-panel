@@ -58,6 +58,14 @@ export function serializeGrantMethods(methods: GrantMethod[]): string {
     .join(', ')
 }
 
-export function grantMethodsBits(methods: GrantMethod[]): number {
-  return methods.reduce((bits, method) => bits | ({ get: 1, exec: 2, inject: 4 } as const)[method], 0)
+/** Frozen AAD uses the backend flags value as an unsigned 16-bit integer. */
+export function grantMethodsMask(methods: readonly GrantMethod[]): number {
+  const bits: Record<GrantMethod, number> = { get: 1, exec: 2, inject: 4 }
+  return GRANT_METHODS.reduce((value, method) => value | (methods.includes(method) ? bits[method] : 0), 0)
+}
+
+export function grantMethodsFromMask(mask: number): GrantMethod[] {
+  if (!Number.isInteger(mask) || mask < 0 || mask > 7) return []
+  const bits: Record<GrantMethod, number> = { get: 1, exec: 2, inject: 4 }
+  return GRANT_METHODS.filter((method) => (mask & bits[method]) !== 0)
 }

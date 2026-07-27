@@ -69,8 +69,8 @@ export const ENTRY_ICON_COLORS: Record<string, string> = {
   school: '#60A5FA',
 }
 
-export function isCustomIconUrl(value: string | undefined): value is string {
-  return typeof value === 'string' && (value.startsWith('https://') || value.startsWith('blob:'))
+export function isCustomIconUrl(value: string | undefined): boolean {
+  return typeof value === 'string' && value.startsWith('blob:')
 }
 
 /**

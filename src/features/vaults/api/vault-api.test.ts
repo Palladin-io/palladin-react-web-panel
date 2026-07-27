@@ -3,26 +3,103 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const getJson = vi.hoisted(() => vi.fn())
 const getFn = vi.hoisted(() => vi.fn(() => ({ json: getJson })))
 const postText = vi.hoisted(() => vi.fn())
-const postFn = vi.hoisted(() => vi.fn(() => Promise.resolve({ text: postText })))
+const postJson = vi.hoisted(() => vi.fn())
+const postFn = vi.hoisted(() => vi.fn(() => ({ text: postText, json: postJson })))
 
 vi.mock('../../../shared/api/client', () => ({
   api: { get: getFn, post: postFn },
 }))
-vi.mock('../../../shared/crypto/entry-protocol', () => ({
-  openMemberIndex: vi.fn(async (value: { plaintext: unknown }) => value.plaintext),
-}))
 
-import { getAllEntries, importEntries } from './vault-api'
+import { getAllEntries, getCanonicalEntry, getEntryHistory, getRecentlyDeletedEntries, importEntries, restoreCanonicalEntry } from './vault-api'
 
-function encryptedListItem(id: string, memberLabel: string, entryType: 'key' | 'credential') {
-  return {
-    id, currentRevision: '1', memberIndexRevision: '1', createdAt: '', updatedAt: '',
-    memberIndex: {
-      descriptor: { scope: { organizationId: 'org-1', vaultId: 'vault-1', entryId: id } },
-      plaintext: { memberLabel, entryType, description: null, icon: null, color: null, urlDomain: null },
-    },
+describe('getRecentlyDeletedEntries', () => {
+  const organizationId = '00112233-4455-4677-8899-aabbccddeeff'
+  const vaultId = '11112233-4455-4677-8899-aabbccddeeff'
+  const entryId = '22222233-4455-4677-8899-aabbccddeeff'
+  const item = {
+    id: entryId, state: 'deleted', currentRevision: '5', updatedAt: '2026-07-26T00:00:00Z',
+    archivedAt: null, deletedAt: '2026-07-26T00:00:00Z', retentionExpiresAt: '2026-08-25T00:00:00Z',
+    memberIndex: { organizationId, vaultId, entryId, memberIndexRevision: '5',
+      header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 2,
+        resourceRevision: '5', keyVersion: 1, memberKeyGeneration: 1, nonce: 'nonce' }, ciphertext: 'cipher' },
   }
-}
+
+  it('validates the authoritative deadline and sends a bounded page request', async () => {
+    getJson.mockResolvedValueOnce({ items: [item], nextCursor: 'next' })
+    const page = await getRecentlyDeletedEntries(vaultId, 'cursor')
+    expect(page.items[0].retentionExpiresAt).toBe('2026-08-25T00:00:00Z')
+    expect(getFn).toHaveBeenCalledWith(expect.stringContaining('/recently-deleted'), {
+      searchParams: { pageSize: '100', cursor: 'cursor' },
+    })
+  })
+
+  it('fails closed when an encrypted index belongs to another Vault', async () => {
+    getJson.mockResolvedValueOnce({ items: [{ ...item, memberIndex: {
+      ...item.memberIndex, vaultId: '33332233-4455-4677-8899-aabbccddeeff',
+    } }], nextCursor: null })
+    await expect(getRecentlyDeletedEntries(vaultId)).rejects.toThrow('scope mismatch')
+  })
+})
+
+describe('getEntryHistory', () => {
+  const organizationId = '00112233-4455-4677-8899-aabbccddeeff'
+  const vaultId = '11112233-4455-4677-8899-aabbccddeeff'
+  const entryId = '22222233-4455-4677-8899-aabbccddeeff'
+  const historyItem = (overrides = {}) => ({
+    revision: '7', memberSequence: '9', discoverySequence: null,
+    changedAt: '2026-07-26T00:00:00Z', changedByType: 'member', changedById: organizationId,
+    operation: 'updated', keyVersion: 2,
+    entryKey: { organizationId, vaultId, entryId, wrapperRevision: '2', keyVersion: 2,
+      memberKeyGeneration: 1, wrappingKeyVersion: 1,
+      header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 8,
+        resourceRevision: '2', keyVersion: 2, memberKeyGeneration: 1, nonce: 'nonce' },
+      wrappedEntryDekByVk: 'wrapped' },
+    memberSecret: { organizationId, vaultId, entryId, revision: '7', operation: 'updated',
+      header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 3,
+        resourceRevision: '7', keyVersion: 2, memberKeyGeneration: 1, nonce: 'nonce' }, ciphertext: 'cipher' },
+    ...overrides,
+  })
+
+  it('normalizes wire enums and sends the revision cursor', async () => {
+    getJson.mockResolvedValueOnce({ currentRevision: '7', items: [historyItem()], nextBeforeRevision: '7',
+      policy: { maximumVersions: 100, maximumAgeDays: 365 } })
+    const page = await getEntryHistory(vaultId, entryId, '8')
+    expect(page.items[0]).toMatchObject({ operation: 2, changedByType: 1 })
+    expect(getFn).toHaveBeenCalledWith(expect.stringContaining('/history'), {
+      searchParams: { pageSize: '20', beforeRevision: '8' },
+    })
+  })
+
+  it('fails closed when a historical key envelope belongs to another Entry', async () => {
+    getJson.mockResolvedValueOnce({ currentRevision: '7', items: [historyItem({
+      entryKey: { ...historyItem().entryKey, entryId: '33332233-4455-4677-8899-aabbccddeeff' },
+    })], nextBeforeRevision: null, policy: { maximumVersions: 100, maximumAgeDays: 365 } })
+    await expect(getEntryHistory(vaultId, entryId)).rejects.toThrow('scope mismatch')
+  })
+})
+
+describe('getCanonicalEntry', () => {
+  it('rejects a projection whose authenticated scope differs from the Entry head', async () => {
+    const organizationId = '00112233-4455-4677-8899-aabbccddeeff'
+    const vaultId = '11112233-4455-4677-8899-aabbccddeeff'
+    const id = '22222233-4455-4677-8899-aabbccddeeff'
+    const header = { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 3,
+      resourceRevision: '1', keyVersion: 1, memberKeyGeneration: 1, nonce: 'nonce' }
+    const scope = { organizationId, vaultId, entryId: id }
+    getJson.mockResolvedValueOnce({ organizationId, vaultId, id, state: 'active', currentRevision: '1',
+      memberIndexRevision: '1', agentDiscoveryRevision: null, agentDiscoveryRevisionHighWatermark: '0', currentKeyVersion: 1,
+      createdAt: '2026-07-26T00:00:00Z', createdBy: organizationId,
+      updatedAt: '2026-07-26T00:00:00Z', updatedBy: organizationId,
+      memberIndex: { ...scope, vaultId: '33332233-4455-4677-8899-aabbccddeeff', memberIndexRevision: '1',
+        header: { ...header, projectionKind: 2 }, ciphertext: 'cipher' },
+      memberSecret: { ...scope, revision: '1', operation: 1, header, ciphertext: 'cipher' },
+      agentDiscovery: null,
+      entryKey: { ...scope, wrapperRevision: '1', keyVersion: 1, memberKeyGeneration: 1,
+        wrappingKeyVersion: 1, header: { ...header, projectionKind: 8 }, wrappedEntryDekByVk: 'wrapped' },
+    })
+    await expect(getCanonicalEntry(vaultId, id)).rejects.toThrow('Entry envelope scope mismatch')
+  })
+})
 
 describe('getAllEntries', () => {
   beforeEach(() => {
@@ -33,15 +110,15 @@ describe('getAllEntries', () => {
   it('follows nextCursor across pages and concatenates every entry', async () => {
     getJson
       .mockResolvedValueOnce({
-        items: [encryptedListItem('e1', 'One', 'credential')],
+        items: [{ id: 'e1', label: 'One', type: 'credential' }],
         nextCursor: 'CURSOR_2',
       })
       .mockResolvedValueOnce({
-        items: [encryptedListItem('e2', 'Two', 'key')],
+        items: [{ id: 'e2', label: 'Two', type: 'key' }],
         nextCursor: undefined,
       })
 
-    const all = await getAllEntries('vault-1', new Uint8Array(32))
+    const all = await getAllEntries('vault-1')
 
     expect(all.map((e) => e.id)).toEqual(['e1', 'e2'])
     // Second request must carry the cursor from the first page.
@@ -54,8 +131,8 @@ describe('getAllEntries', () => {
   })
 
   it('returns a single page when there is no next cursor', async () => {
-    getJson.mockResolvedValueOnce({ items: [encryptedListItem('e1', 'Solo', 'key')] })
-    const all = await getAllEntries('vault-1', new Uint8Array(32))
+    getJson.mockResolvedValueOnce({ items: [{ id: 'e1', label: 'Solo', type: 'key' }] })
+    const all = await getAllEntries('vault-1')
     expect(all).toHaveLength(1)
     expect(getFn).toHaveBeenCalledTimes(1)
   })
@@ -85,5 +162,24 @@ describe('importEntries', () => {
     postText.mockResolvedValueOnce('')
     const res = await importEntries('vault-1', body)
     expect(res).toEqual({ importedCount: 2, entryIds: [] })
+  })
+})
+
+describe('restoreCanonicalEntry', () => {
+  beforeEach(() => {
+    postFn.mockClear()
+    postJson.mockReset()
+  })
+
+  it('accepts only a canonical Active lifecycle response', async () => {
+    postJson.mockResolvedValueOnce({ state: 'active', currentRevision: '8' })
+    await expect(restoreCanonicalEntry('vault', 'entry', {
+      baseRevision: '7', memberSecret: {} as never,
+    })).resolves.toEqual({ state: 'active', currentRevision: '8' })
+
+    postJson.mockResolvedValueOnce({ state: 'archived', currentRevision: '8' })
+    await expect(restoreCanonicalEntry('vault', 'entry', {
+      baseRevision: '7', memberSecret: {} as never,
+    })).rejects.toThrow()
   })
 })

@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // --- Mock the SignalR builder so we can control start()/stop() timing. ---
@@ -78,6 +79,14 @@ import { SignalRProvider } from './signalr-provider'
 
 const flush = () => new Promise((r) => setTimeout(r, 0))
 
+function renderProvider() {
+  return render(
+    <QueryClientProvider client={new QueryClient()}>
+      <SignalRProvider><div /></SignalRProvider>
+    </QueryClientProvider>,
+  )
+}
+
 describe('SignalRProvider lifecycle', () => {
   beforeEach(() => {
     connections.length = 0
@@ -87,11 +96,7 @@ describe('SignalRProvider lifecycle', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('establishes exactly one live connection on mount', async () => {
-    render(
-      <SignalRProvider>
-        <div />
-      </SignalRProvider>,
-    )
+    renderProvider()
     await flush()
     const started = connections.filter((c) => c.start.mock.calls.length > 0)
     expect(started).toHaveLength(1)
@@ -106,11 +111,7 @@ describe('SignalRProvider lifecycle', () => {
         resolveStart = res
       })
 
-    const { unmount } = render(
-      <SignalRProvider>
-        <div />
-      </SignalRProvider>,
-    )
+    const { unmount } = renderProvider()
     // Unmount while the first start() is still pending (negotiation in flight).
     unmount()
     // Now let the in-flight start settle, then the chained stop runs.
@@ -132,11 +133,7 @@ describe('SignalRProvider lifecycle', () => {
     startBehaviour = () =>
       fail ? Promise.reject(new Error('negotiate aborted')) : Promise.resolve()
 
-    render(
-      <SignalRProvider>
-        <div />
-      </SignalRProvider>,
-    )
+    renderProvider()
     // Let the first (failing) start settle.
     await vi.advanceTimersByTimeAsync(0)
     expect(connections.some((c) => c.start.mock.calls.length > 0)).toBe(true)

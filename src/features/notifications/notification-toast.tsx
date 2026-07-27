@@ -8,12 +8,12 @@ import type { NotificationPayload } from './notification-types'
 /**
  * Renders a notification as a Sonner toast. The Toaster is mounted once in
  * `Providers` (top-right); this helper picks the variant per type and localises
- * the copy on the client from the resolved names the backend puts in `data`,
+ * the copy on the client from names resolved out of unlocked local state,
  * rendering agent / entry / vault / actor in bold (no quotes).
  *
  * For every known type the title comes from i18n (not the server `title`) and
  * the description is a `<Trans>` with bold names. When required names are
- * missing (older payloads / FCM) we fall back to the plain server `body`.
+ * missing (for example, a thin FCM payload), we use generic local copy.
  * Sonner escapes string content, so there's no XSS surface.
  *
  * Variants: approved=success, denied/revoked=error, pending/agent_pending=info.
@@ -26,17 +26,13 @@ export function showNotificationToast(
    *  dev toast showcase so every variant can be styled side by side. */
   durationMs?: number,
 ) {
-  const { entryLabel: _entryLabel, vaultName: _vaultName, reason: _reason,
-    revokeReason: _revokeReason, denyReason: _denyReason, ...structuralData } = payload.data
-  void _entryLabel; void _vaultName; void _reason; void _revokeReason; void _denyReason
-  payload = { ...payload, data: structuralData }
   const { type } = payload
 
   // agent_resolved is an invisible collapse marker; agent_approved and
   // agent_deactivated are informational and the actor already sees an action
   // toast. None pop their own toast (the inbox + badge still update). Also
   // avoids an empty toast — none had a case, so they fell through to the empty
-  // server-supplied title.
+  // wire copy.
   if (type === 'agent_resolved' || type === 'agent_approved' || type === 'agent_deactivated') return
 
   // The "Open" action is a small icon button in the toast's top-right corner
@@ -84,8 +80,10 @@ export function showNotificationToast(
       toast.warning(i18n.t('notifications.credentialStale.title'), opts(credentialStaleBody(payload)))
       break
     default:
-      // Unknown type — show the server-supplied copy verbatim.
-      toast.info(payload.title, opts(payload.body))
+      toast.info(
+        i18n.t('notifications.type.generic'),
+        opts(i18n.t('notifications.toast.genericBody')),
+      )
       break
   }
 }
@@ -120,7 +118,7 @@ function grantPendingBody(payload: NotificationPayload): ReactNode {
   const agent = payload.data['agentName']
   const entry = payload.data['entryLabel']
   const vault = payload.data['vaultName']
-  if (!agent || !entry || !vault) return payload.body
+  if (!agent || !entry || !vault) return i18n.t('notifications.toast.genericBody')
   return transBody('notifications.grantPending.body', { agent, entry, vault })
 }
 
@@ -138,7 +136,7 @@ function grantDecisionBody(
   const vault = payload.data['vaultName']
   const isFull = payload.data['grantType'] === 'full' || !entry
 
-  if (!agent || !vault) return payload.body
+  if (!agent || !vault) return i18n.t('notifications.toast.genericBody')
   if (isFull) {
     return transBody(`notifications.${keyBase}.bodyFull`, { agent, vault })
   }
@@ -150,26 +148,26 @@ function grantDeniedBody(payload: NotificationPayload): ReactNode {
   const agent = payload.data['agentName']
   const entry = payload.data['entryLabel']
   const vault = payload.data['vaultName']
-  if (!agent || !entry || !vault) return payload.body
+  if (!agent || !entry || !vault) return i18n.t('notifications.toast.genericBody')
   return transBody('notifications.grantDenied.body', { agent, entry, vault })
 }
 
 /** agent_pending — "{agent} is awaiting approval". */
 function agentPendingBody(payload: NotificationPayload): ReactNode {
   const agent = payload.data['agentName']
-  if (!agent) return payload.body
+  if (!agent) return i18n.t('notifications.toast.genericBody')
   return transBody('notifications.agentPending.body', { agent })
 }
 
 /**
  * credential_accessed — "{agent} accessed {entry} in {vault}" with bold names,
- * falling back to the plain server body when names are absent.
+ * falling back to generic local copy when names are absent.
  */
 function credentialAccessedBody(payload: NotificationPayload): ReactNode {
   const agent = payload.data['agentName']
   const entry = payload.data['entryLabel']
   const vault = payload.data['vaultName']
-  if (!agent || !entry) return payload.body
+  if (!agent || !entry) return i18n.t('notifications.toast.genericBody')
   return transBody(
     vault
       ? 'notifications.credentialAccessed.body'
@@ -180,13 +178,13 @@ function credentialAccessedBody(payload: NotificationPayload): ReactNode {
 
 /**
  * credential_stale — "{agent} reported {entry} in {vault} isn't working" with
- * bold names, falling back to the plain server body when names are absent.
+ * bold names, falling back to generic local copy when names are absent.
  */
 function credentialStaleBody(payload: NotificationPayload): ReactNode {
   const agent = payload.data['agentName']
   const entry = payload.data['entryLabel']
   const vault = payload.data['vaultName']
-  if (!agent || !entry) return payload.body
+  if (!agent || !entry) return i18n.t('notifications.toast.genericBody')
   return transBody(
     vault
       ? 'notifications.credentialStale.body'

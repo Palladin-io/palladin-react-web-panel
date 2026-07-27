@@ -7,10 +7,9 @@ import { Button } from '../../shared/components/button'
 import { ModalShell } from '../../shared/components/modal-shell'
 import { ScrollArea } from '../../shared/components/scroll-area'
 import { PERMISSION_AUDIT_VIEW } from '../../shared/lib/permissions'
+import { shortenKey } from '../../shared/lib/shorten-key'
 import { useAuthStore } from '../auth'
-// Imported from the module (not the vaults barrel) to avoid an import cycle:
-// the vaults barrel pulls in the vault detail page, which renders this feature.
-import { useVaults } from '../vaults/use-vaults'
+import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
 import { filterAuditLogs } from './audit-log-filter'
 import {
   getAuditExport,
@@ -98,17 +97,14 @@ export function AuditLogPage() {
     }
   }
 
-  const vaults = useVaults({ enabled: canView })
-  const vaultList = vaults.data?.vaults
+  const memberVaults = useMemberSyncStore((state) => state.vaults)
   const vaultOptions = useMemo(
-    () => (vaultList ?? []).map((v) => ({ value: v.id, label: v.name })),
-    [vaultList],
+    () => [...memberVaults.values()].map((vault) => ({
+      value: vault.vaultId,
+      label: vault.metadata?.name ?? shortenKey(vault.vaultId),
+    })),
+    [memberVaults],
   )
-  // Reuse the same vault list for the vault chip — no extra id→name lookup.
-  const resolveVaultName = useMemo(() => {
-    const byId = new Map((vaultList ?? []).map((v) => [v.id, v.name]))
-    return (vaultId: string) => byId.get(vaultId)
-  }, [vaultList])
 
   const logs = useOrgAuditLogs(
     {
@@ -127,12 +123,48 @@ export function AuditLogPage() {
     [logs.data],
   )
 
-  const { resolveAgentName, agentOptions, userOptions, agentNameById } =
+  const {
+    resolveAgentName,
+    resolveActorName,
+    agentOptions,
+    userOptions,
+    agentNameById,
+    memberNameById,
+  } =
     useAuditAgentNames(allItems, canView)
 
+  const { entryNameById, vaultNameById } = useMemo(() => {
+    const entryNames: Record<string, string> = {}
+    const vaultNames: Record<string, string> = {}
+    for (const item of allItems) {
+      if (item.vaultId) {
+        const vault = memberVaults.get(item.vaultId)
+        vaultNames[item.vaultId] = vault?.metadata?.name ?? shortenKey(item.vaultId)
+        if (item.entryId) {
+          const record = vault?.entries.get(item.entryId)
+          entryNames[item.entryId] = !record?.corrupt && record?.payload?.memberLabel
+            ? record.payload.memberLabel
+            : shortenKey(item.entryId)
+        }
+      } else if (item.entryId) {
+        entryNames[item.entryId] = shortenKey(item.entryId)
+      }
+    }
+    return { entryNameById: entryNames, vaultNameById: vaultNames }
+  }, [allItems, memberVaults])
+
+  const resolveEntryName = (entryId: string) => entryNameById[entryId] ?? shortenKey(entryId)
+  const resolveVaultName = (vaultId: string) => vaultNameById[vaultId] ?? shortenKey(vaultId)
+
   const filtered = useMemo(
-    () => filterAuditLogs(allItems, { search: filter.search, agentNameById }),
-    [allItems, filter.search, agentNameById],
+    () => filterAuditLogs(allItems, {
+      search: filter.search,
+      agentNameById,
+      memberNameById,
+      entryNameById,
+      vaultNameById,
+    }),
+    [allItems, filter.search, agentNameById, memberNameById, entryNameById, vaultNameById],
   )
 
   return (
@@ -186,10 +218,13 @@ export function AuditLogPage() {
           isFetchNextPageError={logs.isFetchNextPageError}
           onLoadMore={() => logs.fetchNextPage()}
           resolveAgentName={resolveAgentName}
+          resolveActorName={resolveActorName}
+          resolveEntryName={resolveEntryName}
           resolveVaultName={resolveVaultName}
           showVault
           emptyMessage={t('audit.emptyLog')}
           canView={canView}
+          allowDenormalizedNames={false}
         />
       </ScrollArea>
 

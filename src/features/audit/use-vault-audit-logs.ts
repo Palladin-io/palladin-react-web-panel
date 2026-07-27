@@ -6,9 +6,7 @@ import {
 
 export const AUDIT_LOGS_QUERY_KEY = ['audit-logs'] as const
 
-/** Larger default page than the list shells: the entry tab over-fetches the
- *  vault log and filters to a single entry client-side, so a bigger page keeps
- *  enough entry-relevant rows visible without immediately paging. */
+/** Bounded server page used by Vault and Entry audit surfaces. */
 const PAGE_SIZE = 100
 
 /**

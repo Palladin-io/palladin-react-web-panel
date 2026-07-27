@@ -18,7 +18,13 @@ function payload(
   type: string,
   data: Record<string, string> = {},
 ): NotificationPayload {
-  return { type, title: 'ServerTitle', body: 'ServerBody', data }
+  return {
+    subjectId: '11112233-4455-4677-8899-aabbccddeeff',
+    type,
+    category: 'update',
+    occurredAt: '2026-07-26T12:00:00Z',
+    data,
+  }
 }
 
 const FULL_DATA = { agentName: 'Bot', entryLabel: 'Gmail', vaultName: 'Prod' }
@@ -54,28 +60,33 @@ describe('showNotificationToast', () => {
     expect(info.mock.calls[2][0]).toBe('notifications.credentialAccessed.title')
   })
 
-  it('falls back to the server title/body for an unknown type', () => {
+  it('uses generic local copy for an unknown type', () => {
     showNotificationToast(payload('future_type'))
-    expect(info.mock.calls[0][0]).toBe('ServerTitle')
-    // description is wrapped in the divider span — its child is the server body.
-    expect(info.mock.calls[0][1].description.props.children[1].props.children).toBe('ServerBody')
+    expect(info.mock.calls[0][0]).toBe('notifications.type.generic')
+    expect(info.mock.calls[0][1].description.props.children[1].props.children)
+      .toBe('notifications.toast.genericBody')
   })
 
-  it('falls back to the server body when required names are missing', () => {
-    // grant_pending with no data → description child is the plain server body.
+  it('uses generic local copy when local names are unavailable', () => {
     showNotificationToast(payload('grant_pending'))
-    expect(info.mock.calls[0][1].description.props.children[1].props.children).toBe('ServerBody')
+    expect(info.mock.calls[0][1].description.props.children[1].props.children)
+      .toBe('notifications.toast.genericBody')
   })
 
   it('picks the FULL body variant when grantType is full (no entry)', () => {
     showNotificationToast(
       payload('grant_approved', { agentName: 'Bot', vaultName: 'Prod', grantType: 'full' }),
     )
-    expect(success.mock.calls[0][1].description.props.children[1].props.children).toBe('ServerBody')
+    // description = divider span wrapping a <Trans> — assert the Trans i18nKey.
+    expect(success.mock.calls[0][1].description.props.children[1].props.children.props.i18nKey).toBe(
+      'notifications.grantApproved.bodyFull',
+    )
   })
 
   it('picks the GRANULAR body variant when an entry is present', () => {
     showNotificationToast(payload('grant_approved', FULL_DATA))
-    expect(success.mock.calls[0][1].description.props.children[1].props.children).toBe('ServerBody')
+    expect(success.mock.calls[0][1].description.props.children[1].props.children.props.i18nKey).toBe(
+      'notifications.grantApproved.body',
+    )
   })
 })

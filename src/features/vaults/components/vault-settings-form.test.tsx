@@ -4,6 +4,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { GRANT_MODE_GRANULAR, type Vault } from '../types'
+import { VaultMetadataConflictError } from '../vault-settings-service'
 import { VaultSettingsForm } from './vault-settings-form'
 
 // Mutations driven from the test so we can flip success/error paths.
@@ -44,7 +45,11 @@ vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }))
 // Pickers render irrelevant DOM here; stub them so we keep the test
 // focused on the form's name/description editing + submit behaviour.
 vi.mock('./vault-icon-picker', () => ({
-  VaultIconPicker: () => <div data-testid="vault-icon-picker" />,
+  VaultIconPicker: ({ onFileSelected }: { onFileSelected: (file: File, url: string) => void }) => (
+    <button type="button" onClick={() => onFileSelected(new File(['png'], 'icon.png', { type: 'image/png' }), 'blob:preview')}>
+      Upload test icon
+    </button>
+  ),
 }))
 
 const baseVault: Vault = {
@@ -103,8 +108,8 @@ describe('VaultSettingsForm', () => {
     const user = userEvent.setup()
     const onSaved = vi.fn()
 
-    updateMutateMock.mockImplementation((_patch, options) => {
-      options.onSuccess()
+    updateMutateMock.mockImplementation((input, options) => {
+      options.onSuccess(input.nextMetadata)
     })
 
     render(<VaultSettingsForm vault={baseVault} onSaved={onSaved} />, { wrapper })
@@ -115,8 +120,21 @@ describe('VaultSettingsForm', () => {
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     expect(updateMutateMock).toHaveBeenCalledTimes(1)
-    const patch = updateMutateMock.mock.calls[0][0]
-    expect(patch).toEqual({ name: 'Renamed Vault' })
+    const input = updateMutateMock.mock.calls[0][0]
+    expect(input).toEqual({
+      expectedMetadata: {
+        name: 'Production Keys',
+        description: 'Critical production secrets',
+        iconReference: 'shield',
+        color: '#EB4747',
+      },
+      nextMetadata: {
+        name: 'Renamed Vault',
+        description: 'Critical production secrets',
+        iconReference: 'shield',
+        color: '#EB4747',
+      },
+    })
     expect(onSaved).toHaveBeenCalledTimes(1)
   })
 
@@ -134,5 +152,30 @@ describe('VaultSettingsForm', () => {
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/could not save changes/i))
+  })
+
+  it('passes the selected file into the encrypted settings transaction', async () => {
+    const user = userEvent.setup()
+    updateMutateMock.mockImplementation((input, options) => options.onSuccess({
+      ...input.nextMetadata,
+      iconReference: 'asset:22222233-4455-4677-8899-aabbccddeeff',
+    }))
+    render(<VaultSettingsForm vault={baseVault} />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Upload test icon' }))
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    expect(updateMutateMock.mock.calls[0][0].iconFile).toBeInstanceOf(File)
+  })
+
+  it('shows an explicit refresh message for a concurrent metadata conflict', async () => {
+    const user = userEvent.setup()
+    updateMutateMock.mockImplementation((_input, options) => options.onError(new VaultMetadataConflictError()))
+    render(<VaultSettingsForm vault={baseVault} />, { wrapper })
+    await user.clear(screen.getByLabelText(/vault name/i))
+    await user.type(screen.getByLabelText(/vault name/i), 'Conflict')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/changed on another device/i))
   })
 })

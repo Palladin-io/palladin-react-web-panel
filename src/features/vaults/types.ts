@@ -30,16 +30,10 @@ export interface VaultSummary {
   entryCount: number
   activeGrantCount: number
   memberCount: number
-  isDefault?: boolean
 }
 
 export interface Vault extends VaultSummary {
   organizationId: string
-  memberKeyGeneration: number
-  memberVaultMetadata: import('../../shared/crypto/vault-protocol').MemberVaultMetadataEnvelopeContract
-  memberVaultKey: import('../../shared/crypto/x25519-wrapper').MemberVaultKeyEnvelopeContract
-  currentKeyEpoch: { vaultKeyVersion: number; vdkVersion: number; agentMessageKeyVersion: number; manifestSigningKeyVersion: number }
-  vaultPrivateKeys: import('../../shared/crypto/reason-protocol').VaultPrivateKeyEnvelopeContract[]
   /**
    * The caller's wrapped Vault Key (sealed-box ciphertext) returned from
    * `GET /vaults/{id}`. Optional because older backend builds and bare
@@ -47,6 +41,7 @@ export interface Vault extends VaultSummary {
    *
    * Base64-encoded `crypto_box_seal(VK, userPublicKey)`.
    */
+  wrappedVK?: string
 }
 
 /**
@@ -133,7 +128,7 @@ export interface CustomField {
    * agents see it without a grant (CVT-204). Only valid for `text`/`multiline`;
    * never `concealed`/`totp`. Absent/false = private (default).
    */
-  agentAccess?: import('../../shared/crypto/vault-plaintext').AgentFieldAccess
+  agentVisible?: boolean
 }
 
 export function isKnownFieldType(type: string): type is CustomFieldType {
@@ -199,15 +194,18 @@ export interface EntryListItem {
  * type lives on the outer entry `type` field — clients use it to choose
  * the right schema when decrypting.
  */
+export interface EntryContent {
+  encryptedBlob: string
+  nonce: string
+}
+
 /**
  * Full entry detail (single-entry GET). Adds the encrypted content
  * — everything the client needs to decrypt with VK and render the
  * plaintext payload in the reveal panel.
  */
 export interface EntryDetail extends EntryListItem {
-  plaintext: EntryPlaintext
-  currentRevision: string
-  memberSecretModel: import('../../shared/crypto/vault-plaintext').MemberSecretV1
+  content: EntryContent
 }
 
 /**
@@ -225,6 +223,17 @@ export interface AgentField {
   value: string
 }
 
+export interface CreateEntryPayload {
+  label: string
+  description?: string
+  icon?: string
+  color?: string
+  type: EntryType
+  content: EntryContent
+  urlDomain?: string
+  agentFields?: AgentField[]
+}
+
 /**
  * Fields shared by every v2 plaintext. Absent `v` means a v1 blob (no custom
  * fields). Written only when the blob carries v2 content — see
@@ -237,7 +246,7 @@ export interface EntryPlaintextV2Common {
 }
 
 /**
- * Plaintext payload encoded into the canonical MemberSecret envelope.
+ * Plaintext payload that gets encrypted into `EntryContent.encryptedBlob`.
  * Discriminated union so the encrypt/decrypt helpers can switch on
  * `type` without tripping over optional fields.
  */
@@ -272,7 +281,6 @@ export interface CreateVaultInput {
   description?: string
   icon?: string
   color?: string
-  grantMode: GrantMode
 }
 
 export interface UpdateVaultInput {

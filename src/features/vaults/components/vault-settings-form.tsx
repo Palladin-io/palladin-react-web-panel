@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -14,11 +14,12 @@ import {
   DEFAULT_VAULT_ICON,
 } from './vault-presentation'
 import {
-  type UpdateVaultInput,
   type Vault,
 } from '../types'
 import { useDeleteVault } from '../use-delete-vault'
 import { useUpdateVault } from '../use-update-vault'
+import { VaultMetadataConflictError } from '../vault-settings-service'
+import { useVaultEncryptedAssetUrl } from '../assets/use-vault-encrypted-asset-url'
 
 export interface VaultSettingsFormProps {
   vault: Vault
@@ -45,15 +46,35 @@ export function VaultSettingsForm({
   const update = useUpdateVault(vault.id)
   const remove = useDeleteVault()
 
-  const [name, setName] = useState(vault.name)
-  const [description, setDescription] = useState(vault.description ?? '')
-  const [icon, setIcon] = useState(vault.icon ?? DEFAULT_VAULT_ICON)
-  const [color, setColor] = useState(vault.color ?? DEFAULT_VAULT_COLOR)
+  const [baseMetadata, setBaseMetadata] = useState(() => ({
+    name: vault.name,
+    ...(vault.description ? { description: vault.description } : {}),
+    ...(vault.icon ? { iconReference: vault.icon } : {}),
+    ...(vault.color ? { color: vault.color } : {}),
+  }))
+
+  const [name, setName] = useState(baseMetadata.name)
+  const [description, setDescription] = useState(baseMetadata.description ?? '')
+  const [icon, setIcon] = useState(
+    baseMetadata.iconReference?.startsWith('asset:') ? DEFAULT_VAULT_ICON : baseMetadata.iconReference ?? DEFAULT_VAULT_ICON,
+  )
+  const [color, setColor] = useState(baseMetadata.color ?? DEFAULT_VAULT_COLOR)
+  const [iconChanged, setIconChanged] = useState(false)
+  const [iconFile, setIconFile] = useState<File | undefined>()
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [nameError, setNameError] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const baseAssetId = baseMetadata.iconReference?.startsWith('asset:')
+    ? baseMetadata.iconReference.slice('asset:'.length)
+    : null
+  const encryptedAsset = useVaultEncryptedAssetUrl(vault.id, baseAssetId)
 
   const isPending = update.isPending
   const isRemoving = remove.isPending
+
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+  }, [previewUrl])
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -64,29 +85,40 @@ export function VaultSettingsForm({
       return
     }
 
-    // Build a minimal patch — only ship the fields that actually changed.
-    // The backend treats null as "leave alone", but we'd rather not
-    // transmit unchanged values at all (smaller payload, cleaner audit).
-    const patch: UpdateVaultInput = {}
-    if (trimmedName !== vault.name) patch.name = trimmedName
     const trimmedDescription = description.trim()
-    if (trimmedDescription !== (vault.description ?? '')) {
-      patch.description = trimmedDescription
+    const nextMetadata = {
+      name: trimmedName,
+      ...(trimmedDescription ? { description: trimmedDescription } : {}),
+      ...((iconChanged && !iconFile ? icon : baseMetadata.iconReference)
+        ? { iconReference: iconChanged && !iconFile ? icon : baseMetadata.iconReference }
+        : {}),
+      ...(color ? { color } : {}),
     }
-    if (icon !== (vault.icon ?? DEFAULT_VAULT_ICON)) patch.icon = icon
-    if (color !== (vault.color ?? DEFAULT_VAULT_COLOR)) patch.color = color
 
-    if (Object.keys(patch).length === 0) {
+    const unchanged = trimmedName === baseMetadata.name
+      && trimmedDescription === (baseMetadata.description ?? '')
+      && !iconChanged
+      && color === (baseMetadata.color ?? DEFAULT_VAULT_COLOR)
+    if (unchanged) {
       onSaved?.()
       return
     }
 
-    update.mutate(patch, {
-      onSuccess: () => {
+    update.mutate({ expectedMetadata: baseMetadata, nextMetadata, ...(iconFile ? { iconFile } : {}) }, {
+      onSuccess: (committedMetadata) => {
+        setBaseMetadata(committedMetadata)
+        setIconFile(undefined)
+        setPreviewUrl(null)
+        setIcon(committedMetadata.iconReference?.startsWith('asset:')
+          ? DEFAULT_VAULT_ICON
+          : committedMetadata.iconReference ?? DEFAULT_VAULT_ICON)
+        setIconChanged(false)
         analytics.capture('vault', 'settings-saved')
         onSaved?.()
       },
-      onError: () => toast.error(t('vault.errorSave')),
+      onError: (error) => toast.error(t(error instanceof VaultMetadataConflictError
+        ? 'vault.errorConflict'
+        : 'vault.errorSave')),
     })
   }
 
@@ -149,14 +181,27 @@ export function VaultSettingsForm({
           </div>
           <div className="w-60 shrink-0 flex flex-col gap-4">
             <VaultIconPicker
-              value={icon}
-              onChange={setIcon}
+              value={!iconChanged && encryptedAsset.url ? encryptedAsset.url : icon}
+              onChange={(next) => {
+                setIcon(next)
+                setIconFile(undefined)
+                setPreviewUrl(null)
+                setIconChanged(true)
+              }}
+              onFileSelected={(file, localUrl) => {
+                setIconFile(file)
+                setPreviewUrl(localUrl)
+                setIcon(localUrl)
+                setIconChanged(true)
+              }}
               onColorChange={setColor}
               selectedColor={color}
               disabled={isPending}
-              vaultId={vault.id}
               rowClassName="grid grid-cols-5 gap-1.5 justify-items-center"
             />
+            {encryptedAsset.corrupt && !iconChanged ? (
+              <p role="alert" className="text-meta text-red-400">{t('vault.iconCorrupt')}</p>
+            ) : null}
           </div>
         </div>
 
@@ -166,10 +211,15 @@ export function VaultSettingsForm({
             size="sm"
             type="button"
             onClick={() => {
-              setName(vault.name)
-              setDescription(vault.description ?? '')
-              setIcon(vault.icon ?? DEFAULT_VAULT_ICON)
-              setColor(vault.color ?? DEFAULT_VAULT_COLOR)
+              setName(baseMetadata.name)
+              setDescription(baseMetadata.description ?? '')
+              setIcon(baseMetadata.iconReference?.startsWith('asset:')
+                ? DEFAULT_VAULT_ICON
+                : baseMetadata.iconReference ?? DEFAULT_VAULT_ICON)
+              setColor(baseMetadata.color ?? DEFAULT_VAULT_COLOR)
+              setIconFile(undefined)
+              setPreviewUrl(null)
+              setIconChanged(false)
               setNameError(false)
             }}
             disabled={isPending}

@@ -45,7 +45,7 @@ export { useOrgGrants } from './use-org-grants'
 // Promoted for the dashboard status tiles (CVT-186): grant counts per status.
 export { useGrantSummary } from './use-grant-summary'
 export type { GrantSummary } from './api/grant-summary-api'
-// Promoted for the dashboard "Recently added / modified" widget (CVT-189):
-// reuses the cross-vault entry-search client with `sort=recent`.
+// Promoted for the dashboard "Recently added / modified" widget: derives
+// recent presentation from the unlocked synchronized MemberIndex.
 export { useRecentEntries } from './use-recent-entries'
-export type { EntrySearchItem } from './api/entry-search-api'
+export type { EntrySearchItem } from './use-local-entry-search'

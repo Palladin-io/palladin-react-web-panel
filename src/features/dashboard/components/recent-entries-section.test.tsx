@@ -1,23 +1,16 @@
 import type { ReactNode } from 'react'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { PERMISSION_GRANT_MANAGE } from '../../../shared/lib/permissions'
 import { RecentEntriesSection } from './recent-entries-section'
 
 // Mutable state driving the module mocks below.
 const state = vi.hoisted(() => ({
-  permissions: 0,
   recent: {
     data: [] as unknown[],
     isPending: false,
     isError: false,
     refetch: vi.fn(),
   },
-}))
-
-vi.mock('../../auth', () => ({
-  useAuthStore: (selector: (s: { permissions: number }) => unknown) =>
-    selector({ permissions: state.permissions }),
 }))
 
 vi.mock('../../grants', () => ({
@@ -52,14 +45,12 @@ const entry = {
 
 describe('RecentEntriesSection', () => {
   beforeEach(() => {
-    state.permissions = PERMISSION_GRANT_MANAGE
     state.recent = { data: [], isPending: false, isError: false, refetch: vi.fn() }
   })
 
-  it('renders nothing without the GrantManage permission', () => {
-    state.permissions = 0
-    const { container } = render(<RecentEntriesSection />)
-    expect(container).toBeEmptyDOMElement()
+  it('renders local recents without an administrative search permission gate', () => {
+    render(<RecentEntriesSection />)
+    expect(screen.getByText('Recently added / modified')).toBeInTheDocument()
   })
 
   it('renders the entry rows with label, vault name and relative time', () => {

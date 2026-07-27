@@ -54,32 +54,43 @@ export interface AccountResponse {
    * the recovery flow to re-wrap the private key with a new MK.
    */
   encryptedPrivateKeyByRecovery?: string
-  /** Version of the in-memory X25519 Member recipient key. */
-  memberKeyVersion?: number
+  /** Current server-authoritative X25519 Member public-key version. */
+  memberKeyVersion?: number | null
+  kdf?: IdentityKdfState | null
+}
+
+export interface IdentityKdfState {
+  securityVersion: number
+  minimumSecurityVersion: number
+  profileId: string
+  kdfSalt: string
+  credentialRevision: number
+  privateKeyWrapRevision: number
+  deviceWrapperMetadata: string | null
 }
 
 export interface SetupAccountPayload {
-  /** base64-encoded 16-byte Argon2id salt for the master password (MK derivation). */
-  salt: string
-  /** base64-encoded 16-byte Argon2id salt for the recovery mnemonic (RK derivation). */
+  securityVersion: number
+  kdfProfileId: string
+  kdfSalt: string
   recoverySalt: string
-  /** base64-encoded X25519 public key. */
   publicKey: string
-  /** base64-encoded private key encrypted with the master key (nonce prepended). */
   encryptedPrivateKey: string
-  /** base64-encoded private key encrypted with the recovery key (nonce prepended). */
   encryptedPrivateKeyByRecovery: string
+  currentAuthCredential?: string
+  newAuthCredential?: string
 }
 
 export interface RecoverAccountPayload {
-  /** base64-encoded 16-byte Argon2id salt for the new master password. */
-  newSalt: string
-  /** base64-encoded private key re-wrapped with the new master key. */
+  securityVersion: number
+  kdfProfileId: string
+  baseCredentialRevision: number
+  basePrivateKeyWrapRevision: number
+  newKdfSalt: string
   newEncryptedPrivateKey: string
-  /** base64-encoded 16-byte Argon2id salt for the new recovery mnemonic. */
   newRecoverySalt: string
-  /** base64-encoded private key re-wrapped with the new recovery key. */
   newEncryptedPrivateKeyByRecovery: string
+  newAuthCredential?: string
 }
 
 /** TanStack Query key for the account resource — shared across features. */
@@ -106,28 +117,26 @@ export function recoverAccount(payload: RecoverAccountPayload): Promise<void> {
 /**
  * Payload for an authenticated master-password change (Variant A: the login
  * password is the master password). The client proves knowledge of the current
- * password via `currentAuthHash` (server verifies constant-time before applying
+ * password via `currentAuthCredential` (server verifies constant-time before applying
  * — a stolen JWT alone can't rewrite key material) and ships fresh master-side
  * material + the new auth credential. Recovery material is deliberately NOT
  * included — this flow doesn't hold the recovery mnemonic, so the recovery
  * wrapping and the old recovery phrase keep working.
  */
 export interface ChangeMasterPasswordPayload {
-  /** base64 Argon2id(current password, current authSalt) — proves the current password. */
-  currentAuthHash: string
-  /** base64 Argon2id(new password, newAuthSalt) — the new server-side auth credential. */
-  newAuthHash: string
-  /** base64 new 16-byte salt used to derive `newAuthHash`. */
-  newAuthSalt: string
-  /** base64 new 16-byte Argon2id salt for the new master key. */
-  newSalt: string
-  /** base64 private key re-wrapped with the new master key (nonce prepended). */
+  securityVersion: number
+  kdfProfileId: string
+  baseCredentialRevision: number
+  basePrivateKeyWrapRevision: number
+  currentAuthCredential: string
+  newAuthCredential: string
+  newKdfSalt: string
   newEncryptedPrivateKey: string
 }
 
 /**
  * Change the master password while authenticated (CVT-268). Server verifies
- * `currentAuthHash`, replaces the master + auth material (recovery untouched),
+ * `currentAuthCredential`, replaces the master + auth material (recovery untouched),
  * and revokes the account's other sessions.
  */
 export function changeMasterPassword(
@@ -136,12 +145,36 @@ export function changeMasterPassword(
   return api.put('api/account/password', { json: payload }).json<void>()
 }
 
+export interface MigrateIdentityKdfPayload {
+  migrationId: string
+  sourceSecurityVersion: number
+  baseCredentialRevision: number
+  basePrivateKeyWrapRevision: number
+  targetProfileId: string
+  currentAuthCredential: string
+  newAuthCredential: string
+  newKdfSalt: string
+  newEncryptedPrivateKey: string
+}
+
+export function migrateIdentityKdf(payload: MigrateIdentityKdfPayload): Promise<void> {
+  return api.post('api/account/kdf/migrations', { json: payload }).json<void>()
+}
+
 /**
  * Payload for the idempotent default-vault creation endpoint.
  * Same fields as a regular vault creation; the server enforces the
  * one-per-account rule and returns 409 if one already exists.
  */
-export type DefaultVaultPayload = import('../crypto/create-vault-protocol').CreateVaultProtocolPayload
+export interface DefaultVaultPayload {
+  name: string
+  description?: string
+  icon?: string
+  color?: string
+  grantMode: number
+  /** base64-encoded sealed-box vault key (same as CreateVaultPayload). */
+  wrappedVK: string
+}
 
 /**
  * POST /api/account/default-vault — creates the user's default vault.

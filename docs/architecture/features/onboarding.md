@@ -3,10 +3,10 @@
 **Path:** `src/features/onboarding/`
 
 ## What it does
-First-run wizard, gated by `!isOnboarded`. Sets up the user's master password and walks them through backing up the recovery key before they reach the app.
+First-run wizard, gated by `!isOnboarded`. Sets up Identity KDF v2 and walks the user through backing up both the recovery key and Account Secret before entering the app.
 
 ## How it's organized
-A three-step flow inside a shared recovery-shell layout: (1) choose master password — derives a 256-bit master key with Argon2id and generates the libsodium keypair; (2) display the BIP39 recovery mnemonic; (3) confirm the phrase was written down. All cryptographic work lives in a dedicated setup hook, never inline in step JSX.
+A four-step flow: (1) choose master password; (2) display the BIP39 recovery mnemonic; (3) confirm the phrase; (4) display and confirm backup of the generated 32-byte Account Secret. The setup hook runs Identity KDF v2, generates the libsodium keypair and uploads only wrapped key material.
 
 ## Key patterns
 - **Auth-surface group:** dark gradient, `AuthSubmitButton`, recovery-shell layout shared with `recovery`.

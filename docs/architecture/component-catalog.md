@@ -16,7 +16,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `SearchBar` | `shared/components/search-bar.tsx` | Canonical list/global search field; fixed `h-control`, `text-ui`, card-surface background | `value`, `onChange`, `placeholder?`, `className?`, `inputRef?`, `name?`, `autoFocus?`, `trailing?`. |
 | `EncryptionNotice` | `shared/components/encryption-notice.tsx` | Success-tinted "encrypted on your device" callout (`--cv-success`) | `children` (caller's translated copy). Used by create-entry + import wizard. |
 | `FileDropzone` | `vaults/components/file-dropzone.tsx` | Drag-and-drop + click-to-browse file picker (dashed target, first file only) | `onFile`, `accept?`, `disabled?`, `label`, `hint?`. (Feature-local; promote to `shared/` if a 2nd consumer appears.) |
-| `EntryIcon` | `vaults/components/entry-icon.tsx` | Circular entry avatar — renders a favicon/blob URL as `<img>`, falls back to the type glyph on load error | `icon`, `type`, `color?`, `className?`. Exported via the vaults barrel; used by entries list + dashboard recents. |
+| `EntryIcon` | `vaults/components/entry-icon.tsx` | Circular entry avatar — renders only a locally decrypted `blob:` URL as an image and otherwise falls back to the type glyph | `icon`, `type`, `color?`, `className?`. Exported via the vaults barrel; used by entries list + dashboard recents. |
 | `PopoverMenu` | `vaults/components/popover-menu.tsx` | Action menu (icon + label + right-hint, separators, danger items) portaled to `document.body` — safe inside overflow-clipped dialogs | `trigger`, `items` (`MenuItemSpec \| 'separator'`), `ariaLabel?`, `triggerClassName?`, `alignLeft?`, `openUp?`. Used by the entry-form field rows, type menus, and the 2FA card. Promote to `shared/` on a 3rd consumer. |
 | `SectionHeader` | `vaults/components/section-header.tsx` | Small muted label + thin rule — the `[name ── line]` form-section divider | `children`. |
 | `EntryIconButton` | `vaults/components/entry-icon-button.tsx` | Inline entry-icon button that opens the icon/colour picker in a portaled popover (used next to the Label input) | `icon`, `color`, `type`, `onChange`, `onColorChange`, `onFileSelected`, `disabled?`. |
@@ -36,6 +36,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `AppWordmark` | `shared/components/app-wordmark.tsx` | Palladin logo + wordmark (login lg, sidebar sm) | `size` (sm / lg), `subtitle?` (sm only). |
 | `RecoveryKeyDisplay` | `shared/components/recovery-key-display.tsx` | Shared recovery mnemonic display and acknowledgement action for account setup flows | `mnemonic`, `continueLabel`, `onContinue`. |
 | `RecoveryKeyConfirmationForm` | `shared/components/recovery-key-confirmation-form.tsx` | Shared three-word recovery-key challenge with inline validation and submit state | `mnemonic`, `onConfirmed`, `isSubmitting`, `error`, `onValidated?`. |
+| `AccountSecretDisplay` | `shared/components/account-secret-display.tsx` | Displays a generated Account Secret with copy/download actions and explicit saved confirmation; used by registration, onboarding, recovery and legacy KDF migration | `accountSecret`, `onContinue`, `isPending?`, `error?`. |
 | `ErrorBoundary` | `shared/components/error-boundary.tsx` | Per-feature route error boundary | standard class-component boundary. |
 
 ## Shared helpers (`shared/lib/`)

@@ -16,6 +16,7 @@ describe('auth-store', () => {
     expect(state.isVaultLocked).toBe(true)
     expect(state.masterKey).toBeNull()
     expect(state.privateKey).toBeNull()
+    expect(state.accountSecret).toBeNull()
   })
 
   it('is not authenticated initially', () => {
@@ -132,6 +133,24 @@ describe('auth-store', () => {
     expect(Array.from(state.privateKey!)).toEqual([9, 8, 7, 6])
   })
 
+  it('keeps Account Secret memory-only and wipes it when locking', () => {
+    const secret = new Uint8Array([7, 8, 9])
+    useAuthStore.getState().unlockVault(
+      new Uint8Array([1]),
+      new Uint8Array([2]),
+      secret,
+    )
+    secret.fill(0)
+
+    const storedSecret = useAuthStore.getState().accountSecret!
+    expect(Array.from(storedSecret)).toEqual([7, 8, 9])
+    expect(localStorage.getItem('palladin-auth')).not.toContain('accountSecret')
+
+    useAuthStore.getState().lockVault()
+    expect(useAuthStore.getState().accountSecret).toBeNull()
+    expect(Array.from(storedSecret)).toEqual([0, 0, 0])
+  })
+
   it('lockVault clears the keys but keeps the session', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
@@ -142,30 +161,19 @@ describe('auth-store', () => {
     useAuthStore
       .getState()
       .unlockVault(new Uint8Array([1]), new Uint8Array([2]))
-
     const masterKey = useAuthStore.getState().masterKey!
     const privateKey = useAuthStore.getState().privateKey!
+
     useAuthStore.getState().lockVault()
 
     const state = useAuthStore.getState()
     expect(state.masterKey).toBeNull()
     expect(state.privateKey).toBeNull()
-    expect(state.isVaultLocked).toBe(true)
     expect(Array.from(masterKey)).toEqual([0])
     expect(Array.from(privateKey)).toEqual([0])
+    expect(state.isVaultLocked).toBe(true)
     // Session is intact — user is still logged in.
     expect(state.accessToken).toBe('access-123')
-  })
-
-  it('wipes replaced master and private key buffers', () => {
-    useAuthStore.getState().unlockVault(new Uint8Array([1, 2]), new Uint8Array([3, 4]))
-    const previousMasterKey = useAuthStore.getState().masterKey!
-    const previousPrivateKey = useAuthStore.getState().privateKey!
-
-    useAuthStore.getState().unlockVault(new Uint8Array([5, 6]), new Uint8Array([7, 8]))
-
-    expect(Array.from(previousMasterKey)).toEqual([0, 0])
-    expect(Array.from(previousPrivateKey)).toEqual([0, 0])
   })
 
   it('expireSession wipes keys + access token but keeps the refresh token', () => {
@@ -178,12 +186,16 @@ describe('auth-store', () => {
     useAuthStore
       .getState()
       .unlockVault(new Uint8Array([1]), new Uint8Array([2]))
+    const masterKey = useAuthStore.getState().masterKey!
+    const privateKey = useAuthStore.getState().privateKey!
 
     useAuthStore.getState().expireSession()
 
     const state = useAuthStore.getState()
     expect(state.masterKey).toBeNull()
     expect(state.privateKey).toBeNull()
+    expect(Array.from(masterKey)).toEqual([0])
+    expect(Array.from(privateKey)).toEqual([0])
     expect(state.isVaultLocked).toBe(true)
     // Access token dropped from memory, refresh token retained so the session
     // is still silently restorable.

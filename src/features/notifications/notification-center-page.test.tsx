@@ -225,18 +225,21 @@ describe('NotificationCenterPage', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'View Agent' })[0])
 
     expect(markRead).toHaveBeenCalledWith('n3')
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/agents/a3' })
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/agents/$agentId', params: { agentId: 'a3' },
+    })
   })
 
-  it('ignores a deep-link that is not a known app route — no navigate, no mark-read', () => {
+  it('ignores a hostile server deep-link and constructs a safe local route from the opaque id', () => {
     renderPage()
 
-    // n4 carries a hostile actionDeepLink ('/evil/phish'); it is the second
-    // "View Agent" card. The guard must no-op rather than hand it to the router.
     fireEvent.click(screen.getAllByRole('button', { name: 'View Agent' })[1])
 
-    expect(navigateMock).not.toHaveBeenCalled()
-    expect(markRead).not.toHaveBeenCalledWith('n4')
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/agents/$agentId', params: { agentId: 'a4' },
+    })
+    expect(navigateMock).not.toHaveBeenCalledWith(expect.objectContaining({ to: '/evil/phish' }))
+    expect(markRead).toHaveBeenCalledWith('n4')
   })
 
   it('renders the live OrgGrantsPanel on the Grants tab and hides the inbox search', () => {
