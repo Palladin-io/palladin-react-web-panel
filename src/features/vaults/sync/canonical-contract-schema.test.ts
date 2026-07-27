@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { memberIndexEnvelopeSchema, vaultEntryKeyEnvelopeSchema } from './entry-envelope-schema'
-import { memberVaultKeyEnvelopeSchema } from './vault-key-material-schema'
+import { canonicalUuidSchema, memberVaultKeyEnvelopeSchema } from './vault-key-material-schema'
 
 const scope = {
   organizationId: '11111111-1111-4111-8111-111111111111',
@@ -25,6 +25,11 @@ function descriptor(purpose: string, binding: object) {
 }
 
 describe('canonical Vault API envelope schemas', () => {
+  it('accepts canonical UUIDv7 identifiers emitted by the backend', () => {
+    expect(canonicalUuidSchema.parse('019fa51e-1d28-73fa-ad88-beee6936af4f'))
+      .toBe('019fa51e-1d28-73fa-ad88-beee6936af4f')
+  })
+
   it('parses the nested descriptor and suite payload contract', () => {
     const parsed = memberIndexEnvelopeSchema.parse({
       descriptor: descriptor('memberIndex', {}),
