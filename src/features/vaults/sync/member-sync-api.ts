@@ -3,9 +3,10 @@ import { api } from '../../../shared/api/client'
 import {
   canonicalU64Schema as canonicalU64,
   canonicalUuidSchema as canonicalUuid,
+  memberVaultKeyEnvelopeSchema,
+  memberVaultMetadataEnvelopeSchema,
   u32Schema as u32,
   vaultDiscoveryKeyEnvelopeSchema,
-  vaultEnvelopeHeaderSchema as envelopeHeaderSchema,
   vaultPrivateKeyEnvelopeSchema,
 } from './vault-key-material-schema'
 import { memberIndexEnvelopeSchema, vaultEntryKeyEnvelopeSchema } from './entry-envelope-schema'
@@ -13,27 +14,6 @@ export { memberIndexEnvelopeSchema, vaultEntryKeyEnvelopeSchema } from './entry-
 
 const MAXIMUM_SYNC_RESPONSE_BYTES = 4 * 1024 * 1024
 const syncCursor = z.string().max(2_048)
-
-const memberVaultMetadataEnvelopeSchema = z.object({
-  organizationId: canonicalUuid,
-  vaultId: canonicalUuid,
-  metadataRevision: canonicalU64,
-  header: envelopeHeaderSchema,
-  ciphertext: z.string(),
-}).strict()
-
-const memberVaultKeyEnvelopeSchema = z.object({
-  protocolVersion: z.literal(2),
-  algorithmSuite: z.literal(1),
-  organizationId: canonicalUuid,
-  vaultId: canonicalUuid,
-  memberId: canonicalUuid,
-  vkVersion: u32,
-  memberKeyGeneration: u32,
-  recipientMemberKeyVersion: u32,
-  recipientMemberKeyFingerprint: z.string(),
-  sealedVaultKeyPackage: z.string(),
-}).strict()
 
 const vaultKeyEpochSchema = z.object({
   vaultKeyVersion: u32,
@@ -60,16 +40,18 @@ export const encryptedVaultSummarySchema = z.object({
   entryCount: z.number().int().nonnegative(),
   activeGrantCount: z.number().int().nonnegative(),
 }).strict().superRefine((vault, context) => {
-  if (vault.id !== vault.memberVaultMetadata.vaultId || vault.id !== vault.memberVaultKey.vaultId) {
+  const metadata = vault.memberVaultMetadata.descriptor
+  const memberKey = vault.memberVaultKey.wrappedVaultKey.descriptor
+  if (vault.id !== metadata.scope.vaultId || vault.id !== memberKey.scope.vaultId) {
     context.addIssue({ code: 'custom', message: 'Vault envelope scope mismatch' })
   }
-  if (vault.memberVaultMetadata.organizationId !== vault.memberVaultKey.organizationId) {
+  if (metadata.scope.organizationId !== memberKey.scope.organizationId) {
     context.addIssue({ code: 'custom', message: 'Vault organization scope mismatch' })
   }
-  if (vault.memberKeyGeneration !== vault.memberVaultKey.memberKeyGeneration) {
+  if (vault.memberKeyGeneration !== memberKey.memberKeyGeneration) {
     context.addIssue({ code: 'custom', message: 'Vault member generation mismatch' })
   }
-  if (vault.currentKeyEpoch.vaultKeyVersion !== vault.memberVaultKey.vkVersion) {
+  if (vault.currentKeyEpoch.vaultKeyVersion !== memberKey.wrappedKeyVersion) {
     context.addIssue({ code: 'custom', message: 'Vault key version mismatch' })
   }
 })
@@ -90,12 +72,14 @@ const headSchema = z.object({
   entryKey: vaultEntryKeyEnvelopeSchema,
   memberIndex: memberIndexEnvelopeSchema,
 }).strict().superRefine((item, context) => {
-  if (item.entryId !== item.memberIndex.entryId
-    || item.entryId !== item.entryKey.entryId
-    || item.memberIndexRevision !== item.memberIndex.memberIndexRevision
-    || item.currentKeyVersion !== item.entryKey.keyVersion
-    || item.memberIndex.header.keyVersion !== item.currentKeyVersion
-    || item.memberIndex.header.memberKeyGeneration !== item.entryKey.memberKeyGeneration) {
+  const index = item.memberIndex.descriptor
+  const entryKey = item.entryKey.descriptor
+  if (item.entryId !== index.scope.entryId
+    || item.entryId !== entryKey.scope.entryId
+    || item.memberIndexRevision !== index.resourceRevision
+    || item.currentKeyVersion !== entryKey.keyVersion
+    || index.keyVersion !== item.currentKeyVersion
+    || index.memberKeyGeneration !== entryKey.memberKeyGeneration) {
     context.addIssue({ code: 'custom', message: 'Member sync head binding mismatch' })
   }
 })

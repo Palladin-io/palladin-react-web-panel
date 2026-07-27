@@ -13,7 +13,7 @@ import {
   defaultAgentVisibilityPolicy,
   ENTRY_FIELD,
   type AgentVisibilityPolicy,
-} from '../../../shared/crypto/vault-v2-entry'
+} from '../../../shared/crypto/entry-draft'
 import { firstError, required, validUrl } from '../../../shared/lib/validation'
 import {
   BLOB_VERSION_V2,

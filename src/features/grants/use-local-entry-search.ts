@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
 import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
+import { memberIndexSearchValues, presentationIconReference } from '../../shared/crypto/vault-plaintext'
+import { normalizeEntryType } from '../vaults/types'
 
 /** Decrypted in-memory Entry presentation used by cross-Vault pickers and
  * recents. This projection is never fetched from or sent to the backend. */
@@ -35,15 +37,15 @@ export function useLocalEntrySearch(
       if (vault.status !== 'ready' || !vault.metadata) continue
       for (const record of vault.entries.values()) {
         if (record.state !== 'active' || record.corrupt || !record.payload) continue
-        const fields = [record.payload.memberLabel, ...record.payload.searchFields]
+        const fields = memberIndexSearchValues(record.payload)
         if (needle && !fields.some((field) => field.normalize('NFC').toLocaleLowerCase().includes(needle))) continue
-        const icon = builtinIcon(record.payload.iconReference)
+        const icon = builtinIcon(presentationIconReference(record.payload.icon))
         entries.push({
           id: record.entryId,
           label: record.payload.memberLabel,
           vaultId,
           vaultName: vault.metadata.name,
-          type: record.payload.entryType,
+          type: normalizeEntryType(record.payload.entryType),
           ...(icon ? { icon } : {}),
           updatedAt: record.updatedAt,
         })

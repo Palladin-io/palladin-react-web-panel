@@ -10,7 +10,8 @@ function vault(
 ): DecryptedMemberVault {
   return {
     vaultId,
-    metadata: name === null ? null : { name, description: description ?? undefined, iconReference: 'builtin:lock', color: '#123456' },
+    metadata: name === null ? null : { name, description: description ?? null,
+      icon: { kind: 'glyph', value: 'lock' }, color: '#123456', grantMode: 'granular' },
     structure: {
       isDefault: false,
       createdAt: '2026-07-01T00:00:00Z',

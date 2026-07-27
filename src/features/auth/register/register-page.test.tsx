@@ -53,14 +53,6 @@ vi.mock('../../../shared/lib/hibp', () => ({
 vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
 }))
-vi.mock('../../../shared/crypto/identity-kdf', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../shared/crypto/identity-kdf')>()
-  return {
-    ...actual,
-    generateAccountSecret: vi.fn().mockResolvedValue(new Uint8Array(32).fill(9)),
-  }
-})
-
 beforeEach(() => {
   navigateMock.mockReset()
   registerState.mutate.mockReset()
@@ -92,12 +84,6 @@ async function enterRequestedWords(
   }
 }
 
-async function saveAccountSecret(user: ReturnType<typeof userEvent.setup>) {
-  expect(await screen.findByText(/save your account secret/i)).toBeInTheDocument()
-  await user.click(screen.getByRole('checkbox'))
-  await user.click(screen.getByRole('button', { name: /^continue$/i }))
-}
-
 it('requires recovery words instead of a checkbox before email registration', async () => {
   const user = userEvent.setup()
   render(<RegisterPage />)
@@ -106,14 +92,12 @@ it('requires recovery words instead of a checkbox before email registration', as
   await enterRequestedWords(user, inputs)
 
   await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
-  await saveAccountSecret(user)
 
   expect(registerState.mutate).toHaveBeenCalledWith(
     {
       email: 'user@example.com',
       masterPassword: 'StrongPass123!',
       recoveryMnemonic: SAMPLE_WORDS,
-      accountSecret: expect.any(Uint8Array),
     },
     expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
   )
@@ -131,8 +115,6 @@ it('shows the registration error on the recovery confirmation step', async () =>
   const inputs = await reachRecoveryConfirmation(user)
   await enterRequestedWords(user, inputs)
   await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
-  await saveAccountSecret(user)
-
   expect(await screen.findByRole('alert')).toHaveTextContent(
     /couldn't create your account/i,
   )

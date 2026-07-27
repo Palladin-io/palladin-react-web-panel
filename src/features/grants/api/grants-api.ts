@@ -43,13 +43,12 @@ const grantSchema = z.object({
   agentId: z.string().nullable(),
   agentName: z.string().nullable(),
   entryId: z.string().nullable(),
-  entryLabel: z.string().nullable(),
+  entryLabel: z.string().nullable().optional(),
   status: z.enum(GRANT_STATUSES),
   mode: z.enum([GRANT_MODE_FULL, GRANT_MODE_GRANULAR]),
   // Combined-flags string of permitted methods, e.g. "get, exec" (CVT-149). Optional for
   // pre-methods backends; the detail row is hidden when absent/empty.
   methods: z.string().nullable().optional(),
-  reason: z.string().nullable(),
   expiresAt: z.string().nullable(),
   queryLimit: z.number().nullable(),
   queryCount: z.number(),
@@ -57,7 +56,8 @@ const grantSchema = z.object({
   createdByName: z.string().nullable(),
   revokedAt: z.string().nullable(),
   revokedByName: z.string().nullable(),
-  revokeReason: z.string().nullable(),
+  reason: z.string().nullable().optional(),
+  revokeReason: z.string().nullable().optional(),
 })
 
 export type Grant = z.infer<typeof grantSchema>
@@ -127,8 +127,9 @@ export async function revokeGrant(
   grantId: string,
   reason?: string,
 ): Promise<void> {
-  const trimmed = reason?.trim()
-  await api.delete(`api/vaults/${vaultId}/grants/${grantId}`, {
-    json: trimmed ? { reason: trimmed } : {},
-  })
+  const trimmedReason = reason?.trim()
+  await api.delete(
+    `api/vaults/${vaultId}/grants/${grantId}`,
+    trimmedReason ? { json: { reason: trimmedReason } } : undefined,
+  )
 }

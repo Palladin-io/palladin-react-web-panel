@@ -1,9 +1,6 @@
-import {
-  decryptMemberIndex,
-  decryptMemberVaultMetadata,
-  openMemberVaultKey,
-  type MemberVaultMetadata,
-} from '../../../shared/crypto/vault-v2-member-sync'
+import { openMemberIndex } from '../../../shared/crypto/entry-protocol'
+import { openVaultProjection } from '../../../shared/crypto/vault-protocol'
+import type { MemberVaultMetadataV1 } from '../../../shared/crypto/vault-plaintext'
 import { wipe } from '../../../shared/crypto/sodium'
 import {
   getMemberDeltaPage,
@@ -28,9 +25,9 @@ interface ProjectionBudget {
 
 class MemberVaultSyncFailure extends Error {
   readonly failureKind: 'metadata' | 'sync'
-  readonly metadata?: MemberVaultMetadata
+  readonly metadata?: MemberVaultMetadataV1
 
-  constructor(failureKind: 'metadata' | 'sync', cause: unknown, metadata?: MemberVaultMetadata) {
+  constructor(failureKind: 'metadata' | 'sync', cause: unknown, metadata?: MemberVaultMetadataV1) {
     super(`Vault ${failureKind} synchronization failed`, { cause })
     this.failureKind = failureKind
     this.metadata = metadata
@@ -60,7 +57,8 @@ function compareSequence(left: string, right: string): number {
 }
 
 function isCacheCompatible(cached: EncryptedVaultSummary, current: EncryptedVaultSummary): boolean {
-  return cached.memberVaultKey.organizationId === current.memberVaultKey.organizationId
+  return cached.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId
+      === current.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId
     && cached.memberKeyGeneration === current.memberKeyGeneration
     && cached.currentKeyEpoch.vaultKeyVersion === current.currentKeyEpoch.vaultKeyVersion
 }
@@ -137,32 +135,24 @@ export class MemberSyncEngine {
     signal: AbortSignal,
   ): Promise<void> {
     const budgetBeforeVault = projectionBudget.count
-    const organizationId = vault.memberVaultKey.organizationId
+    const organizationId = vault.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId
     let vaultKey: Uint8Array
+    let metadata: MemberVaultMetadataV1
     try {
-      vaultKey = await openMemberVaultKey(vault.memberVaultKey, {
+      const opened = await openVaultProjection({
+        id: vault.id,
         organizationId,
-        vaultId: vault.id,
-        memberId: userId,
-        vkVersion: vault.currentKeyEpoch.vaultKeyVersion,
         memberKeyGeneration: vault.memberKeyGeneration,
-      }, memberPrivateKey)
+        memberVaultMetadata: vault.memberVaultMetadata,
+        memberVaultKey: vault.memberVaultKey,
+      }, memberPrivateKey, userId)
+      vaultKey = opened.vaultKey
+      metadata = opened.metadata
     } catch (error) {
-      throw new MemberVaultSyncFailure('sync', error)
+      throw new MemberVaultSyncFailure('metadata', error)
     }
-    let metadata: MemberVaultMetadata | undefined
     try {
       assertNotAborted(signal)
-      try {
-        metadata = await decryptMemberVaultMetadata(vault.memberVaultMetadata, {
-          organizationId,
-          vaultId: vault.id,
-          keyVersion: vault.currentKeyEpoch.vaultKeyVersion,
-          memberKeyGeneration: vault.memberKeyGeneration,
-        }, vaultKey)
-      } catch (error) {
-        throw new MemberVaultSyncFailure('metadata', error)
-      }
       const cached = await this.cache.getActiveState(userId, vault.id)
       if (!cached || !isCacheCompatible(cached.vault, vault) || compareSequence(cached.appliedThroughSequence, vault.memberSequence) > 0) {
         await this.rebuildSnapshot(userId, vault, vaultKey, metadata, projectionBudget, signal)
@@ -218,7 +208,7 @@ export class MemberSyncEngine {
     userId: string,
     vault: EncryptedVaultSummary,
     vaultKey: Uint8Array,
-    metadata: Awaited<ReturnType<typeof decryptMemberVaultMetadata>>,
+    metadata: MemberVaultMetadataV1,
     projectionBudget: ProjectionBudget,
     signal: AbortSignal,
   ): Promise<void> {
@@ -238,7 +228,7 @@ export class MemberSyncEngine {
     userId: string,
     vault: EncryptedVaultSummary,
     vaultKey: Uint8Array,
-    metadata: Awaited<ReturnType<typeof decryptMemberVaultMetadata>>,
+    metadata: MemberVaultMetadataV1,
     projectionBudget: ProjectionBudget,
     signal: AbortSignal,
   ): Promise<void> {
@@ -300,7 +290,7 @@ export class MemberSyncEngine {
     userId: string,
     vault: EncryptedVaultSummary,
     vaultKey: Uint8Array,
-    metadata: Awaited<ReturnType<typeof decryptMemberVaultMetadata>>,
+    metadata: MemberVaultMetadataV1,
     entries: Map<string, MemberIndexRecord>,
     afterSequence: string,
     projectionBudget: ProjectionBudget,
@@ -361,15 +351,12 @@ export class MemberSyncEngine {
             continue
           }
           try {
-            const payload = await decryptMemberIndex(item.memberIndex, item.entryKey, {
-              organizationId: vault.memberVaultKey.organizationId,
+            const payload = await openMemberIndex(item.entryKey, item.memberIndex, vaultKey, {
+              organizationId: vault.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId,
               vaultId: vault.id,
               entryId: item.entryId,
-              memberIndexRevision: item.memberIndexRevision,
-              keyVersion: item.currentKeyVersion,
-              memberKeyGeneration: vault.memberKeyGeneration,
-              wrappingKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
-            }, vaultKey)
+              revision: item.memberIndexRevision,
+            })
             results[index] = {
               entryId: item.entryId,
               state: item.state,
@@ -419,7 +406,7 @@ export class MemberSyncEngine {
 
   private publish(
     vault: EncryptedVaultSummary,
-    metadata: Awaited<ReturnType<typeof decryptMemberVaultMetadata>>,
+    metadata: MemberVaultMetadataV1,
     entries: Map<string, MemberIndexRecord>,
     appliedThroughSequence: string,
     status: 'syncing' | 'ready',

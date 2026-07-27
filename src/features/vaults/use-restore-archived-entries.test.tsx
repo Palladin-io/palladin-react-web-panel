@@ -23,11 +23,11 @@ vi.mock('./api/vault-api', () => ({
   getCanonicalEntry: mocks.getEntry,
   restoreCanonicalEntry: mocks.restoreEntry,
 }))
-vi.mock('../../shared/crypto/vault-v2-member-sync', () => ({ openMemberVaultKey: mocks.openVaultKey }))
-vi.mock('../../shared/crypto/vault-v2-rotation', () => ({ openDiscoveryKey: mocks.openDiscoveryKey }))
-vi.mock('../../shared/crypto/vault-v2-entry', () => ({
-  decryptMemberSecret: mocks.decrypt,
-  createEntryRestoreMaterial: mocks.createMaterial,
+vi.mock('../../shared/crypto/vault-protocol', () => ({
+  openMemberVaultKey: mocks.openVaultKey, openVaultDerivedEnvelope: mocks.openDiscoveryKey,
+}))
+vi.mock('../../shared/crypto/entry-protocol', () => ({
+  openMemberSecret: mocks.decrypt, sealCanonicalEntry: mocks.createMaterial,
 }))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
 vi.mock('./sync/member-sync-store', () => ({
@@ -39,7 +39,7 @@ vi.mock('./sync/member-sync-store', () => ({
 const vault = {
   memberKeyGeneration: 2,
   currentKeyEpoch: { vaultKeyVersion: 4, vdkVersion: 3 },
-  memberVaultKey: { organizationId: 'org', memberId: 'member' },
+  memberVaultKey: {},
   discoveryKey: { opaque: 'discovery-key' },
 }
 
@@ -55,10 +55,13 @@ describe('useRestoreArchivedEntries', () => {
     vi.clearAllMocks()
     useAuthStore.setState({ privateKey: new Uint8Array(32).fill(5) })
     mocks.getVault.mockResolvedValue(vault)
-    mocks.getEntry.mockImplementation(async (_vaultId: string, entryId: string) => ({ id: entryId }))
-    mocks.decrypt.mockImplementation(async (detail: { id: string }) => ({ memberLabel: detail.id }))
-    mocks.createMaterial.mockImplementation(async (detail: { id: string }) => ({
-      baseRevision: '1', memberSecret: { ciphertext: detail.id },
+    mocks.getEntry.mockImplementation(async (_vaultId: string, entryId: string) => ({ id: entryId,
+      organizationId: 'org', vaultId: 'vault', state: 'archived', currentRevision: '1',
+      memberIndexRevision: '1', agentDiscoveryRevisionHighWatermark: '0', currentKeyVersion: 1,
+      entryKey: { descriptor: { resourceRevision: '1' } }, memberSecret: {} }))
+    mocks.decrypt.mockImplementation(async (entryKey: { descriptor: { resourceRevision: string } }) => ({ memberLabel: entryKey.descriptor.resourceRevision }))
+    mocks.createMaterial.mockImplementation(async () => ({
+      entryKey: {}, memberIndex: {}, memberSecret: {}, agentDiscovery: null,
     }))
     mocks.restoreEntry.mockResolvedValue({ state: 'active', currentRevision: '2' })
   })
@@ -66,12 +69,12 @@ describe('useRestoreArchivedEntries', () => {
   it('deduplicates and restores Entries sequentially while continuing after an isolated failure', async () => {
     let active = 0
     let maximumActive = 0
-    mocks.createMaterial.mockImplementation(async (detail: { id: string }) => {
+    mocks.createMaterial.mockImplementation(async () => {
       active += 1
       maximumActive = Math.max(maximumActive, active)
       await Promise.resolve()
       active -= 1
-      return { baseRevision: '1', memberSecret: { ciphertext: detail.id } }
+      return { entryKey: {}, memberIndex: {}, memberSecret: {}, agentDiscovery: null }
     })
     mocks.restoreEntry.mockImplementation(async (_vaultId: string, entryId: string) => {
       if (entryId === 'entry-b') throw new Error('conflict')
@@ -92,7 +95,7 @@ describe('useRestoreArchivedEntries', () => {
   it('never posts material prepared by a crypto session invalidated by lock and re-unlock', async () => {
     let releaseMaterial: (() => void) | undefined
     mocks.createMaterial.mockImplementation(() => new Promise((resolve) => {
-      releaseMaterial = () => resolve({ baseRevision: '1', memberSecret: { ciphertext: 'stale' } })
+      releaseMaterial = () => resolve({ entryKey: {}, memberIndex: {}, memberSecret: {}, agentDiscovery: null })
     }))
 
     const { result } = renderHook(() => useRestoreArchivedEntries('vault'), { wrapper })

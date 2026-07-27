@@ -3,18 +3,15 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FormInput } from '../../../shared/components/form-field'
-import {
-  buildEntryProjections,
-  decryptMemberSecret,
-  type AgentVisibilityPolicy,
-  type CanonicalEntryDetail,
-  type MemberSecretPlaintext,
-} from '../../../shared/crypto/vault-v2-entry'
-import { openMemberVaultKey } from '../../../shared/crypto/vault-v2-member-sync'
+import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
+import { fromMemberSecret, toMemberSecret, type AgentVisibilityPolicy, type MemberSecretView } from '../../../shared/crypto/entry-draft'
+import { projectAgentDiscovery } from '../../../shared/crypto/vault-plaintext'
+import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
 import { wipe } from '../../../shared/crypto/sodium'
 import { OrgGrantsPanel } from '../../grants'
 import { useAuthStore } from '../../auth'
 import { getEncryptedVault } from '../sync/member-sync-api'
+import type { CanonicalEntryDetail } from '../api/vault-api'
 import type { EntryType } from '../types'
 import { useUpdateCanonicalEntry } from '../use-update-canonical-entry'
 import { AgentVisibilityPolicyEditor } from './agent-visibility-policy-editor'
@@ -31,7 +28,7 @@ interface EntryAgentsTabProps {
 export function EntryAgentsTab({ vaultId, entryId, entryType, memberLabel, detail }: EntryAgentsTabProps) {
   const { t } = useTranslation()
   const update = useUpdateCanonicalEntry(vaultId, entryId)
-  const [secret, setSecret] = useState<MemberSecretPlaintext | null>(null)
+  const [secret, setSecret] = useState<MemberSecretView | null>(null)
   const [agentLabel, setAgentLabel] = useState('')
   const [policy, setPolicy] = useState<AgentVisibilityPolicy | null>(null)
   const [decrypting, setDecrypting] = useState(false)
@@ -39,16 +36,17 @@ export function EntryAgentsTab({ vaultId, entryId, entryType, memberLabel, detai
 
   const preview = useMemo(() => {
     if (!secret || !policy) return null
-    return buildEntryProjections({
-      memberLabel: secret.memberLabel,
+    return projectAgentDiscovery(toMemberSecret({
+      label: secret.memberLabel,
       agentLabel,
       ...(secret.description ? { description: secret.description } : {}),
       ...(secret.iconReference ? { iconReference: secret.iconReference } : {}),
-      entryType: secret.entryType,
-      content: secret.content,
+      type: secret.entryType,
+      payload: secret.content,
       policy,
-    }).agentDiscovery ?? null
-  }, [agentLabel, policy, secret])
+      vaultId,
+    }))
+  }, [agentLabel, policy, secret, vaultId])
 
   const changed = Boolean(secret && policy && (
     agentLabel !== secret.agentLabel
@@ -65,15 +63,11 @@ export function EntryAgentsTab({ vaultId, entryId, entryType, memberLabel, detai
     setDecryptError(false)
     try {
       const vault = await getEncryptedVault(vaultId)
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, {
-        organizationId: detail.organizationId,
-        vaultId,
-        memberId: vault.memberVaultKey.memberId,
-        vkVersion: vault.currentKeyEpoch.vaultKeyVersion,
-        memberKeyGeneration: vault.memberKeyGeneration,
-      }, privateKey)
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
       try {
-        const opened = await decryptMemberSecret(detail, vaultKey)
+        const opened = fromMemberSecret(await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
+          organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
+        }))
         setSecret(opened)
         setAgentLabel(opened.agentLabel)
         setPolicy(opened.agentVisibilityPolicy)
@@ -133,10 +127,12 @@ export function EntryAgentsTab({ vaultId, entryId, entryType, memberLabel, detai
             {preview ? (
               <div className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-input-bg)] p-3">
                 <p className="text-ui font-semibold text-[var(--cv-t1)]">{preview.agentLabel}</p>
-                {Object.entries(preview.fields).map(([field, value]) => (
-                  <div key={field} className="mt-2 flex gap-3 text-meta">
-                    <span className="w-28 shrink-0 text-[var(--cv-t3)]">{field}</span>
-                    <span className="min-w-0 break-all text-[var(--cv-t1)]">{value}</span>
+                {preview.fields.map((field) => (
+                  <div key={field.id} className="mt-2 flex gap-3 text-meta">
+                    <span className="w-28 shrink-0 text-[var(--cv-t3)]">{field.id}</span>
+                    <span className="min-w-0 break-all text-[var(--cv-t1)]">{
+                      typeof field.value === 'string' ? field.value : JSON.stringify(field.value)
+                    }</span>
                   </div>
                 ))}
               </div>

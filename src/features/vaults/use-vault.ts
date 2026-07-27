@@ -2,6 +2,7 @@ import { parseJwtPayload } from '../../shared/lib/jwt'
 import { useAuthStore } from '../auth'
 import { GRANT_MODE_GRANULAR, type Vault } from './types'
 import { useMemberSyncStore } from './sync/member-sync-store'
+import { presentationIconReference } from '../../shared/crypto/vault-plaintext'
 
 export function vaultQueryKey(id: string) {
   return ['vaults', id] as const
@@ -30,7 +31,7 @@ export function useVault(id: string) {
         organizationId,
         name: metadata.name,
         description: metadata.description ?? null,
-        icon: metadata.iconReference ?? null,
+        icon: presentationIconReference(metadata.icon) ?? null,
         color: metadata.color ?? null,
         grantMode: GRANT_MODE_GRANULAR,
         createdAt: record.structure.createdAt,

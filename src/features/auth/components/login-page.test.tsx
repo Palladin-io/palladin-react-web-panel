@@ -47,7 +47,7 @@ describe('LoginPage', () => {
     expect(screen.getByRole('heading', { name: /palladin/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/master password/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/account secret/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/account secret/i)).not.toBeInTheDocument()
   })
 
   it('keeps Google enabled and Apple/X disabled', () => {
@@ -75,7 +75,6 @@ describe('LoginPage', () => {
     expect(startMutate.mock.calls[0][0]).toEqual({
       email: 'user@example.com',
       password: 'hunter2hunter2',
-      accountSecret: undefined,
     })
   })
 

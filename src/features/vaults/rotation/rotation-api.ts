@@ -6,16 +6,14 @@ import {
   canonicalUuidSchema as uuid,
   u32Schema as u32,
   vaultDiscoveryKeyEnvelopeSchema as discoveryKeySchema,
-  vaultEnvelopeHeaderSchema as header,
+  memberVaultKeyEnvelopeSchema,
+  memberVaultMetadataEnvelopeSchema,
   vaultPrivateKeyEnvelopeSchema as privateKeySchema,
 } from '../sync/vault-key-material-schema'
+import { agentDiscoveryEnvelopeSchema } from '../sync/entry-envelope-schema'
 
 
-export const memberVaultKeySchema = z.object({
-  protocolVersion: z.literal(2), algorithmSuite: z.literal(1), organizationId: uuid,
-  vaultId: uuid, memberId: uuid, vkVersion: u32, memberKeyGeneration: u32,
-  recipientMemberKeyVersion: u32, recipientMemberKeyFingerprint: z.string(), sealedVaultKeyPackage: z.string(),
-}).strict()
+export const memberVaultKeySchema = memberVaultKeyEnvelopeSchema
 export { vaultDiscoveryKeyEnvelopeSchema as discoveryKeySchema,
   vaultPrivateKeyEnvelopeSchema as privateKeySchema } from '../sync/vault-key-material-schema'
 const epoch = z.object({
@@ -41,10 +39,7 @@ const memberSourceSchema = z.object({
 const entryKeySourceSchema = z.object({
   items: z.array(vaultEntryKeyEnvelopeSchema).max(100), nextAfterId: uuid.nullable(), nextAfterVersion: u32.nullable(),
 }).strict()
-export const agentDiscoverySchema = z.object({
-  organizationId: uuid, vaultId: uuid, entryId: uuid, agentDiscoveryRevision: u64,
-  vdkVersion: u32, header, ciphertext: z.string(),
-}).strict()
+export const agentDiscoverySchema = agentDiscoveryEnvelopeSchema
 const discoverySourceSchema = z.object({
   items: z.array(z.object({ sourceRevision: u64, envelope: agentDiscoverySchema }).strict()).max(100),
   nextAfterId: uuid.nullable(),
@@ -57,9 +52,7 @@ const agentSourceSchema = z.object({
   nextAfterId: uuid.nullable(),
 }).strict()
 const vaultSummarySchema = z.object({
-  id: uuid, memberVaultMetadata: z.object({
-    organizationId: uuid, vaultId: uuid, metadataRevision: u64, header, ciphertext: z.string(),
-  }).strict(),
+  id: uuid, memberVaultMetadata: memberVaultMetadataEnvelopeSchema,
 }).passthrough()
 const listVaultsSchema = z.object({ vaults: z.array(vaultSummarySchema), total: z.number().int().nonnegative() }).strict()
 

@@ -1,5 +1,6 @@
 import { useDeferredValue, useMemo } from 'react'
 import { useMemberSyncStore, type DecryptedMemberVault, type MemberSyncStatus } from './member-sync-store'
+import { presentationIconReference } from '../../../shared/crypto/vault-plaintext'
 
 export interface MemberVaultListItem {
   id: string
@@ -22,7 +23,7 @@ function materialIconReference(reference: string | undefined): string | null {
   return reference.includes(':') ? null : reference
 }
 
-function safeVaultColor(color: string | undefined): string | null {
+function safeVaultColor(color: string | null | undefined): string | null {
   return color && /^#[0-9a-fA-F]{6}$/.test(color) ? color : null
 }
 
@@ -31,7 +32,7 @@ export function buildMemberVaultList(vaults: ReadonlyMap<string, DecryptedMember
     id: vault.vaultId,
     name: vault.metadata?.name ?? null,
     description: vault.metadata?.description ?? null,
-    icon: materialIconReference(vault.metadata?.iconReference),
+    icon: materialIconReference(presentationIconReference(vault.metadata?.icon ?? null)),
     color: safeVaultColor(vault.metadata?.color),
     createdAt: vault.structure.createdAt,
     updatedAt: vault.structure.updatedAt,

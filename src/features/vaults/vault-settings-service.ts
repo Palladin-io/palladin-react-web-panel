@@ -1,10 +1,9 @@
 import { parseJwtPayload } from '../../shared/lib/jwt'
 import {
-  decryptMemberVaultMetadata,
-  encryptMemberVaultMetadata,
-  openMemberVaultKey,
-  type MemberVaultMetadata,
-} from '../../shared/crypto/vault-v2-member-sync'
+  openVaultProjection,
+  sealMemberVaultMetadata,
+} from '../../shared/crypto/vault-protocol'
+import type { MemberVaultMetadataV1 } from '../../shared/crypto/vault-plaintext'
 import { canonicalizeVaultJson, type CanonicalJson } from '../../shared/crypto/vault-v2-signatures'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
@@ -29,8 +28,16 @@ export class VaultMetadataConflictError extends Error {
 
 class VaultSettingsRejectedError extends Error {}
 
-function equalMetadata(left: MemberVaultMetadata, right: MemberVaultMetadata): boolean {
-  return canonicalizeVaultJson(left as CanonicalJson) === canonicalizeVaultJson(right as CanonicalJson)
+export interface EditableVaultMetadata {
+  name: string
+  description?: string
+  iconReference?: string
+  color?: string
+}
+
+function equalMetadata(left: EditableVaultMetadata, right: EditableVaultMetadata): boolean {
+  return canonicalizeVaultJson(left as unknown as CanonicalJson)
+    === canonicalizeVaultJson(right as unknown as CanonicalJson)
 }
 
 function assetId(reference: string | undefined): string | null {
@@ -48,21 +55,20 @@ async function replaceMetadata(vaultId: string, memberVaultMetadata: unknown): P
   throw new VaultSettingsRejectedError(`Encrypted Vault settings update failed with status ${response.status}`)
 }
 
-function sameEnvelope(left: { metadataRevision: string; ciphertext: string; header: { nonce: string } }, right: typeof left): boolean {
-  return left.metadataRevision === right.metadataRevision
-    && left.ciphertext === right.ciphertext
-    && left.header.nonce === right.header.nonce
+function sameEnvelope(left: { descriptor: { resourceRevision: string }; encodedSuitePayload: string }, right: typeof left): boolean {
+  return left.descriptor.resourceRevision === right.descriptor.resourceRevision
+    && left.encodedSuitePayload === right.encodedSuitePayload
 }
 
 async function observeMetadataWrite(
   vaultId: string,
-  attempted: { metadataRevision: string; ciphertext: string; header: { nonce: string } },
+  attempted: { descriptor: { resourceRevision: string }; encodedSuitePayload: string },
 ): Promise<'committed' | 'rejected' | 'ambiguous'> {
   try {
     const observed = await getEncryptedVault(vaultId)
     if (sameEnvelope(observed.memberVaultMetadata, attempted)) return 'committed'
-    const observedRevision = BigInt(observed.memberVaultMetadata.metadataRevision)
-    const attemptedRevision = BigInt(attempted.metadataRevision)
+    const observedRevision = BigInt(observed.memberVaultMetadata.descriptor.resourceRevision)
+    const attemptedRevision = BigInt(attempted.descriptor.resourceRevision)
     return observedRevision <= attemptedRevision ? 'rejected' : 'ambiguous'
   } catch {
     return 'ambiguous'
@@ -71,10 +77,10 @@ async function observeMetadataWrite(
 
 export async function updateEncryptedVaultSettings(input: {
   vaultId: string
-  expectedMetadata: MemberVaultMetadata
-  nextMetadata: MemberVaultMetadata
+  expectedMetadata: EditableVaultMetadata
+  nextMetadata: EditableVaultMetadata
   iconFile?: File
-}): Promise<MemberVaultMetadata> {
+}): Promise<EditableVaultMetadata> {
   const auth = useAuthStore.getState()
   if (!auth.privateKey || !auth.userId || !auth.accessToken) throw new VaultSettingsLockedError()
   const organizationId = parseJwtPayload(auth.accessToken)['org_id']
@@ -82,23 +88,19 @@ export async function updateEncryptedVaultSettings(input: {
 
   const fresh = await getEncryptedVault(input.vaultId)
   const keyVersion = fresh.currentKeyEpoch.vaultKeyVersion
-  const vaultKey = await openMemberVaultKey(fresh.memberVaultKey, {
-    organizationId,
-    vaultId: input.vaultId,
-    memberId: auth.userId,
-    vkVersion: keyVersion,
-    memberKeyGeneration: fresh.memberKeyGeneration,
-  }, auth.privateKey)
+  const opened = await openVaultProjection({ ...fresh, organizationId }, auth.privateKey, auth.userId)
+  const vaultKey = opened.vaultKey
   let uploadedAssetId: string | null = null
   let metadataCommitted = false
   let writeOutcomeAmbiguous = false
   try {
-    const currentMetadata = await decryptMemberVaultMetadata(fresh.memberVaultMetadata, {
-      organizationId,
-      vaultId: input.vaultId,
-      keyVersion,
-      memberKeyGeneration: fresh.memberKeyGeneration,
-    }, vaultKey)
+    const currentMetadata: EditableVaultMetadata = {
+      name: opened.metadata.name,
+      ...(opened.metadata.description ? { description: opened.metadata.description } : {}),
+      ...(opened.metadata.icon?.kind === 'glyph' ? { iconReference: opened.metadata.icon.value }
+        : opened.metadata.icon?.kind === 'encryptedAsset' ? { iconReference: `asset:${opened.metadata.icon.assetId}` } : {}),
+      ...(opened.metadata.color ? { color: opened.metadata.color } : {}),
+    }
     if (!equalMetadata(currentMetadata, input.expectedMetadata)) throw new VaultMetadataConflictError()
 
     let nextMetadata = input.nextMetadata
@@ -119,14 +121,17 @@ export async function updateEncryptedVaultSettings(input: {
       nextMetadata = { ...nextMetadata, iconReference: uploaded.iconReference }
     }
 
-    const revision = (BigInt(fresh.memberVaultMetadata.metadataRevision) + 1n).toString()
-    const envelope = await encryptMemberVaultMetadata(nextMetadata, {
-      organizationId,
-      vaultId: input.vaultId,
-      metadataRevision: revision,
-      keyVersion,
-      memberKeyGeneration: fresh.memberKeyGeneration,
-    }, vaultKey)
+    const canonicalMetadata: MemberVaultMetadataV1 = {
+      schema: 'palladin.member-vault-metadata.v1', name: nextMetadata.name,
+      description: nextMetadata.description ?? null,
+      icon: assetId(nextMetadata.iconReference)
+        ? { kind: 'encryptedAsset', assetId: assetId(nextMetadata.iconReference)! }
+        : nextMetadata.iconReference ? { kind: 'glyph', value: nextMetadata.iconReference } : null,
+      color: nextMetadata.color ?? null, grantMode: opened.metadata.grantMode,
+    }
+    const envelope = await sealMemberVaultMetadata({
+      id: fresh.id, organizationId, memberKeyGeneration: fresh.memberKeyGeneration,
+    }, fresh.memberVaultMetadata, canonicalMetadata, vaultKey)
     try {
       await replaceMetadata(input.vaultId, envelope)
       metadataCommitted = true

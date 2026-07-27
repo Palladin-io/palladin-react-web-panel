@@ -15,11 +15,11 @@ vi.mock('../use-entries', () => ({ useEntryHistory: (...args: unknown[]) => mock
 vi.mock('../use-update-canonical-entry', () => ({
   useUpdateCanonicalEntry: () => ({ mutateAsync: mocks.mutateAsync, isPending: false }),
 }))
-vi.mock('../../../shared/crypto/vault-v2-entry', () => ({
-  decryptHistoricalMemberSecret: (...args: unknown[]) => mocks.decryptHistory(...args),
-  decryptMemberSecret: (...args: unknown[]) => mocks.decryptCurrent(...args),
+vi.mock('../../../shared/crypto/entry-protocol', () => ({
+  openMemberSecret: (...args: unknown[]) => mocks.decryptHistory(...args),
 }))
-vi.mock('../../../shared/crypto/vault-v2-member-sync', () => ({
+vi.mock('../../../shared/crypto/entry-draft', () => ({ fromMemberSecret: (value: unknown) => value }))
+vi.mock('../../../shared/crypto/vault-protocol', () => ({
   openMemberVaultKey: vi.fn(async () => new Uint8Array(32).fill(7)),
 }))
 vi.mock('../sync/member-sync-api', () => ({
@@ -61,8 +61,7 @@ describe('EntryHistoryTab', () => {
     useAuthStore.setState({ privateKey: new Uint8Array(32).fill(3) })
     mocks.history.mockReturnValue({ data: { pages: [{ items: [item] }] }, isPending: false, isError: false,
       hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn(), refetch: vi.fn() })
-    mocks.decryptHistory.mockResolvedValue(oldSecret)
-    mocks.decryptCurrent.mockResolvedValue(currentSecret)
+    mocks.decryptHistory.mockResolvedValueOnce(oldSecret).mockResolvedValueOnce(currentSecret)
     mocks.mutateAsync.mockResolvedValue({ currentRevision: '3' })
   })
 
@@ -94,5 +93,19 @@ describe('EntryHistoryTab', () => {
     expect(await screen.findByText('Old label')).toBeInTheDocument()
     act(() => useAuthStore.setState({ privateKey: null }))
     await waitFor(() => expect(screen.queryByText('Old label')).not.toBeInTheDocument())
+  })
+
+  it('does not publish plaintext decrypted by a replaced unlock session', async () => {
+    let finishDecrypt: ((value: typeof oldSecret) => void) | undefined
+    mocks.decryptHistory.mockReset().mockImplementation(() => new Promise((resolve) => { finishDecrypt = resolve }))
+    const user = userEvent.setup()
+    render(<EntryHistoryTab detail={detail as never} />)
+
+    await user.click(screen.getByRole('button', { name: /reveal/i }))
+    act(() => useAuthStore.setState({ privateKey: new Uint8Array(32).fill(9) }))
+    await act(async () => finishDecrypt?.(oldSecret))
+
+    await waitFor(() => expect(screen.queryByText('Old label')).not.toBeInTheDocument())
+    expect(mocks.mutateAsync).not.toHaveBeenCalled()
   })
 })

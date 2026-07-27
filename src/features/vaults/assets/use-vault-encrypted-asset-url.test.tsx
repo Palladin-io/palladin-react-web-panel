@@ -12,8 +12,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('../../../shared/lib/jwt', () => ({ parseJwtPayload: () => ({ org_id: '00112233-4455-4677-8899-aabbccddeeff' }) }))
 vi.mock('../sync/member-sync-api', () => ({ getEncryptedVault: mocks.getVault }))
 vi.mock('./encrypted-asset-api', () => ({ downloadEncryptedAsset: mocks.download }))
-vi.mock('../../../shared/crypto/vault-v2-member-sync', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../../../shared/crypto/vault-v2-member-sync')>(),
+vi.mock('../../../shared/crypto/vault-protocol', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../../shared/crypto/vault-protocol')>(),
   openMemberVaultKey: mocks.openKey,
 }))
 vi.mock('../../../shared/crypto/vault-v2-assets', async (importOriginal) => ({

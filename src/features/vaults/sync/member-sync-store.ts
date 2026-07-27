@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import type { DecryptedMemberIndex, MemberVaultMetadata } from '../../../shared/crypto/vault-v2-member-sync'
+import type { MemberIndexV1, MemberVaultMetadataV1 } from '../../../shared/crypto/vault-plaintext'
 import type { EncryptedVaultSummary } from './member-sync-api'
+import { memberIndexSearchValues } from '../../../shared/crypto/vault-plaintext'
 
 export type MemberEntryState = 'active' | 'archived' | 'deleted'
 export type MemberSyncStatus = 'idle' | 'syncing' | 'resetting' | 'ready' | 'error'
@@ -22,13 +23,13 @@ export interface MemberIndexRecord {
   currentRevision: string
   memberIndexRevision: string
   currentKeyVersion: number
-  payload: DecryptedMemberIndex | null
+  payload: MemberIndexV1 | null
   corrupt: boolean
 }
 
 export interface DecryptedMemberVault {
   vaultId: string
-  metadata: MemberVaultMetadata | null
+  metadata: MemberVaultMetadataV1 | null
   structure: MemberVaultStructure
   entries: ReadonlyMap<string, MemberIndexRecord>
   appliedThroughSequence: string
@@ -48,7 +49,7 @@ interface MemberSyncState {
   failVault: (
     vault: EncryptedVaultSummary,
     failureKind: MemberVaultFailureKind,
-    metadata?: MemberVaultMetadata,
+    metadata?: MemberVaultMetadataV1,
   ) => void
   retryGeneration: number
   retry: () => void
@@ -141,7 +142,7 @@ export function searchMemberIndex(query: string, states?: ReadonlySet<MemberEntr
   for (const vault of useMemberSyncStore.getState().vaults.values()) {
     for (const entry of vault.entries.values()) {
       if (entry.corrupt || !entry.payload || (states && !states.has(entry.state))) continue
-      const fields = [entry.payload.memberLabel, ...entry.payload.searchFields]
+      const fields = memberIndexSearchValues(entry.payload)
       if (fields.some((field) => field.toLocaleLowerCase().includes(normalized))) matches.push(entry)
     }
   }

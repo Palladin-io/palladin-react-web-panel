@@ -49,6 +49,10 @@ describe('notificationCardPresentation', () => {
       'notifications.card.rowMethods',
       'notifications.card.rowReason',
     ])
+    expect(card.rows[0].value).toEqual({
+      kind: 'entry', entry: 'GitHub Token', vault: 'Production',
+    })
+    expect(card.rows[2].value).toEqual({ kind: 'text', text: 'deploy pipeline' })
   })
 
   it('uses a red alert glyph + type title for credential_stale', () => {

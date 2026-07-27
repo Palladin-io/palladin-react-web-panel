@@ -10,8 +10,9 @@ import { NotesField } from './components/notes-field'
 import { SecretInput } from '../../shared/components/secret-input'
 import { firstError, required, validUrl } from '../../shared/lib/validation'
 import { wipe } from '../../shared/crypto/sodium'
-import { decryptMemberSecret, type CanonicalEntryDetail, type MemberSecretPlaintext } from '../../shared/crypto/vault-v2-entry'
-import { openMemberVaultKey } from '../../shared/crypto/vault-v2-member-sync'
+import { openMemberSecret } from '../../shared/crypto/entry-protocol'
+import { fromMemberSecret, type MemberSecretView } from '../../shared/crypto/entry-draft'
+import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { analytics } from '../../shared/lib/analytics'
 import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
@@ -66,6 +67,7 @@ import { ScriptExecHint } from './components/script-exec-hint'
 import { ScriptRefsEditor } from './components/script-refs-editor'
 import { SectionHeader } from './components/section-header'
 import { useDeleteEntry } from './use-delete-entry'
+import type { CanonicalEntryDetail } from './api/vault-api'
 import { useCanonicalEntryDetail } from './use-entries'
 import { useUpdateCanonicalEntry } from './use-update-canonical-entry'
 import { useVault } from './use-vault'
@@ -166,14 +168,21 @@ interface CanonicalEntryView extends EntryDetail {
 
 function toEntryView(
   canonical: CanonicalEntryDetail,
-  index: { memberLabel: string; entryType: EntryDetail['type']; iconReference?: string } | null | undefined,
+  index: {
+    memberLabel: string
+    entryType: 'key' | 'credential' | 'script'
+    icon: { kind: 'glyph'; value: string } | { kind: 'encryptedAsset'; assetId: string } | null
+  } | null | undefined,
 ): CanonicalEntryView {
-  const iconReference = index?.iconReference
+  const iconReference = index?.icon?.kind === 'glyph' ? index.icon.value : undefined
+  const entryType = index?.entryType === 'key'
+    ? ENTRY_TYPE_KEY
+    : index?.entryType === 'script' ? ENTRY_TYPE_SCRIPT : ENTRY_TYPE_CREDENTIAL
   return {
     id: canonical.id,
     label: index?.memberLabel ?? canonical.id,
-    type: index?.entryType ?? ENTRY_TYPE_CREDENTIAL,
-    ...(iconReference?.startsWith('builtin:') ? { icon: iconReference.slice(8) } : {}),
+    type: entryType,
+    ...(iconReference ? { icon: iconReference } : {}),
     createdAt: canonical.createdAt,
     updatedAt: canonical.updatedAt,
     accessCount: 0,
@@ -401,7 +410,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
 
   // Original plaintext for change detection / discard.
   const [originalPlaintext, setOriginalPlaintext] = useState<EntryPlaintext | null>(null)
-  const [originalSecret, setOriginalSecret] = useState<MemberSecretPlaintext | null>(null)
+  const [originalSecret, setOriginalSecret] = useState<MemberSecretView | null>(null)
   const [decryptError, setDecryptError] = useState<string | null>(null)
   const [decrypting, setDecrypting] = useState(false)
   const [decryptRequested, setDecryptRequested] = useState(false)
@@ -432,15 +441,17 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setDecrypting(true)
     try {
       const encryptedVault = await getEncryptedVault(vault.id)
-      const vaultKey = await openMemberVaultKey(encryptedVault.memberVaultKey, {
-        organizationId: entry.canonical.organizationId,
-        vaultId: vault.id,
-        memberId: encryptedVault.memberVaultKey.memberId,
-        vkVersion: encryptedVault.currentKeyEpoch.vaultKeyVersion,
-        memberKeyGeneration: encryptedVault.memberKeyGeneration,
-      }, privateKey)
+      const vaultKey = await openMemberVaultKey(encryptedVault.memberVaultKey, privateKey)
       try {
-        const secret = await decryptMemberSecret(entry.canonical, vaultKey)
+        const secret = fromMemberSecret(await openMemberSecret(
+          entry.canonical.entryKey, entry.canonical.memberSecret, vaultKey, {
+            organizationId: entry.canonical.organizationId, vaultId: vault.id,
+            entryId: entry.id, revision: entry.canonical.currentRevision,
+          },
+        ))
+        if (useAuthStore.getState().privateKey !== privateKey) {
+          throw new Error('Vault lock session changed')
+        }
         const pt = secret.content
         setOriginalSecret(secret)
         setLabel(secret.memberLabel)

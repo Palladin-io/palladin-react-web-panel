@@ -4,7 +4,7 @@ import {
   RECOVERY_KEY_SALT_BYTES,
 } from '../../../shared/crypto/argon2'
 import {
-  deriveIdentityV2,
+  deriveIdentityV1,
   generateIdentityAccountId,
   IDENTITY_KDF_PROFILE,
   IDENTITY_KDF_PROFILE_ID,
@@ -27,12 +27,11 @@ export interface RegisterInput {
   email: string
   masterPassword: string
   recoveryMnemonic: string[]
-  accountSecret: Uint8Array
 }
 
 /**
- * Registration crypto pipeline. Identity v2 runs Argon2id once over the
- * Account-Secret prehash and domain-separates MK from AuthCredential with HKDF.
+ * Registration crypto pipeline. Identity v1 runs Argon2id once over the exact
+ * password bytes and domain-separates MK from AuthCredential with HKDF.
  * The keypair's private key is wrapped twice (under MK and under the recovery
  * key) exactly like onboarding, then everything non-secret is POSTed to
  * `register`. All secret buffers are zeroed in `finally`; the only survivors are
@@ -47,12 +46,11 @@ export function useRegister() {
       email,
       masterPassword,
       recoveryMnemonic,
-      accountSecret,
     }: RegisterInput) => {
       const accountId = generateIdentityAccountId()
       let kdfSalt: Uint8Array | null = null
       let recoverySalt: Uint8Array | null = null
-      let identity: Awaited<ReturnType<typeof deriveIdentityV2>> | null = null
+      let identity: Awaited<ReturnType<typeof deriveIdentityV1>> | null = null
       let keyPair: Awaited<ReturnType<typeof generateKeyPair>> | null = null
       let recoveryKey: Uint8Array | null = null
       let encryptedPrivateKey: Uint8Array | null = null
@@ -60,9 +58,8 @@ export function useRegister() {
       try {
         kdfSalt = await randomBytes(IDENTITY_KDF_SALT_BYTES)
         recoverySalt = await randomBytes(RECOVERY_KEY_SALT_BYTES)
-        identity = await deriveIdentityV2(
+        identity = await deriveIdentityV1(
           masterPassword,
-          accountSecret,
           accountId,
           kdfSalt,
         )
@@ -99,11 +96,7 @@ export function useRegister() {
         useAuthStore.getState().setTokens(response)
         useAuthStore
           .getState()
-          .unlockVault(
-            identity.masterKey,
-            keyPair.privateKey,
-            accountSecret,
-          )
+          .unlockVault(identity.masterKey, keyPair.privateKey)
       } finally {
         if (identity) {
           wipe(identity.masterKey)

@@ -1,15 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { analytics } from '../../shared/lib/analytics'
 import { EnterRecoveryKeyStep } from './components/enter-recovery-key-step'
 import { NewPasswordStep } from './components/new-password-step'
 import { NewRecoveryKeyStep } from './components/new-recovery-key-step'
-import { NewAccountSecretStep } from './components/new-account-secret-step'
 import { InvalidRecoveryKeyError, useRecover } from './use-recover'
-import { wipe } from '../../shared/crypto/sodium'
 
-type Step = 'enter-key' | 'new-password' | 'new-recovery-key' | 'new-account-secret'
+type Step = 'enter-key' | 'new-password' | 'new-recovery-key'
 
 /**
  * Multi-step wizard for account recovery. Local state only — the mnemonic
@@ -29,12 +27,7 @@ export function RecoveryPage() {
   const [step, setStep] = useState<Step>('enter-key')
   const [mnemonic, setMnemonic] = useState<string[]>([])
   const [newMnemonic, setNewMnemonic] = useState<string[]>([])
-  const [newAccountSecret, setNewAccountSecret] = useState<Uint8Array | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-
-  useEffect(() => () => {
-    if (newAccountSecret) wipe(newAccountSecret)
-  }, [newAccountSecret])
 
   const handleKeySubmit = (words: string[]) => {
     setMnemonic(words)
@@ -50,7 +43,6 @@ export function RecoveryPage() {
       {
         onSuccess: (result) => {
           setNewMnemonic(result.recoveryMnemonic)
-          setNewAccountSecret(result.accountSecret)
           setStep('new-recovery-key')
         },
         onError: (err) => {
@@ -100,11 +92,10 @@ export function RecoveryPage() {
     return (
       <NewRecoveryKeyStep
         mnemonic={newMnemonic}
-        onFinish={() => setStep('new-account-secret')}
+        onFinish={handleFinish}
       />
     )
   }
 
-  if (!newAccountSecret) return null
-  return <NewAccountSecretStep accountSecret={newAccountSecret} onFinish={handleFinish} />
+  return null
 }

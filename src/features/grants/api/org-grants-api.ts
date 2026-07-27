@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
-import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
+import type { buildCanonicalGrantEnvelope } from '../../../shared/crypto/grant-protocol'
 
 /**
  * Grant lifecycle status — camelCase strings matching the backend
@@ -219,7 +219,7 @@ export interface CreateGrantBody {
   agentId: string
   type: GrantType
   entryId?: string
-  grantEntries: ({ entryId: string } & GrantEntryEnvelope)[]
+  grantEntries: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>[]
   expiresAt?: string
   queryLimit?: number
   /** Combined-flags string of permitted methods, e.g. "Exec, Inject" (CVT-149). */

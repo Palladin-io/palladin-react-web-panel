@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import type { AnchorHTMLAttributes, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useMemberSyncStore, type MemberIndexRecord } from '../sync/member-sync-store'
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, type Vault } from '../types'
+import type { Vault } from '../types'
 import { useEntriesListUi } from '../use-entries-list-ui'
 import { VaultEntriesTab } from './vault-entries-tab'
 
@@ -62,13 +62,17 @@ function record(
   state: MemberIndexRecord['state'] = 'active',
   overrides: Partial<MemberIndexRecord> = {},
 ): MemberIndexRecord {
+  const entryType = label.toLowerCase().includes('key') ? 'key' : 'credential'
   return {
     entryId,
     state,
     currentRevision: '1',
     memberIndexRevision: '1',
     currentKeyVersion: 1,
-    payload: { memberLabel: label, entryType: ENTRY_TYPE_CREDENTIAL, searchFields: [] },
+    payload: {
+      schema: 'palladin.member-index.v1', memberLabel: label, entryType,
+      description: null, icon: null, color: null, username: null, urlDomain: null, customIndex: [],
+    },
     corrupt: false,
     ...overrides,
   }
@@ -113,7 +117,10 @@ describe('VaultEntriesTab', () => {
   it('renders active entries from the decrypted MemberIndex, not a list API', () => {
     publish([
       record('entry-1', 'Stripe API Key', 'active', {
-        payload: { memberLabel: 'Stripe API Key', entryType: ENTRY_TYPE_KEY, searchFields: ['payments'] },
+        payload: {
+          schema: 'palladin.member-index.v1', memberLabel: 'Stripe API Key', entryType: 'key',
+          description: null, icon: null, color: null, username: 'payments', urlDomain: null, customIndex: [],
+        },
       }),
     ])
     render(<VaultEntriesTab vault={VAULT} />)
@@ -124,7 +131,10 @@ describe('VaultEntriesTab', () => {
     const user = userEvent.setup()
     publish([
       record('entry-1', 'Stripe', 'active', {
-        payload: { memberLabel: 'Stripe', entryType: ENTRY_TYPE_KEY, searchFields: ['payments prod'] },
+        payload: {
+          schema: 'palladin.member-index.v1', memberLabel: 'Stripe', entryType: 'key',
+          description: null, icon: null, color: null, username: 'payments prod', urlDomain: null, customIndex: [],
+        },
       }),
       record('entry-2', 'GitHub'),
     ])

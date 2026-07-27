@@ -14,7 +14,8 @@ function record(index: number): MemberIndexRecord {
     payload: {
       memberLabel: index === 9_998 ? 'Unique Needle' : `Entry ${index}`,
       entryType: index % 2 === 0 ? ENTRY_TYPE_KEY : ENTRY_TYPE_CREDENTIAL,
-      searchFields: [`field-${index}`],
+      description: null, icon: null, color: null, username: null, urlDomain: null,
+      customIndex: [{ id: `field-${index}`, label: `field-${index}`, value: `field-${index}` }],
     },
     corrupt: false,
   }

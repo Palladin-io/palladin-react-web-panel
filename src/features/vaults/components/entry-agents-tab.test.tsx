@@ -12,14 +12,19 @@ const mocks = vi.hoisted(() => ({
   wipe: vi.fn(),
 }))
 
-vi.mock('../../../shared/crypto/vault-v2-entry', async (original) => ({
-  ...(await original<typeof import('../../../shared/crypto/vault-v2-entry')>()),
-  decryptMemberSecret: mocks.decrypt,
+vi.mock('../../../shared/crypto/entry-protocol', () => ({ openMemberSecret: mocks.decrypt }))
+vi.mock('../../../shared/crypto/entry-draft', async (original) => ({
+  ...(await original<typeof import('../../../shared/crypto/entry-draft')>()),
+  fromMemberSecret: (value: unknown) => value,
+  toMemberSecret: (value: unknown) => value,
 }))
-vi.mock('../../../shared/crypto/vault-v2-member-sync', () => ({ openMemberVaultKey: mocks.openVaultKey }))
+vi.mock('../../../shared/crypto/vault-plaintext', () => ({ projectAgentDiscovery: () => ({
+  agentLabel: 'GitHub work', fields: [{ id: 'credential.username', value: 'octocat' }],
+}) }))
+vi.mock('../../../shared/crypto/vault-protocol', () => ({ openMemberVaultKey: mocks.openVaultKey }))
 vi.mock('../../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
 vi.mock('../sync/member-sync-api', () => ({ getEncryptedVault: vi.fn(async () => ({
-  memberVaultKey: { memberId: 'member' }, memberKeyGeneration: 1,
+  memberVaultKey: {}, memberKeyGeneration: 1,
   currentKeyEpoch: { vaultKeyVersion: 1 },
 })) }))
 vi.mock('../use-update-canonical-entry', () => ({ useUpdateCanonicalEntry: () => ({

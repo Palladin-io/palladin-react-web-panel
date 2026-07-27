@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { decryptEntry } from '../../../shared/crypto/entry-crypto'
+import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
+import { fromMemberSecret } from '../../../shared/crypto/entry-draft'
 import { wipe } from '../../../shared/crypto/sodium'
-import { unsealVaultKey } from '../../../shared/crypto/vault-key'
+import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
 import { Icon } from '../../../shared/components/icon'
 import { useAuthStore } from '../../auth'
 import { analytics } from '../../../shared/lib/analytics'
@@ -18,14 +19,15 @@ import {
   type EntryPlaintext,
 } from '../types'
 import { readCustomFields } from '../entry-blob'
-import { useEntryDetail } from '../use-entries'
+import { getEncryptedVault } from '../sync/member-sync-api'
+import { useCanonicalEntryDetail } from '../use-entries'
 import { EntryIcon } from './entry-icon'
 import { CustomFieldsView } from './custom-fields-view'
 import { OtpauthTotp } from './totp-display'
 
 export interface EntryRowProps {
   vaultId: string
-  /** Caller's wrapped VK from the vault detail response (base64). */
+  /** @deprecated Canonical v2 resolves the nested Member VK envelope lazily. */
   wrappedVK: string | undefined
   entry: EntryListItem
   /** Highlight this row as the currently viewed entry (split-view left panel). */
@@ -42,7 +44,7 @@ export interface EntryRowProps {
  * plaintext fields. Decrypt failures translate into a toast error so
  * the row stays interactive (the user can re-attempt or move on).
  */
-export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProps) {
+export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
   const { t } = useTranslation()
 
   const [revealOpen, setRevealOpen] = useState(false)
@@ -59,16 +61,16 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
   const [copyAfterDecrypt, setCopyAfterDecrypt] = useState(false)
 
   // Fetch the detail once the user reveals OR copies — never on mount.
-  const detail = useEntryDetail(vaultId, entry.id, wantDetail)
+  const detail = useCanonicalEntryDetail(vaultId, entry.id, wantDetail)
 
-  // Decrypt once the blob arrives. Runs for reveal AND copy; the decrypted
-  // plaintext is cached for the row's lifetime (the encrypted blob is already
+  // Decrypt once the canonical envelopes arrive. Runs for reveal AND copy; the decrypted
+  // plaintext is cached for the row's lifetime (the envelopes are already
   // cached by the query), so toggling the panel or copying again is instant.
   useEffect(() => {
     if (!wantDetail || !detail.data || plaintext || decryptError) return
 
     const privateKey = useAuthStore.getState().privateKey
-    if (!privateKey || !wrappedVK) {
+    if (!privateKey) {
       setDecryptError(t('vault.entries.decryptVaultLocked'))
       return
     }
@@ -76,9 +78,16 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
     let cancelled = false
     void (async () => {
       try {
-        const vaultKey = await unsealVaultKey(wrappedVK, privateKey)
+        const vault = await getEncryptedVault(vaultId)
+        const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
         try {
-          const result = await decryptEntry(detail.data.content, vaultKey)
+          const secret = await openMemberSecret(detail.data.entryKey, detail.data.memberSecret, vaultKey, {
+            organizationId: detail.data.organizationId,
+            vaultId,
+            entryId: entry.id,
+            revision: detail.data.currentRevision,
+          })
+          const result = fromMemberSecret(secret).content
           if (!cancelled) {
             setPlaintext(result)
           }
@@ -94,7 +103,7 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
     return () => {
       cancelled = true
     }
-  }, [wantDetail, detail.data, wrappedVK, plaintext, decryptError, t])
+  }, [wantDetail, detail.data, plaintext, decryptError, t, vaultId, entry.id])
 
   // Collapsing the panel only hides the plaintext — it stays decrypted so a
   // subsequent copy (or re-open) doesn't round-trip again.

@@ -36,7 +36,6 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `AppWordmark` | `shared/components/app-wordmark.tsx` | Palladin logo + wordmark (login lg, sidebar sm) | `size` (sm / lg), `subtitle?` (sm only). |
 | `RecoveryKeyDisplay` | `shared/components/recovery-key-display.tsx` | Shared recovery mnemonic display and acknowledgement action for account setup flows | `mnemonic`, `continueLabel`, `onContinue`. |
 | `RecoveryKeyConfirmationForm` | `shared/components/recovery-key-confirmation-form.tsx` | Shared three-word recovery-key challenge with inline validation and submit state | `mnemonic`, `onConfirmed`, `isSubmitting`, `error`, `onValidated?`. |
-| `AccountSecretDisplay` | `shared/components/account-secret-display.tsx` | Displays a generated Account Secret with copy/download actions and explicit saved confirmation; used by registration, onboarding, recovery and legacy KDF migration | `accountSecret`, `onContinue`, `isPending?`, `error?`. |
 | `ErrorBoundary` | `shared/components/error-boundary.tsx` | Per-feature route error boundary | standard class-component boundary. |
 
 ## Shared helpers (`shared/lib/`)

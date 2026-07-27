@@ -145,36 +145,12 @@ export function changeMasterPassword(
   return api.put('api/account/password', { json: payload }).json<void>()
 }
 
-export interface MigrateIdentityKdfPayload {
-  migrationId: string
-  sourceSecurityVersion: number
-  baseCredentialRevision: number
-  basePrivateKeyWrapRevision: number
-  targetProfileId: string
-  currentAuthCredential: string
-  newAuthCredential: string
-  newKdfSalt: string
-  newEncryptedPrivateKey: string
-}
-
-export function migrateIdentityKdf(payload: MigrateIdentityKdfPayload): Promise<void> {
-  return api.post('api/account/kdf/migrations', { json: payload }).json<void>()
-}
-
 /**
  * Payload for the idempotent default-vault creation endpoint.
  * Same fields as a regular vault creation; the server enforces the
  * one-per-account rule and returns 409 if one already exists.
  */
-export interface DefaultVaultPayload {
-  name: string
-  description?: string
-  icon?: string
-  color?: string
-  grantMode: number
-  /** base64-encoded sealed-box vault key (same as CreateVaultPayload). */
-  wrappedVK: string
-}
+export type DefaultVaultPayload = Awaited<ReturnType<typeof import('../crypto/create-vault-protocol').createVaultProtocolPayload>>
 
 /**
  * POST /api/account/default-vault — creates the user's default vault.

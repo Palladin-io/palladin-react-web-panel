@@ -1,6 +1,8 @@
 import { useDeferredValue, useMemo } from 'react'
 import { shortenKey } from '../../../shared/lib/shorten-key'
+import { memberIndexSearchValues, presentationIconReference } from '../../../shared/crypto/vault-plaintext'
 import type { EntryType } from '../types'
+import { normalizeEntryType } from '../types'
 import {
   useMemberSyncStore,
   type DecryptedMemberVault,
@@ -36,9 +38,9 @@ export function buildMemberEntryList(vault: DecryptedMemberVault | undefined): M
       !entry.corrupt && entry.payload?.memberLabel
         ? entry.payload.memberLabel
         : shortenKey(entry.entryId),
-    type: entry.payload?.entryType ?? 1,
-    icon: !entry.corrupt ? materialIconReference(entry.payload?.iconReference) : null,
-    searchFields: !entry.corrupt ? entry.payload?.searchFields ?? [] : [],
+    type: normalizeEntryType(entry.payload?.entryType),
+    icon: !entry.corrupt ? materialIconReference(presentationIconReference(entry.payload?.icon ?? null)) : null,
+    searchFields: !entry.corrupt && entry.payload ? memberIndexSearchValues(entry.payload) : [],
     currentRevision: entry.currentRevision,
     corrupt: entry.corrupt || entry.payload === null,
   }))

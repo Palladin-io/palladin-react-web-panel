@@ -1,10 +1,10 @@
 import { useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { decryptEncryptedReason } from '../../shared/crypto/encrypted-reason'
-import { listGrantableFields } from '../../shared/crypto/grant-envelope'
-import { decryptMemberSecret } from '../../shared/crypto/vault-v2-entry'
-import { openMemberVaultKey } from '../../shared/crypto/vault-v2-member-sync'
-import { openVaultPrivateKey, type RotationPrivateKeyEnvelope } from '../../shared/crypto/vault-v2-rotation'
+import { listGrantableFields } from '../../shared/crypto/grant-protocol'
+import { openMemberSecret } from '../../shared/crypto/entry-protocol'
+import { openEncryptedReason } from '../../shared/crypto/reason-protocol'
+import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
+import { ENVELOPE_PURPOSE } from '../../shared/crypto/envelope'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
@@ -31,29 +31,35 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
       if (useAuthStore.getState().privateKey !== sessionKey) throw new GrantReviewUnavailableError()
       if (detail.state !== 'active' && detail.state !== 1) throw new GrantReviewUnavailableError()
       const reason = grant.encryptedReason
-      if (reason.organizationId !== detail.organizationId || reason.vaultId !== grant.vaultId
-        || reason.entryId !== grant.entryId || reason.agentId !== grant.agentId
-        || reason.grantRequestId !== grant.id
-        || reason.agentMessageKeyVersion !== vault.currentKeyEpoch.agentMessageKeyVersion) {
+      const reasonScope = reason.descriptor.scope
+      if (reasonScope.organizationId !== detail.organizationId || reasonScope.vaultId !== grant.vaultId
+        || reasonScope.entryId !== grant.entryId || reasonScope.agentId !== grant.agentId
+        || reasonScope.grantOrRequestId !== grant.id
+        || reason.descriptor.binding.recipientKeyVersion !== vault.currentKeyEpoch.agentMessageKeyVersion
+        || !grant.agentSigningPublicKey || !grant.agentSigningKeyVersion || !grant.agentSigningKeyFingerprint) {
         throw new GrantReviewUnavailableError()
       }
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, {
-        organizationId: detail.organizationId,
-        vaultId: grant.vaultId,
-        memberId: vault.memberVaultKey.memberId,
-        vkVersion: vault.currentKeyEpoch.vaultKeyVersion,
-        memberKeyGeneration: vault.memberKeyGeneration,
-      }, sessionKey)
-      let agentMessagePrivateKey: Uint8Array | undefined
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, sessionKey)
       try {
-        const envelope = vault.vaultPrivateKeys.find((item) => item.privateKeyKind === 1)
-        if (!envelope || envelope.privateKeyVersion !== reason.agentMessageKeyVersion) {
+        const envelope = vault.vaultPrivateKeys.find((item) =>
+          item.descriptor.purpose === ENVELOPE_PURPOSE.agentMessagePrivateByVk
+          && item.descriptor.keyVersion === reason.descriptor.binding.recipientKeyVersion)
+        if (!envelope) {
           throw new GrantReviewUnavailableError()
         }
-        agentMessagePrivateKey = await openVaultPrivateKey(envelope as RotationPrivateKeyEnvelope, vaultKey)
         const [memberSecret, decryptedReason] = await Promise.all([
-          decryptMemberSecret(detail, vaultKey),
-          decryptEncryptedReason(reason, agentMessagePrivateKey),
+          openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
+            organizationId: detail.organizationId, vaultId: grant.vaultId,
+            entryId: grant.entryId, revision: detail.currentRevision,
+          }),
+          openEncryptedReason(reason, vault.vaultPrivateKeys, vaultKey, {
+            publicKey: grant.agentSigningPublicKey,
+            keyVersion: grant.agentSigningKeyVersion,
+            keyFingerprint: grant.agentSigningKeyFingerprint,
+          }, {
+            organizationId: detail.organizationId, vaultId: grant.vaultId,
+            entryId: grant.entryId, grantId: grant.id, agentId: grant.agentId,
+          }),
         ])
         if (useAuthStore.getState().privateKey !== sessionKey) throw new GrantReviewUnavailableError()
         return {
@@ -64,7 +70,6 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
         }
       } finally {
         wipe(vaultKey)
-        if (agentMessagePrivateKey) wipe(agentMessagePrivateKey)
       }
     },
   })

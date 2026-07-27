@@ -18,7 +18,7 @@ import {
   grantMethodsFromMask,
   type GrantMethod,
 } from '../grant-methods'
-import type { GrantableField } from '../../../shared/crypto/grant-envelope'
+import type { GrantableField } from '../../../shared/crypto/grant-protocol'
 
 export interface GrantApprovalReview {
   entryLabel: string
@@ -60,7 +60,7 @@ export function ApproveGrantDialog({
   const [error, setError] = useState<string | null>(null)
 
   // What the agent asked for — used as the default selection and highlighted in the field.
-  const requestedMethods = grantMethodsFromMask(grant.encryptedReason.requestedMethods)
+  const requestedMethods = grantMethodsFromMask(grant.encryptedReason.descriptor.binding.requestedMethods)
   const [methods, setMethods] = useState<GrantMethod[]>(requestedMethods)
   const [fieldIds, setFieldIds] = useState<string[]>(review.fields.map((field) => field.id))
   const [methodsError, setMethodsError] = useState<string | null>(null)
@@ -68,7 +68,7 @@ export function ApproveGrantDialog({
 
   const entryLabel = review.entryLabel
   const agentName = grant.agentName ?? t('grants.approve.fallbackAgent')
-  const vaultName = grant.vaultName ?? t('grants.approve.fallbackVault')
+  const vaultName = t('grants.approve.fallbackVault')
 
   function handleConfirm() {
     const input = { kind, expiresAt, queryLimit }

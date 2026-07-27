@@ -20,7 +20,8 @@ describe('useVault protocol 2 projection', () => {
       metadata: {
         name: 'Production',
         description: 'Local only',
-        iconReference: 'asset:22222233-4455-4677-8899-aabbccddeeff',
+        icon: { kind: 'encryptedAsset', assetId: '22222233-4455-4677-8899-aabbccddeeff' },
+        grantMode: 'full',
         color: '#EB4747',
       },
       structure: {

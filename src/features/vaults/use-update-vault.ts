@@ -1,13 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import type { MemberVaultMetadata } from '../../shared/crypto/vault-v2-member-sync'
 import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 import { useMemberSyncStore } from './sync/member-sync-store'
-import { updateEncryptedVaultSettings } from './vault-settings-service'
+import { updateEncryptedVaultSettings, type EditableVaultMetadata } from './vault-settings-service'
 
 export interface UpdateVaultSettingsInput {
-  expectedMetadata: MemberVaultMetadata
-  nextMetadata: MemberVaultMetadata
+  expectedMetadata: EditableVaultMetadata
+  nextMetadata: EditableVaultMetadata
   iconFile?: File
 }
 
