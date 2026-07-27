@@ -75,14 +75,13 @@ describe('useRecover', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(returned?.recoveryMnemonic).toHaveLength(24)
-    expect(returned?.accountSecret).toHaveLength(32)
     expect(recoverAccountMock).toHaveBeenCalledTimes(1)
 
     const payload = recoverAccountMock.mock.calls[0][0]
     expect(payload).toEqual(
       expect.objectContaining({
-        securityVersion: 2,
-        kdfProfileId: 'identity-argon2id-account-secret-v2',
+        securityVersion: 1,
+        kdfProfileId: 'identity-argon2id-password-v1',
         newKdfSalt: expect.any(String),
         newAuthCredential: expect.any(String),
         newEncryptedPrivateKey: expect.any(String),

@@ -7,7 +7,7 @@ import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
 export interface EmailPasswordFormProps {
   isPending: boolean
   errorMessage: string | null
-  onSubmit: (email: string, password: string, accountSecret?: string) => void
+  onSubmit: (email: string, password: string) => void
   onFieldChange: () => void
 }
 
@@ -25,7 +25,6 @@ export function EmailPasswordForm({
   const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [accountSecret, setAccountSecret] = useState('')
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isPending
   const hasError = errorMessage !== null
 
@@ -34,7 +33,7 @@ export function EmailPasswordForm({
       className="flex flex-col gap-3 text-left"
       onSubmit={(event) => {
         event.preventDefault()
-        if (canSubmit) onSubmit(email.trim(), password, accountSecret.trim() || undefined)
+        if (canSubmit) onSubmit(email.trim(), password)
       }}
     >
       <FormInput
@@ -70,26 +69,6 @@ export function EmailPasswordForm({
         <FieldFeedback visible={hasError} color="red">
           {errorMessage}
         </FieldFeedback>
-      </div>
-
-      <div>
-        <FormInput
-          id="login-account-secret"
-          label={t('accountSecret.loginLabel')}
-          type="password"
-          autoComplete="off"
-          value={accountSecret}
-          onChange={(event) => {
-            setAccountSecret(event.target.value)
-            if (hasError) onFieldChange()
-          }}
-          placeholder={t('accountSecret.loginPlaceholder')}
-          disabled={isPending}
-          error={hasError}
-        />
-        <p className="mt-1 text-micro text-[#6B7A8E]">
-          {t('accountSecret.loginHint')}
-        </p>
       </div>
 
       <AuthSubmitButton disabled={!canSubmit}>

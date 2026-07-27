@@ -1,8 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { deriveKey, RECOVERY_KEY_SALT_BYTES } from '../../shared/crypto/argon2'
 import {
-  deriveIdentityV2,
-  generateAccountSecret,
+  deriveIdentityV1,
   IDENTITY_KDF_PROFILE,
   IDENTITY_KDF_PROFILE_ID,
   IDENTITY_KDF_SALT_BYTES,
@@ -35,7 +34,6 @@ export interface RecoverInput {
 
 export interface RecoverResult {
   recoveryMnemonic: string[]
-  accountSecret: Uint8Array
 }
 
 export function useRecover() {
@@ -53,18 +51,15 @@ export function useRecover() {
       let recoveryKey: Uint8Array | null = null
       let newKdfSalt: Uint8Array | null = null
       let newRecoverySalt: Uint8Array | null = null
-      let accountSecret: Uint8Array | null = null
       let privateKey: Uint8Array | null = null
       let encryptedPrivateKeyByRecovery: Uint8Array | null = null
       let newRecoveryKey: Uint8Array | null = null
-      let identity: Awaited<ReturnType<typeof deriveIdentityV2>> | null = null
-      let succeeded = false
+      let identity: Awaited<ReturnType<typeof deriveIdentityV1>> | null = null
       try {
         recoverySalt = decodeBase64Url(account.recoverySalt, 64)
         recoveryKey = await deriveKey(joinMnemonic(recoveryMnemonic), recoverySalt)
         newKdfSalt = await randomBytes(IDENTITY_KDF_SALT_BYTES)
         newRecoverySalt = await randomBytes(RECOVERY_KEY_SALT_BYTES)
-        accountSecret = await generateAccountSecret()
         try {
           encryptedPrivateKeyByRecovery = decodeBase64Url(
             account.encryptedPrivateKeyByRecovery,
@@ -75,9 +70,8 @@ export function useRecover() {
           throw new InvalidRecoveryKeyError()
         }
 
-        identity = await deriveIdentityV2(
+        identity = await deriveIdentityV1(
           newPassword,
-          accountSecret,
           account.userId,
           newKdfSalt,
         )
@@ -105,8 +99,7 @@ export function useRecover() {
             : {}),
         })
 
-        succeeded = true
-        return { recoveryMnemonic: newRecoveryMnemonic, accountSecret }
+        return { recoveryMnemonic: newRecoveryMnemonic }
       } finally {
         if (recoverySalt) wipe(recoverySalt)
         if (recoveryKey) wipe(recoveryKey)
@@ -119,7 +112,6 @@ export function useRecover() {
           wipe(identity.authCredential)
           wipe(identity.masterKey)
         }
-        if (!succeeded && accountSecret) wipe(accountSecret)
       }
     },
     onSuccess: () => {

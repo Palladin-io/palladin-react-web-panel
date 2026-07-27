@@ -1,5 +1,5 @@
 import { useGoogleLogin } from '@react-oauth/google'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -8,10 +8,6 @@ import { useLogin } from '../hooks/use-login'
 import { usePasswordLogin } from '../hooks/use-password-login'
 import { EmailPasswordForm } from './email-password-form'
 import { TotpChallengeStep } from './totp-challenge-step'
-import { IdentityKdfMigrationStep } from './identity-kdf-migration-step'
-import { generateAccountSecret } from '../../../shared/crypto/identity-kdf'
-import { wipe } from '../../../shared/crypto/sodium'
-import { useIdentityKdfMigration } from '../hooks/use-identity-kdf-migration'
 
 const WELCOME_MESSAGE_KEYS = [
   'auth.welcomeLine1',
@@ -51,43 +47,15 @@ export function LoginPage() {
   const navigate = useNavigate()
   const oauth = useLogin()
   const { start, submitTotp } = usePasswordLogin()
-  const migrateKdf = useIdentityKdfMigration()
   const [tooltipTarget, setTooltipTarget] = useState<string | null>(null)
 
   // 'credentials' collects email + password; 'totp' handles the second factor.
   // The password is retained across the TOTP step (in memory only) so the
   // master key can be derived once the challenge clears.
-  const [step, setStep] = useState<'credentials' | 'totp' | 'migration'>('credentials')
-  const [pendingPassword, setPendingPassword] = useState('')
+  const [step, setStep] = useState<'credentials' | 'totp'>('credentials')
   const [challengeToken, setChallengeToken] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [totpError, setTotpError] = useState<string | null>(null)
-  const [migrationError, setMigrationError] = useState<string | null>(null)
-  const [migrationSecret, setMigrationSecret] = useState<Uint8Array | null>(null)
-  const migrationSecretRef = useRef<Uint8Array | null>(null)
-  const disposed = useRef(false)
-
-  useEffect(() => {
-    disposed.current = false
-    return () => {
-      disposed.current = true
-      if (migrationSecretRef.current) wipe(migrationSecretRef.current)
-      migrationSecretRef.current = null
-    }
-  }, [])
-
-  const beginLegacyMigration = async () => {
-    const secret = await generateAccountSecret()
-    if (disposed.current) {
-      wipe(secret)
-      return
-    }
-    if (migrationSecretRef.current) wipe(migrationSecretRef.current)
-    migrationSecretRef.current = secret
-    setMigrationSecret(secret)
-    setMigrationError(null)
-    setStep('migration')
-  }
 
   useEffect(() => {
     if (oauth.isError) toast.error(t('auth.errorSignInFailed'))
@@ -102,23 +70,16 @@ export function LoginPage() {
     },
   })
 
-  const handleCredentials = (
-    email: string,
-    password: string,
-    accountSecret?: string,
-  ) => {
+  const handleCredentials = (email: string, password: string) => {
     setPasswordError(null)
-    setPendingPassword(password)
     start.mutate(
-      { email, password, accountSecret },
+      { email, password },
       {
         onSuccess: (result) => {
           if (result.kind === 'totp') {
             setChallengeToken(result.challengeToken)
             setTotpError(null)
             setStep('totp')
-          } else if (result.legacyAccount) {
-            void beginLegacyMigration()
           } else {
             navigate({ to: '/' })
           }
@@ -131,12 +92,9 @@ export function LoginPage() {
   const handleTotp = (code: string) => {
     setTotpError(null)
     submitTotp.mutate(
-      { challengeToken, code, password: pendingPassword },
+      { challengeToken, code },
       {
-        onSuccess: (result) => {
-          if (result.legacyAccount) void beginLegacyMigration()
-          else navigate({ to: '/' })
-        },
+        onSuccess: () => navigate({ to: '/' }),
         onError: () => setTotpError(t('totpChallenge.errorInvalid')),
       },
     )
@@ -146,18 +104,6 @@ export function LoginPage() {
     setStep('credentials')
     setChallengeToken('')
     setTotpError(null)
-  }
-
-  const handleMigration = () => {
-    if (!migrationSecret || migrateKdf.isPending) return
-    setMigrationError(null)
-    migrateKdf.mutate(
-      { password: pendingPassword, accountSecret: migrationSecret },
-      {
-        onSuccess: () => navigate({ to: '/' }),
-        onError: () => setMigrationError(t('accountSecret.upgradeError')),
-      },
-    )
   }
 
   return (
@@ -176,14 +122,7 @@ export function LoginPage() {
 
           <RotatingWelcome />
 
-          {step === 'migration' && migrationSecret ? (
-            <IdentityKdfMigrationStep
-              accountSecret={migrationSecret}
-              isPending={migrateKdf.isPending}
-              error={migrationError}
-              onMigrate={handleMigration}
-            />
-          ) : step === 'totp' ? (
+          {step === 'totp' ? (
             <TotpChallengeStep
               isPending={submitTotp.isPending}
               errorMessage={totpError}

@@ -1,11 +1,9 @@
 import { argon2id } from 'hash-wasm'
-import { decodeBase64Url, encodeBase64Url, encodeUtf8 } from './vault-v2-bytes'
-import { randomBytes, wipe } from './sodium'
+import { decodeBase64Url, encodeUtf8 } from './vault-v2-bytes'
+import { wipe } from './sodium'
 
-export const IDENTITY_SECURITY_VERSION = 2
-export const IDENTITY_KDF_PROFILE_ID = 'identity-argon2id-account-secret-v2'
-export const LEGACY_IDENTITY_KDF_PROFILE_ID = 'identity-argon2id-legacy-v1'
-export const IDENTITY_ACCOUNT_SECRET_BYTES = 32
+export const IDENTITY_SECURITY_VERSION = 1
+export const IDENTITY_KDF_PROFILE_ID = 'identity-argon2id-password-v1'
 export const IDENTITY_KDF_SALT_BYTES = 16
 export const IDENTITY_MAXIMUM_PASSWORD_UTF8_BYTES = 1_024
 
@@ -16,7 +14,6 @@ export const IDENTITY_KDF_PROFILE = Object.freeze({
   iterations: 2,
   parallelism: 1,
   outputBytes: 32,
-  accountSecretRequired: true,
 })
 
 export interface IdentityKdfMetadata {
@@ -26,7 +23,6 @@ export interface IdentityKdfMetadata {
   memoryKiB: number
   iterations: number
   parallelism: number
-  accountSecretRequired: boolean
 }
 
 export interface IdentityKdfOutputs {
@@ -34,43 +30,13 @@ export interface IdentityKdfOutputs {
   masterKey: Uint8Array
 }
 
-const PASSWORD_DOMAIN = encodeUtf8('PLDNID2PW')
-const OUTPUT_SALT_DOMAIN = encodeUtf8('PLDNID2HK')
-const AUTH_INFO = encodeUtf8('palladin:identity:v2:auth-credential')
-const MASTER_KEY_INFO = encodeUtf8('palladin:identity:v2:master-key')
-
-function u16be(value: number): Uint8Array {
-  const bytes = new Uint8Array(2)
-  new DataView(bytes.buffer).setUint16(0, value, false)
-  return bytes
-}
-
-function u32be(value: number): Uint8Array {
-  const bytes = new Uint8Array(4)
-  new DataView(bytes.buffer).setUint32(0, value, false)
-  return bytes
-}
-
-function concat(...parts: Uint8Array[]): Uint8Array {
-  const output = new Uint8Array(parts.reduce((length, part) => length + part.length, 0))
-  let offset = 0
-  for (const part of parts) { output.set(part, offset); offset += part.length }
-  return output
-}
+const AUTH_INFO = encodeUtf8('palladin/identity/password-v1/auth-credential')
+const MASTER_KEY_INFO = encodeUtf8('palladin/identity/password-v1/master-key')
 
 function accountIdBytes(accountId: string): Uint8Array {
   const hex = accountId.replaceAll('-', '')
   if (!/^[0-9a-fA-F]{32}$/.test(hex)) throw new Error('Identity account ID must be an RFC 4122 UUID')
   return new Uint8Array(hex.match(/../g)!.map((value) => Number.parseInt(value, 16)))
-}
-
-async function hmacSha256(key: Uint8Array, input: Uint8Array): Promise<Uint8Array> {
-  const cryptoKey = await crypto.subtle.importKey('raw', new Uint8Array(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
-  return new Uint8Array(await crypto.subtle.sign('HMAC', cryptoKey, new Uint8Array(input)))
-}
-
-async function sha256(input: Uint8Array): Promise<Uint8Array> {
-  return new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(input)))
 }
 
 async function hkdfSha256(root: Uint8Array, salt: Uint8Array, info: Uint8Array): Promise<Uint8Array> {
@@ -84,23 +50,9 @@ export function assertIdentityKdfProfile(metadata: IdentityKdfMetadata): void {
     && metadata.memoryKiB === IDENTITY_KDF_PROFILE.memoryKiB
     && metadata.iterations === IDENTITY_KDF_PROFILE.iterations
     && metadata.parallelism === IDENTITY_KDF_PROFILE.parallelism
-    && metadata.accountSecretRequired === IDENTITY_KDF_PROFILE.accountSecretRequired
   if (!matches) throw new Error(metadata.securityVersion > IDENTITY_SECURITY_VERSION
     ? 'upgrade-required' : 'unsupported-kdf-profile')
   decodeBase64Url(metadata.kdfSalt, IDENTITY_KDF_SALT_BYTES)
-}
-
-export function encodeAccountSecret(accountSecret: Uint8Array): string {
-  if (accountSecret.length !== IDENTITY_ACCOUNT_SECRET_BYTES) throw new Error('Account Secret must be 32 bytes')
-  return encodeBase64Url(accountSecret)
-}
-
-export function decodeAccountSecret(value: string): Uint8Array {
-  return decodeBase64Url(value.trim(), IDENTITY_ACCOUNT_SECRET_BYTES)
-}
-
-export async function generateAccountSecret(): Promise<Uint8Array> {
-  return randomBytes(IDENTITY_ACCOUNT_SECRET_BYTES)
 }
 
 export function generateIdentityAccountId(): string {
@@ -114,26 +66,23 @@ export async function deriveIdentityOutputsFromRoot(
 ): Promise<IdentityKdfOutputs> {
   if (accountRoot.length !== 32 || kdfSalt.length !== IDENTITY_KDF_SALT_BYTES) throw new Error('Invalid Identity KDF input length')
   const id = accountIdBytes(accountId)
-  const saltInput = concat(OUTPUT_SALT_DOMAIN, u16be(IDENTITY_SECURITY_VERSION), id, kdfSalt)
-  const outputSalt = await sha256(saltInput)
   try {
     const [authCredential, masterKey] = await Promise.all([
-      hkdfSha256(accountRoot, outputSalt, AUTH_INFO),
-      hkdfSha256(accountRoot, outputSalt, MASTER_KEY_INFO),
+      hkdfSha256(accountRoot, id, AUTH_INFO),
+      hkdfSha256(accountRoot, id, MASTER_KEY_INFO),
     ])
     return { authCredential, masterKey }
   } finally {
-    wipe(id); wipe(saltInput); wipe(outputSalt)
+    wipe(id)
   }
 }
 
-export async function deriveIdentityV2(
+export async function deriveIdentityV1(
   password: string,
-  accountSecret: Uint8Array,
   accountId: string,
   kdfSalt: Uint8Array,
 ): Promise<IdentityKdfOutputs> {
-  if (accountSecret.length !== IDENTITY_ACCOUNT_SECRET_BYTES || kdfSalt.length !== IDENTITY_KDF_SALT_BYTES) {
+  if (kdfSalt.length !== IDENTITY_KDF_SALT_BYTES) {
     throw new Error('Invalid Identity KDF input length')
   }
   const passwordBytes = encodeUtf8(password)
@@ -141,13 +90,10 @@ export async function deriveIdentityV2(
     wipe(passwordBytes)
     throw new Error('password-too-long')
   }
-  const framed = concat(PASSWORD_DOMAIN, u16be(IDENTITY_SECURITY_VERSION), u32be(passwordBytes.length), passwordBytes)
-  let passwordPrehash: Uint8Array | undefined
   let accountRoot: Uint8Array | undefined
   try {
-    passwordPrehash = await hmacSha256(accountSecret, framed)
     accountRoot = await argon2id({
-      password: passwordPrehash,
+      password: passwordBytes,
       salt: kdfSalt,
       parallelism: IDENTITY_KDF_PROFILE.parallelism,
       iterations: IDENTITY_KDF_PROFILE.iterations,
@@ -157,8 +103,7 @@ export async function deriveIdentityV2(
     })
     return deriveIdentityOutputsFromRoot(accountRoot, accountId, kdfSalt)
   } finally {
-    wipe(passwordBytes); wipe(framed)
-    if (passwordPrehash) wipe(passwordPrehash)
+    wipe(passwordBytes)
     if (accountRoot) wipe(accountRoot)
   }
 }

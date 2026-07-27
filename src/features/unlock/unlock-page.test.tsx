@@ -100,7 +100,7 @@ describe('UnlockPage', () => {
     await user.click(screen.getByRole('button', { name: /^unlock$/i }))
 
     expect(mutateMock).toHaveBeenCalledWith(
-      { password: 'hunter2', accountSecret: undefined },
+      { password: 'hunter2' },
       expect.any(Object),
     )
     expect(analytics.capture).toHaveBeenCalledWith('unlock', 'vault-unlocked')

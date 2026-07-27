@@ -1,10 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { HTTPError } from 'ky'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { generateRecoveryMnemonic } from '../../../shared/lib/mnemonic'
-import { generateAccountSecret } from '../../../shared/crypto/identity-kdf'
-import { wipe } from '../../../shared/crypto/sodium'
 import { useRegister } from '../hooks/use-register'
 import {
   RegisterCredentialsStep,
@@ -13,10 +11,9 @@ import {
 import {
   RegisterRecoveryConfirmStep,
   RegisterRecoveryStep,
-  RegisterAccountSecretStep,
 } from './components/register-recovery-steps'
 
-type Step = 'credentials' | 'recovery' | 'confirm' | 'account-secret'
+type Step = 'credentials' | 'recovery' | 'confirm'
 
 /**
  * Email + password registration wizard.
@@ -36,28 +33,10 @@ export function RegisterPage() {
   const [step, setStep] = useState<Step>('credentials')
   const [credentials, setCredentials] = useState<RegisterCredentialsValues | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [accountSecret, setAccountSecret] = useState<Uint8Array | null>(null)
 
   // Generate the mnemonic once so stepping back to credentials and forward
   // again doesn't regenerate (and invalidate) the phrase being shown.
   const mnemonic = useMemo(() => generateRecoveryMnemonic(), [])
-
-  useEffect(() => {
-    let generated: Uint8Array | null = null
-    let disposed = false
-    void generateAccountSecret().then((value) => {
-      if (disposed) {
-        wipe(value)
-        return
-      }
-      generated = value
-      setAccountSecret(value)
-    })
-    return () => {
-      disposed = true
-      if (generated) wipe(generated)
-    }
-  }, [])
 
   const handleCredentials = (values: RegisterCredentialsValues) => {
     setCredentials(values)
@@ -66,7 +45,7 @@ export function RegisterPage() {
   }
 
   const handleCreate = () => {
-    if (!credentials || !accountSecret) {
+    if (!credentials) {
       setStep('credentials')
       return
     }
@@ -76,7 +55,6 @@ export function RegisterPage() {
         email: credentials.email,
         masterPassword: credentials.password,
         recoveryMnemonic: mnemonic,
-        accountSecret,
       },
       {
         onSuccess: () => navigate({ to: '/' }),
@@ -110,26 +88,13 @@ export function RegisterPage() {
     )
   }
 
-  if (step === 'account-secret') {
-    if (!accountSecret) return null
-    return (
-      <RegisterAccountSecretStep
-        accountSecret={accountSecret}
-        isSubmitting={register.isPending}
-        error={errorMessage}
-        onBack={() => setStep('confirm')}
-        onContinue={handleCreate}
-      />
-    )
-  }
-
   return (
     <RegisterRecoveryConfirmStep
       mnemonic={mnemonic}
       isSubmitting={register.isPending}
       error={errorMessage}
       onBack={() => setStep('recovery')}
-      onConfirmed={() => setStep('account-secret')}
+      onConfirmed={handleCreate}
     />
   )
 }

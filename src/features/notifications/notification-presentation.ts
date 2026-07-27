@@ -71,8 +71,6 @@ export interface CardPresentation {
 const FALLBACK = '—'
 
 function meta(item: NotificationItem, key: string): string | undefined {
-  if (key === 'entryLabel' || key === 'vaultName' || key === 'reason'
-    || key === 'revokeReason' || key === 'denyReason') return undefined
   return item.metadata?.[key] || undefined
 }
 

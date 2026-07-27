@@ -49,6 +49,10 @@ describe('notificationCardPresentation', () => {
       'notifications.card.rowMethods',
       'notifications.card.rowReason',
     ])
+    expect(card.rows[0].value).toEqual({
+      kind: 'entry', entry: 'GitHub Token', vault: 'Production',
+    })
+    expect(card.rows[2].value).toEqual({ kind: 'text', text: 'deploy pipeline' })
   })
 
   it('uses a red alert glyph + type title for credential_stale', () => {
@@ -88,7 +92,7 @@ describe('notificationCardPresentation', () => {
     const card = notificationCardPresentation(
       makeItem({ metadata: { entryLabel: 'AWS Key', vaultName: 'Infra' } }),
     )
-    expect(card.rows[0].value).toEqual({ kind: 'entry', entry: '—', vault: null })
+    expect(card.rows[0].value).toEqual({ kind: 'entry', entry: 'AWS Key', vault: 'Infra' })
   })
 
   it('falls back to a generic card for an unknown future type', () => {
@@ -186,7 +190,7 @@ describe('notificationCardPresentation', () => {
       'notifications.card.rowReason',
       'notifications.card.rowBy',
     ])
-    expect(card.rows[2].value).toEqual({ kind: 'text', text: '—' })
+    expect(card.rows[2].value).toEqual({ kind: 'text', text: 'CI deploy' })
     expect(card.rows[3].value).toEqual({ kind: 'text', text: 'Patryk R.' })
 
     // Reason falls back to em-dash when absent

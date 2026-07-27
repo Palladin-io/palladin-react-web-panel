@@ -3,7 +3,7 @@ import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { deriveKey } from '../../../shared/crypto/argon2'
-import { deriveIdentityV2 } from '../../../shared/crypto/identity-kdf'
+import { deriveIdentityV1 } from '../../../shared/crypto/identity-kdf'
 import { decodeBase64Url, encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { decryptWithKey, loadSodium } from '../../../shared/crypto/sodium'
 import type { RegisterPayload } from '../api/auth-api'
@@ -34,7 +34,6 @@ function wrapper({ children }: { children: ReactNode }) {
 
 const PASSWORD = 'correct horse battery staple'
 const MNEMONIC = Array.from({ length: 24 }, (_, i) => `word${i}`)
-const ACCOUNT_SECRET = Uint8Array.from({ length: 32 }, (_, index) => index + 1)
 
 describe('useRegister', () => {
   beforeEach(() => {
@@ -55,7 +54,6 @@ describe('useRegister', () => {
       email: 'user@example.com',
       masterPassword: PASSWORD,
       recoveryMnemonic: MNEMONIC,
-      accountSecret: ACCOUNT_SECRET,
     })
 
     expect(registerMock).toHaveBeenCalledTimes(1)
@@ -78,7 +76,6 @@ describe('useRegister', () => {
 
     // The plaintext password must never appear anywhere on the wire.
     expect(JSON.stringify(payload)).not.toContain(PASSWORD)
-    expect(JSON.stringify(payload)).not.toContain(encodeBase64Url(ACCOUNT_SECRET))
 
     // Session is established and the vault is unlocked in-memory.
     expect(setTokensMock).toHaveBeenCalledOnce()
@@ -91,15 +88,13 @@ describe('useRegister', () => {
       email: 'user@example.com',
       masterPassword: PASSWORD,
       recoveryMnemonic: MNEMONIC,
-      accountSecret: ACCOUNT_SECRET,
     })
     const payload = registerMock.mock.calls[0][0] as RegisterPayload
     const sodium = await loadSodium()
 
     const kdfSalt = decodeBase64Url(payload.kdfSalt, 16)
-    const identity = await deriveIdentityV2(
+    const identity = await deriveIdentityV1(
       PASSWORD,
-      ACCOUNT_SECRET,
       payload.accountId,
       kdfSalt,
     )

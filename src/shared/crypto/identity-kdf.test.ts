@@ -1,55 +1,61 @@
 import { describe, expect, it } from 'vitest'
 import { decodeBase64Url, encodeBase64Url } from './vault-v2-bytes'
-import { assertIdentityKdfProfile, deriveIdentityOutputsFromRoot, deriveIdentityV2,
-  IDENTITY_KDF_PROFILE, type IdentityKdfMetadata } from './identity-kdf'
+import {
+  assertIdentityKdfProfile,
+  deriveIdentityV1,
+  IDENTITY_KDF_PROFILE,
+  IDENTITY_KDF_PROFILE_ID,
+  IDENTITY_SECURITY_VERSION,
+} from './identity-kdf'
 import { wipe } from './sodium'
 
 const vector = {
-  password: 'Pālladin 🔐',
-  accountSecret: 'AQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyA',
-  accountId: '00112233-4455-6677-8899-aabbccddeeff',
-  kdfSalt: 'oKGio6SlpqeoqaqrrK2urw',
-  syntheticRoot: 'QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8',
-  authCredential: 'GfluE1P0DH4qBYvrGx8brXYLcWd-vkER1h3Pwbn5LgI',
-  masterKey: '-H5RzHzdhlwaNS-KDaUgeHWhH-DODMBcZYeN2pUqc2k',
+  password: 'Pąssw🔐rd-密碼-v1',
+  accountId: '00112233-4455-4677-8899-aabbccddeeff',
+  kdfSalt: 'AAECAwQFBgcICQoLDA0ODw',
+  accountRoot: '5NWVu_9TkyrsWRtZhENZzDYTeSUcLnMYIFGBzv_8_eg',
+  authCredential: 'aRKTmLFcaSbzQy83MTRpf5PfLSjeBLGQP4HVpEudV7I',
+  masterKey: 'HtGyf-Z7BvE39e66VcP2bztQ0BBKmfzvBGCp_nLiXbk',
 }
 
-function metadata(overrides: Partial<IdentityKdfMetadata> = {}): IdentityKdfMetadata {
-  return { ...IDENTITY_KDF_PROFILE, kdfSalt: vector.kdfSalt, ...overrides }
-}
-
-describe('Identity KDF v2', () => {
-  it('reproduces the frozen output-domain vector byte-for-byte', async () => {
-    const root = decodeBase64Url(vector.syntheticRoot, 32)
+describe('Identity password KDF v1', () => {
+  it('matches the frozen backend vector byte-for-byte', async () => {
     const salt = decodeBase64Url(vector.kdfSalt, 16)
-    const result = await deriveIdentityOutputsFromRoot(root, vector.accountId, salt)
+    const result = await deriveIdentityV1(vector.password, vector.accountId, salt)
     try {
       expect(encodeBase64Url(result.authCredential)).toBe(vector.authCredential)
       expect(encodeBase64Url(result.masterKey)).toBe(vector.masterKey)
-    } finally { wipe(root); wipe(salt); wipe(result.authCredential); wipe(result.masterKey) }
+    } finally {
+      wipe(salt)
+      wipe(result.authCredential)
+      wipe(result.masterKey)
+    }
   })
 
-  it('runs the registered Argon2id profile once and domain-separates both outputs', async () => {
-    const secret = decodeBase64Url(vector.accountSecret, 32)
-    const salt = decodeBase64Url(vector.kdfSalt, 16)
-    const result = await deriveIdentityV2(vector.password, secret, vector.accountId, salt)
-    try {
-      expect(result.authCredential).toHaveLength(32)
-      expect(result.masterKey).toHaveLength(32)
-      expect(result.authCredential).not.toEqual(result.masterKey)
-    } finally { wipe(secret); wipe(salt); wipe(result.authCredential); wipe(result.masterKey) }
+  it('accepts only the frozen password-only profile', () => {
+    expect(() => assertIdentityKdfProfile({
+      profileId: IDENTITY_KDF_PROFILE_ID,
+      securityVersion: IDENTITY_SECURITY_VERSION,
+      kdfSalt: vector.kdfSalt,
+      memoryKiB: IDENTITY_KDF_PROFILE.memoryKiB,
+      iterations: IDENTITY_KDF_PROFILE.iterations,
+      parallelism: IDENTITY_KDF_PROFILE.parallelism,
+    })).not.toThrow()
+    expect(() => assertIdentityKdfProfile({
+      profileId: 'identity-argon2id-password-v3',
+      securityVersion: 3,
+      kdfSalt: vector.kdfSalt,
+      memoryKiB: IDENTITY_KDF_PROFILE.memoryKiB,
+      iterations: IDENTITY_KDF_PROFILE.iterations,
+      parallelism: IDENTITY_KDF_PROFILE.parallelism,
+    })).toThrow('upgrade-required')
   })
 
-  it.each([
-    { memoryKiB: 19_456 }, { iterations: 1 }, { parallelism: 4 },
-    { profileId: 'unknown' }, { securityVersion: 3 }, { accountSecretRequired: false },
-  ])('rejects an unregistered server profile before derivation: %o', (override) => {
-    expect(() => assertIdentityKdfProfile(metadata(override))).toThrow()
-  })
-
-  it('rejects passwords above the byte limit before Argon2 allocation', async () => {
-    const secret = new Uint8Array(32)
-    const salt = new Uint8Array(16)
-    await expect(deriveIdentityV2('ą'.repeat(513), secret, vector.accountId, salt)).rejects.toThrow('password-too-long')
+  it('rejects passwords above the UTF-8 byte limit', async () => {
+    await expect(deriveIdentityV1(
+      'ą'.repeat(513),
+      vector.accountId,
+      new Uint8Array(16),
+    )).rejects.toThrow('password-too-long')
   })
 })

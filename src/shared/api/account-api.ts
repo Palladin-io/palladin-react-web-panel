@@ -145,22 +145,6 @@ export function changeMasterPassword(
   return api.put('api/account/password', { json: payload }).json<void>()
 }
 
-export interface MigrateIdentityKdfPayload {
-  migrationId: string
-  sourceSecurityVersion: number
-  baseCredentialRevision: number
-  basePrivateKeyWrapRevision: number
-  targetProfileId: string
-  currentAuthCredential: string
-  newAuthCredential: string
-  newKdfSalt: string
-  newEncryptedPrivateKey: string
-}
-
-export function migrateIdentityKdf(payload: MigrateIdentityKdfPayload): Promise<void> {
-  return api.post('api/account/kdf/migrations', { json: payload }).json<void>()
-}
-
 /**
  * Payload for the idempotent default-vault creation endpoint.
  * Same fields as a regular vault creation; the server enforces the

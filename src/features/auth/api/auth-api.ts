@@ -10,10 +10,9 @@ export function oauthGoogle(token: string): Promise<AuthResponse> {
 
 /**
  * Registration payload. Reuses the `SetupAccount` crypto material verbatim
- * The v2 client derives one Argon2id account root from password + Account
- * Secret, then domain-separates an authentication credential and master key.
- * Only the authentication credential and opaque wrapped key material cross
- * the network. The Account Secret, account root and master key never do.
+ * The v3 client derives one Argon2id account root from the password, then
+ * domain-separates an authentication credential and master key. Only the
+ * authentication credential and opaque wrapped key material cross the network.
  */
 export interface RegisterPayload {
   accountId: string
@@ -61,7 +60,6 @@ export interface LoginKdfBootstrap {
   memoryKiB: number
   iterations: number
   parallelism: number
-  accountSecretRequired: boolean
 }
 
 export function fetchLoginKdf(
