@@ -54,6 +54,8 @@ export interface AccountResponse {
    * the recovery flow to re-wrap the private key with a new MK.
    */
   encryptedPrivateKeyByRecovery?: string
+  /** Version of the in-memory X25519 Member recipient key. */
+  memberKeyVersion?: number
 }
 
 export interface SetupAccountPayload {
@@ -139,15 +141,7 @@ export function changeMasterPassword(
  * Same fields as a regular vault creation; the server enforces the
  * one-per-account rule and returns 409 if one already exists.
  */
-export interface DefaultVaultPayload {
-  name: string
-  description?: string
-  icon?: string
-  color?: string
-  grantMode: number
-  /** base64-encoded sealed-box vault key (same as CreateVaultPayload). */
-  wrappedVK: string
-}
+export type DefaultVaultPayload = import('../crypto/create-vault-protocol').CreateVaultProtocolPayload
 
 /**
  * POST /api/account/default-vault — creates the user's default vault.

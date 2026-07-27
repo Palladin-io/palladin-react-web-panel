@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
@@ -37,9 +36,6 @@ import { ScriptExecHint } from './script-exec-hint'
 import { ScriptRefsEditor } from './script-refs-editor'
 import { SectionHeader } from './section-header'
 import { useCreateEntry } from '../use-create-entry'
-import { entriesQueryKey } from '../use-entries'
-import { extensionFromMime } from '../use-vault-icon-upload'
-import { presignEntryIcon, updateEntry, uploadToS3 } from '../api/vault-api'
 import { extractDomain, openExternalUrl } from './entry-presentation'
 import { defaultColorFor, defaultIconFor } from './entry-presentation'
 import { resolveFavicon } from '../api/vault-api'
@@ -70,7 +66,6 @@ interface CreateEntryModalBodyProps {
 function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const { t } = useTranslation()
   const create = useCreateEntry()
-  const queryClient = useQueryClient()
 
   const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
   const [color, setColor] = useState(defaultColorFor(ENTRY_TYPE_KEY))
@@ -165,15 +160,9 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       refs,
     })
 
-    if (!vault.wrappedVK) {
-      toast.error(t('vault.entries.errorMissingVaultKey'))
-      return
-    }
-
     create.mutate(
       {
         vaultId: vault.id,
-        wrappedVK: vault.wrappedVK,
         label: label.trim(),
         description: description.trim() || undefined,
         // Custom image uploaded after creation — send no icon so the list
@@ -186,18 +175,9 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         agentFields: agentFieldsFrom(allFields),
       },
       {
-        onSuccess: async (data) => {
-          if (pendingIconFile) {
-            try {
-              const ext = extensionFromMime(pendingIconFile.type)
-              const { uploadUrl, publicUrl } = await presignEntryIcon(vault.id, data.id, ext)
-              await uploadToS3(uploadUrl, pendingIconFile)
-              await updateEntry(vault.id, data.id, { icon: publicUrl })
-              queryClient.invalidateQueries({ queryKey: entriesQueryKey(vault.id) })
-            } catch {
-              // Icon upload failed — entry was created, proceed without custom icon
-            }
-          }
+        onSuccess: async () => {
+          // Custom image assets need an encrypted-asset envelope. Until that
+          // endpoint lands, creation deliberately keeps the selected glyph.
           analytics.capture('vault', 'create-entry-wizard-completed', { type })
           toast.success(t('vault.entries.createSuccess'))
           onClose()
@@ -210,7 +190,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     )
   }
 
-  const visibleNote = <>· {t('vault.entries.agentVisibleNote')}</>
+  const visibleNote = <>· {t('vault.entries.agentAccessNote')}</>
 
   return (
     <ModalShell

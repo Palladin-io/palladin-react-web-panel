@@ -1,7 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { sealVaultKey } from '../../shared/crypto/vault-key'
+import { getAccount } from '../../shared/api/account-api'
+import { createVaultProtocolPayload } from '../../shared/crypto/create-vault-protocol'
+import { parseJwtPayload } from '../../shared/lib/jwt'
 import { useAuthStore } from '../auth'
-import { createVault } from './api/vault-api'
+import { createVault, issueVaultCreationChallenge } from './api/vault-api'
 import type { CreateVaultInput } from './types'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 
@@ -28,13 +30,33 @@ export function useCreateVault() {
       // Read the private key inside the mutation (not at hook level) so we
       // pick up the latest value at click time — `unlockVault` may have
       // populated it after the hook was first instantiated.
-      const privateKey = useAuthStore.getState().privateKey
-      if (!privateKey) {
+      const { privateKey, accessToken, userId } = useAuthStore.getState()
+      if (!privateKey || !accessToken || !userId) {
         throw new VaultLockedError()
       }
-
-      const wrappedVK = await sealVaultKey(privateKey)
-      return createVault({ ...input, wrappedVK })
+      const organizationId = parseJwtPayload(accessToken)['org_id']
+      if (typeof organizationId !== 'string') throw new Error('Authenticated organization is missing')
+      const [challenge, account] = await Promise.all([
+        issueVaultCreationChallenge(),
+        getAccount(),
+      ])
+      if (!account.memberKeyVersion) throw new Error('Member key version is missing')
+      const payload = await createVaultProtocolPayload({
+        vaultId: challenge.vaultId,
+        organizationId,
+        memberId: userId,
+        memberKeyVersion: account.memberKeyVersion,
+        memberPrivateKey: privateKey,
+        metadata: {
+          schema: 'palladin.member-vault-metadata.v1',
+          name: input.name.normalize('NFC'),
+          description: input.description?.normalize('NFC') ?? null,
+          icon: input.icon ? { kind: 'glyph', value: input.icon.normalize('NFC') } : null,
+          color: input.color?.toUpperCase() ?? null,
+          grantMode: input.grantMode === 1 ? 'full' : 'granular',
+        },
+      })
+      return createVault(payload)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })

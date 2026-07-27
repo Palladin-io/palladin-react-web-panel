@@ -163,6 +163,7 @@ export function NotificationCenterPage({
     approve.mutate(
       {
         grantId: approveTarget.grantId,
+        agentId: approveTarget.agentId,
         vaultId: approveTarget.vaultId,
         entryId: approveTarget.entryId,
         agentPublicKey: approveTarget.agentPublicKey,

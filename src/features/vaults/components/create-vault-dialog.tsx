@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FormInput } from '../../../shared/components/form-field'
@@ -8,9 +7,6 @@ import { FormTextarea } from '../../../shared/components/form-textarea'
 import { analytics } from '../../../shared/lib/analytics'
 import { GRANT_MODE_GRANULAR } from '../types'
 import { useCreateVault } from '../use-create-vault'
-import { extensionFromMime } from '../use-vault-icon-upload'
-import { VAULTS_QUERY_KEY } from '../use-vaults'
-import { presignVaultIcon, uploadToS3, updateVault } from '../api/vault-api'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { VaultIconPicker } from './vault-icon-picker'
@@ -47,7 +43,6 @@ interface CreateVaultDialogBodyProps {
 function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProps) {
   const { t } = useTranslation()
   const create = useCreateVault()
-  const queryClient = useQueryClient()
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -87,17 +82,8 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
       },
       {
         onSuccess: async (vault) => {
-          if (pendingIconFile) {
-            try {
-              const ext = extensionFromMime(pendingIconFile.type)
-              const { uploadUrl, publicUrl } = await presignVaultIcon(vault.id, ext)
-              await uploadToS3(uploadUrl, pendingIconFile)
-              await updateVault(vault.id, { icon: publicUrl })
-              queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
-            } catch {
-              // Icon upload failed — vault was created, proceed without custom icon
-            }
-          }
+          // Remote presentation URLs are forbidden by Vault v2. Custom assets
+          // stay disabled until the encrypted-asset container upload lands.
           analytics.capture('vault', 'create-wizard-completed')
           onCreated?.(vault.id)
           onClose()
@@ -166,4 +152,3 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
     </ModalShell>
   )
 }
-

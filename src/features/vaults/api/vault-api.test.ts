@@ -8,8 +8,21 @@ const postFn = vi.hoisted(() => vi.fn(() => Promise.resolve({ text: postText }))
 vi.mock('../../../shared/api/client', () => ({
   api: { get: getFn, post: postFn },
 }))
+vi.mock('../../../shared/crypto/entry-protocol', () => ({
+  openMemberIndex: vi.fn(async (value: { plaintext: unknown }) => value.plaintext),
+}))
 
 import { getAllEntries, importEntries } from './vault-api'
+
+function encryptedListItem(id: string, memberLabel: string, entryType: 'key' | 'credential') {
+  return {
+    id, currentRevision: '1', memberIndexRevision: '1', createdAt: '', updatedAt: '',
+    memberIndex: {
+      descriptor: { scope: { organizationId: 'org-1', vaultId: 'vault-1', entryId: id } },
+      plaintext: { memberLabel, entryType, description: null, icon: null, color: null, urlDomain: null },
+    },
+  }
+}
 
 describe('getAllEntries', () => {
   beforeEach(() => {
@@ -20,15 +33,15 @@ describe('getAllEntries', () => {
   it('follows nextCursor across pages and concatenates every entry', async () => {
     getJson
       .mockResolvedValueOnce({
-        items: [{ id: 'e1', label: 'One', type: 'credential' }],
+        items: [encryptedListItem('e1', 'One', 'credential')],
         nextCursor: 'CURSOR_2',
       })
       .mockResolvedValueOnce({
-        items: [{ id: 'e2', label: 'Two', type: 'key' }],
+        items: [encryptedListItem('e2', 'Two', 'key')],
         nextCursor: undefined,
       })
 
-    const all = await getAllEntries('vault-1')
+    const all = await getAllEntries('vault-1', new Uint8Array(32))
 
     expect(all.map((e) => e.id)).toEqual(['e1', 'e2'])
     // Second request must carry the cursor from the first page.
@@ -41,8 +54,8 @@ describe('getAllEntries', () => {
   })
 
   it('returns a single page when there is no next cursor', async () => {
-    getJson.mockResolvedValueOnce({ items: [{ id: 'e1', label: 'Solo', type: 'key' }] })
-    const all = await getAllEntries('vault-1')
+    getJson.mockResolvedValueOnce({ items: [encryptedListItem('e1', 'Solo', 'key')] })
+    const all = await getAllEntries('vault-1', new Uint8Array(32))
     expect(all).toHaveLength(1)
     expect(getFn).toHaveBeenCalledTimes(1)
   })

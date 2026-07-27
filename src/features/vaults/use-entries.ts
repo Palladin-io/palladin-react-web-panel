@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { getAllEntries, getEntries, getEntry } from './api/vault-api'
+import { useAuthStore } from '../auth'
 
 export function entriesQueryKey(vaultId: string) {
   return ['vaults', vaultId, 'entries'] as const
@@ -21,9 +22,14 @@ export function entryDetailQueryKey(vaultId: string, entryId: string) {
  * conflict detection) use {@link useAllEntries} / `getAllEntries`.
  */
 export function useEntriesInfinite(vaultId: string) {
+  const vaultKey = useAuthStore((state) => state.vaultKeys[vaultId] ?? null)
   return useInfiniteQuery({
     queryKey: entriesQueryKey(vaultId),
-    queryFn: ({ pageParam }) => getEntries(vaultId, pageParam),
+    queryFn: ({ pageParam }) => {
+      if (!vaultKey) throw new Error('Vault is locked')
+      return getEntries(vaultId, new Uint8Array(vaultKey), pageParam)
+    },
+    enabled: vaultKey !== null,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
     staleTime: 30_000,
@@ -37,10 +43,14 @@ export function useEntriesInfinite(vaultId: string) {
  * {@link useEntries} cache.
  */
 export function useAllEntries(vaultId: string, enabled = true) {
+  const vaultKey = useAuthStore((state) => state.vaultKeys[vaultId] ?? null)
   return useQuery({
     queryKey: allEntriesQueryKey(vaultId),
-    queryFn: () => getAllEntries(vaultId),
-    enabled,
+    queryFn: () => {
+      if (!vaultKey) throw new Error('Vault is locked')
+      return getAllEntries(vaultId, new Uint8Array(vaultKey))
+    },
+    enabled: enabled && vaultKey !== null,
     staleTime: 30_000,
   })
 }
@@ -56,10 +66,14 @@ export function useEntryDetail(
   entryId: string,
   enabled: boolean,
 ) {
+  const vaultKey = useAuthStore((state) => state.vaultKeys[vaultId] ?? null)
   return useQuery({
     queryKey: entryDetailQueryKey(vaultId, entryId),
-    queryFn: () => getEntry(vaultId, entryId),
-    enabled,
+    queryFn: () => {
+      if (!vaultKey) throw new Error('Vault is locked')
+      return getEntry(vaultId, entryId, new Uint8Array(vaultKey))
+    },
+    enabled: enabled && vaultKey !== null,
     // Reveal-only — keep the blob in cache for the rest of the session
     // so toggling visibility doesn't refetch. Closing the tab still
     // wipes everything because TanStack Query lives in-memory only.

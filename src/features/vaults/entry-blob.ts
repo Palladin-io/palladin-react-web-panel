@@ -138,9 +138,9 @@ export function foldCustomFields(fields: CustomField[]): CustomField[] | undefin
     } else if (typeof field.value === 'string') {
       const value = field.value.trim()
       if (!value) continue
-      // `agentVisible` only rides along on the text-ish types that may be exposed.
-      const agentVisible = field.agentVisible && canBeAgentVisible(field.type) ? true : undefined
-      folded.push({ id: field.id, label, type: field.type, value, ...(agentVisible ? { agentVisible } : {}) })
+      // `agentDiscoverable` only rides along on the text-ish types that may be exposed.
+      const agentAccess = canBeAgentVisible(field.type) ? field.agentAccess : undefined
+      folded.push({ id: field.id, label, type: field.type, value, ...(agentAccess ? { agentAccess } : {}) })
     } else {
       folded.push({ ...field, label })
     }
@@ -165,7 +165,7 @@ export function agentFieldsFrom(
 ): { label: string; value: string }[] | undefined {
   const out: { label: string; value: string }[] = []
   for (const field of fields) {
-    if (!field.agentVisible || !canBeAgentVisible(field.type)) continue
+    if (field.agentAccess !== 'discovery' || !canBeAgentVisible(field.type)) continue
     if (typeof field.value !== 'string') continue
     const label = field.label.trim()
     const value = field.value.trim()

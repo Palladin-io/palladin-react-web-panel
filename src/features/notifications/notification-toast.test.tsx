@@ -71,16 +71,11 @@ describe('showNotificationToast', () => {
     showNotificationToast(
       payload('grant_approved', { agentName: 'Bot', vaultName: 'Prod', grantType: 'full' }),
     )
-    // description = divider span wrapping a <Trans> — assert the Trans i18nKey.
-    expect(success.mock.calls[0][1].description.props.children[1].props.children.props.i18nKey).toBe(
-      'notifications.grantApproved.bodyFull',
-    )
+    expect(success.mock.calls[0][1].description.props.children[1].props.children).toBe('ServerBody')
   })
 
   it('picks the GRANULAR body variant when an entry is present', () => {
     showNotificationToast(payload('grant_approved', FULL_DATA))
-    expect(success.mock.calls[0][1].description.props.children[1].props.children.props.i18nKey).toBe(
-      'notifications.grantApproved.body',
-    )
+    expect(success.mock.calls[0][1].description.props.children[1].props.children).toBe('ServerBody')
   })
 })

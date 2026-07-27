@@ -56,7 +56,7 @@ describe('EntryRow — copy vs reveal', () => {
     // Detail (encrypted blob) is available once fetched; the row's own
     // `wantDetail` gate decides when to decrypt.
     useEntryDetailMock.mockReturnValue({
-      data: { ...KEY_ENTRY, content: { encryptedBlob: 'CIPHER', nonce: 'NONCE' } },
+      data: { ...KEY_ENTRY, plaintext: { type: ENTRY_TYPE_KEY, value: 'sk_live_secret' } },
       isPending: false,
     })
     decryptEntryMock.mockResolvedValue({ type: ENTRY_TYPE_KEY, value: 'sk_live_secret' })
@@ -65,7 +65,7 @@ describe('EntryRow — copy vs reveal', () => {
   })
 
   it('copies the secret WITHOUT opening the reveal panel', async () => {
-    render(<EntryRow vaultId="vault-1" wrappedVK="WRAPPED" entry={KEY_ENTRY} />)
+    render(<EntryRow vaultId="vault-1" entry={KEY_ENTRY} />)
 
     // Reveal panel is closed: its Hide toggle must not be present yet.
     expect(screen.queryByRole('button', { name: /hide/i })).not.toBeInTheDocument()
@@ -80,7 +80,7 @@ describe('EntryRow — copy vs reveal', () => {
 
   it('opens the reveal panel only when the reveal action is clicked', async () => {
     const user = userEvent.setup()
-    render(<EntryRow vaultId="vault-1" wrappedVK="WRAPPED" entry={KEY_ENTRY} />)
+    render(<EntryRow vaultId="vault-1" entry={KEY_ENTRY} />)
 
     await user.click(screen.getByRole('button', { name: /^reveal$/i }))
 

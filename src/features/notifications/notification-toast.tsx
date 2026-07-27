@@ -26,6 +26,10 @@ export function showNotificationToast(
    *  dev toast showcase so every variant can be styled side by side. */
   durationMs?: number,
 ) {
+  const { entryLabel: _entryLabel, vaultName: _vaultName, reason: _reason,
+    revokeReason: _revokeReason, denyReason: _denyReason, ...structuralData } = payload.data
+  void _entryLabel; void _vaultName; void _reason; void _revokeReason; void _denyReason
+  payload = { ...payload, data: structuralData }
   const { type } = payload
 
   // agent_resolved is an invisible collapse marker; agent_approved and

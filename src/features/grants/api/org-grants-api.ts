@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
-import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
 
 /**
  * Grant lifecycle status — camelCase strings matching the backend
@@ -38,7 +37,6 @@ export type GrantType = typeof GRANT_TYPE_FULL | typeof GRANT_TYPE_GRANULAR
 const orgGrantSchema = z.object({
   id: z.string(),
   vaultId: z.string(),
-  vaultName: z.string().nullable().optional(),
   agentId: z.string().nullable().optional(),
   agentName: z.string().nullable().optional(),
   // Agent's chosen icon — a Material glyph name or an uploaded S3 URL. Lets the
@@ -53,8 +51,6 @@ const orgGrantSchema = z.object({
   // pre-methods backends; the badge is hidden when absent/empty.
   methods: z.string().nullable().optional(),
   entryId: z.string().nullable().optional(),
-  entryLabel: z.string().nullable().optional(),
-  reason: z.string().nullable().optional(),
   expiresAt: z.string().nullable().optional(),
   queryLimit: z.number().nullable().optional(),
   queryCount: z.number().nullable().optional(),
@@ -63,8 +59,6 @@ const orgGrantSchema = z.object({
   createdByName: z.string().nullable().optional(),
   revokedByName: z.string().nullable().optional(),
   deniedByName: z.string().nullable().optional(),
-  revokeReason: z.string().nullable().optional(),
-  denyReason: z.string().nullable().optional(),
   lastAccessedAt: z.string().nullable().optional(),
   lastAccessIp: z.string().nullable().optional(),
   lastAccessHostname: z.string().nullable().optional(),
@@ -76,7 +70,13 @@ const orgGrantSchema = z.object({
   canGrantAgain: z.boolean().optional().default(false),
 })
 
-export type OrgGrant = z.infer<typeof orgGrantSchema>
+export type OrgGrant = z.infer<typeof orgGrantSchema> & {
+  vaultName?: string | null
+  entryLabel?: string | null
+  reason?: string | null
+  revokeReason?: string | null
+  denyReason?: string | null
+}
 
 const orgGrantPageSchema = z.object({
   items: z.array(z.unknown()),
@@ -112,7 +112,8 @@ export async function getOrgGrants(
   if (params.agentId) searchParams.set('agentId', params.agentId)
   if (params.vaultId) searchParams.set('vaultId', params.vaultId)
   if (params.entryId) searchParams.set('entryId', params.entryId)
-  if (params.query) searchParams.set('query', params.query)
+  // Free-text search is local-only: user text and decrypted presentation
+  // metadata must never be sent to the grants API.
   if (params.cursor) searchParams.set('cursor', params.cursor)
   if (params.pageSize) searchParams.set('pageSize', String(params.pageSize))
 
@@ -136,6 +137,10 @@ export async function getOrgGrants(
 export interface ActiveFullGrant {
   grantId: string
   agentPublicKey: string
+  agentId: string
+  methods: string | null | undefined
+  expiresAt: string | null | undefined
+  remainingUses: number | undefined
 }
 
 /**
@@ -158,8 +163,10 @@ export async function collectActiveFullGrants(
       pageSize: 100,
     })
     for (const grant of page.items) {
-      if (grant.type === GRANT_TYPE_FULL && grant.agentPublicKey) {
-        grants.push({ grantId: grant.id, agentPublicKey: grant.agentPublicKey })
+      if (grant.type === GRANT_TYPE_FULL && grant.agentPublicKey && grant.agentId) {
+        grants.push({ grantId: grant.id, agentPublicKey: grant.agentPublicKey, agentId: grant.agentId,
+          methods: grant.methods, expiresAt: grant.expiresAt,
+          remainingUses: grant.queryLimit == null ? undefined : grant.queryLimit - (grant.queryCount ?? 0) })
       }
     }
     cursor = page.nextCursor ?? undefined
@@ -171,12 +178,10 @@ export async function collectActiveFullGrants(
 export async function revokeGrant(
   vaultId: string,
   grantId: string,
-  reason?: string,
+  _reason?: string,
 ): Promise<void> {
-  const trimmed = reason?.trim()
-  await api.delete(`api/vaults/${vaultId}/grants/${grantId}`, {
-    json: trimmed ? { reason: trimmed } : {},
-  })
+  void _reason
+  await api.delete(`api/vaults/${vaultId}/grants/${grantId}`)
 }
 
 /**
@@ -188,10 +193,11 @@ export async function revokeGrant(
  * - FULL: `entryId` omitted + `grantEntries` covering every vault entry.
  */
 export interface CreateGrantBody {
+  grantId: string
   agentId: string
   type: GrantType
   entryId?: string
-  grantEntries: ({ entryId: string } & GrantEntryEnvelope)[]
+  grantEntries: unknown[]
   expiresAt?: string
   queryLimit?: number
   /** Combined-flags string of permitted methods, e.g. "Exec, Inject" (CVT-149). */

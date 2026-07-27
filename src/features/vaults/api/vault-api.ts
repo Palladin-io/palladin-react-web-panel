@@ -1,21 +1,24 @@
 import { api } from '../../../shared/api/client'
-import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
+import type { CreateVaultProtocolPayload } from '../../../shared/crypto/create-vault-protocol'
+import { openVaultProjection, type EncryptedVaultProjection } from '../../../shared/crypto/vault-protocol'
+import { deriveVaultSubkey } from '../../../shared/crypto/hkdf'
+import { assertEnvelopeScope, openVaultEnvelope, toEnvelopeDescriptor, type VaultEnvelopeContract } from '../../../shared/crypto/vault-envelope'
+import { ENVELOPE_PURPOSE } from '../../../shared/crypto/envelope'
+import { wipe } from '../../../shared/crypto/sodium'
+import type { VaultKeyBinding } from '../../../shared/crypto/entry-protocol'
+import { openMemberIndex, openMemberSecret, type EmptyBinding, type MemberSecretBinding } from '../../../shared/crypto/entry-protocol'
 import { normalizeEntryType } from '../types'
 import type {
-  CreateEntryPayload,
-  CreateVaultInput,
-  EntryContent,
   EntryDetail,
   EntryListItem,
-  EntryType,
   GrantMode,
-  UpdateVaultInput,
   Vault,
   VaultSummary,
 } from '../types'
 
 export interface VaultListResponse {
   vaults: VaultSummary[]
+  total?: number
 }
 
 /**
@@ -24,21 +27,80 @@ export interface VaultListResponse {
  * 32-byte VK to the user's X25519 public key. The server never sees the
  * raw VK; it just stores the wrapped blob alongside the metadata.
  */
-export interface CreateVaultPayload extends CreateVaultInput {
-  /** base64-encoded sealed-box ciphertext: `crypto_box_seal(VK, userPubKey)`. */
-  wrappedVK: string
+export type CreateVaultPayload = CreateVaultProtocolPayload
+
+export interface VaultCreationChallenge { vaultId: string; expiresAt: string }
+
+export function issueVaultCreationChallenge(): Promise<VaultCreationChallenge> {
+  return api.post('api/vaults/creation-challenges').json<VaultCreationChallenge>()
 }
 
-export function getVaults(): Promise<VaultListResponse> {
-  return api.get('api/vaults').json<VaultListResponse>()
+interface EncryptedVaultSummary extends EncryptedVaultProjection {
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+  memberCount: number
+  entryCount: number
+  activeGrantCount: number
+  discoveryKey?: VaultEnvelopeContract<VaultKeyBinding>
+  currentKeyEpoch: Vault['currentKeyEpoch']
+  vaultPrivateKeys?: Vault['vaultPrivateKeys']
 }
 
-export function getVault(id: string): Promise<Vault> {
-  return api.get(`api/vaults/${id}`).json<Vault>()
+interface VaultKeySink { vaultKey(id: string, key: Uint8Array): void; discoveryKey(id: string, key: Uint8Array): void }
+
+async function openVaultSummary(encrypted: EncryptedVaultSummary, privateKey: Uint8Array, memberId: string, sink: VaultKeySink): Promise<Vault> {
+  const opened = await openVaultProjection(encrypted, privateKey, memberId)
+  sink.vaultKey(encrypted.id, opened.vaultKey)
+  if (encrypted.discoveryKey) {
+    assertEnvelopeScope(encrypted.discoveryKey.descriptor, {
+      purpose: ENVELOPE_PURPOSE.vaultDiscoveryKeyByVk,
+      organizationId: encrypted.organizationId,
+      vaultId: encrypted.id,
+    })
+    if (encrypted.discoveryKey.descriptor.memberKeyGeneration !== encrypted.memberKeyGeneration) {
+      throw new Error('Vault Discovery-key envelope does not match the outer Vault generation')
+    }
+    const descriptor = toEnvelopeDescriptor(encrypted.discoveryKey.descriptor)
+    const wrappingKey = await deriveVaultSubkey(opened.vaultKey, {
+      protocolVersion: descriptor.protocolVersion, cryptoSuiteId: descriptor.cryptoSuiteId,
+      purpose: descriptor.purpose, organizationId: descriptor.organizationId, vaultId: descriptor.vaultId,
+      keyVersion: descriptor.keyVersion, memberKeyGeneration: descriptor.memberKeyGeneration,
+    })
+    try {
+      const vdk = await openVaultEnvelope(encrypted.discoveryKey, wrappingKey, {
+        wrappingVkVersion: encrypted.discoveryKey.descriptor.binding.wrappingVaultKeyVersion,
+      })
+      try { sink.discoveryKey(encrypted.id, vdk) } finally { wipe(vdk) }
+    } finally { wipe(wrappingKey) }
+  }
+  opened.vaultKey.fill(0)
+  return {
+    id: encrypted.id, organizationId: encrypted.organizationId,
+    isDefault: encrypted.isDefault, memberKeyGeneration: encrypted.memberKeyGeneration,
+    memberVaultMetadata: encrypted.memberVaultMetadata, memberVaultKey: encrypted.memberVaultKey,
+    currentKeyEpoch: encrypted.currentKeyEpoch,
+    vaultPrivateKeys: encrypted.vaultPrivateKeys ?? [],
+    name: opened.metadata.name, description: opened.metadata.description,
+    icon: opened.metadata.icon?.kind === 'glyph' ? opened.metadata.icon.value : null,
+    color: opened.metadata.color, grantMode: opened.metadata.grantMode === 'full' ? 1 : 2,
+    createdAt: encrypted.createdAt, updatedAt: encrypted.updatedAt,
+    entryCount: encrypted.entryCount, activeGrantCount: encrypted.activeGrantCount,
+    memberCount: encrypted.memberCount,
+  }
 }
 
-export function createVault(payload: CreateVaultPayload): Promise<Vault> {
-  return api.post('api/vaults', { json: payload }).json<Vault>()
+export async function getVaults(privateKey: Uint8Array, memberId: string, sink: VaultKeySink): Promise<VaultListResponse> {
+  const response = await api.get('api/vaults').json<{ vaults: EncryptedVaultSummary[]; total: number }>()
+  return { vaults: await Promise.all(response.vaults.map((vault) => openVaultSummary(vault, privateKey, memberId, sink))), total: response.total }
+}
+
+export async function getVault(id: string, privateKey: Uint8Array, memberId: string, sink: VaultKeySink): Promise<Vault> {
+  return openVaultSummary(await api.get(`api/vaults/${id}`).json<EncryptedVaultSummary>(), privateKey, memberId, sink)
+}
+
+export function createVault(payload: CreateVaultPayload): Promise<{ id: string }> {
+  return api.post('api/vaults', { json: payload }).json<{ id: string }>()
 }
 
 /**
@@ -47,9 +109,9 @@ export function createVault(payload: CreateVaultPayload): Promise<Vault> {
  */
 export async function updateVault(
   id: string,
-  payload: UpdateVaultInput,
+  memberVaultMetadata: EncryptedVaultProjection['memberVaultMetadata'],
 ): Promise<void> {
-  await api.put(`api/vaults/${id}`, { json: payload })
+  await api.put(`api/vaults/${id}`, { json: { memberVaultMetadata } })
 }
 
 export async function deleteVault(id: string): Promise<void> {
@@ -93,20 +155,29 @@ export interface EntryListResponse {
 
 export async function getEntries(
   vaultId: string,
+  vaultKey: Uint8Array,
   cursor?: string,
 ): Promise<EntryListResponse> {
   const response = await api
     .get(`api/vaults/${vaultId}/entries`, {
       searchParams: cursor ? { cursor } : undefined,
     })
-    .json<EntryListResponse>()
-  // The backend serialises `type` as a string ("key"/"credential"); normalise
-  // it to the numeric EntryType every consumer compares against.
+    .json<{ items: Array<{ id: string; currentRevision: string; memberIndexRevision: string; createdAt: string; updatedAt: string; memberIndex: VaultEnvelopeContract<EmptyBinding> }>; nextCursor?: string }>()
   return {
-    ...response,
-    items: response.items.map((item) => ({
-      ...item,
-      type: normalizeEntryType(item.type),
+    nextCursor: response.nextCursor,
+    items: await Promise.all(response.items.map(async (item) => {
+      const index = await openMemberIndex(item.memberIndex, vaultKey, {
+        organizationId: item.memberIndex.descriptor.scope.organizationId,
+        vaultId,
+        entryId: item.id,
+        revision: item.memberIndexRevision,
+      })
+      return {
+        id: item.id, label: index.memberLabel, description: index.description ?? undefined,
+        icon: index.icon?.kind === 'glyph' ? index.icon.value : undefined, color: index.color ?? undefined,
+        type: normalizeEntryType(index.entryType), urlDomain: index.urlDomain ?? undefined,
+        createdAt: item.createdAt, updatedAt: item.updatedAt, accessCount: 0,
+      }
     })),
   }
 }
@@ -117,11 +188,11 @@ export async function getEntries(
  * conflict-detection — rather than {@link getEntries}, which returns only the
  * first page and would silently miss entries in vaults larger than one page.
  */
-export async function getAllEntries(vaultId: string): Promise<EntryListItem[]> {
+export async function getAllEntries(vaultId: string, vaultKey: Uint8Array): Promise<EntryListItem[]> {
   const all: EntryListItem[] = []
   let cursor: string | undefined
   do {
-    const page = await getEntries(vaultId, cursor)
+    const page = await getEntries(vaultId, vaultKey, cursor)
     all.push(...page.items)
     cursor = page.nextCursor
   } while (cursor)
@@ -131,36 +202,64 @@ export async function getAllEntries(vaultId: string): Promise<EntryListItem[]> {
 export async function getEntry(
   vaultId: string,
   entryId: string,
+  vaultKey: Uint8Array,
 ): Promise<EntryDetail> {
   const entry = await api
     .get(`api/vaults/${vaultId}/entries/${entryId}`)
-    .json<EntryDetail>()
-  return { ...entry, type: normalizeEntryType(entry.type) }
+    .json<{ organizationId: string; vaultId: string; id: string; currentRevision: string; createdAt: string; updatedAt: string; memberSecret: VaultEnvelopeContract<MemberSecretBinding>; entryKey: VaultEnvelopeContract<VaultKeyBinding> }>()
+  if (entry.vaultId !== vaultId || entry.id !== entryId) {
+    throw new Error('Entry response does not match the requested resource')
+  }
+  const secret = await openMemberSecret(entry.entryKey, entry.memberSecret, vaultKey, {
+    organizationId: entry.organizationId,
+    vaultId,
+    entryId,
+    revision: entry.currentRevision,
+  })
+  const plaintext = memberSecretToLegacy(secret)
+  return {
+    id: entry.id, label: secret.memberLabel, description: secret.description ?? undefined,
+    icon: secret.icon?.kind === 'glyph' ? secret.icon.value : undefined, color: secret.color ?? undefined,
+    type: normalizeEntryType(secret.entryType),
+    urlDomain: secret.entryType === 'credential' ? secret.content.urlDomain ?? undefined : undefined,
+    createdAt: entry.createdAt, updatedAt: entry.updatedAt, accessCount: 0, plaintext,
+    currentRevision: entry.currentRevision, memberSecretModel: secret,
+  }
+}
+
+function memberSecretToLegacy(secret: import('../../../shared/crypto/vault-plaintext').MemberSecretV1): import('../types').EntryPlaintext {
+  const fields = secret.content.customFields.map((field) => ({ id: field.id.replace(/^custom:/, ''), label: field.label, type: field.type, value: field.value as string }))
+  if (secret.entryType === 'key') return { type: 0, value: secret.content.value, notes: secret.content.notes ?? undefined, fields }
+  if (secret.entryType === 'credential') return { type: 1, username: secret.content.username, password: secret.content.password, url: secret.content.url ?? undefined, notes: secret.content.notes ?? undefined, fields }
+  return { type: 2, script: secret.content.source, interpreter: secret.content.interpreter, notes: secret.content.notes ?? undefined,
+    refs: secret.content.refs.map((ref) => ({ env: ref.env, vaultId: ref.vaultId, entryId: ref.entryId, field: ref.fieldId })), fields }
 }
 
 export function createEntry(
   vaultId: string,
-  payload: CreateEntryPayload,
+  payload: import('../../../shared/crypto/entry-protocol').CanonicalEntryEnvelopes & { entryId: string; grantEnvelopes: unknown[] },
 ): Promise<{ id: string }> {
   return api
     .post(`api/vaults/${vaultId}/entries`, { json: payload })
     .json<{ id: string }>()
 }
 
+export function issueEntryCreationChallenge(vaultId: string, count = 1): Promise<{ items: { entryId: string; expiresAt: string }[] }> {
+  return api.post(`api/vaults/${vaultId}/entries/creation-challenges`, { json: { count } })
+    .json<{ items: { entryId: string; expiresAt: string }[] }>()
+}
+
 export async function updateEntry(
   vaultId: string,
   entryId: string,
-  payload: {
-    label?: string
-    description?: string
-    icon?: string
-    color?: string
-    urlDomain?: string
-    content?: EntryContent
-    agentFields?: { label: string; value: string }[]
+  payload: Omit<import('../../../shared/crypto/entry-protocol').CanonicalEntryEnvelopes, 'entryKey'> & {
+    baseRevision: string
+    newEntryKey: import('../../../shared/crypto/entry-protocol').CanonicalEntryEnvelopes['entryKey']
+    agentDiscoveryChanged: boolean
+    grantEnvelopes: unknown[]
   },
-): Promise<void> {
-  await api.put(`api/vaults/${vaultId}/entries/${entryId}`, { json: payload })
+): Promise<{ currentRevision: string }> {
+  return api.put(`api/vaults/${vaultId}/entries/${entryId}`, { json: payload }).json<{ currentRevision: string }>()
 }
 
 export async function deleteEntry(
@@ -189,13 +288,12 @@ export function presignEntryIcon(
  * this.
  */
 export interface ImportEntryItem {
-  label: string
-  description?: string
-  icon?: string
-  type: EntryType
-  content: EntryContent
-  urlDomain?: string
-  grantEntries: ({ grantId: string } & GrantEntryEnvelope)[]
+  entryId: string
+  entryKey: import('../../../shared/crypto/entry-protocol').CanonicalEntryEnvelopes['entryKey']
+  memberIndex: import('../../../shared/crypto/entry-protocol').CanonicalEntryEnvelopes['memberIndex']
+  memberSecret: import('../../../shared/crypto/entry-protocol').CanonicalEntryEnvelopes['memberSecret']
+  agentDiscovery: import('../../../shared/crypto/entry-protocol').CanonicalEntryEnvelopes['agentDiscovery']
+  grantEnvelopes: unknown[]
 }
 
 export interface ImportEntriesBody {
@@ -247,14 +345,8 @@ export async function exportAudit(
  * miss). Null = no suggestion; never throws into the form flow.
  */
 export async function resolveFavicon(domain: string): Promise<string | null> {
-  try {
-    const res = await api
-      .get('api/vaults/favicons/resolve', { searchParams: { domain } })
-      .json<{ iconUrl: string | null }>()
-    return res.iconUrl
-  } catch {
-    return null
-  }
+  void domain
+  return null
 }
 
 // Re-export for convenient consumption by hooks/tests.
@@ -267,12 +359,6 @@ export interface FaviconHit {
 
 /** Search the shared favicon index (brand icons section of the icon browser). */
 export async function searchFavicons(query: string): Promise<FaviconHit[]> {
-  try {
-    const res = await api
-      .get('api/vaults/favicons/search', { searchParams: query ? { query } : {} })
-      .json<{ icons: FaviconHit[] }>()
-    return res.icons
-  } catch {
-    return []
-  }
+  void query
+  return []
 }

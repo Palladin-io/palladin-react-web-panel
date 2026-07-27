@@ -57,3 +57,7 @@ export function serializeGrantMethods(methods: GrantMethod[]): string {
     .map((m) => pascal[m])
     .join(', ')
 }
+
+export function grantMethodsBits(methods: GrantMethod[]): number {
+  return methods.reduce((bits, method) => bits | ({ get: 1, exec: 2, inject: 4 } as const)[method], 0)
+}

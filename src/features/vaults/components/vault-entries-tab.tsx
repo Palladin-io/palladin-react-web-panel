@@ -84,7 +84,6 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
               <EntryRow
                 key={entry.id}
                 vaultId={vault.id}
-                wrappedVK={vault.wrappedVK}
                 entry={entry}
               />
             ))}

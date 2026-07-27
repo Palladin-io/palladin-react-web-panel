@@ -56,6 +56,7 @@ export function PendingGrantsPanel({
     approve.mutate(
       {
         grantId: grant.id,
+        agentId: grant.agentId,
         vaultId: grant.vaultId,
         entryId: grant.entryId,
         agentPublicKey: grant.agentPublicKey,

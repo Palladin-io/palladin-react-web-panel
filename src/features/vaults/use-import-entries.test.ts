@@ -9,7 +9,7 @@ import { useImportEntries } from './use-import-entries'
 import { entriesQueryKey } from './use-entries'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 
-const { importEntriesMock, updateEntryMock, fullGrantsMock, envelopeMock } = vi.hoisted(() => ({
+const { importEntriesMock, updateEntryMock, fullGrantsMock, envelopeMock, challengeMock } = vi.hoisted(() => ({
   importEntriesMock: vi.fn(async (_vaultId: string, body: { entries: unknown[] }) => ({
     importedCount: body.entries.length,
     entryIds: body.entries.map((_, i) => `e${i}`),
@@ -17,30 +17,23 @@ const { importEntriesMock, updateEntryMock, fullGrantsMock, envelopeMock } = vi.
   updateEntryMock: vi.fn(async () => undefined),
   fullGrantsMock: vi.fn(async () => [] as { grantId: string; agentPublicKey: string }[]),
   envelopeMock: vi.fn(async () => ({
-    reEncryptedBlob: 'RE',
-    nonce: 'GN',
-    agentWrappedDek: 'DEK',
+    canonical: true,
   })),
+  challengeMock: vi.fn(async (_id: string, count: number) => ({ items: Array.from({ length: count }, (_, i) => ({ entryId: `new-${i}`, expiresAt: '' })) })),
 }))
 
 vi.mock('./api/vault-api', () => ({
   importEntries: importEntriesMock,
-  updateEntry: updateEntryMock,
+  issueEntryCreationChallenge: challengeMock,
+  getEntry: vi.fn(async (_v, id) => ({ id, currentRevision: '1', memberSecretModel: {} })),
 }))
 
 vi.mock('../grants', () => ({ collectActiveFullGrants: fullGrantsMock }))
 
-vi.mock('../../shared/crypto/vault-key', () => ({
-  unsealVaultKey: vi.fn(async () => new Uint8Array(32)),
-}))
-
-vi.mock('../../shared/crypto/entry-crypto', () => ({
-  encryptEntry: vi.fn(async () => ({ encryptedBlob: 'ENC', nonce: 'NCE' })),
-}))
-
-vi.mock('../../shared/crypto/grant-envelope', () => ({
-  produceGrantEntryEnvelope: envelopeMock,
-}))
+vi.mock('../../shared/crypto/entry-protocol', () => ({ sealCanonicalEntry: vi.fn(async () => ({ entryKey: {}, memberIndex: {}, memberSecret: {}, agentDiscovery: null })) }))
+vi.mock('../../shared/crypto/grant-protocol', () => ({ buildCanonicalGrantEnvelope: envelopeMock }))
+vi.mock('../agents/api/agents-api', () => ({ getAgent: vi.fn(async () => ({ publicKey: 'QUFBQQ==', recipientKeyVersion: 1 })) }))
+vi.mock('./use-update-entry', () => ({ updateCanonicalEntry: updateEntryMock }))
 
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: vi.fn() }))
 
@@ -53,6 +46,7 @@ function makeWrapper() {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
+  client.setQueryData(['vaults', 'vault-1'], { id: 'vault-1', organizationId: 'org-1', memberKeyGeneration: 1, currentKeyEpoch: { vaultKeyVersion: 1, vdkVersion: 1 } })
   const wrapper = ({ children }: { children: ReactNode }) =>
     createElement(QueryClientProvider, { client }, children)
   return { wrapper, invalidateSpy }
@@ -65,7 +59,7 @@ describe('useImportEntries', () => {
     envelopeMock.mockClear()
     fullGrantsMock.mockReset()
     fullGrantsMock.mockResolvedValue([])
-    useAuthStore.setState({ privateKey: new Uint8Array(32) })
+    useAuthStore.setState({ privateKey: new Uint8Array(32), vaultKeys: { 'vault-1': new Uint8Array(32) }, vaultDiscoveryKeys: { 'vault-1': new Uint8Array(32) } })
   })
 
   it('chunks creates to 50 per request and sums the imported count', async () => {
@@ -75,7 +69,6 @@ describe('useImportEntries', () => {
     const creates = Array.from({ length: 120 }, (_, i) => credential(`Entry ${i}`))
     result.current.mutate({
       vaultId: 'vault-1',
-      wrappedVK: 'WRAPPED',
       format: 'generic-csv',
       creates,
       overwrites: [],
@@ -94,7 +87,6 @@ describe('useImportEntries', () => {
 
     result.current.mutate({
       vaultId: 'vault-1',
-      wrappedVK: 'WRAPPED',
       format: 'palladin-json',
       creates: [{ label: 'Token', type: ENTRY_TYPE_KEY, value: 'sk_1' }],
       overwrites: [{ entryId: 'old-1', entry: credential('GitHub') }],
@@ -102,7 +94,7 @@ describe('useImportEntries', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(updateEntryMock).toHaveBeenCalledTimes(1)
-    expect(updateEntryMock.mock.calls[0][0]).toBe('vault-1')
+    expect(updateEntryMock.mock.calls[0][0]).toMatchObject({ vault: { id: 'vault-1' }, entry: { id: 'old-1' } })
     expect(result.current.data).toEqual({ importedCount: 1, updatedCount: 1, failed: [] })
 
     const keys = invalidateSpy.mock.calls.map((c) => c[0]?.queryKey)
@@ -119,7 +111,6 @@ describe('useImportEntries', () => {
 
     result.current.mutate({
       vaultId: 'vault-1',
-      wrappedVK: 'WRAPPED',
       format: 'generic-csv',
       creates: [credential('GitHub')],
       overwrites: [],
@@ -143,7 +134,6 @@ describe('useImportEntries', () => {
 
     result.current.mutate({
       vaultId: 'vault-1',
-      wrappedVK: 'WRAPPED',
       format: 'generic-csv',
       creates: [credential('GitHub'), credential('GitLab')],
       overwrites: [],
@@ -158,15 +148,14 @@ describe('useImportEntries', () => {
 
   it('re-wraps each created entry for every active FULL grant (keyed by grantId)', async () => {
     fullGrantsMock.mockResolvedValue([
-      { grantId: 'g1', agentPublicKey: 'pk1' },
-      { grantId: 'g2', agentPublicKey: 'pk2' },
+      { grantId: 'g1', agentId: 'a1', agentPublicKey: 'QUFBQQ==', methods: 'Get' },
+      { grantId: 'g2', agentId: 'a2', agentPublicKey: 'QUFBQQ==', methods: 'Get' },
     ])
     const { wrapper } = makeWrapper()
     const { result } = renderHook(() => useImportEntries(), { wrapper })
 
     result.current.mutate({
       vaultId: 'vault-1',
-      wrappedVK: 'WRAPPED',
       format: 'generic-csv',
       creates: [credential('GitHub'), credential('GitLab')],
       overwrites: [],
@@ -177,11 +166,8 @@ describe('useImportEntries', () => {
     // 2 entries × 2 grants = 4 envelope productions.
     expect(envelopeMock).toHaveBeenCalledTimes(4)
     const sentEntries = importEntriesMock.mock.calls[0][1].entries as Array<{
-      grantEntries: { grantId: string; reEncryptedBlob: string }[]
+      grantEnvelopes: { canonical: boolean }[]
     }>
-    expect(sentEntries[0].grantEntries).toEqual([
-      { grantId: 'g1', reEncryptedBlob: 'RE', nonce: 'GN', agentWrappedDek: 'DEK' },
-      { grantId: 'g2', reEncryptedBlob: 'RE', nonce: 'GN', agentWrappedDek: 'DEK' },
-    ])
+    expect(sentEntries[0].grantEnvelopes).toEqual([{ canonical: true }, { canonical: true }])
   })
 })

@@ -15,15 +15,16 @@ const getEntries = vi.hoisted(() => vi.fn())
 const getEntry = vi.hoisted(() => vi.fn())
 vi.mock('../vaults/api/vault-api', () => ({ getVault, getEntries, getEntry }))
 
-const produceGrantEntryEnvelope = vi.hoisted(() => vi.fn())
-vi.mock('../../shared/crypto/grant-envelope', () => ({ produceGrantEntryEnvelope }))
-vi.mock('../../shared/crypto/vault-key', () => ({
-  unsealVaultKey: vi.fn(() => Promise.resolve(new Uint8Array([1, 2, 3]))),
-}))
+const buildCanonicalGrantEnvelope = vi.hoisted(() => vi.fn(async (input) => ({ entryId: input.entryId, canonical: true })))
+vi.mock('../../shared/crypto/grant-protocol', () => ({ buildCanonicalGrantEnvelope }))
+vi.mock('../agents/api/agents-api', () => ({ getAgent: vi.fn(async () => ({ publicKey: 'QUFBQQ==', recipientKeyVersion: 1 })) }))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: vi.fn() }))
 
 vi.mock('../auth', () => ({
-  useAuthStore: { getState: () => ({ privateKey: new Uint8Array([9]) }) },
+  useAuthStore: { getState: () => ({
+    privateKey: new Uint8Array([9]), userId: 'member-1',
+    cacheVaultKey: vi.fn(), getVaultKey: () => new Uint8Array([1, 2, 3]),
+  }) },
 }))
 
 import { useCreateGrant } from './use-create-grant'
@@ -35,15 +36,15 @@ function wrapper({ children }: { children: ReactNode }) {
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
 
-const ENVELOPE = { reEncryptedBlob: 'b', nonce: 'n', agentWrappedDek: 'd' }
+const ENVELOPE = { entryId: 'e1', canonical: true }
 
 describe('useCreateGrant', () => {
   beforeEach(() => {
     createGrantProactively.mockReset().mockResolvedValue({ id: 'new' })
-    getVault.mockReset().mockResolvedValue({ id: 'v1', wrappedVK: 'wrapped' })
+    getVault.mockReset().mockResolvedValue({ id: 'v1', organizationId: 'org-1', memberKeyGeneration: 1 })
     getEntries.mockReset()
-    getEntry.mockReset().mockResolvedValue({ content: { encryptedBlob: 'x', nonce: 'y' } })
-    produceGrantEntryEnvelope.mockReset().mockResolvedValue(ENVELOPE)
+    getEntry.mockReset().mockImplementation(async (_v, id) => ({ id, currentRevision: '1', memberSecretModel: { agentFieldAccess: {} } }))
+    buildCanonicalGrantEnvelope.mockClear()
   })
 
   it('GRANULAR: one envelope, body carries entryId', async () => {
@@ -62,7 +63,7 @@ describe('useCreateGrant', () => {
     expect(vaultId).toBe('v1')
     expect(body.type).toBe('granular')
     expect(body.entryId).toBe('e1')
-    expect(body.grantEntries).toEqual([{ entryId: 'e1', ...ENVELOPE }])
+    expect(body.grantEntries).toEqual([ENVELOPE])
     expect(body.queryLimit).toBe(3)
     expect(body.methods).toBe('Exec, Inject')
     expect(getEntries).not.toHaveBeenCalled()
@@ -89,7 +90,7 @@ describe('useCreateGrant', () => {
       'e2',
       'e3',
     ])
-    expect(produceGrantEntryEnvelope).toHaveBeenCalledTimes(3)
+    expect(buildCanonicalGrantEnvelope).toHaveBeenCalledTimes(3)
     expect(body.methods).toBe('Get, Exec')
   })
 

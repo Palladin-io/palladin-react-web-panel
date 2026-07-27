@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
-import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
+import type { EncryptedReasonContract } from '../../../shared/crypto/reason-protocol'
 
 /**
  * A pending grant awaiting the user's approval. Cross-vault — returned by
@@ -18,14 +18,10 @@ const pendingGrantSchema = z.object({
   id: z.string(),
   vaultId: z.string(),
   // Display name enriched by the backend; shown instead of the vault id.
-  vaultName: z.string().nullable().optional(),
   agentId: z.string().nullable().optional(),
   agentName: z.string().nullable().optional(),
   entryId: z.string().nullable().optional(),
-  entryLabel: z.string().nullable().optional(),
-  // Optional — rendered after the entry label as "· {urlDomain}" when present.
-  urlDomain: z.string().nullable().optional(),
-  reason: z.string().nullable().optional(),
+  encryptedReason: z.unknown().nullable().optional(),
   // Combined-flags string the agent requested, e.g. "get, exec" (CVT-149). Optional for
   // pre-methods backends; the approve dialog falls back to a sensible default when absent.
   methods: z.string().nullable().optional(),
@@ -43,6 +39,13 @@ const pendingGrantSchema = z.object({
 })
 
 export type PendingGrant = z.infer<typeof pendingGrantSchema>
+  & {
+    encryptedReason?: EncryptedReasonContract | null
+    reason?: string
+    vaultName?: string
+    entryLabel?: string
+    urlDomain?: string
+  }
 
 const pendingGrantListSchema = z.object({
   items: z.array(z.unknown()),
@@ -62,7 +65,7 @@ export async function getPendingGrants(): Promise<PendingGrant[]> {
   let skipped = 0
   for (const item of envelope.items) {
     const result = pendingGrantSchema.safeParse(item)
-    if (result.success) parsed.push(result.data)
+    if (result.success) parsed.push(result.data as PendingGrant)
     else skipped += 1
   }
   if (skipped > 0) {
@@ -72,13 +75,19 @@ export async function getPendingGrants(): Promise<PendingGrant[]> {
   return parsed
 }
 
+export async function getPendingGrantDetail(vaultId: string, grantId: string): Promise<PendingGrant> {
+  return pendingGrantSchema.parse(
+    await api.get(`api/vaults/${vaultId}/grants/${grantId}`).json(),
+  ) as PendingGrant
+}
+
 /**
  * The approve payload. `grantEntry` carries the freshly produced envelope.
  * Exactly one of `expiresAt` / `queryLimit` is set (XOR — enforced by the UI
  * and validated again here before the request is built).
  */
 export interface ApproveGrantBody {
-  grantEntry: { entryId: string } & GrantEntryEnvelope
+  grantEntry: unknown
   expiresAt?: string
   queryLimit?: number
   /** Combined-flags string of the methods the agent may use, e.g. "Get, Exec" (CVT-149). */
@@ -96,10 +105,8 @@ export async function approveGrant(
 export async function denyGrant(
   vaultId: string,
   grantId: string,
-  reason?: string,
+  _reason?: string,
 ): Promise<void> {
-  const trimmed = reason?.trim()
-  await api.put(`api/vaults/${vaultId}/grants/${grantId}/deny`, {
-    json: trimmed ? { reason: trimmed } : {},
-  })
+  void _reason
+  await api.put(`api/vaults/${vaultId}/grants/${grantId}/deny`)
 }

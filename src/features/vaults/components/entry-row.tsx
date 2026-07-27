@@ -2,11 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { decryptEntry } from '../../../shared/crypto/entry-crypto'
-import { wipe } from '../../../shared/crypto/sodium'
-import { unsealVaultKey } from '../../../shared/crypto/vault-key'
 import { Icon } from '../../../shared/components/icon'
-import { useAuthStore } from '../../auth'
 import { analytics } from '../../../shared/lib/analytics'
 import { copySecretToClipboard, copyToClipboard } from '../../../shared/lib/clipboard'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
@@ -25,8 +21,6 @@ import { OtpauthTotp } from './totp-display'
 
 export interface EntryRowProps {
   vaultId: string
-  /** Caller's wrapped VK from the vault detail response (base64). */
-  wrappedVK: string | undefined
   entry: EntryListItem
   /** Highlight this row as the currently viewed entry (split-view left panel). */
   isSelected?: boolean
@@ -42,7 +36,7 @@ export interface EntryRowProps {
  * plaintext fields. Decrypt failures translate into a toast error so
  * the row stays interactive (the user can re-attempt or move on).
  */
-export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProps) {
+export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
   const { t } = useTranslation()
 
   const [revealOpen, setRevealOpen] = useState(false)
@@ -67,23 +61,11 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
   useEffect(() => {
     if (!wantDetail || !detail.data || plaintext || decryptError) return
 
-    const privateKey = useAuthStore.getState().privateKey
-    if (!privateKey || !wrappedVK) {
-      setDecryptError(t('vault.entries.decryptVaultLocked'))
-      return
-    }
-
     let cancelled = false
     void (async () => {
       try {
-        const vaultKey = await unsealVaultKey(wrappedVK, privateKey)
-        try {
-          const result = await decryptEntry(detail.data.content, vaultKey)
-          if (!cancelled) {
-            setPlaintext(result)
-          }
-        } finally {
-          wipe(vaultKey)
+        if (!cancelled) {
+          setPlaintext(detail.data.plaintext)
         }
       } catch {
         if (!cancelled) {
@@ -94,7 +76,7 @@ export function EntryRow({ vaultId, wrappedVK, entry, isSelected }: EntryRowProp
     return () => {
       cancelled = true
     }
-  }, [wantDetail, detail.data, wrappedVK, plaintext, decryptError, t])
+  }, [wantDetail, detail.data, plaintext, decryptError, t])
 
   // Collapsing the panel only hides the plaintext — it stays decrypted so a
   // subsequent copy (or re-open) doesn't round-trip again.

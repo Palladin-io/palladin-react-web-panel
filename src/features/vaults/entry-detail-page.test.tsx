@@ -8,7 +8,6 @@ import { EntryDetailPage } from './entry-detail-page'
 import {
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,
-  type EntryContent,
   type EntryDetail,
   type Vault,
 } from './types'
@@ -72,8 +71,10 @@ vi.mock('./use-vault', () => ({
 }))
 
 vi.mock('./use-entries', () => ({
-  useEntryDetail: (vaultId: string, entryId: string, enabled: boolean) =>
-    useEntryDetailMock(vaultId, entryId, enabled),
+  useEntryDetail: (vaultId: string, entryId: string, enabled: boolean) => {
+    const result = useEntryDetailMock(vaultId, entryId, enabled)
+    return result.data && state.decryptResult ? { ...result, data: { ...result.data, plaintext: state.decryptResult } } : result
+  },
   entriesQueryKey: (vaultId: string) => ['vaults', vaultId, 'entries'] as const,
   entryDetailQueryKey: (vaultId: string, entryId: string) =>
     ['vaults', vaultId, 'entries', entryId] as const,
@@ -97,44 +98,6 @@ vi.mock('./use-delete-entry', () => ({
   }),
 }))
 
-vi.mock('./use-entry-icon-upload', () => ({
-  useEntryIconUpload: () => ({
-    upload: iconUploadMock,
-    get isUploading() {
-      return state.iconIsUploading
-    },
-    state: 'idle',
-    error: null,
-  }),
-}))
-
-// Crypto round-trip is exercised by entry-crypto.test.ts. Here we stub the
-// helpers so the component test stays focused on form behaviour and does
-// not depend on libsodium WASM warm-up.
-const fakeVK = new Uint8Array(32)
-vi.mock('../../shared/crypto/vault-key', () => ({
-  unsealVaultKey: vi.fn(async () => fakeVK),
-}))
-
-vi.mock('../../shared/crypto/entry-crypto', () => ({
-  decryptEntry: vi.fn(async () => {
-    if (state.decryptShouldThrow) throw new Error('mac')
-    if (!state.decryptResult) {
-      throw new Error('test setup: decryptResult not configured')
-    }
-    return state.decryptResult
-  }),
-  encryptEntry: vi.fn(
-    async (): Promise<EntryContent> => ({
-      encryptedBlob: 'ENC',
-      nonce: 'NCE',
-    }),
-  ),
-}))
-
-vi.mock('../../shared/crypto/sodium', () => ({
-  wipe: vi.fn(),
-}))
 
 vi.mock('sonner', () => ({
   toast: { success: toastSuccess, error: toastError },
@@ -180,7 +143,11 @@ const KEY_ENTRY: EntryDetail = {
   accessCount: 0,
   createdAt: '2026-04-25T12:00:00Z',
   updatedAt: '2026-04-25T12:00:00Z',
-  content: { encryptedBlob: 'CIPHER', nonce: 'NONCE' },
+  plaintext: { type: ENTRY_TYPE_KEY, value: '' }, currentRevision: '1',
+  memberSecretModel: { schema: 'palladin.member-secret.v1', memberLabel: 'Stripe API Key', agentLabel: null,
+    discoverable: false, description: null, icon: null, color: null, entryType: 'key',
+    agentFieldAccess: { memberLabel: 'never', agentLabel: 'never', description: 'never', icon: 'never', color: 'never', entryType: 'never', 'key.value': 'never', notes: 'never' },
+    content: { value: '', notes: null, customFields: [] } },
 }
 
 const CREDENTIAL_ENTRY: EntryDetail = {
@@ -191,7 +158,11 @@ const CREDENTIAL_ENTRY: EntryDetail = {
   accessCount: 0,
   createdAt: '2026-04-25T12:00:00Z',
   updatedAt: '2026-04-25T12:00:00Z',
-  content: { encryptedBlob: 'CIPHER', nonce: 'NONCE' },
+  plaintext: { type: ENTRY_TYPE_CREDENTIAL, username: '', password: '' }, currentRevision: '1',
+  memberSecretModel: { schema: 'palladin.member-secret.v1', memberLabel: 'GitHub', agentLabel: null,
+    discoverable: false, description: null, icon: null, color: null, entryType: 'credential',
+    agentFieldAccess: { memberLabel: 'never', agentLabel: 'never', description: 'never', icon: 'never', color: 'never', entryType: 'never', 'credential.username': 'never', 'credential.password': 'never', 'credential.url': 'never', 'credential.urlDomain': 'never', 'credential.totp': 'never', notes: 'never' },
+    content: { username: '', password: '', url: null, urlDomain: 'github.com', totp: null, notes: null, customFields: [] } },
 }
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -327,14 +298,13 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(screen.queryByLabelText(/^value$/i)).not.toBeInTheDocument()
   })
 
-  it('shows the decrypt error banner when unsealing/decrypting fails', async () => {
+  it('shows the decrypt error banner when canonical plaintext is unavailable', async () => {
     unlockedAuthStore()
-    state.decryptShouldThrow = true
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({
       isPending: false,
       isError: false,
-      data: KEY_ENTRY,
+      data: { ...KEY_ENTRY, plaintext: undefined },
     })
 
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
@@ -392,7 +362,7 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     expect(updateMutateMock).toHaveBeenCalledTimes(1)
     const patch = updateMutateMock.mock.calls[0][0]
-    expect(patch.label).toBe('Renamed Key')
+    expect(patch.memberSecret.memberLabel).toBe('Renamed Key')
     expect(toastSuccess).toHaveBeenCalled()
   })
 

@@ -98,7 +98,6 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
                   <EntryRow
                     key={entry.id}
                     vaultId={vault.id}
-                    wrappedVK={vault.wrappedVK}
                     entry={entry}
                     isSelected={entry.id === selectedEntryId}
                   />

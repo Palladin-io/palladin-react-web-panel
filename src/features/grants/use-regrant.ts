@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
-import { produceGrantEntryEnvelope } from '../../shared/crypto/grant-envelope'
-import { unsealVaultKey } from '../../shared/crypto/vault-key'
+import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { getEntry, getVault } from '../vaults/api/vault-api'
+import { getAgent } from '../agents/api/agents-api'
 import {
   createGrantProactively,
   type CreateGrantBody,
@@ -43,29 +43,31 @@ export function useRegrant() {
       type,
       policy,
     }: RegrantInput) => {
-      const privateKey = useAuthStore.getState().privateKey
-      if (!privateKey) throw new VaultLockedError()
+      const { privateKey, userId } = useAuthStore.getState()
+      if (!privateKey || !userId) throw new VaultLockedError()
       if (!agentPublicKey) throw new MissingGrantMaterialError()
 
-      const [vault, entry] = await Promise.all([
-        getVault(vaultId),
-        getEntry(vaultId, entryId),
-      ])
-      if (!vault.wrappedVK) throw new VaultLockedError()
-
-      const vaultKey = await unsealVaultKey(vault.wrappedVK, privateKey)
+      const vault = await getVault(vaultId, privateKey, userId, { vaultKey: useAuthStore.getState().cacheVaultKey, discoveryKey: useAuthStore.getState().cacheVaultDiscoveryKey })
+      const vaultKey = useAuthStore.getState().getVaultKey(vault.id)
+      if (!vaultKey) throw new VaultLockedError()
       try {
-        const envelope = await produceGrantEntryEnvelope({
-          entryContent: entry.content,
-          vaultKey,
-          agentPublicKey,
+        const [entry, agent] = await Promise.all([getEntry(vaultId, entryId, vaultKey), getAgent(agentId)])
+        if (!agent.publicKey) throw new MissingGrantMaterialError()
+        const grantId = crypto.randomUUID()
+        const envelope = await buildCanonicalGrantEnvelope({
+          organizationId: vault.organizationId, vaultId, entryId, grantId, agentId,
+          entryRevision: entry.currentRevision, memberKeyGeneration: vault.memberKeyGeneration,
+          agentPublicKey: agent.publicKey, recipientKeyVersion: agent.recipientKeyVersion,
+          approvedMethods: 1, expiresAt: 'expiresAt' in policy ? policy.expiresAt : undefined,
+          remainingUses: 'queryLimit' in policy ? policy.queryLimit : undefined,
+          secret: entry.memberSecretModel,
         })
 
         const body: CreateGrantBody = {
-          agentId,
+          grantId, agentId,
           type,
           entryId,
-          grantEntries: [{ entryId, ...envelope }],
+          grantEntries: [envelope],
           ...policy,
         }
         await createGrantProactively(vaultId, body)

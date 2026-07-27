@@ -143,14 +143,29 @@ describe('auth-store', () => {
       .getState()
       .unlockVault(new Uint8Array([1]), new Uint8Array([2]))
 
+    const masterKey = useAuthStore.getState().masterKey!
+    const privateKey = useAuthStore.getState().privateKey!
     useAuthStore.getState().lockVault()
 
     const state = useAuthStore.getState()
     expect(state.masterKey).toBeNull()
     expect(state.privateKey).toBeNull()
     expect(state.isVaultLocked).toBe(true)
+    expect(Array.from(masterKey)).toEqual([0])
+    expect(Array.from(privateKey)).toEqual([0])
     // Session is intact — user is still logged in.
     expect(state.accessToken).toBe('access-123')
+  })
+
+  it('wipes replaced master and private key buffers', () => {
+    useAuthStore.getState().unlockVault(new Uint8Array([1, 2]), new Uint8Array([3, 4]))
+    const previousMasterKey = useAuthStore.getState().masterKey!
+    const previousPrivateKey = useAuthStore.getState().privateKey!
+
+    useAuthStore.getState().unlockVault(new Uint8Array([5, 6]), new Uint8Array([7, 8]))
+
+    expect(Array.from(previousMasterKey)).toEqual([0, 0])
+    expect(Array.from(previousPrivateKey)).toEqual([0, 0])
   })
 
   it('expireSession wipes keys + access token but keeps the refresh token', () => {

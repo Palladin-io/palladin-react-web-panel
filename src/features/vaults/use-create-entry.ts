@@ -1,10 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { encryptEntry } from '../../shared/crypto/entry-crypto'
+import { sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
+import type { AgentFieldAccess, MemberSecretV1 } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
-import { unsealVaultKey } from '../../shared/crypto/vault-key'
 import { useAuthStore } from '../auth'
-import { createEntry } from './api/vault-api'
+import { createEntry, issueEntryCreationChallenge } from './api/vault-api'
 import type { AgentField, EntryPlaintext, EntryType } from './types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from './types'
 import { entriesQueryKey } from './use-entries'
 import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
@@ -22,10 +23,8 @@ export class VaultLockedError extends Error {
 }
 
 /**
- * Thrown when the vault response does not include `wrappedVK`. The
- * detail endpoint must surface the caller's wrapped VK before any
- * entry can be encrypted; this guards against stale mocks or older
- * backend builds that omit it.
+ * Retained error name for callers that distinguish unavailable Vault key
+ * material; canonical keys are read only from the in-memory key store.
  */
 export class MissingWrappedVaultKeyError extends Error {
   constructor() {
@@ -36,8 +35,6 @@ export class MissingWrappedVaultKeyError extends Error {
 
 export interface CreateEntryInput {
   vaultId: string
-  /** Caller's wrapped VK (base64) — fetched from `GET /vaults/{id}`. */
-  wrappedVK: string
   label: string
   description?: string
   icon?: string
@@ -56,31 +53,30 @@ export function useCreateEntry() {
 
   return useMutation({
     mutationFn: async (input: CreateEntryInput) => {
-      const privateKey = useAuthStore.getState().privateKey
-      if (!privateKey) {
+      const auth = useAuthStore.getState()
+      const vaultKey = auth.getVaultKey(input.vaultId)
+      const discoveryKey = auth.getVaultDiscoveryKey(input.vaultId)
+      if (!vaultKey || !discoveryKey) {
         throw new VaultLockedError()
       }
-      if (!input.wrappedVK) {
-        throw new MissingWrappedVaultKeyError()
-      }
-
-      const vaultKey = await unsealVaultKey(input.wrappedVK, privateKey)
       try {
-        const content = await encryptEntry(input.payload, vaultKey)
-        return createEntry(input.vaultId, {
-          label: input.label,
-          description: input.description,
-          icon: input.icon,
-          color: input.color,
-          type: input.type,
-          content,
-          urlDomain: input.urlDomain,
-          agentFields: input.agentFields,
-        })
+        const vault = queryClient.getQueryData<import('./types').Vault>(vaultQueryKey(input.vaultId))
+        if (!vault) throw new Error('Vault protocol metadata is not loaded')
+        const challenge = await issueEntryCreationChallenge(input.vaultId)
+        const entryId = challenge.items[0]?.entryId
+        if (!entryId) throw new Error('Entry creation challenge is missing')
+        const secret = legacyInputToMemberSecret(input)
+        const envelopes = await sealCanonicalEntry({
+          organizationId: vault.organizationId, vaultId: vault.id, entryId, revision: '1',
+          vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
+          vdkVersion: vault.currentKeyEpoch.vdkVersion,
+          memberKeyGeneration: vault.memberKeyGeneration,
+        }, secret, vaultKey, discoveryKey, 1)
+        return createEntry(input.vaultId, { entryId, ...envelopes, grantEnvelopes: [] })
       } finally {
-        // VK is rederivable from `wrappedVK + privateKey`; wiping it
-        // limits the window where the raw key sits in memory.
+        // Limit the window where raw key copies sit in memory.
         wipe(vaultKey)
+        wipe(discoveryKey)
       }
     },
     onSuccess: (_data, variables) => {
@@ -97,4 +93,44 @@ export function useCreateEntry() {
       queryClient.invalidateQueries({ queryKey: ['search'] })
     },
   })
+}
+
+export function legacyInputToMemberSecret(input: CreateEntryInput): MemberSecretV1 {
+  const entryType = input.type === ENTRY_TYPE_KEY ? 'key' : input.type === ENTRY_TYPE_CREDENTIAL ? 'credential' : 'script'
+  const payload = input.payload
+  const fields = payload.fields ?? []
+  const customFields = fields.map((field) => ({
+    id: field.id.startsWith('custom:') ? field.id : `custom:${field.id}`,
+    label: field.label.normalize('NFC'), type: field.type, value: field.value,
+  }))
+  const policy: Record<string, AgentFieldAccess> = {}
+  const builtins = entryType === 'key'
+    ? ['memberLabel', 'agentLabel', 'description', 'icon', 'color', 'entryType', 'key.value', 'notes']
+    : entryType === 'credential'
+      ? ['memberLabel', 'agentLabel', 'description', 'icon', 'color', 'entryType', 'credential.username', 'credential.password', 'credential.url', 'credential.urlDomain', 'credential.totp', 'notes']
+      : ['memberLabel', 'agentLabel', 'description', 'icon', 'color', 'entryType', 'script.source', 'script.interpreter', 'script.refs', 'notes']
+  for (const id of builtins) policy[id] = 'never'
+  for (let i = 0; i < customFields.length; i++) policy[customFields[i]!.id] = fields[i]?.agentAccess ?? 'never'
+  const discoverable = (input.agentFields?.length ?? 0) > 0
+  if (discoverable) { policy.agentLabel = 'discovery'; policy.entryType = 'discovery' }
+  const common = {
+    schema: 'palladin.member-secret.v1' as const, memberLabel: input.label.normalize('NFC'),
+    agentLabel: discoverable ? input.label.normalize('NFC') : null, discoverable,
+    description: input.description?.normalize('NFC') ?? null,
+    icon: input.icon ? { kind: 'glyph' as const, value: input.icon.normalize('NFC') } : null,
+    color: input.color?.toUpperCase() ?? null, agentFieldAccess: policy,
+  }
+  if (payload.type === ENTRY_TYPE_KEY) return { ...common, entryType: 'key', content: {
+    value: payload.value.normalize('NFC'), notes: payload.notes?.normalize('NFC') ?? null, customFields,
+  } }
+  if (payload.type === ENTRY_TYPE_CREDENTIAL) return { ...common, entryType: 'credential', content: {
+    username: payload.username.normalize('NFC'), password: payload.password.normalize('NFC'),
+    url: payload.url?.normalize('NFC') ?? null, urlDomain: input.urlDomain?.normalize('NFC') ?? null,
+    totp: null, notes: payload.notes?.normalize('NFC') ?? null, customFields,
+  } }
+  return { ...common, entryType: 'script', content: {
+    source: payload.script.normalize('NFC'), interpreter: payload.interpreter,
+    refs: (payload.refs ?? []).map((ref) => ({ env: ref.env, vaultId: ref.vaultId ?? input.vaultId, entryId: ref.entryId, fieldId: ref.field })),
+    notes: payload.notes?.normalize('NFC') ?? null, customFields,
+  } }
 }

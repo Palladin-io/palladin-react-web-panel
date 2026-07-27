@@ -1,5 +1,3 @@
-import { z } from 'zod'
-import { api } from '../../../shared/api/client'
 
 /**
  * Flat cross-vault entry search — `GET /api/entries?query=&limit=&sort=`. Used by
@@ -12,44 +10,32 @@ import { api } from '../../../shared/api/client'
  * Each item is parsed leniently so a malformed row is skipped rather than
  * collapsing the whole result set.
  */
-const entrySearchItemSchema = z.object({
-  id: z.string(),
-  label: z.string(),
-  vaultId: z.string(),
-  vaultName: z.string().nullable().optional(),
+export interface EntrySearchItem {
+  id: string
+  label: string
+  vaultId: string
+  vaultName?: string | null
   // type/icon are display-only and may be absent; tolerate anything.
-  type: z.unknown().optional(),
-  icon: z.string().nullable().optional(),
+  type?: unknown
+  icon?: string | null
   // Timestamps (ISO) drive the "Recently added / modified" widget; optional so
   // the grant-picker path tolerates a backend that omits them.
-  updatedAt: z.string().nullable().optional(),
-  createdAt: z.string().nullable().optional(),
-})
-
-export type EntrySearchItem = z.infer<typeof entrySearchItemSchema>
+  updatedAt?: string | null
+  createdAt?: string | null
+}
 
 /** Server-side ordering. `label` (default) = alphabetical; `recent` = updatedAt desc. */
 export type EntrySort = 'label' | 'recent'
 
-const entrySearchPageSchema = z.object({ items: z.array(z.unknown()) })
-
 export async function searchEntries(
-  query: string,
-  limit = 20,
-  sort: EntrySort = 'label',
+  _query: string,
+  _limit = 20,
+  _sort: EntrySort = 'label',
 ): Promise<EntrySearchItem[]> {
-  const searchParams = new URLSearchParams({
-    query,
-    limit: String(limit),
-    sort,
-  })
-  const raw = await api.get('api/entries', { searchParams }).json()
-  const page = entrySearchPageSchema.parse(raw)
-
-  const items: EntrySearchItem[] = []
-  for (const item of page.items) {
-    const result = entrySearchItemSchema.safeParse(item)
-    if (result.success) items.push(result.data)
-  }
-  return items
+  void _query
+  void _limit
+  void _sort
+  // The legacy endpoint exposes and searches plaintext Entry metadata.
+  // Vault v2 callers must build their picker from locally decrypted indexes.
+  return []
 }

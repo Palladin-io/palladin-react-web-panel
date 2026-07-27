@@ -60,7 +60,7 @@ describe('org-grants-api', () => {
     expect(page.items).toHaveLength(1)
     expect(page.items[0].agentPublicKey).toBe('PUBKEY')
     expect(page.items[0].lastAccessIp).toBe('1.2.3.4')
-    expect(page.items[0].vaultName).toBe('Production')
+    expect(page.items[0].vaultName).toBeUndefined()
   })
 
   it('reads per-grant capability flags', async () => {
@@ -87,7 +87,7 @@ describe('org-grants-api', () => {
       .searchParams
     expect(params.get('status')).toBe('pending')
     expect(params.get('agentId')).toBe('a9')
-    expect(params.get('query')).toBe('gm')
+    expect(params.get('query')).toBeNull()
     expect(params.get('pageSize')).toBe('50')
   })
 
@@ -126,11 +126,9 @@ describe('org-grants-api', () => {
   it('sends a trimmed reason on revoke, empty body when none', async () => {
     deleteFn.mockResolvedValue(undefined)
     await revokeGrant('v1', 'g1', '  leak  ')
-    expect(deleteFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1', {
-      json: { reason: 'leak' },
-    })
+    expect(deleteFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1')
     deleteFn.mockClear()
     await revokeGrant('v1', 'g1')
-    expect(deleteFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1', { json: {} })
+    expect(deleteFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1')
   })
 })

@@ -76,6 +76,7 @@ export const agentSchema = z.object({
   // proactive-grant flow can seal a DEK to the agent. Optional until the
   // backend ships it; the list endpoint keeps returning only prefix/suffix.
   publicKey: z.string().nullable().optional(),
+  recipientKeyVersion: z.number().int().positive(),
   createdAt: z.string(),
   enrolledAt: z.string().nullable(),
   enrolledByName: z.string().nullable(),

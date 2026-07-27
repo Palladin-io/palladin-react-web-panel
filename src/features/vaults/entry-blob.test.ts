@@ -132,25 +132,25 @@ describe('plaintextsEqual', () => {
   })
 })
 
-describe('agentVisible fold + agentFieldsFrom', () => {
+describe('agentAccess fold + agentFieldsFrom', () => {
   const visible = (id: string, label: string, value: string, type: 'text' | 'multiline' = 'text'): CustomField => ({
     id,
     label,
     type,
     value,
-    agentVisible: true,
+    agentAccess: 'discovery',
   })
 
-  it('keeps agentVisible on folded text/multiline fields', () => {
+  it('keeps agentAccess on folded text/multiline fields', () => {
     const folded = foldCustomFields([visible('1', 'Account ID', 'acme-prod')])
-    expect(folded?.[0]).toMatchObject({ label: 'Account ID', agentVisible: true })
+    expect(folded?.[0]).toMatchObject({ label: 'Account ID', agentAccess: 'discovery' })
   })
 
-  it('drops agentVisible on secret types even if set', () => {
+  it('drops agentAccess on secret types even if set', () => {
     const folded = foldCustomFields([
-      { id: '1', label: 'Recovery', type: 'concealed', value: 'x', agentVisible: true },
+      { id: '1', label: 'Recovery', type: 'concealed', value: 'x', agentAccess: 'discovery' },
     ])
-    expect(folded?.[0]).not.toHaveProperty('agentVisible')
+    expect(folded?.[0]).not.toHaveProperty('agentAccess')
   })
 
   it('mirrors only marked text/multiline fields, in order, trimmed', () => {
@@ -159,7 +159,7 @@ describe('agentVisible fold + agentFieldsFrom', () => {
         visible('1', '  Account ID ', ' acme-prod '),
         textField('2', 'Private', 'secret'),
         visible('3', 'Region', 'eu', 'multiline'),
-        { id: '4', label: 'Code', type: 'concealed', value: 'x', agentVisible: true },
+        { id: '4', label: 'Code', type: 'concealed', value: 'x', agentAccess: 'discovery' },
       ]),
     ).toEqual([
       { label: 'Account ID', value: 'acme-prod' },

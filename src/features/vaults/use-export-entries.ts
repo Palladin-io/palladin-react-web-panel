@@ -1,7 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { decryptEntry } from '../../shared/crypto/entry-crypto'
 import { wipe } from '../../shared/crypto/sodium'
-import { unsealVaultKey } from '../../shared/crypto/vault-key'
 import { useAuthStore } from '../auth'
 import { getAllEntries, getEntry, getVault } from './api/vault-api'
 import {
@@ -126,33 +124,36 @@ export function useExportEntries() {
       const perVault: { id: string; count: number }[] = []
 
       const vaultItems = await Promise.all(
-        input.vaults.map(async (target) => ({
-          target,
-          items: await getAllEntries(target.id),
-        })),
+        input.vaults.map(async (target) => {
+          const key = useAuthStore.getState().getVaultKey(target.id)
+          if (!key) throw new MissingWrappedVaultKeyError()
+          try { return { target, items: await getAllEntries(target.id, key) } }
+          finally { wipe(key) }
+        }),
       )
       const total = vaultItems.reduce((sum, v) => sum + v.items.length, 0)
       let done = 0
       input.onProgress?.(0, total)
 
       for (const { target, items } of vaultItems) {
-        const vault = await getVault(target.id)
-        if (!vault.wrappedVK) throw new MissingWrappedVaultKeyError()
-
-        const vaultKey = await unsealVaultKey(vault.wrappedVK, privateKey)
+        const userId = useAuthStore.getState().userId
+        if (!userId) throw new VaultLockedError()
+        const vault = await getVault(target.id, privateKey, userId, { vaultKey: useAuthStore.getState().cacheVaultKey, discoveryKey: useAuthStore.getState().cacheVaultDiscoveryKey })
+        const vaultKey = useAuthStore.getState().getVaultKey(vault.id)
+        if (!vaultKey) throw new MissingWrappedVaultKeyError()
         try {
           const details = await mapWithConcurrency(
             items,
             EXPORT_FETCH_CONCURRENCY,
             async (item) => {
-              const detail = await getEntry(target.id, item.id)
+              const detail = await getEntry(target.id, item.id, vaultKey)
               input.onProgress?.(++done, total)
               return detail
             },
           )
           const entries: ExportEntry[] = []
           for (const detail of details) {
-            const plaintext = await decryptEntry(detail.content, vaultKey)
+            const plaintext = detail.plaintext
             entries.push(toExportEntry(detail, plaintext, target.name))
           }
           exportVaults.push({ id: target.id, name: target.name, entries })

@@ -137,7 +137,7 @@ describe('CreateEntryModal', () => {
     expect(mutateMock).toHaveBeenCalledTimes(1)
     const [input] = mutateMock.mock.calls[0]
     expect(input.vaultId).toBe('vault-1')
-    expect(input.wrappedVK).toBe('AAAAAAAA')
+    expect(input).not.toHaveProperty('wrappedVK')
     expect(input.label).toBe('Stripe Key')
     expect(input.type).toBe(ENTRY_TYPE_KEY)
     expect(input.payload).toEqual({ type: ENTRY_TYPE_KEY, value: 'sk_live_123' })
@@ -261,7 +261,7 @@ describe('CreateEntryModal', () => {
     expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/could not save the entry/i))
   })
 
-  it('blocks submit when the vault has no wrappedVK', async () => {
+  it('submits without legacy wrapped vault key material', async () => {
     const user = userEvent.setup()
     const vaultNoKey: Vault = { ...VAULT, wrappedVK: undefined }
 
@@ -274,7 +274,7 @@ describe('CreateEntryModal', () => {
     await user.type(screen.getByLabelText(/^value$/i), 'sk')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
-    expect(mutateMock).not.toHaveBeenCalled()
-    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/encryption key unavailable/i))
+    expect(mutateMock).toHaveBeenCalledOnce()
+    expect(mutateMock.mock.calls[0][0]).not.toHaveProperty('wrappedVK')
   })
 })

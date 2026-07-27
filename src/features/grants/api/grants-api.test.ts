@@ -89,14 +89,12 @@ describe('grants-api', () => {
   it('sends a trimmed reason on revoke', async () => {
     deleteFn.mockResolvedValue(undefined)
     await revokeGrant('v1', 'g1', '  compromised  ')
-    expect(deleteFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1', {
-      json: { reason: 'compromised' },
-    })
+    expect(deleteFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1')
   })
 
   it('sends empty body when no reason given', async () => {
     deleteFn.mockResolvedValue(undefined)
     await revokeGrant('v1', 'g1')
-    expect(deleteFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1', { json: {} })
+    expect(deleteFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1')
   })
 })

@@ -1,0 +1,39 @@
+import { describe, expect, it } from 'vitest'
+import { openMemberIndex, openMemberSecret, sealCanonicalEntry } from './entry-protocol'
+import { randomBytes, wipe } from './sodium'
+
+describe('canonical Entry protocol', () => {
+  it('round-trips independently keyed MemberIndex and MemberSecret envelopes', async () => {
+    const vaultKey = await randomBytes(32)
+    const discoveryKey = await randomBytes(32)
+    const secret = {
+      schema: 'palladin.member-secret.v1' as const,
+      memberLabel: 'Database', agentLabel: null, discoverable: false,
+      description: null, icon: null, color: null, entryType: 'credential' as const,
+      agentFieldAccess: {
+        memberLabel: 'never' as const, agentLabel: 'never' as const, description: 'never' as const,
+        icon: 'never' as const, color: 'never' as const, entryType: 'never' as const,
+        'credential.username': 'never' as const, 'credential.password': 'never' as const,
+        'credential.url': 'never' as const, 'credential.urlDomain': 'never' as const,
+        'credential.totp': 'never' as const, notes: 'never' as const,
+      },
+      content: { username: 'alice', password: 'secret', url: null, urlDomain: null, totp: null, notes: null, customFields: [] },
+    }
+    try {
+      const coordinates = {
+        organizationId: '00112233-4455-6677-8899-aabbccddeeff',
+        vaultId: '11112222-3333-4444-8555-666677778888',
+        entryId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', revision: '1',
+        vaultKeyVersion: 1, vdkVersion: 1, memberKeyGeneration: 1,
+      }
+      const envelopes = await sealCanonicalEntry(coordinates, secret, vaultKey, discoveryKey, 1)
+      expect(envelopes.agentDiscovery).toBeNull()
+      expect((await openMemberIndex(envelopes.memberIndex, vaultKey, coordinates)).memberLabel).toBe('Database')
+      expect((await openMemberSecret(envelopes.entryKey, envelopes.memberSecret, vaultKey, coordinates)).content.password).toBe('secret')
+      await expect(openMemberIndex(envelopes.memberIndex, vaultKey, { ...coordinates, entryId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff' }))
+        .rejects.toThrow('outer resource scope')
+      await expect(openMemberSecret(envelopes.entryKey, envelopes.memberSecret, vaultKey, { ...coordinates, revision: '2' }))
+        .rejects.toThrow('outer Entry revision')
+    } finally { wipe(vaultKey); wipe(discoveryKey) }
+  })
+})

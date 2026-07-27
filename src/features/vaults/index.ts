@@ -9,9 +9,7 @@ export type { VaultDetailTab } from './components/vault-detail-tabs'
 export { VaultSettingsPage } from './vault-settings-page'
 export { EntryDetailPage } from './entry-detail-page'
 export type {
-  CreateEntryPayload,
   CreateVaultInput,
-  EntryContent,
   EntryDetail,
   EntryListItem,
   EntryPlaintext,

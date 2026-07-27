@@ -104,7 +104,7 @@ describe('ImportWizardModal', () => {
     expect(importMutate).toHaveBeenCalledTimes(1)
     const [input, options] = importMutate.mock.calls[0]
     expect(input.vaultId).toBe('vault-1')
-    expect(input.wrappedVK).toBe('AAAAAAAA')
+    expect(input).not.toHaveProperty('wrappedVK')
     expect(input.creates).toHaveLength(1)
     expect(input.creates[0].label).toBe('GitHub')
 

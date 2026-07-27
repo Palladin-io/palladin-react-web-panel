@@ -9,9 +9,7 @@ import { FeedbackSlot, FormInput } from '../../shared/components/form-field'
 import { NotesField } from './components/notes-field'
 import { SecretInput } from '../../shared/components/secret-input'
 import { firstError, required, validUrl } from '../../shared/lib/validation'
-import { decryptEntry, encryptEntry } from '../../shared/crypto/entry-crypto'
-import { wipe } from '../../shared/crypto/sodium'
-import { unsealVaultKey } from '../../shared/crypto/vault-key'
+import type { AgentFieldAccess, MemberSecretV1 } from '../../shared/crypto/vault-plaintext'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { analytics } from '../../shared/lib/analytics'
 import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
@@ -40,7 +38,6 @@ import {
   ENTRY_TYPE_SCRIPT,
   SCRIPT_INTERPRETERS,
   type CustomField,
-  type EntryContent,
   type EntryDetail,
   type EntryPlaintext,
   type ScriptInterpreter,
@@ -49,7 +46,6 @@ import {
 } from './types'
 import {
   DEFAULT_TOTP_LABEL,
-  agentFieldsFrom,
   foldCustomFields,
   foldScriptRefs,
   mergeCredentialTotp,
@@ -68,10 +64,8 @@ import { ScriptRefsEditor } from './components/script-refs-editor'
 import { SectionHeader } from './components/section-header'
 import { useDeleteEntry } from './use-delete-entry'
 import { useEntryDetail } from './use-entries'
-import { useEntryIconUpload } from './use-entry-icon-upload'
 import { useUpdateEntry } from './use-update-entry'
 import { useVault } from './use-vault'
-import type { UpdateEntryInput } from './use-update-entry'
 
 export interface EntryDetailPageProps {
   vaultId: string
@@ -400,7 +394,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     }
   }, [entry.label, entry.description, entry.icon, entry.color, entry.type, entry.urlDomain])
 
-  // Decrypt when entry changes or when wrappedVK becomes available.
+  // Reset the locally editable plaintext when the canonical Entry changes.
   // Resetting plaintext at the start ensures stale values from a previous
   // entry are never compared against the current entry's fields.
   //
@@ -413,18 +407,10 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     let cancelled = false
     setOriginalPlaintext(null)
     setDecryptError(null)
-    if (!vault.wrappedVK) return
-    const privateKey = useAuthStore.getState().privateKey
-    if (!privateKey) {
-      setDecryptError(t('vault.entry.detail.decryptError'))
-      return
-    }
     setDecrypting(true)
     void (async () => {
       try {
-        const vaultKey = await unsealVaultKey(vault.wrappedVK!, privateKey)
-        try {
-          const pt = await decryptEntry(entry.content, vaultKey)
+          const pt = entry.plaintext
           if (cancelled) return
           if (pt.type === ENTRY_TYPE_KEY) {
             setOriginalPlaintext(pt)
@@ -452,9 +438,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             setUrl(pt.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : ''))
             setNotes(pt.notes ?? '')
           }
-        } finally {
-          wipe(vaultKey)
-        }
       } catch {
         if (!cancelled) setDecryptError(t('vault.entry.detail.decryptError'))
       } finally {
@@ -465,14 +448,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vault.wrappedVK, entry.id])
+  }, [entry.id, entry.plaintext])
 
-  const iconUpload = useEntryIconUpload(vault.id, entry.id, (publicUrl) => {
-    setIcon(publicUrl)
-    setPendingIconFile(null)
-  })
-
-  const isSaving = update.isPending || iconUpload.isUploading
+  const isSaving = update.isPending
   const isRemoving = remove.isPending
 
   const defaultColor =
@@ -602,62 +580,28 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     // value rather than `iconUpload.error` — that field belongs to the
     // captured render and stays `null` for the rest of this callback.
     if (pendingIconFile) {
-      const uploaded = await iconUpload.upload(pendingIconFile)
-      if (!uploaded) {
-        toast.error(t('vault.iconUploadError.failed'))
-        return
-      }
+      toast.error(t('vault.iconUploadError.failed'))
+      return
     }
 
     // Re-encrypt if the blob content changed. `currentPlaintext` rebuilds the
     // full plaintext (well-known + custom fields + script) from form state,
     // preserving fields this UI doesn't expose.
-    let newContent: EntryContent | undefined
-    let savedPlaintext: EntryPlaintext | undefined
     const current = currentPlaintext()
-
-    if (current && contentChanged) {
-      const privateKey = useAuthStore.getState().privateKey
-      if (!privateKey || !vault.wrappedVK) {
-        toast.error(t('vault.entry.detail.decryptError'))
-        return
-      }
-      try {
-        const vaultKey = await unsealVaultKey(vault.wrappedVK, privateKey)
-        try {
-          newContent = await encryptEntry(current, vaultKey)
-          savedPlaintext = current
-        } finally {
-          wipe(vaultKey)
-        }
-      } catch {
-        toast.error(t('vault.entry.detail.saveError'))
-        return
-      }
+    if (!current) {
+      toast.error(t('vault.entry.detail.saveError'))
+      return
     }
-
-    const patch = buildPatch({
-      label,
-      description,
-      icon: pendingIconFile ? undefined : icon,
-      color,
-      defaultColor,
-      entry,
-      url,
-    })
-    if (newContent) {
-      patch.content = newContent
-      // Content changed → refresh the plaintext agent-field mirror (empty array
-      // clears it server-side when the last visible field is removed).
-      patch.agentFields = agentFieldsFrom(mergedFields) ?? []
-    }
-
-    if (Object.keys(patch).length === 0) {
+    const savedPlaintext = current
+    if (!hasChanges) {
       toast.success(t('vault.entry.detail.saveSuccess'))
       return
     }
-
-    update.mutate(patch, {
+    const memberSecret = rebuildMemberSecret(entry.memberSecretModel, current, {
+      label, description, icon: pendingIconFile ? entry.icon : icon, color,
+      urlDomain: extractDomain(url) || null,
+    })
+    update.mutate({ vault, entry, memberSecret }, {
       onSuccess: () => {
         toast.success(t('vault.entry.detail.saveSuccess'))
         if (savedPlaintext) setOriginalPlaintext(savedPlaintext)
@@ -695,7 +639,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 className="mb-1 block text-meta font-semibold text-[var(--cv-label-text)]"
               >
                 {t('vault.entries.labelLabel')}
-                <span className="ml-1.5 font-normal text-[var(--cv-t3)]">· {t('vault.entries.agentVisibleNote')}</span>
+                <span className="ml-1.5 font-normal text-[var(--cv-t3)]">· {t('vault.entries.agentAccessNote')}</span>
               </label>
               <div className="flex gap-2">
                 <EntryIconButton
@@ -729,7 +673,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             <FormInput
               id="entry-detail-description"
               label={t('vault.entries.descriptionLabel')}
-              labelSuffix={<>· {t('vault.entries.agentVisibleNote')}</>}
+              labelSuffix={<>· {t('vault.entries.agentAccessNote')}</>}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('vault.entries.descriptionPlaceholder')}
@@ -1134,40 +1078,41 @@ function pinCredentialTotp(pt: CredentialPlaintext): {
   return { pinned: null, rest: fields, baseline: pt }
 }
 
-interface BuildPatchInput {
-  label: string
-  description: string
-  icon: string | undefined
-  color: string
-  /**
-   * Derived baseline used to detect a real colour change — matches
-   * `hasChanges` so an entry without an explicit colour does not get a
-   * spurious `patch.color` of the derived value when other fields change.
-   */
-  defaultColor: string
-  entry: EntryDetail
-  url: string
-}
-
-function buildPatch({
-  label,
-  description,
-  icon,
-  color,
-  defaultColor,
-  entry,
-  url,
-}: BuildPatchInput): UpdateEntryInput {
-  const patch: UpdateEntryInput = {}
-  const trimmedLabel = label.trim()
-  if (trimmedLabel !== entry.label) patch.label = trimmedLabel
-  const trimmedDescription = description.trim()
-  if ((trimmedDescription || undefined) !== (entry.description ?? undefined)) {
-    patch.description = trimmedDescription
+function rebuildMemberSecret(
+  existing: MemberSecretV1,
+  plaintext: EntryPlaintext,
+  metadata: { label: string; description: string; icon?: string; color: string; urlDomain: string | null },
+): MemberSecretV1 {
+  const customFields = (plaintext.fields ?? []).map((field) => ({
+    id: field.id.startsWith('custom:') ? field.id : `custom:${field.id}`,
+    label: field.label.normalize('NFC'), type: field.type, value: field.value,
+  }))
+  const policy = { ...existing.agentFieldAccess } as Record<string, AgentFieldAccess>
+  for (const key of Object.keys(policy)) if (key.startsWith('custom:')) delete policy[key]
+  for (const field of customFields) {
+    const original = existing.agentFieldAccess[field.id]
+    policy[field.id] = field.type === 'totp'
+      ? (original === 'onGrantDerived' ? original : 'never')
+      : (original ?? 'never')
   }
-  if (icon !== entry.icon) patch.icon = icon
-  if (color !== defaultColor) patch.color = color
-  const nextDomain = extractDomain(url)
-  if (nextDomain !== entry.urlDomain) patch.urlDomain = nextDomain
-  return patch
+  const common = {
+    ...existing, memberLabel: metadata.label.trim().normalize('NFC'),
+    description: metadata.description.trim().normalize('NFC') || null,
+    icon: metadata.icon ? { kind: 'glyph' as const, value: metadata.icon.normalize('NFC') } : null,
+    color: metadata.color.toUpperCase(), agentFieldAccess: policy,
+  }
+  if (plaintext.type === ENTRY_TYPE_KEY) return { ...common, entryType: 'key', content: {
+    value: plaintext.value.normalize('NFC'), notes: plaintext.notes?.normalize('NFC') ?? null, customFields,
+  } }
+  if (plaintext.type === ENTRY_TYPE_CREDENTIAL) return { ...common, entryType: 'credential', content: {
+    username: plaintext.username.normalize('NFC'), password: plaintext.password.normalize('NFC'),
+    url: plaintext.url?.normalize('NFC') ?? null, urlDomain: metadata.urlDomain,
+    totp: existing.entryType === 'credential' ? existing.content.totp : null,
+    notes: plaintext.notes?.normalize('NFC') ?? null, customFields,
+  } }
+  return { ...common, entryType: 'script', content: {
+    source: plaintext.script.normalize('NFC'), interpreter: plaintext.interpreter,
+    refs: (plaintext.refs ?? []).map((ref) => ({ env: ref.env, vaultId: ref.vaultId!, entryId: ref.entryId, fieldId: ref.field })),
+    notes: plaintext.notes?.normalize('NFC') ?? null, customFields,
+  } }
 }

@@ -140,10 +140,6 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
 
   const handleImport = () => {
     if (!result) return
-    if (!vault.wrappedVK) {
-      toast.error(t('vault.entries.errorMissingVaultKey'))
-      return
-    }
     const { creates, overwrites } = partition()
     if (creates.length + overwrites.length === 0) {
       toast.error(t('vault.import.errorNothingToImport'))
@@ -155,7 +151,6 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
     importMutation.mutate(
       {
         vaultId: vault.id,
-        wrappedVK: vault.wrappedVK,
         format: result.format,
         creates,
         overwrites,

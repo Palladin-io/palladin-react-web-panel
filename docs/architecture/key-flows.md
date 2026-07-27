@@ -6,6 +6,16 @@ This file documents the client-side cryptographic and zero-knowledge flows of th
 
 Key terms: **MK** = master key, **VK** = vault key, **DEK** = per-entry data encryption key. Keys live only in Zustand memory; closing the tab destroys them.
 
+> **Vault v2 cutover status:** the accepted target is the compiled-in
+> `palladin-vault-xchacha-v1` suite (XChaCha20-Poly1305 IETF + HKDF-SHA-256), a
+> stable descriptor authenticated as canonical binary AAD, and a bounded opaque
+> suite payload. The central primitive/registry exists, but the product flows
+> below still describe the legacy API and must move atomically after the shared
+> backend/web/Flutter/Rust wire contract is frozen. Identity private-key
+> wrapping remains a separate protocol follow-up because the Vault purpose
+> registry intentionally has no account-private-key purpose. See
+> [`crypto-protocol.md`](crypto-protocol.md). There will be no dual-mode fallback.
+
 ## Unlock Flow
 1. User enters master password.
 2. Derive MK via Argon2id (salt fetched from `/account`).

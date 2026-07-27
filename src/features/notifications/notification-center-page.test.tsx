@@ -179,7 +179,7 @@ describe('NotificationCenterPage', () => {
     // pending grant request → To-do card: type title + agent in the subtitle
     // (subtitle interpolates the agent name, so match by substring) + entry row
     expect(screen.getByText(/Deploy Bot/)).toBeInTheDocument()
-    expect(screen.getByText('GitHub Token')).toBeInTheDocument()
+    expect(screen.queryByText('GitHub Token')).not.toBeInTheDocument()
 
     // an update (grant_approved) drops into History as an immutable log
     expect(screen.getByText(/Old Bot/)).toBeInTheDocument()

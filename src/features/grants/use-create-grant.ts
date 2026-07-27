@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
-import { produceGrantEntryEnvelope } from '../../shared/crypto/grant-envelope'
-import { unsealVaultKey } from '../../shared/crypto/vault-key'
+import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { getEntries, getEntry, getVault } from '../vaults/api/vault-api'
+import { getAgent } from '../agents/api/agents-api'
 import {
   GRANT_TYPE_FULL,
   GRANT_TYPE_GRANULAR,
@@ -12,7 +12,7 @@ import {
   type GrantType,
 } from './api/org-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
-import { serializeGrantMethods, type GrantMethod } from './grant-methods'
+import { grantMethodsBits, serializeGrantMethods, type GrantMethod } from './grant-methods'
 import { MissingGrantMaterialError, VaultLockedError } from './use-approve-grant'
 import { GRANT_MUTATION_INVALIDATION_KEYS } from './query-keys'
 
@@ -61,18 +61,28 @@ export function useCreateGrant() {
       policy,
       methods,
     }: CreateGrantInput) => {
-      const privateKey = useAuthStore.getState().privateKey
-      if (!privateKey) throw new VaultLockedError()
+      const { privateKey, userId } = useAuthStore.getState()
+      if (!privateKey || !userId) throw new VaultLockedError()
       if (!agentPublicKey) throw new MissingGrantMaterialError()
       if (type === GRANT_TYPE_GRANULAR && !entryId) {
         throw new MissingGrantMaterialError()
       }
 
-      const vault = await getVault(vaultId)
-      if (!vault.wrappedVK) throw new VaultLockedError()
-
-      const vaultKey = await unsealVaultKey(vault.wrappedVK, privateKey)
+      const auth = useAuthStore.getState()
+      const vault = await getVault(vaultId, privateKey, userId, { vaultKey: auth.cacheVaultKey, discoveryKey: auth.cacheVaultDiscoveryKey })
+      const vaultKey = useAuthStore.getState().getVaultKey(vault.id)
+      if (!vaultKey) throw new VaultLockedError()
       try {
+        const agent = await getAgent(agentId)
+        if (!agent.publicKey) throw new MissingGrantMaterialError()
+        const grantId = crypto.randomUUID()
+        const build = (detail: Awaited<ReturnType<typeof getEntry>>) => buildCanonicalGrantEnvelope({
+          organizationId: vault.organizationId, vaultId, entryId: detail.id, grantId, agentId,
+          entryRevision: detail.currentRevision, memberKeyGeneration: vault.memberKeyGeneration,
+          agentPublicKey: agent.publicKey!, recipientKeyVersion: agent.recipientKeyVersion,
+          approvedMethods: grantMethodsBits(methods), expiresAt: 'expiresAt' in policy ? policy.expiresAt : undefined,
+          remainingUses: 'queryLimit' in policy ? policy.queryLimit : undefined, secret: detail.memberSecretModel,
+        })
         let body: CreateGrantBody
 
         if (type === GRANT_TYPE_FULL) {
@@ -80,32 +90,23 @@ export function useCreateGrant() {
           // in parallel — N sequential HTTP round-trips quickly dominate latency
           // for vaults with 10+ entries. Envelope production stays sequential
           // (it's CPU-bound on libsodium and already runs one-at-a-time anyway).
-          const { items } = await getEntries(vaultId)
+          const { items } = await getEntries(vaultId, vaultKey)
           const details = await Promise.all(
-            items.map((item) => getEntry(vaultId, item.id)),
+            items.map((item) => getEntry(vaultId, item.id, vaultKey)),
           )
           const grantEntries = []
           for (let i = 0; i < items.length; i++) {
-            const envelope = await produceGrantEntryEnvelope({
-              entryContent: details[i].content,
-              vaultKey,
-              agentPublicKey,
-            })
-            grantEntries.push({ entryId: items[i].id, ...envelope })
+            grantEntries.push(await build(details[i]))
           }
-          body = { agentId, type: GRANT_TYPE_FULL, grantEntries, ...policy, methods: serializeGrantMethods(methods) }
+          body = { grantId, agentId, type: GRANT_TYPE_FULL, grantEntries, ...policy, methods: serializeGrantMethods(methods) }
         } else {
-          const detail = await getEntry(vaultId, entryId!)
-          const envelope = await produceGrantEntryEnvelope({
-            entryContent: detail.content,
-            vaultKey,
-            agentPublicKey,
-          })
+          const detail = await getEntry(vaultId, entryId!, vaultKey)
+          const envelope = await build(detail)
           body = {
-            agentId,
+            grantId, agentId,
             type: GRANT_TYPE_GRANULAR,
             entryId,
-            grantEntries: [{ entryId: entryId!, ...envelope }],
+            grantEntries: [envelope],
             ...policy,
             methods: serializeGrantMethods(methods),
           }

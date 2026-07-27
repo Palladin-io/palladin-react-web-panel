@@ -53,7 +53,7 @@ describe('pending-grants-api', () => {
     expect(items).toHaveLength(1)
     expect(items[0].id).toBe('g1')
     expect(items[0].agentName).toBe('Deploy Bot')
-    expect(items[0].entryLabel).toBe('Gmail')
+    expect(items[0].entryLabel).toBeUndefined()
     expect(items[0].entryId).toBe('e1')
   })
 
@@ -110,14 +110,10 @@ describe('pending-grants-api', () => {
   it('sends a trimmed reason on deny, empty body when none', async () => {
     putFn.mockResolvedValue(undefined)
     await denyGrant('v1', 'g1', '  too risky  ')
-    expect(putFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1/deny', {
-      json: { reason: 'too risky' },
-    })
+    expect(putFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1/deny')
 
     putFn.mockClear()
     await denyGrant('v1', 'g1')
-    expect(putFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1/deny', {
-      json: {},
-    })
+    expect(putFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1/deny')
   })
 })

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { presignVaultIcon, uploadToS3, updateVault } from './api/vault-api'
 
 type UploadState = 'idle' | 'uploading' | 'error'
 
@@ -19,7 +18,9 @@ export function extensionFromMime(mime: string): string {
   return 'jpg'
 }
 
-export function useVaultIconUpload(vaultId: string, onSuccess: (publicUrl: string) => void) {
+export function useVaultIconUpload(_vaultId: string, _onSuccess: (publicUrl: string) => void) {
+  void _vaultId
+  void _onSuccess
   const { t } = useTranslation()
   const [state, setState] = useState<UploadState>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -34,20 +35,10 @@ export function useVaultIconUpload(vaultId: string, onSuccess: (publicUrl: strin
       return
     }
 
-    setState('uploading')
-    setError(null)
-
-    try {
-      const ext = extensionFromMime(file.type)
-      const { uploadUrl, publicUrl } = await presignVaultIcon(vaultId, ext)
-      await uploadToS3(uploadUrl, file)
-      await updateVault(vaultId, { icon: publicUrl })
-      onSuccess(publicUrl)
-      setState('idle')
-    } catch {
-      setState('error')
-      setError(t('vault.iconUploadError.failed'))
-    }
+    // Vault v2 forbids plaintext/public presentation URLs. Do not upload until
+    // the encrypted-asset container flow is available end-to-end.
+    setState('error')
+    setError(t('vault.iconUploadError.failed'))
   }
 
   return { upload, state, error, isUploading: state === 'uploading' }
