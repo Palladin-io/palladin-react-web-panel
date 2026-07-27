@@ -132,6 +132,7 @@ function AuthenticatedLayout() {
     queryFn: getAccount,
     staleTime: 5 * 60 * 1000,
   })
+  const memberId = account.data?.userId ?? userId
   const emailUnverified = account.data?.emailVerified === false
   useEffect(() => {
     if (emailUnverified) navigate({ to: '/verify-email' })
@@ -156,7 +157,10 @@ function AuthenticatedLayout() {
       // token on its first authenticated request. Gating on accessToken here
       // otherwise leaves the decrypted session permanently stuck in `idle`.
       enabled={!isVaultLocked}
-      userId={userId}
+      // Prefer the authenticated account response after a cold refresh. The
+      // persisted auth hint may predate the refreshed token, while `/account`
+      // is also the authoritative source used by the unlock operation.
+      userId={memberId}
       memberPrivateKey={memberPrivateKey}
     >
       {pathname === '/unlock' ? (
@@ -164,7 +168,7 @@ function AuthenticatedLayout() {
       ) : (
         <RotationProvider
           enabled={Boolean(accessToken) && !isVaultLocked}
-          memberId={userId}
+          memberId={memberId}
           memberPrivateKey={memberPrivateKey}
         >
           <SignalRProvider>
