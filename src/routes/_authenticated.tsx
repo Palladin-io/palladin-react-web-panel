@@ -148,10 +148,7 @@ function AuthenticatedLayout() {
   // account — the redirect above is in flight.
   if (emailUnverified) return null
 
-  if (pathname === '/unlock') return <Outlet />
   return (
-    // SignalRProvider self-gates on auth + unlocked vault, so it only opens a
-    // connection once we're past the guards above.
     <MemberSyncProvider
       // The access token is deliberately memory-only and can be absent after
       // a reload. Member sync may safely start once the Vault is unlocked;
@@ -162,23 +159,27 @@ function AuthenticatedLayout() {
       userId={userId}
       memberPrivateKey={memberPrivateKey}
     >
-      <RotationProvider
-        enabled={Boolean(accessToken) && !isVaultLocked}
-        memberId={userId}
-        memberPrivateKey={memberPrivateKey}
-      >
-      <SignalRProvider>
-        <div
-          className="flex h-screen overflow-hidden"
-          style={{ background: GRADIENTS[theme] }}
+      {pathname === '/unlock' ? (
+        <Outlet />
+      ) : (
+        <RotationProvider
+          enabled={Boolean(accessToken) && !isVaultLocked}
+          memberId={userId}
+          memberPrivateKey={memberPrivateKey}
         >
-          <AppSidebar currentPath={pathname} />
-          <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
-            <Outlet />
-          </main>
-        </div>
-      </SignalRProvider>
-      </RotationProvider>
+          <SignalRProvider>
+            <div
+              className="flex h-screen overflow-hidden"
+              style={{ background: GRADIENTS[theme] }}
+            >
+              <AppSidebar currentPath={pathname} />
+              <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+                <Outlet />
+              </main>
+            </div>
+          </SignalRProvider>
+        </RotationProvider>
+      )}
     </MemberSyncProvider>
   )
 }

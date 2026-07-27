@@ -88,6 +88,29 @@ describe('MemberSyncProvider refresh lifecycle', () => {
     expect(useMemberSyncStore.getState().status).toBe('idle')
   })
 
+  it('starts synchronization when an already-mounted provider unlocks', async () => {
+    const view = render(
+      <MemberSyncProvider enabled={false} userId={null} memberPrivateKey={null}>
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+
+    expect(probe.synchronize).not.toHaveBeenCalled()
+
+    view.rerender(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={new Uint8Array(32)}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+    await act(async () => { await Promise.resolve() })
+
+    expect(probe.synchronize).toHaveBeenCalledTimes(1)
+  })
+
   it('retries immediately without cycling the provider lifecycle', async () => {
     render(
       <MemberSyncProvider
