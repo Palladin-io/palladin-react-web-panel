@@ -15,7 +15,7 @@ const grant: PendingGrant = {
   entryLabel: 'Gmail',
   reason: 'Need it',
   createdAt: '2026-06-01T10:00:00Z',
-  encryptedReason: { requestedMethods: 6 },
+  encryptedReason: { descriptor: { binding: { requestedMethods: 6 } } },
 } as PendingGrant
 
 const review = {
@@ -55,7 +55,7 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     // Subtitle emphasises the agent + vault names and shows the entry by name.
     expect(screen.getByText('Deploy Bot')).toBeInTheDocument()
     expect(screen.getByText('Gmail')).toBeInTheDocument()
-    expect(screen.getByText('Production')).toBeInTheDocument()
+    expect(screen.getByText('this vault')).toBeInTheDocument()
     const select = screen.getByLabelText(/Access type/i)
     expect(select).toBeInTheDocument()
     expect(screen.getByRole('option', { name: /Time Limited/i })).toBeInTheDocument()

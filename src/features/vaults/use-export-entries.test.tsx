@@ -22,11 +22,12 @@ vi.mock('./api/vault-api', () => ({
   getCanonicalEntry: mocks.getEntry,
   getEntryHistory: mocks.getHistory,
 }))
-vi.mock('../../shared/crypto/vault-v2-member-sync', () => ({ openMemberVaultKey: mocks.openVaultKey }))
-vi.mock('../../shared/crypto/vault-v2-entry', () => ({
-  decryptMemberSecret: mocks.decryptCurrent,
-  decryptHistoricalMemberSecret: mocks.decryptHistorical,
+vi.mock('../../shared/crypto/vault-protocol', () => ({ openMemberVaultKey: mocks.openVaultKey }))
+vi.mock('../../shared/crypto/entry-protocol', () => ({
+  openMemberSecret: (entryKey: { entryId?: string; historical?: boolean }, memberSecret: unknown) =>
+    entryKey.historical ? mocks.decryptHistorical(undefined, memberSecret) : mocks.decryptCurrent({ id: entryKey.entryId }),
 }))
+vi.mock('../../shared/crypto/entry-draft', () => ({ fromMemberSecret: (value: unknown) => value }))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
 
 const privateKey = new Uint8Array(32).fill(3)
@@ -68,7 +69,8 @@ describe('useExportEntries', () => {
           currentRevision: '2',
           memberIndexRevision: '2',
           currentKeyVersion: 1,
-          payload: { memberLabel: record.entryId, searchFields: [] },
+          payload: { memberLabel: record.entryId, entryType: 'credential', description: null, icon: null,
+            color: null, username: null, urlDomain: null, customIndex: [] },
           corrupt: false,
         }])),
         appliedThroughSequence: '3',
@@ -78,12 +80,13 @@ describe('useExportEntries', () => {
       error: null,
     })
     mocks.getVault.mockResolvedValue({
-      memberVaultKey: { organizationId: 'org', memberId: 'member' },
+      memberVaultKey: {},
       currentKeyEpoch: { vaultKeyVersion: 1 },
       memberKeyGeneration: 1,
     })
     mocks.getEntry.mockImplementation((_vaultId: string, entryId: string) => Promise.resolve({
       organizationId: 'org', vaultId: 'vault', id: entryId, currentRevision: '2',
+      entryKey: { entryId }, memberSecret: {},
     }))
     mocks.decryptCurrent.mockImplementation((detail: { id: string }) => Promise.resolve(secret(detail.id)))
     mocks.getHistory.mockResolvedValue({ items: [], nextBeforeRevision: null })
@@ -124,7 +127,7 @@ describe('useExportEntries', () => {
 
   it('includes archived, deleted, and historical versions only when explicitly selected', async () => {
     mocks.getHistory.mockImplementation((_vault: string, entryId: string) => Promise.resolve({
-      items: [{ revision: '1', memberSecret: { entryId }, entryKey: { entryId } }],
+      items: [{ revision: '1', memberSecret: { entryId }, entryKey: { entryId, historical: true } }],
       nextBeforeRevision: null,
     }))
     mocks.decryptHistorical.mockImplementation((_detail: unknown, member: { entryId: string }) => (

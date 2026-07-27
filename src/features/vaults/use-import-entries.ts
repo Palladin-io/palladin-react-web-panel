@@ -1,16 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
-import { produceGrantEntryEnvelope } from '../../shared/crypto/grant-envelope'
-import {
-  buildEntryProjections,
-  createEntryUpdateMaterial,
-  createInitialEntryMaterial,
-  decryptMemberSecret,
-  defaultAgentVisibilityPolicy,
-  type CanonicalEntryDraft,
-} from '../../shared/crypto/vault-v2-entry'
-import { openMemberVaultKey } from '../../shared/crypto/vault-v2-member-sync'
-import { openDiscoveryKey } from '../../shared/crypto/vault-v2-rotation'
+import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
+import { defaultAgentVisibilityPolicy, toMemberSecret, type EntryDraft } from '../../shared/crypto/entry-draft'
+import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
+import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
+import { projectAgentDiscovery } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
 import {
@@ -124,7 +118,7 @@ function toPlaintext(entry: ParsedEntry): EntryPlaintext {
   }
 }
 
-function toDraft(entry: ParsedEntry): CanonicalEntryDraft {
+function toDraft(entry: ParsedEntry): EntryDraft {
   const content = toPlaintext(entry)
   return {
     memberLabel: entry.label,
@@ -170,16 +164,11 @@ export function useImportEntries() {
         throw new ImportStepError('grants', error)
       }
       const vault = await getEncryptedVault(input.vaultId)
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, {
-        organizationId: vault.memberVaultKey.organizationId,
-        vaultId: vault.id,
-        memberId: vault.memberVaultKey.memberId,
-        vkVersion: vault.currentKeyEpoch.vaultKeyVersion,
-        memberKeyGeneration: vault.memberKeyGeneration,
-      }, privateKey)
+      const organizationId = vault.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
       let discoveryKey: Uint8Array | undefined
       try {
-        discoveryKey = await openDiscoveryKey(vault.discoveryKey, vaultKey)
+        discoveryKey = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)
         const labelsByEntryId = new Map<string, string>()
         let importedCount = 0
         const failed: { label: string; reason: string }[] = []
@@ -189,6 +178,7 @@ export function useImportEntries() {
         // reported back, with the server's validation message attached.
         const saveChunk = async (chunk: ImportEntryItem[]): Promise<void> => {
           try {
+            if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
             const response = await importEntries(input.vaultId, {
               format: input.format,
               entries: chunk,
@@ -219,37 +209,36 @@ export function useImportEntries() {
               const entryId = challenges[index]?.entryId
               if (!entryId) throw new Error('Entry creation challenge count mismatch')
               const draft = toDraft(entry)
-              const material = await createInitialEntryMaterial(draft, {
-                organizationId: vault.memberVaultKey.organizationId,
+              const memberSecret = toMemberSecret({
+                label: draft.memberLabel, agentLabel: draft.agentLabel,
+                type: draft.entryType, payload: draft.content, policy: draft.policy,
+                vaultId: vault.id,
+              })
+              const material = await sealCanonicalEntry({
+                organizationId,
                 vaultId: vault.id,
                 entryId,
+                revision: '1',
                 vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
                 vdkVersion: vault.currentKeyEpoch.vdkVersion,
                 memberKeyGeneration: vault.memberKeyGeneration,
-              }, vaultKey, discoveryKey)
-              const memberSecret = buildEntryProjections(draft).memberSecret
+              }, memberSecret, vaultKey, discoveryKey, 1)
               const grantEnvelopes = []
               for (const grant of fullGrants) {
                 const methods = parseGrantMethods(grant.methods)
                 if (methods.length === 0) throw new Error('Active FULL grant method context is invalid')
-                grantEnvelopes.push(await produceGrantEntryEnvelope({
-                  memberSecret,
+                grantEnvelopes.push(await buildCanonicalGrantEnvelope({
+                  secret: memberSecret,
                   agentPublicKey: grant.agentPublicKey,
-                  scope: {
-                    organizationId: vault.memberVaultKey.organizationId,
-                    vaultId: vault.id,
-                    grantId: grant.grantId,
-                    agentId: grant.agentId,
-                    entryId,
-                    entryRevision: '1',
-                    grantEnvelopeRevision: '1',
-                    grantKeyVersion: 1,
-                    memberKeyGeneration: vault.memberKeyGeneration,
-                    recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
-                    approvedMethods: grantMethodsMask(methods),
-                    ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
-                    ...(grant.remainingUses !== undefined ? { remainingUses: grant.remainingUses } : {}),
-                  },
+                  approvedFieldIds: listGrantableFields(memberSecret).map((field) => field.id),
+                  organizationId, vaultId: vault.id, grantId: grant.grantId,
+                  agentId: grant.agentId, entryId, entryRevision: '1',
+                  grantEnvelopeRevision: '1', grantKeyVersion: 1,
+                  memberKeyGeneration: vault.memberKeyGeneration,
+                  recipientKeyVersion: grant.recipientAgentKeyVersion,
+                  approvedMethods: grantMethodsMask(methods),
+                  ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
+                  ...(grant.remainingUses !== undefined ? { remainingUses: grant.remainingUses } : {}),
                 }))
               }
               encryptedChunk.push({ entryId, ...material, grantEnvelopes })
@@ -270,42 +259,67 @@ export function useImportEntries() {
               getCanonicalEntry(input.vaultId, entryId),
               activeCoveringGrants(input.vaultId, entryId),
             ])
-            const previous = await decryptMemberSecret(detail, vaultKey)
+            const previous = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
+              organizationId: detail.organizationId, vaultId: detail.vaultId,
+              entryId: detail.id, revision: detail.currentRevision,
+            })
             const draft = toDraft(entry)
-            const material = await createEntryUpdateMaterial(
-              detail, previous, draft, vaultKey, vault.currentKeyEpoch.vdkVersion, discoveryKey,
-            )
-            const nextSecret = buildEntryProjections(draft).memberSecret
+            const nextSecret = toMemberSecret({
+              label: draft.memberLabel, agentLabel: draft.agentLabel,
+              type: draft.entryType, payload: draft.content, policy: draft.policy,
+              vaultId: input.vaultId,
+            })
+            const nextRevision = (BigInt(detail.currentRevision) + 1n).toString()
+            const agentDiscoveryChanged = JSON.stringify(projectAgentDiscovery(previous))
+              !== JSON.stringify(projectAgentDiscovery(nextSecret))
+            const envelopes = await sealCanonicalEntry({
+              organizationId: detail.organizationId, vaultId: detail.vaultId, entryId,
+              revision: nextRevision,
+              entryKeyRevision: (BigInt(detail.entryKey.descriptor.resourceRevision) + 1n).toString(),
+              entryKeyVersion: detail.currentKeyVersion + 1,
+              memberIndexRevision: (BigInt(detail.memberIndexRevision) + 1n).toString(),
+              agentDiscoveryRevision: (BigInt(detail.agentDiscoveryRevisionHighWatermark) + 1n).toString(),
+              vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
+              vdkVersion: vault.currentKeyEpoch.vdkVersion,
+              memberKeyGeneration: vault.memberKeyGeneration,
+            }, nextSecret, vaultKey, discoveryKey, 2)
+            const material = {
+              baseRevision: detail.currentRevision,
+              newEntryKey: envelopes.entryKey,
+              memberSecret: envelopes.memberSecret,
+              memberIndex: envelopes.memberIndex,
+              agentDiscoveryChanged,
+              ...(agentDiscoveryChanged && envelopes.agentDiscovery ? { agentDiscovery: envelopes.agentDiscovery } : {}),
+              grantEnvelopes: [] as Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>[],
+            }
             for (const grant of grants) {
               const scope = grant.entryScopes.find((candidate) => candidate.entryId === entryId)
               const methods = parseGrantMethods(grant.methods)
               if (!scope?.grantEnvelopeRevision || !scope.grantKeyVersion || !scope.fieldIds.length
                 || !grant.agentId || !grant.agentPublicKey || !grant.recipientAgentKeyVersion
                 || methods.length === 0) throw new Error('Active grant refresh context is invalid')
-              material.grantEnvelopes.push(await produceGrantEntryEnvelope({
-                memberSecret: nextSecret,
+              const grantable = new Set(listGrantableFields(nextSecret).map((field) => field.id))
+              const approvedFieldIds = scope.fieldIds.filter((fieldId) => grantable.has(fieldId))
+              if (approvedFieldIds.length === 0) throw new Error('Active grant has no permitted fields')
+              material.grantEnvelopes.push(await buildCanonicalGrantEnvelope({
+                secret: nextSecret,
                 agentPublicKey: grant.agentPublicKey,
-                fieldIds: scope.fieldIds,
-                narrowToPolicy: true,
-                scope: {
-                  organizationId: detail.organizationId,
-                  vaultId: input.vaultId,
-                  grantId: grant.id,
-                  agentId: grant.agentId,
-                  entryId,
-                  entryRevision: material.memberSecret.revision,
-                  grantEnvelopeRevision: (BigInt(scope.grantEnvelopeRevision) + 1n).toString(),
-                  grantKeyVersion: scope.grantKeyVersion + 1,
-                  memberKeyGeneration: vault.memberKeyGeneration,
-                  recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
-                  approvedMethods: grantMethodsMask(methods),
-                  ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
-                  ...(grant.queryLimit !== null && grant.queryLimit !== undefined
-                    ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }
-                    : {}),
-                },
+                approvedFieldIds,
+                organizationId: detail.organizationId, vaultId: input.vaultId,
+                grantId: grant.id, agentId: grant.agentId, entryId,
+                entryRevision: nextRevision,
+                grantEnvelopeRevision: (BigInt(scope.grantEnvelopeRevision) + 1n).toString(),
+                grantKeyVersion: scope.grantKeyVersion + 1,
+                memberKeyGeneration: vault.memberKeyGeneration,
+                recipientKeyVersion: grant.recipientAgentKeyVersion,
+                approvedMethods: grantMethodsMask(methods),
+                ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
+                ...(grant.queryLimit !== null && grant.queryLimit !== undefined
+                  ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }
+                  : {}),
               }))
             }
+            if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
             await updateCanonicalEntry(input.vaultId, entryId, material)
             updatedCount += 1
           } catch (error) {

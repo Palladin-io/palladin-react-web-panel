@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth'
-import { defaultAgentVisibilityPolicy } from '../../shared/crypto/vault-v2-entry'
+import { defaultAgentVisibilityPolicy } from '../../shared/crypto/entry-draft'
 import {
   ActiveFullGrantMaterialRequiredError,
   useCreateEntry,
@@ -35,11 +35,13 @@ vi.mock('./api/vault-api', () => ({
 }))
 vi.mock('./sync/member-sync-api', () => ({ getEncryptedVault: mocks.getVault }))
 vi.mock('../grants', () => ({ collectActiveFullGrants: mocks.collectGrants }))
-vi.mock('../../shared/crypto/vault-v2-member-sync', () => ({ openMemberVaultKey: mocks.openVaultKey }))
-vi.mock('../../shared/crypto/vault-v2-rotation', () => ({ openDiscoveryKey: mocks.openDiscoveryKey }))
-vi.mock('../../shared/crypto/vault-v2-entry', async (original) => ({
-  ...(await original<typeof import('../../shared/crypto/vault-v2-entry')>()),
-  createInitialEntryMaterial: mocks.createMaterial,
+vi.mock('../../shared/crypto/vault-protocol', () => ({
+  openMemberVaultKey: mocks.openVaultKey, openVaultDerivedEnvelope: mocks.openDiscoveryKey,
+}))
+vi.mock('../../shared/crypto/entry-protocol', () => ({ sealCanonicalEntry: mocks.createMaterial }))
+vi.mock('../../shared/crypto/entry-draft', async (original) => ({
+  ...(await original<typeof import('../../shared/crypto/entry-draft')>()),
+  toMemberSecret: (value: unknown) => value,
 }))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
 
@@ -48,8 +50,7 @@ const vault = {
   memberKeyGeneration: 2,
   currentKeyEpoch: { vaultKeyVersion: 4, vdkVersion: 3 },
   memberVaultKey: {
-    organizationId: '00112233-4455-4677-8899-aabbccddeeff',
-    memberId: '33332233-4455-4677-8899-aabbccddeeff',
+    wrappedVaultKey: { descriptor: { scope: { organizationId: '00112233-4455-4677-8899-aabbccddeeff' } } },
   },
   discoveryKey: { opaque: 'discovery-key' },
 }
@@ -88,10 +89,11 @@ describe('useCreateEntry', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(mocks.createMaterial).toHaveBeenCalledWith(
-      expect.objectContaining({ memberLabel: 'Stripe', agentLabel: 'Stripe work', content: input.payload }),
       expect.objectContaining({ entryId: '22222233-4455-4677-8899-aabbccddeeff' }),
+      expect.objectContaining({ label: 'Stripe', agentLabel: 'Stripe work', payload: input.payload }),
       expect.any(Uint8Array),
       expect.any(Uint8Array),
+      1,
     )
     const [, body] = mocks.createEntry.mock.calls[0]
     expect(body).toEqual(expect.objectContaining({

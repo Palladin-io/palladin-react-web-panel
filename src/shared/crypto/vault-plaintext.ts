@@ -345,3 +345,22 @@ export function projectGrantPayload(secret: MemberSecretV1, fieldIds: readonly s
   })
   return grantPayloadSchema.parse({ schema: 'palladin.grant-payload.v1', entryType: secret.entryType, fields })
 }
+
+export function listGrantableFieldIds(secret: MemberSecretV1): string[] {
+  assertPolicy(secret)
+  return Object.entries(secret.agentFieldAccess)
+    .filter(([, access]) => access === 'onGrantValue' || access === 'onGrantDerived' || access === 'onGrantRuntime')
+    .map(([id]) => id)
+    .sort()
+}
+
+export function memberIndexSearchValues(index: MemberIndexV1): string[] {
+  return [index.memberLabel, index.description, index.username, index.urlDomain,
+    ...index.customIndex.flatMap((field) => [field.label, field.value])]
+    .filter((value): value is string => Boolean(value))
+}
+
+export function presentationIconReference(icon: MemberIndexV1['icon'] | MemberVaultMetadataV1['icon']): string | undefined {
+  return icon?.kind === 'glyph' ? icon.value
+    : icon?.kind === 'encryptedAsset' ? `asset:${icon.assetId}` : undefined
+}

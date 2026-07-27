@@ -10,7 +10,7 @@ import {
 import { assertEnvelopeScope, openVaultEnvelope, sealVaultEnvelope, type EnvelopeDescriptorContract, type VaultEnvelopeContract } from './vault-envelope'
 
 export type EmptyBinding = Record<string, never>
-export type MemberSecretBinding = { operation: 1 | 2 }
+export type MemberSecretBinding = { operation: 1 | 2 | 3 | 4 | 5 }
 export type VaultKeyBinding = { wrappingVaultKeyVersion: number }
 
 export interface EntryCryptoCoordinates {
@@ -18,6 +18,10 @@ export interface EntryCryptoCoordinates {
   vaultId: string
   entryId: string
   revision: string
+  entryKeyRevision?: string
+  entryKeyVersion?: number
+  memberIndexRevision?: string
+  agentDiscoveryRevision?: string
   vaultKeyVersion: number
   vdkVersion: number
   memberKeyGeneration: number
@@ -71,15 +75,19 @@ export async function sealCanonicalEntry(
   secret: MemberSecretV1,
   vaultKey: Uint8Array,
   vaultDiscoveryKey: Uint8Array,
-  operation: 1 | 2,
+  operation: 1 | 2 | 3 | 4 | 5,
 ): Promise<CanonicalEntryEnvelopes> {
   const entryDek = await randomBytes(32)
   const index = projectMemberIndex(secret)
   const discovery = projectAgentDiscovery(secret)
-  const keyDescriptor = makeDescriptor(coordinates, ENVELOPE_PURPOSE.entryDekByVk, 1, { wrappingVaultKeyVersion: coordinates.vaultKeyVersion })
-  const indexDescriptor = makeDescriptor(coordinates, ENVELOPE_PURPOSE.memberIndex, coordinates.vaultKeyVersion, {})
-  const secretDescriptor = makeDescriptor(coordinates, ENVELOPE_PURPOSE.memberSecret, 1, { operation })
-  const discoveryDescriptor = makeDescriptor(coordinates, ENVELOPE_PURPOSE.agentDiscovery, coordinates.vdkVersion, {})
+  const keyCoordinates = { ...coordinates, revision: coordinates.entryKeyRevision ?? coordinates.revision }
+  const indexCoordinates = { ...coordinates, revision: coordinates.memberIndexRevision ?? coordinates.revision }
+  const discoveryCoordinates = { ...coordinates, revision: coordinates.agentDiscoveryRevision ?? coordinates.revision }
+  const entryKeyVersion = coordinates.entryKeyVersion ?? 1
+  const keyDescriptor = makeDescriptor(keyCoordinates, ENVELOPE_PURPOSE.entryDekByVk, entryKeyVersion, { wrappingVaultKeyVersion: coordinates.vaultKeyVersion })
+  const indexDescriptor = makeDescriptor(indexCoordinates, ENVELOPE_PURPOSE.memberIndex, coordinates.vaultKeyVersion, {})
+  const secretDescriptor = makeDescriptor(coordinates, ENVELOPE_PURPOSE.memberSecret, entryKeyVersion, { operation })
+  const discoveryDescriptor = makeDescriptor(discoveryCoordinates, ENVELOPE_PURPOSE.agentDiscovery, coordinates.vdkVersion, {})
   const [entryWrapKey, indexKey, discoveryKey] = await Promise.all([
     derived(vaultKey, keyDescriptor), derived(vaultKey, indexDescriptor), derived(vaultDiscoveryKey, discoveryDescriptor),
   ])

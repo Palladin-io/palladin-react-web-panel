@@ -1,14 +1,10 @@
 import { useMutation } from '@tanstack/react-query'
-import {
-  decryptHistoricalMemberSecret,
-  decryptMemberSecret,
-  type CanonicalEntryDetail,
-  type MemberSecretPlaintext,
-} from '../../shared/crypto/vault-v2-entry'
-import { openMemberVaultKey } from '../../shared/crypto/vault-v2-member-sync'
+import { openMemberSecret } from '../../shared/crypto/entry-protocol'
+import { fromMemberSecret, type MemberSecretView } from '../../shared/crypto/entry-draft'
+import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
-import { getCanonicalEntry, getEntryHistory } from './api/vault-api'
+import { getCanonicalEntry, getEntryHistory, type CanonicalEntryDetail } from './api/vault-api'
 import { toPalladinCsv, toPalladinJson, type ExportEntry, type ExportVault } from './export'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from './types'
 import { getEncryptedVault } from './sync/member-sync-api'
@@ -79,7 +75,7 @@ function selectedStates(input: ExportEntriesInput): ReadonlySet<MemberEntryState
 }
 
 function toExportEntry(
-  secret: MemberSecretPlaintext,
+  secret: MemberSecretView,
   folder: string,
   state: MemberEntryState,
   revision: string,
@@ -124,8 +120,11 @@ async function loadHistory(
       if (rows.length >= MAXIMUM_HISTORY_VERSIONS_PER_ENTRY) {
         throw new ExportProjectionUnavailableError()
       }
-      const secret = await decryptHistoricalMemberSecret(detail, item.memberSecret, item.entryKey, vaultKey)
-      rows.push(toExportEntry(secret, folder, state, item.revision, true))
+      const secret = await openMemberSecret(item.entryKey, item.memberSecret, vaultKey, {
+        organizationId: detail.organizationId, vaultId: detail.vaultId,
+        entryId: detail.id, revision: item.revision,
+      })
+      rows.push(toExportEntry(fromMemberSecret(secret), folder, state, item.revision, true))
     }
     const next = page.nextBeforeRevision ?? undefined
     if (next && (!cursors.add(next) || next === beforeRevision)) throw new ExportProjectionUnavailableError()
@@ -186,13 +185,7 @@ export function useExportEntries() {
         for (const { target, metadata, entries } of selected) {
           throwIfCancelled(input.signal, privateKey)
           const encryptedVault = await getEncryptedVault(target.id, input.signal)
-          const vaultKey = await openMemberVaultKey(encryptedVault.memberVaultKey, {
-            organizationId: encryptedVault.memberVaultKey.organizationId,
-            vaultId: target.id,
-            memberId: encryptedVault.memberVaultKey.memberId,
-            vkVersion: encryptedVault.currentKeyEpoch.vaultKeyVersion,
-            memberKeyGeneration: encryptedVault.memberKeyGeneration,
-          }, privateKey)
+          const vaultKey = await openMemberVaultKey(encryptedVault.memberVaultKey, privateKey)
           try {
             const rows = await mapWithConcurrency(
               entries,
@@ -201,9 +194,12 @@ export function useExportEntries() {
               async (record) => {
                 throwIfCancelled(input.signal, privateKey)
                 const detail = await getCanonicalEntry(target.id, record.entryId, input.signal)
-                const secret = await decryptMemberSecret(detail, vaultKey)
+                const secret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
+                  organizationId: detail.organizationId, vaultId: detail.vaultId,
+                  entryId: detail.id, revision: detail.currentRevision,
+                })
                 const result = [toExportEntry(
-                  secret,
+                  fromMemberSecret(secret),
                   metadata.name,
                   record.state,
                   detail.currentRevision,

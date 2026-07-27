@@ -3,18 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
-import {
-  decryptHistoricalMemberSecret,
-  decryptMemberSecret,
-  type CanonicalEntryDetail,
-  type CanonicalEntryDraft,
-  type MemberSecretPlaintext,
-} from '../../../shared/crypto/vault-v2-entry'
-import { openMemberVaultKey } from '../../../shared/crypto/vault-v2-member-sync'
+import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
+import { fromMemberSecret, type EntryDraft, type MemberSecretView } from '../../../shared/crypto/entry-draft'
+import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
 import { wipe } from '../../../shared/crypto/sodium'
 import { shortenKey } from '../../../shared/lib/shorten-key'
 import { useAuthStore } from '../../auth'
-import type { EntryHistoryItem } from '../api/vault-api'
+import type { CanonicalEntryDetail, EntryHistoryItem } from '../api/vault-api'
 import { getEncryptedVault } from '../sync/member-sync-api'
 import { useEntryHistory } from '../use-entries'
 import { useUpdateCanonicalEntry } from '../use-update-canonical-entry'
@@ -23,7 +18,7 @@ export interface EntryHistoryTabProps {
   detail: CanonicalEntryDetail
 }
 
-function asDraft(secret: MemberSecretPlaintext): CanonicalEntryDraft {
+function asDraft(secret: MemberSecretView): EntryDraft {
   return {
     memberLabel: secret.memberLabel,
     agentLabel: secret.agentLabel,
@@ -39,7 +34,7 @@ export function EntryHistoryTab({ detail }: EntryHistoryTabProps) {
   const { t, i18n } = useTranslation()
   const history = useEntryHistory(detail.vaultId, detail.id, true)
   const update = useUpdateCanonicalEntry(detail.vaultId, detail.id)
-  const [selected, setSelected] = useState<{ revision: string; value: MemberSecretPlaintext } | null>(null)
+  const [selected, setSelected] = useState<{ revision: string; value: MemberSecretView } | null>(null)
   const [revealingRevision, setRevealingRevision] = useState<string | null>(null)
 
   useEffect(() => useAuthStore.subscribe((state, previous) => {
@@ -52,15 +47,11 @@ export function EntryHistoryTab({ detail }: EntryHistoryTabProps) {
     const key = useAuthStore.getState().privateKey
     if (!key) throw new Error('Vault is locked')
     const vault = await getEncryptedVault(detail.vaultId)
-    const vaultKey = await openMemberVaultKey(vault.memberVaultKey, {
-      organizationId: detail.organizationId,
-      vaultId: detail.vaultId,
-      memberId: vault.memberVaultKey.memberId,
-      vkVersion: vault.currentKeyEpoch.vaultKeyVersion,
-      memberKeyGeneration: vault.memberKeyGeneration,
-    }, key)
+    const vaultKey = await openMemberVaultKey(vault.memberVaultKey, key)
     try {
-      return await run(vaultKey)
+      const result = await run(vaultKey)
+      if (useAuthStore.getState().privateKey !== key) throw new Error('Vault lock session changed')
+      return result
     } finally {
       wipe(vaultKey)
     }
@@ -70,12 +61,13 @@ export function EntryHistoryTab({ detail }: EntryHistoryTabProps) {
     setSelected(null)
     setRevealingRevision(item.revision)
     try {
-      const value = await withVaultKey((vaultKey) => decryptHistoricalMemberSecret(
-        detail, item.memberSecret, item.entryKey, vaultKey,
-      ))
-      // Lock may race the asynchronous decrypt. Never publish plaintext after
-      // the in-memory private key has already been cleared.
-      if (useAuthStore.getState().privateKey) setSelected({ revision: item.revision, value })
+      const value = await withVaultKey(async (vaultKey) => fromMemberSecret(await openMemberSecret(
+        item.entryKey, item.memberSecret, vaultKey, {
+          organizationId: detail.organizationId, vaultId: detail.vaultId,
+          entryId: detail.id, revision: item.revision,
+        },
+      )))
+      setSelected({ revision: item.revision, value })
     } catch {
       toast.error(t('vault.entry.history.decryptError'))
     } finally {
@@ -86,7 +78,12 @@ export function EntryHistoryTab({ detail }: EntryHistoryTabProps) {
   const restore = async () => {
     if (!selected || selected.revision === detail.currentRevision) return
     try {
-      const current = await withVaultKey((vaultKey) => decryptMemberSecret(detail, vaultKey))
+      const current = await withVaultKey(async (vaultKey) => fromMemberSecret(await openMemberSecret(
+        detail.entryKey, detail.memberSecret, vaultKey, {
+          organizationId: detail.organizationId, vaultId: detail.vaultId,
+          entryId: detail.id, revision: detail.currentRevision,
+        },
+      )))
       await update.mutateAsync({ detail, previous: current, draft: asDraft(selected.value) })
       setSelected(null)
       toast.success(t('vault.entry.history.restoreSuccess'))

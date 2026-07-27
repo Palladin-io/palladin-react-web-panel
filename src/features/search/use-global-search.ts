@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuthStore } from '../auth'
 import { useMemberSyncStore, type MemberIndexRecord } from '../vaults/sync/member-sync-store'
 import { getAdministrativeSearch, type RemoteSearchResult } from './search-api'
+import { memberIndexSearchValues, presentationIconReference } from '../../shared/crypto/vault-plaintext'
 
 const MIN_QUERY_LENGTH = 2
 const MAXIMUM_QUERY_LENGTH = 128
@@ -64,9 +65,10 @@ function localCandidates(vaults: ReturnType<typeof useMemberSyncStore.getState>[
           vaultId,
           name: entry.payload.memberLabel,
           vaultName: vault.metadata.name,
-          ...(materialIcon(entry.payload.iconReference) ? { icon: materialIcon(entry.payload.iconReference) } : {}),
+          ...(materialIcon(presentationIconReference(entry.payload.icon))
+            ? { icon: materialIcon(presentationIconReference(entry.payload.icon)) } : {}),
         },
-        fields: [entry.payload.memberLabel, ...entry.payload.searchFields],
+        fields: memberIndexSearchValues(entry.payload),
       })
     }
   }
@@ -104,7 +106,8 @@ export function recentLocalEntries(
         result: {
           type: 'entry', id: record.entryId, vaultId,
           name: record.payload.memberLabel, vaultName: vault.metadata.name,
-          ...(materialIcon(record.payload.iconReference) ? { icon: materialIcon(record.payload.iconReference) } : {}),
+          ...(materialIcon(presentationIconReference(record.payload.icon))
+            ? { icon: materialIcon(presentationIconReference(record.payload.icon)) } : {}),
         },
       })
     }

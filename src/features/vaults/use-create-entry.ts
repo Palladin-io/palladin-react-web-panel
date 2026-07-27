@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { createInitialEntryMaterial, type AgentVisibilityPolicy } from '../../shared/crypto/vault-v2-entry'
-import { openMemberVaultKey } from '../../shared/crypto/vault-v2-member-sync'
-import { openDiscoveryKey } from '../../shared/crypto/vault-v2-rotation'
+import { sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
+import { toMemberSecret, type AgentVisibilityPolicy } from '../../shared/crypto/entry-draft'
+import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
 import { collectActiveFullGrants } from '../grants'
@@ -59,32 +59,20 @@ export function useCreateEntry() {
       ])
       if (fullGrants.length > 0) throw new ActiveFullGrantMaterialRequiredError()
 
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, {
-        organizationId: vault.memberVaultKey.organizationId,
-        vaultId: vault.id,
-        memberId: vault.memberVaultKey.memberId,
-        vkVersion: vault.currentKeyEpoch.vaultKeyVersion,
-        memberKeyGeneration: vault.memberKeyGeneration,
-      }, privateKey)
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
       let discoveryKey: Uint8Array | undefined
       try {
-        discoveryKey = await openDiscoveryKey(vault.discoveryKey, vaultKey)
-        const material = await createInitialEntryMaterial({
-          memberLabel: input.label,
-          agentLabel: input.agentLabel,
-          ...(input.description ? { description: input.description } : {}),
-          ...(input.iconReference ? { iconReference: input.iconReference } : {}),
-          entryType: input.type,
-          content: input.payload,
-          policy: input.policy,
-        }, {
-          organizationId: vault.memberVaultKey.organizationId,
+        discoveryKey = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)
+        const secret = toMemberSecret({ ...input, vaultId: input.vaultId })
+        const material = await sealCanonicalEntry({
+          organizationId: vault.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId,
           vaultId: vault.id,
           entryId: challenge.entryId,
+          revision: '1',
           vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
           vdkVersion: vault.currentKeyEpoch.vdkVersion,
           memberKeyGeneration: vault.memberKeyGeneration,
-        }, vaultKey, discoveryKey)
+        }, secret, vaultKey, discoveryKey, 1)
         return createEntry(input.vaultId, {
           entryId: challenge.entryId,
           ...material,

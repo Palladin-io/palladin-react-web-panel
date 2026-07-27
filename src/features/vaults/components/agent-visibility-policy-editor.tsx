@@ -5,7 +5,7 @@ import {
   ENTRY_FIELD,
   type AgentFieldAccess,
   type AgentVisibilityPolicy,
-} from '../../../shared/crypto/vault-v2-entry'
+} from '../../../shared/crypto/entry-draft'
 import {
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,

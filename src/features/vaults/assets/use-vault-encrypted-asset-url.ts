@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { decryptPresentationAsset, validatePresentationAssetDimensions } from '../../../shared/crypto/vault-v2-assets'
-import { openMemberVaultKey } from '../../../shared/crypto/vault-v2-member-sync'
+import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
 import { wipe } from '../../../shared/crypto/sodium'
 import { parseJwtPayload } from '../../../shared/lib/jwt'
 import { useAuthStore } from '../../auth'
@@ -35,13 +35,7 @@ export function useVaultEncryptedAssetUrl(vaultId: string, assetId: string | nul
       try {
         const vault = await getEncryptedVault(vaultId, controller.signal)
         const keyVersion = vault.currentKeyEpoch.vaultKeyVersion
-        vaultKey = await openMemberVaultKey(vault.memberVaultKey, {
-          organizationId,
-          vaultId,
-          memberId,
-          vkVersion: keyVersion,
-          memberKeyGeneration: vault.memberKeyGeneration,
-        }, memberPrivateKey)
+        vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberPrivateKey)
         const remote = await downloadEncryptedAsset(vaultId, assetId, controller.signal)
         if (remote.target !== 1 || remote.entryId !== undefined) throw new Error('Vault asset scope mismatch')
         const decrypted = await decryptPresentationAsset(remote.ciphertext, {

@@ -1,8 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
-import { decryptMemberSecret } from '../../shared/crypto/vault-v2-entry'
-import { produceGrantEntryEnvelope } from '../../shared/crypto/grant-envelope'
-import { openMemberVaultKey } from '../../shared/crypto/vault-v2-member-sync'
+import { openMemberSecret } from '../../shared/crypto/entry-protocol'
+import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
+import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
+import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
@@ -52,34 +53,20 @@ export function useRegrant() {
         getEncryptedVault(vaultId),
         getCanonicalEntry(vaultId, entryId),
       ])
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, {
-        organizationId: detail.organizationId,
-        vaultId,
-        memberId: vault.memberVaultKey.memberId,
-        vkVersion: vault.currentKeyEpoch.vaultKeyVersion,
-        memberKeyGeneration: vault.memberKeyGeneration,
-      }, privateKey)
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
       const grantId = crypto.randomUUID()
       try {
-        const memberSecret = await decryptMemberSecret(detail, vaultKey)
-        const envelope = await produceGrantEntryEnvelope({
-          memberSecret,
+        const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
+          organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
+        })
+        const envelope = await buildCanonicalGrantEnvelope({
+          secret: memberSecret,
           agentPublicKey,
-          scope: {
-            organizationId: detail.organizationId,
-            vaultId,
-            grantId,
-            agentId,
-            entryId,
-            entryRevision: detail.currentRevision,
-            grantEnvelopeRevision: '1',
-            grantKeyVersion: 1,
-            memberKeyGeneration: vault.memberKeyGeneration,
-            recipientAgentKeyVersion,
-            approvedMethods: grantMethodsMask(methods),
-            ...policy,
-            ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
-          },
+          organizationId: detail.organizationId, vaultId, grantId, agentId, entryId,
+          entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
+          memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: recipientAgentKeyVersion,
+          approvedMethods: grantMethodsMask(methods), approvedFieldIds: listGrantableFieldIds(memberSecret),
+          ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
         })
         const body: CreateGrantBody = {
           grantId,

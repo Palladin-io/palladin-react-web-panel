@@ -20,7 +20,9 @@ describe('in-memory Member index search', () => {
       const entryId = `33333333-3333-4333-8333-${String(index).padStart(12, '0')}`
       entries.set(entryId, {
         entryId, state: 'active', currentRevision: '1', memberIndexRevision: '1', currentKeyVersion: 1,
-        payload: { memberLabel: index === 9_999 ? 'Unique Palladin Needle' : `Entry ${index}`, entryType: 1, searchFields: [`tag-${index}`] },
+        payload: { memberLabel: index === 9_999 ? 'Unique Palladin Needle' : `Entry ${index}`, entryType: 'credential',
+          description: null, icon: null, color: null, username: null, urlDomain: null,
+          customIndex: [{ id: `tag-${index}`, label: `tag-${index}`, value: `tag-${index}` }] },
         corrupt: false,
       })
     }
@@ -41,7 +43,8 @@ describe('in-memory Member index search', () => {
     const original: MemberIndexRecord = {
       entryId: '33333333-3333-4333-8333-333333333333', state: 'active', currentRevision: '1',
       memberIndexRevision: '1', currentKeyVersion: 1,
-      payload: { memberLabel: 'Original', entryType: 1, searchFields: [] }, corrupt: false,
+      payload: { memberLabel: 'Original', entryType: 'credential', description: null, icon: null,
+        color: null, username: null, urlDomain: null, customIndex: [] }, corrupt: false,
     }
     useMemberSyncStore.getState().publishVault({
       vaultId: '22222222-2222-4222-8222-222222222222', metadata: { name: 'Vault' },

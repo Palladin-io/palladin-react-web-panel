@@ -20,8 +20,8 @@ vi.mock('./api/vault-api', () => ({
 }))
 vi.mock('../../shared/api/account-api', () => ({ getAccount: mocks.getAccount }))
 vi.mock('./sync/member-sync-api', () => ({ listEncryptedVaults: mocks.listVaults }))
-vi.mock('../../shared/crypto/vault-v2-creation', () => ({
-  createInitialVaultMaterial: mocks.createMaterial,
+vi.mock('../../shared/crypto/create-vault-protocol', () => ({
+  createVaultProtocolPayload: mocks.createMaterial,
 }))
 
 const organizationId = '11111111-1111-4111-8111-111111111111'
@@ -94,7 +94,7 @@ describe('useCreateVault', () => {
     const { result } = renderHook(() => useCreateVault(), { wrapper: wrapperWith(client) })
 
     await act(() => result.current.mutateAsync({
-      name: 'Production', description: 'Primary', icon: 'shield', color: 'red',
+      name: 'Production', description: 'Primary', icon: 'shield', color: '#EB4747',
     }))
 
     expect(mocks.createMaterial).toHaveBeenCalledWith({
@@ -104,7 +104,9 @@ describe('useCreateVault', () => {
       memberKeyVersion: 7,
       memberPrivateKey: expect.any(Uint8Array),
       metadata: {
-        name: 'Production', description: 'Primary', iconReference: 'shield', color: 'red',
+        schema: 'palladin.member-vault-metadata.v1',
+        name: 'Production', description: 'Primary',
+        icon: { kind: 'glyph', value: 'shield' }, color: '#EB4747', grantMode: 'full',
       },
     })
     expect(mocks.createVault).toHaveBeenCalledWith(material(firstVaultId))

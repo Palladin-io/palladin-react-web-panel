@@ -2,8 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   getEncryptedVault: vi.fn(),
-  openMemberVaultKey: vi.fn(),
-  decryptMemberVaultMetadata: vi.fn(),
+  openVaultProjection: vi.fn(),
   encryptMemberVaultMetadata: vi.fn(),
   upload: vi.fn(),
   deleteAsset: vi.fn(),
@@ -20,11 +19,10 @@ vi.mock('../auth', () => ({
     }),
   },
 }))
-vi.mock('../../shared/crypto/vault-v2-member-sync', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../../shared/crypto/vault-v2-member-sync')>(),
-  openMemberVaultKey: mocks.openMemberVaultKey,
-  decryptMemberVaultMetadata: mocks.decryptMemberVaultMetadata,
-  encryptMemberVaultMetadata: mocks.encryptMemberVaultMetadata,
+vi.mock('../../shared/crypto/vault-protocol', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../shared/crypto/vault-protocol')>(),
+  openVaultProjection: mocks.openVaultProjection,
+  sealMemberVaultMetadata: mocks.encryptMemberVaultMetadata,
 }))
 vi.mock('./sync/member-sync-api', () => ({ getEncryptedVault: mocks.getEncryptedVault }))
 vi.mock('./assets/encrypted-asset-service', () => ({ encryptAndUploadPresentationAsset: mocks.upload }))
@@ -40,13 +38,12 @@ const summary = {
   id: vaultId,
   memberKeyGeneration: 3,
   currentKeyEpoch: { vaultKeyVersion: 7 },
-  memberVaultMetadata: { metadataRevision: '12' },
+  memberVaultMetadata: { descriptor: { resourceRevision: '12' }, encodedSuitePayload: 'old' },
   memberVaultKey: {},
 }
 const encryptedEnvelope = {
-  metadataRevision: '13',
-  ciphertext: 'opaque-envelope',
-  header: { nonce: 'fresh-nonce' },
+  descriptor: { resourceRevision: '13' },
+  encodedSuitePayload: 'opaque-envelope',
 }
 
 describe('encrypted Vault settings transaction', () => {
@@ -54,8 +51,15 @@ describe('encrypted Vault settings transaction', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.getEncryptedVault.mockResolvedValue(summary)
-    mocks.openMemberVaultKey.mockResolvedValue(new Uint8Array(32).fill(9))
-    mocks.decryptMemberVaultMetadata.mockResolvedValue(current)
+    mocks.openVaultProjection.mockResolvedValue({
+      vaultKey: new Uint8Array(32).fill(9),
+      metadata: {
+        schema: 'palladin.member-vault-metadata.v1', name: current.name,
+        description: current.description,
+        icon: { kind: 'encryptedAsset', assetId: '33332233-4455-4677-8899-aabbccddeeff' },
+        color: null, grantMode: 'full',
+      },
+    })
     mocks.encryptMemberVaultMetadata.mockResolvedValue(encryptedEnvelope)
     mocks.put.mockResolvedValue(new Response(null, { status: 204 }))
     mocks.deleteAsset.mockResolvedValue(undefined)
@@ -101,8 +105,12 @@ describe('encrypted Vault settings transaction', () => {
     })
 
     expect(mocks.encryptMemberVaultMetadata).toHaveBeenCalledWith(
-      { ...next, iconReference: `asset:${generatedAssetId}` },
-      expect.objectContaining({ metadataRevision: '13', keyVersion: 7, memberKeyGeneration: 3 }),
+      expect.objectContaining({ id: vaultId, memberKeyGeneration: 3 }),
+      summary.memberVaultMetadata,
+      expect.objectContaining({
+        schema: 'palladin.member-vault-metadata.v1', name: next.name,
+        icon: { kind: 'encryptedAsset', assetId: generatedAssetId }, grantMode: 'full',
+      }),
       expect.any(Uint8Array),
     )
     expect(mocks.put).toHaveBeenCalledWith(`api/vaults/${vaultId}`, {

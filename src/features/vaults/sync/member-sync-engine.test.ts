@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const cryptoProbe = vi.hoisted(() => ({ active: 0, maximum: 0, delay: false }))
 
-vi.mock('../../../shared/crypto/vault-v2-member-sync', () => ({
-  openMemberVaultKey: async () => new Uint8Array(32),
-  decryptMemberVaultMetadata: async () => ({ name: 'Encrypted Vault' }),
-  decryptMemberIndex: async (envelope: { testLabel?: string }) => {
+vi.mock('../../../shared/crypto/vault-protocol', () => ({
+  openVaultProjection: async () => ({ vaultKey: new Uint8Array(32), metadata: { name: 'Encrypted Vault' } }),
+}))
+
+vi.mock('../../../shared/crypto/entry-protocol', () => ({
+  openMemberIndex: async (envelope: { testLabel?: string }) => {
     cryptoProbe.active += 1
     cryptoProbe.maximum = Math.max(cryptoProbe.maximum, cryptoProbe.active)
     if (cryptoProbe.delay) await new Promise((resolve) => setTimeout(resolve, 1))
@@ -31,7 +33,7 @@ function vault(): EncryptedVaultSummary {
     memberKeyGeneration: 4,
     currentKeyEpoch: { vaultKeyVersion: 3 },
     memberVaultMetadata: {},
-    memberVaultKey: { organizationId },
+    memberVaultKey: { wrappedVaultKey: { descriptor: { scope: { organizationId } } } },
   } as unknown as EncryptedVaultSummary
 }
 

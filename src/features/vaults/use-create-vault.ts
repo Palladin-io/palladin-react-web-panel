@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
-import { createInitialVaultMaterial } from '../../shared/crypto/vault-v2-creation'
+import { createVaultProtocolPayload } from '../../shared/crypto/create-vault-protocol'
 import { parseJwtPayload } from '../../shared/lib/jwt'
 import { getAccount } from '../../shared/api/account-api'
 import { useAuthStore } from '../auth'
@@ -91,17 +91,19 @@ export function useCreateVault() {
           ...(input.icon ? { icon: input.icon } : {}),
           ...(input.color ? { color: input.color } : {}),
         }
-        const payload = await createInitialVaultMaterial({
+        const payload = await createVaultProtocolPayload({
           organizationId,
           vaultId: challenge.vaultId,
           memberId: auth.userId,
           memberKeyVersion: account.memberKeyVersion,
           memberPrivateKey: auth.privateKey,
           metadata: {
+            schema: 'palladin.member-vault-metadata.v1',
             name: input.name,
-            ...(input.description ? { description: input.description } : {}),
-            ...(input.icon ? { iconReference: input.icon } : {}),
-            ...(input.color ? { color: input.color } : {}),
+            description: input.description ?? null,
+            icon: input.icon ? { kind: 'glyph', value: input.icon } : null,
+            color: input.color ?? null,
+            grantMode: 'full',
           },
         })
         pendingAttempt = { input: normalizedInput, payload }

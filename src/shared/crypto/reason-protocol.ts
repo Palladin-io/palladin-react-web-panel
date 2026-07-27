@@ -1,10 +1,10 @@
 import { ENVELOPE_PURPOSE } from './envelope'
 import { encodeCanonicalEnvelopeAad } from './canonical-aad'
-import { fromBase64Url } from './encoding'
+import { fromBase64, fromBase64Url, toBase64Url } from './encoding'
 import { deriveVaultSubkey } from './hkdf'
 import { loadSodium, wipe } from './sodium'
 import { assertEnvelopeScope, openVaultEnvelope, toEnvelopeDescriptor, type VaultEnvelopeContract } from './vault-envelope'
-import { openKeyFromX25519Recipient, VAULT_KEY_KIND, WRAPPER_PURPOSE, X25519_SEALED_BOX_V1, type X25519WrapperDescriptorContract } from './x25519-wrapper'
+import { computeVaultKeyFingerprint, openKeyFromX25519Recipient, VAULT_KEY_KIND, WRAPPER_PURPOSE, X25519_SEALED_BOX_V1, type X25519WrapperDescriptorContract } from './x25519-wrapper'
 
 export type VaultPrivateKeyEnvelopeContract = VaultEnvelopeContract<{ wrappingVaultKeyVersion: number }>
 
@@ -29,10 +29,57 @@ export interface ExpectedReasonCoordinates {
   agentId: string
 }
 
+export interface AgentSigningIdentity {
+  publicKey: string
+  keyVersion: number
+  keyFingerprint: string
+}
+
+export async function verifyEncryptedReasonSignature(
+  descriptorBytes: Uint8Array,
+  encodedSuitePayload: string,
+  encodedSealedKeyPackage: string,
+  signatureValue: string,
+  agentSigning: AgentSigningIdentity,
+): Promise<void> {
+  const encodedPayload = fromBase64Url(encodedSuitePayload)
+  const encodedWrapper = fromBase64Url(encodedSealedKeyPackage)
+  if (agentSigning.keyVersion !== 1) throw new Error('Unsupported Agent signing key version')
+  const signingPublicKey = fromBase64(agentSigning.publicKey)
+  const signature = fromBase64Url(signatureValue)
+  const signaturePrefix = new TextEncoder().encode('PLDNV2SIG:ENCRYPTED-REASON:')
+  const wrapperSuite = new TextEncoder().encode(X25519_SEALED_BOX_V1)
+  const transcript = new Uint8Array(signaturePrefix.length + 2 + descriptorBytes.length
+    + encodedPayload.length + 2 + wrapperSuite.length + encodedWrapper.length)
+  let transcriptOffset = 0
+  transcript.set(signaturePrefix, transcriptOffset); transcriptOffset += signaturePrefix.length
+  new DataView(transcript.buffer).setUint16(transcriptOffset, 2); transcriptOffset += 2
+  transcript.set(descriptorBytes, transcriptOffset); transcriptOffset += descriptorBytes.length
+  transcript.set(encodedPayload, transcriptOffset); transcriptOffset += encodedPayload.length
+  new DataView(transcript.buffer).setUint16(transcriptOffset, wrapperSuite.length); transcriptOffset += 2
+  transcript.set(wrapperSuite, transcriptOffset); transcriptOffset += wrapperSuite.length
+  transcript.set(encodedWrapper, transcriptOffset)
+  const sodium = await loadSodium()
+  try {
+    const fingerprint = await computeVaultKeyFingerprint(signingPublicKey, VAULT_KEY_KIND.agentEd25519)
+    const fingerprintMatches = toBase64Url(fingerprint) === agentSigning.keyFingerprint
+    wipe(fingerprint)
+    if (signingPublicKey.length !== sodium.crypto_sign_PUBLICKEYBYTES
+      || signature.length !== sodium.crypto_sign_BYTES
+      || !fingerprintMatches
+      || !sodium.crypto_sign_verify_detached(signature, transcript, signingPublicKey)) {
+      throw new Error('Encrypted reason signature is invalid')
+    }
+  } finally {
+    wipe(signingPublicKey); wipe(signature); wipe(transcript)
+  }
+}
+
 export async function openEncryptedReason(
   envelope: EncryptedReasonContract,
   privateKeys: VaultPrivateKeyEnvelopeContract[],
   vaultKey: Uint8Array,
+  agentSigning: AgentSigningIdentity,
   expected: ExpectedReasonCoordinates,
 ): Promise<string> {
   assertEnvelopeScope(envelope.descriptor, {
@@ -77,6 +124,10 @@ export async function openEncryptedReason(
     throw new Error('Reason wrapper parent descriptor hash does not match')
   }
   expectedParentHash.fill(0); suppliedParentHash.fill(0)
+  await verifyEncryptedReasonSignature(
+    descriptorBytes, envelope.encodedSuitePayload, envelope.wrappedReasonDek.encodedSealedKeyPackage,
+    envelope.agentSignature, agentSigning,
+  )
   const privateDescriptor = toEnvelopeDescriptor(privateEnvelope.descriptor)
   const wrappingKey = await deriveVaultSubkey(vaultKey, {
     protocolVersion: privateDescriptor.protocolVersion, cryptoSuiteId: privateDescriptor.cryptoSuiteId,
@@ -88,10 +139,10 @@ export async function openEncryptedReason(
   let messagePublicKey: Uint8Array | undefined
   let reasonDek: Uint8Array | undefined
   try {
+    const sodium = await loadSodium()
     messagePrivateKey = await openVaultEnvelope(privateEnvelope, wrappingKey, {
       wrappingVkVersion: privateEnvelope.descriptor.binding.wrappingVaultKeyVersion,
     })
-    const sodium = await loadSodium()
     messagePublicKey = sodium.crypto_scalarmult_base(messagePrivateKey)
     reasonDek = await openKeyFromX25519Recipient(
       fromBase64Url(envelope.wrappedReasonDek.encodedSealedKeyPackage), messagePublicKey, messagePrivateKey,

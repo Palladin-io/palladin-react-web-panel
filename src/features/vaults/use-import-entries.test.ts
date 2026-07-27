@@ -16,8 +16,8 @@ const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock } 
   })),
   updateEntryMock: vi.fn(async () => undefined),
   fullGrantsMock: vi.fn(async () => [] as unknown[]),
-  grantEnvelopeMock: vi.fn(async ({ scope }: { scope: { grantId: string; entryId: string } }) => ({
-    grantId: scope.grantId, entryId: scope.entryId,
+  grantEnvelopeMock: vi.fn(async ({ grantId, entryId }: { grantId: string; entryId: string }) => ({
+    grantId, entryId,
   })),
 }))
 
@@ -26,7 +26,11 @@ vi.mock('./api/vault-api', () => ({
   updateCanonicalEntry: updateEntryMock,
   issueEntryCreationChallenges: vi.fn(async (_vaultId: string, count: number) =>
     Array.from({ length: count }, (_, index) => ({ entryId: `entry-${index}`, expiresAt: '2026-07-27T00:00:00Z' }))),
-  getCanonicalEntry: vi.fn(async () => ({ currentRevision: '1' })),
+  getCanonicalEntry: vi.fn(async () => ({
+    id: 'old-1', organizationId: 'org-1', vaultId: 'vault-1', currentRevision: '1',
+    currentKeyVersion: 1, memberIndexRevision: '1', agentDiscoveryRevisionHighWatermark: '1',
+    entryKey: { descriptor: { resourceRevision: '1' } }, memberSecret: {},
+  })),
 }))
 
 vi.mock('../grants', () => ({
@@ -40,26 +44,35 @@ vi.mock('./sync/member-sync-api', () => ({
   getEncryptedVault: vi.fn(async () => ({
     id: 'vault-1', memberKeyGeneration: 1,
     currentKeyEpoch: { vaultKeyVersion: 1, vdkVersion: 1 },
-    memberVaultKey: { organizationId: 'org-1', memberId: 'member-1' },
+    memberVaultKey: { wrappedVaultKey: { descriptor: { scope: { organizationId: 'org-1' } } } },
     discoveryKey: {},
   })),
 }))
 
-vi.mock('../../shared/crypto/vault-v2-member-sync', () => ({
+vi.mock('../../shared/crypto/vault-protocol', () => ({
   openMemberVaultKey: vi.fn(async () => new Uint8Array(32)),
+  openVaultDerivedEnvelope: vi.fn(async () => new Uint8Array(32)),
 }))
-vi.mock('../../shared/crypto/vault-v2-rotation', () => ({
-  openDiscoveryKey: vi.fn(async () => new Uint8Array(32)),
-}))
-vi.mock('../../shared/crypto/vault-v2-entry', () => ({
+vi.mock('../../shared/crypto/entry-draft', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../shared/crypto/entry-draft')>(),
   defaultAgentVisibilityPolicy: vi.fn(() => ({ discoverable: true, fields: {} })),
-  buildEntryProjections: vi.fn(() => ({ memberSecret: { schemaVersion: 1, content: { fields: [] }, agentVisibilityPolicy: { fields: {} } } })),
-  createInitialEntryMaterial: vi.fn(async () => ({ entryKey: {}, memberIndex: {}, memberSecret: {}, agentDiscovery: {} })),
-  decryptMemberSecret: vi.fn(async () => ({ memberLabel: 'old' })),
-  createEntryUpdateMaterial: vi.fn(async () => ({ memberSecret: { revision: '2' }, grantEnvelopes: [] })),
+  toMemberSecret: vi.fn(({ label }: { label: string }) => ({
+    schema: 'palladin.member-secret.v1', memberLabel: label, agentLabel: label,
+    entryType: 'credential', content: { customFields: [] }, agentFieldAccess: {},
+  })),
 }))
-vi.mock('../../shared/crypto/grant-envelope', () => ({
-  produceGrantEntryEnvelope: grantEnvelopeMock,
+vi.mock('../../shared/crypto/entry-protocol', () => ({
+  sealCanonicalEntry: vi.fn(async () => ({
+    entryKey: {}, memberIndex: {}, memberSecret: {}, agentDiscovery: {},
+  })),
+  openMemberSecret: vi.fn(async () => ({ memberLabel: 'old' })),
+}))
+vi.mock('../../shared/crypto/grant-protocol', () => ({
+  buildCanonicalGrantEnvelope: grantEnvelopeMock,
+  listGrantableFields: vi.fn(() => [{ id: 'credential.username' }]),
+}))
+vi.mock('../../shared/crypto/vault-plaintext', () => ({
+  projectAgentDiscovery: vi.fn(() => null),
 }))
 
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: vi.fn() }))

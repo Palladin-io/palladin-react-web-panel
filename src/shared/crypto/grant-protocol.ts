@@ -10,7 +10,23 @@ import { computeVaultKeyFingerprint, sealKeyToX25519Recipient, VAULT_KEY_KIND, W
 export interface BuildGrantEnvelopeInput {
   organizationId: string; vaultId: string; entryId: string; grantId: string; agentId: string
   entryRevision: string; memberKeyGeneration: number; agentPublicKey: string; recipientKeyVersion: number
+  grantEnvelopeRevision: string; grantKeyVersion: number; approvedFieldIds: string[]
   approvedMethods: number; expiresAt?: string; remainingUses?: number; secret: MemberSecretV1
+}
+
+export interface GrantableField {
+  id: string
+  label: string
+  access: 'onGrantValue' | 'onGrantDerived' | 'onGrantRuntime'
+}
+
+export function listGrantableFields(secret: MemberSecretV1): GrantableField[] {
+  const labels = new Map(secret.content.customFields.map((field) => [field.id, field.label]))
+  return Object.entries(secret.agentFieldAccess)
+    .filter((entry): entry is [string, GrantableField['access']] =>
+      entry[1] === 'onGrantValue' || entry[1] === 'onGrantDerived' || entry[1] === 'onGrantRuntime')
+    .map(([id, access]) => ({ id, access, label: labels.get(id) ?? id }))
+    .sort((left, right) => left.label.localeCompare(right.label))
 }
 
 function instant(value?: string): { seconds: bigint; nanoseconds: number } | undefined {
@@ -21,9 +37,17 @@ function instant(value?: string): { seconds: bigint; nanoseconds: number } | und
 }
 
 export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput) {
-  const fieldIds = Object.entries(input.secret.agentFieldAccess)
-    .filter(([, access]) => access === 'onGrantValue' || access === 'onGrantDerived' || access === 'onGrantRuntime')
-    .map(([id]) => id).sort()
+  if (BigInt(input.grantEnvelopeRevision) < 1n || input.grantKeyVersion < 1) {
+    throw new RangeError('Grant envelope revisions must be positive')
+  }
+  const fieldIds = [...new Set(input.approvedFieldIds)].sort()
+  if (fieldIds.length === 0) throw new Error('Grant payload requires at least one approved field')
+  for (const id of fieldIds) {
+    const access = input.secret.agentFieldAccess[id]
+    if (access !== 'onGrantValue' && access !== 'onGrantDerived' && access !== 'onGrantRuntime') {
+      throw new Error(`Field ${id} is not grantable by its agent-access policy`)
+    }
+  }
   const payload = projectGrantPayload(input.secret, fieldIds)
   const publicKey = fromBase64(input.agentPublicKey)
   const fingerprint = await computeVaultKeyFingerprint(publicKey, VAULT_KEY_KIND.agentX25519)
@@ -38,7 +62,8 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   const descriptor: EnvelopeDescriptorContract<typeof binding> = {
     protocolVersion: 2, cryptoSuiteId: VAULT_XCHACHA20_POLY1305_V1, purpose: ENVELOPE_PURPOSE.grant,
     scope: { organizationId: input.organizationId, vaultId: input.vaultId, entryId: input.entryId, grantOrRequestId: input.grantId, agentId: input.agentId },
-    resourceRevision: '1', keyVersion: 1, memberKeyGeneration: input.memberKeyGeneration, binding,
+    resourceRevision: input.grantEnvelopeRevision, keyVersion: input.grantKeyVersion,
+    memberKeyGeneration: input.memberKeyGeneration, binding,
   }
   const extension = {
     entryRevision: BigInt(input.entryRevision), wrapperSuiteId: X25519_SEALED_BOX_V1,
@@ -57,8 +82,9 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
       const wrapperContext = {
         protocolVersion: 2, wrapperSuiteId: X25519_SEALED_BOX_V1, purpose: WRAPPER_PURPOSE.grantDek,
         organizationId: input.organizationId, vaultId: input.vaultId, entryId: input.entryId,
-        grantOrRequestId: input.grantId, agentId: input.agentId, resourceRevision: 1,
-        wrappedKeyVersion: 1, memberKeyGeneration: input.memberKeyGeneration,
+        grantOrRequestId: input.grantId, agentId: input.agentId,
+        resourceRevision: BigInt(input.grantEnvelopeRevision),
+        wrappedKeyVersion: input.grantKeyVersion, memberKeyGeneration: input.memberKeyGeneration,
         recipientKeyKind: VAULT_KEY_KIND.agentX25519, recipientKeyVersion: input.recipientKeyVersion,
         recipientFingerprint: fingerprint, parentDescriptorHash: parentHash,
       } as const
@@ -67,7 +93,8 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
         ...envelope,
         wrappedGrantDek: { descriptor: {
           protocolVersion: 2, wrapperSuiteId: X25519_SEALED_BOX_V1, purpose: WRAPPER_PURPOSE.grantDek,
-          scope: descriptor.scope, resourceRevision: '1', wrappedKeyVersion: 1,
+          scope: descriptor.scope, resourceRevision: input.grantEnvelopeRevision,
+          wrappedKeyVersion: input.grantKeyVersion,
           memberKeyGeneration: input.memberKeyGeneration, recipientKeyKind: VAULT_KEY_KIND.agentX25519,
           recipientKeyVersion: input.recipientKeyVersion, recipientFingerprint: toBase64Url(fingerprint),
           parentDescriptorHash: toBase64Url(parentHash),

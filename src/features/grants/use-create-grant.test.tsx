@@ -22,9 +22,10 @@ vi.mock('../vaults/sync/member-sync-api', () => ({ getEncryptedVault: mocks.getV
 vi.mock('../vaults/sync/member-sync-store', () => ({ useMemberSyncStore: {
   getState: () => ({ vaults: new Map([['v1', mocks.vaultState]]) }),
 } }))
-vi.mock('../../shared/crypto/vault-v2-member-sync', () => ({ openMemberVaultKey: mocks.openVaultKey }))
-vi.mock('../../shared/crypto/vault-v2-entry', () => ({ decryptMemberSecret: mocks.decrypt }))
-vi.mock('../../shared/crypto/grant-envelope', () => ({ produceGrantEntryEnvelope: mocks.produce }))
+vi.mock('../../shared/crypto/vault-protocol', () => ({ openMemberVaultKey: mocks.openVaultKey }))
+vi.mock('../../shared/crypto/entry-protocol', () => ({ openMemberSecret: mocks.decrypt }))
+vi.mock('../../shared/crypto/grant-protocol', () => ({ buildCanonicalGrantEnvelope: mocks.produce }))
+vi.mock('../../shared/crypto/vault-plaintext', () => ({ listGrantableFieldIds: vi.fn(() => ['value']) }))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
 vi.mock('../auth', () => ({ useAuthStore: { getState: () => ({ privateKey: new Uint8Array(32) }) } }))
 
@@ -43,15 +44,15 @@ describe('useCreateGrant', () => {
     mocks.vaultState.entries = new Map()
     mocks.create.mockResolvedValue({ id: 'new' })
     mocks.getVault.mockResolvedValue({
-      memberVaultKey: { organizationId: 'org', memberId: 'member' },
+      memberVaultKey: {},
       memberKeyGeneration: 3,
       currentKeyEpoch: { vaultKeyVersion: 2 },
     })
     mocks.getEntry.mockImplementation(async (_vaultId: string, entryId: string) => ({
-      organizationId: 'org', id: entryId, currentRevision: '7',
+      organizationId: 'org', id: entryId, currentRevision: '7', entryKey: {}, memberSecret: {},
     }))
-    mocks.produce.mockImplementation(async ({ scope }: { scope: { entryId: string } }) => ({
-      grantId: scope.entryId, entryId: scope.entryId,
+    mocks.produce.mockImplementation(async ({ entryId }: { entryId: string }) => ({
+      grantId: entryId, entryId,
     }))
   })
 
@@ -67,9 +68,9 @@ describe('useCreateGrant', () => {
     expect(body.entryId).toBe('e1')
     expect(body.methods).toBe('Exec, Inject')
     expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({
-      scope: expect.objectContaining({ entryRevision: '7', grantEnvelopeRevision: '1',
-        grantKeyVersion: 1, memberKeyGeneration: 3, recipientAgentKeyVersion: 4,
-        approvedMethods: 6, remainingUses: 3 }),
+      entryRevision: '7', grantEnvelopeRevision: '1', grantKeyVersion: 1,
+      memberKeyGeneration: 3, recipientKeyVersion: 4,
+      approvedMethods: 6, remainingUses: 3,
     }))
     expect(mocks.wipe).toHaveBeenCalled()
   })

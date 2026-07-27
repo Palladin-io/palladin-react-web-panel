@@ -23,6 +23,17 @@ function deferred<T>() {
 }
 
 function publishVault() {
+  const index = (memberLabel: string, username: string, entryType: 'key' | 'credential') => ({
+    schema: 'palladin.member-index.v1' as const,
+    entryType,
+    memberLabel,
+    description: null,
+    icon: null,
+    color: null,
+    username,
+    urlDomain: null,
+    customIndex: [],
+  })
   useMemberSyncStore.setState({
     status: 'ready',
     vaults: new Map([['vault-b', {
@@ -33,12 +44,12 @@ function publishVault() {
         ['entry-a', {
           entryId: 'entry-a', state: 'active', updatedAt: '2026-07-26T12:00:00Z',
           currentRevision: '2', memberIndexRevision: '2', currentKeyVersion: 1,
-          payload: { memberLabel: 'GitHub', searchFields: ['octocat'], entryType: 1 }, corrupt: false,
+          payload: index('GitHub', 'octocat', 'credential'), corrupt: false,
         }],
         ['entry-b', {
           entryId: 'entry-b', state: 'active', updatedAt: '2026-07-26T13:00:00Z',
           currentRevision: '1', memberIndexRevision: '1', currentKeyVersion: 1,
-          payload: { memberLabel: 'Deploy Key', searchFields: ['github'], entryType: 0 }, corrupt: false,
+          payload: index('Deploy Key', 'github', 'key'), corrupt: false,
         }],
         ['entry-corrupt', {
           entryId: 'entry-corrupt', state: 'active', updatedAt: '2026-07-26T14:00:00Z',
@@ -111,7 +122,10 @@ describe('local global-search providers', () => {
       entries: new Map([['entry-a', {
         entryId: 'entry-a', state: 'active', updatedAt: '2026-07-26T11:00:00Z',
         currentRevision: '1', memberIndexRevision: '1', currentKeyVersion: 1,
-        payload: { memberLabel: 'GitHub copy', searchFields: [], entryType: 1 }, corrupt: false,
+        payload: {
+          schema: 'palladin.member-index.v1', entryType: 'credential', memberLabel: 'GitHub copy',
+          description: null, icon: null, color: null, username: null, urlDomain: null, customIndex: [],
+        }, corrupt: false,
       }]]),
       appliedThroughSequence: '1', status: 'ready', failureKind: null,
     } as never)

@@ -62,7 +62,6 @@ export function PendingGrantsPanel({
     const entry = grant.entryId ? vault?.entries.get(grant.entryId) : undefined
     return {
       ...grant,
-      vaultName: vault?.metadata?.name ?? null,
       entryLabel: !entry?.corrupt ? entry?.payload?.memberLabel ?? null : null,
     }
   }
@@ -79,7 +78,7 @@ export function PendingGrantsPanel({
         methods,
         fieldIds,
         reviewedEntryRevision: review.data.entryRevision,
-        requestedMethods: grant.encryptedReason.requestedMethods,
+        requestedMethods: grant.encryptedReason.descriptor.binding.requestedMethods,
       },
       {
         onSuccess: () => {

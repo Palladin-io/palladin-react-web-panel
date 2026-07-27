@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth'
 import { EntryDetailPage } from './entry-detail-page'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, type Vault } from './types'
-import type { CanonicalEntryDetail } from '../../shared/crypto/vault-v2-entry'
+import type { CanonicalEntryDetail } from './api/vault-api'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -39,7 +39,7 @@ const {
     deleteIsPending: false,
     decryptResult: null as EntryPlaintextLite | null,
     decryptShouldThrow: false,
-    memberIndex: { memberLabel: 'Stripe API Key', entryType: 0 as 0 | 1, searchFields: [] as string[] },
+    memberIndex: { memberLabel: 'Stripe API Key', entryType: 'key' as 'key' | 'credential', icon: null },
   },
 }))
 
@@ -93,8 +93,8 @@ vi.mock('./use-delete-entry', () => ({
 // Crypto round-trip is exercised by entry-crypto.test.ts. Here we stub the
 // helpers so the component test stays focused on form behaviour and does
 // not depend on libsodium WASM warm-up.
-vi.mock('../../shared/crypto/vault-v2-entry', () => ({
-  decryptMemberSecret: vi.fn(async () => {
+vi.mock('../../shared/crypto/entry-protocol', () => ({
+  openMemberSecret: vi.fn(async () => {
     if (state.decryptShouldThrow) throw new Error('mac')
     if (!state.decryptResult) {
       throw new Error('test setup: decryptResult not configured')
@@ -109,8 +109,9 @@ vi.mock('../../shared/crypto/vault-v2-entry', () => ({
     }
   }),
 }))
+vi.mock('../../shared/crypto/entry-draft', () => ({ fromMemberSecret: (value: unknown) => value }))
 
-vi.mock('../../shared/crypto/vault-v2-member-sync', () => ({
+vi.mock('../../shared/crypto/vault-protocol', () => ({
   openMemberVaultKey: vi.fn(async () => new Uint8Array(32)),
 }))
 vi.mock('./sync/member-sync-api', async (importOriginal) => {
@@ -118,7 +119,7 @@ vi.mock('./sync/member-sync-api', async (importOriginal) => {
   return {
     ...actual,
     getEncryptedVault: vi.fn(async () => ({
-      memberVaultKey: { organizationId: 'org-1', memberId: 'member-1' },
+      memberVaultKey: {},
       currentKeyEpoch: { vaultKeyVersion: 1 },
       memberKeyGeneration: 1,
     })),
@@ -248,7 +249,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.deleteIsPending = false
     state.decryptResult = null
     state.decryptShouldThrow = false
-    state.memberIndex = { memberLabel: 'Stripe API Key', entryType: ENTRY_TYPE_KEY, searchFields: [] }
+    state.memberIndex = { memberLabel: 'Stripe API Key', entryType: 'key', icon: null }
     useAuthStore.setState({ privateKey: null, isVaultLocked: true })
     // Default to wide-screen off so the detail body renders without the
     // entries panel split — keeps assertions targeted.
@@ -335,7 +336,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       password: 'P@ssw0rd!',
       url: 'https://github.com/login',
     }
-    state.memberIndex = { memberLabel: 'GitHub', entryType: ENTRY_TYPE_CREDENTIAL, searchFields: [] }
+    state.memberIndex = { memberLabel: 'GitHub', entryType: 'credential', icon: null }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({
       isPending: false,
