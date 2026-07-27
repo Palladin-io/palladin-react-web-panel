@@ -30,7 +30,7 @@ describe('createDefaultVaultSafe', () => {
   })
 
   it('creates the default Vault with the canonical protocol-v2 payload', async () => {
-    await expect(createDefaultVaultSafe(FAKE_KEY, 'Personal')).resolves.toBe(true)
+    await expect(createDefaultVaultSafe(FAKE_KEY, 'Personal')).resolves.toBe('created')
 
     expect(createPayloadMock).toHaveBeenCalledWith(expect.objectContaining({
       organizationId: 'org-1', vaultId: 'vault-1', memberId: 'member-1',
@@ -48,12 +48,12 @@ describe('createDefaultVaultSafe', () => {
     })
     createDefaultVaultMock.mockRejectedValueOnce(conflict)
 
-    await expect(createDefaultVaultSafe(FAKE_KEY, 'Personal')).resolves.toBe(true)
+    await expect(createDefaultVaultSafe(FAKE_KEY, 'Personal')).resolves.toBe('already-exists')
   })
 
   it('returns false without throwing on a retryable failure', async () => {
     createDefaultVaultMock.mockRejectedValueOnce(new Error('Network error'))
 
-    await expect(createDefaultVaultSafe(FAKE_KEY, 'Personal')).resolves.toBe(false)
+    await expect(createDefaultVaultSafe(FAKE_KEY, 'Personal')).resolves.toBe('failed')
   })
 })

@@ -13,21 +13,23 @@ const DEFAULT_COLOR = '#EB4747'
  * Generates a fresh Vault Key, seals it for the user, and creates the
  * default vault via POST /api/account/default-vault.
  *
- * Returns true when creation succeeded or the backend reports that the
- * default Vault already exists. Other failures return false so the caller can
- * retry while the unlocked private key is still available in memory.
+ * Distinguishes a newly created Vault from an existing one. Callers may retry
+ * failures while the unlocked private key is still available in memory, but a
+ * conflict must not trigger another create/sync loop.
  */
+export type DefaultVaultCreationResult = 'created' | 'already-exists' | 'failed'
+
 export async function createDefaultVaultSafe(
   privateKey: Uint8Array,
   name: string,
-): Promise<boolean> {
+): Promise<DefaultVaultCreationResult> {
   try {
     const auth = useAuthStore.getState()
-    if (!auth.userId || !auth.accessToken) return false
+    if (!auth.userId || !auth.accessToken) return 'failed'
     const organizationId = parseJwtPayload(auth.accessToken)['org_id']
-    if (typeof organizationId !== 'string') return false
+    if (typeof organizationId !== 'string') return 'failed'
     const [challenge, account] = await Promise.all([issueVaultCreationChallenge(), getAccount()])
-    if (!account.memberKeyVersion) return false
+    if (!account.memberKeyVersion) return 'failed'
     const payload = await createVaultProtocolPayload({
       organizationId,
       vaultId: challenge.vaultId,
@@ -44,14 +46,14 @@ export async function createDefaultVaultSafe(
       },
     })
     await createDefaultVault(payload)
-    return true
+    return 'created'
   } catch (error) {
     // The backend uniqueness constraint makes the operation idempotent. An
     // ambiguous first request followed by 409 therefore counts as success.
     if (typeof error === 'object' && error !== null && 'response' in error
       && (error as { response?: { status?: number } }).response?.status === 409) {
-      return true
+      return 'already-exists'
     }
-    return false
+    return 'failed'
   }
 }

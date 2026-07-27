@@ -20,11 +20,17 @@ export function DefaultVaultReconciler({ enabled, memberPrivateKey }: DefaultVau
   const status = useMemberSyncStore((state) => state.status)
   const vaults = useMemberSyncStore((state) => state.vaults)
   const inFlight = useRef(false)
+  const conflictSeen = useRef(false)
+
+  const hasDefaultVault = Array.from(vaults.values()).some((vault) => vault.structure.isDefault)
+
+  useEffect(() => {
+    if (!enabled || !memberPrivateKey || hasDefaultVault) conflictSeen.current = false
+  }, [enabled, hasDefaultVault, memberPrivateKey])
 
   useEffect(() => {
     if (!enabled || !memberPrivateKey || status !== 'ready'
-      || Array.from(vaults.values()).some((vault) => vault.structure.isDefault)
-      || inFlight.current) return
+      || hasDefaultVault || conflictSeen.current || inFlight.current) return
 
     let cancelled = false
     inFlight.current = true
@@ -34,8 +40,13 @@ export function DefaultVaultReconciler({ enabled, memberPrivateKey }: DefaultVau
           await new Promise((resolve) => window.setTimeout(resolve, RETRY_DELAYS_MS[attempt]))
         }
         if (cancelled) break
-        if (await createDefaultVaultSafe(memberPrivateKey, i18n.t('vault.defaultName'))) {
+        const result = await createDefaultVaultSafe(memberPrivateKey, i18n.t('vault.defaultName'))
+        if (result === 'created') {
           if (!cancelled) useMemberSyncStore.getState().retry()
+          return
+        }
+        if (result === 'already-exists') {
+          conflictSeen.current = true
           return
         }
       }
@@ -48,7 +59,7 @@ export function DefaultVaultReconciler({ enabled, memberPrivateKey }: DefaultVau
       cancelled = true
       inFlight.current = false
     }
-  }, [enabled, memberPrivateKey, status, vaults])
+  }, [enabled, hasDefaultVault, memberPrivateKey, status])
 
   return null
 }

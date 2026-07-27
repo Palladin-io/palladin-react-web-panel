@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const probe = vi.hoisted(() => ({
   synchronize: vi.fn(async () => {}),
-  createDefaultVault: vi.fn(async () => true),
+  createDefaultVault: vi.fn(async () => 'created'),
 }))
 
 vi.mock('./member-sync-engine', () => ({
@@ -129,5 +129,36 @@ describe('MemberSyncProvider refresh lifecycle', () => {
     expect(probe.createDefaultVault).toHaveBeenCalledWith(privateKey, expect.any(String))
     expect(useMemberSyncStore.getState().retryGeneration).toBe(1)
     expect(probe.synchronize).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not restart reconciliation when a conflicting Vault remains invisible', async () => {
+    probe.createDefaultVault.mockResolvedValue('already-exists')
+    const privateKey = new Uint8Array(32).fill(9)
+    render(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={privateKey}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+    await act(async () => { await Promise.resolve() })
+
+    await act(async () => {
+      useMemberSyncStore.getState().complete()
+      await Promise.resolve()
+    })
+    expect(probe.createDefaultVault).toHaveBeenCalledTimes(1)
+    expect(useMemberSyncStore.getState().retryGeneration).toBe(0)
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000)
+      useMemberSyncStore.getState().complete()
+      await Promise.resolve()
+    })
+
+    expect(probe.createDefaultVault).toHaveBeenCalledTimes(1)
+    expect(useMemberSyncStore.getState().retryGeneration).toBe(0)
   })
 })
