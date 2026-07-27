@@ -7,7 +7,7 @@ vi.mock('../../../shared/crypto/vault-protocol', () => ({
 }))
 
 vi.mock('../../../shared/crypto/entry-protocol', () => ({
-  openMemberIndex: async (envelope: { testLabel?: string }) => {
+  openMemberIndex: async (_entryKey: unknown, envelope: { testLabel?: string }) => {
     cryptoProbe.active += 1
     cryptoProbe.maximum = Math.max(cryptoProbe.maximum, cryptoProbe.active)
     if (cryptoProbe.delay) await new Promise((resolve) => setTimeout(resolve, 1))

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { openMemberIndex, openMemberSecret, sealCanonicalEntry } from './entry-protocol'
+import { deriveVaultSubkey } from './hkdf'
 import { randomBytes, wipe } from './sodium'
+import { openVaultEnvelope } from './vault-envelope'
 
 describe('canonical Entry protocol', () => {
   it('round-trips independently keyed MemberIndex and MemberSecret envelopes', async () => {
@@ -28,9 +30,27 @@ describe('canonical Entry protocol', () => {
       }
       const envelopes = await sealCanonicalEntry(coordinates, secret, vaultKey, discoveryKey, 1)
       expect(envelopes.agentDiscovery).toBeNull()
-      expect((await openMemberIndex(envelopes.memberIndex, vaultKey, coordinates)).memberLabel).toBe('Database')
+      const descriptorContext = (descriptor: typeof envelopes.entryKey.descriptor) => ({
+        protocolVersion: descriptor.protocolVersion,
+        cryptoSuiteId: descriptor.cryptoSuiteId,
+        purpose: descriptor.purpose,
+        organizationId: descriptor.scope.organizationId,
+        vaultId: descriptor.scope.vaultId,
+        entryId: descriptor.scope.entryId,
+        keyVersion: descriptor.keyVersion,
+        memberKeyGeneration: descriptor.memberKeyGeneration,
+      })
+      const wrapKey = await deriveVaultSubkey(vaultKey, descriptorContext(envelopes.entryKey.descriptor))
+      const entryDek = await openVaultEnvelope(envelopes.entryKey, wrapKey, { wrappingVkVersion: 1 })
+      const indexKey = await deriveVaultSubkey(entryDek, descriptorContext(envelopes.memberIndex.descriptor))
+      const secretKey = await deriveVaultSubkey(entryDek, descriptorContext(envelopes.memberSecret.descriptor))
+      await expect(openVaultEnvelope(envelopes.memberIndex, indexKey)).resolves.toBeInstanceOf(Uint8Array)
+      await expect(openVaultEnvelope(envelopes.memberSecret, secretKey, { operation: 1 })).resolves.toBeInstanceOf(Uint8Array)
+      await expect(openVaultEnvelope(envelopes.memberSecret, entryDek, { operation: 1 })).rejects.toThrow()
+      wipe(wrapKey); wipe(entryDek); wipe(indexKey); wipe(secretKey)
+      expect((await openMemberIndex(envelopes.entryKey, envelopes.memberIndex, vaultKey, coordinates)).memberLabel).toBe('Database')
       expect((await openMemberSecret(envelopes.entryKey, envelopes.memberSecret, vaultKey, coordinates)).content.password).toBe('secret')
-      await expect(openMemberIndex(envelopes.memberIndex, vaultKey, { ...coordinates, entryId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff' }))
+      await expect(openMemberIndex(envelopes.entryKey, envelopes.memberIndex, vaultKey, { ...coordinates, entryId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff' }))
         .rejects.toThrow('outer resource scope')
       await expect(openMemberSecret(envelopes.entryKey, envelopes.memberSecret, vaultKey, { ...coordinates, revision: '2' }))
         .rejects.toThrow('outer Entry revision')
@@ -63,7 +83,14 @@ describe('canonical Entry protocol', () => {
       expect(envelopes.memberSecret.descriptor.resourceRevision).toBe('9')
       expect(envelopes.memberSecret.descriptor.keyVersion).toBe(3)
       expect(envelopes.memberIndex.descriptor.resourceRevision).toBe('6')
+      expect(envelopes.memberIndex.descriptor.keyVersion).toBe(3)
       expect(envelopes.agentDiscovery).toBeNull()
+      await expect(openMemberSecret(envelopes.entryKey, envelopes.memberSecret, vaultKey, {
+        organizationId: envelopes.entryKey.descriptor.scope.organizationId,
+        vaultId: envelopes.entryKey.descriptor.scope.vaultId,
+        entryId: envelopes.entryKey.descriptor.scope.entryId!,
+        revision: '9',
+      })).resolves.toMatchObject({ memberLabel: 'Token' })
     } finally { wipe(vaultKey); wipe(discoveryKey) }
   })
 })

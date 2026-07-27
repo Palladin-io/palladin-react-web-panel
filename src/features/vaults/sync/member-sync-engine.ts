@@ -351,7 +351,7 @@ export class MemberSyncEngine {
             continue
           }
           try {
-            const payload = await openMemberIndex(item.memberIndex, vaultKey, {
+            const payload = await openMemberIndex(item.entryKey, item.memberIndex, vaultKey, {
               organizationId: vault.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId,
               vaultId: vault.id,
               entryId: item.entryId,

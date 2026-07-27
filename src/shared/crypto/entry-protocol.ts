@@ -46,8 +46,13 @@ function assertEntryEnvelope(
   expected: ExpectedEntryEnvelopeCoordinates,
   purpose: EnvelopeDescriptorContract<unknown>['purpose'],
 ): void {
-  assertEnvelopeScope(descriptor, { ...expected, purpose })
-  if (descriptor.resourceRevision !== expected.revision) {
+  assertEnvelopeScope(descriptor, {
+    organizationId: expected.organizationId,
+    vaultId: expected.vaultId,
+    entryId: expected.entryId,
+    purpose,
+  })
+  if (purpose !== ENVELOPE_PURPOSE.entryDekByVk && descriptor.resourceRevision !== expected.revision) {
     throw new Error('Envelope descriptor does not match the outer Entry revision')
   }
 }
@@ -85,11 +90,12 @@ export async function sealCanonicalEntry(
   const discoveryCoordinates = { ...coordinates, revision: coordinates.agentDiscoveryRevision ?? coordinates.revision }
   const entryKeyVersion = coordinates.entryKeyVersion ?? 1
   const keyDescriptor = makeDescriptor(keyCoordinates, ENVELOPE_PURPOSE.entryDekByVk, entryKeyVersion, { wrappingVaultKeyVersion: coordinates.vaultKeyVersion })
-  const indexDescriptor = makeDescriptor(indexCoordinates, ENVELOPE_PURPOSE.memberIndex, coordinates.vaultKeyVersion, {})
+  const indexDescriptor = makeDescriptor(indexCoordinates, ENVELOPE_PURPOSE.memberIndex, entryKeyVersion, {})
   const secretDescriptor = makeDescriptor(coordinates, ENVELOPE_PURPOSE.memberSecret, entryKeyVersion, { operation })
   const discoveryDescriptor = makeDescriptor(discoveryCoordinates, ENVELOPE_PURPOSE.agentDiscovery, coordinates.vdkVersion, {})
-  const [entryWrapKey, indexKey, discoveryKey] = await Promise.all([
-    derived(vaultKey, keyDescriptor), derived(vaultKey, indexDescriptor), derived(vaultDiscoveryKey, discoveryDescriptor),
+  const [entryWrapKey, indexKey, secretKey, discoveryKey] = await Promise.all([
+    derived(vaultKey, keyDescriptor), derived(entryDek, indexDescriptor),
+    derived(entryDek, secretDescriptor), derived(vaultDiscoveryKey, discoveryDescriptor),
   ])
   const secretBytes = encodeMemberSecret(secret)
   const indexBytes = encodeMemberIndex(index)
@@ -98,27 +104,41 @@ export async function sealCanonicalEntry(
     const [entryKey, memberIndex, memberSecret, agentDiscovery] = await Promise.all([
       sealVaultEnvelope(keyDescriptor, entryDek, entryWrapKey, { wrappingVkVersion: coordinates.vaultKeyVersion }),
       sealVaultEnvelope(indexDescriptor, indexBytes, indexKey),
-      sealVaultEnvelope(secretDescriptor, secretBytes, entryDek, { operation }),
+      sealVaultEnvelope(secretDescriptor, secretBytes, secretKey, { operation }),
       discoveryBytes ? sealVaultEnvelope(discoveryDescriptor, discoveryBytes, discoveryKey) : Promise.resolve(null),
     ])
     return { entryKey, memberIndex, memberSecret, agentDiscovery }
   } finally {
-    wipe(entryDek); wipe(entryWrapKey); wipe(indexKey); wipe(discoveryKey)
+    wipe(entryDek); wipe(entryWrapKey); wipe(indexKey); wipe(secretKey); wipe(discoveryKey)
     secretBytes.fill(0); indexBytes.fill(0); discoveryBytes?.fill(0)
   }
 }
 
 export async function openMemberIndex(
+  entryKey: VaultEnvelopeContract<VaultKeyBinding>,
   envelope: VaultEnvelopeContract<EmptyBinding>,
   vaultKey: Uint8Array,
   expected: ExpectedEntryEnvelopeCoordinates,
 ): Promise<MemberIndexV1> {
+  assertEntryEnvelope(entryKey.descriptor, expected, ENVELOPE_PURPOSE.entryDekByVk)
   assertEntryEnvelope(envelope.descriptor, expected, ENVELOPE_PURPOSE.memberIndex)
-  const key = await derived(vaultKey, envelope.descriptor)
+  if (entryKey.descriptor.keyVersion !== envelope.descriptor.keyVersion
+    || entryKey.descriptor.memberKeyGeneration !== envelope.descriptor.memberKeyGeneration) {
+    throw new Error('Entry key and Member Index envelopes do not share the same key coordinates')
+  }
+  const wrapKey = await derived(vaultKey, entryKey.descriptor)
   try {
-    const bytes = await openVaultEnvelope(envelope, key)
-    try { return parseMemberIndex(bytes) } finally { bytes.fill(0) }
-  } finally { wipe(key) }
+    const dek = await openVaultEnvelope(entryKey, wrapKey, {
+      wrappingVkVersion: entryKey.descriptor.binding.wrappingVaultKeyVersion,
+    })
+    try {
+      const indexKey = await derived(dek, envelope.descriptor)
+      try {
+        const bytes = await openVaultEnvelope(envelope, indexKey)
+        try { return parseMemberIndex(bytes) } finally { bytes.fill(0) }
+      } finally { wipe(indexKey) }
+    } finally { wipe(dek) }
+  } finally { wipe(wrapKey) }
 }
 
 export async function openMemberSecret(
@@ -137,8 +157,11 @@ export async function openMemberSecret(
   try {
     const dek = await openVaultEnvelope(entryKey, wrapKey, { wrappingVkVersion: entryKey.descriptor.binding.wrappingVaultKeyVersion })
     try {
-      const bytes = await openVaultEnvelope(memberSecret, dek, { operation: memberSecret.descriptor.binding.operation })
-      try { return parseMemberSecret(bytes) } finally { bytes.fill(0) }
+      const secretKey = await derived(dek, memberSecret.descriptor)
+      try {
+        const bytes = await openVaultEnvelope(memberSecret, secretKey, { operation: memberSecret.descriptor.binding.operation })
+        try { return parseMemberSecret(bytes) } finally { bytes.fill(0) }
+      } finally { wipe(secretKey) }
     } finally { wipe(dek) }
   } finally { wipe(wrapKey) }
 }
