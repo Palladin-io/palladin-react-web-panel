@@ -94,7 +94,7 @@ describe('useCreateVault', () => {
     const { result } = renderHook(() => useCreateVault(), { wrapper: wrapperWith(client) })
 
     await act(() => result.current.mutateAsync({
-      name: 'Production', description: 'Primary', icon: 'shield', color: '#EB4747',
+      name: 'Productio\u0301n', description: 'Primary', icon: 'shield', color: '#EB4747',
     }))
 
     expect(mocks.createMaterial).toHaveBeenCalledWith({
@@ -105,8 +105,8 @@ describe('useCreateVault', () => {
       memberPrivateKey: expect.any(Uint8Array),
       metadata: {
         schema: 'palladin.member-vault-metadata.v1',
-        name: 'Production', description: 'Primary',
-        icon: { kind: 'glyph', value: 'shield' }, color: '#EB4747', grantMode: 'full',
+        name: 'Productión', description: 'Primary',
+        icon: { kind: 'glyph', value: 'shield' }, color: '#EB4747', grantMode: 'granular',
       },
     })
     expect(mocks.createVault).toHaveBeenCalledWith(material(firstVaultId))

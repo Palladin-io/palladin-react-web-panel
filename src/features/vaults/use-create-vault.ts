@@ -86,9 +86,9 @@ export function useCreateVault() {
         const account = await getAccount()
         if (!account.memberKeyVersion) throw new Error('Current Member key version is missing')
         const normalizedInput: CreateVaultInput = {
-          name: input.name,
-          ...(input.description ? { description: input.description } : {}),
-          ...(input.icon ? { icon: input.icon } : {}),
+          name: input.name.normalize('NFC'),
+          ...(input.description ? { description: input.description.normalize('NFC') } : {}),
+          ...(input.icon ? { icon: input.icon.normalize('NFC') } : {}),
           ...(input.color ? { color: input.color } : {}),
         }
         const payload = await createVaultProtocolPayload({
@@ -99,11 +99,11 @@ export function useCreateVault() {
           memberPrivateKey: auth.privateKey,
           metadata: {
             schema: 'palladin.member-vault-metadata.v1',
-            name: input.name,
-            description: input.description ?? null,
-            icon: input.icon ? { kind: 'glyph', value: input.icon } : null,
+            name: normalizedInput.name,
+            description: normalizedInput.description ?? null,
+            icon: normalizedInput.icon ? { kind: 'glyph', value: normalizedInput.icon } : null,
             color: input.color ?? null,
-            grantMode: 'full',
+            grantMode: 'granular',
           },
         })
         pendingAttempt = { input: normalizedInput, payload }

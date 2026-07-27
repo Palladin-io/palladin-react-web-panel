@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useCompleteSetup } from '../hooks/use-complete-setup'
 import { generateRecoveryMnemonic } from '../../../shared/lib/mnemonic'
 import { MasterPasswordStep } from './master-password-step'
@@ -15,6 +16,7 @@ type WizardStep = 'master-password' | 'recovery-key' | 'confirm'
  * Zustand — closing the tab mid-flow forces a restart, which is by design.
  */
 export function OnboardingWizard() {
+  const { t } = useTranslation()
   const [step, setStep] = useState<WizardStep>('master-password')
   const [masterPassword, setMasterPassword] = useState<string | null>(null)
 
@@ -49,8 +51,8 @@ export function OnboardingWizard() {
   return (
     <RecoveryKeyConfirmStep
       mnemonic={mnemonic}
-      isSubmitting={false}
-      error={null}
+      isSubmitting={completeSetup.isPending}
+      error={completeSetup.error ? t('onboarding.setupFailed') : null}
       onBack={() => setStep('recovery-key')}
       onConfirmed={() => {
         if (!masterPassword) {

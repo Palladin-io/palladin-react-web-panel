@@ -41,6 +41,7 @@
   "onboarding.confirmCorrect": "Correct",
   "onboarding.confirmIncorrect": "Doesn't match",
   "onboarding.finishingSetup": "Finishing setup...",
+  "onboarding.setupFailed": "Setup could not be completed. Please try again.",
   "onboarding.verifyAndComplete": "Verify & Complete Setup",
   "recovery.enterKeyTitle": "Enter Recovery Key",
   "recovery.enterKeySubtitle": "Paste or type the 24 words from your recovery key.",

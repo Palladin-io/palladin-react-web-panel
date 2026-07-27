@@ -41,6 +41,7 @@
   "onboarding.confirmCorrect": "Poprawnie",
   "onboarding.confirmIncorrect": "Niezgodne",
   "onboarding.finishingSetup": "Kończenie konfiguracji...",
+  "onboarding.setupFailed": "Nie udało się zakończyć konfiguracji. Spróbuj ponownie.",
   "onboarding.verifyAndComplete": "Zweryfikuj i zakończ konfigurację",
   "recovery.enterKeyTitle": "Wprowadź klucz odzyskiwania",
   "recovery.enterKeySubtitle": "Wklej lub wpisz 24 słowa z klucza odzyskiwania.",
