@@ -42,7 +42,7 @@ const input = {
     entryKey: { descriptor: { resourceRevision: '1' } } },
   previous: { schemaVersion: 1 as const, memberLabel: 'Old', agentLabel: 'Agent', entryType: ENTRY_TYPE_KEY,
     content: { type: ENTRY_TYPE_KEY, value: 'secret' }, agentVisibilityPolicy: { discoverable: true, fields: {} } },
-  draft: { memberLabel: 'New', agentLabel: 'Agent', entryType: ENTRY_TYPE_KEY,
+  draft: { memberLabel: 'New', agentLabel: 'Agent', color: '#EB4747', entryType: ENTRY_TYPE_KEY,
     content: { type: ENTRY_TYPE_KEY, value: 'secret' }, policy: { discoverable: true, fields: {} } },
 }
 
@@ -78,6 +78,7 @@ describe('useUpdateCanonicalEntry', () => {
     result.current.mutate(input as never)
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(mocks.update.mock.calls[0][2]).not.toHaveProperty('draft')
+    expect(mocks.toSecret).toHaveBeenCalledWith(expect.objectContaining({ color: '#EB4747' }))
     expect(mocks.produce).not.toHaveBeenCalled()
     expect(mocks.wipe).toHaveBeenCalledTimes(2)
   })

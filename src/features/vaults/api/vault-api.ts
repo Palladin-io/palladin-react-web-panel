@@ -402,7 +402,9 @@ export async function importEntries(
   const response = await api.post(`api/vaults/${vaultId}/entries/import`, {
     json: body,
   })
-  const raw: unknown = JSON.parse(await response.text())
+  const text = await response.text()
+  if (!text.trim()) return { importedCount: body.entries.length, entryIds: body.entries.map((entry) => entry.entryId) }
+  const raw: unknown = JSON.parse(text)
   return z.object({
     importedCount: z.number().int().nonnegative(),
     entryIds: z.array(canonicalUuidSchema),

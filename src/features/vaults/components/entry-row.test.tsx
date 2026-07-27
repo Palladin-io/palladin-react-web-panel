@@ -17,16 +17,24 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 vi.mock('../use-entries', () => ({
-  useEntryDetail: (vaultId: string, entryId: string, enabled: boolean) =>
+  useCanonicalEntryDetail: (vaultId: string, entryId: string, enabled: boolean) =>
     useEntryDetailMock(vaultId, entryId, enabled),
 }))
 
-vi.mock('../../../shared/crypto/vault-key', () => ({
-  unsealVaultKey: vi.fn(async () => new Uint8Array(32)),
+vi.mock('../sync/member-sync-api', () => ({
+  getEncryptedVault: vi.fn(async () => ({ memberVaultKey: {} })),
 }))
 
-vi.mock('../../../shared/crypto/entry-crypto', () => ({
-  decryptEntry: decryptEntryMock,
+vi.mock('../../../shared/crypto/vault-protocol', () => ({
+  openMemberVaultKey: vi.fn(async () => new Uint8Array(32)),
+}))
+
+vi.mock('../../../shared/crypto/entry-protocol', () => ({
+  openMemberSecret: decryptEntryMock,
+}))
+
+vi.mock('../../../shared/crypto/entry-draft', () => ({
+  fromMemberSecret: (secret: unknown) => ({ content: secret }),
 }))
 
 vi.mock('../../../shared/crypto/sodium', () => ({ wipe: vi.fn() }))
@@ -56,7 +64,10 @@ describe('EntryRow — copy vs reveal', () => {
     // Detail (encrypted blob) is available once fetched; the row's own
     // `wantDetail` gate decides when to decrypt.
     useEntryDetailMock.mockReturnValue({
-      data: { ...KEY_ENTRY, content: { encryptedBlob: 'CIPHER', nonce: 'NONCE' } },
+      data: {
+        ...KEY_ENTRY, organizationId: 'org-1', currentRevision: '1',
+        entryKey: {}, memberSecret: {},
+      },
       isPending: false,
     })
     decryptEntryMock.mockResolvedValue({ type: ENTRY_TYPE_KEY, value: 'sk_live_secret' })

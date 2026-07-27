@@ -95,7 +95,7 @@ describe('pending-grants-api', () => {
     expect(items[0].entryId).toBe(samplePending.entryId)
   })
 
-  it('rejects unknown fields at the parse boundary', async () => {
+  it('isolates an item with unknown sensitive fields at the parse boundary', async () => {
     getJson.mockResolvedValue({
       items: [
         {
@@ -105,16 +105,18 @@ describe('pending-grants-api', () => {
           vaultKey: 'leak',
         },
       ],
+      nextCursor: null,
     })
-    await expect(getPendingGrants()).rejects.toThrow()
+    await expect(getPendingGrants()).resolves.toEqual([])
   })
 
-  it('fails closed when a page contains a malformed item', async () => {
+  it('keeps valid pending grants when another item is malformed', async () => {
     getJson.mockResolvedValue({
       // One valid + one malformed (missing required `id`/`createdAt`).
       items: [samplePending, { foo: 'bar' }],
+      nextCursor: null,
     })
-    await expect(getPendingGrants()).rejects.toThrow()
+    await expect(getPendingGrants()).resolves.toEqual([expect.objectContaining({ id: samplePending.id })])
   })
 
   it('PUTs the approve envelope with an expiresAt policy', async () => {

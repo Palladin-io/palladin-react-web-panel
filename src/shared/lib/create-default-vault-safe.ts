@@ -1,12 +1,13 @@
-import { createDefaultVault } from '../api/account-api'
-import { sealVaultKey } from '../crypto/vault-key'
+import { createDefaultVault, getAccount } from '../api/account-api'
+import { createVaultProtocolPayload } from '../crypto/create-vault-protocol'
+import { parseJwtPayload } from './jwt'
+import { useAuthStore } from '../../features/auth'
+import { issueVaultCreationChallenge } from '../../features/vaults/api/vault-api'
 
 // Defaults mirror those in vault-presentation.ts but are kept here as
 // literals to avoid a cross-feature import.
 const DEFAULT_ICON = 'shield'
 const DEFAULT_COLOR = '#EB4747'
-// Granular (2) is the safe default: available on all plans, per-entry scope.
-const GRANT_MODE_GRANULAR = 2
 
 /**
  * Generates a fresh Vault Key, seals it for the user, and creates the
@@ -23,14 +24,28 @@ export async function createDefaultVaultSafe(
   name: string,
 ): Promise<void> {
   try {
-    const wrappedVK = await sealVaultKey(privateKey)
-    await createDefaultVault({
-      name,
-      icon: DEFAULT_ICON,
-      color: DEFAULT_COLOR,
-      grantMode: GRANT_MODE_GRANULAR,
-      wrappedVK,
+    const auth = useAuthStore.getState()
+    if (!auth.userId || !auth.accessToken) return
+    const organizationId = parseJwtPayload(auth.accessToken)['org_id']
+    if (typeof organizationId !== 'string') return
+    const [challenge, account] = await Promise.all([issueVaultCreationChallenge(), getAccount()])
+    if (!account.memberKeyVersion) return
+    const payload = await createVaultProtocolPayload({
+      organizationId,
+      vaultId: challenge.vaultId,
+      memberId: auth.userId,
+      memberKeyVersion: account.memberKeyVersion,
+      memberPrivateKey: privateKey,
+      metadata: {
+        schema: 'palladin.member-vault-metadata.v1',
+        name,
+        description: null,
+        icon: { kind: 'glyph', value: DEFAULT_ICON },
+        color: DEFAULT_COLOR,
+        grantMode: 'granular',
+      },
     })
+    await createDefaultVault(payload)
   } catch {
     // Non-fatal: vault already exists (409) or creation failed for
     // another reason. The flow continues; user can add a vault manually.

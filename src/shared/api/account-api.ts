@@ -150,15 +150,7 @@ export function changeMasterPassword(
  * Same fields as a regular vault creation; the server enforces the
  * one-per-account rule and returns 409 if one already exists.
  */
-export interface DefaultVaultPayload {
-  name: string
-  description?: string
-  icon?: string
-  color?: string
-  grantMode: number
-  /** base64-encoded sealed-box vault key (same as CreateVaultPayload). */
-  wrappedVK: string
-}
+export type DefaultVaultPayload = Awaited<ReturnType<typeof import('../crypto/create-vault-protocol').createVaultProtocolPayload>>
 
 /**
  * POST /api/account/default-vault — creates the user's default vault.

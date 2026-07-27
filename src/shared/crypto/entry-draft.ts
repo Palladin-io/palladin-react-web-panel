@@ -9,12 +9,12 @@ export interface AgentVisibilityPolicy {
 }
 
 export interface EntryDraft {
-  memberLabel: string; agentLabel: string; description?: string; iconReference?: string
+  memberLabel: string; agentLabel: string; description?: string; iconReference?: string; color?: string
   entryType: EntryType; content: EntryPlaintext; policy: AgentVisibilityPolicy
 }
 
 export interface MemberSecretView {
-  memberLabel: string; agentLabel: string; description?: string; iconReference?: string
+  memberLabel: string; agentLabel: string; description?: string; iconReference?: string; color?: string
   entryType: EntryType; content: EntryPlaintext; agentVisibilityPolicy: AgentVisibilityPolicy
 }
 
@@ -148,6 +148,7 @@ export function fromMemberSecret(secret: MemberSecretV1): MemberSecretView {
     memberLabel: secret.memberLabel, agentLabel: secret.agentLabel ?? '',
     ...(secret.description ? { description: secret.description } : {}),
     ...(secret.icon?.kind === 'glyph' ? { iconReference: secret.icon.value } : {}),
+    ...(secret.color ? { color: secret.color } : {}),
     agentVisibilityPolicy: legacyPolicy(secret),
   }
   const fields = legacyCustomFields(secret)

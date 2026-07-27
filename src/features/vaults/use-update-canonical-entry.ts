@@ -59,12 +59,14 @@ export function useUpdateCanonicalEntry(vaultId: string, entryId: string) {
           label: draft.memberLabel, agentLabel: draft.agentLabel,
           ...(draft.description ? { description: draft.description } : {}),
           ...(draft.iconReference ? { iconReference: draft.iconReference } : {}),
+          ...(draft.color ? { color: draft.color } : {}),
           type: draft.entryType, payload: draft.content, policy: draft.policy, vaultId,
         })
         const previousSecret = toMemberSecret({
           label: previous.memberLabel, agentLabel: previous.agentLabel,
           ...(previous.description ? { description: previous.description } : {}),
           ...(previous.iconReference ? { iconReference: previous.iconReference } : {}),
+          ...(previous.color ? { color: previous.color } : {}),
           type: previous.entryType, payload: previous.content,
           policy: previous.agentVisibilityPolicy, vaultId,
         })

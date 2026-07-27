@@ -167,9 +167,12 @@ describe('importEntries', () => {
     expect(res).toEqual({ importedCount: 2, entryIds })
   })
 
-  it('rejects a success response that violates the canonical response contract', async () => {
+  it('preserves an empty-body success after the backend has committed the import', async () => {
     postText.mockResolvedValueOnce('')
-    await expect(importEntries('vault-1', body as never)).rejects.toThrow()
+    await expect(importEntries('vault-1', body as never)).resolves.toEqual({
+      importedCount: 2,
+      entryIds: body.entries.map((entry) => entry.entryId),
+    })
   })
 })
 

@@ -74,7 +74,7 @@ const pendingGrantSchema = z.object({
 export type PendingGrant = z.infer<typeof pendingGrantSchema>
 
 const pendingGrantListSchema = z.object({
-  items: z.array(pendingGrantSchema),
+  items: z.array(z.unknown()),
   nextCursor: z.string().nullable(),
 }).strict()
 
@@ -87,7 +87,15 @@ export async function getPendingGrants(): Promise<PendingGrant[]> {
   const raw = await api.get('api/dashboard/pending-grants').json()
   const envelope = pendingGrantListSchema.parse(raw)
 
-  return envelope.items
+  const items: PendingGrant[] = []
+  let skipped = 0
+  for (const candidate of envelope.items) {
+    const parsed = pendingGrantSchema.safeParse(candidate)
+    if (parsed.success) items.push(parsed.data)
+    else skipped += 1
+  }
+  if (skipped > 0) console.warn(`[pending-grants] skipped ${skipped} malformed item(s)`)
+  return items
 }
 
 /**
