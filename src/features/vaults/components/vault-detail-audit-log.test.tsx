@@ -63,6 +63,10 @@ beforeEach(() => {
   mockAgentNames.mockReturnValue({
     agentNameById: { 'agent-1': 'github-copilot' },
     resolveAgentName: (id: string) => (id === 'agent-1' ? 'github-copilot' : id),
+    memberNameById: { 'user-1': 'Patryk Roguszewski' },
+    resolveActorName: (item: AuditLogItem) => item.userId === 'user-1'
+      ? 'Patryk Roguszewski'
+      : item.agentId === 'agent-1' ? 'github-copilot' : undefined,
     agentOptions: [{ value: 'agent-1', label: 'github-copilot' }],
     userOptions: [],
   })
@@ -84,6 +88,20 @@ describe('VaultDetailAuditLog', () => {
     // Entry name appears twice: bold in the sentence + as the entry chip
     // (the vault-wide log shows the chip, unlike the entry-scoped tab).
     expect(screen.getAllByText('Stripe API Key')).toHaveLength(2)
+  })
+
+  it('renders a human actor from the authorized Member directory instead of an id', () => {
+    mockLogs.mockReturnValue(logsReturn([row({
+      actorType: 'user',
+      agentId: null,
+      userId: 'user-1',
+      eventType: 'entry.updated',
+    })]))
+
+    render(<VaultDetailAuditLog vaultId="vault-1" />)
+
+    expect(screen.getByText('Patryk Roguszewski')).toBeInTheDocument()
+    expect(screen.queryByText(/user-1/)).not.toBeInTheDocument()
   })
 
   it('shows a skeleton while loading without removing the filter bar', () => {

@@ -9,6 +9,8 @@ export interface TooltipProps {
   className?: string
   /** Hover/focus delay before showing, in ms. Much faster than the native title. */
   delayMs?: number
+  /** Show even when the trigger is not clipped (for icon-only controls). */
+  always?: boolean
 }
 
 interface Coords {
@@ -24,7 +26,7 @@ interface Coords {
  * never clip it. The trigger wrapper keeps the caller's classes, so existing
  * `truncate` layout is preserved.
  */
-export function Tooltip({ content, children, className, delayMs = 150 }: TooltipProps) {
+export function Tooltip({ content, children, className, delayMs = 150, always = false }: TooltipProps) {
   const triggerRef = useRef<HTMLSpanElement>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [coords, setCoords] = useState<Coords | null>(null)
@@ -41,15 +43,23 @@ export function Tooltip({ content, children, className, delayMs = 150 }: Tooltip
     const el = triggerRef.current
     // Only surface the tooltip when the text is actually clipped (truncated) —
     // no point repeating content that's already fully visible.
-    if (!el || el.scrollWidth <= el.clientWidth + 1) return
+    if (!el || (!always && el.scrollWidth <= el.clientWidth + 1)) return
     clearTimer()
     timerRef.current = setTimeout(() => {
       const node = triggerRef.current
       if (!node) return
       const rect = node.getBoundingClientRect()
-      setCoords({ x: rect.left + rect.width / 2, y: rect.top })
+      const desiredHalfWidth = Math.min(160, Math.max(0, (window.innerWidth - 24) / 2))
+      const triggerCenter = rect.left + rect.width / 2
+      const x = window.innerWidth <= desiredHalfWidth * 2 + 24
+        ? window.innerWidth / 2
+        : Math.min(
+            window.innerWidth - desiredHalfWidth - 12,
+            Math.max(desiredHalfWidth + 12, triggerCenter),
+          )
+      setCoords({ x, y: rect.top })
     }, delayMs)
-  }, [content, delayMs, clearTimer])
+  }, [always, content, delayMs, clearTimer])
 
   const hide = useCallback(() => {
     clearTimer()
@@ -77,6 +87,7 @@ export function Tooltip({ content, children, className, delayMs = 150 }: Tooltip
                 left: coords.x,
                 top: coords.y,
                 transform: 'translate(-50%, calc(-100% - 0.375rem))',
+                width: 'max-content',
                 maxWidth: 'min(20rem, 90vw)',
               }}
               className="pointer-events-none z-[100] block rounded-md border border-[var(--cv-border)]

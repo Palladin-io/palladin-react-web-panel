@@ -59,13 +59,25 @@ export function VaultDetailAuditLog({ vaultId }: VaultDetailAuditLogProps) {
     [logs.data],
   )
 
-  const { resolveAgentName, agentOptions, userOptions, agentNameById } =
+  const {
+    resolveAgentName,
+    resolveActorName,
+    agentOptions,
+    userOptions,
+    agentNameById,
+    memberNameById,
+  } =
     useAuditAgentNames(allItems, canView)
   const { resolveEntryName, entryNameById } = useVaultAuditEntryNames(vaultId, allItems)
 
   const filtered = useMemo(
-    () => filterAuditLogs(allItems, { search: filter.search, agentNameById, entryNameById }),
-    [allItems, filter.search, agentNameById, entryNameById],
+    () => filterAuditLogs(allItems, {
+      search: filter.search,
+      agentNameById,
+      memberNameById,
+      entryNameById,
+    }),
+    [allItems, filter.search, agentNameById, memberNameById, entryNameById],
   )
 
   return (
@@ -87,6 +99,7 @@ export function VaultDetailAuditLog({ vaultId }: VaultDetailAuditLogProps) {
         isFetchNextPageError={logs.isFetchNextPageError}
         onLoadMore={() => logs.fetchNextPage()}
         resolveAgentName={resolveAgentName}
+        resolveActorName={resolveActorName}
         resolveEntryName={resolveEntryName}
         emptyMessage={t('audit.emptyLog')}
         canView={canView}

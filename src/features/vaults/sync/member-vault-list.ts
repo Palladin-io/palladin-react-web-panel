@@ -20,6 +20,7 @@ export interface MemberVaultListItem {
 function materialIconReference(reference: string | undefined): string | null {
   if (!reference) return null
   if (reference.startsWith('builtin:')) return reference.slice('builtin:'.length) || null
+  if (reference.startsWith('public-asset:')) return reference
   return reference.includes(':') ? null : reference
 }
 

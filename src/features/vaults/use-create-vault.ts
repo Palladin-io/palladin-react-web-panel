@@ -60,15 +60,27 @@ export function useCreateVault() {
       // Read the private key inside the mutation (not at hook level) so we
       // pick up the latest value at click time — `unlockVault` may have
       // populated it after the hook was first instantiated.
-      const auth = useAuthStore.getState()
-      if (!auth.privateKey || !auth.userId || !auth.accessToken) {
+      const initialAuth = useAuthStore.getState()
+      if (!initialAuth.privateKey) {
+        initialAuth.lockVault()
         throw new VaultLockedError()
       }
+
+      // Let the API client restore an in-memory access token from the refresh
+      // token before we read token-bound organization context. This matters
+      // after reload/HMR: the Vault can be correctly unlocked from cached
+      // account material while accessToken is still waiting for its first
+      // authenticated request.
+      const challenge = await issueVaultCreationChallenge()
+      const auth = useAuthStore.getState()
+      if (!auth.accessToken) throw new Error('Authenticated session was not restored')
       const organizationId = parseJwtPayload(auth.accessToken)['org_id']
       if (typeof organizationId !== 'string') throw new Error('Authenticated organization is missing')
-      const key = sessionKey(organizationId, auth.userId)
+      const account = await getAccount()
+      const memberId = account.userId
+      if (!memberId) throw new Error('Current Member identity is missing')
+      const key = sessionKey(organizationId, memberId)
 
-      const challenge = await issueVaultCreationChallenge()
       let pendingAttempt = pendingAttempts.get(key)
       if (pendingAttempt && pendingAttempt.payload.vaultId !== challenge.vaultId) {
         const pendingVaultId = pendingAttempt.payload.vaultId
@@ -83,7 +95,6 @@ export function useCreateVault() {
         pendingAttempt = undefined
       }
       if (pendingAttempt?.payload.vaultId !== challenge.vaultId) {
-        const account = await getAccount()
         if (!account.memberKeyVersion) throw new Error('Current Member key version is missing')
         const normalizedInput: CreateVaultInput = {
           name: input.name.normalize('NFC'),
@@ -94,9 +105,9 @@ export function useCreateVault() {
         const payload = await createVaultProtocolPayload({
           organizationId,
           vaultId: challenge.vaultId,
-          memberId: auth.userId,
+          memberId,
           memberKeyVersion: account.memberKeyVersion,
-          memberPrivateKey: auth.privateKey,
+          memberPrivateKey: initialAuth.privateKey,
           metadata: {
             schema: 'palladin.member-vault-metadata.v1',
             name: normalizedInput.name,

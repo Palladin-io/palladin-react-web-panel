@@ -18,6 +18,8 @@ export interface MemberEntryListItem {
   label: string
   type: EntryType
   icon: string | null
+  username: string | null
+  urlDomain: string | null
   searchFields: readonly string[]
   currentRevision: string
   corrupt: boolean
@@ -26,6 +28,7 @@ export interface MemberEntryListItem {
 function materialIconReference(reference: string | undefined): string | null {
   if (!reference) return null
   if (reference.startsWith('builtin:')) return reference.slice('builtin:'.length) || null
+  if (reference.startsWith('public-asset:') || reference.startsWith('website:')) return reference
   return reference.includes(':') ? null : reference
 }
 
@@ -39,7 +42,12 @@ export function buildMemberEntryList(vault: DecryptedMemberVault | undefined): M
         ? entry.payload.memberLabel
         : shortenKey(entry.entryId),
     type: normalizeEntryType(entry.payload?.entryType),
-    icon: !entry.corrupt ? materialIconReference(presentationIconReference(entry.payload?.icon ?? null)) : null,
+    icon: !entry.corrupt
+      ? materialIconReference(presentationIconReference(entry.payload?.icon ?? null))
+        ?? (entry.payload?.urlDomain ? `website:${entry.payload.urlDomain}` : null)
+      : null,
+    username: !entry.corrupt ? entry.payload?.username ?? null : null,
+    urlDomain: !entry.corrupt ? entry.payload?.urlDomain ?? null : null,
     searchFields: !entry.corrupt && entry.payload ? memberIndexSearchValues(entry.payload) : [],
     currentRevision: entry.currentRevision,
     corrupt: entry.corrupt || entry.payload === null,
@@ -48,13 +56,14 @@ export function buildMemberEntryList(vault: DecryptedMemberVault | undefined): M
 
 export function filterAndSortMemberEntries(
   items: readonly MemberEntryListItem[],
-  state: MemberEntryState,
+  states: ReadonlySet<MemberEntryState> | MemberEntryState,
   query: string,
   sort: MemberEntrySort,
 ): MemberEntryListItem[] {
+  const selectedStates = typeof states === 'string' ? new Set([states]) : states
   const normalized = query.normalize('NFC').trim().toLocaleLowerCase()
   const filtered = items.filter((entry) => {
-    if (entry.state !== state) return false
+    if (!selectedStates.has(entry.state)) return false
     if (!normalized) return true
     return [entry.label, ...entry.searchFields]
       .some((value) => value.normalize('NFC').toLocaleLowerCase().includes(normalized))
@@ -70,7 +79,7 @@ export function filterAndSortMemberEntries(
 
 export function useMemberEntryList(
   vaultId: string,
-  state: MemberEntryState,
+  states: ReadonlySet<MemberEntryState>,
   query: string,
   sort: MemberEntrySort,
 ): {
@@ -94,8 +103,8 @@ export function useMemberEntryList(
     { active: 0, archived: 0, deleted: 0 },
   ), [allItems])
   const items = useMemo(
-    () => filterAndSortMemberEntries(allItems, state, deferredQuery, sort),
-    [allItems, state, deferredQuery, sort],
+    () => filterAndSortMemberEntries(allItems, states, deferredQuery, sort),
+    [allItems, states, deferredQuery, sort],
   )
   return {
     status,

@@ -19,6 +19,7 @@ import {
 import type { Vault } from '../types'
 import { useAuthStore } from '../../auth'
 import { useAllEntries } from '../use-entries'
+import { useMemberSyncStore } from '../sync/member-sync-store'
 import {
   ImportStepError,
   useImportEntries,
@@ -51,16 +52,16 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
   // Conflicts are only needed from the preview step on, so don't fetch the full
   // entry list while the user is still on the upload step (they may close first).
   const entriesQuery = useAllEntries(vault.id, step !== 'upload')
+  const decryptedVault = useMemberSyncStore((state) => state.vaults.get(vault.id))
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
   const [result, setResult] = useState<ParseResult | null>(null)
   const [mapping, setMapping] = useState<ColumnMapping>({})
   const [strategy, setStrategy] = useState<ConflictStrategy>('skip')
-  const [policyReviewed, setPolicyReviewed] = useState(false)
   const [progress, setProgress] = useState<{
     done: number
     total: number
-    phase: 'encrypt' | 'save'
+    phase: 'encrypt' | 'save' | 'icons'
   }>({ done: 0, total: 0, phase: 'encrypt' })
   const [summary, setSummary] = useState<{
     imported: number
@@ -83,11 +84,21 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
 
   const existingByLabel = useMemo(() => {
     const map = new Map<string, string>()
+    // Conflict matching primarily uses the already-decrypted in-memory member
+    // projection. Plaintext labels must not be required from the backend.
+    for (const item of decryptedVault?.entries.values() ?? []) {
+      const label = item.payload?.memberLabel?.trim()
+      if (label) map.set(label.toLowerCase(), item.entryId)
+    }
     for (const item of entriesQuery.data ?? []) {
-      map.set(item.label.trim().toLowerCase(), item.id)
+      // The canonical zero-knowledge list intentionally does not expose a
+      // plaintext label. Older/local responses may still contain one, so only
+      // use it for conflict matching when it is actually present.
+      const label = typeof item.label === 'string' ? item.label.trim() : ''
+      if (label) map.set(label.toLowerCase(), item.id)
     }
     return map
-  }, [entriesQuery.data])
+  }, [decryptedVault, entriesQuery.data])
 
   const existingLabels = useMemo(
     () => new Set(existingByLabel.keys()),
@@ -113,7 +124,6 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
       setResult(parsed)
       setMapping({})
       setStrategy('skip')
-      setPolicyReviewed(false)
       setStep('preview')
     } catch (error) {
       const reason = error instanceof Error && 'reason' in error ? String((error as { reason: unknown }).reason) : 'unknown'
@@ -218,7 +228,7 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
           variant="accent"
           size="sm"
           onClick={handleImport}
-          disabled={entries.length === 0 || !policyReviewed}
+          disabled={entries.length === 0}
           className="flex-[2]"
         >
           {t('vault.import.importCta')}
@@ -256,8 +266,6 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
             onMappingChange={setMapping}
             strategy={strategy}
             onStrategyChange={setStrategy}
-            policyReviewed={policyReviewed}
-            onPolicyReviewedChange={setPolicyReviewed}
           />
         ) : null}
 
@@ -315,8 +323,6 @@ function PreviewStep({
   onMappingChange,
   strategy,
   onStrategyChange,
-  policyReviewed,
-  onPolicyReviewedChange,
 }: {
   result: ParseResult
   entries: ParsedEntry[]
@@ -327,8 +333,6 @@ function PreviewStep({
   onMappingChange: (next: ColumnMapping) => void
   strategy: ConflictStrategy
   onStrategyChange: (next: ConflictStrategy) => void
-  policyReviewed: boolean
-  onPolicyReviewedChange: (next: boolean) => void
 }) {
   const { t } = useTranslation()
   const isManual = result.format === 'manual' && result.unmapped
@@ -386,15 +390,6 @@ function PreviewStep({
         <ConflictStrategyPicker value={strategy} onChange={onStrategyChange} />
       ) : null}
 
-      <label className="flex items-start gap-2 rounded-lg border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3 text-meta text-[var(--cv-t2)]">
-        <input
-          type="checkbox"
-          checked={policyReviewed}
-          onChange={(event) => onPolicyReviewedChange(event.target.checked)}
-        />
-        <span>{t('vault.import.policyReview')}</span>
-      </label>
-
       <EncryptionNotice>{t('vault.import.encryptionNotice')}</EncryptionNotice>
     </>
   )
@@ -403,19 +398,18 @@ function PreviewStep({
 function ImportingStep({
   progress,
 }: {
-  progress: { done: number; total: number; phase: 'encrypt' | 'save' }
+  progress: { done: number; total: number; phase: 'encrypt' | 'save' | 'icons' }
 }) {
   const { t } = useTranslation()
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0
   return (
     <div className="flex flex-col gap-3 py-4">
       <p className="text-ui text-[var(--cv-t2)]">
-        {t(
-          progress.phase === 'encrypt'
-            ? 'vault.import.encrypting'
-            : 'vault.import.saving',
-          { done: progress.done, total: progress.total },
-        )}
+        {t(progress.phase === 'encrypt'
+          ? 'vault.import.encrypting'
+          : progress.phase === 'save'
+            ? 'vault.import.saving'
+            : 'vault.import.icons', { done: progress.done, total: progress.total })}
       </p>
       <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--cv-card-bg)]">
         <div

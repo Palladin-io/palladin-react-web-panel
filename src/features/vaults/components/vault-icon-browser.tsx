@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
@@ -7,6 +7,7 @@ import { VAULT_COLOR_OPTIONS, VAULT_COLOR_NAME_KEY } from './vault-presentation'
 import { hexWithAlpha } from './vault-color'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { SearchBar } from '../../../shared/components/search-bar'
+import { searchPublicAssets, type PublicAsset } from '../../../shared/api/public-assets-api'
 
 export interface IconColorBrowserProps {
   /** Legacy flag retained for caller compatibility; remote favicon lookup is disabled. */
@@ -68,7 +69,25 @@ function IconColorBrowserBody({
   const [search, setSearch] = useState('')
   const [localIcon, setLocalIcon] = useState<string | undefined>(currentIcon)
   const [localColor, setLocalColor] = useState<string | undefined>(currentColor)
-  void showBrandIcons
+  const [publicAssets, setPublicAssets] = useState<PublicAsset[]>([])
+
+  useEffect(() => {
+    const query = search.trim()
+    if (!showBrandIcons || query.length < 2) {
+      setPublicAssets([])
+      return
+    }
+    let current = true
+    const timer = window.setTimeout(() => {
+      void searchPublicAssets(query)
+        .then((items) => { if (current) setPublicAssets(items) })
+        .catch(() => { if (current) setPublicAssets([]) })
+    }, 250)
+    return () => {
+      current = false
+      window.clearTimeout(timer)
+    }
+  }, [search, showBrandIcons])
 
   const showSearch = icons.length > 15
   const query = search.toLowerCase().replace(/\s+/g, '_')
@@ -155,6 +174,29 @@ function IconColorBrowserBody({
             {t('vault.iconBrowserEmpty')}
           </p>
         )}
+
+        {showBrandIcons && publicAssets.length > 0 ? (
+          <div className="grid grid-cols-8 gap-1.5 border-t border-[var(--cv-divider)] pt-3">
+            {publicAssets.map((asset) => {
+              const reference = `public-asset:${asset.id}`
+              const selected = reference === localIcon
+              return (
+                <button
+                  key={asset.id}
+                  type="button"
+                  title={asset.name}
+                  aria-label={asset.name}
+                  aria-pressed={selected}
+                  onClick={() => setLocalIcon(reference)}
+                  className="flex h-10 items-center justify-center rounded-xl border transition-colors hover:bg-[var(--cv-card-hover)]"
+                  style={{ borderColor: selected ? 'var(--cv-primary)' : 'transparent' }}
+                >
+                  <img src={asset.url} alt="" className="h-5 w-5 rounded object-contain" />
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
 
         {onSelectColor && currentColor !== undefined && (
           <>

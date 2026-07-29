@@ -114,6 +114,13 @@ beforeEach(() => {
 })
 
 describe('VaultEntriesTab', () => {
+  it('bounds the mounted row window for large locally decrypted Vaults', () => {
+    publish(Array.from({ length: 539 }, (_, index) =>
+      record(`entry-${index}`, `Entry ${String(index).padStart(3, '0')}`)))
+    render(<VaultEntriesTab vault={VAULT} />)
+    expect(screen.getAllByTestId('active-entry')).toHaveLength(50)
+  })
+
   it('renders active entries from the decrypted MemberIndex, not a list API', () => {
     publish([
       record('entry-1', 'Stripe API Key', 'active', {
@@ -154,11 +161,12 @@ describe('VaultEntriesTab', () => {
     render(<VaultEntriesTab vault={VAULT} />)
     expect(screen.getByText('Active item')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Archived \(1\)/ }))
+    await user.click(screen.getByRole('button', { name: /entry lifecycle/i }))
+    await user.click(screen.getByRole('option', { name: /Archived \(1\)/ }))
     expect(screen.getByText('Archived item')).toBeInTheDocument()
     expect(screen.getByText(/history preserved/i)).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Recently Deleted \(1\)/ }))
+    await user.click(screen.getByRole('option', { name: /Recently Deleted \(1\)/ }))
     expect(screen.getByText('Deleted item')).toBeInTheDocument()
     expect(screen.getByText(/permanently deleted after/i)).toBeInTheDocument()
   })
@@ -169,7 +177,8 @@ describe('VaultEntriesTab', () => {
     publish([record('entry-c', 'Deleted item', 'deleted')])
 
     render(<VaultEntriesTab vault={VAULT} />)
-    await user.click(screen.getByRole('button', { name: /Recently Deleted \(1\)/ }))
+    await user.click(screen.getByRole('button', { name: /entry lifecycle/i }))
+    await user.click(screen.getByRole('option', { name: /Recently Deleted \(1\)/ }))
 
     expect(screen.getByRole('status', { name: 'Loading more…' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument()
@@ -180,7 +189,8 @@ describe('VaultEntriesTab', () => {
     publish([record('entry-c', 'Deleted item', 'deleted')])
     render(<VaultEntriesTab vault={VAULT} />)
 
-    await user.click(screen.getByRole('button', { name: /Recently Deleted \(1\)/ }))
+    await user.click(screen.getByRole('button', { name: /entry lifecycle/i }))
+    await user.click(screen.getByRole('option', { name: /Recently Deleted \(1\)/ }))
     await user.click(screen.getByRole('button', { name: 'Delete permanently' }))
     expect(destroyMutate).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog', { name: /Permanently delete/ })).toBeInTheDocument()
@@ -194,7 +204,8 @@ describe('VaultEntriesTab', () => {
     restoreMutate.mockImplementation(async (ids: string[]) => ({ restored: ids, failed: [] }))
     publish([record('entry-a', 'Archived A', 'archived'), record('entry-b', 'Archived B', 'archived')])
     render(<VaultEntriesTab vault={VAULT} />)
-    await user.click(screen.getByRole('button', { name: /Archived \(2\)/ }))
+    await user.click(screen.getByRole('button', { name: /entry lifecycle/i }))
+    await user.click(screen.getByRole('option', { name: /Archived \(2\)/ }))
     await user.click(screen.getAllByRole('button', { name: /^Restore$/ })[0])
     expect(restoreMutate).toHaveBeenCalledWith(['entry-a'])
 
@@ -221,7 +232,8 @@ describe('VaultEntriesTab', () => {
     render(<VaultEntriesTab vault={VAULT} />)
 
     expect(screen.getAllByTestId('active-entry').map((row) => row.textContent)).toEqual(['Alpha', 'Zulu'])
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort entries' }), 'name-desc')
+    await user.click(screen.getByRole('button', { name: 'Sort entries' }))
+    await user.click(screen.getByRole('option', { name: 'Name Z–A' }))
     expect(screen.getAllByTestId('active-entry').map((row) => row.textContent)).toEqual(['Zulu', 'Alpha'])
   })
 

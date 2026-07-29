@@ -25,6 +25,11 @@ export async function generateKeyPair(): Promise<KeyPair> {
   return { publicKey: kp.publicKey, privateKey: kp.privateKey }
 }
 
+export async function derivePublicKey(privateKey: Uint8Array): Promise<Uint8Array> {
+  const s = await loadSodium()
+  return s.crypto_scalarmult_base(privateKey)
+}
+
 /**
  * Encrypt with XSalsa20-Poly1305 and prepend the nonce so callers only
  * need to store a single byte blob. The companion decrypt routine

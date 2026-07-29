@@ -22,6 +22,15 @@ export interface TypeFilterDropdownProps {
   optionPrefix?: (value: string) => ReactNode
 }
 
+export interface SingleSelectDropdownProps {
+  options: TypeFilterOption[]
+  value: string
+  onChange: (value: string) => void
+  ariaLabel: string
+  icon?: string
+  triggerClassName?: string
+}
+
 /**
  * Shared multi-select filter dropdown — extracted from the Inbox type filter so
  * the Audit Log and Notification Center use one control. A `filter_list` button
@@ -124,6 +133,64 @@ export function TypeFilterDropdown({
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+/** Single-value companion using the exact Inbox filter trigger and menu surface. */
+export function SingleSelectDropdown({
+  options, value, onChange, ariaLabel, icon = 'sort', triggerClassName = 'h-full',
+}: SingleSelectDropdownProps) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  const selected = options.find((option) => option.value === value)
+
+  useEffect(() => {
+    if (!open) return
+    const onClick = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [open])
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className={`flex items-center gap-1.5 rounded-lg border border-[var(--cv-input-border)]
+          bg-[var(--cv-search-bg)] px-3 text-ui text-[var(--cv-t2)]
+          transition-colors hover:border-[var(--cv-t1)] ${triggerClassName}`}
+      >
+        <Icon name={icon} size={15} />
+        <span className="whitespace-nowrap">{selected?.label}</span>
+        <Icon name={open ? 'expand_less' : 'expand_more'} size={15} />
+      </button>
+      {open ? (
+        <div className="absolute right-0 z-20 mt-1 w-52 overflow-hidden rounded-lg border
+          border-[var(--cv-border)] bg-[var(--cv-modal-bg)] py-1 shadow-xl" role="listbox">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              onClick={() => { onChange(option.value); setOpen(false) }}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-ui
+                text-[var(--cv-t1)] transition-colors hover:bg-[var(--cv-bg-subtle)]"
+            >
+              <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+                {option.value === value ? <Icon name="check" size={13} /> : null}
+              </span>
+              {option.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }

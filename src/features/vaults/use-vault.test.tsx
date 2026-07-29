@@ -42,7 +42,7 @@ describe('useVault protocol 2 projection', () => {
     expect(result.current.data).toMatchObject({
       name: 'Production',
       description: 'Local only',
-      icon: 'asset:22222233-4455-4677-8899-aabbccddeeff',
+      icon: 'vault-asset:22222233-4455-4677-8899-aabbccddeeff',
       entryCount: 3,
     })
     expect(result.current.isError).toBe(false)

@@ -51,14 +51,14 @@ export const AGENT_ICON_COLORS: Record<string, string> = {
 }
 
 /**
- * True when `iconKey` is an uploaded custom icon (S3/`blob:` URL) rather
+ * True when `iconKey` is an uploaded custom icon reference or local preview.
  * than a Material Symbols glyph name. Callers must render an `<img>` for
  * custom URLs — feeding a URL to the ligature font renders it as raw text.
  */
 export function isCustomAgentIcon(value: string | null | undefined): value is string {
   return (
     typeof value === 'string' &&
-    (value.startsWith('https://') || value.startsWith('blob:'))
+    (value.startsWith('public-asset:') || value.startsWith('blob:'))
   )
 }
 

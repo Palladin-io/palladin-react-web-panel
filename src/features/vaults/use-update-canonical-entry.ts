@@ -77,7 +77,9 @@ export function useUpdateCanonicalEntry(vaultId: string, entryId: string) {
         const envelopes = await sealCanonicalEntry({
           organizationId: detail.organizationId, vaultId, entryId,
           revision: nextRevision,
-          entryKeyRevision: (BigInt(detail.entryKey.descriptor.resourceRevision) + 1n).toString(),
+          // A replacement Entry key advances keyVersion, but its independent
+          // wrapper revision starts at 1 (it is not a rewrap of the old key).
+          entryKeyRevision: '1',
           entryKeyVersion: detail.currentKeyVersion + 1,
           memberIndexRevision: (BigInt(detail.memberIndexRevision) + 1n).toString(),
           agentDiscoveryRevision: (BigInt(detail.agentDiscoveryRevisionHighWatermark) + 1n).toString(),

@@ -9,6 +9,7 @@ import {
 import { hexWithAlpha } from './vault-color'
 import { IconColorBrowser } from './vault-icon-browser'
 import { VAULT_ICON_ALL, VAULT_ICON_COLORS } from './vault-presentation'
+import { cachedPublicAsset } from '../../../shared/api/public-assets-api'
 
 export interface EntryIconPickerProps {
   value: string | undefined
@@ -54,12 +55,15 @@ export function EntryIconPicker({
   // candidatePresets = what would be visible when no browser icon is active
   const candidatePresets = ENTRY_ICON_OPTIONS.slice(0, maxVisible - 1) as readonly string[]
   // isFromBrowser: value is not in the visible preset range (so it gets its own slot before 3-dots)
+  const publicAssetId = value?.startsWith('public-asset:') ? value.slice('public-asset:'.length) : null
+  const publicAssetUrl = publicAssetId ? cachedPublicAsset(publicAssetId)?.url : undefined
   const isFromBrowser =
     !isCustomIconUrl(value) &&
+    !publicAssetId &&
     value != null &&
     !candidatePresets.includes(value)
 
-  const isUrlIcon = isCustomIconUrl(value)
+  const isUrlIcon = isCustomIconUrl(value) || publicAssetUrl !== undefined
   const presetCount = isFromBrowser || isUrlIcon ? maxVisible - 2 : maxVisible - 1
   const visiblePresets = ENTRY_ICON_OPTIONS.slice(0, presetCount)
 
@@ -126,7 +130,7 @@ export function EntryIconPicker({
               border: `2px solid ${selectedColor}`,
             }}
           >
-            <img src={value} alt="" className="h-5 w-5 rounded object-contain" />
+            <img src={publicAssetUrl ?? value} alt="" className="h-5 w-5 rounded object-contain" />
           </button>
         )}
 

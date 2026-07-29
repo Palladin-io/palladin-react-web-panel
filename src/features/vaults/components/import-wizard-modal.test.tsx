@@ -8,6 +8,7 @@ import { ImportWizardModal } from './import-wizard-modal'
 import { useAuthStore } from '../../auth'
 
 const importMutate = vi.fn()
+const existingEntries = vi.hoisted(() => ({ data: [] as Array<{ id: string; label?: string }> }))
 
 vi.mock('../use-import-entries', () => ({
   useImportEntries: () => ({ mutate: importMutate, isPending: false }),
@@ -22,7 +23,7 @@ vi.mock('../use-import-entries', () => ({
 }))
 
 vi.mock('../use-entries', () => ({
-  useAllEntries: () => ({ data: [] }),
+  useAllEntries: () => ({ data: existingEntries.data }),
 }))
 
 vi.mock('../../../shared/lib/analytics', () => ({
@@ -71,6 +72,7 @@ describe('ImportWizardModal', () => {
     importMutate.mockReset()
     toastError.mockReset()
     toastSuccess.mockReset()
+    existingEntries.data = []
     useAuthStore.setState({ privateKey: new Uint8Array(32) })
   })
 
@@ -88,6 +90,12 @@ describe('ImportWizardModal', () => {
     expect(screen.getByText(/drop a file/i)).toBeInTheDocument()
   })
 
+  it('does not crash when the zero-knowledge entry list omits plaintext labels', () => {
+    existingEntries.data = [{ id: 'opaque-entry' }]
+    render(<ImportWizardModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+    expect(screen.getByText(/import entries/i)).toBeInTheDocument()
+  })
+
   it('parses an uploaded file and imports it (happy path)', async () => {
     const onClose = vi.fn()
     const { container } = render(
@@ -100,8 +108,6 @@ describe('ImportWizardModal', () => {
     // Preview step — format detected + entry visible.
     expect(await screen.findByText(/Chrome \/ Edge \/ Brave/i)).toBeInTheDocument()
     expect(screen.getByText('GitHub')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('checkbox'))
-
     await userEvent.click(screen.getByRole('button', { name: /^import$/i }))
 
     expect(importMutate).toHaveBeenCalledTimes(1)
@@ -123,7 +129,6 @@ describe('ImportWizardModal', () => {
 
     await uploadCsv(container)
     await screen.findByText('GitHub')
-    await userEvent.click(screen.getByRole('checkbox'))
     await userEvent.click(screen.getByRole('button', { name: /^import$/i }))
 
     const [, options] = importMutate.mock.calls[0]

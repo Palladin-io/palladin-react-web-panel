@@ -77,6 +77,7 @@ describe('android app-credential URIs (Google Password Manager)', () => {
     // Signatures use base64url (includes _ and -); the package is after the @.
     expect(extractDomain('android://8XwXgIDMJ7pXw-_a@com.empik.empikapp/')).toBe('empik.com')
     expect(extractDomain('android://YJzPrGM_qk1v@com.binance.dev/')).toBe('binance.com')
+    expect(extractDomain('android://certificate@com.disney.disneyplus/')).toBe('disneyplus.com')
   })
 
   it('gives no domain for a package without a plausible TLD', () => {

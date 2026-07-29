@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
+import { getPublicAssetsByIds } from '../../../shared/api/public-assets-api'
 
 /** Agent lifecycle status — camelCase strings matching backend JsonStringEnumConverter. */
 export const AGENT_STATUS_PENDING = 'pending' as const
@@ -92,8 +93,16 @@ export const agentSchema = z.object({
 const agentListSchema = z.object({ items: z.array(agentSchema) })
 
 const presignIconSchema = z.object({
-  uploadUrl: z.string(),
-  publicUrl: z.string(),
+  assetId: z.string().uuid(),
+  uploadSessionId: z.string().uuid(),
+  uploadUrl: z.string().url(),
+  maximumBytes: z.number().int().positive(),
+}).strict()
+
+const completeIconSchema = z.object({
+  assetId: z.string().uuid(),
+  publicUrl: z.string().url(),
+  revision: z.number().int().positive(),
 })
 
 export type Agent = z.infer<typeof agentSchema>
@@ -120,12 +129,25 @@ export async function getAgentTypes(): Promise<string[]> {
 
 export async function getAgents(): Promise<Agent[]> {
   const raw = await api.get('api/agents').json()
-  return agentListSchema.parse(raw).items
+  const agents = agentListSchema.parse(raw).items
+  await hydrateAgentAssets(agents)
+  return agents
 }
 
 export async function getAgent(agentId: string): Promise<Agent> {
   const raw = await api.get(`api/agents/${agentId}`).json()
-  return agentSchema.parse(raw)
+  const agent = agentSchema.parse(raw)
+  await hydrateAgentAssets([agent])
+  return agent
+}
+
+async function hydrateAgentAssets(agents: Agent[]): Promise<void> {
+  const ids = agents.flatMap((agent) =>
+    agent.iconKey?.startsWith('public-asset:')
+      ? [agent.iconKey.slice('public-asset:'.length)]
+      : [],
+  )
+  if (ids.length > 0) await getPublicAssetsByIds(ids)
 }
 
 export async function approveAgent(
@@ -157,10 +179,20 @@ export async function updateAgent(
 
 export async function presignAgentIcon(
   agentId: string,
-  extension: string,
-): Promise<{ uploadUrl: string; publicUrl: string }> {
+  input: { mediaType: string; byteLength: number; sha256: string },
+): Promise<z.infer<typeof presignIconSchema>> {
   const raw = await api
-    .post(`api/agents/${agentId}/icon/presign`, { json: { agentId, extension } })
+    .post(`api/agents/${agentId}/icon/presign`, { json: { agentId, ...input } })
     .json()
   return presignIconSchema.parse(raw)
+}
+
+export async function completeAgentIconUpload(
+  agentId: string,
+  uploadSessionId: string,
+): Promise<z.infer<typeof completeIconSchema>> {
+  const raw = await api.post(`api/agents/${agentId}/icon/complete`, {
+    json: { agentId, uploadSessionId },
+  }).json()
+  return completeIconSchema.parse(raw)
 }

@@ -147,14 +147,23 @@ export function fromMemberSecret(secret: MemberSecretV1): MemberSecretView {
   const common = {
     memberLabel: secret.memberLabel, agentLabel: secret.agentLabel ?? '',
     ...(secret.description ? { description: secret.description } : {}),
-    ...(secret.icon?.kind === 'glyph' ? { iconReference: secret.icon.value } : {}),
+    ...(secret.icon ? { iconReference: secret.icon.kind === 'glyph'
+      ? `builtin:${secret.icon.value}`
+      : secret.icon.kind === 'encryptedAsset'
+        ? `vault-asset:${secret.icon.assetId}`
+        : secret.icon.kind === 'publicAsset'
+          ? `public-asset:${secret.icon.assetId}`
+          : `website:${secret.icon.hostname}` } : {}),
     ...(secret.color ? { color: secret.color } : {}),
     agentVisibilityPolicy: legacyPolicy(secret),
   }
   const fields = legacyCustomFields(secret)
   if (secret.entryType === 'key') return {
     ...common, entryType: ENTRY_TYPE_KEY,
-    content: { type: ENTRY_TYPE_KEY, value: secret.content.value, notes: secret.content.notes ?? undefined, fields },
+    content: {
+      type: ENTRY_TYPE_KEY, value: secret.content.value,
+      url: secret.content.url ?? undefined, notes: secret.content.notes ?? undefined, fields,
+    },
   }
   if (secret.entryType === 'credential') return {
     ...common, entryType: ENTRY_TYPE_CREDENTIAL,
@@ -182,19 +191,30 @@ export function toMemberSecret(input: {
   color?: string; type: EntryType; payload: EntryPlaintext; policy: AgentVisibilityPolicy; vaultId?: string
 }): MemberSecretV1 {
   const fields = customFields(input.payload.fields)
+  const icon = input.iconReference?.startsWith('public-asset:')
+    ? { kind: 'publicAsset' as const, assetId: input.iconReference.slice('public-asset:'.length) }
+    : input.iconReference?.startsWith('vault-asset:')
+      ? { kind: 'encryptedAsset' as const, assetId: input.iconReference.slice('vault-asset:'.length) }
+      : input.iconReference?.startsWith('website:')
+        ? { kind: 'website' as const, hostname: input.iconReference.slice('website:'.length).normalize('NFC') }
+      : input.iconReference
+        ? { kind: 'glyph' as const, value: input.iconReference.replace(/^builtin:/, '').normalize('NFC') }
+        : null
   const common = {
     schema: 'palladin.member-secret.v1' as const,
     memberLabel: input.label.normalize('NFC'),
     agentLabel: input.policy.discoverable ? input.agentLabel.normalize('NFC') : null,
     discoverable: input.policy.discoverable,
     description: input.description?.normalize('NFC') ?? null,
-    icon: input.iconReference ? { kind: 'glyph' as const, value: input.iconReference.normalize('NFC') } : null,
+    icon,
     color: input.color?.toUpperCase() ?? null,
     agentFieldAccess: fieldPolicy(input.type, input.policy, input.payload.fields),
   }
   if (input.payload.type === ENTRY_TYPE_KEY) return {
     ...common, entryType: 'key', content: {
-      value: input.payload.value.normalize('NFC'), notes: input.payload.notes?.normalize('NFC') ?? null,
+      value: input.payload.value.normalize('NFC'),
+      url: input.payload.url?.normalize('NFC') ?? null,
+      notes: input.payload.notes?.normalize('NFC') ?? null,
       customFields: fields,
     },
   }

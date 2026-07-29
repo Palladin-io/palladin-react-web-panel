@@ -1,6 +1,7 @@
 import type { InputHTMLAttributes, ReactNode } from 'react'
 import { CopyButton } from './copy-button'
 import { Icon } from './icon'
+import { Tooltip } from './tooltip'
 
 /**
  * Styled text input with label for onboarding and settings forms.
@@ -9,6 +10,15 @@ import { Icon } from './icon'
  * border must change dynamically (e.g. correct/wrong state on confirm step).
  * Pass `error` for a standard red-border error state without a custom borderClass.
  */
+interface FormInputAction {
+  icon: string
+  onClick: () => void
+  label: string
+  show?: boolean
+  active?: boolean
+  disabled?: boolean
+}
+
 export interface FormInputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, 'className'> {
   label: string
@@ -37,6 +47,8 @@ export interface FormInputProps
     label: string
     show?: boolean
   }
+  /** Multiple icon actions rendered in the input's right action cluster. */
+  trailingActions?: FormInputAction[]
 }
 
 export function FormInput({
@@ -50,28 +62,37 @@ export function FormInput({
   copyable,
   copyLabel,
   trailingAction,
+  trailingActions,
   ...props
 }: FormInputProps) {
-  const showAction = trailingAction && trailingAction.show !== false
-  const hasTrailing = copyable || showAction
+  const visibleActions: FormInputAction[] = [
+    ...(trailingActions ?? []).filter((action) => action.show !== false),
+    ...(trailingAction && trailingAction.show !== false ? [trailingAction] : []),
+  ]
+  const actionCount = visibleActions.length + (copyable ? 1 : 0)
+  const hasTrailing = actionCount > 0
+  const trailingPadding = actionCount <= 1 ? 'pr-10' : actionCount === 2 ? 'pr-16' : 'pr-[5.375rem]'
   return (
     <div>
-      <label
-        htmlFor={id}
-        className={
-          labelClassName ??
-          'mb-1.5 block text-meta font-semibold text-[var(--cv-label-text)]'
-        }
-      >
-        {label}
-        {labelSuffix ? <span className="ml-1.5 font-normal text-[var(--cv-t3)]">{labelSuffix}</span> : null}
-      </label>
+      {labelSuffix ? (
+        <div className="mb-1.5 flex items-center text-meta font-semibold text-[var(--cv-label-text)]">
+          <label htmlFor={id} className={labelClassName}>{label}</label>
+          <span className="ml-1.5 font-normal text-[var(--cv-t3)]">{labelSuffix}</span>
+        </div>
+      ) : (
+        <label
+          htmlFor={id}
+          className={labelClassName ?? 'mb-1.5 block text-meta font-semibold text-[var(--cv-label-text)]'}
+        >
+          {label}
+        </label>
+      )}
       <div className="relative">
         <input
           id={id}
           className={`h-control w-full rounded-lg border bg-[var(--cv-input-bg)] pl-3 text-ui
             text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)]
-            focus:outline-none transition-colors duration-200 ${hasTrailing ? 'pr-10' : 'pr-3'} ${
+            focus:outline-none transition-colors duration-200 ${hasTrailing ? trailingPadding : 'pr-3'} ${
             borderClass ?? (error
               ? 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
               : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]')
@@ -80,18 +101,23 @@ export function FormInput({
         />
         {hasTrailing ? (
           <div className="absolute right-1.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
-            {showAction ? (
-              <button
-                type="button"
-                onClick={trailingAction!.onClick}
-                aria-label={trailingAction!.label}
-                title={trailingAction!.label}
-                className="inline-flex h-action w-action items-center justify-center rounded text-[var(--cv-t3)]
-                  transition-colors hover:text-[var(--cv-t1)]"
-              >
-                <Icon name={trailingAction!.icon} size={16} />
-              </button>
-            ) : null}
+            {visibleActions.map((action) => (
+              <Tooltip key={action.label} content={action.label} always>
+                <button
+                  type="button"
+                  onClick={action.onClick}
+                  disabled={action.disabled}
+                  aria-label={action.label}
+                  aria-pressed={action.active}
+                  className={`inline-flex h-action w-action items-center justify-center rounded transition-colors
+                    disabled:cursor-not-allowed disabled:opacity-40 ${action.active
+                      ? 'text-[var(--cv-info)]'
+                      : 'text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'}`}
+                >
+                  <Icon name={action.icon} size={16} />
+                </button>
+              </Tooltip>
+            ))}
             {copyable ? <CopyButton value={String(props.value ?? '')} label={copyLabel} /> : null}
           </div>
         ) : null}

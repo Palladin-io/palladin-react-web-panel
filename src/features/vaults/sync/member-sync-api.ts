@@ -56,6 +56,34 @@ export const encryptedVaultSummarySchema = z.object({
   }
 })
 
+const vaultPublicKeySchema = z.object({
+  protocolVersion: z.literal(2),
+  schemeId: z.enum(['palladin-x25519-v1', 'palladin-ed25519-v1']),
+  keyKind: z.union([
+    z.literal('agentMessageX25519').transform(() => 1 as const),
+    z.literal('manifestSigningEd25519').transform(() => 2 as const),
+    z.literal(1),
+    z.literal(2),
+  ]),
+  keyVersion: u32,
+  encodedPublicKey: z.string().min(1),
+  fingerprint: z.string().min(1),
+}).strict().superRefine((key, context) => {
+  if ((key.keyKind === 1 && key.schemeId !== 'palladin-x25519-v1')
+    || (key.keyKind === 2 && key.schemeId !== 'palladin-ed25519-v1')) {
+    context.addIssue({ code: 'custom', message: 'Vault public key kind does not match its scheme' })
+  }
+})
+
+// GET /api/vaults/{id} returns the same encrypted projection as the list plus
+// public verification/routing material. Keep both wire contracts strict: using
+// the list schema for the detail endpoint previously rejected every valid 200.
+const encryptedVaultDetailSchema = encryptedVaultSummarySchema.safeExtend({
+  organizationId: canonicalUuid,
+  vaultAgentMessagePublicKey: vaultPublicKeySchema,
+  vaultManifestSigningPublicKey: vaultPublicKeySchema,
+})
+
 const entryStateSchema = z.union([
   z.enum(['active', 'archived', 'deleted']),
   z.literal(0), z.literal(1), z.literal(2),
@@ -200,7 +228,7 @@ export async function listEncryptedVaults(signal?: AbortSignal): Promise<Encrypt
 
 export async function getEncryptedVault(vaultId: string, signal?: AbortSignal): Promise<EncryptedVaultSummary> {
   const response = await api.get(`api/vaults/${vaultId}`, { signal, throwHttpErrors: false })
-  return parseResponse(response, encryptedVaultSummarySchema)
+  return parseResponse(response, encryptedVaultDetailSchema)
 }
 
 export async function getMemberSnapshotPage(

@@ -127,7 +127,7 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
     setCopyAfterDecrypt(false)
   }, [decryptError, copyAfterDecrypt, t])
 
-  const meta = entry.urlDomain ?? formatLastAccessed(entry, t)
+  const meta = [entry.username, entry.urlDomain].filter(Boolean).join(' · ') || formatLastAccessed(entry, t)
   const isLoadingDetail = revealOpen && detail.isPending
 
   return (
