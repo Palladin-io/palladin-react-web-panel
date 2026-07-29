@@ -11,8 +11,18 @@ import {
 } from '../types'
 import { CreateEntryModal } from './create-entry-modal'
 
+vi.mock('../../../shared/api/public-assets-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../../shared/api/public-assets-api')>(),
+  resolveWebsiteIcons: vi.fn(async () => new Map()),
+}))
+
 const mutateMock = vi.fn()
+const navigateMock = vi.fn()
 let isPending = false
+
+vi.mock('@tanstack/react-router', () => ({
+  useNavigate: () => navigateMock,
+}))
 
 vi.mock('../use-create-entry', () => ({
   useCreateEntry: () => ({
@@ -82,6 +92,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('CreateEntryModal', () => {
   beforeEach(() => {
     mutateMock.mockReset()
+    navigateMock.mockReset()
     toastError.mockReset()
     isPending = false
   })
@@ -143,6 +154,26 @@ describe('CreateEntryModal', () => {
     expect(input.payload).toEqual({ type: ENTRY_TYPE_KEY, value: 'sk_live_123' })
     expect(input.policy.fields.value).toBe('onGrantValue')
     expect(onClose).toHaveBeenCalledTimes(1)
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/vaults/$vaultId/entries/$entryId',
+      params: { vaultId: 'vault-1', entryId: 'entry-1' },
+    })
+  })
+
+  it('selects a website icon from URL for a KEY entry', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'stripe-key' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.type(screen.getByLabelText(/^label$/i), 'Stripe Key')
+    await user.type(screen.getByLabelText(/^value$/i), 'sk_test')
+    await user.type(screen.getByLabelText(/^url$/i), 'https://stripe.com')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    expect(mutateMock.mock.calls[0][0]).toEqual(expect.objectContaining({
+      iconReference: 'website:stripe.com',
+      payload: expect.objectContaining({ url: 'https://stripe.com' }),
+    }))
   })
 
   it('submits Credential plaintext only to the local projection builder', async () => {
@@ -177,6 +208,23 @@ describe('CreateEntryModal', () => {
       url: 'https://github.com/path',
       notes: undefined,
     })
+    expect(input.iconReference).toBe('website:github.com')
+  })
+
+  it('includes a user-selected custom icon file in the encrypted create flow', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:entry-icon-preview')
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'entry-with-icon' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: /icon/i }))
+    const file = new File(['png'], 'custom.png', { type: 'image/png' })
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, file)
+    await user.type(screen.getByLabelText(/^label$/i), 'Custom icon entry')
+    await user.type(screen.getByLabelText(/^value$/i), 'secret')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    expect(mutateMock.mock.calls[0][0]).toEqual(expect.objectContaining({ iconFile: file }))
   })
 
   it('folds a custom field into the encrypted payload (v2)', async () => {
@@ -271,7 +319,7 @@ describe('CreateEntryModal', () => {
 
     await user.type(screen.getByLabelText(/^label$/i), 'API')
     await user.type(screen.getByLabelText(/^value$/i), 'sk')
-    await user.selectOptions(screen.getByLabelText(/entry discovery/i), 'disabled')
+    await user.click(screen.getByRole('button', { name: /visible to agents in discovery/i }))
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
     const [input] = mutateMock.mock.calls[0]

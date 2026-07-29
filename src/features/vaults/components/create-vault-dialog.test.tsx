@@ -5,6 +5,12 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CreateVaultDialog } from './create-vault-dialog'
 
+const navigateMock = vi.hoisted(() => vi.fn())
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@tanstack/react-router')>(),
+  useNavigate: () => navigateMock,
+}))
+
 // Mutation under test — replaced with a controllable mock so we can
 // drive onSuccess / onError paths from each scenario without going
 // through the real crypto + HTTP stack.
@@ -50,6 +56,7 @@ describe('CreateVaultDialog', () => {
   beforeEach(() => {
     mutateMock.mockReset()
     toastError.mockReset()
+    navigateMock.mockReset()
     isPending = false
     pendingInput = null
   })
@@ -65,7 +72,7 @@ describe('CreateVaultDialog', () => {
   it('renders the form with name field and Create button when open', () => {
     render(<CreateVaultDialog open={true} onClose={vi.fn()} />, { wrapper })
     expect(screen.getByLabelText(/vault name/i)).toBeInTheDocument()
-    expect(screen.getByText(/active organization agents/i)).toBeInTheDocument()
+    expect(screen.queryByText(/active organization agents/i)).not.toBeInTheDocument()
     // The submit button shares its label with the heading; scope the
     // assertion to the button role to avoid the duplicate-text trap.
     expect(screen.getByRole('button', { name: /^create vault$/i })).toBeInTheDocument()
@@ -101,7 +108,16 @@ describe('CreateVaultDialog', () => {
     expect(screen.getByRole('button', { name: /^create vault$/i })).toBeEnabled()
   })
 
-  it('closes after successful submission without navigating to legacy detail', async () => {
+  it('does not flash the retry explanation during the initial in-flight create', () => {
+    pendingInput = { name: 'Production', icon: 'shield', color: 'red' }
+    isPending = true
+
+    render(<CreateVaultDialog open={true} onClose={vi.fn()} />, { wrapper })
+
+    expect(screen.queryByText(/previous result is still unknown/i)).not.toBeInTheDocument()
+  })
+
+  it('closes and navigates directly to the newly created vault', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
 
@@ -121,6 +137,10 @@ describe('CreateVaultDialog', () => {
 
     expect(mutateMock).toHaveBeenCalledTimes(1)
     expect(onClose).toHaveBeenCalledTimes(1)
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/vaults/$vaultId',
+      params: { vaultId: 'vault-1' },
+    })
   })
 
   it('surfaces an error toast when the mutation fails', async () => {

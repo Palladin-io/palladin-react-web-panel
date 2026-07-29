@@ -132,6 +132,7 @@ function AuthenticatedLayout() {
     queryFn: getAccount,
     staleTime: 5 * 60 * 1000,
   })
+  const memberId = account.data?.userId ?? userId
   const emailUnverified = account.data?.emailVerified === false
   useEffect(() => {
     if (emailUnverified) navigate({ to: '/verify-email' })
@@ -148,32 +149,41 @@ function AuthenticatedLayout() {
   // account — the redirect above is in flight.
   if (emailUnverified) return null
 
-  if (pathname === '/unlock') return <Outlet />
   return (
-    // SignalRProvider self-gates on auth + unlocked vault, so it only opens a
-    // connection once we're past the guards above.
     <MemberSyncProvider
-      enabled={Boolean(accessToken) && !isVaultLocked}
-      userId={userId}
+      // The access token is deliberately memory-only and can be absent after
+      // a reload. Member sync may safely start once the Vault is unlocked;
+      // the API client restores the access token through the persisted refresh
+      // token on its first authenticated request. Gating on accessToken here
+      // otherwise leaves the decrypted session permanently stuck in `idle`.
+      enabled={!isVaultLocked}
+      // Prefer the authenticated account response after a cold refresh. The
+      // persisted auth hint may predate the refreshed token, while `/account`
+      // is also the authoritative source used by the unlock operation.
+      userId={memberId}
       memberPrivateKey={memberPrivateKey}
     >
-      <RotationProvider
-        enabled={Boolean(accessToken) && !isVaultLocked}
-        memberId={userId}
-        memberPrivateKey={memberPrivateKey}
-      >
-      <SignalRProvider>
-        <div
-          className="flex h-screen overflow-hidden"
-          style={{ background: GRADIENTS[theme] }}
+      {pathname === '/unlock' ? (
+        <Outlet />
+      ) : (
+        <RotationProvider
+          enabled={Boolean(accessToken) && !isVaultLocked}
+          memberId={memberId}
+          memberPrivateKey={memberPrivateKey}
         >
-          <AppSidebar currentPath={pathname} />
-          <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
-            <Outlet />
-          </main>
-        </div>
-      </SignalRProvider>
-      </RotationProvider>
+          <SignalRProvider>
+            <div
+              className="flex h-screen overflow-hidden"
+              style={{ background: GRADIENTS[theme] }}
+            >
+              <AppSidebar currentPath={pathname} />
+              <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+                <Outlet />
+              </main>
+            </div>
+          </SignalRProvider>
+        </RotationProvider>
+      )}
     </MemberSyncProvider>
   )
 }

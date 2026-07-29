@@ -33,13 +33,16 @@ import { getEncryptedVault } from './sync/member-sync-api'
 import { entriesQueryKey } from './use-entries'
 import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
+import { useMemberSyncStore } from './sync/member-sync-store'
+import { normalizePublicHostname, resolveWebsiteIcons } from '../../shared/api/public-assets-api'
+import { extractDomain } from './components/entry-presentation'
 
 /** Import batch size — well under the backend cap (500) so the progress bar ticks
  * every ~50 entries instead of freezing on one huge POST. */
 const IMPORT_CHUNK_SIZE = 50
 
 /** Which phase of the import failed — surfaced so a failure is attributable. */
-export type ImportStep = 'grants' | 'encrypt' | 'save' | 'overwrite'
+export type ImportStep = 'grants' | 'loadVault' | 'openVaultKey' | 'challenge' | 'encrypt' | 'save' | 'overwrite'
 
 /**
  * Wraps the underlying error with the phase it happened in, so the UI can show a
@@ -81,7 +84,7 @@ export interface ImportEntriesResult {
   failed: { label: string; reason: string }[]
 }
 
-export type ImportPhase = 'encrypt' | 'save'
+export type ImportPhase = 'encrypt' | 'save' | 'icons'
 
 /** Human-readable reason from a ky HTTPError (FastEndpoints problem details), or a generic fallback. */
 async function readErrorReason(error: unknown): Promise<string> {
@@ -120,12 +123,14 @@ function toPlaintext(entry: ParsedEntry): EntryPlaintext {
 
 function toDraft(entry: ParsedEntry): EntryDraft {
   const content = toPlaintext(entry)
+  const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
   return {
     memberLabel: entry.label,
     agentLabel: entry.label,
     entryType: entry.type,
     content,
     policy: defaultAgentVisibilityPolicy(entry.type, content.fields ?? []),
+    ...(hostname ? { iconReference: `website:${hostname}` } : {}),
   }
 }
 
@@ -163,9 +168,19 @@ export function useImportEntries() {
       } catch (error) {
         throw new ImportStepError('grants', error)
       }
-      const vault = await getEncryptedVault(input.vaultId)
+      let vault: Awaited<ReturnType<typeof getEncryptedVault>>
+      try {
+        vault = await getEncryptedVault(input.vaultId)
+      } catch (error) {
+        throw new ImportStepError('loadVault', error)
+      }
+      let vaultKey: Uint8Array
+      try {
+        vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+      } catch (error) {
+        throw new ImportStepError('openVaultKey', error)
+      }
       const organizationId = vault.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
       let discoveryKey: Uint8Array | undefined
       try {
         discoveryKey = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)
@@ -200,7 +215,12 @@ export function useImportEntries() {
         let encryptedCount = 0
         for (let offset = 0; offset < input.creates.length; offset += IMPORT_CHUNK_SIZE) {
           const sourceChunk = input.creates.slice(offset, offset + IMPORT_CHUNK_SIZE)
-          const challenges = await issueEntryCreationChallenges(input.vaultId, sourceChunk.length)
+          let challenges: Awaited<ReturnType<typeof issueEntryCreationChallenges>>
+          try {
+            challenges = await issueEntryCreationChallenges(input.vaultId, sourceChunk.length)
+          } catch (error) {
+            throw new ImportStepError('challenge', error)
+          }
           const encryptedChunk: ImportEntryItem[] = []
           try {
             for (let index = 0; index < sourceChunk.length; index += 1) {
@@ -212,6 +232,7 @@ export function useImportEntries() {
               const memberSecret = toMemberSecret({
                 label: draft.memberLabel, agentLabel: draft.agentLabel,
                 type: draft.entryType, payload: draft.content, policy: draft.policy,
+                iconReference: draft.iconReference,
                 vaultId: vault.id,
               })
               const material = await sealCanonicalEntry({
@@ -249,6 +270,22 @@ export function useImportEntries() {
             throw new ImportStepError('encrypt', error)
           }
           await saveChunk(encryptedChunk)
+          const iconHostnames = sourceChunk.flatMap((entry) => {
+            const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
+            return hostname ? [hostname] : []
+          })
+          if (iconHostnames.length > 0) {
+            // The endpoint only enqueues acquisition and returns immediately.
+            // Keep it after the atomic save so icons can never decide whether
+            // credentials commit, while every 50-entry import chunk is still
+            // guaranteed to reach the catalog independently of list rendering.
+            await resolveWebsiteIcons(iconHostnames).catch(() => new Map())
+          }
+          input.onProgress?.(
+            Math.min(offset + sourceChunk.length, input.creates.length),
+            input.creates.length,
+            'icons',
+          )
         }
 
         let updatedCount = 0
@@ -267,6 +304,7 @@ export function useImportEntries() {
             const nextSecret = toMemberSecret({
               label: draft.memberLabel, agentLabel: draft.agentLabel,
               type: draft.entryType, payload: draft.content, policy: draft.policy,
+              iconReference: draft.iconReference,
               vaultId: input.vaultId,
             })
             const nextRevision = (BigInt(detail.currentRevision) + 1n).toString()
@@ -341,6 +379,8 @@ export function useImportEntries() {
       queryClient.invalidateQueries({ queryKey: entriesQueryKey(variables.vaultId) })
       queryClient.invalidateQueries({ queryKey: vaultQueryKey(variables.vaultId) })
       queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
+      useMemberSyncStore.getState().retry()
+
     },
   })
 }

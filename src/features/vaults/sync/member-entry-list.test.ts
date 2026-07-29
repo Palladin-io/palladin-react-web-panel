@@ -46,4 +46,33 @@ describe('member entry list', () => {
     expect(projected[0].label).toMatch(/^33333333…/)
     expect(filterAndSortMemberEntries(projected, 'active', '33333333', 'name-asc')).toHaveLength(1)
   })
+
+  it('preserves an explicit website icon, derives legacy icons, and preserves a manual glyph', () => {
+    const legacy = record(1)
+    legacy.payload = { ...legacy.payload!, urlDomain: 'discord.com', icon: null }
+    const manual = record(2)
+    manual.payload = {
+      ...manual.payload!,
+      urlDomain: 'binance.com',
+      icon: { kind: 'glyph', value: 'key' },
+    }
+    const explicit = record(3)
+    explicit.payload = {
+      ...explicit.payload!,
+      urlDomain: null,
+      icon: { kind: 'website', hostname: 'cryptolume.co' },
+    }
+
+    const projected = buildMemberEntryList({
+      entries: new Map([
+        [legacy.entryId, legacy],
+        [manual.entryId, manual],
+        [explicit.entryId, explicit],
+      ]),
+    } as DecryptedMemberVault)
+
+    expect(projected.find((entry) => entry.id === legacy.entryId)?.icon).toBe('website:discord.com')
+    expect(projected.find((entry) => entry.id === manual.entryId)?.icon).toBe('key')
+    expect(projected.find((entry) => entry.id === explicit.entryId)?.icon).toBe('website:cryptolume.co')
+  })
 })

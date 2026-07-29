@@ -18,6 +18,7 @@ import { VaultListPanel } from './components/vault-list-panel'
 import { VaultSettingsForm } from './components/vault-settings-form'
 import { VaultAgentsTab } from './components/vault-agents-tab'
 import { VaultMembersTab } from './components/vault-members-tab'
+import { GrantAccessDialog } from '../grants'
 import type { Vault } from './types'
 import { useVault } from './use-vault'
 
@@ -54,6 +55,7 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
   const [createEntryOpen, setCreateEntryOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [addAgentOpen, setAddAgentOpen] = useState(false)
   const isWide = useWideScreen()
 
   const vaultContent = vault.isPending ? (
@@ -70,6 +72,7 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
         onAddEntry={() => setCreateEntryOpen(true)}
         onImport={() => setImportOpen(true)}
         onExport={() => setExportOpen(true)}
+        onAddAgent={() => setAddAgentOpen(true)}
         showHeader={!isWide}
       />
       <CreateEntryModal
@@ -91,6 +94,12 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
         vaults={[{ id: vault.data.id, name: vault.data.name }]}
         onClose={() => setExportOpen(false)}
       />
+      {addAgentOpen ? (
+        <GrantAccessDialog
+          mode={{ kind: 'agent-for-vault', vaultId }}
+          onClose={() => setAddAgentOpen(false)}
+        />
+      ) : null}
     </>
   )
 
@@ -124,6 +133,7 @@ interface DetailBodyProps {
   onAddEntry: () => void
   onImport: () => void
   onExport: () => void
+  onAddAgent: () => void
   showHeader?: boolean
 }
 
@@ -135,6 +145,7 @@ function DetailBody({
   onAddEntry,
   onImport,
   onExport,
+  onAddAgent,
   showHeader = true,
 }: DetailBodyProps) {
   const { t } = useTranslation()
@@ -153,6 +164,7 @@ function DetailBody({
               onAddEntry={onAddEntry}
               onImport={onImport}
               onExport={onExport}
+              onAddAgent={onAddAgent}
             />
           }
         />
@@ -167,6 +179,7 @@ function DetailBody({
               onAddEntry={onAddEntry}
               onImport={onImport}
               onExport={onExport}
+              onAddAgent={onAddAgent}
             />
           )
         }
@@ -190,9 +203,10 @@ interface TabActionsProps {
   onAddEntry: () => void
   onImport: () => void
   onExport: () => void
+  onAddAgent: () => void
 }
 
-function TabActions({ activeTab, onAddEntry, onImport, onExport }: TabActionsProps) {
+function TabActions({ activeTab, onAddEntry, onImport, onExport, onAddAgent }: TabActionsProps) {
   const { t } = useTranslation()
 
   switch (activeTab) {
@@ -209,6 +223,12 @@ function TabActions({ activeTab, onAddEntry, onImport, onExport }: TabActionsPro
             {t('vault.detail.addEntry')}
           </Button>
         </>
+      )
+    case 'agents':
+      return (
+        <Button variant="accent" size="sm" icon="add" onClick={onAddAgent}>
+          {t('vault.detail.addAgent')}
+        </Button>
       )
     default:
       return null

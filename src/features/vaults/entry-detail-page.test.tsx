@@ -39,6 +39,7 @@ const {
     deleteIsPending: false,
     decryptResult: null as EntryPlaintextLite | null,
     decryptShouldThrow: false,
+    decryptedIconReference: undefined as string | undefined,
     memberIndex: { memberLabel: 'Stripe API Key', entryType: 'key' as 'key' | 'credential', icon: null },
   },
 }))
@@ -46,7 +47,7 @@ const {
 // Avoids importing `EntryPlaintext` inside the hoisted block (hoisting
 // must not depend on module imports).
 type EntryPlaintextLite =
-  | { type: 0; value: string; notes?: string }
+  | { type: 0; value: string; url?: string; notes?: string }
   | {
       type: 1
       username: string
@@ -105,11 +106,15 @@ vi.mock('../../shared/crypto/entry-protocol', () => ({
       agentLabel: state.memberIndex.memberLabel,
       entryType: state.decryptResult.type,
       content: state.decryptResult,
+      ...(state.decryptedIconReference ? { iconReference: state.decryptedIconReference } : {}),
       agentVisibilityPolicy: { discoverable: true, fields: { agentLabel: 'discovery' } },
     }
   }),
 }))
-vi.mock('../../shared/crypto/entry-draft', () => ({ fromMemberSecret: (value: unknown) => value }))
+vi.mock('../../shared/crypto/entry-draft', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../shared/crypto/entry-draft')>(),
+  fromMemberSecret: (value: unknown) => value,
+}))
 
 vi.mock('../../shared/crypto/vault-protocol', () => ({
   openMemberVaultKey: vi.fn(async () => new Uint8Array(32)),
@@ -249,6 +254,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.deleteIsPending = false
     state.decryptResult = null
     state.decryptShouldThrow = false
+    state.decryptedIconReference = undefined
     state.memberIndex = { memberLabel: 'Stripe API Key', entryType: 'key', icon: null }
     useAuthStore.setState({ privateKey: null, isVaultLocked: true })
     // Default to wide-screen off so the detail body renders without the
@@ -318,9 +324,6 @@ describe('EntryDetailPage — DetailsTab', () => {
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     expect(screen.getByLabelText(/^label$/i)).toHaveValue('Stripe API Key')
-    expect(screen.getByLabelText(/^label$/i)).toBeDisabled()
-    expect(screen.queryByLabelText(/^value$/i)).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: /^reveal$/i }))
     await waitFor(() =>
       expect(screen.getByLabelText(/^value$/i)).toHaveValue('sk_live_123'),
     )
@@ -346,7 +349,6 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
 
-    await userEvent.click(screen.getByRole('button', { name: /^reveal$/i }))
     await waitFor(() =>
       expect(screen.getByLabelText(/^username$/i)).toHaveValue('user@example.com'),
     )
@@ -366,7 +368,6 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
-    await userEvent.click(screen.getByRole('button', { name: /^reveal$/i }))
     expect(
       await screen.findByText(/could not decrypt entry/i),
     ).toBeInTheDocument()
@@ -385,7 +386,6 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
-    await user.click(screen.getByRole('button', { name: /^reveal$/i }))
     const saveButton = await screen.findByRole('button', { name: /save changes/i })
     expect(saveButton).toBeDisabled()
 
@@ -394,6 +394,32 @@ describe('EntryDetailPage — DetailsTab', () => {
     await user.type(labelInput, 'Renamed Key')
 
     expect(saveButton).not.toBeDisabled()
+  })
+
+  it('restores a KEY URL from encrypted content and preserves it on update', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'sk_test', url: 'https://stripe.com' }
+    state.decryptedIconReference = 'website:stripe.com'
+    state.memberIndex = {
+      memberLabel: 'Stripe Key', entryType: 'key',
+      icon: { kind: 'website', hostname: 'stripe.com' } as never,
+    }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+
+    expect(await screen.findByLabelText(/^url$/i)).toHaveValue('https://stripe.com')
+    const labelInput = screen.getByLabelText(/^label$/i)
+    await user.clear(labelInput)
+    await user.type(labelInput, 'Stripe production')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    expect(updateMutateMock.mock.calls[0][0].draft).toMatchObject({
+      iconReference: 'website:stripe.com',
+      content: { type: ENTRY_TYPE_KEY, value: 'sk_test', url: 'https://stripe.com' },
+    })
   })
 
   it('submits a trimmed label patch on Save and shows the success toast', async () => {
@@ -412,7 +438,6 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
-    await user.click(screen.getByRole('button', { name: /^reveal$/i }))
     await screen.findByLabelText(/^value$/i)
 
     const labelInput = screen.getByLabelText(/^label$/i)
@@ -442,7 +467,6 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
-    await user.click(screen.getByRole('button', { name: /^reveal$/i }))
     await screen.findByLabelText(/^value$/i)
 
     const labelInput = screen.getByLabelText(/^label$/i)
@@ -466,7 +490,6 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
-    await user.click(screen.getByRole('button', { name: /^reveal$/i }))
     await screen.findByLabelText(/^value$/i)
 
     const labelInput = screen.getByLabelText(/^label$/i)

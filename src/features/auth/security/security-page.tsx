@@ -21,6 +21,7 @@ export function SecurityPage() {
         </header>
 
         <div className="flex flex-col gap-4">
+          {/* TODO(authentication-methods): Add per-method controls for password and linked OAuth providers. Disabling a method must require step-up authentication and the API must reject disabling the last active login method. */}
           <TotpSection />
           <ChangeMasterPasswordSection />
         </div>

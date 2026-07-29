@@ -2,6 +2,7 @@ import { useEffect, useRef, type ReactNode } from 'react'
 import { IndexedDbMemberSyncCache } from './member-sync-cache'
 import { MemberSyncEngine } from './member-sync-engine'
 import { useMemberSyncStore } from './member-sync-store'
+import { DefaultVaultReconciler } from './default-vault-reconciler'
 
 const memberSyncEngine = typeof indexedDB === 'undefined'
   ? null
@@ -63,5 +64,10 @@ export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey
     if (retryGeneration > 0) retrySync.current?.()
   }, [retryGeneration])
 
-  return children
+  return (
+    <>
+      <DefaultVaultReconciler enabled={enabled} memberPrivateKey={memberPrivateKey} />
+      {children}
+    </>
+  )
 }

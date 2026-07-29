@@ -8,8 +8,9 @@ import type { ParsedEntry } from './import'
 import { useImportEntries } from './use-import-entries'
 import { entriesQueryKey } from './use-entries'
 import { VAULTS_QUERY_KEY } from './use-vaults'
+import { useMemberSyncStore } from './sync/member-sync-store'
 
-const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock } = vi.hoisted(() => ({
+const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock, challengesMock, encryptedVaultMock, toMemberSecretMock, resolveWebsiteIconsMock } = vi.hoisted(() => ({
   importEntriesMock: vi.fn(async (_vaultId: string, body: { entries: unknown[] }) => ({
     importedCount: body.entries.length,
     entryIds: body.entries.map((_, i) => `e${i}`),
@@ -19,13 +20,32 @@ const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock } 
   grantEnvelopeMock: vi.fn(async ({ grantId, entryId }: { grantId: string; entryId: string }) => ({
     grantId, entryId,
   })),
+  challengesMock: vi.fn(async (_vaultId: string, count: number) =>
+    Array.from({ length: count }, (_, index) => ({ entryId: `entry-${index}`, expiresAt: '2026-07-27T00:00:00Z' }))),
+  encryptedVaultMock: vi.fn(async () => ({
+    id: 'vault-1', memberKeyGeneration: 1,
+    currentKeyEpoch: { vaultKeyVersion: 1, vdkVersion: 1 },
+    memberVaultKey: { wrappedVaultKey: { descriptor: { scope: { organizationId: 'org-1' } } } },
+    discoveryKey: {},
+  })),
+  toMemberSecretMock: vi.fn(({ label }: { label: string }) => ({
+    schema: 'palladin.member-secret.v1', memberLabel: label, agentLabel: label,
+    entryType: 'credential', content: { customFields: [] }, agentFieldAccess: {},
+  })),
+  resolveWebsiteIconsMock: vi.fn(async () => new Map()),
+}))
+
+vi.mock('../../shared/api/public-assets-api', () => ({
+  normalizePublicHostname: (value: string) => value.includes('://')
+    ? new URL(value).hostname
+    : value || null,
+  resolveWebsiteIcons: resolveWebsiteIconsMock,
 }))
 
 vi.mock('./api/vault-api', () => ({
   importEntries: importEntriesMock,
   updateCanonicalEntry: updateEntryMock,
-  issueEntryCreationChallenges: vi.fn(async (_vaultId: string, count: number) =>
-    Array.from({ length: count }, (_, index) => ({ entryId: `entry-${index}`, expiresAt: '2026-07-27T00:00:00Z' }))),
+  issueEntryCreationChallenges: challengesMock,
   getCanonicalEntry: vi.fn(async () => ({
     id: 'old-1', organizationId: 'org-1', vaultId: 'vault-1', currentRevision: '1',
     currentKeyVersion: 1, memberIndexRevision: '1', agentDiscoveryRevisionHighWatermark: '1',
@@ -41,12 +61,7 @@ vi.mock('../grants', () => ({
 }))
 
 vi.mock('./sync/member-sync-api', () => ({
-  getEncryptedVault: vi.fn(async () => ({
-    id: 'vault-1', memberKeyGeneration: 1,
-    currentKeyEpoch: { vaultKeyVersion: 1, vdkVersion: 1 },
-    memberVaultKey: { wrappedVaultKey: { descriptor: { scope: { organizationId: 'org-1' } } } },
-    discoveryKey: {},
-  })),
+  getEncryptedVault: encryptedVaultMock,
 }))
 
 vi.mock('../../shared/crypto/vault-protocol', () => ({
@@ -56,10 +71,7 @@ vi.mock('../../shared/crypto/vault-protocol', () => ({
 vi.mock('../../shared/crypto/entry-draft', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../shared/crypto/entry-draft')>(),
   defaultAgentVisibilityPolicy: vi.fn(() => ({ discoverable: true, fields: {} })),
-  toMemberSecret: vi.fn(({ label }: { label: string }) => ({
-    schema: 'palladin.member-secret.v1', memberLabel: label, agentLabel: label,
-    entryType: 'credential', content: { customFields: [] }, agentFieldAccess: {},
-  })),
+  toMemberSecret: toMemberSecretMock,
 }))
 vi.mock('../../shared/crypto/entry-protocol', () => ({
   sealCanonicalEntry: vi.fn(async () => ({
@@ -97,6 +109,18 @@ describe('useImportEntries', () => {
     updateEntryMock.mockClear()
     fullGrantsMock.mockReset()
     fullGrantsMock.mockResolvedValue([])
+    challengesMock.mockClear()
+    challengesMock.mockImplementation(async (_vaultId: string, count: number) =>
+      Array.from({ length: count }, (_, index) => ({ entryId: `entry-${index}`, expiresAt: '2026-07-27T00:00:00Z' })))
+    encryptedVaultMock.mockClear()
+    toMemberSecretMock.mockClear()
+    resolveWebsiteIconsMock.mockClear()
+    encryptedVaultMock.mockResolvedValue({
+      id: 'vault-1', memberKeyGeneration: 1,
+      currentKeyEpoch: { vaultKeyVersion: 1, vdkVersion: 1 },
+      memberVaultKey: { wrappedVaultKey: { descriptor: { scope: { organizationId: 'org-1' } } } },
+      discoveryKey: {},
+    })
     useAuthStore.setState({ privateKey: new Uint8Array(32) })
   })
 
@@ -119,8 +143,65 @@ describe('useImportEntries', () => {
     expect(result.current.data).toEqual({ importedCount: 120, updatedCount: 0, failed: [] })
   })
 
+  it('persists an encrypted website reference without blocking import on icon acquisition', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useImportEntries(), { wrapper })
+
+    result.current.mutate({
+      vaultId: 'vault-1',
+      format: 'generic-csv',
+      creates: [{ ...credential('GitHub'), url: 'https://github.com/login' }],
+      overwrites: [],
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
+      iconReference: 'website:github.com',
+    }))
+    expect(resolveWebsiteIconsMock).toHaveBeenCalledWith(['github.com'])
+  })
+
+  it.each([
+    ['android://YJzPrGM_qk1v@com.binance.dev/', 'binance.com'],
+    ['android://certificate@com.disney.disneyplus/', 'disneyplus.com'],
+  ])('persists and schedules the inferred website icon for Android credential %s', async (url, hostname) => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useImportEntries(), { wrapper })
+
+    result.current.mutate({
+      vaultId: 'vault-1',
+      format: 'google-password-manager',
+      creates: [{ ...credential('Android app'), url }],
+      overwrites: [],
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
+      iconReference: `website:${hostname}`,
+    }))
+    expect(resolveWebsiteIconsMock).toHaveBeenCalledWith([hostname])
+  })
+
+  it('schedules all 539 imported hostnames alongside their 50-entry save chunks', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useImportEntries(), { wrapper })
+    const creates = Array.from({ length: 539 }, (_, index) => ({
+      ...credential(`Entry ${index}`), url: `https://app-${index}.example.com/login`,
+    }))
+
+    result.current.mutate({ vaultId: 'vault-1', format: 'generic-csv', creates, overwrites: [] })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(resolveWebsiteIconsMock).toHaveBeenCalledTimes(11)
+    expect(resolveWebsiteIconsMock.mock.calls.map((call) => call[0].length)).toEqual([
+      50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 39,
+    ])
+    expect(resolveWebsiteIconsMock.mock.calls[10][0]).toContain('app-538.example.com')
+  })
+
   it('sends overwrites as individual updates and invalidates list keys', async () => {
     const { wrapper, invalidateSpy } = makeWrapper()
+    const retryGeneration = useMemberSyncStore.getState().retryGeneration
     const { result } = renderHook(() => useImportEntries(), { wrapper })
 
     result.current.mutate({
@@ -138,6 +219,7 @@ describe('useImportEntries', () => {
     const keys = invalidateSpy.mock.calls.map((c) => c[0]?.queryKey)
     expect(keys).toContainEqual(VAULTS_QUERY_KEY)
     expect(keys).toContainEqual(entriesQueryKey('vault-1'))
+    expect(useMemberSyncStore.getState().retryGeneration).toBe(retryGeneration + 1)
   })
 
   it('reports a rejected entry as failed instead of dropping the batch', async () => {
@@ -202,5 +284,34 @@ describe('useImportEntries', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(grantEnvelopeMock).toHaveBeenCalledTimes(4)
     expect(importEntriesMock.mock.calls[0][1].entries[0].grantEnvelopes).toHaveLength(2)
+  })
+
+  it('attributes Vault key preparation failures without exposing entry contents', async () => {
+    encryptedVaultMock.mockRejectedValueOnce(new Error('unavailable'))
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useImportEntries(), { wrapper })
+
+    result.current.mutate({
+      vaultId: 'vault-1', format: 'generic-csv',
+      creates: [credential('GitHub')], overwrites: [],
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toMatchObject({ step: 'loadVault' })
+    expect(result.current.error?.message).not.toContain('GitHub')
+  })
+
+  it('attributes secure Entry identifier reservation failures', async () => {
+    challengesMock.mockRejectedValueOnce(new Error('unavailable'))
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useImportEntries(), { wrapper })
+
+    result.current.mutate({
+      vaultId: 'vault-1', format: 'generic-csv',
+      creates: [credential('GitHub')], overwrites: [],
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toMatchObject({ step: 'challenge' })
   })
 })

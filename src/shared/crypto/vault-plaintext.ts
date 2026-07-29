@@ -15,7 +15,9 @@ const nullableString = normalizedString.nullable()
 const color = z.string().regex(/^#[0-9A-F]{6}$/).nullable()
 const glyphIcon = z.object({ kind: z.literal('glyph'), value: normalizedString.min(1).max(64) }).strict()
 const assetIcon = z.object({ kind: z.literal('encryptedAsset'), assetId: z.string().uuid() }).strict()
-const icon = z.union([glyphIcon, assetIcon]).nullable()
+const publicAssetIcon = z.object({ kind: z.literal('publicAsset'), assetId: z.string().uuid() }).strict()
+const websiteIcon = z.object({ kind: z.literal('website'), hostname: normalizedString.min(1).max(253) }).strict()
+const icon = z.union([glyphIcon, assetIcon, publicAssetIcon, websiteIcon]).nullable()
 
 const jsonValue: z.ZodType<unknown> = z.lazy(() => z.union([
   z.string(), z.number().safe(), z.boolean(), z.null(), z.array(jsonValue), z.record(z.string(), jsonValue),
@@ -39,6 +41,7 @@ const customField = z.object({
 
 const keyContent = z.object({
   value: normalizedString,
+  url: nullableString.optional().default(null),
   notes: nullableString,
   customFields: z.array(customField),
 }).strict()
@@ -361,6 +364,8 @@ export function memberIndexSearchValues(index: MemberIndexV1): string[] {
 }
 
 export function presentationIconReference(icon: MemberIndexV1['icon'] | MemberVaultMetadataV1['icon']): string | undefined {
-  return icon?.kind === 'glyph' ? icon.value
-    : icon?.kind === 'encryptedAsset' ? `asset:${icon.assetId}` : undefined
+  return icon?.kind === 'glyph' ? `builtin:${icon.value}`
+    : icon?.kind === 'encryptedAsset' ? `vault-asset:${icon.assetId}`
+      : icon?.kind === 'publicAsset' ? `public-asset:${icon.assetId}`
+        : icon?.kind === 'website' ? `website:${icon.hostname}` : undefined
 }

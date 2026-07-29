@@ -15,6 +15,9 @@ import { entriesQueryKey } from './use-entries'
 
 const mocks = vi.hoisted(() => ({
   createEntry: vi.fn(async () => ({ id: 'entry-1', currentRevision: '1' })),
+  updateEntry: vi.fn(async () => undefined),
+  uploadIcon: vi.fn(async () => ({ assetId: '33333333-4455-4677-8899-aabbccddeeff', iconReference: 'asset:33333333-4455-4677-8899-aabbccddeeff' })),
+  deleteIcon: vi.fn(async () => undefined),
   issueChallenge: vi.fn(async () => ({ entryId: '22222233-4455-4677-8899-aabbccddeeff', expiresAt: '2026-08-01T00:00:00Z' })),
   getVault: vi.fn(),
   collectGrants: vi.fn(async () => []),
@@ -31,8 +34,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('./api/vault-api', () => ({
   createEntry: mocks.createEntry,
+  updateCanonicalEntry: mocks.updateEntry,
   issueEntryCreationChallenge: mocks.issueChallenge,
 }))
+vi.mock('./assets/encrypted-asset-service', () => ({ encryptAndUploadPresentationAsset: mocks.uploadIcon }))
+vi.mock('./assets/encrypted-asset-api', () => ({ deleteEncryptedAsset: mocks.deleteIcon }))
 vi.mock('./sync/member-sync-api', () => ({ getEncryptedVault: mocks.getVault }))
 vi.mock('../grants', () => ({ collectActiveFullGrants: mocks.collectGrants }))
 vi.mock('../../shared/crypto/vault-protocol', () => ({
@@ -138,5 +144,31 @@ describe('useCreateEntry', () => {
     const invalidatedKeys = invalidateSpy.mock.calls.map((call) => call[0]?.queryKey)
     expect(invalidatedKeys).toContainEqual(VAULTS_QUERY_KEY)
     expect(invalidatedKeys).toContainEqual(entriesQueryKey(vault.id))
+  })
+
+  it('uploads a custom icon only after the Entry exists and commits its encrypted reference', async () => {
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useCreateEntry(), { wrapper })
+    const iconFile = new File(['png'], 'icon.png', { type: 'image/png' })
+
+    result.current.mutate({ ...input, iconReference: 'blob:preview', iconFile })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(mocks.createEntry).toHaveBeenCalledOnce()
+    expect(mocks.uploadIcon).toHaveBeenCalledWith(expect.objectContaining({
+      file: iconFile,
+      scope: expect.objectContaining({
+        entryId: '22222233-4455-4677-8899-aabbccddeeff',
+        target: 2,
+      }),
+    }))
+    expect(mocks.createMaterial).toHaveBeenLastCalledWith(
+      expect.objectContaining({ revision: '2' }),
+      expect.objectContaining({ iconReference: 'vault-asset:33333333-4455-4677-8899-aabbccddeeff' }),
+      expect.any(Uint8Array),
+      expect.any(Uint8Array),
+      2,
+    )
+    expect(mocks.updateEntry).toHaveBeenCalledOnce()
   })
 })

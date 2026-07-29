@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { FormInput } from '../../../shared/components/form-field'
@@ -38,6 +39,7 @@ interface CreateVaultDialogBodyProps {
 
 function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const create = useCreateVault()
 
   const [name, setName] = useState(create.pendingInput?.name ?? '')
@@ -69,12 +71,18 @@ function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
         color,
       },
       {
-        onSuccess: () => {
+        onSuccess: ({ vaultId }) => {
           analytics.capture('vault', 'create-wizard-completed')
           onClose()
+          void navigate({ to: '/vaults/$vaultId', params: { vaultId } })
         },
-        onError: () => {
+        onError: (error) => {
           analytics.capture('vault', 'create-wizard-failed')
+          if (error instanceof Error && error.name === 'VaultLockedError') {
+            onClose()
+            navigate({ to: '/unlock' })
+            return
+          }
           toast.error(t('vault.errorCreate'))
         },
       },
@@ -130,9 +138,11 @@ function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
           rowClassName="flex justify-between"
         />
 
-        <p className="text-meta text-[var(--cv-t3)]">
-          {isRetryLocked ? t('vault.pendingCreateRetry') : t('vault.discoveryPolicyDefault')}
-        </p>
+        {isRetryLocked && !isPending && (
+          <p className="text-meta text-[var(--cv-t3)]">
+            {t('vault.pendingCreateRetry')}
+          </p>
+        )}
       </form>
     </ModalShell>
   )

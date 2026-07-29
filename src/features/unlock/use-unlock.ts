@@ -7,9 +7,9 @@ import {
   IDENTITY_KDF_PROFILE_ID,
   IDENTITY_SECURITY_VERSION,
 } from '../../shared/crypto/identity-kdf'
-import { decodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
-import { decryptWithKey, wipe } from '../../shared/crypto/sodium'
-import { getAccount } from '../../shared/api/account-api'
+import { decodeBase64Url, encodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
+import { decryptWithKey, derivePublicKey, wipe } from '../../shared/crypto/sodium'
+import { getAccount, setupAccount } from '../../shared/api/account-api'
 
 export class IncorrectMasterPasswordError extends Error {
   constructor() {
@@ -58,6 +58,26 @@ export function useUnlock() {
           privateKey = await decryptWithKey(encryptedPrivateKey, masterKey)
         } catch {
           throw new IncorrectMasterPasswordError()
+        }
+
+        if (account.kdf.credentialRevision === 0
+          && account.recoverySalt
+          && account.encryptedPrivateKeyByRecovery) {
+          const publicKey = await derivePublicKey(privateKey)
+          try {
+            await setupAccount({
+              securityVersion: account.kdf.securityVersion,
+              kdfProfileId: account.kdf.profileId,
+              kdfSalt: account.kdf.kdfSalt,
+              recoverySalt: account.recoverySalt,
+              publicKey: encodeBase64Url(publicKey),
+              encryptedPrivateKey: account.encryptedPrivateKey,
+              encryptedPrivateKeyByRecovery: account.encryptedPrivateKeyByRecovery,
+              newAuthCredential: encodeBase64Url(authCredential),
+            })
+          } finally {
+            wipe(publicKey)
+          }
         }
         useAuthStore.getState().unlockVault(
           masterKey,

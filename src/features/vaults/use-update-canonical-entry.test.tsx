@@ -78,6 +78,9 @@ describe('useUpdateCanonicalEntry', () => {
     result.current.mutate(input as never)
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(mocks.update.mock.calls[0][2]).not.toHaveProperty('draft')
+    expect(mocks.createMaterial).toHaveBeenCalledWith(expect.objectContaining({
+      revision: '2', entryKeyRevision: '1', entryKeyVersion: 2, memberIndexRevision: '2',
+    }), expect.anything(), expect.anything(), expect.anything(), 2)
     expect(mocks.toSecret).toHaveBeenCalledWith(expect.objectContaining({ color: '#EB4747' }))
     expect(mocks.produce).not.toHaveBeenCalled()
     expect(mocks.wipe).toHaveBeenCalledTimes(2)

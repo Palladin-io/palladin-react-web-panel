@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
@@ -11,7 +12,13 @@ import { SecretInput } from '../../shared/components/secret-input'
 import { firstError, required, validUrl } from '../../shared/lib/validation'
 import { wipe } from '../../shared/crypto/sodium'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
-import { fromMemberSecret, type MemberSecretView } from '../../shared/crypto/entry-draft'
+import { presentationIconReference } from '../../shared/crypto/vault-plaintext'
+import {
+  ENTRY_FIELD,
+  fromMemberSecret,
+  type AgentVisibilityPolicy,
+  type MemberSecretView,
+} from '../../shared/crypto/entry-draft'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { analytics } from '../../shared/lib/analytics'
@@ -66,6 +73,7 @@ import { ScriptEditor } from './components/script-editor'
 import { ScriptExecHint } from './components/script-exec-hint'
 import { ScriptRefsEditor } from './components/script-refs-editor'
 import { SectionHeader } from './components/section-header'
+import { DiscoveryToggle, discoveryAction } from './components/discovery-toggle'
 import { useDeleteEntry } from './use-delete-entry'
 import type { CanonicalEntryDetail } from './api/vault-api'
 import { useCanonicalEntryDetail } from './use-entries'
@@ -148,7 +156,7 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
             )}
           </div>
         </div>
-        <div className="subtle-scrollbar flex-1 overflow-y-auto min-w-0">
+        <div className="subtle-scrollbar min-w-0 flex-1 overflow-y-auto [overflow-anchor:none]">
           <div className="px-4 py-4">{detailContent}</div>
         </div>
       </div>
@@ -171,10 +179,14 @@ function toEntryView(
   index: {
     memberLabel: string
     entryType: 'key' | 'credential' | 'script'
-    icon: { kind: 'glyph'; value: string } | { kind: 'encryptedAsset'; assetId: string } | null
+    icon: { kind: 'glyph'; value: string }
+      | { kind: 'encryptedAsset'; assetId: string }
+      | { kind: 'publicAsset'; assetId: string }
+      | { kind: 'website'; hostname: string }
+      | null
   } | null | undefined,
 ): CanonicalEntryView {
-  const iconReference = index?.icon?.kind === 'glyph' ? index.icon.value : undefined
+  const iconReference = presentationIconReference(index?.icon ?? null)
   const entryType = index?.entryType === 'key'
     ? ENTRY_TYPE_KEY
     : index?.entryType === 'script' ? ENTRY_TYPE_SCRIPT : ENTRY_TYPE_CREDENTIAL
@@ -379,6 +391,7 @@ interface DetailsTabProps {
 
 function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const { t } = useTranslation()
+  const queryClient = useQueryClient()
   const update = useUpdateCanonicalEntry(vault.id, entry.id)
   const remove = useDeleteEntry(vault.id)
 
@@ -411,9 +424,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   // Original plaintext for change detection / discard.
   const [originalPlaintext, setOriginalPlaintext] = useState<EntryPlaintext | null>(null)
   const [originalSecret, setOriginalSecret] = useState<MemberSecretView | null>(null)
+  const [policy, setPolicy] = useState<AgentVisibilityPolicy | null>(null)
   const [decryptError, setDecryptError] = useState<string | null>(null)
   const [decrypting, setDecrypting] = useState(false)
-  const [decryptRequested, setDecryptRequested] = useState(false)
 
   // Custom fields + script state (populated after decrypt).
   const [customFields, setCustomFields] = useState<CustomField[]>([])
@@ -427,11 +440,10 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [showSecret, setShowSecret] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
-  // Decrypt only after an explicit reveal/edit action.
-  // The keyed DetailsTab instance prevents plaintext from one Entry revision
-  // from being reused after navigation or a successful optimistic update.
-  const handleDecrypt = async () => {
-    setDecryptRequested(true)
+  // Opening the detail screen is already an explicit user action. Decrypt the
+  // selected Entry immediately in memory; individual secret inputs remain
+  // masked until their own visibility toggle is used.
+  const handleDecrypt = useCallback(async () => {
     setDecryptError(null)
     const privateKey = useAuthStore.getState().privateKey
     if (!privateKey) {
@@ -440,7 +452,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     }
     setDecrypting(true)
     try {
-      const encryptedVault = await getEncryptedVault(vault.id)
+      const encryptedVault = await queryClient.fetchQuery({
+        queryKey: ['vaults', vault.id, 'encrypted-detail'],
+        queryFn: () => getEncryptedVault(vault.id),
+        staleTime: Infinity,
+      })
       const vaultKey = await openMemberVaultKey(encryptedVault.memberVaultKey, privateKey)
       try {
         const secret = fromMemberSecret(await openMemberSecret(
@@ -454,11 +470,15 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         }
         const pt = secret.content
         setOriginalSecret(secret)
+        setPolicy(secret.agentVisibilityPolicy)
         setLabel(secret.memberLabel)
         setDescription(secret.description ?? '')
-        setIcon(secret.iconReference?.startsWith('builtin:') ? secret.iconReference.slice(8) : undefined)
+        setIcon(secret.iconReference?.startsWith('builtin:')
+          ? secret.iconReference.slice(8)
+          : secret.iconReference)
         if (pt.type === ENTRY_TYPE_KEY) {
-          setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt)); setSecretValue(pt.value); setNotes(pt.notes ?? '')
+          setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt)); setSecretValue(pt.value)
+          setUrl(pt.url ?? ''); setNotes(pt.notes ?? '')
         } else if (pt.type === ENTRY_TYPE_SCRIPT) {
           setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt)); setScript(pt.script)
           setInterpreter(pt.interpreter); setRefs(pt.refs ?? []); setNotes(pt.notes ?? '')
@@ -476,7 +496,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     } finally {
       setDecrypting(false)
     }
-  }
+  }, [entry, queryClient, t, vault.id])
+
+  useEffect(() => {
+    void handleDecrypt()
+  }, [handleDecrypt])
 
   const isSaving = update.isPending
   const isRemoving = remove.isPending
@@ -534,19 +558,15 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     const originalDescription = originalSecret?.description
     const originalIcon = originalSecret?.iconReference?.startsWith('builtin:')
       ? originalSecret.iconReference.slice(8)
-      : entry.icon
+      : originalSecret?.iconReference ?? entry.icon
     if (label.trim() !== originalLabel) return true
     if ((description.trim() || undefined) !== originalDescription) return true
     if (icon !== originalIcon) return true
     if (color !== defaultColor) return true
-    // For KEY/SCRIPT the URL field feeds only `urlDomain` metadata (CREDENTIAL's
-    // url lives in the blob and is covered by contentChanged).
-    if (entry.type !== ENTRY_TYPE_CREDENTIAL) {
-      const origKeyUrl = entry.urlDomain ? `https://${entry.urlDomain}` : ''
-      if (url !== origKeyUrl) return true
-    }
+    if (policy && originalSecret
+      && JSON.stringify(policy) !== JSON.stringify(originalSecret.agentVisibilityPolicy)) return true
     return false
-  }, [label, description, icon, color, defaultColor, url, entry, originalSecret])
+  }, [label, description, icon, color, defaultColor, url, entry, originalSecret, policy])
 
   const hasChanges = metadataChanged || contentChanged
 
@@ -555,8 +575,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setDescription(originalSecret?.description ?? '')
     setIcon(originalSecret?.iconReference?.startsWith('builtin:')
       ? originalSecret.iconReference.slice(8)
-      : entry.icon)
+      : originalSecret?.iconReference ?? entry.icon)
     setColor(defaultColor)
+    setPolicy(originalSecret?.agentVisibilityPolicy ?? null)
     setUrlError(false)
     setScriptError(false)
     if (originalPlaintext) {
@@ -564,7 +585,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         setCustomFields(readCustomFields(originalPlaintext))
         setSecretValue(originalPlaintext.value)
         setNotes(originalPlaintext.notes ?? '')
-        setUrl(entry.urlDomain ? `https://${entry.urlDomain}` : '')
+        setUrl(originalPlaintext.url ?? '')
       } else if (originalPlaintext.type === ENTRY_TYPE_SCRIPT) {
         setCustomFields(readCustomFields(originalPlaintext))
         setScript(originalPlaintext.script)
@@ -614,19 +635,19 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     }
     const originalIcon = originalSecret.iconReference
     const iconReference = icon
-      ? `builtin:${icon}`
+      ? /^(?:website|public-asset|vault-asset):/.test(icon) ? icon : `builtin:${icon}`
       : originalIcon?.startsWith('builtin:') ? undefined : originalIcon
     update.mutate({
       detail: entry.canonical,
       previous: originalSecret,
       draft: {
         memberLabel: label.trim(),
-        agentLabel: originalSecret.agentLabel,
+        agentLabel: label.trim(),
         ...(description.trim() ? { description: description.trim() } : {}),
         ...(iconReference ? { iconReference } : {}),
         entryType: originalSecret.entryType,
         content: current,
-        policy: originalSecret.agentVisibilityPolicy,
+        policy: policy ?? originalSecret.agentVisibilityPolicy,
       },
     }, {
       onSuccess: () => {
@@ -661,10 +682,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       >
         <div className="flex flex-col gap-3">
             <div>
-              <label
-                htmlFor="entry-detail-label"
-                className="mb-1 block text-meta font-semibold text-[var(--cv-label-text)]"
-              >
+              <label htmlFor="entry-detail-label" className="mb-1 block text-meta font-semibold text-[var(--cv-label-text)]">
                 {t('vault.entries.labelLabel')}
               </label>
               <div className="flex gap-2">
@@ -681,6 +699,16 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     id="entry-detail-label"
                     label={t('vault.entries.labelLabel')}
                     labelClassName="sr-only"
+                    trailingActions={policy ? [discoveryAction(
+                      policy.discoverable,
+                      isSaving,
+                      (active) => setPolicy({
+                        ...policy,
+                        discoverable: active,
+                        fields: { ...policy.fields, [ENTRY_FIELD.agentLabel]: active ? 'discovery' : 'never' },
+                      }),
+                      t,
+                    )] : undefined}
                     value={label}
                     onChange={(e) => { setLabel(e.target.value); setLabelError(false) }}
                     onBlur={() => setLabelError(firstError(label, [required(t('validation.required'))]) !== null)}
@@ -698,6 +726,15 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             <FormInput
               id="entry-detail-description"
               label={t('vault.entries.descriptionLabel')}
+              trailingActions={policy ? [discoveryAction(
+                policy.fields[ENTRY_FIELD.description] === 'discovery',
+                isSaving || !policy.discoverable,
+                (active) => setPolicy({
+                  ...policy,
+                  fields: { ...policy.fields, [ENTRY_FIELD.description]: active ? 'discovery' : 'never' },
+                }),
+                t,
+              )] : undefined}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t('vault.entries.descriptionPlaceholder')}
@@ -709,6 +746,15 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 <FormInput
                   id="entry-detail-url"
                   label={t('vault.entries.urlLabel')}
+                  trailingActions={entry.type === ENTRY_TYPE_CREDENTIAL && policy ? [discoveryAction(
+                    policy.fields[ENTRY_FIELD.urlDomain] === 'discovery',
+                    isSaving || !policy.discoverable,
+                    (active) => setPolicy({
+                      ...policy,
+                      fields: { ...policy.fields, [ENTRY_FIELD.urlDomain]: active ? 'discovery' : 'never' },
+                    }),
+                    t,
+                  )] : undefined}
                   value={url}
                   onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
                   onBlur={() =>
@@ -732,20 +778,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 </FeedbackSlot>
               </div>
             ) : null}
-            {!decryptRequested ? (
-              <div className="flex justify-center rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5">
-                <Button
-                  variant="subtle"
-                  size="sm"
-                  icon="visibility"
-                  onClick={() => void handleDecrypt()}
-                >
-                  {t('vault.entry.reveal')}
-                </Button>
-              </div>
-            ) : decrypting ? (
-              <div className="h-20 animate-pulse rounded-xl bg-[var(--cv-card-bg)]" />
-            ) : decryptError ? (
+            {decryptError ? (
               <div className="rounded-lg border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.06)] px-3 py-2 text-meta text-[var(--cv-primary)]">
                 {decryptError}
               </div>
@@ -782,6 +815,14 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     className="mb-1 flex items-center gap-2 text-meta font-semibold text-[var(--cv-label-text)]"
                   >
                     <span>{t('vault.entries.script.bodyLabel')}</span>
+                    {policy ? <DiscoveryToggle
+                      active={policy.fields[ENTRY_FIELD.interpreter] === 'discovery'}
+                      disabled={isSaving || !policy.discoverable}
+                      onChange={(active) => setPolicy({
+                        ...policy,
+                        fields: { ...policy.fields, [ENTRY_FIELD.interpreter]: active ? 'discovery' : 'never' },
+                      })}
+                    /> : null}
                     <span className="flex-1" />
                     <select
                       id="entry-detail-interpreter"
@@ -826,6 +867,15 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   <FormInput
                     id="entry-detail-username"
                     label={t('vault.entries.usernameLabel')}
+                    trailingActions={policy ? [discoveryAction(
+                      policy.fields[ENTRY_FIELD.username] === 'discovery',
+                      isSaving || !policy.discoverable,
+                      (active) => setPolicy({
+                        ...policy,
+                        fields: { ...policy.fields, [ENTRY_FIELD.username]: active ? 'discovery' : 'never' },
+                      }),
+                      t,
+                    )] : undefined}
                     value={username}
                     onChange={(e) => { setUsername(e.target.value); setUsernameError(false) }}
                     onBlur={() =>
@@ -875,23 +925,23 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               />
               </>
             )}
-            {originalSecret && !decryptError ? (
+            {!decryptError ? (
               <>
                 <SectionHeader>{t('vault.entries.customFields.title')}</SectionHeader>
                 <CustomFieldsEditor
                   fields={customFields}
                   onChange={setCustomFields}
-                  disabled={isSaving || decrypting}
+                  disabled={isSaving || decrypting || !originalSecret}
                   copyable
                 />
               </>
             ) : null}
-            {originalSecret ? (
+            {!decryptError ? (
               <NotesField
                 id="entry-detail-notes"
                 value={notes}
                 onChange={setNotes}
-                disabled={isSaving || decrypting}
+                disabled={isSaving || decrypting || !originalSecret}
               />
             ) : null}
         </div>
@@ -1046,7 +1096,13 @@ function buildCurrentPlaintext(
 
   if (entry.type === ENTRY_TYPE_KEY) {
     const fieldsPart = foldFieldsPart(values.customFields)
-    return { type: ENTRY_TYPE_KEY, value: values.secretValue.trim(), notes, ...fieldsPart }
+    return {
+      type: ENTRY_TYPE_KEY,
+      value: values.secretValue.trim(),
+      url: values.url.trim() || undefined,
+      notes,
+      ...fieldsPart,
+    }
   }
   if (entry.type === ENTRY_TYPE_SCRIPT) {
     const fieldsPart = foldFieldsPart(values.customFields)

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
-import { FormSelect } from '../../../shared/components/form-select'
+import { SingleSelectDropdown, TypeFilterDropdown } from '../../../shared/components/type-filter-dropdown'
 import { Icon } from '../../../shared/components/icon'
 import { LoadMoreSentinel } from '../../../shared/components/load-more-sentinel'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
@@ -25,6 +25,7 @@ import { EntryIcon } from './entry-icon'
 import { useRestoreArchivedEntries } from '../use-restore-archived-entries'
 import { useDestroyEntry, useRecentlyDeletedEntries } from '../use-recently-deleted-entries'
 import { DestroyEntryDialog } from './destroy-entry-dialog'
+import { usePublicEntryAssets, useReconcilePublicEntryAssets } from '../use-public-entry-assets'
 
 export interface VaultEntriesTabProps {
   vault: Vault
@@ -40,8 +41,10 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
   const { t } = useTranslation()
   const [createOpen, setCreateOpen] = useState(false)
   const [sort, setSort] = useState<MemberEntrySort>('name-asc')
+  const [selectedStates, setSelectedStates] = useState<Set<string>>(new Set(['active']))
   const [selectedArchived, setSelectedArchived] = useState<Set<string>>(new Set())
   const [destroyCandidate, setDestroyCandidate] = useState<MemberEntryListItem | null>(null)
+  const [renderWindow, setRenderWindow] = useState({ context: '', limit: 50 })
   const restore = useRestoreArchivedEntries(vault.id)
   const destroy = useDestroyEntry(vault.id)
 
@@ -52,25 +55,34 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
     setSearch,
     scrollRef,
     onScroll,
-    lifecycleState,
-    setLifecycleState,
   } = usePersistedEntriesList(vault.id, hasMemberProjection)
-  const entries = useMemberEntryList(vault.id, lifecycleState, search, sort)
-  const recentlyDeleted = useRecentlyDeletedEntries(vault.id, lifecycleState === 'deleted')
+  const effectiveStates = new Set(
+    (selectedStates.size > 0 ? [...selectedStates] : ['active', 'archived', 'deleted']) as Array<'active' | 'archived' | 'deleted'>,
+  )
+  const entries = useMemberEntryList(vault.id, effectiveStates, search, sort)
+  const includesDeleted = effectiveStates.has('deleted')
+  const includesArchived = effectiveStates.has('archived')
+  const recentlyDeleted = useRecentlyDeletedEntries(vault.id, includesDeleted)
   const deletedMetadata = new Map(
     recentlyDeleted.data?.pages.flatMap((page) => page.items).map((item) => [item.id, item]) ?? [],
   )
   const localDeletedById = new Map(entries.items.map((entry) => [entry.id, entry]))
-  const visibleEntries = lifecycleState === 'deleted'
-    ? [...deletedMetadata.keys()].flatMap((entryId): MemberEntryListItem[] => {
+  const visibleEntries = [
+    ...entries.items.filter((entry) => entry.state !== 'deleted'),
+    ...(includesDeleted ? [...deletedMetadata.keys()].flatMap((entryId): MemberEntryListItem[] => {
         const local = localDeletedById.get(entryId)
         if (local) return [local]
         // A missing or unauthenticated local projection must not hide an
         // authoritative retained row. Show only a shortened opaque identifier.
         return search ? [] : [{ id: entryId, state: 'deleted', label: shortenKey(entryId), type: 1,
-          icon: null, searchFields: [], currentRevision: '0', corrupt: true }]
-      })
-    : entries.items
+          icon: null, username: null, urlDomain: null, searchFields: [], currentRevision: '0', corrupt: true }]
+      }) : []),
+  ]
+  const renderContext = `${search}\u0000${sort}\u0000${[...effectiveStates].sort().join(',')}`
+  const renderLimit = renderWindow.context === renderContext ? renderWindow.limit : 50
+  const renderedEntries = visibleEntries.slice(0, renderLimit)
+  useReconcilePublicEntryAssets(entries.items.map((entry) => entry.icon))
+  usePublicEntryAssets(renderedEntries.map((entry) => entry.icon))
   const restorableArchived = entries.items.filter((entry) => entry.state === 'archived' && !entry.corrupt)
 
   const restoreEntries = async (entryIds: string[]) => {
@@ -128,43 +140,37 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
           <Button variant="ghost" size="sm" onClick={entries.retry}>{t('vault.list.retry')}</Button>
         </div>
       ) : null}
-      <SearchBar
-        value={search}
-        onChange={setSearch}
-        placeholder={t('vault.detail.entriesSearchPlaceholder')}
-        className="mb-3 shrink-0"
-      />
-
-      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('vault.entries.lifecycleFilter')}>
-          {(['active', 'archived', 'deleted'] as const).map((value) => (
-            <Button
-              key={value}
-              variant={lifecycleState === value ? 'subtle' : 'outline'}
-              size="sm"
-              aria-pressed={lifecycleState === value}
-              onClick={() => {
-                setSelectedArchived(new Set())
-                setLifecycleState(value)
-              }}
-            >
-              {t(`vault.entries.state.${value}`)} ({entries.counts[value]})
-            </Button>
-          ))}
-        </div>
-        <FormSelect
-          id="vault-entry-sort"
+      <div className="mb-3 flex shrink-0 items-center gap-2">
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          placeholder={t('vault.detail.entriesSearchPlaceholder')}
+          className="min-w-0 flex-1"
+        />
+        <TypeFilterDropdown
+          options={(['active', 'archived', 'deleted'] as const).map((value) => ({
+            value, label: `${t(`vault.entries.state.${value}`)} (${entries.counts[value]})`,
+          }))}
+          selected={selectedStates}
+          onChange={(next) => { setSelectedArchived(new Set()); setSelectedStates(next) }}
+          placeholder={t('vault.entries.lifecycleFilter')}
+          ariaLabel={t('vault.entries.lifecycleFilter')}
+          triggerClassName="h-control"
+        />
+        <SingleSelectDropdown
           value={sort}
-          onChange={(event) => setSort(event.target.value as MemberEntrySort)}
-          aria-label={t('vault.entries.sort.label')}
-        >
-          <option value="name-asc">{t('vault.entries.sort.nameAsc')}</option>
-          <option value="name-desc">{t('vault.entries.sort.nameDesc')}</option>
-          <option value="type">{t('vault.entries.sort.type')}</option>
-        </FormSelect>
+          onChange={(value) => setSort(value as MemberEntrySort)}
+          ariaLabel={t('vault.entries.sort.label')}
+          triggerClassName="h-control"
+          options={[
+            { value: 'name-asc', label: t('vault.entries.sort.nameAsc') },
+            { value: 'name-desc', label: t('vault.entries.sort.nameDesc') },
+            { value: 'type', label: t('vault.entries.sort.type') },
+          ]}
+        />
       </div>
 
-      {lifecycleState === 'archived' && restorableArchived.length > 0 ? (
+      {includesArchived && restorableArchived.length > 0 ? (
         <div className="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-3 py-2">
           <label className="flex items-center gap-2 text-ui text-[var(--cv-t2)]">
             <input
@@ -191,9 +197,9 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
       ) : null}
 
       <ScrollArea scrollRef={scrollRef} onScroll={onScroll}>
-        {lifecycleState === 'deleted' && recentlyDeleted.isLoading ? (
+        {includesDeleted && recentlyDeleted.isLoading ? (
           <EntriesLoadingSkeleton />
-        ) : lifecycleState === 'deleted' && recentlyDeleted.isError ? (
+        ) : includesDeleted && recentlyDeleted.isError ? (
           <ErrorState message={t('vault.entries.deletedLoadError')} onRetry={() => recentlyDeleted.refetch()} />
         ) : visibleEntries.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-[var(--cv-empty-border)]
@@ -202,7 +208,7 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
           </p>
         ) : (
           <div className="flex flex-col gap-2">
-            {visibleEntries.map((entry) => entry.state === 'active' && !entry.corrupt ? (
+            {renderedEntries.map((entry) => entry.state === 'active' && !entry.corrupt ? (
               <EntryRow
                 key={entry.id}
                 vaultId={vault.id}
@@ -212,6 +218,8 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
                   label: entry.label,
                   type: entry.type,
                   icon: entry.icon ?? undefined,
+                  username: entry.username ?? undefined,
+                  urlDomain: entry.urlDomain ?? undefined,
                   createdAt: '',
                   updatedAt: '',
                   accessCount: 0,
@@ -235,7 +243,15 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
                 onDestroy={() => setDestroyCandidate(entry)}
               />
             ))}
-            {lifecycleState === 'deleted' && recentlyDeleted.hasNextPage ? (
+            {renderedEntries.length < visibleEntries.length ? (
+              <LoadMoreSentinel
+                hasNextPage
+                isFetchingNextPage={false}
+                isFetchNextPageError={false}
+                onLoadMore={() => setRenderWindow({ context: renderContext, limit: renderLimit + 50 })}
+              />
+            ) : null}
+            {includesDeleted && recentlyDeleted.hasNextPage ? (
               <LoadMoreSentinel
                 hasNextPage
                 isFetchingNextPage={recentlyDeleted.isFetchingNextPage}

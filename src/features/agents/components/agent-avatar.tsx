@@ -5,6 +5,7 @@ import {
   agentInitials,
   isCustomAgentIcon,
 } from './agent-presentation'
+import { cachedPublicAsset } from '../../../shared/api/public-assets-api'
 
 export interface AgentAvatarProps {
   agent: Pick<Agent, 'name' | 'agentId' | 'iconKey'>
@@ -25,13 +26,20 @@ export function AgentAvatar({ agent, size = 32 }: AgentAvatarProps) {
 
   let content
   if (isCustomAgentIcon(agent.iconKey)) {
+    const source = agent.iconKey?.startsWith('public-asset:')
+      ? cachedPublicAsset(agent.iconKey.slice('public-asset:'.length))?.url
+      : agent.iconKey
+    if (!source) {
+      content = initials || <Icon name="smart_toy" size={glyphSize} color={color} />
+    } else {
     content = (
       <img
-        src={agent.iconKey}
+        src={source}
         alt=""
         className="h-full w-full rounded-full object-cover"
       />
     )
+    }
   } else if (agent.iconKey) {
     content = <Icon name={agent.iconKey} size={glyphSize} color={color} />
   } else if (initials) {

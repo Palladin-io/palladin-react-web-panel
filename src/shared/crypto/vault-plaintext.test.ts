@@ -5,6 +5,7 @@ import {
   projectAgentDiscovery,
   projectGrantPayload,
   projectMemberIndex,
+  presentationIconReference,
   type MemberSecretV1,
 } from './vault-plaintext'
 
@@ -69,5 +70,34 @@ describe('Vault plaintext v1', () => {
       ],
     })
     expect(() => projectGrantPayload(secret, ['credential.username'])).toThrow(/not grantable/)
+  })
+
+  it('round-trips namespaced icon references without embedding delivery URLs', () => {
+    const assetId = '22222233-4455-4677-8899-aabbccddeeff'
+    const publicIcon = { ...secret, icon: { kind: 'publicAsset' as const, assetId } }
+    const encryptedIcon = { ...secret, icon: { kind: 'encryptedAsset' as const, assetId } }
+    const websiteIcon = { ...secret, icon: { kind: 'website' as const, hostname: 'discord.com' } }
+
+    expect(parseMemberSecret(encodeMemberSecret(publicIcon)).icon).toEqual(publicIcon.icon)
+    expect(presentationIconReference(publicIcon.icon)).toBe(`public-asset:${assetId}`)
+    expect(presentationIconReference(encryptedIcon.icon)).toBe(`vault-asset:${assetId}`)
+    expect(parseMemberSecret(encodeMemberSecret(websiteIcon)).icon).toEqual(websiteIcon.icon)
+    expect(presentationIconReference(websiteIcon.icon)).toBe('website:discord.com')
+    expect(presentationIconReference(secret.icon)).toBe('builtin:key')
+  })
+
+  it('round-trips a KEY website URL inside encrypted MemberSecret content', () => {
+    const keySecret: MemberSecretV1 = {
+      ...secret,
+      entryType: 'key',
+      icon: { kind: 'website', hostname: 'stripe.com' },
+      content: { value: 'sk_test', url: 'https://stripe.com', notes: null, customFields: [] },
+      agentFieldAccess: {
+        memberLabel: 'never', agentLabel: 'discovery', description: 'never', icon: 'never', color: 'never',
+        entryType: 'discovery', 'key.value': 'onGrantValue', notes: 'never',
+      },
+    }
+
+    expect(parseMemberSecret(encodeMemberSecret(keySecret))).toEqual(keySecret)
   })
 })

@@ -64,7 +64,7 @@ describe('useCreateVault', () => {
     })
     useAuthStore.getState().logout()
     useMemberSyncStore.getState().clear()
-    mocks.getAccount.mockResolvedValue({ memberKeyVersion: 7 })
+    mocks.getAccount.mockResolvedValue({ userId: memberId, memberKeyVersion: 7 })
     mocks.issueChallenge.mockResolvedValue({ vaultId: firstVaultId, expiresAt: '2026-07-26T12:00:00Z' })
     mocks.listVaults.mockResolvedValue([])
     mocks.createMaterial.mockImplementation(async ({ vaultId }) => material(vaultId))
@@ -111,6 +111,42 @@ describe('useCreateVault', () => {
     })
     expect(mocks.createVault).toHaveBeenCalledWith(material(firstVaultId))
     expect(mocks.createVault.mock.calls[0][0]).not.toHaveProperty('name')
+  })
+
+  it('creates after the first API request restores a missing in-memory access token', async () => {
+    useAuthStore.setState({
+      accessToken: null,
+      refreshToken: 'persisted-refresh-token',
+      userId: memberId,
+      privateKey: new Uint8Array(32).fill(9),
+      isVaultLocked: false,
+    })
+    mocks.issueChallenge.mockImplementationOnce(async () => {
+      useAuthStore.setState({ accessToken: token({ org_id: organizationId }) })
+      return { vaultId: firstVaultId, expiresAt: '2026-07-29T12:00:00Z' }
+    })
+    const { result } = renderHook(() => useCreateVault(), { wrapper: wrapperWith(client) })
+
+    await act(() => result.current.mutateAsync({ name: 'Restored session' }))
+
+    expect(mocks.issueChallenge).toHaveBeenCalledOnce()
+    expect(mocks.createVault).toHaveBeenCalledWith(material(firstVaultId))
+  })
+
+  it('uses the authoritative account member id when the persisted auth hint is missing', async () => {
+    useAuthStore.setState({
+      accessToken: token({ org_id: organizationId }),
+      userId: null,
+      privateKey: new Uint8Array(32).fill(9),
+      isVaultLocked: false,
+    })
+    mocks.getAccount.mockResolvedValue({ userId: memberId, memberKeyVersion: 7 })
+    const { result } = renderHook(() => useCreateVault(), { wrapper: wrapperWith(client) })
+
+    await act(() => result.current.mutateAsync({ name: 'Authoritative member' }))
+
+    expect(mocks.createMaterial).toHaveBeenCalledWith(expect.objectContaining({ memberId }))
+    expect(mocks.createVault).toHaveBeenCalledWith(material(firstVaultId))
   })
 
   it('retries the exact ciphertext when the server reissues the same challenge', async () => {
