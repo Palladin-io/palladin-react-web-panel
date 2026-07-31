@@ -4,3 +4,7 @@
 # Historical JSDoc text describing the crypto_secretbox API, not a credential.
 ec6b943a466e59f333b6c5434a6caf74e103ca46:src/shared/crypto/grant-envelope.ts:generic-api-key:45
 928df6aed84d509b3137df367d5d6edd28adc3ad:src/shared/crypto/grant-envelope.ts:generic-api-key:45
+9129f4fcd325baea07c273bc698f3a2f45522995:src/shared/crypto/grant-envelope.ts:generic-api-key:45
+
+# Historical 21-character synthetic Stripe-shaped value used only by a UI mock.
+640e239d5a33c22db9f88a1601830366b75402b6:src/features/vaults/components/vault-entries-mock.ts:stripe-access-token:51
