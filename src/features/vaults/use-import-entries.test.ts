@@ -43,6 +43,7 @@ vi.mock('../../shared/api/public-assets-api', () => ({
     ? new URL(value).hostname
     : value || null,
   ensureWebsiteIcons: ensureWebsiteIconsMock,
+  ensureWebsiteIconsWithin: ensureWebsiteIconsMock,
 }))
 
 vi.mock('./api/vault-api', () => ({
@@ -162,7 +163,7 @@ describe('useImportEntries', () => {
     expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
       iconReference: 'public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2Fgithub.com.png',
     }))
-    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith(['github.com'])
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith(['github.com'], 1_500)
   })
 
   it.each([
@@ -183,7 +184,7 @@ describe('useImportEntries', () => {
     expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
       iconReference: `public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2F${hostname}.png`,
     }))
-    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith([hostname])
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith([hostname], 1_500)
   })
 
   it('schedules all 539 imported hostnames in bounded catalog pages while saving 50-entry chunks', async () => {
@@ -196,9 +197,10 @@ describe('useImportEntries', () => {
     result.current.mutate({ vaultId: 'vault-1', format: 'generic-csv', creates, overwrites: [] })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(ensureWebsiteIconsMock).toHaveBeenCalledTimes(1)
-    expect(ensureWebsiteIconsMock.mock.calls[0][0]).toHaveLength(539)
-    expect(ensureWebsiteIconsMock.mock.calls[0][0]).toContain('app-538.example.com')
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledTimes(11)
+    expect(ensureWebsiteIconsMock.mock.calls[0][0]).toHaveLength(50)
+    expect(ensureWebsiteIconsMock.mock.calls[10][0]).toHaveLength(39)
+    expect(ensureWebsiteIconsMock.mock.calls[10][0]).toContain('app-538.example.com')
     expect(importEntriesMock).toHaveBeenCalledTimes(11)
   })
 

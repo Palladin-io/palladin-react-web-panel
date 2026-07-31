@@ -48,7 +48,11 @@ import { defaultColorFor, defaultIconFor } from './entry-presentation'
 import { FormSelect } from '../../../shared/components/form-select'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { DiscoveryToggle, discoveryAction } from './discovery-toggle'
-import { ensureWebsiteIcons, normalizePublicHostname } from '../../../shared/api/public-assets-api'
+import {
+  ensureWebsiteIcons,
+  ensureWebsiteIconsWithin,
+  normalizePublicHostname,
+} from '../../../shared/api/public-assets-api'
 import { publicAssetIconReference } from '../../../shared/crypto/vault-plaintext'
 
 export interface CreateEntryModalProps {
@@ -185,10 +189,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     if (hostname) {
       setResolvingIcon(true)
       try {
-        const asset = (await ensureWebsiteIcons([hostname])).get(hostname)
+        const asset = (await ensureWebsiteIconsWithin([hostname], 1_500)).get(hostname)
         if (asset) iconReference = publicAssetIconReference({ assetId: asset.id, revision: asset.revision, url: asset.url })
-      } catch {
-        // Catalog acquisition is presentational and must not block credential creation.
       } finally {
         setResolvingIcon(false)
       }

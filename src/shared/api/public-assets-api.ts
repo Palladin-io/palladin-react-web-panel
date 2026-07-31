@@ -113,6 +113,30 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
   return result
 }
 
+/**
+ * Best-effort reservation for save paths. The catalog request keeps running
+ * and warming the cache, but presentation metadata never holds a credential
+ * save hostage to the transport's full timeout.
+ */
+export async function ensureWebsiteIconsWithin(
+  hostnames: string[],
+  timeoutMs: number,
+): Promise<Map<string, PublicAsset>> {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      ensureWebsiteIcons(hostnames),
+      new Promise<Map<string, PublicAsset>>((resolve) => {
+        timeout = setTimeout(() => resolve(new Map()), timeoutMs)
+      }),
+    ])
+  } catch {
+    return new Map()
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout)
+  }
+}
+
 /** Accept only the configured immutable public-asset namespace for rendering. */
 export function trustedPublicAssetUrl(value: string): string | null {
   try {

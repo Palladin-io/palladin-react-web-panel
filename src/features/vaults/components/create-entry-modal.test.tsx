@@ -20,6 +20,13 @@ vi.mock('../../../shared/api/public-assets-api', async (importOriginal) => ({
     revision: 1,
     url: `https://assets.palladin.io/${hostname}.png`,
   }]))),
+  ensureWebsiteIconsWithin: vi.fn(async (hostnames: string[]) => new Map(hostnames.map((hostname) => [hostname, {
+    id: '11111111-1111-4111-8111-111111111111',
+    type: 'websiteIcon' as const,
+    name: hostname,
+    revision: 1,
+    url: `https://assets.palladin.io/${hostname}.png`,
+  }]))),
 }))
 
 const mutateMock = vi.fn()
