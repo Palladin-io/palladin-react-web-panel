@@ -8,7 +8,7 @@ import type { MemberEntryState } from './sync/member-sync-store'
  * separate component instances, so navigating from the list into an entry (or
  * between the two surfaces) would otherwise reset the search box and scroll
  * position. Persisting them here — keyed by vault — keeps the list exactly where
- * the user left it when they select an entry (CVT-204).
+ * the user left it when they select an entry.
  *
  * In-memory only — this is transient UI state, never written to storage.
  */

@@ -107,7 +107,7 @@ export interface ApproveGrantBody {
   grantEntry: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>
   expiresAt?: string
   queryLimit?: number
-  /** Combined-flags string of the methods the agent may use, e.g. "Get, Exec" (CVT-149). */
+  /** Combined-flags string of the methods the agent may use, e.g. "Get, Exec". */
   methods?: string
 }
 

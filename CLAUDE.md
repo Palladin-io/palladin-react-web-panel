@@ -2,21 +2,6 @@
 
 React SPA for managing vaults, entries, agents, and grants. Zero-knowledge architecture — all encryption/decryption happens client-side.
 
-## Project Brain
-
-Business and architecture knowledge for the project: `../brain/`
-
-Key notes for this repository:
-- `Technical/Frontend.md` — stack, structure, code conventions
-- `Technical/Analytics Conventions.md` — PostHog, event format
-- `Technical/Security Model.md` — zero-knowledge, client-side encryption
-- `Product/Modules/Vault/` — Vault module: rules, API, events
-- `Product/Modules/Identity/API.md` — auth and account endpoints
-
-Use `/brain` to navigate, or: `grep -r "WORD" ../brain --include="*.md"`
-
-**After any session that changes API, architecture, or business rules: update the relevant brain note.**
-
 ## Architecture Reference Docs
 
 **Reuse-first rule:** before building any control, check the catalog. If a shared component covers the case, use it. If a pattern appears **2+ times**, extract it into `src/shared/components/` instead of copy-pasting markup.
@@ -41,7 +26,7 @@ Use `/brain` to navigate, or: `grep -r "WORD" ../brain --include="*.md"`
 | Settings | `docs/architecture/features/settings.md` |
 | Teams | `docs/architecture/features/teams.md` |
 
-`billing/` and `dashboard/` are not yet implemented (placeholder dirs).
+`billing/` is not yet implemented and remains a placeholder directory.
 
 ## Tech Stack
 
@@ -350,5 +335,9 @@ This file is **always loaded into context**, so keep it lean. It holds only guid
 - When a section grows verbose code examples, full token tables, or rules only relevant when touching one concern → move it to a sub-doc and leave a pointer.
 - Extend this structure autonomously over time: as new every-iteration rules emerge, add them here concisely; as deep detail accumulates, push it down into `docs/architecture/` and link it.
 - **PR reviewers must check whether a code change requires updating this file or a `docs/architecture/` doc** (new shared component, changed convention, new feature, new token, changed crypto flow) — doc drift is a review finding.
-- `AGENTS.md` and `CLAUDE.md` are intentionally maintained as complete, byte-for-byte identical copies by product-owner decision. Every instruction change must update both files in the same commit and verify them with `cmp`.
-- Pull-request review automation is Codex-only. Keep the workflow at `.github/workflows/codex-pr-review.yml`, its support files under `.github/codex/`, and the review rubric under `.agents/`; do not add Claude Code PR workflows or `.claude/skills/pr-review` / `.claude/skills/fix-pr` adapters.
+- `AGENTS.md` and `CLAUDE.md` are intentionally maintained as complete,
+  byte-for-byte identical compatibility copies. Every instruction change must
+  update both files in the same commit and be verified with `cmp`.
+- Repository CI must remain safe for forks: no private checkouts, no secrets in
+  pull-request jobs, and no execution of untrusted code through
+  `pull_request_target`.

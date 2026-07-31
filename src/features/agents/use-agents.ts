@@ -30,7 +30,7 @@ export function useAgentPermissions() {
  * able to map agent ids to names. The caller passes `enabled` (its own view
  * gate). Shares `AGENTS_QUERY_KEY` so it reuses the same cache as `useAgents`
  * with no extra request. This is a stopgap until the backend denormalises
- * `agentName` onto audit rows (CVT-181).
+ * `agentName` onto audit rows.
  */
 export function useAgentNames(enabled = true) {
   return useQuery({

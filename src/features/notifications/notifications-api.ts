@@ -4,7 +4,7 @@ import { sanitizeNotificationMetadata } from './notification-types'
 
 /**
  * Notification Center API client — matches the FROZEN contract in
- * `brain/Product/Modules/Notification/Notification Center (CVT-162).md`.
+ * Keep this boundary aligned with the backend notification contract.
  *
  * The feed is self-scoped (JWT) and already filtered by the caller's current
  * vault access. The server NEVER sends ready-made copy. Structural metadata is

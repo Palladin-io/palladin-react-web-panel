@@ -3,8 +3,8 @@ import { ChangeMasterPasswordSection } from './components/change-master-password
 import { TotpSection } from './components/totp-section'
 
 /**
- * Account security screen: master-password change (CVT-268) and two-factor
- * authentication (CVT-269). Left-aligned, matching the settings page layout.
+ * Account security screen: master-password change and two-factor
+ * authentication. Left-aligned, matching the settings page layout.
  * Inherits the theme-aware gradient + text colour from `_authenticated.tsx`.
  */
 export function SecurityPage() {

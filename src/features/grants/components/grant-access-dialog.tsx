@@ -75,7 +75,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
   const [policyError, setPolicyError] = useState<string | null>(null)
   const [subjectError, setSubjectError] = useState(false)
 
-  // Methods the grant permits (CVT-149). Default to the privacy-preserving set; `get` is opt-in.
+  // Methods the grant permits. Default to the privacy-preserving set; `get` is opt-in.
   const [methods, setMethods] = useState<GrantMethod[]>(DEFAULT_GRANT_METHODS)
   const [methodsError, setMethodsError] = useState<string | null>(null)
 

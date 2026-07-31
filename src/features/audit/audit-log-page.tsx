@@ -35,12 +35,12 @@ const EMPTY_FILTER: AuditFilterState = {
 }
 
 /**
- * Global Audit Log screen (CVT-65) — org-wide activity history. Left-aligned,
+ * Global Audit Log screen for organization-wide activity history. Left-aligned,
  * full width (no split-view: there is no per-row detail pane; the legend lives
  * in a modal). Event type, agent, vault and date range are pushed to the server;
  * free text matches client-side over the loaded pages.
  *
- * CSV export depends on the backend async-export job (CVT-141), which is not yet
+ * CSV export depends on a backend async-export job, which is not yet
  * available — the button renders disabled with a "coming soon" tooltip rather
  * than faking a download.
  */

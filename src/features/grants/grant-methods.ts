@@ -1,5 +1,5 @@
 /**
- * Grant methods (CVT-148/149) — HOW an agent's CLI may use a credential:
+ * Grant methods define how an agent's CLI may use a credential:
  *   - `get`    → returns the plaintext into the agent's context (LLM exposure)
  *   - `exec`   → injects the secret into a subprocess env (never enters the context)
  *   - `inject` → fills a browser login form (never enters the context)

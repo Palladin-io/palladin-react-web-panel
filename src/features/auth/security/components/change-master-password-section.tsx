@@ -15,7 +15,7 @@ import {
 } from '../../hooks/use-change-master-password'
 
 /**
- * Authenticated master-password change (CVT-268). Verifies the current password
+ * Authenticated master-password change. Verifies the current password
  * client-side, re-derives and re-wraps under a new password, and updates the
  * auth credential. The recovery phrase is unaffected and keeps working.
  */

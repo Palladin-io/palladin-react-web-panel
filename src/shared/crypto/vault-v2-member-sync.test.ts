@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { decodeHex } from './vault-v2-bytes'
@@ -43,30 +43,24 @@ interface AeadVector {
   envelope: Record<string, unknown>
 }
 
-const monorepoFixtureRoot = resolve(process.cwd(), '../contracts/vault-v2/fixtures/v2')
-const fixtureRoot = process.env.PALLADIN_VAULT_V2_FIXTURES ?? (existsSync(monorepoFixtureRoot) ? monorepoFixtureRoot : undefined)
+const fixtureRoot = resolve(process.cwd(), 'src/shared/crypto/fixtures/vault-v2')
 
-if (!fixtureRoot) {
-  describe.skip('Vault member sync fixtures', () => {
-    it('requires the canonical cross-repository fixture checkout', () => {})
-  })
-} else {
-  const fixture = JSON.parse(readFileSync(join(fixtureRoot, 'vectors/envelopes.json'), 'utf8')) as { aeadVectors: AeadVector[] }
-  const memberIndex = fixture.aeadVectors.find((vector) => vector.id === 'member-index')!
-  const entryKey = fixture.aeadVectors.find((vector) => vector.id === 'vault-entry-key')!
-  const indexEnvelope = memberIndex.envelope as unknown as MemberIndexEnvelope
-  const entryKeyEnvelope = entryKey.envelope as unknown as VaultEntryKeyEnvelope
-  const trusted = {
-    organizationId: indexEnvelope.organizationId,
-    vaultId: indexEnvelope.vaultId,
-    entryId: indexEnvelope.entryId,
-    memberIndexRevision: indexEnvelope.memberIndexRevision,
-    keyVersion: indexEnvelope.header.keyVersion,
-    memberKeyGeneration: indexEnvelope.header.memberKeyGeneration,
-    wrappingKeyVersion: entryKeyEnvelope.wrappingKeyVersion,
-  }
+const fixture = JSON.parse(readFileSync(join(fixtureRoot, 'vectors/envelopes.json'), 'utf8')) as { aeadVectors: AeadVector[] }
+const memberIndex = fixture.aeadVectors.find((vector) => vector.id === 'member-index')!
+const entryKey = fixture.aeadVectors.find((vector) => vector.id === 'vault-entry-key')!
+const indexEnvelope = memberIndex.envelope as unknown as MemberIndexEnvelope
+const entryKeyEnvelope = entryKey.envelope as unknown as VaultEntryKeyEnvelope
+const trusted = {
+  organizationId: indexEnvelope.organizationId,
+  vaultId: indexEnvelope.vaultId,
+  entryId: indexEnvelope.entryId,
+  memberIndexRevision: indexEnvelope.memberIndexRevision,
+  keyVersion: indexEnvelope.header.keyVersion,
+  memberKeyGeneration: indexEnvelope.header.memberKeyGeneration,
+  wrappingKeyVersion: entryKeyEnvelope.wrappingKeyVersion,
+}
 
-  describe('Vault member sync projection', () => {
+describe('Vault member sync projection', () => {
     it('unwraps the current EntryDEK with VK before deriving and decrypting MemberIndex', async () => {
       await expect(decryptMemberIndex(
         indexEnvelope,
@@ -107,5 +101,4 @@ if (!fixtureRoot) {
         decodeHex(entryKey.decryptionKeyHex),
       )).rejects.toThrow('context mismatch')
     })
-  })
-}
+})

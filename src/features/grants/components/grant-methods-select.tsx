@@ -23,7 +23,7 @@ export interface GrantMethodsSelectProps {
 }
 
 /**
- * Compact multi-select dropdown for grant methods (CVT-148/149). Replaces the tall checkbox stack:
+ * Compact multi-select dropdown for grant methods. Replaces the tall checkbox stack:
  * the trigger shows a one-line summary of the chosen methods and the options live in a popup, so the
  * dialog stays small no matter how many methods exist. Styled like `EntityCombobox` / the access-type
  * select to match the app. The `get` warning is surfaced compactly — only when `get` is selected.

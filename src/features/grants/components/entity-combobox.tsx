@@ -28,7 +28,7 @@ export interface EntityComboboxProps {
 
 /**
  * Generic single-select combobox for grant subjects (agent / vault / entry).
- * Mirrors the agent-type combobox pattern: raw input (per CLAUDE.md class),
+ * Mirrors the agent-type combobox pattern: raw input (per AGENTS.md class),
  * dropdown of options, mouse-down select. Caller owns filtering/fetching so the
  * same component serves sync lists and async search.
  */

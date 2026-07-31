@@ -2,43 +2,29 @@ name: Test
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches: [main, epic/cvt-387-vault-v2]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      CONTRACTS_TOKEN: ${{ secrets.PALLADIN_CONTRACTS_TOKEN }}
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - name: Checkout pinned Vault protocol fixtures
-        if: env.CONTRACTS_TOKEN != ''
-        uses: actions/checkout@v4
-        with:
-          repository: Flamingo-Co/palladin
-          ref: b370b56e4f65ecf5350bc4f9203fee6429572955
-          path: .contract-root
-          token: ${{ env.CONTRACTS_TOKEN }}
-      - name: Configure Vault protocol fixture path
-        if: env.CONTRACTS_TOKEN != ''
-        run: echo "PALLADIN_VAULT_V2_FIXTURES=${GITHUB_WORKSPACE}/.contract-root/contracts/vault-v2/fixtures/v2" >> "$GITHUB_ENV"
-      - name: Report unavailable cross-repository fixtures
-        if: env.CONTRACTS_TOKEN == ''
-        run: echo "::warning::PALLADIN_CONTRACTS_TOKEN is not configured; canonical cross-language fixture tests are skipped."
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
       - run: npm ci
-      # Fail the build on any high/critical dependency advisory. Moderate/low
-      # are surfaced but non-blocking (see the second step). Keep this in sync
-      # with the security-hardening baseline — run `npm audit fix` when it trips.
-      - name: Audit dependencies (high/critical → blocking)
+      - name: Audit dependencies
         run: npm audit --audit-level=high
-      - name: Audit dependencies (report moderate/low)
-        run: npm audit || true
       - run: npm run build
       - run: npm test
