@@ -1,0 +1,5 @@
+# Historical synthetic JWT used only by a unit test and replaced in later code.
+53a65782bb9a79461a96f08d978967834c697712:src/shared/lib/create-default-vault-safe.test.ts:jwt:10
+
+# Historical JSDoc text describing the crypto_secretbox API, not a credential.
+ec6b943a466e59f333b6c5434a6caf74e103ca46:src/shared/crypto/grant-envelope.ts:generic-api-key:45
