@@ -1,0 +1,22 @@
+title = "Palladin web panel Gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Deterministic test credentials and public protocol vectors"
+targetRules = ["generic-api-key"]
+paths = [
+  '''^src/features/auth/register/components/register-credentials-step\.test\.tsx$''',
+  '''^src/features/auth/security/components/change-master-password-section\.test\.tsx$''',
+  '''^src/features/auth/security/components/totp-enrollment-dialog\.test\.tsx$''',
+  '''^src/shared/crypto/fixtures/vault-v2/negative/corruption\.json$''',
+  '''^src/shared/crypto/fixtures/vault-v2/vectors/envelopes\.json$''',
+  '''^src/shared/crypto/fixtures/vault-v2/vectors/key-derivation\.json$''',
+  '''^src/shared/crypto/fixtures/vault-v2/vectors/pairing\.json$''',
+  '''^src/shared/crypto/fixtures/vault-v2/vectors/rotation\.json$''',
+  '''^src/shared/crypto/fixtures/vault-v2/vectors/signatures\.json$''',
+  '''^src/shared/crypto/identity-kdf\.test\.ts$''',
+  '''^src/shared/crypto/vectors/envelope-xchacha-hkdf\.json$''',
+  '''^src/shared/crypto/vectors/password-only-v1\.json$''',
+]
