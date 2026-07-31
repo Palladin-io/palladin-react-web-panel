@@ -4,7 +4,7 @@ import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-
 import { defaultAgentVisibilityPolicy, toMemberSecret, type EntryDraft } from '../../shared/crypto/entry-draft'
 import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
-import { projectAgentDiscovery } from '../../shared/crypto/vault-plaintext'
+import { projectAgentDiscovery, publicAssetIconReference } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
 import {
@@ -34,11 +34,10 @@ import { entriesQueryKey } from './use-entries'
 import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 import { useMemberSyncStore } from './sync/member-sync-store'
-import { normalizePublicHostname, resolveWebsiteIcons } from '../../shared/api/public-assets-api'
+import { ensureWebsiteIcons, normalizePublicHostname, type PublicAsset } from '../../shared/api/public-assets-api'
 import { extractDomain } from './components/entry-presentation'
 
-/** Import batch size — well under the backend cap (500) so the progress bar ticks
- * every ~50 entries instead of freezing on one huge POST. */
+/** Keep crypto/save memory bounded independently from catalog request paging. */
 const IMPORT_CHUNK_SIZE = 50
 
 /** Which phase of the import failed — surfaced so a failure is attributable. */
@@ -121,16 +120,19 @@ function toPlaintext(entry: ParsedEntry): EntryPlaintext {
   }
 }
 
-function toDraft(entry: ParsedEntry): EntryDraft {
+function toDraft(entry: ParsedEntry, publicAsset?: PublicAsset): EntryDraft {
   const content = toPlaintext(entry)
-  const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
   return {
     memberLabel: entry.label,
     agentLabel: entry.label,
     entryType: entry.type,
     content,
     policy: defaultAgentVisibilityPolicy(entry.type, content.fields ?? []),
-    ...(hostname ? { iconReference: `website:${hostname}` } : {}),
+    ...(publicAsset ? { iconReference: publicAssetIconReference({
+      assetId: publicAsset.id,
+      revision: publicAsset.revision,
+      url: publicAsset.url,
+    }) } : {}),
   }
 }
 
@@ -188,6 +190,16 @@ export function useImportEntries() {
         let importedCount = 0
         const failed: { label: string; reason: string }[] = []
 
+        const iconHostnames = [...input.creates, ...input.overwrites.map(({ entry }) => entry)]
+          .flatMap((entry) => {
+            const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
+            return hostname ? [hostname] : []
+          })
+        const publicAssets = iconHostnames.length > 0
+          ? await ensureWebsiteIcons(iconHostnames).catch(() => new Map<string, PublicAsset>())
+          : new Map<string, PublicAsset>()
+        input.onProgress?.(iconHostnames.length, iconHostnames.length, 'icons')
+
         // A batch is atomic on the server — one bad row 400s the whole chunk. Bisect a
         // failed chunk so every valid entry still lands and only the offenders are
         // reported back, with the server's validation message attached.
@@ -228,7 +240,8 @@ export function useImportEntries() {
               const entry = sourceChunk[index]
               const entryId = challenges[index]?.entryId
               if (!entryId) throw new Error('Entry creation challenge count mismatch')
-              const draft = toDraft(entry)
+              const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
+              const draft = toDraft(entry, hostname ? publicAssets.get(hostname) : undefined)
               const memberSecret = toMemberSecret({
                 label: draft.memberLabel, agentLabel: draft.agentLabel,
                 type: draft.entryType, payload: draft.content, policy: draft.policy,
@@ -270,22 +283,6 @@ export function useImportEntries() {
             throw new ImportStepError('encrypt', error)
           }
           await saveChunk(encryptedChunk)
-          const iconHostnames = sourceChunk.flatMap((entry) => {
-            const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
-            return hostname ? [hostname] : []
-          })
-          if (iconHostnames.length > 0) {
-            // The endpoint only enqueues acquisition and returns immediately.
-            // Keep it after the atomic save so icons can never decide whether
-            // credentials commit, while every 50-entry import chunk is still
-            // guaranteed to reach the catalog independently of list rendering.
-            await resolveWebsiteIcons(iconHostnames).catch(() => new Map())
-          }
-          input.onProgress?.(
-            Math.min(offset + sourceChunk.length, input.creates.length),
-            input.creates.length,
-            'icons',
-          )
         }
 
         let updatedCount = 0
@@ -300,7 +297,8 @@ export function useImportEntries() {
               organizationId: detail.organizationId, vaultId: detail.vaultId,
               entryId: detail.id, revision: detail.currentRevision,
             })
-            const draft = toDraft(entry)
+            const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
+            const draft = toDraft(entry, hostname ? publicAssets.get(hostname) : undefined)
             const nextSecret = toMemberSecret({
               label: draft.memberLabel, agentLabel: draft.agentLabel,
               type: draft.entryType, payload: draft.content, policy: draft.policy,

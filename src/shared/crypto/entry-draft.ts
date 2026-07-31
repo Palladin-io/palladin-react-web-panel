@@ -1,7 +1,12 @@
 import type { CustomField, EntryPlaintext, EntryType, ScriptRef } from '../../features/vaults/types'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from '../../features/vaults/types'
 import { parseOtpauthUri } from './totp'
-import type { AgentFieldAccess, MemberSecretV1 } from './vault-plaintext'
+import {
+  parsePublicAssetIconReference,
+  publicAssetIconReference,
+  type AgentFieldAccess,
+  type MemberSecretV1,
+} from './vault-plaintext'
 
 export interface AgentVisibilityPolicy {
   discoverable: boolean
@@ -152,8 +157,8 @@ export function fromMemberSecret(secret: MemberSecretV1): MemberSecretView {
       : secret.icon.kind === 'encryptedAsset'
         ? `vault-asset:${secret.icon.assetId}`
         : secret.icon.kind === 'publicAsset'
-          ? `public-asset:${secret.icon.assetId}`
-          : `website:${secret.icon.hostname}` } : {}),
+          ? publicAssetIconReference(secret.icon)
+          : undefined } : {}),
     ...(secret.color ? { color: secret.color } : {}),
     agentVisibilityPolicy: legacyPolicy(secret),
   }
@@ -191,12 +196,11 @@ export function toMemberSecret(input: {
   color?: string; type: EntryType; payload: EntryPlaintext; policy: AgentVisibilityPolicy; vaultId?: string
 }): MemberSecretV1 {
   const fields = customFields(input.payload.fields)
-  const icon = input.iconReference?.startsWith('public-asset:')
-    ? { kind: 'publicAsset' as const, assetId: input.iconReference.slice('public-asset:'.length) }
+  const publicAsset = parsePublicAssetIconReference(input.iconReference)
+  const icon = publicAsset
+    ? publicAsset
     : input.iconReference?.startsWith('vault-asset:')
       ? { kind: 'encryptedAsset' as const, assetId: input.iconReference.slice('vault-asset:'.length) }
-      : input.iconReference?.startsWith('website:')
-        ? { kind: 'website' as const, hostname: input.iconReference.slice('website:'.length).normalize('NFC') }
       : input.iconReference
         ? { kind: 'glyph' as const, value: input.iconReference.replace(/^builtin:/, '').normalize('NFC') }
         : null

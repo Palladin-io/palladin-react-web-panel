@@ -48,8 +48,8 @@ import { defaultColorFor, defaultIconFor } from './entry-presentation'
 import { FormSelect } from '../../../shared/components/form-select'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { DiscoveryToggle, discoveryAction } from './discovery-toggle'
-import { normalizePublicHostname, resolveWebsiteIcons } from '../../../shared/api/public-assets-api'
-import { usePublicEntryAssets } from '../use-public-entry-assets'
+import { ensureWebsiteIcons, normalizePublicHostname } from '../../../shared/api/public-assets-api'
+import { publicAssetIconReference } from '../../../shared/crypto/vault-plaintext'
 
 export interface CreateEntryModalProps {
   open: boolean
@@ -106,7 +106,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [iconTouched, setIconTouched] = useState(false)
   const [discoverable, setDiscoverable] = useState(true)
   const [policyOverrides, setPolicyOverrides] = useState<AgentVisibilityPolicy['fields']>({})
-  usePublicEntryAssets([icon ?? null])
+  const [resolvingIcon, setResolvingIcon] = useState(false)
 
   const allFields = useMemo(
     () => type === ENTRY_TYPE_CREDENTIAL
@@ -138,18 +138,20 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     if (iconTouched || type === ENTRY_TYPE_SCRIPT) return
     const hostname = normalizePublicHostname(url)
     if (!hostname) return
-    // Persist the stable hostname reference immediately; discovery itself is
-    // asynchronous and must not race a fast Save click.
-    setIcon(`website:${hostname}`)
+    let active = true
     const timer = window.setTimeout(() => {
-      void resolveWebsiteIcons([hostname]).catch(() => undefined)
+      void ensureWebsiteIcons([hostname]).then((assets) => {
+        const asset = assets.get(hostname)
+        if (active && asset) setIcon(publicAssetIconReference({ assetId: asset.id, revision: asset.revision, url: asset.url }))
+      }).catch(() => undefined)
     }, 300)
     return () => {
+      active = false
       window.clearTimeout(timer)
     }
   }, [iconTouched, type, url])
 
-  const isPending = create.isPending
+  const isPending = create.isPending || resolvingIcon
 
   const canSubmit = useMemo(() => {
     if (isPending) return false
@@ -161,7 +163,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
   const fieldsInvalid = validateCustomFields(allFields).hasError
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit || fieldsInvalid) return
 
@@ -178,13 +180,27 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       refs,
     })
 
+    let iconReference = icon
+    const hostname = !iconTouched && type !== ENTRY_TYPE_SCRIPT ? normalizePublicHostname(url) : null
+    if (hostname) {
+      setResolvingIcon(true)
+      try {
+        const asset = (await ensureWebsiteIcons([hostname])).get(hostname)
+        if (asset) iconReference = publicAssetIconReference({ assetId: asset.id, revision: asset.revision, url: asset.url })
+      } catch {
+        // Catalog acquisition is presentational and must not block credential creation.
+      } finally {
+        setResolvingIcon(false)
+      }
+    }
+
     create.mutate(
       {
         vaultId: vault.id,
         label: label.trim(),
         agentLabel: agentLabel.trim(),
         description: description.trim() || undefined,
-        iconReference: icon,
+        iconReference,
         ...(iconFile ? { iconFile } : {}),
         type,
         payload,

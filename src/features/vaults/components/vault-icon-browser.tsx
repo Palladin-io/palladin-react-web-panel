@@ -8,6 +8,7 @@ import { hexWithAlpha } from './vault-color'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { SearchBar } from '../../../shared/components/search-bar'
 import { searchPublicAssets, type PublicAsset } from '../../../shared/api/public-assets-api'
+import { publicAssetIconReference } from '../../../shared/crypto/vault-plaintext'
 
 export interface IconColorBrowserProps {
   /** Legacy flag retained for caller compatibility; remote favicon lookup is disabled. */
@@ -178,7 +179,7 @@ function IconColorBrowserBody({
         {showBrandIcons && publicAssets.length > 0 ? (
           <div className="grid grid-cols-8 gap-1.5 border-t border-[var(--cv-divider)] pt-3">
             {publicAssets.map((asset) => {
-              const reference = `public-asset:${asset.id}`
+              const reference = publicAssetIconReference({ assetId: asset.id, revision: asset.revision, url: asset.url })
               const selected = reference === localIcon
               return (
                 <button

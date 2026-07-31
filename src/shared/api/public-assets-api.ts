@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { api } from './client'
+import { env } from '../lib/env'
 
 export const publicAssetTypeSchema = z.enum(['websiteIcon', 'agentIcon'])
 
@@ -7,13 +8,13 @@ export const publicAssetSchema = z.object({
   id: z.string().uuid(),
   type: publicAssetTypeSchema,
   name: z.string().min(1).max(256),
-  url: z.string().url(),
+  url: z.string().url().refine((value) => trustedPublicAssetUrl(value) !== null),
   revision: z.number().int().positive(),
   aliases: z.array(z.string().min(1).max(253)).optional(),
 }).strict()
 
 const searchResponseSchema = z.object({ items: z.array(publicAssetSchema) }).strict()
-const resolveResponseSchema = z.object({
+const ensureResponseSchema = z.object({
   items: z.array(z.object({
     hostname: z.string().min(1).max(253),
     asset: publicAssetSchema.nullable(),
@@ -55,10 +56,6 @@ export function cachedPublicAsset(assetId: string): PublicAsset | undefined {
   return assetCache.get(assetId)
 }
 
-export function cachedWebsiteAsset(hostname: string): PublicAsset | undefined {
-  return websiteAssetCache.get(normalizePublicHostname(hostname) ?? hostname)
-}
-
 export async function searchPublicAssets(query: string): Promise<PublicAsset[]> {
   const response = await api.get('api/public-assets/search', {
     searchParams: { type: 'websiteIcon', q: query, limit: '40' },
@@ -68,15 +65,18 @@ export async function searchPublicAssets(query: string): Promise<PublicAsset[]> 
   return items
 }
 
-export async function resolveWebsiteIcons(
-  hostnames: string[],
-  acquireMissing = true,
-): Promise<Map<string, PublicAsset>> {
+export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<string, PublicAsset>> {
   const unique = [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
   if (unique.length === 0) return new Map()
-  const batches = Array.from({ length: Math.ceil(unique.length / 500) }, (_, index) =>
-    unique.slice(index * 500, (index + 1) * 500))
-  const parsedBatches: Array<z.infer<typeof resolveResponseSchema>> = []
+  const result = new Map(unique.flatMap((hostname) => {
+    const asset = websiteAssetCache.get(hostname)
+    return asset ? [[hostname, asset] as const] : []
+  }))
+  const missing = unique.filter((hostname) => !result.has(hostname))
+  if (missing.length === 0) return result
+  const batches = Array.from({ length: Math.ceil(missing.length / 500) }, (_, index) =>
+    missing.slice(index * 500, (index + 1) * 500))
+  const parsedBatches: Array<z.infer<typeof ensureResponseSchema>> = []
   let firstError: unknown
   // Keep a small concurrency window: favicon acquisition performs outbound
   // network I/O, so an import must not fan hundreds of requests out at once.
@@ -85,13 +85,11 @@ export async function resolveWebsiteIcons(
     while (next < batches.length) {
       const batch = batches[next++]
       try {
-        const response = await api.post('api/public-assets/resolve', {
-          // Polls read the durable catalog only. They must not multiply the
-          // same acquisition command while its first delivery is in flight.
-          json: { type: 'websiteIcon', hostnames: batch, acquireMissing },
+        const response = await api.post('api/public-assets/website-icons/ensure', {
+          json: { hostnames: batch },
           timeout: 20_000,
         }).json<unknown>()
-        parsedBatches.push(resolveResponseSchema.parse(response))
+        parsedBatches.push(ensureResponseSchema.parse(response))
       } catch (error) {
         firstError ??= error
         // One slow/unreachable group must not discard assets resolved by the
@@ -100,11 +98,11 @@ export async function resolveWebsiteIcons(
     }
   }))
   const items = parsedBatches.flatMap((parsed) => parsed.items)
-  let changed = remember(items.flatMap(({ asset }) => asset ? [asset] : []))
+  const changed = remember(items.flatMap(({ asset }) => asset ? [asset] : []))
   for (const { hostname, asset } of items) {
-    if (asset && websiteAssetCache.get(hostname)?.id !== asset.id) {
+    if (asset) {
       websiteAssetCache.set(hostname, asset)
-      changed = true
+      result.set(hostname, asset)
     }
   }
   if (changed) notifyCacheChanged()
@@ -112,7 +110,24 @@ export async function resolveWebsiteIcons(
   // set if even one page was rejected (for example by broker backpressure or
   // rate limiting). Backend alias idempotency makes the retry safe.
   if (firstError) throw firstError
-  return new Map(items.flatMap(({ hostname, asset }) => asset ? [[hostname, asset] as const] : []))
+  return result
+}
+
+/** Accept only the configured immutable public-asset namespace for rendering. */
+export function trustedPublicAssetUrl(value: string): string | null {
+  try {
+    const candidate = new URL(value)
+    const base = new URL(env.publicAssetUrl)
+    const prefix = `${base.pathname.replace(/\/$/, '')}/`
+    return candidate.origin === base.origin
+      && candidate.username === '' && candidate.password === ''
+      && candidate.search === '' && candidate.hash === ''
+      && candidate.pathname.startsWith(prefix)
+      ? candidate.toString()
+      : null
+  } catch {
+    return null
+  }
 }
 
 export async function getPublicAssetsByIds(assetIds: string[]): Promise<PublicAsset[]> {
