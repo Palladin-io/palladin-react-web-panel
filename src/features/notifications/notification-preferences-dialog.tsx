@@ -17,7 +17,7 @@ import {
 } from './notification-queries'
 
 /**
- * Notification preferences (CVT-164) — LinkedIn-style matrix of per-type ×
+ * Notification preferences — matrix of per-type ×
  * per-channel toggles (inbox / realtime / push), rendered as a `ModalShell`
  * dialog opened from the Inbox header gear (no standalone route).
  *

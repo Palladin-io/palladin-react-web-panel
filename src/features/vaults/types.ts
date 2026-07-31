@@ -125,7 +125,7 @@ export interface CustomField {
   /**
    * When true, the owner marked this field as plaintext discovery metadata
    * (like Label/Description) — mirrored to `agentFields` on the entry so org
-   * agents see it without a grant (CVT-204). Only valid for `text`/`multiline`;
+   * agents see it without a grant. Only valid for `text`/`multiline`;
    * never `concealed`/`totp`. Absent/false = private (default).
    */
   agentVisible?: boolean
@@ -215,7 +215,7 @@ export interface EntryDetail extends EntryListItem {
  * the vault key client-side before this object is built.
  */
 /**
- * Plaintext mirror of an owner-marked agent-visible field (CVT-204). Sent
+ * Plaintext mirror of an owner-marked agent-visible field. Sent
  * alongside the encrypted content so the backend can store it as discovery
  * metadata (like Label/Description) — never a secret.
  */

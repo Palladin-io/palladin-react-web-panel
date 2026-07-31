@@ -39,6 +39,8 @@ Per-feature and shared-component reference for the Palladin web panel. These doc
 | Notifications | [features/notifications.md](features/notifications.md) |
 | Settings | [features/settings.md](features/settings.md) |
 
-### Not yet implemented
+### Other feature areas
 
-`billing/`, `teams/`, `dashboard/` are placeholder directories (`.gitkeep` only) — no implementation yet. `dev/` holds `ToastsShowcase`, a dev-only visual test page for Sonner toast variants (not routed in production).
+`dashboard/` and `teams/` contain active feature implementations. `billing/`
+is currently a placeholder. `dev/` holds `ToastsShowcase`, a development-only
+visual test page for Sonner toast variants that is not routed in production.

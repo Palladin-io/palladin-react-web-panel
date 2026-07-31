@@ -33,7 +33,7 @@ export interface ApproveGrantDialogProps {
   isPending: boolean
   /**
    * Confirm with the resolved policy (time → expiresAt, uses → queryLimit, lifetime → {}) and the
-   * final methods the agent may use (CVT-149).
+   * final methods the agent may use.
    */
   onConfirm: (policy: GrantPolicyBody, methods: GrantMethod[], fieldIds: string[]) => void
   onCancel: () => void

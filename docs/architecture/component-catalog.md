@@ -64,7 +64,7 @@ These patterns are duplicated 2+ times with no shared component. Extract on next
 
 ## Reuse rules
 
-1. **Fields** — use `FormInput` (text/url/email), `SecretInput` (password show/hide), `FormTextarea` (multi-line). Never inline-style raw `<input>`/`<textarea>`. Raw `<input>` is only for custom composites (combobox, search bar) and must use the canonical class string in `CLAUDE.md`.
+1. **Fields** — use `FormInput` (text/url/email), `SecretInput` (password show/hide), `FormTextarea` (multi-line). Never inline-style raw `<input>`/`<textarea>`. Raw `<input>` is only for custom composites (combobox, search bar) and must use the canonical class string in `AGENTS.md`.
 2. **Field feedback** — `FieldFeedback` (fixed height) or `FeedbackSlot` (animated) for inline validation only. API results go to Sonner toasts, never inline.
 3. **Cards / rows hover** — route through `HOVERABLE_CARD_CLASSES`. Never inline `hover:bg-*` / `hover:border-*` / `shadow-*`. (Known offender: `agents/components/agent-card.tsx:39` inlines `hover:bg-[var(--cv-card-hover)]` + `rounded-xl` — align on next touch.)
 4. **Modal footers** — always `DialogFooter` with the 1:2 (`flex-1` / `flex-[2]`) button ratio. Never a hand-rolled `<div className="mt-* flex">`.

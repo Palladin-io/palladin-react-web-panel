@@ -8,7 +8,7 @@ import { TotpEnrollmentDialog } from './totp-enrollment-dialog'
 import { TotpDisableDialog } from './totp-disable-dialog'
 
 /**
- * Two-factor authentication management (CVT-269). Reflects the account's
+ * Two-factor authentication management. Reflects the account's
  * `totpEnabled` state and opens the enroll or disable flow. An undefined
  * `totpEnabled` (older backend) reads as disabled.
  */

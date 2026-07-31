@@ -25,7 +25,9 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 - EntryDEK and Vault private-key wrappers use the same authenticated envelope boundary; Member/Agent key packages use X25519 sealed boxes.
 - Vault manifests and encrypted reasons use canonical JSON plus domain-separated Ed25519 signatures.
 - Unknown protocol/suite values, non-canonical encodings, stale generations, substitution and authentication failures fail closed. Raw plaintext/key buffers are owned by the caller and must be wiped immediately after use.
-- Cross-language conformance tests read the canonical root fixture set pinned at root epic commit `b370b56e4f65ecf5350bc4f9203fee6429572955`; expected crypto bytes are not duplicated in this repository.
+- Cross-language conformance tests read the versioned fixture set committed at
+  `src/shared/crypto/fixtures/vault-v2`. Its manifest and source revision are
+  cryptographically pinned so the tests run identically in every clone.
 
 ## Protocol 2 Member sync
 
@@ -43,7 +45,7 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 2. In browser memory, generate a fresh VK, VDK, Agent-message private key and manifest-signing seed. Encrypt canonical MemberVaultMetadata under a VK-derived key, seal VK to the authenticated Member's current server-authoritative key version, and wrap VDK plus both private seeds under VK.
 3. Submit the complete ciphertext-only bootstrap in one create request. The backend consumes the challenge and persists the usable Vault atomically; no plaintext name, description, icon reference, color or raw key crosses the network.
 4. Keep only the ciphertext payload while a response is ambiguous. A retry with the same challenge resends those exact bytes; a changed challenge is reconciled against normal encrypted Vault listing before any new material is generated, preventing duplicate Vaults after a lost success response.
-5. Wipe every generated raw key, derived metadata key and plaintext serialization in `finally`. After success, close the dialog and trigger normal Member sync instead of placing plaintext metadata into an optimistic cache or navigating to the legacy detail flow.
+5. Wipe every generated raw key, derived metadata key and plaintext serialization in `finally`. After success, close the dialog and trigger normal Member sync instead of placing plaintext metadata into an optimistic cache.
 6. Active organization Agents are eligible for encrypted Discovery by default. Discovery does not grant secret access; a separate scoped grant remains mandatory.
 
 ## Protocol 2 Entry creation
@@ -81,28 +83,12 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 6. Lock, logout, offline, hidden-page/navigation teardown or an abort stops the worker. Returning online/visible schedules one resume after in-flight cleanup rather than running concurrent workers.
 7. Every opened/generated VK, VDK, private seed, EntryDEK and plaintext projection is wiped in `finally`. Zustand rotation progress contains only phase, opaque IDs, item count and an allow-listed error code; keys, ciphertext, cursors and plaintext are never persisted there.
 
-> **Vault v2 cutover status:** the accepted target is the compiled-in
-> `palladin-vault-xchacha-v1` suite (XChaCha20-Poly1305 IETF + HKDF-SHA-256), a
-> stable descriptor authenticated as canonical binary AAD, and a bounded opaque
-> suite payload. The central primitive/registry exists, but the product flows
-> below still describe the legacy API and must move atomically after the shared
-> backend/web/Flutter/Rust wire contract is frozen. Identity private-key
-> wrapping remains a separate protocol follow-up because the Vault purpose
-> registry intentionally has no account-private-key purpose. See
-> [`crypto-protocol.md`](crypto-protocol.md). There will be no dual-mode fallback.
-
 ## Unlock Flow
 1. User enters the master password.
 2. Validate the authenticated account KDF state and derive MK through the registered Identity profile.
 3. Decrypt `encryptedPrivateKey` with MK → member private key.
 4. Store independent copies of MK and private key in Zustand memory only.
 5. Navigate directly to the dashboard; unsupported KDF profiles fail closed.
-
-## Legacy Entry Encryption (removed by protocol 2 cutover consumers)
-1. Get VK: `user_private_key` → decrypt `wrapped_VK` → VK.
-2. Serialize entry as typed JSON (`{ type, ...fields }`).
-3. Encrypt with VK via `crypto_secretbox`.
-4. Send `{ label, type, encrypted_blob, nonce, url_domain? }` to API.
 
 ## Protocol 2 Grant Approval — FULL and GRANULAR
 1. Resolve the Agent's current X25519 public key and recipient key version from the backend, then open the Member's current VK package in browser memory.

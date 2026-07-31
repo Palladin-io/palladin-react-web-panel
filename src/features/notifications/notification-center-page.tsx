@@ -50,7 +50,7 @@ interface AgentTarget {
 }
 
 /**
- * Notification Center / Inbox (CVT-164) — replaces the Approvals surface with a
+ * Notification Center / Inbox — replaces the Approvals surface with a
  * persistent feed of action-required + informational notifications.
  *
  * Layout follows the approved design 1:1: header + segment (All / To-do /

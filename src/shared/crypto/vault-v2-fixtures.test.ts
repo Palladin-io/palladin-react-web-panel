@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { decodeBase64Url, decodeHex, encodeHex, encodeUtf8 } from './vault-v2-bytes'
@@ -8,10 +8,9 @@ import { encodeVaultAad, type VaultAadContext, type VaultAadProfile } from './va
 import { canonicalizeVaultJson, verifyVaultSignature, vaultSignatureInput } from './vault-v2-signatures'
 import { loadSodium } from './sodium'
 
-const PINNED_ROOT_COMMIT = 'b370b56e4f65ecf5350bc4f9203fee6429572955'
-const PINNED_MANIFEST_SHA256 = '13c43defd459e95d50bf2f0a76a5a5446ca41903c36a38beef8b8af3aa208050'
-const monorepoFixtureRoot = resolve(process.cwd(), '../contracts/vault-v2/fixtures/v2')
-const fixtureRoot = process.env.PALLADIN_VAULT_V2_FIXTURES ?? (existsSync(monorepoFixtureRoot) ? monorepoFixtureRoot : undefined)
+const PINNED_PROTOCOL_COMMIT = '856872168ff251e5e9e782e3403c1339586ab190'
+const PINNED_MANIFEST_SHA256 = 'a933b61b8bb1a0f966f51fbe51a9c5baa9c09353e2a9131ba7414a559bc4adaf'
+const fixtureRoot = resolve(process.cwd(), 'src/shared/crypto/fixtures/vault-v2')
 
 function fixture<T>(root: string, relativePath: string): T {
   return JSON.parse(readFileSync(join(root, relativePath), 'utf8')) as T
@@ -32,11 +31,6 @@ interface SignatureVector {
   canonicalUnsignedObject: string; unsignedObject: Parameters<typeof canonicalizeVaultJson>[0]; signedObject: Record<string, unknown> & { signature?: string; agentSignature?: string }
 }
 
-if (!fixtureRoot) {
-  describe.skip(`canonical Vault protocol 2 fixtures require root commit ${PINNED_ROOT_COMMIT}`, () => {
-    it('requires PALLADIN_VAULT_V2_FIXTURES or a monorepo checkout', () => {})
-  })
-} else {
 const aad = fixture<{ vectors: AadVector[] }>(fixtureRoot, 'vectors/aad.json')
 const keyDerivation = fixture<{ hkdfVectors: HkdfVector[] }>(fixtureRoot, 'vectors/key-derivation.json')
 const envelopes = fixture<{ aeadVectors: AeadVector[]; sealedBoxVectors: SealedVector[] }>(fixtureRoot, 'vectors/envelopes.json')
@@ -56,7 +50,11 @@ function expectations(envelope: VaultCiphertextEnvelope): VaultEnvelopeExpectati
 }
 
 describe('canonical Vault protocol 2 fixtures', () => {
-  it('pins the authoritative root fixture manifest', async () => {
+  it('records the source revision for the vendored fixture set', () => {
+    expect(PINNED_PROTOCOL_COMMIT).toMatch(/^[0-9a-f]{40}$/)
+  })
+
+  it('pins the authoritative protocol fixture manifest', async () => {
     const manifest = readFileSync(join(fixtureRoot, 'manifest.json'))
     const digest = await crypto.subtle.digest('SHA-256', manifest)
     expect(encodeHex(new Uint8Array(digest))).toBe(PINNED_MANIFEST_SHA256)
@@ -170,4 +168,3 @@ describe('canonical Vault protocol 2 fixtures', () => {
     expect(canonicalizeVaultJson({ value: '🔐' })).toBe('{"value":"🔐"}')
   })
 })
-}

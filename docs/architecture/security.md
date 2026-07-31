@@ -1,7 +1,7 @@
 # Security: CSP, headers & token storage
 
 This doc is the deep reference for the web panel's browser-side security posture.
-Quick rules live in `CLAUDE.md → Security`; the details are here.
+Quick rules live in `AGENTS.md` under **Security**; the details are here.
 
 ## Content-Security-Policy & security headers
 

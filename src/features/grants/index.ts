@@ -5,7 +5,7 @@ export { PendingGrantsPanel } from './components/pending-grants-panel'
 export { usePendingGrants } from './use-pending-grants'
 export { GrantAccessDialog } from './components/grant-access-dialog'
 export type { GrantAccessMode } from './components/grant-access-dialog'
-// Promoted for the Notification Center (CVT-164) so the Inbox can drive the
+// Promoted for the Notification Center so the Inbox can drive the
 // existing zero-knowledge approve/deny/revoke/regrant flows — crypto unchanged.
 export { useApproveGrant } from './use-approve-grant'
 export { useDenyGrant } from './use-deny-grant'
@@ -25,7 +25,7 @@ export {
 } from './query-keys'
 export type { Grant, GrantStatus, GrantMode } from './api/grants-api'
 export type { PendingGrant } from './api/pending-grants-api'
-// Promoted for the Notification Center (CVT-164): the Inbox shares the grant
+// Promoted for the Notification Center: the Inbox shares the grant
 // date/relative-time formatters and the org-grant type + granular discriminant.
 export { formatGrantDate, formatRelativeTime } from './components/grant-format'
 export type { OrgGrant } from './api/org-grants-api'
@@ -35,14 +35,14 @@ export {
   GRANT_STATUS_ACTIVE,
   getOrgGrants,
 } from './api/org-grants-api'
-// Promoted for the Import Wizard (CVT-36): a bulk import must re-wrap each new
+// Promoted for the Import Wizard: a bulk import must re-wrap each new
 // entry for the vault's active FULL grants, mirroring the single-grant flow.
 export { collectActiveFullGrants } from './api/org-grants-api'
-// Promoted for the Entry Detail · Agents tab (CVT-127): the header needs the
+// Promoted for the Entry Detail · Agents tab: the header needs the
 // active-agent count, computed from the same (deduped) org-grants query the
 // embedded panel already runs.
 export { useOrgGrants } from './use-org-grants'
-// Promoted for the dashboard status tiles (CVT-186): grant counts per status.
+// Promoted for the dashboard status tiles: grant counts per status.
 export { useGrantSummary } from './use-grant-summary'
 export type { GrantSummary } from './api/grant-summary-api'
 // Promoted for the dashboard "Recently added / modified" widget: derives

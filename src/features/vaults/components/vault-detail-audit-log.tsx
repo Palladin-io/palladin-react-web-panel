@@ -28,7 +28,7 @@ const EMPTY_FILTER: AuditFilterState = {
 }
 
 /**
- * Vault Detail · Audit Log tab (CVT-119) — the activity trail for one vault.
+ * Vault Detail · Audit Log tab — the activity trail for one vault.
  * Read-only. Event type, agent and date range are pushed to the server; free
  * text is matched client-side over the loaded pages. Mirrors the Entry Logs tab
  * but spans the whole vault and shows the entry chip on each row. The colour

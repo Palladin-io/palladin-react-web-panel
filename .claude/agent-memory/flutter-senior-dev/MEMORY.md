@@ -1,1 +1,0 @@
-- [Notification Center (CVT-165)](notification_center.md) — mobile Inbox, frozen contract shape, reuse map

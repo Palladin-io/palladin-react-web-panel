@@ -135,7 +135,7 @@ export interface ChangeMasterPasswordPayload {
 }
 
 /**
- * Change the master password while authenticated (CVT-268). Server verifies
+ * Change the master password while authenticated. Server verifies
  * `currentAuthCredential`, replaces the master + auth material (recovery untouched),
  * and revokes the account's other sessions.
  */

@@ -30,7 +30,7 @@ export interface EntryIconProps {
  * favicon 404s) — never a broken image. Shared by the entries list, the entry
  * detail panel, and the dashboard "recent" cards so favicon handling stays in
  * one place. The client never fetches favicons itself; it only renders the URL
- * the backend cached on `Entry.Icon` (CVT-237).
+ * the backend cached on `Entry.Icon`.
  */
 export function EntryIcon({ icon, type, color, className }: EntryIconProps) {
   const [failed, setFailed] = useState(false)

@@ -2,7 +2,7 @@ import { shortenKey } from '../../shared/lib/shorten-key'
 import type { NotificationItem } from './notifications-api'
 
 /**
- * Client-side presentation for Notification Center cards (CVT-164).
+ * Client-side presentation for Notification Center cards.
  *
  * The backend sends structural metadata. A preceding local resolver enriches
  * a transient item from unlocked/authenticated caches. This module turns it into the visual

@@ -4,7 +4,7 @@ import { api } from './client'
 import { useAuthStore } from '../../features/auth'
 
 /**
- * Regression for CVT-195 (H3): the access token now lives in memory only and
+ * Regression: the access token now lives in memory only and
  * is dropped from the persisted store, so the `afterResponse` 401 handler can
  * no longer gate logout on `accessToken !== null` — it must ALWAYS log out and
  * redirect when a refresh attempt fails. This test drives the failed-refresh

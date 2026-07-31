@@ -32,7 +32,7 @@ export interface AuthStepShellProps {
  *
  * `dark` is hardcoded on the root: these pages always render on a dark
  * gradient, so `--cv-*` tokens must resolve to their dark values regardless of
- * the user's app theme (see CLAUDE.md "Dark-Mode Forced Pages").
+ * the user's app theme (see AGENTS.md "Dark-Mode Forced Pages").
  */
 export function AuthStepShell({
   title,

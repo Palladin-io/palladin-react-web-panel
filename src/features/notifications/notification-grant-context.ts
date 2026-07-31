@@ -3,7 +3,7 @@ import type { NotificationItem } from './notifications-api'
 /**
  * Grant identifiers a notification carries in `metadata`, needed to drive the
  * existing zero-knowledge approve/deny/revoke/regrant flows from the Inbox
- * (CVT-164). The crypto hooks own all key handling — this only forwards ids the
+ * The crypto hooks own all key handling — this only forwards ids the
  * backend already put in `metadata` (never secrets).
  */
 export interface NotificationGrantContext {

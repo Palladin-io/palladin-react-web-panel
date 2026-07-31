@@ -11,14 +11,16 @@ A paginated log list with a filter bar above it. Filtering is **server-side** (e
 ## Key patterns
 - Server-side filter params + client-side text search over loaded pages; cursor pagination.
 - Opaque entry IDs resolve from `member-sync-store`; lock clears the resolver source and no plaintext is persisted by Audit.
-- CSV export is stubbed/disabled (pending CVT-141).
+- CSV export is stubbed and disabled until the backend async-export job is available.
 
 ## Cross-feature deps
 Consumes vault queries from `vaults` for the vault filter and embedded views.
 
 ## Audit Log color taxonomy
 
-When touching Audit Log UI (event colors, legend, badges), this is the canonical mapping. Full per-event-type detail lives in the monorepo memory file **`../.claude/memory/reference_audit_log_colors.md`**; Web ↔ mobile parity is required.
+When touching Audit Log UI (event colors, legend, badges), this is the
+canonical mapping. Keep web and mobile clients aligned with these semantic
+roles.
 
 Semantic roles map to `--cv-*` tokens (defined in `src/index.css`, consumed via `tone()` in `src/features/audit/components/audit-event-config.ts`):
 

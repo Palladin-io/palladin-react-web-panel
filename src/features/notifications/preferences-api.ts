@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { api } from '../../shared/api/client'
 
 /**
- * Notification preferences API — FROZEN contract (CVT-162). LinkedIn-style
+ * Notification preferences API — frozen contract. Matrix-style
  * per-type × per-channel toggles (inbox / realtime / push).
  *
  * `mandatory` types (agent_pending, grant_pending, grant_revoked) have inbox +
