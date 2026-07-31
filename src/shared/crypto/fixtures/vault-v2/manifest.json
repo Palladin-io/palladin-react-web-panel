@@ -35,31 +35,31 @@
   "files": [
     {
       "path": "vectors/aad.json",
-      "sha256": "825def1e19c0d012b83c2736a9cc9428d248bc4a78f9ad0a5b04a34e4c1dd904"
+      "sha256": "7731c54ed36c4375745193ebeba159ce21644c562b077379852b476f55839b0c"
     },
     {
       "path": "vectors/key-derivation.json",
-      "sha256": "c6b590dcb49cd58542d3b3d9979743bd35a1f256ca692e369357d513fae888c8"
+      "sha256": "c77e9e5a62bcd1ffae37f48f3a7feadd4e0c7945569353fb5adc980051da7d24"
     },
     {
       "path": "vectors/envelopes.json",
-      "sha256": "b56efd5c4d93cfcf706db1f56873f4945c18ba9e60099e2a4f9cc4143bb106d6"
+      "sha256": "155cd388f33772614a02d28e0b22a2dbf637d5f9c96d3d153354b6c3f8385d0f"
     },
     {
       "path": "vectors/signatures.json",
-      "sha256": "2b9fa47e377e92a5c7d5a9299761ca42dc12f2024bef736ef372be3a16ca840a"
+      "sha256": "dd92600a5f812ba88bac537a111a4eaeeb36deca835cae41536af0d8b32ae09d"
     },
     {
       "path": "vectors/pairing.json",
-      "sha256": "d4f7d8a586cacf53896f9fe609163a88cc292646f3d010bb807a7d1cfc215ec8"
+      "sha256": "738413fb48af51fed2cfa172a67b93f01ad41fa98c72d46969a7def6a103688f"
     },
     {
       "path": "vectors/rotation.json",
-      "sha256": "b01e5cad49347520294b2c3adc921181db936f58d847101e09e6a2cfc5d310f1"
+      "sha256": "7e7f5351781e1811a320d82e828dc8f4d37beb549ad5909efae9e26c89ab7612"
     },
     {
       "path": "negative/corruption.json",
-      "sha256": "2368188c7a0b686eac105c252527b0e6e8c6434f1d326eb00868f57869c30c8e"
+      "sha256": "577ba27ef7a2039d08dcb3afbc1975905aaa821811c2ac73b430173fb008f866"
     }
   ]
 }

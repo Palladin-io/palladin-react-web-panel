@@ -18,11 +18,11 @@
       "type": "MemberVaultMetadataEnvelope",
       "aadProfile": "member-vault-metadata",
       "keySource": "HKDF(member-vault-metadata, next VK)",
-      "decryptionKeyHex": "ef80e68a017734a19292321adf83f55317b57a44912776a7c0842641adce7f8d",
+      "decryptionKeyHex": "0b05ec5fd169ce94f9e7ed535dc2524de7e7de1b6492e3e0a4c24eb7d8178b96",
       "plaintextType": "MemberVaultMetadataPayload",
       "plaintextCanonical": "{\"color\":\"coral\",\"description\":\"Synthetic rotated metadata\",\"iconReference\":\"builtin:shield\",\"name\":\"Engineering Vault\"}",
       "plaintextHex": "7b22636f6c6f72223a22636f72616c222c226465736372697074696f6e223a2253796e74686574696320726f7461746564206d65746164617461222c2269636f6e5265666572656e6365223a226275696c74696e3a736869656c64222c226e616d65223a22456e67696e656572696e67205661756c74227d",
-      "nonceHex": "e6fcdf0582baf27db2d2b9d865e70a1fcd9a82adbfe5cd10",
+      "nonceHex": "2ca3c3ac05faea8d7f61c9044dca178744f34678497a0621",
       "aadHex": "504c444e56324144010900000101000200020201000200010301000200010404001011111111111141118111111111111111050400102222222222224222822222222222222207010002000108030008000000000000000809020004000000040a02000400000005",
       "aadFields": [
         {
@@ -102,9 +102,9 @@
           "resourceRevision": "8",
           "keyVersion": 4,
           "memberKeyGeneration": 5,
-          "nonce": "5vzfBYK68n2y0rnYZecKH82agq2_5c0Q"
+          "nonce": "LKPDrAX66o1_YckETcoXh0TzRnhJegYh"
         },
-        "ciphertext": "XvJ4ExAWsAezLexwdJLQihF1o-Jx8Oc5QQXe-R3eEkj3YlAU5Woh9IxKmuWi5tSDB90T-yhZOiHRl0FLhj2lp1Zc0cevBGzEn_muJWlBcMFxRHDTg4fUIdrC2X1GiWYLpiXoCKcxNUGFgg6Ls9bFXjArBO4TEcTSJO9RR70ORXbGNEPOMFGC_g"
+        "ciphertext": "0lal4_0ZqrFFec8Y5OqbCCPU_zqgwyVKjgeVKcqL-_6g4-8-8Kdw0LD4D-l9m5AjEV2Djh9sElqaSlkjm8qJCiHyiQP2GiMs5qKvu3g-L8EQ23XPDmBSJengIQEWMV436qowlOUvGlaCJ78vr4rCwn3c4upSgdtZ0cj1Y9GobASL4bWifWV1fw"
       }
     },
     {
@@ -112,11 +112,11 @@
       "type": "VaultPrivateKeyEnvelope",
       "aadProfile": "vault-private-key",
       "keySource": "next VK version 4",
-      "decryptionKeyHex": "f956096519e8f5917540ab3e61a77954b8d6d19fd7bb3ec4bd966351d1bc3fdb",
+      "decryptionKeyHex": "2e6f3f19a21e6e68fb0ca656a34b2fb0cf73d628ad4169519e89e663487bcffd",
       "plaintextType": "VaultAgentMessageX25519PrivateKey/raw-32",
       "plaintextCanonical": null,
-      "plaintextHex": "7568a3d91c72af4b80e359847b03165ff4f197858657a249ead8a3a6b7cc1e13",
-      "nonceHex": "46fda12940c665b6dde876bce6b25203e9049bf2f02e2596",
+      "plaintextHex": "ad303d75414277ce6d60406b2c1ae12566e98031081beebe9713e085f174dae1",
+      "nonceHex": "8611add6d7b43c30be27c8a95c22b6f13c8c9ae181e047fc",
       "aadHex": "504c444e56324144010b00000101000200020201000200010301000200010404001011111111111141118111111111111111050400102222222222224222822222222222222207010002000708030008000000000000000a09020004000000040a020004000000051502000400000004160100020001",
       "aadFields": [
         {
@@ -214,9 +214,9 @@
           "resourceRevision": "10",
           "keyVersion": 4,
           "memberKeyGeneration": 5,
-          "nonce": "Rv2hKUDGZbbd6Ha85rJSA-kEm_LwLiWW"
+          "nonce": "hhGt1te0PDC-J8ipXCK28TyMmuGB4Ef8"
         },
-        "ciphertext": "aomYco2E2YjEGh3KZ4MMXoqjUhXAsrtAbdAccCsNslK9zFIG_1uwxI8Bu7l4la1k"
+        "ciphertext": "o9BSPgtL3oKx21POHSTxddu44C0xd4I2KjtiCdiTZ9Ga3dE8f4hKB1eryVR_85XE"
       }
     },
     {
@@ -224,11 +224,11 @@
       "type": "VaultPrivateKeyEnvelope",
       "aadProfile": "vault-private-key",
       "keySource": "next VK version 4",
-      "decryptionKeyHex": "f956096519e8f5917540ab3e61a77954b8d6d19fd7bb3ec4bd966351d1bc3fdb",
+      "decryptionKeyHex": "2e6f3f19a21e6e68fb0ca656a34b2fb0cf73d628ad4169519e89e663487bcffd",
       "plaintextType": "VaultManifestSigningSeed/raw-32",
       "plaintextCanonical": null,
-      "plaintextHex": "2e24a2d65a8a397b471509553e3eaad37f877118fddda449c9185d60eebb06b1",
-      "nonceHex": "5d7b89c8af03d7cbe3a9463c86e8fd916ea74e79eabbaaa5",
+      "plaintextHex": "9395e51ea7cf985e1539dc741fd244a72f8c866478f756f294c70ffa5fe6a6fc",
+      "nonceHex": "e0d7c9b1bba97d2f46afc404d836ba0c09f44fac26c00487",
       "aadHex": "504c444e56324144010b000001010002000202010002000103010002000104040010111111111111411181111111111111110504001022222222222242228222222222222222070100020007080300080000000000000009090200040000000a0a020004000000051502000400000004160100020002",
       "aadFields": [
         {
@@ -326,9 +326,9 @@
           "resourceRevision": "9",
           "keyVersion": 10,
           "memberKeyGeneration": 5,
-          "nonce": "XXuJyK8D18vjqUY8huj9kW6nTnnqu6ql"
+          "nonce": "4NfJsbupfS9Gr8QE2Da6DAn0T6wmwASH"
         },
-        "ciphertext": "VnGm2dSiXUEDsBSNcWtQkcjx5TJQonTbDFeWPSiy-_SPLBoezlbn6jLf_zbxQXRn"
+        "ciphertext": "K2LjyoKwAUXsFj2C_z--15ZMrjK1LGJeHuh5_NU8ntKFW6XV_6XK-VaiIfB-vMgf"
       }
     },
     {
@@ -336,11 +336,11 @@
       "type": "VaultDiscoveryKeyEnvelope",
       "aadProfile": "vault-discovery-key",
       "keySource": "next VK version 4",
-      "decryptionKeyHex": "f956096519e8f5917540ab3e61a77954b8d6d19fd7bb3ec4bd966351d1bc3fdb",
+      "decryptionKeyHex": "2e6f3f19a21e6e68fb0ca656a34b2fb0cf73d628ad4169519e89e663487bcffd",
       "plaintextType": "VaultDiscoveryKey/raw-32",
       "plaintextCanonical": null,
-      "plaintextHex": "aca0be26a6b6cfc4a7df9e1e8d454d1d02d575187059a8b28ac616f803e2c69e",
-      "nonceHex": "e61f67589ea557e0171217744768240fa77b9e76feacebfc",
+      "plaintextHex": "a84269e9be847fb7462dee4036075f3d9e09b8c02e74c227dce410124f2806ac",
+      "nonceHex": "1354ff1cc00cfe11c30d5af54cf587af753365fac5b1fd5b",
       "aadHex": "504c444e56324144010a00000101000200020201000200010301000200010404001011111111111141118111111111111111050400102222222222224222822222222222222207010002000c08030008000000000000000609020004000000070a020004000000051502000400000004",
       "aadFields": [
         {
@@ -430,9 +430,9 @@
           "resourceRevision": "6",
           "keyVersion": 7,
           "memberKeyGeneration": 5,
-          "nonce": "5h9nWJ6lV-AXEhd0R2gkD6d7nnb-rOv8"
+          "nonce": "E1T_HMAM_hHDDVr1TPWHr3UzZfrFsf1b"
         },
-        "ciphertext": "Gvam2byIFpDexi0lUk9BiFEt8ZfWjPEymc__v4LyqyYSC7DPyEtaPM0yH4pvPSii"
+        "ciphertext": "JaTkkXDJlvujDzj6DTIf8WHVmpypLxIVzoSoOWpON_4l3qNffyRatmnfvwIVAVm9"
       }
     },
     {
@@ -440,11 +440,11 @@
       "type": "VaultEntryKey",
       "aadProfile": "entry-key-wrapper",
       "keySource": "next VK version 4",
-      "decryptionKeyHex": "f956096519e8f5917540ab3e61a77954b8d6d19fd7bb3ec4bd966351d1bc3fdb",
+      "decryptionKeyHex": "2e6f3f19a21e6e68fb0ca656a34b2fb0cf73d628ad4169519e89e663487bcffd",
       "plaintextType": "EntryDEK/raw-32",
       "plaintextCanonical": null,
-      "plaintextHex": "621c1dfa77dc95aca250f8f0a37eff29dacb9ed0b3e065f1c5c23eeaa686e940",
-      "nonceHex": "929a662c7848fdeb16ce984723efdd404e8b89f0bb05641b",
+      "plaintextHex": "680abc01005027abaa5149bb22fa4ce3e3d57500b755cca301ab8632eddc5314",
+      "nonceHex": "25f90d183d917d6475391fd82cbbbb00810f0c6cfa1b4dec",
       "aadHex": "504c444e56324144010b000001010002000202010002000103010002000204040010111111111111411181111111111111110504001022222222222242228222222222222222060400103333333333334333833333333333333307010002000808030008000000000000000309020004000000050a020004000000051502000400000004",
       "aadFields": [
         {
@@ -542,9 +542,9 @@
           "resourceRevision": "3",
           "keyVersion": 5,
           "memberKeyGeneration": 5,
-          "nonce": "kppmLHhI_esWzphHI-_dQE6LifC7BWQb"
+          "nonce": "JfkNGD2RfWR1OR_YLLu7AIEPDGz6G03s"
         },
-        "wrappedEntryDekByVk": "Fpp5XqgEjz0KVs327nVTTeuDgAU4UV2xDEsOFrjYrZV7FMdE4ReJJY4hwYHp4W7P"
+        "wrappedEntryDekByVk": "-RhmnvG3bOBkY-YSGnceyr-uZVjpYKxHtaFp8uNgoloAomSF6vnKw6EClEFKOt6Q"
       }
     },
     {
@@ -552,11 +552,11 @@
       "type": "AgentDiscoveryEnvelope",
       "aadProfile": "agent-discovery",
       "keySource": "HKDF(agent-discovery, next VDK)",
-      "decryptionKeyHex": "da74e4815cbb9d0bdf41701b37e9b3ba1d611e02a0add95b9b274cc5068ea58d",
+      "decryptionKeyHex": "61a520588ba66cfd02fec793bbdcfab53355f66b37b20e0022cd86228146e338",
       "plaintextType": "AgentDiscoveryPayload",
       "plaintextCanonical": "{\"agentLabel\":\"Database credential\",\"capabilities\":1,\"discoveryFields\":{\"urlDomain\":\"fixture.invalid\",\"username\":\"fixture-user\"},\"entryType\":1}",
       "plaintextHex": "7b226167656e744c6162656c223a2244617461626173652063726564656e7469616c222c226361706162696c6974696573223a312c22646973636f766572794669656c6473223a7b2275726c446f6d61696e223a22666978747572652e696e76616c6964222c22757365726e616d65223a22666978747572652d75736572227d2c22656e74727954797065223a317d",
-      "nonceHex": "36ad853c2274ee2f5cc1cbefcf1ec3798f89a6d5611da425",
+      "nonceHex": "f59a6bac245d52ec05db8c74061c3bd25dc9a25e487665c8",
       "aadHex": "504c444e56324144010a000001010002000202010002000103010002000204040010111111111111411181111111111111110504001022222222222242228222222222222222060400103333333333334333833333333333333307010002000408030008000000000000000d09020004000000070a02000400000005",
       "aadFields": [
         {
@@ -645,9 +645,9 @@
           "resourceRevision": "13",
           "keyVersion": 7,
           "memberKeyGeneration": 5,
-          "nonce": "Nq2FPCJ07i9cwcvvzx7DeY-JptVhHaQl"
+          "nonce": "9ZprrCRdUuwF24x0Bhw70l3Jol5IdmXI"
         },
-        "ciphertext": "v3V4dkF83Ea1cyWkUExhutE1beUHXOIxVRy5GMgop693IEBtHioJCHW3K9pswFCIB061dfmjnbzhWQe7Ukli6ASqb4lP9WFwRuNaEL1KiOERgX62krUW42IZFhlSWvfh0oJ0YX9pbjpXN04engJkr6klaqPeZeixa6_1TKBBSRwmtKfm6FYRx4zkOJIak4O-8OPdJxUEZPjey8cmfhL9"
+        "ciphertext": "f53wuxzfITSayS4m6Wn8x6DbYlNHiNprmCHNL1ocq3VyNqko6kzuFZeLDGHxIaLd2q4CSG3G2p37Toxc4rHHcRlTBze0WKbA4a9LJztdnGRJ1efRnPGRfL3DJAQ4LGmAm8YAbtwMmYxvjC22zp9DX_QBkSYpwszIMQo4IjcyVN80H7ojDZu1ZLqOz_6HdSykr1j6N7C8v46MjKnU90ni"
       }
     },
     {
@@ -655,12 +655,12 @@
       "type": "GrantEntryEnvelope",
       "aadProfile": "grant-payload",
       "keySource": "fresh synthetic rotated GrantDEK",
-      "decryptionKeyHex": "d7e4ec9733dca33c3998ff1db3f6e3c8775cea7e4e15b090453e5f012ac58840",
+      "decryptionKeyHex": "7c6664866ab9ceacf59e9d87d0afe6b31b334a2b3e2f981d6a2e17698cc1c1bc",
       "plaintextType": "FixtureGrantPayload",
       "plaintextCanonical": "{\"approvedMethods\":1,\"entryRevision\":\"12\",\"fields\":{\"password\":\"not-a-real-password\"}}",
       "plaintextHex": "7b22617070726f7665644d6574686f6473223a312c22656e7472795265766973696f6e223a223132222c226669656c6473223a7b2270617373776f7264223a226e6f742d612d7265616c2d70617373776f7264227d7d",
-      "nonceHex": "9dbfc00eae04907adf8bbd4ea29341e9c79c10bacfb8e534",
-      "aadHex": "504c444e563241440112000001010002000202010002000103010002000404040010111111111111411181111111111111110504001022222222222242228222222222222222060400103333333333334333833333333333333307010002000608030008000000000000000409020004000000030a020004000000050b040010666666666666466686666666666666660d040010555555555555455585555555555555550e01000200010f060014323032362d30372d31375430373a30303a30305a1002000400000003110200040000000312050020e7f4ea587c42269ffc62e5b9a85a474fb1564d1e088e37d4353a15a9e5d2880b13030008000000000000000c",
+      "nonceHex": "aac077b6aab86bd8f05abe57135ca26ba9cab38681e4341c",
+      "aadHex": "504c444e563241440112000001010002000202010002000103010002000404040010111111111111411181111111111111110504001022222222222242228222222222222222060400103333333333334333833333333333333307010002000608030008000000000000000409020004000000030a020004000000050b040010666666666666466686666666666666660d040010555555555555455585555555555555550e01000200010f060014323032362d30372d31375430373a30303a30305a1002000400000003110200040000000312050020a56cce6981d0fde4011c90de0f12f19ac46786c4481f6e4d48975020fd0e92f613030008000000000000000c",
       "aadFields": [
         {
           "tag": 1,
@@ -778,8 +778,8 @@
           "tag": 18,
           "type": "bytes",
           "typeCode": 5,
-          "value": "5_TqWHxCJp_8YuW5qFpHT7FWTR4IjjfUNToVqeXSiAs",
-          "valueHex": "e7f4ea587c42269ffc62e5b9a85a474fb1564d1e088e37d4353a15a9e5d2880b"
+          "value": "pWzOaYHQ_eQBHJDeDxLxmsRnhsRIH25NSJdQIP0OkvY",
+          "valueHex": "a56cce6981d0fde4011c90de0f12f19ac46786c4481f6e4d48975020fd0e92f6"
         },
         {
           "tag": 19,
@@ -804,8 +804,8 @@
         "useLimit": 3,
         "remainingUses": 3,
         "recipientAgentKeyVersion": 3,
-        "recipientAgentKeyFingerprint": "5_TqWHxCJp_8YuW5qFpHT7FWTR4IjjfUNToVqeXSiAs",
-        "agentWrappedGrantDek": "TamE-Nspp1ys4-xAfqZGxaHjNpZ26PDkSJIrGXMPAnSF-MdyIgbQS3KRQURa80vVgEltSg2lyoRpAFgvcXKLfbjbOloZNl0LNkorRU3PwE8",
+        "recipientAgentKeyFingerprint": "pWzOaYHQ_eQBHJDeDxLxmsRnhsRIH25NSJdQIP0OkvY",
+        "agentWrappedGrantDek": "-ju9eaV4mAGcKBn8TCkoc775ayBxY_16XqNUkloUokYdiAW3HLIx_Vc9OSdL3Gw-WXD3F7rOFBSYgKvn3wO_dpAOd9oR94EQ6HkXccruY-U",
         "header": {
           "protocolVersion": 2,
           "algorithmSuite": 1,
@@ -814,9 +814,9 @@
           "resourceRevision": "4",
           "keyVersion": 3,
           "memberKeyGeneration": 5,
-          "nonce": "nb_ADq4EkHrfi71OopNB6cecELrPuOU0"
+          "nonce": "qsB3tqq4a9jwWr5XE1yia6nKs4aB5DQc"
         },
-        "ciphertext": "nAlYzANF3GzS_NGZ_V4m5dzjaaL0MKByddm-wRaeYpRqqKm34Ql7wOEGqqAqQ81AjuntHBmeKg55H4L1ZsVrp_xcM355OOzdw9h_cYupjM-dLRGF2ClOTXGbWnFnVTiMID6qj3Ub"
+        "ciphertext": "6fxbLfxKgQ03Ajmzzb9tUCfD-yztO8qMa7wCeQfktoQuHm65GeH8QLyvH5hveM-fSy-59pIOaTRPwMyyq5XnswghGNP0a3PgkuQJUWRWmD3KM-_lK9pItpNq2vQDgG1qmscLKd_m"
       }
     }
   ],
@@ -825,9 +825,9 @@
       "id": "rotation-member-vault-key",
       "type": "MemberVaultKeyEnvelope",
       "plaintextType": "VaultKeyPackagePayload",
-      "recipientPublicKeyHex": "044e05aa8eee253c1f1990665caeebb1f344df5930cb4c8cd3daa1f1d18bd212",
-      "recipientPrivateKeyHex": "09ce645f5e54368105c69780eac7b837e10319632fb882ae62fede025e429999",
-      "plaintextCanonical": "{\"memberId\":\"44444444-4444-4444-8444-444444444444\",\"memberKeyGeneration\":5,\"organizationId\":\"11111111-1111-4111-8111-111111111111\",\"protocolVersion\":2,\"vaultId\":\"22222222-2222-4222-8222-222222222222\",\"vaultKey\":\"-VYJZRno9ZF1QKs-Yad5VLjW0Z_Xuz7EvZZjUdG8P9s\",\"vkVersion\":4}",
+      "recipientPublicKeyHex": "8d1c356db53a7c8e447d613fea006c123e9902e7b20e2ff42ce6a8c1a9c14938",
+      "recipientPrivateKeyHex": "dd52a0b2d1c4020fb11fac09ed1ece88d4dfc7e95848a7fd4e4357a925a04385",
+      "plaintextCanonical": "{\"memberId\":\"44444444-4444-4444-8444-444444444444\",\"memberKeyGeneration\":5,\"organizationId\":\"11111111-1111-4111-8111-111111111111\",\"protocolVersion\":2,\"vaultId\":\"22222222-2222-4222-8222-222222222222\",\"vaultKey\":\"Lm8_GaIebmj7DKZWo0svsM9z1iitQWlRnonmY0h7z_0\",\"vkVersion\":4}",
       "envelope": {
         "protocolVersion": 2,
         "algorithmSuite": 1,
@@ -837,17 +837,17 @@
         "vkVersion": 4,
         "memberKeyGeneration": 5,
         "recipientMemberKeyVersion": 2,
-        "recipientMemberKeyFingerprint": "kMtix1fwHouJJYm3dfCyTe28XAG7lT3aYS18rqPZKBM",
-        "sealedVaultKeyPackage": "ftDnGWEOJMTFnbfiQMI9b_UroUKWlKuN5L0Sq_uhJTq7Muz_35-x3UdagvurkeCiA7eBIRG2iF9uFuZWQj4AeWAEta3kNDP4KpSgLCurs2Q3jiVE789Ulouky0OKcxjQ6oBHbovVHvDd80rFpF0KStCCdxli-Fy4HBZjT2UUxTBA7xdX2QW0vSE_lqyAfOJWy0WngNCW_e2rQx4uZzeSaOkTAKf3M4xPbPTT6HPTkKvGpoos5aogUjqxHDcbg66zwTkE5btRGiEvUpB_gSDPQIUOmhJ4lJmfE8vBi-c_8kNWwM2VBJ83gcE2XHqEDvCeiBeClhAbEqHSz_6HSbEO7gilVQFembdCVVijVp07nCUtnSCcpKvENM1IRJ7GOTSqy-UK41su7E82rTZ-tqIgtQbE0DiIB3jTLOGz5y2FGg"
+        "recipientMemberKeyFingerprint": "gZ5OayR-tFuQM5yAJWWdC4vV_2IGHZnhIEN0B22_v84",
+        "sealedVaultKeyPackage": "6SuNn5LoeUqimkfjqQLNYj0qI2lk7HmkkHLcNkaWvSa88q94lm1B1oSqUc2qKHDOEA6I0LhLPJ9r1hCklno5iIn2COTvu61Eu-jL4zKpXgvfk5C9QHRqIouXDFNW68VugBDB9cNGvLEP3XGgYKUpCEVWckw5LPZAirw0br7tc4vXuxVVZD2E6IDuH-noB81_ULXhUmkyoiGS6Vt4v_04XNwmObrEfnPFU4Oju-TQUoPSJGcUIARHKZbCUd9RVokks2u4emvpLhN-btJMts-0IxzUY_ljMzkHlgQ2_wiuZd4qKTWEMQbNDbFpJN5zEw1Pj-jaIMnLSVy-PcB__VZvAUvYXR9cHLKPgNPl3vhw7evZa83_idn2FryG6QTxd7Bo9Fy10eFlFnhSfoGH3OVXMfSjiZ-aLkOtSGGqoIvLDQ"
       }
     },
     {
       "id": "rotation-agent-vault-discovery",
       "type": "AgentVaultDiscoveryEnvelope",
       "plaintextType": "AgentVdkPackagePayload",
-      "recipientPublicKeyHex": "00a1c45c5bb331818c82c133a1cd4140698634be09d8dd0a55b7238155327161",
-      "recipientPrivateKeyHex": "d2bfcbd8f8dadf5996863e0d62d9b6b6906e532aba030b9a82a296865d06c21a",
-      "plaintextCanonical": "{\"agentId\":\"55555555-5555-4555-8555-555555555555\",\"organizationId\":\"11111111-1111-4111-8111-111111111111\",\"protocolVersion\":2,\"vaultId\":\"22222222-2222-4222-8222-222222222222\",\"vdk\":\"rKC-Jqa2z8Sn354ejUVNHQLVdRhwWaiyisYW-APixp4\",\"vdkVersion\":7}",
+      "recipientPublicKeyHex": "5868142c7c80f677846b55f5e4a13a962a04816b2957df049f377a99d3008c12",
+      "recipientPrivateKeyHex": "0e436614f9067bdfa9d095bc826bf866a5c66268de39466e9d094f5b0885344a",
+      "plaintextCanonical": "{\"agentId\":\"55555555-5555-4555-8555-555555555555\",\"organizationId\":\"11111111-1111-4111-8111-111111111111\",\"protocolVersion\":2,\"vaultId\":\"22222222-2222-4222-8222-222222222222\",\"vdk\":\"qEJp6b6Ef7dGLe5ANgdfPZ4JuMAudMIn3OQQEk8oBqw\",\"vdkVersion\":7}",
       "envelope": {
         "protocolVersion": 2,
         "organizationId": "11111111-1111-4111-8111-111111111111",
@@ -856,10 +856,10 @@
         "vdkVersion": 7,
         "algorithmSuite": 1,
         "recipientAgentKeyVersion": 3,
-        "recipientAgentKeyFingerprint": "5_TqWHxCJp_8YuW5qFpHT7FWTR4IjjfUNToVqeXSiAs",
-        "agentWrappedVdk": "OJ5nAYSQFwTwVUCfXRREeECoelxPtFSSGBNdNHf_qQiFiCeZT_tkiMEuzw8ONw0v2fcyg8oN0ibsXNT1gQN_HIlCCEvRNZZq0ufXZiWJPdn776kES3azQ2JE2QQD-FV117r9B221MmbbjGLngHGNdROqvEGmjbPRApzLIh497TWQupaWJSEX32izR7vFIDEefzKvUnLLyOcfx1Is7tVAeGbA2pviMb58V2V4D6P4o42GS3kchCyV-fyxiDUGk1t7d6mhYbG_FZHG4_kKa6xbsyTDJjzWAsRog14VwK2RKSO37WeqLcpDsjIKzdmj4DrTUJx1_BiAAYvy8pv-qIN6jUo1GipJQL0vVJ2jaC-JlTPXv2qrY9plf0oipvK1x4jxjrc",
+        "recipientAgentKeyFingerprint": "pWzOaYHQ_eQBHJDeDxLxmsRnhsRIH25NSJdQIP0OkvY",
+        "agentWrappedVdk": "mNgFVXmbl3_DzZ_hObXCr4pWSMv06x7JkX46lFv1xzBwEOgwa_zjawcjlJ9yknp5h3IMzr0gGhh7GGxYXCFGJR9KJMQGH2rAyV28SP1d7hSAoa-DgPtVtZiqBUPzWZg4udu3saVBgTyJwu853_gbMVblZSPmrL__PEQQW5y5JlQhRGdK3un21rCyEiYJ_oFvre9jAmwYsoG7Mhco_OHCjR9ImPZoHyFCLy9YGY8TDz1iYMioX0MoLEuTon3Ou4fhRCImpiFM0bs4-NeiOv48N0jPDVGwzwGqpDzPMMiRnbDkIAo0c_DmlM2Uk5Oq3CDeWHAJnNGjwnbQXsY8AECRjjbRKord7ok1o9Cp91d7qxVrDKZgq1SScAZ83JVEC3Q2XEA",
         "manifestRevision": "15",
-        "manifestSignature": "LzcK30yaqnnI4r19g-VYEj_j6A6aGkh2I_phyEiCiQyQ7UcR07pmcUmiX7wxOqJSrjRkM5ZT-dSoBJFlZdz2Ag"
+        "manifestSignature": "PuQLHdK9M7z9K0IsTaGBULWVJWlE49AfePnjSYGZqzlUTAhNhX88_fxV8f46s1n1UF1Hzz7IHxrQnHebBkWBDQ"
       }
     }
   ],
@@ -869,20 +869,20 @@
     "organizationId": "11111111-1111-4111-8111-111111111111",
     "vaultId": "22222222-2222-4222-8222-222222222222",
     "agentId": "55555555-5555-4555-8555-555555555555",
-    "agentX25519Fingerprint": "5_TqWHxCJp_8YuW5qFpHT7FWTR4IjjfUNToVqeXSiAs",
-    "agentEd25519Fingerprint": "D6cpTuaLNE0XaYY0vhZ7GBNMr7VE32LS3X0-qBO_824",
-    "vaultSigningPublicKey": "nn1Qipr0ypwJU_gwZDtD3AAqkYnwDOgyJHjsUqkSM4o",
-    "vaultSigningKeyFingerprint": "V38yHQ2xLEZzj6uNxHlfd8iKR6enB_RjpRczpneBdZY",
+    "agentX25519Fingerprint": "pWzOaYHQ_eQBHJDeDxLxmsRnhsRIH25NSJdQIP0OkvY",
+    "agentEd25519Fingerprint": "8obiCg4DxlLfKTEAPxNP5__cWM1ZensfalmbtlBZ_J0",
+    "vaultSigningPublicKey": "E8pzEDsfK68cFqvHcGnwY3ae2X-4iLwGDatzk24cwow",
+    "vaultSigningKeyFingerprint": "i4g9tYx7GjcCH0OGSoTE7jx7O7FAMfCRlF_fS1oA7Gs",
     "manifestSigningKeyVersion": 10,
-    "vaultAgentMessagePublicKey": "Mv3gb82XhfM580qeQ0CgjGHwnFs-pkMCX_RrW9zANzw",
-    "vaultAgentMessageKeyFingerprint": "ojHRS-__tD-sMNLFWJ_iiO8fO5gY8Oh16JyAYSG5dsE",
+    "vaultAgentMessagePublicKey": "JCD3kJZhLVj2wLHek9xbK2z2w4imDoge8j5PBfFOnxQ",
+    "vaultAgentMessageKeyFingerprint": "c6yjnYutydAFrmm3K2M-tIEd6-rWOYa90zuNLN2_544",
     "agentMessageKeyVersion": 4,
     "vdkVersion": 7,
-    "agentWrappedVdkDigest": "fMoDY9-AJMPCHpvVQYHO2m44kuNuGvbDWXs0Wr9M_5M",
+    "agentWrappedVdkDigest": "pkrqTfnKwhLQDAVCJkYjTxwsi09gRryB4HUSDzTYkfo",
     "manifestRevision": "15",
     "issuedAt": "2026-07-17T06:05:00Z",
     "minimumAgentRuntimeProtocol": 2,
-    "signature": "LzcK30yaqnnI4r19g-VYEj_j6A6aGkh2I_phyEiCiQyQ7UcR07pmcUmiX7wxOqJSrjRkM5ZT-dSoBJFlZdz2Ag"
+    "signature": "PuQLHdK9M7z9K0IsTaGBULWVJWlE49AfePnjSYGZqzlUTAhNhX88_fxV8f46s1n1UF1Hzz7IHxrQnHebBkWBDQ"
   },
   "completenessRecords": {
     "remainingMemberIds": [
@@ -910,13 +910,13 @@
   "digestVectors": [
     {
       "name": "agent-wrapped-vdk",
-      "inputHex": "504c444e563244473a4147454e542d575241505045442d56444b3a0002389e670184901704f055409f5d14447840a87a5c4fb4549218135d3477ffa908858827994ffb6488c12ecf0f0e370d2fd9f73283ca0dd226ec5cd4f581037f1c8942084bd135966ad2e7d76625893dd9fbefa9044b76b3436244d90403f85575d7bafd076db53266db8c62e780718d7513aabc41a68db3d1029ccb221e3ded3590ba9696252117df68b347bbc520311e7f32af5272cbc8e71fc7522ceed5407866c0da9be231be7c5765780fa3f8a38d864b791c842c95f9fcb1883506935b7b77a9a161b1bf1591c6e3f90a6bac5bb324c3263cd602c468835e15c0ad912923b7ed67aa2dca43b2320acdd9a3e03ad3509c75fc1880018bf2f29bfea8837a8d4a351a2a4940bd2f549da3682f899533d7bf6aab63da657f4a22a6f2b5c788f18eb7",
-      "outputHex": "7cca0363df8024c3c21e9bd54181ceda6e3892e36e1af6c3597b345abf4cff93"
+      "inputHex": "504c444e563244473a4147454e542d575241505045442d56444b3a000298d80555799b977fc3cd9fe139b5c2af8a5648cbf4eb1ec9917e3a945bf5c7307010e8306bfce36b0723949f72927a7987720ccebd201a187b186c585c2146251f4a24c4061f6ac0c95dbc48fd5dee1480a1af8380fb55b598aa0543f3599838b9dbb7b1a541813c89c2ef39dff81b3156e56523e6acbfff3c44105b9cb926542144674adee9f6d6b0b2122609fe816fadef63026c18b281bb321728fce1c28d1f4898f6681f21422f2f58198f130f3d6260c8a85f43282c4b93a27dcebb87e1442226a6214cd1bb38f8d7a23afe3c3748cf0d51b0cf01aaa43ccf30c8919db0e4200a3473f0e694cd949393aadc20de5870099cd1a3c276d05ec63c0040918e36d12a8addee8935a3d0a9f7577bab156b0ca660ab549270067cdc95440b74365c40",
+      "outputHex": "a64aea4df9cac212d00c05422646234f1c2c8b4f6046bc81e075120f34d891fa"
     },
     {
       "name": "rotation-batch",
-      "inputHex": "504c444e563244473a524f544154494f4e2d42415443483a00028888888888884888888888888888888800000000000a4ae7c91f70be95bc98f3d8460693bb4018fa6ddd363af19ee8567ad15670f5dab4395d256bda4e8c7c720061932a08daee4dfa70ce6ef9ffe792d81aaace8f4cbc1a7f6b3c8a2ac87ba0996820319554487cdb04023bc86d45f4945c73413cb997bea6873550146295702282172b561458f680003ab44e5883b5f1dcbc1bf79817219509e571f048dc3fd1d2ba5b56294142055c1cc85cea50aa674ae1cf03d8afc595c12e6ce286a1bbbd68116708d49dc13f85f618b0b46791ff779e5ea7c8b6a9b6ec2b225640bd901cb13eedd1fa3783a60520193c9990cba80de235e8846a3c5cbcd832ba8cd877e96efd4f99bc7d14bf4cd6f733858bf10c0035020507c5cc65da02a7a82c7264ee59f201fda4d089788393d6bc0cd93460457721c4ba5100d3ff32820b5a53507fa18b0bbfa9d99443c2b584087908fc10f349215335",
-      "outputHex": "0a2bc2155d5c7258a108b4b9c1bbf081a7b8a53819524e651614b20da39128f9"
+      "inputHex": "504c444e563244473a524f544154494f4e2d42415443483a00028888888888884888888888888888888800000000000aabed2fcca9d74a7521170f5993d7b3b8621f35fbed05cb91ceb3a4dcd903542cddfcde49711e991a7c9441e3c47d4764ee2870cef7545b616cc314513b4ffd1b5dfca1e6abe4ce5bf0cca4b8c7700498689825b6005636d174587edbdf29d69d271a8a0e6f63cd9f7adfb9c68cfcaa29cf5b279b858a06498172353b327a33cae5be0784a0f85182dc4ba6f4ca174bf69be16c465e74422c90b928870d53a04775256d83096ed22e6fcd0fd79cbb1cc061f128c8a4de596e76269bd95ae60b8f63a1e25b5cea20b51b8f542c9b340ba81241026433d09e8472544bf8d0f78347cd922761e7877800c69301a0594492e5e867888eecafb566e5199ec5ad925cdf63a920090437f26ebd39168c8d11f2fa07b61870cb9e1dff10e4303a3a41602b4ca3c5f2a6bf83dcf7baf55bc60ddbd9f7abb084a979ae945236cae429fd13d5",
+      "outputHex": "0aba279193073b25d7144e77091c72b7cc94d26299ad758d21502ad5eee4b52f"
     },
     {
       "name": "remaining-member-set",
@@ -944,7 +944,7 @@
     "vaultId": "22222222-2222-4222-8222-222222222222",
     "rotationId": "88888888-8888-4888-8888-888888888888",
     "leaseId": "99999999-9999-4999-8999-999999999999",
-    "fencingToken": "j1T8hWVPXOVraoXw0FyxcmcPAtq7UXyNIWTQ9AqMaiU",
+    "fencingToken": "9jhCRNQzFO5ENtwfUvwMc_RQmxd86JtZkjl-R_3MeWQ",
     "expectedRotationRevision": "21",
     "batchIndex": 0,
     "items": [
@@ -962,11 +962,11 @@
             "vkVersion": 4,
             "memberKeyGeneration": 5,
             "recipientMemberKeyVersion": 2,
-            "recipientMemberKeyFingerprint": "kMtix1fwHouJJYm3dfCyTe28XAG7lT3aYS18rqPZKBM",
-            "sealedVaultKeyPackage": "ftDnGWEOJMTFnbfiQMI9b_UroUKWlKuN5L0Sq_uhJTq7Muz_35-x3UdagvurkeCiA7eBIRG2iF9uFuZWQj4AeWAEta3kNDP4KpSgLCurs2Q3jiVE789Ulouky0OKcxjQ6oBHbovVHvDd80rFpF0KStCCdxli-Fy4HBZjT2UUxTBA7xdX2QW0vSE_lqyAfOJWy0WngNCW_e2rQx4uZzeSaOkTAKf3M4xPbPTT6HPTkKvGpoos5aogUjqxHDcbg66zwTkE5btRGiEvUpB_gSDPQIUOmhJ4lJmfE8vBi-c_8kNWwM2VBJ83gcE2XHqEDvCeiBeClhAbEqHSz_6HSbEO7gilVQFembdCVVijVp07nCUtnSCcpKvENM1IRJ7GOTSqy-UK41su7E82rTZ-tqIgtQbE0DiIB3jTLOGz5y2FGg"
+            "recipientMemberKeyFingerprint": "gZ5OayR-tFuQM5yAJWWdC4vV_2IGHZnhIEN0B22_v84",
+            "sealedVaultKeyPackage": "6SuNn5LoeUqimkfjqQLNYj0qI2lk7HmkkHLcNkaWvSa88q94lm1B1oSqUc2qKHDOEA6I0LhLPJ9r1hCklno5iIn2COTvu61Eu-jL4zKpXgvfk5C9QHRqIouXDFNW68VugBDB9cNGvLEP3XGgYKUpCEVWckw5LPZAirw0br7tc4vXuxVVZD2E6IDuH-noB81_ULXhUmkyoiGS6Vt4v_04XNwmObrEfnPFU4Oju-TQUoPSJGcUIARHKZbCUd9RVokks2u4emvpLhN-btJMts-0IxzUY_ljMzkHlgQ2_wiuZd4qKTWEMQbNDbFpJN5zEw1Pj-jaIMnLSVy-PcB__VZvAUvYXR9cHLKPgNPl3vhw7evZa83_idn2FryG6QTxd7Bo9Fy10eFlFnhSfoGH3OVXMfSjiZ-aLkOtSGGqoIvLDQ"
           }
         },
-        "payloadDigest": "SufJH3C-lbyY89hGBpO7QBj6bd02OvGe6FZ60VZw9do"
+        "payloadDigest": "q-0vzKnXSnUhFw9Zk9ezuGIfNfvtBcuRzrOk3NkDVCw"
       },
       {
         "itemKind": "member-vault-metadata",
@@ -985,12 +985,12 @@
               "resourceRevision": "8",
               "keyVersion": 4,
               "memberKeyGeneration": 5,
-              "nonce": "5vzfBYK68n2y0rnYZecKH82agq2_5c0Q"
+              "nonce": "LKPDrAX66o1_YckETcoXh0TzRnhJegYh"
             },
-            "ciphertext": "XvJ4ExAWsAezLexwdJLQihF1o-Jx8Oc5QQXe-R3eEkj3YlAU5Woh9IxKmuWi5tSDB90T-yhZOiHRl0FLhj2lp1Zc0cevBGzEn_muJWlBcMFxRHDTg4fUIdrC2X1GiWYLpiXoCKcxNUGFgg6Ls9bFXjArBO4TEcTSJO9RR70ORXbGNEPOMFGC_g"
+            "ciphertext": "0lal4_0ZqrFFec8Y5OqbCCPU_zqgwyVKjgeVKcqL-_6g4-8-8Kdw0LD4D-l9m5AjEV2Djh9sElqaSlkjm8qJCiHyiQP2GiMs5qKvu3g-L8EQ23XPDmBSJengIQEWMV436qowlOUvGlaCJ78vr4rCwn3c4upSgdtZ0cj1Y9GobASL4bWifWV1fw"
           }
         },
-        "payloadDigest": "tDldJWvaTox8cgBhkyoI2u5N-nDObvn_55LYGqrOj0w"
+        "payloadDigest": "3fzeSXEemRp8lEHjxH1HZO4ocM73VFthbMMUUTtP_Rs"
       },
       {
         "itemKind": "vault-private-key",
@@ -1013,12 +1013,12 @@
               "resourceRevision": "10",
               "keyVersion": 4,
               "memberKeyGeneration": 5,
-              "nonce": "Rv2hKUDGZbbd6Ha85rJSA-kEm_LwLiWW"
+              "nonce": "hhGt1te0PDC-J8ipXCK28TyMmuGB4Ef8"
             },
-            "ciphertext": "aomYco2E2YjEGh3KZ4MMXoqjUhXAsrtAbdAccCsNslK9zFIG_1uwxI8Bu7l4la1k"
+            "ciphertext": "o9BSPgtL3oKx21POHSTxddu44C0xd4I2KjtiCdiTZ9Ga3dE8f4hKB1eryVR_85XE"
           }
         },
-        "payloadDigest": "vBp_azyKKsh7oJloIDGVVEh82wQCO8htRfSUXHNBPLk"
+        "payloadDigest": "Xfyh5qvkzlvwzKS4x3AEmGiYJbYAVjbRdFh-298p1p0"
       },
       {
         "itemKind": "vault-private-key",
@@ -1041,12 +1041,12 @@
               "resourceRevision": "9",
               "keyVersion": 10,
               "memberKeyGeneration": 5,
-              "nonce": "XXuJyK8D18vjqUY8huj9kW6nTnnqu6ql"
+              "nonce": "4NfJsbupfS9Gr8QE2Da6DAn0T6wmwASH"
             },
-            "ciphertext": "VnGm2dSiXUEDsBSNcWtQkcjx5TJQonTbDFeWPSiy-_SPLBoezlbn6jLf_zbxQXRn"
+            "ciphertext": "K2LjyoKwAUXsFj2C_z--15ZMrjK1LGJeHuh5_NU8ntKFW6XV_6XK-VaiIfB-vMgf"
           }
         },
-        "payloadDigest": "l76mhzVQFGKVcCKCFytWFFj2gAA6tE5Yg7Xx3Lwb95g"
+        "payloadDigest": "JxqKDm9jzZ9637nGjPyqKc9bJ5uFigZJgXI1OzJ6M8o"
       },
       {
         "itemKind": "vault-entry-key",
@@ -1070,12 +1070,12 @@
               "resourceRevision": "3",
               "keyVersion": 5,
               "memberKeyGeneration": 5,
-              "nonce": "kppmLHhI_esWzphHI-_dQE6LifC7BWQb"
+              "nonce": "JfkNGD2RfWR1OR_YLLu7AIEPDGz6G03s"
             },
-            "wrappedEntryDekByVk": "Fpp5XqgEjz0KVs327nVTTeuDgAU4UV2xDEsOFrjYrZV7FMdE4ReJJY4hwYHp4W7P"
+            "wrappedEntryDekByVk": "-RhmnvG3bOBkY-YSGnceyr-uZVjpYKxHtaFp8uNgoloAomSF6vnKw6EClEFKOt6Q"
           }
         },
-        "payloadDigest": "FyGVCeVx8EjcP9HSultWKUFCBVwcyFzqUKpnSuHPA9g"
+        "payloadDigest": "5b4HhKD4UYLcS6b0yhdL9pvhbEZedEIskLkohw1ToEc"
       },
       {
         "itemKind": "agent-discovery",
@@ -1097,12 +1097,12 @@
               "resourceRevision": "13",
               "keyVersion": 7,
               "memberKeyGeneration": 5,
-              "nonce": "Nq2FPCJ07i9cwcvvzx7DeY-JptVhHaQl"
+              "nonce": "9ZprrCRdUuwF24x0Bhw70l3Jol5IdmXI"
             },
-            "ciphertext": "v3V4dkF83Ea1cyWkUExhutE1beUHXOIxVRy5GMgop693IEBtHioJCHW3K9pswFCIB061dfmjnbzhWQe7Ukli6ASqb4lP9WFwRuNaEL1KiOERgX62krUW42IZFhlSWvfh0oJ0YX9pbjpXN04engJkr6klaqPeZeixa6_1TKBBSRwmtKfm6FYRx4zkOJIak4O-8OPdJxUEZPjey8cmfhL9"
+            "ciphertext": "f53wuxzfITSayS4m6Wn8x6DbYlNHiNprmCHNL1ocq3VyNqko6kzuFZeLDGHxIaLd2q4CSG3G2p37Toxc4rHHcRlTBze0WKbA4a9LJztdnGRJ1efRnPGRfL3DJAQ4LGmAm8YAbtwMmYxvjC22zp9DX_QBkSYpwszIMQo4IjcyVN80H7ojDZu1ZLqOz_6HdSykr1j6N7C8v46MjKnU90ni"
           }
         },
-        "payloadDigest": "r8WVwS5s4oahu71oEWcI1J3BP4X2GLC0Z5H_d55ep8g"
+        "payloadDigest": "dSVtgwlu0i5vzQ_XnLscwGHxKMik3lludiab2VrmC48"
       },
       {
         "itemKind": "agent-vault-discovery",
@@ -1117,13 +1117,13 @@
             "vdkVersion": 7,
             "algorithmSuite": 1,
             "recipientAgentKeyVersion": 3,
-            "recipientAgentKeyFingerprint": "5_TqWHxCJp_8YuW5qFpHT7FWTR4IjjfUNToVqeXSiAs",
-            "agentWrappedVdk": "OJ5nAYSQFwTwVUCfXRREeECoelxPtFSSGBNdNHf_qQiFiCeZT_tkiMEuzw8ONw0v2fcyg8oN0ibsXNT1gQN_HIlCCEvRNZZq0ufXZiWJPdn776kES3azQ2JE2QQD-FV117r9B221MmbbjGLngHGNdROqvEGmjbPRApzLIh497TWQupaWJSEX32izR7vFIDEefzKvUnLLyOcfx1Is7tVAeGbA2pviMb58V2V4D6P4o42GS3kchCyV-fyxiDUGk1t7d6mhYbG_FZHG4_kKa6xbsyTDJjzWAsRog14VwK2RKSO37WeqLcpDsjIKzdmj4DrTUJx1_BiAAYvy8pv-qIN6jUo1GipJQL0vVJ2jaC-JlTPXv2qrY9plf0oipvK1x4jxjrc",
+            "recipientAgentKeyFingerprint": "pWzOaYHQ_eQBHJDeDxLxmsRnhsRIH25NSJdQIP0OkvY",
+            "agentWrappedVdk": "mNgFVXmbl3_DzZ_hObXCr4pWSMv06x7JkX46lFv1xzBwEOgwa_zjawcjlJ9yknp5h3IMzr0gGhh7GGxYXCFGJR9KJMQGH2rAyV28SP1d7hSAoa-DgPtVtZiqBUPzWZg4udu3saVBgTyJwu853_gbMVblZSPmrL__PEQQW5y5JlQhRGdK3un21rCyEiYJ_oFvre9jAmwYsoG7Mhco_OHCjR9ImPZoHyFCLy9YGY8TDz1iYMioX0MoLEuTon3Ou4fhRCImpiFM0bs4-NeiOv48N0jPDVGwzwGqpDzPMMiRnbDkIAo0c_DmlM2Uk5Oq3CDeWHAJnNGjwnbQXsY8AECRjjbRKord7ok1o9Cp91d7qxVrDKZgq1SScAZ83JVEC3Q2XEA",
             "manifestRevision": "15",
-            "manifestSignature": "LzcK30yaqnnI4r19g-VYEj_j6A6aGkh2I_phyEiCiQyQ7UcR07pmcUmiX7wxOqJSrjRkM5ZT-dSoBJFlZdz2Ag"
+            "manifestSignature": "PuQLHdK9M7z9K0IsTaGBULWVJWlE49AfePnjSYGZqzlUTAhNhX88_fxV8f46s1n1UF1Hzz7IHxrQnHebBkWBDQ"
           }
         },
-        "payloadDigest": "tqm27CsiVkC9kByxPu3R-jeDpgUgGTyZkMuoDeI16IQ"
+        "payloadDigest": "Y6HiW1zqILUbj1QsmzQLqBJBAmQz0J6EclRL-ND3g0c"
       },
       {
         "itemKind": "grant-entry",
@@ -1145,8 +1145,8 @@
             "useLimit": 3,
             "remainingUses": 3,
             "recipientAgentKeyVersion": 3,
-            "recipientAgentKeyFingerprint": "5_TqWHxCJp_8YuW5qFpHT7FWTR4IjjfUNToVqeXSiAs",
-            "agentWrappedGrantDek": "TamE-Nspp1ys4-xAfqZGxaHjNpZ26PDkSJIrGXMPAnSF-MdyIgbQS3KRQURa80vVgEltSg2lyoRpAFgvcXKLfbjbOloZNl0LNkorRU3PwE8",
+            "recipientAgentKeyFingerprint": "pWzOaYHQ_eQBHJDeDxLxmsRnhsRIH25NSJdQIP0OkvY",
+            "agentWrappedGrantDek": "-ju9eaV4mAGcKBn8TCkoc775ayBxY_16XqNUkloUokYdiAW3HLIx_Vc9OSdL3Gw-WXD3F7rOFBSYgKvn3wO_dpAOd9oR94EQ6HkXccruY-U",
             "header": {
               "protocolVersion": 2,
               "algorithmSuite": 1,
@@ -1155,12 +1155,12 @@
               "resourceRevision": "4",
               "keyVersion": 3,
               "memberKeyGeneration": 5,
-              "nonce": "nb_ADq4EkHrfi71OopNB6cecELrPuOU0"
+              "nonce": "qsB3tqq4a9jwWr5XE1yia6nKs4aB5DQc"
             },
-            "ciphertext": "nAlYzANF3GzS_NGZ_V4m5dzjaaL0MKByddm-wRaeYpRqqKm34Ql7wOEGqqAqQ81AjuntHBmeKg55H4L1ZsVrp_xcM355OOzdw9h_cYupjM-dLRGF2ClOTXGbWnFnVTiMID6qj3Ub"
+            "ciphertext": "6fxbLfxKgQ03Ajmzzb9tUCfD-yztO8qMa7wCeQfktoQuHm65GeH8QLyvH5hveM-fSy-59pIOaTRPwMyyq5XnswghGNP0a3PgkuQJUWRWmD3KM-_lK9pItpNq2vQDgG1qmscLKd_m"
           }
         },
-        "payloadDigest": "ajxcvNgyuozYd-lu_U-ZvH0Uv0zW9zOFi_EMADUCBQc"
+        "payloadDigest": "zZInYeeHeADGkwGgWUSS5ehniI7sr7Vm5Rmexa2SXN8"
       },
       {
         "itemKind": "vault-manifest",
@@ -1173,23 +1173,23 @@
             "organizationId": "11111111-1111-4111-8111-111111111111",
             "vaultId": "22222222-2222-4222-8222-222222222222",
             "agentId": "55555555-5555-4555-8555-555555555555",
-            "agentX25519Fingerprint": "5_TqWHxCJp_8YuW5qFpHT7FWTR4IjjfUNToVqeXSiAs",
-            "agentEd25519Fingerprint": "D6cpTuaLNE0XaYY0vhZ7GBNMr7VE32LS3X0-qBO_824",
-            "vaultSigningPublicKey": "nn1Qipr0ypwJU_gwZDtD3AAqkYnwDOgyJHjsUqkSM4o",
-            "vaultSigningKeyFingerprint": "V38yHQ2xLEZzj6uNxHlfd8iKR6enB_RjpRczpneBdZY",
+            "agentX25519Fingerprint": "pWzOaYHQ_eQBHJDeDxLxmsRnhsRIH25NSJdQIP0OkvY",
+            "agentEd25519Fingerprint": "8obiCg4DxlLfKTEAPxNP5__cWM1ZensfalmbtlBZ_J0",
+            "vaultSigningPublicKey": "E8pzEDsfK68cFqvHcGnwY3ae2X-4iLwGDatzk24cwow",
+            "vaultSigningKeyFingerprint": "i4g9tYx7GjcCH0OGSoTE7jx7O7FAMfCRlF_fS1oA7Gs",
             "manifestSigningKeyVersion": 10,
-            "vaultAgentMessagePublicKey": "Mv3gb82XhfM580qeQ0CgjGHwnFs-pkMCX_RrW9zANzw",
-            "vaultAgentMessageKeyFingerprint": "ojHRS-__tD-sMNLFWJ_iiO8fO5gY8Oh16JyAYSG5dsE",
+            "vaultAgentMessagePublicKey": "JCD3kJZhLVj2wLHek9xbK2z2w4imDoge8j5PBfFOnxQ",
+            "vaultAgentMessageKeyFingerprint": "c6yjnYutydAFrmm3K2M-tIEd6-rWOYa90zuNLN2_544",
             "agentMessageKeyVersion": 4,
             "vdkVersion": 7,
-            "agentWrappedVdkDigest": "fMoDY9-AJMPCHpvVQYHO2m44kuNuGvbDWXs0Wr9M_5M",
+            "agentWrappedVdkDigest": "pkrqTfnKwhLQDAVCJkYjTxwsi09gRryB4HUSDzTYkfo",
             "manifestRevision": "15",
             "issuedAt": "2026-07-17T06:05:00Z",
             "minimumAgentRuntimeProtocol": 2,
-            "signature": "LzcK30yaqnnI4r19g-VYEj_j6A6aGkh2I_phyEiCiQyQ7UcR07pmcUmiX7wxOqJSrjRkM5ZT-dSoBJFlZdz2Ag"
+            "signature": "PuQLHdK9M7z9K0IsTaGBULWVJWlE49AfePnjSYGZqzlUTAhNhX88_fxV8f46s1n1UF1Hzz7IHxrQnHebBkWBDQ"
           }
         },
-        "payloadDigest": "xcxl2gKnqCxyZO5Z8gH9pNCJeIOT1rwM2TRgRXchxLo"
+        "payloadDigest": "Y6kgCQQ38m69ORaMjRHy-ge2GHDLnh3_EOQwOjpBYCs"
       },
       {
         "itemKind": "vault-discovery-key",
@@ -1211,56 +1211,56 @@
               "resourceRevision": "6",
               "keyVersion": 7,
               "memberKeyGeneration": 5,
-              "nonce": "5h9nWJ6lV-AXEhd0R2gkD6d7nnb-rOv8"
+              "nonce": "E1T_HMAM_hHDDVr1TPWHr3UzZfrFsf1b"
             },
-            "ciphertext": "Gvam2byIFpDexi0lUk9BiFEt8ZfWjPEymc__v4LyqyYSC7DPyEtaPM0yH4pvPSii"
+            "ciphertext": "JaTkkXDJlvujDzj6DTIf8WHVmpypLxIVzoSoOWpON_4l3qNffyRatmnfvwIVAVm9"
           }
         },
-        "payloadDigest": "UQDT_zKCC1pTUH-hiwu_qdmUQ8K1hAh5CPwQ80khUzU"
+        "payloadDigest": "TKPF8qa_g9z3uvVbxg3b2fersISpea6UUjbK5Cn9E9U"
       }
     ],
-    "batchDigest": "CivCFV1cclihCLS5wbvwgae4pTgZUk5lFhSyDaORKPk"
+    "batchDigest": "CronkZMHOyXXFE53CRxyt8yU0mKZrXWNIVAq1e7ktS8"
   },
   "itemDigestInputs": [
     {
       "itemKind": "member-vault-key",
-      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a000200014444444444444444844444444444444400000000057b226d656d6265725661756c744b6579223a7b22616c676f726974686d5375697465223a312c226d656d6265724964223a2234343434343434342d343434342d343434342d383434342d343434343434343434343434222c226d656d6265724b657947656e65726174696f6e223a352c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2270726f746f636f6c56657273696f6e223a322c22726563697069656e744d656d6265724b657946696e6765727072696e74223a226b4d746978316677486f754a4a596d336466437954653238584147376c543361595331387271505a4b424d222c22726563697069656e744d656d6265724b657956657273696f6e223a322c227365616c65645661756c744b65795061636b616765223a226674446e4757454f4a4d54466e626669514d4939625f55726f554b576c4b754e354c3053715f75684a5471374d757a5f33352d7833556461677675726b65436941376542495247326946397546755a57516a3441655741457461336b4e4450344b7053674c437572733251336a695645373839556c6f756b79304f4b63786a51366f4248626f765648764464383072467046304b5374434364786c692d46793448425a6a543255557854424137786458325157307653455f6c717941664f4a577930576e674e43575f653272517834755a7a6553614f6b54414b66334d34785062505454364850546b4b7647706f6f7335616f67556a7178484463626736367a77546b4535627452476945765570425f675344505149554f6d684a346c4a6d6645387642692d635f386b4e57774d3256424a3833676345325848714544764365694265436c684162457148537a5f36485362454f3767696c565146656d6264435656696a567030376e4355746e534363704b76454e4d3149524a37474f545371792d554b343173753745383272545a2d74714967745162453044694942336a544c4f477a357932464767222c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c22766b56657273696f6e223a347d7d"
+      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a000200014444444444444444844444444444444400000000057b226d656d6265725661756c744b6579223a7b22616c676f726974686d5375697465223a312c226d656d6265724964223a2234343434343434342d343434342d343434342d383434342d343434343434343434343434222c226d656d6265724b657947656e65726174696f6e223a352c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2270726f746f636f6c56657273696f6e223a322c22726563697069656e744d656d6265724b657946696e6765727072696e74223a22675a354f6179522d744675514d3579414a575764433476565f324947485a6e6849454e304232325f763834222c22726563697069656e744d656d6265724b657956657273696f6e223a322c227365616c65645661756c744b65795061636b616765223a223653754e6e354c6f655571696d6b666a71514c4e596a307149326c6b37486d6b6b484c634e6b615776536138387139346c6d3142316f5371556332714b48444f45413649304c684c504a39723168436b6c6e6f3569496e32434f547675363145752d6a4c347a4b70586776666b35433951485271496f755844464e57363856756742444239634e47764c455033584767594b557043455657636b77354c505a41697277306272377463347658757856565a44324536494475482d6e6f4238315f554c5868556d6b796f69475336567434765f3034584e776d4f627245666e504655344f6a752d5451556f50534a476355494152484b5a624355643952566f6b6b73327534656d76704c684e2d62744a4d74732d3049787a55595f6c6a4d7a6b486c6751325f7769755a6434714b5457454d51624e446246704a4e357a457731506a2d6a61494d6e4c5356792d5063425f5f565a764155765958523963484c4b50674e506c337668773765765a6138335f69646e3246727947365154786437426f394679313065466c466e6853666f4748334f56584d66536a695a2d614c6b4f74534747716f49764c4451222c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c22766b56657273696f6e223a347d7d"
     },
     {
       "itemKind": "member-vault-metadata",
-      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a000200022222222222224222822222222222222200000000047b226d656d6265725661756c744d65746164617461223a7b2263697068657274657874223a2258764a34457841577341657a4c657877644a4c51696846316f2d4a78384f6335515158652d523365456b6a33596c415535576f683949784b6d75576935745344423930542d79685a4f6948526c30464c686a326c70315a633063657642477a456e5f6d754a576c42634d4678524844546734665549647243325831476957594c7069586f434b63784e5547466767364c73396246586a4172424f3454456354534a4f39525237304f525862474e45504f4d4647435f67222c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a342c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a2235767a6642594b36386e327930726e595a65634b483832616771325f35633051222c2270726f6a656374696f6e4b696e64223a312c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a312c227265736f757263655265766973696f6e223a2238227d2c226d657461646174615265766973696f6e223a2238222c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232227d7d"
+      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a000200022222222222224222822222222222222200000000047b226d656d6265725661756c744d65746164617461223a7b2263697068657274657874223a22306c616c345f305a7172464665633859354f7162434350555f7a71677779564b6a6765564b63714c2d5f3667342d382d384b6477304c4434442d6c396d35416a455632446a683973456c7161536c6b6a6d38714a436948796951503247694d7335714b767533672d4c38455132335850446d42534a656e67495145574d56343336716f776c4f5576476c61434a37387672347243776e3363347570536764745a30636a315939476f6241534c34625769665756316677222c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a342c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a224c4b504472415836366f315f59636b4554636f586830547a526e684a65675968222c2270726f6a656374696f6e4b696e64223a312c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a312c227265736f757263655265766973696f6e223a2238227d2c226d657461646174615265766973696f6e223a2238222c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232227d7d"
     },
     {
       "itemKind": "vault-private-key",
-      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a00020003aaaaaaaaaaaa4aaa8aaaaaaaaaaaaaaa00000000047b227661756c74507269766174654b6579223a7b2263697068657274657874223a22616f6d59636f324532596a454768334b5a344d4d586f716a5568584173727441626441636343734e736c4b397a4649475f3175777849384275376c346c61316b222c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a342c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a22527632684b5544475a6262643648613835724a53412d6b456d5f4c774c695757222c2270726f6a656374696f6e4b696e64223a372c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a312c227265736f757263655265766973696f6e223a223130227d2c226d656d6265724b657947656e65726174696f6e223a352c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c22707269766174654b65794b696e64223a312c22707269766174654b65795265766973696f6e223a223130222c22707269766174654b657956657273696f6e223a342c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c227772617070696e674b657956657273696f6e223a347d7d"
+      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a00020003aaaaaaaaaaaa4aaa8aaaaaaaaaaaaaaa00000000047b227661756c74507269766174654b6579223a7b2263697068657274657874223a226f3942535067744c336f4b783231504f485354786464753434433078643449324b6a7469436469545a394761336445386634684b423165727956525f38355845222c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a342c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a2268684774317465305044432d4a38697058434b323854794d6d75474234456638222c2270726f6a656374696f6e4b696e64223a372c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a312c227265736f757263655265766973696f6e223a223130227d2c226d656d6265724b657947656e65726174696f6e223a352c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c22707269766174654b65794b696e64223a312c22707269766174654b65795265766973696f6e223a223130222c22707269766174654b657956657273696f6e223a342c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c227772617070696e674b657956657273696f6e223a347d7d"
     },
     {
       "itemKind": "vault-private-key",
-      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a00020003bbbbbbbbbbbb4bbbbbbbbbbbbbbbbbbb000000000a7b227661756c74507269766174654b6579223a7b2263697068657274657874223a22566e476d32645369585545447342534e635774516b636a7835544a516f6e546244466557505369792d5f53504c426f657a6c626e366a4c665f7a62785158526e222c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a31302c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a225858754a794b38443138766a7155593868756a396b57366e546e6e717536716c222c2270726f6a656374696f6e4b696e64223a372c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a312c227265736f757263655265766973696f6e223a2239227d2c226d656d6265724b657947656e65726174696f6e223a352c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c22707269766174654b65794b696e64223a322c22707269766174654b65795265766973696f6e223a2239222c22707269766174654b657956657273696f6e223a31302c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c227772617070696e674b657956657273696f6e223a347d7d"
+      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a00020003bbbbbbbbbbbb4bbbbbbbbbbbbbbbbbbb000000000a7b227661756c74507269766174654b6579223a7b2263697068657274657874223a224b324c6a796f4b7741555873466a32435f7a2d2d31355a4d726a4b314c474a65487568355f4e55386e744b46573658565f36584b2d5661694966422d764d6766222c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a31302c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a22344e664a7362757066533947723851453244613644416e305436776d77415348222c2270726f6a656374696f6e4b696e64223a372c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a312c227265736f757263655265766973696f6e223a2239227d2c226d656d6265724b657947656e65726174696f6e223a352c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c22707269766174654b65794b696e64223a322c22707269766174654b65795265766973696f6e223a2239222c22707269766174654b657956657273696f6e223a31302c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c227772617070696e674b657956657273696f6e223a347d7d"
     },
     {
       "itemKind": "vault-entry-key",
-      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a00020004333333333333433383333333333333330133333333333343338333333333333333000000047b227661756c74456e7472794b6579223a7b22656e7472794964223a2233333333333333332d333333332d343333332d383333332d333333333333333333333333222c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a352c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a226b70706d4c4868495f6573577a706848492d5f645145364c6966433742575162222c2270726f6a656374696f6e4b696e64223a382c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a322c227265736f757263655265766973696f6e223a2233227d2c226b657956657273696f6e223a352c226d656d6265724b657947656e65726174696f6e223a352c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2277726170706564456e74727944656b4279566b223a2246707035587167456a7a304b56733332376e56545465754467415534555632784445734f46726a59725a5637464d64453452654a4a5934687759487034573750222c22777261707065725265766973696f6e223a2233222c227772617070696e674b657956657273696f6e223a347d7d"
+      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a00020004333333333333433383333333333333330133333333333343338333333333333333000000047b227661756c74456e7472794b6579223a7b22656e7472794964223a2233333333333333332d333333332d343333332d383333332d333333333333333333333333222c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a352c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a224a666b4e47443252665752314f525f594c4c75374149455044477a3647303373222c2270726f6a656374696f6e4b696e64223a382c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a322c227265736f757263655265766973696f6e223a2233227d2c226b657956657273696f6e223a352c226d656d6265724b657947656e65726174696f6e223a352c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2277726170706564456e74727944656b4279566b223a222d52686d6e764733624f426b592d5953476e636579722d755a566a70594b78487461467038754e676f6c6f416f6d534636766e4b773645436c45464b4f743651222c22777261707065725265766973696f6e223a2233222c227772617070696e674b657956657273696f6e223a347d7d"
     },
     {
       "itemKind": "agent-discovery",
-      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a00020005333333333333433383333333333333330133333333333343338333333333333333000000077b226167656e74446973636f76657279223a7b226167656e74446973636f766572795265766973696f6e223a223133222c2263697068657274657874223a2276335634646b4638334561316379576b554578687574453162655548584f497856527935474d676f703639334945427448696f4a434857334b397073774643494230363164666d6a6e627a6857516537556b6c693641537162346c503957467752754e61454c314b694f4552675836326b7255573432495a46686c5357766668306f4a3059583970626a70584e3034656e674a6b72366b6c617150655a65697861365f31544b42425352776d744b666d3646595278347a6b4f4a49616b344f2d384f50644a7855455a506a657938636d66684c39222c22656e7472794964223a2233333333333333332d333333332d343333332d383333332d333333333333333333333333222c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a372c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a224e71324650434a3037693963776376767a78374465592d4a707456684861516c222c2270726f6a656374696f6e4b696e64223a342c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a322c227265736f757263655265766973696f6e223a223133227d2c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2276646b56657273696f6e223a377d7d"
+      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a00020005333333333333433383333333333333330133333333333343338333333333333333000000077b226167656e74446973636f76657279223a7b226167656e74446973636f766572795265766973696f6e223a223133222c2263697068657274657874223a226635337775787a66495453617953346d36576e3878364462596c4e48694e70726d43484e4c316f63713356794e716b6f366b7a75465a654c4447487849614c64327134435347334732703337546f78633472484863526c54427a6530574b62413461394c4a7a74646e47524a316566526e504752664c33444a4151344c476d416d3859416274774d6d5978766a4332327a703944585f51426b53597077737a494d516f34496a6379564e383048376f6a445a75315a4c714f7a5f36486453796b72316a364e3743387634364d6a4b6e5539306e69222c22656e7472794964223a2233333333333333332d333333332d343333332d383333332d333333333333333333333333222c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a372c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a22395a707272435264557577463234783042687737306c334a6f6c3549646d5849222c2270726f6a656374696f6e4b696e64223a342c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a322c227265736f757263655265766973696f6e223a223133227d2c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2276646b56657273696f6e223a377d7d"
     },
     {
       "itemKind": "agent-vault-discovery",
-      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a000200065555555555554555855555555555555500000000077b226167656e745661756c74446973636f76657279223a7b226167656e744964223a2235353535353535352d353535352d343535352d383535352d353535353535353535353535222c226167656e745772617070656456646b223a224f4a356e415953514677547756554366585252456545436f656c78507446535347424e644e48665f715169466943655a545f746b694d45757a77384f4e7730763266637967386f4e30696273584e543167514e5f48496c43434576524e5a5a71307566585a69574a50646e3737366b455333617a51324a45325151442d46563131377239423232314d6d62626a474c6e6748474e64524f717645476d6a62505241707a4c4968343937545751757061574a5345583332697a5237764649444565667a4b76556e4c4c794f6366783149733774564165476241327076694d62353856325634443650346f34324753336b63684379562d667978694455476b31743764366d685962475f465a4847345f6b4b61367862737954444a6a7a574173526f67313456774b32524b534f33375765714c637044736a494b7a646d6a34447254554a78315f426941415976793870762d71494e366a556f314769704a514c3076564a326a61432d4a6c545058763271725939706c66306f6970764b3178346a786a7263222c22616c676f726974686d5375697465223a312c226d616e69666573745265766973696f6e223a223135222c226d616e69666573745369676e6174757265223a224c7a634b33307961716e6e4934723139672d5659456a5f6a36413661476b6832495f70687945694369517951375563523037706d63556d69583777784f714a53726a526b4d355a542d64536f424a466c5a647a324167222c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2270726f746f636f6c56657273696f6e223a322c22726563697069656e744167656e744b657946696e6765727072696e74223a22355f5471574878434a705f38597557357146704854374657545234496a6a66554e546f5671655853694173222c22726563697069656e744167656e744b657956657273696f6e223a332c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2276646b56657273696f6e223a377d7d"
+      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a000200065555555555554555855555555555555500000000077b226167656e745661756c74446973636f76657279223a7b226167656e744964223a2235353535353535352d353535352d343535352d383535352d353535353535353535353535222c226167656e745772617070656456646b223a226d4e674656586d626c335f447a5a5f684f62584372347057534d76303678374a6b5834366c467631787a4277454f6777615f7a6a6177636a6c4a39796b6e70356833494d7a7230674768683747477859584346474a52394b4a4d5147483272417956323853503164376853416f612d4467507456745a69714255507a575a673475647533736156426754794a77753835335f67624d56626c5a53506d724c5f5f50455151573579354a6c51685247644b33756e32317243794569594a5f6f46767265396a416d7759736f47374d68636f5f4f48436a5239496d505a6f487946434c79395947593854447a3169594d696f58304d6f4c4575546f6e334f753466685243496d7069464d306273342d4e65694f7634384e306a50445647777a77477170447a504d4d69526e62446b49416f30635f446d6c4d32556b354f71334344655748414a6e4e476a776e625158735938414543526a6a62524b6f7264376f6b316f3943703931643771785672444b5a677131535363415a38334a564543335132584541222c22616c676f726974686d5375697465223a312c226d616e69666573745265766973696f6e223a223135222c226d616e69666573745369676e6174757265223a225075514c48644b394d377a394b30497354614742554c57564a576c453439416665506e6a5359475a717a6c555441684e685838385f6678563866343673316e31554631487a7a3749487872516e486562426b57424451222c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2270726f746f636f6c56657273696f6e223a322c22726563697069656e744167656e744b657946696e6765727072696e74223a2270577a4f615948515f655142484a446544784c786d73526e687352494832354e534a64514950304f6b7659222c22726563697069656e744167656e744b657956657273696f6e223a332c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2276646b56657273696f6e223a377d7d"
     },
     {
       "itemKind": "grant-entry",
-      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a00020007666666666666466686666666666666660133333333333343338333333333333333000000037b226772616e74456e747279223a7b226167656e744964223a2235353535353535352d353535352d343535352d383535352d353535353535353535353535222c226167656e74577261707065644772616e7444656b223a2254616d452d4e737070317973342d784166715a477861486a4e705a323650446b534a497247584d50416e53462d4d64794967625153334b52515552613830765667456c745367326c796f52704146677663584b4c66626a624f6c6f5a4e6c304c4e6b6f7252553350774538222c22617070726f7665644d6574686f6473223a312c2263697068657274657874223a226e416c597a414e4633477a535f4e475a5f56346d35647a6a61614c304d4b427964646d2d7752616559705271714b6d3334516c37774f454771714171513831416a756e7448426d654b67353548344c315a735672705f78634d3335354f4f7a647739685f635975706a4d2d644c52474632436c4f54584762576e466e5654694d494436716a335562222c22656e7472794964223a2233333333333333332d333333332d343333332d383333332d333333333333333333333333222c22656e7472795265766973696f6e223a223132222c22657870697265734174223a22323032362d30372d31375430373a30303a30305a222c226772616e74456e76656c6f70655265766973696f6e223a2234222c226772616e744964223a2236363636363636362d363636362d343636362d383636362d363636363636363636363636222c226772616e744b657956657273696f6e223a332c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a332c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a226e625f41447134456b4872666937314f6f704e4236636563454c7250754f5530222c2270726f6a656374696f6e4b696e64223a362c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a342c227265736f757263655265766973696f6e223a2234227d2c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c22726563697069656e744167656e744b657946696e6765727072696e74223a22355f5471574878434a705f38597557357146704854374657545234496a6a66554e546f5671655853694173222c22726563697069656e744167656e744b657956657273696f6e223a332c2272656d61696e696e6755736573223a332c227573654c696d6974223a332c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232227d7d"
+      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a00020007666666666666466686666666666666660133333333333343338333333333333333000000037b226772616e74456e747279223a7b226167656e744964223a2235353535353535352d353535352d343535352d383535352d353535353535353535353535222c226167656e74577261707065644772616e7444656b223a222d6a7539656156346d4147634b426e3854436b6f6337373561794278595f313658714e556b6c6f556f6b596469415733484c49785f5663394f53644c3347772d575844334637724f46425359674b766e33774f5f6470414f64396f523934455136486b5863637275592d55222c22617070726f7665644d6574686f6473223a312c2263697068657274657874223a22366678624c66784b67513033416a6d7a7a623974554366442d797a744f38714d613777436551666b746f5175486d363547654838514c797648356876654d2d6653792d353970494f61545250774d79797135586e73776768474e5030613350676b75514a555752576d44334b4d2d5f6c4b39704974704e7132765144674731716d73634c4b645f6d222c22656e7472794964223a2233333333333333332d333333332d343333332d383333332d333333333333333333333333222c22656e7472795265766973696f6e223a223132222c22657870697265734174223a22323032362d30372d31375430373a30303a30305a222c226772616e74456e76656c6f70655265766973696f6e223a2234222c226772616e744964223a2236363636363636362d363636362d343636362d383636362d363636363636363636363636222c226772616e744b657956657273696f6e223a332c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a332c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a22717342337471713461396a77577235584531796961366e4b7334614235445163222c2270726f6a656374696f6e4b696e64223a362c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a342c227265736f757263655265766973696f6e223a2234227d2c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c22726563697069656e744167656e744b657946696e6765727072696e74223a2270577a4f615948515f655142484a446544784c786d73526e687352494832354e534a64514950304f6b7659222c22726563697069656e744167656e744b657956657273696f6e223a332c2272656d61696e696e6755736573223a332c227573654c696d6974223a332c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232227d7d"
     },
     {
       "itemKind": "vault-manifest",
-      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a0002000855555555555545558555555555555555000000000f7b227661756c744d616e6966657374223a7b226167656e744564323535313946696e6765727072696e74223a22443663705475614c4e4530586159593076685a3747424e4d7237564533324c533358302d71424f5f383234222c226167656e744964223a2235353535353535352d353535352d343535352d383535352d353535353535353535353535222c226167656e744d6573736167654b657956657273696f6e223a342c226167656e745772617070656456646b446967657374223a22664d6f4459392d414a4d5043487076565159484f326d34346b754e7547766244575873305772394d5f354d222c226167656e7458323535313946696e6765727072696e74223a22355f5471574878434a705f38597557357146704854374657545234496a6a66554e546f5671655853694173222c22616c676f726974686d5375697465223a312c226973737565644174223a22323032362d30372d31375430363a30353a30305a222c226d616e69666573745265766973696f6e223a223135222c226d616e69666573745369676e696e674b657956657273696f6e223a31302c226d696e696d756d4167656e7452756e74696d6550726f746f636f6c223a322c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2270726f746f636f6c56657273696f6e223a322c227369676e6174757265223a224c7a634b33307961716e6e4934723139672d5659456a5f6a36413661476b6832495f70687945694369517951375563523037706d63556d69583777784f714a53726a526b4d355a542d64536f424a466c5a647a324167222c227661756c744167656e744d6573736167654b657946696e6765727072696e74223a226f6a4852532d5f5f74442d734d4e4c46574a5f69694f38664f356759384f6831364a794159534735647345222c227661756c744167656e744d6573736167655075626c69634b6579223a224d7633676238325868664d3538307165513043676a4748776e46732d706b4d43585f527257397a414e7a77222c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c227661756c745369676e696e674b657946696e6765727072696e74223a2256333879485132784c455a7a6a36754e78486c666438694b5236656e425f526a7052637a706e6542645a59222c227661756c745369676e696e675075626c69634b6579223a226e6e3151697072307970774a555f67775a447444334141716b596e77444f67794a486a7355716b534d346f222c2276646b56657273696f6e223a377d7d"
+      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a0002000855555555555545558555555555555555000000000f7b227661756c744d616e6966657374223a7b226167656e744564323535313946696e6765727072696e74223a22386f626943673444786c4c664b54454150784e50355f5f63574d315a656e7366616c6d62746c425a5f4a30222c226167656e744964223a2235353535353535352d353535352d343535352d383535352d353535353535353535353535222c226167656e744d6573736167654b657956657273696f6e223a342c226167656e745772617070656456646b446967657374223a22706b727154666e4b77684c51444156434a6b596a54787773693039675272794234485553447a54596b666f222c226167656e7458323535313946696e6765727072696e74223a2270577a4f615948515f655142484a446544784c786d73526e687352494832354e534a64514950304f6b7659222c22616c676f726974686d5375697465223a312c226973737565644174223a22323032362d30372d31375430363a30353a30305a222c226d616e69666573745265766973696f6e223a223135222c226d616e69666573745369676e696e674b657956657273696f6e223a31302c226d696e696d756d4167656e7452756e74696d6550726f746f636f6c223a322c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c2270726f746f636f6c56657273696f6e223a322c227369676e6174757265223a225075514c48644b394d377a394b30497354614742554c57564a576c453439416665506e6a5359475a717a6c555441684e685838385f6678563866343673316e31554631487a7a3749487872516e486562426b57424451222c227661756c744167656e744d6573736167654b657946696e6765727072696e74223a226336796a6e59757479644146726d6d334b324d2d74494564362d72574f596139307a754e4c4e325f353434222c227661756c744167656e744d6573736167655075626c69634b6579223a224a4344336b4a5a684c566a32774c48656b3978624b327a327734696d446f6765386a35504266464f6e7851222c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c227661756c745369676e696e674b657946696e6765727072696e74223a226934673974597837476a634348304f47536f5445376a78374f3746414d6643526c465f6653316f41374773222c227661756c745369676e696e675075626c69634b6579223a224538707a454473664b3638634671764863476e775933616532582d34694c77474461747a6b323463776f77222c2276646b56657273696f6e223a377d7d"
     },
     {
       "itemKind": "vault-discovery-key",
-      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a000200092222222222224222822222222222222200000000077b227661756c74446973636f766572794b6579223a7b2263697068657274657874223a224776616d32627949467044657869306c556b394269464574385a66576a5045796d635f5f76344c79717959534337445079457461504d30794834707650536969222c22646973636f766572794b65795265766973696f6e223a2236222c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a372c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a223568396e574a366c562d4158456864305232676b443664376e6e622d724f7638222c2270726f6a656374696f6e4b696e64223a31322c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a312c227265736f757263655265766973696f6e223a2236227d2c226d656d6265724b657947656e65726174696f6e223a352c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2276646b56657273696f6e223a372c227772617070696e674b657956657273696f6e223a347d7d"
+      "inputHex": "504c444e563244473a524f544154494f4e2d4954454d3a000200092222222222224222822222222222222200000000077b227661756c74446973636f766572794b6579223a7b2263697068657274657874223a224a61546b6b58444a6c76756a447a6a3644544966385748566d7079704c7849567a6f536f4f57704f4e5f346c33714e6666795261746d6e667677495641566d39222c22646973636f766572794b65795265766973696f6e223a2236222c22686561646572223a7b22616c676f726974686d5375697465223a312c226b657956657273696f6e223a372c226d656d6265724b657947656e65726174696f6e223a352c226e6f6e6365223a224531545f484d414d5f68484444567231545057487233557a5a66724673663162222c2270726f6a656374696f6e4b696e64223a31322c2270726f746f636f6c56657273696f6e223a322c227265736f757263654b696e64223a312c227265736f757263655265766973696f6e223a2236227d2c226d656d6265724b657947656e65726174696f6e223a352c226f7267616e697a6174696f6e4964223a2231313131313131312d313131312d343131312d383131312d313131313131313131313131222c227661756c744964223a2232323232323232322d323232322d343232322d383232322d323232323232323232323232222c2276646b56657273696f6e223a372c227772617070696e674b657956657273696f6e223a347d7d"
     }
   ],
   "commitRequest": {
@@ -1268,7 +1268,7 @@
     "vaultId": "22222222-2222-4222-8222-222222222222",
     "rotationId": "88888888-8888-4888-8888-888888888888",
     "leaseId": "99999999-9999-4999-8999-999999999999",
-    "fencingToken": "j1T8hWVPXOVraoXw0FyxcmcPAtq7UXyNIWTQ9AqMaiU",
+    "fencingToken": "9jhCRNQzFO5ENtwfUvwMc_RQmxd86JtZkjl-R_3MeWQ",
     "expectedRotationRevision": "22",
     "baseVaultRevision": "100",
     "finalDirtySetSequence": "31",
@@ -1282,20 +1282,20 @@
       "organizationId": "11111111-1111-4111-8111-111111111111",
       "vaultId": "22222222-2222-4222-8222-222222222222",
       "agentId": "55555555-5555-4555-8555-555555555555",
-      "agentX25519Fingerprint": "5_TqWHxCJp_8YuW5qFpHT7FWTR4IjjfUNToVqeXSiAs",
-      "agentEd25519Fingerprint": "D6cpTuaLNE0XaYY0vhZ7GBNMr7VE32LS3X0-qBO_824",
-      "vaultSigningPublicKey": "nn1Qipr0ypwJU_gwZDtD3AAqkYnwDOgyJHjsUqkSM4o",
-      "vaultSigningKeyFingerprint": "V38yHQ2xLEZzj6uNxHlfd8iKR6enB_RjpRczpneBdZY",
+      "agentX25519Fingerprint": "pWzOaYHQ_eQBHJDeDxLxmsRnhsRIH25NSJdQIP0OkvY",
+      "agentEd25519Fingerprint": "8obiCg4DxlLfKTEAPxNP5__cWM1ZensfalmbtlBZ_J0",
+      "vaultSigningPublicKey": "E8pzEDsfK68cFqvHcGnwY3ae2X-4iLwGDatzk24cwow",
+      "vaultSigningKeyFingerprint": "i4g9tYx7GjcCH0OGSoTE7jx7O7FAMfCRlF_fS1oA7Gs",
       "manifestSigningKeyVersion": 10,
-      "vaultAgentMessagePublicKey": "Mv3gb82XhfM580qeQ0CgjGHwnFs-pkMCX_RrW9zANzw",
-      "vaultAgentMessageKeyFingerprint": "ojHRS-__tD-sMNLFWJ_iiO8fO5gY8Oh16JyAYSG5dsE",
+      "vaultAgentMessagePublicKey": "JCD3kJZhLVj2wLHek9xbK2z2w4imDoge8j5PBfFOnxQ",
+      "vaultAgentMessageKeyFingerprint": "c6yjnYutydAFrmm3K2M-tIEd6-rWOYa90zuNLN2_544",
       "agentMessageKeyVersion": 4,
       "vdkVersion": 7,
-      "agentWrappedVdkDigest": "fMoDY9-AJMPCHpvVQYHO2m44kuNuGvbDWXs0Wr9M_5M",
+      "agentWrappedVdkDigest": "pkrqTfnKwhLQDAVCJkYjTxwsi09gRryB4HUSDzTYkfo",
       "manifestRevision": "15",
       "issuedAt": "2026-07-17T06:05:00Z",
       "minimumAgentRuntimeProtocol": 2,
-      "signature": "LzcK30yaqnnI4r19g-VYEj_j6A6aGkh2I_phyEiCiQyQ7UcR07pmcUmiX7wxOqJSrjRkM5ZT-dSoBJFlZdz2Ag"
+      "signature": "PuQLHdK9M7z9K0IsTaGBULWVJWlE49AfePnjSYGZqzlUTAhNhX88_fxV8f46s1n1UF1Hzz7IHxrQnHebBkWBDQ"
     }
   },
   "scenarios": [
@@ -1327,7 +1327,7 @@
       "id": "reject-stale-fencing-token",
       "startStatus": "preparing",
       "mutation": {
-        "fencingToken": "u8ttSAEUZIDwJr0Lkf3UbZ8VLF_Hzz5CtkGeU7Fv4t4"
+        "fencingToken": "iurWeSZcNSUhy43TWizWZNJewjvRL5lWiOzbFcdWefQ"
       },
       "expected": {
         "status": "failed-retryable",
