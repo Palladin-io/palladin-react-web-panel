@@ -69,8 +69,8 @@ export const ENTRY_ICON_COLORS: Record<string, string> = {
   school: '#60A5FA',
 }
 
-export function isCustomIconUrl(value: string | undefined): value is string {
-  return typeof value === 'string' && (value.startsWith('https://') || value.startsWith('blob:'))
+export function isCustomIconUrl(value: string | undefined): boolean {
+  return typeof value === 'string' && value.startsWith('blob:')
 }
 
 /**
@@ -118,6 +118,11 @@ export function presentationForType(type: EntryType): EntryPresentation {
  */
 /** Google Password Manager app-credential URI: android://<signing-cert hash>@<package>/ */
 const ANDROID_CREDENTIAL_URI = /^android:\/\/[^@]+@([a-z0-9_.]+)\/?$/i
+const ANDROID_PACKAGE_DOMAINS: Readonly<Record<string, string>> = {
+  // The reverse-DNS owner is disney.com, while the credential belongs to the
+  // Disney+ product whose public identity and icon live on disneyplus.com.
+  'com.disney.disneyplus': 'disneyplus.com',
+}
 
 /**
  * Derive a website domain from a reverse-DNS Android package id by reversing its
@@ -136,7 +141,10 @@ const ANDROID_CREDENTIAL_URI = /^android:\/\/[^@]+@([a-z0-9_.]+)\/?$/i
  * silently binds a secret to an origin the user can't see.
  */
 function domainFromAndroidPackage(packageId: string): string | undefined {
-  const segments = packageId.toLowerCase().split('.')
+  const normalizedPackage = packageId.toLowerCase()
+  const knownDomain = ANDROID_PACKAGE_DOMAINS[normalizedPackage]
+  if (knownDomain) return knownDomain
+  const segments = normalizedPackage.split('.')
   if (segments.length < 2) return undefined
   const candidate = `${segments[1]}.${segments[0]}`
   return getDomain(candidate, { allowPrivateDomains: true }) ?? undefined

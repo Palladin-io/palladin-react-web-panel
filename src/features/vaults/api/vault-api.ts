@@ -1,13 +1,20 @@
 import { api } from '../../../shared/api/client'
-import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
+import { z } from 'zod'
+import type { buildCanonicalGrantEnvelope } from '../../../shared/crypto/grant-protocol'
+import type { CreateVaultProtocolPayload } from '../../../shared/crypto/create-vault-protocol'
+import type { CanonicalEntryEnvelopes } from '../../../shared/crypto/entry-protocol'
+import {
+  agentDiscoveryEnvelopeSchema,
+  memberIndexEnvelopeSchema,
+  memberSecretEnvelopeSchema,
+  vaultEntryKeyEnvelopeSchema,
+} from '../sync/entry-envelope-schema'
+import { canonicalU64Schema, canonicalUuidSchema, u32Schema } from '../sync/vault-key-material-schema'
 import { normalizeEntryType } from '../types'
 import type {
-  CreateEntryPayload,
-  CreateVaultInput,
   EntryContent,
   EntryDetail,
   EntryListItem,
-  EntryType,
   GrantMode,
   UpdateVaultInput,
   Vault,
@@ -18,16 +25,12 @@ export interface VaultListResponse {
   vaults: VaultSummary[]
 }
 
-/**
- * Server-side payload for vault creation. Mirrors {@link CreateVaultInput}
- * but adds the wrapped Vault Key — produced client-side by sealing a fresh
- * 32-byte VK to the user's X25519 public key. The server never sees the
- * raw VK; it just stores the wrapped blob alongside the metadata.
- */
-export interface CreateVaultPayload extends CreateVaultInput {
-  /** base64-encoded sealed-box ciphertext: `crypto_box_seal(VK, userPubKey)`. */
-  wrappedVK: string
+export interface VaultCreationChallengeResponse {
+  vaultId: string
+  expiresAt: string
 }
+
+export type CreateVaultPayload = CreateVaultProtocolPayload
 
 export function getVaults(): Promise<VaultListResponse> {
   return api.get('api/vaults').json<VaultListResponse>()
@@ -37,8 +40,12 @@ export function getVault(id: string): Promise<Vault> {
   return api.get(`api/vaults/${id}`).json<Vault>()
 }
 
-export function createVault(payload: CreateVaultPayload): Promise<Vault> {
-  return api.post('api/vaults', { json: payload }).json<Vault>()
+export function issueVaultCreationChallenge(): Promise<VaultCreationChallengeResponse> {
+  return api.post('api/vaults/creation-challenges').json<VaultCreationChallengeResponse>()
+}
+
+export async function createVault(payload: CreateVaultPayload): Promise<void> {
+  await api.post('api/vaults', { json: payload })
 }
 
 /**
@@ -54,30 +61,6 @@ export async function updateVault(
 
 export async function deleteVault(id: string): Promise<void> {
   await api.delete(`api/vaults/${id}`)
-}
-
-export interface PresignResponse {
-  uploadUrl: string
-  publicUrl: string
-  expiresAt: string
-}
-
-export function presignVaultIcon(
-  vaultId: string,
-  extension: string,
-): Promise<PresignResponse> {
-  return api
-    .post(`api/vaults/${vaultId}/icon/presign`, { json: { vaultId, extension } })
-    .json<PresignResponse>()
-}
-
-export async function uploadToS3(uploadUrl: string, file: File): Promise<void> {
-  const response = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': file.type },
-    body: file,
-  })
-  if (!response.ok) throw new Error(`S3 upload failed: ${response.status}`)
 }
 
 /**
@@ -138,13 +121,219 @@ export async function getEntry(
   return { ...entry, type: normalizeEntryType(entry.type) }
 }
 
+const canonicalEntryDetailSchema = z.object({
+  organizationId: canonicalUuidSchema,
+  vaultId: canonicalUuidSchema,
+  id: canonicalUuidSchema,
+  state: z.union([z.enum(['active', 'archived', 'deleted']), z.literal(1), z.literal(2), z.literal(3)]),
+  currentRevision: canonicalU64Schema,
+  memberIndexRevision: canonicalU64Schema,
+  agentDiscoveryRevision: canonicalU64Schema.nullable(),
+  agentDiscoveryRevisionHighWatermark: canonicalU64Schema,
+  currentKeyVersion: u32Schema,
+  createdAt: z.string(),
+  createdBy: canonicalUuidSchema,
+  updatedAt: z.string(),
+  updatedBy: canonicalUuidSchema,
+  memberIndex: memberIndexEnvelopeSchema,
+  memberSecret: memberSecretEnvelopeSchema,
+  agentDiscovery: agentDiscoveryEnvelopeSchema.nullable(),
+  entryKey: vaultEntryKeyEnvelopeSchema,
+}).strict().superRefine((entry, context) => {
+  const envelopes = [entry.memberIndex, entry.memberSecret, entry.entryKey, entry.agentDiscovery].filter(Boolean)
+  if (envelopes.some((envelope) => envelope!.descriptor.scope.organizationId !== entry.organizationId
+    || envelope!.descriptor.scope.vaultId !== entry.vaultId || envelope!.descriptor.scope.entryId !== entry.id)) {
+    context.addIssue({ code: 'custom', message: 'Entry envelope scope mismatch' })
+  }
+  if (entry.currentRevision !== entry.memberSecret.descriptor.resourceRevision
+    || entry.memberIndexRevision !== entry.memberIndex.descriptor.resourceRevision
+    || entry.currentKeyVersion !== entry.entryKey.descriptor.keyVersion
+    || entry.agentDiscoveryRevision !== (entry.agentDiscovery?.descriptor.resourceRevision ?? null)) {
+    context.addIssue({ code: 'custom', message: 'Entry projection head mismatch' })
+  }
+  if (entry.agentDiscoveryRevision !== null
+    && BigInt(entry.agentDiscoveryRevision) > BigInt(entry.agentDiscoveryRevisionHighWatermark)) {
+    context.addIssue({ code: 'custom', message: 'Entry Discovery watermark mismatch' })
+  }
+})
+
+export type CanonicalEntryDetail = z.infer<typeof canonicalEntryDetailSchema>
+export type CanonicalGrantEnvelope = Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>
+export interface EntryUpdateMaterial {
+  baseRevision: string
+  newEntryKey?: CanonicalEntryEnvelopes['entryKey']
+  memberSecret: CanonicalEntryEnvelopes['memberSecret']
+  memberIndex?: CanonicalEntryEnvelopes['memberIndex']
+  agentDiscoveryChanged: boolean
+  agentDiscovery?: NonNullable<CanonicalEntryEnvelopes['agentDiscovery']>
+  grantEnvelopes: CanonicalGrantEnvelope[]
+}
+export interface EntryLifecycleMaterial {
+  baseRevision: string
+  newEntryKey?: CanonicalEntryEnvelopes['entryKey']
+  memberSecret: CanonicalEntryEnvelopes['memberSecret']
+  memberIndex?: CanonicalEntryEnvelopes['memberIndex']
+  agentDiscovery?: NonNullable<CanonicalEntryEnvelopes['agentDiscovery']>
+}
+
+const restoreEntryResponseSchema = z.object({
+  state: z.union([z.literal('active'), z.literal(1)]),
+  currentRevision: canonicalU64Schema,
+}).strict()
+
+const recentlyDeletedEntrySchema = z.object({
+  id: canonicalUuidSchema,
+  state: z.union([z.literal('deleted'), z.literal(3)]),
+  currentRevision: canonicalU64Schema,
+  updatedAt: z.string().datetime({ offset: true }),
+  archivedAt: z.string().datetime({ offset: true }).nullable(),
+  deletedAt: z.string().datetime({ offset: true }),
+  retentionExpiresAt: z.string().datetime({ offset: true }),
+  memberIndex: memberIndexEnvelopeSchema,
+}).strict().superRefine((item, context) => {
+  if (item.memberIndex.descriptor.scope.entryId !== item.id) {
+    context.addIssue({ code: 'custom', message: 'Recently Deleted Entry scope mismatch' })
+  }
+})
+
+const recentlyDeletedResponseSchema = z.object({
+  items: z.array(recentlyDeletedEntrySchema),
+  nextCursor: z.string().nullable(),
+}).strict()
+
+export type RecentlyDeletedEntry = z.infer<typeof recentlyDeletedEntrySchema>
+export type RecentlyDeletedResponse = z.infer<typeof recentlyDeletedResponseSchema>
+
+const actorTypeSchema = z.union([
+  z.enum(['member', 'agent', 'system']), z.literal(1), z.literal(2), z.literal(3),
+]).transform((actor) => typeof actor === 'number'
+  ? actor
+  : ({ member: 1, agent: 2, system: 3 } as const)[actor])
+
+const entryHistoryItemSchema = z.object({
+  revision: canonicalU64Schema,
+  memberSequence: canonicalU64Schema,
+  discoverySequence: canonicalU64Schema.nullable(),
+  changedAt: z.string(),
+  changedByType: actorTypeSchema,
+  changedById: canonicalUuidSchema,
+  operation: z.enum(['created', 'updated', 'archived', 'restored', 'deleted']).transform((operation) =>
+    ({ created: 1, updated: 2, archived: 3, restored: 4, deleted: 5 } as const)[operation]),
+  keyVersion: u32Schema,
+  entryKey: vaultEntryKeyEnvelopeSchema,
+  memberSecret: memberSecretEnvelopeSchema,
+}).strict().superRefine((item, context) => {
+  if (item.revision !== item.memberSecret.descriptor.resourceRevision
+    || item.operation !== item.memberSecret.descriptor.binding.operation
+    || item.keyVersion !== item.entryKey.descriptor.keyVersion
+    || item.keyVersion !== item.memberSecret.descriptor.keyVersion) {
+    context.addIssue({ code: 'custom', message: 'Entry history envelope head mismatch' })
+  }
+  if (item.entryKey.descriptor.scope.organizationId !== item.memberSecret.descriptor.scope.organizationId
+    || item.entryKey.descriptor.scope.vaultId !== item.memberSecret.descriptor.scope.vaultId
+    || item.entryKey.descriptor.scope.entryId !== item.memberSecret.descriptor.scope.entryId) {
+    context.addIssue({ code: 'custom', message: 'Entry history envelope scope mismatch' })
+  }
+})
+
+const entryHistoryResponseSchema = z.object({
+  currentRevision: canonicalU64Schema,
+  items: z.array(entryHistoryItemSchema).max(20),
+  nextBeforeRevision: canonicalU64Schema.nullable(),
+  policy: z.object({ maximumVersions: z.number().int().positive(), maximumAgeDays: z.number().int().positive() }).strict(),
+}).strict()
+
+export type EntryHistoryItem = z.infer<typeof entryHistoryItemSchema>
+export type EntryHistoryResponse = z.infer<typeof entryHistoryResponseSchema>
+
+export async function getEntryHistory(
+  vaultId: string,
+  entryId: string,
+  beforeRevision?: string,
+  signal?: AbortSignal,
+): Promise<EntryHistoryResponse> {
+  const raw = await api.get(`api/vaults/${vaultId}/entries/${entryId}/history`, {
+    searchParams: { pageSize: '20', ...(beforeRevision ? { beforeRevision } : {}) },
+    signal,
+  }).json()
+  const page = entryHistoryResponseSchema.parse(raw)
+  if (page.items.some((item) => item.entryKey.descriptor.scope.vaultId !== vaultId
+    || item.entryKey.descriptor.scope.entryId !== entryId)) {
+    throw new Error('Entry history response scope mismatch')
+  }
+  return page
+}
+
+export async function getCanonicalEntry(
+  vaultId: string,
+  entryId: string,
+  signal?: AbortSignal,
+): Promise<CanonicalEntryDetail> {
+  const raw = await api.get(`api/vaults/${vaultId}/entries/${entryId}`, { signal }).json()
+  return canonicalEntryDetailSchema.parse(raw)
+}
+
+export async function updateCanonicalEntry(
+  vaultId: string,
+  entryId: string,
+  material: EntryUpdateMaterial,
+): Promise<{ currentRevision: string }> {
+  return api.put(`api/vaults/${vaultId}/entries/${entryId}`, { json: material })
+    .json<{ currentRevision: string }>()
+}
+
+export async function restoreCanonicalEntry(
+  vaultId: string,
+  entryId: string,
+  material: EntryLifecycleMaterial,
+): Promise<{ state: 'active' | 1; currentRevision: string }> {
+  const raw = await api.post(`api/vaults/${vaultId}/entries/${entryId}/restore`, { json: material }).json()
+  return restoreEntryResponseSchema.parse(raw)
+}
+
+export async function getRecentlyDeletedEntries(
+  vaultId: string,
+  cursor?: string,
+): Promise<RecentlyDeletedResponse> {
+  const raw = await api.get(`api/vaults/${vaultId}/entries/recently-deleted`, {
+    searchParams: { pageSize: '100', ...(cursor ? { cursor } : {}) },
+  }).json()
+  const page = recentlyDeletedResponseSchema.parse(raw)
+  if (page.items.some((item) => item.memberIndex.descriptor.scope.vaultId !== vaultId)) {
+    throw new Error('Recently Deleted response scope mismatch')
+  }
+  return page
+}
+
+/** Irreversible, server-transactional purge. Missing Entries are a successful no-op. */
+export async function destroyCanonicalEntry(vaultId: string, entryId: string): Promise<void> {
+  await api.post(`api/vaults/${vaultId}/entries/${entryId}/destroy`)
+}
+
 export function createEntry(
   vaultId: string,
-  payload: CreateEntryPayload,
-): Promise<{ id: string }> {
+  payload: { entryId: string; grantEnvelopes: unknown[] } & CanonicalEntryEnvelopes,
+): Promise<{ id: string; currentRevision: string }> {
   return api
     .post(`api/vaults/${vaultId}/entries`, { json: payload })
-    .json<{ id: string }>()
+    .json<{ id: string; currentRevision: string }>()
+}
+
+export async function issueEntryCreationChallenges(
+  vaultId: string,
+  count: number,
+): Promise<{ entryId: string; expiresAt: string }[]> {
+  const response = await api.post(`api/vaults/${vaultId}/entries/creation-challenges`, {
+    json: { vaultId, count },
+  }).json<{ items: { entryId: string; expiresAt: string }[] }>()
+  if (response.items.length !== count) throw new Error('Entry creation challenge count mismatch')
+  return response.items
+}
+
+export async function issueEntryCreationChallenge(vaultId: string): Promise<{ entryId: string; expiresAt: string }> {
+  const [challenge] = await issueEntryCreationChallenges(vaultId, 1)
+  if (!challenge) throw new Error('Entry creation challenge response was empty')
+  return challenge
 }
 
 export async function updateEntry(
@@ -170,16 +359,6 @@ export async function deleteEntry(
   await api.delete(`api/vaults/${vaultId}/entries/${entryId}`)
 }
 
-export function presignEntryIcon(
-  vaultId: string,
-  entryId: string,
-  extension: string,
-): Promise<PresignResponse> {
-  return api
-    .post(`api/vaults/${vaultId}/entries/${entryId}/icon/presign`, { json: { extension } })
-    .json<PresignResponse>()
-}
-
 /**
  * One entry in a bulk import request — a single create-entry payload plus the
  * `grantEntries` re-wrap material. The backend requires exactly one entry here
@@ -189,13 +368,12 @@ export function presignEntryIcon(
  * this.
  */
 export interface ImportEntryItem {
-  label: string
-  description?: string
-  icon?: string
-  type: EntryType
-  content: EntryContent
-  urlDomain?: string
-  grantEntries: ({ grantId: string } & GrantEntryEnvelope)[]
+  entryId: string
+  entryKey: CanonicalEntryEnvelopes['entryKey']
+  memberIndex: CanonicalEntryEnvelopes['memberIndex']
+  memberSecret: CanonicalEntryEnvelopes['memberSecret']
+  agentDiscovery?: CanonicalEntryEnvelopes['agentDiscovery']
+  grantEnvelopes: CanonicalGrantEnvelope[]
 }
 
 export interface ImportEntriesBody {
@@ -225,10 +403,12 @@ export async function importEntries(
     json: body,
   })
   const text = await response.text()
-  if (!text.trim()) {
-    return { importedCount: body.entries.length, entryIds: [] }
-  }
-  return JSON.parse(text) as ImportEntriesResponse
+  if (!text.trim()) return { importedCount: body.entries.length, entryIds: body.entries.map((entry) => entry.entryId) }
+  const raw: unknown = JSON.parse(text)
+  return z.object({
+    importedCount: z.number().int().nonnegative(),
+    entryIds: z.array(canonicalUuidSchema),
+  }).strict().parse(raw)
 }
 
 /**
@@ -242,37 +422,5 @@ export async function exportAudit(
   await api.post(`api/vaults/${vaultId}/export-audit`, { json: body })
 }
 
-/**
- * Shared per-domain favicon from the public cache (fetched server-side on a
- * miss). Null = no suggestion; never throws into the form flow.
- */
-export async function resolveFavicon(domain: string): Promise<string | null> {
-  try {
-    const res = await api
-      .get('api/vaults/favicons/resolve', { searchParams: { domain } })
-      .json<{ iconUrl: string | null }>()
-    return res.iconUrl
-  } catch {
-    return null
-  }
-}
-
 // Re-export for convenient consumption by hooks/tests.
 export type { GrantMode }
-
-export interface FaviconHit {
-  domain: string
-  iconUrl: string
-}
-
-/** Search the shared favicon index (brand icons section of the icon browser). */
-export async function searchFavicons(query: string): Promise<FaviconHit[]> {
-  try {
-    const res = await api
-      .get('api/vaults/favicons/search', { searchParams: query ? { query } : {} })
-      .json<{ icons: FaviconHit[] }>()
-    return res.icons
-  } catch {
-    return []
-  }
-}

@@ -1,15 +1,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
-import { produceGrantEntryEnvelope } from '../../shared/crypto/grant-envelope'
-import { unsealVaultKey } from '../../shared/crypto/vault-key'
+import { getAgent } from '../agents'
+import { openMemberSecret } from '../../shared/crypto/entry-protocol'
+import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
+import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
-import { getEntry, getVault } from '../vaults/api/vault-api'
+import { getCanonicalEntry } from '../vaults/api/vault-api'
+import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import { approveGrant, type ApproveGrantBody } from './api/pending-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
-import { serializeGrantMethods, type GrantMethod } from './grant-methods'
+import { grantMethodsMask, serializeGrantMethods, type GrantMethod } from './grant-methods'
 import { GRANTS_QUERY_KEY } from './query-keys'
 
-/** Thrown when the vault key cannot be recovered (vault locked / no wrappedVK). */
 export class VaultLockedError extends Error {
   constructor() {
     super('Vault is locked or its key is unavailable')
@@ -17,15 +19,17 @@ export class VaultLockedError extends Error {
   }
 }
 
-/**
- * Thrown when the data required to build the approval envelope is missing —
- * notably the agent's public key, which the pending-grants endpoint does not
- * yet return. Surfaced as a user-facing error rather than sending a bad payload.
- */
 export class MissingGrantMaterialError extends Error {
   constructor() {
-    super('Cannot approve: required grant material is missing')
+    super('Cannot produce a revision-bound grant envelope')
     this.name = 'MissingGrantMaterialError'
+  }
+}
+
+export class StaleGrantReviewError extends Error {
+  constructor() {
+    super('Entry changed after the approval review')
+    this.name = 'StaleGrantReviewError'
   }
 }
 
@@ -33,31 +37,14 @@ export interface ApproveGrantInput {
   grantId: string
   vaultId: string
   entryId: string | null | undefined
-  /** base64 X25519 public key from the pending grant (required to seal the DEK). */
-  agentPublicKey: string | null | undefined
-  /**
-   * Access policy: `{ expiresAt }` (time-limited), `{ queryLimit }` (use-capped),
-   * or `{}` (lifetime — neither field). Never both.
-   */
+  agentId: string | null | undefined
   policy: GrantPolicyBody
-  /** Methods the agent may use (CVT-149) — at least one. */
   methods: GrantMethod[]
+  fieldIds: string[]
+  reviewedEntryRevision: string
+  requestedMethods: number
 }
 
-/**
- * Approves a GRANULAR pending grant by producing a zero-knowledge envelope and
- * PUTting it to the approve endpoint.
- *
- * Crypto orchestration (delegated entirely to `shared/crypto/`):
- *   1. Recover VK: `unsealVaultKey(vault.wrappedVK, userPrivateKey)`.
- *   2. Fetch the entry's sealed content.
- *   3. `produceGrantEntryEnvelope` → re-encrypt under a fresh DEK + seal DEK to
- *      the agent's public key.
- *   4. PUT approve with the envelope + XOR policy.
- *
- * The VK is wiped immediately after the envelope is produced. The private key
- * stays owned by the auth store (never wiped here). No key/plaintext is logged.
- */
 export function useApproveGrant() {
   const queryClient = useQueryClient()
 
@@ -66,48 +53,61 @@ export function useApproveGrant() {
       grantId,
       vaultId,
       entryId,
-      agentPublicKey,
+      agentId,
       policy,
       methods,
+      fieldIds,
+      reviewedEntryRevision,
+      requestedMethods,
     }: ApproveGrantInput) => {
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new VaultLockedError()
+      if (!entryId || !agentId) {
+        throw new MissingGrantMaterialError()
+      }
+      const approvedMethods = grantMethodsMask(methods)
+      if (approvedMethods === 0 || (approvedMethods & requestedMethods) !== approvedMethods) {
+        throw new MissingGrantMaterialError()
+      }
 
-      // The agent public key + target entry are required to build the envelope.
-      // The pending-grants endpoint does not yet return `agentPublicKey`, so we
-      // fail loudly here instead of sending an envelope sealed to nothing.
-      if (!agentPublicKey || !entryId) throw new MissingGrantMaterialError()
-
-      // Vault detail carries the caller's wrapped VK; entry carries the sealed
-      // content. Fetch both before touching any key material.
-      const [vault, entry] = await Promise.all([
-        getVault(vaultId),
-        getEntry(vaultId, entryId),
+      const [vault, detail, agent] = await Promise.all([
+        getEncryptedVault(vaultId),
+        getCanonicalEntry(vaultId, entryId),
+        getAgent(agentId),
       ])
-      if (!vault.wrappedVK) throw new VaultLockedError()
-
-      const vaultKey = await unsealVaultKey(vault.wrappedVK, privateKey)
+      if (!agent.publicKey) throw new MissingGrantMaterialError()
+      if (detail.currentRevision !== reviewedEntryRevision || (detail.state !== 'active' && detail.state !== 1)) {
+        throw new StaleGrantReviewError()
+      }
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
       try {
-        const envelope = await produceGrantEntryEnvelope({
-          entryContent: entry.content,
-          vaultKey,
-          agentPublicKey,
+        const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
+          organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
         })
-
+        const envelope = await buildCanonicalGrantEnvelope({
+          secret: memberSecret,
+          agentPublicKey: agent.publicKey,
+          organizationId: detail.organizationId, vaultId, grantId, agentId, entryId,
+          entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
+          memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: agent.recipientKeyVersion,
+          approvedMethods, approvedFieldIds: fieldIds,
+          ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
+        })
         const body: ApproveGrantBody = {
-          grantEntry: { entryId, ...envelope },
+          grantEntry: envelope,
           ...policy,
           methods: serializeGrantMethods(methods),
+        }
+        if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
+        const latest = await getCanonicalEntry(vaultId, entryId)
+        if (latest.currentRevision !== reviewedEntryRevision || (latest.state !== 'active' && latest.state !== 1)) {
+          throw new StaleGrantReviewError()
         }
         await approveGrant(vaultId, grantId, body)
       } finally {
         wipe(vaultKey)
       }
     },
-    onSuccess: () => {
-      // Invalidating the grants root refreshes every grant view — pending
-      // queue, org-grants list, badges — via prefix match.
-      queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY }),
   })
 }

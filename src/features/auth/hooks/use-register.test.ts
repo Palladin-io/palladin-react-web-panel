@@ -3,7 +3,8 @@ import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { deriveKey } from '../../../shared/crypto/argon2'
-import { fromBase64, toBase64 } from '../../../shared/crypto/encoding'
+import { deriveIdentityV1 } from '../../../shared/crypto/identity-kdf'
+import { decodeBase64Url, encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { decryptWithKey, loadSodium } from '../../../shared/crypto/sodium'
 import type { RegisterPayload } from '../api/auth-api'
 import { useRegister } from './use-register'
@@ -62,9 +63,9 @@ describe('useRegister', () => {
     expect(payload.email).toBe('user@example.com')
     expect(payload.displayName).toBe('user')
     for (const field of [
-      'authHash',
-      'authSalt',
-      'salt',
+      'accountId',
+      'authCredential',
+      'kdfSalt',
       'recoverySalt',
       'publicKey',
       'encryptedPrivateKey',
@@ -72,9 +73,6 @@ describe('useRegister', () => {
     ] as const) {
       expect(payload[field], field).toBeTruthy()
     }
-
-    // The auth salt and the master-key salt are independent.
-    expect(payload.authSalt).not.toBe(payload.salt)
 
     // The plaintext password must never appear anywhere on the wire.
     expect(JSON.stringify(payload)).not.toContain(PASSWORD)
@@ -94,21 +92,27 @@ describe('useRegister', () => {
     const payload = registerMock.mock.calls[0][0] as RegisterPayload
     const sodium = await loadSodium()
 
-    // authHash on the wire == Argon2id(password, authSalt) — reproducible by the server-side login path.
-    const recomputedAuthHash = await deriveKey(PASSWORD, fromBase64(payload.authSalt))
-    expect(toBase64(recomputedAuthHash)).toBe(payload.authHash)
+    const kdfSalt = decodeBase64Url(payload.kdfSalt, 16)
+    const identity = await deriveIdentityV1(
+      PASSWORD,
+      payload.accountId,
+      kdfSalt,
+    )
+    expect(encodeBase64Url(identity.authCredential)).toBe(payload.authCredential)
 
     // MK derived from the same password unwraps the private key, whose public
     // half matches the published public key.
-    const mk = await deriveKey(PASSWORD, fromBase64(payload.salt))
-    const privateKey = await decryptWithKey(fromBase64(payload.encryptedPrivateKey), mk)
+    const privateKey = await decryptWithKey(
+      decodeBase64Url(payload.encryptedPrivateKey),
+      identity.masterKey,
+    )
     const derivedPub = sodium.crypto_scalarmult_base(privateKey)
-    expect(Array.from(derivedPub)).toEqual(Array.from(fromBase64(payload.publicKey)))
+    expect(Array.from(derivedPub)).toEqual(Array.from(decodeBase64Url(payload.publicKey)))
 
     // The recovery wrapping unwraps the same private key.
-    const rk = await deriveKey(MNEMONIC.join(' '), fromBase64(payload.recoverySalt))
+    const rk = await deriveKey(MNEMONIC.join(' '), decodeBase64Url(payload.recoverySalt))
     const viaRecovery = await decryptWithKey(
-      fromBase64(payload.encryptedPrivateKeyByRecovery),
+      decodeBase64Url(payload.encryptedPrivateKeyByRecovery),
       rk,
     )
     expect(Array.from(viaRecovery)).toEqual(Array.from(privateKey))

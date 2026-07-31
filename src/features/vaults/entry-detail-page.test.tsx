@@ -5,13 +5,8 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth'
 import { EntryDetailPage } from './entry-detail-page'
-import {
-  ENTRY_TYPE_CREDENTIAL,
-  ENTRY_TYPE_KEY,
-  type EntryContent,
-  type EntryDetail,
-  type Vault,
-} from './types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, type Vault } from './types'
+import type { CanonicalEntryDetail } from './api/vault-api'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -27,7 +22,6 @@ const {
   useEntryDetailMock,
   updateMutateMock,
   deleteMutateMock,
-  iconUploadMock,
   navigateMock,
   toastSuccess,
   toastError,
@@ -37,23 +31,23 @@ const {
   useEntryDetailMock: vi.fn(),
   updateMutateMock: vi.fn(),
   deleteMutateMock: vi.fn(),
-  iconUploadMock: vi.fn(async () => true),
   navigateMock: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   state: {
     updateIsPending: false,
     deleteIsPending: false,
-    iconIsUploading: false,
     decryptResult: null as EntryPlaintextLite | null,
     decryptShouldThrow: false,
+    decryptedIconReference: undefined as string | undefined,
+    memberIndex: { memberLabel: 'Stripe API Key', entryType: 'key' as 'key' | 'credential', icon: null },
   },
 }))
 
 // Avoids importing `EntryPlaintext` inside the hoisted block (hoisting
 // must not depend on module imports).
 type EntryPlaintextLite =
-  | { type: 0; value: string; notes?: string }
+  | { type: 0; value: string; url?: string; notes?: string }
   | {
       type: 1
       username: string
@@ -72,15 +66,15 @@ vi.mock('./use-vault', () => ({
 }))
 
 vi.mock('./use-entries', () => ({
-  useEntryDetail: (vaultId: string, entryId: string, enabled: boolean) =>
-    useEntryDetailMock(vaultId, entryId, enabled),
+  useCanonicalEntryDetail: (vaultId: string, entryId: string) =>
+    useEntryDetailMock(vaultId, entryId),
   entriesQueryKey: (vaultId: string) => ['vaults', vaultId, 'entries'] as const,
   entryDetailQueryKey: (vaultId: string, entryId: string) =>
     ['vaults', vaultId, 'entries', entryId] as const,
 }))
 
-vi.mock('./use-update-entry', () => ({
-  useUpdateEntry: () => ({
+vi.mock('./use-update-canonical-entry', () => ({
+  useUpdateCanonicalEntry: () => ({
     mutate: updateMutateMock,
     get isPending() {
       return state.updateIsPending
@@ -97,39 +91,52 @@ vi.mock('./use-delete-entry', () => ({
   }),
 }))
 
-vi.mock('./use-entry-icon-upload', () => ({
-  useEntryIconUpload: () => ({
-    upload: iconUploadMock,
-    get isUploading() {
-      return state.iconIsUploading
-    },
-    state: 'idle',
-    error: null,
-  }),
-}))
-
 // Crypto round-trip is exercised by entry-crypto.test.ts. Here we stub the
 // helpers so the component test stays focused on form behaviour and does
 // not depend on libsodium WASM warm-up.
-const fakeVK = new Uint8Array(32)
-vi.mock('../../shared/crypto/vault-key', () => ({
-  unsealVaultKey: vi.fn(async () => fakeVK),
-}))
-
-vi.mock('../../shared/crypto/entry-crypto', () => ({
-  decryptEntry: vi.fn(async () => {
+vi.mock('../../shared/crypto/entry-protocol', () => ({
+  openMemberSecret: vi.fn(async () => {
     if (state.decryptShouldThrow) throw new Error('mac')
     if (!state.decryptResult) {
       throw new Error('test setup: decryptResult not configured')
     }
-    return state.decryptResult
+    return {
+      schemaVersion: 1,
+      memberLabel: state.memberIndex.memberLabel,
+      agentLabel: state.memberIndex.memberLabel,
+      entryType: state.decryptResult.type,
+      content: state.decryptResult,
+      ...(state.decryptedIconReference ? { iconReference: state.decryptedIconReference } : {}),
+      agentVisibilityPolicy: { discoverable: true, fields: { agentLabel: 'discovery' } },
+    }
   }),
-  encryptEntry: vi.fn(
-    async (): Promise<EntryContent> => ({
-      encryptedBlob: 'ENC',
-      nonce: 'NCE',
-    }),
-  ),
+}))
+vi.mock('../../shared/crypto/entry-draft', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../shared/crypto/entry-draft')>(),
+  fromMemberSecret: (value: unknown) => value,
+}))
+
+vi.mock('../../shared/crypto/vault-protocol', () => ({
+  openMemberVaultKey: vi.fn(async () => new Uint8Array(32)),
+}))
+vi.mock('./sync/member-sync-api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./sync/member-sync-api')>()
+  return {
+    ...actual,
+    getEncryptedVault: vi.fn(async () => ({
+      memberVaultKey: {},
+      currentKeyEpoch: { vaultKeyVersion: 1 },
+      memberKeyGeneration: 1,
+    })),
+  }
+})
+vi.mock('./sync/member-sync-store', () => ({
+  useMemberSyncStore: (selector: (value: unknown) => unknown) => selector({
+    vaults: new Map([['vault-1', { entries: new Map([
+      ['entry-1', { payload: state.memberIndex }],
+      ['entry-2', { payload: state.memberIndex }],
+    ]) }]]),
+  }),
 }))
 
 vi.mock('../../shared/crypto/sodium', () => ({
@@ -152,6 +159,9 @@ vi.mock('./components/vault-detail-header', () => ({
 vi.mock('./components/vault-entries-panel', () => ({
   VaultEntriesPanel: () => <div data-testid="vault-entries-panel" />,
 }))
+vi.mock('./components/entry-history-tab', () => ({
+  EntryHistoryTab: () => <div data-testid="history-loaded">History loaded</div>,
+}))
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -173,25 +183,33 @@ const VAULT: Vault = {
   wrappedVK: 'WRAPPED_VK_BASE64',
 }
 
-const KEY_ENTRY: EntryDetail = {
-  id: 'entry-1',
-  label: 'Stripe API Key',
-  type: ENTRY_TYPE_KEY,
-  accessCount: 0,
-  createdAt: '2026-04-25T12:00:00Z',
-  updatedAt: '2026-04-25T12:00:00Z',
-  content: { encryptedBlob: 'CIPHER', nonce: 'NONCE' },
-}
+const KEY_ENTRY = canonicalEntry('entry-1')
 
-const CREDENTIAL_ENTRY: EntryDetail = {
-  id: 'entry-2',
-  label: 'GitHub',
-  type: ENTRY_TYPE_CREDENTIAL,
-  urlDomain: 'github.com',
-  accessCount: 0,
-  createdAt: '2026-04-25T12:00:00Z',
-  updatedAt: '2026-04-25T12:00:00Z',
-  content: { encryptedBlob: 'CIPHER', nonce: 'NONCE' },
+const CREDENTIAL_ENTRY = canonicalEntry('entry-2')
+
+function canonicalEntry(id: string): CanonicalEntryDetail {
+  const scope = { organizationId: '00000000-0000-4000-8000-000000000001', vaultId: '00000000-0000-4000-8000-000000000002', entryId: id }
+  const header = { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 3, resourceRevision: '1', keyVersion: 1, memberKeyGeneration: 1, nonce: 'nonce' }
+  return {
+    organizationId: scope.organizationId,
+    vaultId: scope.vaultId,
+    id,
+    state: 'active',
+    currentRevision: '1',
+    memberIndexRevision: '1',
+    agentDiscoveryRevision: null,
+    agentDiscoveryRevisionHighWatermark: '0',
+    currentKeyVersion: 1,
+    createdAt: '2026-04-25T12:00:00Z',
+    createdBy: '00000000-0000-4000-8000-000000000003',
+    updatedAt: '2026-04-25T12:00:00Z',
+    updatedBy: '00000000-0000-4000-8000-000000000003',
+    memberIndex: { ...scope, memberIndexRevision: '1', header: { ...header, projectionKind: 2 }, ciphertext: 'cipher' },
+    memberSecret: { ...scope, revision: '1', operation: 1, header, ciphertext: 'cipher' },
+    agentDiscovery: null,
+    entryKey: { ...scope, wrapperRevision: '1', keyVersion: 1, memberKeyGeneration: 1, wrappingKeyVersion: 1,
+      header: { ...header, projectionKind: 8 }, wrappedEntryDekByVk: 'wrapped' },
+  }
 }
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -213,21 +231,31 @@ function unlockedAuthStore() {
 // ---------------------------------------------------------------------------
 
 describe('EntryDetailPage — DetailsTab', () => {
+  it('does not mount history until the History tab is selected', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    expect(screen.queryByTestId('history-loaded')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('tab', { name: /history/i }))
+    expect(screen.getByTestId('history-loaded')).toBeInTheDocument()
+  })
+
   beforeEach(() => {
     useVaultMock.mockReset()
     useEntryDetailMock.mockReset()
     updateMutateMock.mockReset()
     deleteMutateMock.mockReset()
-    iconUploadMock.mockReset()
-    iconUploadMock.mockResolvedValue(true)
     navigateMock.mockReset()
     toastSuccess.mockReset()
     toastError.mockReset()
     state.updateIsPending = false
     state.deleteIsPending = false
-    state.iconIsUploading = false
     state.decryptResult = null
     state.decryptShouldThrow = false
+    state.decryptedIconReference = undefined
+    state.memberIndex = { memberLabel: 'Stripe API Key', entryType: 'key', icon: null }
     useAuthStore.setState({ privateKey: null, isVaultLocked: true })
     // Default to wide-screen off so the detail body renders without the
     // entries panel split — keeps assertions targeted.
@@ -296,10 +324,10 @@ describe('EntryDetailPage — DetailsTab', () => {
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     expect(screen.getByLabelText(/^label$/i)).toHaveValue('Stripe API Key')
-    // After decrypt the secret value and notes populate.
     await waitFor(() =>
       expect(screen.getByLabelText(/^value$/i)).toHaveValue('sk_live_123'),
     )
+    expect(screen.getByLabelText(/^label$/i)).toBeEnabled()
     expect(screen.getByLabelText(/^notes$/i)).toHaveValue('rotation due Q3')
   })
 
@@ -311,6 +339,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       password: 'P@ssw0rd!',
       url: 'https://github.com/login',
     }
+    state.memberIndex = { memberLabel: 'GitHub', entryType: 'credential', icon: null }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({
       isPending: false,
@@ -367,6 +396,32 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(saveButton).not.toBeDisabled()
   })
 
+  it('restores a KEY URL from encrypted content and preserves it on update', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'sk_test', url: 'https://stripe.com' }
+    state.decryptedIconReference = 'website:stripe.com'
+    state.memberIndex = {
+      memberLabel: 'Stripe Key', entryType: 'key',
+      icon: { kind: 'website', hostname: 'stripe.com' } as never,
+    }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+
+    expect(await screen.findByLabelText(/^url$/i)).toHaveValue('https://stripe.com')
+    const labelInput = screen.getByLabelText(/^label$/i)
+    await user.clear(labelInput)
+    await user.type(labelInput, 'Stripe production')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    expect(updateMutateMock.mock.calls[0][0].draft).toMatchObject({
+      iconReference: 'website:stripe.com',
+      content: { type: ENTRY_TYPE_KEY, value: 'sk_test', url: 'https://stripe.com' },
+    })
+  })
+
   it('submits a trimmed label patch on Save and shows the success toast', async () => {
     const user = userEvent.setup()
     unlockedAuthStore()
@@ -392,7 +447,7 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     expect(updateMutateMock).toHaveBeenCalledTimes(1)
     const patch = updateMutateMock.mock.calls[0][0]
-    expect(patch.label).toBe('Renamed Key')
+    expect(patch.draft.memberLabel).toBe('Renamed Key')
     expect(toastSuccess).toHaveBeenCalled()
   })
 

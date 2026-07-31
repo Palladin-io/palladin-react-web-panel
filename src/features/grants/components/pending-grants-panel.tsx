@@ -5,16 +5,20 @@ import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
-import { Tooltip } from '../../../shared/components/tooltip'
 import type { PendingGrant } from '../api/pending-grants-api'
 import type { GrantPolicyBody } from '../grant-policy'
 import type { GrantMethod } from '../grant-methods'
 import { useApproveGrant } from '../use-approve-grant'
+import { StaleGrantReviewError } from '../use-approve-grant'
+import { useGrantApprovalReview } from '../use-grant-approval-review'
 import { useDenyGrant } from '../use-deny-grant'
 import { usePendingGrants } from '../use-pending-grants'
 import { ApproveGrantDialog } from './approve-grant-dialog'
 import { DenyGrantDialog } from './deny-grant-dialog'
 import { formatGrantDate, formatRelativeTime } from './grant-format'
+import { ModalShell } from '../../../shared/components/modal-shell'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
+import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
 
 export interface PendingGrantsPanelProps {
   /**
@@ -49,25 +53,41 @@ export function PendingGrantsPanel({
 
   const [approveTarget, setApproveTarget] = useState<PendingGrant | null>(null)
   const [denyTarget, setDenyTarget] = useState<PendingGrant | null>(null)
+  const review = useGrantApprovalReview(approveTarget)
+  const memberVaults = useMemberSyncStore((state) => state.vaults)
 
   const items = pending.data ?? []
+  const resolveGrant = (grant: PendingGrant): PendingGrant => {
+    const vault = memberVaults.get(grant.vaultId)
+    const entry = grant.entryId ? vault?.entries.get(grant.entryId) : undefined
+    return {
+      ...grant,
+      entryLabel: !entry?.corrupt ? entry?.payload?.memberLabel ?? null : null,
+    }
+  }
 
-  function handleApprove(grant: PendingGrant, policy: GrantPolicyBody, methods: GrantMethod[]) {
+  function handleApprove(grant: PendingGrant, policy: GrantPolicyBody, methods: GrantMethod[], fieldIds: string[]) {
+    if (!review.data) return
     approve.mutate(
       {
         grantId: grant.id,
+        agentId: grant.agentId,
         vaultId: grant.vaultId,
         entryId: grant.entryId,
-        agentPublicKey: grant.agentPublicKey,
         policy,
         methods,
+        fieldIds,
+        reviewedEntryRevision: review.data.entryRevision,
+        requestedMethods: grant.encryptedReason.descriptor.binding.requestedMethods,
       },
       {
         onSuccess: () => {
           toast.success(t('grants.approve.success'))
           setApproveTarget(null)
         },
-        onError: () => toast.error(t('grants.approve.error')),
+        onError: (error) => toast.error(t(error instanceof StaleGrantReviewError
+          ? 'grants.approve.staleReview'
+          : 'grants.approve.error')),
       },
     )
   }
@@ -132,8 +152,8 @@ export function PendingGrantsPanel({
           {items.map((grant) => (
             <li key={grant.id} className="w-[22.5rem] shrink-0 snap-start">
               <PendingGrantCard
-                grant={grant}
-                onApprove={() => setApproveTarget(grant)}
+                grant={resolveGrant(grant)}
+                onApprove={() => setApproveTarget(resolveGrant(grant))}
                 onDeny={() => setDenyTarget(grant)}
                 disabled={approve.isPending || deny.isPending}
               />
@@ -145,8 +165,8 @@ export function PendingGrantsPanel({
           {items.map((grant) => (
             <li key={grant.id}>
               <PendingGrantCard
-                grant={grant}
-                onApprove={() => setApproveTarget(grant)}
+                grant={resolveGrant(grant)}
+                onApprove={() => setApproveTarget(resolveGrant(grant))}
                 onDeny={() => setDenyTarget(grant)}
                 disabled={approve.isPending || deny.isPending}
               />
@@ -155,14 +175,33 @@ export function PendingGrantsPanel({
         </ul>
       )}
 
-      {approveTarget && (
+      {approveTarget && review.data && (
         <ApproveGrantDialog
           grant={approveTarget}
+          review={review.data}
           isPending={approve.isPending}
-          onConfirm={(policy, methods) => handleApprove(approveTarget, policy, methods)}
+          onConfirm={(policy, methods, fieldIds) => handleApprove(approveTarget, policy, methods, fieldIds)}
           onCancel={() => setApproveTarget(null)}
         />
       )}
+      {approveTarget && !review.data ? (
+        <ModalShell
+          ariaLabel={t('grants.approve.title')}
+          title={t('grants.approve.title')}
+          onClose={() => setApproveTarget(null)}
+          footer={<DialogFooter>
+            <Button variant="subtle" size="sm" className="flex-1" onClick={() => setApproveTarget(null)}>
+              {t('grants.cancel')}
+            </Button>
+          </DialogFooter>}
+        >
+          {review.isError ? (
+            <ErrorState message={t('grants.approve.reviewUnavailable')} onRetry={() => review.refetch()} />
+          ) : (
+            <p className="text-ui text-[var(--cv-t3)]">{t('grants.approve.loadingReview')}</p>
+          )}
+        </ModalShell>
+      ) : null}
 
       <DenyGrantDialog
         open={denyTarget !== null}
@@ -198,10 +237,10 @@ function PendingGrantCard({
       <div className="flex items-center gap-2.5 px-[0.875rem] py-3">
         <span
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full
-            bg-[rgba(16,185,129,0.12)]"
+            bg-[rgb(var(--cv-success-rgb)/0.12)]"
           aria-hidden
         >
-          <Icon name="smart_toy" size={16} color="#10B981" />
+          <Icon name="smart_toy" size={16} color="var(--cv-success)" />
         </span>
         <div className="min-w-0 flex-1">
           <p
@@ -239,13 +278,6 @@ function PendingGrantCard({
           </span>
         </DetailRow>
 
-        {grant.reason && (
-          <DetailRow label={t('grants.pending.rowReason')}>
-            <Tooltip content={grant.reason} className="block truncate text-[var(--cv-t2)]">
-              {grant.reason}
-            </Tooltip>
-          </DetailRow>
-        )}
       </div>
 
       <div

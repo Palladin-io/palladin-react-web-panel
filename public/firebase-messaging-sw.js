@@ -72,18 +72,13 @@ if (firebaseConfig.apiKey && firebaseConfig.appId) {
       const messaging = firebase.messaging()
 
       messaging.onBackgroundMessage((payload) => {
-        const data = payload.data || {}
-        const title =
-          data.title || (payload.notification && payload.notification.title) || 'Palladin'
-        const body = data.body || (payload.notification && payload.notification.body) || ''
-        const link = safeInternalPath(
-          (payload.fcmOptions && payload.fcmOptions.link) || data.link || '/',
-        )
-
-        self.registration.showNotification(title, {
-          body,
+        // The canonical push contract is intentionally generic. Never render
+        // server-provided title/body/link fields: lock-screen copy must not
+        // disclose account, Vault or Entry presentation data.
+        self.registration.showNotification('Palladin', {
+          body: 'Open Palladin to view this notification.',
           icon: '/logo.png',
-          data: { link },
+          data: { link: '/inbox' },
         })
       })
     })

@@ -1,7 +1,7 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GlobalSearchAutocomplete } from './global-search-autocomplete'
-import type { SearchResultItem } from './search-api'
+import type { SearchResultItem } from './use-global-search'
 
 const navigateMock = vi.fn()
 vi.mock('@tanstack/react-router', async (importOriginal) => {
@@ -10,56 +10,45 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 })
 
 const captureMock = vi.fn()
-vi.mock('../../shared/lib/analytics', () => ({
-  analytics: { capture: (...args: unknown[]) => captureMock(...args) },
-}))
+vi.mock('../../shared/lib/analytics', () => ({ analytics: { capture: (...args: unknown[]) => captureMock(...args) } }))
 
-// Mutable return of the mocked query hook — each test sets what it needs.
 const searchState = vi.hoisted(() => ({
-  data: undefined as SearchResultItem[] | undefined,
-  isFetching: false,
+  data: [] as SearchResultItem[],
+  local: [] as SearchResultItem[],
+  isRemoteLoading: false,
+  isRemoteError: false,
+  isLocked: false,
+  isSyncing: false,
 }))
+const recentState = vi.hoisted(() => ({ data: [] as SearchResultItem[] }))
 vi.mock('./use-global-search', () => ({
   useGlobalSearch: () => searchState,
-}))
-
-// Recent-entries hook (empty-state) — mocked so the component needs no QueryClient.
-const recentState = vi.hoisted(() => ({
-  data: undefined as Array<Record<string, unknown>> | undefined,
-  isPending: false,
-}))
-vi.mock('../grants', () => ({
-  useRecentEntries: () => recentState,
-}))
-
-// Caller has GrantManage (bit 32) so recent entries are fetchable.
-vi.mock('../auth', () => ({
-  useAuthStore: (selector: (s: { permissions: number }) => unknown) =>
-    selector({ permissions: 32 }),
+  useRecentLocalEntries: () => recentState.data,
 }))
 
 const agentResult: SearchResultItem = { type: 'agent', id: 'a1', name: 'Deploy Bot' }
 const entryResult: SearchResultItem = {
-  type: 'entry',
-  id: 'e1',
-  name: 'GitHub',
-  vaultId: 'v9',
-  vaultName: 'Personal',
+  type: 'entry', id: 'e1', name: 'GitHub', vaultId: 'v9', vaultName: 'Personal',
 }
 
 function typeQuery(value: string) {
   fireEvent.change(screen.getByRole('textbox'), { target: { value } })
+  act(() => vi.advanceTimersByTime(250))
 }
 
 describe('GlobalSearchAutocomplete', () => {
   beforeEach(() => {
+    vi.useFakeTimers()
     navigateMock.mockReset()
     captureMock.mockReset()
-    searchState.data = undefined
-    searchState.isFetching = false
-    recentState.data = undefined
-    recentState.isPending = false
+    Object.assign(searchState, {
+      data: [], local: [], isRemoteLoading: false, isRemoteError: false,
+      isLocked: false, isSyncing: false,
+    })
+    recentState.data = []
   })
+
+  afterEach(() => vi.useRealTimers())
 
   it('renders the search bar and no dropdown by default', () => {
     render(<GlobalSearchAutocomplete placeholder="Search…" />)
@@ -67,86 +56,75 @@ describe('GlobalSearchAutocomplete', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
-  it('surfaces recent entries when the empty field is focused', () => {
-    recentState.data = [
-      { id: 'e1', label: 'GitHub', vaultId: 'v9', vaultName: 'Personal' },
-    ]
+  it('opens and focuses search with Ctrl/Cmd+K', () => {
     render(<GlobalSearchAutocomplete placeholder="Search…" />)
-
-    fireEvent.focus(screen.getByRole('textbox'))
-
+    fireEvent.keyDown(document, { key: 'k', ctrlKey: true })
+    expect(screen.getByRole('textbox')).toHaveFocus()
     expect(screen.getByRole('listbox')).toBeInTheDocument()
+  })
+
+  it('surfaces recent local entries when the empty field is focused', () => {
+    recentState.data = [entryResult]
+    render(<GlobalSearchAutocomplete placeholder="Search…" />)
+    fireEvent.focus(screen.getByRole('textbox'))
     expect(screen.getByText('Recent')).toBeInTheDocument()
     expect(screen.getByText('GitHub')).toBeInTheDocument()
   })
 
-  it('shows the dropdown with typed results once the query is long enough', () => {
-    searchState.data = [agentResult, entryResult]
+  it('renders mixed local and administrative results', () => {
+    searchState.data = [entryResult, agentResult, { type: 'member', id: 'm1', name: 'Ada' }]
     render(<GlobalSearchAutocomplete placeholder="Search…" />)
-
     typeQuery('git')
-
-    expect(screen.getByRole('listbox')).toBeInTheDocument()
     expect(screen.getByText('Deploy Bot')).toBeInTheDocument()
+    expect(screen.getByText('Ada')).toBeInTheDocument()
     expect(screen.getByText('GitHub')).toBeInTheDocument()
-    // entry hit carries its vault name subtitle
     expect(screen.getByText('Personal')).toBeInTheDocument()
   })
 
-  it('navigates and fires analytics on ArrowDown + Enter', () => {
+  it('keeps local results visible while the administrative provider is loading or unavailable', () => {
+    searchState.data = [entryResult]
+    searchState.isRemoteLoading = true
+    const view = render(<GlobalSearchAutocomplete placeholder="Search…" />)
+    typeQuery('git')
+    expect(screen.getByText('GitHub')).toBeInTheDocument()
+    expect(screen.getByText(/searching members and agents/i)).toBeInTheDocument()
+
+    searchState.isRemoteLoading = false
+    searchState.isRemoteError = true
+    view.rerender(<GlobalSearchAutocomplete placeholder="Search…" />)
+    expect(screen.getByText('GitHub')).toBeInTheDocument()
+    expect(screen.getByText(/temporarily unavailable/i)).toBeInTheDocument()
+  })
+
+  it('navigates and emits only opaque result metadata on ArrowDown + Enter', () => {
     searchState.data = [agentResult]
     render(<GlobalSearchAutocomplete placeholder="Search…" />)
-
     const input = screen.getByRole('textbox')
     typeQuery('dep')
     fireEvent.keyDown(input, { key: 'ArrowDown' })
     fireEvent.keyDown(input, { key: 'Enter' })
-
-    expect(navigateMock).toHaveBeenCalledWith({
-      to: '/agents/$agentId',
-      params: { agentId: 'a1' },
-    })
-    expect(captureMock).toHaveBeenCalledWith('search', 'search-result-selected', {
-      type: 'agent',
-      id: 'a1',
-    })
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/agents/$agentId', params: { agentId: 'a1' } })
+    expect(captureMock).toHaveBeenCalledWith('search', 'search-result-selected', { type: 'agent', id: 'a1' })
+    expect(captureMock).not.toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ query: expect.anything() }))
   })
 
-  it('navigates to entry detail with vaultId + entryId on entry selection', () => {
+  it('uses the full Vault and Entry navigation scope', () => {
     searchState.data = [entryResult]
     render(<GlobalSearchAutocomplete placeholder="Search…" />)
-
     typeQuery('git')
     fireEvent.click(screen.getByText('GitHub'))
-
     expect(navigateMock).toHaveBeenCalledWith({
-      to: '/vaults/$vaultId/entries/$entryId',
-      params: { vaultId: 'v9', entryId: 'e1' },
-    })
-    expect(captureMock).toHaveBeenCalledWith('search', 'search-result-selected', {
-      type: 'entry',
-      id: 'e1',
+      to: '/vaults/$vaultId/entries/$entryId', params: { vaultId: 'v9', entryId: 'e1' },
     })
   })
 
-  it('closes the dropdown on Escape', () => {
-    searchState.data = [agentResult]
+  it('shows an explicit locked state and supports Escape', () => {
+    searchState.isLocked = true
     render(<GlobalSearchAutocomplete placeholder="Search…" />)
-
     const input = screen.getByRole('textbox')
-    typeQuery('dep')
-    expect(screen.getByRole('listbox')).toBeInTheDocument()
-
+    typeQuery('git')
+    expect(screen.getByText(/unlock your vault/i)).toBeInTheDocument()
     fireEvent.keyDown(input, { key: 'Escape' })
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
-  })
-
-  it('shows "No results" when the result list is empty', () => {
-    searchState.data = []
-    render(<GlobalSearchAutocomplete placeholder="Search…" />)
-
-    typeQuery('zzz')
-
-    expect(screen.getByText('No results')).toBeInTheDocument()
   })
 })

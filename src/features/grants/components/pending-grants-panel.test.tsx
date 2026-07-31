@@ -22,6 +22,9 @@ vi.mock('../use-pending-grants', () => ({
 vi.mock('../use-approve-grant', () => ({
   useApproveGrant: () => ({ mutate: vi.fn(), isPending: false }),
 }))
+vi.mock('../use-grant-approval-review', () => ({
+  useGrantApprovalReview: () => ({ data: undefined, isPending: false, isError: false }),
+}))
 vi.mock('../use-deny-grant', () => ({
   useDenyGrant: () => ({ mutate: vi.fn(), isPending: false }),
 }))
@@ -35,9 +38,10 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 describe('PendingGrantsPanel — carousel variant', () => {
   it('renders the view-all link and reuses the pending grant card', () => {
     render(<PendingGrantsPanel variant="carousel" viewAllTo="/inbox" />)
-    // Same card content as the list variant — only the container differs.
+    // Display names are resolved only from decrypted local MemberSync state;
+    // the untrusted server label is intentionally ignored in this unit setup.
     expect(screen.getByText('Deploy Bot')).toBeInTheDocument()
-    expect(screen.getByText('Gmail')).toBeInTheDocument()
+    expect(screen.getByText('Unknown')).toBeInTheDocument()
     expect(screen.getByText('View all →')).toBeInTheDocument()
   })
 })

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -17,7 +17,9 @@ import {
   type ParseResult,
 } from '../import'
 import type { Vault } from '../types'
+import { useAuthStore } from '../../auth'
 import { useAllEntries } from '../use-entries'
+import { useMemberSyncStore } from '../sync/member-sync-store'
 import {
   ImportStepError,
   useImportEntries,
@@ -44,11 +46,13 @@ export function ImportWizardModal({ open, vault, onClose }: ImportWizardModalPro
 function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => void }) {
   const { t } = useTranslation()
   const importMutation = useImportEntries()
+  const privateKey = useAuthStore((state) => state.privateKey)
 
   const [step, setStep] = useState<Step>('upload')
   // Conflicts are only needed from the preview step on, so don't fetch the full
   // entry list while the user is still on the upload step (they may close first).
   const entriesQuery = useAllEntries(vault.id, step !== 'upload')
+  const decryptedVault = useMemberSyncStore((state) => state.vaults.get(vault.id))
   const [parsing, setParsing] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
   const [result, setResult] = useState<ParseResult | null>(null)
@@ -57,7 +61,7 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
   const [progress, setProgress] = useState<{
     done: number
     total: number
-    phase: 'encrypt' | 'save'
+    phase: 'encrypt' | 'save' | 'icons'
   }>({ done: 0, total: 0, phase: 'encrypt' })
   const [summary, setSummary] = useState<{
     imported: number
@@ -75,16 +79,26 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
     return { entries: result.entries, skipped: result.skipped }
   }, [result, mapping])
 
-  const entries = derived?.entries ?? []
+  const entries = useMemo(() => derived?.entries ?? [], [derived])
   const skippedCount = derived?.skipped.count ?? 0
 
   const existingByLabel = useMemo(() => {
     const map = new Map<string, string>()
+    // Conflict matching primarily uses the already-decrypted in-memory member
+    // projection. Plaintext labels must not be required from the backend.
+    for (const item of decryptedVault?.entries.values() ?? []) {
+      const label = item.payload?.memberLabel?.trim()
+      if (label) map.set(label.toLowerCase(), item.entryId)
+    }
     for (const item of entriesQuery.data ?? []) {
-      map.set(item.label.trim().toLowerCase(), item.id)
+      // The canonical zero-knowledge list intentionally does not expose a
+      // plaintext label. Older/local responses may still contain one, so only
+      // use it for conflict matching when it is actually present.
+      const label = typeof item.label === 'string' ? item.label.trim() : ''
+      if (label) map.set(label.toLowerCase(), item.id)
     }
     return map
-  }, [entriesQuery.data])
+  }, [decryptedVault, entriesQuery.data])
 
   const existingLabels = useMemo(
     () => new Set(existingByLabel.keys()),
@@ -97,6 +111,10 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
   )
 
   const isBusy = parsing || step === 'importing'
+
+  useEffect(() => {
+    if (!privateKey) onClose()
+  }, [onClose, privateKey])
 
   const handleFile = async (file: File) => {
     setParsing(true)
@@ -140,10 +158,6 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
 
   const handleImport = () => {
     if (!result) return
-    if (!vault.wrappedVK) {
-      toast.error(t('vault.entries.errorMissingVaultKey'))
-      return
-    }
     const { creates, overwrites } = partition()
     if (creates.length + overwrites.length === 0) {
       toast.error(t('vault.import.errorNothingToImport'))
@@ -155,7 +169,6 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
     importMutation.mutate(
       {
         vaultId: vault.id,
-        wrappedVK: vault.wrappedVK,
         format: result.format,
         creates,
         overwrites,
@@ -385,19 +398,18 @@ function PreviewStep({
 function ImportingStep({
   progress,
 }: {
-  progress: { done: number; total: number; phase: 'encrypt' | 'save' }
+  progress: { done: number; total: number; phase: 'encrypt' | 'save' | 'icons' }
 }) {
   const { t } = useTranslation()
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0
   return (
     <div className="flex flex-col gap-3 py-4">
       <p className="text-ui text-[var(--cv-t2)]">
-        {t(
-          progress.phase === 'encrypt'
-            ? 'vault.import.encrypting'
-            : 'vault.import.saving',
-          { done: progress.done, total: progress.total },
-        )}
+        {t(progress.phase === 'encrypt'
+          ? 'vault.import.encrypting'
+          : progress.phase === 'save'
+            ? 'vault.import.saving'
+            : 'vault.import.icons', { done: progress.done, total: progress.total })}
       </p>
       <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--cv-card-bg)]">
         <div

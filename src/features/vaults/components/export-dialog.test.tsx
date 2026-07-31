@@ -6,14 +6,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ExportDialog } from './export-dialog'
 
 const exportMutate = vi.fn()
+const exportReset = vi.fn()
 const downloadMock = vi.hoisted(() => vi.fn())
 const auditMock = vi.hoisted(() => vi.fn(() => Promise.resolve()))
 
 vi.mock('../use-export-entries', () => ({
-  useExportEntries: () => ({ mutate: exportMutate, isPending: false }),
+  useExportEntries: () => ({ mutate: exportMutate, reset: exportReset, isPending: false }),
 }))
 
-vi.mock('../../../shared/lib/download-file', () => ({ downloadTextFile: downloadMock }))
+vi.mock('../../../shared/lib/download-file', () => ({ downloadBytesFile: downloadMock }))
 vi.mock('../api/vault-api', () => ({ exportAudit: auditMock }))
 vi.mock('../../../shared/lib/analytics', () => ({ analytics: { capture: vi.fn() } }))
 
@@ -33,6 +34,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('ExportDialog', () => {
   beforeEach(() => {
     exportMutate.mockReset()
+    exportReset.mockReset()
     downloadMock.mockReset()
     auditMock.mockClear()
     toastError.mockReset()
@@ -62,25 +64,51 @@ describe('ExportDialog', () => {
 
     expect(exportMutate).toHaveBeenCalledTimes(1)
     const [input, options] = exportMutate.mock.calls[0]
-    expect(input).toEqual({ vaults: VAULTS, format: 'json', onProgress: expect.any(Function) })
+    expect(input).toEqual({
+      vaults: VAULTS,
+      format: 'json',
+      includeArchived: false,
+      includeDeleted: false,
+      includeHistory: false,
+      signal: expect.any(AbortSignal),
+      onProgress: expect.any(Function),
+      onFileReady: expect.any(Function),
+    })
 
-    options.onSuccess({
+    const bytes = new TextEncoder().encode('{}')
+    input.onFileReady({
       filename: 'palladin-export-2026-07-04.json',
       mime: 'application/json',
-      content: '{}',
+      content: bytes,
+    })
+    expect(downloadMock).toHaveBeenCalledWith(
+      'palladin-export-2026-07-04.json',
+      bytes,
+      'application/json',
+    )
+
+    options.onSuccess({
       totalEntries: 3,
       perVault: [{ id: 'vault-1', count: 3 }],
       format: 'json',
     })
 
-    expect(downloadMock).toHaveBeenCalledWith(
-      'palladin-export-2026-07-04.json',
-      '{}',
-      'application/json',
-    )
     expect(auditMock).toHaveBeenCalledWith('vault-1', { format: 'json', entryCount: 3 })
     expect(toastSuccess).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('passes explicit archived, deleted, and history selections', async () => {
+    render(<ExportDialog open vaults={VAULTS} onClose={vi.fn()} />, { wrapper })
+    await userEvent.click(screen.getByRole('checkbox', { name: /archived entries/i }))
+    await userEvent.click(screen.getByRole('checkbox', { name: /recently deleted entries/i }))
+    await userEvent.click(screen.getByRole('checkbox', { name: /previous entry versions/i }))
+    await userEvent.click(screen.getByRole('button', { name: /^export$/i }))
+    expect(exportMutate.mock.calls[0][0]).toEqual(expect.objectContaining({
+      includeArchived: true,
+      includeDeleted: true,
+      includeHistory: true,
+    }))
   })
 
   it('shows an error toast when the export fails', async () => {
@@ -91,5 +119,13 @@ describe('ExportDialog', () => {
     options.onError(new Error('boom'))
 
     expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/export failed/i))
+  })
+
+  it('does not report cancellation as an export failure', async () => {
+    render(<ExportDialog open vaults={VAULTS} onClose={vi.fn()} />, { wrapper })
+    await userEvent.click(screen.getByRole('button', { name: /^export$/i }))
+    const [, options] = exportMutate.mock.calls[0]
+    options.onError(new DOMException('Cancelled', 'AbortError'))
+    expect(toastError).not.toHaveBeenCalled()
   })
 })

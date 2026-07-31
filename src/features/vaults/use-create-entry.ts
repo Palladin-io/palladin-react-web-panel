@@ -1,19 +1,20 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { encryptEntry } from '../../shared/crypto/entry-crypto'
+import { sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
+import { toMemberSecret, type AgentVisibilityPolicy } from '../../shared/crypto/entry-draft'
+import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
-import { unsealVaultKey } from '../../shared/crypto/vault-key'
 import { useAuthStore } from '../auth'
-import { createEntry } from './api/vault-api'
-import type { AgentField, EntryPlaintext, EntryType } from './types'
+import { collectActiveFullGrants } from '../grants'
+import { createEntry, issueEntryCreationChallenge, updateCanonicalEntry } from './api/vault-api'
+import { deleteEncryptedAsset } from './assets/encrypted-asset-api'
+import { encryptAndUploadPresentationAsset } from './assets/encrypted-asset-service'
+import { getEncryptedVault } from './sync/member-sync-api'
+import type { EntryPlaintext, EntryType } from './types'
 import { entriesQueryKey } from './use-entries'
 import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
+import { useMemberSyncStore } from './sync/member-sync-store'
 
-/**
- * Thrown when create is invoked while the vault is still locked. The
- * private key only lives in memory after `unlockVault`, so without it
- * we cannot unseal the VK and cannot encrypt the new entry.
- */
 export class VaultLockedError extends Error {
   constructor() {
     super('Vault is locked — unlock before creating an entry')
@@ -21,12 +22,6 @@ export class VaultLockedError extends Error {
   }
 }
 
-/**
- * Thrown when the vault response does not include `wrappedVK`. The
- * detail endpoint must surface the caller's wrapped VK before any
- * entry can be encrypted; this guards against stale mocks or older
- * backend builds that omit it.
- */
 export class MissingWrappedVaultKeyError extends Error {
   constructor() {
     super('Vault is missing a wrapped VK — cannot derive the encryption key')
@@ -34,21 +29,23 @@ export class MissingWrappedVaultKeyError extends Error {
   }
 }
 
+export class ActiveFullGrantMaterialRequiredError extends Error {
+  constructor() {
+    super('Canonical grant material is required for active FULL grants')
+    this.name = 'ActiveFullGrantMaterialRequiredError'
+  }
+}
+
 export interface CreateEntryInput {
   vaultId: string
-  /** Caller's wrapped VK (base64) — fetched from `GET /vaults/{id}`. */
-  wrappedVK: string
   label: string
+  agentLabel: string
   description?: string
-  icon?: string
-  color?: string
+  iconReference?: string
+  iconFile?: File
   type: EntryType
-  /** Plaintext payload — discriminated on `type`. Encrypted client-side. */
   payload: EntryPlaintext
-  /** Domain extracted from a CREDENTIAL's URL (browser extension hint). */
-  urlDomain?: string
-  /** Plaintext mirror of agent-visible fields (CVT-204) — never a secret. */
-  agentFields?: AgentField[]
+  policy: AgentVisibilityPolicy
 }
 
 export function useCreateEntry() {
@@ -57,44 +54,105 @@ export function useCreateEntry() {
   return useMutation({
     mutationFn: async (input: CreateEntryInput) => {
       const privateKey = useAuthStore.getState().privateKey
-      if (!privateKey) {
-        throw new VaultLockedError()
-      }
-      if (!input.wrappedVK) {
-        throw new MissingWrappedVaultKeyError()
-      }
+      if (!privateKey) throw new VaultLockedError()
 
-      const vaultKey = await unsealVaultKey(input.wrappedVK, privateKey)
+      const [vault, challenge, fullGrants] = await Promise.all([
+        getEncryptedVault(input.vaultId),
+        issueEntryCreationChallenge(input.vaultId),
+        collectActiveFullGrants(input.vaultId),
+      ])
+      if (fullGrants.length > 0) throw new ActiveFullGrantMaterialRequiredError()
+
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+      let discoveryKey: Uint8Array | undefined
       try {
-        const content = await encryptEntry(input.payload, vaultKey)
-        return createEntry(input.vaultId, {
-          label: input.label,
-          description: input.description,
-          icon: input.icon,
-          color: input.color,
-          type: input.type,
-          content,
-          urlDomain: input.urlDomain,
-          agentFields: input.agentFields,
+        discoveryKey = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)
+        // A blob preview never enters encrypted domain state. An uploaded icon
+        // is attached in revision 2 after the Entry exists because entry-scoped
+        // asset authorization deliberately rejects unknown Entry IDs.
+        const secret = toMemberSecret({
+          ...input,
+          ...(input.iconFile ? { iconReference: undefined } : {}),
+          vaultId: input.vaultId,
         })
+        const material = await sealCanonicalEntry({
+          organizationId: vault.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId,
+          vaultId: vault.id,
+          entryId: challenge.entryId,
+          revision: '1',
+          vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
+          vdkVersion: vault.currentKeyEpoch.vdkVersion,
+          memberKeyGeneration: vault.memberKeyGeneration,
+        }, secret, vaultKey, discoveryKey, 1)
+        const created = await createEntry(input.vaultId, {
+          entryId: challenge.entryId,
+          ...material,
+          grantEnvelopes: [],
+        })
+        if (!input.iconFile) return created
+
+        let uploadedAssetId: string | undefined
+        try {
+          const uploaded = await encryptAndUploadPresentationAsset({
+            file: input.iconFile,
+            scope: {
+              organizationId: vault.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId,
+              vaultId: input.vaultId,
+              entryId: challenge.entryId,
+              target: 2,
+              keyVersion: vault.currentKeyEpoch.vaultKeyVersion,
+              memberKeyGeneration: vault.memberKeyGeneration,
+            },
+            baseKey: vaultKey,
+          })
+          uploadedAssetId = uploaded.assetId
+          const secretWithIcon = toMemberSecret({
+            ...input,
+            iconReference: `vault-asset:${uploaded.assetId}`,
+            vaultId: input.vaultId,
+          })
+          const revision = (BigInt(created.currentRevision) + 1n).toString()
+          const withIcon = await sealCanonicalEntry({
+            organizationId: vault.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId,
+            vaultId: vault.id,
+            entryId: challenge.entryId,
+            revision,
+            entryKeyRevision: '1',
+            entryKeyVersion: 2,
+            memberIndexRevision: revision,
+            agentDiscoveryRevision: revision,
+            vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
+            vdkVersion: vault.currentKeyEpoch.vdkVersion,
+            memberKeyGeneration: vault.memberKeyGeneration,
+          }, secretWithIcon, vaultKey, discoveryKey, 2)
+          await updateCanonicalEntry(input.vaultId, challenge.entryId, {
+            baseRevision: created.currentRevision,
+            newEntryKey: withIcon.entryKey,
+            memberSecret: withIcon.memberSecret,
+            memberIndex: withIcon.memberIndex,
+            agentDiscoveryChanged: false,
+            grantEnvelopes: [],
+          })
+          return { ...created, currentRevision: revision }
+        } catch (error) {
+          if (uploadedAssetId) {
+            await deleteEncryptedAsset(input.vaultId, uploadedAssetId).catch(() => undefined)
+          }
+          throw error
+        }
       } finally {
-        // VK is rederivable from `wrappedVK + privateKey`; wiping it
-        // limits the window where the raw key sits in memory.
         wipe(vaultKey)
+        if (discoveryKey) wipe(discoveryKey)
       }
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: entriesQueryKey(variables.vaultId) })
-      // Entry counts on the vault summary need a refresh too.
       queryClient.invalidateQueries({ queryKey: vaultQueryKey(variables.vaultId) })
-      // The vault LIST carries its own `entryCount` per vault (drives the
-      // dashboard onboarding "add your first entry" step). It lives under a
-      // sibling key, so the entries/detail invalidations above don't reach it.
       queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
-      // Cross-vault surfaces that list this entry: the dashboard "Recently
-      // added" widget and the global-search autocomplete (recents + hits).
-      queryClient.invalidateQueries({ queryKey: ['entries', 'recent'] })
-      queryClient.invalidateQueries({ queryKey: ['search'] })
+      // The entries list is backed by the decrypted member-sync store rather
+      // than React Query. Pull the committed delta immediately so returning
+      // from the selected entry never waits for the background sync interval.
+      useMemberSyncStore.getState().retry()
     },
   })
 }

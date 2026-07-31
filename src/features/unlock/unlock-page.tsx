@@ -36,7 +36,7 @@ export function UnlockPage() {
     if (!isVaultLocked) {
       navigate({ to: '/' })
     }
-  }, [isVaultLocked, navigate])
+  }, [account.data?.kdf?.securityVersion, isVaultLocked, navigate])
 
   useEffect(() => {
     analytics.capture('unlock', 'page-viewed')
@@ -86,7 +86,7 @@ function UnlockForm() {
     if (isPending || password.length === 0) return
 
     setErrorMessage(null)
-    unlock.mutate(password, {
+    unlock.mutate({ password }, {
       onSuccess: () => {
         analytics.capture('unlock', 'vault-unlocked')
         navigate({ to: '/' })

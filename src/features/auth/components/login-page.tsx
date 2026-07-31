@@ -53,7 +53,6 @@ export function LoginPage() {
   // The password is retained across the TOTP step (in memory only) so the
   // master key can be derived once the challenge clears.
   const [step, setStep] = useState<'credentials' | 'totp'>('credentials')
-  const [pendingPassword, setPendingPassword] = useState('')
   const [challengeToken, setChallengeToken] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [totpError, setTotpError] = useState<string | null>(null)
@@ -66,15 +65,13 @@ export function LoginPage() {
     onSuccess: (response) => {
       oauth.mutate(response.access_token)
     },
-    onError: (error) => {
-      console.error('Google login failed:', error)
+    onError: () => {
       toast.error(t('auth.errorGoogleSignInFailed'))
     },
   })
 
   const handleCredentials = (email: string, password: string) => {
     setPasswordError(null)
-    setPendingPassword(password)
     start.mutate(
       { email, password },
       {
@@ -95,7 +92,7 @@ export function LoginPage() {
   const handleTotp = (code: string) => {
     setTotpError(null)
     submitTotp.mutate(
-      { challengeToken, code, password: pendingPassword },
+      { challengeToken, code },
       {
         onSuccess: () => navigate({ to: '/' }),
         onError: () => setTotpError(t('totpChallenge.errorInvalid')),

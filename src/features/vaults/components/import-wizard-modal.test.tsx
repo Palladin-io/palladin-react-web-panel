@@ -1,12 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Vault } from '../types'
 import { ImportWizardModal } from './import-wizard-modal'
+import { useAuthStore } from '../../auth'
 
 const importMutate = vi.fn()
+const existingEntries = vi.hoisted(() => ({ data: [] as Array<{ id: string; label?: string }> }))
 
 vi.mock('../use-import-entries', () => ({
   useImportEntries: () => ({ mutate: importMutate, isPending: false }),
@@ -21,7 +23,7 @@ vi.mock('../use-import-entries', () => ({
 }))
 
 vi.mock('../use-entries', () => ({
-  useAllEntries: () => ({ data: [] }),
+  useAllEntries: () => ({ data: existingEntries.data }),
 }))
 
 vi.mock('../../../shared/lib/analytics', () => ({
@@ -70,6 +72,8 @@ describe('ImportWizardModal', () => {
     importMutate.mockReset()
     toastError.mockReset()
     toastSuccess.mockReset()
+    existingEntries.data = []
+    useAuthStore.setState({ privateKey: new Uint8Array(32) })
   })
 
   it('renders nothing when closed', () => {
@@ -86,6 +90,12 @@ describe('ImportWizardModal', () => {
     expect(screen.getByText(/drop a file/i)).toBeInTheDocument()
   })
 
+  it('does not crash when the zero-knowledge entry list omits plaintext labels', () => {
+    existingEntries.data = [{ id: 'opaque-entry' }]
+    render(<ImportWizardModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+    expect(screen.getByText(/import entries/i)).toBeInTheDocument()
+  })
+
   it('parses an uploaded file and imports it (happy path)', async () => {
     const onClose = vi.fn()
     const { container } = render(
@@ -98,13 +108,11 @@ describe('ImportWizardModal', () => {
     // Preview step — format detected + entry visible.
     expect(await screen.findByText(/Chrome \/ Edge \/ Brave/i)).toBeInTheDocument()
     expect(screen.getByText('GitHub')).toBeInTheDocument()
-
     await userEvent.click(screen.getByRole('button', { name: /^import$/i }))
 
     expect(importMutate).toHaveBeenCalledTimes(1)
     const [input, options] = importMutate.mock.calls[0]
     expect(input.vaultId).toBe('vault-1')
-    expect(input.wrappedVK).toBe('AAAAAAAA')
     expect(input.creates).toHaveLength(1)
     expect(input.creates[0].label).toBe('GitHub')
 
@@ -127,5 +135,17 @@ describe('ImportWizardModal', () => {
     options.onError(new Error('boom'))
 
     expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/import failed/i))
+  })
+
+  it('closes and clears the plaintext preview when the vault locks', async () => {
+    const onClose = vi.fn()
+    const { container } = render(
+      <ImportWizardModal open vault={VAULT} onClose={onClose} />,
+      { wrapper },
+    )
+    await uploadCsv(container)
+    expect(await screen.findByText('GitHub')).toBeInTheDocument()
+    useAuthStore.setState({ privateKey: null })
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
   })
 })

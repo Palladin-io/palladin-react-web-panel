@@ -99,7 +99,10 @@ describe('UnlockPage', () => {
     await user.type(await screen.findByLabelText(/master password/i), 'hunter2')
     await user.click(screen.getByRole('button', { name: /^unlock$/i }))
 
-    expect(mutateMock).toHaveBeenCalledWith('hunter2', expect.any(Object))
+    expect(mutateMock).toHaveBeenCalledWith(
+      { password: 'hunter2' },
+      expect.any(Object),
+    )
     expect(analytics.capture).toHaveBeenCalledWith('unlock', 'vault-unlocked')
     expect(navigateMock).toHaveBeenCalledWith({ to: '/' })
   })

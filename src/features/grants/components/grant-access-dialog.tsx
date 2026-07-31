@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -14,7 +13,7 @@ import {
   type GrantType,
   type OrgGrant,
 } from '../api/org-grants-api'
-import { searchEntries } from '../api/entry-search-api'
+import { useLocalEntrySearch } from '../use-local-entry-search'
 import {
   agentsCoveringEntry,
   agentsCoveringVault,
@@ -105,9 +104,11 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
 
     // The agent's full public key only comes from the single-agent endpoint.
     let agentPublicKey: string | null | undefined
+    let recipientAgentKeyVersion: number | null | undefined
     try {
       const agent = await getAgent(subject.agentId)
       agentPublicKey = agent.publicKey
+      recipientAgentKeyVersion = agent.recipientKeyVersion
     } catch {
       toast.error(t('grants.create.error'))
       return
@@ -118,6 +119,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         vaultId: subject.vaultId,
         agentId: subject.agentId,
         agentPublicKey,
+        recipientAgentKeyVersion,
         type: subject.type,
         entryId: subject.entryId,
         policy: grantPolicyToBody(policyInput),
@@ -461,31 +463,26 @@ function CrossVaultEntryPicker({
   const [selectedLabel, setSelectedLabel] = useState<string | null>(null)
 
   const trimmed = query.trim()
-  const search = useQuery({
-    queryKey: ['entry-search', trimmed],
-    queryFn: () => searchEntries(trimmed),
-    enabled: trimmed.length >= 2,
-    staleTime: 10_000,
-  })
+  const entries = useLocalEntrySearch(trimmed, 20, 'label', trimmed.length >= 2)
 
   const coverage = useMemo(() => entryCoverageByAgent(agentGrants), [agentGrants])
 
   const options = useMemo<ComboboxOption[]>(() => {
-    return (search.data ?? [])
+    return entries
       .filter(
         (e) =>
           !coverage.coveredEntryIds.has(e.id) &&
           !coverage.fullCoveredVaultIds.has(e.vaultId),
       )
       .map((e) => ({ id: e.id, label: e.label, sublabel: e.vaultName }))
-  }, [search.data, coverage])
+  }, [entries, coverage])
 
   // Track vaultId for the selected entry so we can build the subject.
   const entryVaultId = useMemo(() => {
     const map = new Map<string, string>()
-    for (const e of search.data ?? []) map.set(e.id, e.vaultId)
+    for (const e of entries) map.set(e.id, e.vaultId)
     return map
-  }, [search.data])
+  }, [entries])
 
   return (
     <EntityCombobox
@@ -499,7 +496,7 @@ function CrossVaultEntryPicker({
       }}
       options={options}
       selectedLabel={selectedLabel}
-      loading={trimmed.length >= 2 && search.isPending}
+      loading={false}
       emptyText={
         trimmed.length < 2
           ? t('grants.create.entryHint')

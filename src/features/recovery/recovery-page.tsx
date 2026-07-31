@@ -41,8 +41,8 @@ export function RecoveryPage() {
     recover.mutate(
       { recoveryMnemonic: mnemonic, newPassword: password },
       {
-        onSuccess: (generatedMnemonic) => {
-          setNewMnemonic(generatedMnemonic)
+        onSuccess: (result) => {
+          setNewMnemonic(result.recoveryMnemonic)
           setStep('new-recovery-key')
         },
         onError: (err) => {
@@ -88,5 +88,14 @@ export function RecoveryPage() {
     )
   }
 
-  return <NewRecoveryKeyStep mnemonic={newMnemonic} onFinish={handleFinish} />
+  if (step === 'new-recovery-key') {
+    return (
+      <NewRecoveryKeyStep
+        mnemonic={newMnemonic}
+        onFinish={handleFinish}
+      />
+    )
+  }
+
+  return null
 }

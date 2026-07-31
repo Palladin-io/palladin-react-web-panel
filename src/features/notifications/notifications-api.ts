@@ -1,14 +1,15 @@
 import { z } from 'zod'
 import { api } from '../../shared/api/client'
+import { sanitizeNotificationMetadata } from './notification-types'
 
 /**
  * Notification Center API client — matches the FROZEN contract in
  * `brain/Product/Modules/Notification/Notification Center (CVT-162).md`.
  *
  * The feed is self-scoped (JWT) and already filtered by the caller's current
- * vault access. The server NEVER sends ready-made copy: it sends a `titleKey`
- * (i18n key) plus presentational `metadata` (names + ids, never secrets) and
- * the client localises in the user's language with bold names. Action state is
+ * vault access. The server NEVER sends ready-made copy. Structural metadata is
+ * sanitized at this boundary and presentation is resolved later from unlocked,
+ * authorized client caches. Action state is
  * a live projection of the owning module's status — never a stored flag — so a
  * grant card resolves automatically once approved/denied/expired anywhere.
  */
@@ -31,10 +32,9 @@ export const NOTIFICATION_ACTION_STATE = ['pending', 'resolved'] as const
 export type NotificationActionState = (typeof NOTIFICATION_ACTION_STATE)[number]
 
 /**
- * `metadata` is intentionally loose: it carries display names + resource ids
- * the client reads opportunistically for localisation and deep-linking, and
- * its exact key set varies per `type`. All values are strings (or absent).
- * NEVER contains secrets/plaintext/keys (enforced server-side).
+ * `metadata` is intentionally loose because its structural opaque IDs/facts
+ * vary per type. Presentation fields are stripped after parsing even if a stale
+ * producer sends them. All values are strings (or absent).
  */
 const metadataSchema = z.record(z.string(), z.string())
 
@@ -100,7 +100,10 @@ export async function getNotifications(
   let skipped = 0
   for (const item of page.items) {
     const result = notificationItemSchema.safeParse(item)
-    if (result.success) items.push(result.data)
+    if (result.success) items.push({
+      ...result.data,
+      metadata: sanitizeNotificationMetadata(result.data.metadata),
+    })
     else skipped += 1
   }
   if (skipped > 0) {

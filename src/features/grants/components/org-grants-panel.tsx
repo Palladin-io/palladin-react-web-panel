@@ -64,6 +64,7 @@ export interface OrgGrantsPanelProps {
   agentId?: string
   vaultId?: string
   entryId?: string
+  allowRegrant?: boolean
   /**
    * Chromeless variant for the inbox Grants segment: drops the title/status-count
    * header and the time-bucket group labels, rendering one flat grid. The segment
@@ -72,7 +73,7 @@ export interface OrgGrantsPanelProps {
   bare?: boolean
 }
 
-export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPanelProps = {}) {
+export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true, bare }: OrgGrantsPanelProps = {}) {
   const { t } = useTranslation()
   const [statusFilter, setStatusFilter] = useState<Set<GrantStatus>>(new Set())
   const [search, setSearch] = useState('')
@@ -146,8 +147,10 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
         agentId: grant.agentId,
         entryId: grant.entryId,
         agentPublicKey: grant.agentPublicKey,
+        recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
         type: grant.type,
         policy,
+        methods: grant.methods,
       },
       {
         onSuccess: () => {
@@ -233,7 +236,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
               <OrgGrantRow
                 grant={grant}
                 onRevoke={() => setRevokeTarget(grant)}
-                onRegrant={() => setRegrantTarget(grant)}
+                onRegrant={allowRegrant ? () => setRegrantTarget(grant) : undefined}
                 disabled={revoke.isPending || regrant.isPending}
               />
             </li>
@@ -259,7 +262,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
                     <OrgGrantRow
                       grant={grant}
                       onRevoke={() => setRevokeTarget(grant)}
-                      onRegrant={() => setRegrantTarget(grant)}
+                      onRegrant={allowRegrant ? () => setRegrantTarget(grant) : undefined}
                       disabled={revoke.isPending || regrant.isPending}
                     />
                   </li>
@@ -298,7 +301,7 @@ function OrgGrantRow({
 }: {
   grant: OrgGrant
   onRevoke: () => void
-  onRegrant: () => void
+  onRegrant?: () => void
   disabled: boolean
 }) {
   const { t } = useTranslation()
@@ -396,7 +399,7 @@ function OrgGrantRow({
         </Row>
       </div>
 
-      {(grant.canRevoke || grant.canGrantAgain) && (
+      {(grant.canRevoke || (grant.canGrantAgain && onRegrant)) && (
         <div
           className="flex min-h-[2.875rem] items-center gap-2 border-t border-[var(--cv-divider)] px-[0.875rem] py-2
             bg-[var(--cv-card-footer)]"
@@ -412,7 +415,7 @@ function OrgGrantRow({
               {t('grants.revoke.action')}
             </Button>
           )}
-          {grant.canGrantAgain && (
+          {grant.canGrantAgain && onRegrant && (
             <Button
               variant="positive"
               size="sm"

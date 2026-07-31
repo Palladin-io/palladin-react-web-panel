@@ -9,8 +9,7 @@ function item(overrides: Partial<AuditLogItem>): AuditLogItem {
     actorType: 'agent',
     agentId: 'agent-1',
     entryId: 'entry-1',
-    entryLabel: 'Stripe API Key',
-    agentReason: null,
+    entryLabel: 'Legacy server label',
     metadata: {},
     createdAt: '2026-06-27T10:00:00Z',
     ...overrides,
@@ -22,7 +21,7 @@ describe('filterAuditLogs', () => {
     item({ id: 'a', entryId: 'entry-1', agentId: 'agent-1', eventType: 'credential.accessed' }),
     item({ id: 'b', entryId: 'entry-1', agentId: 'agent-2', eventType: 'grant.revoked' }),
     item({ id: 'c', entryId: 'entry-2', agentId: 'agent-1', eventType: 'credential.accessed' }),
-    item({ id: 'd', entryId: 'entry-1', agentId: 'agent-1', eventType: 'grant.created', agentReason: 'CI deploy' }),
+    item({ id: 'd', entryId: 'entry-1', agentId: 'agent-1', eventType: 'grant.created' }),
   ]
 
   it('keeps only rows for the scoped entry — guards against other entries leaking in', () => {
@@ -49,9 +48,11 @@ describe('filterAuditLogs', () => {
     expect(result.map((r) => r.id)).toEqual(['a'])
   })
 
-  it('searches the agent reason', () => {
-    const result = filterAuditLogs(rows, { entryId: 'entry-1', search: 'deploy' })
-    expect(result.map((r) => r.id)).toEqual(['d'])
+  it('never searches legacy denormalized backend presentation fields', () => {
+    expect(filterAuditLogs(rows, { search: 'legacy server' })).toEqual([])
+    expect(filterAuditLogs([
+      item({ agentReason: 'CI deploy' }),
+    ], { search: 'deploy' })).toEqual([])
   })
 
   it('searches by agent display name via the id→name map', () => {
@@ -61,6 +62,27 @@ describe('filterAuditLogs', () => {
       agentNameById: { 'agent-2': 'github-copilot' },
     })
     expect(result.map((r) => r.id)).toEqual(['b'])
+  })
+
+  it('searches locally resolved entry names without requiring a server label', () => {
+    const result = filterAuditLogs(rows, {
+      search: 'stripe',
+      entryNameById: { 'entry-1': 'Stripe API Key' },
+    })
+    expect(result.map((r) => r.id)).toEqual(['a', 'b', 'd'])
+    expect(filterAuditLogs(rows, { search: 'stripe' })).toEqual([])
+  })
+
+  it('searches locally resolved Vault and Member names', () => {
+    const scoped = [item({ id: 'local', vaultId: 'vault-1', userId: 'user-1' })]
+    expect(filterAuditLogs(scoped, {
+      search: 'production',
+      vaultNameById: { 'vault-1': 'Production Keys' },
+    }).map((row) => row.id)).toEqual(['local'])
+    expect(filterAuditLogs(scoped, {
+      search: 'patryk',
+      memberNameById: { 'user-1': 'Patryk' },
+    }).map((row) => row.id)).toEqual(['local'])
   })
 
   it('narrows to multiple agents (multi-select)', () => {

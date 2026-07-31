@@ -1,6 +1,19 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
-import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
+import type { buildCanonicalGrantEnvelope } from '../../../shared/crypto/grant-protocol'
+import { encryptedReasonEnvelopeSchema } from '../../vaults/sync/entry-envelope-schema'
+import { canonicalUuidSchema, u32Schema } from '../../vaults/sync/vault-key-material-schema'
+
+const grantEntryScopeSchema = z.object({
+  entryId: canonicalUuidSchema,
+  fieldIds: z.array(z.string()),
+  grantEnvelopeRevision: z.string().nullable(),
+  entryRevision: z.string().nullable(),
+  grantKeyVersion: u32Schema.nullable(),
+  memberKeyGeneration: u32Schema.nullable(),
+  recipientAgentKeyVersion: u32Schema.nullable(),
+  agentKeyFingerprint: z.string().nullable(),
+}).strict()
 
 /**
  * A pending grant awaiting the user's approval. Cross-vault — returned by
@@ -14,40 +27,56 @@ import type { GrantEntryEnvelope } from '../../../shared/crypto/grant-envelope'
  * optional so the list still renders without it.
  */
 const pendingGrantSchema = z.object({
-  // Backend field is `id` — this is the grant id used for approve/deny.
-  id: z.string(),
-  vaultId: z.string(),
-  // Display name enriched by the backend; shown instead of the vault id.
-  vaultName: z.string().nullable().optional(),
-  agentId: z.string().nullable().optional(),
-  agentName: z.string().nullable().optional(),
-  entryId: z.string().nullable().optional(),
-  entryLabel: z.string().nullable().optional(),
-  // Optional — rendered after the entry label as "· {urlDomain}" when present.
-  urlDomain: z.string().nullable().optional(),
-  reason: z.string().nullable().optional(),
-  // Combined-flags string the agent requested, e.g. "get, exec" (CVT-149). Optional for
-  // pre-methods backends; the approve dialog falls back to a sensible default when absent.
-  methods: z.string().nullable().optional(),
-  expiresAt: z.string().nullable().optional(),
-  queryLimit: z.number().nullable().optional(),
-  queryCount: z.number().nullable().optional(),
-  expirySource: z.string().nullable().optional(),
-  createdAt: z.string(),
-  createdBy: z.string().nullable().optional(),
-  revokedAt: z.string().nullable().optional(),
-  revokedBy: z.string().nullable().optional(),
-  revokeReason: z.string().nullable().optional(),
-  // Not yet returned by the endpoint — optional until the backend adds it.
-  agentPublicKey: z.string().nullable().optional(),
+  id: canonicalUuidSchema,
+  vaultId: canonicalUuidSchema,
+  agentId: canonicalUuidSchema.nullable(),
+  agentName: z.string().nullable(),
+  agentIconKey: z.string().nullable(),
+  agentPublicKey: z.string().nullable(),
+  recipientAgentKeyVersion: u32Schema.nullable(),
+  agentSigningPublicKey: z.string().nullable(),
+  agentSigningKeyVersion: u32Schema.nullable(),
+  agentSigningKeyFingerprint: z.string().nullable(),
+  type: z.enum(['full', 'granular']),
+  status: z.literal('pending'),
+  methods: z.string(),
+  entryId: canonicalUuidSchema.nullable(),
+  entryLabel: z.string().nullable(),
+  urlDomain: z.string().nullable(),
+  entryScopes: z.array(grantEntryScopeSchema),
+  encryptedReason: encryptedReasonEnvelopeSchema,
+  expiresAt: z.string().datetime({ offset: true }).nullable(),
+  queryLimit: z.number().int().positive().nullable(),
+  queryCount: z.number().int().nonnegative(),
+  expirySource: z.string(),
+  createdAt: z.string().datetime({ offset: true }),
+  createdBy: canonicalUuidSchema.nullable(),
+  createdByName: z.string().nullable(),
+  revokedAt: z.string().datetime({ offset: true }).nullable(),
+  revokedBy: canonicalUuidSchema.nullable(),
+  revokedByName: z.string().nullable(),
+  deniedAt: z.string().datetime({ offset: true }).nullable(),
+  deniedBy: canonicalUuidSchema.nullable(),
+  deniedByName: z.string().nullable(),
+  lastAccessedAt: z.string().datetime({ offset: true }).nullable(),
+  lastAccessIp: z.string().nullable(),
+  lastAccessHostname: z.string().nullable(),
+  canRevoke: z.boolean(),
+  canGrantAgain: z.boolean(),
+}).strict().superRefine((grant, context) => {
+  const scope = grant.encryptedReason.descriptor.scope
+  if (scope.vaultId !== grant.vaultId || scope.grantOrRequestId !== grant.id
+    || scope.agentId !== grant.agentId || scope.entryId !== grant.entryId) {
+    context.addIssue({ code: 'custom', message: 'Pending grant encrypted reason scope mismatch' })
+  }
 })
 
 export type PendingGrant = z.infer<typeof pendingGrantSchema>
 
 const pendingGrantListSchema = z.object({
   items: z.array(z.unknown()),
-  nextCursor: z.string().nullable().optional(),
-})
+  nextCursor: z.string().nullable(),
+}).strict()
 
 /**
  * Fetches pending grants. Each item is parsed individually with `safeParse` so
@@ -58,18 +87,15 @@ export async function getPendingGrants(): Promise<PendingGrant[]> {
   const raw = await api.get('api/dashboard/pending-grants').json()
   const envelope = pendingGrantListSchema.parse(raw)
 
-  const parsed: PendingGrant[] = []
+  const items: PendingGrant[] = []
   let skipped = 0
-  for (const item of envelope.items) {
-    const result = pendingGrantSchema.safeParse(item)
-    if (result.success) parsed.push(result.data)
+  for (const candidate of envelope.items) {
+    const parsed = pendingGrantSchema.safeParse(candidate)
+    if (parsed.success) items.push(parsed.data)
     else skipped += 1
   }
-  if (skipped > 0) {
-    // No grant content is logged — only a count, to surface contract drift.
-    console.warn(`[pending-grants] skipped ${skipped} malformed item(s)`)
-  }
-  return parsed
+  if (skipped > 0) console.warn(`[pending-grants] skipped ${skipped} malformed item(s)`)
+  return items
 }
 
 /**
@@ -78,7 +104,7 @@ export async function getPendingGrants(): Promise<PendingGrant[]> {
  * and validated again here before the request is built).
  */
 export interface ApproveGrantBody {
-  grantEntry: { entryId: string } & GrantEntryEnvelope
+  grantEntry: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>
   expiresAt?: string
   queryLimit?: number
   /** Combined-flags string of the methods the agent may use, e.g. "Get, Exec" (CVT-149). */

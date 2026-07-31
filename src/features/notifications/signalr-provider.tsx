@@ -6,13 +6,18 @@ import {
 } from '@microsoft/signalr'
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
+import { AGENTS_QUERY_KEY, type Agent } from '../agents'
+import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
 import { env } from '../../shared/lib/env'
 import { parseNotificationPayload } from './notification-types'
 import { showNotificationToast } from './notification-toast'
 import { signalrLog } from './signalr-log'
 import { useNotificationInvalidation } from './use-notification-invalidation'
 import { usePendingAlerts } from './use-pending-alerts'
+import { claimNotificationEvent } from './notification-deduplication'
+import { resolveNotificationPayload } from './notification-resolution'
 
 /** Notification types that demand the user's attention (sound + tab flash). */
 const ATTENTION_TYPES = new Set([
@@ -51,6 +56,7 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
   const invalidate = useNotificationInvalidation()
   const { notifyPending } = usePendingAlerts()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   // Keep the latest handler in a ref so the connection's message subscription
   // always calls the current closure without needing to be re-registered.
@@ -62,17 +68,27 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       signalrLog.info(`event received: ${type}`)
       const payload = parseNotificationPayload(raw)
       if (!payload) {
-        signalrLog.warn('payload failed to parse — ignored', raw)
+        signalrLog.warn('payload failed to parse — ignored')
         return
       }
-      showNotificationToast(payload, () => navigate({ to: '/inbox' }))
+      if (payload.type !== type) {
+        signalrLog.warn('notification type mismatch — ignored')
+        return
+      }
+      if (!claimNotificationEvent(payload)) return
+      const resolved = resolveNotificationPayload(payload, {
+        vaults: useMemberSyncStore.getState().vaults,
+        agents: new Map((queryClient.getQueryData<Agent[]>(AGENTS_QUERY_KEY) ?? [])
+          .map((agent) => [agent.agentId, agent])),
+      })
+      showNotificationToast(resolved, () => navigate({ to: '/inbox' }))
       invalidate(payload)
       // Attention-worthy pending events also chime + flash the tab title.
       if (ATTENTION_TYPES.has(payload.type)) {
         notifyPending()
       }
     }
-  }, [invalidate, notifyPending, navigate])
+  }, [invalidate, notifyPending, navigate, queryClient])
 
   useEffect(() => {
     // `disposed` flips on unmount so any in-flight retry/start bails out and
@@ -95,10 +111,7 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
           accessTokenFactory: () => useAuthStore.getState().accessToken ?? '',
         })
         .withAutomaticReconnect()
-        // In DEV surface SignalR's own transport diagnostics (negotiate 401,
-        // CORS, transport fallback) — the decisive signal when the connection
-        // won't come up. Quiet in production.
-        .configureLogging(import.meta.env.DEV ? LogLevel.Information : LogLevel.Warning)
+        .configureLogging(LogLevel.None)
         .build()
 
       // type + payload — server pushes both; we forward both so the handler can

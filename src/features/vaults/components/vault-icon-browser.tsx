@@ -4,13 +4,13 @@ import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { Icon } from '../../../shared/components/icon'
 import { VAULT_COLOR_OPTIONS, VAULT_COLOR_NAME_KEY } from './vault-presentation'
-import { searchFavicons, type FaviconHit } from '../api/vault-api'
 import { hexWithAlpha } from './vault-color'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { SearchBar } from '../../../shared/components/search-bar'
+import { searchPublicAssets, type PublicAsset } from '../../../shared/api/public-assets-api'
 
 export interface IconColorBrowserProps {
-  /** Show the shared brand/favicon section fed by the favicon index. */
+  /** Legacy flag retained for caller compatibility; remote favicon lookup is disabled. */
   showBrandIcons?: boolean
   open: boolean
   onClose: () => void
@@ -69,23 +69,23 @@ function IconColorBrowserBody({
   const [search, setSearch] = useState('')
   const [localIcon, setLocalIcon] = useState<string | undefined>(currentIcon)
   const [localColor, setLocalColor] = useState<string | undefined>(currentColor)
-  const [brandIcons, setBrandIcons] = useState<FaviconHit[]>([])
+  const [publicAssets, setPublicAssets] = useState<PublicAsset[]>([])
 
   useEffect(() => {
-    // Brand icons appear only while the user is actively searching — the
-    // default view stays the curated glyph presets.
-    if (!showBrandIcons || search.trim().length === 0) {
-      setBrandIcons([])
+    const query = search.trim()
+    if (!showBrandIcons || query.length < 2) {
+      setPublicAssets([])
       return
     }
-    let cancelled = false
-    const handle = setTimeout(async () => {
-      const icons = await searchFavicons(search.trim())
-      if (!cancelled) setBrandIcons(icons)
-    }, 300)
+    let current = true
+    const timer = window.setTimeout(() => {
+      void searchPublicAssets(query)
+        .then((items) => { if (current) setPublicAssets(items) })
+        .catch(() => { if (current) setPublicAssets([]) })
+    }, 250)
     return () => {
-      cancelled = true
-      clearTimeout(handle)
+      current = false
+      window.clearTimeout(timer)
     }
   }, [search, showBrandIcons])
 
@@ -136,43 +136,6 @@ function IconColorBrowserBody({
           />
         )}
 
-        {showBrandIcons && brandIcons.length > 0 && (
-          <div>
-            <p className="mb-2 text-meta font-semibold text-[var(--cv-label-text)]">
-              {t('vault.iconBrowserBrand')}
-            </p>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
-                gap: '0.375rem',
-              }}
-            >
-              {brandIcons.map((hit) => {
-                const selected = hit.iconUrl === localIcon
-                const accent = localColor ?? 'var(--cv-primary)'
-                return (
-                  <button
-                    key={hit.domain}
-                    type="button"
-                    onClick={() => setLocalIcon(hit.iconUrl)}
-                    title={hit.domain}
-                    aria-pressed={selected}
-                    className="flex h-10 w-full items-center justify-center overflow-hidden rounded-xl
-                      transition-colors hover:opacity-80"
-                    style={{
-                      background: selected ? hexWithAlpha('#8A95A6', 0.18) : hexWithAlpha('#8A95A6', 0.08),
-                      border: selected ? `2px solid ${accent}` : '2px solid transparent',
-                    }}
-                  >
-                    <img src={hit.iconUrl} alt={hit.domain} className="h-5 w-5 rounded object-contain" />
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
         {filtered.length > 0 ? (
           <div
             style={{
@@ -211,6 +174,29 @@ function IconColorBrowserBody({
             {t('vault.iconBrowserEmpty')}
           </p>
         )}
+
+        {showBrandIcons && publicAssets.length > 0 ? (
+          <div className="grid grid-cols-8 gap-1.5 border-t border-[var(--cv-divider)] pt-3">
+            {publicAssets.map((asset) => {
+              const reference = `public-asset:${asset.id}`
+              const selected = reference === localIcon
+              return (
+                <button
+                  key={asset.id}
+                  type="button"
+                  title={asset.name}
+                  aria-label={asset.name}
+                  aria-pressed={selected}
+                  onClick={() => setLocalIcon(reference)}
+                  className="flex h-10 items-center justify-center rounded-xl border transition-colors hover:bg-[var(--cv-card-hover)]"
+                  style={{ borderColor: selected ? 'var(--cv-primary)' : 'transparent' }}
+                >
+                  <img src={asset.url} alt="" className="h-5 w-5 rounded object-contain" />
+                </button>
+              )
+            })}
+          </div>
+        ) : null}
 
         {onSelectColor && currentColor !== undefined && (
           <>

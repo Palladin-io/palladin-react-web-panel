@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { getAllEntries, getEntries, getEntry } from './api/vault-api'
+import { getAllEntries, getCanonicalEntry, getEntries, getEntry, getEntryHistory } from './api/vault-api'
 
 export function entriesQueryKey(vaultId: string) {
   return ['vaults', vaultId, 'entries'] as const
@@ -11,6 +11,21 @@ export function allEntriesQueryKey(vaultId: string) {
 
 export function entryDetailQueryKey(vaultId: string, entryId: string) {
   return ['vaults', vaultId, 'entries', entryId] as const
+}
+
+export function entryHistoryQueryKey(vaultId: string, entryId: string) {
+  return [...entryDetailQueryKey(vaultId, entryId), 'history'] as const
+}
+
+export function useEntryHistory(vaultId: string, entryId: string, enabled: boolean) {
+  return useInfiniteQuery({
+    queryKey: entryHistoryQueryKey(vaultId, entryId),
+    queryFn: ({ pageParam }) => getEntryHistory(vaultId, entryId, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextBeforeRevision ?? undefined,
+    enabled,
+    staleTime: 30_000,
+  })
 }
 
 /**
@@ -63,6 +78,15 @@ export function useEntryDetail(
     // Reveal-only — keep the blob in cache for the rest of the session
     // so toggling visibility doesn't refetch. Closing the tab still
     // wipes everything because TanStack Query lives in-memory only.
+    staleTime: Infinity,
+  })
+}
+
+export function useCanonicalEntryDetail(vaultId: string, entryId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...entryDetailQueryKey(vaultId, entryId), 'canonical'] as const,
+    queryFn: () => getCanonicalEntry(vaultId, entryId),
+    enabled,
     staleTime: Infinity,
   })
 }

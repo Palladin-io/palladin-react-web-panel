@@ -45,6 +45,8 @@ describe('grants-api', () => {
     const page = await getVaultGrants('v1', { status: 'active' })
     expect(page.items).toHaveLength(1)
     expect(page.items[0].grantId).toBe('g1')
+    expect(page.items[0].entryLabel).toBe('Gmail')
+    expect(page.items[0].reason).toBe('Need Gmail')
     expect(page.nextCursor).toBe('next')
   })
 
@@ -89,14 +91,15 @@ describe('grants-api', () => {
   it('sends a trimmed reason on revoke', async () => {
     deleteFn.mockResolvedValue(undefined)
     await revokeGrant('v1', 'g1', '  compromised  ')
-    expect(deleteFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1', {
-      json: { reason: 'compromised' },
-    })
+    expect(deleteFn).toHaveBeenCalledWith(
+      'api/vaults/v1/grants/g1',
+      { json: { reason: 'compromised' } },
+    )
   })
 
   it('sends empty body when no reason given', async () => {
     deleteFn.mockResolvedValue(undefined)
     await revokeGrant('v1', 'g1')
-    expect(deleteFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1', { json: {} })
+    expect(deleteFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1', undefined)
   })
 })

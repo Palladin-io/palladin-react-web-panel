@@ -142,12 +142,16 @@ describe('auth-store', () => {
     useAuthStore
       .getState()
       .unlockVault(new Uint8Array([1]), new Uint8Array([2]))
+    const masterKey = useAuthStore.getState().masterKey!
+    const privateKey = useAuthStore.getState().privateKey!
 
     useAuthStore.getState().lockVault()
 
     const state = useAuthStore.getState()
     expect(state.masterKey).toBeNull()
     expect(state.privateKey).toBeNull()
+    expect(Array.from(masterKey)).toEqual([0])
+    expect(Array.from(privateKey)).toEqual([0])
     expect(state.isVaultLocked).toBe(true)
     // Session is intact — user is still logged in.
     expect(state.accessToken).toBe('access-123')
@@ -163,12 +167,16 @@ describe('auth-store', () => {
     useAuthStore
       .getState()
       .unlockVault(new Uint8Array([1]), new Uint8Array([2]))
+    const masterKey = useAuthStore.getState().masterKey!
+    const privateKey = useAuthStore.getState().privateKey!
 
     useAuthStore.getState().expireSession()
 
     const state = useAuthStore.getState()
     expect(state.masterKey).toBeNull()
     expect(state.privateKey).toBeNull()
+    expect(Array.from(masterKey)).toEqual([0])
+    expect(Array.from(privateKey)).toEqual([0])
     expect(state.isVaultLocked).toBe(true)
     // Access token dropped from memory, refresh token retained so the session
     // is still silently restorable.

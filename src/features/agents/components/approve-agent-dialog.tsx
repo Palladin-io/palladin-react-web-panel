@@ -56,9 +56,7 @@ export function ApproveAgentDialog({
   const handleConfirm = async () => {
     let iconKey = selectedIcon
 
-    // Custom file: validate + upload to S3 before confirming so the persisted
-    // iconKey is the public URL — not the throwaway blob: preview. Validation
-    // (type + size) lives in the shared helper, in lockstep with the edit flow.
+    // Completion stores the stable catalog reference on the Agent aggregate.
     if (pendingFile) {
       setIsUploading(true)
       const result = await uploadAgentIcon(agentId, pendingFile)
@@ -73,7 +71,7 @@ export function ApproveAgentDialog({
         }
         return
       }
-      iconKey = result.iconUrl
+      iconKey = result.iconReference
     }
 
     onConfirm({

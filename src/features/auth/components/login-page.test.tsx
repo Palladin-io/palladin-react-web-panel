@@ -29,6 +29,13 @@ vi.mock('../hooks/use-password-login', () => ({
   }),
 }))
 
+vi.mock('../hooks/use-identity-kdf-migration', () => ({
+  useIdentityKdfMigration: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+  }),
+}))
+
 describe('LoginPage', () => {
   beforeEach(() => {
     startMutate.mockReset()
@@ -40,6 +47,7 @@ describe('LoginPage', () => {
     expect(screen.getByRole('heading', { name: /palladin/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/master password/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/account secret/i)).not.toBeInTheDocument()
   })
 
   it('keeps Google enabled and Apple/X disabled', () => {

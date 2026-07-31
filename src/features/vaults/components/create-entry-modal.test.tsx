@@ -11,8 +11,18 @@ import {
 } from '../types'
 import { CreateEntryModal } from './create-entry-modal'
 
+vi.mock('../../../shared/api/public-assets-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../../shared/api/public-assets-api')>(),
+  resolveWebsiteIcons: vi.fn(async () => new Map()),
+}))
+
 const mutateMock = vi.fn()
+const navigateMock = vi.fn()
 let isPending = false
+
+vi.mock('@tanstack/react-router', () => ({
+  useNavigate: () => navigateMock,
+}))
 
 vi.mock('../use-create-entry', () => ({
   useCreateEntry: () => ({
@@ -82,6 +92,7 @@ function wrapper({ children }: { children: ReactNode }) {
 describe('CreateEntryModal', () => {
   beforeEach(() => {
     mutateMock.mockReset()
+    navigateMock.mockReset()
     toastError.mockReset()
     isPending = false
   })
@@ -137,14 +148,35 @@ describe('CreateEntryModal', () => {
     expect(mutateMock).toHaveBeenCalledTimes(1)
     const [input] = mutateMock.mock.calls[0]
     expect(input.vaultId).toBe('vault-1')
-    expect(input.wrappedVK).toBe('AAAAAAAA')
     expect(input.label).toBe('Stripe Key')
+    expect(input.agentLabel).toBe('Stripe Key')
     expect(input.type).toBe(ENTRY_TYPE_KEY)
     expect(input.payload).toEqual({ type: ENTRY_TYPE_KEY, value: 'sk_live_123' })
+    expect(input.policy.fields.value).toBe('onGrantValue')
     expect(onClose).toHaveBeenCalledTimes(1)
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/vaults/$vaultId/entries/$entryId',
+      params: { vaultId: 'vault-1', entryId: 'entry-1' },
+    })
   })
 
-  it('extracts urlDomain on CREDENTIAL submit and trims fields', async () => {
+  it('selects a website icon from URL for a KEY entry', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'stripe-key' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.type(screen.getByLabelText(/^label$/i), 'Stripe Key')
+    await user.type(screen.getByLabelText(/^value$/i), 'sk_test')
+    await user.type(screen.getByLabelText(/^url$/i), 'https://stripe.com')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    expect(mutateMock.mock.calls[0][0]).toEqual(expect.objectContaining({
+      iconReference: 'website:stripe.com',
+      payload: expect.objectContaining({ url: 'https://stripe.com' }),
+    }))
+  })
+
+  it('submits Credential plaintext only to the local projection builder', async () => {
     const user = userEvent.setup()
 
     mutateMock.mockImplementation((_input, options) => {
@@ -166,7 +198,9 @@ describe('CreateEntryModal', () => {
     expect(mutateMock).toHaveBeenCalledTimes(1)
     const [input] = mutateMock.mock.calls[0]
     expect(input.type).toBe(ENTRY_TYPE_CREDENTIAL)
-    expect(input.urlDomain).toBe('github.com')
+    expect(input.policy.fields.username).toBe('discovery')
+    expect(input.policy.fields.urlDomain).toBe('discovery')
+    expect(input.policy.fields.password).toBe('onGrantValue')
     expect(input.payload).toEqual({
       type: ENTRY_TYPE_CREDENTIAL,
       username: 'user@example.com',
@@ -174,6 +208,23 @@ describe('CreateEntryModal', () => {
       url: 'https://github.com/path',
       notes: undefined,
     })
+    expect(input.iconReference).toBe('website:github.com')
+  })
+
+  it('includes a user-selected custom icon file in the encrypted create flow', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:entry-icon-preview')
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'entry-with-icon' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: /icon/i }))
+    const file = new File(['png'], 'custom.png', { type: 'image/png' })
+    await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, file)
+    await user.type(screen.getByLabelText(/^label$/i), 'Custom icon entry')
+    await user.type(screen.getByLabelText(/^value$/i), 'secret')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    expect(mutateMock.mock.calls[0][0]).toEqual(expect.objectContaining({ iconFile: file }))
   })
 
   it('folds a custom field into the encrypted payload (v2)', async () => {
@@ -261,20 +312,19 @@ describe('CreateEntryModal', () => {
     expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/could not save the entry/i))
   })
 
-  it('blocks submit when the vault has no wrappedVK', async () => {
+  it('lets the Member disable Discovery while retaining post-grant defaults', async () => {
     const user = userEvent.setup()
-    const vaultNoKey: Vault = { ...VAULT, wrappedVK: undefined }
-
-    render(
-      <CreateEntryModal open vault={vaultNoKey} onClose={vi.fn()} />,
-      { wrapper },
-    )
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'entry-private' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
 
     await user.type(screen.getByLabelText(/^label$/i), 'API')
     await user.type(screen.getByLabelText(/^value$/i), 'sk')
+    await user.click(screen.getByRole('button', { name: /visible to agents in discovery/i }))
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
-    expect(mutateMock).not.toHaveBeenCalled()
-    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/encryption key unavailable/i))
+    const [input] = mutateMock.mock.calls[0]
+    expect(input.policy.discoverable).toBe(false)
+    expect(input.policy.fields.agentLabel).toBe('never')
+    expect(input.policy.fields.value).toBe('onGrantValue')
   })
 })

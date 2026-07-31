@@ -53,7 +53,6 @@ vi.mock('../../../shared/lib/hibp', () => ({
 vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
 }))
-
 beforeEach(() => {
   navigateMock.mockReset()
   registerState.mutate.mockReset()
@@ -116,7 +115,6 @@ it('shows the registration error on the recovery confirmation step', async () =>
   const inputs = await reachRecoveryConfirmation(user)
   await enterRequestedWords(user, inputs)
   await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
-
   expect(await screen.findByRole('alert')).toHaveTextContent(
     /couldn't create your account/i,
   )

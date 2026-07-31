@@ -17,6 +17,10 @@ export interface AuditLogListProps {
   onLoadMore: () => void
   /** Resolve an agent id to a display name (falls back inside the row otherwise). */
   resolveAgentName?: (agentId: string) => string
+  /** Resolve the acting Member/System without trusting denormalized row names. */
+  resolveActorName?: (item: AuditLogItem) => string | undefined
+  /** Resolve an opaque entry id from client-only decrypted state. */
+  resolveEntryName?: (entryId: string) => string
   /** Resolve a vault id to a display name — drives the vault chip (global log only). */
   resolveVaultName?: (vaultId: string) => string | undefined
   /** Show the entry chip on each row — off when the entry is fixed (entry tab). */
@@ -27,6 +31,8 @@ export interface AuditLogListProps {
   /** Shown instead of the list when the viewer lacks AuditView. */
   noPermissionMessage?: string
   canView?: boolean
+  /** Transitional legacy fallback; canonical opaque views set false. */
+  allowDenormalizedNames?: boolean
 }
 
 /**
@@ -45,12 +51,15 @@ export function AuditLogList({
   isFetchNextPageError = false,
   onLoadMore,
   resolveAgentName,
+  resolveActorName,
+  resolveEntryName,
   resolveVaultName,
   showEntry = true,
   showVault = false,
   emptyMessage,
   noPermissionMessage,
   canView = true,
+  allowDenormalizedNames = false,
 }: AuditLogListProps) {
   const { t } = useTranslation()
 
@@ -71,10 +80,13 @@ export function AuditLogList({
             agentName={
               item.agentId ? resolveAgentName?.(item.agentId) : undefined
             }
+            actorName={resolveActorName?.(item)}
+            entryName={item.entryId ? resolveEntryName?.(item.entryId) : undefined}
             vaultName={item.vaultId ? resolveVaultName?.(item.vaultId) : undefined}
             showEntry={showEntry}
             showVault={showVault}
             withDivider={i > 0}
+            allowDenormalizedNames={allowDenormalizedNames}
           />
         ))}
       </div>

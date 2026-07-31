@@ -11,6 +11,12 @@ export interface AuditLogFilter {
   search?: string
   /** id → display name lookup so search can match agents by name. */
   agentNameById?: Record<string, string>
+  /** id → locally decrypted member label. Never populated by the audit API. */
+  entryNameById?: Record<string, string>
+  /** id → locally decrypted Vault name. Never populated by the audit API. */
+  vaultNameById?: Record<string, string>
+  /** id → authorized local Member display name. */
+  memberNameById?: Record<string, string>
   /** Inclusive lower date bound as `YYYY-MM-DD` (from a native date input). */
   from?: string
   /** Inclusive upper date bound as `YYYY-MM-DD`. */
@@ -24,10 +30,10 @@ function toArray(value: string | string[] | undefined): string[] {
 }
 
 /**
- * Pure client-side filter for audit rows. The Entry Logs tab over-fetches the
- * vault log (no entry-level backend filter exists yet) and narrows here — the
- * `entryId` match is a security guard that keeps other entries' rows out of an
- * entry's tab regardless of what the server returns. `agentId`/`eventType`
+ * Pure client-side filter for already authorized audit rows. The Entry Logs
+ * tab also sends EntryId to the backend for correctly scoped pagination; the
+ * local `entryId` match remains a defense-in-depth guard that keeps an invalid
+ * response row out of the Entry surface. `agentId`/`eventType`
  * accept a single value or a list (multi-select); an empty list means "any".
  */
 export function filterAuditLogs(
@@ -49,7 +55,16 @@ export function filterAuditLogs(
     const agentName = item.agentId
       ? filter.agentNameById?.[item.agentId]
       : undefined
-    return [item.entryLabel, item.agentReason, item.eventType, agentName]
+    const entryName = item.entryId
+      ? filter.entryNameById?.[item.entryId]
+      : undefined
+    const vaultName = item.vaultId
+      ? filter.vaultNameById?.[item.vaultId]
+      : undefined
+    const memberName = item.userId
+      ? filter.memberNameById?.[item.userId]
+      : undefined
+    return [entryName, vaultName, memberName, item.eventType, agentName]
       .filter(Boolean)
       .some((v) => v!.toLowerCase().includes(q))
   })

@@ -1,5 +1,4 @@
 import { api } from '../../../shared/api/client'
-import type { SetupAccountPayload } from '../../../shared/api/account-api'
 import type { AuthResponse } from '../../../shared/api/types'
 import { useAuthStore } from '../stores/auth-store'
 
@@ -11,22 +10,23 @@ export function oauthGoogle(token: string): Promise<AuthResponse> {
 
 /**
  * Registration payload. Reuses the `SetupAccount` crypto material verbatim
- * (salt, recoverySalt, publicKey, encryptedPrivateKey,
- * encryptedPrivateKeyByRecovery) and adds the auth credential:
- *   • authHash — Argon2id(password, authSalt), the only password-derived value
- *     that ever reaches the server; it re-hashes it at rest.
- *   • authSalt — the salt for authHash, returned pre-login so the client can
- *     re-derive the same authHash.
- * The master key is derived from the SAME password + `salt` and NEVER leaves
- * the client.
+ * The v3 client derives one Argon2id account root from the password, then
+ * domain-separates an authentication credential and master key. Only the
+ * authentication credential and opaque wrapped key material cross the network.
  */
-export interface RegisterPayload extends SetupAccountPayload {
+export interface RegisterPayload {
+  accountId: string
   email: string
   displayName: string
-  /** "pl" | "en" — defaults to en server-side when omitted. */
   preferredLanguage?: string
-  authHash: string
-  authSalt: string
+  securityVersion: number
+  kdfProfileId: string
+  authCredential: string
+  kdfSalt: string
+  recoverySalt: string
+  publicKey: string
+  encryptedPrivateKey: string
+  encryptedPrivateKeyByRecovery: string
 }
 
 /** Login response when TOTP is enabled: no tokens yet, a short-lived challenge. */
@@ -49,17 +49,31 @@ export function register(payload: RegisterPayload): Promise<AuthResponse> {
 }
 
 /**
- * Pre-login salt fetch. The client needs `authSalt` to derive `authHash`
- * before it can call login. Unknown emails return a deterministic
- * pseudo-random salt (anti-enumeration) — never a 404.
+ * Pre-login KDF bootstrap. Unknown emails receive an indistinguishable
+ * pseudo-profile response (anti-enumeration), never a 404.
  */
-export function fetchLoginSalt(email: string): Promise<{ authSalt: string }> {
-  return api.post('api/auth/login/salt', { json: { email } }).json()
+export interface LoginKdfBootstrap {
+  accountId: string | null
+  profileId: string
+  securityVersion: number
+  kdfSalt: string
+  memoryKiB: number
+  iterations: number
+  parallelism: number
+}
+
+export function fetchLoginKdf(
+  email: string,
+  profileId: string,
+): Promise<LoginKdfBootstrap> {
+  return api.post('api/auth/login/salt', { json: { email, profileId } }).json()
 }
 
 export function passwordLogin(input: {
   email: string
-  authHash: string
+  securityVersion: number
+  kdfProfileId: string
+  authCredential: string
 }): Promise<PasswordLoginResponse> {
   return api.post('api/auth/login', { json: input }).json()
 }

@@ -27,7 +27,7 @@ import {
   useNotificationsSummary,
   useWebPush,
 } from '../features/notifications'
-
+import { MemberSyncProvider, RotationProvider } from '../features/vaults'
 
 export const Route = createFileRoute('/_authenticated')({
   beforeLoad: ({ location }) => {
@@ -112,6 +112,10 @@ function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const theme = useThemeStore((s) => s.theme)
   const navigate = useNavigate()
+  const accessToken = useAuthStore((state) => state.accessToken)
+  const userId = useAuthStore((state) => state.userId)
+  const memberPrivateKey = useAuthStore((state) => state.privateKey)
+  const isVaultLocked = useAuthStore((state) => state.isVaultLocked)
 
   // Idle + absolute session timeout: locks the vault and drops the access token
   // when the user walks away, then routes to /unlock. No-op while locked.
@@ -128,6 +132,7 @@ function AuthenticatedLayout() {
     queryFn: getAccount,
     staleTime: 5 * 60 * 1000,
   })
+  const memberId = account.data?.userId ?? userId
   const emailUnverified = account.data?.emailVerified === false
   useEffect(() => {
     if (emailUnverified) navigate({ to: '/verify-email' })
@@ -144,21 +149,42 @@ function AuthenticatedLayout() {
   // account — the redirect above is in flight.
   if (emailUnverified) return null
 
-  if (pathname === '/unlock') return <Outlet />
   return (
-    // SignalRProvider self-gates on auth + unlocked vault, so it only opens a
-    // connection once we're past the guards above.
-    <SignalRProvider>
-      <div
-        className="flex h-screen overflow-hidden"
-        style={{ background: GRADIENTS[theme] }}
-      >
-        <AppSidebar currentPath={pathname} />
-        <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
-          <Outlet />
-        </main>
-      </div>
-    </SignalRProvider>
+    <MemberSyncProvider
+      // The access token is deliberately memory-only and can be absent after
+      // a reload. Member sync may safely start once the Vault is unlocked;
+      // the API client restores the access token through the persisted refresh
+      // token on its first authenticated request. Gating on accessToken here
+      // otherwise leaves the decrypted session permanently stuck in `idle`.
+      enabled={!isVaultLocked}
+      // Prefer the authenticated account response after a cold refresh. The
+      // persisted auth hint may predate the refreshed token, while `/account`
+      // is also the authoritative source used by the unlock operation.
+      userId={memberId}
+      memberPrivateKey={memberPrivateKey}
+    >
+      {pathname === '/unlock' ? (
+        <Outlet />
+      ) : (
+        <RotationProvider
+          enabled={Boolean(accessToken) && !isVaultLocked}
+          memberId={memberId}
+          memberPrivateKey={memberPrivateKey}
+        >
+          <SignalRProvider>
+            <div
+              className="flex h-screen overflow-hidden"
+              style={{ background: GRADIENTS[theme] }}
+            >
+              <AppSidebar currentPath={pathname} />
+              <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+                <Outlet />
+              </main>
+            </div>
+          </SignalRProvider>
+        </RotationProvider>
+      )}
+    </MemberSyncProvider>
   )
 }
 

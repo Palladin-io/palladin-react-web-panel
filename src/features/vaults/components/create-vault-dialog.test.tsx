@@ -5,17 +5,27 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CreateVaultDialog } from './create-vault-dialog'
 
+const navigateMock = vi.hoisted(() => vi.fn())
+vi.mock('@tanstack/react-router', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@tanstack/react-router')>(),
+  useNavigate: () => navigateMock,
+}))
+
 // Mutation under test — replaced with a controllable mock so we can
 // drive onSuccess / onError paths from each scenario without going
 // through the real crypto + HTTP stack.
 const mutateMock = vi.fn()
 let isPending = false
+let pendingInput: { name: string; description?: string; icon?: string; color?: string } | null = null
 
 vi.mock('../use-create-vault', () => ({
   useCreateVault: () => ({
     mutate: mutateMock,
     get isPending() {
       return isPending
+    },
+    get pendingInput() {
+      return pendingInput
     },
   }),
 }))
@@ -28,15 +38,6 @@ vi.mock('../../../shared/lib/analytics', () => ({
 
 const toastError = vi.hoisted(() => vi.fn())
 vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }))
-
-// Icon upload helpers are not exercised in these tests (no file
-// selected through the picker), but the dialog imports them at module
-// load — stub them so the module graph resolves cleanly.
-vi.mock('../api/vault-api', () => ({
-  presignVaultIcon: vi.fn(),
-  uploadToS3: vi.fn(),
-  updateVault: vi.fn(),
-}))
 
 // Picker children render real DOM (icons, file inputs) we don't care
 // about here. Stubbing them keeps the test focused on form behaviour.
@@ -55,7 +56,9 @@ describe('CreateVaultDialog', () => {
   beforeEach(() => {
     mutateMock.mockReset()
     toastError.mockReset()
+    navigateMock.mockReset()
     isPending = false
+    pendingInput = null
   })
 
   it('renders nothing when closed', () => {
@@ -69,6 +72,7 @@ describe('CreateVaultDialog', () => {
   it('renders the form with name field and Create button when open', () => {
     render(<CreateVaultDialog open={true} onClose={vi.fn()} />, { wrapper })
     expect(screen.getByLabelText(/vault name/i)).toBeInTheDocument()
+    expect(screen.queryByText(/active organization agents/i)).not.toBeInTheDocument()
     // The submit button shares its label with the heading; scope the
     // assertion to the button role to avoid the duplicate-text trap.
     expect(screen.getByRole('button', { name: /^create vault$/i })).toBeInTheDocument()
@@ -87,19 +91,44 @@ describe('CreateVaultDialog', () => {
     expect(screen.getByRole('button', { name: /^create vault$/i })).toBeEnabled()
   })
 
-  it('calls onCreated and onClose on successful submit', async () => {
+  it('restores and freezes fields while an ambiguous attempt awaits retry', () => {
+    pendingInput = {
+      name: 'Production',
+      description: 'Primary',
+      icon: 'shield',
+      color: 'red',
+    }
+
+    render(<CreateVaultDialog open={true} onClose={vi.fn()} />, { wrapper })
+
+    expect(screen.getByLabelText(/vault name/i)).toHaveValue('Production')
+    expect(screen.getByLabelText(/vault name/i)).toBeDisabled()
+    expect(screen.getByLabelText(/description/i)).toBeDisabled()
+    expect(screen.getByText(/previous result is still unknown/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^create vault$/i })).toBeEnabled()
+  })
+
+  it('does not flash the retry explanation during the initial in-flight create', () => {
+    pendingInput = { name: 'Production', icon: 'shield', color: 'red' }
+    isPending = true
+
+    render(<CreateVaultDialog open={true} onClose={vi.fn()} />, { wrapper })
+
+    expect(screen.queryByText(/previous result is still unknown/i)).not.toBeInTheDocument()
+  })
+
+  it('closes and navigates directly to the newly created vault', async () => {
     const user = userEvent.setup()
-    const onCreated = vi.fn()
     const onClose = vi.fn()
 
     // Resolve the mutation synchronously through the success path so
     // we can assert the dialog reaction without juggling async timers.
     mutateMock.mockImplementation((_input, options) => {
-      options.onSuccess({ id: 'vault-1' })
+      options.onSuccess({ vaultId: 'vault-1' })
     })
 
     render(
-      <CreateVaultDialog open={true} onClose={onClose} onCreated={onCreated} />,
+      <CreateVaultDialog open={true} onClose={onClose} />,
       { wrapper },
     )
 
@@ -107,8 +136,11 @@ describe('CreateVaultDialog', () => {
     await user.click(screen.getByRole('button', { name: /^create vault$/i }))
 
     expect(mutateMock).toHaveBeenCalledTimes(1)
-    expect(onCreated).toHaveBeenCalledWith('vault-1')
     expect(onClose).toHaveBeenCalledTimes(1)
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/vaults/$vaultId',
+      params: { vaultId: 'vault-1' },
+    })
   })
 
   it('surfaces an error toast when the mutation fails', async () => {

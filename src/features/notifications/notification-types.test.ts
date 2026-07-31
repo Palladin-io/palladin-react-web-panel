@@ -1,86 +1,68 @@
 import { describe, expect, it } from 'vitest'
-import {
-  isKnownNotificationType,
-  parseNotificationPayload,
-} from './notification-types'
+import { isKnownNotificationType, parseNotificationPayload } from './notification-types'
+
+const subjectId = '11112233-4455-4677-8899-aabbccddeeff'
+const occurredAt = '2026-07-26T12:00:00Z'
 
 describe('parseNotificationPayload', () => {
-  it('parses a well-formed payload and defaults data to {}', () => {
+  it('normalizes a canonical SignalR payload and strips server presentation', () => {
     const result = parseNotificationPayload({
+      subjectId,
       type: 'grant_pending',
-      title: 'New grant request',
-      body: 'Agent X requested access',
+      category: 'actionRequired',
+      titleKey: 'notifications.grantPending.title',
+      metadata: {
+        grantId: subjectId,
+        vaultId: '22222233-4455-4677-8899-aabbccddeeff',
+        agentName: 'must not be trusted',
+        entryLabel: 'must not be trusted',
+        actionDeepLink: '/evil',
+      },
+      occurredAt,
     })
-    expect(result).not.toBeNull()
-    expect(result?.type).toBe('grant_pending')
-    expect(result?.data).toEqual({})
+
+    expect(result).toEqual({
+      subjectId,
+      type: 'grant_pending',
+      category: 'actionRequired',
+      occurredAt,
+      data: {
+        grantId: subjectId,
+        vaultId: '22222233-4455-4677-8899-aabbccddeeff',
+      },
+    })
   })
 
-  it('keeps the data id map', () => {
-    const result = parseNotificationPayload({
-      type: 'credential_accessed',
-      title: 'Accessed',
-      body: 'An entry was read',
-      data: { vaultId: 'v1', entryId: 'e1' },
+  it('accepts the thin canonical FCM data payload', () => {
+    expect(parseNotificationPayload({
+      subjectId, type: 'credential_stale', category: 'actionRequired', occurredAt,
+    })).toEqual({
+      subjectId, type: 'credential_stale', category: 'actionRequired', occurredAt, data: {},
     })
-    expect(result?.data).toEqual({ vaultId: 'v1', entryId: 'e1' })
   })
 
-  it('returns null for a malformed payload instead of throwing', () => {
-    expect(parseNotificationPayload({ title: 'no type' })).toBeNull()
+  it('fails closed for legacy display payloads and malformed identifiers/timestamps', () => {
+    expect(parseNotificationPayload({ type: 'grant_pending', title: 'legacy' })).toBeNull()
+    expect(parseNotificationPayload({ subjectId: 'not-an-id', type: 'grant_pending', category: 'update', occurredAt })).toBeNull()
+    expect(parseNotificationPayload({ subjectId, type: 'grant_pending', category: 'update', occurredAt: 'yesterday' })).toBeNull()
     expect(parseNotificationPayload(null)).toBeNull()
-    expect(parseNotificationPayload('nope')).toBeNull()
   })
 
-  it('accepts an unknown type string (forward compatible)', () => {
+  it('keeps an unknown type forward compatible without trusting extra copy', () => {
     const result = parseNotificationPayload({
-      type: 'some_future_type',
-      title: 'T',
-      body: 'B',
+      subjectId, type: 'future_type', category: 'update', occurredAt,
+      title: 'untrusted', body: 'untrusted',
     })
-    expect(result?.type).toBe('some_future_type')
-  })
-
-  it('tolerates a non-string timestamp (NodaTime object) without rejecting', () => {
-    // Backend transition: timestamp arrives as a NodaTime object, not ISO.
-    const result = parseNotificationPayload({
-      type: 'grant_pending',
-      title: 'New request',
-      body: 'Agent X',
-      data: { grantId: 'g1' },
-      timestamp: { year: 2026, month: 6, day: 4 },
-    })
-    expect(result).not.toBeNull()
-    expect(result?.type).toBe('grant_pending')
-    expect(result?.data).toEqual({ grantId: 'g1' })
-    // Non-string timestamp is normalised away rather than failing the parse.
-    expect(result?.timestamp).toBeUndefined()
-  })
-
-  it('keeps an ISO string timestamp', () => {
-    const result = parseNotificationPayload({
-      type: 'grant_pending',
-      timestamp: '2026-06-04T10:00:00Z',
-    })
-    expect(result?.timestamp).toBe('2026-06-04T10:00:00Z')
-  })
-
-  it('tolerates a thin payload missing title/body (only type drives work)', () => {
-    const result = parseNotificationPayload({ type: 'agent_pending' })
-    expect(result).not.toBeNull()
-    expect(result?.type).toBe('agent_pending')
-    expect(result?.title).toBe('')
-    expect(result?.data).toEqual({})
+    expect(result?.type).toBe('future_type')
+    expect(result).not.toHaveProperty('title')
+    expect(result).not.toHaveProperty('body')
   })
 })
 
 describe('isKnownNotificationType', () => {
-  it('recognises known types', () => {
+  it('recognises known types and rejects unknown ones', () => {
     expect(isKnownNotificationType('grant_approved')).toBe(true)
     expect(isKnownNotificationType('agent_pending')).toBe(true)
-  })
-
-  it('rejects unknown types', () => {
     expect(isKnownNotificationType('whatever')).toBe(false)
   })
 })

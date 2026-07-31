@@ -1,38 +1,59 @@
-import { createDefaultVault } from '../api/account-api'
-import { sealVaultKey } from '../crypto/vault-key'
+import { createDefaultVault, getAccount } from '../api/account-api'
+import { createVaultProtocolPayload } from '../crypto/create-vault-protocol'
+import { parseJwtPayload } from './jwt'
+import { useAuthStore } from '../../features/auth'
+import { issueVaultCreationChallenge } from '../../features/vaults/api/vault-api'
 
 // Defaults mirror those in vault-presentation.ts but are kept here as
 // literals to avoid a cross-feature import.
 const DEFAULT_ICON = 'shield'
 const DEFAULT_COLOR = '#EB4747'
-// Granular (2) is the safe default: available on all plans, per-entry scope.
-const GRANT_MODE_GRANULAR = 2
 
 /**
  * Generates a fresh Vault Key, seals it for the user, and creates the
  * default vault via POST /api/account/default-vault.
  *
- * **Always resolves** — 409 (vault already exists) and any network /
- * server error are silently ignored so this call never blocks the
- * onboarding or registration flow. Safe to call multiple times
- * (idempotent on the backend). Shared by onboarding (OAuth) and email+password
- * registration, so it lives in `shared/` rather than a feature folder.
+ * Distinguishes a newly created Vault from an existing one. Callers may retry
+ * failures while the unlocked private key is still available in memory, but a
+ * conflict must not trigger another create/sync loop.
  */
+export type DefaultVaultCreationResult = 'created' | 'already-exists' | 'failed'
+
 export async function createDefaultVaultSafe(
   privateKey: Uint8Array,
   name: string,
-): Promise<void> {
+): Promise<DefaultVaultCreationResult> {
   try {
-    const wrappedVK = await sealVaultKey(privateKey)
-    await createDefaultVault({
-      name,
-      icon: DEFAULT_ICON,
-      color: DEFAULT_COLOR,
-      grantMode: GRANT_MODE_GRANULAR,
-      wrappedVK,
+    const auth = useAuthStore.getState()
+    if (!auth.userId || !auth.accessToken) return 'failed'
+    const organizationId = parseJwtPayload(auth.accessToken)['org_id']
+    if (typeof organizationId !== 'string') return 'failed'
+    const [challenge, account] = await Promise.all([issueVaultCreationChallenge(), getAccount()])
+    if (!account.memberKeyVersion) return 'failed'
+    const payload = await createVaultProtocolPayload({
+      organizationId,
+      vaultId: challenge.vaultId,
+      memberId: auth.userId,
+      memberKeyVersion: account.memberKeyVersion,
+      memberPrivateKey: privateKey,
+      metadata: {
+        schema: 'palladin.member-vault-metadata.v1',
+        name,
+        description: null,
+        icon: { kind: 'glyph', value: DEFAULT_ICON },
+        color: DEFAULT_COLOR,
+        grantMode: 'granular',
+      },
     })
-  } catch {
-    // Non-fatal: vault already exists (409) or creation failed for
-    // another reason. The flow continues; user can add a vault manually.
+    await createDefaultVault(payload)
+    return 'created'
+  } catch (error) {
+    // The backend uniqueness constraint makes the operation idempotent. An
+    // ambiguous first request followed by 409 therefore counts as success.
+    if (typeof error === 'object' && error !== null && 'response' in error
+      && (error as { response?: { status?: number } }).response?.status === 409) {
+      return 'already-exists'
+    }
+    return 'failed'
   }
 }

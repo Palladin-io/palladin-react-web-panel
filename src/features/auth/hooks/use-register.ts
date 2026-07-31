@@ -1,11 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  AUTH_SALT_BYTES,
   deriveKey,
-  MASTER_KEY_SALT_BYTES,
   RECOVERY_KEY_SALT_BYTES,
 } from '../../../shared/crypto/argon2'
-import { toBase64 } from '../../../shared/crypto/encoding'
+import {
+  deriveIdentityV1,
+  generateIdentityAccountId,
+  IDENTITY_KDF_PROFILE,
+  IDENTITY_KDF_PROFILE_ID,
+  IDENTITY_KDF_SALT_BYTES,
+} from '../../../shared/crypto/identity-kdf'
+import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import {
   encryptWithKey,
   generateKeyPair,
@@ -25,11 +30,8 @@ export interface RegisterInput {
 }
 
 /**
- * Registration crypto pipeline (Variant A). From the single password we run
- * two independent Argon2id derivations:
- *   • MK       = deriveKey(password, salt)      — wraps the private key, never sent
- *   • authHash = deriveKey(password, authSalt)  — the only password-derived value
- *     that leaves the browser; the server re-hashes it at rest
+ * Registration crypto pipeline. Identity v1 runs Argon2id once over the exact
+ * password bytes and domain-separates MK from AuthCredential with HKDF.
  * The keypair's private key is wrapped twice (under MK and under the recovery
  * key) exactly like onboarding, then everything non-secret is POSTed to
  * `register`. All secret buffers are zeroed in `finally`; the only survivors are
@@ -40,36 +42,53 @@ export function useRegister() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ email, masterPassword, recoveryMnemonic }: RegisterInput) => {
-      const salt = await randomBytes(MASTER_KEY_SALT_BYTES)
-      const authSalt = await randomBytes(AUTH_SALT_BYTES)
-      const recoverySalt = await randomBytes(RECOVERY_KEY_SALT_BYTES)
-
-      const masterKey = await deriveKey(masterPassword, salt)
-      const authHash = await deriveKey(masterPassword, authSalt)
-      const keyPair = await generateKeyPair()
-      const recoveryKey = await deriveKey(joinMnemonic(recoveryMnemonic), recoverySalt)
-
+    mutationFn: async ({
+      email,
+      masterPassword,
+      recoveryMnemonic,
+    }: RegisterInput) => {
+      const accountId = generateIdentityAccountId()
+      let kdfSalt: Uint8Array | null = null
+      let recoverySalt: Uint8Array | null = null
+      let identity: Awaited<ReturnType<typeof deriveIdentityV1>> | null = null
+      let keyPair: Awaited<ReturnType<typeof generateKeyPair>> | null = null
+      let recoveryKey: Uint8Array | null = null
+      let encryptedPrivateKey: Uint8Array | null = null
+      let encryptedPrivateKeyByRecovery: Uint8Array | null = null
       try {
-        const encryptedPrivateKey = await encryptWithKey(keyPair.privateKey, masterKey)
-        const encryptedPrivateKeyByRecovery = await encryptWithKey(
+        kdfSalt = await randomBytes(IDENTITY_KDF_SALT_BYTES)
+        recoverySalt = await randomBytes(RECOVERY_KEY_SALT_BYTES)
+        identity = await deriveIdentityV1(
+          masterPassword,
+          accountId,
+          kdfSalt,
+        )
+        keyPair = await generateKeyPair()
+        recoveryKey = await deriveKey(joinMnemonic(recoveryMnemonic), recoverySalt)
+        encryptedPrivateKey = await encryptWithKey(
+          keyPair.privateKey,
+          identity.masterKey,
+        )
+        encryptedPrivateKeyByRecovery = await encryptWithKey(
           keyPair.privateKey,
           recoveryKey,
         )
 
         const response = await register({
+          accountId,
           email,
           // The register form collects only email + password; seed a sensible
           // display name from the local-part, editable later in settings.
           displayName: email.split('@')[0],
           preferredLanguage: i18n.language.startsWith('pl') ? 'pl' : 'en',
-          authHash: toBase64(authHash),
-          authSalt: toBase64(authSalt),
-          salt: toBase64(salt),
-          recoverySalt: toBase64(recoverySalt),
-          publicKey: toBase64(keyPair.publicKey),
-          encryptedPrivateKey: toBase64(encryptedPrivateKey),
-          encryptedPrivateKeyByRecovery: toBase64(encryptedPrivateKeyByRecovery),
+          securityVersion: IDENTITY_KDF_PROFILE.securityVersion,
+          kdfProfileId: IDENTITY_KDF_PROFILE_ID,
+          authCredential: encodeBase64Url(identity.authCredential),
+          kdfSalt: encodeBase64Url(kdfSalt),
+          recoverySalt: encodeBase64Url(recoverySalt),
+          publicKey: encodeBase64Url(keyPair.publicKey),
+          encryptedPrivateKey: encodeBase64Url(encryptedPrivateKey),
+          encryptedPrivateKeyByRecovery: encodeBase64Url(encryptedPrivateKeyByRecovery),
         })
 
         // Establish the session, then land the user already unlocked (we hold
@@ -77,12 +96,18 @@ export function useRegister() {
         useAuthStore.getState().setTokens(response)
         useAuthStore
           .getState()
-          .unlockVault(new Uint8Array(masterKey), new Uint8Array(keyPair.privateKey))
+          .unlockVault(identity.masterKey, keyPair.privateKey)
       } finally {
-        wipe(masterKey)
-        wipe(authHash)
-        wipe(recoveryKey)
-        wipe(keyPair.privateKey)
+        if (identity) {
+          wipe(identity.masterKey)
+          wipe(identity.authCredential)
+        }
+        if (recoveryKey) wipe(recoveryKey)
+        if (keyPair) wipe(keyPair.privateKey)
+        if (kdfSalt) wipe(kdfSalt)
+        if (recoverySalt) wipe(recoverySalt)
+        if (encryptedPrivateKey) wipe(encryptedPrivateKey)
+        if (encryptedPrivateKeyByRecovery) wipe(encryptedPrivateKeyByRecovery)
       }
 
       // No default vault here. CreateDefaultVault sits behind the email-verified

@@ -1,34 +1,48 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
-import { encryptEntry } from '../../shared/crypto/entry-crypto'
-import { produceGrantEntryEnvelope } from '../../shared/crypto/grant-envelope'
+import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
+import { defaultAgentVisibilityPolicy, toMemberSecret, type EntryDraft } from '../../shared/crypto/entry-draft'
+import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
+import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
+import { projectAgentDiscovery } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
-import { unsealVaultKey } from '../../shared/crypto/vault-key'
 import { useAuthStore } from '../auth'
-import { collectActiveFullGrants } from '../grants'
+import {
+  collectActiveFullGrants,
+  getOrgGrants,
+  GRANT_STATUS_ACTIVE,
+  GRANT_TYPE_FULL,
+  type OrgGrant,
+} from '../grants'
+import { grantMethodsMask, parseGrantMethods } from '../grants/grant-methods'
 import type { ParsedEntry } from './import'
 import {
   importEntries,
-  updateEntry,
+  getCanonicalEntry,
+  issueEntryCreationChallenges,
+  updateCanonicalEntry,
   type ImportEntryItem,
 } from './api/vault-api'
-import { extractDomain } from './components/entry-presentation'
 import {
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,
   type EntryPlaintext,
 } from './types'
-import { MissingWrappedVaultKeyError, VaultLockedError } from './use-create-entry'
+import { VaultLockedError } from './use-create-entry'
+import { getEncryptedVault } from './sync/member-sync-api'
 import { entriesQueryKey } from './use-entries'
 import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
+import { useMemberSyncStore } from './sync/member-sync-store'
+import { normalizePublicHostname, resolveWebsiteIcons } from '../../shared/api/public-assets-api'
+import { extractDomain } from './components/entry-presentation'
 
 /** Import batch size — well under the backend cap (500) so the progress bar ticks
  * every ~50 entries instead of freezing on one huge POST. */
 const IMPORT_CHUNK_SIZE = 50
 
 /** Which phase of the import failed — surfaced so a failure is attributable. */
-export type ImportStep = 'grants' | 'encrypt' | 'save' | 'overwrite'
+export type ImportStep = 'grants' | 'loadVault' | 'openVaultKey' | 'challenge' | 'encrypt' | 'save' | 'overwrite'
 
 /**
  * Wraps the underlying error with the phase it happened in, so the UI can show a
@@ -45,18 +59,6 @@ export class ImportStepError extends Error {
   }
 }
 
-// Backend field limits — enforced client-side so one over-long value can't fail
-// the whole atomic batch with a 400.
-const MAX_LABEL_LENGTH = 200
-const MAX_URL_DOMAIN_LENGTH = 255
-
-function cap(value: string, max: number): string
-function cap(value: string | undefined, max: number): string | undefined
-function cap(value: string | undefined, max: number): string | undefined {
-  if (value == null) return undefined
-  return value.length > max ? value.slice(0, max) : value
-}
-
 /** An existing entry to overwrite with freshly-parsed content. */
 export interface ImportOverwrite {
   entryId: string
@@ -65,8 +67,6 @@ export interface ImportOverwrite {
 
 export interface ImportEntriesInput {
   vaultId: string
-  /** Caller's wrapped VK (base64) — from `GET /vaults/{id}`. */
-  wrappedVK: string
   /** Source format id, recorded on the server-side import audit. */
   format: string
   /** New entries to create. */
@@ -84,7 +84,7 @@ export interface ImportEntriesResult {
   failed: { label: string; reason: string }[]
 }
 
-export type ImportPhase = 'encrypt' | 'save'
+export type ImportPhase = 'encrypt' | 'save' | 'icons'
 
 /** Human-readable reason from a ky HTTPError (FastEndpoints problem details), or a generic fallback. */
 async function readErrorReason(error: unknown): Promise<string> {
@@ -121,18 +121,36 @@ function toPlaintext(entry: ParsedEntry): EntryPlaintext {
   }
 }
 
+function toDraft(entry: ParsedEntry): EntryDraft {
+  const content = toPlaintext(entry)
+  const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
+  return {
+    memberLabel: entry.label,
+    agentLabel: entry.label,
+    entryType: entry.type,
+    content,
+    policy: defaultAgentVisibilityPolicy(entry.type, content.fields ?? []),
+    ...(hostname ? { iconReference: `website:${hostname}` } : {}),
+  }
+}
+
+async function activeCoveringGrants(vaultId: string, entryId: string): Promise<OrgGrant[]> {
+  const grants: OrgGrant[] = []
+  let cursor: string | undefined
+  do {
+    const page = await getOrgGrants({ vaultId, status: GRANT_STATUS_ACTIVE, cursor, pageSize: 100 })
+    grants.push(...page.items.filter((grant) => grant.type === GRANT_TYPE_FULL || grant.entryId === entryId))
+    cursor = page.nextCursor ?? undefined
+  } while (cursor)
+  return grants
+}
+
 /**
- * Bulk-import parsed entries into a vault. The Vault Key is unsealed once, every
- * entry is encrypted against it in a loop, creates are chunked to the backend
- * cap, and overwrites go out as individual PUTs. The VK is wiped in `finally`
- * regardless of outcome.
- *
- * FULL-grant re-wrap: the backend requires each created entry to carry re-wrap
- * material for every ACTIVE FULL grant on the vault. We fetch those grants once,
- * then for each new entry produce a fresh DEK-sealed envelope per grant (keyed
- * by `grantId`). Overwrites go through the existing entry-update endpoint, which
- * re-wraps server-side. Same crypto as the single-grant flow — delegated to
- * `shared/crypto/grant-envelope`.
+ * Bulk-import parsed entries into a vault. Each bounded chunk receives opaque
+ * server-issued IDs, becomes a complete protocol-2 projection set locally, and
+ * is committed atomically. Exact retry reuses the same IDs/ciphertext. Existing
+ * Entries use the normal optimistic revision path and refresh every covering
+ * grant. VK/VDK material is opened once and wiped regardless of outcome.
  */
 export function useImportEntries() {
   const queryClient = useQueryClient()
@@ -141,58 +159,41 @@ export function useImportEntries() {
     mutationFn: async (input: ImportEntriesInput): Promise<ImportEntriesResult> => {
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new VaultLockedError()
-      if (!input.wrappedVK) throw new MissingWrappedVaultKeyError()
-
       const total = input.creates.length + input.overwrites.length
 
-      // Fetch the vault's active FULL grants ONCE — every new entry must be
-      // re-wrapped for each of them (empty list = no grants, still valid).
+      // Fetch active FULL grants once before opening keys. An empty list is valid.
       let fullGrants
       try {
         fullGrants = await collectActiveFullGrants(input.vaultId)
       } catch (error) {
         throw new ImportStepError('grants', error)
       }
-
-      const vaultKey = await unsealVaultKey(input.wrappedVK, privateKey)
+      let vault: Awaited<ReturnType<typeof getEncryptedVault>>
       try {
-        let items: ImportEntryItem[]
-        try {
-          items = []
-          let encrypted = 0
-          for (const entry of input.creates) {
-            const content = await encryptEntry(toPlaintext(entry), vaultKey)
-            const grantEntries = []
-            for (const grant of fullGrants) {
-              const envelope = await produceGrantEntryEnvelope({
-                entryContent: content,
-                vaultKey,
-                agentPublicKey: grant.agentPublicKey,
-              })
-              grantEntries.push({ grantId: grant.grantId, ...envelope })
-            }
-            items.push({
-              label: cap(entry.label, MAX_LABEL_LENGTH),
-              type: entry.type,
-              content,
-              urlDomain: cap(extractDomain(entry.url), MAX_URL_DOMAIN_LENGTH),
-              grantEntries,
-            })
-            input.onProgress?.(++encrypted, input.creates.length, 'encrypt')
-          }
-        } catch (error) {
-          throw new ImportStepError('encrypt', error)
-        }
-
+        vault = await getEncryptedVault(input.vaultId)
+      } catch (error) {
+        throw new ImportStepError('loadVault', error)
+      }
+      let vaultKey: Uint8Array
+      try {
+        vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+      } catch (error) {
+        throw new ImportStepError('openVaultKey', error)
+      }
+      const organizationId = vault.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId
+      let discoveryKey: Uint8Array | undefined
+      try {
+        discoveryKey = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)
+        const labelsByEntryId = new Map<string, string>()
         let importedCount = 0
         const failed: { label: string; reason: string }[] = []
-        input.onProgress?.(0, total, 'save')
 
         // A batch is atomic on the server — one bad row 400s the whole chunk. Bisect a
         // failed chunk so every valid entry still lands and only the offenders are
         // reported back, with the server's validation message attached.
         const saveChunk = async (chunk: ImportEntryItem[]): Promise<void> => {
           try {
+            if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
             const response = await importEntries(input.vaultId, {
               format: input.format,
               entries: chunk,
@@ -201,7 +202,7 @@ export function useImportEntries() {
             input.onProgress?.(importedCount + failed.length, total, 'save')
           } catch (error) {
             if (chunk.length === 1) {
-              failed.push({ label: chunk[0].label ?? '', reason: await readErrorReason(error) })
+              failed.push({ label: labelsByEntryId.get(chunk[0].entryId) ?? '', reason: await readErrorReason(error) })
               input.onProgress?.(importedCount + failed.length, total, 'save')
               return
             }
@@ -211,19 +212,153 @@ export function useImportEntries() {
           }
         }
 
-        for (let i = 0; i < items.length; i += IMPORT_CHUNK_SIZE) {
-          await saveChunk(items.slice(i, i + IMPORT_CHUNK_SIZE))
+        let encryptedCount = 0
+        for (let offset = 0; offset < input.creates.length; offset += IMPORT_CHUNK_SIZE) {
+          const sourceChunk = input.creates.slice(offset, offset + IMPORT_CHUNK_SIZE)
+          let challenges: Awaited<ReturnType<typeof issueEntryCreationChallenges>>
+          try {
+            challenges = await issueEntryCreationChallenges(input.vaultId, sourceChunk.length)
+          } catch (error) {
+            throw new ImportStepError('challenge', error)
+          }
+          const encryptedChunk: ImportEntryItem[] = []
+          try {
+            for (let index = 0; index < sourceChunk.length; index += 1) {
+              if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
+              const entry = sourceChunk[index]
+              const entryId = challenges[index]?.entryId
+              if (!entryId) throw new Error('Entry creation challenge count mismatch')
+              const draft = toDraft(entry)
+              const memberSecret = toMemberSecret({
+                label: draft.memberLabel, agentLabel: draft.agentLabel,
+                type: draft.entryType, payload: draft.content, policy: draft.policy,
+                iconReference: draft.iconReference,
+                vaultId: vault.id,
+              })
+              const material = await sealCanonicalEntry({
+                organizationId,
+                vaultId: vault.id,
+                entryId,
+                revision: '1',
+                vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
+                vdkVersion: vault.currentKeyEpoch.vdkVersion,
+                memberKeyGeneration: vault.memberKeyGeneration,
+              }, memberSecret, vaultKey, discoveryKey, 1)
+              const grantEnvelopes = []
+              for (const grant of fullGrants) {
+                const methods = parseGrantMethods(grant.methods)
+                if (methods.length === 0) throw new Error('Active FULL grant method context is invalid')
+                grantEnvelopes.push(await buildCanonicalGrantEnvelope({
+                  secret: memberSecret,
+                  agentPublicKey: grant.agentPublicKey,
+                  approvedFieldIds: listGrantableFields(memberSecret).map((field) => field.id),
+                  organizationId, vaultId: vault.id, grantId: grant.grantId,
+                  agentId: grant.agentId, entryId, entryRevision: '1',
+                  grantEnvelopeRevision: '1', grantKeyVersion: 1,
+                  memberKeyGeneration: vault.memberKeyGeneration,
+                  recipientKeyVersion: grant.recipientAgentKeyVersion,
+                  approvedMethods: grantMethodsMask(methods),
+                  ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
+                  ...(grant.remainingUses !== undefined ? { remainingUses: grant.remainingUses } : {}),
+                }))
+              }
+              encryptedChunk.push({ entryId, ...material, grantEnvelopes })
+              labelsByEntryId.set(entryId, entry.label)
+              input.onProgress?.(++encryptedCount, input.creates.length, 'encrypt')
+            }
+          } catch (error) {
+            throw new ImportStepError('encrypt', error)
+          }
+          await saveChunk(encryptedChunk)
+          const iconHostnames = sourceChunk.flatMap((entry) => {
+            const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
+            return hostname ? [hostname] : []
+          })
+          if (iconHostnames.length > 0) {
+            // The endpoint only enqueues acquisition and returns immediately.
+            // Keep it after the atomic save so icons can never decide whether
+            // credentials commit, while every 50-entry import chunk is still
+            // guaranteed to reach the catalog independently of list rendering.
+            await resolveWebsiteIcons(iconHostnames).catch(() => new Map())
+          }
+          input.onProgress?.(
+            Math.min(offset + sourceChunk.length, input.creates.length),
+            input.creates.length,
+            'icons',
+          )
         }
 
         let updatedCount = 0
         for (const { entryId, entry } of input.overwrites) {
           try {
-            const content = await encryptEntry(toPlaintext(entry), vaultKey)
-            await updateEntry(input.vaultId, entryId, {
-              label: cap(entry.label, MAX_LABEL_LENGTH),
-              urlDomain: cap(extractDomain(entry.url), MAX_URL_DOMAIN_LENGTH),
-              content,
+            if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
+            const [detail, grants] = await Promise.all([
+              getCanonicalEntry(input.vaultId, entryId),
+              activeCoveringGrants(input.vaultId, entryId),
+            ])
+            const previous = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
+              organizationId: detail.organizationId, vaultId: detail.vaultId,
+              entryId: detail.id, revision: detail.currentRevision,
             })
+            const draft = toDraft(entry)
+            const nextSecret = toMemberSecret({
+              label: draft.memberLabel, agentLabel: draft.agentLabel,
+              type: draft.entryType, payload: draft.content, policy: draft.policy,
+              iconReference: draft.iconReference,
+              vaultId: input.vaultId,
+            })
+            const nextRevision = (BigInt(detail.currentRevision) + 1n).toString()
+            const agentDiscoveryChanged = JSON.stringify(projectAgentDiscovery(previous))
+              !== JSON.stringify(projectAgentDiscovery(nextSecret))
+            const envelopes = await sealCanonicalEntry({
+              organizationId: detail.organizationId, vaultId: detail.vaultId, entryId,
+              revision: nextRevision,
+              entryKeyRevision: (BigInt(detail.entryKey.descriptor.resourceRevision) + 1n).toString(),
+              entryKeyVersion: detail.currentKeyVersion + 1,
+              memberIndexRevision: (BigInt(detail.memberIndexRevision) + 1n).toString(),
+              agentDiscoveryRevision: (BigInt(detail.agentDiscoveryRevisionHighWatermark) + 1n).toString(),
+              vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
+              vdkVersion: vault.currentKeyEpoch.vdkVersion,
+              memberKeyGeneration: vault.memberKeyGeneration,
+            }, nextSecret, vaultKey, discoveryKey, 2)
+            const material = {
+              baseRevision: detail.currentRevision,
+              newEntryKey: envelopes.entryKey,
+              memberSecret: envelopes.memberSecret,
+              memberIndex: envelopes.memberIndex,
+              agentDiscoveryChanged,
+              ...(agentDiscoveryChanged && envelopes.agentDiscovery ? { agentDiscovery: envelopes.agentDiscovery } : {}),
+              grantEnvelopes: [] as Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>[],
+            }
+            for (const grant of grants) {
+              const scope = grant.entryScopes.find((candidate) => candidate.entryId === entryId)
+              const methods = parseGrantMethods(grant.methods)
+              if (!scope?.grantEnvelopeRevision || !scope.grantKeyVersion || !scope.fieldIds.length
+                || !grant.agentId || !grant.agentPublicKey || !grant.recipientAgentKeyVersion
+                || methods.length === 0) throw new Error('Active grant refresh context is invalid')
+              const grantable = new Set(listGrantableFields(nextSecret).map((field) => field.id))
+              const approvedFieldIds = scope.fieldIds.filter((fieldId) => grantable.has(fieldId))
+              if (approvedFieldIds.length === 0) throw new Error('Active grant has no permitted fields')
+              material.grantEnvelopes.push(await buildCanonicalGrantEnvelope({
+                secret: nextSecret,
+                agentPublicKey: grant.agentPublicKey,
+                approvedFieldIds,
+                organizationId: detail.organizationId, vaultId: input.vaultId,
+                grantId: grant.id, agentId: grant.agentId, entryId,
+                entryRevision: nextRevision,
+                grantEnvelopeRevision: (BigInt(scope.grantEnvelopeRevision) + 1n).toString(),
+                grantKeyVersion: scope.grantKeyVersion + 1,
+                memberKeyGeneration: vault.memberKeyGeneration,
+                recipientKeyVersion: grant.recipientAgentKeyVersion,
+                approvedMethods: grantMethodsMask(methods),
+                ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
+                ...(grant.queryLimit !== null && grant.queryLimit !== undefined
+                  ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }
+                  : {}),
+              }))
+            }
+            if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
+            await updateCanonicalEntry(input.vaultId, entryId, material)
             updatedCount += 1
           } catch (error) {
             failed.push({ label: entry.label ?? '', reason: await readErrorReason(error) })
@@ -234,17 +369,18 @@ export function useImportEntries() {
         return { importedCount, updatedCount, failed }
       } finally {
         wipe(vaultKey)
+        if (discoveryKey) wipe(discoveryKey)
       }
     },
     onSuccess: (_result, variables) => {
-      // Same invalidations as a single create — entries list, vault detail +
-      // summary counts, and the cross-vault recent/search surfaces.
+      // Same server-state invalidations as a single create. Local recents and
+      // search update through the synchronized MemberIndex store.
       // Prefix match — also covers the entries/all + entry-detail sub-keys.
       queryClient.invalidateQueries({ queryKey: entriesQueryKey(variables.vaultId) })
       queryClient.invalidateQueries({ queryKey: vaultQueryKey(variables.vaultId) })
       queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
-      queryClient.invalidateQueries({ queryKey: ['entries', 'recent'] })
-      queryClient.invalidateQueries({ queryKey: ['search'] })
+      useMemberSyncStore.getState().retry()
+
     },
   })
 }

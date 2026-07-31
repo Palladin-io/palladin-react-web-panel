@@ -1,13 +1,13 @@
-import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
-import type { VaultSummary } from '../types'
 import { VaultIconCircle } from './vault-icon-circle'
 import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from './vault-presentation'
+import { vaultFooterLabel, type VaultCardModel } from './vault-card-model'
 
 export interface VaultCardProps {
-  vault: VaultSummary
+  vault: VaultCardModel
   onClick: () => void
+  statusLabel?: string
 }
 
 /**
@@ -21,7 +21,7 @@ export interface VaultCardProps {
  * contexts (search results, picker dialogs) without coupling it to a
  * route. Styling mirrors `../design/astro/.../VaultCard.astro` 1:1.
  */
-export function VaultCard({ vault, onClick }: VaultCardProps) {
+export function VaultCard({ vault, onClick, statusLabel }: VaultCardProps) {
   const { t, i18n } = useTranslation()
   const footerLabel = vaultFooterLabel(vault, i18n.language, t)
   const accent = vault.color ?? DEFAULT_VAULT_COLOR
@@ -41,12 +41,12 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
               {vault.name}
             </span>
             <span className="text-micro text-[var(--cv-t3)]">
-              {t('vault.entries', { count: vault.entryCount ?? 0 })}
+              {statusLabel ?? t('vault.entries', { count: vault.entryCount })}
             </span>
           </div>
         </div>
         <span className="text-meta text-[var(--cv-t3)]">
-          {t('vault.grants', { count: vault.activeGrantCount ?? 0 })}
+          {t('vault.grants', { count: vault.activeGrantCount })}
         </span>
       </div>
 
@@ -57,50 +57,4 @@ export function VaultCard({ vault, onClick }: VaultCardProps) {
       ) : null}
     </button>
   )
-}
-
-/**
- * Lightweight relative time formatter — avoids pulling in a date library
- * for what's essentially "x days ago". Falls back to an absolute date for
- * anything older than a month. Buckets translate via i18n plural keys so
- * Polish/English (and future locales) read naturally.
- */
-function formatRelativeUpdate(
-  iso: string,
-  locale: string,
-  t: TFunction,
-): string | null {
-  const ts = Date.parse(iso)
-  if (Number.isNaN(ts)) return null
-
-  const diffMs = Date.now() - ts
-  const minutes = Math.floor(diffMs / 60_000)
-  if (minutes < 1) return t('vault.relativeJustNow')
-  if (minutes < 60) return t('vault.relativeMinutesAgo', { count: minutes })
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return t('vault.relativeHoursAgo', { count: hours })
-  const days = Math.floor(hours / 24)
-  if (days < 30) return t('vault.relativeDaysAgo', { count: days })
-  return new Date(ts).toLocaleDateString(locale, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
-/**
- * Footer timestamp label for a vault row/card: last-update relative time when
- * available, otherwise the creation date — so even empty/never-touched vaults
- * (no updatedAt) still show a timestamp. Shared by VaultCard and VaultRow.
- */
-export function vaultFooterLabel(
-  vault: Pick<VaultSummary, 'updatedAt' | 'createdAt'>,
-  locale: string,
-  t: TFunction,
-): string | null {
-  const updatedRel = formatRelativeUpdate(vault.updatedAt, locale, t)
-  if (updatedRel) return t('vault.relativeUpdatedLabel', { time: updatedRel })
-  const createdRel = formatRelativeUpdate(vault.createdAt, locale, t)
-  if (createdRel) return t('vault.relativeCreatedLabel', { time: createdRel })
-  return null
 }

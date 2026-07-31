@@ -182,6 +182,7 @@ export interface EntryListItem {
   icon?: string
   color?: string
   type: EntryType
+  username?: string
   urlDomain?: string
   createdAt: string
   updatedAt: string
@@ -251,7 +252,7 @@ export interface EntryPlaintextV2Common {
  * `type` without tripping over optional fields.
  */
 export type EntryPlaintext =
-  | (EntryPlaintextV2Common & { type: typeof ENTRY_TYPE_KEY; value: string; notes?: string })
+  | (EntryPlaintextV2Common & { type: typeof ENTRY_TYPE_KEY; value: string; url?: string; notes?: string })
   | (EntryPlaintextV2Common & {
       type: typeof ENTRY_TYPE_CREDENTIAL
       username: string
@@ -281,7 +282,6 @@ export interface CreateVaultInput {
   description?: string
   icon?: string
   color?: string
-  grantMode: GrantMode
 }
 
 export interface UpdateVaultInput {

@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { env, isFirebaseConfigured } from '../../shared/lib/env'
+import { useAuthStore } from '../auth'
 import { getFirebaseMessaging } from '../../shared/push/firebase'
 import { parseNotificationPayload } from './notification-types'
 import { showNotificationToast } from './notification-toast'
 import { registerPushToken } from './push-api'
 import { clearPushTokenOnLogout, setPushTokenId } from './push-token-registry'
 import { useNotificationInvalidation } from './use-notification-invalidation'
+import { AGENTS_QUERY_KEY, type Agent } from '../agents'
+import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
+import { claimNotificationEvent } from './notification-deduplication'
+import { resolveNotificationPayload } from './notification-resolution'
 
 export type WebPushStatus =
   | 'unsupported' // browser or config doesn't support push
@@ -59,6 +66,8 @@ function browserSupportsPush(): boolean {
  */
 export function useWebPush() {
   const invalidate = useNotificationInvalidation()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [status, setStatus] = useState<WebPushStatus>(() =>
     browserSupportsPush()
       ? (Notification.permission as WebPushStatus)
@@ -84,7 +93,16 @@ export function useWebPush() {
         const raw = message.data ?? message.notification
         const payload = parseNotificationPayload(raw)
         if (!payload) return
-        showNotificationToast(payload)
+        if (!claimNotificationEvent(payload)) return
+        const unlocked = !useAuthStore.getState().isVaultLocked
+        const resolved = unlocked
+          ? resolveNotificationPayload(payload, {
+              vaults: useMemberSyncStore.getState().vaults,
+              agents: new Map((queryClient.getQueryData<Agent[]>(AGENTS_QUERY_KEY) ?? [])
+                .map((agent) => [agent.agentId, agent])),
+            })
+          : payload
+        showNotificationToast(resolved, () => navigate({ to: '/inbox' }))
         invalidate(payload)
       })
     })()
@@ -93,7 +111,7 @@ export function useWebPush() {
       cancelled = true
       unsubscribe?.()
     }
-  }, [status, invalidate])
+  }, [status, invalidate, navigate, queryClient])
 
   const requestPermissionAndRegister = useCallback(async (): Promise<WebPushStatus> => {
     if (!browserSupportsPush()) {

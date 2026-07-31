@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { parseJwtPayload } from '../../../shared/lib/jwt'
+import { wipe } from '../../../shared/crypto/sodium'
 
 interface AuthState {
   accessToken: string | null
@@ -40,7 +41,10 @@ interface AuthState {
   markOnboarded: () => void
   /** Flip to verified after the user consumes their verification link. */
   markEmailVerified: () => void
-  unlockVault: (masterKey: Uint8Array, privateKey: Uint8Array) => void
+  unlockVault: (
+    masterKey: Uint8Array,
+    privateKey: Uint8Array,
+  ) => void
   lockVault: () => void
   /** Session timeout: wipes crypto keys AND the access token, so a walked-away tab holds neither. */
   expireSession: () => void
@@ -107,28 +111,35 @@ export const useAuthStore = create<AuthState>()(
         // Store independent copies — callers routinely `wipe()` their local
         // buffers right after handing them off, which would zero out our
         // references too if we kept them.
-        set({
-          masterKey: new Uint8Array(masterKey),
-          privateKey: new Uint8Array(privateKey),
-          isVaultLocked: false,
+        set((state) => {
+          if (state.masterKey) wipe(state.masterKey)
+          if (state.privateKey) wipe(state.privateKey)
+          return {
+            masterKey: new Uint8Array(masterKey),
+            privateKey: new Uint8Array(privateKey),
+            isVaultLocked: false,
+          }
         }),
 
       lockVault: () =>
-        set({
-          masterKey: null,
-          privateKey: null,
-          isVaultLocked: true,
+        set((state) => {
+          if (state.masterKey) wipe(state.masterKey)
+          if (state.privateKey) wipe(state.privateKey)
+          return { masterKey: null, privateKey: null, isVaultLocked: true }
         }),
 
       expireSession: () =>
-        set({
-          masterKey: null,
-          privateKey: null,
-          isVaultLocked: true,
-          accessToken: null,
+        set((state) => {
+          if (state.masterKey) wipe(state.masterKey)
+          if (state.privateKey) wipe(state.privateKey)
+          return { masterKey: null, privateKey: null, isVaultLocked: true, accessToken: null }
         }),
 
-      logout: () => set(initialState),
+      logout: () => set((state) => {
+        if (state.masterKey) wipe(state.masterKey)
+        if (state.privateKey) wipe(state.privateKey)
+        return initialState
+      }),
     }),
     {
       name: 'palladin-auth',

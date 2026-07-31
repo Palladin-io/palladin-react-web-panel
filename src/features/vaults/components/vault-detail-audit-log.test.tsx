@@ -1,19 +1,26 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
 import type { AuditLogItem } from '../../audit'
 import { useAuditAgentNames, useVaultAuditLogs } from '../../audit'
 import { useAuthStore } from '../../auth'
+import { useVaultAuditEntryNames } from '../use-vault-audit-entry-names'
 import { VaultDetailAuditLog } from './vault-detail-audit-log'
 
 vi.mock('../../audit', async (importActual) => {
   const actual = await importActual<typeof import('../../audit')>()
-  return { ...actual, useVaultAuditLogs: vi.fn(), useAuditAgentNames: vi.fn() }
+  return {
+    ...actual,
+    useVaultAuditLogs: vi.fn(),
+    useAuditAgentNames: vi.fn(),
+  }
 })
+vi.mock('../use-vault-audit-entry-names')
 vi.mock('../../auth', () => ({ useAuthStore: vi.fn() }))
 
 const mockLogs = vi.mocked(useVaultAuditLogs)
 const mockAgentNames = vi.mocked(useAuditAgentNames)
+const mockEntryNames = vi.mocked(useVaultAuditEntryNames)
 const mockAuthStore = vi.mocked(useAuthStore)
 
 function row(overrides: Partial<AuditLogItem> = {}): AuditLogItem {
@@ -56,8 +63,17 @@ beforeEach(() => {
   mockAgentNames.mockReturnValue({
     agentNameById: { 'agent-1': 'github-copilot' },
     resolveAgentName: (id: string) => (id === 'agent-1' ? 'github-copilot' : id),
+    memberNameById: { 'user-1': 'Patryk Roguszewski' },
+    resolveActorName: (item: AuditLogItem) => item.userId === 'user-1'
+      ? 'Patryk Roguszewski'
+      : item.agentId === 'agent-1' ? 'github-copilot' : undefined,
     agentOptions: [{ value: 'agent-1', label: 'github-copilot' }],
     userOptions: [],
+  })
+  mockEntryNames.mockReturnValue({
+    entryNameById: { 'entry-1': 'Stripe API Key' },
+    resolveEntryName: (id: string) =>
+      id === 'entry-1' ? 'Stripe API Key' : 'missing…entry',
   })
 })
 
@@ -72,6 +88,20 @@ describe('VaultDetailAuditLog', () => {
     // Entry name appears twice: bold in the sentence + as the entry chip
     // (the vault-wide log shows the chip, unlike the entry-scoped tab).
     expect(screen.getAllByText('Stripe API Key')).toHaveLength(2)
+  })
+
+  it('renders a human actor from the authorized Member directory instead of an id', () => {
+    mockLogs.mockReturnValue(logsReturn([row({
+      actorType: 'user',
+      agentId: null,
+      userId: 'user-1',
+      eventType: 'entry.updated',
+    })]))
+
+    render(<VaultDetailAuditLog vaultId="vault-1" />)
+
+    expect(screen.getByText('Patryk Roguszewski')).toBeInTheDocument()
+    expect(screen.queryByText(/user-1/)).not.toBeInTheDocument()
   })
 
   it('shows a skeleton while loading without removing the filter bar', () => {
@@ -98,5 +128,42 @@ describe('VaultDetailAuditLog', () => {
     expect(
       screen.getByText("You don't have permission to view audit logs."),
     ).toBeInTheDocument()
+  })
+
+  it('filters locally resolved entry text without sending plaintext to the API', () => {
+    mockLogs.mockReturnValue(logsReturn([
+      row(),
+      row({ id: 'log-2', entryId: 'entry-2' }),
+    ]))
+    mockEntryNames.mockReturnValue({
+      entryNameById: { 'entry-1': 'Stripe API Key', 'entry-2': 'GitHub Token' },
+      resolveEntryName: (id: string) =>
+        ({ 'entry-1': 'Stripe API Key', 'entry-2': 'GitHub Token' })[id] ?? id,
+    })
+
+    render(<VaultDetailAuditLog vaultId="vault-1" />)
+    fireEvent.change(screen.getByPlaceholderText('Search logs…'), {
+      target: { value: 'stripe' },
+    })
+
+    expect(screen.getAllByText('Stripe API Key')).toHaveLength(2)
+    expect(screen.queryByText('GitHub Token')).not.toBeInTheDocument()
+    expect(mockLogs).toHaveBeenLastCalledWith(
+      'vault-1',
+      expect.not.objectContaining({ search: expect.anything() }),
+      true,
+    )
+  })
+
+  it('renders a shortened opaque id when an entry was deleted or purged', () => {
+    const missingId = '33333333-3333-4333-8333-333333333333'
+    mockLogs.mockReturnValue(logsReturn([row({ entryId: missingId, entryLabel: null })]))
+    mockEntryNames.mockReturnValue({
+      entryNameById: {},
+      resolveEntryName: () => '33333333…333333',
+    })
+
+    render(<VaultDetailAuditLog vaultId="vault-1" />)
+    expect(screen.getAllByText('33333333…333333')).toHaveLength(2)
   })
 })

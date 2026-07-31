@@ -31,10 +31,6 @@ export function useUpdateEntry(vaultId: string, entryId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: entryDetailQueryKey(vaultId, entryId) })
       queryClient.invalidateQueries({ queryKey: entriesQueryKey(vaultId) })
-      // A relabel/re-icon must reach the cross-vault "Recently added" widget
-      // and the global-search autocomplete (recents + hits).
-      queryClient.invalidateQueries({ queryKey: ['entries', 'recent'] })
-      queryClient.invalidateQueries({ queryKey: ['search'] })
     },
   })
 }

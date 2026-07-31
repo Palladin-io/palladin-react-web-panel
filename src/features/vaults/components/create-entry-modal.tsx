@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
+import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 import { NotesField } from './notes-field'
 import { Icon } from '../../../shared/components/icon'
 import { SecretInput } from '../../../shared/components/secret-input'
 import { analytics } from '../../../shared/lib/analytics'
+import {
+  allowedAgentFieldAccess,
+  defaultAgentVisibilityPolicy,
+  ENTRY_FIELD,
+  type AgentVisibilityPolicy,
+} from '../../../shared/crypto/entry-draft'
 import { firstError, required, validUrl } from '../../../shared/lib/validation'
 import {
   BLOB_VERSION_V2,
@@ -23,7 +30,6 @@ import {
   type Vault,
 } from '../types'
 import {
-  agentFieldsFrom,
   foldScriptRefs,
   mergeCredentialTotp,
   validateCustomFields,
@@ -37,14 +43,13 @@ import { ScriptExecHint } from './script-exec-hint'
 import { ScriptRefsEditor } from './script-refs-editor'
 import { SectionHeader } from './section-header'
 import { useCreateEntry } from '../use-create-entry'
-import { entriesQueryKey } from '../use-entries'
-import { extensionFromMime } from '../use-vault-icon-upload'
-import { presignEntryIcon, updateEntry, uploadToS3 } from '../api/vault-api'
 import { extractDomain, openExternalUrl } from './entry-presentation'
 import { defaultColorFor, defaultIconFor } from './entry-presentation'
-import { resolveFavicon } from '../api/vault-api'
 import { FormSelect } from '../../../shared/components/form-select'
 import { ModalShell } from '../../../shared/components/modal-shell'
+import { DiscoveryToggle, discoveryAction } from './discovery-toggle'
+import { normalizePublicHostname, resolveWebsiteIcons } from '../../../shared/api/public-assets-api'
+import { usePublicEntryAssets } from '../use-public-entry-assets'
 
 export interface CreateEntryModalProps {
   open: boolean
@@ -69,15 +74,15 @@ interface CreateEntryModalBodyProps {
 
 function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const create = useCreateEntry()
-  const queryClient = useQueryClient()
 
   const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
   const [color, setColor] = useState(defaultColorFor(ENTRY_TYPE_KEY))
   // Pre-select the type's default glyph so a tile is always visibly chosen;
-  // switching type follows along until the user (or a favicon) picks something.
+  // switching type follows along until the user picks a local icon.
   const [icon, setIcon] = useState<string | undefined>(defaultIconFor(ENTRY_TYPE_KEY))
-  const [pendingIconFile, setPendingIconFile] = useState<File | null>(null)
+  const [iconFile, setIconFile] = useState<File | undefined>()
   const [label, setLabel] = useState('')
   const [labelError, setLabelError] = useState(false)
   const [description, setDescription] = useState('')
@@ -98,37 +103,51 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [scriptError, setScriptError] = useState(false)
   const [interpreter, setInterpreter] = useState<ScriptInterpreter>('bash')
   const [refs, setRefs] = useState<ScriptRef[]>([])
-  // Favicon suggestion: auto-fills the icon from the typed domain unless the
-  // user picked one themselves; a manual pick always wins.
   const [iconTouched, setIconTouched] = useState(false)
+  const [discoverable, setDiscoverable] = useState(true)
+  const [policyOverrides, setPolicyOverrides] = useState<AgentVisibilityPolicy['fields']>({})
+  usePublicEntryAssets([icon ?? null])
 
-  useEffect(() => {
-    const domain = extractDomain(url)
-    // Wait for a plausible full domain — mid-typing values ("https", "gith")
-    // would fire pointless resolve calls.
-    if (!domain || !domain.includes('.') || iconTouched) return
-    let cancelled = false
-    const handle = setTimeout(async () => {
-      const favicon = await resolveFavicon(domain)
-      // iconTouched guards manual picks; a favicon may replace the type default.
-      if (favicon && !cancelled) setIcon(favicon)
-    }, 500)
-    return () => {
-      cancelled = true
-      clearTimeout(handle)
+  const allFields = useMemo(
+    () => type === ENTRY_TYPE_CREDENTIAL
+      ? mergeCredentialTotp(credentialTotp, customFields)
+      : customFields,
+    [credentialTotp, customFields, type],
+  )
+  const agentLabel = label
+  const policy = useMemo<AgentVisibilityPolicy>(() => {
+    const defaults = defaultAgentVisibilityPolicy(type, allFields)
+    const customTypes = new Map(allFields.map((field) => [`custom:${field.id}`, field.type]))
+    return {
+      discoverable,
+      fields: Object.fromEntries(Object.entries(defaults.fields).map(([fieldId, fallback]) => {
+        const candidate = policyOverrides[fieldId]
+        const access = candidate && allowedAgentFieldAccess(type, fieldId, customTypes.get(fieldId)).includes(candidate)
+          ? candidate
+          : fallback
+        return [fieldId, fieldId === ENTRY_FIELD.agentLabel ? (discoverable ? 'discovery' : 'never') : access]
+      })),
     }
-  }, [url, iconTouched])
+  }, [allFields, discoverable, policyOverrides, type])
 
   useEffect(() => {
     analytics.capture('vault', 'create-entry-wizard-opened')
   }, [])
 
   useEffect(() => {
-    setKeyValueError(false)
-    setUsernameError(false)
-    setPasswordError(false)
-    setScriptError(false)
-  }, [type])
+    if (iconTouched || type === ENTRY_TYPE_SCRIPT) return
+    const hostname = normalizePublicHostname(url)
+    if (!hostname) return
+    // Persist the stable hostname reference immediately; discovery itself is
+    // asynchronous and must not race a fast Save click.
+    setIcon(`website:${hostname}`)
+    const timer = window.setTimeout(() => {
+      void resolveWebsiteIcons([hostname]).catch(() => undefined)
+    }, 300)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [iconTouched, type, url])
 
   const isPending = create.isPending
 
@@ -140,12 +159,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     return username.trim().length > 0 && password.trim().length > 0
   }, [isPending, label, type, keyValue, username, password, script])
 
-  // Credential 2FA is stored as the first fields[] TOTP entry; merge it with the
-  // additional fields for validation and folding.
-  const allFields =
-    type === ENTRY_TYPE_CREDENTIAL
-      ? mergeCredentialTotp(credentialTotp, customFields)
-      : customFields
   const fieldsInvalid = validateCustomFields(allFields).hasError
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -165,42 +178,27 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       refs,
     })
 
-    if (!vault.wrappedVK) {
-      toast.error(t('vault.entries.errorMissingVaultKey'))
-      return
-    }
-
     create.mutate(
       {
         vaultId: vault.id,
-        wrappedVK: vault.wrappedVK,
         label: label.trim(),
+        agentLabel: agentLabel.trim(),
         description: description.trim() || undefined,
-        // Custom image uploaded after creation — send no icon so the list
-        // uses the type default until the PATCH lands.
-        icon: pendingIconFile ? undefined : icon,
-        color,
+        iconReference: icon,
+        ...(iconFile ? { iconFile } : {}),
         type,
         payload,
-        urlDomain: type === ENTRY_TYPE_SCRIPT ? undefined : extractDomain(url) || undefined,
-        agentFields: agentFieldsFrom(allFields),
+        policy,
       },
       {
-        onSuccess: async (data) => {
-          if (pendingIconFile) {
-            try {
-              const ext = extensionFromMime(pendingIconFile.type)
-              const { uploadUrl, publicUrl } = await presignEntryIcon(vault.id, data.id, ext)
-              await uploadToS3(uploadUrl, pendingIconFile)
-              await updateEntry(vault.id, data.id, { icon: publicUrl })
-              queryClient.invalidateQueries({ queryKey: entriesQueryKey(vault.id) })
-            } catch {
-              // Icon upload failed — entry was created, proceed without custom icon
-            }
-          }
+        onSuccess: ({ id: entryId }) => {
           analytics.capture('vault', 'create-entry-wizard-completed', { type })
           toast.success(t('vault.entries.createSuccess'))
           onClose()
+          void navigate({
+            to: '/vaults/$vaultId/entries/$entryId',
+            params: { vaultId: vault.id, entryId },
+          })
         },
         onError: () => {
           analytics.capture('vault', 'create-entry-wizard-failed', { type })
@@ -210,8 +208,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     )
   }
 
-  const visibleNote = <>· {t('vault.entries.agentVisibleNote')}</>
-
   return (
     <ModalShell
       onClose={isPending ? undefined : onClose}
@@ -219,7 +215,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       title={t('vault.entries.addEntry')}
       width={560}
       footer={
-        <div className="flex gap-2.5">
+        <DialogFooter>
           <Button variant="subtle" size="sm" onClick={onClose} disabled={isPending} className="flex-1">
             {t('vault.cancel')}
           </Button>
@@ -233,7 +229,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           >
             {isPending ? t('vault.entries.saving') : t('vault.entries.saveEntry')}
           </Button>
-        </div>
+        </DialogFooter>
       }
     >
       <form id="entry-create-form" className="flex flex-col gap-3" onSubmit={handleSubmit}>
@@ -253,6 +249,12 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 const nextType = Number(e.target.value) as EntryType
                 const previousType = type
                 setType(nextType)
+                setDiscoverable(true)
+                setPolicyOverrides({})
+                setKeyValueError(false)
+                setUsernameError(false)
+                setPasswordError(false)
+                setScriptError(false)
                 if (!iconTouched) {
                   const typeDefaults = [
                     defaultIconFor(ENTRY_TYPE_KEY),
@@ -278,21 +280,21 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           </div>
 
           <div>
-            <label
-              htmlFor="entry-label"
-              className="mb-1 block text-meta font-semibold text-[var(--cv-label-text)]"
-            >
+            <label htmlFor="entry-label" className="mb-1 block text-meta font-semibold text-[var(--cv-label-text)]">
               {t('vault.entries.labelLabel')}
-              <span className="ml-1.5 font-normal text-[var(--cv-t3)]">{visibleNote}</span>
             </label>
             <div className="flex gap-2">
               <EntryIconButton
                 icon={icon}
                 color={color}
                 type={type}
-                onChange={(next) => { setIcon(next); setPendingIconFile(null); setIconTouched(true) }}
+                onChange={(next) => { setIcon(next); setIconTouched(true) }}
                 onColorChange={(next) => { setColor(next); setIconTouched(true) }}
-                onFileSelected={(file, previewUrl) => { setPendingIconFile(file); setIcon(previewUrl); setIconTouched(true) }}
+                onFileSelected={(file, previewUrl) => {
+                  setIconFile(file)
+                  setIcon(previewUrl)
+                  setIconTouched(true)
+                }}
                 disabled={isPending}
               />
               <div className="min-w-0 flex-1">
@@ -300,6 +302,15 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   id="entry-label"
                   label={t('vault.entries.labelLabel')}
                   labelClassName="sr-only"
+                  trailingActions={[{
+                    icon: 'smart_toy',
+                    label: t(discoverable
+                      ? 'vault.entries.visibility.hideFromDiscovery'
+                      : 'vault.entries.visibility.showInDiscovery'),
+                    active: discoverable,
+                    disabled: isPending,
+                    onClick: () => setDiscoverable(!discoverable),
+                  }]}
                   value={label}
                   onChange={(e) => { setLabel(e.target.value); setLabelError(false) }}
                   onBlur={() => setLabelError(firstError(label, [required(t('validation.required'))]) !== null)}
@@ -320,7 +331,14 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           <FormInput
             id="entry-description"
             label={t('vault.entries.descriptionLabel')}
-            labelSuffix={visibleNote}
+            trailingActions={[discoveryAction(
+              policy.fields[ENTRY_FIELD.description] === 'discovery',
+              isPending || !discoverable,
+              (active) => setPolicyOverrides((current) => ({
+                ...current, [ENTRY_FIELD.description]: active ? 'discovery' : 'never',
+              })),
+              t,
+            )]}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder={t('vault.entries.descriptionPlaceholder')}
@@ -358,6 +376,14 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 <FormInput
                   id="entry-username"
                   label={t('vault.entries.usernameLabel')}
+                  trailingActions={[discoveryAction(
+                    policy.fields[ENTRY_FIELD.username] === 'discovery',
+                    isPending || !discoverable,
+                    (active) => setPolicyOverrides((current) => ({
+                      ...current, [ENTRY_FIELD.username]: active ? 'discovery' : 'never',
+                    })),
+                    t,
+                  )]}
                   value={username}
                   onChange={(e) => { setUsername(e.target.value); setUsernameError(false) }}
                   onBlur={() => setUsernameError(firstError(username, [required(t('validation.required'))]) !== null)}
@@ -388,7 +414,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   {t('validation.required')}
                 </FeedbackSlot>
               </div>
-              <WebsiteField url={url} setUrl={setUrl} urlError={urlError} setUrlError={setUrlError} disabled={isPending} />
+              <WebsiteField url={url} setUrl={setUrl} urlError={urlError} setUrlError={setUrlError}
+                disabled={isPending} discovery={policy.fields[ENTRY_FIELD.urlDomain] === 'discovery'}
+                discoveryDisabled={!discoverable} onDiscoveryChange={(active) => setPolicyOverrides((current) => ({
+                  ...current, [ENTRY_FIELD.urlDomain]: active ? 'discovery' : 'never',
+                }))} />
               <SectionHeader>{t('vault.entries.totp.section')}</SectionHeader>
               <CredentialTotpField value={credentialTotp} onChange={setCredentialTotp} disabled={isPending} />
             </>
@@ -400,6 +430,13 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   className="mb-1 flex items-center gap-2 text-meta font-semibold text-[var(--cv-label-text)]"
                 >
                   <span>{t('vault.entries.script.bodyLabel')}</span>
+                  <DiscoveryToggle
+                    active={policy.fields[ENTRY_FIELD.interpreter] === 'discovery'}
+                    disabled={isPending || !discoverable}
+                    onChange={(active) => setPolicyOverrides((current) => ({
+                      ...current, [ENTRY_FIELD.interpreter]: active ? 'discovery' : 'never',
+                    }))}
+                  />
                   <span className="flex-1" />
                   <select
                     id="entry-interpreter"
@@ -437,6 +474,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
           <CustomFieldsEditor fields={customFields} onChange={setCustomFields} disabled={isPending} />
 
           <NotesField id="entry-notes" value={notes} onChange={setNotes} disabled={isPending} />
+
       </form>
     </ModalShell>
   )
@@ -449,12 +487,18 @@ function WebsiteField({
   urlError,
   setUrlError,
   disabled,
+  discovery,
+  discoveryDisabled,
+  onDiscoveryChange,
 }: {
   url: string
   setUrl: (v: string) => void
   urlError: boolean
   setUrlError: (v: boolean) => void
   disabled: boolean
+  discovery?: boolean
+  discoveryDisabled?: boolean
+  onDiscoveryChange?: (active: boolean) => void
 }) {
   const { t } = useTranslation()
   return (
@@ -462,6 +506,12 @@ function WebsiteField({
       <FormInput
         id="entry-url"
         label={t('vault.entries.urlLabel')}
+        trailingActions={onDiscoveryChange ? [discoveryAction(
+          discovery ?? false,
+          disabled || discoveryDisabled,
+          onDiscoveryChange,
+          t,
+        )] : undefined}
         value={url}
         onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
         onBlur={() => setUrlError(firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null)}
@@ -507,7 +557,12 @@ function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
   const trimmedNotes = input.notes.trim() || undefined
   if (input.type === ENTRY_TYPE_KEY) {
     return withCustomFields(
-      { type: ENTRY_TYPE_KEY, value: input.keyValue.trim(), notes: trimmedNotes },
+      {
+        type: ENTRY_TYPE_KEY,
+        value: input.keyValue.trim(),
+        url: input.url.trim() || undefined,
+        notes: trimmedNotes,
+      },
       input.fields,
     )
   }

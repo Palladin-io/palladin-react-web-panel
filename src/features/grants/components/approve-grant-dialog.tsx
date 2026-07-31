@@ -15,19 +15,27 @@ import {
 import { GrantPolicyFields } from './grant-policy-fields'
 import { GrantMethodsSelect } from './grant-methods-select'
 import {
-  DEFAULT_GRANT_METHODS,
-  parseGrantMethods,
+  grantMethodsFromMask,
   type GrantMethod,
 } from '../grant-methods'
+import type { GrantableField } from '../../../shared/crypto/grant-protocol'
+
+export interface GrantApprovalReview {
+  entryLabel: string
+  reason: string
+  entryRevision: string
+  fields: GrantableField[]
+}
 
 export interface ApproveGrantDialogProps {
   grant: PendingGrant
+  review: GrantApprovalReview
   isPending: boolean
   /**
    * Confirm with the resolved policy (time → expiresAt, uses → queryLimit, lifetime → {}) and the
    * final methods the agent may use (CVT-149).
    */
-  onConfirm: (policy: GrantPolicyBody, methods: GrantMethod[]) => void
+  onConfirm: (policy: GrantPolicyBody, methods: GrantMethod[], fieldIds: string[]) => void
   onCancel: () => void
 }
 
@@ -40,6 +48,7 @@ export interface ApproveGrantDialogProps {
  */
 export function ApproveGrantDialog({
   grant,
+  review,
   isPending,
   onConfirm,
   onCancel,
@@ -51,15 +60,15 @@ export function ApproveGrantDialog({
   const [error, setError] = useState<string | null>(null)
 
   // What the agent asked for — used as the default selection and highlighted in the field.
-  const requestedMethods = parseGrantMethods(grant.methods)
-  const [methods, setMethods] = useState<GrantMethod[]>(
-    requestedMethods.length > 0 ? requestedMethods : DEFAULT_GRANT_METHODS,
-  )
+  const requestedMethods = grantMethodsFromMask(grant.encryptedReason.descriptor.binding.requestedMethods)
+  const [methods, setMethods] = useState<GrantMethod[]>(requestedMethods)
+  const [fieldIds, setFieldIds] = useState<string[]>(review.fields.map((field) => field.id))
   const [methodsError, setMethodsError] = useState<string | null>(null)
+  const [fieldsError, setFieldsError] = useState<string | null>(null)
 
-  const entryLabel = grant.entryLabel ?? t('grants.approve.fallbackEntry')
+  const entryLabel = review.entryLabel
   const agentName = grant.agentName ?? t('grants.approve.fallbackAgent')
-  const vaultName = grant.vaultName ?? t('grants.approve.fallbackVault')
+  const vaultName = t('grants.approve.fallbackVault')
 
   function handleConfirm() {
     const input = { kind, expiresAt, queryLimit }
@@ -72,7 +81,11 @@ export function ApproveGrantDialog({
       setMethodsError('grants.methods.errorNoneSelected')
       return
     }
-    onConfirm(grantPolicyToBody(input), methods)
+    if (fieldIds.length === 0) {
+      setFieldsError('grants.approve.fieldsRequired')
+      return
+    }
+    onConfirm(grantPolicyToBody(input), methods, fieldIds)
   }
 
   return (
@@ -129,6 +142,7 @@ export function ApproveGrantDialog({
           idPrefix="approve"
           value={methods}
           requested={requestedMethods}
+          allowed={requestedMethods}
           disabled={isPending}
           error={methodsError}
           onChange={(m) => {
@@ -136,6 +150,39 @@ export function ApproveGrantDialog({
             setMethodsError(null)
           }}
         />
+
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-meta font-semibold text-[var(--cv-label-text)]">
+            {t('grants.approve.fieldsLegend')}
+          </legend>
+          {review.fields.map((field) => (
+            <label key={field.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--cv-border)] px-3 py-2 text-ui">
+              <span className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={fieldIds.includes(field.id)}
+                  disabled={isPending}
+                  onChange={(event) => {
+                    setFieldsError(null)
+                    setFieldIds((current) => event.target.checked
+                      ? [...current, field.id]
+                      : current.filter((id) => id !== field.id))
+                  }}
+                />
+                <span className="text-[var(--cv-t1)]">{field.label}</span>
+              </span>
+              <span className="text-meta text-[var(--cv-t3)]">
+                {t(`grants.approve.fieldAccess.${field.access}`)}
+              </span>
+            </label>
+          ))}
+          {fieldsError && <p role="alert" className="text-meta text-[var(--cv-danger)]">{t(fieldsError)}</p>}
+        </fieldset>
+
+        <div className="rounded-lg border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3">
+          <p className="mb-1 text-meta font-semibold text-[var(--cv-t3)]">{t('grants.pending.rowReason')}</p>
+          <p className="whitespace-pre-wrap break-words text-ui text-[var(--cv-t2)]">{review.reason}</p>
+        </div>
 
       </div>
     </ModalShell>

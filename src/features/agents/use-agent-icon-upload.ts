@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
-import { updateAgent } from './api/agents-api'
 import { AGENTS_QUERY_KEY } from './use-agents'
 import { agentQueryKey } from './use-agent'
 import { AGENT_ICON_MAX_MB, uploadAgentIcon } from './upload-agent-icon'
 
 /**
- * Uploads a custom agent icon: validate → presign → PUT to S3 → PATCH agent.iconKey.
- * Returns the cache-busted public URL on success, `null` on validation/upload failure.
+ * Uploads and completes a custom agent icon. Completion atomically stores the
+ * stable `public-asset:{id}` reference on the backend aggregate.
  * Invalidates list + detail queries so the new icon shows up immediately.
  */
 export function useAgentIconUpload(agentId: string) {
@@ -35,10 +34,9 @@ export function useAgentIconUpload(agentId: string) {
     }
 
     try {
-      await updateAgent(agentId, { iconKey: result.iconUrl })
       queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY })
       queryClient.invalidateQueries({ queryKey: agentQueryKey(agentId) })
-      return result.iconUrl
+      return result.iconReference
     } catch {
       setError(t('vault.iconUploadError.failed'))
       return null
