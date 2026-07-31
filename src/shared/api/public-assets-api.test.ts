@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ensureWebsiteIcons, normalizePublicHostname } from './public-assets-api'
+import {
+  ensureWebsiteIcons,
+  ensureWebsiteIconsWithin,
+  normalizePublicHostname,
+} from './public-assets-api'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -49,6 +53,36 @@ describe('ensureWebsiteIcons', () => {
     await ensureWebsiteIcons(['cache-once.example.com'])
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves cached hosts when another reservation exceeds the save bound', async () => {
+    const cachedHostname = 'cached-before-timeout.example.com'
+    const pendingHostname = 'pending-at-timeout.example.com'
+    const fetchMock = vi.fn(async (request: Request) => {
+      const body = await request.clone().json() as { hostnames: string[] }
+      if (body.hostnames.includes(pendingHostname)) {
+        return await new Promise<Response>(() => undefined)
+      }
+      return new Response(JSON.stringify({
+        items: body.hostnames.map((hostname) => ({
+          hostname,
+          asset: {
+            id: '22222222-2222-4222-8222-222222222222',
+            type: 'websiteIcon',
+            name: hostname,
+            url: 'https://assets.palladin.io/published/website-icon/22222222222242228222222222222222/1.png',
+            revision: 1,
+          },
+        })),
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await ensureWebsiteIcons([cachedHostname])
+    const result = await ensureWebsiteIconsWithin([cachedHostname, pendingHostname], 1)
+
+    expect(result.get(cachedHostname)?.id).toBe('22222222-2222-4222-8222-222222222222')
+    expect(result.has(pendingHostname)).toBe(false)
   })
 
   it('sends all 539 imported hosts without dropping the final page', async () => {

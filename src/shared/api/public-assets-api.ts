@@ -122,16 +122,23 @@ export async function ensureWebsiteIconsWithin(
   hostnames: string[],
   timeoutMs: number,
 ): Promise<Map<string, PublicAsset>> {
+  const cachedResult = (): Map<string, PublicAsset> => new Map(
+    [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
+      .flatMap((hostname) => {
+        const asset = websiteAssetCache.get(hostname)
+        return asset ? [[hostname, asset] as const] : []
+      }),
+  )
   let timeout: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race([
       ensureWebsiteIcons(hostnames),
       new Promise<Map<string, PublicAsset>>((resolve) => {
-        timeout = setTimeout(() => resolve(new Map()), timeoutMs)
+        timeout = setTimeout(() => resolve(cachedResult()), timeoutMs)
       }),
     ])
   } catch {
-    return new Map()
+    return cachedResult()
   } finally {
     if (timeout !== undefined) clearTimeout(timeout)
   }

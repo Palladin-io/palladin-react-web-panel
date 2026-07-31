@@ -8,8 +8,10 @@ import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 
 const publicAssetOriginPlaceholder = '__PALLADIN_PUBLIC_ASSET_ORIGIN__'
 
-function publicAssetOrigin(value: string | undefined): string {
-  const configured = value?.trim() || 'https://assets.palladin.io'
+function publicAssetOrigin(value: string | undefined, apiUrl: string | undefined): string {
+  const configured = value?.trim() || (apiUrl?.startsWith('http://localhost:')
+    ? 'http://localhost:4566/palladin-local-public-assets'
+    : 'https://assets.palladin.io')
   const url = new URL(configured)
   const localHttp = url.protocol === 'http:'
     && (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]')
@@ -41,7 +43,10 @@ export default defineConfig(({ mode }) => {
       TanStackRouterVite(),
       react(),
       tailwindcss(),
-      injectPublicAssetCsp(publicAssetOrigin(buildEnv.VITE_PUBLIC_ASSET_URL)),
+      injectPublicAssetCsp(publicAssetOrigin(
+        buildEnv.VITE_PUBLIC_ASSET_URL,
+        buildEnv.VITE_API_URL,
+      )),
     ],
     test: {
       globals: true,
