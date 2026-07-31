@@ -8,7 +8,8 @@ import { hexWithAlpha } from './vault-color'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { SearchBar } from '../../../shared/components/search-bar'
 import { searchPublicAssets, type PublicAsset } from '../../../shared/api/public-assets-api'
-import { publicAssetIconReference } from '../../../shared/crypto/vault-plaintext'
+
+const vaultPublicAssetReference = (asset: PublicAsset) => `public-asset:${asset.id}`
 
 export interface IconColorBrowserProps {
   /** Legacy flag retained for caller compatibility; remote favicon lookup is disabled. */
@@ -17,6 +18,8 @@ export interface IconColorBrowserProps {
   onClose: () => void
   /** All browsable icons. */
   icons: readonly string[]
+  /** Vaults keep their compact ID-only reference; Entries provide their direct-URL formatter. */
+  publicAssetReference?: (asset: PublicAsset) => string
   iconColors: Record<string, string>
   currentIcon: string | undefined
   onSelectIcon: (icon: string | undefined) => void
@@ -38,6 +41,7 @@ export function IconColorBrowser({
   onSelectColor,
   gridCols = 8,
   showBrandIcons = false,
+  publicAssetReference = vaultPublicAssetReference,
 }: IconColorBrowserProps) {
   if (!open) return null
   return (
@@ -51,6 +55,7 @@ export function IconColorBrowser({
       onSelectColor={onSelectColor}
       gridCols={gridCols}
       showBrandIcons={showBrandIcons}
+      publicAssetReference={publicAssetReference}
     />
   )
 }
@@ -65,24 +70,25 @@ function IconColorBrowserBody({
   onSelectColor,
   gridCols,
   showBrandIcons,
+  publicAssetReference,
 }: Omit<IconColorBrowserProps, 'open'>) {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [localIcon, setLocalIcon] = useState<string | undefined>(currentIcon)
   const [localColor, setLocalColor] = useState<string | undefined>(currentColor)
-  const [publicAssets, setPublicAssets] = useState<PublicAsset[]>([])
+  const [publicAssetResult, setPublicAssetResult] = useState<{ query: string; items: PublicAsset[] }>({
+    query: '',
+    items: [],
+  })
 
   useEffect(() => {
     const query = search.trim()
-    if (!showBrandIcons || query.length < 2) {
-      setPublicAssets([])
-      return
-    }
+    if (!showBrandIcons || query.length < 2) return
     let current = true
     const timer = window.setTimeout(() => {
       void searchPublicAssets(query)
-        .then((items) => { if (current) setPublicAssets(items) })
-        .catch(() => { if (current) setPublicAssets([]) })
+        .then((items) => { if (current) setPublicAssetResult({ query, items }) })
+        .catch(() => { if (current) setPublicAssetResult({ query, items: [] }) })
     }, 250)
     return () => {
       current = false
@@ -93,6 +99,7 @@ function IconColorBrowserBody({
   const showSearch = icons.length > 15
   const query = search.toLowerCase().replace(/\s+/g, '_')
   const filtered = showSearch ? icons.filter((icon) => icon.includes(query)) : icons
+  const publicAssets = publicAssetResult.query === search.trim() ? publicAssetResult.items : []
 
   const handleConfirm = () => {
     onSelectIcon(localIcon)
@@ -179,7 +186,7 @@ function IconColorBrowserBody({
         {showBrandIcons && publicAssets.length > 0 ? (
           <div className="grid grid-cols-8 gap-1.5 border-t border-[var(--cv-divider)] pt-3">
             {publicAssets.map((asset) => {
-              const reference = publicAssetIconReference({ assetId: asset.id, revision: asset.revision, url: asset.url })
+              const reference = (publicAssetReference ?? vaultPublicAssetReference)(asset)
               const selected = reference === localIcon
               return (
                 <button

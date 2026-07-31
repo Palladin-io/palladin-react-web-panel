@@ -5,9 +5,10 @@ Quick rules live in `AGENTS.md` under **Security**; the details are here.
 
 ## Content-Security-Policy & security headers
 
-The CSP is delivered as **HTTP response headers** from `public/_headers`
-(Cloudflare Pages / Netlify `_headers` format). Vite copies `public/` verbatim
-into `dist/`, so the file ships with every build but is **not** enforced by Vite
+The CSP is delivered as **HTTP response headers** from the `public/_headers`
+template (Cloudflare Pages / Netlify `_headers` format). During a production
+build, Vite replaces the public-asset placeholder with the validated origin of
+`VITE_PUBLIC_ASSET_URL`; the completed file ships in `dist/` but is **not** enforced by Vite
 or by a `<meta>` tag — it only takes effect when a host that understands
 `_headers` serves the site.
 
@@ -31,7 +32,7 @@ a blocking finding.
 | `script-src` | `'self' https://accounts.google.com https://*.gstatic.com` | App bundle + `/init-theme.js` are self; Google Identity script; Firebase compat scripts the SW `importScripts` from gstatic. **No `unsafe-inline`/`unsafe-eval`.** |
 | `connect-src` | `'self'` + API hosts + `accounts.google.com` + `*.posthog.com` + `*.googleapis.com` + `www.gstatic.com` + `*.s3.eu-west-1.amazonaws.com` + `wss:` | XHR/fetch to the API, PostHog, FCM registration (`*.googleapis.com`), the SRI `fetch()` of the Firebase scripts (`www.gstatic.com`), the presigned `PUT` icon uploads to S3 (`*.s3.eu-west-1.amazonaws.com` — bucket in `eu-west-1`, name injected server-side so wildcarded; tighten to the exact bucket once known), and SignalR WebSocket (`wss:`). |
 | `frame-src` | `https://accounts.google.com` | Google sign-in iframe/popup. |
-| `img-src` | `'self' data: blob: https://assets.palladin.io` | Direct catalog icons from the one trusted delivery origin, inline data URIs, and `blob:` local encrypted-icon previews. Arbitrary HTTPS image origins remain blocked. |
+| `img-src` | `'self' data: blob: {VITE_PUBLIC_ASSET_URL origin}` | Direct catalog icons from the configured and build-validated delivery origin, inline data URIs, and `blob:` local encrypted-icon previews. Arbitrary HTTPS image origins remain blocked. |
 | `style-src` | `'self' 'unsafe-inline' https://fonts.googleapis.com` | Tailwind + our pervasive inline `style={{}}` attributes need `unsafe-inline`; Google Fonts stylesheet. |
 | `font-src` | `'self' https://fonts.gstatic.com` | Google Fonts / Material Symbols. |
 | `worker-src` | `'self'` | The FCM service worker. |

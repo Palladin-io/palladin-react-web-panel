@@ -10,7 +10,7 @@ import { hexWithAlpha } from './vault-color'
 import { IconColorBrowser } from './vault-icon-browser'
 import { VAULT_ICON_ALL, VAULT_ICON_COLORS } from './vault-presentation'
 import { trustedPublicAssetUrl } from '../../../shared/api/public-assets-api'
-import { parsePublicAssetIconReference } from '../../../shared/crypto/vault-plaintext'
+import { parsePublicAssetIconReference, publicAssetIconReference } from '../../../shared/crypto/vault-plaintext'
 
 export interface EntryIconPickerProps {
   value: string | undefined
@@ -151,6 +151,11 @@ export function EntryIconPicker({
 
       <IconColorBrowser
         showBrandIcons
+        publicAssetReference={(asset) => publicAssetIconReference({
+          assetId: asset.id,
+          revision: asset.revision,
+          url: asset.url,
+        })}
         open={showBrowser}
         onClose={() => setShowBrowser(false)}
         icons={VAULT_ICON_ALL}
