@@ -316,6 +316,7 @@ Build per environment: `vite build --mode staging` loads `.env.staging`.
 
 ```env
 VITE_API_URL=http://localhost:5000        # Backend API base URL
+VITE_PUBLIC_ASSET_URL=                    # Optional immutable asset origin; local API uses the LocalStack fallback, deployed environments use their bucket/CDN origin
 VITE_POSTHOG_KEY=phc_xxx                  # PostHog project key
 VITE_POSTHOG_HOST=https://app.posthog.com # PostHog instance URL
 VITE_SIGNALR_HUB_URL=http://localhost:5000/hubs/notifications

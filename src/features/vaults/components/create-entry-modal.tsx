@@ -108,6 +108,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [interpreter, setInterpreter] = useState<ScriptInterpreter>('bash')
   const [refs, setRefs] = useState<ScriptRef[]>([])
   const [iconTouched, setIconTouched] = useState(false)
+  const [automaticIcon, setAutomaticIcon] = useState<{ hostname: string; reference: string } | null>(null)
   const [discoverable, setDiscoverable] = useState(true)
   const [policyOverrides, setPolicyOverrides] = useState<AgentVisibilityPolicy['fields']>({})
   const [resolvingIcon, setResolvingIcon] = useState(false)
@@ -146,7 +147,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     const timer = window.setTimeout(() => {
       void ensureWebsiteIcons([hostname]).then((assets) => {
         const asset = assets.get(hostname)
-        if (active && asset) setIcon(publicAssetIconReference({ assetId: asset.id, revision: asset.revision, url: asset.url }))
+        if (active && asset) {
+          const reference = publicAssetIconReference({ assetId: asset.id, revision: asset.revision, url: asset.url })
+          setAutomaticIcon({ hostname, reference })
+          setIcon(reference)
+        }
       }).catch(() => undefined)
     }, 300)
     return () => {
@@ -167,6 +172,15 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
   const fieldsInvalid = validateCustomFields(allFields).hasError
 
+  const handleUrlChange = (nextUrl: string) => {
+    setUrl(nextUrl)
+    setUrlError(false)
+    if (!iconTouched) {
+      setAutomaticIcon(null)
+      setIcon(defaultIconFor(type))
+    }
+  }
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit || fieldsInvalid) return
@@ -184,8 +198,12 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       refs,
     })
 
-    let iconReference = icon
     const hostname = !iconTouched && type !== ENTRY_TYPE_SCRIPT ? normalizePublicHostname(url) : null
+    let iconReference = iconTouched
+      ? icon
+      : automaticIcon?.hostname === hostname
+        ? automaticIcon.reference
+        : defaultIconFor(type)
     if (hostname) {
       setResolvingIcon(true)
       try {
@@ -274,16 +292,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 setPasswordError(false)
                 setScriptError(false)
                 if (!iconTouched) {
-                  const typeDefaults = [
-                    defaultIconFor(ENTRY_TYPE_KEY),
-                    defaultIconFor(ENTRY_TYPE_CREDENTIAL),
-                    defaultIconFor(ENTRY_TYPE_SCRIPT),
-                  ]
-                  setIcon((current) =>
-                    current === undefined || typeDefaults.includes(current)
-                      ? defaultIconFor(nextType)
-                      : current,
-                  )
+                  setAutomaticIcon(null)
+                  setIcon(defaultIconFor(nextType))
                   setColor((current) =>
                     current === defaultColorFor(previousType) ? defaultColorFor(nextType) : current,
                   )
@@ -386,7 +396,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   {t('validation.required')}
                 </FeedbackSlot>
               </div>
-              <WebsiteField url={url} setUrl={setUrl} urlError={urlError} setUrlError={setUrlError} disabled={isPending} />
+              <WebsiteField url={url} onChange={handleUrlChange} urlError={urlError} setUrlError={setUrlError} disabled={isPending} />
             </>
           ) : type === ENTRY_TYPE_CREDENTIAL ? (
             <>
@@ -432,7 +442,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   {t('validation.required')}
                 </FeedbackSlot>
               </div>
-              <WebsiteField url={url} setUrl={setUrl} urlError={urlError} setUrlError={setUrlError}
+              <WebsiteField url={url} onChange={handleUrlChange} urlError={urlError} setUrlError={setUrlError}
                 disabled={isPending} discovery={policy.fields[ENTRY_FIELD.urlDomain] === 'discovery'}
                 discoveryDisabled={!discoverable} onDiscoveryChange={(active) => setPolicyOverrides((current) => ({
                   ...current, [ENTRY_FIELD.urlDomain]: active ? 'discovery' : 'never',
@@ -501,7 +511,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 /** Shared Website/URL field (KEY + CREDENTIAL) — feeds the favicon and urlDomain. */
 function WebsiteField({
   url,
-  setUrl,
+  onChange,
   urlError,
   setUrlError,
   disabled,
@@ -510,7 +520,7 @@ function WebsiteField({
   onDiscoveryChange,
 }: {
   url: string
-  setUrl: (v: string) => void
+  onChange: (v: string) => void
   urlError: boolean
   setUrlError: (v: boolean) => void
   disabled: boolean
@@ -531,7 +541,7 @@ function WebsiteField({
           t,
         )] : undefined}
         value={url}
-        onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
+        onChange={(e) => onChange(e.target.value)}
         onBlur={() => setUrlError(firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null)}
         placeholder={t('vault.entries.urlPlaceholder')}
         autoComplete="off"
