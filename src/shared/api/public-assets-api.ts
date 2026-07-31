@@ -76,7 +76,6 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
   if (missing.length === 0) return result
   const batches = Array.from({ length: Math.ceil(missing.length / 500) }, (_, index) =>
     missing.slice(index * 500, (index + 1) * 500))
-  const parsedBatches: Array<z.infer<typeof ensureResponseSchema>> = []
   let firstError: unknown
   // Keep a small concurrency window: favicon acquisition performs outbound
   // network I/O, so an import must not fan hundreds of requests out at once.
@@ -89,7 +88,17 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
           json: { hostnames: batch },
           timeout: 20_000,
         }).json<unknown>()
-        parsedBatches.push(ensureResponseSchema.parse(response))
+        const items = ensureResponseSchema.parse(response).items
+        const changed = remember(items.flatMap(({ asset }) => asset ? [asset] : []))
+        for (const { hostname, asset } of items) {
+          if (asset) {
+            websiteAssetCache.set(hostname, asset)
+            result.set(hostname, asset)
+          }
+        }
+        // Publish every successful page immediately. A sibling request may
+        // still be pending when the bounded save path snapshots this cache.
+        if (changed) notifyCacheChanged()
       } catch (error) {
         firstError ??= error
         // One slow/unreachable group must not discard assets resolved by the
@@ -97,15 +106,6 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
       }
     }
   }))
-  const items = parsedBatches.flatMap((parsed) => parsed.items)
-  const changed = remember(items.flatMap(({ asset }) => asset ? [asset] : []))
-  for (const { hostname, asset } of items) {
-    if (asset) {
-      websiteAssetCache.set(hostname, asset)
-      result.set(hostname, asset)
-    }
-  }
-  if (changed) notifyCacheChanged()
   // Preserve successful pages in cache, but make the caller retry the batch
   // set if even one page was rejected (for example by broker backpressure or
   // rate limiting). Backend alias idempotency makes the retry safe.

@@ -85,6 +85,37 @@ describe('ensureWebsiteIcons', () => {
     expect(result.has(pendingHostname)).toBe(false)
   })
 
+  it('preserves a successful reservation page while a sibling page is still pending', async () => {
+    const hostnames = Array.from(
+      { length: 501 },
+      (_, index) => `partial-page-${index}.example.com`,
+    )
+    const pendingHostname = hostnames.at(-1)!
+    vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
+      const body = await request.clone().json() as { hostnames: string[] }
+      if (body.hostnames.includes(pendingHostname)) {
+        return await new Promise<Response>(() => undefined)
+      }
+      return new Response(JSON.stringify({
+        items: body.hostnames.map((hostname) => ({
+          hostname,
+          asset: {
+            id: '33333333-3333-4333-8333-333333333333',
+            type: 'websiteIcon',
+            name: hostname,
+            url: 'https://assets.palladin.io/published/website-icon/33333333333343338333333333333333/1.png',
+            revision: 1,
+          },
+        })),
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    }))
+
+    const result = await ensureWebsiteIconsWithin(hostnames, 10)
+
+    expect(result.get(hostnames[0])?.id).toBe('33333333-3333-4333-8333-333333333333')
+    expect(result.has(pendingHostname)).toBe(false)
+  })
+
   it('sends all 539 imported hosts without dropping the final page', async () => {
     const sizes: number[] = []
     const fetchMock = vi.fn(async (request: Request) => {
