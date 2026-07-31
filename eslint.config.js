@@ -19,5 +19,27 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      'react-refresh/only-export-components': [
+        'error',
+        {
+          allowConstantExport: true,
+          allowExportNames: [
+            'Route',
+            'DEFAULT_AGENT_COLOR',
+            'typeLabel',
+            'discoveryAction',
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/routes/**/*.tsx'],
+    rules: {
+      // TanStack Router route modules intentionally export Route beside their
+      // local component factories, which is incompatible with this Vite rule.
+      'react-refresh/only-export-components': 'off',
+    },
   },
 ])

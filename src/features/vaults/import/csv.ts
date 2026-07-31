@@ -24,7 +24,7 @@ export interface ParsedCsv {
  * Empty rows are dropped.
  */
 export function parseCsv(text: string): ParsedCsv {
-  // Strip a leading UTF-8 BOM so the first header isn't "﻿name".
+  // Strip a leading UTF-8 BOM so it cannot prefix the first header name.
   const body = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
   const result = Papa.parse<CsvRow>(body, {
     header: true,

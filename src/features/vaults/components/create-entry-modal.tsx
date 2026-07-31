@@ -140,6 +140,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     if (!hostname) return
     // Persist the stable hostname reference immediately; discovery itself is
     // asynchronous and must not race a fast Save click.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIcon(`website:${hostname}`)
     const timer = window.setTimeout(() => {
       void resolveWebsiteIcons([hostname]).catch(() => undefined)

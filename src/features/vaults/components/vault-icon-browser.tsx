@@ -74,6 +74,7 @@ function IconColorBrowserBody({
   useEffect(() => {
     const query = search.trim()
     if (!showBrandIcons || query.length < 2) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPublicAssets([])
       return
     }

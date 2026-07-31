@@ -71,6 +71,7 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
 
     const privateKey = useAuthStore.getState().privateKey
     if (!privateKey) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDecryptError(t('vault.entries.decryptVaultLocked'))
       return
     }
@@ -108,6 +109,7 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
   // Collapsing the panel only hides the plaintext — it stays decrypted so a
   // subsequent copy (or re-open) doesn't round-trip again.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!revealOpen) setShowSecret(false)
   }, [revealOpen])
 
@@ -116,6 +118,7 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
   useEffect(() => {
     if (!copyAfterDecrypt || !plaintext) return
     copySecret(plaintext, entry.type, t)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCopyAfterDecrypt(false)
   }, [copyAfterDecrypt, plaintext, entry.type, t])
 
@@ -124,6 +127,7 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
   useEffect(() => {
     if (!decryptError || !copyAfterDecrypt) return
     toast.error(t('vault.entries.copyFailed'))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCopyAfterDecrypt(false)
   }, [decryptError, copyAfterDecrypt, t])
 

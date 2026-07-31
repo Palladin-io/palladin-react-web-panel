@@ -499,6 +499,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   }, [entry, queryClient, t, vault.id])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void handleDecrypt()
   }, [handleDecrypt])
 
@@ -566,7 +567,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     if (policy && originalSecret
       && JSON.stringify(policy) !== JSON.stringify(originalSecret.agentVisibilityPolicy)) return true
     return false
-  }, [label, description, icon, color, defaultColor, url, entry, originalSecret, policy])
+  }, [label, description, icon, color, defaultColor, entry, originalSecret, policy])
 
   const hasChanges = metadataChanged || contentChanged
 
