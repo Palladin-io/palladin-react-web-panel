@@ -10,7 +10,7 @@ import { entriesQueryKey } from './use-entries'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 import { useMemberSyncStore } from './sync/member-sync-store'
 
-const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock, challengesMock, encryptedVaultMock, toMemberSecretMock, resolveWebsiteIconsMock } = vi.hoisted(() => ({
+const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock, challengesMock, encryptedVaultMock, toMemberSecretMock, ensureWebsiteIconsMock } = vi.hoisted(() => ({
   importEntriesMock: vi.fn(async (_vaultId: string, body: { entries: unknown[] }) => ({
     importedCount: body.entries.length,
     entryIds: body.entries.map((_, i) => `e${i}`),
@@ -32,14 +32,18 @@ const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock, c
     schema: 'palladin.member-secret.v1', memberLabel: label, agentLabel: label,
     entryType: 'credential', content: { customFields: [] }, agentFieldAccess: {},
   })),
-  resolveWebsiteIconsMock: vi.fn(async () => new Map()),
+  ensureWebsiteIconsMock: vi.fn(async (hostnames: string[]) => new Map(hostnames.map((hostname) => [hostname, {
+    id: '11111111-1111-4111-8111-111111111111', type: 'websiteIcon', name: hostname,
+    revision: 1, url: `https://assets.palladin.io/${hostname}.png`,
+  }]))),
 }))
 
 vi.mock('../../shared/api/public-assets-api', () => ({
   normalizePublicHostname: (value: string) => value.includes('://')
     ? new URL(value).hostname
     : value || null,
-  resolveWebsiteIcons: resolveWebsiteIconsMock,
+  ensureWebsiteIcons: ensureWebsiteIconsMock,
+  ensureWebsiteIconsWithin: ensureWebsiteIconsMock,
 }))
 
 vi.mock('./api/vault-api', () => ({
@@ -83,7 +87,8 @@ vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: grantEnvelopeMock,
   listGrantableFields: vi.fn(() => [{ id: 'credential.username' }]),
 }))
-vi.mock('../../shared/crypto/vault-plaintext', () => ({
+vi.mock('../../shared/crypto/vault-plaintext', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../shared/crypto/vault-plaintext')>(),
   projectAgentDiscovery: vi.fn(() => null),
 }))
 
@@ -114,7 +119,7 @@ describe('useImportEntries', () => {
       Array.from({ length: count }, (_, index) => ({ entryId: `entry-${index}`, expiresAt: '2026-07-27T00:00:00Z' })))
     encryptedVaultMock.mockClear()
     toMemberSecretMock.mockClear()
-    resolveWebsiteIconsMock.mockClear()
+    ensureWebsiteIconsMock.mockClear()
     encryptedVaultMock.mockResolvedValue({
       id: 'vault-1', memberKeyGeneration: 1,
       currentKeyEpoch: { vaultKeyVersion: 1, vdkVersion: 1 },
@@ -156,9 +161,9 @@ describe('useImportEntries', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
-      iconReference: 'website:github.com',
+      iconReference: 'public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2Fgithub.com.png',
     }))
-    expect(resolveWebsiteIconsMock).toHaveBeenCalledWith(['github.com'])
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith(['github.com'], 1_500)
   })
 
   it.each([
@@ -177,12 +182,12 @@ describe('useImportEntries', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
-      iconReference: `website:${hostname}`,
+      iconReference: `public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2F${hostname}.png`,
     }))
-    expect(resolveWebsiteIconsMock).toHaveBeenCalledWith([hostname])
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith([hostname], 1_500)
   })
 
-  it('schedules all 539 imported hostnames alongside their 50-entry save chunks', async () => {
+  it('schedules all 539 imported hostnames in bounded catalog pages while saving 50-entry chunks', async () => {
     const { wrapper } = makeWrapper()
     const { result } = renderHook(() => useImportEntries(), { wrapper })
     const creates = Array.from({ length: 539 }, (_, index) => ({
@@ -192,11 +197,11 @@ describe('useImportEntries', () => {
     result.current.mutate({ vaultId: 'vault-1', format: 'generic-csv', creates, overwrites: [] })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(resolveWebsiteIconsMock).toHaveBeenCalledTimes(11)
-    expect(resolveWebsiteIconsMock.mock.calls.map((call) => call[0].length)).toEqual([
-      50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 39,
-    ])
-    expect(resolveWebsiteIconsMock.mock.calls[10][0]).toContain('app-538.example.com')
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledTimes(11)
+    expect(ensureWebsiteIconsMock.mock.calls[0][0]).toHaveLength(50)
+    expect(ensureWebsiteIconsMock.mock.calls[10][0]).toHaveLength(39)
+    expect(ensureWebsiteIconsMock.mock.calls[10][0]).toContain('app-538.example.com')
+    expect(importEntriesMock).toHaveBeenCalledTimes(11)
   })
 
   it('sends overwrites as individual updates and invalidates list keys', async () => {

@@ -48,8 +48,12 @@ import { defaultColorFor, defaultIconFor } from './entry-presentation'
 import { FormSelect } from '../../../shared/components/form-select'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { DiscoveryToggle, discoveryAction } from './discovery-toggle'
-import { normalizePublicHostname, resolveWebsiteIcons } from '../../../shared/api/public-assets-api'
-import { usePublicEntryAssets } from '../use-public-entry-assets'
+import {
+  ensureWebsiteIcons,
+  ensureWebsiteIconsWithin,
+  normalizePublicHostname,
+} from '../../../shared/api/public-assets-api'
+import { publicAssetIconReference } from '../../../shared/crypto/vault-plaintext'
 
 export interface CreateEntryModalProps {
   open: boolean
@@ -104,9 +108,10 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [interpreter, setInterpreter] = useState<ScriptInterpreter>('bash')
   const [refs, setRefs] = useState<ScriptRef[]>([])
   const [iconTouched, setIconTouched] = useState(false)
+  const [automaticIcon, setAutomaticIcon] = useState<{ hostname: string; reference: string } | null>(null)
   const [discoverable, setDiscoverable] = useState(true)
   const [policyOverrides, setPolicyOverrides] = useState<AgentVisibilityPolicy['fields']>({})
-  usePublicEntryAssets([icon ?? null])
+  const [resolvingIcon, setResolvingIcon] = useState(false)
 
   const allFields = useMemo(
     () => type === ENTRY_TYPE_CREDENTIAL
@@ -138,18 +143,24 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     if (iconTouched || type === ENTRY_TYPE_SCRIPT) return
     const hostname = normalizePublicHostname(url)
     if (!hostname) return
-    // Persist the stable hostname reference immediately; discovery itself is
-    // asynchronous and must not race a fast Save click.
-    setIcon(`website:${hostname}`)
+    let active = true
     const timer = window.setTimeout(() => {
-      void resolveWebsiteIcons([hostname]).catch(() => undefined)
+      void ensureWebsiteIcons([hostname]).then((assets) => {
+        const asset = assets.get(hostname)
+        if (active && asset) {
+          const reference = publicAssetIconReference({ assetId: asset.id, revision: asset.revision, url: asset.url })
+          setAutomaticIcon({ hostname, reference })
+          setIcon(reference)
+        }
+      }).catch(() => undefined)
     }, 300)
     return () => {
+      active = false
       window.clearTimeout(timer)
     }
   }, [iconTouched, type, url])
 
-  const isPending = create.isPending
+  const isPending = create.isPending || resolvingIcon
 
   const canSubmit = useMemo(() => {
     if (isPending) return false
@@ -161,7 +172,16 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 
   const fieldsInvalid = validateCustomFields(allFields).hasError
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleUrlChange = (nextUrl: string) => {
+    setUrl(nextUrl)
+    setUrlError(false)
+    if (!iconTouched) {
+      setAutomaticIcon(null)
+      setIcon(defaultIconFor(type))
+    }
+  }
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit || fieldsInvalid) return
 
@@ -178,13 +198,29 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       refs,
     })
 
+    const hostname = !iconTouched && type !== ENTRY_TYPE_SCRIPT ? normalizePublicHostname(url) : null
+    let iconReference = iconTouched
+      ? icon
+      : automaticIcon?.hostname === hostname
+        ? automaticIcon.reference
+        : defaultIconFor(type)
+    if (hostname) {
+      setResolvingIcon(true)
+      try {
+        const asset = (await ensureWebsiteIconsWithin([hostname], 1_500)).get(hostname)
+        if (asset) iconReference = publicAssetIconReference({ assetId: asset.id, revision: asset.revision, url: asset.url })
+      } finally {
+        setResolvingIcon(false)
+      }
+    }
+
     create.mutate(
       {
         vaultId: vault.id,
         label: label.trim(),
         agentLabel: agentLabel.trim(),
         description: description.trim() || undefined,
-        iconReference: icon,
+        iconReference,
         ...(iconFile ? { iconFile } : {}),
         type,
         payload,
@@ -256,16 +292,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 setPasswordError(false)
                 setScriptError(false)
                 if (!iconTouched) {
-                  const typeDefaults = [
-                    defaultIconFor(ENTRY_TYPE_KEY),
-                    defaultIconFor(ENTRY_TYPE_CREDENTIAL),
-                    defaultIconFor(ENTRY_TYPE_SCRIPT),
-                  ]
-                  setIcon((current) =>
-                    current === undefined || typeDefaults.includes(current)
-                      ? defaultIconFor(nextType)
-                      : current,
-                  )
+                  setAutomaticIcon(null)
+                  setIcon(defaultIconFor(nextType))
                   setColor((current) =>
                     current === defaultColorFor(previousType) ? defaultColorFor(nextType) : current,
                   )
@@ -368,7 +396,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   {t('validation.required')}
                 </FeedbackSlot>
               </div>
-              <WebsiteField url={url} setUrl={setUrl} urlError={urlError} setUrlError={setUrlError} disabled={isPending} />
+              <WebsiteField url={url} onChange={handleUrlChange} urlError={urlError} setUrlError={setUrlError} disabled={isPending} />
             </>
           ) : type === ENTRY_TYPE_CREDENTIAL ? (
             <>
@@ -414,7 +442,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   {t('validation.required')}
                 </FeedbackSlot>
               </div>
-              <WebsiteField url={url} setUrl={setUrl} urlError={urlError} setUrlError={setUrlError}
+              <WebsiteField url={url} onChange={handleUrlChange} urlError={urlError} setUrlError={setUrlError}
                 disabled={isPending} discovery={policy.fields[ENTRY_FIELD.urlDomain] === 'discovery'}
                 discoveryDisabled={!discoverable} onDiscoveryChange={(active) => setPolicyOverrides((current) => ({
                   ...current, [ENTRY_FIELD.urlDomain]: active ? 'discovery' : 'never',
@@ -483,7 +511,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 /** Shared Website/URL field (KEY + CREDENTIAL) — feeds the favicon and urlDomain. */
 function WebsiteField({
   url,
-  setUrl,
+  onChange,
   urlError,
   setUrlError,
   disabled,
@@ -492,7 +520,7 @@ function WebsiteField({
   onDiscoveryChange,
 }: {
   url: string
-  setUrl: (v: string) => void
+  onChange: (v: string) => void
   urlError: boolean
   setUrlError: (v: boolean) => void
   disabled: boolean
@@ -513,7 +541,7 @@ function WebsiteField({
           t,
         )] : undefined}
         value={url}
-        onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
+        onChange={(e) => onChange(e.target.value)}
         onBlur={() => setUrlError(firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null)}
         placeholder={t('vault.entries.urlPlaceholder')}
         autoComplete="off"

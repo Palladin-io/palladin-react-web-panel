@@ -9,7 +9,9 @@ import {
 import { hexWithAlpha } from './vault-color'
 import { IconColorBrowser } from './vault-icon-browser'
 import { VAULT_ICON_ALL, VAULT_ICON_COLORS } from './vault-presentation'
-import { cachedPublicAsset } from '../../../shared/api/public-assets-api'
+import { trustedPublicAssetUrl } from '../../../shared/api/public-assets-api'
+import { parsePublicAssetIconReference, publicAssetIconReference } from '../../../shared/crypto/vault-plaintext'
+import { RetryingPublicAssetImage } from './entry-icon'
 
 export interface EntryIconPickerProps {
   value: string | undefined
@@ -55,11 +57,11 @@ export function EntryIconPicker({
   // candidatePresets = what would be visible when no browser icon is active
   const candidatePresets = ENTRY_ICON_OPTIONS.slice(0, maxVisible - 1) as readonly string[]
   // isFromBrowser: value is not in the visible preset range (so it gets its own slot before 3-dots)
-  const publicAssetId = value?.startsWith('public-asset:') ? value.slice('public-asset:'.length) : null
-  const publicAssetUrl = publicAssetId ? cachedPublicAsset(publicAssetId)?.url : undefined
+  const publicAsset = parsePublicAssetIconReference(value)
+  const publicAssetUrl = publicAsset ? trustedPublicAssetUrl(publicAsset.url) ?? undefined : undefined
   const isFromBrowser =
     !isCustomIconUrl(value) &&
-    !publicAssetId &&
+    !publicAsset &&
     value != null &&
     !candidatePresets.includes(value)
 
@@ -130,7 +132,15 @@ export function EntryIconPicker({
               border: `2px solid ${selectedColor}`,
             }}
           >
-            <img src={publicAssetUrl ?? value} alt="" className="h-5 w-5 rounded object-contain" />
+            {publicAssetUrl ? (
+              <RetryingPublicAssetImage
+                key={publicAssetUrl}
+                src={publicAssetUrl}
+                fallback={<Icon name="image" size={16} color={selectedColor} />}
+              />
+            ) : (
+              <img src={value} alt="" className="h-5 w-5 rounded object-contain" />
+            )}
           </button>
         )}
 
@@ -150,6 +160,11 @@ export function EntryIconPicker({
 
       <IconColorBrowser
         showBrandIcons
+        publicAssetReference={(asset) => publicAssetIconReference({
+          assetId: asset.id,
+          revision: asset.revision,
+          url: asset.url,
+        })}
         open={showBrowser}
         onClose={() => setShowBrowser(false)}
         icons={VAULT_ICON_ALL}
