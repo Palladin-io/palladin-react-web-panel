@@ -890,15 +890,15 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             ) : entry.type === ENTRY_TYPE_CREDIT_CARD ? (
               <div className="grid grid-cols-2 gap-3">
                 <FormInput id="entry-detail-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
-                  onChange={(e) => setCardholderName(e.target.value)} disabled={isSaving || decrypting} />
+                  onChange={(e) => { setCardholderName(e.target.value); setCardError(false) }} disabled={isSaving || decrypting} />
                 <SecretInput id="entry-detail-card-number" label={t('vault.entries.card.cardNumber')} value={cardNumber}
                   onChange={(value) => { setCardNumber(value); setCardError(false) }} shown={showSecret} onToggleShown={() => setShowSecret((v) => !v)} disabled={isSaving || decrypting} copyable />
                 <FormInput id="entry-detail-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
-                  onChange={(e) => setExpiryMonth(e.target.value)} disabled={isSaving || decrypting} />
+                  onChange={(e) => { setExpiryMonth(e.target.value); setCardError(false) }} disabled={isSaving || decrypting} />
                 <FormInput id="entry-detail-expiry-year" label={t('vault.entries.card.expiryYear')} value={expiryYear}
-                  onChange={(e) => setExpiryYear(e.target.value)} disabled={isSaving || decrypting} />
+                  onChange={(e) => { setExpiryYear(e.target.value); setCardError(false) }} disabled={isSaving || decrypting} />
                 <SecretInput id="entry-detail-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
-                  onChange={setSecurityCode} shown={showPassword} onToggleShown={() => setShowPassword((v) => !v)} disabled={isSaving || decrypting} copyable />
+                  onChange={(value) => { setSecurityCode(value); setCardError(false) }} shown={showPassword} onToggleShown={() => setShowPassword((v) => !v)} disabled={isSaving || decrypting} copyable />
                 <SecretInput id="entry-detail-card-pin" label={t('vault.entries.card.pin')} value={cardPin}
                   onChange={setCardPin} shown={showPin} onToggleShown={() => setShowPin((v) => !v)} disabled={isSaving || decrypting} copyable />
                 <div className="col-span-2"><FormInput id="entry-detail-billing-address" label={t('vault.entries.card.billingAddress')} value={billingAddress}
