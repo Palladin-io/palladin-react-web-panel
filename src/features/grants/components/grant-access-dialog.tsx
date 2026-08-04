@@ -192,7 +192,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           expiresAt={expiresAt}
           queryLimit={queryLimit}
           error={policyError}
-          disabled={createGrant.isPending || subject?.injectOnly === true}
+          disabled={createGrant.isPending}
           onKindChange={(k) => {
             setKind(k)
             resetPolicyError()
@@ -210,7 +210,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         <GrantMethodsSelect
           idPrefix="create-grant"
           value={methods}
-          disabled={createGrant.isPending}
+          disabled={createGrant.isPending || subject?.injectOnly === true}
           error={methodsError}
           onChange={(m) => {
             setMethods(m)

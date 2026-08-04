@@ -154,6 +154,13 @@ function clearPlaintext(vaults: ExportVault[]) {
       entry.url = ''
       entry.notes = ''
       entry.totp = ''
+      entry.cardholderName = ''
+      entry.cardNumber = ''
+      entry.expiryMonth = ''
+      entry.expiryYear = ''
+      entry.securityCode = ''
+      entry.pin = ''
+      entry.billingAddress = ''
       entry.folder = ''
     }
     vault.entries.length = 0
