@@ -22,6 +22,12 @@ export interface GrantableField {
   access: 'onGrantValue' | 'onGrantDerived' | 'onGrantRuntime'
 }
 
+export function grantMethodsForSecret(secret: MemberSecretV1, methods: number): number {
+  if (secret.entryType !== 'creditCard') return methods
+  if ((methods & 4) !== 4) throw new Error('Credit-card grants require Inject')
+  return 4
+}
+
 export function listGrantableFields(secret: MemberSecretV1): GrantableField[] {
   const labels = new Map(secret.content.customFields.map((field) => [field.id, field.label]))
   return Object.entries(secret.agentFieldAccess)
@@ -44,9 +50,10 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   }
   const fieldIds = [...new Set(input.approvedFieldIds)].sort()
   if (fieldIds.length === 0) throw new Error('Grant payload requires at least one approved field')
-  const approvedMethods = input.secret.entryType === 'creditCard'
-    ? (input.approvedMethods & 4) === 4 ? 4 : (() => { throw new Error('Credit-card grants require Inject') })()
-    : input.approvedMethods
+  if (input.secret.entryType === 'creditCard' && input.approvedMethods !== 4) {
+    throw new Error('Credit-card grants are Inject-only')
+  }
+  const approvedMethods = input.approvedMethods
   for (const id of fieldIds) {
     const access = input.secret.agentFieldAccess[id]
     if (access !== 'onGrantValue' && access !== 'onGrantDerived' && access !== 'onGrantRuntime') {

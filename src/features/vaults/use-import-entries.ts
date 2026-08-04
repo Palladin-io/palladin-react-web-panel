@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
 import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { defaultAgentVisibilityPolicy, toMemberSecret, type EntryDraft } from '../../shared/crypto/entry-draft'
-import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
+import { buildCanonicalGrantEnvelope, grantMethodsForSecret, listGrantableFields } from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { projectAgentDiscovery, publicAssetIconReference } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
@@ -292,7 +292,7 @@ export function useImportEntries() {
                   grantEnvelopeRevision: '1', grantKeyVersion: 1,
                   memberKeyGeneration: vault.memberKeyGeneration,
                   recipientKeyVersion: grant.recipientAgentKeyVersion,
-                  approvedMethods: grantMethodsMask(methods),
+                  approvedMethods: grantMethodsForSecret(memberSecret, grantMethodsMask(methods)),
                   ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
                   ...(grant.remainingUses !== undefined ? { remainingUses: grant.remainingUses } : {}),
                 }))
@@ -370,7 +370,7 @@ export function useImportEntries() {
                 grantKeyVersion: scope.grantKeyVersion + 1,
                 memberKeyGeneration: vault.memberKeyGeneration,
                 recipientKeyVersion: grant.recipientAgentKeyVersion,
-                approvedMethods: grantMethodsMask(methods),
+                approvedMethods: grantMethodsForSecret(nextSecret, grantMethodsMask(methods)),
                 ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
                 ...(grant.queryLimit !== null && grant.queryLimit !== undefined
                   ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }

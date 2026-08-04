@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
-import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
+import { buildCanonicalGrantEnvelope, grantMethodsForSecret } from '../../shared/crypto/grant-protocol'
 import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
@@ -78,7 +78,7 @@ export function useCreateGrant() {
             organizationId: detail.organizationId, vaultId, grantId, agentId, entryId: currentEntryId,
             entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
             memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: recipientAgentKeyVersion,
-            approvedMethods, approvedFieldIds: listGrantableFieldIds(memberSecret),
+            approvedMethods: grantMethodsForSecret(memberSecret, approvedMethods), approvedFieldIds: listGrantableFieldIds(memberSecret),
             ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
           })
           grantEntries.push(envelope)
