@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -103,18 +103,27 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
 
   // Subject selection (resolved on confirm).
   const [subject, setSubject] = useState<ResolvedSubject | null>(null)
+  const syncedVaults = useMemberSyncStore((state) => state.vaults)
+  const currentSubject = useMemo(() => subject && ({
+    ...subject,
+    ...targetMethodConstraints(subject.vaultId, subject.entryId),
+  }), [subject, syncedVaults])
+
+  useEffect(() => {
+    if (currentSubject?.injectOnly && !currentSubject.incompatibleMethods) setMethods(['inject'])
+  }, [currentSubject?.injectOnly, currentSubject?.incompatibleMethods])
 
   function resetPolicyError() {
     setPolicyError(null)
   }
 
   async function handleConfirm() {
-    if (!subject) {
+    if (!currentSubject) {
       setSubjectError(true)
       return
     }
-    if (subject.incompatibleMethods) return
-    if (subject.constraintsUnavailable) return
+    if (currentSubject.incompatibleMethods) return
+    if (currentSubject.constraintsUnavailable) return
     const policyInput = { kind, expiresAt, queryLimit }
     const validationError = validateGrantPolicy(policyInput)
     if (validationError) {
@@ -130,7 +139,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
     let agentPublicKey: string | null | undefined
     let recipientAgentKeyVersion: number | null | undefined
     try {
-      const agent = await getAgent(subject.agentId)
+      const agent = await getAgent(currentSubject.agentId)
       agentPublicKey = agent.publicKey
       recipientAgentKeyVersion = agent.recipientKeyVersion
     } catch {
@@ -140,12 +149,12 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
 
     createGrant.mutate(
       {
-        vaultId: subject.vaultId,
-        agentId: subject.agentId,
+        vaultId: currentSubject.vaultId,
+        agentId: currentSubject.agentId,
         agentPublicKey,
         recipientAgentKeyVersion,
-        type: subject.type,
-        entryId: subject.entryId,
+        type: currentSubject.type,
+        entryId: currentSubject.entryId,
         policy: grantPolicyToBody(policyInput),
         methods,
       },
@@ -170,7 +179,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           <Button variant="subtle" size="sm" onClick={onClose} disabled={createGrant.isPending} className="flex-1">
             {t('grants.cancel')}
           </Button>
-          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={createGrant.isPending || subject?.incompatibleMethods || subject?.constraintsUnavailable} className="flex-[2]">
+          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={createGrant.isPending || currentSubject?.incompatibleMethods || currentSubject?.constraintsUnavailable} className="flex-[2]">
             {createGrant.isPending ? t('grants.create.granting') : t('grants.create.confirm')}
           </Button>
         </DialogFooter>
@@ -196,10 +205,10 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           <FieldFeedback visible={subjectError} color="red">
             {t('grants.create.subjectRequired')}
           </FieldFeedback>
-          <FieldFeedback visible={subject?.incompatibleMethods === true} color="red">
+          <FieldFeedback visible={currentSubject?.incompatibleMethods === true} color="red">
             {t('grants.create.incompatibleVaultMethods')}
           </FieldFeedback>
-          <FieldFeedback visible={subject?.constraintsUnavailable === true} color="red">
+          <FieldFeedback visible={currentSubject?.constraintsUnavailable === true} color="red">
             {t('grants.create.waitForVaultSync')}
           </FieldFeedback>
         </div>
@@ -229,7 +238,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         <GrantMethodsSelect
           idPrefix="create-grant"
           value={methods}
-          disabled={createGrant.isPending || subject?.injectOnly === true}
+          disabled={createGrant.isPending || currentSubject?.injectOnly === true}
           error={methodsError}
           onChange={(m) => {
             setMethods(m)
