@@ -133,7 +133,7 @@ const agentDiscoverySchema = z.object({
   schema: z.literal('palladin.agent-discovery.v1'),
   entryType: z.enum(['key', 'credential', 'script', 'creditCard']),
   agentLabel: normalizedString.min(1),
-  capabilities: z.array(z.enum(['get', 'exec'])),
+  capabilities: z.array(z.enum(['get', 'exec', 'inject'])),
   fields: z.array(projectedField),
 }).strict()
 const grantField = z.object({
@@ -195,13 +195,13 @@ const ALLOWED_ACCESS: Record<string, readonly AgentFieldAccess[]> = {
   'script.source': ['never', 'onGrantRuntime'],
   'script.interpreter': ['never', 'discovery', 'onGrantRuntime'],
   'script.refs': ['never', 'onGrantRuntime'],
-  'creditCard.cardholderName': ['never', 'discovery', 'onGrantValue'],
-  'creditCard.cardNumber': ['never', 'onGrantValue'],
-  'creditCard.expiryMonth': ['never', 'onGrantValue'],
-  'creditCard.expiryYear': ['never', 'onGrantValue'],
-  'creditCard.securityCode': ['never', 'onGrantValue'],
-  'creditCard.pin': ['never', 'onGrantValue'],
-  'creditCard.billingAddress': ['never', 'onGrantValue'],
+  'creditCard.cardholderName': ['never', 'onGrantRuntime'],
+  'creditCard.cardNumber': ['never', 'onGrantRuntime'],
+  'creditCard.expiryMonth': ['never', 'onGrantRuntime'],
+  'creditCard.expiryYear': ['never', 'onGrantRuntime'],
+  'creditCard.securityCode': ['never', 'onGrantRuntime'],
+  'creditCard.pin': ['never', 'onGrantRuntime'],
+  'creditCard.billingAddress': ['never', 'onGrantRuntime'],
 }
 
 function assertPolicy(secret: MemberSecretV1): void {
@@ -229,7 +229,7 @@ function assertPolicy(secret: MemberSecretV1): void {
       ? custom.type === 'totp'
         ? ['never', 'onGrantDerived']
         : custom.type === 'text' || custom.type === 'multiline' || custom.type === 'concealed'
-          ? secret.entryType === 'script'
+          ? secret.entryType === 'script' || secret.entryType === 'creditCard'
             ? ['never', 'onGrantRuntime']
             : ['never', 'discovery', 'onGrantValue']
           : ['never']
@@ -361,7 +361,7 @@ export function projectAgentDiscovery(secret: MemberSecretV1): AgentDiscoveryV1 
     .map(([id]) => ({ id, value: fieldValue(secret, id) }))
   return agentDiscoverySchema.parse({
     schema: 'palladin.agent-discovery.v1', entryType: secret.entryType, agentLabel: secret.agentLabel,
-    capabilities: secret.entryType === 'script' ? ['exec'] : secret.entryType === 'creditCard' ? ['get'] : ['get', 'exec'], fields,
+    capabilities: secret.entryType === 'script' ? ['exec'] : secret.entryType === 'creditCard' ? ['inject'] : ['get', 'exec'], fields,
   })
 }
 

@@ -44,6 +44,9 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   }
   const fieldIds = [...new Set(input.approvedFieldIds)].sort()
   if (fieldIds.length === 0) throw new Error('Grant payload requires at least one approved field')
+  if (input.secret.entryType === 'creditCard' && input.approvedMethods !== 4) {
+    throw new Error('Credit-card grants are Inject-only')
+  }
   for (const id of fieldIds) {
     const access = input.secret.agentFieldAccess[id]
     if (access !== 'onGrantValue' && access !== 'onGrantDerived' && access !== 'onGrantRuntime') {

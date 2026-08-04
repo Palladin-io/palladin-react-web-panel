@@ -162,6 +162,9 @@ export async function produceGrantEntryEnvelope({
   fieldIds: selectedFieldIds,
   narrowToPolicy = false,
 }: ProduceGrantEntryEnvelopeParams): Promise<GrantEntryEnvelope> {
+  if (memberSecret.entryType === 3 && scope.approvedMethods !== 4) {
+    throw new Error('Credit-card grants are Inject-only')
+  }
   const agentKey = fromBase64(agentPublicKey)
   if (agentKey.length !== 32) throw new Error('Agent X25519 public key must be 32 bytes')
   const fingerprint = await vaultKeyFingerprint(agentKey, 1)

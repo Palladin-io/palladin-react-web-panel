@@ -31,9 +31,9 @@ const RUNTIME_OR_NEVER = ['never', 'onGrantRuntime'] as const
 
 export function allowedAgentFieldAccess(type: EntryType, fieldId: string, customType?: CustomField['type']): readonly AgentFieldAccess[] {
   if (fieldId === ENTRY_FIELD.agentLabel || fieldId === ENTRY_FIELD.description) return DISCOVERY_OR_NEVER
-  if (fieldId === ENTRY_FIELD.notes) return type === 2 ? RUNTIME_OR_NEVER : VALUE_OR_NEVER
+  if (fieldId === ENTRY_FIELD.notes) return type === 2 || type === ENTRY_TYPE_CREDIT_CARD ? RUNTIME_OR_NEVER : VALUE_OR_NEVER
   if (fieldId === ENTRY_FIELD.totp || customType === 'totp') return ['never', 'onGrantDerived']
-  if (fieldId.startsWith('custom:')) return type === 2 ? RUNTIME_OR_NEVER : ['never', 'discovery', 'onGrantValue']
+  if (fieldId.startsWith('custom:')) return type === 2 || type === ENTRY_TYPE_CREDIT_CARD ? RUNTIME_OR_NEVER : ['never', 'discovery', 'onGrantValue']
   if (type === ENTRY_TYPE_KEY && fieldId === ENTRY_FIELD.value) return VALUE_OR_NEVER
   if (type === ENTRY_TYPE_CREDENTIAL) {
     if (fieldId === ENTRY_FIELD.username) return ['never', 'discovery', 'onGrantValue']
@@ -41,9 +41,8 @@ export function allowedAgentFieldAccess(type: EntryType, fieldId: string, custom
     if (fieldId === ENTRY_FIELD.url || fieldId === ENTRY_FIELD.password) return VALUE_OR_NEVER
   }
   if (type === ENTRY_TYPE_CREDIT_CARD) {
-    if (fieldId === ENTRY_FIELD.cardholderName) return ['never', 'discovery', 'onGrantValue']
-    if ([ENTRY_FIELD.cardNumber, ENTRY_FIELD.expiryMonth, ENTRY_FIELD.expiryYear,
-      ENTRY_FIELD.securityCode, ENTRY_FIELD.pin, ENTRY_FIELD.billingAddress].includes(fieldId as never)) return VALUE_OR_NEVER
+    if ([ENTRY_FIELD.cardholderName, ENTRY_FIELD.cardNumber, ENTRY_FIELD.expiryMonth, ENTRY_FIELD.expiryYear,
+      ENTRY_FIELD.securityCode, ENTRY_FIELD.pin, ENTRY_FIELD.billingAddress].includes(fieldId as never)) return RUNTIME_OR_NEVER
   }
   if (type === 2) {
     if (fieldId === ENTRY_FIELD.interpreter) return DISCOVERY_OR_NEVER
@@ -54,19 +53,19 @@ export function allowedAgentFieldAccess(type: EntryType, fieldId: string, custom
 
 export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomField[] = []): AgentVisibilityPolicy {
   const policy: AgentVisibilityPolicy = { discoverable: true, fields: {
-    agentLabel: 'discovery', description: 'never', notes: type === 2 ? 'never' : 'onGrantValue',
+    agentLabel: 'discovery', description: 'never', notes: type === 2 || type === ENTRY_TYPE_CREDIT_CARD ? 'never' : 'onGrantValue',
   } }
   if (type === ENTRY_TYPE_KEY) policy.fields.value = 'onGrantValue'
   else if (type === ENTRY_TYPE_CREDENTIAL) Object.assign(policy.fields, {
     username: 'discovery', urlDomain: 'discovery', url: 'onGrantValue', password: 'onGrantValue', totp: 'onGrantDerived',
   })
   else if (type === ENTRY_TYPE_CREDIT_CARD) Object.assign(policy.fields, {
-    cardholderName: 'discovery', cardNumber: 'onGrantValue', expiryMonth: 'onGrantValue',
-    expiryYear: 'onGrantValue', securityCode: 'onGrantValue', pin: 'onGrantValue', billingAddress: 'onGrantValue',
+    cardholderName: 'onGrantRuntime', cardNumber: 'onGrantRuntime', expiryMonth: 'onGrantRuntime',
+    expiryYear: 'onGrantRuntime', securityCode: 'onGrantRuntime', pin: 'onGrantRuntime', billingAddress: 'onGrantRuntime',
   })
   else Object.assign(policy.fields, { interpreter: 'discovery', script: 'onGrantRuntime', refs: 'onGrantRuntime' })
   for (const field of fields) policy.fields[`custom:${field.id}`] = field.type === 'totp'
-    ? 'onGrantDerived' : type === 2 ? 'onGrantRuntime' : 'onGrantValue'
+    ? 'onGrantDerived' : type === 2 || type === ENTRY_TYPE_CREDIT_CARD ? 'onGrantRuntime' : 'onGrantValue'
   return policy
 }
 
