@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApproveGrantDialog } from './approve-grant-dialog'
 import type { PendingGrant } from '../api/pending-grants-api'
+import { ENTRY_TYPE_CREDENTIAL } from '../../vaults/types'
 
 const grant: PendingGrant = {
   id: 'g1',
@@ -22,6 +23,7 @@ const review = {
   entryLabel: 'Gmail',
   reason: 'Need it for deployment',
   entryRevision: '7',
+  entryType: ENTRY_TYPE_CREDENTIAL,
   fields: [
     { id: 'password', label: 'password', access: 'onGrantValue' as const },
     { id: 'totp', label: 'totp', access: 'onGrantDerived' as const },

@@ -58,11 +58,12 @@ interface ResolvedSubject {
   entryId?: string
   injectOnly?: boolean
   incompatibleMethods?: boolean
+  constraintsUnavailable?: boolean
 }
 
-function targetMethodConstraints(vaultId: string, entryId?: string): Pick<ResolvedSubject, 'injectOnly' | 'incompatibleMethods'> {
+function targetMethodConstraints(vaultId: string, entryId?: string): Pick<ResolvedSubject, 'injectOnly' | 'incompatibleMethods' | 'constraintsUnavailable'> {
   const vault = useMemberSyncStore.getState().vaults.get(vaultId)
-  if (!vault || vault.status !== 'ready') return {}
+  if (!vault || vault.status !== 'ready') return { constraintsUnavailable: true }
   const entries = entryId
     ? [vault.entries.get(entryId)]
     : [...vault.entries.values()].filter((entry) => entry.state === 'active' && !entry.corrupt)
@@ -113,6 +114,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
       return
     }
     if (subject.incompatibleMethods) return
+    if (subject.constraintsUnavailable) return
     const policyInput = { kind, expiresAt, queryLimit }
     const validationError = validateGrantPolicy(policyInput)
     if (validationError) {
@@ -168,7 +170,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           <Button variant="subtle" size="sm" onClick={onClose} disabled={createGrant.isPending} className="flex-1">
             {t('grants.cancel')}
           </Button>
-          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={createGrant.isPending || subject?.incompatibleMethods} className="flex-[2]">
+          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={createGrant.isPending || subject?.incompatibleMethods || subject?.constraintsUnavailable} className="flex-[2]">
             {createGrant.isPending ? t('grants.create.granting') : t('grants.create.confirm')}
           </Button>
         </DialogFooter>
@@ -196,6 +198,9 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           </FieldFeedback>
           <FieldFeedback visible={subject?.incompatibleMethods === true} color="red">
             {t('grants.create.incompatibleVaultMethods')}
+          </FieldFeedback>
+          <FieldFeedback visible={subject?.constraintsUnavailable === true} color="red">
+            {t('grants.create.waitForVaultSync')}
           </FieldFeedback>
         </div>
 

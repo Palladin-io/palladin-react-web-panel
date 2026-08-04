@@ -19,11 +19,13 @@ import {
   type GrantMethod,
 } from '../grant-methods'
 import type { GrantableField } from '../../../shared/crypto/grant-protocol'
+import { ENTRY_TYPE_CREDIT_CARD, type EntryType } from '../../vaults/types'
 
 export interface GrantApprovalReview {
   entryLabel: string
   reason: string
   entryRevision: string
+  entryType: EntryType
   fields: GrantableField[]
 }
 
@@ -61,7 +63,8 @@ export function ApproveGrantDialog({
 
   // What the agent asked for — used as the default selection and highlighted in the field.
   const requestedMethods = grantMethodsFromMask(grant.encryptedReason.descriptor.binding.requestedMethods)
-  const [methods, setMethods] = useState<GrantMethod[]>(requestedMethods)
+  const injectOnly = review.entryType === ENTRY_TYPE_CREDIT_CARD
+  const [methods, setMethods] = useState<GrantMethod[]>(injectOnly ? ['inject'] : requestedMethods)
   const [fieldIds, setFieldIds] = useState<string[]>(review.fields.map((field) => field.id))
   const [methodsError, setMethodsError] = useState<string | null>(null)
   const [fieldsError, setFieldsError] = useState<string | null>(null)
@@ -141,9 +144,9 @@ export function ApproveGrantDialog({
         <GrantMethodsSelect
           idPrefix="approve"
           value={methods}
-          requested={requestedMethods}
-          allowed={requestedMethods}
-          disabled={isPending}
+          requested={injectOnly ? ['inject'] : requestedMethods}
+          allowed={injectOnly ? ['inject'] : requestedMethods}
+          disabled={isPending || injectOnly}
           error={methodsError}
           onChange={(m) => {
             setMethods(m)

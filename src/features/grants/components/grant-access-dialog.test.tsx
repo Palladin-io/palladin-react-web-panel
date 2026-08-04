@@ -41,6 +41,7 @@ const toastSuccess = vi.hoisted(() => vi.fn())
 vi.mock('sonner', () => ({ toast: { error: toastError, success: toastSuccess } }))
 
 import { GrantAccessDialog } from './grant-access-dialog'
+import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
 
 describe('GrantAccessDialog (agent-for-vault)', () => {
   beforeEach(() => {
@@ -49,6 +50,13 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     toastError.mockReset()
     toastSuccess.mockReset()
     isPending = false
+    useMemberSyncStore.setState({
+      status: 'ready',
+      vaults: new Map([['v1', {
+        vaultId: 'v1', status: 'ready', entries: new Map(), failureKind: null,
+        metadata: null, structure: {}, appliedThroughSequence: '0',
+      } as never]]),
+    })
   })
 
   function renderDialog() {
