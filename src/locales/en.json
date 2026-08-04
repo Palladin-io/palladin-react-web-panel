@@ -921,6 +921,7 @@
   "grants.create.subjectRequired": "Choose who or what to grant",
   "grants.create.incompatibleVaultMethods": "This vault mixes Inject-only credit cards with Exec-only scripts. Grant individual entries instead.",
   "grants.create.waitForVaultSync": "Wait for this vault to finish syncing before granting access.",
+  "grants.approve.cardInjectNotRequested": "This credit-card request cannot be approved because it did not request Inject access.",
   "grants.create.agentLabel": "Agent",
   "grants.create.agentPlaceholder": "Search agents…",
   "grants.create.noEligibleAgents": "No eligible agents",

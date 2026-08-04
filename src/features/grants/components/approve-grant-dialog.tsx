@@ -64,7 +64,8 @@ export function ApproveGrantDialog({
   // What the agent asked for — used as the default selection and highlighted in the field.
   const requestedMethods = grantMethodsFromMask(grant.encryptedReason.descriptor.binding.requestedMethods)
   const injectOnly = review.entryType === ENTRY_TYPE_CREDIT_CARD
-  const [methods, setMethods] = useState<GrantMethod[]>(injectOnly ? ['inject'] : requestedMethods)
+  const cardRequestCompatible = !injectOnly || requestedMethods.includes('inject')
+  const [methods, setMethods] = useState<GrantMethod[]>(injectOnly && cardRequestCompatible ? ['inject'] : requestedMethods)
   const [fieldIds, setFieldIds] = useState<string[]>(review.fields.map((field) => field.id))
   const [methodsError, setMethodsError] = useState<string | null>(null)
   const [fieldsError, setFieldsError] = useState<string | null>(null)
@@ -74,6 +75,7 @@ export function ApproveGrantDialog({
   const vaultName = t('grants.approve.fallbackVault')
 
   function handleConfirm() {
+    if (!cardRequestCompatible) return
     const input = { kind, expiresAt, queryLimit }
     const validationError = validateGrantPolicy(input)
     if (validationError) {
@@ -102,7 +104,7 @@ export function ApproveGrantDialog({
           <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('grants.cancel')}
           </Button>
-          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={isPending} className="flex-[2]">
+          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={isPending || !cardRequestCompatible} className="flex-[2]">
             {isPending ? t('grants.approve.approving') : t('grants.approve.approve')}
           </Button>
         </DialogFooter>
@@ -153,6 +155,11 @@ export function ApproveGrantDialog({
             setMethodsError(null)
           }}
         />
+        {!cardRequestCompatible && (
+          <p role="alert" className="text-meta text-[var(--cv-danger)]">
+            {t('grants.approve.cardInjectNotRequested')}
+          </p>
+        )}
 
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-meta font-semibold text-[var(--cv-label-text)]">
