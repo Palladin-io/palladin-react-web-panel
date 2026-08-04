@@ -33,7 +33,8 @@ export interface ExportVault {
   entries: ExportEntry[]
 }
 
-const CSV_HEADERS = ['name', 'url', 'username', 'password', 'note', 'totp', 'folder', 'state', 'revision', 'historical']
+const CSV_HEADERS = ['name', 'url', 'username', 'password', 'note', 'totp', 'folder', 'state', 'revision', 'historical',
+  'type', 'cardholderName', 'cardNumber', 'expiryMonth', 'expiryYear', 'securityCode', 'pin', 'billingAddress']
 
 /** Quote a field per RFC 4180 when it contains a delimiter, quote, or newline. */
 function csvField(value: string | undefined): string {
@@ -70,6 +71,14 @@ export function toPalladinCsv(entries: ExportEntry[]): string {
         csvField(entry.state),
         csvField(entry.revision),
         csvField(entry.historical ? 'true' : 'false'),
+        csvField(String(entry.type)),
+        csvField(entry.cardholderName),
+        csvField(entry.cardNumber),
+        csvField(entry.expiryMonth),
+        csvField(entry.expiryYear),
+        csvField(entry.securityCode),
+        csvField(entry.pin),
+        csvField(entry.billingAddress),
       ].join(','),
     )
   }
