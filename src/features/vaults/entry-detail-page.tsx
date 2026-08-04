@@ -424,6 +424,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [securityCode, setSecurityCode] = useState('')
   const [cardPin, setCardPin] = useState('')
   const [billingAddress, setBillingAddress] = useState('')
+  const [cardError, setCardError] = useState(false)
   const [notes, setNotes] = useState('') // both types
 
   // Original plaintext for change detection / discard.
@@ -444,6 +445,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   // Reveal toggles.
   const [showSecret, setShowSecret] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showPin, setShowPin] = useState(false)
 
   // Opening the detail screen is already an explicit user action. Decrypt the
   // selected Entry immediately in memory; individual secret inputs remain
@@ -650,7 +652,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         !cardholderName.trim() || !/^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
         || !/^(0[1-9]|1[0-2])$/.test(expiryMonth) || !/^\d{4}$/.test(expiryYear)
         || !/^\d{3,4}$/.test(securityCode)
-      )) return
+      )) { setCardError(true); return }
     }
 
     const current = currentPlaintext()
@@ -890,7 +892,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 <FormInput id="entry-detail-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
                   onChange={(e) => setCardholderName(e.target.value)} disabled={isSaving || decrypting} />
                 <SecretInput id="entry-detail-card-number" label={t('vault.entries.card.cardNumber')} value={cardNumber}
-                  onChange={setCardNumber} shown={showSecret} onToggleShown={() => setShowSecret((v) => !v)} disabled={isSaving || decrypting} copyable />
+                  onChange={(value) => { setCardNumber(value); setCardError(false) }} shown={showSecret} onToggleShown={() => setShowSecret((v) => !v)} disabled={isSaving || decrypting} copyable />
                 <FormInput id="entry-detail-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
                   onChange={(e) => setExpiryMonth(e.target.value)} disabled={isSaving || decrypting} />
                 <FormInput id="entry-detail-expiry-year" label={t('vault.entries.card.expiryYear')} value={expiryYear}
@@ -898,9 +900,10 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 <SecretInput id="entry-detail-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
                   onChange={setSecurityCode} shown={showPassword} onToggleShown={() => setShowPassword((v) => !v)} disabled={isSaving || decrypting} copyable />
                 <SecretInput id="entry-detail-card-pin" label={t('vault.entries.card.pin')} value={cardPin}
-                  onChange={setCardPin} shown={showPassword} onToggleShown={() => setShowPassword((v) => !v)} disabled={isSaving || decrypting} copyable />
+                  onChange={setCardPin} shown={showPin} onToggleShown={() => setShowPin((v) => !v)} disabled={isSaving || decrypting} copyable />
                 <div className="col-span-2"><FormInput id="entry-detail-billing-address" label={t('vault.entries.card.billingAddress')} value={billingAddress}
                   onChange={(e) => setBillingAddress(e.target.value)} disabled={isSaving || decrypting} /></div>
+                <div className="col-span-2"><FeedbackSlot visible={cardError} color="red">{t('vault.entries.card.invalid')}</FeedbackSlot></div>
               </div>
             ) : (
               <>

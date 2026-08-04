@@ -423,6 +423,7 @@
   "vault.entries.card.securityCode": "Security code",
   "vault.entries.card.pin": "PIN (optional)",
   "vault.entries.card.billingAddress": "Billing address (optional)",
+  "vault.entries.card.invalid": "Enter a valid cardholder, card number, expiry date, and security code.",
   "vault.entries.filterScript": "Scripts",
   "vault.entries.valueLabel": "Value",
   "vault.entries.valuePlaceholder": "Paste the secret value",

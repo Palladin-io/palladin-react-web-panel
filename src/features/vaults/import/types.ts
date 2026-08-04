@@ -44,6 +44,13 @@ export interface ParsedEntry {
   url?: string
   notes?: string
   totp?: string
+  cardholderName?: string
+  cardNumber?: string
+  expiryMonth?: string
+  expiryYear?: string
+  securityCode?: string
+  pin?: string
+  billingAddress?: string
 }
 
 /** Non-login rows we deliberately drop, tallied by reason for the preview step. */

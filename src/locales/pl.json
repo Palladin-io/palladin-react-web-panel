@@ -441,6 +441,7 @@
   "vault.entries.card.securityCode": "Kod bezpieczeństwa",
   "vault.entries.card.pin": "PIN (opcjonalnie)",
   "vault.entries.card.billingAddress": "Adres rozliczeniowy (opcjonalnie)",
+  "vault.entries.card.invalid": "Podaj prawidłowe dane posiadacza, numer karty, datę ważności i kod bezpieczeństwa.",
   "vault.entries.filterScript": "Skrypty",
   "vault.entries.valueLabel": "Wartość",
   "vault.entries.valuePlaceholder": "Wklej tajną wartość",

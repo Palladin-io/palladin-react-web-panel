@@ -25,6 +25,7 @@ import {
 } from './api/vault-api'
 import {
   ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_CREDIT_CARD,
   ENTRY_TYPE_KEY,
   type EntryPlaintext,
 } from './types'
@@ -113,6 +114,13 @@ async function readErrorReason(error: unknown): Promise<string> {
 function toPlaintext(entry: ParsedEntry): EntryPlaintext {
   if (entry.type === ENTRY_TYPE_KEY) {
     return { type: ENTRY_TYPE_KEY, value: entry.value ?? '', notes: entry.notes }
+  }
+  if (entry.type === ENTRY_TYPE_CREDIT_CARD) return {
+    type: ENTRY_TYPE_CREDIT_CARD,
+    cardholderName: entry.cardholderName ?? '', cardNumber: entry.cardNumber ?? '',
+    expiryMonth: entry.expiryMonth ?? '', expiryYear: entry.expiryYear ?? '',
+    securityCode: entry.securityCode ?? '', pin: entry.pin,
+    billingAddress: entry.billingAddress, notes: entry.notes,
   }
   // External importers only ever produce KEY or CREDENTIAL entries.
   return {
