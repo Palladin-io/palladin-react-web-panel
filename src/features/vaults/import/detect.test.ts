@@ -1,7 +1,7 @@
 import { strToU8, zipSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { ENTRY_TYPE_KEY } from '../types'
-import { applyColumnMapping } from './csv'
+import { ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY } from '../types'
+import { applyColumnMapping, CSV_PROFILES, extractCsvProfile } from './csv'
 import { parseBytes, parseText } from './detect'
 import { ImportParseError } from './types'
 
@@ -251,6 +251,17 @@ describe('parseBytes — ZIP formats', () => {
 })
 
 describe('parseText — Palladin round-trip formats', () => {
+  it('recognizes textual credit-card types case-insensitively', () => {
+    const profile = CSV_PROFILES.find((candidate) => candidate.id === 'palladin-csv')!
+    const { entries } = extractCsvProfile([{
+      name: 'Travel card', type: 'CreditCard', cardholdername: 'A User',
+      cardnumber: '4111111111111111', expirymonth: '12', expiryyear: '2030',
+      securitycode: '123', pin: '', billingaddress: '', note: '',
+    }], profile)
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({ type: ENTRY_TYPE_CREDIT_CARD, cardNumber: '4111111111111111' })
+  })
+
   it('detects palladin-json and preserves KEY entries', () => {
     const json = JSON.stringify({
       version: 1,

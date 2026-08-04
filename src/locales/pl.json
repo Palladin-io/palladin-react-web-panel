@@ -950,6 +950,7 @@
   "grants.create.success": "Dostęp przyznany",
   "grants.create.error": "Nie udało się przyznać dostępu",
   "grants.create.subjectRequired": "Wybierz komu lub czemu przyznać",
+  "grants.create.incompatibleVaultMethods": "Ten sejf łączy karty dostępne tylko przez Inject ze skryptami dostępnymi tylko przez Exec. Przyznaj dostęp do poszczególnych wpisów.",
   "grants.create.agentLabel": "Agent",
   "grants.create.agentPlaceholder": "Szukaj agentów…",
   "grants.create.noEligibleAgents": "Brak dostępnych agentów",

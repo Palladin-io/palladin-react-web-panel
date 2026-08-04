@@ -225,7 +225,7 @@ export function extractCsvProfile(
   profile: CsvProfile,
 ): { entries: ParsedEntry[]; skipped: SkippedTally } {
   if (profile.id === 'palladin-csv') return collect(rows, (row) => {
-    if (row.type === String(ENTRY_TYPE_CREDIT_CARD) || row.type === 'creditCard') return {
+    if (row.type === String(ENTRY_TYPE_CREDIT_CARD) || row.type?.trim().toLowerCase() === 'creditcard') return {
       type: ENTRY_TYPE_CREDIT_CARD, label: row.name, notes: row.note,
       cardholderName: row.cardholdername, cardNumber: row.cardnumber,
       expiryMonth: row.expirymonth, expiryYear: row.expiryyear,

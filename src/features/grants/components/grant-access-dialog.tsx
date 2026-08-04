@@ -7,7 +7,7 @@ import { FieldFeedback } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { AGENT_STATUS_ACTIVE, getAgent, useAgents } from '../../agents'
 import { useVaults } from '../../vaults/use-vaults'
-import { ENTRY_TYPE_CREDIT_CARD, normalizeEntryType } from '../../vaults/types'
+import { ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_SCRIPT, normalizeEntryType } from '../../vaults/types'
 import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
 import {
   GRANT_TYPE_FULL,
@@ -57,14 +57,22 @@ interface ResolvedSubject {
   type: GrantType
   entryId?: string
   injectOnly?: boolean
+  incompatibleMethods?: boolean
 }
 
-function isInjectOnlyTarget(vaultId: string, entryId?: string): boolean {
+function targetMethodConstraints(vaultId: string, entryId?: string): Pick<ResolvedSubject, 'injectOnly' | 'incompatibleMethods'> {
   const vault = useMemberSyncStore.getState().vaults.get(vaultId)
-  if (!vault || vault.status !== 'ready') return false
+  if (!vault || vault.status !== 'ready') return {}
   const entries = entryId ? [vault.entries.get(entryId)] : [...vault.entries.values()]
-  return entries.some((entry) => entry?.payload
-    && normalizeEntryType(entry.payload.entryType) === ENTRY_TYPE_CREDIT_CARD)
+  const types = entries.flatMap((entry) => entry?.payload
+    ? [normalizeEntryType(entry.payload.entryType)]
+    : [])
+  const hasCard = types.includes(ENTRY_TYPE_CREDIT_CARD)
+  const hasScript = types.includes(ENTRY_TYPE_SCRIPT)
+  return {
+    injectOnly: hasCard,
+    incompatibleMethods: !entryId && hasCard && hasScript,
+  }
 }
 
 /**
@@ -102,6 +110,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
       setSubjectError(true)
       return
     }
+    if (subject.incompatibleMethods) return
     const policyInput = { kind, expiresAt, queryLimit }
     const validationError = validateGrantPolicy(policyInput)
     if (validationError) {
@@ -157,7 +166,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           <Button variant="subtle" size="sm" onClick={onClose} disabled={createGrant.isPending} className="flex-1">
             {t('grants.cancel')}
           </Button>
-          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={createGrant.isPending} className="flex-[2]">
+          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={createGrant.isPending || subject?.incompatibleMethods} className="flex-[2]">
             {createGrant.isPending ? t('grants.create.granting') : t('grants.create.confirm')}
           </Button>
         </DialogFooter>
@@ -182,6 +191,9 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           />
           <FieldFeedback visible={subjectError} color="red">
             {t('grants.create.subjectRequired')}
+          </FieldFeedback>
+          <FieldFeedback visible={subject?.incompatibleMethods === true} color="red">
+            {t('grants.create.incompatibleVaultMethods')}
           </FieldFeedback>
         </div>
 
@@ -243,7 +255,7 @@ function SubjectSegment({
           onSubjectChange(
             agentId
               ? { vaultId: mode.vaultId, agentId, type: GRANT_TYPE_FULL,
-                  injectOnly: isInjectOnlyTarget(mode.vaultId) }
+                  ...targetMethodConstraints(mode.vaultId) }
               : null,
           )
         }
@@ -264,7 +276,7 @@ function SubjectSegment({
                   agentId,
                   type: GRANT_TYPE_GRANULAR,
                   entryId: mode.entryId,
-                  injectOnly: isInjectOnlyTarget(mode.vaultId, mode.entryId),
+                  ...targetMethodConstraints(mode.vaultId, mode.entryId),
                 }
               : null,
           )
@@ -455,7 +467,7 @@ function VaultPicker({
         setSelectedLabel(opt.label)
         setQuery('')
         onPick({ vaultId: opt.id, agentId, type: GRANT_TYPE_FULL,
-          injectOnly: isInjectOnlyTarget(opt.id) })
+          ...targetMethodConstraints(opt.id) })
       }}
     />
   )
@@ -524,7 +536,7 @@ function CrossVaultEntryPicker({
         setSelectedLabel(opt.label)
         setQuery('')
         onPick({ vaultId, agentId, type: GRANT_TYPE_GRANULAR, entryId: opt.id,
-          injectOnly: isInjectOnlyTarget(vaultId, opt.id) })
+          ...targetMethodConstraints(vaultId, opt.id) })
       }}
     />
   )
