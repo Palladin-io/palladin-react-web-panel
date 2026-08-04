@@ -215,9 +215,9 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
     }
   }
   for (const field of fields) {
-    defaults[`custom:${field.id}`] = type === ENTRY_TYPE_CREDIT_CARD
-      ? 'onGrantRuntime'
-      : field.type === 'totp' ? 'onGrantDerived' : type === ENTRY_TYPE_SCRIPT ? 'onGrantRuntime' : 'onGrantValue'
+    defaults[`custom:${field.id}`] = field.type === 'totp'
+      ? 'onGrantDerived'
+      : type === ENTRY_TYPE_SCRIPT || type === ENTRY_TYPE_CREDIT_CARD ? 'onGrantRuntime' : 'onGrantValue'
   }
   return { discoverable: true, fields: defaults }
 }

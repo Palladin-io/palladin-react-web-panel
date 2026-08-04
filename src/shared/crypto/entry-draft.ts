@@ -64,8 +64,8 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
     expiryYear: 'onGrantRuntime', securityCode: 'onGrantRuntime', pin: 'onGrantRuntime', billingAddress: 'onGrantRuntime',
   })
   else Object.assign(policy.fields, { interpreter: 'discovery', script: 'onGrantRuntime', refs: 'onGrantRuntime' })
-  for (const field of fields) policy.fields[`custom:${field.id}`] = type === ENTRY_TYPE_CREDIT_CARD
-    ? 'onGrantRuntime' : field.type === 'totp' ? 'onGrantDerived' : type === 2 ? 'onGrantRuntime' : 'onGrantValue'
+  for (const field of fields) policy.fields[`custom:${field.id}`] = field.type === 'totp'
+    ? 'onGrantDerived' : type === 2 || type === ENTRY_TYPE_CREDIT_CARD ? 'onGrantRuntime' : 'onGrantValue'
   return policy
 }
 
