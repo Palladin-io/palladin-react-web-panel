@@ -63,7 +63,9 @@ interface ResolvedSubject {
 function targetMethodConstraints(vaultId: string, entryId?: string): Pick<ResolvedSubject, 'injectOnly' | 'incompatibleMethods'> {
   const vault = useMemberSyncStore.getState().vaults.get(vaultId)
   if (!vault || vault.status !== 'ready') return {}
-  const entries = entryId ? [vault.entries.get(entryId)] : [...vault.entries.values()]
+  const entries = entryId
+    ? [vault.entries.get(entryId)]
+    : [...vault.entries.values()].filter((entry) => entry.state === 'active' && !entry.corrupt)
   const types = entries.flatMap((entry) => entry?.payload
     ? [normalizeEntryType(entry.payload.entryType)]
     : [])
