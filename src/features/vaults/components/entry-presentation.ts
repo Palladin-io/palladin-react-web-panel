@@ -104,7 +104,8 @@ const SCRIPT_PRESENTATION: EntryPresentation = {
   iconBg: 'rgba(167,139,250,0.12)',
 }
 const CREDIT_CARD_PRESENTATION: EntryPresentation = {
-  defaultIcon: 'credit_card', iconColor: '#FFAB87', iconBg: 'rgba(255,171,135,0.12)',
+  ...CREDENTIAL_PRESENTATION,
+  defaultIcon: 'credit_card',
 }
 
 export function presentationForType(type: EntryType): EntryPresentation {

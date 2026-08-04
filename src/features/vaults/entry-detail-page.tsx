@@ -417,6 +417,13 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [usernameError, setUsernameError] = useState(false)
   const [password, setPassword] = useState('') // CREDENTIAL only
   const [passwordError, setPasswordError] = useState(false)
+  const [cardholderName, setCardholderName] = useState('')
+  const [cardNumber, setCardNumber] = useState('')
+  const [expiryMonth, setExpiryMonth] = useState('')
+  const [expiryYear, setExpiryYear] = useState('')
+  const [securityCode, setSecurityCode] = useState('')
+  const [cardPin, setCardPin] = useState('')
+  const [billingAddress, setBillingAddress] = useState('')
   const [notes, setNotes] = useState('') // both types
 
   // Original plaintext for change detection / discard.
@@ -485,6 +492,12 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
           setOriginalPlaintext(baseline); setCredentialTotp(pinned); setCustomFields(rest)
           setUsername(pt.username); setPassword(pt.password)
           setUrl(pt.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : '')); setNotes(pt.notes ?? '')
+        } else if (pt.type === ENTRY_TYPE_CREDIT_CARD) {
+          setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt))
+          setCardholderName(pt.cardholderName); setCardNumber(pt.cardNumber)
+          setExpiryMonth(pt.expiryMonth); setExpiryYear(pt.expiryYear)
+          setSecurityCode(pt.securityCode); setCardPin(pt.pin ?? '')
+          setBillingAddress(pt.billingAddress ?? ''); setNotes(pt.notes ?? '')
         }
       } finally {
         wipe(vaultKey)
@@ -523,6 +536,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       refs,
       customFields,
       credentialTotp,
+      cardholderName, cardNumber, expiryMonth, expiryYear, securityCode, cardPin, billingAddress,
     })
   }, [
     originalPlaintext,
@@ -537,6 +551,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     refs,
     customFields,
     credentialTotp,
+    cardholderName, cardNumber, expiryMonth, expiryYear, securityCode, cardPin, billingAddress,
   ])
 
   // Merged field set for a credential (pinned 2FA + additional) — the shape
@@ -599,6 +614,12 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         setPassword(originalPlaintext.password)
         setUrl(originalPlaintext.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : ''))
         setNotes(originalPlaintext.notes ?? '')
+      } else if (originalPlaintext.type === ENTRY_TYPE_CREDIT_CARD) {
+        setCustomFields(readCustomFields(originalPlaintext))
+        setCardholderName(originalPlaintext.cardholderName); setCardNumber(originalPlaintext.cardNumber)
+        setExpiryMonth(originalPlaintext.expiryMonth); setExpiryYear(originalPlaintext.expiryYear)
+        setSecurityCode(originalPlaintext.securityCode); setCardPin(originalPlaintext.pin ?? '')
+        setBillingAddress(originalPlaintext.billingAddress ?? ''); setNotes(originalPlaintext.notes ?? '')
       }
     }
   }
@@ -625,6 +646,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         if (p) setPasswordError(true)
         if (u || p) return
       }
+      if (entry.type === ENTRY_TYPE_CREDIT_CARD && (
+        !cardholderName.trim() || !/^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
+        || !/^(0[1-9]|1[0-2])$/.test(expiryMonth) || !/^\d{4}$/.test(expiryYear)
+        || !/^\d{3,4}$/.test(securityCode)
+      )) return
     }
 
     const current = currentPlaintext()
@@ -740,7 +766,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               disabled={isSaving || !originalSecret}
               maxLength={500}
             />
-            {entry.type !== ENTRY_TYPE_SCRIPT ? (
+            {entry.type === ENTRY_TYPE_KEY || entry.type === ENTRY_TYPE_CREDENTIAL ? (
               <div>
                 <FormInput
                   id="entry-detail-url"
@@ -858,6 +884,23 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   onChange={setRefs}
                   disabled={isSaving || decrypting}
                 />
+              </div>
+            ) : entry.type === ENTRY_TYPE_CREDIT_CARD ? (
+              <div className="grid grid-cols-2 gap-3">
+                <FormInput id="entry-detail-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
+                  onChange={(e) => setCardholderName(e.target.value)} disabled={isSaving || decrypting} />
+                <SecretInput id="entry-detail-card-number" label={t('vault.entries.card.cardNumber')} value={cardNumber}
+                  onChange={setCardNumber} shown={showSecret} onToggleShown={() => setShowSecret((v) => !v)} disabled={isSaving || decrypting} copyable />
+                <FormInput id="entry-detail-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
+                  onChange={(e) => setExpiryMonth(e.target.value)} disabled={isSaving || decrypting} />
+                <FormInput id="entry-detail-expiry-year" label={t('vault.entries.card.expiryYear')} value={expiryYear}
+                  onChange={(e) => setExpiryYear(e.target.value)} disabled={isSaving || decrypting} />
+                <SecretInput id="entry-detail-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
+                  onChange={setSecurityCode} shown={showPassword} onToggleShown={() => setShowPassword((v) => !v)} disabled={isSaving || decrypting} copyable />
+                <SecretInput id="entry-detail-card-pin" label={t('vault.entries.card.pin')} value={cardPin}
+                  onChange={setCardPin} shown={showPassword} onToggleShown={() => setShowPassword((v) => !v)} disabled={isSaving || decrypting} copyable />
+                <div className="col-span-2"><FormInput id="entry-detail-billing-address" label={t('vault.entries.card.billingAddress')} value={billingAddress}
+                  onChange={(e) => setBillingAddress(e.target.value)} disabled={isSaving || decrypting} /></div>
               </div>
             ) : (
               <>
@@ -1075,6 +1118,13 @@ interface CurrentFormValues {
   customFields: CustomField[]
   /** Pinned credential 2FA field (CREDENTIAL only). */
   credentialTotp: CustomField | null
+  cardholderName: string
+  cardNumber: string
+  expiryMonth: string
+  expiryYear: string
+  securityCode: string
+  cardPin: string
+  billingAddress: string
 }
 
 type CredentialPlaintext = Extract<EntryPlaintext, { type: typeof ENTRY_TYPE_CREDENTIAL }>
@@ -1114,6 +1164,21 @@ function buildCurrentPlaintext(
       notes,
       ...(scriptRefs.length > 0 ? { refs: scriptRefs } : {}),
       ...fieldsPart,
+    }
+  }
+  if (entry.type === ENTRY_TYPE_CREDIT_CARD) {
+    return {
+      v: BLOB_VERSION_V2,
+      type: ENTRY_TYPE_CREDIT_CARD,
+      cardholderName: values.cardholderName.trim(),
+      cardNumber: values.cardNumber.replace(/[ -]/g, ''),
+      expiryMonth: values.expiryMonth,
+      expiryYear: values.expiryYear,
+      securityCode: values.securityCode,
+      pin: values.cardPin.trim() || undefined,
+      billingAddress: values.billingAddress.trim() || undefined,
+      notes,
+      ...foldFieldsPart(values.customFields),
     }
   }
   const fieldsPart = foldFieldsPart(mergeCredentialTotp(values.credentialTotp, values.customFields))
