@@ -44,9 +44,9 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   }
   const fieldIds = [...new Set(input.approvedFieldIds)].sort()
   if (fieldIds.length === 0) throw new Error('Grant payload requires at least one approved field')
-  if (input.secret.entryType === 'creditCard' && input.approvedMethods !== 4) {
-    throw new Error('Credit-card grants are Inject-only')
-  }
+  const approvedMethods = input.secret.entryType === 'creditCard'
+    ? (input.approvedMethods & 4) === 4 ? 4 : (() => { throw new Error('Credit-card grants require Inject') })()
+    : input.approvedMethods
   for (const id of fieldIds) {
     const access = input.secret.agentFieldAccess[id]
     if (access !== 'onGrantValue' && access !== 'onGrantDerived' && access !== 'onGrantRuntime') {
@@ -64,7 +64,7 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   const binding = {
     entryRevision: input.entryRevision, wrapperSuiteId: X25519_SEALED_BOX_V1,
     recipientKeyVersion: input.recipientKeyVersion, recipientKeyFingerprint: toBase64Url(fingerprint),
-    approvedMethods: input.approvedMethods, deliveryPolicy, fieldSetCommitment: toBase64Url(commitment),
+    approvedMethods, deliveryPolicy, fieldSetCommitment: toBase64Url(commitment),
     expiresAt: input.expiresAt ?? null, remainingUses: input.remainingUses ?? null,
   }
   const descriptor: EnvelopeDescriptorContract<typeof binding> = {
