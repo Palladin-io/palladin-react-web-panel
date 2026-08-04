@@ -1,5 +1,5 @@
 import { getDomain } from 'tldts'
-import { ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT, type EntryType } from '../types'
+import { ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT, type EntryType } from '../types'
 
 export const ENTRY_ICON_OPTIONS = [
   // Auth / Security
@@ -103,10 +103,14 @@ const SCRIPT_PRESENTATION: EntryPresentation = {
   iconColor: '#A78BFA',
   iconBg: 'rgba(167,139,250,0.12)',
 }
+const CREDIT_CARD_PRESENTATION: EntryPresentation = {
+  defaultIcon: 'credit_card', iconColor: '#FFAB87', iconBg: 'rgba(255,171,135,0.12)',
+}
 
 export function presentationForType(type: EntryType): EntryPresentation {
   if (type === ENTRY_TYPE_KEY) return KEY_PRESENTATION
   if (type === ENTRY_TYPE_SCRIPT) return SCRIPT_PRESENTATION
+  if (type === ENTRY_TYPE_CREDIT_CARD) return CREDIT_CARD_PRESENTATION
   return CREDENTIAL_PRESENTATION
 }
 

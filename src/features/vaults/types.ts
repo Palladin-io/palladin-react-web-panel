@@ -53,10 +53,12 @@ export interface Vault extends VaultSummary {
 export const ENTRY_TYPE_KEY = 0 as const
 export const ENTRY_TYPE_CREDENTIAL = 1 as const
 export const ENTRY_TYPE_SCRIPT = 2 as const
+export const ENTRY_TYPE_CREDIT_CARD = 3 as const
 export type EntryType =
   | typeof ENTRY_TYPE_KEY
   | typeof ENTRY_TYPE_CREDENTIAL
   | typeof ENTRY_TYPE_SCRIPT
+  | typeof ENTRY_TYPE_CREDIT_CARD
 
 /**
  * Normalise the wire `type` into an {@link EntryType}.
@@ -75,6 +77,7 @@ export function normalizeEntryType(raw: unknown): EntryType {
   const value = typeof raw === 'string' ? raw.toLowerCase() : raw
   if (value === 'key' || value === ENTRY_TYPE_KEY) return ENTRY_TYPE_KEY
   if (value === 'script' || value === ENTRY_TYPE_SCRIPT) return ENTRY_TYPE_SCRIPT
+  if (value === 'creditcard' || value === 'credit_card' || value === ENTRY_TYPE_CREDIT_CARD) return ENTRY_TYPE_CREDIT_CARD
   return ENTRY_TYPE_CREDENTIAL
 }
 
@@ -275,6 +278,17 @@ export type EntryPlaintext =
       notes?: string
       /** Declared env-var → vault-field mappings injected at exec time. */
       refs?: ScriptRef[]
+    })
+  | (EntryPlaintextV2Common & {
+      type: typeof ENTRY_TYPE_CREDIT_CARD
+      cardholderName: string
+      cardNumber: string
+      expiryMonth: string
+      expiryYear: string
+      securityCode: string
+      pin?: string
+      billingAddress?: string
+      notes?: string
     })
 
 export interface CreateVaultInput {

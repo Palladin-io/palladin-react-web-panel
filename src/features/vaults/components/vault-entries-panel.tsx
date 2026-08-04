@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
-import { type Vault } from '../types'
+import { type EntryType, type Vault } from '../types'
 import { useEntriesListUi, usePersistedEntriesList } from '../use-entries-list-ui'
 import { useMemberEntryList } from '../sync/member-entry-list'
 import { useMemberSyncStore } from '../sync/member-sync-store'
@@ -146,7 +146,7 @@ const EntryNavigationRow = memo(function EntryNavigationRow({
   vaultId: string
   entryId: string
   label: string
-  type: 0 | 1 | 2
+  type: EntryType
   icon: string | null
   username: string | null
   urlDomain: string | null

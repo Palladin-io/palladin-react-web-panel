@@ -1,5 +1,5 @@
 import type { CustomField, EntryPlaintext, EntryType, ScriptRef } from '../../features/vaults/types'
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from '../../features/vaults/types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY } from '../../features/vaults/types'
 import { parseOtpauthUri } from './totp'
 import {
   parsePublicAssetIconReference,
@@ -40,6 +40,11 @@ export function allowedAgentFieldAccess(type: EntryType, fieldId: string, custom
     if (fieldId === ENTRY_FIELD.urlDomain) return DISCOVERY_OR_NEVER
     if (fieldId === ENTRY_FIELD.url || fieldId === ENTRY_FIELD.password) return VALUE_OR_NEVER
   }
+  if (type === ENTRY_TYPE_CREDIT_CARD) {
+    if (fieldId === ENTRY_FIELD.cardholderName) return ['never', 'discovery', 'onGrantValue']
+    if ([ENTRY_FIELD.cardNumber, ENTRY_FIELD.expiryMonth, ENTRY_FIELD.expiryYear,
+      ENTRY_FIELD.securityCode, ENTRY_FIELD.pin, ENTRY_FIELD.billingAddress].includes(fieldId as never)) return VALUE_OR_NEVER
+  }
   if (type === 2) {
     if (fieldId === ENTRY_FIELD.interpreter) return DISCOVERY_OR_NEVER
     if (fieldId === ENTRY_FIELD.script || fieldId === ENTRY_FIELD.refs) return RUNTIME_OR_NEVER
@@ -55,6 +60,10 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
   else if (type === ENTRY_TYPE_CREDENTIAL) Object.assign(policy.fields, {
     username: 'discovery', urlDomain: 'discovery', url: 'onGrantValue', password: 'onGrantValue', totp: 'onGrantDerived',
   })
+  else if (type === ENTRY_TYPE_CREDIT_CARD) Object.assign(policy.fields, {
+    cardholderName: 'discovery', cardNumber: 'onGrantValue', expiryMonth: 'onGrantValue',
+    expiryYear: 'onGrantValue', securityCode: 'onGrantValue', pin: 'onGrantValue', billingAddress: 'onGrantValue',
+  })
   else Object.assign(policy.fields, { interpreter: 'discovery', script: 'onGrantRuntime', refs: 'onGrantRuntime' })
   for (const field of fields) policy.fields[`custom:${field.id}`] = field.type === 'totp'
     ? 'onGrantDerived' : type === 2 ? 'onGrantRuntime' : 'onGrantValue'
@@ -65,12 +74,17 @@ export const ENTRY_FIELD = {
   agentLabel: 'agentLabel', description: 'description', value: 'value', username: 'username',
   password: 'password', url: 'url', urlDomain: 'urlDomain', notes: 'notes', totp: 'totp',
   interpreter: 'interpreter', script: 'script', refs: 'refs',
+  cardholderName: 'cardholderName', cardNumber: 'cardNumber', expiryMonth: 'expiryMonth',
+  expiryYear: 'expiryYear', securityCode: 'securityCode', pin: 'pin', billingAddress: 'billingAddress',
 } as const
 
 const FIELD_ID: Record<string, string> = {
   value: 'key.value', username: 'credential.username', password: 'credential.password',
   url: 'credential.url', urlDomain: 'credential.urlDomain', totp: 'credential.totp',
   interpreter: 'script.interpreter', script: 'script.source', refs: 'script.refs',
+  cardholderName: 'creditCard.cardholderName', cardNumber: 'creditCard.cardNumber',
+  expiryMonth: 'creditCard.expiryMonth', expiryYear: 'creditCard.expiryYear',
+  securityCode: 'creditCard.securityCode', pin: 'creditCard.pin', billingAddress: 'creditCard.billingAddress',
 }
 
 function customFields(fields: CustomField[] | undefined) {
@@ -98,6 +112,9 @@ function fieldPolicy(
   if (type === ENTRY_TYPE_KEY) mapped['key.value'] ??= 'never'
   else if (type === ENTRY_TYPE_CREDENTIAL) {
     for (const id of ['credential.username', 'credential.password', 'credential.url', 'credential.urlDomain', 'credential.totp']) mapped[id] ??= 'never'
+  } else if (type === ENTRY_TYPE_CREDIT_CARD) {
+    for (const id of ['creditCard.cardholderName', 'creditCard.cardNumber', 'creditCard.expiryMonth',
+      'creditCard.expiryYear', 'creditCard.securityCode', 'creditCard.pin', 'creditCard.billingAddress']) mapped[id] ??= 'never'
   } else {
     for (const id of ['script.source', 'script.interpreter', 'script.refs']) mapped[id] ??= 'never'
   }
@@ -178,6 +195,14 @@ export function fromMemberSecret(secret: MemberSecretV1): MemberSecretView {
       notes: secret.content.notes ?? undefined, fields,
     },
   }
+  if (secret.entryType === 'creditCard') return {
+    ...common, entryType: ENTRY_TYPE_CREDIT_CARD,
+    content: { type: ENTRY_TYPE_CREDIT_CARD, cardholderName: secret.content.cardholderName,
+      cardNumber: secret.content.cardNumber, expiryMonth: secret.content.expiryMonth,
+      expiryYear: secret.content.expiryYear, securityCode: secret.content.securityCode,
+      pin: secret.content.pin ?? undefined, billingAddress: secret.content.billingAddress ?? undefined,
+      notes: secret.content.notes ?? undefined, fields },
+  }
   return {
     ...common, entryType: 2,
     content: {
@@ -227,6 +252,16 @@ export function toMemberSecret(input: {
       username: input.payload.username.normalize('NFC'), password: input.payload.password.normalize('NFC'),
       url: input.payload.url?.normalize('NFC') ?? null, urlDomain: domain(input.payload.url),
       totp: canonicalTotp(input.payload.totp),
+      notes: input.payload.notes?.normalize('NFC') ?? null, customFields: fields,
+    },
+  }
+  if (input.payload.type === ENTRY_TYPE_CREDIT_CARD) return {
+    ...common, entryType: 'creditCard', content: {
+      cardholderName: input.payload.cardholderName.normalize('NFC'),
+      cardNumber: input.payload.cardNumber, expiryMonth: input.payload.expiryMonth,
+      expiryYear: input.payload.expiryYear, securityCode: input.payload.securityCode,
+      pin: input.payload.pin?.normalize('NFC') ?? null,
+      billingAddress: input.payload.billingAddress?.normalize('NFC') ?? null,
       notes: input.payload.notes?.normalize('NFC') ?? null, customFields: fields,
     },
   }

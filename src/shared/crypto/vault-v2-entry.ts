@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { CustomField, EntryPlaintext, EntryType } from '../../features/vaults/types'
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from '../../features/vaults/types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from '../../features/vaults/types'
 import { encodeUtf8 } from './vault-v2-bytes'
 import { decryptVaultEnvelope, encryptVaultEnvelope, type VaultCiphertextEnvelope } from './vault-v2-envelope'
 import { deriveVaultProjectionKey } from './vault-v2-kdf'
@@ -30,6 +30,8 @@ export const ENTRY_FIELD = {
   interpreter: 'interpreter',
   script: 'script',
   refs: 'refs',
+  cardholderName: 'cardholderName', cardNumber: 'cardNumber', expiryMonth: 'expiryMonth',
+  expiryYear: 'expiryYear', securityCode: 'securityCode', pin: 'pin', billingAddress: 'billingAddress',
 } as const
 
 export interface AgentVisibilityPolicy {
@@ -64,6 +66,11 @@ export function allowedAgentFieldAccess(
   if (type === ENTRY_TYPE_SCRIPT) {
     if (fieldId === ENTRY_FIELD.interpreter) return DISCOVERY_OR_NEVER
     if (fieldId === ENTRY_FIELD.script || fieldId === ENTRY_FIELD.refs) return RUNTIME_OR_NEVER
+  }
+  if (type === ENTRY_TYPE_CREDIT_CARD) {
+    if (fieldId === ENTRY_FIELD.cardholderName) return ['never', 'discovery', 'onGrantValue'] as const
+    if ([ENTRY_FIELD.cardNumber, ENTRY_FIELD.expiryMonth, ENTRY_FIELD.expiryYear, ENTRY_FIELD.securityCode,
+      ENTRY_FIELD.pin, ENTRY_FIELD.billingAddress].includes(fieldId as never)) return VALUE_OR_NEVER
   }
   return ['never'] as const
 }
@@ -202,6 +209,11 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
     defaults[ENTRY_FIELD.script] = 'onGrantRuntime'
     defaults[ENTRY_FIELD.refs] = 'onGrantRuntime'
   }
+  if (type === ENTRY_TYPE_CREDIT_CARD) {
+    defaults[ENTRY_FIELD.cardholderName] = 'discovery'
+    for (const id of [ENTRY_FIELD.cardNumber, ENTRY_FIELD.expiryMonth, ENTRY_FIELD.expiryYear,
+      ENTRY_FIELD.securityCode, ENTRY_FIELD.pin, ENTRY_FIELD.billingAddress]) defaults[id] = 'onGrantValue'
+  }
   for (const field of fields) {
     defaults[`custom:${field.id}`] = field.type === 'totp'
       ? 'onGrantDerived'
@@ -265,6 +277,7 @@ export function buildEntryProjections(draft: CanonicalEntryDraft): {
   } else if (draft.content.type === ENTRY_TYPE_SCRIPT) {
     include(ENTRY_FIELD.interpreter, draft.content.interpreter)
   }
+  else if (draft.content.type === ENTRY_TYPE_CREDIT_CARD) include(ENTRY_FIELD.cardholderName, draft.content.cardholderName)
   for (const field of customFields) {
     if (field.type === 'totp' || typeof field.value !== 'string') continue
     include(`custom:${field.id}`, field.value)
@@ -287,6 +300,7 @@ function memberSearchFields(draft: CanonicalEntryDraft): string[] {
   const values = [draft.memberLabel, draft.description]
   if (draft.content.type === ENTRY_TYPE_CREDENTIAL) values.push(draft.content.username, draft.content.url)
   if (draft.content.type === ENTRY_TYPE_SCRIPT) values.push(draft.content.interpreter)
+  if (draft.content.type === ENTRY_TYPE_CREDIT_CARD) values.push(draft.content.cardholderName)
   for (const field of draft.content.fields ?? []) {
     if (field.type === 'concealed' || field.type === 'totp' || typeof field.value !== 'string') continue
     values.push(field.label, field.value)

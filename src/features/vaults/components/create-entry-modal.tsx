@@ -19,6 +19,7 @@ import { firstError, required, validUrl } from '../../../shared/lib/validation'
 import {
   BLOB_VERSION_V2,
   ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_CREDIT_CARD,
   ENTRY_TYPE_KEY,
   ENTRY_TYPE_SCRIPT,
   SCRIPT_INTERPRETERS,
@@ -97,6 +98,13 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState(false)
   const [passwordVisible, setPasswordVisible] = useState(false)
+  const [cardholderName, setCardholderName] = useState('')
+  const [cardNumber, setCardNumber] = useState('')
+  const [expiryMonth, setExpiryMonth] = useState('')
+  const [expiryYear, setExpiryYear] = useState('')
+  const [securityCode, setSecurityCode] = useState('')
+  const [cardPin, setCardPin] = useState('')
+  const [billingAddress, setBillingAddress] = useState('')
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState(false)
   const [notes, setNotes] = useState('')
@@ -169,8 +177,12 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     if (!label.trim()) return false
     if (type === ENTRY_TYPE_KEY) return keyValue.trim().length > 0
     if (type === ENTRY_TYPE_SCRIPT) return script.trim().length > 0
+    if (type === ENTRY_TYPE_CREDIT_CARD) return cardholderName.trim().length > 0
+      && /^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
+      && /^(0[1-9]|1[0-2])$/.test(expiryMonth) && /^\d{4}$/.test(expiryYear)
+      && /^\d{3,4}$/.test(securityCode)
     return username.trim().length > 0 && password.trim().length > 0
-  }, [isPending, label, type, keyValue, username, password, script])
+  }, [isPending, label, type, keyValue, username, password, script, cardholderName, cardNumber, expiryMonth, expiryYear, securityCode])
 
   const fieldsInvalid = validateCustomFields(allFields).hasError
 
@@ -198,6 +210,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       script,
       interpreter,
       refs,
+      cardholderName, cardNumber, expiryMonth, expiryYear, securityCode, cardPin, billingAddress,
     })
 
     const hostname = !iconTouched && type !== ENTRY_TYPE_SCRIPT ? normalizePublicHostname(url) : null
@@ -306,6 +319,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
               <option value={String(ENTRY_TYPE_CREDENTIAL)}>{t('vault.entries.typeCredentialOption')}</option>
               <option value={String(ENTRY_TYPE_SCRIPT)}>{t('vault.entries.typeScriptOption')}</option>
+              <option value={String(ENTRY_TYPE_CREDIT_CARD)}>{t('vault.entries.typeCreditCardOption')}</option>
             </FormSelect>
           </div>
 
@@ -399,6 +413,25 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 </FeedbackSlot>
               </div>
               <WebsiteField url={url} onChange={handleUrlChange} urlError={urlError} setUrlError={setUrlError} disabled={isPending} />
+            </>
+          ) : type === ENTRY_TYPE_CREDIT_CARD ? (
+            <>
+              <FormInput id="entry-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
+                onChange={(e) => setCardholderName(e.target.value)} autoComplete="cc-name" disabled={isPending} />
+              <SecretInput id="entry-card-number" label={t('vault.entries.card.cardNumber')} value={cardNumber}
+                onChange={setCardNumber} shown={false} onToggleShown={() => undefined} disabled={isPending} monospace />
+              <div className="grid grid-cols-3 gap-2">
+                <FormInput id="entry-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
+                  onChange={(e) => setExpiryMonth(e.target.value.replace(/\D/g, '').slice(0, 2))} autoComplete="cc-exp-month" disabled={isPending} />
+                <FormInput id="entry-expiry-year" label={t('vault.entries.card.expiryYear')} value={expiryYear}
+                  onChange={(e) => setExpiryYear(e.target.value.replace(/\D/g, '').slice(0, 4))} autoComplete="cc-exp-year" disabled={isPending} />
+                <SecretInput id="entry-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
+                  onChange={(value) => setSecurityCode(value.replace(/\D/g, '').slice(0, 4))} shown={false} onToggleShown={() => undefined} disabled={isPending} monospace />
+              </div>
+              <SecretInput id="entry-card-pin" label={t('vault.entries.card.pin')} value={cardPin}
+                onChange={setCardPin} shown={false} onToggleShown={() => undefined} disabled={isPending} monospace />
+              <FormInput id="entry-billing-address" label={t('vault.entries.card.billingAddress')} value={billingAddress}
+                onChange={(e) => setBillingAddress(e.target.value)} autoComplete="street-address" disabled={isPending} />
             </>
           ) : type === ENTRY_TYPE_CREDENTIAL ? (
             <>
@@ -581,6 +614,13 @@ interface BuildPayloadInput {
   script: string
   interpreter: ScriptInterpreter
   refs: ScriptRef[]
+  cardholderName: string
+  cardNumber: string
+  expiryMonth: string
+  expiryYear: string
+  securityCode: string
+  cardPin: string
+  billingAddress: string
 }
 
 function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
@@ -610,6 +650,13 @@ function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
       input.fields,
     )
   }
+  if (input.type === ENTRY_TYPE_CREDIT_CARD) return withCustomFields({
+    v: BLOB_VERSION_V2, type: ENTRY_TYPE_CREDIT_CARD,
+    cardholderName: input.cardholderName.trim(), cardNumber: input.cardNumber.replace(/[ -]/g, ''),
+    expiryMonth: input.expiryMonth, expiryYear: input.expiryYear, securityCode: input.securityCode,
+    pin: input.cardPin.trim() || undefined, billingAddress: input.billingAddress.trim() || undefined,
+    notes: trimmedNotes,
+  }, input.fields)
   const trimmedUrl = input.url.trim() || undefined
   return withCustomFields(
     {

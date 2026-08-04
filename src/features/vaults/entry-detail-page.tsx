@@ -45,6 +45,7 @@ import { VaultEntriesPanel } from './components/vault-entries-panel'
 import {
   BLOB_VERSION_V2,
   ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_CREDIT_CARD,
   ENTRY_TYPE_KEY,
   ENTRY_TYPE_SCRIPT,
   SCRIPT_INTERPRETERS,
@@ -178,14 +179,15 @@ function toEntryView(
   canonical: CanonicalEntryDetail,
   index: {
     memberLabel: string
-    entryType: 'key' | 'credential' | 'script'
+    entryType: 'key' | 'credential' | 'script' | 'creditCard'
     icon: MemberIndexV1['icon']
   } | null | undefined,
 ): CanonicalEntryView {
   const iconReference = presentationIconReference(index?.icon ?? null)
   const entryType = index?.entryType === 'key'
     ? ENTRY_TYPE_KEY
-    : index?.entryType === 'script' ? ENTRY_TYPE_SCRIPT : ENTRY_TYPE_CREDENTIAL
+    : index?.entryType === 'script' ? ENTRY_TYPE_SCRIPT
+      : index?.entryType === 'creditCard' ? ENTRY_TYPE_CREDIT_CARD : ENTRY_TYPE_CREDENTIAL
   return {
     id: canonical.id,
     label: index?.memberLabel ?? canonical.id,
@@ -478,7 +480,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         } else if (pt.type === ENTRY_TYPE_SCRIPT) {
           setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt)); setScript(pt.script)
           setInterpreter(pt.interpreter); setRefs(pt.refs ?? []); setNotes(pt.notes ?? '')
-        } else {
+        } else if (pt.type === ENTRY_TYPE_CREDENTIAL) {
           const { pinned, rest, baseline } = pinCredentialTotp(pt)
           setOriginalPlaintext(baseline); setCredentialTotp(pinned); setCustomFields(rest)
           setUsername(pt.username); setPassword(pt.password)
@@ -589,7 +591,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         setInterpreter(originalPlaintext.interpreter)
         setRefs(originalPlaintext.refs ?? [])
         setNotes(originalPlaintext.notes ?? '')
-      } else {
+      } else if (originalPlaintext.type === ENTRY_TYPE_CREDENTIAL) {
         const { pinned, rest } = pinCredentialTotp(originalPlaintext)
         setCredentialTotp(pinned)
         setCustomFields(rest)
