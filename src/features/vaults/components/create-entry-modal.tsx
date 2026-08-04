@@ -105,6 +105,9 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [securityCode, setSecurityCode] = useState('')
   const [cardPin, setCardPin] = useState('')
   const [billingAddress, setBillingAddress] = useState('')
+  const [cardNumberVisible, setCardNumberVisible] = useState(false)
+  const [securityCodeVisible, setSecurityCodeVisible] = useState(false)
+  const [cardPinVisible, setCardPinVisible] = useState(false)
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState(false)
   const [notes, setNotes] = useState('')
@@ -419,17 +422,17 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               <FormInput id="entry-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
                 onChange={(e) => setCardholderName(e.target.value)} autoComplete="cc-name" disabled={isPending} />
               <SecretInput id="entry-card-number" label={t('vault.entries.card.cardNumber')} value={cardNumber}
-                onChange={setCardNumber} shown={false} onToggleShown={() => undefined} disabled={isPending} monospace />
+                onChange={setCardNumber} shown={cardNumberVisible} onToggleShown={() => setCardNumberVisible((value) => !value)} disabled={isPending} monospace />
               <div className="grid grid-cols-3 gap-2">
                 <FormInput id="entry-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
                   onChange={(e) => setExpiryMonth(e.target.value.replace(/\D/g, '').slice(0, 2))} autoComplete="cc-exp-month" disabled={isPending} />
                 <FormInput id="entry-expiry-year" label={t('vault.entries.card.expiryYear')} value={expiryYear}
                   onChange={(e) => setExpiryYear(e.target.value.replace(/\D/g, '').slice(0, 4))} autoComplete="cc-exp-year" disabled={isPending} />
                 <SecretInput id="entry-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
-                  onChange={(value) => setSecurityCode(value.replace(/\D/g, '').slice(0, 4))} shown={false} onToggleShown={() => undefined} disabled={isPending} monospace />
+                  onChange={(value) => setSecurityCode(value.replace(/\D/g, '').slice(0, 4))} shown={securityCodeVisible} onToggleShown={() => setSecurityCodeVisible((value) => !value)} disabled={isPending} monospace />
               </div>
               <SecretInput id="entry-card-pin" label={t('vault.entries.card.pin')} value={cardPin}
-                onChange={setCardPin} shown={false} onToggleShown={() => undefined} disabled={isPending} monospace />
+                onChange={setCardPin} shown={cardPinVisible} onToggleShown={() => setCardPinVisible((value) => !value)} disabled={isPending} monospace />
               <FormInput id="entry-billing-address" label={t('vault.entries.card.billingAddress')} value={billingAddress}
                 onChange={(e) => setBillingAddress(e.target.value)} autoComplete="street-address" disabled={isPending} />
             </>

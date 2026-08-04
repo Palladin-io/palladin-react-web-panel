@@ -282,7 +282,8 @@ export function buildEntryProjections(draft: CanonicalEntryDraft): {
     if (field.type === 'totp' || typeof field.value !== 'string') continue
     include(`custom:${field.id}`, field.value)
   }
-  const capabilities = draft.entryType === ENTRY_TYPE_SCRIPT ? ['exec'] : ['get', 'inject']
+  const capabilities = draft.entryType === ENTRY_TYPE_SCRIPT ? ['exec']
+    : draft.entryType === ENTRY_TYPE_CREDIT_CARD ? ['get'] : ['get', 'inject']
   return {
     memberIndex,
     memberSecret,

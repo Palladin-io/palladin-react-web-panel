@@ -361,7 +361,7 @@ export function projectAgentDiscovery(secret: MemberSecretV1): AgentDiscoveryV1 
     .map(([id]) => ({ id, value: fieldValue(secret, id) }))
   return agentDiscoverySchema.parse({
     schema: 'palladin.agent-discovery.v1', entryType: secret.entryType, agentLabel: secret.agentLabel,
-    capabilities: secret.entryType === 'script' ? ['exec'] : ['get', 'exec'], fields,
+    capabilities: secret.entryType === 'script' ? ['exec'] : secret.entryType === 'creditCard' ? ['get'] : ['get', 'exec'], fields,
   })
 }
 
