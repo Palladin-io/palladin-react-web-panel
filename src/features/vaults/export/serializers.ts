@@ -14,6 +14,13 @@ export interface ExportEntry {
   url?: string
   notes?: string
   totp?: string
+  cardholderName?: string
+  cardNumber?: string
+  expiryMonth?: string
+  expiryYear?: string
+  securityCode?: string
+  pin?: string
+  billingAddress?: string
   folder?: string
   state?: 'active' | 'archived' | 'deleted'
   revision?: string
@@ -93,6 +100,13 @@ export function toPalladinJson(vaults: ExportVault[]): string {
         urlDomain: entry.url,
         notes: entry.notes,
         totp: entry.totp,
+        cardholderName: entry.cardholderName,
+        cardNumber: entry.cardNumber,
+        expiryMonth: entry.expiryMonth,
+        expiryYear: entry.expiryYear,
+        securityCode: entry.securityCode,
+        pin: entry.pin,
+        billingAddress: entry.billingAddress,
         state: entry.state,
         revision: entry.revision,
         historical: entry.historical,

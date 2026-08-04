@@ -261,6 +261,7 @@
   "vault.entry.hide": "Hide",
   "vault.entry.copyKey": "Copy key",
   "vault.entry.copyPassword": "Copy password",
+  "vault.entry.copyCardNumber": "Copy card number",
   "vault.entry.copyScript": "Copy script",
   "vault.entry.copyUsername": "Copy username",
   "vault.entry.copyUrl": "Copy URL",

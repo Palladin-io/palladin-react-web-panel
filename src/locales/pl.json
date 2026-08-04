@@ -273,6 +273,7 @@
   "vault.entry.hide": "Ukryj",
   "vault.entry.copyKey": "Skopiuj klucz",
   "vault.entry.copyPassword": "Skopiuj hasło",
+  "vault.entry.copyCardNumber": "Skopiuj numer karty",
   "vault.entry.copyScript": "Skopiuj skrypt",
   "vault.entry.copyUsername": "Skopiuj nazwę użytkownika",
   "vault.entry.copyUrl": "Skopiuj URL",

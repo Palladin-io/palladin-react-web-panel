@@ -178,6 +178,8 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
                 ? t('vault.entry.copyKey')
                 : entry.type === ENTRY_TYPE_SCRIPT
                   ? t('vault.entry.copyScript')
+                  : entry.type === 3
+                    ? t('vault.entry.copyCardNumber')
                   : t('vault.entry.copyPassword')
             }
             onClick={() => {
@@ -551,6 +553,8 @@ function copySecret(
       ? t('vault.entry.copyKey')
       : type === ENTRY_TYPE_SCRIPT
         ? t('vault.entry.copyScript')
+        : type === 3
+          ? t('vault.entry.copyCardNumber')
         : t('vault.entry.copyPassword')
   copyText(value, label, t, true)
 }
