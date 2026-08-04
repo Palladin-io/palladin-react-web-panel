@@ -7,6 +7,8 @@ import { FieldFeedback } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { AGENT_STATUS_ACTIVE, getAgent, useAgents } from '../../agents'
 import { useVaults } from '../../vaults/use-vaults'
+import { ENTRY_TYPE_CREDIT_CARD, normalizeEntryType } from '../../vaults/types'
+import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
 import {
   GRANT_TYPE_FULL,
   GRANT_TYPE_GRANULAR,
@@ -54,6 +56,15 @@ interface ResolvedSubject {
   agentId: string
   type: GrantType
   entryId?: string
+  injectOnly?: boolean
+}
+
+function isInjectOnlyTarget(vaultId: string, entryId?: string): boolean {
+  const vault = useMemberSyncStore.getState().vaults.get(vaultId)
+  if (!vault || vault.status !== 'ready') return false
+  const entries = entryId ? [vault.entries.get(entryId)] : [...vault.entries.values()]
+  return entries.some((entry) => entry?.payload
+    && normalizeEntryType(entry.payload.entryType) === ENTRY_TYPE_CREDIT_CARD)
 }
 
 /**
@@ -165,6 +176,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             disabled={createGrant.isPending}
             onSubjectChange={(s) => {
               setSubject(s)
+              if (s?.injectOnly) setMethods(['inject'])
               setSubjectError(false)
             }}
           />
@@ -180,7 +192,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           expiresAt={expiresAt}
           queryLimit={queryLimit}
           error={policyError}
-          disabled={createGrant.isPending}
+          disabled={createGrant.isPending || subject?.injectOnly === true}
           onKindChange={(k) => {
             setKind(k)
             resetPolicyError()
@@ -230,7 +242,8 @@ function SubjectSegment({
         onPick={(agentId) =>
           onSubjectChange(
             agentId
-              ? { vaultId: mode.vaultId, agentId, type: GRANT_TYPE_FULL }
+              ? { vaultId: mode.vaultId, agentId, type: GRANT_TYPE_FULL,
+                  injectOnly: isInjectOnlyTarget(mode.vaultId) }
               : null,
           )
         }
@@ -251,6 +264,7 @@ function SubjectSegment({
                   agentId,
                   type: GRANT_TYPE_GRANULAR,
                   entryId: mode.entryId,
+                  injectOnly: isInjectOnlyTarget(mode.vaultId, mode.entryId),
                 }
               : null,
           )
@@ -440,7 +454,8 @@ function VaultPicker({
       onSelect={(opt) => {
         setSelectedLabel(opt.label)
         setQuery('')
-        onPick({ vaultId: opt.id, agentId, type: GRANT_TYPE_FULL })
+        onPick({ vaultId: opt.id, agentId, type: GRANT_TYPE_FULL,
+          injectOnly: isInjectOnlyTarget(opt.id) })
       }}
     />
   )
@@ -508,7 +523,8 @@ function CrossVaultEntryPicker({
         if (!vaultId) return
         setSelectedLabel(opt.label)
         setQuery('')
-        onPick({ vaultId, agentId, type: GRANT_TYPE_GRANULAR, entryId: opt.id })
+        onPick({ vaultId, agentId, type: GRANT_TYPE_GRANULAR, entryId: opt.id,
+          injectOnly: isInjectOnlyTarget(vaultId, opt.id) })
       }}
     />
   )

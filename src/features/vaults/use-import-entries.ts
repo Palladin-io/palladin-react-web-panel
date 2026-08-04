@@ -297,7 +297,7 @@ export function useImportEntries() {
                   ...(grant.remainingUses !== undefined ? { remainingUses: grant.remainingUses } : {}),
                 }))
               }
-              encryptedChunk.push({ entryId, ...material, grantEnvelopes })
+              encryptedChunk.push({ entryId, entryType: draft.entryType, ...material, grantEnvelopes })
               labelsByEntryId.set(entryId, entry.label)
               input.onProgress?.(++encryptedCount, input.creates.length, 'encrypt')
             }

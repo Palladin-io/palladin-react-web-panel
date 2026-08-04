@@ -86,6 +86,7 @@ export function useCreateEntry() {
         }, secret, vaultKey, discoveryKey, 1)
         const created = await createEntry(input.vaultId, {
           entryId: challenge.entryId,
+          entryType: input.type,
           ...material,
           grantEnvelopes: [],
         })
