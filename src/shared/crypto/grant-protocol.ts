@@ -76,7 +76,7 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   const extension = {
     entryRevision: BigInt(input.entryRevision), wrapperSuiteId: X25519_SEALED_BOX_V1,
     recipientKeyVersion: input.recipientKeyVersion, recipientKeyFingerprint: fingerprint,
-    methods: input.approvedMethods, deliveryPolicy, fieldSetCommitment: commitment, expiresAt,
+    methods: approvedMethods, deliveryPolicy, fieldSetCommitment: commitment, expiresAt,
     remainingUses: input.remainingUses,
   }
   const dek = await randomBytes(32)
