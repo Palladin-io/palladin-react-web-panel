@@ -8,8 +8,8 @@ import { encodeVaultAad, type VaultAadContext, type VaultAadProfile } from './va
 import { canonicalizeVaultJson, verifyVaultSignature, vaultSignatureInput } from './vault-v2-signatures'
 import { loadSodium } from './sodium'
 
-const PINNED_PROTOCOL_COMMIT = '6f39860acc680cec3318e9cdf2eeaeb55be77532'
-const PINNED_MANIFEST_SHA256 = '899ac3f9a5f9dbb00cae3c53c361ab1af34a27ed88a2bc517cd7891332d0a33c'
+const PINNED_PROTOCOL_COMMIT = '856872168ff251e5e9e782e3403c1339586ab190'
+const PINNED_MANIFEST_SHA256 = 'a933b61b8bb1a0f966f51fbe51a9c5baa9c09353e2a9131ba7414a559bc4adaf'
 const fixtureRoot = resolve(process.cwd(), 'src/shared/crypto/fixtures/vault-v2')
 
 function fixture<T>(root: string, relativePath: string): T {

@@ -6,7 +6,7 @@ repository access.
 
 The files were imported byte-for-byte from the public
 [`Palladin-io/palladin-protocol`](https://github.com/Palladin-io/palladin-protocol)
-fixture set at commit `6f39860acc680cec3318e9cdf2eeaeb55be77532`. The test
+fixture set at commit `856872168ff251e5e9e782e3403c1339586ab190`. The test
 suite pins the SHA-256 digest of `manifest.json`, and the manifest pins every
 JSON vector.
 
