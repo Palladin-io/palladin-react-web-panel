@@ -297,8 +297,9 @@ Components with no importers must NOT ship — remove them before opening a PR.
 
 GitHub Actions workflow at `.github/workflows/test.yml` runs on PRs to `main`:
 1. `npm ci`
-2. `npm run build`
-3. `npm test`
+2. `npm run lint`
+3. `npm run build`
+4. `npm test`
 
 **All changes must go through PRs** — CI must pass before merging.
 
