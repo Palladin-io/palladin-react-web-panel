@@ -7,6 +7,8 @@ import { encodeGrantPayload, projectGrantPayload, type MemberSecretV1 } from './
 import { sealVaultEnvelope, toEnvelopeDescriptor, type EnvelopeDescriptorContract } from './vault-envelope'
 import { computeVaultKeyFingerprint, sealKeyToX25519Recipient, VAULT_KEY_KIND, WRAPPER_PURPOSE, X25519_SEALED_BOX_V1 } from './x25519-wrapper'
 
+export const GRANT_DELIVERY_POLICY = { standard: 0, execOnly: 1 } as const
+
 export interface BuildGrantEnvelopeInput {
   organizationId: string; vaultId: string; entryId: string; grantId: string; agentId: string
   entryRevision: string; memberKeyGeneration: number; agentPublicKey: string; recipientKeyVersion: number
@@ -53,10 +55,13 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   const fingerprint = await computeVaultKeyFingerprint(publicKey, VAULT_KEY_KIND.agentX25519)
   const commitment = await computeFieldSetCommitment(fieldIds)
   const expiresAt = instant(input.expiresAt)
+  const deliveryPolicy = input.secret.entryType === 'script'
+    ? GRANT_DELIVERY_POLICY.execOnly
+    : GRANT_DELIVERY_POLICY.standard
   const binding = {
     entryRevision: input.entryRevision, wrapperSuiteId: X25519_SEALED_BOX_V1,
     recipientKeyVersion: input.recipientKeyVersion, recipientKeyFingerprint: toBase64Url(fingerprint),
-    approvedMethods: input.approvedMethods, fieldSetCommitment: toBase64Url(commitment),
+    approvedMethods: input.approvedMethods, deliveryPolicy, fieldSetCommitment: toBase64Url(commitment),
     expiresAt: input.expiresAt ?? null, remainingUses: input.remainingUses ?? null,
   }
   const descriptor: EnvelopeDescriptorContract<typeof binding> = {
@@ -68,7 +73,7 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   const extension = {
     entryRevision: BigInt(input.entryRevision), wrapperSuiteId: X25519_SEALED_BOX_V1,
     recipientKeyVersion: input.recipientKeyVersion, recipientKeyFingerprint: fingerprint,
-    methods: input.approvedMethods, fieldSetCommitment: commitment, expiresAt,
+    methods: input.approvedMethods, deliveryPolicy, fieldSetCommitment: commitment, expiresAt,
     remainingUses: input.remainingUses,
   }
   const dek = await randomBytes(32)

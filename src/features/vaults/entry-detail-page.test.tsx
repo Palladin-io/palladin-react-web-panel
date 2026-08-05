@@ -400,10 +400,15 @@ describe('EntryDetailPage — DetailsTab', () => {
     const user = userEvent.setup()
     unlockedAuthStore()
     state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'sk_test', url: 'https://stripe.com' }
-    state.decryptedIconReference = 'website:stripe.com'
+    state.decryptedIconReference = 'public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2Fstripe.png'
     state.memberIndex = {
       memberLabel: 'Stripe Key', entryType: 'key',
-      icon: { kind: 'website', hostname: 'stripe.com' } as never,
+      icon: {
+        kind: 'publicAsset',
+        assetId: '11111111-1111-4111-8111-111111111111',
+        revision: 1,
+        url: 'https://assets.palladin.io/stripe.png',
+      },
     }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
@@ -417,7 +422,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     expect(updateMutateMock.mock.calls[0][0].draft).toMatchObject({
-      iconReference: 'website:stripe.com',
+      iconReference: 'public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2Fstripe.png',
       content: { type: ENTRY_TYPE_KEY, value: 'sk_test', url: 'https://stripe.com' },
     })
   })

@@ -47,7 +47,7 @@ describe('member entry list', () => {
     expect(filterAndSortMemberEntries(projected, 'active', '33333333', 'name-asc')).toHaveLength(1)
   })
 
-  it('preserves an explicit website icon, derives legacy icons, and preserves a manual glyph', () => {
+  it('preserves a direct catalog icon and a manual glyph without deriving runtime lookups', () => {
     const legacy = record(1)
     legacy.payload = { ...legacy.payload!, urlDomain: 'discord.com', icon: null }
     const manual = record(2)
@@ -60,7 +60,12 @@ describe('member entry list', () => {
     explicit.payload = {
       ...explicit.payload!,
       urlDomain: null,
-      icon: { kind: 'website', hostname: 'cryptolume.co' },
+      icon: {
+        kind: 'publicAsset',
+        assetId: '11111111-1111-4111-8111-111111111111',
+        revision: 1,
+        url: 'https://assets.palladin.io/cryptolume.png',
+      },
     }
 
     const projected = buildMemberEntryList({
@@ -71,8 +76,9 @@ describe('member entry list', () => {
       ]),
     } as DecryptedMemberVault)
 
-    expect(projected.find((entry) => entry.id === legacy.entryId)?.icon).toBe('website:discord.com')
+    expect(projected.find((entry) => entry.id === legacy.entryId)?.icon).toBeNull()
     expect(projected.find((entry) => entry.id === manual.entryId)?.icon).toBe('key')
-    expect(projected.find((entry) => entry.id === explicit.entryId)?.icon).toBe('website:cryptolume.co')
+    expect(projected.find((entry) => entry.id === explicit.entryId)?.icon)
+      .toBe('public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2Fcryptolume.png')
   })
 })

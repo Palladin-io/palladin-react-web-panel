@@ -28,7 +28,7 @@ export interface MemberEntryListItem {
 function materialIconReference(reference: string | undefined): string | null {
   if (!reference) return null
   if (reference.startsWith('builtin:')) return reference.slice('builtin:'.length) || null
-  if (reference.startsWith('public-asset:') || reference.startsWith('website:')) return reference
+  if (reference.startsWith('public-asset:')) return reference
   return reference.includes(':') ? null : reference
 }
 
@@ -44,7 +44,6 @@ export function buildMemberEntryList(vault: DecryptedMemberVault | undefined): M
     type: normalizeEntryType(entry.payload?.entryType),
     icon: !entry.corrupt
       ? materialIconReference(presentationIconReference(entry.payload?.icon ?? null))
-        ?? (entry.payload?.urlDomain ? `website:${entry.payload.urlDomain}` : null)
       : null,
     username: !entry.corrupt ? entry.payload?.username ?? null : null,
     urlDomain: !entry.corrupt ? entry.payload?.urlDomain ?? null : null,

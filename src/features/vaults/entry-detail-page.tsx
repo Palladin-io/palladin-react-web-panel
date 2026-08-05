@@ -12,7 +12,7 @@ import { SecretInput } from '../../shared/components/secret-input'
 import { firstError, required, validUrl } from '../../shared/lib/validation'
 import { wipe } from '../../shared/crypto/sodium'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
-import { presentationIconReference } from '../../shared/crypto/vault-plaintext'
+import { presentationIconReference, type MemberIndexV1 } from '../../shared/crypto/vault-plaintext'
 import {
   ENTRY_FIELD,
   fromMemberSecret,
@@ -179,11 +179,7 @@ function toEntryView(
   index: {
     memberLabel: string
     entryType: 'key' | 'credential' | 'script'
-    icon: { kind: 'glyph'; value: string }
-      | { kind: 'encryptedAsset'; assetId: string }
-      | { kind: 'publicAsset'; assetId: string }
-      | { kind: 'website'; hostname: string }
-      | null
+    icon: MemberIndexV1['icon']
   } | null | undefined,
 ): CanonicalEntryView {
   const iconReference = presentationIconReference(index?.icon ?? null)
