@@ -402,6 +402,7 @@ function ImportingStep({
 }) {
   const { t } = useTranslation()
   const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0
+  const barWidth = progress.phase === 'icons' && pct === 0 ? 8 : pct
   return (
     <div className="flex flex-col gap-3 py-4">
       <p className="text-ui text-[var(--cv-t2)]">
@@ -413,8 +414,9 @@ function ImportingStep({
       </p>
       <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--cv-card-bg)]">
         <div
-          className="h-full rounded-full bg-[var(--cv-primary)] transition-[width] duration-200"
-          style={{ width: `${pct}%` }}
+          className={`h-full rounded-full bg-[var(--cv-primary)] transition-[width] duration-200
+            ${progress.phase === 'icons' && progress.done < progress.total ? 'animate-pulse' : ''}`}
+          style={{ width: `${barWidth}%` }}
         />
       </div>
     </div>

@@ -32,10 +32,17 @@ const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock, c
     schema: 'palladin.member-secret.v1', memberLabel: label, agentLabel: label,
     entryType: 'credential', content: { customFields: [] }, agentFieldAccess: {},
   })),
-  ensureWebsiteIconsMock: vi.fn(async (hostnames: string[]) => new Map(hostnames.map((hostname) => [hostname, {
-    id: '11111111-1111-4111-8111-111111111111', type: 'websiteIcon', name: hostname,
-    revision: 1, url: `https://assets.palladin.io/${hostname}.png`,
-  }]))),
+  ensureWebsiteIconsMock: vi.fn(async (
+    hostnames: string[],
+    _timeoutMs?: number,
+    onProgress?: (ready: number, total: number) => void,
+  ) => {
+    onProgress?.(hostnames.length, hostnames.length)
+    return new Map(hostnames.map((hostname) => [hostname, {
+      id: '11111111-1111-4111-8111-111111111111', type: 'websiteIcon', name: hostname,
+      revision: 1, url: `https://assets.palladin.io/${hostname}.png`,
+    }]))
+  }),
 }))
 
 vi.mock('../../shared/api/public-assets-api', () => ({
@@ -163,7 +170,7 @@ describe('useImportEntries', () => {
     expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
       iconReference: 'public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2Fgithub.com.png',
     }))
-    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith(['github.com'], 15_000)
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith(['github.com'], 15_000, expect.any(Function))
   })
 
   it('omits the website reference when the catalog does not return a ready asset', async () => {
@@ -202,7 +209,7 @@ describe('useImportEntries', () => {
     expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
       iconReference: `public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2F${hostname}.png`,
     }))
-    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith([hostname], 15_000)
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith([hostname], 15_000, expect.any(Function))
   })
 
   it('resolves all imported hostnames in one catalog phase while saving 50-entry chunks', async () => {
@@ -219,7 +226,39 @@ describe('useImportEntries', () => {
     expect(ensureWebsiteIconsMock.mock.calls[0][0]).toHaveLength(539)
     expect(ensureWebsiteIconsMock.mock.calls[0][0]).toContain('app-538.example.com')
     expect(ensureWebsiteIconsMock.mock.calls[0][1]).toBe(15_000)
+    expect(ensureWebsiteIconsMock.mock.calls[0][2]).toEqual(expect.any(Function))
     expect(importEntriesMock).toHaveBeenCalledTimes(11)
+  })
+
+  it('reports icon preparation before encryption starts', async () => {
+    ensureWebsiteIconsMock.mockImplementationOnce(async (
+      hostnames: string[],
+      _timeoutMs: number,
+      onProgress?: (ready: number, total: number) => void,
+    ) => {
+      onProgress?.(1, hostnames.length)
+      return new Map()
+    })
+    const onProgress = vi.fn()
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useImportEntries(), { wrapper })
+
+    result.current.mutate({
+      vaultId: 'vault-1',
+      format: 'generic-csv',
+      creates: [
+        { ...credential('GitHub'), url: 'https://github.com/login' },
+        { ...credential('GitLab'), url: 'https://gitlab.com/login' },
+      ],
+      overwrites: [],
+      onProgress,
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(onProgress).toHaveBeenCalledWith(0, 2, 'icons')
+    expect(onProgress).toHaveBeenCalledWith(1, 2, 'icons')
+    expect(onProgress).toHaveBeenCalledWith(2, 2, 'icons')
+    expect(onProgress).toHaveBeenCalledWith(1, 2, 'encrypt')
   })
 
   it('sends overwrites as individual updates and invalidates list keys', async () => {

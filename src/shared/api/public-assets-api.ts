@@ -118,6 +118,7 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
 export async function ensureWebsiteIconsWithin(
   hostnames: string[],
   timeoutMs: number,
+  onProgress?: (ready: number, total: number) => void,
 ): Promise<Map<string, PublicAsset>> {
   const unique = [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
   const cachedResult = (): Map<string, PublicAsset> => new Map(
@@ -127,6 +128,8 @@ export async function ensureWebsiteIconsWithin(
         return asset ? [[hostname, asset] as const] : []
       }),
   )
+  const reportProgress = () => onProgress?.(cachedResult().size, unique.length)
+  reportProgress()
   if (unique.length === 0 || timeoutMs <= 0) return cachedResult()
 
   const deadline = Date.now() + timeoutMs
@@ -142,6 +145,7 @@ export async function ensureWebsiteIconsWithin(
           requestTimeout = setTimeout(resolve, remaining)
         }),
       ])
+      reportProgress()
     } catch {
       // Catalog enrichment is best-effort. The save continues without URLs
       // for assets that did not reach Ready before the deadline.
@@ -152,6 +156,7 @@ export async function ensureWebsiteIconsWithin(
     const waitMs = Math.min(WEBSITE_ICON_POLL_INTERVAL_MS, deadline - Date.now())
     if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs))
   }
+  reportProgress()
   return cachedResult()
 }
 

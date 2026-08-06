@@ -117,6 +117,28 @@ describe('ensureWebsiteIcons', () => {
     }
   })
 
+  it('reports ready icon progress during the bounded wait', async () => {
+    const hostname = 'progress.example.com'
+    const onProgress = vi.fn()
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      items: [{
+        hostname,
+        asset: {
+          id: '55555555-5555-4555-8555-555555555555',
+          type: 'websiteIcon',
+          name: hostname,
+          url: 'https://assets.palladin.io/published/website-icon/progress.png',
+          revision: 1,
+        },
+      }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })))
+
+    await ensureWebsiteIconsWithin([hostname], 2_000, onProgress)
+
+    expect(onProgress).toHaveBeenNthCalledWith(1, 0, 1)
+    expect(onProgress).toHaveBeenLastCalledWith(1, 1)
+  })
+
   it('preserves a successful reservation page while a sibling page is still pending', async () => {
     const hostnames = Array.from(
       { length: 501 },

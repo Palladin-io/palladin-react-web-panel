@@ -195,12 +195,17 @@ export function useImportEntries() {
         let importedCount = 0
         const failed: { label: string; reason: string }[] = []
 
-        const iconEntries = [...input.creates, ...input.overwrites.map(({ entry }) => entry)]
+        const iconHostnames = [...new Set([...input.creates, ...input.overwrites.map(({ entry }) => entry)]
           .map((entry) => normalizePublicHostname(extractDomain(entry.url) ?? ''))
-          .filter((hostname): hostname is string => hostname !== null)
-        const iconTotal = iconEntries.length
-        const publicAssets = iconEntries.length > 0
-          ? await ensureWebsiteIconsWithin(iconEntries, IMPORT_ICON_WAIT_MS)
+          .filter((hostname): hostname is string => hostname !== null))]
+        const iconTotal = iconHostnames.length
+        if (iconTotal > 0) input.onProgress?.(0, iconTotal, 'icons')
+        const publicAssets = iconHostnames.length > 0
+          ? await ensureWebsiteIconsWithin(
+            iconHostnames,
+            IMPORT_ICON_WAIT_MS,
+            (ready, count) => input.onProgress?.(ready, count, 'icons'),
+          )
           : new Map<string, PublicAsset>()
         if (iconTotal > 0) input.onProgress?.(iconTotal, iconTotal, 'icons')
 
