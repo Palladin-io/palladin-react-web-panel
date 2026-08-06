@@ -1251,7 +1251,7 @@
   "vault.export.progress": "Eksportowanie {{done}} z {{total}} wpisów…",
   "vault.import.encrypting": "Szyfrowanie {{done}} z {{total}}…",
   "vault.import.saving": "Zapisywanie {{done}} z {{total}}…",
-  "vault.import.icons": "Przygotowywanie ikon {{done}} z {{total}}…",
+  "vault.import.icons": "Przygotowywanie ikon {{done}} z {{total}} (maks. 15 sekund)…",
   "vault.import.failedTitle": "Serwer odrzucił {{count}} wpisów:",
   "vault.entries.iconFromUrl": "Ikona serwisu",
   "audit.event.vaultExported": "Sejf wyeksportowany",

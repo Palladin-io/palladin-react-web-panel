@@ -37,6 +37,7 @@ describe('ensureWebsiteIcons', () => {
       return new Response(JSON.stringify({
         items: body.hostnames.map((hostname) => ({
           hostname,
+          status: 'ready',
           asset: {
             id: '11111111-1111-4111-8111-111111111111',
             type: 'websiteIcon',
@@ -66,6 +67,7 @@ describe('ensureWebsiteIcons', () => {
       return new Response(JSON.stringify({
         items: body.hostnames.map((hostname) => ({
           hostname,
+          status: 'ready',
           asset: {
             id: '22222222-2222-4222-8222-222222222222',
             type: 'websiteIcon',
@@ -95,6 +97,7 @@ describe('ensureWebsiteIcons', () => {
         return new Response(JSON.stringify({
           items: [{
             hostname,
+            status: calls === 1 ? 'pending' : 'ready',
             asset: calls === 1 ? null : {
               id: '44444444-4444-4444-8444-444444444444',
               type: 'websiteIcon',
@@ -123,6 +126,7 @@ describe('ensureWebsiteIcons', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
       items: [{
         hostname,
+        status: 'ready',
         asset: {
           id: '55555555-5555-4555-8555-555555555555',
           type: 'websiteIcon',
@@ -136,6 +140,21 @@ describe('ensureWebsiteIcons', () => {
     await ensureWebsiteIconsWithin([hostname], 2_000, onProgress)
 
     expect(onProgress).toHaveBeenNthCalledWith(1, 0, 1)
+    expect(onProgress).toHaveBeenLastCalledWith(1, 1)
+  })
+
+  it('counts failed icons as completed and stops polling them', async () => {
+    const hostname = 'no-icon.example.com'
+    const onProgress = vi.fn()
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      items: [{ hostname, status: 'failed', asset: null }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await ensureWebsiteIconsWithin([hostname], 15_000, onProgress)
+
+    expect(result).toEqual(new Map())
+    expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(onProgress).toHaveBeenLastCalledWith(1, 1)
   })
 
@@ -153,6 +172,7 @@ describe('ensureWebsiteIcons', () => {
       return new Response(JSON.stringify({
         items: body.hostnames.map((hostname) => ({
           hostname,
+          status: 'ready',
           asset: {
             id: '33333333-3333-4333-8333-333333333333',
             type: 'websiteIcon',
@@ -176,7 +196,7 @@ describe('ensureWebsiteIcons', () => {
       const body = await request.clone().json() as { hostnames: string[] }
       sizes.push(body.hostnames.length)
       return new Response(JSON.stringify({
-        items: body.hostnames.map((hostname) => ({ hostname, asset: null })),
+        items: body.hostnames.map((hostname) => ({ hostname, status: 'pending', asset: null })),
       }), { status: 200, headers: { 'content-type': 'application/json' } })
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -193,7 +213,7 @@ describe('ensureWebsiteIcons', () => {
       const body = await request.clone().json() as { hostnames: string[] }
       sizes.push(body.hostnames.length)
       return new Response(JSON.stringify({
-        items: body.hostnames.map((hostname) => ({ hostname, asset: null })),
+        items: body.hostnames.map((hostname) => ({ hostname, status: 'pending', asset: null })),
       }), { status: 200, headers: { 'content-type': 'application/json' } })
     }))
 

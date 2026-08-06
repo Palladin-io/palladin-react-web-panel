@@ -14,11 +14,17 @@ export const publicAssetSchema = z.object({
 }).strict()
 
 const searchResponseSchema = z.object({ items: z.array(publicAssetSchema) }).strict()
+const websiteIconEnsureStatusSchema = z.enum(['pending', 'ready', 'failed'])
 const ensureResponseSchema = z.object({
   items: z.array(z.object({
     hostname: z.string().min(1).max(253),
+    status: websiteIconEnsureStatusSchema,
     asset: publicAssetSchema.nullable(),
-  }).strict()),
+  }).strict().superRefine(({ status, asset }, ctx) => {
+    if ((status === 'ready') !== (asset !== null)) {
+      ctx.addIssue({ code: 'custom', message: 'Ready website icons must include exactly one published asset' })
+    }
+  })),
 }).strict()
 const byIdsResponseSchema = z.object({ items: z.array(publicAssetSchema) }).strict()
 
@@ -26,6 +32,7 @@ export type PublicAsset = z.infer<typeof publicAssetSchema>
 
 const assetCache = new Map<string, PublicAsset>()
 const websiteAssetCache = new Map<string, PublicAsset>()
+const websiteAssetStatusCache = new Map<string, z.infer<typeof websiteIconEnsureStatusSchema>>()
 const cacheListeners = new Set<() => void>()
 let cacheRevision = 0
 const WEBSITE_ICON_POLL_INTERVAL_MS = 1_000
@@ -73,7 +80,8 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
     const asset = websiteAssetCache.get(hostname)
     return asset ? [[hostname, asset] as const] : []
   }))
-  const missing = unique.filter((hostname) => !result.has(hostname))
+  const missing = unique.filter((hostname) =>
+    !result.has(hostname) && websiteAssetStatusCache.get(hostname) !== 'failed')
   if (missing.length === 0) return result
   const batches = Array.from({ length: Math.ceil(missing.length / 500) }, (_, index) =>
     missing.slice(index * 500, (index + 1) * 500))
@@ -91,7 +99,8 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
         }).json<unknown>()
         const items = ensureResponseSchema.parse(response).items
         const changed = remember(items.flatMap(({ asset }) => asset ? [asset] : []))
-        for (const { hostname, asset } of items) {
+        for (const { hostname, status, asset } of items) {
+          websiteAssetStatusCache.set(hostname, status)
           if (asset) {
             websiteAssetCache.set(hostname, asset)
             result.set(hostname, asset)
@@ -118,7 +127,7 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
 export async function ensureWebsiteIconsWithin(
   hostnames: string[],
   timeoutMs: number,
-  onProgress?: (ready: number, total: number) => void,
+  onProgress?: (completed: number, total: number) => void,
 ): Promise<Map<string, PublicAsset>> {
   const unique = [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
   const cachedResult = (): Map<string, PublicAsset> => new Map(
@@ -128,13 +137,20 @@ export async function ensureWebsiteIconsWithin(
         return asset ? [[hostname, asset] as const] : []
       }),
   )
-  const reportProgress = () => onProgress?.(cachedResult().size, unique.length)
+  const completedCount = () => unique.filter((hostname) => {
+    const status = websiteAssetStatusCache.get(hostname)
+    return status === 'ready' || status === 'failed'
+  }).length
+  const reportProgress = () => onProgress?.(completedCount(), unique.length)
   reportProgress()
   if (unique.length === 0 || timeoutMs <= 0) return cachedResult()
 
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
-    const unresolved = unique.filter((hostname) => !websiteAssetCache.has(hostname))
+    const unresolved = unique.filter((hostname) => {
+      const status = websiteAssetStatusCache.get(hostname)
+      return status !== 'ready' && status !== 'failed'
+    })
     if (unresolved.length === 0) return cachedResult()
     const remaining = deadline - Date.now()
     let requestTimeout: ReturnType<typeof setTimeout> | undefined
@@ -152,7 +168,7 @@ export async function ensureWebsiteIconsWithin(
     } finally {
       if (requestTimeout !== undefined) clearTimeout(requestTimeout)
     }
-    if (unique.every((hostname) => websiteAssetCache.has(hostname))) return cachedResult()
+    if (completedCount() === unique.length) return cachedResult()
     const waitMs = Math.min(WEBSITE_ICON_POLL_INTERVAL_MS, deadline - Date.now())
     if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs))
   }
