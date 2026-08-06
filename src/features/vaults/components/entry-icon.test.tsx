@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from '../types'
 import { EntryIcon } from './entry-icon'
@@ -42,27 +42,18 @@ describe('EntryIcon', () => {
     )
   })
 
-  it('retries a not-yet-published public asset directly with a cache-busting URL', () => {
-    vi.useFakeTimers()
-    try {
-      render(
-        <EntryIcon
-          icon="public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2Fpending.png"
-          type={ENTRY_TYPE_CREDENTIAL}
-        />,
-      )
-      fireEvent.error(document.querySelector('img') as HTMLImageElement)
-      expect(document.querySelector('img')).toBeNull()
+  it('falls back immediately when a catalog object is unavailable', () => {
+    render(
+      <EntryIcon
+        icon="public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2Fmissing.png"
+        type={ENTRY_TYPE_CREDENTIAL}
+      />,
+    )
 
-      act(() => vi.advanceTimersByTime(1_000))
+    fireEvent.error(document.querySelector('img') as HTMLImageElement)
 
-      expect(document.querySelector('img')).toHaveAttribute(
-        'src',
-        'https://assets.palladin.io/pending.png?palladin_icon_retry=1',
-      )
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(document.querySelector('img')).toBeNull()
+    expect(screen.getByText('language')).toBeInTheDocument()
   })
 
   it('rejects a catalog reference outside the configured asset namespace', () => {

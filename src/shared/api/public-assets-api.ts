@@ -28,6 +28,7 @@ const assetCache = new Map<string, PublicAsset>()
 const websiteAssetCache = new Map<string, PublicAsset>()
 const cacheListeners = new Set<() => void>()
 let cacheRevision = 0
+const WEBSITE_ICON_POLL_INTERVAL_MS = 1_000
 
 function notifyCacheChanged(): void {
   cacheRevision += 1
@@ -113,35 +114,45 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
   return result
 }
 
-/**
- * Best-effort reservation for save paths. The catalog request keeps running
- * and warming the cache, but presentation metadata never holds a credential
- * save hostage to the transport's full timeout.
- */
+/** Wait only during an explicit save flow and return published assets only. */
 export async function ensureWebsiteIconsWithin(
   hostnames: string[],
   timeoutMs: number,
 ): Promise<Map<string, PublicAsset>> {
+  const unique = [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
   const cachedResult = (): Map<string, PublicAsset> => new Map(
-    [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
+    unique
       .flatMap((hostname) => {
         const asset = websiteAssetCache.get(hostname)
         return asset ? [[hostname, asset] as const] : []
       }),
   )
-  let timeout: ReturnType<typeof setTimeout> | undefined
-  try {
-    return await Promise.race([
-      ensureWebsiteIcons(hostnames),
-      new Promise<Map<string, PublicAsset>>((resolve) => {
-        timeout = setTimeout(() => resolve(cachedResult()), timeoutMs)
-      }),
-    ])
-  } catch {
-    return cachedResult()
-  } finally {
-    if (timeout !== undefined) clearTimeout(timeout)
+  if (unique.length === 0 || timeoutMs <= 0) return cachedResult()
+
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const unresolved = unique.filter((hostname) => !websiteAssetCache.has(hostname))
+    if (unresolved.length === 0) return cachedResult()
+    const remaining = deadline - Date.now()
+    let requestTimeout: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        ensureWebsiteIcons(unresolved),
+        new Promise<void>((resolve) => {
+          requestTimeout = setTimeout(resolve, remaining)
+        }),
+      ])
+    } catch {
+      // Catalog enrichment is best-effort. The save continues without URLs
+      // for assets that did not reach Ready before the deadline.
+    } finally {
+      if (requestTimeout !== undefined) clearTimeout(requestTimeout)
+    }
+    if (unique.every((hostname) => websiteAssetCache.has(hostname))) return cachedResult()
+    const waitMs = Math.min(WEBSITE_ICON_POLL_INTERVAL_MS, deadline - Date.now())
+    if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs))
   }
+  return cachedResult()
 }
 
 /** Accept only the configured immutable public-asset namespace for rendering. */

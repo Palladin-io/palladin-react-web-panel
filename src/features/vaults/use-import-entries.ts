@@ -43,6 +43,7 @@ import { extractDomain } from './components/entry-presentation'
 
 /** Keep crypto/save memory bounded independently from catalog request paging. */
 const IMPORT_CHUNK_SIZE = 50
+const IMPORT_ICON_WAIT_MS = 15_000
 
 /** Which phase of the import failed — surfaced so a failure is attributable. */
 export type ImportStep = 'grants' | 'loadVault' | 'openVaultKey' | 'challenge' | 'encrypt' | 'save' | 'overwrite'
@@ -194,9 +195,14 @@ export function useImportEntries() {
         let importedCount = 0
         const failed: { label: string; reason: string }[] = []
 
-        const iconTotal = [...input.creates, ...input.overwrites.map(({ entry }) => entry)]
-          .filter((entry) => normalizePublicHostname(extractDomain(entry.url) ?? '') !== null).length
-        let iconCount = 0
+        const iconEntries = [...input.creates, ...input.overwrites.map(({ entry }) => entry)]
+          .map((entry) => normalizePublicHostname(extractDomain(entry.url) ?? ''))
+          .filter((hostname): hostname is string => hostname !== null)
+        const iconTotal = iconEntries.length
+        const publicAssets = iconEntries.length > 0
+          ? await ensureWebsiteIconsWithin(iconEntries, IMPORT_ICON_WAIT_MS)
+          : new Map<string, PublicAsset>()
+        if (iconTotal > 0) input.onProgress?.(iconTotal, iconTotal, 'icons')
 
         // A batch is atomic on the server — one bad row 400s the whole chunk. Bisect a
         // failed chunk so every valid entry still lands and only the offenders are
@@ -225,15 +231,6 @@ export function useImportEntries() {
         let encryptedCount = 0
         for (let offset = 0; offset < input.creates.length; offset += IMPORT_CHUNK_SIZE) {
           const sourceChunk = input.creates.slice(offset, offset + IMPORT_CHUNK_SIZE)
-          const chunkHostnames = sourceChunk.flatMap((entry) => {
-            const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
-            return hostname ? [hostname] : []
-          })
-          const publicAssets = chunkHostnames.length > 0
-            ? await ensureWebsiteIconsWithin(chunkHostnames, 1_500)
-            : new Map<string, PublicAsset>()
-          iconCount += chunkHostnames.length
-          input.onProgress?.(iconCount, iconTotal, 'icons')
           let challenges: Awaited<ReturnType<typeof issueEntryCreationChallenges>>
           try {
             challenges = await issueEntryCreationChallenges(input.vaultId, sourceChunk.length)
@@ -293,15 +290,6 @@ export function useImportEntries() {
         }
 
         let updatedCount = 0
-        const overwriteHostnames = input.overwrites.flatMap(({ entry }) => {
-          const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
-          return hostname ? [hostname] : []
-        })
-        const overwriteAssets = overwriteHostnames.length > 0
-          ? await ensureWebsiteIconsWithin(overwriteHostnames, 1_500)
-          : new Map<string, PublicAsset>()
-        iconCount += overwriteHostnames.length
-        if (overwriteHostnames.length > 0) input.onProgress?.(iconCount, iconTotal, 'icons')
         for (const { entryId, entry } of input.overwrites) {
           try {
             if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
@@ -314,7 +302,7 @@ export function useImportEntries() {
               entryId: detail.id, revision: detail.currentRevision,
             })
             const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
-            const draft = toDraft(entry, hostname ? overwriteAssets.get(hostname) : undefined)
+            const draft = toDraft(entry, hostname ? publicAssets.get(hostname) : undefined)
             const nextSecret = toMemberSecret({
               label: draft.memberLabel, agentLabel: draft.agentLabel,
               type: draft.entryType, payload: draft.content, policy: draft.policy,

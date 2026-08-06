@@ -85,6 +85,38 @@ describe('ensureWebsiteIcons', () => {
     expect(result.has(pendingHostname)).toBe(false)
   })
 
+  it('polls during the explicit save window and returns an asset only after it is ready', async () => {
+    vi.useFakeTimers()
+    try {
+      const hostname = 'ready-after-acquisition.example.com'
+      let calls = 0
+      vi.stubGlobal('fetch', vi.fn(async () => {
+        calls += 1
+        return new Response(JSON.stringify({
+          items: [{
+            hostname,
+            asset: calls === 1 ? null : {
+              id: '44444444-4444-4444-8444-444444444444',
+              type: 'websiteIcon',
+              name: hostname,
+              url: 'https://assets.palladin.io/published/website-icon/ready.png',
+              revision: 1,
+            },
+          }],
+        }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }))
+
+      const pending = ensureWebsiteIconsWithin([hostname], 2_000)
+      await vi.advanceTimersByTimeAsync(1_000)
+      const result = await pending
+
+      expect(calls).toBe(2)
+      expect(result.get(hostname)?.id).toBe('44444444-4444-4444-8444-444444444444')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('preserves a successful reservation page while a sibling page is still pending', async () => {
     const hostnames = Array.from(
       { length: 501 },

@@ -148,7 +148,7 @@ describe('useImportEntries', () => {
     expect(result.current.data).toEqual({ importedCount: 120, updatedCount: 0, failed: [] })
   })
 
-  it('persists an encrypted website reference without blocking import on icon acquisition', async () => {
+  it('persists an encrypted website reference only after the catalog returns a ready asset', async () => {
     const { wrapper } = makeWrapper()
     const { result } = renderHook(() => useImportEntries(), { wrapper })
 
@@ -163,7 +163,25 @@ describe('useImportEntries', () => {
     expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
       iconReference: 'public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2Fgithub.com.png',
     }))
-    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith(['github.com'], 1_500)
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith(['github.com'], 15_000)
+  })
+
+  it('omits the website reference when the catalog does not return a ready asset', async () => {
+    ensureWebsiteIconsMock.mockResolvedValueOnce(new Map())
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useImportEntries(), { wrapper })
+
+    result.current.mutate({
+      vaultId: 'vault-1',
+      format: 'generic-csv',
+      creates: [{ ...credential('Missing icon'), url: 'https://no-icon.example.com/login' }],
+      overwrites: [],
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
+      iconReference: undefined,
+    }))
   })
 
   it.each([
@@ -184,10 +202,10 @@ describe('useImportEntries', () => {
     expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
       iconReference: `public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2F${hostname}.png`,
     }))
-    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith([hostname], 1_500)
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith([hostname], 15_000)
   })
 
-  it('schedules all 539 imported hostnames in bounded catalog pages while saving 50-entry chunks', async () => {
+  it('resolves all imported hostnames in one catalog phase while saving 50-entry chunks', async () => {
     const { wrapper } = makeWrapper()
     const { result } = renderHook(() => useImportEntries(), { wrapper })
     const creates = Array.from({ length: 539 }, (_, index) => ({
@@ -197,10 +215,10 @@ describe('useImportEntries', () => {
     result.current.mutate({ vaultId: 'vault-1', format: 'generic-csv', creates, overwrites: [] })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(ensureWebsiteIconsMock).toHaveBeenCalledTimes(11)
-    expect(ensureWebsiteIconsMock.mock.calls[0][0]).toHaveLength(50)
-    expect(ensureWebsiteIconsMock.mock.calls[10][0]).toHaveLength(39)
-    expect(ensureWebsiteIconsMock.mock.calls[10][0]).toContain('app-538.example.com')
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledTimes(1)
+    expect(ensureWebsiteIconsMock.mock.calls[0][0]).toHaveLength(539)
+    expect(ensureWebsiteIconsMock.mock.calls[0][0]).toContain('app-538.example.com')
+    expect(ensureWebsiteIconsMock.mock.calls[0][1]).toBe(15_000)
     expect(importEntriesMock).toHaveBeenCalledTimes(11)
   })
 
