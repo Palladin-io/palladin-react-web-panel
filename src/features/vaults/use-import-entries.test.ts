@@ -6,11 +6,12 @@ import { useAuthStore } from '../auth'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from './types'
 import type { ParsedEntry } from './import'
 import { useImportEntries } from './use-import-entries'
+import { VaultLockedError } from './use-create-entry'
 import { entriesQueryKey } from './use-entries'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 import { useMemberSyncStore } from './sync/member-sync-store'
 
-const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock, challengesMock, encryptedVaultMock, toMemberSecretMock, ensureWebsiteIconsMock } = vi.hoisted(() => ({
+const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock, challengesMock, encryptedVaultMock, toMemberSecretMock, ensureWebsiteIconsMock, openVaultKeyMock } = vi.hoisted(() => ({
   importEntriesMock: vi.fn(async (_vaultId: string, body: { entries: unknown[] }) => ({
     importedCount: body.entries.length,
     entryIds: body.entries.map((_, i) => `e${i}`),
@@ -43,6 +44,7 @@ const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock, c
       revision: 1, url: `https://assets.palladin.io/${hostname}.png`,
     }]))
   }),
+  openVaultKeyMock: vi.fn(async () => new Uint8Array(32)),
 }))
 
 vi.mock('../../shared/api/public-assets-api', () => ({
@@ -76,7 +78,7 @@ vi.mock('./sync/member-sync-api', () => ({
 }))
 
 vi.mock('../../shared/crypto/vault-protocol', () => ({
-  openMemberVaultKey: vi.fn(async () => new Uint8Array(32)),
+  openMemberVaultKey: openVaultKeyMock,
   openVaultDerivedEnvelope: vi.fn(async () => new Uint8Array(32)),
 }))
 vi.mock('../../shared/crypto/entry-draft', async (importOriginal) => ({
@@ -127,6 +129,7 @@ describe('useImportEntries', () => {
     encryptedVaultMock.mockClear()
     toMemberSecretMock.mockClear()
     ensureWebsiteIconsMock.mockClear()
+    openVaultKeyMock.mockClear()
     encryptedVaultMock.mockResolvedValue({
       id: 'vault-1', memberKeyGeneration: 1,
       currentKeyEpoch: { vaultKeyVersion: 1, vdkVersion: 1 },
@@ -259,6 +262,31 @@ describe('useImportEntries', () => {
     expect(onProgress).toHaveBeenCalledWith(1, 2, 'icons')
     expect(onProgress).toHaveBeenCalledWith(2, 2, 'icons')
     expect(onProgress).toHaveBeenCalledWith(1, 2, 'encrypt')
+  })
+
+  it('does not open Vault key material while icon preparation is pending', async () => {
+    let finishIcons!: (assets: Map<string, never>) => void
+    ensureWebsiteIconsMock.mockImplementationOnce(() => new Promise((resolve) => {
+      finishIcons = resolve
+    }))
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useImportEntries(), { wrapper })
+
+    result.current.mutate({
+      vaultId: 'vault-1',
+      format: 'generic-csv',
+      creates: [{ ...credential('GitHub'), url: 'https://github.com/login' }],
+      overwrites: [],
+    })
+
+    await waitFor(() => expect(ensureWebsiteIconsMock).toHaveBeenCalled())
+    expect(openVaultKeyMock).not.toHaveBeenCalled()
+    useAuthStore.setState({ privateKey: undefined })
+    finishIcons(new Map())
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toBeInstanceOf(VaultLockedError)
+    expect(openVaultKeyMock).not.toHaveBeenCalled()
   })
 
   it('sends overwrites as individual updates and invalidates list keys', async () => {
