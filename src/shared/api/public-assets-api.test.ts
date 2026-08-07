@@ -37,6 +37,7 @@ describe('ensureWebsiteIcons', () => {
       return new Response(JSON.stringify({
         items: body.hostnames.map((hostname) => ({
           hostname,
+          status: 'ready',
           asset: {
             id: '11111111-1111-4111-8111-111111111111',
             type: 'websiteIcon',
@@ -66,6 +67,7 @@ describe('ensureWebsiteIcons', () => {
       return new Response(JSON.stringify({
         items: body.hostnames.map((hostname) => ({
           hostname,
+          status: 'ready',
           asset: {
             id: '22222222-2222-4222-8222-222222222222',
             type: 'websiteIcon',
@@ -85,6 +87,105 @@ describe('ensureWebsiteIcons', () => {
     expect(result.has(pendingHostname)).toBe(false)
   })
 
+  it('polls during the explicit save window and returns an asset only after it is ready', async () => {
+    vi.useFakeTimers()
+    try {
+      const hostname = 'ready-after-acquisition.example.com'
+      let calls = 0
+      vi.stubGlobal('fetch', vi.fn(async () => {
+        calls += 1
+        return new Response(JSON.stringify({
+          items: [{
+            hostname,
+            status: calls === 1 ? 'pending' : 'ready',
+            asset: calls === 1 ? null : {
+              id: '44444444-4444-4444-8444-444444444444',
+              type: 'websiteIcon',
+              name: hostname,
+              url: 'https://assets.palladin.io/published/website-icon/ready.png',
+              revision: 1,
+            },
+          }],
+        }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }))
+
+      const pending = ensureWebsiteIconsWithin([hostname], 2_000)
+      await vi.advanceTimersByTimeAsync(1_000)
+      const result = await pending
+
+      expect(calls).toBe(2)
+      expect(result.get(hostname)?.id).toBe('44444444-4444-4444-8444-444444444444')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reports ready icon progress during the bounded wait', async () => {
+    const hostname = 'progress.example.com'
+    const onProgress = vi.fn()
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      items: [{
+        hostname,
+        status: 'ready',
+        asset: {
+          id: '55555555-5555-4555-8555-555555555555',
+          type: 'websiteIcon',
+          name: hostname,
+          url: 'https://assets.palladin.io/published/website-icon/progress.png',
+          revision: 1,
+        },
+      }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })))
+
+    await ensureWebsiteIconsWithin([hostname], 2_000, onProgress)
+
+    expect(onProgress).toHaveBeenNthCalledWith(1, 0, 1)
+    expect(onProgress).toHaveBeenLastCalledWith(1, 1)
+  })
+
+  it('counts failed icons as completed and stops polling them', async () => {
+    const hostname = 'no-icon.example.com'
+    const onProgress = vi.fn()
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      items: [{ hostname, status: 'failed', asset: null }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await ensureWebsiteIconsWithin([hostname], 15_000, onProgress)
+
+    expect(result).toEqual(new Map())
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(onProgress).toHaveBeenLastCalledWith(1, 1)
+  })
+
+  it('revalidates a previously failed icon during a later preparation attempt', async () => {
+    const hostname = 'available-after-failure.example.com'
+    let calls = 0
+    const fetchMock = vi.fn(async () => {
+      calls += 1
+      return new Response(JSON.stringify({
+        items: [{
+          hostname,
+          status: calls === 1 ? 'failed' : 'ready',
+          asset: calls === 1 ? null : {
+            id: '66666666-6666-4666-8666-666666666666',
+            type: 'websiteIcon',
+            name: hostname,
+            url: 'https://assets.palladin.io/published/website-icon/recovered.png',
+            revision: 1,
+          },
+        }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    expect(await ensureWebsiteIconsWithin([hostname], 2_000)).toEqual(new Map())
+    const recovered = await ensureWebsiteIconsWithin([hostname], 2_000)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(recovered.get(hostname)?.id).toBe('66666666-6666-4666-8666-666666666666')
+  })
+
   it('preserves a successful reservation page while a sibling page is still pending', async () => {
     const hostnames = Array.from(
       { length: 501 },
@@ -99,6 +200,7 @@ describe('ensureWebsiteIcons', () => {
       return new Response(JSON.stringify({
         items: body.hostnames.map((hostname) => ({
           hostname,
+          status: 'ready',
           asset: {
             id: '33333333-3333-4333-8333-333333333333',
             type: 'websiteIcon',
@@ -122,7 +224,7 @@ describe('ensureWebsiteIcons', () => {
       const body = await request.clone().json() as { hostnames: string[] }
       sizes.push(body.hostnames.length)
       return new Response(JSON.stringify({
-        items: body.hostnames.map((hostname) => ({ hostname, asset: null })),
+        items: body.hostnames.map((hostname) => ({ hostname, status: 'pending', asset: null })),
       }), { status: 200, headers: { 'content-type': 'application/json' } })
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -139,7 +241,7 @@ describe('ensureWebsiteIcons', () => {
       const body = await request.clone().json() as { hostnames: string[] }
       sizes.push(body.hostnames.length)
       return new Response(JSON.stringify({
-        items: body.hostnames.map((hostname) => ({ hostname, asset: null })),
+        items: body.hostnames.map((hostname) => ({ hostname, status: 'pending', asset: null })),
       }), { status: 200, headers: { 'content-type': 'application/json' } })
     }))
 

@@ -14,11 +14,17 @@ export const publicAssetSchema = z.object({
 }).strict()
 
 const searchResponseSchema = z.object({ items: z.array(publicAssetSchema) }).strict()
+const websiteIconEnsureStatusSchema = z.enum(['pending', 'ready', 'failed'])
 const ensureResponseSchema = z.object({
   items: z.array(z.object({
     hostname: z.string().min(1).max(253),
+    status: websiteIconEnsureStatusSchema,
     asset: publicAssetSchema.nullable(),
-  }).strict()),
+  }).strict().superRefine(({ status, asset }, ctx) => {
+    if ((status === 'ready') !== (asset !== null)) {
+      ctx.addIssue({ code: 'custom', message: 'Ready website icons must include exactly one published asset' })
+    }
+  })),
 }).strict()
 const byIdsResponseSchema = z.object({ items: z.array(publicAssetSchema) }).strict()
 
@@ -26,8 +32,10 @@ export type PublicAsset = z.infer<typeof publicAssetSchema>
 
 const assetCache = new Map<string, PublicAsset>()
 const websiteAssetCache = new Map<string, PublicAsset>()
+const websiteAssetStatusCache = new Map<string, z.infer<typeof websiteIconEnsureStatusSchema>>()
 const cacheListeners = new Set<() => void>()
 let cacheRevision = 0
+const WEBSITE_ICON_POLL_INTERVAL_MS = 1_000
 
 function notifyCacheChanged(): void {
   cacheRevision += 1
@@ -72,7 +80,8 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
     const asset = websiteAssetCache.get(hostname)
     return asset ? [[hostname, asset] as const] : []
   }))
-  const missing = unique.filter((hostname) => !result.has(hostname))
+  const missing = unique.filter((hostname) =>
+    !result.has(hostname) && websiteAssetStatusCache.get(hostname) !== 'failed')
   if (missing.length === 0) return result
   const batches = Array.from({ length: Math.ceil(missing.length / 500) }, (_, index) =>
     missing.slice(index * 500, (index + 1) * 500))
@@ -90,7 +99,8 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
         }).json<unknown>()
         const items = ensureResponseSchema.parse(response).items
         const changed = remember(items.flatMap(({ asset }) => asset ? [asset] : []))
-        for (const { hostname, asset } of items) {
+        for (const { hostname, status, asset } of items) {
+          websiteAssetStatusCache.set(hostname, status)
           if (asset) {
             websiteAssetCache.set(hostname, asset)
             result.set(hostname, asset)
@@ -113,35 +123,67 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
   return result
 }
 
-/**
- * Best-effort reservation for save paths. The catalog request keeps running
- * and warming the cache, but presentation metadata never holds a credential
- * save hostage to the transport's full timeout.
- */
+/** Wait only during an explicit save flow and return published assets only. */
 export async function ensureWebsiteIconsWithin(
   hostnames: string[],
   timeoutMs: number,
+  onProgress?: (completed: number, total: number) => void,
 ): Promise<Map<string, PublicAsset>> {
+  const unique = [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
+  // `failed` is terminal only for one bounded preparation attempt. Keeping it
+  // forever would make a browser tab ignore an icon that was uploaded or
+  // successfully reacquired later. Revalidate it once when a new explicit
+  // save/import/form preparation starts; a failed response still stops the
+  // current polling loop immediately.
+  for (const hostname of unique) {
+    if (websiteAssetStatusCache.get(hostname) === 'failed') {
+      websiteAssetStatusCache.delete(hostname)
+    }
+  }
   const cachedResult = (): Map<string, PublicAsset> => new Map(
-    [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
+    unique
       .flatMap((hostname) => {
         const asset = websiteAssetCache.get(hostname)
         return asset ? [[hostname, asset] as const] : []
       }),
   )
-  let timeout: ReturnType<typeof setTimeout> | undefined
-  try {
-    return await Promise.race([
-      ensureWebsiteIcons(hostnames),
-      new Promise<Map<string, PublicAsset>>((resolve) => {
-        timeout = setTimeout(() => resolve(cachedResult()), timeoutMs)
-      }),
-    ])
-  } catch {
-    return cachedResult()
-  } finally {
-    if (timeout !== undefined) clearTimeout(timeout)
+  const completedCount = () => unique.filter((hostname) => {
+    const status = websiteAssetStatusCache.get(hostname)
+    return status === 'ready' || status === 'failed'
+  }).length
+  const reportProgress = () => onProgress?.(completedCount(), unique.length)
+  reportProgress()
+  if (unique.length === 0 || timeoutMs <= 0) return cachedResult()
+
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const unresolved = unique.filter((hostname) => {
+      const status = websiteAssetStatusCache.get(hostname)
+      return status !== 'ready' && status !== 'failed'
+    })
+    if (unresolved.length === 0) return cachedResult()
+    const remaining = deadline - Date.now()
+    let requestTimeout: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        ensureWebsiteIcons(unresolved),
+        new Promise<void>((resolve) => {
+          requestTimeout = setTimeout(resolve, remaining)
+        }),
+      ])
+      reportProgress()
+    } catch {
+      // Catalog enrichment is best-effort. The save continues without URLs
+      // for assets that did not reach Ready before the deadline.
+    } finally {
+      if (requestTimeout !== undefined) clearTimeout(requestTimeout)
+    }
+    if (completedCount() === unique.length) return cachedResult()
+    const waitMs = Math.min(WEBSITE_ICON_POLL_INTERVAL_MS, deadline - Date.now())
+    if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs))
   }
+  reportProgress()
+  return cachedResult()
 }
 
 /** Accept only the configured immutable public-asset namespace for rendering. */

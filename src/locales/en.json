@@ -1204,7 +1204,7 @@
   "vault.export.progress": "Exporting {{done}} of {{total}} entries…",
   "vault.import.encrypting": "Encrypting {{done}} of {{total}}…",
   "vault.import.saving": "Saving {{done}} of {{total}}…",
-  "vault.import.icons": "Scheduling icons {{done}} of {{total}}…",
+  "vault.import.icons": "Preparing icons {{done}} of {{total}} (up to 15 seconds)…",
   "vault.import.failedTitle": "{{count}} entries were rejected by the server:",
   "vault.entries.iconFromUrl": "Website icon",
   "audit.event.vaultExported": "Vault exported",

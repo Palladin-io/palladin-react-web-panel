@@ -11,7 +11,6 @@ import { IconColorBrowser } from './vault-icon-browser'
 import { VAULT_ICON_ALL, VAULT_ICON_COLORS } from './vault-presentation'
 import { trustedPublicAssetUrl } from '../../../shared/api/public-assets-api'
 import { parsePublicAssetIconReference, publicAssetIconReference } from '../../../shared/crypto/vault-plaintext'
-import { RetryingPublicAssetImage } from './entry-icon'
 
 export interface EntryIconPickerProps {
   value: string | undefined
@@ -51,6 +50,7 @@ export function EntryIconPicker({
   const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [showBrowser, setShowBrowser] = useState(false)
+  const [failedPublicAssetUrl, setFailedPublicAssetUrl] = useState<string | null>(null)
 
   const iconColors = { ...VAULT_ICON_COLORS, ...ENTRY_ICON_COLORS }
 
@@ -132,14 +132,17 @@ export function EntryIconPicker({
               border: `2px solid ${selectedColor}`,
             }}
           >
-            {publicAssetUrl ? (
-              <RetryingPublicAssetImage
-                key={publicAssetUrl}
+            {publicAssetUrl && failedPublicAssetUrl !== publicAssetUrl ? (
+              <img
                 src={publicAssetUrl}
-                fallback={<Icon name="image" size={16} color={selectedColor} />}
+                alt=""
+                onError={() => setFailedPublicAssetUrl(publicAssetUrl)}
+                className="h-5 w-5 rounded object-contain"
               />
             ) : (
-              <img src={value} alt="" className="h-5 w-5 rounded object-contain" />
+              publicAssetUrl
+                ? <Icon name="image" size={16} color={selectedColor} />
+                : <img src={value} alt="" className="h-5 w-5 rounded object-contain" />
             )}
           </button>
         )}
