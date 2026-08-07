@@ -49,7 +49,6 @@ import { FormSelect } from '../../../shared/components/form-select'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { DiscoveryToggle, discoveryAction } from './discovery-toggle'
 import {
-  ensureWebsiteIcons,
   ensureWebsiteIconsWithin,
   normalizePublicHostname,
 } from '../../../shared/api/public-assets-api'
@@ -145,7 +144,10 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     if (!hostname) return
     let active = true
     const timer = window.setTimeout(() => {
-      void ensureWebsiteIcons([hostname]).then((assets) => {
+      // A new catalog record is initially Pending. Keep this URL-specific
+      // preview bounded, but allow acquisition to reach Ready instead of
+      // permanently leaving the type glyph after a single ensure response.
+      void ensureWebsiteIconsWithin([hostname], 5_000).then((assets) => {
         const asset = assets.get(hostname)
         if (active && asset) {
           const reference = publicAssetIconReference({ assetId: asset.id, revision: asset.revision, url: asset.url })

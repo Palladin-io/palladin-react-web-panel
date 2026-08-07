@@ -198,7 +198,7 @@ describe('CreateEntryModal', () => {
     await user.type(screen.getByLabelText(/^label$/i), 'Changed host')
     await user.type(screen.getByLabelText(/^value$/i), 'secret-value')
     await user.type(screen.getByLabelText(/^url$/i), 'https://first.example.com')
-    await waitFor(() => expect(ensureWebsiteIconsMock).toHaveBeenCalledWith(['first.example.com']))
+    await waitFor(() => expect(ensureWebsiteIconsWithinMock).toHaveBeenCalledWith(['first.example.com'], 5_000))
 
     ensureWebsiteIconsWithinMock.mockResolvedValueOnce(new Map())
     await user.clear(screen.getByLabelText(/^url$/i))
@@ -207,6 +207,18 @@ describe('CreateEntryModal', () => {
 
     expect(mutateMock).toHaveBeenCalledTimes(1)
     expect(mutateMock.mock.calls[0][0].iconReference).not.toContain('public-asset:')
+  })
+
+  it('shows a ready website icon in the form before saving', async () => {
+    const user = userEvent.setup()
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.type(screen.getByLabelText(/^url$/i), 'https://stripe.com')
+
+    await waitFor(() => {
+      expect(ensureWebsiteIconsWithinMock).toHaveBeenCalledWith(['stripe.com'], 5_000)
+      expect(document.querySelector('img[src="https://assets.palladin.io/stripe.com.png"]')).not.toBeNull()
+    })
   })
 
   it('submits Credential plaintext only to the local projection builder', async () => {

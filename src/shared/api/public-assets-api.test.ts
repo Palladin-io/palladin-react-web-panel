@@ -158,6 +158,34 @@ describe('ensureWebsiteIcons', () => {
     expect(onProgress).toHaveBeenLastCalledWith(1, 1)
   })
 
+  it('revalidates a previously failed icon during a later preparation attempt', async () => {
+    const hostname = 'available-after-failure.example.com'
+    let calls = 0
+    const fetchMock = vi.fn(async () => {
+      calls += 1
+      return new Response(JSON.stringify({
+        items: [{
+          hostname,
+          status: calls === 1 ? 'failed' : 'ready',
+          asset: calls === 1 ? null : {
+            id: '66666666-6666-4666-8666-666666666666',
+            type: 'websiteIcon',
+            name: hostname,
+            url: 'https://assets.palladin.io/published/website-icon/recovered.png',
+            revision: 1,
+          },
+        }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    expect(await ensureWebsiteIconsWithin([hostname], 2_000)).toEqual(new Map())
+    const recovered = await ensureWebsiteIconsWithin([hostname], 2_000)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(recovered.get(hostname)?.id).toBe('66666666-6666-4666-8666-666666666666')
+  })
+
   it('preserves a successful reservation page while a sibling page is still pending', async () => {
     const hostnames = Array.from(
       { length: 501 },

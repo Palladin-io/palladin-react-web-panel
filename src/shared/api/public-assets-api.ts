@@ -130,6 +130,16 @@ export async function ensureWebsiteIconsWithin(
   onProgress?: (completed: number, total: number) => void,
 ): Promise<Map<string, PublicAsset>> {
   const unique = [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
+  // `failed` is terminal only for one bounded preparation attempt. Keeping it
+  // forever would make a browser tab ignore an icon that was uploaded or
+  // successfully reacquired later. Revalidate it once when a new explicit
+  // save/import/form preparation starts; a failed response still stops the
+  // current polling loop immediately.
+  for (const hostname of unique) {
+    if (websiteAssetStatusCache.get(hostname) === 'failed') {
+      websiteAssetStatusCache.delete(hostname)
+    }
+  }
   const cachedResult = (): Map<string, PublicAsset> => new Map(
     unique
       .flatMap((hostname) => {
