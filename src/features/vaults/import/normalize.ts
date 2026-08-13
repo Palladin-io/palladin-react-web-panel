@@ -85,7 +85,8 @@ export function normalizeEntry(raw: RawEntry): ParsedEntry | null {
     const expiryMonth = clean(raw.expiryMonth)
     const expiryYear = clean(raw.expiryYear)
     const securityCode = clean(raw.securityCode)
-    if (!cardholderName || !cardNumber || !/^\d{12,19}$/.test(cardNumber)
+    if (!cardholderName || cardholderName.length > 256
+      || !cardNumber || !/^\d{12,19}$/.test(cardNumber)
       || !expiryMonth || !/^(0[1-9]|1[0-2])$/.test(expiryMonth)
       || !expiryYear || !/^\d{4}$/.test(expiryYear)
       || !securityCode || !/^\d{3,4}$/.test(securityCode)) return null
