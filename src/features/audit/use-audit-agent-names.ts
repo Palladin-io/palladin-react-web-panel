@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { shortenKey } from '../../shared/lib/shorten-key'
-import { useAgentNames } from '../agents/use-agents'
+import { useAgentNames } from '../agents'
 import { useTeamMembers } from '../teams/use-team-members'
 import type { AuditLogItem } from './api/audit-api'
 import type { AuditFilterOption } from './components/audit-filter-bar'

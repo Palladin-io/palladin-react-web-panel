@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -31,7 +31,6 @@ import {
 } from './agent-presentation'
 import { AgentStatusBadge } from './agent-list-panel'
 import { ApproveAgentDialog } from './approve-agent-dialog'
-import { AgentLogsTab } from './agent-logs-tab'
 
 // ---------------------------------------------------------------------------
 // Tab types
@@ -51,13 +50,14 @@ const AGENT_TABS: { id: AgentDetailTab; labelKey: string; requiresActive?: boole
 
 export interface AgentDetailProps {
   agent: Agent
+  renderLogs?: (agentId: string) => ReactNode
 }
 
 /**
  * Right-side detail panel of the Agents split view. Mirrors the vault-entry
  * detail pattern: flat identity header → tab bar → per-tab content card.
  */
-export function AgentDetail({ agent }: AgentDetailProps) {
+export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
   const { t } = useTranslation()
   const { canManage } = useAgentPermissions()
   const approve = useApproveAgent()
@@ -336,7 +336,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
 
         {/* ── Logs tab ────────────────────────────────────────────────────── */}
         {activeTab === 'logs' ? (
-          <AgentLogsTab agentId={agent.agentId} />
+          renderLogs?.(agent.agentId)
         ) : null}
       </div>
 

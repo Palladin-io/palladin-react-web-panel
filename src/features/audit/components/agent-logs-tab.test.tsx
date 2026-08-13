@@ -1,16 +1,16 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
-import type { AuditLogItem } from '../../audit'
-import { useAuditAgentNames } from '../../audit/use-audit-agent-names'
-import { useOrgAuditLogs } from '../../audit/use-org-audit-logs'
-import { useOrgAuditResourceNames } from '../../audit/use-org-audit-resource-names'
 import { useAuthStore } from '../../auth'
+import type { AuditLogItem } from '../api/audit-api'
+import { useAuditAgentNames } from '../use-audit-agent-names'
+import { useOrgAuditLogs } from '../use-org-audit-logs'
+import { useOrgAuditResourceNames } from '../use-org-audit-resource-names'
 import { AgentLogsTab } from './agent-logs-tab'
 
-vi.mock('../../audit/use-audit-agent-names')
-vi.mock('../../audit/use-org-audit-logs')
-vi.mock('../../audit/use-org-audit-resource-names')
+vi.mock('../use-audit-agent-names')
+vi.mock('../use-org-audit-logs')
+vi.mock('../use-org-audit-resource-names')
 vi.mock('../../auth', () => ({ useAuthStore: vi.fn() }))
 
 const mockLogs = vi.mocked(useOrgAuditLogs)
@@ -125,6 +125,24 @@ describe('AgentLogsTab', () => {
     expect(screen.queryByText('GitHub Token')).not.toBeInTheDocument()
     expect(mockLogs).toHaveBeenLastCalledWith(
       expect.not.objectContaining({ search: expect.anything() }),
+      true,
+    )
+  })
+
+  it('resets local filters when route composition selects a different agent', () => {
+    mockLogs.mockReturnValue(logsReturn([row()]))
+    const { rerender } = render(<AgentLogsTab key="agent-1" agentId="agent-1" />)
+
+    fireEvent.change(screen.getByPlaceholderText('Search logs…'), {
+      target: { value: 'stripe' },
+    })
+    expect(screen.getByPlaceholderText('Search logs…')).toHaveValue('stripe')
+
+    rerender(<AgentLogsTab key="agent-2" agentId="agent-2" />)
+
+    expect(screen.getByPlaceholderText('Search logs…')).toHaveValue('')
+    expect(mockLogs).toHaveBeenLastCalledWith(
+      expect.objectContaining({ agentId: 'agent-2' }),
       true,
     )
   })

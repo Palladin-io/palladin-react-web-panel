@@ -15,7 +15,7 @@ A paginated log list with a filter bar above it. Filtering is **server-side** (e
 - CSV export is stubbed and disabled until the backend async-export job is available.
 
 ## Cross-feature deps
-Consumes the in-memory Vault Member index for local presentation/filter labels. Its shared components and org-query hooks are consumed by the Agent Detail Logs tab.
+Consumes the in-memory Vault Member index for local presentation/filter labels. It exports the Agent Logs panel for app-level route composition, so Agents does not depend directly on Audit.
 
 ## Audit Log color taxonomy
 

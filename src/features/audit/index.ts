@@ -1,6 +1,7 @@
 export { AuditLogEntry } from './components/audit-log-entry'
 export { AuditLogLegend } from './components/audit-log-legend'
 export { AuditLogList } from './components/audit-log-list'
+export { AgentLogsTab } from './components/agent-logs-tab'
 export {
   AuditFilterBar,
   type AuditFilterState,

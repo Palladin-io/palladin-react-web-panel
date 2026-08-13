@@ -3,16 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
 import { useAuthStore } from '../../auth'
-import {
-  AuditFilterBar,
-  AuditLogList,
-  csvParam,
-  filterAuditLogs,
-  useAuditAgentNames,
-  useOrgAuditLogs,
-  useOrgAuditResourceNames,
-  type AuditFilterState,
-} from '../../audit'
+import { filterAuditLogs } from '../audit-log-filter'
+import { csvParam } from '../filter-params'
+import { useAuditAgentNames } from '../use-audit-agent-names'
+import { useOrgAuditLogs } from '../use-org-audit-logs'
+import { useOrgAuditResourceNames } from '../use-org-audit-resource-names'
+import { AuditFilterBar, type AuditFilterState } from './audit-filter-bar'
+import { AuditLogList } from './audit-log-list'
 
 export interface AgentLogsTabProps {
   agentId: string
