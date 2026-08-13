@@ -56,6 +56,7 @@ function displayIcon(reference: string | undefined): string | undefined {
   if (!reference) return undefined
   if (reference.startsWith('builtin:')) return reference.slice('builtin:'.length) || undefined
   if (reference.startsWith('public-asset:')) return reference
+  if (reference.startsWith('vault-asset:')) return reference
   return undefined
 }
 

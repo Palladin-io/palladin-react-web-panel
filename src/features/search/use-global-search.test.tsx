@@ -32,6 +32,9 @@ function publishVault() {
       assetId: string
       revision: number
       url: string
+    } | {
+      kind: 'encryptedAsset'
+      assetId: string
     } = null,
   ) => ({
     schema: 'palladin.member-index.v1' as const,
@@ -71,6 +74,14 @@ function publishVault() {
           currentRevision: '1', memberIndexRevision: '1', currentKeyVersion: 1,
           payload: index('Deploy Key', 'github', 'key', { kind: 'glyph', value: 'vpn_key' }), corrupt: false,
         }],
+        ['entry-custom', {
+          entryId: 'entry-custom', state: 'active', updatedAt: '2026-07-26T10:00:00Z',
+          currentRevision: '3', memberIndexRevision: '3', currentKeyVersion: 1,
+          payload: index('Custom Portal', 'custom', 'credential', {
+            kind: 'encryptedAsset',
+            assetId: '33333333-3333-4333-8333-333333333333',
+          }), corrupt: false,
+        }],
         ['entry-corrupt', {
           entryId: 'entry-corrupt', state: 'active', updatedAt: '2026-07-26T14:00:00Z',
           currentRevision: '1', memberIndexRevision: '1', currentKeyVersion: 1,
@@ -109,6 +120,12 @@ describe('local global-search providers', () => {
         entryType: 'credential',
         icon: 'public-asset:11111111-1111-4111-8111-111111111111|2|https%3A%2F%2Fassets.palladin.io%2Fgithub.png',
         color: '#60A5FA',
+      }),
+    ])
+    expect(searchLocalVaults(vaults, 'custom')).toEqual([
+      expect.objectContaining({
+        type: 'entry', id: 'entry-custom', vaultId: 'vault-b',
+        icon: 'vault-asset:33333333-3333-4333-8333-333333333333',
       }),
     ])
     expect(searchLocalVaults(vaults, 'corrupt')).toEqual([])

@@ -12,6 +12,12 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 const captureMock = vi.fn()
 vi.mock('../../shared/lib/analytics', () => ({ analytics: { capture: (...args: unknown[]) => captureMock(...args) } }))
 
+const encryptedAssetUrlMock = vi.hoisted(() => vi.fn(() => ({ url: null as string | null, corrupt: false })))
+vi.mock('../vaults', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../vaults')>(),
+  useVaultEncryptedAssetUrl: (...args: unknown[]) => encryptedAssetUrlMock(...args),
+}))
+
 const searchState = vi.hoisted(() => ({
   data: [] as SearchResultItem[],
   local: [] as SearchResultItem[],
@@ -42,6 +48,8 @@ describe('GlobalSearchAutocomplete', () => {
     vi.useFakeTimers()
     navigateMock.mockReset()
     captureMock.mockReset()
+    encryptedAssetUrlMock.mockReset()
+    encryptedAssetUrlMock.mockReturnValue({ url: null, corrupt: false })
     Object.assign(searchState, {
       data: [], local: [], isRemoteLoading: false, isRemoteError: false,
       isLocked: false, isSyncing: false,
@@ -95,6 +103,36 @@ describe('GlobalSearchAutocomplete', () => {
     expect(container.querySelector('.mi')?.textContent).toBe('search')
     expect(Array.from(container.querySelectorAll('.mi')).some((icon) => icon.textContent === 'database')).toBe(true)
     expect(container.querySelector('img[src="https://assets.palladin.io/github.png"]')).toBeInTheDocument()
+  })
+
+  it('decrypts custom Vault and Entry icons with their authenticated scope', () => {
+    const vaultAssetId = '22222222-2222-4222-8222-222222222222'
+    const entryAssetId = '33333333-3333-4333-8333-333333333333'
+    encryptedAssetUrlMock.mockImplementation((_vaultId, assetId, entryId) => ({
+      url: assetId ? `blob:${entryId ?? 'vault'}-icon` : null,
+      corrupt: false,
+    }))
+    searchState.data = [
+      { type: 'vault', id: 'v1', name: 'Production', icon: `vault-asset:${vaultAssetId}` },
+      { ...entryResult, icon: `vault-asset:${entryAssetId}` },
+    ]
+    const { container } = render(<GlobalSearchAutocomplete placeholder="Search…" />)
+    typeQuery('git')
+
+    expect(container.querySelector('img[src="blob:vault-icon"]')).toBeInTheDocument()
+    expect(container.querySelector('img[src="blob:e1-icon"]')).toBeInTheDocument()
+    expect(encryptedAssetUrlMock).toHaveBeenCalledWith('v1', vaultAssetId, undefined)
+    expect(encryptedAssetUrlMock).toHaveBeenCalledWith('v9', entryAssetId, 'e1')
+  })
+
+  it('uses the canonical Vault icon color when metadata has no color', () => {
+    searchState.data = [{ type: 'vault', id: 'v1', name: 'Production' }]
+    const { container } = render(<GlobalSearchAutocomplete placeholder="Search…" />)
+    typeQuery('prod')
+
+    const shield = Array.from(container.querySelectorAll('.mi'))
+      .find((icon) => icon.textContent === 'shield')
+    expect(shield).toHaveStyle({ color: '#EB4747' })
   })
 
   it('keeps local results visible while the administrative provider is loading or unavailable', () => {
