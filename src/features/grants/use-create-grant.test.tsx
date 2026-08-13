@@ -20,7 +20,7 @@ vi.mock('./api/org-grants-api', async (original) => ({
 }))
 vi.mock('../vaults/api/vault-api', () => ({ getCanonicalEntry: mocks.getEntry }))
 vi.mock('../vaults/sync/member-sync-api', () => ({ getEncryptedVault: mocks.getVault }))
-vi.mock('../vaults/sync/member-sync-store', () => ({ useMemberSyncStore: {
+vi.mock('../../shared/stores/member-sync-store', () => ({ useMemberSyncStore: {
   getState: () => ({ vaults: new Map([['v1', mocks.vaultState]]) }),
 } }))
 vi.mock('../../shared/crypto/vault-protocol', () => ({ openMemberVaultKey: mocks.openVaultKey }))

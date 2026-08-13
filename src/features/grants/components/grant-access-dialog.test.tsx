@@ -41,7 +41,7 @@ const toastSuccess = vi.hoisted(() => vi.fn())
 vi.mock('sonner', () => ({ toast: { error: toastError, success: toastSuccess } }))
 
 import { GrantAccessDialog } from './grant-access-dialog'
-import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
+import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
 
 describe('GrantAccessDialog (agent-for-vault)', () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
+import { useMemberSyncStore } from '../../shared/stores/member-sync-store'
 import { memberIndexSearchValues, presentationIconReference } from '../../shared/crypto/vault-plaintext'
 import { normalizeEntryType } from '../../shared/types/entry-type'
 
