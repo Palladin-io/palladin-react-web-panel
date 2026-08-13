@@ -25,6 +25,7 @@ vi.mock('../../shared/crypto/entry-draft', () => ({ toMemberSecret: mocks.toSecr
 vi.mock('../../shared/crypto/vault-plaintext', () => ({ projectAgentDiscovery: vi.fn(() => null) }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: mocks.produce,
+  grantMethodsForSecret: vi.fn((_secret: unknown, methods: number) => methods),
   listGrantableFields: vi.fn(() => [{ id: 'value', label: 'value', access: 'onGrantValue' }]),
 }))
 vi.mock('./api/vault-api', () => ({ updateCanonicalEntry: mocks.update }))

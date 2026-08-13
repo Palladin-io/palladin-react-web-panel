@@ -7,7 +7,7 @@ import { encodeGrantPayload, projectGrantPayload, type MemberSecretV1 } from './
 import { sealVaultEnvelope, toEnvelopeDescriptor, type EnvelopeDescriptorContract } from './vault-envelope'
 import { computeVaultKeyFingerprint, sealKeyToX25519Recipient, VAULT_KEY_KIND, WRAPPER_PURPOSE, X25519_SEALED_BOX_V1 } from './x25519-wrapper'
 
-export const GRANT_DELIVERY_POLICY = { standard: 0, execOnly: 1 } as const
+export const GRANT_DELIVERY_POLICY = { standard: 0, execOnly: 1, injectOnly: 2 } as const
 
 export interface BuildGrantEnvelopeInput {
   organizationId: string; vaultId: string; entryId: string; grantId: string; agentId: string
@@ -67,7 +67,9 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   const expiresAt = instant(input.expiresAt)
   const deliveryPolicy = input.secret.entryType === 'script'
     ? GRANT_DELIVERY_POLICY.execOnly
-    : GRANT_DELIVERY_POLICY.standard
+    : input.secret.entryType === 'creditCard'
+      ? GRANT_DELIVERY_POLICY.injectOnly
+      : GRANT_DELIVERY_POLICY.standard
   const binding = {
     entryRevision: input.entryRevision, wrapperSuiteId: X25519_SEALED_BOX_V1,
     recipientKeyVersion: input.recipientKeyVersion, recipientKeyFingerprint: toBase64Url(fingerprint),

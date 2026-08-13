@@ -94,6 +94,7 @@ vi.mock('../../shared/crypto/entry-protocol', () => ({
 }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: grantEnvelopeMock,
+  grantMethodsForSecret: vi.fn((_secret: unknown, methods: number) => methods),
   listGrantableFields: vi.fn(() => [{ id: 'credential.username' }]),
 }))
 vi.mock('../../shared/crypto/vault-plaintext', async (importOriginal) => ({
@@ -154,6 +155,7 @@ describe('useImportEntries', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(importEntriesMock).toHaveBeenCalledTimes(3)
     expect(importEntriesMock.mock.calls[0][1].entries).toHaveLength(50)
+    expect(importEntriesMock.mock.calls[0][1].entries[0]).not.toHaveProperty('entryType')
     expect(importEntriesMock.mock.calls[2][1].entries).toHaveLength(20)
     expect(result.current.data).toEqual({ importedCount: 120, updatedCount: 0, failed: [] })
   })

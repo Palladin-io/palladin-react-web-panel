@@ -24,7 +24,10 @@ vi.mock('../vaults/sync/member-sync-store', () => ({ useMemberSyncStore: {
 } }))
 vi.mock('../../shared/crypto/vault-protocol', () => ({ openMemberVaultKey: mocks.openVaultKey }))
 vi.mock('../../shared/crypto/entry-protocol', () => ({ openMemberSecret: mocks.decrypt }))
-vi.mock('../../shared/crypto/grant-protocol', () => ({ buildCanonicalGrantEnvelope: mocks.produce }))
+vi.mock('../../shared/crypto/grant-protocol', () => ({
+  buildCanonicalGrantEnvelope: mocks.produce,
+  grantMethodsForSecret: vi.fn((_secret: unknown, methods: number) => methods),
+}))
 vi.mock('../../shared/crypto/vault-plaintext', () => ({ listGrantableFieldIds: vi.fn(() => ['value']) }))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
 vi.mock('../auth', () => ({ useAuthStore: { getState: () => ({ privateKey: new Uint8Array(32) }) } }))

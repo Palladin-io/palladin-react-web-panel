@@ -312,7 +312,7 @@ export async function destroyCanonicalEntry(vaultId: string, entryId: string): P
 
 export function createEntry(
   vaultId: string,
-  payload: { entryId: string; entryType: number; grantEnvelopes: unknown[] } & CanonicalEntryEnvelopes,
+  payload: { entryId: string; grantEnvelopes: unknown[] } & CanonicalEntryEnvelopes,
 ): Promise<{ id: string; currentRevision: string }> {
   return api
     .post(`api/vaults/${vaultId}/entries`, { json: payload })
@@ -369,7 +369,6 @@ export async function deleteEntry(
  */
 export interface ImportEntryItem {
   entryId: string
-  entryType: number
   entryKey: CanonicalEntryEnvelopes['entryKey']
   memberIndex: CanonicalEntryEnvelopes['memberIndex']
   memberSecret: CanonicalEntryEnvelopes['memberSecret']

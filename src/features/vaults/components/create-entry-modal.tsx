@@ -81,11 +81,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const navigate = useNavigate()
   const create = useCreateEntry()
 
-  const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
-  const [color, setColor] = useState(defaultColorFor(ENTRY_TYPE_KEY))
+  const [type, setType] = useState<EntryType>(ENTRY_TYPE_CREDENTIAL)
+  const [color, setColor] = useState(defaultColorFor(ENTRY_TYPE_CREDENTIAL))
   // Pre-select the type's default glyph so a tile is always visibly chosen;
   // switching type follows along until the user picks a local icon.
-  const [icon, setIcon] = useState<string | undefined>(defaultIconFor(ENTRY_TYPE_KEY))
+  const [icon, setIcon] = useState<string | undefined>(defaultIconFor(ENTRY_TYPE_CREDENTIAL))
   const [iconFile, setIconFile] = useState<File | undefined>()
   const [label, setLabel] = useState('')
   const [labelError, setLabelError] = useState(false)
@@ -319,8 +319,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               }}
               disabled={isPending}
             >
-              <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
               <option value={String(ENTRY_TYPE_CREDENTIAL)}>{t('vault.entries.typeCredentialOption')}</option>
+              <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
               <option value={String(ENTRY_TYPE_SCRIPT)}>{t('vault.entries.typeScriptOption')}</option>
               <option value={String(ENTRY_TYPE_CREDIT_CARD)}>{t('vault.entries.typeCreditCardOption')}</option>
             </FormSelect>
