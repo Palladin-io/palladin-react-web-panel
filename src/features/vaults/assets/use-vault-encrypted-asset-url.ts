@@ -7,14 +7,21 @@ import { useAuthStore } from '../../auth'
 import { getEncryptedVault } from '../sync/member-sync-api'
 import { downloadEncryptedAsset } from './encrypted-asset-api'
 
-export function useVaultEncryptedAssetUrl(vaultId: string, assetId: string | null): {
+export function useVaultEncryptedAssetUrl(
+  vaultId: string,
+  assetId: string | null,
+  entryId?: string,
+): {
   url: string | null
   corrupt: boolean
 } {
   const privateKey = useAuthStore((state) => state.privateKey)
   const memberId = useAuthStore((state) => state.userId)
   const accessToken = useAuthStore((state) => state.accessToken)
-  const requestKey = assetId && memberId && accessToken && privateKey ? `${vaultId}:${assetId}:${memberId}` : null
+  const target = entryId ? 2 : 1
+  const requestKey = assetId && memberId && accessToken && privateKey
+    ? `${vaultId}:${assetId}:${entryId ?? ''}:${memberId}`
+    : null
   const [state, setState] = useState<{ requestKey: string; url: string | null; corrupt: boolean } | null>(null)
 
   useEffect(() => {
@@ -37,12 +44,15 @@ export function useVaultEncryptedAssetUrl(vaultId: string, assetId: string | nul
         const keyVersion = vault.currentKeyEpoch.vaultKeyVersion
         vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberPrivateKey)
         const remote = await downloadEncryptedAsset(vaultId, assetId, controller.signal)
-        if (remote.target !== 1 || remote.entryId !== undefined) throw new Error('Vault asset scope mismatch')
+        if (remote.target !== target || remote.entryId !== entryId) {
+          throw new Error('Encrypted presentation asset scope mismatch')
+        }
         const decrypted = await decryptPresentationAsset(remote.ciphertext, {
           organizationId,
           vaultId,
           assetId,
-          target: 1,
+          target,
+          ...(entryId ? { entryId } : {}),
           keyVersion,
           memberKeyGeneration: vault.memberKeyGeneration,
         }, vaultKey)
@@ -66,7 +76,7 @@ export function useVaultEncryptedAssetUrl(vaultId: string, assetId: string | nul
       wipe(memberPrivateKey)
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [accessToken, assetId, memberId, privateKey, requestKey, vaultId])
+  }, [accessToken, assetId, entryId, memberId, privateKey, requestKey, target, vaultId])
 
   return state?.requestKey === requestKey ? { url: state.url, corrupt: state.corrupt } : { url: null, corrupt: false }
 }
