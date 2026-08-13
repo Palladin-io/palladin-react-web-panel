@@ -99,6 +99,27 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     expect(input.policy).toHaveProperty('expiresAt')
   })
 
+  it('forces an inject-only method for a vault containing a credit card', async () => {
+    useMemberSyncStore.setState({
+      vaults: new Map([['v1', {
+        vaultId: 'v1', status: 'ready', failureKind: null, metadata: null, structure: {},
+        appliedThroughSequence: '0', entries: new Map([['card', {
+          state: 'active', corrupt: false, payload: { entryType: 'creditCard' },
+        }]]),
+      } as never]]),
+    })
+    getAgent.mockResolvedValue({ agentId: 'a1', publicKey: 'PUBKEY' })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(screen.getByRole('combobox', { name: 'Agent' }))
+    await user.click(screen.getByText('Deploy Bot'))
+    await user.click(screen.getByRole('button', { name: /^grant access$/i }))
+
+    await waitFor(() => expect(mutateMock).toHaveBeenCalled())
+    expect(mutateMock.mock.calls[0][0].methods).toEqual(['inject'])
+  })
+
   it('blocks submit when no subject is chosen', async () => {
     const user = userEvent.setup()
     renderDialog()

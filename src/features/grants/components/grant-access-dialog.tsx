@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -61,8 +61,12 @@ interface ResolvedSubject {
   constraintsUnavailable?: boolean
 }
 
-function targetMethodConstraints(vaultId: string, entryId?: string): Pick<ResolvedSubject, 'injectOnly' | 'incompatibleMethods' | 'constraintsUnavailable'> {
-  const vault = useMemberSyncStore.getState().vaults.get(vaultId)
+function targetMethodConstraints(
+  vaultId: string,
+  entryId?: string,
+  vaults = useMemberSyncStore.getState().vaults,
+): Pick<ResolvedSubject, 'injectOnly' | 'incompatibleMethods' | 'constraintsUnavailable'> {
+  const vault = vaults.get(vaultId)
   if (!vault || vault.status !== 'ready') return { constraintsUnavailable: true }
   const entries = entryId
     ? [vault.entries.get(entryId)]
@@ -104,14 +108,13 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
   // Subject selection (resolved on confirm).
   const [subject, setSubject] = useState<ResolvedSubject | null>(null)
   const syncedVaults = useMemberSyncStore((state) => state.vaults)
-  const currentSubject = useMemo(() => subject && ({
+  const currentSubject = subject && ({
     ...subject,
-    ...targetMethodConstraints(subject.vaultId, subject.entryId),
-  }), [subject, syncedVaults])
-
-  useEffect(() => {
-    if (currentSubject?.injectOnly && !currentSubject.incompatibleMethods) setMethods(['inject'])
-  }, [currentSubject?.injectOnly, currentSubject?.incompatibleMethods])
+    ...targetMethodConstraints(subject.vaultId, subject.entryId, syncedVaults),
+  })
+  const effectiveMethods: GrantMethod[] = currentSubject?.injectOnly && !currentSubject.incompatibleMethods
+    ? ['inject']
+    : methods
 
   function resetPolicyError() {
     setPolicyError(null)
@@ -130,7 +133,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
       setPolicyError(POLICY_ERROR_KEY[validationError])
       return
     }
-    if (methods.length === 0) {
+    if (effectiveMethods.length === 0) {
       setMethodsError('grants.methods.errorNoneSelected')
       return
     }
@@ -156,7 +159,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         type: currentSubject.type,
         entryId: currentSubject.entryId,
         policy: grantPolicyToBody(policyInput),
-        methods,
+        methods: effectiveMethods,
       },
       {
         onSuccess: () => {
@@ -198,7 +201,6 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             disabled={createGrant.isPending}
             onSubjectChange={(s) => {
               setSubject(s)
-              if (s?.injectOnly) setMethods(['inject'])
               setSubjectError(false)
             }}
           />
@@ -237,7 +239,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
 
         <GrantMethodsSelect
           idPrefix="create-grant"
-          value={methods}
+          value={effectiveMethods}
           disabled={createGrant.isPending || currentSubject?.injectOnly === true}
           error={methodsError}
           onChange={(m) => {
