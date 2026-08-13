@@ -13,8 +13,17 @@ const RECENT_RESULT_LIMIT = 5
 export type SearchResultItem =
   | { type: 'agent'; id: string; name: string }
   | { type: 'member'; id: string; name: string }
-  | { type: 'vault'; id: string; name: string }
-  | { type: 'entry'; id: string; vaultId: string; name: string; vaultName: string; icon?: string }
+  | { type: 'vault'; id: string; name: string; icon?: string; color?: string }
+  | {
+      type: 'entry'
+      id: string
+      vaultId: string
+      name: string
+      vaultName: string
+      entryType: 'key' | 'credential' | 'script'
+      icon?: string
+      color?: string
+    }
 
 export type SearchResultType = SearchResultItem['type']
 
@@ -43,21 +52,32 @@ function resultIdentity(result: SearchResultItem): string {
     : `${result.type}:${result.id}`
 }
 
-function materialIcon(reference: string | undefined): string | undefined {
-  if (!reference?.startsWith('builtin:')) return undefined
-  return reference.slice('builtin:'.length) || undefined
+function displayIcon(reference: string | undefined): string | undefined {
+  if (!reference) return undefined
+  if (reference.startsWith('builtin:')) return reference.slice('builtin:'.length) || undefined
+  if (reference.startsWith('public-asset:')) return reference
+  if (reference.startsWith('vault-asset:')) return reference
+  return undefined
 }
 
 function localCandidates(vaults: ReturnType<typeof useMemberSyncStore.getState>['vaults']): LocalCandidate[] {
   const candidates: LocalCandidate[] = []
   for (const [vaultId, vault] of vaults) {
     if (vault.status !== 'ready' || !vault.metadata) continue
+    const vaultIcon = displayIcon(presentationIconReference(vault.metadata.icon))
     candidates.push({
-      result: { type: 'vault', id: vaultId, name: vault.metadata.name },
+      result: {
+        type: 'vault',
+        id: vaultId,
+        name: vault.metadata.name,
+        ...(vaultIcon ? { icon: vaultIcon } : {}),
+        ...(vault.metadata.color ? { color: vault.metadata.color } : {}),
+      },
       fields: [vault.metadata.name, vault.metadata.description ?? ''],
     })
     for (const entry of vault.entries.values()) {
       if (entry.state !== 'active' || entry.corrupt || !entry.payload) continue
+      const entryIcon = displayIcon(presentationIconReference(entry.payload.icon))
       candidates.push({
         result: {
           type: 'entry',
@@ -65,8 +85,9 @@ function localCandidates(vaults: ReturnType<typeof useMemberSyncStore.getState>[
           vaultId,
           name: entry.payload.memberLabel,
           vaultName: vault.metadata.name,
-          ...(materialIcon(presentationIconReference(entry.payload.icon))
-            ? { icon: materialIcon(presentationIconReference(entry.payload.icon)) } : {}),
+          entryType: entry.payload.entryType,
+          ...(entryIcon ? { icon: entryIcon } : {}),
+          ...(entry.payload.color ? { color: entry.payload.color } : {}),
         },
         fields: memberIndexSearchValues(entry.payload),
       })
@@ -101,13 +122,15 @@ export function recentLocalEntries(
     if (vault.status !== 'ready' || !vault.metadata) continue
     for (const record of vault.entries.values()) {
       if (record.state !== 'active' || record.corrupt || !record.payload) continue
+      const entryIcon = displayIcon(presentationIconReference(record.payload.icon))
       rows.push({
         record,
         result: {
           type: 'entry', id: record.entryId, vaultId,
           name: record.payload.memberLabel, vaultName: vault.metadata.name,
-          ...(materialIcon(presentationIconReference(record.payload.icon))
-            ? { icon: materialIcon(presentationIconReference(record.payload.icon)) } : {}),
+          entryType: record.payload.entryType,
+          ...(entryIcon ? { icon: entryIcon } : {}),
+          ...(record.payload.color ? { color: record.payload.color } : {}),
         },
       })
     }
