@@ -31,8 +31,8 @@ export function AgentsPage({ agentId }: AgentsPageProps) {
             <AgentListPanel selectedAgentId={agentId} />
           </div>
         </div>
-        <div className="subtle-scrollbar min-w-0 flex-1 overflow-y-auto">
-          <div className="px-4 py-4">{detailContent}</div>
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="h-full px-4 pt-4">{detailContent}</div>
         </div>
       </div>
     )
@@ -44,8 +44,8 @@ export function AgentsPage({ agentId }: AgentsPageProps) {
   // Agents look centered on smaller resolutions while every other screen
   // stretched edge-to-edge.
   return (
-    <div className="min-h-full text-[var(--cv-t1)]">
-      <div className="px-4 py-4">
+    <div className="h-full overflow-hidden text-[var(--cv-t1)]">
+      <div className="h-full px-4 py-4">
         {agentId ? detailContent : <AgentListPanel selectedAgentId={agentId} />}
       </div>
     </div>

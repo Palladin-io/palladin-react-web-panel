@@ -16,6 +16,7 @@ export { AuditLogPage } from './audit-log-page'
 export { useVaultAuditLogs, AUDIT_LOGS_QUERY_KEY } from './use-vault-audit-logs'
 export { useOrgAuditLogs, ORG_AUDIT_LOGS_QUERY_KEY } from './use-org-audit-logs'
 export { useAuditAgentNames } from './use-audit-agent-names'
+export { useOrgAuditResourceNames } from './use-org-audit-resource-names'
 export { filterAuditLogs, type AuditLogFilter } from './audit-log-filter'
 export { csvParam } from './filter-params'
 export {
