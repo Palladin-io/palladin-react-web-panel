@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth'
-import { ENTRY_TYPE_KEY } from './types'
+import { ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from './types'
 import { useUpdateCanonicalEntry } from './use-update-canonical-entry'
 
 const mocks = vi.hoisted(() => ({
@@ -11,7 +11,10 @@ const mocks = vi.hoisted(() => ({
   openVaultKey: vi.fn(async () => new Uint8Array(32).fill(1)),
   openDiscoveryKey: vi.fn(async () => new Uint8Array(32).fill(2)),
   createMaterial: vi.fn(async () => ({ entryKey: {}, memberIndex: {}, memberSecret: {}, agentDiscovery: null })),
-  toSecret: vi.fn(() => ({ content: { customFields: [] }, agentFieldAccess: { value: 'onGrantValue' } })),
+  toSecret: vi.fn(({ type }: { type: number }) => ({
+    entryType: type === ENTRY_TYPE_SCRIPT ? 'script' : 'key',
+    content: { customFields: [] }, agentFieldAccess: { value: 'onGrantValue' },
+  })),
   produce: vi.fn(async () => ({ grantId: 'grant', entryId: 'entry' })),
   update: vi.fn(async () => ({ currentRevision: '2' })), wipe: vi.fn(),
 }))
@@ -25,7 +28,8 @@ vi.mock('../../shared/crypto/entry-draft', () => ({ toMemberSecret: mocks.toSecr
 vi.mock('../../shared/crypto/vault-plaintext', () => ({ projectAgentDiscovery: vi.fn(() => null) }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: mocks.produce,
-  grantMethodsForSecret: vi.fn((_secret: unknown, methods: number) => methods),
+  grantMethodsForSecret: vi.fn((secret: { entryType: string }, methods: number) =>
+    secret.entryType === 'script' ? 2 : methods),
   listGrantableFields: vi.fn(() => [{ id: 'value', label: 'value', access: 'onGrantValue' }]),
 }))
 vi.mock('./api/vault-api', () => ({ updateCanonicalEntry: mocks.update }))
@@ -72,6 +76,31 @@ describe('useUpdateCanonicalEntry', () => {
       approvedMethods: 6, remainingUses: 5,
     }))
     expect(mocks.update.mock.calls[0][2].grantEnvelopes).toEqual([{ grantId: 'grant', entryId: 'entry' }])
+  })
+
+  it('fails closed when an existing grant mask is wider than the Script policy', async () => {
+    mocks.getGrants.mockResolvedValue({ items: [{
+      id: 'grant', type: 'full', agentId: 'agent', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
+      methods: 'exec, inject', expiresAt: null, queryLimit: null,
+      entryScopes: [{ entryId: 'entry', fieldIds: ['value'], grantEnvelopeRevision: '9',
+        entryRevision: '1', grantKeyVersion: 5 }],
+    }], nextCursor: null })
+    const scriptInput = {
+      ...input,
+      draft: {
+        ...input.draft,
+        entryType: ENTRY_TYPE_SCRIPT,
+        content: { type: ENTRY_TYPE_SCRIPT, script: 'echo ok', refs: [] },
+      },
+    }
+    const { result } = renderHook(() => useUpdateCanonicalEntry('vault', 'entry'), { wrapper })
+    result.current.mutate(scriptInput as never)
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toBeInstanceOf(Error)
+    expect(result.current.error?.name).toBe('ActiveGrantRefreshRequiredError')
+    expect(mocks.produce).not.toHaveBeenCalled()
+    expect(mocks.update).not.toHaveBeenCalled()
   })
 
   it('submits canonical ciphertext without grant material when no coverage exists and wipes keys', async () => {

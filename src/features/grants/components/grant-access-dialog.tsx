@@ -57,6 +57,7 @@ interface ResolvedSubject {
   type: GrantType
   entryId?: string
   injectOnly?: boolean
+  execOnly?: boolean
   incompatibleMethods?: boolean
   constraintsUnavailable?: boolean
 }
@@ -65,7 +66,7 @@ function targetMethodConstraints(
   vaultId: string,
   entryId?: string,
   vaults = useMemberSyncStore.getState().vaults,
-): Pick<ResolvedSubject, 'injectOnly' | 'incompatibleMethods' | 'constraintsUnavailable'> {
+): Pick<ResolvedSubject, 'injectOnly' | 'execOnly' | 'incompatibleMethods' | 'constraintsUnavailable'> {
   const vault = vaults.get(vaultId)
   if (!vault || vault.status !== 'ready') return { constraintsUnavailable: true }
   const entries = entryId
@@ -78,6 +79,7 @@ function targetMethodConstraints(
   const hasScript = types.includes(ENTRY_TYPE_SCRIPT)
   return {
     injectOnly: hasCard,
+    execOnly: hasScript,
     incompatibleMethods: !entryId && hasCard && hasScript,
   }
 }
@@ -114,6 +116,8 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
   })
   const effectiveMethods: GrantMethod[] = currentSubject?.injectOnly && !currentSubject.incompatibleMethods
     ? ['inject']
+    : currentSubject?.execOnly && !currentSubject.incompatibleMethods
+      ? ['exec']
     : methods
 
   function resetPolicyError() {
@@ -239,7 +243,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         <GrantMethodsSelect
           idPrefix="create-grant"
           value={effectiveMethods}
-          disabled={createGrant.isPending || currentSubject?.injectOnly === true}
+          disabled={createGrant.isPending || currentSubject?.injectOnly === true || currentSubject?.execOnly === true}
           error={methodsError}
           onChange={(m) => {
             setMethods(m)

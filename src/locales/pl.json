@@ -957,6 +957,7 @@
   "grants.create.incompatibleVaultMethods": "Ten sejf łączy karty dostępne tylko przez Inject ze skryptami dostępnymi tylko przez Exec. Przyznaj dostęp do poszczególnych wpisów.",
   "grants.create.waitForVaultSync": "Poczekaj na zakończenie synchronizacji sejfu przed przyznaniem dostępu.",
   "grants.approve.cardInjectNotRequested": "Nie można zatwierdzić tego żądania dostępu do karty, ponieważ nie obejmuje ono metody Inject.",
+  "grants.approve.scriptExecNotRequested": "Nie można zatwierdzić tego żądania dostępu do skryptu, ponieważ nie obejmuje ono metody Exec.",
   "grants.create.agentLabel": "Agent",
   "grants.create.agentPlaceholder": "Szukaj agentów…",
   "grants.create.noEligibleAgents": "Brak dostępnych agentów",

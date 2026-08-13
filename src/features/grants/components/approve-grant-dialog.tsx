@@ -19,7 +19,7 @@ import {
   type GrantMethod,
 } from '../grant-methods'
 import type { GrantableField } from '../../../shared/crypto/grant-protocol'
-import { ENTRY_TYPE_CREDIT_CARD, type EntryType } from '../../../shared/types/entry-type'
+import { ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_SCRIPT, type EntryType } from '../../../shared/types/entry-type'
 
 export interface GrantApprovalReview {
   entryLabel: string
@@ -63,9 +63,11 @@ export function ApproveGrantDialog({
 
   // What the agent asked for — used as the default selection and highlighted in the field.
   const requestedMethods = grantMethodsFromMask(grant.encryptedReason.descriptor.binding.requestedMethods)
-  const injectOnly = review.entryType === ENTRY_TYPE_CREDIT_CARD
-  const cardRequestCompatible = !injectOnly || requestedMethods.includes('inject')
-  const [methods, setMethods] = useState<GrantMethod[]>(injectOnly && cardRequestCompatible ? ['inject'] : requestedMethods)
+  const requiredMethod: GrantMethod | undefined = review.entryType === ENTRY_TYPE_CREDIT_CARD
+    ? 'inject'
+    : review.entryType === ENTRY_TYPE_SCRIPT ? 'exec' : undefined
+  const requestCompatible = !requiredMethod || requestedMethods.includes(requiredMethod)
+  const [methods, setMethods] = useState<GrantMethod[]>(requiredMethod && requestCompatible ? [requiredMethod] : requestedMethods)
   const [fieldIds, setFieldIds] = useState<string[]>(review.fields.map((field) => field.id))
   const [methodsError, setMethodsError] = useState<string | null>(null)
   const [fieldsError, setFieldsError] = useState<string | null>(null)
@@ -75,7 +77,7 @@ export function ApproveGrantDialog({
   const vaultName = t('grants.approve.fallbackVault')
 
   function handleConfirm() {
-    if (!cardRequestCompatible) return
+    if (!requestCompatible) return
     const input = { kind, expiresAt, queryLimit }
     const validationError = validateGrantPolicy(input)
     if (validationError) {
@@ -104,7 +106,7 @@ export function ApproveGrantDialog({
           <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('grants.cancel')}
           </Button>
-          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={isPending || !cardRequestCompatible} className="flex-[2]">
+          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={isPending || !requestCompatible} className="flex-[2]">
             {isPending ? t('grants.approve.approving') : t('grants.approve.approve')}
           </Button>
         </DialogFooter>
@@ -146,18 +148,20 @@ export function ApproveGrantDialog({
         <GrantMethodsSelect
           idPrefix="approve"
           value={methods}
-          requested={injectOnly ? ['inject'] : requestedMethods}
-          allowed={injectOnly ? ['inject'] : requestedMethods}
-          disabled={isPending || injectOnly}
+          requested={requiredMethod ? [requiredMethod] : requestedMethods}
+          allowed={requiredMethod ? [requiredMethod] : requestedMethods}
+          disabled={isPending || requiredMethod !== undefined}
           error={methodsError}
           onChange={(m) => {
             setMethods(m)
             setMethodsError(null)
           }}
         />
-        {!cardRequestCompatible && (
+        {!requestCompatible && (
           <p role="alert" className="text-meta text-[var(--cv-danger)]">
-            {t('grants.approve.cardInjectNotRequested')}
+            {t(review.entryType === ENTRY_TYPE_SCRIPT
+              ? 'grants.approve.scriptExecNotRequested'
+              : 'grants.approve.cardInjectNotRequested')}
           </p>
         )}
 

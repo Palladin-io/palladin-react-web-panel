@@ -120,6 +120,28 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     expect(mutateMock.mock.calls[0][0].methods).toEqual(['inject'])
   })
 
+  it('forces an exec-only method for a vault containing a script', async () => {
+    useMemberSyncStore.setState({
+      vaults: new Map([['v1', {
+        vaultId: 'v1', status: 'ready', failureKind: null, metadata: null, structure: {},
+        appliedThroughSequence: '0', entries: new Map([['script', {
+          state: 'active', corrupt: false, payload: { entryType: 'script' },
+        }]]),
+      } as never]]),
+    })
+    getAgent.mockResolvedValue({ agentId: 'a1', publicKey: 'PUBKEY' })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(screen.getByRole('combobox', { name: 'Agent' }))
+    await user.click(screen.getByText('Deploy Bot'))
+    expect(screen.getByRole('combobox', { name: /how the agent may use it/i })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: /^grant access$/i }))
+
+    await waitFor(() => expect(mutateMock).toHaveBeenCalled())
+    expect(mutateMock.mock.calls[0][0].methods).toEqual(['exec'])
+  })
+
   it('blocks submit when no subject is chosen', async () => {
     const user = userEvent.setup()
     renderDialog()

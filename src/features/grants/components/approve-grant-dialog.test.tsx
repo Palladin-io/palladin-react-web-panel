@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApproveGrantDialog } from './approve-grant-dialog'
 import type { PendingGrant } from '../api/pending-grants-api'
-import { ENTRY_TYPE_CREDENTIAL } from '../../../shared/types/entry-type'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_SCRIPT } from '../../../shared/types/entry-type'
 
 const grant: PendingGrant = {
   id: 'g1',
@@ -144,6 +144,38 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     expect(methods).toHaveTextContent('Exec, Inject')
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
     expect(onConfirm.mock.calls[0][1]).toEqual(['exec', 'inject'])
+  })
+
+  it('constrains a compatible Script request to Exec before confirmation', async () => {
+    const user = userEvent.setup()
+    render(
+      <ApproveGrantDialog
+        grant={grant}
+        review={{ ...review, entryType: ENTRY_TYPE_SCRIPT }}
+        isPending={false}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />,
+    )
+
+    expect(screen.getByRole('combobox', { name: /how the agent may use it/i })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: /^approve access$/i }))
+    expect(onConfirm.mock.calls[0][1]).toEqual(['exec'])
+  })
+
+  it('blocks a Script request that did not authenticate Exec', async () => {
+    render(
+      <ApproveGrantDialog
+        grant={{ ...grant, encryptedReason: { descriptor: { binding: { requestedMethods: 4 } } } } as PendingGrant}
+        review={{ ...review, entryType: ENTRY_TYPE_SCRIPT }}
+        isPending={false}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: /^approve access$/i })).toBeDisabled()
+    expect(screen.getByRole('alert')).toHaveTextContent(/did not request Exec/i)
   })
 
   it('requires at least one policy-approved field', async () => {
