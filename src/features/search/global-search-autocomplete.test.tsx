@@ -29,6 +29,7 @@ vi.mock('./use-global-search', () => ({
 const agentResult: SearchResultItem = { type: 'agent', id: 'a1', name: 'Deploy Bot' }
 const entryResult: SearchResultItem = {
   type: 'entry', id: 'e1', name: 'GitHub', vaultId: 'v9', vaultName: 'Personal',
+  entryType: 'credential',
 }
 
 function typeQuery(value: string) {
@@ -79,6 +80,21 @@ describe('GlobalSearchAutocomplete', () => {
     expect(screen.getByText('Ada')).toBeInTheDocument()
     expect(screen.getByText('GitHub')).toBeInTheDocument()
     expect(screen.getByText('Personal')).toBeInTheDocument()
+  })
+
+  it('renders the stored Vault glyph and Entry public asset', () => {
+    const publicAsset =
+      'public-asset:11111111-1111-4111-8111-111111111111|2|https%3A%2F%2Fassets.palladin.io%2Fgithub.png'
+    searchState.data = [
+      { type: 'vault', id: 'v1', name: 'Production', icon: 'database', color: '#10B981' },
+      { ...entryResult, icon: publicAsset, color: '#60A5FA' },
+    ]
+    const { container } = render(<GlobalSearchAutocomplete placeholder="Search…" />)
+    typeQuery('git')
+
+    expect(container.querySelector('.mi')?.textContent).toBe('search')
+    expect(Array.from(container.querySelectorAll('.mi')).some((icon) => icon.textContent === 'database')).toBe(true)
+    expect(container.querySelector('img[src="https://assets.palladin.io/github.png"]')).toBeInTheDocument()
   })
 
   it('keeps local results visible while the administrative provider is loading or unavailable', () => {
