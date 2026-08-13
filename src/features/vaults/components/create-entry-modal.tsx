@@ -186,6 +186,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     if (type === ENTRY_TYPE_KEY) return keyValue.trim().length > 0
     if (type === ENTRY_TYPE_SCRIPT) return script.trim().length > 0
     if (type === ENTRY_TYPE_CREDIT_CARD) return cardholderName.trim().length > 0
+      && cardholderName.trim().length <= 256
       && /^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
       && /^(0[1-9]|1[0-2])$/.test(expiryMonth) && /^\d{4}$/.test(expiryYear)
       && /^\d{3,4}$/.test(securityCode)
@@ -428,7 +429,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 <FormInput id="entry-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
                   onChange={(e) => { setCardholderName(e.target.value); setCardholderNameError(false) }}
                   onBlur={() => setCardholderNameError(!cardholderName.trim())}
-                  autoComplete="cc-name" disabled={isPending} error={cardholderNameError} />
+                  autoComplete="cc-name" maxLength={256} disabled={isPending} error={cardholderNameError} />
                 <FeedbackSlot visible={cardholderNameError} color="red">{t('validation.required')}</FeedbackSlot>
               </div>
               <div>

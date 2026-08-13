@@ -184,10 +184,8 @@ export function openExternalUrl(raw: string | undefined): void {
 }
 
 /** Default picker glyph for an entry type — single source for form initial state. */
-export function defaultIconFor(type: number): string {
-  if (type === ENTRY_TYPE_KEY) return 'vpn_key'
-  if (type === ENTRY_TYPE_SCRIPT) return 'terminal'
-  return 'language'
+export function defaultIconFor(type: EntryType): string {
+  return presentationForType(type).defaultIcon
 }
 
 /** Default icon-circle colour for an entry type — used as the form default. */

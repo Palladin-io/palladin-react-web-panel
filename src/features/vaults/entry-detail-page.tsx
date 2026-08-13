@@ -664,7 +664,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         if (u || p) return
       }
       if (entry.type === ENTRY_TYPE_CREDIT_CARD) {
-        const cardholderInvalid = !cardholderName.trim()
+        const cardholderInvalid = !cardholderName.trim() || cardholderName.trim().length > 256
         const cardNumberInvalid = !/^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
         const expiryMonthInvalid = !/^(0[1-9]|1[0-2])$/.test(expiryMonth)
         const expiryYearInvalid = !/^\d{4}$/.test(expiryYear)
@@ -916,7 +916,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   <FormInput id="entry-detail-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
                     onChange={(e) => { setCardholderName(e.target.value); setCardholderNameError(false) }}
                     onBlur={() => setCardholderNameError(!cardholderName.trim())}
-                    disabled={isSaving || decrypting} error={cardholderNameError} />
+                    maxLength={256} disabled={isSaving || decrypting} error={cardholderNameError} />
                   <FeedbackSlot visible={cardholderNameError} color="red">{t('validation.required')}</FeedbackSlot>
                 </div>
                 <div>

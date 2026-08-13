@@ -383,6 +383,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-3" />, { wrapper })
 
     const month = await screen.findByLabelText(/expiry month/i)
+    expect(screen.getByLabelText(/cardholder name/i)).toHaveAttribute('maxlength', '256')
     await user.clear(month)
     await user.type(month, '13')
     await user.tab()

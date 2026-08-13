@@ -337,6 +337,7 @@ describe('CreateEntryModal', () => {
     render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
 
     await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_CREDIT_CARD))
+    expect(screen.getByLabelText(/cardholder name/i)).toHaveAttribute('maxlength', '256')
     await user.type(screen.getByLabelText(/^label$/i), 'Company card')
     await user.type(screen.getByLabelText(/cardholder name/i), 'Ada Lovelace')
     await user.type(screen.getByLabelText(/card number/i), '4242 4242 4242 4242')
