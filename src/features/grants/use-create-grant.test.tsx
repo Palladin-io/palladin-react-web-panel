@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   getVault: vi.fn(),
   openVaultKey: vi.fn(async () => new Uint8Array(32)),
   decrypt: vi.fn(async () => ({ schemaVersion: 1 })),
+  normalizeMethods: vi.fn((_secret: unknown, methods: number) => methods),
   produce: vi.fn(),
   wipe: vi.fn(),
   vaultState: { status: 'ready', entries: new Map() },
@@ -26,7 +27,7 @@ vi.mock('../../shared/crypto/vault-protocol', () => ({ openMemberVaultKey: mocks
 vi.mock('../../shared/crypto/entry-protocol', () => ({ openMemberSecret: mocks.decrypt }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: mocks.produce,
-  grantMethodsForSecret: vi.fn((_secret: unknown, methods: number) => methods),
+  grantMethodsForSecret: mocks.normalizeMethods,
 }))
 vi.mock('../../shared/crypto/vault-plaintext', () => ({ listGrantableFieldIds: vi.fn(() => ['value']) }))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
@@ -57,6 +58,7 @@ describe('useCreateGrant', () => {
     mocks.produce.mockImplementation(async ({ entryId }: { entryId: string }) => ({
       grantId: entryId, entryId,
     }))
+    mocks.normalizeMethods.mockImplementation((_secret: unknown, methods: number) => methods)
   })
 
   it('creates one exact-revision GRANULAR envelope with a client-owned Grant id', async () => {
@@ -93,6 +95,18 @@ describe('useCreateGrant', () => {
     expect(mocks.getEntry.mock.calls.map((call) => call[1])).toEqual(['e1', 'e3'])
     expect(mocks.produce).toHaveBeenCalledTimes(2)
     expect(mocks.create.mock.calls[0][1].entryId).toBeUndefined()
+  })
+
+  it('uses one MemberSecret-normalized method set for the envelope and request body', async () => {
+    mocks.normalizeMethods.mockReturnValue(4)
+    const { result } = renderHook(() => useCreateGrant(), { wrapper })
+    result.current.mutate({
+      vaultId: 'v1', agentId: 'a1', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
+      type: 'granular', entryId: 'e1', policy: {}, methods: ['exec', 'inject'],
+    })
+    await waitFor(() => expect(mocks.create).toHaveBeenCalled())
+    expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({ approvedMethods: 4 }))
+    expect(mocks.create.mock.calls[0][1].methods).toBe('Inject')
   })
 
   it('fails before opening keys when recipient identity metadata is missing', async () => {
