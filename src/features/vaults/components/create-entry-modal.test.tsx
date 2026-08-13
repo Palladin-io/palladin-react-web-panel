@@ -362,6 +362,25 @@ describe('CreateEntryModal', () => {
     expect(input.policy.fields.securityCode).toBe('onGrantRuntime')
   })
 
+  it('clears credential URL icon state when switching to CREDIT_CARD', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'card-2' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.type(screen.getByLabelText(/^url$/i), 'https://credential.example')
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_CREDIT_CARD))
+    await user.type(screen.getByLabelText(/^label$/i), 'Company card')
+    await user.type(screen.getByLabelText(/cardholder name/i), 'Ada Lovelace')
+    await user.type(screen.getByLabelText(/card number/i), '4242424242424242')
+    await user.type(screen.getByLabelText(/expiry month/i), '12')
+    await user.type(screen.getByLabelText(/expiry year/i), '2030')
+    await user.type(screen.getByLabelText(/security code/i), '123')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    expect(mutateMock.mock.calls[0][0].iconReference).toBe('credit_card')
+    expect(ensureWebsiteIconsWithinMock).not.toHaveBeenCalled()
+  })
+
   it('shows field-level feedback for invalid CREDIT_CARD values after blur', async () => {
     const user = userEvent.setup()
     render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })

@@ -315,6 +315,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 setUsernameError(false)
                 setPasswordError(false)
                 setScriptError(false)
+                if (nextType === ENTRY_TYPE_CREDIT_CARD) {
+                  setUrl('')
+                  setUrlError(false)
+                  setAutomaticIcon(null)
+                }
                 if (!iconTouched) {
                   setAutomaticIcon(null)
                   setIcon(defaultIconFor(nextType))
