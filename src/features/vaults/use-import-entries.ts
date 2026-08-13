@@ -149,6 +149,14 @@ function toDraft(entry: ParsedEntry, publicAsset?: PublicAsset): EntryDraft {
   }
 }
 
+function existingGrantMethodsForSecret(secret: Parameters<typeof grantMethodsForSecret>[0], methods: number): number {
+  const normalized = grantMethodsForSecret(secret, methods)
+  if (normalized !== methods) {
+    throw new Error('Active grant methods are incompatible with the Entry type')
+  }
+  return normalized
+}
+
 async function activeCoveringGrants(vaultId: string, entryId: string): Promise<OrgGrant[]> {
   const grants: OrgGrant[] = []
   let cursor: string | undefined
@@ -292,7 +300,7 @@ export function useImportEntries() {
                   grantEnvelopeRevision: '1', grantKeyVersion: 1,
                   memberKeyGeneration: vault.memberKeyGeneration,
                   recipientKeyVersion: grant.recipientAgentKeyVersion,
-                  approvedMethods: grantMethodsForSecret(memberSecret, grantMethodsMask(methods)),
+                  approvedMethods: existingGrantMethodsForSecret(memberSecret, grantMethodsMask(methods)),
                   ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
                   ...(grant.remainingUses !== undefined ? { remainingUses: grant.remainingUses } : {}),
                 }))
@@ -370,7 +378,7 @@ export function useImportEntries() {
                 grantKeyVersion: scope.grantKeyVersion + 1,
                 memberKeyGeneration: vault.memberKeyGeneration,
                 recipientKeyVersion: grant.recipientAgentKeyVersion,
-                approvedMethods: grantMethodsForSecret(nextSecret, grantMethodsMask(methods)),
+                approvedMethods: existingGrantMethodsForSecret(nextSecret, grantMethodsMask(methods)),
                 ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
                 ...(grant.queryLimit !== null && grant.queryLimit !== undefined
                   ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }

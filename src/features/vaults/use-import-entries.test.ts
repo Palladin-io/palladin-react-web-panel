@@ -3,7 +3,7 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth'
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from './types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY } from './types'
 import type { ParsedEntry } from './import'
 import { useImportEntries } from './use-import-entries'
 import { VaultLockedError } from './use-create-entry'
@@ -29,9 +29,9 @@ const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock, c
     memberVaultKey: { wrappedVaultKey: { descriptor: { scope: { organizationId: 'org-1' } } } },
     discoveryKey: {},
   })),
-  toMemberSecretMock: vi.fn(({ label }: { label: string }) => ({
+  toMemberSecretMock: vi.fn(({ label, payload }: { label: string; payload: Record<string, unknown> }) => ({
     schema: 'palladin.member-secret.v1', memberLabel: label, agentLabel: label,
-    entryType: 'credential', content: { customFields: [] }, agentFieldAccess: {},
+    entryType: 'cardNumber' in payload ? 'creditCard' : 'credential', content: { customFields: [] }, agentFieldAccess: {},
   })),
   ensureWebsiteIconsMock: vi.fn(async (
     hostnames: string[],
@@ -94,7 +94,11 @@ vi.mock('../../shared/crypto/entry-protocol', () => ({
 }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: grantEnvelopeMock,
-  grantMethodsForSecret: vi.fn((_secret: unknown, methods: number) => methods),
+  grantMethodsForSecret: vi.fn((secret: { entryType: string }, methods: number) => {
+    if (secret.entryType !== 'creditCard') return methods
+    if ((methods & 4) !== 4) throw new Error('Credit-card grants require Inject')
+    return 4
+  }),
   listGrantableFields: vi.fn(() => [{ id: 'credential.username' }]),
 }))
 vi.mock('../../shared/crypto/vault-plaintext', async (importOriginal) => ({
@@ -106,6 +110,13 @@ vi.mock('../../shared/crypto/sodium', () => ({ wipe: vi.fn() }))
 
 function credential(label: string): ParsedEntry {
   return { label, type: ENTRY_TYPE_CREDENTIAL, username: 'u', password: 'p' }
+}
+
+function creditCard(label: string): ParsedEntry {
+  return {
+    label, type: ENTRY_TYPE_CREDIT_CARD, cardholderName: 'A User',
+    cardNumber: '4242424242424242', expiryMonth: '12', expiryYear: '2030', securityCode: '123',
+  }
 }
 
 function makeWrapper() {
@@ -122,6 +133,7 @@ describe('useImportEntries', () => {
   beforeEach(() => {
     importEntriesMock.mockClear()
     updateEntryMock.mockClear()
+    grantEnvelopeMock.mockClear()
     fullGrantsMock.mockReset()
     fullGrantsMock.mockResolvedValue([])
     challengesMock.mockClear()
@@ -376,6 +388,39 @@ describe('useImportEntries', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(grantEnvelopeMock).toHaveBeenCalledTimes(4)
     expect(importEntriesMock.mock.calls[0][1].entries[0].grantEnvelopes).toHaveLength(2)
+  })
+
+  it('imports a card only when every existing FULL grant is already exactly Inject', async () => {
+    fullGrantsMock.mockResolvedValue([
+      { grantId: 'g1', agentId: 'a1', agentPublicKey: 'pk1', recipientAgentKeyVersion: 1, methods: 'inject' },
+    ])
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useImportEntries(), { wrapper })
+
+    result.current.mutate({
+      vaultId: 'vault-1', format: 'palladin-json', creates: [creditCard('Travel card')], overwrites: [],
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(grantEnvelopeMock).toHaveBeenCalledWith(expect.objectContaining({ approvedMethods: 4 }))
+    expect(importEntriesMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('fails closed before sealing a card under a wider existing FULL grant', async () => {
+    fullGrantsMock.mockResolvedValue([
+      { grantId: 'g1', agentId: 'a1', agentPublicKey: 'pk1', recipientAgentKeyVersion: 1, methods: 'exec, inject' },
+    ])
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useImportEntries(), { wrapper })
+
+    result.current.mutate({
+      vaultId: 'vault-1', format: 'palladin-json', creates: [creditCard('Travel card')], overwrites: [],
+    })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toMatchObject({ step: 'encrypt' })
+    expect(grantEnvelopeMock).not.toHaveBeenCalled()
+    expect(importEntriesMock).not.toHaveBeenCalled()
   })
 
   it('attributes Vault key preparation failures without exposing entry contents', async () => {
