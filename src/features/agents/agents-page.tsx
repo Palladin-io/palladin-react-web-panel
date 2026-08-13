@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../shared/components/error-state'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
@@ -8,6 +9,8 @@ import { useAgent } from './use-agent'
 export interface AgentsPageProps {
   /** Selected agent from the route param; undefined on the bare `/agents` route. */
   agentId?: string
+  /** App-level composition keeps Agents independent from the Audit feature. */
+  renderLogs?: (agentId: string) => ReactNode
 }
 
 /**
@@ -18,10 +21,10 @@ export interface AgentsPageProps {
  * On narrow screens the list and detail collapse to a single column:
  * `/agents` shows the list, `/agents/$agentId` shows the detail.
  */
-export function AgentsPage({ agentId }: AgentsPageProps) {
+export function AgentsPage({ agentId, renderLogs }: AgentsPageProps) {
   const isWide = useWideScreen()
 
-  const detailContent = <AgentDetailContent agentId={agentId} />
+  const detailContent = <AgentDetailContent agentId={agentId} renderLogs={renderLogs} />
 
   if (isWide) {
     return (
@@ -31,8 +34,8 @@ export function AgentsPage({ agentId }: AgentsPageProps) {
             <AgentListPanel selectedAgentId={agentId} />
           </div>
         </div>
-        <div className="subtle-scrollbar min-w-0 flex-1 overflow-y-auto">
-          <div className="px-4 py-4">{detailContent}</div>
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="h-full px-4 pt-4">{detailContent}</div>
         </div>
       </div>
     )
@@ -44,15 +47,21 @@ export function AgentsPage({ agentId }: AgentsPageProps) {
   // Agents look centered on smaller resolutions while every other screen
   // stretched edge-to-edge.
   return (
-    <div className="min-h-full text-[var(--cv-t1)]">
-      <div className="px-4 py-4">
+    <div className="h-full overflow-hidden text-[var(--cv-t1)]">
+      <div className="h-full px-4 py-4">
         {agentId ? detailContent : <AgentListPanel selectedAgentId={agentId} />}
       </div>
     </div>
   )
 }
 
-function AgentDetailContent({ agentId }: { agentId?: string }) {
+function AgentDetailContent({
+  agentId,
+  renderLogs,
+}: {
+  agentId?: string
+  renderLogs?: (agentId: string) => ReactNode
+}) {
   const { t } = useTranslation()
   // Hook order must stay stable — always call useAgent, gate it with
   // `enabled` instead of conditionally calling it.
@@ -79,7 +88,7 @@ function AgentDetailContent({ agentId }: { agentId?: string }) {
       </div>
     )
   }
-  return <AgentDetail agent={agent.data} />
+  return <AgentDetail agent={agent.data} renderLogs={renderLogs} />
 }
 
 function DetailSkeleton() {
