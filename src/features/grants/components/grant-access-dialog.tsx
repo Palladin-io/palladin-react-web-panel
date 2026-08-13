@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
-import { FieldFeedback } from '../../../shared/components/form-field'
+import { FeedbackSlot } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { AGENT_STATUS_ACTIVE, getAgent, useAgents } from '../../agents'
 import { useVaults } from '../../vaults/use-vaults'
@@ -193,9 +193,8 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           {t('grants.create.subtitle')}
         </p>
 
-        {/* Swappable subject segment. -mb-4 absorbs the fixed-height (16px)
-            FieldFeedback row so the gap to the policy segment matches the rest. */}
-        <div className="-mb-4">
+        {/* Swappable subject segment. Feedback collapses when there is no error. */}
+        <div>
           <SubjectSegment
             mode={mode}
             disabled={createGrant.isPending}
@@ -204,15 +203,15 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
               setSubjectError(false)
             }}
           />
-          <FieldFeedback visible={subjectError} color="red">
+          <FeedbackSlot visible={subjectError} color="red">
             {t('grants.create.subjectRequired')}
-          </FieldFeedback>
-          <FieldFeedback visible={currentSubject?.incompatibleMethods === true} color="red">
+          </FeedbackSlot>
+          <FeedbackSlot visible={currentSubject?.incompatibleMethods === true} color="red">
             {t('grants.create.incompatibleVaultMethods')}
-          </FieldFeedback>
-          <FieldFeedback visible={currentSubject?.constraintsUnavailable === true} color="red">
+          </FeedbackSlot>
+          <FeedbackSlot visible={currentSubject?.constraintsUnavailable === true} color="red">
             {t('grants.create.waitForVaultSync')}
-          </FieldFeedback>
+          </FeedbackSlot>
         </div>
 
         {/* Shared policy segment */}

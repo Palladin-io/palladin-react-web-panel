@@ -424,13 +424,17 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [password, setPassword] = useState('') // CREDENTIAL only
   const [passwordError, setPasswordError] = useState(false)
   const [cardholderName, setCardholderName] = useState('')
+  const [cardholderNameError, setCardholderNameError] = useState(false)
   const [cardNumber, setCardNumber] = useState('')
+  const [cardNumberError, setCardNumberError] = useState(false)
   const [expiryMonth, setExpiryMonth] = useState('')
+  const [expiryMonthError, setExpiryMonthError] = useState(false)
   const [expiryYear, setExpiryYear] = useState('')
+  const [expiryYearError, setExpiryYearError] = useState(false)
   const [securityCode, setSecurityCode] = useState('')
+  const [securityCodeError, setSecurityCodeError] = useState(false)
   const [cardPin, setCardPin] = useState('')
   const [billingAddress, setBillingAddress] = useState('')
-  const [cardError, setCardError] = useState(false)
   const [notes, setNotes] = useState('') // both types
 
   // Original plaintext for change detection / discard.
@@ -602,6 +606,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setPolicy(originalSecret?.agentVisibilityPolicy ?? null)
     setUrlError(false)
     setScriptError(false)
+    setCardholderNameError(false)
+    setCardNumberError(false)
+    setExpiryMonthError(false)
+    setExpiryYearError(false)
+    setSecurityCodeError(false)
     if (originalPlaintext) {
       if (originalPlaintext.type === ENTRY_TYPE_KEY) {
         setCustomFields(readCustomFields(originalPlaintext))
@@ -654,11 +663,19 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         if (p) setPasswordError(true)
         if (u || p) return
       }
-      if (entry.type === ENTRY_TYPE_CREDIT_CARD && (
-        !cardholderName.trim() || !/^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
-        || !/^(0[1-9]|1[0-2])$/.test(expiryMonth) || !/^\d{4}$/.test(expiryYear)
-        || !/^\d{3,4}$/.test(securityCode)
-      )) { setCardError(true); return }
+      if (entry.type === ENTRY_TYPE_CREDIT_CARD) {
+        const cardholderInvalid = !cardholderName.trim()
+        const cardNumberInvalid = !/^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
+        const expiryMonthInvalid = !/^(0[1-9]|1[0-2])$/.test(expiryMonth)
+        const expiryYearInvalid = !/^\d{4}$/.test(expiryYear)
+        const securityCodeInvalid = !/^\d{3,4}$/.test(securityCode)
+        setCardholderNameError(cardholderInvalid)
+        setCardNumberError(cardNumberInvalid)
+        setExpiryMonthError(expiryMonthInvalid)
+        setExpiryYearError(expiryYearInvalid)
+        setSecurityCodeError(securityCodeInvalid)
+        if (cardholderInvalid || cardNumberInvalid || expiryMonthInvalid || expiryYearInvalid || securityCodeInvalid) return
+      }
     }
 
     const current = currentPlaintext()
@@ -895,21 +912,47 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               </div>
             ) : entry.type === ENTRY_TYPE_CREDIT_CARD ? (
               <div className="grid grid-cols-2 gap-3">
-                <FormInput id="entry-detail-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
-                  onChange={(e) => { setCardholderName(e.target.value); setCardError(false) }} disabled={isSaving || decrypting} />
-                <SecretInput id="entry-detail-card-number" label={t('vault.entries.card.cardNumber')} value={cardNumber}
-                  onChange={(value) => { setCardNumber(value); setCardError(false) }} shown={showSecret} onToggleShown={() => setShowSecret((v) => !v)} disabled={isSaving || decrypting} copyable />
-                <FormInput id="entry-detail-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
-                  onChange={(e) => { setExpiryMonth(e.target.value); setCardError(false) }} disabled={isSaving || decrypting} />
-                <FormInput id="entry-detail-expiry-year" label={t('vault.entries.card.expiryYear')} value={expiryYear}
-                  onChange={(e) => { setExpiryYear(e.target.value); setCardError(false) }} disabled={isSaving || decrypting} />
-                <SecretInput id="entry-detail-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
-                  onChange={(value) => { setSecurityCode(value); setCardError(false) }} shown={showPassword} onToggleShown={() => setShowPassword((v) => !v)} disabled={isSaving || decrypting} copyable />
+                <div>
+                  <FormInput id="entry-detail-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
+                    onChange={(e) => { setCardholderName(e.target.value); setCardholderNameError(false) }}
+                    onBlur={() => setCardholderNameError(!cardholderName.trim())}
+                    disabled={isSaving || decrypting} error={cardholderNameError} />
+                  <FeedbackSlot visible={cardholderNameError} color="red">{t('validation.required')}</FeedbackSlot>
+                </div>
+                <div>
+                  <SecretInput id="entry-detail-card-number" label={t('vault.entries.card.cardNumber')} value={cardNumber}
+                    onChange={(value) => { setCardNumber(value); setCardNumberError(false) }}
+                    onBlur={() => setCardNumberError(!/^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, '')))}
+                    shown={showSecret} onToggleShown={() => setShowSecret((v) => !v)}
+                    disabled={isSaving || decrypting} copyable error={cardNumberError} />
+                  <FeedbackSlot visible={cardNumberError} color="red">{t('vault.entries.card.invalidCardNumber')}</FeedbackSlot>
+                </div>
+                <div>
+                  <FormInput id="entry-detail-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
+                    onChange={(e) => { setExpiryMonth(e.target.value.replace(/\D/g, '').slice(0, 2)); setExpiryMonthError(false) }}
+                    onBlur={() => setExpiryMonthError(!/^(0[1-9]|1[0-2])$/.test(expiryMonth))}
+                    disabled={isSaving || decrypting} error={expiryMonthError} />
+                  <FeedbackSlot visible={expiryMonthError} color="red">{t('vault.entries.card.invalidExpiryMonth')}</FeedbackSlot>
+                </div>
+                <div>
+                  <FormInput id="entry-detail-expiry-year" label={t('vault.entries.card.expiryYear')} value={expiryYear}
+                    onChange={(e) => { setExpiryYear(e.target.value.replace(/\D/g, '').slice(0, 4)); setExpiryYearError(false) }}
+                    onBlur={() => setExpiryYearError(!/^\d{4}$/.test(expiryYear))}
+                    disabled={isSaving || decrypting} error={expiryYearError} />
+                  <FeedbackSlot visible={expiryYearError} color="red">{t('vault.entries.card.invalidExpiryYear')}</FeedbackSlot>
+                </div>
+                <div>
+                  <SecretInput id="entry-detail-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
+                    onChange={(value) => { setSecurityCode(value.replace(/\D/g, '').slice(0, 4)); setSecurityCodeError(false) }}
+                    onBlur={() => setSecurityCodeError(!/^\d{3,4}$/.test(securityCode))}
+                    shown={showPassword} onToggleShown={() => setShowPassword((v) => !v)}
+                    disabled={isSaving || decrypting} copyable error={securityCodeError} />
+                  <FeedbackSlot visible={securityCodeError} color="red">{t('vault.entries.card.invalidSecurityCode')}</FeedbackSlot>
+                </div>
                 <SecretInput id="entry-detail-card-pin" label={t('vault.entries.card.pin')} value={cardPin}
                   onChange={setCardPin} shown={showPin} onToggleShown={() => setShowPin((v) => !v)} disabled={isSaving || decrypting} copyable />
                 <div className="col-span-2"><FormInput id="entry-detail-billing-address" label={t('vault.entries.card.billingAddress')} value={billingAddress}
                   onChange={(e) => setBillingAddress(e.target.value)} disabled={isSaving || decrypting} /></div>
-                <div className="col-span-2"><FeedbackSlot visible={cardError} color="red">{t('vault.entries.card.invalid')}</FeedbackSlot></div>
               </div>
             ) : (
               <>

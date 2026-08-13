@@ -99,10 +99,15 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [passwordError, setPasswordError] = useState(false)
   const [passwordVisible, setPasswordVisible] = useState(false)
   const [cardholderName, setCardholderName] = useState('')
+  const [cardholderNameError, setCardholderNameError] = useState(false)
   const [cardNumber, setCardNumber] = useState('')
+  const [cardNumberError, setCardNumberError] = useState(false)
   const [expiryMonth, setExpiryMonth] = useState('')
+  const [expiryMonthError, setExpiryMonthError] = useState(false)
   const [expiryYear, setExpiryYear] = useState('')
+  const [expiryYearError, setExpiryYearError] = useState(false)
   const [securityCode, setSecurityCode] = useState('')
+  const [securityCodeError, setSecurityCodeError] = useState(false)
   const [cardPin, setCardPin] = useState('')
   const [billingAddress, setBillingAddress] = useState('')
   const [cardNumberVisible, setCardNumberVisible] = useState(false)
@@ -419,17 +424,44 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             </>
           ) : type === ENTRY_TYPE_CREDIT_CARD ? (
             <>
-              <FormInput id="entry-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
-                onChange={(e) => setCardholderName(e.target.value)} autoComplete="cc-name" disabled={isPending} />
-              <SecretInput id="entry-card-number" label={t('vault.entries.card.cardNumber')} value={cardNumber}
-                onChange={setCardNumber} shown={cardNumberVisible} onToggleShown={() => setCardNumberVisible((value) => !value)} disabled={isPending} monospace />
+              <div>
+                <FormInput id="entry-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
+                  onChange={(e) => { setCardholderName(e.target.value); setCardholderNameError(false) }}
+                  onBlur={() => setCardholderNameError(!cardholderName.trim())}
+                  autoComplete="cc-name" disabled={isPending} error={cardholderNameError} />
+                <FeedbackSlot visible={cardholderNameError} color="red">{t('validation.required')}</FeedbackSlot>
+              </div>
+              <div>
+                <SecretInput id="entry-card-number" label={t('vault.entries.card.cardNumber')} value={cardNumber}
+                  onChange={(value) => { setCardNumber(value); setCardNumberError(false) }}
+                  onBlur={() => setCardNumberError(!/^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, '')))}
+                  shown={cardNumberVisible} onToggleShown={() => setCardNumberVisible((value) => !value)}
+                  disabled={isPending} monospace error={cardNumberError} />
+                <FeedbackSlot visible={cardNumberError} color="red">{t('vault.entries.card.invalidCardNumber')}</FeedbackSlot>
+              </div>
               <div className="grid grid-cols-3 gap-2">
-                <FormInput id="entry-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
-                  onChange={(e) => setExpiryMonth(e.target.value.replace(/\D/g, '').slice(0, 2))} autoComplete="cc-exp-month" disabled={isPending} />
-                <FormInput id="entry-expiry-year" label={t('vault.entries.card.expiryYear')} value={expiryYear}
-                  onChange={(e) => setExpiryYear(e.target.value.replace(/\D/g, '').slice(0, 4))} autoComplete="cc-exp-year" disabled={isPending} />
-                <SecretInput id="entry-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
-                  onChange={(value) => setSecurityCode(value.replace(/\D/g, '').slice(0, 4))} shown={securityCodeVisible} onToggleShown={() => setSecurityCodeVisible((value) => !value)} disabled={isPending} monospace />
+                <div>
+                  <FormInput id="entry-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
+                    onChange={(e) => { setExpiryMonth(e.target.value.replace(/\D/g, '').slice(0, 2)); setExpiryMonthError(false) }}
+                    onBlur={() => setExpiryMonthError(!/^(0[1-9]|1[0-2])$/.test(expiryMonth))}
+                    autoComplete="cc-exp-month" disabled={isPending} error={expiryMonthError} />
+                  <FeedbackSlot visible={expiryMonthError} color="red">{t('vault.entries.card.invalidExpiryMonth')}</FeedbackSlot>
+                </div>
+                <div>
+                  <FormInput id="entry-expiry-year" label={t('vault.entries.card.expiryYear')} value={expiryYear}
+                    onChange={(e) => { setExpiryYear(e.target.value.replace(/\D/g, '').slice(0, 4)); setExpiryYearError(false) }}
+                    onBlur={() => setExpiryYearError(!/^\d{4}$/.test(expiryYear))}
+                    autoComplete="cc-exp-year" disabled={isPending} error={expiryYearError} />
+                  <FeedbackSlot visible={expiryYearError} color="red">{t('vault.entries.card.invalidExpiryYear')}</FeedbackSlot>
+                </div>
+                <div>
+                  <SecretInput id="entry-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
+                    onChange={(value) => { setSecurityCode(value.replace(/\D/g, '').slice(0, 4)); setSecurityCodeError(false) }}
+                    onBlur={() => setSecurityCodeError(!/^\d{3,4}$/.test(securityCode))}
+                    shown={securityCodeVisible} onToggleShown={() => setSecurityCodeVisible((value) => !value)}
+                    disabled={isPending} monospace error={securityCodeError} />
+                  <FeedbackSlot visible={securityCodeError} color="red">{t('vault.entries.card.invalidSecurityCode')}</FeedbackSlot>
+                </div>
               </div>
               <SecretInput id="entry-card-pin" label={t('vault.entries.card.pin')} value={cardPin}
                 onChange={setCardPin} shown={cardPinVisible} onToggleShown={() => setCardPinVisible((value) => !value)} disabled={isPending} monospace />

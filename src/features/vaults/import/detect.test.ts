@@ -78,6 +78,23 @@ describe('parseText — CSV formats', () => {
     expect(parseText(roboform).format).toBe('roboform-csv')
   })
 
+  it('imports NordPass credit-card rows', () => {
+    const csv =
+      'name,url,username,password,note,cardholdername,cardnumber,cvc,expirydate,zipcode,folder\n' +
+      'Company card,,,,Travel,Ada Lovelace,4242 4242 4242 4242,123,12/30,,Finance'
+    const result = parseText(csv)
+    expect(result.format).toBe('nordpass-csv')
+    expect(result.entries).toEqual([expect.objectContaining({
+      label: 'Company card',
+      type: ENTRY_TYPE_CREDIT_CARD,
+      cardholderName: 'Ada Lovelace',
+      cardNumber: '4242424242424242',
+      expiryMonth: '12',
+      expiryYear: '2030',
+      securityCode: '123',
+    })])
+  })
+
   it('handles BOM, quoted commas, and multi-line notes', () => {
     const csv =
       '﻿name,url,username,password,note\n' +
@@ -291,5 +308,17 @@ describe('parseText — Palladin round-trip formats', () => {
     const result = parseText(csv)
     expect(result.format).toBe('palladin-csv')
     expect(result.entries[0].totp).toContain('secret=JBSWY3DPEHPK3PXP')
+  })
+
+  it('detects a native export before NordPass and preserves card and TOTP rows', () => {
+    const csv =
+      'name,url,username,password,note,totp,folder,state,revision,historical,type,cardholderName,cardNumber,expiryMonth,expiryYear,securityCode,pin,billingAddress\n' +
+      'Company card,,,,Travel,,Finance,active,1,false,3,Ada Lovelace,4242424242424242,12,2030,123,,\n' +
+      'GitHub,https://github.com,octocat,pw,,otpauth://totp/x?secret=JBSWY3DPEHPK3PXP,Dev,active,2,false,1,,,,,,,'
+    const result = parseText(csv)
+    expect(result.format).toBe('palladin-csv')
+    expect(result.entries).toHaveLength(2)
+    expect(result.entries[0]).toMatchObject({ type: ENTRY_TYPE_CREDIT_CARD, cardNumber: '4242424242424242' })
+    expect(result.entries[1].totp).toContain('secret=JBSWY3DPEHPK3PXP')
   })
 })

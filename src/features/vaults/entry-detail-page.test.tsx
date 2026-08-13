@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth'
 import { EntryDetailPage } from './entry-detail-page'
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, type Vault } from './types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, type Vault } from './types'
 import type { CanonicalEntryDetail } from './api/vault-api'
 
 // ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ const {
     decryptResult: null as EntryPlaintextLite | null,
     decryptShouldThrow: false,
     decryptedIconReference: undefined as string | undefined,
-    memberIndex: { memberLabel: 'Stripe API Key', entryType: 'key' as 'key' | 'credential', icon: null },
+    memberIndex: { memberLabel: 'Stripe API Key', entryType: 'key' as 'key' | 'credential' | 'creditCard', icon: null },
   },
 }))
 
@@ -54,6 +54,14 @@ type EntryPlaintextLite =
       password: string
       url?: string
       notes?: string
+    }
+  | {
+      type: 3
+      cardholderName: string
+      cardNumber: string
+      expiryMonth: string
+      expiryYear: string
+      securityCode: string
     }
 
 vi.mock('@tanstack/react-router', () => ({
@@ -135,6 +143,7 @@ vi.mock('./sync/member-sync-store', () => ({
     vaults: new Map([['vault-1', { entries: new Map([
       ['entry-1', { payload: state.memberIndex }],
       ['entry-2', { payload: state.memberIndex }],
+      ['entry-3', { payload: state.memberIndex }],
     ]) }]]),
   }),
 }))
@@ -354,6 +363,38 @@ describe('EntryDetailPage — DetailsTab', () => {
     )
     expect(screen.getByLabelText(/^password$/i)).toHaveValue('P@ssw0rd!')
     expect(screen.queryByLabelText(/^value$/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps per-field CREDIT_CARD validation visible until each value is fixed', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = {
+      type: ENTRY_TYPE_CREDIT_CARD,
+      cardholderName: 'Ada Lovelace',
+      cardNumber: '4242424242424242',
+      expiryMonth: '12',
+      expiryYear: '2030',
+      securityCode: '123',
+    }
+    state.memberIndex = { memberLabel: 'Company card', entryType: 'creditCard', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: canonicalEntry('entry-3') })
+
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-3" />, { wrapper })
+
+    const month = await screen.findByLabelText(/expiry month/i)
+    await user.clear(month)
+    await user.type(month, '13')
+    await user.tab()
+    const cardNumber = screen.getByLabelText(/card number/i)
+    await user.clear(cardNumber)
+    await user.type(cardNumber, '123')
+    await user.tab()
+
+    expect(screen.getAllByRole('alert').map((alert) => alert.textContent)).toEqual([
+      'Enter a 12–19 digit card number.',
+      'Use a month from 01 to 12.',
+    ])
   })
 
   it('shows the decrypt error banner when unsealing/decrypting fails', async () => {

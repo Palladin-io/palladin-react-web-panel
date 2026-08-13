@@ -361,6 +361,33 @@ describe('CreateEntryModal', () => {
     expect(input.policy.fields.securityCode).toBe('onGrantRuntime')
   })
 
+  it('shows field-level feedback for invalid CREDIT_CARD values after blur', async () => {
+    const user = userEvent.setup()
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_CREDIT_CARD))
+    await user.type(screen.getByLabelText(/^label$/i), 'Company card')
+    await user.click(screen.getByLabelText(/cardholder name/i))
+    await user.tab()
+    await user.type(screen.getByLabelText(/card number/i), '123')
+    await user.tab()
+    await user.type(screen.getByLabelText(/expiry month/i), '13')
+    await user.tab()
+    await user.type(screen.getByLabelText(/expiry year/i), '30')
+    await user.tab()
+    await user.type(screen.getByLabelText(/security code/i), '12')
+    await user.tab()
+
+    expect(screen.getAllByRole('alert').map((alert) => alert.textContent)).toEqual([
+      'This field is required',
+      'Enter a 12–19 digit card number.',
+      'Use a month from 01 to 12.',
+      'Enter a four-digit year.',
+      'Enter a 3–4 digit code.',
+    ])
+    expect(screen.getByRole('button', { name: /save entry/i })).toBeDisabled()
+  })
+
   it('adds a dedicated 2FA (TOTP) field to a credential', async () => {
     const user = userEvent.setup()
     mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'e-5' }))
