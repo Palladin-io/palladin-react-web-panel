@@ -71,10 +71,12 @@ function targetMethodConstraints(
   if (!vault || vault.status !== 'ready') return { constraintsUnavailable: true }
   const entries = entryId
     ? [vault.entries.get(entryId)]
-    : [...vault.entries.values()].filter((entry) => entry.state === 'active' && !entry.corrupt)
-  const types = entries.flatMap((entry) => entry?.payload
-    ? [normalizeEntryType(entry.payload.entryType)]
-    : [])
+    : [...vault.entries.values()].filter((entry) => entry.state === 'active')
+  if ((entryId && entries.length === 0)
+    || entries.some((entry) => !entry || entry.corrupt || !entry.payload)) {
+    return { constraintsUnavailable: true }
+  }
+  const types = entries.map((entry) => normalizeEntryType(entry!.payload!.entryType))
   const hasCard = types.includes(ENTRY_TYPE_CREDIT_CARD)
   const hasScript = types.includes(ENTRY_TYPE_SCRIPT)
   return {
