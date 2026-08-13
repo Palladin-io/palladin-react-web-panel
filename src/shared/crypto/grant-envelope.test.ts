@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ENTRY_TYPE_CREDENTIAL } from '../../features/vaults/types'
+import { ENTRY_TYPE_CREDENTIAL } from '../types/entry-type'
 import { toBase64 } from './encoding'
 import { buildGrantPayload, produceGrantEntryEnvelope } from './grant-envelope'
 import { decodeBase64Url } from './vault-v2-bytes'

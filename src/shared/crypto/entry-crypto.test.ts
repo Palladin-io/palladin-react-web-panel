@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  ENTRY_TYPE_CREDENTIAL,
-  ENTRY_TYPE_KEY,
-  type EntryPlaintext,
-} from '../../features/vaults/types'
+import type { EntryPlaintext } from '../../features/vaults/types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from '../types/entry-type'
 import { decryptEntry, encryptEntry } from './entry-crypto'
 import { loadSodium, randomBytes } from './sodium'
 

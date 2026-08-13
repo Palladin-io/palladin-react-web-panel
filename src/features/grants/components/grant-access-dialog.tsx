@@ -7,7 +7,7 @@ import { FeedbackSlot } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { AGENT_STATUS_ACTIVE, getAgent, useAgents } from '../../agents'
 import { useVaults } from '../../vaults/use-vaults'
-import { ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_SCRIPT, normalizeEntryType } from '../../vaults/types'
+import { ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_SCRIPT, normalizeEntryType } from '../../../shared/types/entry-type'
 import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
 import {
   GRANT_TYPE_FULL,

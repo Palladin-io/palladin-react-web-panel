@@ -23,9 +23,15 @@ export interface GrantableField {
 }
 
 export function grantMethodsForSecret(secret: MemberSecretV1, methods: number): number {
-  if (secret.entryType !== 'creditCard') return methods
-  if ((methods & 4) !== 4) throw new Error('Credit-card grants require Inject')
-  return 4
+  if (secret.entryType === 'script') {
+    if ((methods & 2) !== 2) throw new Error('Script grants require Exec')
+    return 2
+  }
+  if (secret.entryType === 'creditCard') {
+    if ((methods & 4) !== 4) throw new Error('Credit-card grants require Inject')
+    return 4
+  }
+  return methods
 }
 
 export function listGrantableFields(secret: MemberSecretV1): GrantableField[] {
@@ -52,6 +58,9 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   if (fieldIds.length === 0) throw new Error('Grant payload requires at least one approved field')
   if (input.secret.entryType === 'creditCard' && input.approvedMethods !== 4) {
     throw new Error('Credit-card grants are Inject-only')
+  }
+  if (input.secret.entryType === 'script' && input.approvedMethods !== 2) {
+    throw new Error('Script grants are Exec-only')
   }
   const approvedMethods = input.approvedMethods
   for (const id of fieldIds) {

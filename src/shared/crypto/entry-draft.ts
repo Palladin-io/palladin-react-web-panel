@@ -1,5 +1,5 @@
-import type { CustomField, EntryPlaintext, EntryType, ScriptRef } from '../../features/vaults/types'
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY } from '../../features/vaults/types'
+import type { CustomField, EntryPlaintext, ScriptRef } from '../../features/vaults/types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, type EntryType } from '../types/entry-type'
 import { parseOtpauthUri } from './totp'
 import {
   parsePublicAssetIconReference,

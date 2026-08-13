@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import type { CustomField, EntryPlaintext, EntryType } from '../../features/vaults/types'
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from '../../features/vaults/types'
+import type { CustomField, EntryPlaintext } from '../../features/vaults/types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT, type EntryType } from '../types/entry-type'
 import { encodeUtf8 } from './vault-v2-bytes'
 import { decryptVaultEnvelope, encryptVaultEnvelope, type VaultCiphertextEnvelope } from './vault-v2-envelope'
 import { deriveVaultProjectionKey } from './vault-v2-kdf'

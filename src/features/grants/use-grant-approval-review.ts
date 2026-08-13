@@ -10,7 +10,7 @@ import { useAuthStore } from '../auth'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import type { PendingGrant } from './api/pending-grants-api'
-import { normalizeEntryType } from '../vaults/types'
+import { normalizeEntryType } from '../../shared/types/entry-type'
 
 export class GrantReviewUnavailableError extends Error {}
 

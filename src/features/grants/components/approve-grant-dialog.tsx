@@ -19,7 +19,7 @@ import {
   type GrantMethod,
 } from '../grant-methods'
 import type { GrantableField } from '../../../shared/crypto/grant-protocol'
-import { ENTRY_TYPE_CREDIT_CARD, type EntryType } from '../../vaults/types'
+import { ENTRY_TYPE_CREDIT_CARD, type EntryType } from '../../../shared/types/entry-type'
 
 export interface GrantApprovalReview {
   entryLabel: string

@@ -109,6 +109,22 @@ describe('useCreateGrant', () => {
     expect(mocks.create.mock.calls[0][1].methods).toBe('Inject')
   })
 
+  it('rejects a FULL grant when Script and Credit Card have no common delivery method', async () => {
+    mocks.vaultState.entries = new Map([
+      ['e1', { entryId: 'e1', state: 'active', corrupt: false }],
+      ['e2', { entryId: 'e2', state: 'active', corrupt: false }],
+    ])
+    mocks.normalizeMethods.mockReturnValueOnce(2).mockReturnValueOnce(4)
+    const { result } = renderHook(() => useCreateGrant(), { wrapper })
+    result.current.mutate({
+      vaultId: 'v1', agentId: 'a1', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
+      type: 'full', policy: {}, methods: ['exec', 'inject'],
+    })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(mocks.produce).not.toHaveBeenCalled()
+    expect(mocks.create).not.toHaveBeenCalled()
+  })
+
   it('fails before opening keys when recipient identity metadata is missing', async () => {
     const { result } = renderHook(() => useCreateGrant(), { wrapper })
     result.current.mutate({

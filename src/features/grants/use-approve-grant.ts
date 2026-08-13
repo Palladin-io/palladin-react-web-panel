@@ -9,7 +9,12 @@ import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import { approveGrant, type ApproveGrantBody } from './api/pending-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
-import { grantMethodsMask, serializeGrantMethods, type GrantMethod } from './grant-methods'
+import {
+  grantMethodsFromMask,
+  grantMethodsMask,
+  serializeGrantMethods,
+  type GrantMethod,
+} from './grant-methods'
 import { GRANTS_QUERY_KEY } from './query-keys'
 
 export class VaultLockedError extends Error {
@@ -84,19 +89,20 @@ export function useApproveGrant() {
         const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
         })
+        const normalizedApprovedMethods = grantMethodsForSecret(memberSecret, approvedMethods)
         const envelope = await buildCanonicalGrantEnvelope({
           secret: memberSecret,
           agentPublicKey: agent.publicKey,
           organizationId: detail.organizationId, vaultId, grantId, agentId, entryId,
           entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
           memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: agent.recipientKeyVersion,
-          approvedMethods: grantMethodsForSecret(memberSecret, approvedMethods), approvedFieldIds: fieldIds,
+          approvedMethods: normalizedApprovedMethods, approvedFieldIds: fieldIds,
           ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
         })
         const body: ApproveGrantBody = {
           grantEntry: envelope,
           ...policy,
-          methods: serializeGrantMethods(methods),
+          methods: serializeGrantMethods(grantMethodsFromMask(normalizedApprovedMethods)),
         }
         if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
         const latest = await getCanonicalEntry(vaultId, entryId)

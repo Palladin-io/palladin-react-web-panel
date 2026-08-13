@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
 import { memberIndexSearchValues, presentationIconReference } from '../../shared/crypto/vault-plaintext'
-import { normalizeEntryType } from '../vaults/types'
+import { normalizeEntryType } from '../../shared/types/entry-type'
 
 /** Decrypted in-memory Entry presentation used by cross-Vault pickers and
  * recents. This projection is never fetched from or sent to the backend. */

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { toBase64 } from './encoding'
-import { buildCanonicalGrantEnvelope } from './grant-protocol'
+import { buildCanonicalGrantEnvelope, grantMethodsForSecret } from './grant-protocol'
 import { loadSodium, wipe } from './sodium'
 import type { MemberSecretV1 } from './vault-plaintext'
 
@@ -20,6 +20,11 @@ const secret: MemberSecretV1 = {
 }
 
 describe('canonical Grant protocol', () => {
+  it('derives the only delivery method allowed by Script and Credit Card secrets', () => {
+    expect(grantMethodsForSecret({ ...secret, entryType: 'script' }, 6)).toBe(2)
+    expect(grantMethodsForSecret({ ...secret, entryType: 'creditCard' }, 6)).toBe(4)
+  })
+
   it('binds the selected fields and caller-provided revision/key version', async () => {
     const sodium = await loadSodium()
     const agent = sodium.crypto_box_keypair()

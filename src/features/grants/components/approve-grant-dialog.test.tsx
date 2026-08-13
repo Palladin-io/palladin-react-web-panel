@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApproveGrantDialog } from './approve-grant-dialog'
 import type { PendingGrant } from '../api/pending-grants-api'
-import { ENTRY_TYPE_CREDENTIAL } from '../../vaults/types'
+import { ENTRY_TYPE_CREDENTIAL } from '../../../shared/types/entry-type'
 
 const grant: PendingGrant = {
   id: 'g1',
