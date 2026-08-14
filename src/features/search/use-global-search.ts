@@ -20,7 +20,7 @@ export type SearchResultItem =
       vaultId: string
       name: string
       vaultName: string
-      entryType: 'key' | 'credential' | 'script'
+      entryType: 'key' | 'credential' | 'script' | 'creditCard'
       icon?: string
       color?: string
     }

@@ -6,6 +6,24 @@
  * same shape on the wire to avoid lossy string conversions.
  */
 
+import {
+  ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_CREDIT_CARD,
+  ENTRY_TYPE_KEY,
+  ENTRY_TYPE_SCRIPT,
+  normalizeEntryType,
+  type EntryType,
+} from '../../shared/types/entry-type'
+
+export {
+  ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_CREDIT_CARD,
+  ENTRY_TYPE_KEY,
+  ENTRY_TYPE_SCRIPT,
+  normalizeEntryType,
+  type EntryType,
+}
+
 export const GRANT_MODE_FULL = 1 as const
 export const GRANT_MODE_GRANULAR = 2 as const
 export type GrantMode = typeof GRANT_MODE_FULL | typeof GRANT_MODE_GRANULAR
@@ -50,34 +68,6 @@ export interface Vault extends VaultSummary {
  * variable); CREDENTIAL (1) is a username + password pair, optionally
  * with a URL; SCRIPT (2) is an agent-run script with declared vault-data refs.
  */
-export const ENTRY_TYPE_KEY = 0 as const
-export const ENTRY_TYPE_CREDENTIAL = 1 as const
-export const ENTRY_TYPE_SCRIPT = 2 as const
-export type EntryType =
-  | typeof ENTRY_TYPE_KEY
-  | typeof ENTRY_TYPE_CREDENTIAL
-  | typeof ENTRY_TYPE_SCRIPT
-
-/**
- * Normalise the wire `type` into an {@link EntryType}.
- *
- * The client models entry types numerically (KEY=0 / CREDENTIAL=1 / SCRIPT=2),
- * but the backend serialises the `EntryType` enum as a camelCase **string** —
- * the API responds with `"key"` / `"credential"` / `"script"` (see
- * `JsonStringEnumConverter` in the .NET Json settings). A raw
- * `entry.type === ENTRY_TYPE_KEY` comparison is then always false
- * (`"key" === 0`), which silently renders every entry as a CREDENTIAL.
- * Normalise at the API boundary so every consumer can keep comparing against
- * the numeric constants. Accepts the numeric form too, so older builds and
- * test fixtures that already send `0` / `1` / `2` still work.
- */
-export function normalizeEntryType(raw: unknown): EntryType {
-  const value = typeof raw === 'string' ? raw.toLowerCase() : raw
-  if (value === 'key' || value === ENTRY_TYPE_KEY) return ENTRY_TYPE_KEY
-  if (value === 'script' || value === ENTRY_TYPE_SCRIPT) return ENTRY_TYPE_SCRIPT
-  return ENTRY_TYPE_CREDENTIAL
-}
-
 /**
  * Encrypted-blob schema version. Its absence means v1 (well-known fields only,
  * no `fields[]`). v2 is additive — well-known fields stay top-level and custom
@@ -275,6 +265,17 @@ export type EntryPlaintext =
       notes?: string
       /** Declared env-var → vault-field mappings injected at exec time. */
       refs?: ScriptRef[]
+    })
+  | (EntryPlaintextV2Common & {
+      type: typeof ENTRY_TYPE_CREDIT_CARD
+      cardholderName: string
+      cardNumber: string
+      expiryMonth: string
+      expiryYear: string
+      securityCode: string
+      pin?: string
+      billingAddress?: string
+      notes?: string
     })
 
 export interface CreateVaultInput {

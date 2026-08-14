@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { toMemberSecret, type EntryDraft, type MemberSecretView } from '../../shared/crypto/entry-draft'
-import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
+import { buildCanonicalGrantEnvelope, grantMethodsForSecret, listGrantableFields } from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { projectAgentDiscovery } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
@@ -108,6 +108,9 @@ export function useUpdateCanonicalEntry(vaultId: string, entryId: string) {
             try {
               const approvedFieldIds = scope.fieldIds.filter((fieldId) => grantable.has(fieldId))
               if (approvedFieldIds.length === 0) throw new ActiveGrantRefreshRequiredError()
+              const methodsMask = grantMethodsMask(methods)
+              const approvedMethods = grantMethodsForSecret(nextSecret, methodsMask)
+              if (approvedMethods !== methodsMask) throw new ActiveGrantRefreshRequiredError()
               grantEnvelopes.push(await buildCanonicalGrantEnvelope({
                 secret: nextSecret,
                 agentPublicKey: grant.agentPublicKey,
@@ -118,7 +121,7 @@ export function useUpdateCanonicalEntry(vaultId: string, entryId: string) {
                 grantKeyVersion: scope.grantKeyVersion + 1,
                 memberKeyGeneration: vault.memberKeyGeneration,
                 recipientKeyVersion: grant.recipientAgentKeyVersion,
-                approvedMethods: grantMethodsMask(methods),
+                approvedMethods,
                 ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
                 ...(grant.queryLimit !== null && grant.queryLimit !== undefined
                   ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }

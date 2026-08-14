@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
 import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { defaultAgentVisibilityPolicy, toMemberSecret, type EntryDraft } from '../../shared/crypto/entry-draft'
-import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
+import { buildCanonicalGrantEnvelope, grantMethodsForSecret, listGrantableFields } from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { projectAgentDiscovery, publicAssetIconReference } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
@@ -25,6 +25,7 @@ import {
 } from './api/vault-api'
 import {
   ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_CREDIT_CARD,
   ENTRY_TYPE_KEY,
   type EntryPlaintext,
 } from './types'
@@ -114,6 +115,13 @@ function toPlaintext(entry: ParsedEntry): EntryPlaintext {
   if (entry.type === ENTRY_TYPE_KEY) {
     return { type: ENTRY_TYPE_KEY, value: entry.value ?? '', notes: entry.notes }
   }
+  if (entry.type === ENTRY_TYPE_CREDIT_CARD) return {
+    type: ENTRY_TYPE_CREDIT_CARD,
+    cardholderName: entry.cardholderName ?? '', cardNumber: entry.cardNumber ?? '',
+    expiryMonth: entry.expiryMonth ?? '', expiryYear: entry.expiryYear ?? '',
+    securityCode: entry.securityCode ?? '', pin: entry.pin,
+    billingAddress: entry.billingAddress, notes: entry.notes,
+  }
   // External importers only ever produce KEY or CREDENTIAL entries.
   return {
     type: ENTRY_TYPE_CREDENTIAL,
@@ -139,6 +147,14 @@ function toDraft(entry: ParsedEntry, publicAsset?: PublicAsset): EntryDraft {
       url: publicAsset.url,
     }) } : {}),
   }
+}
+
+function existingGrantMethodsForSecret(secret: Parameters<typeof grantMethodsForSecret>[0], methods: number): number {
+  const normalized = grantMethodsForSecret(secret, methods)
+  if (normalized !== methods) {
+    throw new Error('Active grant methods are incompatible with the Entry type')
+  }
+  return normalized
 }
 
 async function activeCoveringGrants(vaultId: string, entryId: string): Promise<OrgGrant[]> {
@@ -284,7 +300,7 @@ export function useImportEntries() {
                   grantEnvelopeRevision: '1', grantKeyVersion: 1,
                   memberKeyGeneration: vault.memberKeyGeneration,
                   recipientKeyVersion: grant.recipientAgentKeyVersion,
-                  approvedMethods: grantMethodsMask(methods),
+                  approvedMethods: existingGrantMethodsForSecret(memberSecret, grantMethodsMask(methods)),
                   ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
                   ...(grant.remainingUses !== undefined ? { remainingUses: grant.remainingUses } : {}),
                 }))
@@ -362,7 +378,7 @@ export function useImportEntries() {
                 grantKeyVersion: scope.grantKeyVersion + 1,
                 memberKeyGeneration: vault.memberKeyGeneration,
                 recipientKeyVersion: grant.recipientAgentKeyVersion,
-                approvedMethods: grantMethodsMask(methods),
+                approvedMethods: existingGrantMethodsForSecret(nextSecret, grantMethodsMask(methods)),
                 ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
                 ...(grant.queryLimit !== null && grant.queryLimit !== undefined
                   ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }

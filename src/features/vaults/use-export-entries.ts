@@ -6,7 +6,7 @@ import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
 import { getCanonicalEntry, getEntryHistory, type CanonicalEntryDetail } from './api/vault-api'
 import { toPalladinCsv, toPalladinJson, type ExportEntry, type ExportVault } from './export'
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from './types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from './types'
 import { getEncryptedVault } from './sync/member-sync-api'
 import { useMemberSyncStore, type MemberEntryState } from './sync/member-sync-store'
 
@@ -92,6 +92,16 @@ function toExportEntry(
   }
   if (secret.content.type === ENTRY_TYPE_KEY) return { ...common, value: secret.content.value }
   if (secret.content.type === ENTRY_TYPE_SCRIPT) return { ...common, value: secret.content.script }
+  if (secret.content.type === ENTRY_TYPE_CREDIT_CARD) return {
+    ...common,
+    cardholderName: secret.content.cardholderName,
+    cardNumber: secret.content.cardNumber,
+    expiryMonth: secret.content.expiryMonth,
+    expiryYear: secret.content.expiryYear,
+    securityCode: secret.content.securityCode,
+    pin: secret.content.pin,
+    billingAddress: secret.content.billingAddress,
+  }
   if (secret.content.type !== ENTRY_TYPE_CREDENTIAL) throw new ExportProjectionUnavailableError()
   return {
     ...common,
@@ -144,6 +154,13 @@ function clearPlaintext(vaults: ExportVault[]) {
       entry.url = ''
       entry.notes = ''
       entry.totp = ''
+      entry.cardholderName = ''
+      entry.cardNumber = ''
+      entry.expiryMonth = ''
+      entry.expiryYear = ''
+      entry.securityCode = ''
+      entry.pin = ''
+      entry.billingAddress = ''
       entry.folder = ''
     }
     vault.entries.length = 0

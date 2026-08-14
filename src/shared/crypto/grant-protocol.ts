@@ -7,7 +7,7 @@ import { encodeGrantPayload, projectGrantPayload, type MemberSecretV1 } from './
 import { sealVaultEnvelope, toEnvelopeDescriptor, type EnvelopeDescriptorContract } from './vault-envelope'
 import { computeVaultKeyFingerprint, sealKeyToX25519Recipient, VAULT_KEY_KIND, WRAPPER_PURPOSE, X25519_SEALED_BOX_V1 } from './x25519-wrapper'
 
-export const GRANT_DELIVERY_POLICY = { standard: 0, execOnly: 1 } as const
+export const GRANT_DELIVERY_POLICY = { standard: 0, execOnly: 1, injectOnly: 2 } as const
 
 export interface BuildGrantEnvelopeInput {
   organizationId: string; vaultId: string; entryId: string; grantId: string; agentId: string
@@ -20,6 +20,18 @@ export interface GrantableField {
   id: string
   label: string
   access: 'onGrantValue' | 'onGrantDerived' | 'onGrantRuntime'
+}
+
+export function grantMethodsForSecret(secret: MemberSecretV1, methods: number): number {
+  if (secret.entryType === 'script') {
+    if ((methods & 2) !== 2) throw new Error('Script grants require Exec')
+    return 2
+  }
+  if (secret.entryType === 'creditCard') {
+    if ((methods & 4) !== 4) throw new Error('Credit-card grants require Inject')
+    return 4
+  }
+  return methods
 }
 
 export function listGrantableFields(secret: MemberSecretV1): GrantableField[] {
@@ -44,6 +56,13 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   }
   const fieldIds = [...new Set(input.approvedFieldIds)].sort()
   if (fieldIds.length === 0) throw new Error('Grant payload requires at least one approved field')
+  if (input.secret.entryType === 'creditCard' && input.approvedMethods !== 4) {
+    throw new Error('Credit-card grants are Inject-only')
+  }
+  if (input.secret.entryType === 'script' && input.approvedMethods !== 2) {
+    throw new Error('Script grants are Exec-only')
+  }
+  const approvedMethods = input.approvedMethods
   for (const id of fieldIds) {
     const access = input.secret.agentFieldAccess[id]
     if (access !== 'onGrantValue' && access !== 'onGrantDerived' && access !== 'onGrantRuntime') {
@@ -57,11 +76,13 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   const expiresAt = instant(input.expiresAt)
   const deliveryPolicy = input.secret.entryType === 'script'
     ? GRANT_DELIVERY_POLICY.execOnly
-    : GRANT_DELIVERY_POLICY.standard
+    : input.secret.entryType === 'creditCard'
+      ? GRANT_DELIVERY_POLICY.injectOnly
+      : GRANT_DELIVERY_POLICY.standard
   const binding = {
     entryRevision: input.entryRevision, wrapperSuiteId: X25519_SEALED_BOX_V1,
     recipientKeyVersion: input.recipientKeyVersion, recipientKeyFingerprint: toBase64Url(fingerprint),
-    approvedMethods: input.approvedMethods, deliveryPolicy, fieldSetCommitment: toBase64Url(commitment),
+    approvedMethods, deliveryPolicy, fieldSetCommitment: toBase64Url(commitment),
     expiresAt: input.expiresAt ?? null, remainingUses: input.remainingUses ?? null,
   }
   const descriptor: EnvelopeDescriptorContract<typeof binding> = {
@@ -73,7 +94,7 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   const extension = {
     entryRevision: BigInt(input.entryRevision), wrapperSuiteId: X25519_SEALED_BOX_V1,
     recipientKeyVersion: input.recipientKeyVersion, recipientKeyFingerprint: fingerprint,
-    methods: input.approvedMethods, deliveryPolicy, fieldSetCommitment: commitment, expiresAt,
+    methods: approvedMethods, deliveryPolicy, fieldSetCommitment: commitment, expiresAt,
     remainingUses: input.remainingUses,
   }
   const dek = await randomBytes(32)

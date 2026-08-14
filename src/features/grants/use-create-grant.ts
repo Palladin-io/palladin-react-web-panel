@@ -1,13 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
-import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
+import { buildCanonicalGrantEnvelope, grantMethodsForSecret } from '../../shared/crypto/grant-protocol'
 import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
-import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
+import { useMemberSyncStore } from '../../shared/stores/member-sync-store'
 import {
   GRANT_TYPE_FULL,
   GRANT_TYPE_GRANULAR,
@@ -16,7 +16,12 @@ import {
   type GrantType,
 } from './api/org-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
-import { grantMethodsMask, serializeGrantMethods, type GrantMethod } from './grant-methods'
+import {
+  grantMethodsFromMask,
+  grantMethodsMask,
+  serializeGrantMethods,
+  type GrantMethod,
+} from './grant-methods'
 import { MissingGrantMaterialError, VaultLockedError } from './use-approve-grant'
 import { GRANT_MUTATION_INVALIDATION_KEYS } from './query-keys'
 
@@ -61,13 +66,29 @@ export function useCreateGrant() {
       const vault = await getEncryptedVault(vaultId)
       const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
       const grantId = crypto.randomUUID()
-      const approvedMethods = grantMethodsMask(methods)
+      const requestedMethods = grantMethodsMask(methods)
       try {
+        const details = []
+        let approvedMethods = requestedMethods
+        // A grant has one backend Methods value, while each authenticated envelope repeats it.
+        // Derive the common fail-closed set from the authoritative MemberSecrets before sealing
+        // any envelope. Decrypt sequentially and retain only ciphertext details, never a
+        // vault-sized array of plaintext secrets.
+        for (const currentEntryId of entryIds) {
+          const detail = await getCanonicalEntry(vaultId, currentEntryId)
+          const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
+            organizationId: detail.organizationId, vaultId, entryId: currentEntryId,
+            revision: detail.currentRevision,
+          })
+          approvedMethods &= grantMethodsForSecret(memberSecret, requestedMethods)
+          details.push({ currentEntryId, detail })
+        }
+        if (approvedMethods === 0) throw new MissingGrantMaterialError()
+
         const grantEntries = []
         // Sequential processing bounds decrypted MemberSecret residency and avoids a vault-sized
         // Promise.all of plaintext payloads. The final ciphertext array is required atomically.
-        for (const currentEntryId of entryIds) {
-          const detail = await getCanonicalEntry(vaultId, currentEntryId)
+        for (const { currentEntryId, detail } of details) {
           const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
             organizationId: detail.organizationId, vaultId, entryId: currentEntryId,
             revision: detail.currentRevision,
@@ -91,7 +112,7 @@ export function useCreateGrant() {
           ...(type === GRANT_TYPE_GRANULAR ? { entryId } : {}),
           grantEntries,
           ...policy,
-          methods: serializeGrantMethods(methods),
+          methods: serializeGrantMethods(grantMethodsFromMask(approvedMethods)),
         }
         await createGrantProactively(vaultId, body)
       } finally {

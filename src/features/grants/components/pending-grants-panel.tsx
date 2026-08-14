@@ -18,7 +18,7 @@ import { DenyGrantDialog } from './deny-grant-dialog'
 import { formatGrantDate, formatRelativeTime } from './grant-format'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
-import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
+import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
 
 export interface PendingGrantsPanelProps {
   /**

@@ -10,6 +10,7 @@ import { useAuthStore } from '../auth'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import type { PendingGrant } from './api/pending-grants-api'
+import { normalizeEntryType } from '../../shared/types/entry-type'
 
 export class GrantReviewUnavailableError extends Error {}
 
@@ -66,6 +67,7 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
           entryLabel: memberSecret.memberLabel,
           reason: decryptedReason,
           entryRevision: detail.currentRevision,
+          entryType: normalizeEntryType(memberSecret.entryType),
           fields: listGrantableFields(memberSecret),
         }
       } finally {

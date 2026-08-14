@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { toBase64 } from './encoding'
-import { buildCanonicalGrantEnvelope } from './grant-protocol'
+import { buildCanonicalGrantEnvelope, grantMethodsForSecret } from './grant-protocol'
 import { loadSodium, wipe } from './sodium'
 import type { MemberSecretV1 } from './vault-plaintext'
 
@@ -20,6 +20,11 @@ const secret: MemberSecretV1 = {
 }
 
 describe('canonical Grant protocol', () => {
+  it('derives the only delivery method allowed by Script and Credit Card secrets', () => {
+    expect(grantMethodsForSecret({ ...secret, entryType: 'script' }, 6)).toBe(2)
+    expect(grantMethodsForSecret({ ...secret, entryType: 'creditCard' }, 6)).toBe(4)
+  })
+
   it('binds the selected fields and caller-provided revision/key version', async () => {
     const sodium = await loadSodium()
     const agent = sodium.crypto_box_keypair()
@@ -71,6 +76,42 @@ describe('canonical Grant protocol', () => {
         approvedFieldIds: ['script.source'], approvedMethods: 2, secret: scriptSecret,
       })
       expect(envelope.descriptor.binding.deliveryPolicy).toBe(1)
+    } finally {
+      wipe(agent.privateKey); wipe(agent.publicKey)
+    }
+  })
+
+  it('authenticates inject-only policy for Credit Card payloads', async () => {
+    const sodium = await loadSodium()
+    const agent = sodium.crypto_box_keypair()
+    const cardSecret: MemberSecretV1 = {
+      schema: 'palladin.member-secret.v1', memberLabel: 'Company card', agentLabel: 'Company card',
+      discoverable: true, description: null, icon: null, color: null, entryType: 'creditCard',
+      agentFieldAccess: {
+        memberLabel: 'never', agentLabel: 'discovery', description: 'never', icon: 'never', color: 'never',
+        entryType: 'discovery', 'creditCard.cardholderName': 'onGrantRuntime',
+        'creditCard.cardNumber': 'onGrantRuntime', 'creditCard.expiryMonth': 'onGrantRuntime',
+        'creditCard.expiryYear': 'onGrantRuntime', 'creditCard.securityCode': 'onGrantRuntime',
+        'creditCard.pin': 'never', 'creditCard.billingAddress': 'never', notes: 'never',
+      },
+      content: {
+        cardholderName: 'Ada Lovelace', cardNumber: '4242424242424242', expiryMonth: '12',
+        expiryYear: '2030', securityCode: '123', pin: null, billingAddress: null,
+        notes: null, customFields: [],
+      },
+    }
+    try {
+      const envelope = await buildCanonicalGrantEnvelope({
+        organizationId: '00112233-4455-6677-8899-aabbccddeeff',
+        vaultId: '11112222-3333-4444-8555-666677778888',
+        entryId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        grantId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+        agentId: 'cccccccc-dddd-4eee-8fff-000000000000', entryRevision: '1',
+        memberKeyGeneration: 1, agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 1,
+        grantEnvelopeRevision: '1', grantKeyVersion: 1,
+        approvedFieldIds: ['creditCard.cardNumber'], approvedMethods: 4, secret: cardSecret,
+      })
+      expect(envelope.descriptor.binding.deliveryPolicy).toBe(2)
     } finally {
       wipe(agent.privateKey); wipe(agent.publicKey)
     }
