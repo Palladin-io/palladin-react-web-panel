@@ -8,6 +8,7 @@ import { FormInput } from '../../../shared/components/form-field'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { analytics } from '../../../shared/lib/analytics'
+import { env } from '../../../shared/lib/env'
 import type { GeneratedApiKey } from '../api/api-keys-api'
 import { useGenerateApiKey } from '../use-generate-api-key'
 
@@ -120,7 +121,7 @@ function GeneratedSecretView({
   const { t } = useTranslation()
   const [agentName, setAgentName] = useState(keyName)
 
-  const connectCommand = `palladin connect ${generated.plaintext} --id "${agentName.trim() || keyName}"`
+  const connectCommand = `palladin connect --host ${shellQuote(env.apiUrl)} --name ${shellQuote(agentName.trim() || keyName)}`
   const installCommand = 'npm i -g @palladin/agent'
   const agentMessage = t('apiKeys.agentMessageBody', {
     name: agentName.trim() || keyName,
@@ -209,6 +210,10 @@ function GeneratedSecretView({
       </CollapsibleSection>
     </div>
   )
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`
 }
 
 /** Bordered header + chevron that toggles its content open/closed. */

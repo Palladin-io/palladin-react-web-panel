@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const probe = vi.hoisted(() => ({
   synchronize: vi.fn(async () => {}),
   createDefaultVault: vi.fn(async () => 'created'),
+  reconcileDiscovery: vi.fn(async () => {}),
 }))
 
 vi.mock('./member-sync-engine', () => ({
@@ -16,6 +17,10 @@ vi.mock('./member-sync-cache', () => ({ IndexedDbMemberSyncCache: class {} }))
 vi.mock('../../../shared/lib/create-default-vault-safe', () => ({
   createDefaultVaultSafe: probe.createDefaultVault,
 }))
+vi.mock('./agent-discovery-reconciler', () => ({
+  AGENT_DISCOVERY_RECONCILE_EVENT: 'palladin:agent-discovery-reconcile',
+  reconcileAgentDiscovery: probe.reconcileDiscovery,
+}))
 
 import { MemberSyncProvider } from './member-sync-provider'
 import { useMemberSyncStore } from './member-sync-store'
@@ -24,6 +29,7 @@ describe('MemberSyncProvider refresh lifecycle', () => {
   beforeEach(() => {
     probe.synchronize.mockClear()
     probe.createDefaultVault.mockClear()
+    probe.reconcileDiscovery.mockClear()
     useMemberSyncStore.getState().clear()
     vi.useFakeTimers()
   })
@@ -109,6 +115,38 @@ describe('MemberSyncProvider refresh lifecycle', () => {
     await act(async () => { await Promise.resolve() })
 
     expect(probe.synchronize).toHaveBeenCalledTimes(1)
+  })
+
+  it('queues Discovery reconciliation when an Agent is approved during an active pass', async () => {
+    let finishFirst!: () => void
+    probe.reconcileDiscovery.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finishFirst = resolve
+    }))
+
+    render(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={new Uint8Array(32)}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+    await act(async () => { await Promise.resolve() })
+    expect(probe.reconcileDiscovery).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      window.dispatchEvent(new Event('palladin:agent-discovery-reconcile'))
+    })
+    expect(probe.reconcileDiscovery).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      finishFirst()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(probe.reconcileDiscovery).toHaveBeenCalledTimes(2)
   })
 
   it('retries immediately without cycling the provider lifecycle', async () => {

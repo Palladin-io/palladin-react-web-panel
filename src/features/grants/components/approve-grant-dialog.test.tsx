@@ -146,7 +146,7 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     expect(onConfirm.mock.calls[0][1]).toEqual(['exec', 'inject'])
   })
 
-  it('constrains a compatible Script request to Exec before confirmation', async () => {
+  it('keeps the authenticated method selection editable for Script entries', async () => {
     const user = userEvent.setup()
     render(
       <ApproveGrantDialog
@@ -158,12 +158,13 @@ describe('ApproveGrantDialog — access type dropdown', () => {
       />,
     )
 
-    expect(screen.getByRole('combobox', { name: /how the agent may use it/i })).toBeDisabled()
+    expect(screen.getByRole('combobox', { name: /how the agent may use it/i })).toBeEnabled()
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
-    expect(onConfirm.mock.calls[0][1]).toEqual(['exec'])
+    expect(onConfirm.mock.calls[0][1]).toEqual(['exec', 'inject'])
   })
 
-  it('blocks a Script request that did not authenticate Exec', async () => {
+  it('allows the authenticated Inject selection for Script entries', async () => {
+    const user = userEvent.setup()
     render(
       <ApproveGrantDialog
         grant={{ ...grant, encryptedReason: { descriptor: { binding: { requestedMethods: 4 } } } } as PendingGrant}
@@ -174,17 +175,16 @@ describe('ApproveGrantDialog — access type dropdown', () => {
       />,
     )
 
-    expect(screen.getByRole('button', { name: /^approve access$/i })).toBeDisabled()
-    expect(screen.getByRole('alert')).toHaveTextContent(/did not request Exec/i)
+    expect(screen.getByRole('button', { name: /^approve access$/i })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: /^approve access$/i }))
+    expect(onConfirm.mock.calls[0][1]).toEqual(['inject'])
   })
 
-  it('requires at least one policy-approved field', async () => {
+  it('does not expose field selection and approves every grantable field', async () => {
     const user = userEvent.setup()
     renderDialog()
-    await user.click(screen.getByRole('checkbox', { name: /password/i }))
-    await user.click(screen.getByRole('checkbox', { name: /totp/i }))
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
-    expect(onConfirm).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert')).toHaveTextContent('Select at least one field')
+    expect(onConfirm).toHaveBeenCalledWith(expect.any(Object), ['exec', 'inject'], ['password', 'totp'])
   })
 })

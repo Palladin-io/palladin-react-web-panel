@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { UnlockPage } from './unlock-page'
 import { IncorrectMasterPasswordError } from './use-unlock'
+import { getAccount } from '../../shared/api/account-api'
 
 const navigateMock = vi.fn()
 const mutateMock = vi.fn()
@@ -54,6 +55,30 @@ describe('UnlockPage', () => {
     navigateMock.mockReset()
     mutateMock.mockReset()
     isPending = false
+    vi.mocked(getAccount).mockReset()
+    vi.mocked(getAccount).mockResolvedValue({
+      userId: 'user-id',
+      email: 'user@example.com',
+      displayName: 'User',
+      avatarUrl: null,
+      isOnboarded: true,
+      salt: 'mock-salt',
+      encryptedPrivateKey: 'mock-key',
+    })
+  })
+
+  it('fails closed when account key material cannot be loaded', async () => {
+    vi.mocked(getAccount).mockRejectedValue(new Error('network unavailable'))
+
+    render(<UnlockPage />, { wrapper })
+
+    expect(
+      await screen.findByRole('heading', { name: /unable to load account/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('heading', { name: /set master password/i }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /retry/i })).toBeEnabled()
   })
 
   it('fires the page-viewed analytics event on mount', async () => {

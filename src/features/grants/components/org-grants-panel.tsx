@@ -24,8 +24,10 @@ import {
 } from '../org-grant-presentation'
 import type { GrantPolicyBody } from '../grant-policy'
 import { useOrgGrants } from '../use-org-grants'
+import { useGrantReasons } from '../use-grant-reasons'
 import { useRegrant } from '../use-regrant'
 import { useRevokeOrgGrant } from '../use-revoke-org-grant'
+import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
 import {
   formatExpiresIn,
   formatGrantDate,
@@ -101,11 +103,24 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
     agentId ? { agentId } : vaultId ? { vaultId } : entryId ? { entryId } : {},
     canManage,
   )
+  // Entry labels are encrypted vault metadata and therefore intentionally do
+  // not come from the backend grant projection. Resolve them from the
+  // in-memory member sync store when the vault is unlocked; keep the server
+  // value as a fallback for older/public projections.
+  const memberVaults = useMemberSyncStore((state) => state.vaults)
   const items = useMemo(
     () =>
-      (grants.data?.items ?? []).filter((g) => g.status !== GRANT_STATUS_PENDING),
-    [grants.data],
+      (grants.data?.items ?? [])
+        .filter((g) => g.status !== GRANT_STATUS_PENDING)
+        .map((grant) => {
+          if (grant.entryLabel || !grant.entryId) return grant
+          const entry = memberVaults.get(grant.vaultId)?.entries.get(grant.entryId)
+          const entryLabel = !entry?.corrupt ? entry?.payload?.memberLabel ?? null : null
+          return entryLabel ? { ...grant, entryLabel } : grant
+        }),
+    [grants.data, memberVaults],
   )
+  const reasons = useGrantReasons(items)
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -235,6 +250,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
             <li key={grant.id}>
               <OrgGrantRow
                 grant={grant}
+                accessReason={reasons.get(grant.id)}
                 onRevoke={() => setRevokeTarget(grant)}
                 onRegrant={allowRegrant ? () => setRegrantTarget(grant) : undefined}
                 disabled={revoke.isPending || regrant.isPending}
@@ -261,6 +277,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
                   <li key={grant.id}>
                     <OrgGrantRow
                       grant={grant}
+                      accessReason={reasons.get(grant.id)}
                       onRevoke={() => setRevokeTarget(grant)}
                       onRegrant={allowRegrant ? () => setRegrantTarget(grant) : undefined}
                       disabled={revoke.isPending || regrant.isPending}
@@ -295,11 +312,13 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
 
 function OrgGrantRow({
   grant,
+  accessReason,
   onRevoke,
   onRegrant,
   disabled,
 }: {
   grant: OrgGrant
+  accessReason?: string
   onRevoke: () => void
   onRegrant?: () => void
   disabled: boolean
@@ -311,7 +330,7 @@ function OrgGrantRow({
   const isFull = grant.type === GRANT_TYPE_FULL
   const agentName = grant.agentName ?? t('grants.unknownAgent')
   const actor = grantActorName(grant) ?? t('grants.org.actorSystem')
-  const reason = contextualReason(grant, t)
+  const reason = contextualReason(grant, t, accessReason)
   const accessText = accessSummary(grant, t)
 
   return (
@@ -505,14 +524,18 @@ function accessSummary(grant: OrgGrant, t: TFn): string {
  * (request) reason. Falls back to the access-reason label with an em dash when
  * no reason is present, so the row is always rendered (keeps cards equal).
  */
-function contextualReason(grant: OrgGrant, t: TFn): { label: string; text: string } {
+function contextualReason(
+  grant: OrgGrant,
+  t: TFn,
+  accessReason?: string,
+): { label: string; text: string } {
   if (grant.status === 'denied' && grant.denyReason) {
     return { label: t('grants.org.rowDenyReason'), text: grant.denyReason }
   }
   if (grant.status === 'revoked' && grant.revokeReason) {
     return { label: t('grants.org.rowRevokeReason'), text: grant.revokeReason }
   }
-  return { label: t('grants.org.rowReason'), text: grant.reason ?? '—' }
+  return { label: t('grants.org.rowReason'), text: accessReason ?? grant.reason ?? '—' }
 }
 
 function summarise(items: OrgGrant[]): string | null {

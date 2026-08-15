@@ -2,7 +2,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
 import { getAgent } from '../agents'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
-import { buildCanonicalGrantEnvelope, grantMethodsForSecret } from '../../shared/crypto/grant-protocol'
+import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
+import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
@@ -61,7 +62,6 @@ export function useApproveGrant() {
       agentId,
       policy,
       methods,
-      fieldIds,
       reviewedEntryRevision,
       requestedMethods,
     }: ApproveGrantInput) => {
@@ -89,20 +89,21 @@ export function useApproveGrant() {
         const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
         })
-        const normalizedApprovedMethods = grantMethodsForSecret(memberSecret, approvedMethods)
+        const approvedFieldIds = listGrantableFieldIds(memberSecret)
+        if (approvedFieldIds.length === 0) throw new MissingGrantMaterialError()
         const envelope = await buildCanonicalGrantEnvelope({
           secret: memberSecret,
           agentPublicKey: agent.publicKey,
           organizationId: detail.organizationId, vaultId, grantId, agentId, entryId,
           entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
           memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: agent.recipientKeyVersion,
-          approvedMethods: normalizedApprovedMethods, approvedFieldIds: fieldIds,
+          approvedMethods, approvedFieldIds,
           ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
         })
         const body: ApproveGrantBody = {
           grantEntry: envelope,
           ...policy,
-          methods: serializeGrantMethods(grantMethodsFromMask(normalizedApprovedMethods)),
+          methods: serializeGrantMethods(grantMethodsFromMask(approvedMethods)),
         }
         if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
         const latest = await getCanonicalEntry(vaultId, entryId)

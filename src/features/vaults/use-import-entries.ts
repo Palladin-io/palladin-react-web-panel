@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
 import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { defaultAgentVisibilityPolicy, toMemberSecret, type EntryDraft } from '../../shared/crypto/entry-draft'
-import { buildCanonicalGrantEnvelope, grantMethodsForSecret, listGrantableFields } from '../../shared/crypto/grant-protocol'
+import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { projectAgentDiscovery, publicAssetIconReference } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
@@ -149,14 +149,6 @@ function toDraft(entry: ParsedEntry, publicAsset?: PublicAsset): EntryDraft {
   }
 }
 
-function existingGrantMethodsForSecret(secret: Parameters<typeof grantMethodsForSecret>[0], methods: number): number {
-  const normalized = grantMethodsForSecret(secret, methods)
-  if (normalized !== methods) {
-    throw new Error('Active grant methods are incompatible with the Entry type')
-  }
-  return normalized
-}
-
 async function activeCoveringGrants(vaultId: string, entryId: string): Promise<OrgGrant[]> {
   const grants: OrgGrant[] = []
   let cursor: string | undefined
@@ -300,7 +292,7 @@ export function useImportEntries() {
                   grantEnvelopeRevision: '1', grantKeyVersion: 1,
                   memberKeyGeneration: vault.memberKeyGeneration,
                   recipientKeyVersion: grant.recipientAgentKeyVersion,
-                  approvedMethods: existingGrantMethodsForSecret(memberSecret, grantMethodsMask(methods)),
+                  approvedMethods: grantMethodsMask(methods),
                   ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
                   ...(grant.remainingUses !== undefined ? { remainingUses: grant.remainingUses } : {}),
                 }))
@@ -364,8 +356,7 @@ export function useImportEntries() {
               if (!scope?.grantEnvelopeRevision || !scope.grantKeyVersion || !scope.fieldIds.length
                 || !grant.agentId || !grant.agentPublicKey || !grant.recipientAgentKeyVersion
                 || methods.length === 0) throw new Error('Active grant refresh context is invalid')
-              const grantable = new Set(listGrantableFields(nextSecret).map((field) => field.id))
-              const approvedFieldIds = scope.fieldIds.filter((fieldId) => grantable.has(fieldId))
+              const approvedFieldIds = listGrantableFields(nextSecret).map((field) => field.id)
               if (approvedFieldIds.length === 0) throw new Error('Active grant has no permitted fields')
               material.grantEnvelopes.push(await buildCanonicalGrantEnvelope({
                 secret: nextSecret,
@@ -378,7 +369,7 @@ export function useImportEntries() {
                 grantKeyVersion: scope.grantKeyVersion + 1,
                 memberKeyGeneration: vault.memberKeyGeneration,
                 recipientKeyVersion: grant.recipientAgentKeyVersion,
-                approvedMethods: existingGrantMethodsForSecret(nextSecret, grantMethodsMask(methods)),
+                approvedMethods: grantMethodsMask(methods),
                 ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
                 ...(grant.queryLimit !== null && grant.queryLimit !== undefined
                   ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }

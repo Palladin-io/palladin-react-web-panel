@@ -16,7 +16,8 @@ export { useAgents, useAgentNames, AGENTS_QUERY_KEY } from './use-agents'
 export { AgentCard } from './components/agent-card'
 // Promoted for the Notification Center: the Inbox drives the existing
 // agent approve/deactivate flows directly from an agent_pending card.
-export { useApproveAgent } from './use-approve-agent'
+export { AgentApprovalRequiresUnlockError, useApproveAgent } from './use-approve-agent'
+export type { AgentApprovalPhase, AgentApprovalResult } from './use-approve-agent'
 export { useDeactivateAgent } from './use-deactivate-agent'
 export { ApproveAgentDialog } from './components/approve-agent-dialog'
 export type { ApproveAgentInput } from './api/agents-api'

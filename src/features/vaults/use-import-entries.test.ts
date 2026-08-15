@@ -94,11 +94,6 @@ vi.mock('../../shared/crypto/entry-protocol', () => ({
 }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: grantEnvelopeMock,
-  grantMethodsForSecret: vi.fn((secret: { entryType: string }, methods: number) => {
-    if (secret.entryType !== 'creditCard') return methods
-    if ((methods & 4) !== 4) throw new Error('Credit-card grants require Inject')
-    return 4
-  }),
   listGrantableFields: vi.fn(() => [{ id: 'credential.username' }]),
 }))
 vi.mock('../../shared/crypto/vault-plaintext', async (importOriginal) => ({
@@ -390,7 +385,7 @@ describe('useImportEntries', () => {
     expect(importEntriesMock.mock.calls[0][1].entries[0].grantEnvelopes).toHaveLength(2)
   })
 
-  it('imports a card only when every existing FULL grant is already exactly Inject', async () => {
+  it('preserves an existing FULL grant with only the Inject method when importing a card', async () => {
     fullGrantsMock.mockResolvedValue([
       { grantId: 'g1', agentId: 'a1', agentPublicKey: 'pk1', recipientAgentKeyVersion: 1, methods: 'inject' },
     ])
@@ -406,7 +401,7 @@ describe('useImportEntries', () => {
     expect(importEntriesMock).toHaveBeenCalledTimes(1)
   })
 
-  it('fails closed before sealing a card under a wider existing FULL grant', async () => {
+  it('preserves a wider existing FULL grant when importing a card', async () => {
     fullGrantsMock.mockResolvedValue([
       { grantId: 'g1', agentId: 'a1', agentPublicKey: 'pk1', recipientAgentKeyVersion: 1, methods: 'exec, inject' },
     ])
@@ -417,10 +412,9 @@ describe('useImportEntries', () => {
       vaultId: 'vault-1', format: 'palladin-json', creates: [creditCard('Travel card')], overwrites: [],
     })
 
-    await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(result.current.error).toMatchObject({ step: 'encrypt' })
-    expect(grantEnvelopeMock).not.toHaveBeenCalled()
-    expect(importEntriesMock).not.toHaveBeenCalled()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(grantEnvelopeMock).toHaveBeenCalledWith(expect.objectContaining({ approvedMethods: 6 }))
+    expect(importEntriesMock).toHaveBeenCalledTimes(1)
   })
 
   it('attributes Vault key preparation failures without exposing entry contents', async () => {

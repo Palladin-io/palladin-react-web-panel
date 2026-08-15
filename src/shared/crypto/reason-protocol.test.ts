@@ -6,8 +6,25 @@ import { X25519_SEALED_BOX_V1 } from './x25519-wrapper'
 import { computeVaultKeyFingerprint, VAULT_KEY_KIND } from './x25519-wrapper'
 import { loadSodium, wipe } from './sodium'
 import { toBase64, toBase64Url } from './encoding'
+import { deriveVaultSubkey } from './hkdf'
 
 describe('openEncryptedReason', () => {
+  it('matches the frozen Rust ReasonDEK-to-payload-key vector', async () => {
+    const key = await deriveVaultSubkey(new Uint8Array(32).fill(3), {
+      protocolVersion: 2, cryptoSuiteId: VAULT_XCHACHA20_POLY1305_V1,
+      purpose: ENVELOPE_PURPOSE.reason,
+      organizationId: '00112233-4455-6677-8899-aabbccddeeff',
+      vaultId: '11112222-3333-4444-8555-666677778888',
+      entryId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+      grantOrRequestId: '12345678-1234-4234-8234-1234567890ab',
+      agentId: 'fedcba98-7654-4321-8765-abcdefabcdef',
+      keyVersion: 3, memberKeyGeneration: 9,
+    })
+    expect(Array.from(key).map((v) => v.toString(16).padStart(2, '0')).join('')).toBe(
+      '5fd3de62b3f68eceec8e8ba4ada75ba348ad57095b99abb702c3fb3ccd305ed3',
+    )
+    wipe(key)
+  })
   it('verifies the backend-compatible Ed25519 transcript and rejects tampering', async () => {
     const sodium = await loadSodium()
     const signing = sodium.crypto_sign_keypair()

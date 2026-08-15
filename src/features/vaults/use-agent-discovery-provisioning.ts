@@ -20,9 +20,9 @@ export function useAgentDiscoveryProvisioning(vaultId: string) {
     queryFn: () => getAgentDiscoveryProvisioning(vaultId),
     enabled: canManageVault,
     staleTime: 30_000,
-    refetchInterval: (query) => query.state.data?.some(
+    refetchInterval: (query) => query.state.data?.items.some(
       (agent) => agent.status === DISCOVERY_STATUS_PENDING,
     ) ? PENDING_DISCOVERY_REFETCH_INTERVAL_MS : false,
   })
-  return { ...query, canManageVault }
+  return { ...query, data: query.data?.items, canManageVault }
 }
