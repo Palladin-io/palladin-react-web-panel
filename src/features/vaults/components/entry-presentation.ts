@@ -1,5 +1,5 @@
 import { getDomain } from 'tldts'
-import { ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT, type EntryType } from '../types'
+import { ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT, type EntryType } from '../types'
 
 export const ENTRY_ICON_OPTIONS = [
   // Auth / Security
@@ -103,10 +103,15 @@ const SCRIPT_PRESENTATION: EntryPresentation = {
   iconColor: '#A78BFA',
   iconBg: 'rgba(167,139,250,0.12)',
 }
+const CREDIT_CARD_PRESENTATION: EntryPresentation = {
+  ...CREDENTIAL_PRESENTATION,
+  defaultIcon: 'credit_card',
+}
 
 export function presentationForType(type: EntryType): EntryPresentation {
   if (type === ENTRY_TYPE_KEY) return KEY_PRESENTATION
   if (type === ENTRY_TYPE_SCRIPT) return SCRIPT_PRESENTATION
+  if (type === ENTRY_TYPE_CREDIT_CARD) return CREDIT_CARD_PRESENTATION
   return CREDENTIAL_PRESENTATION
 }
 
@@ -179,10 +184,8 @@ export function openExternalUrl(raw: string | undefined): void {
 }
 
 /** Default picker glyph for an entry type — single source for form initial state. */
-export function defaultIconFor(type: number): string {
-  if (type === ENTRY_TYPE_KEY) return 'vpn_key'
-  if (type === ENTRY_TYPE_SCRIPT) return 'terminal'
-  return 'language'
+export function defaultIconFor(type: EntryType): string {
+  return presentationForType(type).defaultIcon
 }
 
 /** Default icon-circle colour for an entry type — used as the form default. */

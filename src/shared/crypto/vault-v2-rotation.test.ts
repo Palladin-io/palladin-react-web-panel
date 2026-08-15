@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { toBase64 } from './encoding'
-import { decodeBase64Url, encodeBase64Url } from './vault-v2-bytes'
-import { decryptVaultEnvelope, encryptVaultEnvelope, openVaultProtocolPackage } from './vault-v2-envelope'
+import { decodeBase64Url } from './vault-v2-bytes'
+import { decryptVaultEnvelope, encryptVaultEnvelope } from './vault-v2-envelope'
 import { deriveVaultProjectionKey } from './vault-v2-kdf'
 import { decryptMemberVaultMetadata } from './vault-v2-member-sync'
 import { createAgentDiscoveryMaterial, rewrapEntryKey, rotateVaultMetadata, vaultKeyFingerprint } from './vault-v2-rotation'
 import { canonicalizeVaultJson, verifyVaultSignature } from './vault-v2-signatures'
 import { loadSodium, randomBytes, wipe } from './sodium'
+import { openKeyFromX25519Recipient, VAULT_KEY_KIND, WRAPPER_PURPOSE, X25519_SEALED_BOX_V1 } from './x25519-wrapper'
 
 const organizationId = '11111111-1111-4111-8111-111111111111'
 const vaultId = '22222222-2222-4222-8222-222222222222'
@@ -70,7 +71,7 @@ describe('Vault rotation crypto', () => {
     const agentBox = sodium.crypto_box_keypair()
     const agentSigning = sodium.crypto_sign_keypair()
     const vaultMessage = sodium.crypto_box_keypair()
-    const vaultSigningSeed = await randomBytes(32)
+    const vaultSigning = sodium.crypto_sign_keypair()
     const vdk = await randomBytes(32)
     try {
       const material = await createAgentDiscoveryMaterial({
@@ -78,24 +79,29 @@ describe('Vault rotation crypto', () => {
         recipientKeyVersion: 9, manifestRevision: '12',
       }, { organizationId, vaultId }, {
         vdkVersion: 6, agentMessageKeyVersion: 7, manifestSigningKeyVersion: 8,
-      }, { vdk, agentMessagePrivateKey: vaultMessage.privateKey, manifestSigningSeed: vaultSigningSeed },
+      }, { vdk, agentMessagePrivateKey: vaultMessage.privateKey, manifestSigningPrivateKey: vaultSigning.privateKey },
       new Date('2026-07-26T03:00:00.123Z'))
 
-      expect(material.envelope.recipientAgentKeyFingerprint).toBe(await vaultKeyFingerprint(agentBox.publicKey, 1))
+      expect(material.envelope.wrappedVdk.descriptor.recipientFingerprint).toBe(await vaultKeyFingerprint(agentBox.publicKey, 1))
       expect(material.manifest.agentEd25519Fingerprint).toBe(await vaultKeyFingerprint(agentSigning.publicKey, 2))
       const { signature, ...unsigned } = material.manifest
       expect(await verifyVaultSignature('PLDNV2SIG:VAULT-MANIFEST:', unsigned, signature,
         decodeBase64Url(material.manifest.vaultSigningPublicKey, 32))).toBe(true)
 
-      const plaintext = await openVaultProtocolPackage(decodeBase64Url(material.envelope.agentWrappedVdk),
-        agentBox.publicKey, agentBox.privateKey)
-      const payload = JSON.parse(new TextDecoder().decode(plaintext)) as Record<string, unknown>
-      expect(canonicalizeVaultJson(payload as never)).toBe(new TextDecoder().decode(plaintext))
-      expect(payload).toMatchObject({ organizationId, vaultId, agentId, vdkVersion: 6, vdk: encodeBase64Url(vdk) })
-      wipe(plaintext)
+      const opened = await openKeyFromX25519Recipient(
+        decodeBase64Url(material.envelope.wrappedVdk.encodedSealedKeyPackage),
+        agentBox.publicKey, agentBox.privateKey,
+        { protocolVersion: 2, wrapperSuiteId: X25519_SEALED_BOX_V1,
+          purpose: WRAPPER_PURPOSE.agentVaultDiscoveryKey, organizationId, vaultId, agentId,
+          resourceRevision: 6, wrappedKeyVersion: 6,
+          recipientKeyKind: VAULT_KEY_KIND.agentX25519, recipientKeyVersion: 9,
+          recipientFingerprint: decodeBase64Url(material.envelope.wrappedVdk.descriptor.recipientFingerprint) },
+      )
+      expect(opened).toEqual(vdk)
+      wipe(opened)
     } finally {
       wipe(agentBox.privateKey); wipe(agentSigning.privateKey); wipe(vaultMessage.privateKey)
-      wipe(vaultSigningSeed); wipe(vdk)
+      wipe(vaultSigning.privateKey); wipe(vdk)
     }
   })
 })

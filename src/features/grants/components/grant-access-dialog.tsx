@@ -3,10 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
-import { FieldFeedback } from '../../../shared/components/form-field'
+import { FeedbackSlot } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { AGENT_STATUS_ACTIVE, getAgent, useAgents } from '../../agents'
 import { useVaults } from '../../vaults/use-vaults'
+import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
 import {
   GRANT_TYPE_FULL,
   GRANT_TYPE_GRANULAR,
@@ -54,6 +55,24 @@ interface ResolvedSubject {
   agentId: string
   type: GrantType
   entryId?: string
+  constraintsUnavailable?: boolean
+}
+
+function targetReadiness(
+  vaultId: string,
+  entryId?: string,
+  vaults = useMemberSyncStore.getState().vaults,
+): Pick<ResolvedSubject, 'constraintsUnavailable'> {
+  const vault = vaults.get(vaultId)
+  if (!vault || vault.status !== 'ready') return { constraintsUnavailable: true }
+  const entries = entryId
+    ? [vault.entries.get(entryId)]
+    : [...vault.entries.values()].filter((entry) => entry.state === 'active')
+  if ((entryId && entries.length === 0)
+    || entries.some((entry) => !entry || entry.corrupt || !entry.payload)) {
+    return { constraintsUnavailable: true }
+  }
+  return {}
 }
 
 /**
@@ -61,8 +80,9 @@ interface ResolvedSubject {
  * points (mode prop). A shared policy segment (Time/Uses/Lifetime) is common to
  * every mode; the swappable "subject" segment picks the agent / vault / entry
  * with backend-driven eligibility (agents/vaults/entries already covered by an
- * active grant are excluded). On confirm it resolves the agent's full public
- * key and delegates envelope production to `useCreateGrant`.
+ * active grant are excluded). On confirm it delegates envelope production to
+ * `useCreateGrant`; staged FULL grants resolve authoritative recipient key
+ * material from their backend preparation.
  */
 export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
   const { t } = useTranslation()
@@ -81,49 +101,57 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
 
   // Subject selection (resolved on confirm).
   const [subject, setSubject] = useState<ResolvedSubject | null>(null)
+  const syncedVaults = useMemberSyncStore((state) => state.vaults)
+  const currentSubject = subject && ({
+    ...subject,
+    ...targetReadiness(subject.vaultId, subject.entryId, syncedVaults),
+  })
+  const effectiveMethods: GrantMethod[] = methods
 
   function resetPolicyError() {
     setPolicyError(null)
   }
 
   async function handleConfirm() {
-    if (!subject) {
+    if (!currentSubject) {
       setSubjectError(true)
       return
     }
+    if (currentSubject.constraintsUnavailable) return
     const policyInput = { kind, expiresAt, queryLimit }
     const validationError = validateGrantPolicy(policyInput)
     if (validationError) {
       setPolicyError(POLICY_ERROR_KEY[validationError])
       return
     }
-    if (methods.length === 0) {
+    if (effectiveMethods.length === 0) {
       setMethodsError('grants.methods.errorNoneSelected')
       return
     }
 
-    // The agent's full public key only comes from the single-agent endpoint.
     let agentPublicKey: string | null | undefined
     let recipientAgentKeyVersion: number | null | undefined
-    try {
-      const agent = await getAgent(subject.agentId)
-      agentPublicKey = agent.publicKey
-      recipientAgentKeyVersion = agent.recipientKeyVersion
-    } catch {
-      toast.error(t('grants.create.error'))
-      return
+    if (currentSubject.type !== GRANT_TYPE_FULL) {
+      try {
+        const agent = await getAgent(currentSubject.agentId)
+        agentPublicKey = agent.publicKey
+        recipientAgentKeyVersion = agent.recipientKeyVersion
+      } catch {
+        toast.error(t('grants.create.error'))
+        return
+      }
     }
 
     createGrant.mutate(
       {
-        vaultId: subject.vaultId,
-        agentId: subject.agentId,
+        vaultId: currentSubject.vaultId,
+        agentId: currentSubject.agentId,
         agentPublicKey,
         recipientAgentKeyVersion,
-        type: subject.type,
-        entryId: subject.entryId,
+        type: currentSubject.type,
+        entryId: currentSubject.entryId,
         policy: grantPolicyToBody(policyInput),
-        methods,
+        methods: effectiveMethods,
       },
       {
         onSuccess: () => {
@@ -146,7 +174,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           <Button variant="subtle" size="sm" onClick={onClose} disabled={createGrant.isPending} className="flex-1">
             {t('grants.cancel')}
           </Button>
-          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={createGrant.isPending} className="flex-[2]">
+          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={createGrant.isPending || currentSubject?.constraintsUnavailable} className="flex-[2]">
             {createGrant.isPending ? t('grants.create.granting') : t('grants.create.confirm')}
           </Button>
         </DialogFooter>
@@ -157,9 +185,8 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           {t('grants.create.subtitle')}
         </p>
 
-        {/* Swappable subject segment. -mb-4 absorbs the fixed-height (16px)
-            FieldFeedback row so the gap to the policy segment matches the rest. */}
-        <div className="-mb-4">
+        {/* Swappable subject segment. Feedback collapses when there is no error. */}
+        <div>
           <SubjectSegment
             mode={mode}
             disabled={createGrant.isPending}
@@ -168,9 +195,12 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
               setSubjectError(false)
             }}
           />
-          <FieldFeedback visible={subjectError} color="red">
+          <FeedbackSlot visible={subjectError} color="red">
             {t('grants.create.subjectRequired')}
-          </FieldFeedback>
+          </FeedbackSlot>
+          <FeedbackSlot visible={currentSubject?.constraintsUnavailable === true} color="red">
+            {t('grants.create.waitForVaultSync')}
+          </FeedbackSlot>
         </div>
 
         {/* Shared policy segment */}
@@ -197,7 +227,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
 
         <GrantMethodsSelect
           idPrefix="create-grant"
-          value={methods}
+          value={effectiveMethods}
           disabled={createGrant.isPending}
           error={methodsError}
           onChange={(m) => {
@@ -230,7 +260,8 @@ function SubjectSegment({
         onPick={(agentId) =>
           onSubjectChange(
             agentId
-              ? { vaultId: mode.vaultId, agentId, type: GRANT_TYPE_FULL }
+              ? { vaultId: mode.vaultId, agentId, type: GRANT_TYPE_FULL,
+                  ...targetReadiness(mode.vaultId) }
               : null,
           )
         }
@@ -251,6 +282,7 @@ function SubjectSegment({
                   agentId,
                   type: GRANT_TYPE_GRANULAR,
                   entryId: mode.entryId,
+                  ...targetReadiness(mode.vaultId, mode.entryId),
                 }
               : null,
           )
@@ -440,7 +472,8 @@ function VaultPicker({
       onSelect={(opt) => {
         setSelectedLabel(opt.label)
         setQuery('')
-        onPick({ vaultId: opt.id, agentId, type: GRANT_TYPE_FULL })
+        onPick({ vaultId: opt.id, agentId, type: GRANT_TYPE_FULL,
+          ...targetReadiness(opt.id) })
       }}
     />
   )
@@ -508,7 +541,8 @@ function CrossVaultEntryPicker({
         if (!vaultId) return
         setSelectedLabel(opt.label)
         setQuery('')
-        onPick({ vaultId, agentId, type: GRANT_TYPE_GRANULAR, entryId: opt.id })
+        onPick({ vaultId, agentId, type: GRANT_TYPE_GRANULAR, entryId: opt.id,
+          ...targetReadiness(vaultId, opt.id) })
       }}
     />
   )

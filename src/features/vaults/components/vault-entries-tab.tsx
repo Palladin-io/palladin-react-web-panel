@@ -25,7 +25,6 @@ import { EntryIcon } from './entry-icon'
 import { useRestoreArchivedEntries } from '../use-restore-archived-entries'
 import { useDestroyEntry, useRecentlyDeletedEntries } from '../use-recently-deleted-entries'
 import { DestroyEntryDialog } from './destroy-entry-dialog'
-import { usePublicEntryAssets, useReconcilePublicEntryAssets } from '../use-public-entry-assets'
 
 export interface VaultEntriesTabProps {
   vault: Vault
@@ -81,8 +80,6 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
   const renderContext = `${search}\u0000${sort}\u0000${[...effectiveStates].sort().join(',')}`
   const renderLimit = renderWindow.context === renderContext ? renderWindow.limit : 50
   const renderedEntries = visibleEntries.slice(0, renderLimit)
-  useReconcilePublicEntryAssets(entries.items.map((entry) => entry.icon))
-  usePublicEntryAssets(renderedEntries.map((entry) => entry.icon))
   const restorableArchived = entries.items.filter((entry) => entry.state === 'archived' && !entry.corrupt)
 
   const restoreEntries = async (entryIds: string[]) => {

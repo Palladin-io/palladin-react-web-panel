@@ -71,6 +71,7 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
 
     const privateKey = useAuthStore.getState().privateKey
     if (!privateKey) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDecryptError(t('vault.entries.decryptVaultLocked'))
       return
     }
@@ -108,6 +109,7 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
   // Collapsing the panel only hides the plaintext — it stays decrypted so a
   // subsequent copy (or re-open) doesn't round-trip again.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!revealOpen) setShowSecret(false)
   }, [revealOpen])
 
@@ -116,6 +118,7 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
   useEffect(() => {
     if (!copyAfterDecrypt || !plaintext) return
     copySecret(plaintext, entry.type, t)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCopyAfterDecrypt(false)
   }, [copyAfterDecrypt, plaintext, entry.type, t])
 
@@ -124,6 +127,7 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
   useEffect(() => {
     if (!decryptError || !copyAfterDecrypt) return
     toast.error(t('vault.entries.copyFailed'))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCopyAfterDecrypt(false)
   }, [decryptError, copyAfterDecrypt, t])
 
@@ -174,6 +178,8 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
                 ? t('vault.entry.copyKey')
                 : entry.type === ENTRY_TYPE_SCRIPT
                   ? t('vault.entry.copyScript')
+                  : entry.type === 3
+                    ? t('vault.entry.copyCardNumber')
                   : t('vault.entry.copyPassword')
             }
             onClick={() => {
@@ -356,6 +362,18 @@ function RevealPanel({
               <RevealRow icon="code" value={plaintext.interpreter} actions={null} />
             </>
           ) : null}
+          {plaintext.type === 3 ? (
+            <>
+              <RevealRow icon="person" value={plaintext.cardholderName}
+                actions={<CopyAction value={plaintext.cardholderName} label={t('vault.entries.card.cardholderName')} />} />
+              <RevealRow icon="credit_card" value={showSecret ? plaintext.cardNumber : maskValue(plaintext.cardNumber.length)}
+                monospace secret actions={<><ToggleVisibilityAction shown={showSecret} onToggle={onToggleShow} />
+                  <CopyAction value={plaintext.cardNumber} label={t('vault.entries.card.cardNumber')} secret /></>} />
+              <RevealRow icon="calendar_month" value={`${plaintext.expiryMonth}/${plaintext.expiryYear}`} actions={null} />
+              <RevealRow icon="lock" value={showSecret ? plaintext.securityCode : maskValue(plaintext.securityCode.length)}
+                monospace secret actions={<CopyAction value={plaintext.securityCode} label={t('vault.entries.card.securityCode')} secret />} />
+            </>
+          ) : null}
 
           <CustomFieldsView fields={readCustomFields(plaintext)} />
         </div>
@@ -527,12 +545,16 @@ function copySecret(
       ? plaintext.value
       : plaintext.type === ENTRY_TYPE_SCRIPT
         ? plaintext.script
-        : plaintext.password
+        : plaintext.type === 3
+          ? plaintext.cardNumber
+          : plaintext.password
   const label =
     type === ENTRY_TYPE_KEY
       ? t('vault.entry.copyKey')
       : type === ENTRY_TYPE_SCRIPT
         ? t('vault.entry.copyScript')
+        : type === 3
+          ? t('vault.entry.copyCardNumber')
         : t('vault.entry.copyPassword')
   copyText(value, label, t, true)
 }

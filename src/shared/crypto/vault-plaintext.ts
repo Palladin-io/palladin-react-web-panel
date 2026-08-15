@@ -8,16 +8,20 @@ export const AGENT_FIELD_ACCESS = [
   'onGrantRuntime',
 ] as const
 export type AgentFieldAccess = (typeof AGENT_FIELD_ACCESS)[number]
-export type VaultEntryTypeName = 'key' | 'credential' | 'script'
+export type VaultEntryTypeName = 'key' | 'credential' | 'script' | 'creditCard'
 
 const normalizedString = z.string().refine((value) => value === value.normalize('NFC'), 'String must be NFC')
 const nullableString = normalizedString.nullable()
 const color = z.string().regex(/^#[0-9A-F]{6}$/).nullable()
 const glyphIcon = z.object({ kind: z.literal('glyph'), value: normalizedString.min(1).max(64) }).strict()
 const assetIcon = z.object({ kind: z.literal('encryptedAsset'), assetId: z.string().uuid() }).strict()
-const publicAssetIcon = z.object({ kind: z.literal('publicAsset'), assetId: z.string().uuid() }).strict()
-const websiteIcon = z.object({ kind: z.literal('website'), hostname: normalizedString.min(1).max(253) }).strict()
-const icon = z.union([glyphIcon, assetIcon, publicAssetIcon, websiteIcon]).nullable()
+const publicAssetIcon = z.object({
+  kind: z.literal('publicAsset'),
+  assetId: z.string().uuid(),
+  revision: z.number().int().positive(),
+  url: z.string().url().max(2048),
+}).strict()
+const icon = z.union([glyphIcon, assetIcon, publicAssetIcon]).nullable()
 
 const jsonValue: z.ZodType<unknown> = z.lazy(() => z.union([
   z.string(), z.number().safe(), z.boolean(), z.null(), z.array(jsonValue), z.record(z.string(), jsonValue),
@@ -58,12 +62,23 @@ const scriptRef = z.object({
   env: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
   vaultId: z.string().uuid(),
   entryId: z.string().uuid(),
-  fieldId: normalizedString.regex(/^(?:memberLabel|agentLabel|description|icon|color|entryType|key\.value|credential\.(?:username|password|url|urlDomain|totp)|notes|script\.(?:source|interpreter|refs)|custom:[0-9a-f-]{36})$/),
+  fieldId: normalizedString.regex(/^(?:memberLabel|agentLabel|description|icon|color|entryType|key\.value|credential\.(?:username|password|url|urlDomain|totp)|creditCard\.(?:cardholderName|cardNumber|expiryMonth|expiryYear|securityCode|pin|billingAddress)|notes|script\.(?:source|interpreter|refs)|custom:[0-9a-f-]{36})$/),
 }).strict()
 const scriptContent = z.object({
   source: normalizedString,
   interpreter: z.enum(['bash', 'sh', 'node', 'python']),
   refs: z.array(scriptRef),
+  notes: nullableString,
+  customFields: z.array(customField),
+}).strict()
+const creditCardContent = z.object({
+  cardholderName: normalizedString.min(1).max(256),
+  cardNumber: z.string().regex(/^\d{12,19}$/),
+  expiryMonth: z.string().regex(/^(0[1-9]|1[0-2])$/),
+  expiryYear: z.string().regex(/^\d{4}$/),
+  securityCode: z.string().regex(/^\d{3,4}$/),
+  pin: normalizedString.nullable(),
+  billingAddress: normalizedString.nullable(),
   notes: nullableString,
   customFields: z.array(customField),
 }).strict()
@@ -84,6 +99,7 @@ const memberSecretSchema = z.discriminatedUnion('entryType', [
   z.object({ ...secretCommon, entryType: z.literal('key'), content: keyContent }).strict(),
   z.object({ ...secretCommon, entryType: z.literal('credential'), content: credentialContent }).strict(),
   z.object({ ...secretCommon, entryType: z.literal('script'), content: scriptContent }).strict(),
+  z.object({ ...secretCommon, entryType: z.literal('creditCard'), content: creditCardContent }).strict(),
 ])
 
 const memberVaultMetadataSchema = z.object({
@@ -102,7 +118,7 @@ const customIndexItem = z.object({
 }).strict()
 const memberIndexSchema = z.object({
   schema: z.literal('palladin.member-index.v1'),
-  entryType: z.enum(['key', 'credential', 'script']),
+  entryType: z.enum(['key', 'credential', 'script', 'creditCard']),
   memberLabel: normalizedString,
   description: nullableString,
   icon,
@@ -115,9 +131,9 @@ const memberIndexSchema = z.object({
 const projectedField = z.object({ id: normalizedString, value: jsonValue }).strict()
 const agentDiscoverySchema = z.object({
   schema: z.literal('palladin.agent-discovery.v1'),
-  entryType: z.enum(['key', 'credential', 'script']),
+  entryType: z.enum(['key', 'credential', 'script', 'creditCard']),
   agentLabel: normalizedString.min(1),
-  capabilities: z.array(z.enum(['get', 'exec'])),
+  capabilities: z.array(z.enum(['get', 'exec', 'inject'])),
   fields: z.array(projectedField),
 }).strict()
 const grantField = z.object({
@@ -128,7 +144,7 @@ const grantField = z.object({
 }).strict()
 const grantPayloadSchema = z.object({
   schema: z.literal('palladin.grant-payload.v1'),
-  entryType: z.enum(['key', 'credential', 'script']),
+  entryType: z.enum(['key', 'credential', 'script', 'creditCard']),
   fields: z.array(grantField),
 }).strict()
 
@@ -137,11 +153,33 @@ export type MemberSecretV1 = z.infer<typeof memberSecretSchema>
 export type MemberIndexV1 = z.infer<typeof memberIndexSchema>
 export type AgentDiscoveryV1 = z.infer<typeof agentDiscoverySchema>
 export type GrantPayloadV1 = z.infer<typeof grantPayloadSchema>
+export type PublicAssetVaultIconV1 = z.infer<typeof publicAssetIcon>
+
+export function publicAssetIconReference(asset: Omit<PublicAssetVaultIconV1, 'kind'>): string {
+  return `public-asset:${asset.assetId}|${asset.revision}|${encodeURIComponent(asset.url)}`
+}
+
+export function parsePublicAssetIconReference(reference: string | null | undefined): PublicAssetVaultIconV1 | null {
+  if (!reference?.startsWith('public-asset:')) return null
+  const [assetId, revisionText, encodedUrl, ...rest] = reference.slice('public-asset:'.length).split('|')
+  if (!assetId || !revisionText || !encodedUrl || rest.length > 0) return null
+  try {
+    return publicAssetIcon.parse({
+      kind: 'publicAsset',
+      assetId,
+      revision: Number(revisionText),
+      url: decodeURIComponent(encodedUrl),
+    })
+  } catch {
+    return null
+  }
+}
 
 const BUILTIN_FIELDS: Record<VaultEntryTypeName, readonly string[]> = {
   key: ['memberLabel', 'agentLabel', 'description', 'icon', 'color', 'entryType', 'key.value', 'notes'],
   credential: ['memberLabel', 'agentLabel', 'description', 'icon', 'color', 'entryType', 'credential.username', 'credential.password', 'credential.url', 'credential.urlDomain', 'credential.totp', 'notes'],
   script: ['memberLabel', 'agentLabel', 'description', 'icon', 'color', 'entryType', 'script.source', 'script.interpreter', 'script.refs', 'notes'],
+  creditCard: ['memberLabel', 'agentLabel', 'description', 'icon', 'color', 'entryType', 'creditCard.cardholderName', 'creditCard.cardNumber', 'creditCard.expiryMonth', 'creditCard.expiryYear', 'creditCard.securityCode', 'creditCard.pin', 'creditCard.billingAddress', 'notes'],
 }
 
 const ALLOWED_ACCESS: Record<string, readonly AgentFieldAccess[]> = {
@@ -157,6 +195,13 @@ const ALLOWED_ACCESS: Record<string, readonly AgentFieldAccess[]> = {
   'script.source': ['never', 'onGrantRuntime'],
   'script.interpreter': ['never', 'discovery', 'onGrantRuntime'],
   'script.refs': ['never', 'onGrantRuntime'],
+  'creditCard.cardholderName': ['never', 'onGrantRuntime'],
+  'creditCard.cardNumber': ['never', 'onGrantRuntime'],
+  'creditCard.expiryMonth': ['never', 'onGrantRuntime'],
+  'creditCard.expiryYear': ['never', 'onGrantRuntime'],
+  'creditCard.securityCode': ['never', 'onGrantRuntime'],
+  'creditCard.pin': ['never', 'onGrantRuntime'],
+  'creditCard.billingAddress': ['never', 'onGrantRuntime'],
 }
 
 function assertPolicy(secret: MemberSecretV1): void {
@@ -184,7 +229,7 @@ function assertPolicy(secret: MemberSecretV1): void {
       ? custom.type === 'totp'
         ? ['never', 'onGrantDerived']
         : custom.type === 'text' || custom.type === 'multiline' || custom.type === 'concealed'
-          ? secret.entryType === 'script'
+          ? secret.entryType === 'script' || secret.entryType === 'creditCard'
             ? ['never', 'onGrantRuntime']
             : ['never', 'discovery', 'onGrantValue']
           : ['never']
@@ -283,6 +328,12 @@ function fieldValue(secret: MemberSecretV1, id: string): unknown {
     const map = { 'script.source': secret.content.source, 'script.interpreter': secret.content.interpreter, 'script.refs': secret.content.refs }
     return map[id as keyof typeof map]
   }
+  if (secret.entryType === 'creditCard') {
+    const map = Object.fromEntries(Object.entries(secret.content)
+      .filter(([key]) => key !== 'customFields' && key !== 'notes')
+      .map(([key, value]) => [`creditCard.${key}`, value]))
+    return map[id]
+  }
   return undefined
 }
 
@@ -310,7 +361,7 @@ export function projectAgentDiscovery(secret: MemberSecretV1): AgentDiscoveryV1 
     .map(([id]) => ({ id, value: fieldValue(secret, id) }))
   return agentDiscoverySchema.parse({
     schema: 'palladin.agent-discovery.v1', entryType: secret.entryType, agentLabel: secret.agentLabel,
-    capabilities: secret.entryType === 'script' ? ['exec'] : ['get', 'exec'], fields,
+    capabilities: ['get', 'exec', 'inject'], fields,
   })
 }
 
@@ -326,7 +377,8 @@ export function projectGrantPayload(secret: MemberSecretV1, fieldIds: readonly s
     const custom = id.startsWith('custom:') ? secret.content.customFields.find((field) => field.id === id) : undefined
     const kind = custom
       ? custom.type
-      : id === 'key.value' || id === 'credential.password'
+      : id === 'key.value' || id === 'credential.password' || id === 'creditCard.cardNumber'
+        || id === 'creditCard.securityCode' || id === 'creditCard.pin'
         ? 'concealed'
         : id === 'credential.url'
           ? 'url'
@@ -366,6 +418,5 @@ export function memberIndexSearchValues(index: MemberIndexV1): string[] {
 export function presentationIconReference(icon: MemberIndexV1['icon'] | MemberVaultMetadataV1['icon']): string | undefined {
   return icon?.kind === 'glyph' ? `builtin:${icon.value}`
     : icon?.kind === 'encryptedAsset' ? `vault-asset:${icon.assetId}`
-      : icon?.kind === 'publicAsset' ? `public-asset:${icon.assetId}`
-        : icon?.kind === 'website' ? `website:${icon.hostname}` : undefined
+      : icon?.kind === 'publicAsset' ? publicAssetIconReference(icon) : undefined
 }

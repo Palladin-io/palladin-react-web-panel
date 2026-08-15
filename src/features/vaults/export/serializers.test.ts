@@ -17,7 +17,7 @@ describe('toPalladinCsv', () => {
       },
     ])
     const [header, row] = csv.split('\r\n')
-    expect(header).toBe('name,url,username,password,note,totp,folder,state,revision,historical')
+    expect(header).toBe('name,url,username,password,note,totp,folder,state,revision,historical,type,cardholderName,cardNumber,expiryMonth,expiryYear,securityCode,pin,billingAddress')
     expect(row).toContain('"AWS ""root"""')
     expect(row).toContain('"p,w"')
     expect(row).toContain('"line one\nline two"')

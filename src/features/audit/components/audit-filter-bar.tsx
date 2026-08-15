@@ -31,7 +31,8 @@ export interface AuditFilterState {
 export interface AuditFilterBarProps {
   value: AuditFilterState
   onChange: (next: AuditFilterState) => void
-  agentOptions: AuditFilterOption[]
+  /** Agent options; omit when the surrounding view is already agent-scoped. */
+  agentOptions?: AuditFilterOption[]
   /** Acting-user options (human actors); omit to hide the user filter. */
   userOptions?: AuditFilterOption[]
   /** Provide to show a vault filter (global screen); omit on the vault tab. */
@@ -157,14 +158,16 @@ export function AuditFilterBar({
               ariaLabel={t('audit.filterEvent')}
             />
 
-            <TypeFilterDropdown
-              triggerClassName={TRIGGER_CLASS}
-              options={agentOptions}
-              selected={new Set(value.agentId)}
-              onChange={setList('agentId')}
-              placeholder={t('audit.filterAgentLabel')}
-              ariaLabel={t('audit.filterAgent')}
-            />
+            {agentOptions && (
+              <TypeFilterDropdown
+                triggerClassName={TRIGGER_CLASS}
+                options={agentOptions}
+                selected={new Set(value.agentId)}
+                onChange={setList('agentId')}
+                placeholder={t('audit.filterAgentLabel')}
+                ariaLabel={t('audit.filterAgent')}
+              />
+            )}
 
             {userOptions && (
               <TypeFilterDropdown

@@ -1,5 +1,5 @@
 import Papa from 'papaparse'
-import { ENTRY_TYPE_CREDENTIAL } from '../types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD } from '../types'
 import { normalizeEntry, type RawEntry } from './normalize'
 import type {
   ColumnMapping,
@@ -24,7 +24,7 @@ export interface ParsedCsv {
  * Empty rows are dropped.
  */
 export function parseCsv(text: string): ParsedCsv {
-  // Strip a leading UTF-8 BOM so the first header isn't "﻿name".
+  // Strip a leading UTF-8 BOM so it cannot prefix the first header name.
   const body = text.charCodeAt(0) === 0xfeff ? text.slice(1) : text
   const result = Papa.parse<CsvRow>(body, {
     header: true,
@@ -143,17 +143,6 @@ export const CSV_PROFILES: CsvProfile[] = [
     },
   },
   {
-    id: 'nordpass-csv',
-    signature: ['name', 'url', 'username', 'password', 'cardholdername', 'folder'],
-    map: {
-      label: ['name'],
-      username: ['username'],
-      password: ['password'],
-      url: ['url'],
-      notes: ['note'],
-    },
-  },
-  {
     id: 'palladin-csv',
     signature: ['name', 'url', 'username', 'password', 'totp', 'folder'],
     map: {
@@ -163,6 +152,17 @@ export const CSV_PROFILES: CsvProfile[] = [
       url: ['url'],
       notes: ['note', 'notes'],
       totp: ['totp'],
+    },
+  },
+  {
+    id: 'nordpass-csv',
+    signature: ['name', 'url', 'username', 'password', 'cardholdername', 'folder'],
+    map: {
+      label: ['name'],
+      username: ['username'],
+      password: ['password'],
+      url: ['url'],
+      notes: ['note'],
     },
   },
   {
@@ -224,6 +224,32 @@ export function extractCsvProfile(
   rows: CsvRow[],
   profile: CsvProfile,
 ): { entries: ParsedEntry[]; skipped: SkippedTally } {
+  if (profile.id === 'palladin-csv') return collect(rows, (row) => {
+    if (row.type === String(ENTRY_TYPE_CREDIT_CARD) || row.type?.trim().toLowerCase() === 'creditcard') return {
+      type: ENTRY_TYPE_CREDIT_CARD, label: row.name, notes: row.note,
+      cardholderName: row.cardholdername, cardNumber: row.cardnumber,
+      expiryMonth: row.expirymonth, expiryYear: row.expiryyear,
+      securityCode: row.securitycode, pin: row.pin, billingAddress: row.billingaddress,
+    }
+    return rawFromColumns(row, profile.map)
+  })
+  if (profile.id === 'nordpass-csv') return collect(rows, (row) => {
+    if (row.cardnumber?.trim()) {
+      const expiry = row.expirydate?.trim().match(/^(0?[1-9]|1[0-2])\s*\/\s*(\d{2}|\d{4})$/)
+      const expiryYear = expiry?.[2].length === 2 ? `20${expiry[2]}` : expiry?.[2]
+      return {
+        type: ENTRY_TYPE_CREDIT_CARD,
+        label: row.name,
+        notes: row.note,
+        cardholderName: row.cardholdername,
+        cardNumber: row.cardnumber,
+        expiryMonth: expiry?.[1].padStart(2, '0'),
+        expiryYear,
+        securityCode: row.cvc,
+      }
+    }
+    return rawFromColumns(row, profile.map)
+  })
   return collect(rows, (row) => rawFromColumns(row, profile.map))
 }
 

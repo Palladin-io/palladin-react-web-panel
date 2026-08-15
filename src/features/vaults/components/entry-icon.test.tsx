@@ -1,26 +1,10 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from '../types'
 import { EntryIcon } from './entry-icon'
 
-const catalog = vi.hoisted(() => ({
-  revision: 0,
-  resolved: false,
-  listeners: new Set<() => void>(),
-}))
-
 vi.mock('../../../shared/api/public-assets-api', () => ({
-  cachedPublicAsset: (id: string) => id === '11111111-1111-4111-8111-111111111111'
-    ? { id, url: 'https://assets.example.test/github.png' }
-    : undefined,
-  cachedWebsiteAsset: (hostname: string) => hostname === 'discord.com' || catalog.resolved && hostname === 'later.example.com'
-    ? { url: 'https://assets.example.test/discord.png' }
-    : undefined,
-  subscribePublicAssetCache: (listener: () => void) => {
-    catalog.listeners.add(listener)
-    return () => catalog.listeners.delete(listener)
-  },
-  publicAssetCacheRevision: () => catalog.revision,
+  trustedPublicAssetUrl: (value: string) => value.startsWith('https://assets.palladin.io/') ? value : null,
 }))
 
 describe('EntryIcon', () => {
@@ -48,32 +32,35 @@ describe('EntryIcon', () => {
   it('renders a URL only when it was resolved from a trusted public asset reference', () => {
     render(
       <EntryIcon
-        icon="public-asset:11111111-1111-4111-8111-111111111111"
+        icon="public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2Fgithub.png"
         type={ENTRY_TYPE_CREDENTIAL}
       />,
     )
     expect(document.querySelector('img')).toHaveAttribute(
       'src',
-      'https://assets.example.test/github.png',
+      'https://assets.palladin.io/github.png',
     )
   })
 
-  it('renders a catalog icon resolved from an encrypted website hostname', () => {
-    render(<EntryIcon icon="website:discord.com" type={ENTRY_TYPE_CREDENTIAL} />)
-    expect(document.querySelector('img')).toHaveAttribute('src', 'https://assets.example.test/discord.png')
+  it('falls back immediately when a catalog object is unavailable', () => {
+    render(
+      <EntryIcon
+        icon="public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2Fmissing.png"
+        type={ENTRY_TYPE_CREDENTIAL}
+      />,
+    )
+
+    fireEvent.error(document.querySelector('img') as HTMLImageElement)
+
+    expect(document.querySelector('img')).toBeNull()
+    expect(screen.getByText('language')).toBeInTheDocument()
   })
 
-  it('updates a mounted icon when background catalog acquisition completes', () => {
-    catalog.resolved = false
-    const { container } = render(<EntryIcon icon="website:later.example.com" type={ENTRY_TYPE_CREDENTIAL} />)
-    expect(container.querySelector('img')).toBeNull()
-
-    act(() => {
-      catalog.resolved = true
-      catalog.revision += 1
-      for (const listener of catalog.listeners) listener()
-    })
-
-    expect(container.querySelector('img')).toHaveAttribute('src', 'https://assets.example.test/discord.png')
+  it('rejects a catalog reference outside the configured asset namespace', () => {
+    render(<EntryIcon
+      icon="public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fevil.example%2Ficon.png"
+      type={ENTRY_TYPE_CREDENTIAL}
+    />)
+    expect(document.querySelector('img')).toBeNull()
   })
 })

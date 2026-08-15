@@ -62,6 +62,7 @@ describe('PLDNENV2 canonical AAD', () => {
         recipientKeyVersion: 4,
         recipientKeyFingerprint: new Uint8Array(32).fill(0x5a),
         methods: 3,
+        deliveryPolicy: 0,
         fieldSetCommitment: new Uint8Array(32).fill(0xa5),
         expiresAt: { seconds: 1_700_000_000, nanoseconds: 123_456_789 },
         remainingUses: 5,
@@ -74,7 +75,7 @@ describe('PLDNENV2 canonical AAD', () => {
       'fedcba98765443218765abcdefabcdef0000000000000007000000030100000009' +
       '0000000000000006001d70616c6c6164696e2d7832353531392d7365616c65642d626f782d7631' +
       '000000045a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a' +
-      '0003a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5' +
+      '00030000a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5' +
       '01000000006553f100075bcd150100000005',
     )
   })

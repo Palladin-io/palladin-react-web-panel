@@ -13,7 +13,12 @@ import {
   type GrantType,
 } from './api/org-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
-import { grantMethodsMask, parseGrantMethods, serializeGrantMethods } from './grant-methods'
+import {
+  grantMethodsFromMask,
+  grantMethodsMask,
+  parseGrantMethods,
+  serializeGrantMethods,
+} from './grant-methods'
 import { MissingGrantMaterialError, VaultLockedError } from './use-approve-grant'
 import { GRANT_MUTATION_INVALIDATION_KEYS } from './query-keys'
 
@@ -59,13 +64,14 @@ export function useRegrant() {
         const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
         })
+        const approvedMethods = grantMethodsMask(methods)
         const envelope = await buildCanonicalGrantEnvelope({
           secret: memberSecret,
           agentPublicKey,
           organizationId: detail.organizationId, vaultId, grantId, agentId, entryId,
           entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
           memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: recipientAgentKeyVersion,
-          approvedMethods: grantMethodsMask(methods), approvedFieldIds: listGrantableFieldIds(memberSecret),
+          approvedMethods, approvedFieldIds: listGrantableFieldIds(memberSecret),
           ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
         })
         const body: CreateGrantBody = {
@@ -75,7 +81,7 @@ export function useRegrant() {
           entryId,
           grantEntries: [envelope],
           ...policy,
-          methods: serializeGrantMethods(methods),
+          methods: serializeGrantMethods(grantMethodsFromMask(approvedMethods)),
         }
         await createGrantProactively(vaultId, body)
       } finally {

@@ -23,13 +23,26 @@ function deferred<T>() {
 }
 
 function publishVault() {
-  const index = (memberLabel: string, username: string, entryType: 'key' | 'credential') => ({
+  const index = (
+    memberLabel: string,
+    username: string,
+    entryType: 'key' | 'credential',
+    icon: null | { kind: 'glyph'; value: string } | {
+      kind: 'publicAsset'
+      assetId: string
+      revision: number
+      url: string
+    } | {
+      kind: 'encryptedAsset'
+      assetId: string
+    } = null,
+  ) => ({
     schema: 'palladin.member-index.v1' as const,
     entryType,
     memberLabel,
     description: null,
-    icon: null,
-    color: null,
+    icon,
+    color: '#60A5FA',
     username,
     urlDomain: null,
     customIndex: [],
@@ -38,18 +51,36 @@ function publishVault() {
     status: 'ready',
     vaults: new Map([['vault-b', {
       vaultId: 'vault-b',
-      metadata: { name: 'Production', description: 'Infrastructure' },
+      metadata: {
+        name: 'Production',
+        description: 'Infrastructure',
+        icon: { kind: 'glyph', value: 'database' },
+        color: '#10B981',
+      },
       structure: {},
       entries: new Map([
         ['entry-a', {
           entryId: 'entry-a', state: 'active', updatedAt: '2026-07-26T12:00:00Z',
           currentRevision: '2', memberIndexRevision: '2', currentKeyVersion: 1,
-          payload: index('GitHub', 'octocat', 'credential'), corrupt: false,
+          payload: index('GitHub', 'octocat', 'credential', {
+            kind: 'publicAsset',
+            assetId: '11111111-1111-4111-8111-111111111111',
+            revision: 2,
+            url: 'https://assets.palladin.io/github.png',
+          }), corrupt: false,
         }],
         ['entry-b', {
           entryId: 'entry-b', state: 'active', updatedAt: '2026-07-26T13:00:00Z',
           currentRevision: '1', memberIndexRevision: '1', currentKeyVersion: 1,
-          payload: index('Deploy Key', 'github', 'key'), corrupt: false,
+          payload: index('Deploy Key', 'github', 'key', { kind: 'glyph', value: 'vpn_key' }), corrupt: false,
+        }],
+        ['entry-custom', {
+          entryId: 'entry-custom', state: 'active', updatedAt: '2026-07-26T10:00:00Z',
+          currentRevision: '3', memberIndexRevision: '3', currentKeyVersion: 1,
+          payload: index('Custom Portal', 'custom', 'credential', {
+            kind: 'encryptedAsset',
+            assetId: '33333333-3333-4333-8333-333333333333',
+          }), corrupt: false,
         }],
         ['entry-corrupt', {
           entryId: 'entry-corrupt', state: 'active', updatedAt: '2026-07-26T14:00:00Z',
@@ -74,18 +105,38 @@ describe('local global-search providers', () => {
   it('matches only decrypted local Vault and active non-corrupt Entry projections deterministically', () => {
     const vaults = useMemberSyncStore.getState().vaults
     expect(searchLocalVaults(vaults, 'prod')).toEqual([
-      { type: 'vault', id: 'vault-b', name: 'Production' },
+      {
+        type: 'vault', id: 'vault-b', name: 'Production',
+        icon: 'database', color: '#10B981',
+      },
     ])
     expect(searchLocalVaults(vaults, 'github')).toEqual([
-      expect.objectContaining({ type: 'entry', id: 'entry-b', vaultId: 'vault-b' }),
-      expect.objectContaining({ type: 'entry', id: 'entry-a', vaultId: 'vault-b' }),
+      expect.objectContaining({
+        type: 'entry', id: 'entry-b', vaultId: 'vault-b',
+        entryType: 'key', icon: 'vpn_key', color: '#60A5FA',
+      }),
+      expect.objectContaining({
+        type: 'entry', id: 'entry-a', vaultId: 'vault-b',
+        entryType: 'credential',
+        icon: 'public-asset:11111111-1111-4111-8111-111111111111|2|https%3A%2F%2Fassets.palladin.io%2Fgithub.png',
+        color: '#60A5FA',
+      }),
+    ])
+    expect(searchLocalVaults(vaults, 'custom')).toEqual([
+      expect.objectContaining({
+        type: 'entry', id: 'entry-custom', vaultId: 'vault-b',
+        icon: 'vault-asset:33333333-3333-4333-8333-333333333333',
+      }),
     ])
     expect(searchLocalVaults(vaults, 'corrupt')).toEqual([])
   })
 
   it('derives bounded recents from structural synchronized timestamps', () => {
     expect(recentLocalEntries(useMemberSyncStore.getState().vaults, 1)).toEqual([
-      expect.objectContaining({ type: 'entry', id: 'entry-b', vaultId: 'vault-b' }),
+      expect.objectContaining({
+        type: 'entry', id: 'entry-b', vaultId: 'vault-b',
+        entryType: 'key', icon: 'vpn_key', color: '#60A5FA',
+      }),
     ])
   })
 

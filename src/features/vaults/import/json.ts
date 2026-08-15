@@ -1,4 +1,4 @@
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from '../types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY } from '../types'
 import { normalizeEntry, type RawEntry } from './normalize'
 import type { ImportFormat, ParsedEntry, SkippedTally } from './types'
 
@@ -206,8 +206,9 @@ const palladin: JsonProfile = {
       for (const entry of vault.entries) {
         if (!isObject(entry)) continue
         const isKey = entry.type === ENTRY_TYPE_KEY || entry.type === 'key'
+        const isCard = entry.type === ENTRY_TYPE_CREDIT_CARD || entry.type === 'creditCard'
         out.push({
-          type: isKey ? ENTRY_TYPE_KEY : ENTRY_TYPE_CREDENTIAL,
+          type: isKey ? ENTRY_TYPE_KEY : isCard ? ENTRY_TYPE_CREDIT_CARD : ENTRY_TYPE_CREDENTIAL,
           label: str(entry.name),
           username: str(entry.username),
           password: str(entry.password),
@@ -215,6 +216,10 @@ const palladin: JsonProfile = {
           url: str(entry.urlDomain) ?? str(entry.url),
           notes: str(entry.notes),
           totp: str(entry.totp),
+          cardholderName: str(entry.cardholderName), cardNumber: str(entry.cardNumber),
+          expiryMonth: str(entry.expiryMonth), expiryYear: str(entry.expiryYear),
+          securityCode: str(entry.securityCode), pin: str(entry.pin),
+          billingAddress: str(entry.billingAddress),
         })
       }
     }

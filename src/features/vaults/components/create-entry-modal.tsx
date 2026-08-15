@@ -19,6 +19,7 @@ import { firstError, required, validUrl } from '../../../shared/lib/validation'
 import {
   BLOB_VERSION_V2,
   ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_CREDIT_CARD,
   ENTRY_TYPE_KEY,
   ENTRY_TYPE_SCRIPT,
   SCRIPT_INTERPRETERS,
@@ -48,8 +49,11 @@ import { defaultColorFor, defaultIconFor } from './entry-presentation'
 import { FormSelect } from '../../../shared/components/form-select'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { DiscoveryToggle, discoveryAction } from './discovery-toggle'
-import { normalizePublicHostname, resolveWebsiteIcons } from '../../../shared/api/public-assets-api'
-import { usePublicEntryAssets } from '../use-public-entry-assets'
+import {
+  ensureWebsiteIconsWithin,
+  normalizePublicHostname,
+} from '../../../shared/api/public-assets-api'
+import { publicAssetIconReference } from '../../../shared/crypto/vault-plaintext'
 
 export interface CreateEntryModalProps {
   open: boolean
@@ -77,11 +81,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const navigate = useNavigate()
   const create = useCreateEntry()
 
-  const [type, setType] = useState<EntryType>(ENTRY_TYPE_KEY)
-  const [color, setColor] = useState(defaultColorFor(ENTRY_TYPE_KEY))
+  const [type, setType] = useState<EntryType>(ENTRY_TYPE_CREDENTIAL)
+  const [color, setColor] = useState(defaultColorFor(ENTRY_TYPE_CREDENTIAL))
   // Pre-select the type's default glyph so a tile is always visibly chosen;
   // switching type follows along until the user picks a local icon.
-  const [icon, setIcon] = useState<string | undefined>(defaultIconFor(ENTRY_TYPE_KEY))
+  const [icon, setIcon] = useState<string | undefined>(defaultIconFor(ENTRY_TYPE_CREDENTIAL))
   const [iconFile, setIconFile] = useState<File | undefined>()
   const [label, setLabel] = useState('')
   const [labelError, setLabelError] = useState(false)
@@ -94,6 +98,21 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [password, setPassword] = useState('')
   const [passwordError, setPasswordError] = useState(false)
   const [passwordVisible, setPasswordVisible] = useState(false)
+  const [cardholderName, setCardholderName] = useState('')
+  const [cardholderNameError, setCardholderNameError] = useState(false)
+  const [cardNumber, setCardNumber] = useState('')
+  const [cardNumberError, setCardNumberError] = useState(false)
+  const [expiryMonth, setExpiryMonth] = useState('')
+  const [expiryMonthError, setExpiryMonthError] = useState(false)
+  const [expiryYear, setExpiryYear] = useState('')
+  const [expiryYearError, setExpiryYearError] = useState(false)
+  const [securityCode, setSecurityCode] = useState('')
+  const [securityCodeError, setSecurityCodeError] = useState(false)
+  const [cardPin, setCardPin] = useState('')
+  const [billingAddress, setBillingAddress] = useState('')
+  const [cardNumberVisible, setCardNumberVisible] = useState(false)
+  const [securityCodeVisible, setSecurityCodeVisible] = useState(false)
+  const [cardPinVisible, setCardPinVisible] = useState(false)
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState(false)
   const [notes, setNotes] = useState('')
@@ -104,9 +123,10 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [interpreter, setInterpreter] = useState<ScriptInterpreter>('bash')
   const [refs, setRefs] = useState<ScriptRef[]>([])
   const [iconTouched, setIconTouched] = useState(false)
+  const [automaticIcon, setAutomaticIcon] = useState<{ hostname: string; reference: string } | null>(null)
   const [discoverable, setDiscoverable] = useState(true)
   const [policyOverrides, setPolicyOverrides] = useState<AgentVisibilityPolicy['fields']>({})
-  usePublicEntryAssets([icon ?? null])
+  const [resolvingIcon, setResolvingIcon] = useState(false)
 
   const allFields = useMemo(
     () => type === ENTRY_TYPE_CREDENTIAL
@@ -138,30 +158,53 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     if (iconTouched || type === ENTRY_TYPE_SCRIPT) return
     const hostname = normalizePublicHostname(url)
     if (!hostname) return
-    // Persist the stable hostname reference immediately; discovery itself is
-    // asynchronous and must not race a fast Save click.
-    setIcon(`website:${hostname}`)
+    let active = true
     const timer = window.setTimeout(() => {
-      void resolveWebsiteIcons([hostname]).catch(() => undefined)
+      // A new catalog record is initially Pending. Keep this URL-specific
+      // preview bounded, but allow acquisition to reach Ready instead of
+      // permanently leaving the type glyph after a single ensure response.
+      void ensureWebsiteIconsWithin([hostname], 5_000).then((assets) => {
+        const asset = assets.get(hostname)
+        if (active && asset) {
+          const reference = publicAssetIconReference({ assetId: asset.id, revision: asset.revision, url: asset.url })
+          setAutomaticIcon({ hostname, reference })
+          setIcon(reference)
+        }
+      }).catch(() => undefined)
     }, 300)
     return () => {
+      active = false
       window.clearTimeout(timer)
     }
   }, [iconTouched, type, url])
 
-  const isPending = create.isPending
+  const isPending = create.isPending || resolvingIcon
 
   const canSubmit = useMemo(() => {
     if (isPending) return false
     if (!label.trim()) return false
     if (type === ENTRY_TYPE_KEY) return keyValue.trim().length > 0
     if (type === ENTRY_TYPE_SCRIPT) return script.trim().length > 0
+    if (type === ENTRY_TYPE_CREDIT_CARD) return cardholderName.trim().length > 0
+      && cardholderName.trim().length <= 256
+      && /^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
+      && /^(0[1-9]|1[0-2])$/.test(expiryMonth) && /^\d{4}$/.test(expiryYear)
+      && /^\d{3,4}$/.test(securityCode)
     return username.trim().length > 0 && password.trim().length > 0
-  }, [isPending, label, type, keyValue, username, password, script])
+  }, [isPending, label, type, keyValue, username, password, script, cardholderName, cardNumber, expiryMonth, expiryYear, securityCode])
 
   const fieldsInvalid = validateCustomFields(allFields).hasError
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleUrlChange = (nextUrl: string) => {
+    setUrl(nextUrl)
+    setUrlError(false)
+    if (!iconTouched) {
+      setAutomaticIcon(null)
+      setIcon(defaultIconFor(type))
+    }
+  }
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canSubmit || fieldsInvalid) return
 
@@ -176,7 +219,24 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       script,
       interpreter,
       refs,
+      cardholderName, cardNumber, expiryMonth, expiryYear, securityCode, cardPin, billingAddress,
     })
+
+    const hostname = !iconTouched && type !== ENTRY_TYPE_SCRIPT ? normalizePublicHostname(url) : null
+    let iconReference = iconTouched
+      ? icon
+      : automaticIcon?.hostname === hostname
+        ? automaticIcon.reference
+        : defaultIconFor(type)
+    if (hostname) {
+      setResolvingIcon(true)
+      try {
+        const asset = (await ensureWebsiteIconsWithin([hostname], 1_500)).get(hostname)
+        if (asset) iconReference = publicAssetIconReference({ assetId: asset.id, revision: asset.revision, url: asset.url })
+      } finally {
+        setResolvingIcon(false)
+      }
+    }
 
     create.mutate(
       {
@@ -184,7 +244,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         label: label.trim(),
         agentLabel: agentLabel.trim(),
         description: description.trim() || undefined,
-        iconReference: icon,
+        iconReference,
         ...(iconFile ? { iconFile } : {}),
         type,
         payload,
@@ -255,17 +315,14 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 setUsernameError(false)
                 setPasswordError(false)
                 setScriptError(false)
+                if (nextType === ENTRY_TYPE_CREDIT_CARD) {
+                  setUrl('')
+                  setUrlError(false)
+                  setAutomaticIcon(null)
+                }
                 if (!iconTouched) {
-                  const typeDefaults = [
-                    defaultIconFor(ENTRY_TYPE_KEY),
-                    defaultIconFor(ENTRY_TYPE_CREDENTIAL),
-                    defaultIconFor(ENTRY_TYPE_SCRIPT),
-                  ]
-                  setIcon((current) =>
-                    current === undefined || typeDefaults.includes(current)
-                      ? defaultIconFor(nextType)
-                      : current,
-                  )
+                  setAutomaticIcon(null)
+                  setIcon(defaultIconFor(nextType))
                   setColor((current) =>
                     current === defaultColorFor(previousType) ? defaultColorFor(nextType) : current,
                   )
@@ -273,9 +330,10 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               }}
               disabled={isPending}
             >
-              <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
               <option value={String(ENTRY_TYPE_CREDENTIAL)}>{t('vault.entries.typeCredentialOption')}</option>
+              <option value={String(ENTRY_TYPE_KEY)}>{t('vault.entries.typeKeyOption')}</option>
               <option value={String(ENTRY_TYPE_SCRIPT)}>{t('vault.entries.typeScriptOption')}</option>
+              <option value={String(ENTRY_TYPE_CREDIT_CARD)}>{t('vault.entries.typeCreditCardOption')}</option>
             </FormSelect>
           </div>
 
@@ -368,7 +426,53 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   {t('validation.required')}
                 </FeedbackSlot>
               </div>
-              <WebsiteField url={url} setUrl={setUrl} urlError={urlError} setUrlError={setUrlError} disabled={isPending} />
+              <WebsiteField url={url} onChange={handleUrlChange} urlError={urlError} setUrlError={setUrlError} disabled={isPending} />
+            </>
+          ) : type === ENTRY_TYPE_CREDIT_CARD ? (
+            <>
+              <div>
+                <FormInput id="entry-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
+                  onChange={(e) => { setCardholderName(e.target.value); setCardholderNameError(false) }}
+                  onBlur={() => setCardholderNameError(!cardholderName.trim())}
+                  autoComplete="cc-name" maxLength={256} disabled={isPending} error={cardholderNameError} />
+                <FeedbackSlot visible={cardholderNameError} color="red">{t('validation.required')}</FeedbackSlot>
+              </div>
+              <div>
+                <SecretInput id="entry-card-number" label={t('vault.entries.card.cardNumber')} value={cardNumber}
+                  onChange={(value) => { setCardNumber(value); setCardNumberError(false) }}
+                  onBlur={() => setCardNumberError(!/^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, '')))}
+                  shown={cardNumberVisible} onToggleShown={() => setCardNumberVisible((value) => !value)}
+                  disabled={isPending} monospace error={cardNumberError} />
+                <FeedbackSlot visible={cardNumberError} color="red">{t('vault.entries.card.invalidCardNumber')}</FeedbackSlot>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <FormInput id="entry-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
+                    onChange={(e) => { setExpiryMonth(e.target.value.replace(/\D/g, '').slice(0, 2)); setExpiryMonthError(false) }}
+                    onBlur={() => setExpiryMonthError(!/^(0[1-9]|1[0-2])$/.test(expiryMonth))}
+                    autoComplete="cc-exp-month" disabled={isPending} error={expiryMonthError} />
+                  <FeedbackSlot visible={expiryMonthError} color="red">{t('vault.entries.card.invalidExpiryMonth')}</FeedbackSlot>
+                </div>
+                <div>
+                  <FormInput id="entry-expiry-year" label={t('vault.entries.card.expiryYear')} value={expiryYear}
+                    onChange={(e) => { setExpiryYear(e.target.value.replace(/\D/g, '').slice(0, 4)); setExpiryYearError(false) }}
+                    onBlur={() => setExpiryYearError(!/^\d{4}$/.test(expiryYear))}
+                    autoComplete="cc-exp-year" disabled={isPending} error={expiryYearError} />
+                  <FeedbackSlot visible={expiryYearError} color="red">{t('vault.entries.card.invalidExpiryYear')}</FeedbackSlot>
+                </div>
+                <div>
+                  <SecretInput id="entry-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
+                    onChange={(value) => { setSecurityCode(value.replace(/\D/g, '').slice(0, 4)); setSecurityCodeError(false) }}
+                    onBlur={() => setSecurityCodeError(!/^\d{3,4}$/.test(securityCode))}
+                    shown={securityCodeVisible} onToggleShown={() => setSecurityCodeVisible((value) => !value)}
+                    disabled={isPending} monospace error={securityCodeError} />
+                  <FeedbackSlot visible={securityCodeError} color="red">{t('vault.entries.card.invalidSecurityCode')}</FeedbackSlot>
+                </div>
+              </div>
+              <SecretInput id="entry-card-pin" label={t('vault.entries.card.pin')} value={cardPin}
+                onChange={setCardPin} shown={cardPinVisible} onToggleShown={() => setCardPinVisible((value) => !value)} disabled={isPending} monospace />
+              <FormInput id="entry-billing-address" label={t('vault.entries.card.billingAddress')} value={billingAddress}
+                onChange={(e) => setBillingAddress(e.target.value)} autoComplete="street-address" disabled={isPending} />
             </>
           ) : type === ENTRY_TYPE_CREDENTIAL ? (
             <>
@@ -414,7 +518,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   {t('validation.required')}
                 </FeedbackSlot>
               </div>
-              <WebsiteField url={url} setUrl={setUrl} urlError={urlError} setUrlError={setUrlError}
+              <WebsiteField url={url} onChange={handleUrlChange} urlError={urlError} setUrlError={setUrlError}
                 disabled={isPending} discovery={policy.fields[ENTRY_FIELD.urlDomain] === 'discovery'}
                 discoveryDisabled={!discoverable} onDiscoveryChange={(active) => setPolicyOverrides((current) => ({
                   ...current, [ENTRY_FIELD.urlDomain]: active ? 'discovery' : 'never',
@@ -483,7 +587,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
 /** Shared Website/URL field (KEY + CREDENTIAL) — feeds the favicon and urlDomain. */
 function WebsiteField({
   url,
-  setUrl,
+  onChange,
   urlError,
   setUrlError,
   disabled,
@@ -492,7 +596,7 @@ function WebsiteField({
   onDiscoveryChange,
 }: {
   url: string
-  setUrl: (v: string) => void
+  onChange: (v: string) => void
   urlError: boolean
   setUrlError: (v: boolean) => void
   disabled: boolean
@@ -513,7 +617,7 @@ function WebsiteField({
           t,
         )] : undefined}
         value={url}
-        onChange={(e) => { setUrl(e.target.value); setUrlError(false) }}
+        onChange={(e) => onChange(e.target.value)}
         onBlur={() => setUrlError(firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null)}
         placeholder={t('vault.entries.urlPlaceholder')}
         autoComplete="off"
@@ -551,6 +655,13 @@ interface BuildPayloadInput {
   script: string
   interpreter: ScriptInterpreter
   refs: ScriptRef[]
+  cardholderName: string
+  cardNumber: string
+  expiryMonth: string
+  expiryYear: string
+  securityCode: string
+  cardPin: string
+  billingAddress: string
 }
 
 function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
@@ -580,6 +691,13 @@ function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
       input.fields,
     )
   }
+  if (input.type === ENTRY_TYPE_CREDIT_CARD) return withCustomFields({
+    v: BLOB_VERSION_V2, type: ENTRY_TYPE_CREDIT_CARD,
+    cardholderName: input.cardholderName.trim(), cardNumber: input.cardNumber.replace(/[ -]/g, ''),
+    expiryMonth: input.expiryMonth, expiryYear: input.expiryYear, securityCode: input.securityCode,
+    pin: input.cardPin.trim() || undefined, billingAddress: input.billingAddress.trim() || undefined,
+    notes: trimmedNotes,
+  }, input.fields)
   const trimmedUrl = input.url.trim() || undefined
   return withCustomFields(
     {

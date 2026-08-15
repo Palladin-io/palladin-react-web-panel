@@ -10,6 +10,7 @@ import type { CreateVaultInput } from './types'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 import { listEncryptedVaults } from './sync/member-sync-api'
 import { useMemberSyncStore } from './sync/member-sync-store'
+import { AGENT_DISCOVERY_RECONCILE_EVENT } from './sync/agent-discovery-reconciler'
 
 /**
  * Thrown when create is invoked while the vault is still locked. The
@@ -149,6 +150,7 @@ export function useCreateVault() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
       useMemberSyncStore.getState().retry()
+      window.dispatchEvent(new Event(AGENT_DISCOVERY_RECONCILE_EVENT))
     },
   })
 
