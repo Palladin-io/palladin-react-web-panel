@@ -112,6 +112,14 @@ describe('AuditFilterBar', () => {
     expect(screen.getByLabelText('Filter by vault')).toBeInTheDocument()
   })
 
+  it('hides the agent filter when the surrounding view is already agent-scoped', () => {
+    render(<AuditFilterBar value={EMPTY} onChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByLabelText('Filters'))
+    expect(screen.getByLabelText('Filter by event type')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Filter by agent')).not.toBeInTheDocument()
+  })
+
   it('renders the user filter only when user options are supplied and reports a selection', () => {
     const onChange = vi.fn()
     const { rerender } = render(

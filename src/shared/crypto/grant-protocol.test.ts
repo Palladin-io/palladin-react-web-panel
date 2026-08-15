@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { toBase64 } from './encoding'
+import { fromBase64Url, toBase64 } from './encoding'
 import { buildCanonicalGrantEnvelope } from './grant-protocol'
+import { deriveVaultSubkey } from './hkdf'
 import { loadSodium, wipe } from './sodium'
+import { openVaultEnvelope, toEnvelopeDescriptor } from './vault-envelope'
+import { openKeyFromX25519Recipient, type X25519WrapperContext } from './x25519-wrapper'
 import type { MemberSecretV1 } from './vault-plaintext'
 
 const secret: MemberSecretV1 = {
@@ -40,6 +43,118 @@ describe('canonical Grant protocol', () => {
       expect(envelope.wrappedGrantDek.descriptor.resourceRevision).toBe('8')
       expect(envelope.wrappedGrantDek.descriptor.wrappedKeyVersion).toBe(5)
       expect(envelope.fieldIds).toEqual(['credential.password'])
+      const wrapper = envelope.wrappedGrantDek.descriptor
+      const grantDek = await openKeyFromX25519Recipient(
+        fromBase64Url(envelope.wrappedGrantDek.encodedSealedKeyPackage),
+        agent.publicKey,
+        agent.privateKey,
+        {
+          protocolVersion: wrapper.protocolVersion,
+          wrapperSuiteId: wrapper.wrapperSuiteId,
+          purpose: wrapper.purpose,
+          organizationId: wrapper.scope.organizationId,
+          vaultId: wrapper.scope.vaultId,
+          entryId: wrapper.scope.entryId ?? undefined,
+          grantOrRequestId: wrapper.scope.grantOrRequestId ?? undefined,
+          agentId: wrapper.scope.agentId ?? undefined,
+          resourceRevision: BigInt(wrapper.resourceRevision),
+          wrappedKeyVersion: wrapper.wrappedKeyVersion,
+          memberKeyGeneration: wrapper.memberKeyGeneration ?? undefined,
+          recipientKeyKind: wrapper.recipientKeyKind,
+          recipientKeyVersion: wrapper.recipientKeyVersion,
+          recipientFingerprint: fromBase64Url(wrapper.recipientFingerprint),
+          parentDescriptorHash: fromBase64Url(wrapper.parentDescriptorHash!),
+        } satisfies X25519WrapperContext,
+      )
+      const descriptor = toEnvelopeDescriptor(envelope.descriptor)
+      const { resourceRevision, ...kdfContext } = descriptor
+      void resourceRevision
+      const payloadKey = await deriveVaultSubkey(grantDek, kdfContext)
+      try {
+        const plaintext = await openVaultEnvelope(envelope, payloadKey, {
+          entryRevision: 7n,
+          wrapperSuiteId: envelope.descriptor.binding.wrapperSuiteId,
+          recipientKeyVersion: envelope.descriptor.binding.recipientKeyVersion,
+          recipientKeyFingerprint: fromBase64Url(envelope.descriptor.binding.recipientKeyFingerprint),
+          methods: envelope.descriptor.binding.approvedMethods,
+          deliveryPolicy: envelope.descriptor.binding.deliveryPolicy,
+          fieldSetCommitment: fromBase64Url(envelope.descriptor.binding.fieldSetCommitment),
+        })
+        expect(new TextDecoder().decode(plaintext)).toContain('"credential.password"')
+        wipe(plaintext)
+      } finally {
+        wipe(payloadKey)
+        wipe(grantDek)
+      }
+    } finally {
+      wipe(agent.privateKey); wipe(agent.publicKey)
+    }
+  })
+
+  it('preserves selected methods with standard delivery for Script payloads', async () => {
+    const sodium = await loadSodium()
+    const agent = sodium.crypto_box_keypair()
+    const scriptSecret: MemberSecretV1 = {
+      schema: 'palladin.member-secret.v1', memberLabel: 'Deploy', agentLabel: 'Deploy',
+      discoverable: true, description: null, icon: null, color: null, entryType: 'script',
+      agentFieldAccess: {
+        memberLabel: 'never', agentLabel: 'discovery', description: 'never', icon: 'never', color: 'never',
+        entryType: 'discovery', 'script.source': 'onGrantRuntime', 'script.interpreter': 'onGrantRuntime',
+        'script.refs': 'onGrantRuntime', notes: 'never',
+      },
+      content: { source: 'echo ok', interpreter: 'bash', refs: [], notes: null, customFields: [] },
+    }
+    try {
+      const envelope = await buildCanonicalGrantEnvelope({
+        organizationId: '00112233-4455-6677-8899-aabbccddeeff',
+        vaultId: '11112222-3333-4444-8555-666677778888',
+        entryId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        grantId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+        agentId: 'cccccccc-dddd-4eee-8fff-000000000000', entryRevision: '1',
+        memberKeyGeneration: 1, agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 1,
+        grantEnvelopeRevision: '1', grantKeyVersion: 1,
+        approvedFieldIds: ['script.source'], approvedMethods: 6, secret: scriptSecret,
+      })
+      expect(envelope.fieldIds).toEqual(['script.source'])
+      expect(envelope.descriptor.binding.approvedMethods).toBe(6)
+      expect(envelope.descriptor.binding.deliveryPolicy).toBe(0)
+    } finally {
+      wipe(agent.privateKey); wipe(agent.publicKey)
+    }
+  })
+
+  it('preserves selected methods with standard delivery for Credit Card payloads', async () => {
+    const sodium = await loadSodium()
+    const agent = sodium.crypto_box_keypair()
+    const cardSecret: MemberSecretV1 = {
+      schema: 'palladin.member-secret.v1', memberLabel: 'Company card', agentLabel: 'Company card',
+      discoverable: true, description: null, icon: null, color: null, entryType: 'creditCard',
+      agentFieldAccess: {
+        memberLabel: 'never', agentLabel: 'discovery', description: 'never', icon: 'never', color: 'never',
+        entryType: 'discovery', 'creditCard.cardholderName': 'onGrantRuntime',
+        'creditCard.cardNumber': 'onGrantRuntime', 'creditCard.expiryMonth': 'onGrantRuntime',
+        'creditCard.expiryYear': 'onGrantRuntime', 'creditCard.securityCode': 'onGrantRuntime',
+        'creditCard.pin': 'never', 'creditCard.billingAddress': 'never', notes: 'never',
+      },
+      content: {
+        cardholderName: 'Ada Lovelace', cardNumber: '4242424242424242', expiryMonth: '12',
+        expiryYear: '2030', securityCode: '123', pin: null, billingAddress: null,
+        notes: null, customFields: [],
+      },
+    }
+    try {
+      const envelope = await buildCanonicalGrantEnvelope({
+        organizationId: '00112233-4455-6677-8899-aabbccddeeff',
+        vaultId: '11112222-3333-4444-8555-666677778888',
+        entryId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        grantId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+        agentId: 'cccccccc-dddd-4eee-8fff-000000000000', entryRevision: '1',
+        memberKeyGeneration: 1, agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 1,
+        grantEnvelopeRevision: '1', grantKeyVersion: 1,
+        approvedFieldIds: ['creditCard.cardNumber'], approvedMethods: 6, secret: cardSecret,
+      })
+      expect(envelope.descriptor.binding.approvedMethods).toBe(6)
+      expect(envelope.descriptor.binding.deliveryPolicy).toBe(0)
     } finally {
       wipe(agent.privateKey); wipe(agent.publicKey)
     }

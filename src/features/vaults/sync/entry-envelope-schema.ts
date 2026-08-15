@@ -45,6 +45,7 @@ export const grantEnvelopeBindingSchema = z.object({
   recipientKeyVersion: z.number().int().min(0).max(0xffffffff),
   recipientKeyFingerprint: z.string().min(1),
   approvedMethods: z.number().int().min(0).max(0xffff),
+  deliveryPolicy: z.union([z.literal(0), z.literal(1), z.literal(2)]),
   fieldSetCommitment: z.string().min(1),
   expiresAt: z.string().datetime({ offset: true }).nullable(),
   remainingUses: z.number().int().positive().nullable(),

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { api } from './client'
+import { env } from '../lib/env'
 
 export const publicAssetTypeSchema = z.enum(['websiteIcon', 'agentIcon'])
 
@@ -7,17 +8,23 @@ export const publicAssetSchema = z.object({
   id: z.string().uuid(),
   type: publicAssetTypeSchema,
   name: z.string().min(1).max(256),
-  url: z.string().url(),
+  url: z.string().url().refine((value) => trustedPublicAssetUrl(value) !== null),
   revision: z.number().int().positive(),
   aliases: z.array(z.string().min(1).max(253)).optional(),
 }).strict()
 
 const searchResponseSchema = z.object({ items: z.array(publicAssetSchema) }).strict()
-const resolveResponseSchema = z.object({
+const websiteIconEnsureStatusSchema = z.enum(['pending', 'ready', 'failed'])
+const ensureResponseSchema = z.object({
   items: z.array(z.object({
     hostname: z.string().min(1).max(253),
+    status: websiteIconEnsureStatusSchema,
     asset: publicAssetSchema.nullable(),
-  }).strict()),
+  }).strict().superRefine(({ status, asset }, ctx) => {
+    if ((status === 'ready') !== (asset !== null)) {
+      ctx.addIssue({ code: 'custom', message: 'Ready website icons must include exactly one published asset' })
+    }
+  })),
 }).strict()
 const byIdsResponseSchema = z.object({ items: z.array(publicAssetSchema) }).strict()
 
@@ -25,8 +32,10 @@ export type PublicAsset = z.infer<typeof publicAssetSchema>
 
 const assetCache = new Map<string, PublicAsset>()
 const websiteAssetCache = new Map<string, PublicAsset>()
+const websiteAssetStatusCache = new Map<string, z.infer<typeof websiteIconEnsureStatusSchema>>()
 const cacheListeners = new Set<() => void>()
 let cacheRevision = 0
+const WEBSITE_ICON_POLL_INTERVAL_MS = 1_000
 
 function notifyCacheChanged(): void {
   cacheRevision += 1
@@ -55,10 +64,6 @@ export function cachedPublicAsset(assetId: string): PublicAsset | undefined {
   return assetCache.get(assetId)
 }
 
-export function cachedWebsiteAsset(hostname: string): PublicAsset | undefined {
-  return websiteAssetCache.get(normalizePublicHostname(hostname) ?? hostname)
-}
-
 export async function searchPublicAssets(query: string): Promise<PublicAsset[]> {
   const response = await api.get('api/public-assets/search', {
     searchParams: { type: 'websiteIcon', q: query, limit: '40' },
@@ -68,15 +73,18 @@ export async function searchPublicAssets(query: string): Promise<PublicAsset[]> 
   return items
 }
 
-export async function resolveWebsiteIcons(
-  hostnames: string[],
-  acquireMissing = true,
-): Promise<Map<string, PublicAsset>> {
+export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<string, PublicAsset>> {
   const unique = [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
   if (unique.length === 0) return new Map()
-  const batches = Array.from({ length: Math.ceil(unique.length / 500) }, (_, index) =>
-    unique.slice(index * 500, (index + 1) * 500))
-  const parsedBatches: Array<z.infer<typeof resolveResponseSchema>> = []
+  const result = new Map(unique.flatMap((hostname) => {
+    const asset = websiteAssetCache.get(hostname)
+    return asset ? [[hostname, asset] as const] : []
+  }))
+  const missing = unique.filter((hostname) =>
+    !result.has(hostname) && websiteAssetStatusCache.get(hostname) !== 'failed')
+  if (missing.length === 0) return result
+  const batches = Array.from({ length: Math.ceil(missing.length / 500) }, (_, index) =>
+    missing.slice(index * 500, (index + 1) * 500))
   let firstError: unknown
   // Keep a small concurrency window: favicon acquisition performs outbound
   // network I/O, so an import must not fan hundreds of requests out at once.
@@ -85,13 +93,22 @@ export async function resolveWebsiteIcons(
     while (next < batches.length) {
       const batch = batches[next++]
       try {
-        const response = await api.post('api/public-assets/resolve', {
-          // Polls read the durable catalog only. They must not multiply the
-          // same acquisition command while its first delivery is in flight.
-          json: { type: 'websiteIcon', hostnames: batch, acquireMissing },
+        const response = await api.post('api/public-assets/website-icons/ensure', {
+          json: { hostnames: batch },
           timeout: 20_000,
         }).json<unknown>()
-        parsedBatches.push(resolveResponseSchema.parse(response))
+        const items = ensureResponseSchema.parse(response).items
+        const changed = remember(items.flatMap(({ asset }) => asset ? [asset] : []))
+        for (const { hostname, status, asset } of items) {
+          websiteAssetStatusCache.set(hostname, status)
+          if (asset) {
+            websiteAssetCache.set(hostname, asset)
+            result.set(hostname, asset)
+          }
+        }
+        // Publish every successful page immediately. A sibling request may
+        // still be pending when the bounded save path snapshots this cache.
+        if (changed) notifyCacheChanged()
       } catch (error) {
         firstError ??= error
         // One slow/unreachable group must not discard assets resolved by the
@@ -99,20 +116,91 @@ export async function resolveWebsiteIcons(
       }
     }
   }))
-  const items = parsedBatches.flatMap((parsed) => parsed.items)
-  let changed = remember(items.flatMap(({ asset }) => asset ? [asset] : []))
-  for (const { hostname, asset } of items) {
-    if (asset && websiteAssetCache.get(hostname)?.id !== asset.id) {
-      websiteAssetCache.set(hostname, asset)
-      changed = true
-    }
-  }
-  if (changed) notifyCacheChanged()
   // Preserve successful pages in cache, but make the caller retry the batch
   // set if even one page was rejected (for example by broker backpressure or
   // rate limiting). Backend alias idempotency makes the retry safe.
   if (firstError) throw firstError
-  return new Map(items.flatMap(({ hostname, asset }) => asset ? [[hostname, asset] as const] : []))
+  return result
+}
+
+/** Wait only during an explicit save flow and return published assets only. */
+export async function ensureWebsiteIconsWithin(
+  hostnames: string[],
+  timeoutMs: number,
+  onProgress?: (completed: number, total: number) => void,
+): Promise<Map<string, PublicAsset>> {
+  const unique = [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
+  // `failed` is terminal only for one bounded preparation attempt. Keeping it
+  // forever would make a browser tab ignore an icon that was uploaded or
+  // successfully reacquired later. Revalidate it once when a new explicit
+  // save/import/form preparation starts; a failed response still stops the
+  // current polling loop immediately.
+  for (const hostname of unique) {
+    if (websiteAssetStatusCache.get(hostname) === 'failed') {
+      websiteAssetStatusCache.delete(hostname)
+    }
+  }
+  const cachedResult = (): Map<string, PublicAsset> => new Map(
+    unique
+      .flatMap((hostname) => {
+        const asset = websiteAssetCache.get(hostname)
+        return asset ? [[hostname, asset] as const] : []
+      }),
+  )
+  const completedCount = () => unique.filter((hostname) => {
+    const status = websiteAssetStatusCache.get(hostname)
+    return status === 'ready' || status === 'failed'
+  }).length
+  const reportProgress = () => onProgress?.(completedCount(), unique.length)
+  reportProgress()
+  if (unique.length === 0 || timeoutMs <= 0) return cachedResult()
+
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const unresolved = unique.filter((hostname) => {
+      const status = websiteAssetStatusCache.get(hostname)
+      return status !== 'ready' && status !== 'failed'
+    })
+    if (unresolved.length === 0) return cachedResult()
+    const remaining = deadline - Date.now()
+    let requestTimeout: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        ensureWebsiteIcons(unresolved),
+        new Promise<void>((resolve) => {
+          requestTimeout = setTimeout(resolve, remaining)
+        }),
+      ])
+      reportProgress()
+    } catch {
+      // Catalog enrichment is best-effort. The save continues without URLs
+      // for assets that did not reach Ready before the deadline.
+    } finally {
+      if (requestTimeout !== undefined) clearTimeout(requestTimeout)
+    }
+    if (completedCount() === unique.length) return cachedResult()
+    const waitMs = Math.min(WEBSITE_ICON_POLL_INTERVAL_MS, deadline - Date.now())
+    if (waitMs > 0) await new Promise((resolve) => setTimeout(resolve, waitMs))
+  }
+  reportProgress()
+  return cachedResult()
+}
+
+/** Accept only the configured immutable public-asset namespace for rendering. */
+export function trustedPublicAssetUrl(value: string): string | null {
+  try {
+    const candidate = new URL(value)
+    const base = new URL(env.publicAssetUrl)
+    const prefix = `${base.pathname.replace(/\/$/, '')}/`
+    return candidate.origin === base.origin
+      && candidate.username === '' && candidate.password === ''
+      && candidate.search === '' && candidate.hash === ''
+      && candidate.pathname.startsWith(prefix)
+      ? candidate.toString()
+      : null
+  } catch {
+    return null
+  }
 }
 
 export async function getPublicAssetsByIds(assetIds: string[]): Promise<PublicAsset[]> {

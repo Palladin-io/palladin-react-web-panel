@@ -16,9 +16,11 @@ const agentDiscoveryProvisioningItemSchema = z.object({
   recipientKeyVersion: z.number().int().positive().max(0xffffffff),
   status: z.enum([DISCOVERY_STATUS_CURRENT, DISCOVERY_STATUS_PENDING]),
   manifestRevision: canonicalU64.nullable(),
-}).strict().transform(({ agentId, agentName, recipientKeyVersion, status, manifestRevision }) => ({
+}).strict().transform(({ agentId, agentName, x25519PublicKey, ed25519PublicKey, recipientKeyVersion, status, manifestRevision }) => ({
   agentId,
   agentName,
+  x25519PublicKey,
+  ed25519PublicKey,
   recipientKeyVersion,
   status,
   manifestRevision,
@@ -26,13 +28,28 @@ const agentDiscoveryProvisioningItemSchema = z.object({
 
 const agentDiscoveryProvisioningResponseSchema = z.object({
   items: z.array(agentDiscoveryProvisioningItemSchema).max(1_000),
+  nextAfterId: z.string().uuid().nullable(),
 }).strict()
 
 export type AgentDiscoveryProvisioningItem = z.infer<typeof agentDiscoveryProvisioningItemSchema>
 
 export async function getAgentDiscoveryProvisioning(
   vaultId: string,
-): Promise<AgentDiscoveryProvisioningItem[]> {
-  const raw = await api.get(`api/vaults/${vaultId}/discovery/agents`).json()
-  return agentDiscoveryProvisioningResponseSchema.parse(raw).items
+  afterId?: string,
+  signal?: AbortSignal,
+): Promise<z.infer<typeof agentDiscoveryProvisioningResponseSchema>> {
+  const raw = await api.get(`api/vaults/${vaultId}/discovery/agents`, {
+    searchParams: { pageSize: 100, ...(afterId ? { afterId } : {}) }, signal,
+  }).json()
+  return agentDiscoveryProvisioningResponseSchema.parse(raw)
+}
+
+export async function provisionAgentDiscovery(vaultId: string, agentId: string, material: {
+  envelope: unknown
+  manifest: unknown
+}, signal?: AbortSignal): Promise<void> {
+  await api.put(`api/vaults/${vaultId}/discovery/agents/${agentId}`, {
+    json: { vaultId, agentId, envelope: material.envelope, manifest: material.manifest },
+    signal,
+  })
 }

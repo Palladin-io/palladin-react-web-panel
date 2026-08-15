@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApproveGrantDialog } from './approve-grant-dialog'
 import type { PendingGrant } from '../api/pending-grants-api'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_SCRIPT } from '../../../shared/types/entry-type'
 
 const grant: PendingGrant = {
   id: 'g1',
@@ -22,6 +23,7 @@ const review = {
   entryLabel: 'Gmail',
   reason: 'Need it for deployment',
   entryRevision: '7',
+  entryType: ENTRY_TYPE_CREDENTIAL,
   fields: [
     { id: 'password', label: 'password', access: 'onGrantValue' as const },
     { id: 'totp', label: 'totp', access: 'onGrantDerived' as const },
@@ -144,13 +146,45 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     expect(onConfirm.mock.calls[0][1]).toEqual(['exec', 'inject'])
   })
 
-  it('requires at least one policy-approved field', async () => {
+  it('keeps the authenticated method selection editable for Script entries', async () => {
+    const user = userEvent.setup()
+    render(
+      <ApproveGrantDialog
+        grant={grant}
+        review={{ ...review, entryType: ENTRY_TYPE_SCRIPT }}
+        isPending={false}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />,
+    )
+
+    expect(screen.getByRole('combobox', { name: /how the agent may use it/i })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: /^approve access$/i }))
+    expect(onConfirm.mock.calls[0][1]).toEqual(['exec', 'inject'])
+  })
+
+  it('allows the authenticated Inject selection for Script entries', async () => {
+    const user = userEvent.setup()
+    render(
+      <ApproveGrantDialog
+        grant={{ ...grant, encryptedReason: { descriptor: { binding: { requestedMethods: 4 } } } } as PendingGrant}
+        review={{ ...review, entryType: ENTRY_TYPE_SCRIPT }}
+        isPending={false}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: /^approve access$/i })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: /^approve access$/i }))
+    expect(onConfirm.mock.calls[0][1]).toEqual(['inject'])
+  })
+
+  it('does not expose field selection and approves every grantable field', async () => {
     const user = userEvent.setup()
     renderDialog()
-    await user.click(screen.getByRole('checkbox', { name: /password/i }))
-    await user.click(screen.getByRole('checkbox', { name: /totp/i }))
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
-    expect(onConfirm).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert')).toHaveTextContent('Select at least one field')
+    expect(onConfirm).toHaveBeenCalledWith(expect.any(Object), ['exec', 'inject'], ['password', 'totp'])
   })
 })

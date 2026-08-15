@@ -297,8 +297,9 @@ Components with no importers must NOT ship — remove them before opening a PR.
 
 GitHub Actions workflow at `.github/workflows/test.yml` runs on PRs to `main`:
 1. `npm ci`
-2. `npm run build`
-3. `npm test`
+2. `npm run lint`
+3. `npm run build`
+4. `npm test`
 
 **All changes must go through PRs** — CI must pass before merging.
 
@@ -316,6 +317,7 @@ Build per environment: `vite build --mode staging` loads `.env.staging`.
 
 ```env
 VITE_API_URL=http://localhost:5000        # Backend API base URL
+VITE_PUBLIC_ASSET_URL=                    # Optional immutable asset origin; validated and injected into img-src CSP at build time
 VITE_POSTHOG_KEY=phc_xxx                  # PostHog project key
 VITE_POSTHOG_HOST=https://app.posthog.com # PostHog instance URL
 VITE_SIGNALR_HUB_URL=http://localhost:5000/hubs/notifications

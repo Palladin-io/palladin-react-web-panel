@@ -50,6 +50,18 @@ export function UnlockPage() {
     )
   }
 
+  // Fail closed: a transport/auth/server failure must never be interpreted as
+  // an account that has not configured key material. Rendering onboarding in
+  // that state could invite an existing user to overwrite their setup.
+  if (account.isError) {
+    return (
+      <AccountLoadError
+        isRetrying={account.isFetching}
+        onRetry={() => void account.refetch()}
+      />
+    )
+  }
+
   // Account has no key material → user needs to set up their master password.
   // Check for salt + encryptedPrivateKey: these are the fields useUnlock
   // actually needs; isOnboarded alone doesn't guarantee they're present.
@@ -59,6 +71,58 @@ export function UnlockPage() {
   }
 
   return <UnlockForm />
+}
+
+function AccountLoadError({
+  isRetrying,
+  onRetry,
+}: {
+  isRetrying: boolean
+  onRetry: () => void
+}) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const logout = useAuthStore((s) => s.logout)
+
+  const handleLogout = () => {
+    void clearPushTokenOnLogout()
+    logout()
+    navigate({ to: '/login' })
+  }
+
+  return (
+    <div
+      className="dark flex min-h-screen items-center justify-center"
+      style={{
+        background:
+          'linear-gradient(160deg, #15171B 0%, #212429 30%, #1A1D22 60%, #15171B 100%)',
+      }}
+    >
+      <div className="w-full max-w-[27.5rem] px-6 text-center">
+        <h1 className="mb-2 text-display font-bold leading-tight text-[#E8EAED]">
+          {t('unlock.accountLoadErrorTitle')}
+        </h1>
+        <p className="mb-7 text-heading-sm text-[#6B7A8E]">
+          {t('unlock.accountLoadErrorDescription')}
+        </p>
+        <button
+          type="button"
+          className="flex h-control w-full items-center justify-center rounded-lg bg-[var(--cv-primary)] px-4 text-ui font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+          disabled={isRetrying}
+          onClick={onRetry}
+        >
+          {isRetrying ? t('common.loading') : t('unlock.retry')}
+        </button>
+        <button
+          type="button"
+          className="mt-3 text-ui text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
+          onClick={handleLogout}
+        >
+          {t('common.logout')}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function UnlockForm() {

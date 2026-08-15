@@ -19,6 +19,7 @@ export interface ApproveAgentDialogProps {
   /** Pre-fills the type — the type the agent reported at connect (e.g. "ci"). */
   initialType?: string
   isPending: boolean
+  isProvisioning?: boolean
   onConfirm: (input: {
     name?: string
     type?: AgentType
@@ -36,6 +37,7 @@ export function ApproveAgentDialog({
   initialName = '',
   initialType = '',
   isPending,
+  isProvisioning = false,
   onConfirm,
   onCancel,
 }: ApproveAgentDialogProps) {
@@ -94,7 +96,9 @@ export function ApproveAgentDialog({
             {t('agents.cancel')}
           </Button>
           <Button variant="positive" size="sm" icon="check_circle" onClick={handleConfirm} disabled={isPending || isUploading} className="flex-[2]">
-            {isPending || isUploading ? t('agents.approving') : t('agents.approve')}
+            {isProvisioning
+              ? t('agents.provisioningDiscovery')
+              : isPending || isUploading ? t('agents.approving') : t('agents.approve')}
           </Button>
         </DialogFooter>
       }

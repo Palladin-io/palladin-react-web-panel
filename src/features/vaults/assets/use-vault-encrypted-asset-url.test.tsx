@@ -26,6 +26,7 @@ import { useVaultEncryptedAssetUrl } from './use-vault-encrypted-asset-url'
 
 const vaultId = '11112233-4455-4677-8899-aabbccddeeff'
 const assetId = '22222233-4455-4677-8899-aabbccddeeff'
+const entryId = '44442233-4455-4677-8899-aabbccddeeff'
 
 describe('useVaultEncryptedAssetUrl', () => {
   beforeEach(() => {
@@ -68,5 +69,22 @@ describe('useVaultEncryptedAssetUrl', () => {
     await waitFor(() => expect(result.current.corrupt).toBe(true))
     expect(result.current.url).toBeNull()
     expect(URL.createObjectURL).not.toHaveBeenCalled()
+  })
+
+  it('authenticates and decrypts an entry-scoped presentation asset', async () => {
+    mocks.download.mockResolvedValue({
+      ciphertext: new Uint8Array([1]),
+      mediaType: 'image/png',
+      target: 2,
+      entryId,
+    })
+    const { result } = renderHook(() => useVaultEncryptedAssetUrl(vaultId, assetId, entryId))
+    await waitFor(() => expect(result.current.url).toBe('blob:vault-icon'))
+
+    expect(mocks.decrypt).toHaveBeenCalledWith(
+      expect.any(Uint8Array),
+      expect.objectContaining({ vaultId, assetId, entryId, target: 2 }),
+      expect.any(Uint8Array),
+    )
   })
 })

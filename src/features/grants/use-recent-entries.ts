@@ -1,5 +1,5 @@
 import { useAuthStore } from '../auth'
-import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
+import { useMemberSyncStore } from '../../shared/stores/member-sync-store'
 import { useLocalEntrySearch } from './use-local-entry-search'
 
 /**

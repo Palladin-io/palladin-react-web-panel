@@ -44,6 +44,7 @@ describe(`shared Rust vector: ${envelopeVector.name}`, () => {
         recipientKeyVersion: descriptor.recipientKeyVersion,
         recipientKeyFingerprint: bytes(descriptor.recipientFingerprintHex),
         methods: descriptor.approvedMethods,
+        deliveryPolicy: descriptor.deliveryPolicy,
         fieldSetCommitment: bytes(descriptor.fieldSetCommitmentHex),
         expiresAt: {
           seconds: descriptor.expiresAtUnixSeconds,

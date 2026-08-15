@@ -15,6 +15,9 @@ export const PENDING_GRANTS_QUERY_KEY = ['grants', 'pending'] as const
 /** Org-wide grants list (Approvals right panel — all statuses). */
 export const ORG_GRANTS_QUERY_KEY = ['grants', 'org'] as const
 
+/** Locally decrypted access reasons. Cache exists only for the unlocked session. */
+export const GRANT_REASONS_QUERY_KEY = ['grants', 'reasons'] as const
+
 /** Grant counts per status (dashboard metric tiles). */
 export const GRANT_SUMMARY_QUERY_KEY = ['grants', 'summary'] as const
 

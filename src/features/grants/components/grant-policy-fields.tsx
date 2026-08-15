@@ -33,6 +33,9 @@ const CHIP_CLASS =
   'transition-colors hover:border-[var(--cv-primary)] hover:text-[var(--cv-t1)] ' +
   'disabled:cursor-not-allowed disabled:opacity-40'
 
+const SELECTED_CHIP_CLASS =
+  'border-[var(--cv-primary)] bg-[rgb(var(--cv-primary-rgb)/0.1)] text-[var(--cv-t1)]'
+
 export interface GrantPolicyFieldsProps {
   kind: GrantPolicyKind
   expiresAt: string
@@ -68,6 +71,9 @@ export function GrantPolicyFields({
 }: GrantPolicyFieldsProps) {
   const { t } = useTranslation()
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [selectedPresetMinutes, setSelectedPresetMinutes] = useState<number | null>(() =>
+    expiresAt ? null : DEFAULT_EXPIRY_HOURS * 60,
+  )
   const customButtonRef = useRef<HTMLButtonElement>(null)
   const expiryError =
     error === POLICY_ERROR_KEY.expiryRequired || error === POLICY_ERROR_KEY.expiryInPast
@@ -113,8 +119,14 @@ export function GrantPolicyFields({
                 key={`m${m}`}
                 type="button"
                 disabled={disabled}
-                onClick={() => onExpiresAtChange(datetimeLocalInMinutes(m))}
-                className={`${CHIP_CLASS} text-center`}
+                aria-pressed={selectedPresetMinutes === m}
+                onClick={() => {
+                  setSelectedPresetMinutes(m)
+                  onExpiresAtChange(datetimeLocalInMinutes(m))
+                }}
+                className={`${CHIP_CLASS} text-center ${
+                  selectedPresetMinutes === m ? SELECTED_CHIP_CLASS : ''
+                }`}
               >
                 {t('grants.approve.quickMinutes', { count: m })}
               </button>
@@ -124,8 +136,14 @@ export function GrantPolicyFields({
                 key={`h${h}`}
                 type="button"
                 disabled={disabled}
-                onClick={() => onExpiresAtChange(datetimeLocalInMinutes(h * 60))}
-                className={`${CHIP_CLASS} text-center`}
+                aria-pressed={selectedPresetMinutes === h * 60}
+                onClick={() => {
+                  setSelectedPresetMinutes(h * 60)
+                  onExpiresAtChange(datetimeLocalInMinutes(h * 60))
+                }}
+                className={`${CHIP_CLASS} text-center ${
+                  selectedPresetMinutes === h * 60 ? SELECTED_CHIP_CLASS : ''
+                }`}
               >
                 {t('grants.approve.quickHours', { count: h })}
               </button>
@@ -137,8 +155,14 @@ export function GrantPolicyFields({
             disabled={disabled}
             aria-haspopup="dialog"
             aria-expanded={pickerOpen}
-            onClick={() => setPickerOpen((open) => !open)}
-            className={`${CHIP_CLASS} mt-1.5 flex w-full items-center justify-center gap-1`}
+            aria-pressed={selectedPresetMinutes === null}
+            onClick={() => {
+              setSelectedPresetMinutes(null)
+              setPickerOpen((open) => !open)
+            }}
+            className={`${CHIP_CLASS} mt-1.5 flex w-full items-center justify-center gap-1 ${
+              selectedPresetMinutes === null ? SELECTED_CHIP_CLASS : ''
+            }`}
           >
             <Icon name="event" size={14} />
             {t('grants.approve.quickCustom')}
@@ -165,7 +189,10 @@ export function GrantPolicyFields({
             <DateTimePicker
               value={expiresAt}
               anchorRef={customButtonRef}
-              onChange={onExpiresAtChange}
+              onChange={(value) => {
+                setSelectedPresetMinutes(null)
+                onExpiresAtChange(value)
+              }}
               onClose={() => setPickerOpen(false)}
             />
           )}

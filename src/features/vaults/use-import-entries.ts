@@ -4,7 +4,7 @@ import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-
 import { defaultAgentVisibilityPolicy, toMemberSecret, type EntryDraft } from '../../shared/crypto/entry-draft'
 import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
-import { projectAgentDiscovery } from '../../shared/crypto/vault-plaintext'
+import { projectAgentDiscovery, publicAssetIconReference } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
 import {
@@ -25,6 +25,7 @@ import {
 } from './api/vault-api'
 import {
   ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_CREDIT_CARD,
   ENTRY_TYPE_KEY,
   type EntryPlaintext,
 } from './types'
@@ -34,12 +35,16 @@ import { entriesQueryKey } from './use-entries'
 import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 import { useMemberSyncStore } from './sync/member-sync-store'
-import { normalizePublicHostname, resolveWebsiteIcons } from '../../shared/api/public-assets-api'
+import {
+  ensureWebsiteIconsWithin,
+  normalizePublicHostname,
+  type PublicAsset,
+} from '../../shared/api/public-assets-api'
 import { extractDomain } from './components/entry-presentation'
 
-/** Import batch size — well under the backend cap (500) so the progress bar ticks
- * every ~50 entries instead of freezing on one huge POST. */
+/** Keep crypto/save memory bounded independently from catalog request paging. */
 const IMPORT_CHUNK_SIZE = 50
+const IMPORT_ICON_WAIT_MS = 15_000
 
 /** Which phase of the import failed — surfaced so a failure is attributable. */
 export type ImportStep = 'grants' | 'loadVault' | 'openVaultKey' | 'challenge' | 'encrypt' | 'save' | 'overwrite'
@@ -110,6 +115,13 @@ function toPlaintext(entry: ParsedEntry): EntryPlaintext {
   if (entry.type === ENTRY_TYPE_KEY) {
     return { type: ENTRY_TYPE_KEY, value: entry.value ?? '', notes: entry.notes }
   }
+  if (entry.type === ENTRY_TYPE_CREDIT_CARD) return {
+    type: ENTRY_TYPE_CREDIT_CARD,
+    cardholderName: entry.cardholderName ?? '', cardNumber: entry.cardNumber ?? '',
+    expiryMonth: entry.expiryMonth ?? '', expiryYear: entry.expiryYear ?? '',
+    securityCode: entry.securityCode ?? '', pin: entry.pin,
+    billingAddress: entry.billingAddress, notes: entry.notes,
+  }
   // External importers only ever produce KEY or CREDENTIAL entries.
   return {
     type: ENTRY_TYPE_CREDENTIAL,
@@ -121,16 +133,19 @@ function toPlaintext(entry: ParsedEntry): EntryPlaintext {
   }
 }
 
-function toDraft(entry: ParsedEntry): EntryDraft {
+function toDraft(entry: ParsedEntry, publicAsset?: PublicAsset): EntryDraft {
   const content = toPlaintext(entry)
-  const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
   return {
     memberLabel: entry.label,
     agentLabel: entry.label,
     entryType: entry.type,
     content,
     policy: defaultAgentVisibilityPolicy(entry.type, content.fields ?? []),
-    ...(hostname ? { iconReference: `website:${hostname}` } : {}),
+    ...(publicAsset ? { iconReference: publicAssetIconReference({
+      assetId: publicAsset.id,
+      revision: publicAsset.revision,
+      url: publicAsset.url,
+    }) } : {}),
   }
 }
 
@@ -174,6 +189,25 @@ export function useImportEntries() {
       } catch (error) {
         throw new ImportStepError('loadVault', error)
       }
+
+      // Catalog preparation is public, optional work. Finish it before
+      // opening VK/VDK so locking the vault during the bounded wait cannot
+      // leave derived key buffers alive until the catalog deadline.
+      const iconHostnames = [...new Set([...input.creates, ...input.overwrites.map(({ entry }) => entry)]
+        .map((entry) => normalizePublicHostname(extractDomain(entry.url) ?? ''))
+        .filter((hostname): hostname is string => hostname !== null))]
+      const iconTotal = iconHostnames.length
+      if (iconTotal > 0) input.onProgress?.(0, iconTotal, 'icons')
+      const publicAssets = iconHostnames.length > 0
+        ? await ensureWebsiteIconsWithin(
+          iconHostnames,
+          IMPORT_ICON_WAIT_MS,
+          (ready, count) => input.onProgress?.(ready, count, 'icons'),
+        )
+        : new Map<string, PublicAsset>()
+      if (iconTotal > 0) input.onProgress?.(iconTotal, iconTotal, 'icons')
+      if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
+
       let vaultKey: Uint8Array
       try {
         vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
@@ -228,7 +262,8 @@ export function useImportEntries() {
               const entry = sourceChunk[index]
               const entryId = challenges[index]?.entryId
               if (!entryId) throw new Error('Entry creation challenge count mismatch')
-              const draft = toDraft(entry)
+              const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
+              const draft = toDraft(entry, hostname ? publicAssets.get(hostname) : undefined)
               const memberSecret = toMemberSecret({
                 label: draft.memberLabel, agentLabel: draft.agentLabel,
                 type: draft.entryType, payload: draft.content, policy: draft.policy,
@@ -270,22 +305,6 @@ export function useImportEntries() {
             throw new ImportStepError('encrypt', error)
           }
           await saveChunk(encryptedChunk)
-          const iconHostnames = sourceChunk.flatMap((entry) => {
-            const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
-            return hostname ? [hostname] : []
-          })
-          if (iconHostnames.length > 0) {
-            // The endpoint only enqueues acquisition and returns immediately.
-            // Keep it after the atomic save so icons can never decide whether
-            // credentials commit, while every 50-entry import chunk is still
-            // guaranteed to reach the catalog independently of list rendering.
-            await resolveWebsiteIcons(iconHostnames).catch(() => new Map())
-          }
-          input.onProgress?.(
-            Math.min(offset + sourceChunk.length, input.creates.length),
-            input.creates.length,
-            'icons',
-          )
         }
 
         let updatedCount = 0
@@ -300,7 +319,8 @@ export function useImportEntries() {
               organizationId: detail.organizationId, vaultId: detail.vaultId,
               entryId: detail.id, revision: detail.currentRevision,
             })
-            const draft = toDraft(entry)
+            const hostname = normalizePublicHostname(extractDomain(entry.url) ?? '')
+            const draft = toDraft(entry, hostname ? publicAssets.get(hostname) : undefined)
             const nextSecret = toMemberSecret({
               label: draft.memberLabel, agentLabel: draft.agentLabel,
               type: draft.entryType, payload: draft.content, policy: draft.policy,
@@ -336,8 +356,7 @@ export function useImportEntries() {
               if (!scope?.grantEnvelopeRevision || !scope.grantKeyVersion || !scope.fieldIds.length
                 || !grant.agentId || !grant.agentPublicKey || !grant.recipientAgentKeyVersion
                 || methods.length === 0) throw new Error('Active grant refresh context is invalid')
-              const grantable = new Set(listGrantableFields(nextSecret).map((field) => field.id))
-              const approvedFieldIds = scope.fieldIds.filter((fieldId) => grantable.has(fieldId))
+              const approvedFieldIds = listGrantableFields(nextSecret).map((field) => field.id)
               if (approvedFieldIds.length === 0) throw new Error('Active grant has no permitted fields')
               material.grantEnvelopes.push(await buildCanonicalGrantEnvelope({
                 secret: nextSecret,

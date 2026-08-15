@@ -83,4 +83,13 @@ describe('ApproveAgentDialog', () => {
     expect(onCancel).toHaveBeenCalledTimes(1)
     expect(onConfirm).not.toHaveBeenCalled()
   })
+
+  it('shows the Discovery provisioning phase after activation', () => {
+    render(
+      <ApproveAgentDialog {...baseProps} isPending isProvisioning />,
+      { wrapper },
+    )
+
+    expect(screen.getByRole('button', { name: /configuring discovery/i })).toBeDisabled()
+  })
 })

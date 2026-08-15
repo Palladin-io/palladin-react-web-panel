@@ -196,6 +196,7 @@ function writeExtension(
       writer.u32(value.recipientKeyVersion)
       writer.bytes(exactBytes(value.recipientKeyFingerprint, 32, 'Recipient key fingerprint'))
       writer.u16(value.methods)
+      writer.u16(value.deliveryPolicy)
       writer.bytes(exactBytes(value.fieldSetCommitment, 32, 'Field-set commitment'))
       writer.u8(value.expiresAt === undefined ? 0 : 1)
       if (value.expiresAt) {

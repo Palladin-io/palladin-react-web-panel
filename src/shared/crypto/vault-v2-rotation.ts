@@ -1,9 +1,16 @@
 import { concatBytes, decodeBase64Url, encodeBase64Url, encodeU16, encodeUtf8 } from './vault-v2-bytes'
 import { decryptVaultEnvelope, encryptVaultEnvelope, sealVaultProtocolPackage } from './vault-v2-envelope'
 import { deriveVaultProjectionKey } from './vault-v2-kdf'
-import { VAULT_ALGORITHM_SUITE, VAULT_PROTOCOL_VERSION, type VaultEnvelopeHeader } from './vault-v2-protocol'
+import { VAULT_PROTOCOL_VERSION, type VaultEnvelopeHeader } from './vault-v2-protocol'
 import { canonicalizeVaultJson, signVaultObject, type CanonicalJson } from './vault-v2-signatures'
 import { loadSodium, randomBytes, wipe } from './sodium'
+import {
+  computeVaultKeyFingerprint,
+  sealKeyToX25519Recipient,
+  VAULT_KEY_KIND,
+  WRAPPER_PURPOSE,
+  X25519_SEALED_BOX_V1,
+} from './x25519-wrapper'
 
 export interface RotationKeyEnvelope {
   [key: string]: unknown
@@ -171,21 +178,36 @@ function canonicalInstant(now: Date): string {
   return iso.endsWith('.000Z') ? `${iso.slice(0, -5)}Z` : iso.replace(/0+Z$/, 'Z')
 }
 
-export async function createAgentDiscoveryMaterial(agent: { agentId: string; x25519PublicKey: string; ed25519PublicKey: string; recipientKeyVersion: number; manifestRevision: string | null }, scope: { organizationId: string; vaultId: string }, versions: { vdkVersion: number; agentMessageKeyVersion: number; manifestSigningKeyVersion: number }, keys: { vdk: Uint8Array; agentMessagePrivateKey: Uint8Array; manifestSigningSeed: Uint8Array }, now = new Date()) {
+export async function createAgentDiscoveryMaterial(agent: { agentId: string; x25519PublicKey: string; ed25519PublicKey: string; recipientKeyVersion: number; manifestRevision: string | null }, scope: { organizationId: string; vaultId: string }, versions: { vdkVersion: number; agentMessageKeyVersion: number; manifestSigningKeyVersion: number }, keys: { vdk: Uint8Array; agentMessagePrivateKey: Uint8Array; manifestSigningPrivateKey: Uint8Array }, now = new Date()) {
   const sodium = await loadSodium()
   const agentX = sodium.from_base64(agent.x25519PublicKey, sodium.base64_variants.ORIGINAL)
   const agentEd = sodium.from_base64(agent.ed25519PublicKey, sodium.base64_variants.ORIGINAL)
   const messagePublic = sodium.crypto_scalarmult_base(keys.agentMessagePrivateKey)
-  const signing = sodium.crypto_sign_seed_keypair(keys.manifestSigningSeed)
-  const payload = jsonBytes({ protocolVersion: 2, ...scope, agentId: agent.agentId,
-    vdkVersion: versions.vdkVersion, vdk: encodeBase64Url(keys.vdk) })
+  const signing = sodium.crypto_sign_seed_keypair(keys.manifestSigningPrivateKey.subarray(0, 32))
+  if (keys.manifestSigningPrivateKey.length === 64
+    && !sodium.memcmp(signing.privateKey, keys.manifestSigningPrivateKey)) {
+    wipe(signing.privateKey)
+    throw new Error('Ed25519 private key does not match its embedded seed')
+  }
   try {
-    const wrapped = await sealVaultProtocolPackage(payload, agentX)
+    const recipientFingerprint = await computeVaultKeyFingerprint(agentX, VAULT_KEY_KIND.agentX25519)
+    const wrapperContext = {
+      protocolVersion: 2, wrapperSuiteId: X25519_SEALED_BOX_V1,
+      purpose: WRAPPER_PURPOSE.agentVaultDiscoveryKey,
+      ...scope, agentId: agent.agentId, resourceRevision: BigInt(versions.vdkVersion),
+      wrappedKeyVersion: versions.vdkVersion,
+      recipientKeyKind: VAULT_KEY_KIND.agentX25519,
+      recipientKeyVersion: agent.recipientKeyVersion,
+      recipientFingerprint,
+    } as const
+    const wrapped = await sealKeyToX25519Recipient(keys.vdk, agentX, wrapperContext)
     const digestInput = concatBytes(encodeUtf8('PLDNV2DG:AGENT-WRAPPED-VDK:'), encodeU16(2), wrapped)
     const wrappedDigest = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(digestInput).buffer))
     const manifestRevision = (BigInt(agent.manifestRevision ?? '0') + 1n).toString()
     const unsigned = {
-      protocolVersion: VAULT_PROTOCOL_VERSION, algorithmSuite: VAULT_ALGORITHM_SUITE, ...scope, agentId: agent.agentId,
+      protocolVersion: VAULT_PROTOCOL_VERSION,
+      cryptoSuiteId: 'palladin-vault-xchacha-v1', wrapperSuiteId: X25519_SEALED_BOX_V1,
+      signatureSuiteId: 'palladin-ed25519-v1', ...scope, agentId: agent.agentId,
       agentX25519Fingerprint: await vaultKeyFingerprint(agentX, 1),
       agentEd25519Fingerprint: await vaultKeyFingerprint(agentEd, 2),
       vaultSigningPublicKey: encodeBase64Url(signing.publicKey),
@@ -198,14 +220,25 @@ export async function createAgentDiscoveryMaterial(agent: { agentId: string; x25
       issuedAt: canonicalInstant(now), minimumAgentRuntimeProtocol: 2,
     }
     const signature = await signVaultObject('PLDNV2SIG:VAULT-MANIFEST:', unsigned, signing.privateKey)
-    const envelope = { protocolVersion: 2, ...scope, agentId: agent.agentId, vdkVersion: versions.vdkVersion,
-      algorithmSuite: 1, recipientAgentKeyVersion: agent.recipientKeyVersion,
-      recipientAgentKeyFingerprint: unsigned.agentX25519Fingerprint, agentWrappedVdk: encodeBase64Url(wrapped),
-      manifestRevision, manifestSignature: signature }
+    const envelope = {
+      protocolVersion: 2, ...scope, agentId: agent.agentId, vdkVersion: versions.vdkVersion,
+      wrappedVdk: {
+        descriptor: {
+          protocolVersion: 2, wrapperSuiteId: X25519_SEALED_BOX_V1,
+          purpose: WRAPPER_PURPOSE.agentVaultDiscoveryKey,
+          scope: { ...scope, agentId: agent.agentId }, resourceRevision: String(versions.vdkVersion),
+          wrappedKeyVersion: versions.vdkVersion, memberKeyGeneration: null,
+          recipientKeyKind: VAULT_KEY_KIND.agentX25519,
+          recipientKeyVersion: agent.recipientKeyVersion,
+          recipientFingerprint: unsigned.agentX25519Fingerprint, parentDescriptorHash: null,
+        },
+        encodedSealedKeyPackage: encodeBase64Url(wrapped),
+      },
+      manifestRevision, manifestSignature: signature,
+    }
     return { agentId: agent.agentId, envelope, manifest: { ...unsigned, signature } }
   } finally {
-    // Public keys are not secret. Wipe only the signing secret and sealed-package plaintext.
-    wipe(signing.privateKey); wipe(payload)
+    wipe(signing.privateKey)
   }
 }
 

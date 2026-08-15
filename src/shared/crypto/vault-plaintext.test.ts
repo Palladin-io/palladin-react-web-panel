@@ -53,7 +53,7 @@ describe('Vault plaintext v1', () => {
     })
     expect(projectAgentDiscovery(secret)).toEqual({
       schema: 'palladin.agent-discovery.v1', entryType: 'credential', agentLabel: 'GitHub account',
-      capabilities: ['get', 'exec'],
+      capabilities: ['get', 'exec', 'inject'],
       fields: [
         { id: 'credential.urlDomain', value: 'github.com' },
         { id: 'credential.username', value: 'member@example.com' },
@@ -72,17 +72,15 @@ describe('Vault plaintext v1', () => {
     expect(() => projectGrantPayload(secret, ['credential.username'])).toThrow(/not grantable/)
   })
 
-  it('round-trips namespaced icon references without embedding delivery URLs', () => {
+  it('round-trips public catalog identity and direct delivery URL', () => {
     const assetId = '22222233-4455-4677-8899-aabbccddeeff'
-    const publicIcon = { ...secret, icon: { kind: 'publicAsset' as const, assetId } }
+    const url = 'https://assets.palladin.io/published/website-icon/example/1.png'
+    const publicIcon = { ...secret, icon: { kind: 'publicAsset' as const, assetId, revision: 1, url } }
     const encryptedIcon = { ...secret, icon: { kind: 'encryptedAsset' as const, assetId } }
-    const websiteIcon = { ...secret, icon: { kind: 'website' as const, hostname: 'discord.com' } }
 
     expect(parseMemberSecret(encodeMemberSecret(publicIcon)).icon).toEqual(publicIcon.icon)
-    expect(presentationIconReference(publicIcon.icon)).toBe(`public-asset:${assetId}`)
+    expect(presentationIconReference(publicIcon.icon)).toBe(`public-asset:${assetId}|1|${encodeURIComponent(url)}`)
     expect(presentationIconReference(encryptedIcon.icon)).toBe(`vault-asset:${assetId}`)
-    expect(parseMemberSecret(encodeMemberSecret(websiteIcon)).icon).toEqual(websiteIcon.icon)
-    expect(presentationIconReference(websiteIcon.icon)).toBe('website:discord.com')
     expect(presentationIconReference(secret.icon)).toBe('builtin:key')
   })
 
@@ -90,7 +88,12 @@ describe('Vault plaintext v1', () => {
     const keySecret: MemberSecretV1 = {
       ...secret,
       entryType: 'key',
-      icon: { kind: 'website', hostname: 'stripe.com' },
+      icon: {
+        kind: 'publicAsset',
+        assetId: '22222233-4455-4677-8899-aabbccddeeff',
+        revision: 1,
+        url: 'https://assets.palladin.io/published/website-icon/stripe/1.png',
+      },
       content: { value: 'sk_test', url: 'https://stripe.com', notes: null, customFields: [] },
       agentFieldAccess: {
         memberLabel: 'never', agentLabel: 'discovery', description: 'never', icon: 'never', color: 'never',
@@ -99,5 +102,31 @@ describe('Vault plaintext v1', () => {
     }
 
     expect(parseMemberSecret(encodeMemberSecret(keySecret))).toEqual(keySecret)
+  })
+
+  it('keeps every credit-card value runtime-only without narrowing grant methods', () => {
+    const card: MemberSecretV1 = {
+      ...secret,
+      entryType: 'creditCard',
+      content: {
+        cardholderName: 'Ada Lovelace', cardNumber: '4242424242424242', expiryMonth: '12',
+        expiryYear: '2030', securityCode: '123', pin: null, billingAddress: '1 Main St',
+        notes: null, customFields: [],
+      },
+      agentFieldAccess: {
+        memberLabel: 'never', agentLabel: 'discovery', description: 'never', icon: 'never', color: 'never',
+        entryType: 'discovery', 'creditCard.cardholderName': 'onGrantRuntime',
+        'creditCard.cardNumber': 'onGrantRuntime', 'creditCard.expiryMonth': 'onGrantRuntime',
+        'creditCard.expiryYear': 'onGrantRuntime', 'creditCard.securityCode': 'onGrantRuntime',
+        'creditCard.pin': 'never', 'creditCard.billingAddress': 'onGrantRuntime', notes: 'never',
+      },
+    }
+
+    expect(projectAgentDiscovery(card)).toMatchObject({ capabilities: ['get', 'exec', 'inject'], fields: [] })
+    expect(projectGrantPayload(card, ['creditCard.cardNumber']).fields[0]).toMatchObject({ mode: 'runtime' })
+    expect(() => encodeMemberSecret({
+      ...card,
+      agentFieldAccess: { ...card.agentFieldAccess, 'creditCard.cardNumber': 'onGrantValue' },
+    })).toThrow(/Unsafe/)
   })
 })

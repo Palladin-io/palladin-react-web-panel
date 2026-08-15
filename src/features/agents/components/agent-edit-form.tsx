@@ -51,8 +51,12 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
   }
 
   // Reset when navigating to a different agent
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { resetForm() }, [agent.agentId])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    resetForm()
+    // The form reset is intentionally keyed only by the selected agent identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent.agentId])
 
   const isPending = update.isPending || iconUpload.isUploading
   const isDisabled = !canEdit || isPending

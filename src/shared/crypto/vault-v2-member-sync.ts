@@ -25,7 +25,7 @@ const memberVaultMetadataSchema = z.object({
 
 const memberIndexSchema = z.object({
   memberLabel: nfcString(256),
-  entryType: z.union([z.literal(0), z.literal(1), z.literal(2)]),
+  entryType: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
   searchFields: z.array(nfcString(8_192)).max(16).refine(
     (values) => values.reduce((bytes, value) => bytes + encodeUtf8(value).length, 0) <= 8_192,
     'MemberIndex search fields exceed protocol limit',

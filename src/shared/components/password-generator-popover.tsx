@@ -54,6 +54,7 @@ export function PasswordGeneratorPopover({
 
   // Regenerate whenever the panel is open and the recipe changes.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (open) setPreview(generatePassword({ length, digits, symbols }))
   }, [open, length, digits, symbols])
 

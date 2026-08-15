@@ -202,6 +202,7 @@ describe('useCreateVault', () => {
   it('triggers normal encrypted sync after a successful create', async () => {
     unlock()
     const invalidate = vi.spyOn(client, 'invalidateQueries')
+    const dispatch = vi.spyOn(window, 'dispatchEvent')
     const retryGeneration = useMemberSyncStore.getState().retryGeneration
     const { result } = renderHook(() => useCreateVault(), { wrapper: wrapperWith(client) })
 
@@ -209,5 +210,8 @@ describe('useCreateVault', () => {
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['vaults'] })
     expect(useMemberSyncStore.getState().retryGeneration).toBe(retryGeneration + 1)
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'palladin:agent-discovery-reconcile',
+    }))
   })
 })

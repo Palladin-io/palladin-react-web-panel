@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore } from 'react'
+import { useState } from 'react'
 import { Icon } from '../../../shared/components/icon'
 import type { EntryType } from '../types'
 import {
@@ -7,12 +7,8 @@ import {
   presentationForType,
 } from './entry-presentation'
 import { hexWithAlpha } from './vault-color'
-import {
-  cachedPublicAsset,
-  cachedWebsiteAsset,
-  publicAssetCacheRevision,
-  subscribePublicAssetCache,
-} from '../../../shared/api/public-assets-api'
+import { trustedPublicAssetUrl } from '../../../shared/api/public-assets-api'
+import { parsePublicAssetIconReference } from '../../../shared/crypto/vault-plaintext'
 
 export interface EntryIconProps {
   /** Raw icon from the entry — a Material glyph name, or a favicon/blob URL. */
@@ -29,27 +25,18 @@ export interface EntryIconProps {
  * to the entry type's Material glyph if the URL fails to load (e.g. a cached
  * favicon 404s) — never a broken image. Shared by the entries list, the entry
  * detail panel, and the dashboard "recent" cards so favicon handling stays in
- * one place. The client never fetches favicons itself; it only renders the URL
- * the backend cached on `Entry.Icon`.
+ * one place. Catalog URLs are persisted only after publication, so a failed GET
+ * falls back immediately instead of retrying a dead object URL.
  */
 export function EntryIcon({ icon, type, color, className }: EntryIconProps) {
-  const [failed, setFailed] = useState(false)
-  // The catalog cache lives outside React. Subscribe here instead of relying
-  // on an ancestor rerender; this also updates memoized rows when a background
-  // resolve finishes after the row was mounted.
-  useSyncExternalStore(subscribePublicAssetCache, publicAssetCacheRevision, publicAssetCacheRevision)
+  const [failedValue, setFailedValue] = useState<string | null>(null)
   const presentation = presentationForType(type)
-  const publicAssetId = icon?.startsWith('public-asset:') ? icon.slice('public-asset:'.length) : null
-  const websiteHostname = icon?.startsWith('website:') ? icon.slice('website:'.length) : null
+  const publicAsset = parsePublicAssetIconReference(icon)
+  const publicAssetUrl = publicAsset ? trustedPublicAssetUrl(publicAsset.url) : null
   const builtin = icon?.startsWith('builtin:') ? icon.slice('builtin:'.length) : icon
-  const catalogAsset = publicAssetId
-    ? cachedPublicAsset(publicAssetId)
-    : websiteHostname ? cachedWebsiteAsset(websiteHostname) : undefined
-  const value = (catalogAsset?.url ?? (websiteHostname ? undefined : builtin)) ?? presentation.defaultIcon
-  // Arbitrary remote URLs stored in an encrypted entry remain forbidden. A URL
-  // returned by the validated public catalog is trusted by provenance, while a
-  // blob URL is a locally decrypted image.
-  const isUrl = catalogAsset !== undefined || isCustomIconUrl(value)
+  const value = publicAssetUrl ?? builtin ?? presentation.defaultIcon
+  const isUrl = publicAssetUrl !== null || isCustomIconUrl(value)
+  const failed = failedValue === value
   const safeGlyph = !isUrl && value.includes(':') ? presentation.defaultIcon : value
   const glyphColor =
     color ??
@@ -68,7 +55,7 @@ export function EntryIcon({ icon, type, color, className }: EntryIconProps) {
         <img
           src={value}
           alt=""
-          onError={() => setFailed(true)}
+          onError={() => setFailedValue(value)}
           className="h-5 w-5 rounded-full object-cover"
         />
       ) : (
