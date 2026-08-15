@@ -36,8 +36,8 @@ describe('useAgentDiscoveryProvisioning', () => {
 
   it('polls only while at least one Agent remains pending', async () => {
     getAgentDiscoveryProvisioning
-      .mockResolvedValueOnce([{ ...agent, status: 'pending' }])
-      .mockResolvedValue([{ ...agent, status: 'current' }])
+      .mockResolvedValueOnce({ items: [{ ...agent, status: 'pending' }], nextAfterId: null })
+      .mockResolvedValue({ items: [{ ...agent, status: 'current' }], nextAfterId: null })
 
     renderHook(() => useAgentDiscoveryProvisioning('vault-1'), { wrapper })
     await vi.waitFor(() => expect(getAgentDiscoveryProvisioning).toHaveBeenCalledTimes(1))

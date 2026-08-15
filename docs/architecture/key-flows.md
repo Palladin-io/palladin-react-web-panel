@@ -48,6 +48,15 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 5. Wipe every generated raw key, derived metadata key and plaintext serialization in `finally`. After success, close the dialog and trigger normal Member sync instead of placing plaintext metadata into an optimistic cache.
 6. Active organization Agents are eligible for encrypted Discovery by default. Discovery does not grant secret access; a separate scoped grant remains mandatory.
 
+## Protocol 2 Agent approval and Discovery provisioning
+
+1. Agent approval requires an unlocked client. Before activation the client verifies that the in-memory Member private key is present; no key is loaded from persistent browser storage.
+2. The backend activates the Agent identity and advances its access epoch. The same UI operation then remains pending while the client reconciles every current Vault.
+3. For each Vault, open the Member VK package with the Member private key, then open the VDK, Agent-message private key and manifest-signing private key under VK. Fetch only active Agent public keys and structural provisioning status from the backend.
+4. For every pending Agent, seal the current VDK to its X25519 public key and sign a manifest bound to the organization, Vault, Agent identity fingerprints and current key versions. Upload only the sealed VDK envelope and signed public manifest, then wipe every opened Vault key.
+5. If activation committed but provisioning fails, report Discovery as pending rather than claiming activation failed. The unlocked background reconciler retries on mount, online/visibility changes and a bounded interval.
+6. A current VDK package authorizes encrypted Discovery, not secret delivery. Future discoverable Entry revisions use the same VDK and arrive through snapshot/delta sync without another Member action. A new Vault or key/epoch rotation has new key material and triggers reconciliation again.
+
 ## Protocol 2 Entry creation
 
 1. Request a short-lived server-owned Entry ID challenge, then open the authenticated Member Vault key and encrypted VDK in browser memory.
@@ -91,9 +100,9 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 5. Navigate directly to the dashboard; unsupported KDF profiles fail closed.
 
 ## Protocol 2 Grant Approval — FULL and GRANULAR
-1. Resolve the Agent's current X25519 public key and recipient key version from the backend, then open the Member's current VK package in browser memory.
-2. For each in-scope active Entry, authenticate and decrypt its canonical MemberSecret at the exact head revision. FULL processes every active Entry; GRANULAR processes the selected Entry only.
-3. Project only fields allowed by both the Entry's Agent Visibility Policy and the grant's approved method. Discovery-only, member-only and `never` fields are excluded; TOTP is `onGrantDerived` and Script material is `onGrantRuntime` only. Derive the structural delivery policy from the decrypted Entry type: `standard = 0`, `execOnly = 1`; every Script grant is `execOnly` independently of field names.
+1. Resolve the Agent's current X25519 public key and recipient key version from the backend, then open the Member's current VK package in browser memory. A FULL creation gets this recipient context from its server-fenced preparation rather than trusting picker metadata.
+2. For GRANULAR, authenticate and decrypt the selected Entry's canonical MemberSecret at the exact head revision. For FULL, read the preparation's authoritative ciphertext material through keyset pages of at most 100 Entries and process every item sequentially; never enumerate the local MemberIndex into per-Entry detail requests.
+3. Project only fields allowed by the Entry's Agent Visibility Policy. Discovery-only, member-only and `never` fields are excluded; custom TOTP remains `onGrantDerived`, while Script material and all payment-card fields are `onGrantRuntime` only. The user-selected Methods remain unchanged for every Entry type. `deliveryPolicy` defaults to `standard = 0`; `execOnly = 1` and `injectOnly = 2` are used only when an explicit policy requests them, never inferred from encrypted Entry data.
 4. Generate a fresh GrantDEK per Entry, encrypt the canonical grant payload with XChaCha20-Poly1305, and seal the GrantDEK to the current Agent key. Bind the envelope AAD to organization, Vault, grant, Agent, Entry, methods, delivery policy, exact revisions, key generations, field IDs and key fingerprint. Canonical Grant AAD writes `deliveryPolicy` as an unsigned 16-bit integer immediately after `approvedMethods`.
-5. Submit the complete ciphertext-only envelope set atomically. The backend rejects stale member generation, recipient key version, Entry revision or incomplete coverage. VK, VDK and EntryDEK never cross the client boundary.
-6. Process Entries sequentially to bound plaintext residency, and wipe VK, EntryDEK, GrantDEK, Agent-key copies and serialized plaintext bytes in `finally`.
+5. GRANULAR submits its single ciphertext envelope atomically. FULL freezes the selected Methods when starting its preparation, appends at most one 100-envelope ciphertext batch per material page from a single bounded pass, and then commits once; the backend activates the grant only after verifying the exact active Entry/revision set. An empty Vault performs one empty material read and commits without an append so later Entry creation still inherits FULL coverage.
+6. Process Entries sequentially and retain only one page of ciphertext output to bound memory and plaintext residency. A terminal client failure best-effort cancels the preparation. Wipe VK, EntryDEK, GrantDEK, Agent-key copies and serialized plaintext bytes in `finally`.

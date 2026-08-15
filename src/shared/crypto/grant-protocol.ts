@@ -3,17 +3,19 @@ import { VAULT_XCHACHA20_POLY1305_V1 } from './crypto-suite'
 import { ENVELOPE_PURPOSE } from './envelope'
 import { fromBase64, toBase64Url } from './encoding'
 import { randomBytes, wipe } from './sodium'
+import { deriveVaultSubkey } from './hkdf'
 import { encodeGrantPayload, projectGrantPayload, type MemberSecretV1 } from './vault-plaintext'
 import { sealVaultEnvelope, toEnvelopeDescriptor, type EnvelopeDescriptorContract } from './vault-envelope'
 import { computeVaultKeyFingerprint, sealKeyToX25519Recipient, VAULT_KEY_KIND, WRAPPER_PURPOSE, X25519_SEALED_BOX_V1 } from './x25519-wrapper'
 
-export const GRANT_DELIVERY_POLICY = { standard: 0, execOnly: 1 } as const
+export const GRANT_DELIVERY_POLICY = { standard: 0, execOnly: 1, injectOnly: 2 } as const
 
 export interface BuildGrantEnvelopeInput {
   organizationId: string; vaultId: string; entryId: string; grantId: string; agentId: string
   entryRevision: string; memberKeyGeneration: number; agentPublicKey: string; recipientKeyVersion: number
   grantEnvelopeRevision: string; grantKeyVersion: number; approvedFieldIds: string[]
-  approvedMethods: number; expiresAt?: string; remainingUses?: number; secret: MemberSecretV1
+  approvedMethods: number; deliveryPolicy?: 0 | 1 | 2
+  expiresAt?: string; remainingUses?: number; secret: MemberSecretV1
 }
 
 export interface GrantableField {
@@ -44,6 +46,7 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   }
   const fieldIds = [...new Set(input.approvedFieldIds)].sort()
   if (fieldIds.length === 0) throw new Error('Grant payload requires at least one approved field')
+  const approvedMethods = input.approvedMethods
   for (const id of fieldIds) {
     const access = input.secret.agentFieldAccess[id]
     if (access !== 'onGrantValue' && access !== 'onGrantDerived' && access !== 'onGrantRuntime') {
@@ -55,13 +58,11 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   const fingerprint = await computeVaultKeyFingerprint(publicKey, VAULT_KEY_KIND.agentX25519)
   const commitment = await computeFieldSetCommitment(fieldIds)
   const expiresAt = instant(input.expiresAt)
-  const deliveryPolicy = input.secret.entryType === 'script'
-    ? GRANT_DELIVERY_POLICY.execOnly
-    : GRANT_DELIVERY_POLICY.standard
+  const deliveryPolicy = input.deliveryPolicy ?? GRANT_DELIVERY_POLICY.standard
   const binding = {
     entryRevision: input.entryRevision, wrapperSuiteId: X25519_SEALED_BOX_V1,
     recipientKeyVersion: input.recipientKeyVersion, recipientKeyFingerprint: toBase64Url(fingerprint),
-    approvedMethods: input.approvedMethods, deliveryPolicy, fieldSetCommitment: toBase64Url(commitment),
+    approvedMethods, deliveryPolicy, fieldSetCommitment: toBase64Url(commitment),
     expiresAt: input.expiresAt ?? null, remainingUses: input.remainingUses ?? null,
   }
   const descriptor: EnvelopeDescriptorContract<typeof binding> = {
@@ -73,13 +74,17 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   const extension = {
     entryRevision: BigInt(input.entryRevision), wrapperSuiteId: X25519_SEALED_BOX_V1,
     recipientKeyVersion: input.recipientKeyVersion, recipientKeyFingerprint: fingerprint,
-    methods: input.approvedMethods, deliveryPolicy, fieldSetCommitment: commitment, expiresAt,
+    methods: approvedMethods, deliveryPolicy, fieldSetCommitment: commitment, expiresAt,
     remainingUses: input.remainingUses,
   }
   const dek = await randomBytes(32)
   const plaintext = encodeGrantPayload(payload)
+  let payloadKey: Uint8Array | undefined
   try {
-    const envelope = await sealVaultEnvelope(descriptor, plaintext, dek, extension)
+    const { resourceRevision, ...kdfContext } = toEnvelopeDescriptor(descriptor)
+    void resourceRevision
+    payloadKey = await deriveVaultSubkey(dek, kdfContext)
+    const envelope = await sealVaultEnvelope(descriptor, plaintext, payloadKey, extension)
     const descriptorBytes = encodeCanonicalEnvelopeAad(toEnvelopeDescriptor(descriptor), extension)
     const descriptorCopy = new Uint8Array(descriptorBytes)
     const parentHash = new Uint8Array(await crypto.subtle.digest('SHA-256', descriptorCopy.buffer))
@@ -106,5 +111,8 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
         }, encodedSealedKeyPackage: toBase64Url(sealed) }, fieldIds,
       }
     } finally { wipe(parentHash); wipe(descriptorCopy) }
-  } finally { wipe(dek); plaintext.fill(0); wipe(publicKey); wipe(fingerprint); wipe(commitment) }
+  } finally {
+    if (payloadKey) wipe(payloadKey)
+    wipe(dek); plaintext.fill(0); wipe(publicKey); wipe(fingerprint); wipe(commitment)
+  }
 }

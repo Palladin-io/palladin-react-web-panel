@@ -53,7 +53,7 @@ describe('Vault plaintext v1', () => {
     })
     expect(projectAgentDiscovery(secret)).toEqual({
       schema: 'palladin.agent-discovery.v1', entryType: 'credential', agentLabel: 'GitHub account',
-      capabilities: ['get', 'exec'],
+      capabilities: ['get', 'exec', 'inject'],
       fields: [
         { id: 'credential.urlDomain', value: 'github.com' },
         { id: 'credential.username', value: 'member@example.com' },
@@ -102,5 +102,31 @@ describe('Vault plaintext v1', () => {
     }
 
     expect(parseMemberSecret(encodeMemberSecret(keySecret))).toEqual(keySecret)
+  })
+
+  it('keeps every credit-card value runtime-only without narrowing grant methods', () => {
+    const card: MemberSecretV1 = {
+      ...secret,
+      entryType: 'creditCard',
+      content: {
+        cardholderName: 'Ada Lovelace', cardNumber: '4242424242424242', expiryMonth: '12',
+        expiryYear: '2030', securityCode: '123', pin: null, billingAddress: '1 Main St',
+        notes: null, customFields: [],
+      },
+      agentFieldAccess: {
+        memberLabel: 'never', agentLabel: 'discovery', description: 'never', icon: 'never', color: 'never',
+        entryType: 'discovery', 'creditCard.cardholderName': 'onGrantRuntime',
+        'creditCard.cardNumber': 'onGrantRuntime', 'creditCard.expiryMonth': 'onGrantRuntime',
+        'creditCard.expiryYear': 'onGrantRuntime', 'creditCard.securityCode': 'onGrantRuntime',
+        'creditCard.pin': 'never', 'creditCard.billingAddress': 'onGrantRuntime', notes: 'never',
+      },
+    }
+
+    expect(projectAgentDiscovery(card)).toMatchObject({ capabilities: ['get', 'exec', 'inject'], fields: [] })
+    expect(projectGrantPayload(card, ['creditCard.cardNumber']).fields[0]).toMatchObject({ mode: 'runtime' })
+    expect(() => encodeMemberSecret({
+      ...card,
+      agentFieldAccess: { ...card.agentFieldAccess, 'creditCard.cardNumber': 'onGrantValue' },
+    })).toThrow(/Unsafe/)
   })
 })

@@ -45,6 +45,7 @@ describe('GrantPolicyFields — time mode', () => {
     // The default-fill effect pushes one value up; it must be in the future.
     expect(spy).toHaveBeenCalledTimes(1)
     expect(new Date(spy.mock.calls[0][0]).getTime()).toBeGreaterThan(Date.now())
+    expect(screen.getByRole('button', { name: '24h' })).toHaveAttribute('aria-pressed', 'true')
     // Summary shows the relative distance ("in 23 hours" / "in 1 day").
     expect(screen.getByText(/Expires in \d+ (hour|day)/i)).toBeInTheDocument()
   })
@@ -57,6 +58,8 @@ describe('GrantPolicyFields — time mode', () => {
     await user.click(screen.getByRole('button', { name: '2h' }))
     expect(spy).toHaveBeenCalledTimes(1)
     expect(new Date(spy.mock.calls[0][0]).getTime()).toBeGreaterThan(Date.now())
+    expect(screen.getByRole('button', { name: '2h' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '24h' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('a quick-minutes chip sets a future expiry', async () => {
@@ -67,6 +70,7 @@ describe('GrantPolicyFields — time mode', () => {
     await user.click(screen.getByRole('button', { name: '30min' }))
     expect(spy).toHaveBeenCalledTimes(1)
     expect(new Date(spy.mock.calls[0][0]).getTime()).toBeGreaterThan(Date.now())
+    expect(screen.getByRole('button', { name: '30min' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('Custom opens the date-time picker popover', async () => {
@@ -74,6 +78,8 @@ describe('GrantPolicyFields — time mode', () => {
     render(<Harness onExpiresAtSpy={vi.fn()} />)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /custom/i }))
+    expect(screen.getByRole('button', { name: /custom/i })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '24h' })).toHaveAttribute('aria-pressed', 'false')
     expect(
       screen.getByRole('dialog', { name: /choose date and time/i }),
     ).toBeInTheDocument()

@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
+import { ScrollArea } from '../../../shared/components/scroll-area'
 import { analytics } from '../../../shared/lib/analytics'
 import {
   AGENT_STATUS_ACTIVE,
@@ -15,7 +16,7 @@ import {
 } from '../api/agents-api'
 import { GrantAccessDialog } from '../../grants'
 import { useAgentPermissions } from '../use-agents'
-import { useApproveAgent } from '../use-approve-agent'
+import { AgentApprovalRequiresUnlockError, useApproveAgent } from '../use-approve-agent'
 import { useDeactivateAgent } from '../use-deactivate-agent'
 import { useReactivateAgent } from '../use-reactivate-agent'
 import { useDeleteAgent } from '../use-delete-agent'
@@ -49,13 +50,14 @@ const AGENT_TABS: { id: AgentDetailTab; labelKey: string; requiresActive?: boole
 
 export interface AgentDetailProps {
   agent: Agent
+  renderLogs?: (agentId: string) => ReactNode
 }
 
 /**
  * Right-side detail panel of the Agents split view. Mirrors the vault-entry
  * detail pattern: flat identity header → tab bar → per-tab content card.
  */
-export function AgentDetail({ agent }: AgentDetailProps) {
+export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
   const { t } = useTranslation()
   const { canManage } = useAgentPermissions()
   const approve = useApproveAgent()
@@ -83,12 +85,16 @@ export function AgentDetail({ agent }: AgentDetailProps) {
     approve.mutate(
       { agentId: agent.agentId, input },
       {
-        onSuccess: () => {
+        onSuccess: ({ discoveryReady }) => {
           analytics.capture('agents', 'agent-approved')
           setApproveOpen(false)
+          if (discoveryReady) toast.success(t('agents.approveSuccess'))
+          else toast.warning(t('agents.discoveryProvisioningPending'))
         },
-        onError: () => {
-          toast.error(t('agents.errorApprove'))
+        onError: (error) => {
+          toast.error(t(error instanceof AgentApprovalRequiresUnlockError
+            ? 'agents.approveRequiresUnlock'
+            : 'agents.errorApprove'))
         },
       },
     )
@@ -132,51 +138,52 @@ export function AgentDetail({ agent }: AgentDetailProps) {
 
   return (
     <>
-      {/* ── Tab bar — mirrors entry-detail wide-mode: h-10 items-end ────── */}
-      <div className="mb-4 flex h-10 items-end">
-        <div className="flex shrink-0 border-b border-[var(--cv-divider)]" role="tablist">
-          {AGENT_TABS.map(({ id, labelKey, requiresActive }) => {
-            const disabled = requiresActive && !isAgentActive
-            const isActive = id === activeTab
-            return (
-              <button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                disabled={disabled}
-                onClick={() => setActiveTab(id)}
-                className={`-mb-px border-b-2 px-3.5 py-2 text-ui transition-colors ${
-                  disabled
-                    ? 'cursor-not-allowed border-transparent font-medium text-[var(--cv-t3)] opacity-35'
-                    : isActive
-                      ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
-                      : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
-                }`}
-              >
-                {t(labelKey)}
-              </button>
-            )
-          })}
+      <div className="flex h-full min-h-0 flex-col">
+        {/* ── Tab bar — mirrors entry-detail wide-mode: h-10 items-end ────── */}
+        <div className="mb-4 flex h-10 shrink-0 items-end">
+          <div className="flex shrink-0 border-b border-[var(--cv-divider)]" role="tablist">
+            {AGENT_TABS.map(({ id, labelKey, requiresActive }) => {
+              const disabled = requiresActive && !isAgentActive
+              const isActive = id === activeTab
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  disabled={disabled}
+                  onClick={() => setActiveTab(id)}
+                  className={`-mb-px border-b-2 px-3.5 py-2 text-ui transition-colors ${
+                    disabled
+                      ? 'cursor-not-allowed border-transparent font-medium text-[var(--cv-t3)] opacity-35'
+                      : isActive
+                        ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
+                        : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
+                  }`}
+                >
+                  {t(labelKey)}
+                </button>
+              )
+            })}
+          </div>
+          <div className="h-px flex-1 self-end bg-gradient-to-r from-[var(--cv-divider)] to-transparent" />
+          {/* Add Access lives in the tab bar (same place as Vault → Agents → Add Agent). */}
+          {activeTab === 'grants' ? (
+            <Button
+              variant="accent"
+              size="sm"
+              icon="add"
+              className="ml-2 shrink-0 self-center"
+              onClick={() => setAddAccessOpen(true)}
+            >
+              {t('agents.addAccess')}
+            </Button>
+          ) : null}
         </div>
-        <div className="h-px flex-1 self-end bg-gradient-to-r from-[var(--cv-divider)] to-transparent" />
-        {/* Add Access lives in the tab bar (same place as Vault → Agents → Add Agent). */}
-        {activeTab === 'grants' ? (
-          <Button
-            variant="accent"
-            size="sm"
-            icon="add"
-            className="ml-2 shrink-0 self-center"
-            onClick={() => setAddAccessOpen(true)}
-          >
-            {t('agents.addAccess')}
-          </Button>
-        ) : null}
-      </div>
 
-      {/* ── Details tab ─────────────────────────────────────────────────── */}
-      {activeTab === 'details' ? (
-        <>
+        {/* ── Details tab ─────────────────────────────────────────────────── */}
+        {activeTab === 'details' ? (
+          <ScrollArea>
           <div
             className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]
               p-5 dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
@@ -319,23 +326,23 @@ export function AgentDetail({ agent }: AgentDetailProps) {
               />
             ) : null}
           </div>
-        </>
-      ) : null}
+          </ScrollArea>
+        ) : null}
 
       {/* ── Grants tab ──────────────────────────────────────────────────────
           Reuses the exact Approvals org-grants panel, filtered to this agent —
           one component, two locations. */}
-      {activeTab === 'grants' ? (
-        // The Approvals org-grants panel, filtered to this agent — one
-        // component, many locations. Handles its own empty state. "Add Access"
-        // lives in the tab bar above.
-        <OrgGrantsPanel agentId={agent.agentId} />
-      ) : null}
+        {activeTab === 'grants' ? (
+          <ScrollArea>
+            <OrgGrantsPanel agentId={agent.agentId} />
+          </ScrollArea>
+        ) : null}
 
-      {/* ── Logs tab ────────────────────────────────────────────────────── */}
-      {activeTab === 'logs' ? (
-        <LogsTabContent agent={agent} />
-      ) : null}
+        {/* ── Logs tab ────────────────────────────────────────────────────── */}
+        {activeTab === 'logs' ? (
+          renderLogs?.(agent.agentId)
+        ) : null}
+      </div>
 
       <ApproveAgentDialog
         key={agent.agentId}
@@ -344,6 +351,7 @@ export function AgentDetail({ agent }: AgentDetailProps) {
         initialName={agent.name ?? ''}
         initialType={agent.type ?? ''}
         isPending={approve.isPending}
+        isProvisioning={approve.phase === 'provisioning'}
         onConfirm={handleConfirmApprove}
         onCancel={() => setApproveOpen(false)}
       />
@@ -371,51 +379,6 @@ export function AgentDetail({ agent }: AgentDetailProps) {
         />
       )}
     </>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Logs tab — lifecycle timeline (placeholder until dedicated component lands)
-// ---------------------------------------------------------------------------
-
-function LogsTabContent({ agent }: { agent: Agent }) {
-  const { t } = useTranslation()
-
-  const events: { labelKey: string; date: string; detail?: string }[] = [
-    { labelKey: 'agents.logsFirstConnected', date: formatAgentDateTime(agent.createdAt) },
-    ...(agent.enrolledAt
-      ? [{ labelKey: 'agents.logsEnrolled', date: formatAgentDateTime(agent.enrolledAt), detail: agent.enrolledByName ?? undefined }]
-      : []),
-    ...(agent.deactivatedAt
-      ? [{ labelKey: 'agents.logsDeactivated', date: formatAgentDateTime(agent.deactivatedAt), detail: agent.deactivatedByName ?? undefined }]
-      : []),
-  ]
-
-  return (
-    <div
-      className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]
-        p-5 dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
-    >
-      <ul className="flex flex-col">
-        {events.map(({ labelKey, date, detail }, i) => (
-          <li
-            key={labelKey}
-            className={`flex items-start gap-3 py-3 ${
-              i < events.length - 1 ? 'border-b border-[var(--cv-divider)]' : ''
-            }`}
-          >
-            <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--cv-empty-bg)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[var(--cv-t3)]" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-ui font-medium text-[var(--cv-t1)]">{t(labelKey)}</p>
-              {detail ? <p className="mt-0.5 text-meta text-[var(--cv-t3)]">{detail}</p> : null}
-            </div>
-            <span className="shrink-0 text-meta text-[var(--cv-t3)]">{date}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
   )
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, normalizeEntryType } from './types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, normalizeEntryType } from './types'
 
 describe('normalizeEntryType', () => {
   // The backend serialises EntryType as a camelCase string via
@@ -7,6 +7,7 @@ describe('normalizeEntryType', () => {
   it('maps the string wire values to the numeric constants', () => {
     expect(normalizeEntryType('key')).toBe(ENTRY_TYPE_KEY)
     expect(normalizeEntryType('credential')).toBe(ENTRY_TYPE_CREDENTIAL)
+    expect(normalizeEntryType('creditCard')).toBe(ENTRY_TYPE_CREDIT_CARD)
   })
 
   it('is case-insensitive for the string form', () => {
@@ -17,6 +18,7 @@ describe('normalizeEntryType', () => {
   it('passes numeric forms through unchanged (older builds / fixtures)', () => {
     expect(normalizeEntryType(0)).toBe(ENTRY_TYPE_KEY)
     expect(normalizeEntryType(1)).toBe(ENTRY_TYPE_CREDENTIAL)
+    expect(normalizeEntryType(3)).toBe(ENTRY_TYPE_CREDIT_CARD)
   })
 
   it('defaults unknown values to CREDENTIAL rather than throwing', () => {

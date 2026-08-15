@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from '../../features/vaults/types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from '../types/entry-type'
 import { decryptVaultEnvelope } from './vault-v2-envelope'
 import { deriveVaultProjectionKey } from './vault-v2-kdf'
 import {

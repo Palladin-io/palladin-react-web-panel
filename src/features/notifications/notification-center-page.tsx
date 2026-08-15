@@ -1,52 +1,68 @@
-import { useMemo, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { toast } from 'sonner'
-import { Button } from '../../shared/components/button'
-import { LoadMoreSentinel } from '../../shared/components/load-more-sentinel'
-import { ErrorState } from '../../shared/components/error-state'
-import { Icon } from '../../shared/components/icon'
-import { SearchBar } from '../../shared/components/search-bar'
-import { TypeFilterDropdown } from '../../shared/components/type-filter-dropdown'
+import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
+import { Button } from "../../shared/components/button";
+import { LoadMoreSentinel } from "../../shared/components/load-more-sentinel";
+import { ErrorState } from "../../shared/components/error-state";
+import { Icon } from "../../shared/components/icon";
+import { ModalShell } from "../../shared/components/modal-shell";
+import { DialogFooter } from "../../shared/components/dialog-footer";
+import { SearchBar } from "../../shared/components/search-bar";
+import { TypeFilterDropdown } from "../../shared/components/type-filter-dropdown";
 import {
+  ApproveGrantDialog,
   DenyGrantDialog,
+  GrantReviewUnavailableError,
   OrgGrantsPanel,
+  StaleGrantReviewError,
+  useApproveGrant,
   useDenyGrant,
-} from '../grants'
-import { DenyAgentDialog } from './deny-agent-dialog'
+  useGrantApprovalReview,
+  useGrantHistoryMetadata,
+  usePendingGrants,
+  type GrantMethod,
+  type GrantPolicyBody,
+  type PendingGrant,
+} from "../grants";
+import { DenyAgentDialog } from "./deny-agent-dialog";
 import {
   ApproveAgentDialog,
   useAgents,
+  AgentApprovalRequiresUnlockError,
   useApproveAgent,
   useDeactivateAgent,
   type ApproveAgentInput,
-} from '../agents'
-import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
-import { NotificationCard } from './notification-card'
-import { NotificationPreferencesDialog } from './notification-preferences-dialog'
+} from "../agents";
+import { useMemberSyncStore } from "../vaults/sync/member-sync-store";
+import { NotificationCard } from "./notification-card";
+import { NotificationPreferencesDialog } from "./notification-preferences-dialog";
 import {
   notificationGrantContext,
   type NotificationGrantContext,
-} from './notification-grant-context'
-import type { NotificationItem } from './notifications-api'
+} from "./notification-grant-context";
+import type { NotificationItem } from "./notifications-api";
 import {
   NOTIFICATIONS_QUERY_KEY,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotifications,
   useNotificationsSummary,
-} from './notification-queries'
-import { notificationDeepLink, resolveNotificationItem } from './notification-resolution'
+} from "./notification-queries";
+import {
+  notificationDeepLink,
+  resolveNotificationItem,
+} from "./notification-resolution";
 
-type Segment = 'all' | 'todo' | 'history' | 'grants'
+type Segment = "all" | "todo" | "history" | "grants";
 
 /** Agent-approval target carried from an `agent_pending` card to the modal. */
 interface AgentTarget {
-  agentId: string
-  agentName: string
-  agentType?: string
-  notificationId: string
+  agentId: string;
+  agentName: string;
+  agentType?: string;
+  notificationId: string;
 }
 
 /**
@@ -68,86 +84,126 @@ interface AgentTarget {
  */
 export interface NotificationCenterPageProps {
   /** Pre-selects a segment tab when deep-linked (e.g. from a dashboard tile). */
-  initialSegment?: Segment
+  initialSegment?: Segment;
 }
 
 export function NotificationCenterPage({
   initialSegment,
 }: NotificationCenterPageProps = {}) {
-  const { t } = useTranslation()
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-  const notifications = useNotifications()
-  const summary = useNotificationsSummary()
-  const markRead = useMarkNotificationRead()
-  const markAllRead = useMarkAllNotificationsRead()
-  const agents = useAgents()
-  const memberVaults = useMemberSyncStore((state) => state.vaults)
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const notifications = useNotifications();
+  const summary = useNotificationsSummary();
+  const markRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
+  const agents = useAgents();
+  const memberVaults = useMemberSyncStore((state) => state.vaults);
   const agentsById = useMemo(
     () => new Map((agents.data ?? []).map((agent) => [agent.agentId, agent])),
     [agents.data],
-  )
+  );
 
   // Refresh the feed + summary after a grant action so the resolved card drops
   // out (and its buttons disable) immediately, instead of lingering up to the
   // 15s staleTime — which risks a double-submit. The grant mutations already
   // invalidate ['grants']; this covers the notifications side.
   const refreshFeed = () =>
-    queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
+    queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
 
-  const [segment, setSegment] = useState<Segment>(initialSegment ?? 'all')
-  const [query, setQuery] = useState('')
-  const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set())
-  const [prefsOpen, setPrefsOpen] = useState(false)
+  const [segment, setSegment] = useState<Segment>(initialSegment ?? "all");
+  const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
+  const [prefsOpen, setPrefsOpen] = useState(false);
 
   // Pending-action mutations + dialog targets. Only the two action-required
   // pending types mutate from the inbox; everything else just deep-links out.
-  const deny = useDenyGrant()
-  const approveAgent = useApproveAgent()
-  const deactivateAgent = useDeactivateAgent()
-  const [denyTarget, setDenyTarget] = useState<NotificationGrantContext | null>(null)
+  const deny = useDenyGrant();
+  const approve = useApproveGrant();
+  const pendingGrants = usePendingGrants();
+  const [approveTarget, setApproveTarget] = useState<PendingGrant | null>(null);
+  const approvalReview = useGrantApprovalReview(approveTarget);
+  const approveAgent = useApproveAgent();
+  const deactivateAgent = useDeactivateAgent();
+  const [denyTarget, setDenyTarget] = useState<NotificationGrantContext | null>(
+    null,
+  );
   // Agent approval target — opens the existing agent-activation modal.
-  const [agentApproveTarget, setAgentApproveTarget] = useState<AgentTarget | null>(null)
+  const [agentApproveTarget, setAgentApproveTarget] =
+    useState<AgentTarget | null>(null);
   // Agent deny target — opens a confirm dialog (deny === deactivate) with a
   // security warning about possible API-key leakage.
   const [denyAgentTarget, setDenyAgentTarget] = useState<{
-    agentId: string
-    notificationId: string
-    agentName: string
-    apiKeyId?: string
-    apiKeySuffix?: string
-  } | null>(null)
+    agentId: string;
+    notificationId: string;
+    agentName: string;
+    apiKeyId?: string;
+    apiKeySuffix?: string;
+  } | null>(null);
   const busy =
+    approve.isPending ||
     deny.isPending ||
     approveAgent.isPending ||
-    deactivateAgent.isPending
+    deactivateAgent.isPending;
 
   // Mark a notification read. `markRead` is purely optimistic (patches `readAt`
   // in the feed cache + drops the badge) — no feed invalidation, so this never
   // remounts cards or re-triggers the mark-read-on-view observer.
   function markReadNow(id: string) {
-    markRead.mutate(id)
+    markRead.mutate(id);
   }
 
   const items = useMemo(
-    () => (notifications.data?.pages.flatMap((page) => page.items) ?? [])
-      .map((item) => resolveNotificationItem(item, {
-        vaults: memberVaults,
-        agents: agentsById,
-      })),
+    () =>
+      (notifications.data?.pages.flatMap((page) => page.items) ?? []).map(
+        (item) =>
+          resolveNotificationItem(item, {
+            vaults: memberVaults,
+            agents: agentsById,
+          }),
+      ),
     [notifications.data, memberVaults, agentsById],
-  )
+  );
+  const grantHistoryCoordinates = useMemo(
+    () =>
+      items.flatMap((item) => {
+        if (!isGrantHistoryType(item.type)) return [];
+        const grantId = item.metadata?.grantId;
+        const vaultId = item.metadata?.vaultId;
+        return grantId && vaultId
+          ? [{ type: item.type, grantId, vaultId }]
+          : [];
+      }),
+    [items],
+  );
+  const grantHistoryMetadata = useGrantHistoryMetadata(grantHistoryCoordinates);
+  const resolvedItems = useMemo(
+    () =>
+      items.map((item) => {
+        const grantId = item.metadata?.grantId;
+        const metadata = grantId
+          ? grantHistoryMetadata.get(grantId)
+          : undefined;
+        return metadata
+          ? { ...item, metadata: { ...item.metadata, ...metadata } }
+          : item;
+      }),
+    [grantHistoryMetadata, items],
+  );
 
-  const { actionItems, historyItems } = useMemo(() => splitByCategory(items), [items])
+  const { actionItems, historyItems } = useMemo(
+    () => splitByCategory(resolvedItems),
+    [resolvedItems],
+  );
 
   const filteredActions = useMemo(
     () => filterItems(actionItems, query, typeFilter),
     [actionItems, query, typeFilter],
-  )
+  );
   const filteredHistory = useMemo(
     () => filterItems(historyItems, query, typeFilter),
     [historyItems, query, typeFilter],
-  )
+  );
   const typeFilterOptions = useMemo(
     () =>
       FILTERABLE_TYPES.map((type) => ({
@@ -155,42 +211,103 @@ export function NotificationCenterPage({
         label: t(`notifications.center.filterType.${type}`),
       })),
     [t],
-  )
+  );
 
   // The Grants tab swaps the immutable inbox feed for the live org-wide grants
   // panel — the only place in the inbox with live state + actions (Revoke).
-  const showGrants = segment === 'grants'
-  const showActions = segment === 'all' || segment === 'todo'
-  const showHistory = segment === 'all' || segment === 'history'
+  const showGrants = segment === "grants";
+  const showActions = segment === "all" || segment === "todo";
+  const showHistory = segment === "all" || segment === "history";
 
   function handleDeny(reason: string) {
-    if (!denyTarget) return
+    if (!denyTarget) return;
     deny.mutate(
       { vaultId: denyTarget.vaultId, grantId: denyTarget.grantId, reason },
       {
         onSuccess: () => {
-          toast.success(t('grants.deny.success'))
-          setDenyTarget(null)
-          refreshFeed()
+          toast.success(t("grants.deny.success"));
+          setDenyTarget(null);
+          refreshFeed();
         },
-        onError: () => toast.error(t('grants.deny.error')),
+        onError: () => toast.error(t("grants.deny.error")),
       },
-    )
+    );
+  }
+
+  async function openGrantApproval(context: NotificationGrantContext) {
+    // The pending list deliberately has a short stale window. Approval cannot
+    // use that cached envelope: a freshly retried agent request may carry new
+    // signed reason/key metadata while the notification card already exists.
+    // Fetch the canonical pending contract immediately before cryptographic
+    // review so signature/scope checks never run against a stale snapshot.
+    const refreshed = await pendingGrants.refetch();
+    const grant = refreshed.data?.find(
+      (item) => item.id === context.grantId && item.vaultId === context.vaultId,
+    );
+    if (!grant) {
+      toast.error(t("grants.approve.reviewUnavailable"));
+      return;
+    }
+    setApproveTarget(grant);
+  }
+
+  function handleApproveGrant(
+    policy: GrantPolicyBody,
+    methods: GrantMethod[],
+    fieldIds: string[],
+  ) {
+    if (!approveTarget || !approvalReview.data) return;
+    approve.mutate(
+      {
+        grantId: approveTarget.id,
+        agentId: approveTarget.agentId,
+        vaultId: approveTarget.vaultId,
+        entryId: approveTarget.entryId,
+        policy,
+        methods,
+        fieldIds,
+        reviewedEntryRevision: approvalReview.data.entryRevision,
+        requestedMethods:
+          approveTarget.encryptedReason.descriptor.binding.requestedMethods,
+      },
+      {
+        onSuccess: () => {
+          setApproveTarget(null);
+          refreshFeed();
+        },
+        onError: (error) =>
+          toast.error(
+            t(
+              error instanceof StaleGrantReviewError
+                ? "grants.approve.staleReview"
+                : "grants.approve.error",
+            ),
+          ),
+      },
+    );
   }
 
   function handleApproveAgent(input: ApproveAgentInput) {
-    if (!agentApproveTarget) return
+    if (!agentApproveTarget) return;
     approveAgent.mutate(
       { agentId: agentApproveTarget.agentId, input },
       {
-        onSuccess: () => {
-          toast.success(t('agents.approveSuccess'))
-          setAgentApproveTarget(null)
-          refreshFeed()
+        onSuccess: ({ discoveryReady }) => {
+          if (discoveryReady) toast.success(t("agents.approveSuccess"));
+          else toast.warning(t("agents.discoveryProvisioningPending"));
+          setAgentApproveTarget(null);
+          refreshFeed();
         },
-        onError: () => toast.error(t('agents.errorApprove')),
+        onError: (error) =>
+          toast.error(
+            t(
+              error instanceof AgentApprovalRequiresUnlockError
+                ? "agents.approveRequiresUnlock"
+                : "agents.errorApprove",
+            ),
+          ),
       },
-    )
+    );
   }
 
   function handleDenyAgent(
@@ -202,33 +319,39 @@ export function NotificationCenterPage({
   ) {
     // Open the confirm dialog first — denying deactivates the agent and may
     // signal a leaked API key, so it deserves a deliberate confirmation.
-    setDenyAgentTarget({ agentId, notificationId, agentName, apiKeyId, apiKeySuffix })
+    setDenyAgentTarget({
+      agentId,
+      notificationId,
+      agentName,
+      apiKeyId,
+      apiKeySuffix,
+    });
   }
 
   function handleConfirmDenyAgent() {
-    if (!denyAgentTarget) return
-    const { agentId, notificationId } = denyAgentTarget
+    if (!denyAgentTarget) return;
+    const { agentId, notificationId } = denyAgentTarget;
     // "Deny" a pending agent = deactivate it (no separate reject endpoint).
     deactivateAgent.mutate(agentId, {
       onSuccess: () => {
-        toast.success(t('agents.deactivateSuccess'))
-        markReadNow(notificationId)
+        toast.success(t("agents.deactivateSuccess"));
+        markReadNow(notificationId);
         // Backend collapses the pending card + emits an `agent_deactivated`
         // history card; re-fetch so both land in the feed (like grant deny).
-        refreshFeed()
-        setDenyAgentTarget(null)
+        refreshFeed();
+        setDenyAgentTarget(null);
       },
-      onError: () => toast.error(t('agents.errorDeactivate')),
-    })
+      onError: () => toast.error(t("agents.errorDeactivate")),
+    });
   }
 
   // Construct navigation locally from opaque identifiers. The destination's
   // normal route/API authorization remains authoritative.
   function handleView(item: NotificationItem) {
-    const destination = notificationDeepLink(item)
-    if (!destination) return
-    markReadNow(item.id)
-    navigate(destination)
+    const destination = notificationDeepLink(item);
+    if (!destination) return;
+    markReadNow(item.id);
+    navigate(destination);
   }
 
   return (
@@ -239,10 +362,10 @@ export function NotificationCenterPage({
       <div className="mb-4 flex h-10 items-center gap-2">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
-            {t('notifications.center.title')}
+            {t("notifications.center.title")}
           </h2>
           <p className="text-meta text-[var(--cv-t3)]">
-            {t('notifications.center.subtitle')}
+            {t("notifications.center.subtitle")}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -255,17 +378,19 @@ export function NotificationCenterPage({
             variant="subtle"
             size="sm"
             icon="done_all"
-            disabled={(summary.data?.unreadCount ?? 0) === 0 || markAllRead.isPending}
+            disabled={
+              (summary.data?.unreadCount ?? 0) === 0 || markAllRead.isPending
+            }
             onClick={() => markAllRead.mutate()}
           >
-            {t('notifications.center.markAllRead')}
+            {t("notifications.center.markAllRead")}
           </Button>
           <Button
             variant="accent"
             size="sm"
             icon="settings"
-            aria-label={t('notifications.prefs.title')}
-            title={t('notifications.prefs.title')}
+            aria-label={t("notifications.prefs.title")}
+            title={t("notifications.prefs.title")}
             onClick={() => setPrefsOpen(true)}
           />
         </div>
@@ -278,15 +403,15 @@ export function NotificationCenterPage({
           <SearchBar
             value={query}
             onChange={setQuery}
-            placeholder={t('notifications.center.search')}
+            placeholder={t("notifications.center.search")}
             className="flex-1"
           />
           <TypeFilterDropdown
             options={typeFilterOptions}
             selected={typeFilter}
             onChange={setTypeFilter}
-            placeholder={t('notifications.center.filterType')}
-            ariaLabel={t('notifications.center.filterType')}
+            placeholder={t("notifications.center.filterType")}
+            ariaLabel={t("notifications.center.filterType")}
           />
         </div>
       )}
@@ -297,10 +422,10 @@ export function NotificationCenterPage({
         <LoadingSkeleton />
       ) : notifications.isError ? (
         <ErrorState
-          message={t('notifications.center.errorLoad')}
+          message={t("notifications.center.errorLoad")}
           onRetry={notifications.refetch}
         />
-      ) : items.length === 0 ? (
+      ) : resolvedItems.length === 0 ? (
         <EmptyState filtered={false} />
       ) : (
         <>
@@ -308,7 +433,9 @@ export function NotificationCenterPage({
               cards at the top of the inbox. */}
           {showActions &&
             (filteredActions.length === 0 ? (
-              segment === 'todo' ? <EmptyState filtered={Boolean(query)} /> : null
+              segment === "todo" ? (
+                <EmptyState filtered={Boolean(query)} />
+              ) : null
             ) : (
               <div className="mb-4">
                 <Grid>
@@ -321,7 +448,7 @@ export function NotificationCenterPage({
                         <ActionFooter
                           item={item}
                           busy={busy}
-                          onApprove={() => setSegment('grants')}
+                          onApprove={openGrantApproval}
                           onDeny={setDenyTarget}
                           onApproveAgent={setAgentApproveTarget}
                           onDenyAgent={handleDenyAgent}
@@ -340,9 +467,12 @@ export function NotificationCenterPage({
                   above it — never show "History" as the first/only section. */}
               {showActions && filteredActions.length > 0 && (
                 <p className="mb-3 flex items-center gap-2 text-meta font-semibold text-[var(--cv-t3)]">
-                  {t('notifications.center.history')}
-                  <span className="font-medium" title={t('notifications.center.auditLogSoon')}>
-                    ({t('notifications.center.auditLog')})
+                  {t("notifications.center.history")}
+                  <span
+                    className="font-medium"
+                    title={t("notifications.center.auditLogSoon")}
+                  >
+                    ({t("notifications.center.auditLog")})
                   </span>
                 </p>
               )}
@@ -372,11 +502,55 @@ export function NotificationCenterPage({
         </>
       )}
 
+      {approveTarget && approvalReview.data && (
+        <ApproveGrantDialog
+          grant={approveTarget}
+          review={approvalReview.data}
+          isPending={approve.isPending}
+          onConfirm={handleApproveGrant}
+          onCancel={() => setApproveTarget(null)}
+        />
+      )}
+      {approveTarget && !approvalReview.data && (
+        <ModalShell
+          ariaLabel={t("grants.approve.title")}
+          title={t("grants.approve.title")}
+          onClose={() => setApproveTarget(null)}
+          footer={
+            <DialogFooter>
+              <Button
+                variant="subtle"
+                size="sm"
+                className="flex-1"
+                onClick={() => setApproveTarget(null)}
+              >
+                {t("grants.cancel")}
+              </Button>
+            </DialogFooter>
+          }
+        >
+          {approvalReview.isError ? (
+            <ErrorState
+              message={
+                approvalReview.error instanceof GrantReviewUnavailableError
+                  ? `${t("grants.approve.reviewUnavailable")} ${t("grants.approve.reviewStage", { stage: approvalReview.error.stage })}`
+                  : t("grants.approve.reviewUnavailable")
+              }
+              onRetry={() => approvalReview.refetch()}
+            />
+          ) : (
+            <p className="text-ui text-[var(--cv-t3)]">
+              {t("grants.approve.loadingReview")}
+            </p>
+          )}
+        </ModalShell>
+      )}
+
       {/* Dialogs — only the two pending types mutate; reuse the existing
           zero-knowledge grant + agent flows (crypto unchanged). */}
       <DenyGrantDialog
         open={denyTarget !== null}
-        targetLabel={denyTarget?.entryLabel ?? t('grants.unknownTarget')}
+        targetLabel={denyTarget?.entryLabel ?? t("grants.unknownTarget")}
         isPending={deny.isPending}
         onConfirm={handleDeny}
         onCancel={() => setDenyTarget(null)}
@@ -387,8 +561,9 @@ export function NotificationCenterPage({
           open
           agentId={agentApproveTarget.agentId}
           initialName={agentApproveTarget.agentName}
-          initialType={agentApproveTarget.agentType ?? ''}
+          initialType={agentApproveTarget.agentType ?? ""}
           isPending={approveAgent.isPending}
+          isProvisioning={approveAgent.phase === "provisioning"}
           onConfirm={handleApproveAgent}
           onCancel={() => setAgentApproveTarget(null)}
         />
@@ -410,21 +585,31 @@ export function NotificationCenterPage({
         <NotificationPreferencesDialog onClose={() => setPrefsOpen(false)} />
       )}
     </div>
-  )
+  );
+}
+
+function isGrantHistoryType(
+  type: string,
+): type is "grant_approved" | "grant_denied" | "grant_revoked" {
+  return (
+    type === "grant_approved" ||
+    type === "grant_denied" ||
+    type === "grant_revoked"
+  );
 }
 
 /** action-required → To-do; everything else → History. */
 function splitByCategory(items: NotificationItem[]) {
-  const actionItems: NotificationItem[] = []
-  const historyItems: NotificationItem[] = []
+  const actionItems: NotificationItem[] = [];
+  const historyItems: NotificationItem[] = [];
   for (const item of items) {
-    if (item.category === 'actionRequired' && item.actionState !== 'resolved') {
-      actionItems.push(item)
+    if (item.category === "actionRequired" && item.actionState !== "resolved") {
+      actionItems.push(item);
     } else {
-      historyItems.push(item)
+      historyItems.push(item);
     }
   }
-  return { actionItems, historyItems }
+  return { actionItems, historyItems };
 }
 
 /** Filter by free-text search (over metadata) AND the selected type set. */
@@ -433,15 +618,15 @@ function filterItems(
   query: string,
   types: Set<string>,
 ): NotificationItem[] {
-  const needle = query.trim().toLocaleLowerCase()
+  const needle = query.trim().toLocaleLowerCase();
   return items.filter((item) => {
-    if (types.size > 0 && !types.has(item.type)) return false
-    if (!needle) return true
+    if (types.size > 0 && !types.has(item.type)) return false;
+    if (!needle) return true;
     const haystack = Object.values(item.metadata ?? {})
-      .join(' ')
-      .toLocaleLowerCase()
-    return haystack.includes(needle)
-  })
+      .join(" ")
+      .toLocaleLowerCase();
+    return haystack.includes(needle);
+  });
 }
 
 /**
@@ -460,43 +645,56 @@ function ActionFooter({
   onDenyAgent,
   onView,
 }: {
-  item: NotificationItem
-  busy: boolean
-  onApprove: (ctx: NotificationGrantContext) => void
-  onDeny: (ctx: NotificationGrantContext) => void
-  onApproveAgent: (target: AgentTarget) => void
+  item: NotificationItem;
+  busy: boolean;
+  onApprove: (ctx: NotificationGrantContext) => void;
+  onDeny: (ctx: NotificationGrantContext) => void;
+  onApproveAgent: (target: AgentTarget) => void;
   onDenyAgent: (
     agentId: string,
     notificationId: string,
     agentName: string,
     apiKeyId?: string,
     apiKeySuffix?: string,
-  ) => void
-  onView: (item: NotificationItem) => void
+  ) => void;
+  onView: (item: NotificationItem) => void;
 }) {
-  const { t } = useTranslation()
-  const ctx = notificationGrantContext(item)
+  const { t } = useTranslation();
+  const ctx = notificationGrantContext(item);
 
-  if (item.type === 'grant_pending' && ctx) {
+  if (item.type === "grant_pending" && ctx) {
     return (
       <>
-        <Button variant="subtle" size="sm" className="flex-1" disabled={busy} onClick={() => onDeny(ctx)}>
-          {t('grants.deny.action')}
+        <Button
+          variant="subtle"
+          size="sm"
+          className="flex-1"
+          disabled={busy}
+          onClick={() => onDeny(ctx)}
+        >
+          {t("grants.deny.action")}
         </Button>
-        <Button variant="positive" size="sm" icon="check" className="flex-1" disabled={busy} onClick={() => onApprove(ctx)}>
-          {t('grants.approve.action')}
+        <Button
+          variant="positive"
+          size="sm"
+          icon="check"
+          className="flex-1"
+          disabled={busy}
+          onClick={() => onApprove(ctx)}
+        >
+          {t("grants.approve.action")}
         </Button>
       </>
-    )
+    );
   }
 
-  if (item.type === 'agent_pending') {
-    const agentId = item.metadata?.agentId
+  if (item.type === "agent_pending") {
+    const agentId = item.metadata?.agentId;
     // Without an agentId we can't drive the approve/deactivate flow — fall back
     // to the read-only "View" link rather than a dead button.
-    if (!agentId) return <ViewFooter item={item} onView={onView} />
-    const agentName = item.metadata?.agentName ?? ''
-    const agentType = item.metadata?.agentType ?? ''
+    if (!agentId) return <ViewFooter item={item} onView={onView} />;
+    const agentName = item.metadata?.agentName ?? "";
+    const agentType = item.metadata?.agentType ?? "";
     return (
       <>
         <Button
@@ -505,26 +703,39 @@ function ActionFooter({
           className="flex-1"
           disabled={busy}
           onClick={() =>
-            onDenyAgent(agentId, item.id, agentName, item.metadata?.apiKeyId, item.metadata?.apiKeySuffix)
+            onDenyAgent(
+              agentId,
+              item.id,
+              agentName,
+              item.metadata?.apiKeyId,
+              item.metadata?.apiKeySuffix,
+            )
           }
         >
-          {t('grants.deny.action')}
+          {t("grants.deny.action")}
         </Button>
         <Button
           variant="positive"
           size="sm"
           className="flex-1"
           disabled={busy}
-          onClick={() => onApproveAgent({ agentId, agentName, agentType, notificationId: item.id })}
+          onClick={() =>
+            onApproveAgent({
+              agentId,
+              agentName,
+              agentType,
+              notificationId: item.id,
+            })
+          }
         >
-          {t('grants.approve.action')}
+          {t("grants.approve.action")}
         </Button>
       </>
-    )
+    );
   }
 
   // Any other action-required type is a log card — read-only "View" link.
-  return <ViewFooter item={item} onView={onView} />
+  return <ViewFooter item={item} onView={onView} />;
 }
 
 /**
@@ -536,19 +747,19 @@ function ActionFooter({
  */
 function viewLabelKey(item: NotificationItem): string {
   switch (item.type) {
-    case 'agent_pending':
-    case 'agent_approved':
-      return 'notifications.center.viewAgent'
-    case 'credential_stale':
-      return 'notifications.center.viewEntry'
-    case 'grant_approved':
-    case 'grant_denied':
-    case 'grant_revoked':
-      return 'notifications.center.viewAccess'
+    case "agent_pending":
+    case "agent_approved":
+      return "notifications.center.viewAgent";
+    case "credential_stale":
+      return "notifications.center.viewEntry";
+    case "grant_approved":
+    case "grant_denied":
+    case "grant_revoked":
+      return "notifications.center.viewAccess";
     default: {
-      if (item.metadata?.agentId) return 'notifications.center.viewAgent'
-      if (item.metadata?.entryId) return 'notifications.center.viewEntry'
-      return 'notifications.center.viewAccess'
+      if (item.metadata?.agentId) return "notifications.center.viewAgent";
+      if (item.metadata?.entryId) return "notifications.center.viewEntry";
+      return "notifications.center.viewAccess";
     }
   }
 }
@@ -564,11 +775,11 @@ function ViewFooter({
   item,
   onView,
 }: {
-  item: NotificationItem
-  onView: (item: NotificationItem) => void
+  item: NotificationItem;
+  onView: (item: NotificationItem) => void;
 }) {
-  const { t } = useTranslation()
-  if (!notificationDeepLink(item)) return null
+  const { t } = useTranslation();
+  if (!notificationDeepLink(item)) return null;
   return (
     <Button
       variant="subtle"
@@ -579,19 +790,19 @@ function ViewFooter({
     >
       {t(viewLabelKey(item))}
     </Button>
-  )
+  );
 }
 
 /** Notification types offered in the filter dropdown (matches the taxonomy). */
 const FILTERABLE_TYPES = [
-  'agent_pending',
-  'grant_pending',
-  'credential_stale',
-  'grant_approved',
-  'grant_denied',
-  'grant_revoked',
-  'agent_approved',
-] as const
+  "agent_pending",
+  "grant_pending",
+  "credential_stale",
+  "grant_approved",
+  "grant_denied",
+  "grant_revoked",
+  "agent_approved",
+] as const;
 
 /**
  * Segment switcher — accent-underline active tab matching the app's tab idiom
@@ -604,21 +815,21 @@ function SegmentTabs({
   onChange,
   todoCount,
 }: {
-  segment: Segment
-  onChange: (segment: Segment) => void
-  todoCount: number
+  segment: Segment;
+  onChange: (segment: Segment) => void;
+  todoCount: number;
 }) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   const options: { key: Segment; label: string; count?: number }[] = [
-    { key: 'all', label: t('notifications.center.segAll') },
-    { key: 'todo', label: t('notifications.center.segTodo'), count: todoCount },
-    { key: 'history', label: t('notifications.center.segHistory') },
-    { key: 'grants', label: t('notifications.center.segGrants') },
-  ]
+    { key: "all", label: t("notifications.center.segAll") },
+    { key: "todo", label: t("notifications.center.segTodo"), count: todoCount },
+    { key: "history", label: t("notifications.center.segHistory") },
+    { key: "grants", label: t("notifications.center.segGrants") },
+  ];
   return (
     <div className="mr-1 flex items-center" role="tablist">
       {options.map((option) => {
-        const isActive = segment === option.key
+        const isActive = segment === option.key;
         return (
           <button
             key={option.key}
@@ -628,8 +839,8 @@ function SegmentTabs({
             onClick={() => onChange(option.key)}
             className={`flex items-center gap-1.5 border-b-2 px-2.5 py-1 text-ui transition-colors ${
               isActive
-                ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
-                : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
+                ? "border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]"
+                : "border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]"
             }`}
           >
             {option.label}
@@ -639,10 +850,10 @@ function SegmentTabs({
               </span>
             ) : null}
           </button>
-        )
+        );
       })}
     </div>
-  )
+  );
 }
 
 /**
@@ -656,19 +867,27 @@ function Grid({ children }: { children: React.ReactNode }) {
     <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,21.25rem),1fr))] items-stretch gap-[0.625rem]">
       {children}
     </div>
-  )
+  );
 }
 
 function EmptyState({ filtered }: { filtered: boolean }) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-[var(--cv-empty-border)] bg-[var(--cv-empty-bg)] p-8 text-center">
-      <Icon name={filtered ? 'filter_alt_off' : 'check_circle'} size={28} color="var(--cv-t3)" />
+      <Icon
+        name={filtered ? "filter_alt_off" : "check_circle"}
+        size={28}
+        color="var(--cv-t3)"
+      />
       <p className="text-ui font-medium text-[var(--cv-t3)]">
-        {t(filtered ? 'notifications.center.emptyFiltered' : 'notifications.center.empty')}
+        {t(
+          filtered
+            ? "notifications.center.emptyFiltered"
+            : "notifications.center.empty",
+        )}
       </p>
     </div>
-  )
+  );
 }
 
 function LoadingSkeleton() {
@@ -681,5 +900,5 @@ function LoadingSkeleton() {
         />
       ))}
     </div>
-  )
+  );
 }

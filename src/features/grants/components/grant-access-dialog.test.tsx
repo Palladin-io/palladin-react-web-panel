@@ -41,6 +41,7 @@ const toastSuccess = vi.hoisted(() => vi.fn())
 vi.mock('sonner', () => ({ toast: { error: toastError, success: toastSuccess } }))
 
 import { GrantAccessDialog } from './grant-access-dialog'
+import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
 
 describe('GrantAccessDialog (agent-for-vault)', () => {
   beforeEach(() => {
@@ -49,6 +50,13 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     toastError.mockReset()
     toastSuccess.mockReset()
     isPending = false
+    useMemberSyncStore.setState({
+      status: 'ready',
+      vaults: new Map([['v1', {
+        vaultId: 'v1', status: 'ready', entries: new Map(), failureKind: null,
+        metadata: null, structure: {}, appliedThroughSequence: '0',
+      } as never]]),
+    })
   })
 
   function renderDialog() {
@@ -73,8 +81,7 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     expect(screen.queryByText('Pending Bot')).not.toBeInTheDocument() // not active
   })
 
-  it('happy path: picks agent, resolves public key, calls mutation', async () => {
-    getAgent.mockResolvedValue({ agentId: 'a1', publicKey: 'PUBKEY' })
+  it('happy path: delegates FULL recipient resolution to the authoritative preparation', async () => {
     const user = userEvent.setup()
     renderDialog()
 
@@ -86,9 +93,89 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     await waitFor(() => expect(mutateMock).toHaveBeenCalled())
     const input = mutateMock.mock.calls[0][0]
     expect(input.agentId).toBe('a1')
-    expect(input.agentPublicKey).toBe('PUBKEY')
+    expect(input.agentPublicKey).toBeUndefined()
+    expect(input.recipientAgentKeyVersion).toBeUndefined()
     expect(input.type).toBe('full')
     expect(input.policy).toHaveProperty('expiresAt')
+    expect(getAgent).not.toHaveBeenCalled()
+  })
+
+  it('keeps the selected methods for a vault containing a credit card', async () => {
+    useMemberSyncStore.setState({
+      vaults: new Map([['v1', {
+        vaultId: 'v1', status: 'ready', failureKind: null, metadata: null, structure: {},
+        appliedThroughSequence: '0', entries: new Map([['card', {
+          state: 'active', corrupt: false, payload: { entryType: 'creditCard' },
+        }]]),
+      } as never]]),
+    })
+    getAgent.mockResolvedValue({ agentId: 'a1', publicKey: 'PUBKEY' })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(screen.getByRole('combobox', { name: 'Agent' }))
+    await user.click(screen.getByText('Deploy Bot'))
+    await user.click(screen.getByRole('button', { name: /^grant access$/i }))
+
+    await waitFor(() => expect(mutateMock).toHaveBeenCalled())
+    expect(mutateMock.mock.calls[0][0].methods).toEqual(['exec', 'inject'])
+  })
+
+  it('keeps method selection editable for a vault containing a script', async () => {
+    useMemberSyncStore.setState({
+      vaults: new Map([['v1', {
+        vaultId: 'v1', status: 'ready', failureKind: null, metadata: null, structure: {},
+        appliedThroughSequence: '0', entries: new Map([['script', {
+          state: 'active', corrupt: false, payload: { entryType: 'script' },
+        }]]),
+      } as never]]),
+    })
+    getAgent.mockResolvedValue({ agentId: 'a1', publicKey: 'PUBKEY' })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(screen.getByRole('combobox', { name: 'Agent' }))
+    await user.click(screen.getByText('Deploy Bot'))
+    expect(screen.getByRole('combobox', { name: /how the agent may use it/i })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: /^grant access$/i }))
+
+    await waitFor(() => expect(mutateMock).toHaveBeenCalled())
+    expect(mutateMock.mock.calls[0][0].methods).toEqual(['exec', 'inject'])
+  })
+
+  it('blocks a FULL grant while any active Entry projection is incomplete', async () => {
+    useMemberSyncStore.setState({
+      vaults: new Map([['v1', {
+        vaultId: 'v1', status: 'ready', failureKind: null, metadata: null, structure: {},
+        appliedThroughSequence: '0', entries: new Map([['pending', {
+          state: 'active', corrupt: false, payload: null,
+        }]]),
+      } as never]]),
+    })
+    const user = userEvent.setup()
+    renderDialog()
+
+    await user.click(screen.getByRole('combobox', { name: 'Agent' }))
+    await user.click(screen.getByText('Deploy Bot'))
+
+    expect(screen.getByText(/wait for this vault to finish syncing/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^grant access$/i })).toBeDisabled()
+  })
+
+  it('blocks a granular grant until its requested Entry projection exists', async () => {
+    const user = userEvent.setup()
+    render(
+      <GrantAccessDialog
+        mode={{ kind: 'agent-for-entry', vaultId: 'v1', entryId: 'missing' }}
+        onClose={vi.fn()}
+      />,
+    )
+
+    await user.click(screen.getByRole('combobox', { name: 'Agent' }))
+    await user.click(screen.getByText('Deploy Bot'))
+
+    expect(screen.getByText(/wait for this vault to finish syncing/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^grant access$/i })).toBeDisabled()
   })
 
   it('blocks submit when no subject is chosen', async () => {

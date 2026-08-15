@@ -7,9 +7,7 @@ import { Button } from '../../shared/components/button'
 import { ModalShell } from '../../shared/components/modal-shell'
 import { ScrollArea } from '../../shared/components/scroll-area'
 import { PERMISSION_AUDIT_VIEW } from '../../shared/lib/permissions'
-import { shortenKey } from '../../shared/lib/shorten-key'
 import { useAuthStore } from '../auth'
-import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
 import { filterAuditLogs } from './audit-log-filter'
 import {
   getAuditExport,
@@ -22,6 +20,7 @@ import { AuditLogLegend } from './components/audit-log-legend'
 import { AuditLogList } from './components/audit-log-list'
 import { AUDIT_EVENT_CATEGORIES } from './components/audit-event-config'
 import { useAuditAgentNames } from './use-audit-agent-names'
+import { useOrgAuditResourceNames } from './use-org-audit-resource-names'
 import { useOrgAuditLogs } from './use-org-audit-logs'
 
 const EMPTY_FILTER: AuditFilterState = {
@@ -97,15 +96,6 @@ export function AuditLogPage() {
     }
   }
 
-  const memberVaults = useMemberSyncStore((state) => state.vaults)
-  const vaultOptions = useMemo(
-    () => [...memberVaults.values()].map((vault) => ({
-      value: vault.vaultId,
-      label: vault.metadata?.name ?? shortenKey(vault.vaultId),
-    })),
-    [memberVaults],
-  )
-
   const logs = useOrgAuditLogs(
     {
       eventType: csvParam(filter.eventType),
@@ -133,28 +123,13 @@ export function AuditLogPage() {
   } =
     useAuditAgentNames(allItems, canView)
 
-  const { entryNameById, vaultNameById } = useMemo(() => {
-    const entryNames: Record<string, string> = {}
-    const vaultNames: Record<string, string> = {}
-    for (const item of allItems) {
-      if (item.vaultId) {
-        const vault = memberVaults.get(item.vaultId)
-        vaultNames[item.vaultId] = vault?.metadata?.name ?? shortenKey(item.vaultId)
-        if (item.entryId) {
-          const record = vault?.entries.get(item.entryId)
-          entryNames[item.entryId] = !record?.corrupt && record?.payload?.memberLabel
-            ? record.payload.memberLabel
-            : shortenKey(item.entryId)
-        }
-      } else if (item.entryId) {
-        entryNames[item.entryId] = shortenKey(item.entryId)
-      }
-    }
-    return { entryNameById: entryNames, vaultNameById: vaultNames }
-  }, [allItems, memberVaults])
-
-  const resolveEntryName = (entryId: string) => entryNameById[entryId] ?? shortenKey(entryId)
-  const resolveVaultName = (vaultId: string) => vaultNameById[vaultId] ?? shortenKey(vaultId)
+  const {
+    entryNameById,
+    vaultNameById,
+    vaultOptions,
+    resolveEntryName,
+    resolveVaultName,
+  } = useOrgAuditResourceNames(allItems)
 
   const filtered = useMemo(
     () => filterAuditLogs(allItems, {

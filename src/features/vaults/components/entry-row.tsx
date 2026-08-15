@@ -178,6 +178,8 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
                 ? t('vault.entry.copyKey')
                 : entry.type === ENTRY_TYPE_SCRIPT
                   ? t('vault.entry.copyScript')
+                  : entry.type === 3
+                    ? t('vault.entry.copyCardNumber')
                   : t('vault.entry.copyPassword')
             }
             onClick={() => {
@@ -360,6 +362,18 @@ function RevealPanel({
               <RevealRow icon="code" value={plaintext.interpreter} actions={null} />
             </>
           ) : null}
+          {plaintext.type === 3 ? (
+            <>
+              <RevealRow icon="person" value={plaintext.cardholderName}
+                actions={<CopyAction value={plaintext.cardholderName} label={t('vault.entries.card.cardholderName')} />} />
+              <RevealRow icon="credit_card" value={showSecret ? plaintext.cardNumber : maskValue(plaintext.cardNumber.length)}
+                monospace secret actions={<><ToggleVisibilityAction shown={showSecret} onToggle={onToggleShow} />
+                  <CopyAction value={plaintext.cardNumber} label={t('vault.entries.card.cardNumber')} secret /></>} />
+              <RevealRow icon="calendar_month" value={`${plaintext.expiryMonth}/${plaintext.expiryYear}`} actions={null} />
+              <RevealRow icon="lock" value={showSecret ? plaintext.securityCode : maskValue(plaintext.securityCode.length)}
+                monospace secret actions={<CopyAction value={plaintext.securityCode} label={t('vault.entries.card.securityCode')} secret />} />
+            </>
+          ) : null}
 
           <CustomFieldsView fields={readCustomFields(plaintext)} />
         </div>
@@ -531,12 +545,16 @@ function copySecret(
       ? plaintext.value
       : plaintext.type === ENTRY_TYPE_SCRIPT
         ? plaintext.script
-        : plaintext.password
+        : plaintext.type === 3
+          ? plaintext.cardNumber
+          : plaintext.password
   const label =
     type === ENTRY_TYPE_KEY
       ? t('vault.entry.copyKey')
       : type === ENTRY_TYPE_SCRIPT
         ? t('vault.entry.copyScript')
+        : type === 3
+          ? t('vault.entry.copyCardNumber')
         : t('vault.entry.copyPassword')
   copyText(value, label, t, true)
 }

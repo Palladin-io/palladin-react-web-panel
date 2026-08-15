@@ -5,11 +5,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { ORGANIZATION_MEMBERS_QUERY_KEY } from '../../shared/api/organization-members-api'
 import { useRequestMemberRemoval, vaultMembersQueryKey } from './use-vault-members'
 
-const requestRemoval = vi.hoisted(() => vi.fn())
-vi.mock('../../shared/api/organization-members-api', async (importActual) => {
-  const actual = await importActual<typeof import('../../shared/api/organization-members-api')>()
-  return { ...actual, requestOrganizationMemberRemoval: requestRemoval }
-})
+const api = vi.hoisted(() => ({ delete: vi.fn() }))
+vi.mock('../../shared/api/client', () => ({ api }))
 
 describe('useRequestMemberRemoval', () => {
   it('invalidates both Vault and organization member directories after a request', async () => {
@@ -18,11 +15,12 @@ describe('useRequestMemberRemoval', () => {
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={client}>{children}</QueryClientProvider>
     )
-    requestRemoval.mockResolvedValue(undefined)
+    api.delete.mockResolvedValue(undefined)
     const { result } = renderHook(() => useRequestMemberRemoval('vault-1'), { wrapper })
 
     await act(() => result.current.mutateAsync('member-1'))
 
+    expect(api.delete).toHaveBeenCalledWith('api/organization/members/member-1')
     expect(invalidate).toHaveBeenCalledWith({ queryKey: vaultMembersQueryKey('vault-1') })
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ORGANIZATION_MEMBERS_QUERY_KEY })
   })

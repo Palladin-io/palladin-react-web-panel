@@ -110,6 +110,15 @@ function grantValues(content: EntryPlaintext): Record<string, CanonicalJson | un
     values[ENTRY_FIELD.script] = content.script
     values[ENTRY_FIELD.refs] = content.refs as unknown as CanonicalJson | undefined
   }
+  if (content.type === 3) {
+    values[ENTRY_FIELD.cardholderName] = content.cardholderName
+    values[ENTRY_FIELD.cardNumber] = content.cardNumber
+    values[ENTRY_FIELD.expiryMonth] = content.expiryMonth
+    values[ENTRY_FIELD.expiryYear] = content.expiryYear
+    values[ENTRY_FIELD.securityCode] = content.securityCode
+    values[ENTRY_FIELD.pin] = content.pin
+    values[ENTRY_FIELD.billingAddress] = content.billingAddress
+  }
   values[ENTRY_FIELD.notes] = content.notes
   for (const field of content.fields ?? []) values[`custom:${field.id}`] = field.value as CanonicalJson
   return values

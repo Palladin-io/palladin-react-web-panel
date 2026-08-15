@@ -3,13 +3,19 @@ import { useAuthStore } from '../auth'
 import { getAgent } from '../agents'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
 import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
+import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import { approveGrant, type ApproveGrantBody } from './api/pending-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
-import { grantMethodsMask, serializeGrantMethods, type GrantMethod } from './grant-methods'
+import {
+  grantMethodsFromMask,
+  grantMethodsMask,
+  serializeGrantMethods,
+  type GrantMethod,
+} from './grant-methods'
 import { GRANTS_QUERY_KEY } from './query-keys'
 
 export class VaultLockedError extends Error {
@@ -56,7 +62,6 @@ export function useApproveGrant() {
       agentId,
       policy,
       methods,
-      fieldIds,
       reviewedEntryRevision,
       requestedMethods,
     }: ApproveGrantInput) => {
@@ -84,19 +89,21 @@ export function useApproveGrant() {
         const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
         })
+        const approvedFieldIds = listGrantableFieldIds(memberSecret)
+        if (approvedFieldIds.length === 0) throw new MissingGrantMaterialError()
         const envelope = await buildCanonicalGrantEnvelope({
           secret: memberSecret,
           agentPublicKey: agent.publicKey,
           organizationId: detail.organizationId, vaultId, grantId, agentId, entryId,
           entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
           memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: agent.recipientKeyVersion,
-          approvedMethods, approvedFieldIds: fieldIds,
+          approvedMethods, approvedFieldIds,
           ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
         })
         const body: ApproveGrantBody = {
           grantEntry: envelope,
           ...policy,
-          methods: serializeGrantMethods(methods),
+          methods: serializeGrantMethods(grantMethodsFromMask(approvedMethods)),
         }
         if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
         const latest = await getCanonicalEntry(vaultId, entryId)

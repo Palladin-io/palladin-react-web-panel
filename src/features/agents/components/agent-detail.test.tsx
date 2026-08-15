@@ -17,7 +17,8 @@ const deactivateMutate = vi.fn()
 const reactivateMutate = vi.fn()
 
 vi.mock('../use-approve-agent', () => ({
-  useApproveAgent: () => ({ mutate: approveMutate, isPending: false }),
+  AgentApprovalRequiresUnlockError: class AgentApprovalRequiresUnlockError extends Error {},
+  useApproveAgent: () => ({ mutate: approveMutate, isPending: false, phase: 'idle' }),
 }))
 vi.mock('../use-deactivate-agent', () => ({
   useDeactivateAgent: () => ({ mutate: deactivateMutate, isPending: false }),
@@ -81,6 +82,16 @@ describe('AgentDetail', () => {
     expect(screen.getByText('pk7Yq2Lm•••aB3x')).toBeInTheDocument()
   })
 
+  it('renders the app-composed audit panel without importing the Audit feature', () => {
+    const renderLogs = vi.fn(() => <div>Canonical agent audit log</div>)
+    render(<AgentDetail agent={baseAgent} renderLogs={renderLogs} />, { wrapper })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Logs' }))
+
+    expect(renderLogs).toHaveBeenCalledWith('agent-1')
+    expect(screen.getByText('Canonical agent audit log')).toBeInTheDocument()
+  })
+
   it('shows the approve zone for a pending agent', () => {
     render(<AgentDetail agent={{ ...baseAgent, status: AGENT_STATUS_PENDING }} />, {
       wrapper,
@@ -100,7 +111,7 @@ describe('AgentDetail', () => {
   })
 
   it('confirming approve passes the input object to the mutation', () => {
-    approveMutate.mockImplementation((_vars, opts) => opts.onSuccess())
+    approveMutate.mockImplementation((_vars, opts) => opts.onSuccess({ discoveryReady: true }))
     render(<AgentDetail agent={{ ...baseAgent, status: AGENT_STATUS_PENDING }} />, {
       wrapper,
     })

@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_CREDIT_CARD,
   ENTRY_TYPE_KEY,
   ENTRY_TYPE_SCRIPT,
   type Vault,
@@ -120,27 +121,33 @@ describe('CreateEntryModal', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it('renders KEY-type fields by default', () => {
+  it('renders CREDENTIAL fields by default and lists it before KEY', () => {
     render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
     expect(screen.getByLabelText(/^label$/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/^value$/i)).toBeInTheDocument()
-    // Credential-only fields must NOT render in KEY mode.
-    expect(screen.queryByLabelText(/^username$/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/^username$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument()
+    expect(screen.queryByLabelText(/^value$/i)).not.toBeInTheDocument()
+
+    const typeSelect = screen.getByLabelText(/entry type/i) as HTMLSelectElement
+    expect(typeSelect.value).toBe(String(ENTRY_TYPE_CREDENTIAL))
+    expect(Array.from(typeSelect.options, (option) => option.value).slice(0, 2)).toEqual([
+      String(ENTRY_TYPE_CREDENTIAL),
+      String(ENTRY_TYPE_KEY),
+    ])
   })
 
-  it('switches to CREDENTIAL fields when the dropdown changes', async () => {
+  it('switches to KEY fields when the dropdown changes', async () => {
     const user = userEvent.setup()
     render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
 
     await user.selectOptions(
       screen.getByLabelText(/entry type/i),
-      String(ENTRY_TYPE_CREDENTIAL),
+      String(ENTRY_TYPE_KEY),
     )
 
-    expect(screen.getByLabelText(/^username$/i)).toBeInTheDocument()
-    expect(screen.getByLabelText(/^password$/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/^value$/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/^url$/i)).toBeInTheDocument()
-    expect(screen.queryByLabelText(/^value$/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^username$/i)).not.toBeInTheDocument()
   })
 
   it('submits a KEY entry with trimmed fields', async () => {
@@ -156,6 +163,7 @@ describe('CreateEntryModal', () => {
       { wrapper },
     )
 
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
     await user.type(screen.getByLabelText(/^label$/i), '  Stripe Key  ')
     await user.type(screen.getByLabelText(/^value$/i), '  sk_live_123 ')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
@@ -180,6 +188,7 @@ describe('CreateEntryModal', () => {
     mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'stripe-key' }))
     render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
 
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
     await user.type(screen.getByLabelText(/^label$/i), 'Stripe Key')
     await user.type(screen.getByLabelText(/^value$/i), 'sk_test')
     await user.type(screen.getByLabelText(/^url$/i), 'https://stripe.com')
@@ -195,10 +204,11 @@ describe('CreateEntryModal', () => {
     const user = userEvent.setup()
     render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
 
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
     await user.type(screen.getByLabelText(/^label$/i), 'Changed host')
     await user.type(screen.getByLabelText(/^value$/i), 'secret-value')
     await user.type(screen.getByLabelText(/^url$/i), 'https://first.example.com')
-    await waitFor(() => expect(ensureWebsiteIconsMock).toHaveBeenCalledWith(['first.example.com']))
+    await waitFor(() => expect(ensureWebsiteIconsWithinMock).toHaveBeenCalledWith(['first.example.com'], 5_000))
 
     ensureWebsiteIconsWithinMock.mockResolvedValueOnce(new Map())
     await user.clear(screen.getByLabelText(/^url$/i))
@@ -207,6 +217,18 @@ describe('CreateEntryModal', () => {
 
     expect(mutateMock).toHaveBeenCalledTimes(1)
     expect(mutateMock.mock.calls[0][0].iconReference).not.toContain('public-asset:')
+  })
+
+  it('shows a ready website icon in the form before saving', async () => {
+    const user = userEvent.setup()
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.type(screen.getByLabelText(/^url$/i), 'https://stripe.com')
+
+    await waitFor(() => {
+      expect(ensureWebsiteIconsWithinMock).toHaveBeenCalledWith(['stripe.com'], 5_000)
+      expect(document.querySelector('img[src="https://assets.palladin.io/stripe.com.png"]')).not.toBeNull()
+    })
   })
 
   it('submits Credential plaintext only to the local projection builder', async () => {
@@ -253,6 +275,7 @@ describe('CreateEntryModal', () => {
     await user.click(screen.getByRole('button', { name: /icon/i }))
     const file = new File(['png'], 'custom.png', { type: 'image/png' })
     await user.upload(document.querySelector('input[type="file"]') as HTMLInputElement, file)
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
     await user.type(screen.getByLabelText(/^label$/i), 'Custom icon entry')
     await user.type(screen.getByLabelText(/^value$/i), 'secret')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
@@ -266,6 +289,7 @@ describe('CreateEntryModal', () => {
 
     render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
 
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
     await user.type(screen.getByLabelText(/^label$/i), 'API')
     await user.type(screen.getByLabelText(/^value$/i), 'sk_live')
     // "+ Add field" opens a type menu; pick Text.
@@ -306,6 +330,84 @@ describe('CreateEntryModal', () => {
     })
   })
 
+  it('submits a CREDIT_CARD entry with runtime-only Agent policy', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'card-1' }))
+
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_CREDIT_CARD))
+    expect(screen.getByLabelText(/cardholder name/i)).toHaveAttribute('maxlength', '256')
+    await user.type(screen.getByLabelText(/^label$/i), 'Company card')
+    await user.type(screen.getByLabelText(/cardholder name/i), 'Ada Lovelace')
+    await user.type(screen.getByLabelText(/card number/i), '4242 4242 4242 4242')
+    await user.type(screen.getByLabelText(/expiry month/i), '12')
+    await user.type(screen.getByLabelText(/expiry year/i), '2030')
+    await user.type(screen.getByLabelText(/security code/i), '123')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    expect(mutateMock).toHaveBeenCalledTimes(1)
+    const [input] = mutateMock.mock.calls[0]
+    expect(input.type).toBe(ENTRY_TYPE_CREDIT_CARD)
+    expect(input.payload).toMatchObject({
+      v: 2,
+      type: ENTRY_TYPE_CREDIT_CARD,
+      cardholderName: 'Ada Lovelace',
+      cardNumber: '4242424242424242',
+      expiryMonth: '12',
+      expiryYear: '2030',
+      securityCode: '123',
+    })
+    expect(input.policy.fields.cardNumber).toBe('onGrantRuntime')
+    expect(input.policy.fields.securityCode).toBe('onGrantRuntime')
+  })
+
+  it('clears credential URL icon state when switching to CREDIT_CARD', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'card-2' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.type(screen.getByLabelText(/^url$/i), 'https://credential.example')
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_CREDIT_CARD))
+    await user.type(screen.getByLabelText(/^label$/i), 'Company card')
+    await user.type(screen.getByLabelText(/cardholder name/i), 'Ada Lovelace')
+    await user.type(screen.getByLabelText(/card number/i), '4242424242424242')
+    await user.type(screen.getByLabelText(/expiry month/i), '12')
+    await user.type(screen.getByLabelText(/expiry year/i), '2030')
+    await user.type(screen.getByLabelText(/security code/i), '123')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    expect(mutateMock.mock.calls[0][0].iconReference).toBe('credit_card')
+    expect(ensureWebsiteIconsWithinMock).not.toHaveBeenCalled()
+  })
+
+  it('shows field-level feedback for invalid CREDIT_CARD values after blur', async () => {
+    const user = userEvent.setup()
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_CREDIT_CARD))
+    await user.type(screen.getByLabelText(/^label$/i), 'Company card')
+    await user.click(screen.getByLabelText(/cardholder name/i))
+    await user.tab()
+    await user.type(screen.getByLabelText(/card number/i), '123')
+    await user.tab()
+    await user.type(screen.getByLabelText(/expiry month/i), '13')
+    await user.tab()
+    await user.type(screen.getByLabelText(/expiry year/i), '30')
+    await user.tab()
+    await user.type(screen.getByLabelText(/security code/i), '12')
+    await user.tab()
+
+    expect(screen.getAllByRole('alert').map((alert) => alert.textContent)).toEqual([
+      'This field is required',
+      'Enter a 12–19 digit card number.',
+      'Use a month from 01 to 12.',
+      'Enter a four-digit year.',
+      'Enter a 3–4 digit code.',
+    ])
+    expect(screen.getByRole('button', { name: /save entry/i })).toBeDisabled()
+  })
+
   it('adds a dedicated 2FA (TOTP) field to a credential', async () => {
     const user = userEvent.setup()
     mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'e-5' }))
@@ -338,6 +440,7 @@ describe('CreateEntryModal', () => {
 
     render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
 
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
     await user.type(screen.getByLabelText(/^label$/i), 'API')
     await user.type(screen.getByLabelText(/^value$/i), 'sk')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
@@ -350,6 +453,7 @@ describe('CreateEntryModal', () => {
     mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'entry-private' }))
     render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
 
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
     await user.type(screen.getByLabelText(/^label$/i), 'API')
     await user.type(screen.getByLabelText(/^value$/i), 'sk')
     await user.click(screen.getByRole('button', { name: /visible to agents in discovery/i }))
