@@ -3,11 +3,13 @@ import { IndexedDbMemberSyncCache } from './member-sync-cache'
 import { MemberSyncEngine } from './member-sync-engine'
 import { useMemberSyncStore } from './member-sync-store'
 import { DefaultVaultReconciler } from './default-vault-reconciler'
+import { AGENT_DISCOVERY_RECONCILE_EVENT, reconcileAgentDiscovery } from './agent-discovery-reconciler'
 
 const memberSyncEngine = typeof indexedDB === 'undefined'
   ? null
   : new MemberSyncEngine(new IndexedDbMemberSyncCache())
 const MEMBER_DELTA_POLL_INTERVAL_MS = 60_000
+const AGENT_DISCOVERY_RECONCILE_INTERVAL_MS = 60_000
 
 interface MemberSyncProviderProps {
   children: ReactNode
@@ -63,6 +65,50 @@ export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey
   useEffect(() => {
     if (retryGeneration > 0) retrySync.current?.()
   }, [retryGeneration])
+
+  useEffect(() => {
+    if (!enabled || !memberPrivateKey) return
+    let active: AbortController | null = null
+    let rerunRequested = false
+    let disposed = false
+    const reconcile = () => {
+      if (active) {
+        rerunRequested = true
+        return
+      }
+      const controller = new AbortController()
+      active = controller
+      void reconcileAgentDiscovery(memberPrivateKey, controller.signal)
+        .catch((error: unknown) => {
+          if (import.meta.env.DEV) console.error('[Agent Discovery] reconciliation failed', error)
+        })
+        .finally(() => {
+          if (active !== controller) return
+          active = null
+          if (rerunRequested && !disposed) {
+            rerunRequested = false
+            reconcile()
+          }
+        })
+    }
+    const reconcileWhenVisible = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) reconcile()
+    }
+    reconcile()
+    window.addEventListener(AGENT_DISCOVERY_RECONCILE_EVENT, reconcile)
+    window.addEventListener('online', reconcile)
+    document.addEventListener('visibilitychange', reconcileWhenVisible)
+    const timer = window.setInterval(reconcileWhenVisible, AGENT_DISCOVERY_RECONCILE_INTERVAL_MS)
+    return () => {
+      disposed = true
+      rerunRequested = false
+      active?.abort()
+      window.clearInterval(timer)
+      window.removeEventListener(AGENT_DISCOVERY_RECONCILE_EVENT, reconcile)
+      window.removeEventListener('online', reconcile)
+      document.removeEventListener('visibilitychange', reconcileWhenVisible)
+    }
+  }, [enabled, memberPrivateKey])
 
   return (
     <>

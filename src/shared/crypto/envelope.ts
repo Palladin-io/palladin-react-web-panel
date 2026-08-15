@@ -62,6 +62,7 @@ export interface GrantAadExtension {
   recipientKeyVersion: number
   recipientKeyFingerprint: Uint8Array
   methods: number
+  deliveryPolicy: number
   fieldSetCommitment: Uint8Array
   expiresAt?: { seconds: number | bigint; nanoseconds: number }
   remainingUses?: number

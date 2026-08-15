@@ -9,6 +9,9 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
 }))
 vi.mock('../use-org-grants', () => ({ useOrgGrants: vi.fn() }))
+vi.mock('../use-grant-reasons', () => ({
+  useGrantReasons: () => new Map([['grant-1', 'Deploy the release']]),
+}))
 vi.mock('../use-regrant', () => ({ useRegrant: () => ({ mutate: vi.fn(), isPending: false }) }))
 vi.mock('../use-revoke-org-grant', () => ({
   useRevokeOrgGrant: () => ({ mutate: vi.fn(), isPending: false }),
@@ -61,6 +64,7 @@ describe('OrgGrantsPanel regrant boundary', () => {
 
     expect(screen.getAllByText('Expired')).not.toHaveLength(0)
     expect(screen.getByText('Deploy token')).toBeInTheDocument()
+    expect(screen.getByText('Deploy the release')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Grant again' })).not.toBeInTheDocument()
   })
 

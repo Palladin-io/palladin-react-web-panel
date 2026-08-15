@@ -61,6 +61,8 @@ export function DashboardPage() {
   const [mobileSkipped, setMobileSkipped] = useState(false)
 
   useEffect(() => {
+    // These flags intentionally resynchronize when the authenticated user changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDismissed(userId ? readFlag(skipKey(ONBOARDING_SKIPPED_KEY, userId)) : false)
     setMobileSkipped(
       userId ? readFlag(skipKey(MOBILE_SKIPPED_KEY, userId)) : false,

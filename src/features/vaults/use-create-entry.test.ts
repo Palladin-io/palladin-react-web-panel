@@ -141,6 +141,7 @@ describe('useCreateEntry', () => {
     const { result } = renderHook(() => useCreateEntry(), { wrapper })
     result.current.mutate(input)
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mocks.createEntry.mock.calls[0][1]).not.toHaveProperty('entryType')
     const invalidatedKeys = invalidateSpy.mock.calls.map((call) => call[0]?.queryKey)
     expect(invalidatedKeys).toContainEqual(VAULTS_QUERY_KEY)
     expect(invalidatedKeys).toContainEqual(entriesQueryKey(vault.id))

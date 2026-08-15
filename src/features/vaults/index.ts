@@ -47,3 +47,8 @@ export {
 } from './components/entry-presentation'
 export { EntryIcon } from './components/entry-icon'
 export { hexWithAlpha } from './components/vault-color'
+export {
+  DEFAULT_VAULT_COLOR,
+  DEFAULT_VAULT_ICON,
+} from './components/vault-presentation'
+export { useVaultEncryptedAssetUrl } from './assets/use-vault-encrypted-asset-url'

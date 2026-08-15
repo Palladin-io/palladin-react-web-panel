@@ -25,6 +25,9 @@ vi.mock('../use-approve-grant', () => ({
 vi.mock('../use-grant-approval-review', () => ({
   useGrantApprovalReview: () => ({ data: undefined, isPending: false, isError: false }),
 }))
+vi.mock('../use-grant-reasons', () => ({
+  useGrantReasons: () => new Map([['g1', 'Deploy the release']]),
+}))
 vi.mock('../use-deny-grant', () => ({
   useDenyGrant: () => ({ mutate: vi.fn(), isPending: false }),
 }))
@@ -42,6 +45,7 @@ describe('PendingGrantsPanel — carousel variant', () => {
     // the untrusted server label is intentionally ignored in this unit setup.
     expect(screen.getByText('Deploy Bot')).toBeInTheDocument()
     expect(screen.getByText('Unknown')).toBeInTheDocument()
+    expect(screen.getByText('Deploy the release')).toBeInTheDocument()
     expect(screen.getByText('View all →')).toBeInTheDocument()
   })
 })

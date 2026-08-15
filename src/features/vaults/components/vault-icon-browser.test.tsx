@@ -1,7 +1,14 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { IconColorBrowser } from './vault-icon-browser'
+
+const { searchPublicAssetsMock } = vi.hoisted(() => ({ searchPublicAssetsMock: vi.fn() }))
+
+vi.mock('../../../shared/api/public-assets-api', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../../shared/api/public-assets-api')>(),
+  searchPublicAssets: searchPublicAssetsMock,
+}))
 
 const ICONS = [
   'shield',
@@ -26,6 +33,10 @@ const ICON_COLORS: Record<string, string> = {
 }
 
 describe('IconColorBrowser', () => {
+  beforeEach(() => {
+    searchPublicAssetsMock.mockReset().mockResolvedValue([])
+  })
+
   it('renders nothing when closed', () => {
     const { container } = render(
       <IconColorBrowser
@@ -191,5 +202,68 @@ describe('IconColorBrowser', () => {
     )
 
     expect(screen.getByRole('button', { name: /^choose$/i })).toBeDisabled()
+  })
+
+  it('keeps compact ID-only catalog references for Vault callers', async () => {
+    const user = userEvent.setup()
+    const onSelectIcon = vi.fn()
+    searchPublicAssetsMock.mockResolvedValue([{
+      id: '11111111-1111-4111-8111-111111111111',
+      type: 'websiteIcon',
+      name: 'GitHub',
+      url: 'https://assets.palladin.io/github.png',
+      revision: 1,
+    }])
+
+    render(
+      <IconColorBrowser
+        showBrandIcons
+        open
+        onClose={vi.fn()}
+        icons={Array.from({ length: 20 }, (_, index) => `icon_${index}`)}
+        iconColors={{}}
+        currentIcon={undefined}
+        onSelectIcon={onSelectIcon}
+      />,
+    )
+
+    await user.type(screen.getByPlaceholderText(/search icons/i), 'github')
+    await user.click(await screen.findByRole('button', { name: 'GitHub' }))
+    await user.click(screen.getByRole('button', { name: /^choose$/i }))
+
+    expect(onSelectIcon).toHaveBeenCalledWith('public-asset:11111111-1111-4111-8111-111111111111')
+  })
+
+  it('lets Entry callers supply the encrypted direct-URL reference format', async () => {
+    const user = userEvent.setup()
+    const onSelectIcon = vi.fn()
+    searchPublicAssetsMock.mockResolvedValue([{
+      id: '11111111-1111-4111-8111-111111111111',
+      type: 'websiteIcon',
+      name: 'GitHub',
+      url: 'https://assets.palladin.io/github.png',
+      revision: 2,
+    }])
+
+    render(
+      <IconColorBrowser
+        showBrandIcons
+        publicAssetReference={(asset) => `entry:${asset.id}|${asset.revision}|${asset.url}`}
+        open
+        onClose={vi.fn()}
+        icons={Array.from({ length: 20 }, (_, index) => `icon_${index}`)}
+        iconColors={{}}
+        currentIcon={undefined}
+        onSelectIcon={onSelectIcon}
+      />,
+    )
+
+    await user.type(screen.getByPlaceholderText(/search icons/i), 'github')
+    await user.click(await screen.findByRole('button', { name: 'GitHub' }))
+    await user.click(screen.getByRole('button', { name: /^choose$/i }))
+
+    expect(onSelectIcon).toHaveBeenCalledWith(
+      'entry:11111111-1111-4111-8111-111111111111|2|https://assets.palladin.io/github.png',
+    )
   })
 })

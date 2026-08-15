@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from '../types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY } from '../types'
 import { extractDomain } from '../components/entry-presentation'
 import { normalizeEntry, normalizeTotp } from './normalize'
 
@@ -62,6 +62,18 @@ describe('normalizeEntry', () => {
     const key = normalizeEntry({ type: ENTRY_TYPE_KEY, label: 'Token', value: ' sk_1 ' })
     expect(key).toEqual({ label: 'Token', type: ENTRY_TYPE_KEY, value: 'sk_1', notes: undefined })
     expect(normalizeEntry({ type: ENTRY_TYPE_KEY, label: 'Empty' })).toBeNull()
+  })
+
+  it('rejects credit cards with an oversized cardholder name', () => {
+    expect(normalizeEntry({
+      type: ENTRY_TYPE_CREDIT_CARD,
+      label: 'Travel card',
+      cardholderName: 'A'.repeat(257),
+      cardNumber: '4111111111111111',
+      expiryMonth: '12',
+      expiryYear: '2030',
+      securityCode: '123',
+    })).toBeNull()
   })
 })
 

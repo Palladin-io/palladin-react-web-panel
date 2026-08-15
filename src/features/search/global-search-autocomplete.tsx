@@ -5,7 +5,14 @@ import { Icon } from '../../shared/components/icon'
 import { SearchBar } from '../../shared/components/search-bar'
 import { analytics } from '../../shared/lib/analytics'
 import { HOVERABLE_CARD_CLASSES } from '../../shared/lib/styles'
-import { ENTRY_ICON_COLORS, isCustomIconUrl } from '../vaults'
+import {
+  DEFAULT_VAULT_COLOR,
+  DEFAULT_VAULT_ICON,
+  ENTRY_TYPE_CREDENTIAL,
+  EntryIcon,
+  normalizeEntryType,
+  useVaultEncryptedAssetUrl,
+} from '../vaults'
 import {
   useGlobalSearch,
   useRecentLocalEntries,
@@ -38,15 +45,45 @@ const TYPE_BADGES: Record<SearchResultType, TypeBadge> = {
   entry: { icon: 'key', color: 'var(--cv-t2)', labelKey: 'search.typeBadge.entry' },
 }
 
-/** Resolve the leading local presentation glyph; encrypted custom assets fall
- * back safely until an asset-aware result renderer is mounted. */
-function avatarIcon(item: SearchResultItem): { url: string | null; glyph: string } {
-  const fallback = TYPE_BADGES[item.type].icon
-  const icon = item.type === 'entry' ? item.icon : undefined
-  if (icon && isCustomIconUrl(icon)) {
-    return { url: icon, glyph: fallback }
+const ENCRYPTED_ASSET_REFERENCE =
+  /^vault-asset:([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/
+
+function SearchResultIcon({ item }: { item: SearchResultItem }) {
+  const badge = TYPE_BADGES[item.type]
+  const presentationItem = item.type === 'entry' || item.type === 'vault' ? item : null
+  const encryptedAssetId = ENCRYPTED_ASSET_REFERENCE.exec(presentationItem?.icon ?? '')?.[1] ?? null
+  const vaultId = item.type === 'entry' ? item.vaultId : item.type === 'vault' ? item.id : ''
+  const entryId = item.type === 'entry' ? item.id : undefined
+  const encryptedAsset = useVaultEncryptedAssetUrl(vaultId, encryptedAssetId, entryId)
+  const resolvedIcon = encryptedAssetId ? encryptedAsset.url : presentationItem?.icon
+
+  if (item.type === 'entry') {
+    return (
+      <EntryIcon
+        icon={resolvedIcon}
+        type={normalizeEntryType(item.entryType)}
+        color={item.color}
+      />
+    )
   }
-  return { url: null, glyph: icon || fallback }
+  if (item.type === 'vault') {
+    return (
+      <EntryIcon
+        icon={resolvedIcon ?? DEFAULT_VAULT_ICON}
+        type={ENTRY_TYPE_CREDENTIAL}
+        color={item.color ?? DEFAULT_VAULT_COLOR}
+      />
+    )
+  }
+  return (
+    <span
+      aria-hidden
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full
+        border border-[var(--cv-border)] bg-[var(--cv-input-bg)]"
+    >
+      <Icon name={badge.icon} size={16} color={badge.color} />
+    </span>
+  )
 }
 
 export interface GlobalSearchAutocompleteProps {
@@ -237,14 +274,7 @@ export function GlobalSearchAutocomplete({
               )}
               {results.map((item, index) => {
                 const badge = TYPE_BADGES[item.type]
-                const avatar = avatarIcon(item)
                 const subtitle = item.type === 'entry' ? item.vaultName : null
-                // Entries keep their own icon colour (matches the vault entry list);
-                // agents/vaults use the type accent.
-                const iconColor =
-                  item.type === 'entry'
-                    ? (ENTRY_ICON_COLORS[avatar.glyph] ?? badge.color)
-                    : badge.color
                 return (
                   <button
                     key={item.type === 'entry' ? `entry:${item.vaultId}:${item.id}` : `${item.type}:${item.id}`}
@@ -258,21 +288,7 @@ export function GlobalSearchAutocomplete({
                         index === activeIndex ? 'bg-[var(--cv-card-hover)]' : ''
                       }`}
                   >
-                    <span
-                      aria-hidden
-                      className="inline-flex h-8 w-8 shrink-0 items-center justify-center
-                        rounded-full border border-[var(--cv-border)] bg-[var(--cv-input-bg)]"
-                    >
-                      {avatar.url ? (
-                        <img
-                          src={avatar.url}
-                          alt=""
-                          className="h-5 w-5 rounded-full object-cover"
-                        />
-                      ) : (
-                        <Icon name={avatar.glyph} size={16} color={iconColor} />
-                      )}
-                    </span>
+                    <SearchResultIcon item={item} />
 
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="truncate text-heading-sm font-medium text-[var(--cv-t1)]">

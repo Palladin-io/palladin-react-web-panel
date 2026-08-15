@@ -12,7 +12,7 @@ import { SecretInput } from '../../shared/components/secret-input'
 import { firstError, required, validUrl } from '../../shared/lib/validation'
 import { wipe } from '../../shared/crypto/sodium'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
-import { presentationIconReference } from '../../shared/crypto/vault-plaintext'
+import { presentationIconReference, type MemberIndexV1 } from '../../shared/crypto/vault-plaintext'
 import {
   ENTRY_FIELD,
   fromMemberSecret,
@@ -45,6 +45,7 @@ import { VaultEntriesPanel } from './components/vault-entries-panel'
 import {
   BLOB_VERSION_V2,
   ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_CREDIT_CARD,
   ENTRY_TYPE_KEY,
   ENTRY_TYPE_SCRIPT,
   SCRIPT_INTERPRETERS,
@@ -178,18 +179,15 @@ function toEntryView(
   canonical: CanonicalEntryDetail,
   index: {
     memberLabel: string
-    entryType: 'key' | 'credential' | 'script'
-    icon: { kind: 'glyph'; value: string }
-      | { kind: 'encryptedAsset'; assetId: string }
-      | { kind: 'publicAsset'; assetId: string }
-      | { kind: 'website'; hostname: string }
-      | null
+    entryType: 'key' | 'credential' | 'script' | 'creditCard'
+    icon: MemberIndexV1['icon']
   } | null | undefined,
 ): CanonicalEntryView {
   const iconReference = presentationIconReference(index?.icon ?? null)
   const entryType = index?.entryType === 'key'
     ? ENTRY_TYPE_KEY
-    : index?.entryType === 'script' ? ENTRY_TYPE_SCRIPT : ENTRY_TYPE_CREDENTIAL
+    : index?.entryType === 'script' ? ENTRY_TYPE_SCRIPT
+      : index?.entryType === 'creditCard' ? ENTRY_TYPE_CREDIT_CARD : ENTRY_TYPE_CREDENTIAL
   return {
     id: canonical.id,
     label: index?.memberLabel ?? canonical.id,
@@ -258,7 +256,13 @@ function DetailBody({
   const handleTabChange = (next: EntryDetailTab) => {
     if (next !== activeTab) {
       analytics.capture('entry', 'detail-tab-switched', {
-        type: entry.type === ENTRY_TYPE_KEY ? 'key' : 'credential',
+        type: entry.type === ENTRY_TYPE_KEY
+          ? 'key'
+          : entry.type === ENTRY_TYPE_SCRIPT
+            ? 'script'
+            : entry.type === ENTRY_TYPE_CREDIT_CARD
+              ? 'credit-card'
+              : 'credential',
         tab: next,
       })
     }
@@ -419,6 +423,18 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [usernameError, setUsernameError] = useState(false)
   const [password, setPassword] = useState('') // CREDENTIAL only
   const [passwordError, setPasswordError] = useState(false)
+  const [cardholderName, setCardholderName] = useState('')
+  const [cardholderNameError, setCardholderNameError] = useState(false)
+  const [cardNumber, setCardNumber] = useState('')
+  const [cardNumberError, setCardNumberError] = useState(false)
+  const [expiryMonth, setExpiryMonth] = useState('')
+  const [expiryMonthError, setExpiryMonthError] = useState(false)
+  const [expiryYear, setExpiryYear] = useState('')
+  const [expiryYearError, setExpiryYearError] = useState(false)
+  const [securityCode, setSecurityCode] = useState('')
+  const [securityCodeError, setSecurityCodeError] = useState(false)
+  const [cardPin, setCardPin] = useState('')
+  const [billingAddress, setBillingAddress] = useState('')
   const [notes, setNotes] = useState('') // both types
 
   // Original plaintext for change detection / discard.
@@ -439,6 +455,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   // Reveal toggles.
   const [showSecret, setShowSecret] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showPin, setShowPin] = useState(false)
 
   // Opening the detail screen is already an explicit user action. Decrypt the
   // selected Entry immediately in memory; individual secret inputs remain
@@ -482,11 +499,17 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         } else if (pt.type === ENTRY_TYPE_SCRIPT) {
           setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt)); setScript(pt.script)
           setInterpreter(pt.interpreter); setRefs(pt.refs ?? []); setNotes(pt.notes ?? '')
-        } else {
+        } else if (pt.type === ENTRY_TYPE_CREDENTIAL) {
           const { pinned, rest, baseline } = pinCredentialTotp(pt)
           setOriginalPlaintext(baseline); setCredentialTotp(pinned); setCustomFields(rest)
           setUsername(pt.username); setPassword(pt.password)
           setUrl(pt.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : '')); setNotes(pt.notes ?? '')
+        } else if (pt.type === ENTRY_TYPE_CREDIT_CARD) {
+          setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt))
+          setCardholderName(pt.cardholderName); setCardNumber(pt.cardNumber)
+          setExpiryMonth(pt.expiryMonth); setExpiryYear(pt.expiryYear)
+          setSecurityCode(pt.securityCode); setCardPin(pt.pin ?? '')
+          setBillingAddress(pt.billingAddress ?? ''); setNotes(pt.notes ?? '')
         }
       } finally {
         wipe(vaultKey)
@@ -499,6 +522,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   }, [entry, queryClient, t, vault.id])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void handleDecrypt()
   }, [handleDecrypt])
 
@@ -524,6 +548,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       refs,
       customFields,
       credentialTotp,
+      cardholderName, cardNumber, expiryMonth, expiryYear, securityCode, cardPin, billingAddress,
     })
   }, [
     originalPlaintext,
@@ -538,6 +563,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     refs,
     customFields,
     credentialTotp,
+    cardholderName, cardNumber, expiryMonth, expiryYear, securityCode, cardPin, billingAddress,
   ])
 
   // Merged field set for a credential (pinned 2FA + additional) — the shape
@@ -566,7 +592,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     if (policy && originalSecret
       && JSON.stringify(policy) !== JSON.stringify(originalSecret.agentVisibilityPolicy)) return true
     return false
-  }, [label, description, icon, color, defaultColor, url, entry, originalSecret, policy])
+  }, [label, description, icon, color, defaultColor, entry, originalSecret, policy])
 
   const hasChanges = metadataChanged || contentChanged
 
@@ -580,6 +606,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setPolicy(originalSecret?.agentVisibilityPolicy ?? null)
     setUrlError(false)
     setScriptError(false)
+    setCardholderNameError(false)
+    setCardNumberError(false)
+    setExpiryMonthError(false)
+    setExpiryYearError(false)
+    setSecurityCodeError(false)
     if (originalPlaintext) {
       if (originalPlaintext.type === ENTRY_TYPE_KEY) {
         setCustomFields(readCustomFields(originalPlaintext))
@@ -592,7 +623,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         setInterpreter(originalPlaintext.interpreter)
         setRefs(originalPlaintext.refs ?? [])
         setNotes(originalPlaintext.notes ?? '')
-      } else {
+      } else if (originalPlaintext.type === ENTRY_TYPE_CREDENTIAL) {
         const { pinned, rest } = pinCredentialTotp(originalPlaintext)
         setCredentialTotp(pinned)
         setCustomFields(rest)
@@ -600,6 +631,12 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         setPassword(originalPlaintext.password)
         setUrl(originalPlaintext.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : ''))
         setNotes(originalPlaintext.notes ?? '')
+      } else if (originalPlaintext.type === ENTRY_TYPE_CREDIT_CARD) {
+        setCustomFields(readCustomFields(originalPlaintext))
+        setCardholderName(originalPlaintext.cardholderName); setCardNumber(originalPlaintext.cardNumber)
+        setExpiryMonth(originalPlaintext.expiryMonth); setExpiryYear(originalPlaintext.expiryYear)
+        setSecurityCode(originalPlaintext.securityCode); setCardPin(originalPlaintext.pin ?? '')
+        setBillingAddress(originalPlaintext.billingAddress ?? ''); setNotes(originalPlaintext.notes ?? '')
       }
     }
   }
@@ -625,6 +662,19 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         if (u) setUsernameError(true)
         if (p) setPasswordError(true)
         if (u || p) return
+      }
+      if (entry.type === ENTRY_TYPE_CREDIT_CARD) {
+        const cardholderInvalid = !cardholderName.trim() || cardholderName.trim().length > 256
+        const cardNumberInvalid = !/^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
+        const expiryMonthInvalid = !/^(0[1-9]|1[0-2])$/.test(expiryMonth)
+        const expiryYearInvalid = !/^\d{4}$/.test(expiryYear)
+        const securityCodeInvalid = !/^\d{3,4}$/.test(securityCode)
+        setCardholderNameError(cardholderInvalid)
+        setCardNumberError(cardNumberInvalid)
+        setExpiryMonthError(expiryMonthInvalid)
+        setExpiryYearError(expiryYearInvalid)
+        setSecurityCodeError(securityCodeInvalid)
+        if (cardholderInvalid || cardNumberInvalid || expiryMonthInvalid || expiryYearInvalid || securityCodeInvalid) return
       }
     }
 
@@ -741,7 +791,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
               disabled={isSaving || !originalSecret}
               maxLength={500}
             />
-            {entry.type !== ENTRY_TYPE_SCRIPT ? (
+            {entry.type === ENTRY_TYPE_KEY || entry.type === ENTRY_TYPE_CREDENTIAL ? (
               <div>
                 <FormInput
                   id="entry-detail-url"
@@ -859,6 +909,50 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   onChange={setRefs}
                   disabled={isSaving || decrypting}
                 />
+              </div>
+            ) : entry.type === ENTRY_TYPE_CREDIT_CARD ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <FormInput id="entry-detail-cardholder" label={t('vault.entries.card.cardholderName')} value={cardholderName}
+                    onChange={(e) => { setCardholderName(e.target.value); setCardholderNameError(false) }}
+                    onBlur={() => setCardholderNameError(!cardholderName.trim())}
+                    maxLength={256} disabled={isSaving || decrypting} error={cardholderNameError} />
+                  <FeedbackSlot visible={cardholderNameError} color="red">{t('validation.required')}</FeedbackSlot>
+                </div>
+                <div>
+                  <SecretInput id="entry-detail-card-number" label={t('vault.entries.card.cardNumber')} value={cardNumber}
+                    onChange={(value) => { setCardNumber(value); setCardNumberError(false) }}
+                    onBlur={() => setCardNumberError(!/^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, '')))}
+                    shown={showSecret} onToggleShown={() => setShowSecret((v) => !v)}
+                    disabled={isSaving || decrypting} copyable error={cardNumberError} />
+                  <FeedbackSlot visible={cardNumberError} color="red">{t('vault.entries.card.invalidCardNumber')}</FeedbackSlot>
+                </div>
+                <div>
+                  <FormInput id="entry-detail-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
+                    onChange={(e) => { setExpiryMonth(e.target.value.replace(/\D/g, '').slice(0, 2)); setExpiryMonthError(false) }}
+                    onBlur={() => setExpiryMonthError(!/^(0[1-9]|1[0-2])$/.test(expiryMonth))}
+                    disabled={isSaving || decrypting} error={expiryMonthError} />
+                  <FeedbackSlot visible={expiryMonthError} color="red">{t('vault.entries.card.invalidExpiryMonth')}</FeedbackSlot>
+                </div>
+                <div>
+                  <FormInput id="entry-detail-expiry-year" label={t('vault.entries.card.expiryYear')} value={expiryYear}
+                    onChange={(e) => { setExpiryYear(e.target.value.replace(/\D/g, '').slice(0, 4)); setExpiryYearError(false) }}
+                    onBlur={() => setExpiryYearError(!/^\d{4}$/.test(expiryYear))}
+                    disabled={isSaving || decrypting} error={expiryYearError} />
+                  <FeedbackSlot visible={expiryYearError} color="red">{t('vault.entries.card.invalidExpiryYear')}</FeedbackSlot>
+                </div>
+                <div>
+                  <SecretInput id="entry-detail-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
+                    onChange={(value) => { setSecurityCode(value.replace(/\D/g, '').slice(0, 4)); setSecurityCodeError(false) }}
+                    onBlur={() => setSecurityCodeError(!/^\d{3,4}$/.test(securityCode))}
+                    shown={showPassword} onToggleShown={() => setShowPassword((v) => !v)}
+                    disabled={isSaving || decrypting} copyable error={securityCodeError} />
+                  <FeedbackSlot visible={securityCodeError} color="red">{t('vault.entries.card.invalidSecurityCode')}</FeedbackSlot>
+                </div>
+                <SecretInput id="entry-detail-card-pin" label={t('vault.entries.card.pin')} value={cardPin}
+                  onChange={setCardPin} shown={showPin} onToggleShown={() => setShowPin((v) => !v)} disabled={isSaving || decrypting} copyable />
+                <div className="col-span-2"><FormInput id="entry-detail-billing-address" label={t('vault.entries.card.billingAddress')} value={billingAddress}
+                  onChange={(e) => setBillingAddress(e.target.value)} disabled={isSaving || decrypting} /></div>
               </div>
             ) : (
               <>
@@ -1076,6 +1170,13 @@ interface CurrentFormValues {
   customFields: CustomField[]
   /** Pinned credential 2FA field (CREDENTIAL only). */
   credentialTotp: CustomField | null
+  cardholderName: string
+  cardNumber: string
+  expiryMonth: string
+  expiryYear: string
+  securityCode: string
+  cardPin: string
+  billingAddress: string
 }
 
 type CredentialPlaintext = Extract<EntryPlaintext, { type: typeof ENTRY_TYPE_CREDENTIAL }>
@@ -1115,6 +1216,21 @@ function buildCurrentPlaintext(
       notes,
       ...(scriptRefs.length > 0 ? { refs: scriptRefs } : {}),
       ...fieldsPart,
+    }
+  }
+  if (entry.type === ENTRY_TYPE_CREDIT_CARD) {
+    return {
+      v: BLOB_VERSION_V2,
+      type: ENTRY_TYPE_CREDIT_CARD,
+      cardholderName: values.cardholderName.trim(),
+      cardNumber: values.cardNumber.replace(/[ -]/g, ''),
+      expiryMonth: values.expiryMonth,
+      expiryYear: values.expiryYear,
+      securityCode: values.securityCode,
+      pin: values.cardPin.trim() || undefined,
+      billingAddress: values.billingAddress.trim() || undefined,
+      notes,
+      ...foldFieldsPart(values.customFields),
     }
   }
   const fieldsPart = foldFieldsPart(mergeCredentialTotp(values.credentialTotp, values.customFields))

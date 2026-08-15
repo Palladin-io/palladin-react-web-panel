@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { normalizePublicHostname, resolveWebsiteIcons } from './public-assets-api'
+import {
+  ensureWebsiteIcons,
+  ensureWebsiteIconsWithin,
+  normalizePublicHostname,
+} from './public-assets-api'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -26,58 +30,227 @@ describe('normalizePublicHostname', () => {
   )
 })
 
-describe('resolveWebsiteIcons', () => {
-  it('sends all 539 imported hosts without dropping the final page', async () => {
-    const sizes: number[] = []
-    const acquisitionFlags: boolean[] = []
+describe('ensureWebsiteIcons', () => {
+  it('reuses a reserved immutable URL instead of ensuring the same hostname twice', async () => {
     const fetchMock = vi.fn(async (request: Request) => {
-      const body = await request.clone().json() as { hostnames: string[]; acquireMissing: boolean }
-      sizes.push(body.hostnames.length)
-      acquisitionFlags.push(body.acquireMissing)
+      const body = await request.clone().json() as { hostnames: string[] }
       return new Response(JSON.stringify({
-        items: body.hostnames.map((hostname) => ({ hostname, asset: null })),
+        items: body.hostnames.map((hostname) => ({
+          hostname,
+          status: 'ready',
+          asset: {
+            id: '11111111-1111-4111-8111-111111111111',
+            type: 'websiteIcon',
+            name: hostname,
+            url: 'https://assets.palladin.io/published/website-icon/11111111111141118111111111111111/1.png',
+            revision: 1,
+          },
+        })),
       }), { status: 200, headers: { 'content-type': 'application/json' } })
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    await resolveWebsiteIcons(Array.from({ length: 539 }, (_, index) => `example-${index}.com`))
+    await ensureWebsiteIcons(['cache-once.example.com'])
+    await ensureWebsiteIcons(['cache-once.example.com'])
 
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(sizes.sort((left, right) => right - left)).toEqual([500, 39])
-    expect(acquisitionFlags).toEqual([true, true])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
-  it('supports read-only polling without enqueueing duplicate acquisition commands', async () => {
+  it('preserves cached hosts when another reservation exceeds the save bound', async () => {
+    const cachedHostname = 'cached-before-timeout.example.com'
+    const pendingHostname = 'pending-at-timeout.example.com'
     const fetchMock = vi.fn(async (request: Request) => {
-      const body = await request.clone().json() as { hostnames: string[]; acquireMissing: boolean }
-      expect(body.acquireMissing).toBe(false)
-      return new Response(JSON.stringify({ items: [{ hostname: 'example.com', asset: null }] }), {
-        status: 200, headers: { 'content-type': 'application/json' },
-      })
+      const body = await request.clone().json() as { hostnames: string[] }
+      if (body.hostnames.includes(pendingHostname)) {
+        return await new Promise<Response>(() => undefined)
+      }
+      return new Response(JSON.stringify({
+        items: body.hostnames.map((hostname) => ({
+          hostname,
+          status: 'ready',
+          asset: {
+            id: '22222222-2222-4222-8222-222222222222',
+            type: 'websiteIcon',
+            name: hostname,
+            url: 'https://assets.palladin.io/published/website-icon/22222222222242228222222222222222/1.png',
+            revision: 1,
+          },
+        })),
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    await resolveWebsiteIcons(['example.com'], false)
+    await ensureWebsiteIcons([cachedHostname])
+    const result = await ensureWebsiteIconsWithin([cachedHostname, pendingHostname], 1)
 
-    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(result.get(cachedHostname)?.id).toBe('22222222-2222-4222-8222-222222222222')
+    expect(result.has(pendingHostname)).toBe(false)
   })
 
-  it('pages a 50,039-host reconciliation without imposing a total client cap', async () => {
+  it('polls during the explicit save window and returns an asset only after it is ready', async () => {
+    vi.useFakeTimers()
+    try {
+      const hostname = 'ready-after-acquisition.example.com'
+      let calls = 0
+      vi.stubGlobal('fetch', vi.fn(async () => {
+        calls += 1
+        return new Response(JSON.stringify({
+          items: [{
+            hostname,
+            status: calls === 1 ? 'pending' : 'ready',
+            asset: calls === 1 ? null : {
+              id: '44444444-4444-4444-8444-444444444444',
+              type: 'websiteIcon',
+              name: hostname,
+              url: 'https://assets.palladin.io/published/website-icon/ready.png',
+              revision: 1,
+            },
+          }],
+        }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }))
+
+      const pending = ensureWebsiteIconsWithin([hostname], 2_000)
+      await vi.advanceTimersByTimeAsync(1_000)
+      const result = await pending
+
+      expect(calls).toBe(2)
+      expect(result.get(hostname)?.id).toBe('44444444-4444-4444-8444-444444444444')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reports ready icon progress during the bounded wait', async () => {
+    const hostname = 'progress.example.com'
+    const onProgress = vi.fn()
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      items: [{
+        hostname,
+        status: 'ready',
+        asset: {
+          id: '55555555-5555-4555-8555-555555555555',
+          type: 'websiteIcon',
+          name: hostname,
+          url: 'https://assets.palladin.io/published/website-icon/progress.png',
+          revision: 1,
+        },
+      }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } })))
+
+    await ensureWebsiteIconsWithin([hostname], 2_000, onProgress)
+
+    expect(onProgress).toHaveBeenNthCalledWith(1, 0, 1)
+    expect(onProgress).toHaveBeenLastCalledWith(1, 1)
+  })
+
+  it('counts failed icons as completed and stops polling them', async () => {
+    const hostname = 'no-icon.example.com'
+    const onProgress = vi.fn()
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      items: [{ hostname, status: 'failed', asset: null }],
+    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await ensureWebsiteIconsWithin([hostname], 15_000, onProgress)
+
+    expect(result).toEqual(new Map())
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(onProgress).toHaveBeenLastCalledWith(1, 1)
+  })
+
+  it('revalidates a previously failed icon during a later preparation attempt', async () => {
+    const hostname = 'available-after-failure.example.com'
+    let calls = 0
+    const fetchMock = vi.fn(async () => {
+      calls += 1
+      return new Response(JSON.stringify({
+        items: [{
+          hostname,
+          status: calls === 1 ? 'failed' : 'ready',
+          asset: calls === 1 ? null : {
+            id: '66666666-6666-4666-8666-666666666666',
+            type: 'websiteIcon',
+            name: hostname,
+            url: 'https://assets.palladin.io/published/website-icon/recovered.png',
+            revision: 1,
+          },
+        }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    expect(await ensureWebsiteIconsWithin([hostname], 2_000)).toEqual(new Map())
+    const recovered = await ensureWebsiteIconsWithin([hostname], 2_000)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(recovered.get(hostname)?.id).toBe('66666666-6666-4666-8666-666666666666')
+  })
+
+  it('preserves a successful reservation page while a sibling page is still pending', async () => {
+    const hostnames = Array.from(
+      { length: 501 },
+      (_, index) => `partial-page-${index}.example.com`,
+    )
+    const pendingHostname = hostnames.at(-1)!
+    vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
+      const body = await request.clone().json() as { hostnames: string[] }
+      if (body.hostnames.includes(pendingHostname)) {
+        return await new Promise<Response>(() => undefined)
+      }
+      return new Response(JSON.stringify({
+        items: body.hostnames.map((hostname) => ({
+          hostname,
+          status: 'ready',
+          asset: {
+            id: '33333333-3333-4333-8333-333333333333',
+            type: 'websiteIcon',
+            name: hostname,
+            url: 'https://assets.palladin.io/published/website-icon/33333333333343338333333333333333/1.png',
+            revision: 1,
+          },
+        })),
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    }))
+
+    const result = await ensureWebsiteIconsWithin(hostnames, 10)
+
+    expect(result.get(hostnames[0])?.id).toBe('33333333-3333-4333-8333-333333333333')
+    expect(result.has(pendingHostname)).toBe(false)
+  })
+
+  it('sends all 539 imported hosts without dropping the final page', async () => {
+    const sizes: number[] = []
+    const fetchMock = vi.fn(async (request: Request) => {
+      const body = await request.clone().json() as { hostnames: string[] }
+      sizes.push(body.hostnames.length)
+      return new Response(JSON.stringify({
+        items: body.hostnames.map((hostname) => ({ hostname, status: 'pending', asset: null })),
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await ensureWebsiteIcons(Array.from({ length: 539 }, (_, index) => `example-${index}.com`))
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(sizes.sort((left, right) => right - left)).toEqual([500, 39])
+  })
+
+  it('pages a 5,039-host import without imposing a total client cap', async () => {
     const sizes: number[] = []
     vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
       const body = await request.clone().json() as { hostnames: string[] }
       sizes.push(body.hostnames.length)
       return new Response(JSON.stringify({
-        items: body.hostnames.map((hostname) => ({ hostname, asset: null })),
+        items: body.hostnames.map((hostname) => ({ hostname, status: 'pending', asset: null })),
       }), { status: 200, headers: { 'content-type': 'application/json' } })
     }))
 
-    await resolveWebsiteIcons(Array.from(
-      { length: 50_039 }, (_, index) => `host-${index}.example.com`,
+    await ensureWebsiteIcons(Array.from(
+      { length: 5_039 }, (_, index) => `host-${index}.example.com`,
     ))
 
-    expect(sizes).toHaveLength(101)
-    expect(sizes.filter((size) => size === 500)).toHaveLength(100)
+    expect(sizes).toHaveLength(11)
+    expect(sizes.filter((size) => size === 500)).toHaveLength(10)
     expect(sizes).toContain(39)
   })
 })
