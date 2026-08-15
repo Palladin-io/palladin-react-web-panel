@@ -48,8 +48,6 @@ export interface ParsedEntry {
   cardNumber?: string
   expiryMonth?: string
   expiryYear?: string
-  securityCode?: string
-  pin?: string
   billingAddress?: string
 }
 

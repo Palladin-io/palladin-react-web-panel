@@ -42,7 +42,7 @@ export function allowedAgentFieldAccess(type: EntryType, fieldId: string, custom
   }
   if (type === ENTRY_TYPE_CREDIT_CARD) {
     if ([ENTRY_FIELD.cardholderName, ENTRY_FIELD.cardNumber, ENTRY_FIELD.expiryMonth, ENTRY_FIELD.expiryYear,
-      ENTRY_FIELD.securityCode, ENTRY_FIELD.pin, ENTRY_FIELD.billingAddress].includes(fieldId as never)) return RUNTIME_OR_NEVER
+      ENTRY_FIELD.billingAddress].includes(fieldId as never)) return RUNTIME_OR_NEVER
   }
   if (type === 2) {
     if (fieldId === ENTRY_FIELD.interpreter) return DISCOVERY_OR_NEVER
@@ -61,7 +61,7 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
   })
   else if (type === ENTRY_TYPE_CREDIT_CARD) Object.assign(policy.fields, {
     cardholderName: 'onGrantRuntime', cardNumber: 'onGrantRuntime', expiryMonth: 'onGrantRuntime',
-    expiryYear: 'onGrantRuntime', securityCode: 'onGrantRuntime', pin: 'onGrantRuntime', billingAddress: 'onGrantRuntime',
+    expiryYear: 'onGrantRuntime', billingAddress: 'onGrantRuntime',
   })
   else Object.assign(policy.fields, { interpreter: 'discovery', script: 'onGrantRuntime', refs: 'onGrantRuntime' })
   for (const field of fields) policy.fields[`custom:${field.id}`] = field.type === 'totp'
@@ -74,7 +74,7 @@ export const ENTRY_FIELD = {
   password: 'password', url: 'url', urlDomain: 'urlDomain', notes: 'notes', totp: 'totp',
   interpreter: 'interpreter', script: 'script', refs: 'refs',
   cardholderName: 'cardholderName', cardNumber: 'cardNumber', expiryMonth: 'expiryMonth',
-  expiryYear: 'expiryYear', securityCode: 'securityCode', pin: 'pin', billingAddress: 'billingAddress',
+  expiryYear: 'expiryYear', billingAddress: 'billingAddress',
 } as const
 
 const FIELD_ID: Record<string, string> = {
@@ -83,7 +83,7 @@ const FIELD_ID: Record<string, string> = {
   interpreter: 'script.interpreter', script: 'script.source', refs: 'script.refs',
   cardholderName: 'creditCard.cardholderName', cardNumber: 'creditCard.cardNumber',
   expiryMonth: 'creditCard.expiryMonth', expiryYear: 'creditCard.expiryYear',
-  securityCode: 'creditCard.securityCode', pin: 'creditCard.pin', billingAddress: 'creditCard.billingAddress',
+  billingAddress: 'creditCard.billingAddress',
 }
 
 function customFields(fields: CustomField[] | undefined) {
@@ -113,7 +113,7 @@ function fieldPolicy(
     for (const id of ['credential.username', 'credential.password', 'credential.url', 'credential.urlDomain', 'credential.totp']) mapped[id] ??= 'never'
   } else if (type === ENTRY_TYPE_CREDIT_CARD) {
     for (const id of ['creditCard.cardholderName', 'creditCard.cardNumber', 'creditCard.expiryMonth',
-      'creditCard.expiryYear', 'creditCard.securityCode', 'creditCard.pin', 'creditCard.billingAddress']) mapped[id] ??= 'never'
+      'creditCard.expiryYear', 'creditCard.billingAddress']) mapped[id] ??= 'never'
   } else {
     for (const id of ['script.source', 'script.interpreter', 'script.refs']) mapped[id] ??= 'never'
   }
@@ -198,8 +198,7 @@ export function fromMemberSecret(secret: MemberSecretV1): MemberSecretView {
     ...common, entryType: ENTRY_TYPE_CREDIT_CARD,
     content: { type: ENTRY_TYPE_CREDIT_CARD, cardholderName: secret.content.cardholderName,
       cardNumber: secret.content.cardNumber, expiryMonth: secret.content.expiryMonth,
-      expiryYear: secret.content.expiryYear, securityCode: secret.content.securityCode,
-      pin: secret.content.pin ?? undefined, billingAddress: secret.content.billingAddress ?? undefined,
+      expiryYear: secret.content.expiryYear, billingAddress: secret.content.billingAddress ?? undefined,
       notes: secret.content.notes ?? undefined, fields },
   }
   return {
@@ -258,8 +257,7 @@ export function toMemberSecret(input: {
     ...common, entryType: 'creditCard', content: {
       cardholderName: input.payload.cardholderName.normalize('NFC'),
       cardNumber: input.payload.cardNumber, expiryMonth: input.payload.expiryMonth,
-      expiryYear: input.payload.expiryYear, securityCode: input.payload.securityCode,
-      pin: input.payload.pin?.normalize('NFC') ?? null,
+      expiryYear: input.payload.expiryYear,
       billingAddress: input.payload.billingAddress?.normalize('NFC') ?? null,
       notes: input.payload.notes?.normalize('NFC') ?? null, customFields: fields,
     },

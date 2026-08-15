@@ -343,7 +343,13 @@ describe('CreateEntryModal', () => {
     await user.type(screen.getByLabelText(/card number/i), '4242 4242 4242 4242')
     await user.type(screen.getByLabelText(/expiry month/i), '12')
     await user.type(screen.getByLabelText(/expiry year/i), '2030')
-    await user.type(screen.getByLabelText(/security code/i), '123')
+    await user.type(screen.getByLabelText(/billing address/i), '1 Main Street')
+    expect(screen.queryByLabelText(/security code|cvv|cvc/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^pin/i)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /add field/i }))
+    await user.click(screen.getByRole('menuitem', { name: /^text/i }))
+    await user.type(screen.getByPlaceholderText(/recovery email/i), 'Account ID')
+    await user.type(screen.getByPlaceholderText(/^field value$/i), 'account-123')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
     expect(mutateMock).toHaveBeenCalledTimes(1)
@@ -356,10 +362,18 @@ describe('CreateEntryModal', () => {
       cardNumber: '4242424242424242',
       expiryMonth: '12',
       expiryYear: '2030',
-      securityCode: '123',
+      billingAddress: '1 Main Street',
+      fields: [expect.objectContaining({ label: 'Account ID', type: 'text', value: 'account-123' })],
     })
     expect(input.policy.fields.cardNumber).toBe('onGrantRuntime')
-    expect(input.policy.fields.securityCode).toBe('onGrantRuntime')
+    expect(Object.entries(input.policy.fields)).toContainEqual([
+      expect.stringMatching(/^custom:/),
+      'onGrantRuntime',
+    ])
+    expect(input.payload).not.toHaveProperty('securityCode')
+    expect(input.payload).not.toHaveProperty('pin')
+    expect(input.policy.fields).not.toHaveProperty('securityCode')
+    expect(input.policy.fields).not.toHaveProperty('pin')
   })
 
   it('clears credential URL icon state when switching to CREDIT_CARD', async () => {
@@ -374,7 +388,6 @@ describe('CreateEntryModal', () => {
     await user.type(screen.getByLabelText(/card number/i), '4242424242424242')
     await user.type(screen.getByLabelText(/expiry month/i), '12')
     await user.type(screen.getByLabelText(/expiry year/i), '2030')
-    await user.type(screen.getByLabelText(/security code/i), '123')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
     expect(mutateMock.mock.calls[0][0].iconReference).toBe('credit_card')
@@ -395,15 +408,12 @@ describe('CreateEntryModal', () => {
     await user.tab()
     await user.type(screen.getByLabelText(/expiry year/i), '30')
     await user.tab()
-    await user.type(screen.getByLabelText(/security code/i), '12')
-    await user.tab()
 
     expect(screen.getAllByRole('alert').map((alert) => alert.textContent)).toEqual([
       'This field is required',
       'Enter a 12–19 digit card number.',
       'Use a month from 01 to 12.',
       'Enter a four-digit year.',
-      'Enter a 3–4 digit code.',
     ])
     expect(screen.getByRole('button', { name: /save entry/i })).toBeDisabled()
   })

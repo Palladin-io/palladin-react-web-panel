@@ -229,7 +229,7 @@ export function extractCsvProfile(
       type: ENTRY_TYPE_CREDIT_CARD, label: row.name, notes: row.note,
       cardholderName: row.cardholdername, cardNumber: row.cardnumber,
       expiryMonth: row.expirymonth, expiryYear: row.expiryyear,
-      securityCode: row.securitycode, pin: row.pin, billingAddress: row.billingaddress,
+      billingAddress: row.billingaddress,
     }
     return rawFromColumns(row, profile.map)
   })
@@ -245,7 +245,6 @@ export function extractCsvProfile(
         cardNumber: row.cardnumber,
         expiryMonth: expiry?.[1].padStart(2, '0'),
         expiryYear,
-        securityCode: row.cvc,
       }
     }
     return rawFromColumns(row, profile.map)

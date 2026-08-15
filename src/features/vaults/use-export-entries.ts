@@ -98,8 +98,6 @@ function toExportEntry(
     cardNumber: secret.content.cardNumber,
     expiryMonth: secret.content.expiryMonth,
     expiryYear: secret.content.expiryYear,
-    securityCode: secret.content.securityCode,
-    pin: secret.content.pin,
     billingAddress: secret.content.billingAddress,
   }
   if (secret.content.type !== ENTRY_TYPE_CREDENTIAL) throw new ExportProjectionUnavailableError()
@@ -158,8 +156,6 @@ function clearPlaintext(vaults: ExportVault[]) {
       entry.cardNumber = ''
       entry.expiryMonth = ''
       entry.expiryYear = ''
-      entry.securityCode = ''
-      entry.pin = ''
       entry.billingAddress = ''
       entry.folder = ''
     }

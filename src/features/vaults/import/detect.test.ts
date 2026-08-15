@@ -91,8 +91,8 @@ describe('parseText — CSV formats', () => {
       cardNumber: '4242424242424242',
       expiryMonth: '12',
       expiryYear: '2030',
-      securityCode: '123',
     })])
+    expect(result.entries[0]).not.toHaveProperty('securityCode')
   })
 
   it('handles BOM, quoted commas, and multi-line notes', () => {
@@ -273,7 +273,7 @@ describe('parseText — Palladin round-trip formats', () => {
     const { entries } = extractCsvProfile([{
       name: 'Travel card', type: 'CreditCard', cardholdername: 'A User',
       cardnumber: '4111111111111111', expirymonth: '12', expiryyear: '2030',
-      securitycode: '123', pin: '', billingaddress: '', note: '',
+      billingaddress: '', note: '',
     }], profile)
     expect(entries).toHaveLength(1)
     expect(entries[0]).toMatchObject({ type: ENTRY_TYPE_CREDIT_CARD, cardNumber: '4111111111111111' })
@@ -312,13 +312,17 @@ describe('parseText — Palladin round-trip formats', () => {
 
   it('detects a native export before NordPass and preserves card and TOTP rows', () => {
     const csv =
-      'name,url,username,password,note,totp,folder,state,revision,historical,type,cardholderName,cardNumber,expiryMonth,expiryYear,securityCode,pin,billingAddress\n' +
-      'Company card,,,,Travel,,Finance,active,1,false,3,Ada Lovelace,4242424242424242,12,2030,123,,\n' +
-      'GitHub,https://github.com,octocat,pw,,otpauth://totp/x?secret=JBSWY3DPEHPK3PXP,Dev,active,2,false,1,,,,,,,'
+      'name,url,username,password,note,totp,folder,state,revision,historical,type,cardholderName,cardNumber,expiryMonth,expiryYear,billingAddress\n' +
+      'Company card,,,,Travel,,Finance,active,1,false,3,Ada Lovelace,4242424242424242,12,2030,1 Main Street\n' +
+      'GitHub,https://github.com,octocat,pw,,otpauth://totp/x?secret=JBSWY3DPEHPK3PXP,Dev,active,2,false,1,,,,,'
     const result = parseText(csv)
     expect(result.format).toBe('palladin-csv')
     expect(result.entries).toHaveLength(2)
-    expect(result.entries[0]).toMatchObject({ type: ENTRY_TYPE_CREDIT_CARD, cardNumber: '4242424242424242' })
+    expect(result.entries[0]).toMatchObject({
+      type: ENTRY_TYPE_CREDIT_CARD,
+      cardNumber: '4242424242424242',
+      billingAddress: '1 Main Street',
+    })
     expect(result.entries[1].totp).toContain('secret=JBSWY3DPEHPK3PXP')
   })
 })

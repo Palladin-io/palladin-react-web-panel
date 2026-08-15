@@ -119,10 +119,9 @@ function toPlaintext(entry: ParsedEntry): EntryPlaintext {
     type: ENTRY_TYPE_CREDIT_CARD,
     cardholderName: entry.cardholderName ?? '', cardNumber: entry.cardNumber ?? '',
     expiryMonth: entry.expiryMonth ?? '', expiryYear: entry.expiryYear ?? '',
-    securityCode: entry.securityCode ?? '', pin: entry.pin,
     billingAddress: entry.billingAddress, notes: entry.notes,
   }
-  // External importers only ever produce KEY or CREDENTIAL entries.
+  // Remaining parsed entries are credentials; key and card payloads return above.
   return {
     type: ENTRY_TYPE_CREDENTIAL,
     username: entry.username ?? '',

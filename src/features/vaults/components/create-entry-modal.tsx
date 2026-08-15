@@ -106,13 +106,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [expiryMonthError, setExpiryMonthError] = useState(false)
   const [expiryYear, setExpiryYear] = useState('')
   const [expiryYearError, setExpiryYearError] = useState(false)
-  const [securityCode, setSecurityCode] = useState('')
-  const [securityCodeError, setSecurityCodeError] = useState(false)
-  const [cardPin, setCardPin] = useState('')
   const [billingAddress, setBillingAddress] = useState('')
   const [cardNumberVisible, setCardNumberVisible] = useState(false)
-  const [securityCodeVisible, setSecurityCodeVisible] = useState(false)
-  const [cardPinVisible, setCardPinVisible] = useState(false)
   const [url, setUrl] = useState('')
   const [urlError, setUrlError] = useState(false)
   const [notes, setNotes] = useState('')
@@ -189,9 +184,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       && cardholderName.trim().length <= 256
       && /^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
       && /^(0[1-9]|1[0-2])$/.test(expiryMonth) && /^\d{4}$/.test(expiryYear)
-      && /^\d{3,4}$/.test(securityCode)
     return username.trim().length > 0 && password.trim().length > 0
-  }, [isPending, label, type, keyValue, username, password, script, cardholderName, cardNumber, expiryMonth, expiryYear, securityCode])
+  }, [isPending, label, type, keyValue, username, password, script, cardholderName, cardNumber, expiryMonth, expiryYear])
 
   const fieldsInvalid = validateCustomFields(allFields).hasError
 
@@ -219,7 +213,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       script,
       interpreter,
       refs,
-      cardholderName, cardNumber, expiryMonth, expiryYear, securityCode, cardPin, billingAddress,
+      cardholderName, cardNumber, expiryMonth, expiryYear, billingAddress,
     })
 
     const hostname = !iconTouched && type !== ENTRY_TYPE_SCRIPT ? normalizePublicHostname(url) : null
@@ -445,7 +439,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   disabled={isPending} monospace error={cardNumberError} />
                 <FeedbackSlot visible={cardNumberError} color="red">{t('vault.entries.card.invalidCardNumber')}</FeedbackSlot>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
                   <FormInput id="entry-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
                     onChange={(e) => { setExpiryMonth(e.target.value.replace(/\D/g, '').slice(0, 2)); setExpiryMonthError(false) }}
@@ -460,17 +454,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                     autoComplete="cc-exp-year" disabled={isPending} error={expiryYearError} />
                   <FeedbackSlot visible={expiryYearError} color="red">{t('vault.entries.card.invalidExpiryYear')}</FeedbackSlot>
                 </div>
-                <div>
-                  <SecretInput id="entry-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
-                    onChange={(value) => { setSecurityCode(value.replace(/\D/g, '').slice(0, 4)); setSecurityCodeError(false) }}
-                    onBlur={() => setSecurityCodeError(!/^\d{3,4}$/.test(securityCode))}
-                    shown={securityCodeVisible} onToggleShown={() => setSecurityCodeVisible((value) => !value)}
-                    disabled={isPending} monospace error={securityCodeError} />
-                  <FeedbackSlot visible={securityCodeError} color="red">{t('vault.entries.card.invalidSecurityCode')}</FeedbackSlot>
-                </div>
               </div>
-              <SecretInput id="entry-card-pin" label={t('vault.entries.card.pin')} value={cardPin}
-                onChange={setCardPin} shown={cardPinVisible} onToggleShown={() => setCardPinVisible((value) => !value)} disabled={isPending} monospace />
               <FormInput id="entry-billing-address" label={t('vault.entries.card.billingAddress')} value={billingAddress}
                 onChange={(e) => setBillingAddress(e.target.value)} autoComplete="street-address" disabled={isPending} />
             </>
@@ -659,8 +643,6 @@ interface BuildPayloadInput {
   cardNumber: string
   expiryMonth: string
   expiryYear: string
-  securityCode: string
-  cardPin: string
   billingAddress: string
 }
 
@@ -694,8 +676,8 @@ function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
   if (input.type === ENTRY_TYPE_CREDIT_CARD) return withCustomFields({
     v: BLOB_VERSION_V2, type: ENTRY_TYPE_CREDIT_CARD,
     cardholderName: input.cardholderName.trim(), cardNumber: input.cardNumber.replace(/[ -]/g, ''),
-    expiryMonth: input.expiryMonth, expiryYear: input.expiryYear, securityCode: input.securityCode,
-    pin: input.cardPin.trim() || undefined, billingAddress: input.billingAddress.trim() || undefined,
+    expiryMonth: input.expiryMonth, expiryYear: input.expiryYear,
+    billingAddress: input.billingAddress.trim() || undefined,
     notes: trimmedNotes,
   }, input.fields)
   const trimmedUrl = input.url.trim() || undefined

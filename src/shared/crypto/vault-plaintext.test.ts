@@ -104,21 +104,21 @@ describe('Vault plaintext v1', () => {
     expect(parseMemberSecret(encodeMemberSecret(keySecret))).toEqual(keySecret)
   })
 
-  it('keeps every credit-card value runtime-only without narrowing grant methods', () => {
+  it('keeps every supported credit-card value runtime-only without narrowing grant methods', () => {
     const card: MemberSecretV1 = {
       ...secret,
       entryType: 'creditCard',
       content: {
         cardholderName: 'Ada Lovelace', cardNumber: '4242424242424242', expiryMonth: '12',
-        expiryYear: '2030', securityCode: '123', pin: null, billingAddress: '1 Main St',
+        expiryYear: '2030', billingAddress: '1 Main St',
         notes: null, customFields: [],
       },
       agentFieldAccess: {
         memberLabel: 'never', agentLabel: 'discovery', description: 'never', icon: 'never', color: 'never',
         entryType: 'discovery', 'creditCard.cardholderName': 'onGrantRuntime',
         'creditCard.cardNumber': 'onGrantRuntime', 'creditCard.expiryMonth': 'onGrantRuntime',
-        'creditCard.expiryYear': 'onGrantRuntime', 'creditCard.securityCode': 'onGrantRuntime',
-        'creditCard.pin': 'never', 'creditCard.billingAddress': 'onGrantRuntime', notes: 'never',
+        'creditCard.expiryYear': 'onGrantRuntime',
+        'creditCard.billingAddress': 'onGrantRuntime', notes: 'never',
       },
     }
 
@@ -128,5 +128,9 @@ describe('Vault plaintext v1', () => {
       ...card,
       agentFieldAccess: { ...card.agentFieldAccess, 'creditCard.cardNumber': 'onGrantValue' },
     })).toThrow(/Unsafe/)
+    expect(() => encodeMemberSecret({
+      ...card,
+      content: { ...card.content, securityCode: '123', pin: '1234' },
+    } as unknown as MemberSecretV1)).toThrow()
   })
 })

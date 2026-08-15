@@ -370,8 +370,6 @@ function RevealPanel({
                 monospace secret actions={<><ToggleVisibilityAction shown={showSecret} onToggle={onToggleShow} />
                   <CopyAction value={plaintext.cardNumber} label={t('vault.entries.card.cardNumber')} secret /></>} />
               <RevealRow icon="calendar_month" value={`${plaintext.expiryMonth}/${plaintext.expiryYear}`} actions={null} />
-              <RevealRow icon="lock" value={showSecret ? plaintext.securityCode : maskValue(plaintext.securityCode.length)}
-                monospace secret actions={<CopyAction value={plaintext.securityCode} label={t('vault.entries.card.securityCode')} secret />} />
             </>
           ) : null}
 
