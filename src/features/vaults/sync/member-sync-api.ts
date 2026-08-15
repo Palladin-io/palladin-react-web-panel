@@ -152,6 +152,7 @@ const resetSchema = z.object({
 }).strict()
 
 export type EncryptedVaultSummary = z.infer<typeof encryptedVaultSummarySchema>
+export type EncryptedVaultDetail = z.infer<typeof encryptedVaultDetailSchema>
 export type MemberIndexEnvelope = z.infer<typeof memberIndexEnvelopeSchema>
 export type VaultEntryKeyEnvelope = z.infer<typeof vaultEntryKeyEnvelopeSchema>
 export type MemberSyncItem = z.infer<typeof memberSyncItemSchema>
@@ -226,7 +227,7 @@ export async function listEncryptedVaults(signal?: AbortSignal): Promise<Encrypt
   return vaults
 }
 
-export async function getEncryptedVault(vaultId: string, signal?: AbortSignal): Promise<EncryptedVaultSummary> {
+export async function getEncryptedVault(vaultId: string, signal?: AbortSignal): Promise<EncryptedVaultDetail> {
   const response = await api.get(`api/vaults/${vaultId}`, { signal, throwHttpErrors: false })
   return parseResponse(response, encryptedVaultDetailSchema)
 }

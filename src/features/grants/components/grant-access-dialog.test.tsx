@@ -81,8 +81,7 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     expect(screen.queryByText('Pending Bot')).not.toBeInTheDocument() // not active
   })
 
-  it('happy path: picks agent, resolves public key, calls mutation', async () => {
-    getAgent.mockResolvedValue({ agentId: 'a1', publicKey: 'PUBKEY' })
+  it('happy path: delegates FULL recipient resolution to the authoritative preparation', async () => {
     const user = userEvent.setup()
     renderDialog()
 
@@ -94,12 +93,14 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     await waitFor(() => expect(mutateMock).toHaveBeenCalled())
     const input = mutateMock.mock.calls[0][0]
     expect(input.agentId).toBe('a1')
-    expect(input.agentPublicKey).toBe('PUBKEY')
+    expect(input.agentPublicKey).toBeUndefined()
+    expect(input.recipientAgentKeyVersion).toBeUndefined()
     expect(input.type).toBe('full')
     expect(input.policy).toHaveProperty('expiresAt')
+    expect(getAgent).not.toHaveBeenCalled()
   })
 
-  it('forces an inject-only method for a vault containing a credit card', async () => {
+  it('keeps the selected methods for a vault containing a credit card', async () => {
     useMemberSyncStore.setState({
       vaults: new Map([['v1', {
         vaultId: 'v1', status: 'ready', failureKind: null, metadata: null, structure: {},
@@ -117,10 +118,10 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     await user.click(screen.getByRole('button', { name: /^grant access$/i }))
 
     await waitFor(() => expect(mutateMock).toHaveBeenCalled())
-    expect(mutateMock.mock.calls[0][0].methods).toEqual(['inject'])
+    expect(mutateMock.mock.calls[0][0].methods).toEqual(['exec', 'inject'])
   })
 
-  it('forces an exec-only method for a vault containing a script', async () => {
+  it('keeps method selection editable for a vault containing a script', async () => {
     useMemberSyncStore.setState({
       vaults: new Map([['v1', {
         vaultId: 'v1', status: 'ready', failureKind: null, metadata: null, structure: {},
@@ -135,11 +136,11 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'Agent' }))
     await user.click(screen.getByText('Deploy Bot'))
-    expect(screen.getByRole('combobox', { name: /how the agent may use it/i })).toBeDisabled()
+    expect(screen.getByRole('combobox', { name: /how the agent may use it/i })).toBeEnabled()
     await user.click(screen.getByRole('button', { name: /^grant access$/i }))
 
     await waitFor(() => expect(mutateMock).toHaveBeenCalled())
-    expect(mutateMock.mock.calls[0][0].methods).toEqual(['exec'])
+    expect(mutateMock.mock.calls[0][0].methods).toEqual(['exec', 'inject'])
   })
 
   it('blocks a FULL grant while any active Entry projection is incomplete', async () => {

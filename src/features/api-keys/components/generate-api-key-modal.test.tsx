@@ -89,6 +89,13 @@ describe('GenerateApiKeyModal', () => {
     expect(screen.getByLabelText(/your new api key/i)).toHaveValue(
       'pl_live_secret_value',
     )
+    const command = screen.getByLabelText(/^command$/i)
+    expect(command).toHaveValue(
+      "palladin connect --host 'http://localhost:5000' --name 'CI pipeline'",
+    )
+    const commandValue = (command as HTMLInputElement).value
+    expect(commandValue).not.toContain('pl_live_secret_value')
+    expect(commandValue).not.toContain('--id')
   })
 
   it('surfaces an error toast when generation fails', async () => {

@@ -1,4 +1,5 @@
 import { ENVELOPE_PURPOSE } from './envelope'
+import { VAULT_XCHACHA20_POLY1305_V1 } from './crypto-suite'
 import { encodeCanonicalEnvelopeAad } from './canonical-aad'
 import { fromBase64, fromBase64Url, toBase64Url } from './encoding'
 import { deriveVaultSubkey } from './hkdf'
@@ -24,7 +25,7 @@ export interface EncryptedReasonContract extends VaultEnvelopeContract<{
 export interface ExpectedReasonCoordinates {
   organizationId: string
   vaultId: string
-  entryId: string
+  entryId?: string
   grantId: string
   agentId: string
 }
@@ -138,6 +139,7 @@ export async function openEncryptedReason(
   let messagePrivateKey: Uint8Array | undefined
   let messagePublicKey: Uint8Array | undefined
   let reasonDek: Uint8Array | undefined
+  let reasonPayloadKey: Uint8Array | undefined
   try {
     const sodium = await loadSodium()
     messagePrivateKey = await openVaultEnvelope(privateEnvelope, wrappingKey, {
@@ -158,15 +160,38 @@ export async function openEncryptedReason(
         parentDescriptorHash: wrapper.parentDescriptorHash ? fromBase64Url(wrapper.parentDescriptorHash) : undefined,
       },
     )
-    const plaintext = await openVaultEnvelope(envelope, reasonDek, reasonExtension)
+    // Canonical Rust writers treat the unwrapped ReasonDEK as root key
+    // material and derive the actual payload key from the full descriptor.
+    // Using the raw DEK here authenticates neither the KDF scope nor the wire
+    // payload and fails XChaCha authentication for cross-client requests.
+    reasonPayloadKey = await deriveVaultSubkey(reasonDek, {
+      protocolVersion: envelope.descriptor.protocolVersion,
+      cryptoSuiteId: VAULT_XCHACHA20_POLY1305_V1,
+      purpose: envelope.descriptor.purpose,
+      organizationId: expected.organizationId,
+      vaultId: expected.vaultId,
+      entryId: expected.entryId,
+      grantOrRequestId: expected.grantId,
+      agentId: expected.agentId,
+      keyVersion: envelope.descriptor.keyVersion,
+      memberKeyGeneration: envelope.descriptor.memberKeyGeneration ?? undefined,
+    })
+    const plaintext = await openVaultEnvelope(envelope, reasonPayloadKey, reasonExtension)
     try {
       if (plaintext.length === 0 || plaintext.length > 4096) throw new Error('Encrypted reason plaintext is out of bounds')
-      return new TextDecoder('utf-8', { fatal: true }).decode(plaintext)
+      const decoded: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext))
+      if (!decoded || typeof decoded !== 'object' || Object.keys(decoded).length !== 1
+        || !('reason' in decoded) || typeof decoded.reason !== 'string'
+        || decoded.reason.length === 0 || decoded.reason.length > 4096) {
+        throw new Error('Encrypted reason plaintext contract is invalid')
+      }
+      return decoded.reason
     } finally { wipe(plaintext) }
   } finally {
     wipe(wrappingKey)
     if (messagePrivateKey) wipe(messagePrivateKey)
     if (messagePublicKey) wipe(messagePublicKey)
     if (reasonDek) wipe(reasonDek)
+    if (reasonPayloadKey) wipe(reasonPayloadKey)
   }
 }

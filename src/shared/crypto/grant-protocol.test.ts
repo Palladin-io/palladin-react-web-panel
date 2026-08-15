@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { toBase64 } from './encoding'
-import { buildCanonicalGrantEnvelope, grantMethodsForSecret } from './grant-protocol'
+import { fromBase64Url, toBase64 } from './encoding'
+import { buildCanonicalGrantEnvelope } from './grant-protocol'
+import { deriveVaultSubkey } from './hkdf'
 import { loadSodium, wipe } from './sodium'
+import { openVaultEnvelope, toEnvelopeDescriptor } from './vault-envelope'
+import { openKeyFromX25519Recipient, type X25519WrapperContext } from './x25519-wrapper'
 import type { MemberSecretV1 } from './vault-plaintext'
 
 const secret: MemberSecretV1 = {
@@ -20,11 +23,6 @@ const secret: MemberSecretV1 = {
 }
 
 describe('canonical Grant protocol', () => {
-  it('derives the only delivery method allowed by Script and Credit Card secrets', () => {
-    expect(grantMethodsForSecret({ ...secret, entryType: 'script' }, 6)).toBe(2)
-    expect(grantMethodsForSecret({ ...secret, entryType: 'creditCard' }, 6)).toBe(4)
-  })
-
   it('binds the selected fields and caller-provided revision/key version', async () => {
     const sodium = await loadSodium()
     const agent = sodium.crypto_box_keypair()
@@ -45,13 +43,55 @@ describe('canonical Grant protocol', () => {
       expect(envelope.wrappedGrantDek.descriptor.resourceRevision).toBe('8')
       expect(envelope.wrappedGrantDek.descriptor.wrappedKeyVersion).toBe(5)
       expect(envelope.fieldIds).toEqual(['credential.password'])
-      expect(envelope.descriptor.binding.deliveryPolicy).toBe(0)
+      const wrapper = envelope.wrappedGrantDek.descriptor
+      const grantDek = await openKeyFromX25519Recipient(
+        fromBase64Url(envelope.wrappedGrantDek.encodedSealedKeyPackage),
+        agent.publicKey,
+        agent.privateKey,
+        {
+          protocolVersion: wrapper.protocolVersion,
+          wrapperSuiteId: wrapper.wrapperSuiteId,
+          purpose: wrapper.purpose,
+          organizationId: wrapper.scope.organizationId,
+          vaultId: wrapper.scope.vaultId,
+          entryId: wrapper.scope.entryId ?? undefined,
+          grantOrRequestId: wrapper.scope.grantOrRequestId ?? undefined,
+          agentId: wrapper.scope.agentId ?? undefined,
+          resourceRevision: BigInt(wrapper.resourceRevision),
+          wrappedKeyVersion: wrapper.wrappedKeyVersion,
+          memberKeyGeneration: wrapper.memberKeyGeneration ?? undefined,
+          recipientKeyKind: wrapper.recipientKeyKind,
+          recipientKeyVersion: wrapper.recipientKeyVersion,
+          recipientFingerprint: fromBase64Url(wrapper.recipientFingerprint),
+          parentDescriptorHash: fromBase64Url(wrapper.parentDescriptorHash!),
+        } satisfies X25519WrapperContext,
+      )
+      const descriptor = toEnvelopeDescriptor(envelope.descriptor)
+      const { resourceRevision, ...kdfContext } = descriptor
+      void resourceRevision
+      const payloadKey = await deriveVaultSubkey(grantDek, kdfContext)
+      try {
+        const plaintext = await openVaultEnvelope(envelope, payloadKey, {
+          entryRevision: 7n,
+          wrapperSuiteId: envelope.descriptor.binding.wrapperSuiteId,
+          recipientKeyVersion: envelope.descriptor.binding.recipientKeyVersion,
+          recipientKeyFingerprint: fromBase64Url(envelope.descriptor.binding.recipientKeyFingerprint),
+          methods: envelope.descriptor.binding.approvedMethods,
+          deliveryPolicy: envelope.descriptor.binding.deliveryPolicy,
+          fieldSetCommitment: fromBase64Url(envelope.descriptor.binding.fieldSetCommitment),
+        })
+        expect(new TextDecoder().decode(plaintext)).toContain('"credential.password"')
+        wipe(plaintext)
+      } finally {
+        wipe(payloadKey)
+        wipe(grantDek)
+      }
     } finally {
       wipe(agent.privateKey); wipe(agent.publicKey)
     }
   })
 
-  it('authenticates exec-only policy for Script payloads independently of field names', async () => {
+  it('preserves selected methods with standard delivery for Script payloads', async () => {
     const sodium = await loadSodium()
     const agent = sodium.crypto_box_keypair()
     const scriptSecret: MemberSecretV1 = {
@@ -73,15 +113,17 @@ describe('canonical Grant protocol', () => {
         agentId: 'cccccccc-dddd-4eee-8fff-000000000000', entryRevision: '1',
         memberKeyGeneration: 1, agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 1,
         grantEnvelopeRevision: '1', grantKeyVersion: 1,
-        approvedFieldIds: ['script.source'], approvedMethods: 2, secret: scriptSecret,
+        approvedFieldIds: ['script.source'], approvedMethods: 6, secret: scriptSecret,
       })
-      expect(envelope.descriptor.binding.deliveryPolicy).toBe(1)
+      expect(envelope.fieldIds).toEqual(['script.source'])
+      expect(envelope.descriptor.binding.approvedMethods).toBe(6)
+      expect(envelope.descriptor.binding.deliveryPolicy).toBe(0)
     } finally {
       wipe(agent.privateKey); wipe(agent.publicKey)
     }
   })
 
-  it('authenticates inject-only policy for Credit Card payloads', async () => {
+  it('preserves selected methods with standard delivery for Credit Card payloads', async () => {
     const sodium = await loadSodium()
     const agent = sodium.crypto_box_keypair()
     const cardSecret: MemberSecretV1 = {
@@ -109,9 +151,10 @@ describe('canonical Grant protocol', () => {
         agentId: 'cccccccc-dddd-4eee-8fff-000000000000', entryRevision: '1',
         memberKeyGeneration: 1, agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 1,
         grantEnvelopeRevision: '1', grantKeyVersion: 1,
-        approvedFieldIds: ['creditCard.cardNumber'], approvedMethods: 4, secret: cardSecret,
+        approvedFieldIds: ['creditCard.cardNumber'], approvedMethods: 6, secret: cardSecret,
       })
-      expect(envelope.descriptor.binding.deliveryPolicy).toBe(2)
+      expect(envelope.descriptor.binding.approvedMethods).toBe(6)
+      expect(envelope.descriptor.binding.deliveryPolicy).toBe(0)
     } finally {
       wipe(agent.privateKey); wipe(agent.publicKey)
     }

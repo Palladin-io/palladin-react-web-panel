@@ -16,7 +16,7 @@ import {
 } from '../api/agents-api'
 import { GrantAccessDialog } from '../../grants'
 import { useAgentPermissions } from '../use-agents'
-import { useApproveAgent } from '../use-approve-agent'
+import { AgentApprovalRequiresUnlockError, useApproveAgent } from '../use-approve-agent'
 import { useDeactivateAgent } from '../use-deactivate-agent'
 import { useReactivateAgent } from '../use-reactivate-agent'
 import { useDeleteAgent } from '../use-delete-agent'
@@ -85,12 +85,16 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
     approve.mutate(
       { agentId: agent.agentId, input },
       {
-        onSuccess: () => {
+        onSuccess: ({ discoveryReady }) => {
           analytics.capture('agents', 'agent-approved')
           setApproveOpen(false)
+          if (discoveryReady) toast.success(t('agents.approveSuccess'))
+          else toast.warning(t('agents.discoveryProvisioningPending'))
         },
-        onError: () => {
-          toast.error(t('agents.errorApprove'))
+        onError: (error) => {
+          toast.error(t(error instanceof AgentApprovalRequiresUnlockError
+            ? 'agents.approveRequiresUnlock'
+            : 'agents.errorApprove'))
         },
       },
     )
@@ -347,6 +351,7 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
         initialName={agent.name ?? ''}
         initialType={agent.type ?? ''}
         isPending={approve.isPending}
+        isProvisioning={approve.phase === 'provisioning'}
         onConfirm={handleConfirmApprove}
         onCancel={() => setApproveOpen(false)}
       />

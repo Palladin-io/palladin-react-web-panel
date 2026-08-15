@@ -17,7 +17,8 @@ const deactivateMutate = vi.fn()
 const reactivateMutate = vi.fn()
 
 vi.mock('../use-approve-agent', () => ({
-  useApproveAgent: () => ({ mutate: approveMutate, isPending: false }),
+  AgentApprovalRequiresUnlockError: class AgentApprovalRequiresUnlockError extends Error {},
+  useApproveAgent: () => ({ mutate: approveMutate, isPending: false, phase: 'idle' }),
 }))
 vi.mock('../use-deactivate-agent', () => ({
   useDeactivateAgent: () => ({ mutate: deactivateMutate, isPending: false }),
@@ -110,7 +111,7 @@ describe('AgentDetail', () => {
   })
 
   it('confirming approve passes the input object to the mutation', () => {
-    approveMutate.mockImplementation((_vars, opts) => opts.onSuccess())
+    approveMutate.mockImplementation((_vars, opts) => opts.onSuccess({ discoveryReady: true }))
     render(<AgentDetail agent={{ ...baseAgent, status: AGENT_STATUS_PENDING }} />, {
       wrapper,
     })

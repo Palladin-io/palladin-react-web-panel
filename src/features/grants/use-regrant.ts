@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
-import { buildCanonicalGrantEnvelope, grantMethodsForSecret } from '../../shared/crypto/grant-protocol'
+import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
 import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
@@ -64,7 +64,7 @@ export function useRegrant() {
         const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
         })
-        const approvedMethods = grantMethodsForSecret(memberSecret, grantMethodsMask(methods))
+        const approvedMethods = grantMethodsMask(methods)
         const envelope = await buildCanonicalGrantEnvelope({
           secret: memberSecret,
           agentPublicKey,

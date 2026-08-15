@@ -12,7 +12,23 @@ import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import type { PendingGrant } from './api/pending-grants-api'
 import { normalizeEntryType } from '../../shared/types/entry-type'
 
-export class GrantReviewUnavailableError extends Error {}
+export type GrantReviewStage =
+  | 'fetch'
+  | 'preflight'
+  | 'vaultKey'
+  | 'entrySecret'
+  | 'encryptedReason'
+  | 'sessionChanged'
+
+export class GrantReviewUnavailableError extends Error {
+  readonly stage: GrantReviewStage
+
+  constructor(stage: GrantReviewStage, options?: ErrorOptions) {
+    super(`Grant review unavailable at ${stage}`, options)
+    this.name = 'GrantReviewUnavailableError'
+    this.stage = stage
+  }
+}
 
 export function useGrantApprovalReview(grant: PendingGrant | null) {
   const sessionKey = useAuthStore((state) => state.privateKey)
@@ -24,13 +40,19 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
     staleTime: 0,
     gcTime: 0,
     queryFn: async () => {
-      if (!grant || !sessionKey || !grant.entryId || !grant.agentId) throw new GrantReviewUnavailableError()
-      const [vault, detail] = await Promise.all([
-        getEncryptedVault(grant.vaultId),
-        getCanonicalEntry(grant.vaultId, grant.entryId),
-      ])
-      if (useAuthStore.getState().privateKey !== sessionKey) throw new GrantReviewUnavailableError()
-      if (detail.state !== 'active' && detail.state !== 1) throw new GrantReviewUnavailableError()
+      if (!grant || !sessionKey || !grant.entryId || !grant.agentId) throw new GrantReviewUnavailableError('preflight')
+      let vault: Awaited<ReturnType<typeof getEncryptedVault>>
+      let detail: Awaited<ReturnType<typeof getCanonicalEntry>>
+      try {
+        ;[vault, detail] = await Promise.all([
+          getEncryptedVault(grant.vaultId),
+          getCanonicalEntry(grant.vaultId, grant.entryId),
+        ])
+      } catch (error) {
+        throw new GrantReviewUnavailableError('fetch', { cause: error })
+      }
+      if (useAuthStore.getState().privateKey !== sessionKey) throw new GrantReviewUnavailableError('sessionChanged')
+      if (detail.state !== 'active' && detail.state !== 1) throw new GrantReviewUnavailableError('preflight')
       const reason = grant.encryptedReason
       const reasonScope = reason.descriptor.scope
       if (reasonScope.organizationId !== detail.organizationId || reasonScope.vaultId !== grant.vaultId
@@ -38,31 +60,38 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
         || reasonScope.grantOrRequestId !== grant.id
         || reason.descriptor.binding.recipientKeyVersion !== vault.currentKeyEpoch.agentMessageKeyVersion
         || !grant.agentSigningPublicKey || !grant.agentSigningKeyVersion || !grant.agentSigningKeyFingerprint) {
-        throw new GrantReviewUnavailableError()
+        throw new GrantReviewUnavailableError('preflight')
       }
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, sessionKey)
+      let vaultKey: Uint8Array
+      try {
+        vaultKey = await openMemberVaultKey(vault.memberVaultKey, sessionKey)
+      } catch (error) {
+        throw new GrantReviewUnavailableError('vaultKey', { cause: error })
+      }
       try {
         const envelope = vault.vaultPrivateKeys.find((item) =>
           item.descriptor.purpose === ENVELOPE_PURPOSE.agentMessagePrivateByVk
           && item.descriptor.keyVersion === reason.descriptor.binding.recipientKeyVersion)
         if (!envelope) {
-          throw new GrantReviewUnavailableError()
+          throw new GrantReviewUnavailableError('preflight')
         }
-        const [memberSecret, decryptedReason] = await Promise.all([
-          openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
+        const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
             organizationId: detail.organizationId, vaultId: grant.vaultId,
             entryId: grant.entryId, revision: detail.currentRevision,
-          }),
-          openEncryptedReason(reason, vault.vaultPrivateKeys, vaultKey, {
+          }).catch((error: unknown) => {
+            throw new GrantReviewUnavailableError('entrySecret', { cause: error })
+          })
+        const decryptedReason = await openEncryptedReason(reason, vault.vaultPrivateKeys, vaultKey, {
             publicKey: grant.agentSigningPublicKey,
             keyVersion: grant.agentSigningKeyVersion,
             keyFingerprint: grant.agentSigningKeyFingerprint,
           }, {
             organizationId: detail.organizationId, vaultId: grant.vaultId,
             entryId: grant.entryId, grantId: grant.id, agentId: grant.agentId,
-          }),
-        ])
-        if (useAuthStore.getState().privateKey !== sessionKey) throw new GrantReviewUnavailableError()
+          }).catch((error: unknown) => {
+            throw new GrantReviewUnavailableError('encryptedReason', { cause: error })
+          })
+        if (useAuthStore.getState().privateKey !== sessionKey) throw new GrantReviewUnavailableError('sessionChanged')
         return {
           entryLabel: memberSecret.memberLabel,
           reason: decryptedReason,

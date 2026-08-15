@@ -11,6 +11,7 @@ import type { GrantMethod } from '../grant-methods'
 import { useApproveGrant } from '../use-approve-grant'
 import { StaleGrantReviewError } from '../use-approve-grant'
 import { useGrantApprovalReview } from '../use-grant-approval-review'
+import { useGrantReasons } from '../use-grant-reasons'
 import { useDenyGrant } from '../use-deny-grant'
 import { usePendingGrants } from '../use-pending-grants'
 import { ApproveGrantDialog } from './approve-grant-dialog'
@@ -57,6 +58,7 @@ export function PendingGrantsPanel({
   const memberVaults = useMemberSyncStore((state) => state.vaults)
 
   const items = pending.data ?? []
+  const reasons = useGrantReasons(items)
   const resolveGrant = (grant: PendingGrant): PendingGrant => {
     const vault = memberVaults.get(grant.vaultId)
     const entry = grant.entryId ? vault?.entries.get(grant.entryId) : undefined
@@ -82,7 +84,6 @@ export function PendingGrantsPanel({
       },
       {
         onSuccess: () => {
-          toast.success(t('grants.approve.success'))
           setApproveTarget(null)
         },
         onError: (error) => toast.error(t(error instanceof StaleGrantReviewError
@@ -153,6 +154,7 @@ export function PendingGrantsPanel({
             <li key={grant.id} className="w-[22.5rem] shrink-0 snap-start">
               <PendingGrantCard
                 grant={resolveGrant(grant)}
+                reason={reasons.get(grant.id)}
                 onApprove={() => setApproveTarget(resolveGrant(grant))}
                 onDeny={() => setDenyTarget(grant)}
                 disabled={approve.isPending || deny.isPending}
@@ -166,6 +168,7 @@ export function PendingGrantsPanel({
             <li key={grant.id}>
               <PendingGrantCard
                 grant={resolveGrant(grant)}
+                reason={reasons.get(grant.id)}
                 onApprove={() => setApproveTarget(resolveGrant(grant))}
                 onDeny={() => setDenyTarget(grant)}
                 disabled={approve.isPending || deny.isPending}
@@ -216,11 +219,13 @@ export function PendingGrantsPanel({
 
 function PendingGrantCard({
   grant,
+  reason,
   onApprove,
   onDeny,
   disabled,
 }: {
   grant: PendingGrant
+  reason?: string
   onApprove: () => void
   onDeny: () => void
   disabled: boolean
@@ -275,6 +280,12 @@ function PendingGrantCard({
         <DetailRow label={t('grants.pending.rowRequested')}>
           <span className="text-[var(--cv-t2)]" title={formatGrantDate(grant.createdAt)}>
             {formatRelativeTime(grant.createdAt, t)}
+          </span>
+        </DetailRow>
+
+        <DetailRow label={t('grants.pending.rowReason')}>
+          <span className="whitespace-pre-wrap break-words text-[var(--cv-t2)]">
+            {reason ?? '—'}
           </span>
         </DetailRow>
 

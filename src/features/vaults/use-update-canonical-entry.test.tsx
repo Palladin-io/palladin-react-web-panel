@@ -28,9 +28,10 @@ vi.mock('../../shared/crypto/entry-draft', () => ({ toMemberSecret: mocks.toSecr
 vi.mock('../../shared/crypto/vault-plaintext', () => ({ projectAgentDiscovery: vi.fn(() => null) }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: mocks.produce,
-  grantMethodsForSecret: vi.fn((secret: { entryType: string }, methods: number) =>
-    secret.entryType === 'script' ? 2 : methods),
-  listGrantableFields: vi.fn(() => [{ id: 'value', label: 'value', access: 'onGrantValue' }]),
+  listGrantableFields: vi.fn(() => [
+    { id: 'value', label: 'value', access: 'onGrantValue' },
+    { id: 'custom:new', label: 'New field', access: 'onGrantValue' },
+  ]),
 }))
 vi.mock('./api/vault-api', () => ({ updateCanonicalEntry: mocks.update }))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
@@ -78,7 +79,7 @@ describe('useUpdateCanonicalEntry', () => {
     expect(mocks.update.mock.calls[0][2].grantEnvelopes).toEqual([{ grantId: 'grant', entryId: 'entry' }])
   })
 
-  it('fails closed when an existing grant mask is wider than the Script policy', async () => {
+  it('preserves an existing grant mask when an Entry changes to Script', async () => {
     mocks.getGrants.mockResolvedValue({ items: [{
       id: 'grant', type: 'full', agentId: 'agent', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
       methods: 'exec, inject', expiresAt: null, queryLimit: null,
@@ -96,11 +97,9 @@ describe('useUpdateCanonicalEntry', () => {
     const { result } = renderHook(() => useUpdateCanonicalEntry('vault', 'entry'), { wrapper })
     result.current.mutate(scriptInput as never)
 
-    await waitFor(() => expect(result.current.isError).toBe(true))
-    expect(result.current.error).toBeInstanceOf(Error)
-    expect(result.current.error?.name).toBe('ActiveGrantRefreshRequiredError')
-    expect(mocks.produce).not.toHaveBeenCalled()
-    expect(mocks.update).not.toHaveBeenCalled()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({ approvedMethods: 6 }))
+    expect(mocks.update).toHaveBeenCalledTimes(1)
   })
 
   it('submits canonical ciphertext without grant material when no coverage exists and wipes keys', async () => {

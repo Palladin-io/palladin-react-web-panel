@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const getJson = vi.hoisted(() => vi.fn())
 
 vi.mock('../../../shared/api/client', () => ({
-  api: { get: vi.fn(() => ({ json: getJson })) },
+  api: { get: vi.fn(() => ({ json: getJson })), put: vi.fn(async () => {}) },
 }))
 
 import { api } from '../../../shared/api/client'
@@ -28,14 +28,17 @@ describe('agent-discovery-api', () => {
   it('parses current and pending provisioning state', async () => {
     getJson.mockResolvedValue({
       items: [item, { ...item, agentId: '223e4567-e89b-42d3-a456-426614174000', status: 'pending', manifestRevision: null }],
+      nextAfterId: null,
     })
 
-    await expect(getAgentDiscoveryProvisioning('vault-1')).resolves.toMatchObject([
-      { status: 'current', recipientKeyVersion: 3 },
+    const response = await getAgentDiscoveryProvisioning('vault-1')
+    expect(response.items).toMatchObject([
+      { status: 'current', recipientKeyVersion: 3, x25519PublicKey: item.x25519PublicKey },
       { status: 'pending', manifestRevision: null },
     ])
-    expect((await getAgentDiscoveryProvisioning('vault-1'))[0]).not.toHaveProperty('x25519PublicKey')
-    expect(api.get).toHaveBeenCalledWith('api/vaults/vault-1/discovery/agents')
+    expect(api.get).toHaveBeenCalledWith('api/vaults/vault-1/discovery/agents', {
+      searchParams: { pageSize: 100 }, signal: undefined,
+    })
   })
 
   it.each([
@@ -45,12 +48,12 @@ describe('agent-discovery-api', () => {
     { ...item, manifestRevision: '-1' },
     { ...item, manifestRevision: '18446744073709551616' },
   ])('rejects malformed provisioning rows', async (invalid) => {
-    getJson.mockResolvedValue({ items: [invalid] })
+    getJson.mockResolvedValue({ items: [invalid], nextAfterId: null })
     await expect(getAgentDiscoveryProvisioning('vault-1')).rejects.toThrow()
   })
 
   it('fails closed when the response exceeds the bounded Agent list', async () => {
-    getJson.mockResolvedValue({ items: Array.from({ length: 1_001 }, () => item) })
+    getJson.mockResolvedValue({ items: Array.from({ length: 1_001 }, () => item), nextAfterId: null })
     await expect(getAgentDiscoveryProvisioning('vault-1')).rejects.toThrow()
   })
 })

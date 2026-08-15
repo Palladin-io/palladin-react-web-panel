@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
-import { buildCanonicalGrantEnvelope, grantMethodsForSecret } from '../../shared/crypto/grant-protocol'
+import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
 import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
@@ -10,7 +10,6 @@ import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import { useMemberSyncStore } from '../../shared/stores/member-sync-store'
 import {
   GRANT_TYPE_FULL,
-  GRANT_TYPE_GRANULAR,
   createGrantProactively,
   type CreateGrantBody,
   type GrantType,
@@ -24,6 +23,13 @@ import {
 } from './grant-methods'
 import { MissingGrantMaterialError, VaultLockedError } from './use-approve-grant'
 import { GRANT_MUTATION_INVALIDATION_KEYS } from './query-keys'
+import {
+  appendFullGrantPreparationEntries,
+  cancelFullGrantPreparation,
+  commitFullGrantPreparation,
+  getFullGrantPreparationMaterial,
+  prepareFullGrant,
+} from './api/full-grant-preparations-api'
 
 export interface CreateGrantInput {
   vaultId: string
@@ -34,6 +40,121 @@ export interface CreateGrantInput {
   entryId?: string
   policy: GrantPolicyBody
   methods: GrantMethod[]
+}
+
+interface PreparedFullGrantInput {
+  vaultId: string
+  agentId: string
+  grantId: string
+  privateKey: Uint8Array
+  approvedMethods: number
+  policy: GrantPolicyBody
+  methods: GrantMethod[]
+}
+
+function assertCurrentUnlockSession(privateKey: Uint8Array): void {
+  if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
+}
+
+async function createPreparedFullGrant({
+  vaultId,
+  agentId,
+  grantId,
+  privateKey,
+  approvedMethods,
+  policy,
+  methods,
+}: PreparedFullGrantInput): Promise<void> {
+  let shouldCancel = true
+  let vaultKey: Uint8Array | undefined
+  try {
+    const preparation = await prepareFullGrant(vaultId, {
+      grantId,
+      agentId,
+      methods: serializeGrantMethods(methods),
+      ...policy,
+    })
+    assertCurrentUnlockSession(privateKey)
+
+    const vault = await getEncryptedVault(vaultId)
+    if (vault.organizationId !== preparation.organizationId
+      || vault.memberKeyGeneration !== preparation.memberKeyGeneration) {
+      throw new MissingGrantMaterialError()
+    }
+    vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+
+    const seenEntryIds = new Set<string>()
+    const seenCursors = new Set<string>()
+    let afterEntryId: string | undefined
+    while (true) {
+      assertCurrentUnlockSession(privateKey)
+      const page = await getFullGrantPreparationMaterial(vaultId, grantId, {
+        organizationId: preparation.organizationId,
+        memberKeyGeneration: preparation.memberKeyGeneration,
+      }, afterEntryId)
+      const grantEntries = []
+      for (const material of page.items) {
+        if (seenEntryIds.has(material.entryId)) throw new MissingGrantMaterialError()
+        seenEntryIds.add(material.entryId)
+        const memberSecret = await openMemberSecret(
+          material.entryKey,
+          material.memberSecret,
+          vaultKey,
+          {
+            organizationId: preparation.organizationId,
+            vaultId,
+            entryId: material.entryId,
+            revision: material.entryRevision,
+          },
+        )
+        const approvedFieldIds = listGrantableFieldIds(memberSecret)
+        if (approvedFieldIds.length === 0) throw new MissingGrantMaterialError()
+        const envelope = await buildCanonicalGrantEnvelope({
+          secret: memberSecret,
+          agentPublicKey: preparation.agentPublicKey,
+          organizationId: preparation.organizationId,
+          vaultId,
+          grantId,
+          agentId,
+          entryId: material.entryId,
+          entryRevision: material.entryRevision,
+          grantEnvelopeRevision: '1',
+          grantKeyVersion: 1,
+          memberKeyGeneration: preparation.memberKeyGeneration,
+          recipientKeyVersion: preparation.recipientAgentKeyVersion,
+          approvedMethods,
+          approvedFieldIds,
+          ...policy,
+          ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
+        })
+        if (envelope.descriptor.binding.recipientKeyFingerprint !== preparation.agentKeyFingerprint) {
+          throw new MissingGrantMaterialError()
+        }
+        grantEntries.push(envelope)
+      }
+      if (grantEntries.length > 0) {
+        assertCurrentUnlockSession(privateKey)
+        await appendFullGrantPreparationEntries(vaultId, grantId, grantEntries)
+      }
+
+      const nextCursor = page.nextAfterEntryId
+      if (nextCursor === null) break
+      if (seenCursors.has(nextCursor)) throw new MissingGrantMaterialError()
+      seenCursors.add(nextCursor)
+      afterEntryId = nextCursor
+    }
+
+    assertCurrentUnlockSession(privateKey)
+    await commitFullGrantPreparation(vaultId, grantId)
+    shouldCancel = false
+  } catch (error) {
+    if (shouldCancel) {
+      await cancelFullGrantPreparation(vaultId, grantId).catch(() => undefined)
+    }
+    throw error
+  } finally {
+    if (vaultKey) wipe(vaultKey)
+  }
 }
 
 export function useCreateGrant() {
@@ -52,65 +173,53 @@ export function useCreateGrant() {
     }: CreateGrantInput) => {
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new VaultLockedError()
-      if (!agentPublicKey || !recipientAgentKeyVersion
-        || (type === GRANT_TYPE_GRANULAR && !entryId)) throw new MissingGrantMaterialError()
+      const requestedMethods = grantMethodsMask(methods)
+      if (requestedMethods === 0) throw new MissingGrantMaterialError()
+      const grantId = crypto.randomUUID()
+
+      if (type === GRANT_TYPE_FULL) {
+        await createPreparedFullGrant({
+          vaultId, agentId, grantId, privateKey, approvedMethods: requestedMethods, policy, methods,
+        })
+        return
+      }
+
+      if (!agentPublicKey || !recipientAgentKeyVersion || !entryId) {
+        throw new MissingGrantMaterialError()
+      }
 
       const syncedVault = useMemberSyncStore.getState().vaults.get(vaultId)
       if (!syncedVault || syncedVault.status !== 'ready') throw new MissingGrantMaterialError()
-      const entryIds = type === GRANT_TYPE_FULL
-        ? [...syncedVault.entries.values()].filter((entry) => entry.state === 'active' && !entry.corrupt)
-          .map((entry) => entry.entryId)
-        : [entryId!]
-      if (entryIds.length === 0) throw new MissingGrantMaterialError()
 
       const vault = await getEncryptedVault(vaultId)
       const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
-      const grantId = crypto.randomUUID()
-      const requestedMethods = grantMethodsMask(methods)
       try {
-        const details = []
-        let approvedMethods = requestedMethods
-        // A grant has one backend Methods value, while each authenticated envelope repeats it.
-        // Derive the common fail-closed set from the authoritative MemberSecrets before sealing
-        // any envelope. Decrypt sequentially and retain only ciphertext details, never a
-        // vault-sized array of plaintext secrets.
-        for (const currentEntryId of entryIds) {
-          const detail = await getCanonicalEntry(vaultId, currentEntryId)
-          const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
-            organizationId: detail.organizationId, vaultId, entryId: currentEntryId,
-            revision: detail.currentRevision,
-          })
-          approvedMethods &= grantMethodsForSecret(memberSecret, requestedMethods)
-          details.push({ currentEntryId, detail })
+        const detail = await getCanonicalEntry(vaultId, entryId)
+        const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
+          organizationId: detail.organizationId, vaultId, entryId,
+          revision: detail.currentRevision,
+        })
+        const approvedMethods = requestedMethods
+        const approvedFieldIds = listGrantableFieldIds(memberSecret)
+        if (approvedMethods === 0 || approvedFieldIds.length === 0) {
+          throw new MissingGrantMaterialError()
         }
-        if (approvedMethods === 0) throw new MissingGrantMaterialError()
-
-        const grantEntries = []
-        // Sequential processing bounds decrypted MemberSecret residency and avoids a vault-sized
-        // Promise.all of plaintext payloads. The final ciphertext array is required atomically.
-        for (const { currentEntryId, detail } of details) {
-          const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
-            organizationId: detail.organizationId, vaultId, entryId: currentEntryId,
-            revision: detail.currentRevision,
-          })
-          const envelope = await buildCanonicalGrantEnvelope({
-            secret: memberSecret,
-            agentPublicKey,
-            organizationId: detail.organizationId, vaultId, grantId, agentId, entryId: currentEntryId,
-            entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
-            memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: recipientAgentKeyVersion,
-            approvedMethods, approvedFieldIds: listGrantableFieldIds(memberSecret),
-            ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
-          })
-          grantEntries.push(envelope)
-        }
+        const envelope = await buildCanonicalGrantEnvelope({
+          secret: memberSecret,
+          agentPublicKey,
+          organizationId: detail.organizationId, vaultId, grantId, agentId, entryId,
+          entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
+          memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: recipientAgentKeyVersion,
+          approvedMethods, approvedFieldIds,
+          ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
+        })
 
         const body: CreateGrantBody = {
           grantId,
           agentId,
           type,
-          ...(type === GRANT_TYPE_GRANULAR ? { entryId } : {}),
-          grantEntries,
+          entryId,
+          grantEntries: [envelope],
           ...policy,
           methods: serializeGrantMethods(grantMethodsFromMask(approvedMethods)),
         }
