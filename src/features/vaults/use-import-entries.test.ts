@@ -110,7 +110,7 @@ function credential(label: string): ParsedEntry {
 function creditCard(label: string): ParsedEntry {
   return {
     label, type: ENTRY_TYPE_CREDIT_CARD, cardholderName: 'A User',
-    cardNumber: '4242424242424242', expiryMonth: '12', expiryYear: '2030', securityCode: '123',
+    cardNumber: '4242424242424242', expiryMonth: '12', expiryYear: '2030',
   }
 }
 

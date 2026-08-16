@@ -54,10 +54,10 @@ describe('CustomFieldsEditor', () => {
     await addField(user, /^text/i)
     expect(screen.getByTestId('count')).toHaveTextContent('1')
 
-    await user.type(screen.getByLabelText(/field label/i), 'PIN')
+    await user.type(screen.getByLabelText(/field label/i), 'Account ID')
     await user.type(screen.getByLabelText(/^value$/i), '1234')
 
-    expect(dump()[0]).toMatchObject({ label: 'PIN', type: 'text', value: '1234' })
+    expect(dump()[0]).toMatchObject({ label: 'Account ID', type: 'text', value: '1234' })
   })
 
   it('adds a Multiline field', async () => {

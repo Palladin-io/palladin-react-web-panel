@@ -115,8 +115,6 @@ function grantValues(content: EntryPlaintext): Record<string, CanonicalJson | un
     values[ENTRY_FIELD.cardNumber] = content.cardNumber
     values[ENTRY_FIELD.expiryMonth] = content.expiryMonth
     values[ENTRY_FIELD.expiryYear] = content.expiryYear
-    values[ENTRY_FIELD.securityCode] = content.securityCode
-    values[ENTRY_FIELD.pin] = content.pin
     values[ENTRY_FIELD.billingAddress] = content.billingAddress
   }
   values[ENTRY_FIELD.notes] = content.notes

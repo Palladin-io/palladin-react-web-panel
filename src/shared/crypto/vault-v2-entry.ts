@@ -31,7 +31,7 @@ export const ENTRY_FIELD = {
   script: 'script',
   refs: 'refs',
   cardholderName: 'cardholderName', cardNumber: 'cardNumber', expiryMonth: 'expiryMonth',
-  expiryYear: 'expiryYear', securityCode: 'securityCode', pin: 'pin', billingAddress: 'billingAddress',
+  expiryYear: 'expiryYear', billingAddress: 'billingAddress',
 } as const
 
 export interface AgentVisibilityPolicy {
@@ -69,7 +69,7 @@ export function allowedAgentFieldAccess(
   }
   if (type === ENTRY_TYPE_CREDIT_CARD) {
     if ([ENTRY_FIELD.cardholderName, ENTRY_FIELD.cardNumber, ENTRY_FIELD.expiryMonth, ENTRY_FIELD.expiryYear,
-      ENTRY_FIELD.securityCode, ENTRY_FIELD.pin, ENTRY_FIELD.billingAddress].includes(fieldId as never)) return RUNTIME_OR_NEVER
+      ENTRY_FIELD.billingAddress].includes(fieldId as never)) return RUNTIME_OR_NEVER
   }
   return ['never'] as const
 }
@@ -210,7 +210,7 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
   }
   if (type === ENTRY_TYPE_CREDIT_CARD) {
     for (const id of [ENTRY_FIELD.cardholderName, ENTRY_FIELD.cardNumber, ENTRY_FIELD.expiryMonth,
-      ENTRY_FIELD.expiryYear, ENTRY_FIELD.securityCode, ENTRY_FIELD.pin, ENTRY_FIELD.billingAddress]) {
+      ENTRY_FIELD.expiryYear, ENTRY_FIELD.billingAddress]) {
       defaults[id] = 'onGrantRuntime'
     }
   }

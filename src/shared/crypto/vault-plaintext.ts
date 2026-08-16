@@ -62,7 +62,7 @@ const scriptRef = z.object({
   env: z.string().regex(/^[A-Za-z_][A-Za-z0-9_]*$/),
   vaultId: z.string().uuid(),
   entryId: z.string().uuid(),
-  fieldId: normalizedString.regex(/^(?:memberLabel|agentLabel|description|icon|color|entryType|key\.value|credential\.(?:username|password|url|urlDomain|totp)|creditCard\.(?:cardholderName|cardNumber|expiryMonth|expiryYear|securityCode|pin|billingAddress)|notes|script\.(?:source|interpreter|refs)|custom:[0-9a-f-]{36})$/),
+  fieldId: normalizedString.regex(/^(?:memberLabel|agentLabel|description|icon|color|entryType|key\.value|credential\.(?:username|password|url|urlDomain|totp)|creditCard\.(?:cardholderName|cardNumber|expiryMonth|expiryYear|billingAddress)|notes|script\.(?:source|interpreter|refs)|custom:[0-9a-f-]{36})$/),
 }).strict()
 const scriptContent = z.object({
   source: normalizedString,
@@ -76,8 +76,6 @@ const creditCardContent = z.object({
   cardNumber: z.string().regex(/^\d{12,19}$/),
   expiryMonth: z.string().regex(/^(0[1-9]|1[0-2])$/),
   expiryYear: z.string().regex(/^\d{4}$/),
-  securityCode: z.string().regex(/^\d{3,4}$/),
-  pin: normalizedString.nullable(),
   billingAddress: normalizedString.nullable(),
   notes: nullableString,
   customFields: z.array(customField),
@@ -179,7 +177,7 @@ const BUILTIN_FIELDS: Record<VaultEntryTypeName, readonly string[]> = {
   key: ['memberLabel', 'agentLabel', 'description', 'icon', 'color', 'entryType', 'key.value', 'notes'],
   credential: ['memberLabel', 'agentLabel', 'description', 'icon', 'color', 'entryType', 'credential.username', 'credential.password', 'credential.url', 'credential.urlDomain', 'credential.totp', 'notes'],
   script: ['memberLabel', 'agentLabel', 'description', 'icon', 'color', 'entryType', 'script.source', 'script.interpreter', 'script.refs', 'notes'],
-  creditCard: ['memberLabel', 'agentLabel', 'description', 'icon', 'color', 'entryType', 'creditCard.cardholderName', 'creditCard.cardNumber', 'creditCard.expiryMonth', 'creditCard.expiryYear', 'creditCard.securityCode', 'creditCard.pin', 'creditCard.billingAddress', 'notes'],
+  creditCard: ['memberLabel', 'agentLabel', 'description', 'icon', 'color', 'entryType', 'creditCard.cardholderName', 'creditCard.cardNumber', 'creditCard.expiryMonth', 'creditCard.expiryYear', 'creditCard.billingAddress', 'notes'],
 }
 
 const ALLOWED_ACCESS: Record<string, readonly AgentFieldAccess[]> = {
@@ -199,8 +197,6 @@ const ALLOWED_ACCESS: Record<string, readonly AgentFieldAccess[]> = {
   'creditCard.cardNumber': ['never', 'onGrantRuntime'],
   'creditCard.expiryMonth': ['never', 'onGrantRuntime'],
   'creditCard.expiryYear': ['never', 'onGrantRuntime'],
-  'creditCard.securityCode': ['never', 'onGrantRuntime'],
-  'creditCard.pin': ['never', 'onGrantRuntime'],
   'creditCard.billingAddress': ['never', 'onGrantRuntime'],
 }
 
@@ -378,7 +374,6 @@ export function projectGrantPayload(secret: MemberSecretV1, fieldIds: readonly s
     const kind = custom
       ? custom.type
       : id === 'key.value' || id === 'credential.password' || id === 'creditCard.cardNumber'
-        || id === 'creditCard.securityCode' || id === 'creditCard.pin'
         ? 'concealed'
         : id === 'credential.url'
           ? 'url'

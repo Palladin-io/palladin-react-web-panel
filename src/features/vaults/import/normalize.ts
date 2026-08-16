@@ -20,8 +20,6 @@ export interface RawEntry {
   cardNumber?: string
   expiryMonth?: string
   expiryYear?: string
-  securityCode?: string
-  pin?: string
   billingAddress?: string
 }
 
@@ -84,14 +82,12 @@ export function normalizeEntry(raw: RawEntry): ParsedEntry | null {
     const cardNumber = clean(raw.cardNumber)?.replace(/[ -]/g, '')
     const expiryMonth = clean(raw.expiryMonth)
     const expiryYear = clean(raw.expiryYear)
-    const securityCode = clean(raw.securityCode)
     if (!cardholderName || cardholderName.length > 256
       || !cardNumber || !/^\d{12,19}$/.test(cardNumber)
       || !expiryMonth || !/^(0[1-9]|1[0-2])$/.test(expiryMonth)
-      || !expiryYear || !/^\d{4}$/.test(expiryYear)
-      || !securityCode || !/^\d{3,4}$/.test(securityCode)) return null
-    return { label, type, cardholderName, cardNumber, expiryMonth, expiryYear, securityCode,
-      pin: clean(raw.pin), billingAddress: clean(raw.billingAddress), notes }
+      || !expiryYear || !/^\d{4}$/.test(expiryYear)) return null
+    return { label, type, cardholderName, cardNumber, expiryMonth, expiryYear,
+      billingAddress: clean(raw.billingAddress), notes }
   }
 
   if (type === ENTRY_TYPE_CREDENTIAL) {

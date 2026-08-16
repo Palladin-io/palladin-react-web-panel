@@ -27,11 +27,11 @@ const textField = (id: string, label: string, value: string): CustomField => ({
 describe('foldCustomFields', () => {
   it('trims labels/values and drops empty rows', () => {
     const folded = foldCustomFields([
-      textField('1', '  PIN  ', '  1234  '),
+      textField('1', '  Account ID  ', '  1234  '),
       textField('2', '', 'no label'),
       textField('3', 'no value', '   '),
     ])
-    expect(folded).toEqual([{ id: '1', label: 'PIN', type: 'text', value: '1234' }])
+    expect(folded).toEqual([{ id: '1', label: 'Account ID', type: 'text', value: '1234' }])
   })
 
   it('returns undefined when nothing remains', () => {
@@ -60,7 +60,7 @@ describe('withCustomFields', () => {
   it('stamps v:2 when fields are present', () => {
     const result = withCustomFields(
       { type: ENTRY_TYPE_KEY, value: 'secret' },
-      [textField('1', 'PIN', '1234')],
+      [textField('1', 'Account ID', '1234')],
     )
     expect(result).toMatchObject({ v: BLOB_VERSION_V2, type: ENTRY_TYPE_KEY, value: 'secret' })
     expect(result.fields).toHaveLength(1)
@@ -83,7 +83,7 @@ describe('readCustomFields', () => {
       v: BLOB_VERSION_V2,
       type: ENTRY_TYPE_KEY,
       value: 'x',
-      fields: [{ label: 'PIN', type: 'text', value: '1' }],
+      fields: [{ label: 'Account ID', type: 'text', value: '1' }],
     } as unknown as EntryPlaintext
     const fields = readCustomFields(plaintext)
     expect(fields[0].id).toBeTruthy()
@@ -110,8 +110,8 @@ describe('plaintextsEqual', () => {
   })
 
   it('detects a changed custom field', () => {
-    const base = withCustomFields({ type: ENTRY_TYPE_KEY, value: 'x' }, [textField('1', 'PIN', '1')])
-    const changed = withCustomFields({ type: ENTRY_TYPE_KEY, value: 'x' }, [textField('1', 'PIN', '2')])
+    const base = withCustomFields({ type: ENTRY_TYPE_KEY, value: 'x' }, [textField('1', 'Account ID', '1')])
+    const changed = withCustomFields({ type: ENTRY_TYPE_KEY, value: 'x' }, [textField('1', 'Account ID', '2')])
     expect(plaintextsEqual(base, changed)).toBe(false)
   })
 

@@ -61,7 +61,6 @@ type EntryPlaintextLite =
       cardNumber: string
       expiryMonth: string
       expiryYear: string
-      securityCode: string
     }
 
 vi.mock('@tanstack/react-router', () => ({
@@ -374,7 +373,6 @@ describe('EntryDetailPage — DetailsTab', () => {
       cardNumber: '4242424242424242',
       expiryMonth: '12',
       expiryYear: '2030',
-      securityCode: '123',
     }
     state.memberIndex = { memberLabel: 'Company card', entryType: 'creditCard', icon: null }
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
@@ -384,6 +382,8 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     const month = await screen.findByLabelText(/expiry month/i)
     expect(screen.getByLabelText(/cardholder name/i)).toHaveAttribute('maxlength', '256')
+    expect(screen.queryByLabelText(/security code|cvv|cvc/i)).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/^pin/i)).not.toBeInTheDocument()
     await user.clear(month)
     await user.type(month, '13')
     await user.tab()

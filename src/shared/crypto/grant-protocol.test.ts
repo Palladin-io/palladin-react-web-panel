@@ -133,12 +133,11 @@ describe('canonical Grant protocol', () => {
         memberLabel: 'never', agentLabel: 'discovery', description: 'never', icon: 'never', color: 'never',
         entryType: 'discovery', 'creditCard.cardholderName': 'onGrantRuntime',
         'creditCard.cardNumber': 'onGrantRuntime', 'creditCard.expiryMonth': 'onGrantRuntime',
-        'creditCard.expiryYear': 'onGrantRuntime', 'creditCard.securityCode': 'onGrantRuntime',
-        'creditCard.pin': 'never', 'creditCard.billingAddress': 'never', notes: 'never',
+        'creditCard.expiryYear': 'onGrantRuntime', 'creditCard.billingAddress': 'never', notes: 'never',
       },
       content: {
         cardholderName: 'Ada Lovelace', cardNumber: '4242424242424242', expiryMonth: '12',
-        expiryYear: '2030', securityCode: '123', pin: null, billingAddress: null,
+        expiryYear: '2030', billingAddress: null,
         notes: null, customFields: [],
       },
     }

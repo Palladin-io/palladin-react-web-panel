@@ -72,7 +72,6 @@ describe('normalizeEntry', () => {
       cardNumber: '4111111111111111',
       expiryMonth: '12',
       expiryYear: '2030',
-      securityCode: '123',
     })).toBeNull()
   })
 })

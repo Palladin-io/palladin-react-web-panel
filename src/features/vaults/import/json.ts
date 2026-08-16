@@ -218,7 +218,6 @@ const palladin: JsonProfile = {
           totp: str(entry.totp),
           cardholderName: str(entry.cardholderName), cardNumber: str(entry.cardNumber),
           expiryMonth: str(entry.expiryMonth), expiryYear: str(entry.expiryYear),
-          securityCode: str(entry.securityCode), pin: str(entry.pin),
           billingAddress: str(entry.billingAddress),
         })
       }

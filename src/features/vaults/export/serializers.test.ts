@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseText } from '../import'
-import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from '../types'
+import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY } from '../types'
 import { toPalladinCsv, toPalladinJson, type ExportVault } from './serializers'
 
 describe('toPalladinCsv', () => {
@@ -17,7 +17,7 @@ describe('toPalladinCsv', () => {
       },
     ])
     const [header, row] = csv.split('\r\n')
-    expect(header).toBe('name,url,username,password,note,totp,folder,state,revision,historical,type,cardholderName,cardNumber,expiryMonth,expiryYear,securityCode,pin,billingAddress')
+    expect(header).toBe('name,url,username,password,note,totp,folder,state,revision,historical,type,cardholderName,cardNumber,expiryMonth,expiryYear,billingAddress')
     expect(row).toContain('"AWS ""root"""')
     expect(row).toContain('"p,w"')
     expect(row).toContain('"line one\nline two"')
@@ -50,6 +50,15 @@ describe('toPalladinJson round-trip', () => {
             totp: 'otpauth://totp/GitHub?secret=JBSWY3DPEHPK3PXP',
           },
           { name: 'API token', type: ENTRY_TYPE_KEY, value: 'sk_live_1' },
+          {
+            name: 'Company card',
+            type: ENTRY_TYPE_CREDIT_CARD,
+            cardholderName: 'Ada Lovelace',
+            cardNumber: '4242424242424242',
+            expiryMonth: '12',
+            expiryYear: '2030',
+            billingAddress: '1 Main Street',
+          },
         ],
       },
     ]
@@ -70,5 +79,16 @@ describe('toPalladinJson round-trip', () => {
       type: ENTRY_TYPE_KEY,
       value: 'sk_live_1',
     })
+    expect(parsed.entries[2]).toMatchObject({
+      label: 'Company card',
+      type: ENTRY_TYPE_CREDIT_CARD,
+      cardholderName: 'Ada Lovelace',
+      cardNumber: '4242424242424242',
+      expiryMonth: '12',
+      expiryYear: '2030',
+      billingAddress: '1 Main Street',
+    })
+    expect(parsed.entries[2]).not.toHaveProperty('securityCode')
+    expect(parsed.entries[2]).not.toHaveProperty('pin')
   })
 })

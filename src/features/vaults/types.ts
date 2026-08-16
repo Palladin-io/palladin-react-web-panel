@@ -272,8 +272,6 @@ export type EntryPlaintext =
       cardNumber: string
       expiryMonth: string
       expiryYear: string
-      securityCode: string
-      pin?: string
       billingAddress?: string
       notes?: string
     })

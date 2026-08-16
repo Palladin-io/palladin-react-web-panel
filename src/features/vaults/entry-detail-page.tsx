@@ -431,9 +431,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [expiryMonthError, setExpiryMonthError] = useState(false)
   const [expiryYear, setExpiryYear] = useState('')
   const [expiryYearError, setExpiryYearError] = useState(false)
-  const [securityCode, setSecurityCode] = useState('')
-  const [securityCodeError, setSecurityCodeError] = useState(false)
-  const [cardPin, setCardPin] = useState('')
   const [billingAddress, setBillingAddress] = useState('')
   const [notes, setNotes] = useState('') // both types
 
@@ -455,7 +452,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   // Reveal toggles.
   const [showSecret, setShowSecret] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [showPin, setShowPin] = useState(false)
 
   // Opening the detail screen is already an explicit user action. Decrypt the
   // selected Entry immediately in memory; individual secret inputs remain
@@ -508,7 +504,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
           setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt))
           setCardholderName(pt.cardholderName); setCardNumber(pt.cardNumber)
           setExpiryMonth(pt.expiryMonth); setExpiryYear(pt.expiryYear)
-          setSecurityCode(pt.securityCode); setCardPin(pt.pin ?? '')
           setBillingAddress(pt.billingAddress ?? ''); setNotes(pt.notes ?? '')
         }
       } finally {
@@ -548,7 +543,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       refs,
       customFields,
       credentialTotp,
-      cardholderName, cardNumber, expiryMonth, expiryYear, securityCode, cardPin, billingAddress,
+      cardholderName, cardNumber, expiryMonth, expiryYear, billingAddress,
     })
   }, [
     originalPlaintext,
@@ -563,7 +558,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     refs,
     customFields,
     credentialTotp,
-    cardholderName, cardNumber, expiryMonth, expiryYear, securityCode, cardPin, billingAddress,
+    cardholderName, cardNumber, expiryMonth, expiryYear, billingAddress,
   ])
 
   // Merged field set for a credential (pinned 2FA + additional) — the shape
@@ -610,7 +605,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setCardNumberError(false)
     setExpiryMonthError(false)
     setExpiryYearError(false)
-    setSecurityCodeError(false)
     if (originalPlaintext) {
       if (originalPlaintext.type === ENTRY_TYPE_KEY) {
         setCustomFields(readCustomFields(originalPlaintext))
@@ -635,7 +629,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         setCustomFields(readCustomFields(originalPlaintext))
         setCardholderName(originalPlaintext.cardholderName); setCardNumber(originalPlaintext.cardNumber)
         setExpiryMonth(originalPlaintext.expiryMonth); setExpiryYear(originalPlaintext.expiryYear)
-        setSecurityCode(originalPlaintext.securityCode); setCardPin(originalPlaintext.pin ?? '')
         setBillingAddress(originalPlaintext.billingAddress ?? ''); setNotes(originalPlaintext.notes ?? '')
       }
     }
@@ -668,13 +661,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         const cardNumberInvalid = !/^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
         const expiryMonthInvalid = !/^(0[1-9]|1[0-2])$/.test(expiryMonth)
         const expiryYearInvalid = !/^\d{4}$/.test(expiryYear)
-        const securityCodeInvalid = !/^\d{3,4}$/.test(securityCode)
         setCardholderNameError(cardholderInvalid)
         setCardNumberError(cardNumberInvalid)
         setExpiryMonthError(expiryMonthInvalid)
         setExpiryYearError(expiryYearInvalid)
-        setSecurityCodeError(securityCodeInvalid)
-        if (cardholderInvalid || cardNumberInvalid || expiryMonthInvalid || expiryYearInvalid || securityCodeInvalid) return
+        if (cardholderInvalid || cardNumberInvalid || expiryMonthInvalid || expiryYearInvalid) return
       }
     }
 
@@ -941,16 +932,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     disabled={isSaving || decrypting} error={expiryYearError} />
                   <FeedbackSlot visible={expiryYearError} color="red">{t('vault.entries.card.invalidExpiryYear')}</FeedbackSlot>
                 </div>
-                <div>
-                  <SecretInput id="entry-detail-security-code" label={t('vault.entries.card.securityCode')} value={securityCode}
-                    onChange={(value) => { setSecurityCode(value.replace(/\D/g, '').slice(0, 4)); setSecurityCodeError(false) }}
-                    onBlur={() => setSecurityCodeError(!/^\d{3,4}$/.test(securityCode))}
-                    shown={showPassword} onToggleShown={() => setShowPassword((v) => !v)}
-                    disabled={isSaving || decrypting} copyable error={securityCodeError} />
-                  <FeedbackSlot visible={securityCodeError} color="red">{t('vault.entries.card.invalidSecurityCode')}</FeedbackSlot>
-                </div>
-                <SecretInput id="entry-detail-card-pin" label={t('vault.entries.card.pin')} value={cardPin}
-                  onChange={setCardPin} shown={showPin} onToggleShown={() => setShowPin((v) => !v)} disabled={isSaving || decrypting} copyable />
                 <div className="col-span-2"><FormInput id="entry-detail-billing-address" label={t('vault.entries.card.billingAddress')} value={billingAddress}
                   onChange={(e) => setBillingAddress(e.target.value)} disabled={isSaving || decrypting} /></div>
               </div>
@@ -1174,8 +1155,6 @@ interface CurrentFormValues {
   cardNumber: string
   expiryMonth: string
   expiryYear: string
-  securityCode: string
-  cardPin: string
   billingAddress: string
 }
 
@@ -1226,8 +1205,6 @@ function buildCurrentPlaintext(
       cardNumber: values.cardNumber.replace(/[ -]/g, ''),
       expiryMonth: values.expiryMonth,
       expiryYear: values.expiryYear,
-      securityCode: values.securityCode,
-      pin: values.cardPin.trim() || undefined,
       billingAddress: values.billingAddress.trim() || undefined,
       notes,
       ...foldFieldsPart(values.customFields),
