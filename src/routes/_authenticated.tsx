@@ -14,6 +14,7 @@ import { useAuthStore, useSessionTimeout } from '../features/auth'
 import { useAgents, AGENT_STATUS_PENDING } from '../features/agents'
 import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
+import { getAuthRedirectFromHref } from '../shared/lib/auth-redirect'
 import { AppWordmark } from '../shared/components/app-wordmark'
 import { Icon } from '../shared/components/icon'
 import {
@@ -40,7 +41,7 @@ export const Route = createFileRoute('/_authenticated')({
     if (!accessToken && !refreshToken) {
       throw redirect({
         to: '/login',
-        search: { redirect: location.href },
+        search: { redirect: getAuthRedirectFromHref(location.href) },
       })
     }
     // Hard email-verification gate (fast path). A password account must verify
