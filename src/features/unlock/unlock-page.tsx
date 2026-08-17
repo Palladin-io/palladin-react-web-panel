@@ -19,7 +19,11 @@ import { IncorrectMasterPasswordError, useUnlock } from './use-unlock'
  * Navigates away automatically once isVaultLocked becomes false (set by
  * either the wizard's unlockVault call or the unlock form's success handler).
  */
-export function UnlockPage() {
+interface UnlockPageProps {
+  redirectTo?: string
+}
+
+export function UnlockPage({ redirectTo = '/' }: UnlockPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
@@ -34,9 +38,9 @@ export function UnlockPage() {
   // it was the wizard or the unlock form that did it.
   useEffect(() => {
     if (!isVaultLocked) {
-      navigate({ to: '/' })
+      navigate({ href: redirectTo })
     }
-  }, [account.data?.kdf?.securityVersion, isVaultLocked, navigate])
+  }, [account.data?.kdf?.securityVersion, isVaultLocked, navigate, redirectTo])
 
   useEffect(() => {
     analytics.capture('unlock', 'page-viewed')
@@ -70,7 +74,7 @@ export function UnlockPage() {
     return <OnboardingWizard />
   }
 
-  return <UnlockForm />
+  return <UnlockForm redirectTo={redirectTo} />
 }
 
 function AccountLoadError({
@@ -125,7 +129,7 @@ function AccountLoadError({
   )
 }
 
-function UnlockForm() {
+function UnlockForm({ redirectTo }: { redirectTo: string }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const unlock = useUnlock()
@@ -153,7 +157,7 @@ function UnlockForm() {
     unlock.mutate({ password }, {
       onSuccess: () => {
         analytics.capture('unlock', 'vault-unlocked')
-        navigate({ to: '/' })
+        navigate({ href: redirectTo })
       },
       onError: (err) => {
         analytics.capture('unlock', 'unlock-failed')

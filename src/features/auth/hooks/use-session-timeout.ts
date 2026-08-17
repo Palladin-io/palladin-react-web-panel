@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useAuthStore } from '../stores/auth-store'
 
 /** Lock after this long with no user interaction. */
@@ -34,6 +34,7 @@ export function useSessionTimeout() {
   const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
   const expireSession = useAuthStore((s) => s.expireSession)
   const navigate = useNavigate()
+  const router = useRouter()
 
   useEffect(() => {
     if (isVaultLocked) return
@@ -54,7 +55,10 @@ export function useSessionTimeout() {
       const expired = now - unlockedAt >= ABSOLUTE_TIMEOUT_MS
       if (idle || expired) {
         expireSession()
-        void navigate({ to: '/unlock' })
+        void navigate({
+          to: '/unlock',
+          search: { redirect: router.state.location.href },
+        })
       }
     }, CHECK_INTERVAL_MS)
 
@@ -64,5 +68,5 @@ export function useSessionTimeout() {
         window.removeEventListener(event, markActivity)
       }
     }
-  }, [isVaultLocked, expireSession, navigate])
+  }, [isVaultLocked, expireSession, navigate, router])
 }

@@ -83,6 +83,27 @@ describe('api client — 401 with failing refresh', () => {
     // Navigation to the login screen happened.
     expect(window.location.href).toBe('/login')
   })
+
+  it('preserves the requested deep link when refresh fails on /unlock', async () => {
+    window.location.href =
+      'http://localhost:5000/unlock?redirect=%2Fvaults%2Fvault-1%2Fentries%2Fentry-1%3Ftab%3Dlogs%23history'
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response('unauthorized', {
+            status: 401,
+            statusText: 'Unauthorized',
+          }),
+      ),
+    )
+
+    await expect(api.get('vaults').json()).rejects.toBeInstanceOf(HTTPError)
+
+    expect(window.location.href).toBe(
+      '/login?redirect=%2Fvaults%2Fvault-1%2Fentries%2Fentry-1%3Ftab%3Dlogs%23history',
+    )
+  })
 })
 
 describe('api client — 403 email-verification backstop', () => {

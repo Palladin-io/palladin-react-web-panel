@@ -42,10 +42,14 @@ function RotatingWelcome() {
   )
 }
 
-export function LoginPage() {
+interface LoginPageProps {
+  redirectTo?: string
+}
+
+export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const oauth = useLogin()
+  const oauth = useLogin(redirectTo)
   const { start, submitTotp } = usePasswordLogin()
   const [tooltipTarget, setTooltipTarget] = useState<string | null>(null)
 
@@ -81,7 +85,7 @@ export function LoginPage() {
             setTotpError(null)
             setStep('totp')
           } else {
-            navigate({ to: '/' })
+            navigate({ href: redirectTo })
           }
         },
         onError: () => setPasswordError(t('login.errorInvalid')),
@@ -94,7 +98,7 @@ export function LoginPage() {
     submitTotp.mutate(
       { challengeToken, code },
       {
-        onSuccess: () => navigate({ to: '/' }),
+        onSuccess: () => navigate({ href: redirectTo }),
         onError: () => setTotpError(t('totpChallenge.errorInvalid')),
       },
     )

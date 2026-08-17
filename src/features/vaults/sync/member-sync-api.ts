@@ -78,10 +78,15 @@ const vaultPublicKeySchema = z.object({
 // GET /api/vaults/{id} returns the same encrypted projection as the list plus
 // public verification/routing material. Keep both wire contracts strict: using
 // the list schema for the detail endpoint previously rejected every valid 200.
-const encryptedVaultDetailSchema = encryptedVaultSummarySchema.safeExtend({
+export const encryptedVaultDetailSchema = encryptedVaultSummarySchema.safeExtend({
   organizationId: canonicalUuid,
+  metadataRevision: canonicalU64,
   vaultAgentMessagePublicKey: vaultPublicKeySchema,
   vaultManifestSigningPublicKey: vaultPublicKeySchema,
+}).superRefine((vault, context) => {
+  if (vault.metadataRevision !== vault.memberVaultMetadata.descriptor.resourceRevision) {
+    context.addIssue({ code: 'custom', message: 'Vault metadata revision mismatch' })
+  }
 })
 
 const entryStateSchema = z.union([

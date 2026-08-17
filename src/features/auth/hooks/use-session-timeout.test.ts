@@ -4,6 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const navigateMock = vi.fn()
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
+  useRouter: () => ({
+    state: {
+      location: {
+        href: '/vaults/vault-1/entries/entry-1?tab=logs#history',
+      },
+    },
+  }),
 }))
 
 import { useAuthStore } from '../stores/auth-store'
@@ -58,7 +65,12 @@ describe('useSessionTimeout', () => {
     expect(state.isVaultLocked).toBe(true)
     expect(state.accessToken).toBeNull()
     expect(state.refreshToken).toBe('refresh-1')
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/unlock' })
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/unlock',
+      search: {
+        redirect: '/vaults/vault-1/entries/entry-1?tab=logs#history',
+      },
+    })
   })
 
   it('resets the idle window on user activity so it does not expire while active', () => {
@@ -94,7 +106,12 @@ describe('useSessionTimeout', () => {
       })
     }
 
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/unlock' })
+    expect(navigateMock).toHaveBeenCalledWith({
+      to: '/unlock',
+      search: {
+        redirect: '/vaults/vault-1/entries/entry-1?tab=logs#history',
+      },
+    })
     expect(useAuthStore.getState().isVaultLocked).toBe(true)
   })
 })

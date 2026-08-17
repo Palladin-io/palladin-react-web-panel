@@ -7,6 +7,7 @@ import { useAuthStore } from '../auth'
 import { EntryDetailPage } from './entry-detail-page'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, type Vault } from './types'
 import type { CanonicalEntryDetail } from './api/vault-api'
+import { getEncryptedVault } from './sync/member-sync-api'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -78,6 +79,11 @@ vi.mock('./use-entries', () => ({
   entriesQueryKey: (vaultId: string) => ['vaults', vaultId, 'entries'] as const,
   entryDetailQueryKey: (vaultId: string, entryId: string) =>
     ['vaults', vaultId, 'entries', entryId] as const,
+  canonicalEntryDetailQueryKey: (
+    vaultId: string,
+    entryId: string,
+    cryptoSessionGeneration: number,
+  ) => ['vaults', vaultId, 'entries', entryId, 'canonical', cryptoSessionGeneration] as const,
 }))
 
 vi.mock('./use-update-canonical-entry', () => ({
@@ -258,6 +264,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     navigateMock.mockReset()
     toastSuccess.mockReset()
     toastError.mockReset()
+    vi.mocked(getEncryptedVault).mockClear()
     state.updateIsPending = false
     state.deleteIsPending = false
     state.decryptResult = null
@@ -413,6 +420,41 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(
       await screen.findByText(/could not decrypt entry/i),
     ).toBeInTheDocument()
+  })
+
+  it('does not reuse the encrypted vault envelope across unlock sessions', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const renderEntry = () => render(
+      <QueryClientProvider client={client}>
+        <EntryDetailPage vaultId="vault-1" entryId="entry-1" />
+      </QueryClientProvider>,
+    )
+    state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'sk_live_123' }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({
+      isPending: false,
+      isError: false,
+      data: KEY_ENTRY,
+    })
+
+    useAuthStore.getState().unlockVault(
+      new Uint8Array([1]),
+      new Uint8Array([2]),
+    )
+    const firstSession = renderEntry()
+    await waitFor(() => expect(getEncryptedVault).toHaveBeenCalledTimes(1))
+    firstSession.unmount()
+
+    useAuthStore.getState().lockVault()
+    useAuthStore.getState().unlockVault(
+      new Uint8Array([3]),
+      new Uint8Array([4]),
+    )
+    renderEntry()
+
+    await waitFor(() => expect(getEncryptedVault).toHaveBeenCalledTimes(2))
   })
 
   it('keeps Save disabled until a field actually changes', async () => {

@@ -1,4 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useAuthStore } from '../auth'
 import { getAllEntries, getCanonicalEntry, getEntries, getEntry, getEntryHistory } from './api/vault-api'
 
 export function entriesQueryKey(vaultId: string) {
@@ -15,6 +16,18 @@ export function entryDetailQueryKey(vaultId: string, entryId: string) {
 
 export function entryHistoryQueryKey(vaultId: string, entryId: string) {
   return [...entryDetailQueryKey(vaultId, entryId), 'history'] as const
+}
+
+export function canonicalEntryDetailQueryKey(
+  vaultId: string,
+  entryId: string,
+  cryptoSessionGeneration: number,
+) {
+  return [
+    ...entryDetailQueryKey(vaultId, entryId),
+    'canonical',
+    cryptoSessionGeneration,
+  ] as const
 }
 
 export function useEntryHistory(vaultId: string, entryId: string, enabled: boolean) {
@@ -83,8 +96,15 @@ export function useEntryDetail(
 }
 
 export function useCanonicalEntryDetail(vaultId: string, entryId: string, enabled = true) {
+  const cryptoSessionGeneration = useAuthStore(
+    (state) => state.cryptoSessionGeneration,
+  )
   return useQuery({
-    queryKey: [...entryDetailQueryKey(vaultId, entryId), 'canonical'] as const,
+    queryKey: canonicalEntryDetailQueryKey(
+      vaultId,
+      entryId,
+      cryptoSessionGeneration,
+    ),
     queryFn: () => getCanonicalEntry(vaultId, entryId),
     enabled,
     staleTime: Infinity,
