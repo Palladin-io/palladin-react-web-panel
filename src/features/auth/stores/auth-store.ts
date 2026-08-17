@@ -29,6 +29,8 @@ interface AuthState {
   masterKey: Uint8Array | null
   /** 32-byte X25519 private key recovered by decrypting the server blob. */
   privateKey: Uint8Array | null
+  /** Non-secret cache namespace changed for every unlocked crypto session. */
+  cryptoSessionGeneration: number
 
   setTokens: (data: {
     accessToken: string
@@ -61,6 +63,7 @@ const initialState = {
   isVaultLocked: true,
   masterKey: null,
   privateKey: null,
+  cryptoSessionGeneration: 0,
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -118,6 +121,7 @@ export const useAuthStore = create<AuthState>()(
             masterKey: new Uint8Array(masterKey),
             privateKey: new Uint8Array(privateKey),
             isVaultLocked: false,
+            cryptoSessionGeneration: (state.cryptoSessionGeneration ?? 0) + 1,
           }
         }),
 
@@ -138,7 +142,10 @@ export const useAuthStore = create<AuthState>()(
       logout: () => set((state) => {
         if (state.masterKey) wipe(state.masterKey)
         if (state.privateKey) wipe(state.privateKey)
-        return initialState
+        return {
+          ...initialState,
+          cryptoSessionGeneration: (state.cryptoSessionGeneration ?? 0) + 1,
+        }
       }),
     }),
     {

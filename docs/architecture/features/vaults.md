@@ -41,6 +41,8 @@ Entry Logs queries structural audit events by the composite opaque Vault and Ent
 
 ## Key patterns
 - **Zero-knowledge on-demand:** the vault key is unsealed and the entry decrypted only at reveal/open time; plaintext lives in component `useState` and never leaves memory.
+- **Strict Vault-detail binding:** the encrypted detail contract accepts the server-owned canonical `metadataRevision` and requires it to equal the authenticated Member Vault Metadata envelope revision before any key material is opened.
+- **Crypto-session-scoped detail cache:** canonical Entry heads, Entry prefetches and encrypted Vault detail envelopes are keyed by the current non-secret `cryptoSessionGeneration`. `staleTime: Infinity` therefore applies only inside one unlock session; a later unlock must fetch a mutually current Entry/Vault envelope pair before decrypting.
 - **Bounded Member sync:** pages contain at most 200 items, responses fail above 4 MiB, projection work runs in chunks of 25 with at most four concurrent AEAD operations, and each chunk yields to the browser. The unlocked account index fails closed above 10,000 actual heads; it is never silently truncated.
 - **Atomic completeness:** snapshot pages build a private cache namespace; the namespace becomes active only after its closing delta commits. Each active delta page and cursor update share one IndexedDB transaction. `resetRequired` discards the pending namespace and rebuilds without exposing a partial view.
 - **Offline local search:** the unlocked, normalized MemberIndex supports local search across 10,000 entries. Optimistic projections reconcile by monotonic MemberIndex revision and never write plaintext to IndexedDB.

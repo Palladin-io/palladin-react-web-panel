@@ -1,5 +1,6 @@
 import ky from 'ky'
 import { env } from '../lib/env'
+import { buildLoginRedirectHref } from '../lib/auth-redirect'
 import { useAuthStore } from '../../features/auth'
 import { getAnalyticsHeaders } from './analytics-headers'
 import type { AuthResponse } from './types'
@@ -57,7 +58,7 @@ export const api = ky.create({
         const { refreshToken, setTokens } = useAuthStore.getState()
         if (!refreshToken) {
           useAuthStore.getState().logout()
-          window.location.href = '/login'
+          window.location.href = buildLoginRedirectHref(window.location.href)
           return response
         }
 
@@ -83,7 +84,7 @@ export const api = ky.create({
         } catch {
           // Unconditional: accessToken is in-memory only (null after reload), so gating on it would strand the user.
           useAuthStore.getState().logout()
-          window.location.href = '/login'
+          window.location.href = buildLoginRedirectHref(window.location.href)
           return response
         }
       },

@@ -129,7 +129,25 @@ describe('UnlockPage', () => {
       expect.any(Object),
     )
     expect(analytics.capture).toHaveBeenCalledWith('unlock', 'vault-unlocked')
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/' })
+    expect(navigateMock).toHaveBeenCalledWith({ href: '/' })
+  })
+
+  it('returns to the requested deep link after unlocking', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_password, options) => {
+      options.onSuccess()
+    })
+
+    render(
+      <UnlockPage redirectTo="/vaults/vault-1/entries/entry-1?tab=logs#history" />,
+      { wrapper },
+    )
+    await user.type(await screen.findByLabelText(/master password/i), 'hunter2')
+    await user.click(screen.getByRole('button', { name: /^unlock$/i }))
+
+    expect(navigateMock).toHaveBeenCalledWith({
+      href: '/vaults/vault-1/entries/entry-1?tab=logs#history',
+    })
   })
 
   it('shows the typed error message and fires unlock-failed when the password is incorrect', async () => {
@@ -147,7 +165,7 @@ describe('UnlockPage', () => {
       /incorrect master password/i,
     )
     expect(analytics.capture).toHaveBeenCalledWith('unlock', 'unlock-failed')
-    expect(navigateMock).not.toHaveBeenCalledWith({ to: '/' })
+    expect(navigateMock).not.toHaveBeenCalledWith({ href: '/' })
   })
 
   it('falls back to a generic error and fires unlock-failed for unexpected failures', async () => {

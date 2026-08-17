@@ -6,13 +6,14 @@ import { LoginPage } from './login-page'
 // Controllable mock for the password-login handshake.
 const startMutate = vi.hoisted(() => vi.fn())
 const totpMutate = vi.hoisted(() => vi.fn())
+const navigateMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@react-oauth/google', () => ({
   useGoogleLogin: () => vi.fn(),
 }))
 
 vi.mock('@tanstack/react-router', () => ({
-  useNavigate: () => vi.fn(),
+  useNavigate: () => navigateMock,
   Link: ({ children, ...props }: { children: React.ReactNode }) => (
     <a {...props}>{children}</a>
   ),
@@ -40,6 +41,7 @@ describe('LoginPage', () => {
   beforeEach(() => {
     startMutate.mockReset()
     totpMutate.mockReset()
+    navigateMock.mockReset()
   })
 
   it('renders the wordmark and the email/password fields', () => {
@@ -94,5 +96,46 @@ describe('LoginPage', () => {
     expect(
       screen.getByRole('button', { name: /use a recovery code instead/i }),
     ).toBeInTheDocument()
+  })
+
+  it('returns to the requested deep link after password login', async () => {
+    startMutate.mockImplementation((_input, options) => {
+      options.onSuccess({ kind: 'authenticated' })
+    })
+    const user = userEvent.setup()
+
+    render(
+      <LoginPage redirectTo="/vaults/vault-1/entries/entry-1?tab=logs#history" />,
+    )
+
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com')
+    await user.type(screen.getByLabelText(/master password/i), 'hunter2hunter2')
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+
+    expect(navigateMock).toHaveBeenCalledWith({
+      href: '/vaults/vault-1/entries/entry-1?tab=logs#history',
+    })
+  })
+
+  it('returns to the requested deep link after the TOTP challenge', async () => {
+    startMutate.mockImplementation((_input, options) => {
+      options.onSuccess({ kind: 'totp', challengeToken: 'challenge-1' })
+    })
+    totpMutate.mockImplementation((_input, options) => {
+      options.onSuccess()
+    })
+    const user = userEvent.setup()
+
+    render(<LoginPage redirectTo="/vaults/vault-1/entries/entry-1" />)
+
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com')
+    await user.type(screen.getByLabelText(/master password/i), 'hunter2hunter2')
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+    await user.type(screen.getByLabelText(/authentication code/i), '123456')
+    await user.click(screen.getByRole('button', { name: /^verify$/i }))
+
+    expect(navigateMock).toHaveBeenCalledWith({
+      href: '/vaults/vault-1/entries/entry-1',
+    })
   })
 })

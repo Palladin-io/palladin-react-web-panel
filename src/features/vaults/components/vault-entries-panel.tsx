@@ -2,6 +2,7 @@ import { memo, useCallback, useState, type UIEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { useAuthStore } from '../../auth'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
@@ -13,7 +14,7 @@ import { CreateEntryModal } from './create-entry-modal'
 import { EntryIcon } from './entry-icon'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import { getCanonicalEntry } from '../api/vault-api'
-import { entryDetailQueryKey } from '../use-entries'
+import { canonicalEntryDetailQueryKey } from '../use-entries'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { SearchBar } from '../../../shared/components/search-bar'
 
@@ -35,6 +36,9 @@ export interface VaultEntriesPanelProps {
 export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const cryptoSessionGeneration = useAuthStore(
+    (state) => state.cryptoSessionGeneration,
+  )
   const [createOpen, setCreateOpen] = useState(false)
 
   const hasMemberProjection = useMemberSyncStore((store) => store.vaults.has(vault.id))
@@ -59,11 +63,15 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
   }, [entries.items.length, onScroll, search])
   const prefetchEntry = useCallback((entryId: string) => {
     void queryClient.prefetchQuery({
-      queryKey: [...entryDetailQueryKey(vault.id, entryId), 'canonical'],
+      queryKey: canonicalEntryDetailQueryKey(
+        vault.id,
+        entryId,
+        cryptoSessionGeneration,
+      ),
       queryFn: () => getCanonicalEntry(vault.id, entryId),
       staleTime: Infinity,
     })
-  }, [queryClient, vault.id])
+  }, [cryptoSessionGeneration, queryClient, vault.id])
 
   return (
     <div className="flex h-full min-h-0 flex-col">

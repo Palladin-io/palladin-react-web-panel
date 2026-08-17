@@ -38,7 +38,10 @@ export const Route = createFileRoute('/_authenticated')({
     // silently restored by the ky client on the first API call. Only redirect
     // to /login when there is no session to restore at all.
     if (!accessToken && !refreshToken) {
-      throw redirect({ to: '/login' })
+      throw redirect({
+        to: '/login',
+        search: { redirect: location.href },
+      })
     }
     // Hard email-verification gate (fast path). A password account must verify
     // its email before it can reach any authenticated surface. We gate on the
@@ -54,7 +57,10 @@ export const Route = createFileRoute('/_authenticated')({
     // persisted — it always starts as true and is set to false only by
     // unlockVault(). This makes it a reliable signal regardless of localStorage.
     if (isVaultLocked && location.pathname !== '/unlock') {
-      throw redirect({ to: '/unlock' })
+      throw redirect({
+        to: '/unlock',
+        search: { redirect: location.href },
+      })
     }
   },
   component: AuthenticatedLayout,

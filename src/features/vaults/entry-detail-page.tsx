@@ -396,6 +396,9 @@ interface DetailsTabProps {
 function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const cryptoSessionGeneration = useAuthStore(
+    (state) => state.cryptoSessionGeneration,
+  )
   const update = useUpdateCanonicalEntry(vault.id, entry.id)
   const remove = useDeleteEntry(vault.id)
 
@@ -466,7 +469,12 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setDecrypting(true)
     try {
       const encryptedVault = await queryClient.fetchQuery({
-        queryKey: ['vaults', vault.id, 'encrypted-detail'],
+        queryKey: [
+          'vaults',
+          vault.id,
+          'encrypted-detail',
+          cryptoSessionGeneration,
+        ],
         queryFn: () => getEncryptedVault(vault.id),
         staleTime: Infinity,
       })
@@ -514,7 +522,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     } finally {
       setDecrypting(false)
     }
-  }, [entry, queryClient, t, vault.id])
+  }, [cryptoSessionGeneration, entry, queryClient, t, vault.id])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

@@ -132,6 +132,32 @@ describe('auth-store', () => {
     expect(Array.from(state.privateKey!)).toEqual([9, 8, 7, 6])
   })
 
+  it('changes the crypto cache namespace for every unlock and logout', () => {
+    const initialGeneration = useAuthStore.getState().cryptoSessionGeneration
+
+    useAuthStore.getState().unlockVault(
+      new Uint8Array([1]),
+      new Uint8Array([2]),
+    )
+    const firstUnlockGeneration = useAuthStore.getState().cryptoSessionGeneration
+    expect(firstUnlockGeneration).toBe(initialGeneration + 1)
+
+    useAuthStore.getState().lockVault()
+    useAuthStore.getState().unlockVault(
+      new Uint8Array([3]),
+      new Uint8Array([4]),
+    )
+    expect(useAuthStore.getState().cryptoSessionGeneration).toBe(
+      firstUnlockGeneration + 1,
+    )
+
+    const beforeLogout = useAuthStore.getState().cryptoSessionGeneration
+    useAuthStore.getState().logout()
+    expect(useAuthStore.getState().cryptoSessionGeneration).toBe(
+      beforeLogout + 1,
+    )
+  })
+
   it('lockVault clears the keys but keeps the session', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
