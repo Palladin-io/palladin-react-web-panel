@@ -130,7 +130,10 @@ describe('RoleDetail', () => {
 
   it('saves edited role fields', async () => {
     const user = userEvent.setup()
-    updateMutateMock.mockImplementation((_input, options) => options.onSuccess())
+    updateMutateMock.mockImplementation((input, options) => options.onSuccess({
+      ...role,
+      ...input.input,
+    }))
     render(<RoleDetail role={role} assignablePermissions={assignable} canManage callerPermissions={255} />)
     const name = screen.getByLabelText('Role name')
     await user.clear(name)
@@ -142,6 +145,29 @@ describe('RoleDetail', () => {
       input: { name: 'Security auditor', permissions: 128 },
     })
     expect(toastSuccess).toHaveBeenCalled()
+  })
+
+  it('uses the latest saved role snapshot when saving another tab', async () => {
+    const user = userEvent.setup()
+    updateMutateMock.mockImplementation((input, options) => options.onSuccess({
+      ...role,
+      ...input.input,
+    }))
+    render(<RoleDetail role={role} assignablePermissions={assignable} canManage callerPermissions={255} />)
+
+    const name = screen.getByLabelText('Role name')
+    await user.clear(name)
+    await user.type(name, 'Security auditor')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    await user.click(screen.getByRole('tab', { name: 'Permissions' }))
+    await user.click(screen.getByRole('checkbox', { name: /manage grants/i }))
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    expect(updateMutateMock).toHaveBeenNthCalledWith(2, {
+      roleId: 'role-1',
+      input: { name: 'Security auditor', permissions: 160 },
+    }, expect.any(Object))
   })
 
   it('keeps the draft and shows the precise fail-closed message on GrantManage conflict', async () => {

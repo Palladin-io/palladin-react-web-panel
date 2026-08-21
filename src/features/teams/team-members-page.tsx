@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -48,14 +48,15 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
   const permissions = useAuthStore((state) => state.permissions)
   const canManage = (permissions & PERMISSION_ORGANIZATION_MANAGEMENT) !== 0
   const canInvite = (permissions & PERMISSION_ADD_USER) !== 0
+  const activeInvitationId = canInvite ? invitationId : undefined
   const invitations = useOrganizationInvitations(canInvite)
   const cancelInvitation = useCancelOrganizationInvitation()
   const roles = useTeamRoles(canManage)
   const list = useMemo(() => members.data ?? [], [members.data])
   const invitationList = useMemo(() => invitations.data ?? [], [invitations.data])
   const selectedMember = memberId ? list.find((member) => member.userId === memberId) : undefined
-  const selectedInvitation = invitationId
-    ? invitationList.find((invitation) => invitation.id === invitationId)
+  const selectedInvitation = activeInvitationId
+    ? invitationList.find((invitation) => invitation.id === activeInvitationId)
     : undefined
   const allEntries = useMemo<TeamListEntry[]>(() => [
     ...list.map((member): TeamListEntry => ({
@@ -93,12 +94,18 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
     ...(canInvite ? [{ value: 'pending', label: t('team.filters.pending') }] : []),
   ]
 
+  useEffect(() => {
+    if (invitationId && !canInvite) {
+      void navigate({ to: '/settings/team', replace: true })
+    }
+  }, [canInvite, invitationId, navigate])
+
   const handleCancelInvitation = () => {
     if (!invitationToCancel) return
     cancelInvitation.mutate(invitationToCancel.id, {
       onSuccess: () => {
         toast.success(t('team.invitations.cancelSuccess'))
-        if (invitationToCancel.id === invitationId) {
+        if (invitationToCancel.id === activeInvitationId) {
           void navigate({ to: '/settings/team' })
         }
         setInvitationToCancel(null)
@@ -110,9 +117,9 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
   return (
     <>
       <ResponsiveMasterDetail
-        hasSelection={Boolean(memberId || invitationId)}
+        hasSelection={Boolean(memberId || activeInvitationId)}
         masterLabel={t('team.listLabel')}
-        detailLabel={t(invitationId ? 'team.invitations.detailLabel' : 'team.memberDetailLabel')}
+        detailLabel={t(activeInvitationId ? 'team.invitations.detailLabel' : 'team.memberDetailLabel')}
         master={
           <div className="flex h-full min-h-0 flex-col px-4 py-4 text-[var(--cv-t1)]">
             <header className={SETTINGS_MASTER_HEADER_CLASSES}>
@@ -197,7 +204,7 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
                       ) : (
                         <OrganizationInvitationCard
                           invitation={entry.invitation}
-                          isSelected={entry.invitation.id === invitationId}
+                          isSelected={entry.invitation.id === activeInvitationId}
                           onCancel={setInvitationToCancel}
                         />
                       )}
@@ -208,7 +215,7 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
             </ScrollArea>
           </div>
         }
-        detail={invitationId ? (
+        detail={activeInvitationId ? (
           <OrganizationInvitationDetail
             invitation={selectedInvitation}
             hasSelection

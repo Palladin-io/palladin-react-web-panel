@@ -62,6 +62,7 @@ function RoleDetailBody({
   const navigate = useNavigate()
   const update = useUpdateRole()
   const remove = useDeleteRole()
+  const [savedRole, setSavedRole] = useState(role)
   const [name, setName] = useState(role.name)
   const [permissions, setPermissions] = useState(role.permissions)
   const [nameError, setNameError] = useState(false)
@@ -75,9 +76,9 @@ function RoleDetailBody({
     ),
     [assignablePermissions],
   )
-  const normalizedPermissions = (role.permissions & ~modifiableMask) | (permissions & modifiableMask)
-  const isNameDirty = name.trim() !== role.name
-  const isPermissionsDirty = normalizedPermissions !== role.permissions
+  const normalizedPermissions = (savedRole.permissions & ~modifiableMask) | (permissions & modifiableMask)
+  const isNameDirty = name.trim() !== savedRole.name
+  const isPermissionsDirty = normalizedPermissions !== savedRole.permissions
   const canEdit = canManage && !role.isSystem && role.canAssign
   const canSaveName = canEdit && isNameDirty && name.trim().length > 0 && !update.isPending
   const canSavePermissions = canEdit && isPermissionsDirty && !update.isPending
@@ -87,7 +88,10 @@ function RoleDetailBody({
     update.mutate(
       { roleId: role.id, input: { name: nextName, permissions: nextPermissions } },
       {
-        onSuccess: () => toast.success(t('permissions.updateSuccess')),
+        onSuccess: (updatedRole) => {
+          setSavedRole(updatedRole)
+          toast.success(t('permissions.updateSuccess'))
+        },
         onError: async (error) => {
           if (
             await hasApiErrorKey(error, GRANT_MANAGE_CUTOVER_ERROR)
@@ -173,8 +177,8 @@ function RoleDetailBody({
                 </div>
                 {canEdit ? (
                   <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
-                    <Button variant="subtle" size="sm" onClick={() => setName(role.name)} disabled={!isNameDirty || update.isPending}>{t('common.discard')}</Button>
-                    <Button variant="accent" size="sm" onClick={() => saveRole(name.trim(), role.permissions)} disabled={!canSaveName}>{update.isPending ? t('common.saving') : t('common.saveChanges')}</Button>
+                    <Button variant="subtle" size="sm" onClick={() => setName(savedRole.name)} disabled={!isNameDirty || update.isPending}>{t('common.discard')}</Button>
+                    <Button variant="accent" size="sm" onClick={() => saveRole(name.trim(), savedRole.permissions)} disabled={!canSaveName}>{update.isPending ? t('common.saving') : t('common.saveChanges')}</Button>
                   </div>
                 ) : null}
               </section>
@@ -198,8 +202,8 @@ function RoleDetailBody({
               <PermissionFields permissions={assignablePermissions} value={permissions} disabled={!canEdit || update.isPending} onChange={setPermissions} />
               {canEdit ? (
                 <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
-                  <Button variant="subtle" size="sm" onClick={() => setPermissions(role.permissions)} disabled={!isPermissionsDirty || update.isPending}>{t('common.discard')}</Button>
-                  <Button variant="accent" size="sm" onClick={() => saveRole(role.name, normalizedPermissions)} disabled={!canSavePermissions}>{update.isPending ? t('common.saving') : t('common.saveChanges')}</Button>
+                  <Button variant="subtle" size="sm" onClick={() => setPermissions(savedRole.permissions)} disabled={!isPermissionsDirty || update.isPending}>{t('common.discard')}</Button>
+                  <Button variant="accent" size="sm" onClick={() => saveRole(savedRole.name, normalizedPermissions)} disabled={!canSavePermissions}>{update.isPending ? t('common.saving') : t('common.saveChanges')}</Button>
                 </div>
               ) : null}
             </section>

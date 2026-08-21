@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { OrganizationMember } from './api/team-members-api'
 import type { OrganizationInvitation } from './api/organization-invitations-api'
@@ -327,6 +327,30 @@ describe('TeamMembersPage', () => {
 
     expect(cancelInvitation).toHaveBeenCalledWith('invitation-1', expect.any(Object))
     expect(navigate).toHaveBeenCalledWith({ to: '/settings/team' })
+  })
+
+  it('hides invitation controls and leaves the detail route after AddUser is revoked', () => {
+    membersState.data = [owner]
+    invitationsState.data = [{
+      id: 'invitation-1',
+      email: 'pending@example.com',
+      roleId: 'role-user',
+      roleName: 'User',
+      invitedByName: 'Alice Morgan',
+      createdAt: '2026-08-20T10:00:00Z',
+      sentAt: '2026-08-20T10:00:00Z',
+      expiresAt: '2026-08-23T10:00:00Z',
+      resendAvailableAt: '2026-08-20T10:01:00Z',
+    }]
+    useAuthStore.setState({ permissions: PERMISSION_ADD_USER })
+
+    render(<TeamMembersPage invitationId="invitation-1" />)
+    expect(screen.getByRole('button', { name: 'Send again' })).toBeInTheDocument()
+
+    act(() => useAuthStore.setState({ permissions: 0 }))
+
+    expect(screen.queryByRole('button', { name: 'Send again' })).not.toBeInTheDocument()
+    expect(navigate).toHaveBeenCalledWith({ to: '/settings/team', replace: true })
   })
 
   it('renders guidance when the organization has no members', () => {
