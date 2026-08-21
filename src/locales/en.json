@@ -1506,7 +1506,7 @@
   "team.noSelection": "Select a team member to view their details",
   "team.memberNotFound": "This organization member no longer exists.",
   "team.rolesErrorLoad": "We couldn't load the available roles.",
-  "team.rolesHelp": "A member can have multiple roles. Their effective permissions are combined.",
+  "team.rolesHelp": "A member must have at least one role. Permissions from multiple roles are combined.",
   "team.ownerRolesReadOnly": "The organization owner is protected and their roles cannot be changed.",
   "team.rolesSaved": "Member roles saved.",
   "team.rolesErrorSave": "We couldn't save this member's roles. Your changes are still here.",

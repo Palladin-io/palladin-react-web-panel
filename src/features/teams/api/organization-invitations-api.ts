@@ -14,7 +14,7 @@ const invitationRolesResponseSchema = z.object({
 export const organizationInvitationSchema = z.object({
   id: z.string(),
   email: z.string().email(),
-  roleId: z.string().nullable(),
+  roleId: z.string(),
   roleName: z.string(),
   invitedByName: z.string().nullable(),
   createdAt: z.string(),

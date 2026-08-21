@@ -74,6 +74,7 @@ describe('TeamMemberDetail', () => {
     expect(screen.getByText('Status').nextElementSibling).toHaveClass('text-right')
     fireEvent.click(screen.getByRole('tab', { name: 'Roles' }))
     expect(screen.getByRole('checkbox', { name: /auditor/i })).toBeChecked()
+    expect(screen.getByRole('checkbox', { name: /auditor/i })).toBeDisabled()
     expect(screen.getByRole('checkbox', { name: /grant manager/i })).not.toBeChecked()
   })
 

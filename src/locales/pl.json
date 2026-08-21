@@ -1561,7 +1561,7 @@
   "team.noSelection": "Wybierz członka zespołu, aby zobaczyć jego szczegóły",
   "team.memberNotFound": "Ten członek organizacji już nie istnieje.",
   "team.rolesErrorLoad": "Nie udało się wczytać dostępnych ról.",
-  "team.rolesHelp": "Członek może mieć kilka ról. Jego efektywne uprawnienia są łączone.",
+  "team.rolesHelp": "Członek musi mieć co najmniej jedną rolę. Uprawnienia z kilku ról są łączone.",
   "team.ownerRolesReadOnly": "Właściciel organizacji jest chroniony i nie można zmieniać jego ról.",
   "team.rolesSaved": "Role członka zostały zapisane.",
   "team.rolesErrorSave": "Nie udało się zapisać ról członka. Twoje zmiany pozostały w formularzu.",

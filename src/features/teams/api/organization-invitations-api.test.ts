@@ -49,6 +49,20 @@ describe('organization invitation contract', () => {
     expect(invitation).not.toHaveProperty('token')
   })
 
+  it('rejects an invitation without an initial role', () => {
+    expect(() => organizationInvitationSchema.parse({
+      id: 'invitation-1',
+      email: 'person@example.com',
+      roleId: null,
+      roleName: 'User',
+      invitedByName: 'Alice Morgan',
+      createdAt: '2026-08-20T10:00:00Z',
+      sentAt: '2026-08-20T11:00:00Z',
+      expiresAt: '2026-08-23T10:00:00Z',
+      resendAvailableAt: '2026-08-20T11:01:00Z',
+    })).toThrow()
+  })
+
   it('parses resend timing without exposing the replacement token', () => {
     const result = resendOrganizationInvitationResponseSchema.parse({
       sentAt: '2026-08-20T11:00:00Z',

@@ -97,10 +97,10 @@ function OrganizationInvitationDetailBody({
   }, [resendAvailableAtMs])
   const roleOptions = useMemo(() => {
     const items = roles.data ?? []
-    if (!invitation.roleId || items.some((role) => role.id === invitation.roleId)) return items
+    if (items.some((role) => role.id === invitation.roleId)) return items
     return [{ id: invitation.roleId, name: invitation.roleName }, ...items]
   }, [invitation.roleId, invitation.roleName, roles.data])
-  const isDirty = selectedRoleId !== null && selectedRoleId !== invitation.roleId
+  const isDirty = selectedRoleId !== invitation.roleId
 
   const handleSaveRole = () => {
     if (!selectedRoleId || !isDirty || updateRole.isPending) return

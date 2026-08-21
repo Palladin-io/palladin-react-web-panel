@@ -205,7 +205,10 @@ function TeamMemberDetailBody({
                   <input
                     type="checkbox"
                     checked={selectedRoleIds.includes(role.id)}
-                    disabled={!role.canAssign}
+                    disabled={
+                      !role.canAssign
+                      || (selectedRoleIds.includes(role.id) && selectedRoleIds.length === 1)
+                    }
                     onChange={() => toggleRole(role)}
                     className="mt-1 accent-[var(--cv-primary)] disabled:opacity-60"
                   />
