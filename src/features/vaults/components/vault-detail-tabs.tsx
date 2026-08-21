@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { DetailTabBar } from '../../../shared/components/detail-tab-bar'
 
 export type VaultDetailTab =
   | 'entries'
@@ -23,57 +24,20 @@ const TAB_KEYS: { id: VaultDetailTab; labelKey: string }[] = [
 ]
 
 /**
- * Horizontal tab bar used inside the vault detail page. Active tab is
- * underlined with the accent colour. Tab state lives in the page (not
- * the URL) — switching is local to the detail view, no router hop.
- *
- * When `actions` are provided (wide split-view mode) the border-b fades
- * to transparent after the last tab name so the action buttons don't sit
- * on top of the line.
+ * Horizontal tab bar used inside the vault detail page. The shared detail
+ * tab bar keeps its underline and starting offset aligned with other panels.
  */
 export function VaultDetailTabs({ active, onChange, actions }: VaultDetailTabsProps) {
   const { t } = useTranslation()
 
-  const tabButtons = TAB_KEYS.map((tab) => {
-    const isActive = tab.id === active
-    return (
-      <button
-        key={tab.id}
-        type="button"
-        role="tab"
-        aria-selected={isActive}
-        onClick={() => onChange(tab.id)}
-        className={`-mb-px border-b-2 px-3.5 py-2 text-ui transition-colors ${
-          isActive
-            ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
-            : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
-        }`}
-      >
-        {t(tab.labelKey)}
-      </button>
-    )
-  })
-
-  if (actions) {
-    return (
-      <div className="mb-4 flex h-10 items-end">
-        {/* Tabs — border-b only under the tab labels */}
-        <div className="flex shrink-0 border-b border-[var(--cv-divider)]" role="tablist">
-          {tabButtons}
-        </div>
-        {/* Line fades to transparent right after the last tab */}
-        <div className="h-px flex-1 self-end bg-gradient-to-r from-[var(--cv-divider)] to-transparent" />
-        {/* Action buttons vertically centred within the fixed-height row */}
-        <div className="flex shrink-0 self-center items-center gap-1">
-          {actions}
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="mb-3 flex border-b border-[var(--cv-divider)]" role="tablist">
-      {tabButtons}
-    </div>
+    <DetailTabBar
+      tabs={TAB_KEYS.map((tab) => ({ id: tab.id, label: t(tab.labelKey) }))}
+      active={active}
+      onChange={onChange}
+      ariaLabel={t('vault.detail.tabsLabel')}
+      wide={Boolean(actions)}
+      actions={actions}
+    />
   )
 }

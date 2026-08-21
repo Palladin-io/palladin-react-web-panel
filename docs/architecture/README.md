@@ -38,6 +38,7 @@ Per-feature and shared-component reference for the Palladin web panel. These doc
 | API Keys | [features/api-keys.md](features/api-keys.md) |
 | Notifications | [features/notifications.md](features/notifications.md) |
 | Settings | [features/settings.md](features/settings.md) |
+| Permissions | [features/permissions.md](features/permissions.md) |
 
 ### Other feature areas
 

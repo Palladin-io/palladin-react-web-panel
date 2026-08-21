@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 import { analytics } from '../../../shared/lib/analytics'
 import { firstError, required } from '../../../shared/lib/validation'
 import type { Organization } from '../api/org-api'
@@ -10,6 +10,7 @@ import { useUpdateOrg } from '../use-update-org'
 
 export interface OrgSettingsFormProps {
   org: Organization
+  canEdit: boolean
 }
 
 /**
@@ -17,7 +18,7 @@ export interface OrgSettingsFormProps {
  * no-op — we only fire the PUT when the trimmed name actually differs,
  * keeping the payload and audit trail clean.
  */
-export function OrgSettingsForm({ org }: OrgSettingsFormProps) {
+export function OrgSettingsForm({ org, canEdit }: OrgSettingsFormProps) {
   const { t } = useTranslation()
   const update = useUpdateOrg()
 
@@ -25,16 +26,18 @@ export function OrgSettingsForm({ org }: OrgSettingsFormProps) {
   const [nameError, setNameError] = useState(false)
 
   const isPending = update.isPending
+  const trimmedName = name.trim()
+  const isDirty = trimmedName !== org.name
+  const canSubmit = canEdit && isDirty && trimmedName.length > 0 && !isPending
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
-    const trimmedName = name.trim()
     if (firstError(name, [required(t('validation.required'))]) !== null) {
       setNameError(true)
       return
     }
-    if (trimmedName === org.name) return
+    if (!canSubmit) return
 
     update.mutate(
       { name: trimmedName },
@@ -52,18 +55,17 @@ export function OrgSettingsForm({ org }: OrgSettingsFormProps) {
 
   return (
     <section
-      className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
-        dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+      className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5"
     >
-      <h2 className="text-heading font-bold text-[var(--cv-t1)]">
+      <h2 className="text-heading-sm font-bold text-[var(--cv-t1)]">
         {t('settings.org.sectionTitle')}
       </h2>
       <p className="mt-1 text-ui text-[var(--cv-t3)]">
         {t('settings.org.sectionSubtitle')}
       </p>
 
-      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-0">
-        <div className="-mb-0">
+      <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
+        <div>
           <FormInput
             id="org-name"
             label={t('settings.org.nameLabel')}
@@ -75,20 +77,24 @@ export function OrgSettingsForm({ org }: OrgSettingsFormProps) {
               )
             }
             placeholder={t('settings.org.namePlaceholder')}
-            disabled={isPending}
+            disabled={!canEdit || isPending}
             maxLength={80}
             error={nameError}
           />
-          <FieldFeedback visible={nameError} color="red">
+          <FeedbackSlot visible={nameError} color="red">
             {t('validation.required')}
-          </FieldFeedback>
+          </FeedbackSlot>
         </div>
 
-        <div className="mt-3 flex justify-end">
-          <Button variant="accent" size="sm" type="submit" disabled={isPending}>
-            {isPending ? t('settings.org.saving') : t('settings.org.save')}
-          </Button>
-        </div>
+        {canEdit ? (
+          <div className="flex justify-end border-t border-[var(--cv-divider)] pt-3">
+            <Button variant="accent" size="sm" type="submit" disabled={!canSubmit}>
+              {isPending ? t('settings.org.saving') : t('settings.org.save')}
+            </Button>
+          </div>
+        ) : (
+          <p className="text-meta text-[var(--cv-t3)]">{t('settings.org.readOnly')}</p>
+        )}
       </form>
     </section>
   )

@@ -60,7 +60,7 @@ export function DenyAgentDialog({
           {t('agents.denyWarningBody')}
           {apiKeyId ? (
             <Link
-              to="/api-keys/$keyId"
+              to="/settings/api-keys/$keyId"
               params={{ keyId: apiKeyId }}
               onClick={onCancel}
               className="mt-1 block font-semibold text-[var(--cv-primary)] underline-offset-2 hover:underline"
@@ -70,7 +70,7 @@ export function DenyAgentDialog({
             </Link>
           ) : (
             <Link
-              to="/api-keys"
+              to="/settings/api-keys"
               onClick={onCancel}
               className="mt-1 block font-semibold text-[var(--cv-primary)] underline-offset-2 hover:underline"
             >

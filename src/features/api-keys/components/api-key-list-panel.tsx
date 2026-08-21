@@ -5,7 +5,11 @@ import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { Icon } from '../../../shared/components/icon'
-import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
+import {
+  HOVERABLE_CARD_CLASSES,
+  METADATA_BADGE_CLASSES,
+  SETTINGS_MASTER_HEADER_CLASSES,
+} from '../../../shared/lib/styles'
 import type { ApiKeySummary } from '../api/api-keys-api'
 import { useApiKeyPermissions, useApiKeys } from '../use-api-keys'
 import { GenerateApiKeyModal } from './generate-api-key-modal'
@@ -27,10 +31,9 @@ export function ApiKeyStatusBadge({ status }: { status: ApiKeySummary['status'] 
   const isActive = status === 'active'
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-micro
-        font-semibold ${
+      className={`${METADATA_BADGE_CLASSES} ${
         isActive
-          ? 'bg-[rgba(16,185,129,0.14)] text-[#10B981]'
+          ? 'bg-[rgb(var(--cv-success-rgb)/0.14)] text-[var(--cv-success)]'
           : 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
       }`}
     >
@@ -42,7 +45,7 @@ export function ApiKeyStatusBadge({ status }: { status: ApiKeySummary['status'] 
 /**
  * Left-side master panel of the API Keys split view: a header with the
  * Generate CTA and the scrollable list of keys. Each row links to
- * `/api-keys/$keyId`; the currently viewed key is highlighted with the
+ * `/settings/api-keys/$keyId`; the currently viewed key is highlighted with the
  * shared selected-row treatment. Owns its own generate modal so the
  * right-side detail panel has no knowledge of the left side's lifecycle.
  */
@@ -56,7 +59,7 @@ export function ApiKeyListPanel({ selectedApiKeyId }: ApiKeyListPanelProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
+      <div className={SETTINGS_MASTER_HEADER_CLASSES}>
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {t('apiKeys.sectionTitle')}
@@ -118,7 +121,7 @@ function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
   const { t } = useTranslation()
   return (
     <Link
-      to="/api-keys/$keyId"
+      to="/settings/api-keys/$keyId"
       params={{ keyId: apiKey.apiKeyId }}
       className={`flex flex-col overflow-hidden ${HOVERABLE_CARD_CLASSES}${
         isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''

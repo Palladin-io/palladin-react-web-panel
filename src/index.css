@@ -375,3 +375,13 @@ button,
 .subtle-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--cv-t3);
 }
+
+/* Tab strips remain horizontally scrollable on narrow panels without showing
+   an overlay thumb that reads as stray chrome beside the last tab. */
+.tab-strip-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.tab-strip-scroll::-webkit-scrollbar {
+  display: none;
+}

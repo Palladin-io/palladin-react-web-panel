@@ -40,7 +40,7 @@ describe('PremiumGateDialog', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /upgrade to pro/i })).toHaveAttribute(
       'href',
-      '/billing',
+      '/settings/billing',
     )
     expect(screen.getByRole('button', { name: /maybe later/i })).toBeInTheDocument()
   })

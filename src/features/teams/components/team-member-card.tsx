@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
+import { METADATA_BADGE_CLASSES } from '../../../shared/lib/styles'
 import type { OrganizationMember } from '../api/team-members-api'
 
 export interface TeamMemberCardProps {
@@ -11,22 +12,18 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
   const displayName = member.displayName.trim() || member.email
 
   return (
-    <article
-      className="grid gap-4 rounded-2xl border border-[var(--cv-border)]
-        bg-[var(--cv-card-bg)] p-4 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)_auto]
-        md:items-center"
-    >
-      <div className="flex min-w-0 items-center gap-3">
+    <div className="flex min-w-0 flex-col">
+      <div className="flex min-w-0 items-center gap-3 px-4 py-3">
         <div
           aria-hidden="true"
-          className="flex size-11 shrink-0 items-center justify-center rounded-full
+          className="flex size-10 shrink-0 items-center justify-center rounded-full
             bg-[rgb(var(--cv-info-rgb)/0.14)] text-ui font-bold text-[var(--cv-info)]"
         >
           {memberInitials(displayName)}
         </div>
-        <div className="min-w-0">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h2 className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <h2 className="min-w-0 flex-1 truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
               {displayName}
             </h2>
             {member.isOwner ? <OwnerBadge /> : null}
@@ -34,42 +31,18 @@ export function TeamMemberCard({ member }: TeamMemberCardProps) {
           <p className="truncate text-meta text-[var(--cv-t3)]">{member.email}</p>
         </div>
       </div>
-
-      <div>
-        <p className="mb-1.5 text-micro font-medium text-[var(--cv-t3)]">
-          {t('team.rolesLabel')}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {member.roles.length > 0 ? (
-            member.roles.map((role) => (
-              <span
-                key={role.id}
-                className={`max-w-full break-words rounded-full px-2.5 py-1 text-micro font-medium ${
-                  role.isSystem
-                    ? 'bg-[rgb(var(--cv-info-rgb)/0.12)] text-[var(--cv-info)]'
-                    : 'bg-[var(--cv-bg-subtle)] text-[var(--cv-t2)]'
-                }`}
-              >
-                {role.name}
-              </span>
-            ))
-          ) : (
-            <span className="text-meta text-[var(--cv-t3)]">
-              {t('team.noRoles')}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2 text-meta text-[var(--cv-t3)] md:justify-end">
-        <Icon name="calendar_today" size={16} color="var(--cv-t3)" />
-        <span>
+      <div className="flex items-center justify-between gap-3 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
+        <span className="flex min-w-0 items-center gap-1.5 truncate text-micro text-[var(--cv-t3)]">
+          <Icon name="calendar_today" size={12} color="var(--cv-t3)" />
           {t('team.joinedLabel', {
             date: formatJoinedDate(member.joinedAt, i18n.resolvedLanguage),
           })}
         </span>
+        <span className="shrink-0 text-micro text-[var(--cv-t3)]">
+          {t('team.roleCount', { count: member.roles.length })}
+        </span>
       </div>
-    </article>
+    </div>
   )
 }
 
@@ -78,9 +51,7 @@ function OwnerBadge() {
 
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1 rounded-full
-        bg-[var(--cv-bg-subtle)] px-2 py-1 text-micro font-semibold
-        text-[var(--cv-premium)]"
+      className={`${METADATA_BADGE_CLASSES} bg-[var(--cv-bg-subtle)] text-[var(--cv-premium)]`}
     >
       <Icon name="shield_person" size={14} color="var(--cv-premium)" />
       {t('team.owner')}

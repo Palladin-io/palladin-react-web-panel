@@ -837,10 +837,10 @@ function SegmentTabs({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(option.key)}
-            className={`flex items-center gap-1.5 border-b-2 px-2.5 py-1 text-ui transition-colors ${
+            className={`flex items-center gap-1.5 border-b-2 px-2.5 py-1 text-ui font-semibold transition-colors ${
               isActive
-                ? "border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]"
-                : "border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]"
+                ? "border-[var(--cv-primary)] text-[var(--cv-primary)]"
+                : "border-transparent text-[var(--cv-t3)] hover:text-[var(--cv-t1)]"
             }`}
           >
             {option.label}

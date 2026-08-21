@@ -95,13 +95,13 @@ export function VaultListPage() {
 
   return (
     <div className="min-h-full text-[var(--cv-t1)]">
-      <div className="px-6 py-8">
-        <header className="mb-6 flex items-center justify-between gap-4">
-          <div>
-            <h1 className="text-page-title font-bold leading-tight text-[var(--cv-t1)]">
+      <div className="p-4">
+        <header className="mb-4 flex h-10 items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate text-heading font-bold text-[var(--cv-t1)]">
               {t('vault.title')}
             </h1>
-            <p className="mt-1 text-meta text-[var(--cv-t3)]">
+            <p className="truncate text-meta text-[var(--cv-t3)]">
               {t('vault.list.subtitle', {
                 vaultCount: list.length,
                 entryCount: totalEntries,

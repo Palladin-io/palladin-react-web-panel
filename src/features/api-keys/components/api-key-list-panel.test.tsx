@@ -67,7 +67,7 @@ describe('ApiKeyListPanel', () => {
     keysState.data = [activeKey]
     render(<ApiKeyListPanel />, { wrapper })
     expect(screen.getByText('CI pipeline')).toBeInTheDocument()
-    expect(screen.getByText(/^active$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^active$/i)).toHaveClass('h-5', 'px-2', 'text-micro', 'font-semibold')
   })
 
   it('renders an error state when the list fails to load', () => {

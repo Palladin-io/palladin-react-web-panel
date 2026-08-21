@@ -27,13 +27,25 @@ import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
 import { Route as AuthenticatedApiKeysRouteImport } from './routes/_authenticated/api-keys'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
+import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings.index'
 import { Route as AuthenticatedVaultsVaultIdRouteImport } from './routes/_authenticated/vaults_.$vaultId'
+import { Route as AuthenticatedSettingsTeamRouteImport } from './routes/_authenticated/settings.team'
+import { Route as AuthenticatedSettingsSecurityRouteImport } from './routes/_authenticated/settings.security'
+import { Route as AuthenticatedSettingsPermissionsRouteImport } from './routes/_authenticated/settings.permissions'
+import { Route as AuthenticatedSettingsGeneralRouteImport } from './routes/_authenticated/settings.general'
+import { Route as AuthenticatedSettingsDataExportRouteImport } from './routes/_authenticated/settings.data-export'
+import { Route as AuthenticatedSettingsBillingRouteImport } from './routes/_authenticated/settings.billing'
+import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_authenticated/settings.api-keys'
 import { Route as AuthenticatedApiKeysKeyIdRouteImport } from './routes/_authenticated/api-keys_.$keyId'
 import { Route as AuthenticatedAgentsAgentIdRouteImport } from './routes/_authenticated/agents_.$agentId'
 import { Route as AuthenticatedVaultsVaultIdSettingsRouteImport } from './routes/_authenticated/vaults_.$vaultId_.settings'
 import { Route as AuthenticatedVaultsVaultIdGrantsRouteImport } from './routes/_authenticated/vaults_.$vaultId_.grants'
+import { Route as AuthenticatedSettingsTeamMemberIdRouteImport } from './routes/_authenticated/settings.team_.$memberId'
+import { Route as AuthenticatedSettingsPermissionsRoleIdRouteImport } from './routes/_authenticated/settings.permissions_.$roleId'
+import { Route as AuthenticatedSettingsApiKeysKeyIdRouteImport } from './routes/_authenticated/settings.api-keys_.$keyId'
 import { Route as AuthenticatedVaultsVaultIdGrantsGrantIdRouteImport } from './routes/_authenticated/vaults_.$vaultId_.grants_.$grantId'
 import { Route as AuthenticatedVaultsVaultIdEntriesEntryIdRouteImport } from './routes/_authenticated/vaults_.$vaultId_.entries_.$entryId'
+import { Route as AuthenticatedSettingsTeamInvitationsInvitationIdRouteImport } from './routes/_authenticated/settings.team_.invitations_.$invitationId'
 
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
   id: '/verify-email',
@@ -124,11 +136,59 @@ const AuthenticatedAgentsRoute = AuthenticatedAgentsRouteImport.update({
   path: '/agents',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSettingsIndexRoute =
+  AuthenticatedSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedVaultsVaultIdRoute =
   AuthenticatedVaultsVaultIdRouteImport.update({
     id: '/vaults_/$vaultId',
     path: '/vaults/$vaultId',
     getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSettingsTeamRoute =
+  AuthenticatedSettingsTeamRouteImport.update({
+    id: '/team',
+    path: '/team',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsSecurityRoute =
+  AuthenticatedSettingsSecurityRouteImport.update({
+    id: '/security',
+    path: '/security',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsPermissionsRoute =
+  AuthenticatedSettingsPermissionsRouteImport.update({
+    id: '/permissions',
+    path: '/permissions',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsGeneralRoute =
+  AuthenticatedSettingsGeneralRouteImport.update({
+    id: '/general',
+    path: '/general',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsDataExportRoute =
+  AuthenticatedSettingsDataExportRouteImport.update({
+    id: '/data-export',
+    path: '/data-export',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsBillingRoute =
+  AuthenticatedSettingsBillingRouteImport.update({
+    id: '/billing',
+    path: '/billing',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsApiKeysRoute =
+  AuthenticatedSettingsApiKeysRouteImport.update({
+    id: '/api-keys',
+    path: '/api-keys',
+    getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const AuthenticatedApiKeysKeyIdRoute =
   AuthenticatedApiKeysKeyIdRouteImport.update({
@@ -154,6 +214,24 @@ const AuthenticatedVaultsVaultIdGrantsRoute =
     path: '/vaults/$vaultId/grants',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedSettingsTeamMemberIdRoute =
+  AuthenticatedSettingsTeamMemberIdRouteImport.update({
+    id: '/team_/$memberId',
+    path: '/team/$memberId',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsPermissionsRoleIdRoute =
+  AuthenticatedSettingsPermissionsRoleIdRouteImport.update({
+    id: '/permissions_/$roleId',
+    path: '/permissions/$roleId',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsApiKeysKeyIdRoute =
+  AuthenticatedSettingsApiKeysKeyIdRouteImport.update({
+    id: '/api-keys_/$keyId',
+    path: '/api-keys/$keyId',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedVaultsVaultIdGrantsGrantIdRoute =
   AuthenticatedVaultsVaultIdGrantsGrantIdRouteImport.update({
     id: '/vaults_/$vaultId_/grants_/$grantId',
@@ -165,6 +243,12 @@ const AuthenticatedVaultsVaultIdEntriesEntryIdRoute =
     id: '/vaults_/$vaultId_/entries_/$entryId',
     path: '/vaults/$vaultId/entries/$entryId',
     getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedSettingsTeamInvitationsInvitationIdRoute =
+  AuthenticatedSettingsTeamInvitationsInvitationIdRouteImport.update({
+    id: '/team_/invitations_/$invitationId',
+    path: '/team/invitations/$invitationId',
+    getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -181,15 +265,27 @@ export interface FileRoutesByFullPath {
   '/billing': typeof AuthenticatedBillingRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/security': typeof AuthenticatedSecurityRoute
-  '/settings': typeof AuthenticatedSettingsRoute
+  '/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/team': typeof AuthenticatedTeamRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
+  '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
+  '/settings/billing': typeof AuthenticatedSettingsBillingRoute
+  '/settings/data-export': typeof AuthenticatedSettingsDataExportRoute
+  '/settings/general': typeof AuthenticatedSettingsGeneralRoute
+  '/settings/permissions': typeof AuthenticatedSettingsPermissionsRoute
+  '/settings/security': typeof AuthenticatedSettingsSecurityRoute
+  '/settings/team': typeof AuthenticatedSettingsTeamRoute
   '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
+  '/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/settings/api-keys/$keyId': typeof AuthenticatedSettingsApiKeysKeyIdRoute
+  '/settings/permissions/$roleId': typeof AuthenticatedSettingsPermissionsRoleIdRoute
+  '/settings/team/$memberId': typeof AuthenticatedSettingsTeamMemberIdRoute
   '/vaults/$vaultId/grants': typeof AuthenticatedVaultsVaultIdGrantsRoute
   '/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
+  '/settings/team/invitations/$invitationId': typeof AuthenticatedSettingsTeamInvitationsInvitationIdRoute
   '/vaults/$vaultId/entries/$entryId': typeof AuthenticatedVaultsVaultIdEntriesEntryIdRoute
   '/vaults/$vaultId/grants/$grantId': typeof AuthenticatedVaultsVaultIdGrantsGrantIdRoute
 }
@@ -206,16 +302,27 @@ export interface FileRoutesByTo {
   '/billing': typeof AuthenticatedBillingRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/security': typeof AuthenticatedSecurityRoute
-  '/settings': typeof AuthenticatedSettingsRoute
   '/team': typeof AuthenticatedTeamRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
   '/': typeof AuthenticatedIndexRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
+  '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
+  '/settings/billing': typeof AuthenticatedSettingsBillingRoute
+  '/settings/data-export': typeof AuthenticatedSettingsDataExportRoute
+  '/settings/general': typeof AuthenticatedSettingsGeneralRoute
+  '/settings/permissions': typeof AuthenticatedSettingsPermissionsRoute
+  '/settings/security': typeof AuthenticatedSettingsSecurityRoute
+  '/settings/team': typeof AuthenticatedSettingsTeamRoute
   '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
+  '/settings': typeof AuthenticatedSettingsIndexRoute
+  '/settings/api-keys/$keyId': typeof AuthenticatedSettingsApiKeysKeyIdRoute
+  '/settings/permissions/$roleId': typeof AuthenticatedSettingsPermissionsRoleIdRoute
+  '/settings/team/$memberId': typeof AuthenticatedSettingsTeamMemberIdRoute
   '/vaults/$vaultId/grants': typeof AuthenticatedVaultsVaultIdGrantsRoute
   '/vaults/$vaultId/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
+  '/settings/team/invitations/$invitationId': typeof AuthenticatedSettingsTeamInvitationsInvitationIdRoute
   '/vaults/$vaultId/entries/$entryId': typeof AuthenticatedVaultsVaultIdEntriesEntryIdRoute
   '/vaults/$vaultId/grants/$grantId': typeof AuthenticatedVaultsVaultIdGrantsGrantIdRoute
 }
@@ -234,16 +341,28 @@ export interface FileRoutesById {
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
-  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
   '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
   '/_authenticated/vaults': typeof AuthenticatedVaultsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/agents_/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/_authenticated/api-keys_/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
+  '/_authenticated/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
+  '/_authenticated/settings/billing': typeof AuthenticatedSettingsBillingRoute
+  '/_authenticated/settings/data-export': typeof AuthenticatedSettingsDataExportRoute
+  '/_authenticated/settings/general': typeof AuthenticatedSettingsGeneralRoute
+  '/_authenticated/settings/permissions': typeof AuthenticatedSettingsPermissionsRoute
+  '/_authenticated/settings/security': typeof AuthenticatedSettingsSecurityRoute
+  '/_authenticated/settings/team': typeof AuthenticatedSettingsTeamRoute
   '/_authenticated/vaults_/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
+  '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
+  '/_authenticated/settings/api-keys_/$keyId': typeof AuthenticatedSettingsApiKeysKeyIdRoute
+  '/_authenticated/settings/permissions_/$roleId': typeof AuthenticatedSettingsPermissionsRoleIdRoute
+  '/_authenticated/settings/team_/$memberId': typeof AuthenticatedSettingsTeamMemberIdRoute
   '/_authenticated/vaults_/$vaultId_/grants': typeof AuthenticatedVaultsVaultIdGrantsRoute
   '/_authenticated/vaults_/$vaultId_/settings': typeof AuthenticatedVaultsVaultIdSettingsRoute
+  '/_authenticated/settings/team_/invitations_/$invitationId': typeof AuthenticatedSettingsTeamInvitationsInvitationIdRoute
   '/_authenticated/vaults_/$vaultId_/entries_/$entryId': typeof AuthenticatedVaultsVaultIdEntriesEntryIdRoute
   '/_authenticated/vaults_/$vaultId_/grants_/$grantId': typeof AuthenticatedVaultsVaultIdGrantsGrantIdRoute
 }
@@ -269,9 +388,21 @@ export interface FileRouteTypes {
     | '/vaults'
     | '/agents/$agentId'
     | '/api-keys/$keyId'
+    | '/settings/api-keys'
+    | '/settings/billing'
+    | '/settings/data-export'
+    | '/settings/general'
+    | '/settings/permissions'
+    | '/settings/security'
+    | '/settings/team'
     | '/vaults/$vaultId'
+    | '/settings/'
+    | '/settings/api-keys/$keyId'
+    | '/settings/permissions/$roleId'
+    | '/settings/team/$memberId'
     | '/vaults/$vaultId/grants'
     | '/vaults/$vaultId/settings'
+    | '/settings/team/invitations/$invitationId'
     | '/vaults/$vaultId/entries/$entryId'
     | '/vaults/$vaultId/grants/$grantId'
   fileRoutesByTo: FileRoutesByTo
@@ -288,16 +419,27 @@ export interface FileRouteTypes {
     | '/billing'
     | '/inbox'
     | '/security'
-    | '/settings'
     | '/team'
     | '/unlock'
     | '/vaults'
     | '/'
     | '/agents/$agentId'
     | '/api-keys/$keyId'
+    | '/settings/api-keys'
+    | '/settings/billing'
+    | '/settings/data-export'
+    | '/settings/general'
+    | '/settings/permissions'
+    | '/settings/security'
+    | '/settings/team'
     | '/vaults/$vaultId'
+    | '/settings'
+    | '/settings/api-keys/$keyId'
+    | '/settings/permissions/$roleId'
+    | '/settings/team/$memberId'
     | '/vaults/$vaultId/grants'
     | '/vaults/$vaultId/settings'
+    | '/settings/team/invitations/$invitationId'
     | '/vaults/$vaultId/entries/$entryId'
     | '/vaults/$vaultId/grants/$grantId'
   id:
@@ -322,9 +464,21 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/agents_/$agentId'
     | '/_authenticated/api-keys_/$keyId'
+    | '/_authenticated/settings/api-keys'
+    | '/_authenticated/settings/billing'
+    | '/_authenticated/settings/data-export'
+    | '/_authenticated/settings/general'
+    | '/_authenticated/settings/permissions'
+    | '/_authenticated/settings/security'
+    | '/_authenticated/settings/team'
     | '/_authenticated/vaults_/$vaultId'
+    | '/_authenticated/settings/'
+    | '/_authenticated/settings/api-keys_/$keyId'
+    | '/_authenticated/settings/permissions_/$roleId'
+    | '/_authenticated/settings/team_/$memberId'
     | '/_authenticated/vaults_/$vaultId_/grants'
     | '/_authenticated/vaults_/$vaultId_/settings'
+    | '/_authenticated/settings/team_/invitations_/$invitationId'
     | '/_authenticated/vaults_/$vaultId_/entries_/$entryId'
     | '/_authenticated/vaults_/$vaultId_/grants_/$grantId'
   fileRoutesById: FileRoutesById
@@ -466,12 +620,68 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgentsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/settings/': {
+      id: '/_authenticated/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/vaults_/$vaultId': {
       id: '/_authenticated/vaults_/$vaultId'
       path: '/vaults/$vaultId'
       fullPath: '/vaults/$vaultId'
       preLoaderRoute: typeof AuthenticatedVaultsVaultIdRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/settings/team': {
+      id: '/_authenticated/settings/team'
+      path: '/team'
+      fullPath: '/settings/team'
+      preLoaderRoute: typeof AuthenticatedSettingsTeamRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/security': {
+      id: '/_authenticated/settings/security'
+      path: '/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof AuthenticatedSettingsSecurityRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/permissions': {
+      id: '/_authenticated/settings/permissions'
+      path: '/permissions'
+      fullPath: '/settings/permissions'
+      preLoaderRoute: typeof AuthenticatedSettingsPermissionsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/general': {
+      id: '/_authenticated/settings/general'
+      path: '/general'
+      fullPath: '/settings/general'
+      preLoaderRoute: typeof AuthenticatedSettingsGeneralRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/data-export': {
+      id: '/_authenticated/settings/data-export'
+      path: '/data-export'
+      fullPath: '/settings/data-export'
+      preLoaderRoute: typeof AuthenticatedSettingsDataExportRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/billing': {
+      id: '/_authenticated/settings/billing'
+      path: '/billing'
+      fullPath: '/settings/billing'
+      preLoaderRoute: typeof AuthenticatedSettingsBillingRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/api-keys': {
+      id: '/_authenticated/settings/api-keys'
+      path: '/api-keys'
+      fullPath: '/settings/api-keys'
+      preLoaderRoute: typeof AuthenticatedSettingsApiKeysRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
     }
     '/_authenticated/api-keys_/$keyId': {
       id: '/_authenticated/api-keys_/$keyId'
@@ -501,6 +711,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVaultsVaultIdGrantsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/settings/team_/$memberId': {
+      id: '/_authenticated/settings/team_/$memberId'
+      path: '/team/$memberId'
+      fullPath: '/settings/team/$memberId'
+      preLoaderRoute: typeof AuthenticatedSettingsTeamMemberIdRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/permissions_/$roleId': {
+      id: '/_authenticated/settings/permissions_/$roleId'
+      path: '/permissions/$roleId'
+      fullPath: '/settings/permissions/$roleId'
+      preLoaderRoute: typeof AuthenticatedSettingsPermissionsRoleIdRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/api-keys_/$keyId': {
+      id: '/_authenticated/settings/api-keys_/$keyId'
+      path: '/api-keys/$keyId'
+      fullPath: '/settings/api-keys/$keyId'
+      preLoaderRoute: typeof AuthenticatedSettingsApiKeysKeyIdRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/vaults_/$vaultId_/grants_/$grantId': {
       id: '/_authenticated/vaults_/$vaultId_/grants_/$grantId'
       path: '/vaults/$vaultId/grants/$grantId'
@@ -515,8 +746,54 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedVaultsVaultIdEntriesEntryIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/settings/team_/invitations_/$invitationId': {
+      id: '/_authenticated/settings/team_/invitations_/$invitationId'
+      path: '/team/invitations/$invitationId'
+      fullPath: '/settings/team/invitations/$invitationId'
+      preLoaderRoute: typeof AuthenticatedSettingsTeamInvitationsInvitationIdRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
   }
 }
+
+interface AuthenticatedSettingsRouteChildren {
+  AuthenticatedSettingsApiKeysRoute: typeof AuthenticatedSettingsApiKeysRoute
+  AuthenticatedSettingsBillingRoute: typeof AuthenticatedSettingsBillingRoute
+  AuthenticatedSettingsDataExportRoute: typeof AuthenticatedSettingsDataExportRoute
+  AuthenticatedSettingsGeneralRoute: typeof AuthenticatedSettingsGeneralRoute
+  AuthenticatedSettingsPermissionsRoute: typeof AuthenticatedSettingsPermissionsRoute
+  AuthenticatedSettingsSecurityRoute: typeof AuthenticatedSettingsSecurityRoute
+  AuthenticatedSettingsTeamRoute: typeof AuthenticatedSettingsTeamRoute
+  AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
+  AuthenticatedSettingsApiKeysKeyIdRoute: typeof AuthenticatedSettingsApiKeysKeyIdRoute
+  AuthenticatedSettingsPermissionsRoleIdRoute: typeof AuthenticatedSettingsPermissionsRoleIdRoute
+  AuthenticatedSettingsTeamMemberIdRoute: typeof AuthenticatedSettingsTeamMemberIdRoute
+  AuthenticatedSettingsTeamInvitationsInvitationIdRoute: typeof AuthenticatedSettingsTeamInvitationsInvitationIdRoute
+}
+
+const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
+  AuthenticatedSettingsApiKeysRoute: AuthenticatedSettingsApiKeysRoute,
+  AuthenticatedSettingsBillingRoute: AuthenticatedSettingsBillingRoute,
+  AuthenticatedSettingsDataExportRoute: AuthenticatedSettingsDataExportRoute,
+  AuthenticatedSettingsGeneralRoute: AuthenticatedSettingsGeneralRoute,
+  AuthenticatedSettingsPermissionsRoute: AuthenticatedSettingsPermissionsRoute,
+  AuthenticatedSettingsSecurityRoute: AuthenticatedSettingsSecurityRoute,
+  AuthenticatedSettingsTeamRoute: AuthenticatedSettingsTeamRoute,
+  AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
+  AuthenticatedSettingsApiKeysKeyIdRoute:
+    AuthenticatedSettingsApiKeysKeyIdRoute,
+  AuthenticatedSettingsPermissionsRoleIdRoute:
+    AuthenticatedSettingsPermissionsRoleIdRoute,
+  AuthenticatedSettingsTeamMemberIdRoute:
+    AuthenticatedSettingsTeamMemberIdRoute,
+  AuthenticatedSettingsTeamInvitationsInvitationIdRoute:
+    AuthenticatedSettingsTeamInvitationsInvitationIdRoute,
+}
+
+const AuthenticatedSettingsRouteWithChildren =
+  AuthenticatedSettingsRoute._addFileChildren(
+    AuthenticatedSettingsRouteChildren,
+  )
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAgentsRoute: typeof AuthenticatedAgentsRoute
@@ -526,7 +803,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
-  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedUnlockRoute: typeof AuthenticatedUnlockRoute
   AuthenticatedVaultsRoute: typeof AuthenticatedVaultsRoute
@@ -548,7 +825,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
-  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedUnlockRoute: AuthenticatedUnlockRoute,
   AuthenticatedVaultsRoute: AuthenticatedVaultsRoute,

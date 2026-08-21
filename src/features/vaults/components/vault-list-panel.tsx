@@ -47,7 +47,7 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
           <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {t('vault.title')}
           </h2>
-          <p className="text-micro text-[var(--cv-t3)]">
+          <p className="truncate text-meta text-[var(--cv-t3)]">
             {vaults.status === 'syncing' && list.length === 0
               ? ' '
               : t('vault.list.subtitle', {

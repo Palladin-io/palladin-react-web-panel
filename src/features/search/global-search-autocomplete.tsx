@@ -187,7 +187,7 @@ export function GlobalSearchAutocomplete({
       return
     }
     if (item.type === 'member') {
-      void navigate({ to: '/team' })
+      void navigate({ to: '/settings/team' })
       return
     }
     if (item.type === 'vault') {

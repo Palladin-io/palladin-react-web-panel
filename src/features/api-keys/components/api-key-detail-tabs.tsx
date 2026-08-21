@@ -1,65 +1,41 @@
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { DetailTabBar } from '../../../shared/components/detail-tab-bar'
 
 export type ApiKeyDetailTab = 'details' | 'agents'
 
 export interface ApiKeyDetailTabsProps {
   active: ApiKeyDetailTab
   onChange: (next: ApiKeyDetailTab) => void
-  /** Wide-mode renders the gradient line; narrow stacks plainly. */
+  /** Wide-mode reserves the canonical detail-row height. */
   wide?: boolean
+  leading?: ReactNode
 }
 
 /**
- * Tab strip for the API key detail panel. `Details` is the only live
- * tab; `Agents` is a placeholder that renders a "coming soon" card until
- * its dedicated subtask lands. Mirrors the entry-detail tab strip so the
- * two split-view screens read identically.
+ * Tab strip for the API key detail panel. It delegates layout to the
+ * canonical detail tab bar so all split views share one baseline.
  */
 export function ApiKeyDetailTabs({
   active,
   onChange,
   wide,
+  leading,
 }: ApiKeyDetailTabsProps) {
   const { t } = useTranslation()
-  const tabs: { id: ApiKeyDetailTab; labelKey: string }[] = [
-    { id: 'details', labelKey: 'apiKeys.detail.detailsTab' },
-    { id: 'agents', labelKey: 'apiKeys.detail.agentsTab' },
+  const tabs: { id: ApiKeyDetailTab; label: string }[] = [
+    { id: 'details', label: t('apiKeys.detail.detailsTab') },
+    { id: 'agents', label: t('apiKeys.detail.agentsTab') },
   ]
 
-  const tabButtons = tabs.map((tab) => {
-    const isActive = tab.id === active
-    return (
-      <button
-        key={tab.id}
-        type="button"
-        role="tab"
-        aria-selected={isActive}
-        onClick={() => onChange(tab.id)}
-        className={`-mb-px border-b-2 px-3.5 py-2 text-ui transition-colors ${
-          isActive
-            ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
-            : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
-        }`}
-      >
-        {t(tab.labelKey)}
-      </button>
-    )
-  })
-
-  if (wide) {
-    return (
-      <div className="mb-4 flex h-10 items-end">
-        <div className="flex shrink-0 border-b border-[var(--cv-divider)]" role="tablist">
-          {tabButtons}
-        </div>
-        <div className="h-px flex-1 self-end bg-gradient-to-r from-[var(--cv-divider)] to-transparent" />
-      </div>
-    )
-  }
-
   return (
-    <div className="mb-3 flex border-b border-[var(--cv-divider)]" role="tablist">
-      {tabButtons}
-    </div>
+    <DetailTabBar
+      tabs={tabs}
+      active={active}
+      onChange={onChange}
+      ariaLabel={t('apiKeys.detail.tabsLabel')}
+      wide={wide}
+      leading={leading}
+    />
   )
 }

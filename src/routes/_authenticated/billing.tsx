@@ -1,24 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { Icon } from '../../shared/components/icon'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/_authenticated/billing')({
-  component: BillingPage,
+  beforeLoad: () => {
+    throw redirect({ to: '/settings/billing' })
+  },
 })
-
-function BillingPage() {
-  const { t } = useTranslation()
-  return (
-    <div className="flex min-h-full flex-col items-center justify-center gap-4 px-6 py-16 text-center">
-      <span className="text-[var(--cv-primary)]">
-        <Icon name="credit_card" size={40} />
-      </span>
-      <h1 className="text-page-title font-bold text-[#E8EAED]">
-        {t('nav.billing')}
-      </h1>
-      <p className="max-w-sm text-ui text-[#5A6478]">
-        {t('nav.comingSoon')}
-      </p>
-    </div>
-  )
-}

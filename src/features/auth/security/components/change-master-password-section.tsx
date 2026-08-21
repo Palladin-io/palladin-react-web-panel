@@ -69,7 +69,7 @@ export function ChangeMasterPasswordSection() {
       </h2>
       <p className="mt-1 text-ui text-[var(--cv-t3)]">{t('security.password.subtitle')}</p>
 
-      <form className="mt-4 flex max-w-[26rem] flex-col gap-3" onSubmit={handleSubmit}>
+      <form className="mt-4 flex w-full flex-col gap-4" onSubmit={handleSubmit}>
         <div>
           <FormInput
             id="current-master-password"
@@ -128,7 +128,7 @@ export function ChangeMasterPasswordSection() {
           {t('security.password.warningBody')}
         </WarningZone>
 
-        <div>
+        <div className="flex justify-end border-t border-[var(--cv-divider)] pt-4">
           <Button variant="accent" size="sm" type="submit" disabled={!canSubmit}>
             {change.isPending ? t('security.password.saving') : t('security.password.save')}
           </Button>

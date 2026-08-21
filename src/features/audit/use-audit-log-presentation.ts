@@ -19,7 +19,7 @@ export interface AuditLogPresentationOptions {
 /**
  * One presentation model for every Audit Log surface. Callers pass the whole
  * object to `AuditLogList`, so adding another resolver here automatically
- * reaches the global, dashboard, Agent, Vault and Entry logs.
+ * reaches the global, dashboard, Agent, Member, Vault and Entry logs.
  */
 export function useAuditLogPresentation(
   items: AuditLogItem[],
