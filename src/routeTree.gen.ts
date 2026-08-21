@@ -36,6 +36,7 @@ import { Route as AuthenticatedSettingsGeneralRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsDataExportRouteImport } from './routes/_authenticated/settings.data-export'
 import { Route as AuthenticatedSettingsBillingRouteImport } from './routes/_authenticated/settings.billing'
 import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_authenticated/settings.api-keys'
+import { Route as AuthenticatedInvitationsAcceptRouteImport } from './routes/_authenticated/invitations.accept'
 import { Route as AuthenticatedApiKeysKeyIdRouteImport } from './routes/_authenticated/api-keys_.$keyId'
 import { Route as AuthenticatedAgentsAgentIdRouteImport } from './routes/_authenticated/agents_.$agentId'
 import { Route as AuthenticatedVaultsVaultIdSettingsRouteImport } from './routes/_authenticated/vaults_.$vaultId_.settings'
@@ -190,6 +191,12 @@ const AuthenticatedSettingsApiKeysRoute =
     path: '/api-keys',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedInvitationsAcceptRoute =
+  AuthenticatedInvitationsAcceptRouteImport.update({
+    id: '/invitations/accept',
+    path: '/invitations/accept',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedApiKeysKeyIdRoute =
   AuthenticatedApiKeysKeyIdRouteImport.update({
     id: '/api-keys_/$keyId',
@@ -271,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/vaults': typeof AuthenticatedVaultsRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
+  '/invitations/accept': typeof AuthenticatedInvitationsAcceptRoute
   '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/settings/billing': typeof AuthenticatedSettingsBillingRoute
   '/settings/data-export': typeof AuthenticatedSettingsDataExportRoute
@@ -308,6 +316,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthenticatedIndexRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
+  '/invitations/accept': typeof AuthenticatedInvitationsAcceptRoute
   '/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/settings/billing': typeof AuthenticatedSettingsBillingRoute
   '/settings/data-export': typeof AuthenticatedSettingsDataExportRoute
@@ -348,6 +357,7 @@ export interface FileRoutesById {
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/agents_/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/_authenticated/api-keys_/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
+  '/_authenticated/invitations/accept': typeof AuthenticatedInvitationsAcceptRoute
   '/_authenticated/settings/api-keys': typeof AuthenticatedSettingsApiKeysRoute
   '/_authenticated/settings/billing': typeof AuthenticatedSettingsBillingRoute
   '/_authenticated/settings/data-export': typeof AuthenticatedSettingsDataExportRoute
@@ -388,6 +398,7 @@ export interface FileRouteTypes {
     | '/vaults'
     | '/agents/$agentId'
     | '/api-keys/$keyId'
+    | '/invitations/accept'
     | '/settings/api-keys'
     | '/settings/billing'
     | '/settings/data-export'
@@ -425,6 +436,7 @@ export interface FileRouteTypes {
     | '/'
     | '/agents/$agentId'
     | '/api-keys/$keyId'
+    | '/invitations/accept'
     | '/settings/api-keys'
     | '/settings/billing'
     | '/settings/data-export'
@@ -464,6 +476,7 @@ export interface FileRouteTypes {
     | '/_authenticated/'
     | '/_authenticated/agents_/$agentId'
     | '/_authenticated/api-keys_/$keyId'
+    | '/_authenticated/invitations/accept'
     | '/_authenticated/settings/api-keys'
     | '/_authenticated/settings/billing'
     | '/_authenticated/settings/data-export'
@@ -683,6 +696,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsApiKeysRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/invitations/accept': {
+      id: '/_authenticated/invitations/accept'
+      path: '/invitations/accept'
+      fullPath: '/invitations/accept'
+      preLoaderRoute: typeof AuthenticatedInvitationsAcceptRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/api-keys_/$keyId': {
       id: '/_authenticated/api-keys_/$keyId'
       path: '/api-keys/$keyId'
@@ -810,6 +830,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedAgentsAgentIdRoute: typeof AuthenticatedAgentsAgentIdRoute
   AuthenticatedApiKeysKeyIdRoute: typeof AuthenticatedApiKeysKeyIdRoute
+  AuthenticatedInvitationsAcceptRoute: typeof AuthenticatedInvitationsAcceptRoute
   AuthenticatedVaultsVaultIdRoute: typeof AuthenticatedVaultsVaultIdRoute
   AuthenticatedVaultsVaultIdGrantsRoute: typeof AuthenticatedVaultsVaultIdGrantsRoute
   AuthenticatedVaultsVaultIdSettingsRoute: typeof AuthenticatedVaultsVaultIdSettingsRoute
@@ -832,6 +853,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedAgentsAgentIdRoute: AuthenticatedAgentsAgentIdRoute,
   AuthenticatedApiKeysKeyIdRoute: AuthenticatedApiKeysKeyIdRoute,
+  AuthenticatedInvitationsAcceptRoute: AuthenticatedInvitationsAcceptRoute,
   AuthenticatedVaultsVaultIdRoute: AuthenticatedVaultsVaultIdRoute,
   AuthenticatedVaultsVaultIdGrantsRoute: AuthenticatedVaultsVaultIdGrantsRoute,
   AuthenticatedVaultsVaultIdSettingsRoute:

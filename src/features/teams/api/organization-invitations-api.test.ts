@@ -10,6 +10,7 @@ vi.mock('../../../shared/api/client', () => ({
 }))
 
 import {
+  acceptOrganizationInvitation,
   organizationInvitationSchema,
   resendOrganizationInvitation,
   resendOrganizationInvitationResponseSchema,
@@ -71,6 +72,23 @@ describe('organization invitation contract', () => {
     expect(postFn).toHaveBeenCalledWith(
       'api/organization/invitations/invitation-1/resend',
       { json: {} },
+    )
+  })
+
+  it('accepts an invitation with the opaque token and returns the joined session', async () => {
+    const session = {
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+      userId: 'user-1',
+      isOnboarded: true,
+      emailVerified: true,
+    }
+    postJson.mockResolvedValue(session)
+
+    await expect(acceptOrganizationInvitation('opaque-invitation-token')).resolves.toEqual(session)
+    expect(postFn).toHaveBeenCalledWith(
+      'api/organization/invitations/accept',
+      { json: { token: 'opaque-invitation-token' } },
     )
   })
 })

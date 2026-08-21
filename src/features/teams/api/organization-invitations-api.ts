@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
+import type { AuthResponse } from '../../../shared/api/types'
 
 const invitationRoleSchema = z.object({
   id: z.string(),
@@ -48,6 +49,12 @@ export async function inviteOrganizationMember(input: {
   roleId: string
 }): Promise<void> {
   await api.post('api/organization/invitations', { json: input })
+}
+
+export async function acceptOrganizationInvitation(token: string): Promise<AuthResponse> {
+  return api.post('api/organization/invitations/accept', {
+    json: { token },
+  }).json<AuthResponse>()
 }
 
 export async function getOrganizationInvitations(): Promise<OrganizationInvitation[]> {

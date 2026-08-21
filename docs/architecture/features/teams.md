@@ -24,8 +24,9 @@ Shows the people in the active organization with their e-mail address, role coun
 
 ## Route and navigation
 
-- Routes: `/settings/team`, `/settings/team/:memberId`, and `/settings/team/invitations/:invitationId`.
+- Routes: `/settings/team`, `/settings/team/:memberId`, `/settings/team/invitations/:invitationId`, and the email deep link `/invitations/accept?token=…`.
 - Legacy `/team` redirects to `/settings/team`.
+- Invitation acceptance is an authenticated, verified-email standalone surface. Opening the link never consumes its single-use token; only the explicit `Accept invitation` action does. A successful response replaces the session with the backend-issued session scoped to the joined organization, immediately locks and wipes the previous organization's in-memory keys, then sends the user through Unlock before any joined-organization data is rendered.
 - The member list is visible to every authenticated organization member. Editing requires `OrganizationManagement`; the owner is always read-only.
 - Inviting requires `AddUser`. Fresh organizations receive the invitation-safe system role `User` (`VaultCreate | VaultManage`), subject to the caller's delegation ceiling. Administrator and every role containing `GrantManage` remain intentionally excluded from invitations.
 - Listing, resending, changing the pending invitation role and cancelling invitations require `AddUser` plus a verified e-mail. The backend scopes invitation IDs to the active organization and retains a cancellation marker for history instead of deleting the row.

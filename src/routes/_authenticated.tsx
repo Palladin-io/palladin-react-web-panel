@@ -116,6 +116,8 @@ const DROPDOWN_BG = {
 
 function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const standaloneAuthSurface =
+    pathname === '/unlock' || pathname === '/invitations/accept'
   const theme = useThemeStore((s) => s.theme)
   const navigate = useNavigate()
   const accessToken = useAuthStore((state) => state.accessToken)
@@ -169,7 +171,7 @@ function AuthenticatedLayout() {
       userId={memberId}
       memberPrivateKey={memberPrivateKey}
     >
-      {pathname === '/unlock' ? (
+      {standaloneAuthSurface ? (
         <Outlet />
       ) : (
         <RotationProvider
