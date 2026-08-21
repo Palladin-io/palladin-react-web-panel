@@ -53,7 +53,10 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
   const cancelInvitation = useCancelOrganizationInvitation()
   const roles = useTeamRoles(canManage)
   const list = useMemo(() => members.data ?? [], [members.data])
-  const invitationList = useMemo(() => invitations.data ?? [], [invitations.data])
+  const invitationList = useMemo(
+    () => canInvite ? invitations.data ?? [] : [],
+    [canInvite, invitations.data],
+  )
   const selectedMember = memberId ? list.find((member) => member.userId === memberId) : undefined
   const selectedInvitation = activeInvitationId
     ? invitationList.find((invitation) => invitation.id === activeInvitationId)
@@ -101,7 +104,7 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
   }, [canInvite, invitationId, navigate])
 
   const handleCancelInvitation = () => {
-    if (!invitationToCancel) return
+    if (!canInvite || !invitationToCancel) return
     cancelInvitation.mutate(invitationToCancel.id, {
       onSuccess: () => {
         toast.success(t('team.invitations.cancelSuccess'))
@@ -242,9 +245,9 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
           />
         )}
       />
-      <InviteMemberDialog open={inviteOpen} onClose={() => setInviteOpen(false)} />
+      <InviteMemberDialog open={canInvite && inviteOpen} onClose={() => setInviteOpen(false)} />
       <CancelInvitationDialog
-        email={invitationToCancel?.email ?? null}
+        email={canInvite ? invitationToCancel?.email ?? null : null}
         isPending={cancelInvitation.isPending}
         onConfirm={handleCancelInvitation}
         onClose={() => setInvitationToCancel(null)}

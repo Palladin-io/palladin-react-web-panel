@@ -346,10 +346,14 @@ describe('TeamMembersPage', () => {
 
     render(<TeamMembersPage invitationId="invitation-1" />)
     expect(screen.getByRole('button', { name: 'Send again' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel invitation' }))
+    expect(screen.getByRole('dialog', { name: 'Cancel invitation?' })).toBeInTheDocument()
 
     act(() => useAuthStore.setState({ permissions: 0 }))
 
     expect(screen.queryByRole('button', { name: 'Send again' })).not.toBeInTheDocument()
+    expect(screen.queryByText('pending@example.com')).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Cancel invitation?' })).not.toBeInTheDocument()
     expect(navigate).toHaveBeenCalledWith({ to: '/settings/team', replace: true })
   })
 

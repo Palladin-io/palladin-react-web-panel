@@ -1,10 +1,15 @@
 import type { ReactNode } from 'react'
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { act, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useAuthStore } from '../auth'
+import { PERMISSION_ORGANIZATION_MANAGEMENT } from '../../shared/lib/permissions'
 import { PermissionsPage } from './permissions-page'
+
+const navigate = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: ReactNode }) => <a>{children}</a>,
+  useNavigate: () => navigate,
 }))
 
 vi.mock('../../shared/components/responsive-master-detail', () => ({
@@ -39,6 +44,11 @@ vi.mock('./use-organization-roles', () => ({
 }))
 
 describe('PermissionsPage', () => {
+  beforeEach(() => {
+    navigate.mockReset()
+    useAuthStore.setState({ permissions: PERMISSION_ORGANIZATION_MANAGEMENT })
+  })
+
   it('places the role type badge in the primary-name row using status-pill geometry', () => {
     render(<PermissionsPage />)
 
@@ -47,5 +57,15 @@ describe('PermissionsPage', () => {
 
     expect(roleType).toHaveClass('h-5', 'px-2', 'text-micro', 'font-semibold')
     expect(roleType.parentElement).toBe(roleName.parentElement)
+  })
+
+  it('hides cached roles and leaves the route when OrganizationManagement is revoked', () => {
+    render(<PermissionsPage />)
+    expect(screen.getByText('Administrator')).toBeInTheDocument()
+
+    act(() => useAuthStore.setState({ permissions: 0 }))
+
+    expect(screen.queryByText('Administrator')).not.toBeInTheDocument()
+    expect(navigate).toHaveBeenCalledWith({ to: '/settings/general', replace: true })
   })
 })

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
 import { EmptyState } from '../../shared/components/empty-state'
@@ -21,6 +21,7 @@ import { useOrganizationRoles } from './use-organization-roles'
 
 export function PermissionsPage({ roleId }: { roleId?: string }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const query = useOrganizationRoles()
   const permissions = useAuthStore((state) => state.permissions)
   const canManage = (permissions & PERMISSION_ORGANIZATION_MANAGEMENT) !== 0
@@ -28,6 +29,14 @@ export function PermissionsPage({ roleId }: { roleId?: string }) {
   const roles = query.data?.items ?? []
   const selectedRole = roleId ? roles.find((role) => role.id === roleId) : undefined
   const assignablePermissions = query.data?.assignablePermissions ?? []
+
+  useEffect(() => {
+    if (!canManage) {
+      void navigate({ to: '/settings/general', replace: true })
+    }
+  }, [canManage, navigate])
+
+  if (!canManage) return null
 
   return (
     <>
