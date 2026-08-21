@@ -145,7 +145,7 @@ Pages with a hardcoded dark gradient background (e.g., `/unlock`, `/login`) must
 
 ### View Layout (new views)
 
-- New views are **left-aligned** with the standard `panel-content` container (padding `px-4 py-4`), consistent with Agents/Vaults. **Never center** view content (`mx-auto` / `justify-center` at the page level is forbidden). The one approved exception is the Settings page.
+- New views are **left-aligned** with the standard `panel-content` container (padding `px-4 py-4`), consistent with Agents/Vaults. **Never center** view content (`mx-auto` / `justify-center` at the page level is forbidden).
 - **Prefer split-view** for views with a list + related context: main list on the left (`w-[clamp(...)] shrink-0 border-r`), related panel on the right (`flex-1`). On narrow screens the columns stack vertically (list first). This split-view layout is duplicated across 7 pages and is a candidate for a shared `SplitView` component — see `docs/architecture/component-catalog.md`.
 - Patterns to copy (don't invent a new one): Grant Management (list + detail), Approvals (pending left + audit log right), Agents/Vaults. Keep the existing pattern from `agents-page.tsx` / `grants-page.tsx`.
 
@@ -180,7 +180,7 @@ Every-iteration reuse reference. Reach for the shared component before writing m
 | Internal scroll section | `ScrollArea` | Any scrollable list/content region under pinned chrome; see Scroll Model |
 | Skeleton / loader | **missing** → `SkeletonBlock` | Loading placeholders; 22 inline copies — extract |
 | Empty state | **missing** → `EmptyState` | "No items" dashed box; 13 inline copies — extract |
-| Split-view layout | **missing** → `SplitView` | List + detail pages; 7 inline copies — extract |
+| Responsive master/detail | `ResponsiveMasterDetail` | Wide list + detail columns with narrow route-driven drill-in |
 | Tooltip | `Tooltip` | Truncated text; 150ms delay, only when actually clipped |
 | Icon | `Icon` | Material Symbols glyph; never hand-write `<span class="mi">` |
 | Filter dropdown | `TypeFilterDropdown` | Multi-select filter (checkbox listbox + Clear) |

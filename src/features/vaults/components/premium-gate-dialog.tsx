@@ -63,7 +63,7 @@ export function PremiumGateDialog({ open, onClose }: PremiumGateDialogProps) {
             {t('vault.premiumGate.maybeLater')}
           </Button>
           <Link
-            to="/billing"
+            to="/settings/billing"
             onClick={() => {
               analytics.capture('billing', 'upgrade-prompt-clicked', {
                 reason: 'vault-limit-reached',

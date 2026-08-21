@@ -82,10 +82,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
   return (
     <>
       {/* Main info card */}
-      <div
-        className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
-          dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
-      >
+      <div className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5">
         <div className="flex items-center justify-between gap-3 min-w-0">
           <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {apiKey.name}
@@ -117,9 +114,9 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
       {/* Activate zone — shown only for revoked keys when user has write permission */}
       {!isActive && canWrite ? (
         <section
-          className="mt-4 rounded-xl border border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.12)] p-4"
+          className="mt-4 rounded-xl border border-[rgb(var(--cv-success-rgb)/0.3)] bg-[rgb(var(--cv-success-rgb)/0.12)] p-4"
         >
-          <h2 className="text-meta font-semibold uppercase tracking-[0.06em] text-[#10B981]">
+          <h2 className="text-meta font-semibold text-[var(--cv-success)]">
             {t('apiKeys.activateZone')}
           </h2>
           <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
@@ -142,7 +139,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
       {canWrite ? <section
         className="mt-4 rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
       >
-        <h2 className="text-meta font-semibold uppercase tracking-[0.06em] text-[var(--cv-primary)]">
+        <h2 className="text-meta font-semibold text-[var(--cv-primary)]">
           {t('apiKeys.dangerZone')}
         </h2>
 

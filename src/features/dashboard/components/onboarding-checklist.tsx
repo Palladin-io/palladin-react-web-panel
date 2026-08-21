@@ -112,7 +112,7 @@ export function OnboardingChecklist({
       void navigate({ to: '/vaults' })
     } else if (key === 'apiKey') {
       analytics.capture('dashboard', 'onboarding-api-key-clicked')
-      void navigate({ to: '/api-keys' })
+      void navigate({ to: '/settings/api-keys' })
     } else if (key === 'agent') {
       analytics.capture('dashboard', 'onboarding-agent-clicked')
       void navigate({ to: '/agents' })

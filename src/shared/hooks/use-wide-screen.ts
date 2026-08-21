@@ -12,6 +12,7 @@ export function useWideScreen(breakpoint = WIDE_LAYOUT_BREAKPOINT): boolean {
     () => typeof window !== 'undefined' && window.innerWidth >= breakpoint,
   )
   useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined
     const mq = window.matchMedia(`(min-width: ${breakpoint}px)`)
     const handler = (e: MediaQueryListEvent) => setWide(e.matches)
     mq.addEventListener('change', handler)

@@ -84,6 +84,7 @@ Sonner toasts wear the theme surface with a variant color as a left-border + ico
 | Export | Use |
 |--------|-----|
 | `HOVERABLE_CARD_CLASSES` | Shared hover/focus class string for cards and list rows: `rounded-2xl`, `--cv-border`, `--cv-card-bg`, hover → `--cv-card-hover` (background lift, no shadow, no border change), focus-visible → `--cv-t1` border. **Edit here to change hover everywhere.** Never inline `hover:border-*` / `hover:bg-*` / `shadow-*` on card-like elements. |
+| `METADATA_BADGE_CLASSES` | Canonical compact pill geometry (`h-5`, `px-2`, `text-micro`, semibold). Use for owner/type/status badges in list and detail headers; callers add only semantic colours and optional icon. In two-line card identities, place the badge in the first-line flex row beside the primary label — never as a sibling centered against both lines. |
 | `AUTH_BACKGROUND_GRADIENT` | The dark gradient `background` value shared by every full-screen auth surface (login, unlock, onboarding, recovery). One constant so those screens stay identical as the palette evolves. |
 
 Button class exports for `<Link>` elements that must look like footer buttons: `PREMIUM_BUTTON_SM_CLASS`, `POSITIVE_BUTTON_SM_CLASS` (from `button.tsx`).
@@ -93,6 +94,7 @@ Button class exports for `<Link>` elements that must look like footer buttons: `
 - `.mi` — Material Symbols Rounded glyph span (1em square, clipped). Prefer the `Icon` component; this class is the underlying convention.
 - `.step-enter` / `@keyframes step-enter` — wizard step entrance animation (fade + translateY).
 - `.btn-premium` — premium-button sweep-fill hover.
+- `.tab-strip-scroll` — keeps detail tabs horizontally scrollable without exposing an overlay scrollbar thumb beside the last tab.
 
 ## Radius, spacing & type conventions
 

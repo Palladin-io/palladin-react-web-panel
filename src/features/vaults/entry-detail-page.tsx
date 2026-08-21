@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
+import { DetailTabBar } from '../../shared/components/detail-tab-bar'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
 import { FeedbackSlot, FormInput } from '../../shared/components/form-field'
@@ -333,53 +334,22 @@ interface EntryDetailTabsProps {
 
 function EntryDetailTabs({ active, onChange, wide, actions }: EntryDetailTabsProps) {
   const { t } = useTranslation()
-  const tabs: { id: EntryDetailTab; labelKey: string }[] = [
-    { id: 'details', labelKey: 'vault.entry.detail.detailsTab' },
-    { id: 'agents', labelKey: 'vault.entry.detail.agentsTab' },
-    { id: 'history', labelKey: 'vault.entry.detail.historyTab' },
-    { id: 'logs', labelKey: 'vault.entry.detail.logsTab' },
+  const tabs: { id: EntryDetailTab; label: string }[] = [
+    { id: 'details', label: t('vault.entry.detail.detailsTab') },
+    { id: 'agents', label: t('vault.entry.detail.agentsTab') },
+    { id: 'history', label: t('vault.entry.detail.historyTab') },
+    { id: 'logs', label: t('vault.entry.detail.logsTab') },
   ]
 
-  const tabButtons = tabs.map((tab) => {
-    const isActive = tab.id === active
-    return (
-      <button
-        key={tab.id}
-        type="button"
-        role="tab"
-        aria-selected={isActive}
-        onClick={() => onChange(tab.id)}
-        className={`-mb-px border-b-2 px-3.5 py-2 text-ui transition-colors ${
-          isActive
-            ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
-            : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
-        }`}
-      >
-        {t(tab.labelKey)}
-      </button>
-    )
-  })
-
-  if (wide) {
-    return (
-      <div className="mb-4 flex h-10 items-end">
-        <div className="flex shrink-0 border-b border-[var(--cv-divider)]" role="tablist">
-          {tabButtons}
-        </div>
-        <div className="h-px flex-1 self-end bg-gradient-to-r from-[var(--cv-divider)] to-transparent" />
-        {actions ? (
-          <div className="flex shrink-0 self-center items-center gap-1">
-            {actions}
-          </div>
-        ) : null}
-      </div>
-    )
-  }
-
   return (
-    <div className="mb-3 flex border-b border-[var(--cv-divider)]" role="tablist">
-      {tabButtons}
-    </div>
+    <DetailTabBar
+      tabs={tabs}
+      active={active}
+      onChange={onChange}
+      ariaLabel={t('vault.entry.detail.tabsLabel')}
+      wide={wide}
+      actions={actions}
+    />
   )
 }
 

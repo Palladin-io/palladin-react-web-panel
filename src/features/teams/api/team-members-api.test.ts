@@ -9,8 +9,8 @@ describe('organizationMemberSchema', () => {
       email: 'alice@example.com',
       publicKey: null,
       roles: [
-        { id: 'role-1', name: 'Auditor', permissions: 128, isSystem: false },
-        { id: 'role-2', name: 'Vault manager', permissions: 8, isSystem: false },
+        { id: 'role-1', name: 'Auditor', permissions: 128, isSystem: false, canAssign: true },
+        { id: 'role-2', name: 'Vault manager', permissions: 8, isSystem: false, canAssign: false },
       ],
       effectivePermissions: 136,
       isOwner: false,

@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
+import { DetailTabBar } from '../../../shared/components/detail-tab-bar'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { ScrollArea } from '../../../shared/components/scroll-area'
@@ -75,6 +76,11 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
   const name = agentDisplayName(agent, t('agents.unnamed'))
   const isAgentActive = agent.status === AGENT_STATUS_ACTIVE
   const canEdit = canManage && isAgentActive
+  const tabs = AGENT_TABS.map(({ id, labelKey, requiresActive }) => ({
+    id,
+    label: t(labelKey),
+    disabled: Boolean(requiresActive && !isAgentActive),
+  }))
 
   const handleConfirmApprove = (input: {
     name?: string
@@ -139,47 +145,23 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
   return (
     <>
       <div className="flex h-full min-h-0 flex-col">
-        {/* ── Tab bar — mirrors entry-detail wide-mode: h-10 items-end ────── */}
-        <div className="mb-4 flex h-10 shrink-0 items-end">
-          <div className="flex shrink-0 border-b border-[var(--cv-divider)]" role="tablist">
-            {AGENT_TABS.map(({ id, labelKey, requiresActive }) => {
-              const disabled = requiresActive && !isAgentActive
-              const isActive = id === activeTab
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  disabled={disabled}
-                  onClick={() => setActiveTab(id)}
-                  className={`-mb-px border-b-2 px-3.5 py-2 text-ui transition-colors ${
-                    disabled
-                      ? 'cursor-not-allowed border-transparent font-medium text-[var(--cv-t3)] opacity-35'
-                      : isActive
-                        ? 'border-[var(--cv-primary)] font-bold text-[var(--cv-primary)]'
-                        : 'border-transparent font-medium text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
-                  }`}
-                >
-                  {t(labelKey)}
-                </button>
-              )
-            })}
-          </div>
-          <div className="h-px flex-1 self-end bg-gradient-to-r from-[var(--cv-divider)] to-transparent" />
-          {/* Add Access lives in the tab bar (same place as Vault → Agents → Add Agent). */}
-          {activeTab === 'grants' ? (
+        <DetailTabBar
+          tabs={tabs}
+          active={activeTab}
+          onChange={setActiveTab}
+          ariaLabel={t('agents.tabsLabel')}
+          wide
+          actions={activeTab === 'grants' ? (
             <Button
               variant="accent"
               size="sm"
               icon="add"
-              className="ml-2 shrink-0 self-center"
               onClick={() => setAddAccessOpen(true)}
             >
               {t('agents.addAccess')}
             </Button>
-          ) : null}
-        </div>
+          ) : undefined}
+        />
 
         {/* ── Details tab ─────────────────────────────────────────────────── */}
         {activeTab === 'details' ? (

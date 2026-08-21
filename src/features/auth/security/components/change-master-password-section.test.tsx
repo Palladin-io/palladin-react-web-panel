@@ -32,9 +32,15 @@ describe('ChangeMasterPasswordSection', () => {
 
   it('renders the three password fields', () => {
     render(<ChangeMasterPasswordSection />)
-    expect(screen.getByLabelText(/current password/i)).toBeInTheDocument()
+    const currentPassword = screen.getByLabelText(/current password/i)
+    expect(currentPassword).toBeInTheDocument()
     expect(screen.getByLabelText(/^new password$/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/confirm new password/i)).toBeInTheDocument()
+    expect(currentPassword.closest('form')).toHaveClass('w-full', 'gap-4')
+    expect(screen.getByRole('button', { name: /change password/i }).parentElement).toHaveClass(
+      'justify-end',
+      'border-t',
+    )
   })
 
   it('submits the change and clears the form on success', async () => {

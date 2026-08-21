@@ -20,7 +20,6 @@ import { Icon } from '../shared/components/icon'
 import {
   PERMISSION_AGENT_MANAGE,
   PERMISSION_AUDIT_VIEW,
-  PERMISSION_READ_API_KEY,
 } from '../shared/lib/permissions'
 import {
   SignalRProvider,
@@ -117,6 +116,8 @@ const DROPDOWN_BG = {
 
 function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const standaloneAuthSurface =
+    pathname === '/unlock' || pathname === '/invitations/accept'
   const theme = useThemeStore((s) => s.theme)
   const navigate = useNavigate()
   const accessToken = useAuthStore((state) => state.accessToken)
@@ -170,7 +171,7 @@ function AuthenticatedLayout() {
       userId={memberId}
       memberPrivateKey={memberPrivateKey}
     >
-      {pathname === '/unlock' ? (
+      {standaloneAuthSurface ? (
         <Outlet />
       ) : (
         <RotationProvider
@@ -184,7 +185,7 @@ function AuthenticatedLayout() {
               style={{ background: GRADIENTS[theme] }}
             >
               <AppSidebar currentPath={pathname} />
-              <main className="subtle-scrollbar flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+              <main className="subtle-scrollbar h-full min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
                 <Outlet />
               </main>
             </div>
@@ -246,28 +247,6 @@ const NAV_ITEMS: NavItem[] = [
     to: '/audit',
     matchPrefix: '/audit',
     requirePermission: PERMISSION_AUDIT_VIEW,
-  },
-  {
-    key: 'billing',
-    labelKey: 'nav.billing',
-    icon: 'credit_card',
-    to: '/billing',
-    matchPrefix: '/billing',
-  },
-  {
-    key: 'team',
-    labelKey: 'nav.team',
-    icon: 'group',
-    to: '/team',
-    matchPrefix: '/team',
-  },
-  {
-    key: 'api-keys',
-    labelKey: 'nav.apiKeys',
-    icon: 'key',
-    to: '/api-keys',
-    matchPrefix: '/api-keys',
-    requirePermission: PERMISSION_READ_API_KEY,
   },
   {
     key: 'settings',

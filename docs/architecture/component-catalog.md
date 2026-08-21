@@ -38,6 +38,9 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `RecoveryKeyDisplay` | `shared/components/recovery-key-display.tsx` | Shared recovery mnemonic display and acknowledgement action for account setup flows | `mnemonic`, `continueLabel`, `onContinue`. |
 | `RecoveryKeyConfirmationForm` | `shared/components/recovery-key-confirmation-form.tsx` | Shared three-word recovery-key challenge with inline validation and submit state | `mnemonic`, `onConfirmed`, `isSubmitting`, `error`, `onValidated?`. |
 | `ErrorBoundary` | `shared/components/error-boundary.tsx` | Per-feature route error boundary | standard class-component boundary. |
+| `ResponsiveMasterDetail` | `shared/components/responsive-master-detail.tsx` | Canonical responsive list/detail layout | `master`, `detail`, `hasSelection`, accessible panel labels; wide dual-column, narrow route-driven drill-in. |
+| `DetailTabBar<T>` | `shared/components/detail-tab-bar.tsx` | Canonical pinned tab strip for detail panels | `tabs`, `active`, `onChange`, `ariaLabel`, `wide?`, `leading?`, `actions?`; uses a stable font weight to prevent tab shifts, hides the narrow-panel overflow thumb, and supports disabled tabs. On narrow route drill-in, pass the back control through `leading` so it shares the fixed-height tab row; never render a navigation-only row above the tabs. |
+| `SettingsSectionPage` | `shared/components/settings-section-page.tsx` | Pinned Settings section header + internally scrolling, left-aligned content | `title`, `subtitle`, `children`. |
 
 ## Shared helpers (`shared/lib/`)
 
@@ -59,8 +62,6 @@ These patterns are duplicated 2+ times with no shared component. Extract on next
 
 | Proposed component | Proposed API | Duplication found |
 |--------------------|-------------|-------------------|
-| `DetailTabBar<T>` | `<DetailTabBar tabs={{id,label}[]} active onChange wide? actions? />` | **4 implementations** — `vaults/components/vault-detail-tabs.tsx` (canonical) + `api-keys/components/api-key-detail-tabs.tsx` (diverged copy) + inline at `vaults/entry-detail-page.tsx:255` and `agents/components/agent-detail.tsx:133`. |
-| `SplitView` | `<SplitView left right />` | **7 pages** — `useWideScreen()` (comfortable-density breakpoint 1600) + `flex h-full` + left `w-[clamp(18.75rem,22vw,25rem)] shrink-0 border-r` + right `min-w-0 flex-1`. agents, api-keys, grants (×2), vaults (×3). |
 | `InlineEditFooter` | `<InlineEditFooter onCancel onSave saving? disabled? cancelLabel? saveLabel? />` | **3 instances** — `mt-4 flex justify-end gap-2 border-t pt-4` at `agents/components/agent-edit-form.tsx:179`, `vaults/entry-detail-page.tsx:772`, `vaults/components/vault-settings-form.tsx:163` (in-page forms, `justify-end` — not modal `DialogFooter`). |
 
 ## Reuse rules
@@ -75,3 +76,4 @@ These patterns are duplicated 2+ times with no shared component. Extract on next
 8. **Auth surfaces** — `AuthSubmitButton`, `AppWordmark`, `AUTH_BACKGROUND_GRADIENT`, and `class="dark"` on the outer div.
 9. **Colors** — `var(--cv-*)` tokens only. Brand red via `--cv-primary` / `--cv-primary-rgb`. Audit colors via `tone()` in `audit-event-config.ts`.
 10. **Skeletons / empty-states / tab strips / split-view / selects** — see "Controls to extract" above; use or create the shared component, never copy markup.
+11. **Settings master headers** — use `SETTINGS_MASTER_HEADER_CLASSES` inside a panel with 16px top padding. The 40px title row + 16px bottom gap occupies the same 72px band as the Settings rail header, keeping Settings, Team, Permissions and API Keys on one baseline.

@@ -46,7 +46,7 @@ export function TotpSection() {
         </span>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 flex justify-end border-t border-[var(--cv-divider)] pt-4">
         {enabled ? (
           <Button variant="danger" size="sm" onClick={() => setDisableOpen(true)}>
             {t('security.totp.disable')}

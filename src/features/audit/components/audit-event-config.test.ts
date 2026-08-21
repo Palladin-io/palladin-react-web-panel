@@ -33,10 +33,14 @@ describe('audit-event-config', () => {
     expect(auditEventConfig('credential.access-denied').color).toBe('var(--cv-primary)')
     expect(auditEventConfig('grant.revoked').color).toBe('var(--cv-primary)')
     expect(auditEventConfig('agent.deleted').color).toBe('var(--cv-primary)')
+    expect(auditEventConfig('org.invitation-cancelled').color).toBe('var(--cv-primary)')
     // Info — neutral lifecycle (incl. agent enrolment, now blue not peach).
     expect(auditEventConfig('vault.created').color).toBe('var(--cv-info)')
     expect(auditEventConfig('apikey.created').color).toBe('var(--cv-info)')
     expect(auditEventConfig('agent.enrolled').color).toBe('var(--cv-info)')
+    expect(auditEventConfig('org.member-invited').color).toBe('var(--cv-info)')
+    expect(auditEventConfig('org.invitation-resent').color).toBe('var(--cv-info)')
+    expect(auditEventConfig('org.invitation-role-changed').color).toBe('var(--cv-info)')
     // Neutral — passive / terminal.
     expect(auditEventConfig('grant.expired').color).toBe('var(--cv-neutral)')
     // Pending — awaiting human action; the only pending event (peach).

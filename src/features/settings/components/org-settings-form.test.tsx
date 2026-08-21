@@ -50,7 +50,7 @@ describe('OrgSettingsForm', () => {
   })
 
   it('renders the current organization name', () => {
-    render(<OrgSettingsForm org={baseOrg} />, { wrapper })
+    render(<OrgSettingsForm org={baseOrg} canEdit />, { wrapper })
     expect(screen.getByLabelText(/organization name/i)).toHaveValue('Acme Inc.')
   })
 
@@ -60,7 +60,7 @@ describe('OrgSettingsForm', () => {
       options.onSuccess()
     })
 
-    render(<OrgSettingsForm org={baseOrg} />, { wrapper })
+    render(<OrgSettingsForm org={baseOrg} canEdit />, { wrapper })
 
     const input = screen.getByLabelText(/organization name/i)
     await user.clear(input)
@@ -74,7 +74,7 @@ describe('OrgSettingsForm', () => {
 
   it('does not call the mutation when the name is unchanged', async () => {
     const user = userEvent.setup()
-    render(<OrgSettingsForm org={baseOrg} />, { wrapper })
+    render(<OrgSettingsForm org={baseOrg} canEdit />, { wrapper })
 
     await user.click(screen.getByRole('button', { name: /^save$/i }))
 
@@ -87,7 +87,7 @@ describe('OrgSettingsForm', () => {
       options.onError(new Error('403'))
     })
 
-    render(<OrgSettingsForm org={baseOrg} />, { wrapper })
+    render(<OrgSettingsForm org={baseOrg} canEdit />, { wrapper })
 
     const input = screen.getByLabelText(/organization name/i)
     await user.clear(input)

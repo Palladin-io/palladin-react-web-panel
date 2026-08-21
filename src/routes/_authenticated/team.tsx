@@ -1,6 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { TeamMembersPage } from '../../features/teams'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/_authenticated/team')({
-  component: TeamMembersPage,
+  beforeLoad: () => {
+    throw redirect({ to: '/settings/team' })
+  },
 })

@@ -4,6 +4,9 @@ import { api } from '../../../shared/api/client'
 export const organizationSchema = z.object({
   orgId: z.string(),
   name: z.string(),
+  memberCount: z.number().int().nonnegative(),
+  seatUsage: z.number().int().nonnegative(),
+  seatLimit: z.number().int().positive(),
 })
 
 export type Organization = z.infer<typeof organizationSchema>

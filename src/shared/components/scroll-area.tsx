@@ -21,7 +21,7 @@ export function ScrollArea({ children, className = '', scrollRef, onScroll }: Sc
     <div
       ref={scrollRef}
       onScroll={onScroll}
-      className={`subtle-scrollbar -mr-2 min-h-0 flex-1 overflow-y-auto pb-4 pr-2 ${className}`}
+      className={`subtle-scrollbar -mr-2 min-h-0 flex-1 overscroll-contain overflow-y-auto pb-4 pr-2 ${className}`}
     >
       {children}
     </div>
