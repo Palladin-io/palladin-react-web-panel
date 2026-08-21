@@ -3,6 +3,7 @@ import { ErrorState } from '../../../shared/components/error-state'
 import { LoadMoreSentinel } from '../../../shared/components/load-more-sentinel'
 import { Icon } from '../../../shared/components/icon'
 import type { AuditLogItem } from '../api/audit-api'
+import type { AuditLogPresentation } from '../use-audit-log-presentation'
 import { AuditLogEntry } from './audit-log-entry'
 
 export interface AuditLogListProps {
@@ -15,14 +16,8 @@ export interface AuditLogListProps {
   /** True when the previous page load failed — shows the manual retry. */
   isFetchNextPageError?: boolean
   onLoadMore: () => void
-  /** Resolve an agent id to a display name (falls back inside the row otherwise). */
-  resolveAgentName?: (agentId: string) => string
-  /** Resolve the acting Member/System without trusting denormalized row names. */
-  resolveActorName?: (item: AuditLogItem) => string | undefined
-  /** Resolve an opaque entry id from client-only decrypted state. */
-  resolveEntryName?: (entryId: string) => string
-  /** Resolve a vault id to a display name — drives the vault chip (global log only). */
-  resolveVaultName?: (vaultId: string) => string | undefined
+  /** Shared names/resolvers; pass the complete model instead of selecting fields. */
+  presentation: AuditLogPresentation
   /** Show the entry chip on each row — off when the entry is fixed (entry tab). */
   showEntry?: boolean
   /** Show the vault chip on each row — on only in the global log. */
@@ -38,8 +33,7 @@ export interface AuditLogListProps {
 /**
  * Shared renderer for an audit log: skeleton / error / empty / rows + a
  * "Load more" cursor button. Loading state replaces only the list area so the
- * caller's header and filter bar stay visible. Reused by the vault Audit Log
- * tab and the global Audit Log screen.
+ * caller's header and filter bar stay visible.
  */
 export function AuditLogList({
   items,
@@ -50,10 +44,7 @@ export function AuditLogList({
   isFetchingNextPage,
   isFetchNextPageError = false,
   onLoadMore,
-  resolveAgentName,
-  resolveActorName,
-  resolveEntryName,
-  resolveVaultName,
+  presentation,
   showEntry = true,
   showVault = false,
   emptyMessage,
@@ -78,11 +69,15 @@ export function AuditLogList({
             key={item.id}
             item={item}
             agentName={
-              item.agentId ? resolveAgentName?.(item.agentId) : undefined
+              item.agentId ? presentation.resolveAgentName(item.agentId) : undefined
             }
-            actorName={resolveActorName?.(item)}
-            entryName={item.entryId ? resolveEntryName?.(item.entryId) : undefined}
-            vaultName={item.vaultId ? resolveVaultName?.(item.vaultId) : undefined}
+            actorName={presentation.resolveActorName(item)}
+            entryName={
+              item.entryId ? presentation.resolveEntryName(item.entryId) : undefined
+            }
+            vaultName={
+              item.vaultId ? presentation.resolveVaultName(item.vaultId) : undefined
+            }
             showEntry={showEntry}
             showVault={showVault}
             withDivider={i > 0}

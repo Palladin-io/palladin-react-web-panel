@@ -63,11 +63,18 @@ vi.mock('../audit', () => ({
     refetch: vi.fn(),
     fetchNextPage: vi.fn(),
   }),
-  useAuditAgentNames: () => ({
+  useAuditLogPresentation: () => ({
     agentNameById: {},
-    resolveAgentName: (id: string) => id,
+    memberNameById: {},
+    entryNameById: {},
+    vaultNameById: {},
     agentOptions: [],
     userOptions: [],
+    vaultOptions: [],
+    resolveAgentName: (id: string) => id,
+    resolveActorName: () => undefined,
+    resolveEntryName: (id: string) => id,
+    resolveVaultName: (id: string) => id,
   }),
   AuditLogList: () => null,
 }))

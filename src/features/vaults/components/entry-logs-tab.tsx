@@ -2,18 +2,15 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
-import { shortenKey } from '../../../shared/lib/shorten-key'
-import { useAgentNames } from '../../agents'
-import type { AuditLogItem } from '../../audit'
 import {
   AuditFilterBar,
   type AuditFilterState,
   AuditLogList,
   ENTRY_RELEVANT_EVENT_TYPES,
   filterAuditLogs,
+  useAuditLogPresentation,
   useVaultAuditLogs,
 } from '../../audit'
-import { useVaultMembers } from '../use-vault-members'
 
 const EMPTY_FILTER: AuditFilterState = {
   search: '',
@@ -47,10 +44,6 @@ export function EntryLogsTab({ vaultId, entryId, entryName }: EntryLogsTabProps)
 
   const [filter, setFilter] = useState<AuditFilterState>(EMPTY_FILTER)
 
-  const agents = useAgentNames(canView)
-  // Actor labels are presentation-only; unlike the Members lifecycle tab they
-  // do not need five-second deprovisioning polling.
-  const members = useVaultMembers(vaultId, canView, false)
   const serverFilters = useMemo(() => ({
     entryId,
     ...(filter.agentId.length ? { agentId: filter.agentId.join(',') } : {}),
@@ -64,31 +57,12 @@ export function EntryLogsTab({ vaultId, entryId, entryName }: EntryLogsTabProps)
     () => (logs.data?.pages ?? []).flatMap((p) => p.items),
     [logs.data],
   )
-
-  const agentNameById = useMemo(() => {
-    const map: Record<string, string> = {}
-    for (const a of agents.data ?? []) {
-      if (a.name) map[a.agentId] = a.name
-    }
-    return map
-  }, [agents.data])
-
-  const memberNameById = useMemo(() => {
-    const map: Record<string, string> = {}
-    for (const page of members.data?.pages ?? []) {
-      for (const member of page.items) {
-        if (member.memberName?.trim()) map[member.memberId] = member.memberName.trim()
-      }
-    }
-    return map
-  }, [members.data])
-
-  const resolveAgentName = (id: string) => agentNameById[id] ?? shortenKey(id)
-  const resolveActorName = (item: AuditLogItem) => {
-    if (item.actorType === 'agent') return item.agentId ? resolveAgentName(item.agentId) : undefined
-    if (item.actorType === 'system') return t('audit.systemActor')
-    return item.userId ? memberNameById[item.userId] ?? shortenKey(item.userId) : undefined
-  }
+  const entryNameById = useMemo(() => ({ [entryId]: entryName }), [entryId, entryName])
+  const presentation = useAuditLogPresentation(allItems, {
+    enabled: canView,
+    entryNameById,
+  })
+  const { agentNameById, memberNameById, agentOptions } = presentation
 
   const filtered = useMemo(
     () =>
@@ -99,20 +73,11 @@ export function EntryLogsTab({ vaultId, entryId, entryName }: EntryLogsTabProps)
         // free-text remains local and never reaches the API.
         search: filter.search,
         agentNameById,
-        entryNameById: { [entryId]: entryName },
+        memberNameById,
+        entryNameById,
       }),
-    [allItems, entryId, entryName, filter.search, agentNameById],
+    [allItems, entryId, filter.search, agentNameById, memberNameById, entryNameById],
   )
-
-  // Agents that actually appear in this entry's log — keeps the dropdown short.
-  const agentOptions = useMemo(() => {
-    const ids = new Set<string>()
-    for (const item of allItems) {
-      if (item.entryId === entryId && item.agentId) ids.add(item.agentId)
-    }
-    return [...ids].map((id) => ({ value: id, label: resolveAgentName(id) }))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allItems, entryId, agentNameById])
 
   return (
     <div className="min-w-0">
@@ -134,9 +99,7 @@ export function EntryLogsTab({ vaultId, entryId, entryName }: EntryLogsTabProps)
         isFetchingNextPage={logs.isFetchingNextPage}
         isFetchNextPageError={logs.isFetchNextPageError}
         onLoadMore={() => logs.fetchNextPage()}
-        resolveAgentName={resolveAgentName}
-        resolveActorName={resolveActorName}
-        resolveEntryName={() => entryName}
+        presentation={presentation}
         showEntry={false}
         emptyMessage={t('audit.emptyLog')}
         canView={canView}
