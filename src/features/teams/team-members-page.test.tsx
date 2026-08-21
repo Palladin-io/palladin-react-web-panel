@@ -282,6 +282,32 @@ describe('TeamMembersPage', () => {
     expect(screen.queryByText('pending@example.com')).not.toBeInTheDocument()
   })
 
+  it('clears the pending-only filter when AddUser is revoked', () => {
+    membersState.data = [owner]
+    invitationsState.data = [{
+      id: 'invitation-1',
+      email: 'pending@example.com',
+      roleId: 'role-user',
+      roleName: 'User',
+      invitedByName: 'Alice Morgan',
+      createdAt: '2026-08-20T10:00:00Z',
+      sentAt: '2026-08-20T10:00:00Z',
+      expiresAt: '2026-08-23T10:00:00Z',
+      resendAvailableAt: '2026-08-20T10:01:00Z',
+    }]
+    useAuthStore.setState({ permissions: PERMISSION_ADD_USER })
+
+    render(<TeamMembersPage />)
+    fireEvent.click(screen.getByRole('button', { name: 'Status' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Pending invitations' }))
+    expect(screen.queryByText('Alice Morgan')).not.toBeInTheDocument()
+
+    act(() => useAuthStore.setState({ permissions: 0 }))
+
+    expect(screen.getByText('Alice Morgan')).toBeInTheDocument()
+    expect(screen.queryByText('pending@example.com')).not.toBeInTheDocument()
+  })
+
   it('shows pending invitation details, edits its role, and cancels from the detail panel', () => {
     membersState.data = [owner]
     invitationsState.data = [{

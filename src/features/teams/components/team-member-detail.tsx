@@ -16,6 +16,7 @@ import type { OrganizationMember } from '../api/team-members-api'
 import { useUpdateMemberRoles } from '../use-update-member-roles'
 
 const GRANT_MANAGE_CUTOVER_ERROR = 'organization-role-grant-manage-cutover-unavailable'
+const ALL_PERMISSIONS_MASK = 2_147_483_647
 
 export interface TeamMemberDetailProps {
   member?: OrganizationMember
@@ -214,7 +215,7 @@ function TeamMemberDetailBody({
                       {role.isSystem ? <span className={`${METADATA_BADGE_CLASSES} bg-[rgb(var(--cv-info-rgb)/0.12)] text-[var(--cv-info)]`}>{t('permissions.system')}</span> : null}
                     </span>
                     <span className="text-meta text-[var(--cv-t3)]">
-                      {role.isSystem
+                      {role.permissions === ALL_PERMISSIONS_MASK
                         ? t('permissions.allPermissions')
                         : t('permissions.permissionCount', { count: countKnownBits(role.permissions) })}
                     </span>

@@ -38,6 +38,14 @@ const grantManager: OrganizationRole = {
   canAssign: true,
   assignedMemberCount: 0,
 }
+const systemUser: OrganizationRole = {
+  id: 'system-user',
+  name: 'User',
+  permissions: 12,
+  isSystem: true,
+  canAssign: true,
+  assignedMemberCount: 0,
+}
 const member: OrganizationMember = {
   userId: 'member-1',
   displayName: 'Alice Morgan',
@@ -67,6 +75,15 @@ describe('TeamMemberDetail', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Roles' }))
     expect(screen.getByRole('checkbox', { name: /auditor/i })).toBeChecked()
     expect(screen.getByRole('checkbox', { name: /grant manager/i })).not.toBeChecked()
+  })
+
+  it('reports the actual permission count for non-administrator system roles', () => {
+    render(<TeamMemberDetail member={member} hasSelection roles={[systemUser]} isLoading={false} isError={false} canManage callerPermissions={160} onRetry={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Roles' }))
+
+    expect(screen.getByText('2 permissions')).toBeInTheDocument()
+    expect(screen.queryByText('All current and future permissions')).not.toBeInTheDocument()
   })
 
   it('keeps non-delegable assigned and unassigned roles visible but locked', () => {

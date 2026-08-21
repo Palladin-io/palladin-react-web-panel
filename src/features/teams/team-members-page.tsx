@@ -86,8 +86,11 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
     list,
   ])
   const normalizedSearch = search.trim().toLocaleLowerCase()
+  const visibleSelectedKinds = canInvite
+    ? selectedKinds
+    : new Set([...selectedKinds].filter((kind) => kind !== 'pending'))
   const filteredEntries = allEntries.filter((entry) => (
-    (selectedKinds.size === 0 || selectedKinds.has(entry.kind))
+    (visibleSelectedKinds.size === 0 || visibleSelectedKinds.has(entry.kind))
     && (normalizedSearch.length === 0 || entry.searchText.includes(normalizedSearch))
   ))
   const listPending = members.isPending || (canInvite && invitations.isPending)
@@ -148,7 +151,7 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
               />
               <TypeFilterDropdown
                 options={statusOptions}
-                selected={selectedKinds}
+                selected={visibleSelectedKinds}
                 onChange={setSelectedKinds}
                 placeholder={t('team.filterStatus')}
                 ariaLabel={t('team.filterStatus')}
