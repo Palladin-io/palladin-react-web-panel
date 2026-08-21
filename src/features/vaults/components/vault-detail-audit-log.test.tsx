@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
+import { shortenKey } from '../../../shared/lib/shorten-key'
 import type { AuditLogItem } from '../../audit'
-import { useAuditAgentNames, useVaultAuditLogs } from '../../audit'
+import { useAuditLogPresentation, useVaultAuditLogs } from '../../audit'
 import { useAuthStore } from '../../auth'
 import { useVaultAuditEntryNames } from '../use-vault-audit-entry-names'
 import { VaultDetailAuditLog } from './vault-detail-audit-log'
@@ -12,14 +13,14 @@ vi.mock('../../audit', async (importActual) => {
   return {
     ...actual,
     useVaultAuditLogs: vi.fn(),
-    useAuditAgentNames: vi.fn(),
+    useAuditLogPresentation: vi.fn(),
   }
 })
 vi.mock('../use-vault-audit-entry-names')
 vi.mock('../../auth', () => ({ useAuthStore: vi.fn() }))
 
 const mockLogs = vi.mocked(useVaultAuditLogs)
-const mockAgentNames = vi.mocked(useAuditAgentNames)
+const mockPresentation = vi.mocked(useAuditLogPresentation)
 const mockEntryNames = vi.mocked(useVaultAuditEntryNames)
 const mockAuthStore = vi.mocked(useAuthStore)
 
@@ -60,15 +61,24 @@ function setPermissions(permissions: number) {
 
 beforeEach(() => {
   setPermissions(PERMISSION_AUDIT_VIEW)
-  mockAgentNames.mockReturnValue({
-    agentNameById: { 'agent-1': 'github-copilot' },
-    resolveAgentName: (id: string) => (id === 'agent-1' ? 'github-copilot' : id),
-    memberNameById: { 'user-1': 'Patryk Roguszewski' },
-    resolveActorName: (item: AuditLogItem) => item.userId === 'user-1'
-      ? 'Patryk Roguszewski'
-      : item.agentId === 'agent-1' ? 'github-copilot' : undefined,
-    agentOptions: [{ value: 'agent-1', label: 'github-copilot' }],
-    userOptions: [],
+  mockPresentation.mockImplementation((_items, options) => {
+    const entryNameById = { ...(options.entryNameById ?? {}) }
+    const resolveAgentName = (id: string) => id === 'agent-1' ? 'github-copilot' : id
+    return {
+      agentNameById: { 'agent-1': 'github-copilot' },
+      memberNameById: { 'user-1': 'Patryk Roguszewski' },
+      entryNameById,
+      vaultNameById: {},
+      resolveAgentName,
+      resolveActorName: (item: AuditLogItem) => item.userId === 'user-1'
+        ? 'Patryk Roguszewski'
+        : item.agentId === 'agent-1' ? 'github-copilot' : undefined,
+      resolveEntryName: (id: string) => entryNameById[id] ?? shortenKey(id),
+      resolveVaultName: (id: string) => shortenKey(id),
+      agentOptions: [{ value: 'agent-1', label: 'github-copilot' }],
+      userOptions: [],
+      vaultOptions: [],
+    }
   })
   mockEntryNames.mockReturnValue({
     entryNameById: { 'entry-1': 'Stripe API Key' },

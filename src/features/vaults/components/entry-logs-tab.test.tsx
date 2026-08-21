@@ -7,17 +7,42 @@ import { EntryLogsTab } from './entry-logs-tab'
 
 const mocks = vi.hoisted(() => ({
   useLogs: vi.fn(),
-  agents: vi.fn(),
-  members: vi.fn(),
 }))
 
-vi.mock('../../agents', () => ({ useAgentNames: () => mocks.agents() }))
-vi.mock('../use-vault-members', () => ({ useVaultMembers: () => mocks.members() }))
 vi.mock('../../audit', () => ({
   ENTRY_RELEVANT_EVENT_TYPES: ['entry.updated', 'credential.accessed'],
   useVaultAuditLogs: (...args: unknown[]) => mocks.useLogs(...args),
   filterAuditLogs: (items: Array<{ entryId?: string }>, filter: { entryId?: string }) =>
     items.filter((item) => !filter.entryId || item.entryId === filter.entryId),
+  useAuditLogPresentation: (
+    _items: unknown[],
+    options: { entryNameById?: Record<string, string> },
+  ) => {
+    const entryNameById = options.entryNameById ?? {}
+    const resolveAgentName = (id: string) => id === 'agent-1' ? 'Local Agent' : id
+    return {
+      agentNameById: { 'agent-1': 'Local Agent' },
+      memberNameById: {
+        '00112233-4455-4677-8899-aabbccddeeff': 'Local Member',
+      },
+      entryNameById,
+      vaultNameById: {},
+      agentOptions: [{ value: 'agent-1', label: 'Local Agent' }],
+      userOptions: [],
+      vaultOptions: [],
+      resolveAgentName,
+      resolveActorName: (item: { actorType: string; agentId?: string; userId?: string }) => {
+        if (item.actorType === 'agent') {
+          return item.agentId ? resolveAgentName(item.agentId) : undefined
+        }
+        if (item.actorType === 'system') return 'System'
+        if (item.userId === '00112233-4455-4677-8899-aabbccddeeff') return 'Local Member'
+        return item.userId ? `${item.userId.slice(0, 8)}…${item.userId.slice(-6)}` : undefined
+      },
+      resolveEntryName: (id: string) => entryNameById[id] ?? id,
+      resolveVaultName: (id: string) => id,
+    }
+  },
   AuditFilterBar: ({ onChange }: { onChange: (value: unknown) => void }) => (
     <button type="button" onClick={() => onChange({
       search: 'local only', eventType: ['entry.updated'], agentId: ['agent-1'],
@@ -26,16 +51,18 @@ vi.mock('../../audit', () => ({
   ),
   AuditLogList: (props: {
     items: Array<{ id: string; agentId?: string; actorType: string; userId?: string; entryId?: string }>
-    resolveAgentName: (id: string) => string
-    resolveActorName: (item: never) => string | undefined
-    resolveEntryName: (id: string) => string
+    presentation: {
+      resolveAgentName: (id: string) => string
+      resolveActorName: (item: never) => string | undefined
+      resolveEntryName: (id: string) => string
+    }
   }) => (
     <div>
       {props.items.map((item) => (
         <div key={item.id}>
-          <span>{item.agentId ? props.resolveAgentName(item.agentId) : ''}</span>
-          <span>{props.resolveActorName(item as never)}</span>
-          <span>{item.entryId ? props.resolveEntryName(item.entryId) : ''}</span>
+          <span>{item.agentId ? props.presentation.resolveAgentName(item.agentId) : ''}</span>
+          <span>{props.presentation.resolveActorName(item as never)}</span>
+          <span>{item.entryId ? props.presentation.resolveEntryName(item.entryId) : ''}</span>
         </div>
       ))}
     </div>
@@ -55,10 +82,6 @@ describe('EntryLogsTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useAuthStore.setState({ permissions: PERMISSION_AUDIT_VIEW })
-    mocks.agents.mockReturnValue({ data: [{ agentId: 'agent-1', name: 'Local Agent' }] })
-    mocks.members.mockReturnValue({ data: { pages: [{ items: [{
-      memberId: '00112233-4455-4677-8899-aabbccddeeff', memberName: 'Local Member',
-    }] }] } })
     mocks.useLogs.mockReturnValue({ data: { pages: [{ items: rows }] }, isPending: false, isError: false,
       refetch: vi.fn(), hasNextPage: false, isFetchingNextPage: false,
       isFetchNextPageError: false, fetchNextPage: vi.fn() })

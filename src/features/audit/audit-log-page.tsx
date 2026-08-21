@@ -19,8 +19,7 @@ import { AuditFilterBar, type AuditFilterState } from './components/audit-filter
 import { AuditLogLegend } from './components/audit-log-legend'
 import { AuditLogList } from './components/audit-log-list'
 import { AUDIT_EVENT_CATEGORIES } from './components/audit-event-config'
-import { useAuditAgentNames } from './use-audit-agent-names'
-import { useOrgAuditResourceNames } from './use-org-audit-resource-names'
+import { useAuditLogPresentation } from './use-audit-log-presentation'
 import { useOrgAuditLogs } from './use-org-audit-logs'
 
 const EMPTY_FILTER: AuditFilterState = {
@@ -113,23 +112,16 @@ export function AuditLogPage() {
     [logs.data],
   )
 
+  const presentation = useAuditLogPresentation(allItems, { enabled: canView })
   const {
-    resolveAgentName,
-    resolveActorName,
     agentOptions,
     userOptions,
     agentNameById,
     memberNameById,
-  } =
-    useAuditAgentNames(allItems, canView)
-
-  const {
     entryNameById,
     vaultNameById,
     vaultOptions,
-    resolveEntryName,
-    resolveVaultName,
-  } = useOrgAuditResourceNames(allItems)
+  } = presentation
 
   const filtered = useMemo(
     () => filterAuditLogs(allItems, {
@@ -192,10 +184,7 @@ export function AuditLogPage() {
           isFetchingNextPage={logs.isFetchingNextPage}
           isFetchNextPageError={logs.isFetchNextPageError}
           onLoadMore={() => logs.fetchNextPage()}
-          resolveAgentName={resolveAgentName}
-          resolveActorName={resolveActorName}
-          resolveEntryName={resolveEntryName}
-          resolveVaultName={resolveVaultName}
+          presentation={presentation}
           showVault
           emptyMessage={t('audit.emptyLog')}
           canView={canView}

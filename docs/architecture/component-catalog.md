@@ -29,6 +29,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `ErrorState` | `shared/components/error-state.tsx` | Red-tinted error card with Retry button | `message?`, `onRetry`. |
 | `EmptyState` | `shared/components/empty-state.tsx` | Canonical dashed empty-list state with optional guidance and action | `title`, `description?`, `action?`, `icon?`, `className?`. |
 | `SkeletonBlock` | `shared/components/skeleton-block.tsx` | Theme-aware loading placeholder | `height?`, `rounded?` (`xl` / `2xl`), `className?`. |
+| `AuditLogList` | `features/audit/components/audit-log-list.tsx` | Canonical Audit Log states, rows and cursor sentinel used on Home and every log scope | `presentation` is required and comes from `useAuditLogPresentation`; never pass resolver functions individually. |
 | `TypeFilterDropdown` | `shared/components/type-filter-dropdown.tsx` | Multi-select filter dropdown (checkbox listbox + Clear row) | `options`, `selected` (Set\<string\>), `onChange`, `placeholder`, `ariaLabel?`, `triggerClassName?`, `optionPrefix?`. |
 | `DateTimePicker` | `shared/components/datetime-picker.tsx` | Anchored calendar popover replacing native `datetime-local`, portaled to body | `value` (datetime-local string), `min?`, `onChange`, `onClose`, `anchorRef`. Tested. |
 | `PasswordStrengthBar` | `shared/components/password-strength-bar.tsx` | 4-segment strength bar (score 0–4) | `score: PasswordStrength`. |

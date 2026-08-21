@@ -7,7 +7,7 @@ import {
   AuditLogList,
   csvParam,
   filterAuditLogs,
-  useAuditAgentNames,
+  useAuditLogPresentation,
   useVaultAuditLogs,
   type AuditFilterState,
 } from '../../audit'
@@ -59,16 +59,18 @@ export function VaultDetailAuditLog({ vaultId }: VaultDetailAuditLogProps) {
     [logs.data],
   )
 
+  const { entryNameById: vaultEntryNameById } = useVaultAuditEntryNames(vaultId, allItems)
+  const presentation = useAuditLogPresentation(allItems, {
+    enabled: canView,
+    entryNameById: vaultEntryNameById,
+  })
   const {
-    resolveAgentName,
-    resolveActorName,
     agentOptions,
     userOptions,
     agentNameById,
     memberNameById,
-  } =
-    useAuditAgentNames(allItems, canView)
-  const { resolveEntryName, entryNameById } = useVaultAuditEntryNames(vaultId, allItems)
+    entryNameById,
+  } = presentation
 
   const filtered = useMemo(
     () => filterAuditLogs(allItems, {
@@ -98,9 +100,7 @@ export function VaultDetailAuditLog({ vaultId }: VaultDetailAuditLogProps) {
         isFetchingNextPage={logs.isFetchingNextPage}
         isFetchNextPageError={logs.isFetchNextPageError}
         onLoadMore={() => logs.fetchNextPage()}
-        resolveAgentName={resolveAgentName}
-        resolveActorName={resolveActorName}
-        resolveEntryName={resolveEntryName}
+        presentation={presentation}
         emptyMessage={t('audit.emptyLog')}
         canView={canView}
       />

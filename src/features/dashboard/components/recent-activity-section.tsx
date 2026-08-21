@@ -5,10 +5,9 @@ import { PERMISSION_AUDIT_VIEW } from '../../../shared/lib/permissions'
 import { useAuthStore } from '../../auth'
 import {
   AuditLogList,
-  useAuditAgentNames,
+  useAuditLogPresentation,
   useOrgAuditLogs,
 } from '../../audit'
-import { useVaults } from '../../vaults'
 
 /** How many of the most recent org events the dashboard surfaces. */
 const RECENT_LIMIT = 10
@@ -26,19 +25,13 @@ export function RecentActivitySection() {
   const canView = (permissions & PERMISSION_AUDIT_VIEW) !== 0
 
   const logs = useOrgAuditLogs({}, canView)
-  const vaults = useVaults({ enabled: canView })
 
   const allItems = useMemo(
     () => (logs.data?.pages ?? []).flatMap((p) => p.items),
     [logs.data],
   )
   const recent = useMemo(() => allItems.slice(0, RECENT_LIMIT), [allItems])
-
-  const { resolveAgentName } = useAuditAgentNames(recent, canView)
-  const resolveVaultName = useMemo(() => {
-    const byId = new Map((vaults.data?.vaults ?? []).map((v) => [v.id, v.name]))
-    return (vaultId: string) => byId.get(vaultId)
-  }, [vaults.data])
+  const presentation = useAuditLogPresentation(recent, { enabled: canView })
 
   if (!canView) return null
 
@@ -64,8 +57,7 @@ export function RecentActivitySection() {
         hasNextPage={false}
         isFetchingNextPage={false}
         onLoadMore={() => {}}
-        resolveAgentName={resolveAgentName}
-        resolveVaultName={resolveVaultName}
+        presentation={presentation}
         showVault
         emptyMessage={t('dashboard.noActivity')}
         canView={canView}
