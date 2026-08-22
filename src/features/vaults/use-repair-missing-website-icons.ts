@@ -135,7 +135,8 @@ export function useRepairMissingWebsiteIcons(vaultId: string) {
           // The authenticated MemberIndex is only a candidate selector. Recheck
           // the current canonical secret so a stale projection never overwrites
           // a user-selected icon or changes a non-Credential Entry.
-          if (previous.entryType !== ENTRY_TYPE_CREDENTIAL
+          if ((detail.state !== 'active' && detail.state !== 1)
+            || previous.entryType !== ENTRY_TYPE_CREDENTIAL
             || previous.content.type !== ENTRY_TYPE_CREDENTIAL
             || previous.iconReference) {
             skipped += 1

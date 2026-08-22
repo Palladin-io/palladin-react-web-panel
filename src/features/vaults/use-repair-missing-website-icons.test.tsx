@@ -116,6 +116,7 @@ beforeEach(() => {
     id: entryId,
     vaultId: VAULT_ID,
     organizationId: 'org-1',
+    state: 'active',
     currentRevision: '1',
     entryKey: {},
     memberSecret: {},
@@ -204,6 +205,27 @@ describe('useRepairMissingWebsiteIcons', () => {
       revision: 1, url: 'https://assets.palladin.io/published/github.png',
     }]]))
     mocks.openSecret.mockResolvedValue(canonicalSecret({ kind: 'glyph', value: 'star' }))
+    const { result } = renderHook(() => useRepairMissingWebsiteIcons(VAULT_ID), { wrapper })
+
+    let repairResult
+    await act(async () => {
+      repairResult = await result.current.mutateAsync({})
+    })
+
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(repairResult).toEqual({ candidates: 1, repaired: 0, skipped: 1, failed: 0 })
+  })
+
+  it('skips an Entry archived after the MemberIndex snapshot', async () => {
+    publish([record('github', 'github.com')])
+    mocks.ensureIcons.mockResolvedValue(new Map([['github.com', {
+      id: '11111111-1111-4111-8111-111111111111', type: 'websiteIcon', name: 'github.com',
+      revision: 1, url: 'https://assets.palladin.io/published/github.png',
+    }]]))
+    mocks.getEntry.mockResolvedValue({
+      id: 'github', vaultId: VAULT_ID, organizationId: 'org-1', state: 'archived',
+      currentRevision: '2', entryKey: {}, memberSecret: {},
+    })
     const { result } = renderHook(() => useRepairMissingWebsiteIcons(VAULT_ID), { wrapper })
 
     let repairResult
