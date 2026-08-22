@@ -36,7 +36,7 @@ import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 import { useMemberSyncStore } from './sync/member-sync-store'
 import {
-  ensureWebsiteIconsWithin,
+  ensureWebsiteIconsUntilSettled,
   normalizePublicHostname,
   type PublicAsset,
 } from '../../shared/api/public-assets-api'
@@ -44,7 +44,6 @@ import { extractDomain } from './components/entry-presentation'
 
 /** Keep crypto/save memory bounded independently from catalog request paging. */
 const IMPORT_CHUNK_SIZE = 50
-const IMPORT_ICON_WAIT_MS = 15_000
 
 /** Which phase of the import failed — surfaced so a failure is attributable. */
 export type ImportStep = 'grants' | 'loadVault' | 'openVaultKey' | 'challenge' | 'encrypt' | 'save' | 'overwrite'
@@ -173,6 +172,12 @@ export function useImportEntries() {
     mutationFn: async (input: ImportEntriesInput): Promise<ImportEntriesResult> => {
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new VaultLockedError()
+      const cryptoSessionGeneration = useAuthStore.getState().cryptoSessionGeneration
+      const assertUnlockSession = () => {
+        const session = useAuthStore.getState()
+        if (session.privateKey !== privateKey
+          || session.cryptoSessionGeneration !== cryptoSessionGeneration) throw new VaultLockedError()
+      }
       const total = input.creates.length + input.overwrites.length
 
       // Fetch active FULL grants once before opening keys. An empty list is valid.
@@ -190,22 +195,21 @@ export function useImportEntries() {
       }
 
       // Catalog preparation is public, optional work. Finish it before
-      // opening VK/VDK so locking the vault during the bounded wait cannot
-      // leave derived key buffers alive until the catalog deadline.
+      // opening VK/VDK so waiting for the complete durable catalog queue never
+      // keeps derived key buffers alive. Lock/session changes abort the wait.
       const iconHostnames = [...new Set([...input.creates, ...input.overwrites.map(({ entry }) => entry)]
         .map((entry) => normalizePublicHostname(extractDomain(entry.url) ?? ''))
         .filter((hostname): hostname is string => hostname !== null))]
       const iconTotal = iconHostnames.length
       if (iconTotal > 0) input.onProgress?.(0, iconTotal, 'icons')
       const publicAssets = iconHostnames.length > 0
-        ? await ensureWebsiteIconsWithin(
+        ? await ensureWebsiteIconsUntilSettled(
           iconHostnames,
-          IMPORT_ICON_WAIT_MS,
           (ready, count) => input.onProgress?.(ready, count, 'icons'),
+          assertUnlockSession,
         )
         : new Map<string, PublicAsset>()
-      if (iconTotal > 0) input.onProgress?.(iconTotal, iconTotal, 'icons')
-      if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
+      assertUnlockSession()
 
       let vaultKey: Uint8Array
       try {

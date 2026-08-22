@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { HTTPError } from 'ky'
 import { api } from './client'
 import { env } from '../lib/env'
 
@@ -36,6 +37,29 @@ const websiteAssetStatusCache = new Map<string, z.infer<typeof websiteIconEnsure
 const cacheListeners = new Set<() => void>()
 let cacheRevision = 0
 const WEBSITE_ICON_POLL_INTERVAL_MS = 1_000
+const COMPLETE_WEBSITE_ICON_POLL_INTERVAL_MS = 3_000
+const WEBSITE_ICON_ACTIVITY_CHECK_INTERVAL_MS = 1_000
+
+function retryAfterMilliseconds(error: unknown): number | null {
+  if (!(error instanceof HTTPError) || error.response.status !== 429) return null
+  const value = error.response.headers.get('retry-after')?.trim()
+  if (!value) return null
+  const seconds = Number(value)
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1_000
+  const retryAt = Date.parse(value)
+  return Number.isNaN(retryAt) ? null : Math.max(0, retryAt - Date.now())
+}
+
+async function waitForWebsiteIconPoll(delayMs: number, assertActive?: () => void): Promise<void> {
+  const deadline = Date.now() + delayMs
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(
+      resolve,
+      Math.min(WEBSITE_ICON_ACTIVITY_CHECK_INTERVAL_MS, deadline - Date.now()),
+    ))
+    assertActive?.()
+  }
+}
 
 function notifyCacheChanged(): void {
   cacheRevision += 1
@@ -123,7 +147,7 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
   return result
 }
 
-/** Wait only during an explicit save flow and return published assets only. */
+/** Wait only during a bounded explicit save flow and return published assets. */
 export async function ensureWebsiteIconsWithin(
   hostnames: string[],
   timeoutMs: number,
@@ -184,6 +208,58 @@ export async function ensureWebsiteIconsWithin(
   }
   reportProgress()
   return cachedResult()
+}
+
+/**
+ * Prepare a complete import batch without a wall-clock deadline. The durable
+ * backend queue supplies the terminal condition for every hostname (`ready`
+ * or `failed`); transient catalog request failures are retried without
+ * discarding progress made by sibling pages.
+ */
+export async function ensureWebsiteIconsUntilSettled(
+  hostnames: string[],
+  onProgress?: (completed: number, total: number) => void,
+  assertActive?: () => void,
+): Promise<Map<string, PublicAsset>> {
+  const unique = [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
+  for (const hostname of unique) {
+    if (websiteAssetStatusCache.get(hostname) === 'failed') {
+      websiteAssetStatusCache.delete(hostname)
+    }
+  }
+  const cachedResult = (): Map<string, PublicAsset> => new Map(
+    unique.flatMap((hostname) => {
+      const asset = websiteAssetCache.get(hostname)
+      return asset ? [[hostname, asset] as const] : []
+    }),
+  )
+  const unresolvedHostnames = () => unique.filter((hostname) => {
+    const status = websiteAssetStatusCache.get(hostname)
+    return status !== 'ready' && status !== 'failed'
+  })
+  const reportProgress = () => onProgress?.(unique.length - unresolvedHostnames().length, unique.length)
+
+  reportProgress()
+  while (true) {
+    assertActive?.()
+    const unresolved = unresolvedHostnames()
+    if (unresolved.length === 0) return cachedResult()
+    let nextPollDelay = COMPLETE_WEBSITE_ICON_POLL_INTERVAL_MS
+    try {
+      await ensureWebsiteIcons(unresolved)
+    } catch (error) {
+      // A request-level failure is retried. Successfully completed sibling
+      // pages stay cached, so one transient page cannot reset the batch.
+      nextPollDelay = Math.max(
+        COMPLETE_WEBSITE_ICON_POLL_INTERVAL_MS,
+        retryAfterMilliseconds(error) ?? 0,
+      )
+    }
+    reportProgress()
+    assertActive?.()
+    if (unresolvedHostnames().length === 0) return cachedResult()
+    await waitForWebsiteIconPoll(nextPollDelay, assertActive)
+  }
 }
 
 /** Accept only the configured immutable public-asset namespace for rendering. */

@@ -2,6 +2,7 @@ import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { AnchorHTMLAttributes, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useAuthStore } from '../../auth'
 import { useMemberSyncStore, type MemberIndexRecord } from '../sync/member-sync-store'
 import type { Vault } from '../types'
 import { useEntriesListUi } from '../use-entries-list-ui'
@@ -39,7 +40,6 @@ vi.mock('../use-recently-deleted-entries', () => ({
   }),
   useDestroyEntry: () => ({ mutateAsync: destroyMutate, isPending: false }),
 }))
-
 const VAULT: Vault = {
   id: '22222222-2222-4222-8222-222222222222',
   organizationId: 'org-1',
@@ -104,6 +104,7 @@ beforeEach(() => {
   restoreMutate.mockReset()
   destroyMutate.mockReset()
   fetchDeletedNextPage.mockReset()
+  useAuthStore.setState({ permissions: 0 })
   Object.assign(recentlyDeletedState, {
     hasNextPage: false,
     isFetchingNextPage: false,
