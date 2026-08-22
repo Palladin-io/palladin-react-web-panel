@@ -6,8 +6,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Vault } from '../types'
 import { ImportWizardModal } from './import-wizard-modal'
 import { useAuthStore } from '../../auth'
+import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
 
 const importMutate = vi.fn()
+const repairIconsMutate = vi.hoisted(() => vi.fn())
+const repairIconsState = vi.hoisted(() => ({ candidateCount: 0, isPending: false }))
 const existingEntries = vi.hoisted(() => ({ data: [] as Array<{ id: string; label?: string }> }))
 
 vi.mock('../use-import-entries', () => ({
@@ -26,13 +29,18 @@ vi.mock('../use-entries', () => ({
   useAllEntries: () => ({ data: existingEntries.data }),
 }))
 
+vi.mock('../use-repair-missing-website-icons', () => ({
+  useRepairMissingWebsiteIcons: () => ({ ...repairIconsState, mutate: repairIconsMutate }),
+}))
+
 vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
 }))
 
 const toastError = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())
-vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }))
+const toastInfo = vi.hoisted(() => vi.fn())
+vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError, info: toastInfo } }))
 
 const VAULT: Vault = {
   id: 'vault-1',
@@ -72,8 +80,14 @@ describe('ImportWizardModal', () => {
     importMutate.mockReset()
     toastError.mockReset()
     toastSuccess.mockReset()
+    toastInfo.mockReset()
+    repairIconsMutate.mockReset()
+    Object.assign(repairIconsState, { candidateCount: 0, isPending: false })
     existingEntries.data = []
-    useAuthStore.setState({ privateKey: new Uint8Array(32) })
+    useAuthStore.setState({
+      privateKey: new Uint8Array(32),
+      permissions: PERMISSION_VAULT_MANAGE,
+    })
   })
 
   it('renders nothing when closed', () => {
@@ -94,6 +108,19 @@ describe('ImportWizardModal', () => {
     existingEntries.data = [{ id: 'opaque-entry' }]
     render(<ImportWizardModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
     expect(screen.getByText(/import entries/i)).toBeInTheDocument()
+  })
+
+  it('offers missing-icon repair in the import configurator', async () => {
+    repairIconsState.candidateCount = 120
+    render(<ImportWizardModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    expect(screen.getByText('Active credentials without a website icon: 120')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Repair icons' }))
+
+    expect(repairIconsMutate).toHaveBeenCalledWith(
+      { onProgress: expect.any(Function) },
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+    )
   })
 
   it('parses an uploaded file and imports it (happy path)', async () => {

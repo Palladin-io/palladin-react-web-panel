@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  ensureWebsiteIconsWithin,
+  ensureWebsiteIconsUntilSettled,
   normalizePublicHostname,
 } from '../../shared/api/public-assets-api'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
@@ -18,8 +18,6 @@ import {
   invalidateCanonicalEntryQueries,
   updateCanonicalEntryNow,
 } from './use-update-canonical-entry'
-
-const MISSING_ICON_REPAIR_WAIT_MS = 15_000
 
 interface MissingWebsiteIconCandidate {
   entryId: string
@@ -65,7 +63,7 @@ function assertUnlockSession(privateKey: Uint8Array, cryptoSessionGeneration: nu
 }
 
 /**
- * Explicitly repairs canonical public-asset references omitted by a bounded
+ * Explicitly repairs canonical public-asset references omitted by an earlier
  * import. Catalog work completes before any Vault key is opened. Each eligible
  * Entry is then decrypted and updated independently through the normal
  * canonical revision/grant-refresh mutation; one bad Entry cannot expose or
@@ -90,10 +88,10 @@ export function useRepairMissingWebsiteIcons(vaultId: string) {
       if (!privateKey) throw new DOMException('Vault is locked', 'AbortError')
       const cryptoSessionGeneration = useAuthStore.getState().cryptoSessionGeneration
       const hostnames = [...new Set(snapshot.map((candidate) => candidate.hostname))]
-      const assets = await ensureWebsiteIconsWithin(
+      const assets = await ensureWebsiteIconsUntilSettled(
         hostnames,
-        MISSING_ICON_REPAIR_WAIT_MS,
         (done, total) => input.onProgress?.({ phase: 'prepare', done, total }),
+        () => assertUnlockSession(privateKey, cryptoSessionGeneration),
       )
       assertUnlockSession(privateKey, cryptoSessionGeneration)
 

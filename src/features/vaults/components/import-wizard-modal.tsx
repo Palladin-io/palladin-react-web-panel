@@ -7,6 +7,7 @@ import { EncryptionNotice } from '../../../shared/components/encryption-notice'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { analytics } from '../../../shared/lib/analytics'
+import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
 import {
   applyColumnMapping,
   formatName,
@@ -25,6 +26,10 @@ import {
   useImportEntries,
   type ImportOverwrite,
 } from '../use-import-entries'
+import {
+  useRepairMissingWebsiteIcons,
+  type MissingWebsiteIconRepairProgress,
+} from '../use-repair-missing-website-icons'
 import { FileDropzone } from './file-dropzone'
 import { ImportColumnMapper } from './import-column-mapper'
 
@@ -46,7 +51,10 @@ export function ImportWizardModal({ open, vault, onClose }: ImportWizardModalPro
 function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => void }) {
   const { t } = useTranslation()
   const importMutation = useImportEntries()
+  const repairIcons = useRepairMissingWebsiteIcons(vault.id)
   const privateKey = useAuthStore((state) => state.privateKey)
+  const permissions = useAuthStore((state) => state.permissions)
+  const canManageVault = (permissions & PERMISSION_VAULT_MANAGE) !== 0
 
   const [step, setStep] = useState<Step>('upload')
   // Conflicts are only needed from the preview step on, so don't fetch the full
@@ -63,6 +71,7 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
     total: number
     phase: 'encrypt' | 'save' | 'icons'
   }>({ done: 0, total: 0, phase: 'encrypt' })
+  const [repairProgress, setRepairProgress] = useState<MissingWebsiteIconRepairProgress | null>(null)
   const [summary, setSummary] = useState<{
     imported: number
     updated: number
@@ -110,7 +119,7 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
     [entries, existingLabels],
   )
 
-  const isBusy = parsing || step === 'importing'
+  const isBusy = parsing || step === 'importing' || repairIcons.isPending
 
   useEffect(() => {
     if (!privateKey) onClose()
@@ -210,6 +219,33 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
     )
   }
 
+  const repairMissingIcons = () => {
+    setRepairProgress({ phase: 'prepare', done: 0, total: repairIcons.candidateCount })
+    repairIcons.mutate(
+      { onProgress: setRepairProgress },
+      {
+        onSuccess: (repairResult) => {
+          if (repairResult.repaired > 0
+            && repairResult.repaired === repairResult.candidates
+            && repairResult.failed === 0) {
+            toast.success(t('vault.entries.repairIconsSuccess', { count: repairResult.repaired }))
+          } else if (repairResult.repaired > 0) {
+            toast.info(t('vault.entries.repairIconsPartial', {
+              repaired: repairResult.repaired,
+              total: repairResult.candidates,
+            }))
+          } else if (repairResult.failed > 0) {
+            toast.error(t('vault.entries.repairIconsError'))
+          } else {
+            toast.info(t('vault.entries.repairIconsPending'))
+          }
+        },
+        onError: () => toast.error(t('vault.entries.repairIconsError')),
+        onSettled: () => setRepairProgress(null),
+      },
+    )
+  }
+
   // Footer lives on ModalShell (pinned) rather than inside each step, so it never
   // scrolls with the body. The importing step has no footer (not dismissible).
   const footer =
@@ -252,7 +288,17 @@ function ImportWizardBody({ vault, onClose }: { vault: Vault; onClose: () => voi
     >
       <div className="flex flex-col gap-3">
         {step === 'upload' ? (
-          <UploadStep parsing={parsing} error={parseError} onFile={handleFile} />
+          <UploadStep
+            parsing={parsing}
+            error={parseError}
+            onFile={handleFile}
+            repair={canManageVault && repairIcons.candidateCount > 0 ? {
+              candidateCount: repairIcons.candidateCount,
+              isPending: repairIcons.isPending,
+              progress: repairProgress,
+              onStart: repairMissingIcons,
+            } : undefined}
+          />
         ) : null}
 
         {step === 'preview' && result ? (
@@ -283,10 +329,17 @@ function UploadStep({
   parsing,
   error,
   onFile,
+  repair,
 }: {
   parsing: boolean
   error: string | null
   onFile: (file: File) => void
+  repair?: {
+    candidateCount: number
+    isPending: boolean
+    progress: MissingWebsiteIconRepairProgress | null
+    onStart: () => void
+  }
 }) {
   const { t } = useTranslation()
   return (
@@ -304,6 +357,41 @@ function UploadStep({
         </span>{' '}
         {SUPPORTED_FORMAT_NAMES.join(', ')}
       </p>
+      {repair ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border
+          border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-ui font-semibold text-[var(--cv-t1)]">
+              {t('vault.entries.repairIcons')}
+            </p>
+            <p className="mt-0.5 text-meta text-[var(--cv-t3)]">
+              {t('vault.entries.repairIconsDescription', { count: repair.candidateCount })}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={parsing || repair.isPending}
+            onClick={repair.onStart}
+          >
+            <Icon
+              name={repair.isPending ? 'progress_activity' : 'image_search'}
+              size={14}
+              className={repair.isPending ? 'animate-spin' : undefined}
+            />
+            <span aria-live="polite" aria-atomic="true">
+              {repair.progress
+                ? t(repair.progress.phase === 'prepare'
+                  ? 'vault.entries.repairIconsPreparing'
+                  : 'vault.entries.repairIconsUpdating', {
+                  done: repair.progress.done,
+                  total: repair.progress.total,
+                })
+                : t('vault.entries.repairIcons')}
+            </span>
+          </Button>
+        </div>
+      ) : null}
       {error ? (
         <p role="alert" className="text-meta font-medium text-[var(--cv-primary)]">
           {error}

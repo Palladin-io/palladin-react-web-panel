@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../../shared/api/public-assets-api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../shared/api/public-assets-api')>(),
-  ensureWebsiteIconsWithin: mocks.ensureIcons,
+  ensureWebsiteIconsUntilSettled: mocks.ensureIcons,
 }))
 vi.mock('./sync/member-sync-api', () => ({ getEncryptedVault: mocks.getVault }))
 vi.mock('./api/vault-api', () => ({ getCanonicalEntry: mocks.getEntry }))
@@ -157,12 +157,12 @@ describe('useRepairMissingWebsiteIcons', () => {
     ])
     mocks.ensureIcons.mockImplementation(async (
       hostnames: string[],
-      timeoutMs: number,
       onProgress?: (done: number, total: number) => void,
+      assertActive?: () => void,
     ) => {
       mocks.order.push('catalog')
       expect(hostnames).toEqual(['github.com', 'gitlab.com'])
-      expect(timeoutMs).toBe(15_000)
+      assertActive?.()
       onProgress?.(2, 2)
       return new Map([['github.com', {
         id: '11111111-1111-4111-8111-111111111111',

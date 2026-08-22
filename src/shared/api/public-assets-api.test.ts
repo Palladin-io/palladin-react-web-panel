@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ensureWebsiteIcons,
+  ensureWebsiteIconsUntilSettled,
   ensureWebsiteIconsWithin,
   normalizePublicHostname,
 } from './public-assets-api'
@@ -141,6 +142,40 @@ describe('ensureWebsiteIcons', () => {
 
     expect(onProgress).toHaveBeenNthCalledWith(1, 0, 1)
     expect(onProgress).toHaveBeenLastCalledWith(1, 1)
+  })
+
+  it('waits past the former batch deadline until every queued icon is terminal', async () => {
+    vi.useFakeTimers()
+    try {
+      const hostname = 'slow-queue.example.com'
+      let calls = 0
+      vi.stubGlobal('fetch', vi.fn(async () => {
+        calls += 1
+        const ready = calls === 17
+        return new Response(JSON.stringify({
+          items: [{
+            hostname,
+            status: ready ? 'ready' : 'pending',
+            asset: ready ? {
+              id: '77777777-7777-4777-8777-777777777777',
+              type: 'websiteIcon',
+              name: hostname,
+              url: 'https://assets.palladin.io/published/website-icon/slow.png',
+              revision: 1,
+            } : null,
+          }],
+        }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }))
+
+      const pending = ensureWebsiteIconsUntilSettled([hostname])
+      await vi.advanceTimersByTimeAsync(16_000)
+      const result = await pending
+
+      expect(calls).toBe(17)
+      expect(result.has(hostname)).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('counts failed icons as completed and stops polling them', async () => {

@@ -123,7 +123,7 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
   return result
 }
 
-/** Wait only during an explicit save flow and return published assets only. */
+/** Wait only during a bounded explicit save flow and return published assets. */
 export async function ensureWebsiteIconsWithin(
   hostnames: string[],
   timeoutMs: number,
@@ -184,6 +184,53 @@ export async function ensureWebsiteIconsWithin(
   }
   reportProgress()
   return cachedResult()
+}
+
+/**
+ * Prepare a complete import batch without a wall-clock deadline. The durable
+ * backend queue supplies the terminal condition for every hostname (`ready`
+ * or `failed`); transient catalog request failures are retried without
+ * discarding progress made by sibling pages.
+ */
+export async function ensureWebsiteIconsUntilSettled(
+  hostnames: string[],
+  onProgress?: (completed: number, total: number) => void,
+  assertActive?: () => void,
+): Promise<Map<string, PublicAsset>> {
+  const unique = [...new Set(hostnames.map(normalizePublicHostname).filter((x): x is string => x !== null))]
+  for (const hostname of unique) {
+    if (websiteAssetStatusCache.get(hostname) === 'failed') {
+      websiteAssetStatusCache.delete(hostname)
+    }
+  }
+  const cachedResult = (): Map<string, PublicAsset> => new Map(
+    unique.flatMap((hostname) => {
+      const asset = websiteAssetCache.get(hostname)
+      return asset ? [[hostname, asset] as const] : []
+    }),
+  )
+  const unresolvedHostnames = () => unique.filter((hostname) => {
+    const status = websiteAssetStatusCache.get(hostname)
+    return status !== 'ready' && status !== 'failed'
+  })
+  const reportProgress = () => onProgress?.(unique.length - unresolvedHostnames().length, unique.length)
+
+  reportProgress()
+  while (true) {
+    assertActive?.()
+    const unresolved = unresolvedHostnames()
+    if (unresolved.length === 0) return cachedResult()
+    try {
+      await ensureWebsiteIcons(unresolved)
+    } catch {
+      // A request-level failure is retried. Successfully completed sibling
+      // pages stay cached, so one transient page cannot reset the batch.
+    }
+    reportProgress()
+    assertActive?.()
+    if (unresolvedHostnames().length === 0) return cachedResult()
+    await new Promise((resolve) => setTimeout(resolve, WEBSITE_ICON_POLL_INTERVAL_MS))
+  }
 }
 
 /** Accept only the configured immutable public-asset namespace for rendering. */
