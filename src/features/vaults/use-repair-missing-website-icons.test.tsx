@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   openVaultKey: vi.fn(),
   openSecret: vi.fn(),
   update: vi.fn(),
+  invalidate: vi.fn(),
   wipe: vi.fn(),
   order: [] as string[],
 }))
@@ -29,7 +30,8 @@ vi.mock('../../shared/crypto/vault-protocol', () => ({
 vi.mock('../../shared/crypto/entry-protocol', () => ({ openMemberSecret: mocks.openSecret }))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
 vi.mock('./use-update-canonical-entry', () => ({
-  useUpdateCanonicalEntry: () => ({ mutateAsync: mocks.update }),
+  updateCanonicalEntryNow: mocks.update,
+  invalidateCanonicalEntryQueries: mocks.invalidate,
 }))
 
 const VAULT_ID = '22222222-2222-4222-8222-222222222222'
@@ -183,7 +185,7 @@ describe('useRepairMissingWebsiteIcons', () => {
     expect(mocks.order).toEqual(['catalog', 'open-key', 'update'])
     expect(mocks.getEntry).toHaveBeenCalledWith(VAULT_ID, 'github')
     expect(mocks.getEntry).not.toHaveBeenCalledWith(VAULT_ID, 'gitlab')
-    expect(mocks.update).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mocks.update).toHaveBeenCalledWith(VAULT_ID, expect.objectContaining({
       detail: expect.objectContaining({ id: 'github' }),
       cryptoSessionGeneration: expect.any(Number),
       draft: expect.objectContaining({
@@ -192,6 +194,7 @@ describe('useRepairMissingWebsiteIcons', () => {
         content: expect.objectContaining({ username: 'user', password: 'secret' }),
       }),
     }))
+    expect(mocks.invalidate).toHaveBeenCalledWith(expect.anything(), VAULT_ID, 'github')
     expect(repairResult).toEqual({ candidates: 2, repaired: 1, skipped: 1, failed: 0 })
     expect(onProgress).toHaveBeenCalledWith({ phase: 'prepare', done: 2, total: 2 })
     expect(useMemberSyncStore.getState().retryGeneration).toBe(retryGeneration + 1)
@@ -255,6 +258,36 @@ describe('useRepairMissingWebsiteIcons', () => {
 
     expect(mocks.update).not.toHaveBeenCalled()
     expect(repairResult).toEqual({ candidates: 1, repaired: 0, skipped: 1, failed: 0 })
+  })
+
+  it('continues with the next Entry when one canonical update fails', async () => {
+    publish([record('github', 'github.com'), record('gitlab', 'gitlab.com')])
+    mocks.ensureIcons.mockResolvedValue(new Map([
+      ['github.com', {
+        id: '11111111-1111-4111-8111-111111111111', type: 'websiteIcon', name: 'github.com',
+        revision: 1, url: 'https://assets.palladin.io/published/github.png',
+      }],
+      ['gitlab.com', {
+        id: '33333333-3333-4333-8333-333333333333', type: 'websiteIcon', name: 'gitlab.com',
+        revision: 1, url: 'https://assets.palladin.io/published/gitlab.png',
+      }],
+    ]))
+    const gitlabSecret = canonicalSecret()
+    gitlabSecret.content.url = 'https://gitlab.com/login'
+    mocks.openSecret.mockResolvedValueOnce(canonicalSecret()).mockResolvedValueOnce(gitlabSecret)
+    mocks.update.mockRejectedValueOnce(new Error('first Entry failed'))
+      .mockResolvedValueOnce({ currentRevision: '2' })
+    const { result } = renderHook(() => useRepairMissingWebsiteIcons(VAULT_ID), { wrapper })
+
+    let repairResult
+    await act(async () => {
+      repairResult = await result.current.mutateAsync({})
+    })
+
+    expect(mocks.update).toHaveBeenCalledTimes(2)
+    expect(mocks.invalidate).toHaveBeenCalledTimes(1)
+    expect(repairResult).toEqual({ candidates: 2, repaired: 1, skipped: 0, failed: 1 })
+    expect(mocks.wipe).toHaveBeenCalledTimes(2)
   })
 
   it('aborts before opening a key when the unlock session changes during catalog preparation', async () => {

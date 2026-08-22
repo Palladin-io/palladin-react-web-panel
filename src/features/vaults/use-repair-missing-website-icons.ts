@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ensureWebsiteIconsWithin,
   normalizePublicHostname,
@@ -14,7 +14,10 @@ import { getCanonicalEntry } from './api/vault-api'
 import { getEncryptedVault } from './sync/member-sync-api'
 import { useMemberSyncStore, type DecryptedMemberVault } from './sync/member-sync-store'
 import { ENTRY_TYPE_CREDENTIAL } from './types'
-import { useUpdateCanonicalEntry } from './use-update-canonical-entry'
+import {
+  invalidateCanonicalEntryQueries,
+  updateCanonicalEntryNow,
+} from './use-update-canonical-entry'
 
 const MISSING_ICON_REPAIR_WAIT_MS = 15_000
 
@@ -69,10 +72,9 @@ function assertUnlockSession(privateKey: Uint8Array, cryptoSessionGeneration: nu
  * block the rest of the batch.
  */
 export function useRepairMissingWebsiteIcons(vaultId: string) {
+  const queryClient = useQueryClient()
   const vault = useMemberSyncStore((state) => state.vaults.get(vaultId))
   const candidates = useMemo(() => missingWebsiteIconCandidates(vault), [vault])
-  const update = useUpdateCanonicalEntry(vaultId)
-
   const mutation = useMutation({
     mutationFn: async (
       input: RepairMissingWebsiteIconsInput,
@@ -148,7 +150,7 @@ export function useRepairMissingWebsiteIcons(vaultId: string) {
             if (!asset) {
               skipped += 1
             } else {
-              await update.mutateAsync({
+              await updateCanonicalEntryNow(vaultId, {
                 detail,
                 previous,
                 cryptoSessionGeneration,
@@ -167,6 +169,7 @@ export function useRepairMissingWebsiteIcons(vaultId: string) {
                   policy: previous.agentVisibilityPolicy,
                 },
               })
+              invalidateCanonicalEntryQueries(queryClient, vaultId, detail.id)
               repaired += 1
             }
           }
