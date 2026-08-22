@@ -7,6 +7,7 @@ import { api } from '../../../shared/api/client'
  * the event-type filter can exhaustively map icon/colour/label per event.
  */
 export const AUDIT_EVENT_TYPES = [
+  'auth.login-failed',
   'credential.accessed',
   'credential.access-denied',
   'grant.requested',

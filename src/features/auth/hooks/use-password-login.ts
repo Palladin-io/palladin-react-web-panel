@@ -22,12 +22,12 @@ import { clearClientSession } from '../session/client-session'
 
 interface PendingV2Unlock {
   masterKey: Uint8Array
-  bootstrap: LoginKdfBootstrap & { accountId: string }
+  bootstrap: LoginKdfBootstrap
 }
 
 function assertAuthenticatedV2Account(
   account: AccountResponse,
-  bootstrap: LoginKdfBootstrap & { accountId: string },
+  bootstrap: LoginKdfBootstrap,
 ): void {
   if (!account.kdf
     || account.userId !== bootstrap.accountId
@@ -48,7 +48,7 @@ function assertAuthenticatedV2Account(
 async function unlockWithMasterKey(
   response: AuthResponse,
   masterKey: Uint8Array,
-  bootstrap?: LoginKdfBootstrap & { accountId: string },
+  bootstrap?: LoginKdfBootstrap,
 ): Promise<AccountResponse> {
   useAuthStore.getState().setTokens(response)
   try {
@@ -98,7 +98,6 @@ export function usePasswordLogin() {
       clearPendingV2()
       const bootstrap = await fetchLoginKdf(email, IDENTITY_KDF_PROFILE_ID)
       assertIdentityKdfProfile(bootstrap)
-      if (!bootstrap.accountId) throw new Error('unsupported-kdf-profile')
       const kdfSalt = decodeBase64Url(bootstrap.kdfSalt, 16)
       const identity = await deriveIdentityV1(
         password,
@@ -115,14 +114,14 @@ export function usePasswordLogin() {
         if (isTotpRequired(response)) {
           pendingV2.current = {
             masterKey: new Uint8Array(identity.masterKey),
-            bootstrap: { ...bootstrap, accountId: bootstrap.accountId },
+            bootstrap,
           }
           return { kind: 'totp', challengeToken: response.challengeToken }
         }
         await unlockWithMasterKey(
           response,
           identity.masterKey,
-          { ...bootstrap, accountId: bootstrap.accountId },
+          bootstrap,
         )
         return { kind: 'done' }
       } finally {

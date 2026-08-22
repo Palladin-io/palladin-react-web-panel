@@ -4,6 +4,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppWordmark } from '../../../shared/components/app-wordmark'
+import { AuthRateLimitError } from '../api/auth-api'
 import { useLogin } from '../hooks/use-login'
 import { usePasswordLogin } from '../hooks/use-password-login'
 import { clearClientSession } from '../session/client-session'
@@ -95,7 +96,11 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
             navigate({ href: redirectTo })
           }
         },
-        onError: () => setPasswordError(t('login.errorInvalid')),
+        onError: (error) => setPasswordError(
+          t(error instanceof AuthRateLimitError
+            ? 'auth.errorRateLimited'
+            : 'login.errorInvalid'),
+        ),
       },
     )
   }
@@ -106,7 +111,11 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
       { challengeToken, code },
       {
         onSuccess: () => navigate({ href: redirectTo }),
-        onError: () => setTotpError(t('totpChallenge.errorInvalid')),
+        onError: (error) => setTotpError(
+          t(error instanceof AuthRateLimitError
+            ? 'auth.errorRateLimited'
+            : 'totpChallenge.errorInvalid'),
+        ),
       },
     )
   }

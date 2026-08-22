@@ -44,6 +44,7 @@ function tone(name: Tone, icon: string, labelKey: string): AuditEventConfig {
  * only pending event, peach, mirrors mobile).
  */
 const CONFIG: Record<AuditEventType, AuditEventConfig> = {
+  'auth.login-failed': tone('danger', 'gpp_bad', 'audit.event.loginFailed'),
   'credential.accessed': tone('success', 'key', 'audit.event.credentialAccessed'),
   'credential.access-denied': tone('danger', 'key_off', 'audit.event.credentialAccessDenied'),
   'grant.requested': tone('pending', 'hourglass_empty', 'audit.event.grantRequested'),
@@ -154,6 +155,7 @@ export const AUDIT_EVENT_CATEGORIES: AuditEventCategory[] = [
   {
     labelKey: 'audit.legend.category.orgAccount',
     types: [
+      'auth.login-failed',
       'org.created',
       'org.updated',
       'org.member-invited',

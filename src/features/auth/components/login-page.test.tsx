@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { AuthRateLimitError } from '../api/auth-api'
 import { LoginPage } from './login-page'
 
 // Controllable mock for the password-login handshake.
@@ -159,5 +160,39 @@ describe('LoginPage', () => {
     expect(navigateMock).toHaveBeenCalledWith({
       href: '/vaults/vault-1/entries/entry-1',
     })
+  })
+
+  it('shows the localized rate-limit error for the password step', async () => {
+    startMutate.mockImplementation((_input, options) => {
+      options.onError(new AuthRateLimitError(60))
+    })
+    const user = userEvent.setup()
+    render(<LoginPage />)
+
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com')
+    await user.type(screen.getByLabelText(/master password/i), 'hunter2hunter2')
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+
+    expect(screen.getByText('Too many attempts. Try again later.')).toBeInTheDocument()
+  })
+
+  it('keeps the TOTP challenge active when verification is rate-limited', async () => {
+    startMutate.mockImplementation((_input, options) => {
+      options.onSuccess({ kind: 'totp', challengeToken: 'challenge-1' })
+    })
+    totpMutate.mockImplementation((_input, options) => {
+      options.onError(new AuthRateLimitError(60))
+    })
+    const user = userEvent.setup()
+    render(<LoginPage />)
+
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com')
+    await user.type(screen.getByLabelText(/master password/i), 'hunter2hunter2')
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+    await user.type(screen.getByLabelText(/authentication code/i), '123456')
+    await user.click(screen.getByRole('button', { name: /^verify$/i }))
+
+    expect(screen.getByText('Too many attempts. Try again later.')).toBeInTheDocument()
+    expect(screen.getByLabelText(/authentication code/i)).toBeInTheDocument()
   })
 })
