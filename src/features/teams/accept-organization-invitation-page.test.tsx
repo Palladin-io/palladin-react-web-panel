@@ -6,7 +6,8 @@ import { AcceptOrganizationInvitationPage } from './accept-organization-invitati
 const navigateMock = vi.hoisted(() => vi.fn())
 const mutateMock = vi.hoisted(() => vi.fn())
 const hasApiErrorKeyMock = vi.hoisted(() => vi.fn())
-const logoutMock = vi.hoisted(() => vi.fn())
+const logoutAndReloadMock = vi.hoisted(() => vi.fn())
+const clearPushTokenOnLogoutMock = vi.hoisted(() => vi.fn())
 const acceptState = vi.hoisted(() => ({
   isPending: false,
   isSuccess: false,
@@ -16,20 +17,11 @@ vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigateMock }))
 vi.mock('../../shared/api/error-response', () => ({
   hasApiErrorKey: hasApiErrorKeyMock,
 }))
-vi.mock('../notifications', () => ({ clearPushTokenOnLogout: vi.fn() }))
+vi.mock('../notifications', () => ({
+  clearPushTokenOnLogout: clearPushTokenOnLogoutMock,
+}))
 vi.mock('../auth', () => ({
-  captureAuthenticatedSession: () => ({
-    accessToken: 'access',
-    refreshToken: 'refresh',
-    userId: 'user',
-    organizationId: 'org',
-    sessionGeneration: 1,
-    sessionBoundaryActive: false,
-  }),
-  terminateAuthenticatedSession: async () => {
-    logoutMock()
-    return true
-  },
+  logoutAndReload: logoutAndReloadMock,
 }))
 vi.mock('./use-accept-organization-invitation', () => ({
   useAcceptOrganizationInvitation: () => ({
@@ -44,7 +36,8 @@ describe('AcceptOrganizationInvitationPage', () => {
     navigateMock.mockReset()
     mutateMock.mockReset()
     hasApiErrorKeyMock.mockReset().mockResolvedValue(false)
-    logoutMock.mockReset()
+    logoutAndReloadMock.mockReset()
+    clearPushTokenOnLogoutMock.mockReset()
     acceptState.isPending = false
     acceptState.isSuccess = false
   })
@@ -79,19 +72,6 @@ describe('AcceptOrganizationInvitationPage', () => {
     })
   })
 
-  it('shows success from the boundary-safe callback after MutationCache is cleared', async () => {
-    mutateMock.mockImplementation((_token, options) => {
-      void options.onSuccess()
-    })
-    const user = userEvent.setup()
-    render(<AcceptOrganizationInvitationPage token="opaque-token" />)
-
-    await user.click(screen.getByRole('button', { name: /accept invitation/i }))
-
-    expect(await screen.findByRole('button', { name: /unlock organization/i }))
-      .toBeInTheDocument()
-  })
-
   it('explains an email mismatch and offers a safe account switch', async () => {
     hasApiErrorKeyMock.mockImplementation(async (_error, key: string) =>
       key === 'organization-invitation-email-mismatch')
@@ -105,11 +85,10 @@ describe('AcceptOrganizationInvitationPage', () => {
 
     expect(await screen.findByText(/sent to a different email address/i)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /sign in with another account/i }))
-    await waitFor(() => expect(logoutMock).toHaveBeenCalledOnce())
-    expect(navigateMock).toHaveBeenCalledWith({
-      to: '/login',
-      search: { redirect: '/invitations/accept?token=opaque-token' },
-    })
+    await waitFor(() => expect(logoutAndReloadMock).toHaveBeenCalledWith(
+      '/login?redirect=%2Finvitations%2Faccept%3Ftoken%3Dopaque-token',
+      clearPushTokenOnLogoutMock,
+    ))
   })
 
   it('rejects a link without a token before any API call', () => {

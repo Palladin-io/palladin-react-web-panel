@@ -209,7 +209,6 @@ vi.mock("./notification-queries", async () => {
 });
 
 import { NotificationCenterPage } from "./notification-center-page";
-import { authenticatedQueryKey } from "../auth";
 
 function renderPage() {
   const queryClient = new QueryClient({
@@ -409,8 +408,6 @@ describe("NotificationCenterPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "confirm deny" }));
 
     expect(denyMutate).toHaveBeenCalled();
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: authenticatedQueryKey(["notifications"]),
-    });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["notifications"] });
   });
 });

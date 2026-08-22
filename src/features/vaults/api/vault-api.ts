@@ -1,5 +1,4 @@
-import { api, authenticatedRequestContext } from '../../../shared/api/client'
-import type { AuthenticatedSessionSnapshot } from '../../auth/session/session-boundary'
+import { api } from '../../../shared/api/client'
 import { z } from 'zod'
 import type { buildCanonicalGrantEnvelope } from '../../../shared/crypto/grant-protocol'
 import type { CreateVaultProtocolPayload } from '../../../shared/crypto/create-vault-protocol'
@@ -41,13 +40,8 @@ export function getVault(id: string): Promise<Vault> {
   return api.get(`api/vaults/${id}`).json<Vault>()
 }
 
-export function issueVaultCreationChallenge(
-  session?: AuthenticatedSessionSnapshot,
-): Promise<VaultCreationChallengeResponse> {
-  return api.post(
-    'api/vaults/creation-challenges',
-    session ? authenticatedRequestContext(session) : undefined,
-  ).json<VaultCreationChallengeResponse>()
+export function issueVaultCreationChallenge(): Promise<VaultCreationChallengeResponse> {
+  return api.post('api/vaults/creation-challenges').json<VaultCreationChallengeResponse>()
 }
 
 export async function createVault(payload: CreateVaultPayload): Promise<void> {
@@ -274,12 +268,8 @@ export async function getCanonicalEntry(
   vaultId: string,
   entryId: string,
   signal?: AbortSignal,
-  session?: AuthenticatedSessionSnapshot,
 ): Promise<CanonicalEntryDetail> {
-  const raw = await api.get(`api/vaults/${vaultId}/entries/${entryId}`, {
-    signal,
-    ...(session ? authenticatedRequestContext(session) : {}),
-  }).json()
+  const raw = await api.get(`api/vaults/${vaultId}/entries/${entryId}`, { signal }).json()
   return canonicalEntryDetailSchema.parse(raw)
 }
 
@@ -287,12 +277,8 @@ export async function updateCanonicalEntry(
   vaultId: string,
   entryId: string,
   material: EntryUpdateMaterial,
-  session?: AuthenticatedSessionSnapshot,
 ): Promise<{ currentRevision: string }> {
-  return api.put(`api/vaults/${vaultId}/entries/${entryId}`, {
-    json: material,
-    ...(session ? authenticatedRequestContext(session) : {}),
-  })
+  return api.put(`api/vaults/${vaultId}/entries/${entryId}`, { json: material })
     .json<{ currentRevision: string }>()
 }
 
@@ -327,34 +313,25 @@ export async function destroyCanonicalEntry(vaultId: string, entryId: string): P
 export function createEntry(
   vaultId: string,
   payload: { entryId: string; grantEnvelopes: unknown[] } & CanonicalEntryEnvelopes,
-  session?: AuthenticatedSessionSnapshot,
 ): Promise<{ id: string; currentRevision: string }> {
   return api
-    .post(`api/vaults/${vaultId}/entries`, {
-      json: payload,
-      ...(session ? authenticatedRequestContext(session) : {}),
-    })
+    .post(`api/vaults/${vaultId}/entries`, { json: payload })
     .json<{ id: string; currentRevision: string }>()
 }
 
 export async function issueEntryCreationChallenges(
   vaultId: string,
   count: number,
-  session?: AuthenticatedSessionSnapshot,
 ): Promise<{ entryId: string; expiresAt: string }[]> {
   const response = await api.post(`api/vaults/${vaultId}/entries/creation-challenges`, {
     json: { vaultId, count },
-    ...(session ? authenticatedRequestContext(session) : {}),
   }).json<{ items: { entryId: string; expiresAt: string }[] }>()
   if (response.items.length !== count) throw new Error('Entry creation challenge count mismatch')
   return response.items
 }
 
-export async function issueEntryCreationChallenge(
-  vaultId: string,
-  session?: AuthenticatedSessionSnapshot,
-): Promise<{ entryId: string; expiresAt: string }> {
-  const [challenge] = await issueEntryCreationChallenges(vaultId, 1, session)
+export async function issueEntryCreationChallenge(vaultId: string): Promise<{ entryId: string; expiresAt: string }> {
+  const [challenge] = await issueEntryCreationChallenges(vaultId, 1)
   if (!challenge) throw new Error('Entry creation challenge response was empty')
   return challenge
 }

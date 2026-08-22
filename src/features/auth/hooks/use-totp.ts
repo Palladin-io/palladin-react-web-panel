@@ -1,8 +1,6 @@
-import { useQueryClient } from '@tanstack/react-query'
-import { useAuthenticatedMutation as useMutation } from '../session/use-authenticated-mutation'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ACCOUNT_QUERY_KEY } from '../../../shared/api/account-api'
 import { confirmTotp, disableTotp, enrollTotp } from '../api/auth-api'
-import { authenticatedQueryKey } from '../session/authenticated-query-key'
 
 /**
  * TOTP enrollment mutations. `enroll` fetches the shared secret + otpauth URI
@@ -18,16 +16,12 @@ export function useTotpEnrollment() {
 
   const confirm = useMutation({
     mutationFn: (code: string) => confirmTotp(code.trim()),
-    onSuccess: () => queryClient.invalidateQueries({
-      queryKey: authenticatedQueryKey(ACCOUNT_QUERY_KEY),
-    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY }),
   })
 
   const disable = useMutation({
     mutationFn: (code: string) => disableTotp(code.trim()),
-    onSuccess: () => queryClient.invalidateQueries({
-      queryKey: authenticatedQueryKey(ACCOUNT_QUERY_KEY),
-    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY }),
   })
 
   return { enroll, confirm, disable }

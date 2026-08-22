@@ -5,7 +5,6 @@ import { GRANTS_QUERY_KEY } from '../grants'
 import { entryDetailQueryKey } from '../vaults/use-entries'
 import type { NotificationPayload } from './notification-types'
 import { NOTIFICATIONS_QUERY_KEY } from './notification-queries'
-import { authenticatedQueryKey } from '../auth'
 
 /**
  * Maps an incoming notification to the TanStack Query keys that should be
@@ -20,9 +19,7 @@ export function useNotificationInvalidation() {
   return useCallback(
     (payload: NotificationPayload) => {
       const { type, data } = payload
-      queryClient.invalidateQueries({
-        queryKey: authenticatedQueryKey(NOTIFICATIONS_QUERY_KEY),
-      })
+      queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
 
       switch (type) {
         case 'grant_pending':
@@ -33,32 +30,24 @@ export function useNotificationInvalidation() {
           // the root key prefix-matches all of them: pending queue/badge
           // (['grants','pending']) and the org-wide grants list (['grants','org']),
           // giving cross-client live updates.
-          queryClient.invalidateQueries({
-            queryKey: authenticatedQueryKey(GRANTS_QUERY_KEY),
-          })
+          queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY })
           break
         }
 
         case 'agent_pending':
         case 'agent_approved': {
-          queryClient.invalidateQueries({
-            queryKey: authenticatedQueryKey(AGENTS_QUERY_KEY),
-          })
+          queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY })
           break
         }
 
         case 'credential_accessed': {
           // An access event changes the agent's activity and the entry's logs.
-          queryClient.invalidateQueries({
-            queryKey: authenticatedQueryKey(AGENTS_QUERY_KEY),
-          })
+          queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY })
           // Entry-level logs live under the entry detail key — only invalidate
           // when we actually know which entry/vault was touched.
           if (data.vaultId && data.entryId) {
             queryClient.invalidateQueries({
-              queryKey: authenticatedQueryKey(
-                entryDetailQueryKey(data.vaultId, data.entryId),
-              ),
+              queryKey: entryDetailQueryKey(data.vaultId, data.entryId),
             })
           }
           break
@@ -69,9 +58,7 @@ export function useNotificationInvalidation() {
           // detail so any "stale" badge / last-failure surface updates.
           if (data.vaultId && data.entryId) {
             queryClient.invalidateQueries({
-              queryKey: authenticatedQueryKey(
-                entryDetailQueryKey(data.vaultId, data.entryId),
-              ),
+              queryKey: entryDetailQueryKey(data.vaultId, data.entryId),
             })
           }
           break

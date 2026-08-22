@@ -3,21 +3,21 @@ import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAcceptOrganizationInvitation } from './use-accept-organization-invitation'
-import { captureAuthenticatedSession } from '../auth/session/session-boundary'
 
 const acceptMock = vi.hoisted(() => vi.fn())
-const replaceSessionMock = vi.hoisted(() => vi.fn())
+const setTokensMock = vi.hoisted(() => vi.fn())
+const lockVaultMock = vi.hoisted(() => vi.fn())
+const clearClientSessionMock = vi.hoisted(() => vi.fn())
 
 vi.mock('./api/organization-invitations-api', () => ({
   acceptOrganizationInvitation: acceptMock,
 }))
-vi.mock('../notifications', () => ({
-  clearPushTokenOnLogout: vi.fn().mockResolvedValue(undefined),
-}))
 
-vi.mock('../auth/session/session-boundary', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../auth/session/session-boundary')>(),
-  replaceAuthenticatedSession: replaceSessionMock,
+vi.mock('../auth', () => ({
+  clearClientSession: clearClientSessionMock,
+  useAuthStore: {
+    getState: () => ({ setTokens: setTokensMock, lockVault: lockVaultMock }),
+  },
 }))
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -31,9 +31,9 @@ function Wrapper({ children }: { children: ReactNode }) {
 describe('useAcceptOrganizationInvitation', () => {
   beforeEach(() => {
     acceptMock.mockReset()
-    replaceSessionMock.mockReset().mockImplementation(async () => (
-      captureAuthenticatedSession()
-    ))
+    setTokensMock.mockReset()
+    lockVaultMock.mockReset()
+    clearClientSessionMock.mockReset()
   })
 
   it('switches the session and locks old in-memory vault keys after acceptance', async () => {
@@ -53,10 +53,11 @@ describe('useAcceptOrganizationInvitation', () => {
       await result.current.mutateAsync('opaque-token')
     })
 
-    expect(acceptMock).toHaveBeenCalledWith('opaque-token')
-    expect(replaceSessionMock).toHaveBeenCalledWith(session, {
-      expectedSession: expect.objectContaining({ sessionGeneration: expect.any(Number) }),
-      lockVault: true,
-    })
+    expect(acceptMock).toHaveBeenCalledWith('opaque-token', expect.any(Object))
+    expect(clearClientSessionMock).toHaveBeenCalledOnce()
+    expect(setTokensMock).toHaveBeenCalledWith(session)
+    expect(lockVaultMock).toHaveBeenCalledOnce()
+    expect(clearClientSessionMock.mock.invocationCallOrder[0])
+      .toBeLessThan(setTokensMock.mock.invocationCallOrder[0])
   })
 })

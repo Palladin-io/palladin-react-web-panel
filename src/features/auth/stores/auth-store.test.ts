@@ -1,25 +1,6 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { useAuthStore, getIsAuthenticated } from './auth-store'
 
-function jwt(
-  userId = 'user-789',
-  organizationId = 'org-1',
-  claims: Record<string, unknown> = {},
-): string {
-  const encode = (value: object) => btoa(JSON.stringify(value))
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replaceAll('=', '')
-  return `${encode({ alg: 'none' })}.${encode({
-    sub: userId,
-    org_id: organizationId,
-    ...claims,
-  })}.signature`
-}
-
-const accessToken = jwt()
-const refreshedAccessToken = jwt()
-
 describe('auth-store', () => {
   beforeEach(() => {
     useAuthStore.getState().logout()
@@ -43,7 +24,7 @@ describe('auth-store', () => {
 
   it('setTokens sets all values and becomes authenticated', () => {
     useAuthStore.getState().setTokens({
-      accessToken,
+      accessToken: 'access-123',
       refreshToken: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
@@ -51,7 +32,7 @@ describe('auth-store', () => {
     })
 
     const state = useAuthStore.getState()
-    expect(state.accessToken).toBe(accessToken)
+    expect(state.accessToken).toBe('access-123')
     expect(state.refreshToken).toBe('refresh-456')
     expect(state.userId).toBe('user-789')
     expect(state.isOnboarded).toBe(true)
@@ -61,7 +42,7 @@ describe('auth-store', () => {
 
   it('setTokens defaults permissions to 0 when omitted', () => {
     useAuthStore.getState().setTokens({
-      accessToken,
+      accessToken: 'access-123',
       refreshToken: 'refresh-456',
       userId: 'user-789',
       isOnboarded: false,
@@ -72,7 +53,7 @@ describe('auth-store', () => {
 
   it('logout clears all values and becomes unauthenticated', () => {
     useAuthStore.getState().setTokens({
-      accessToken,
+      accessToken: 'access-123',
       refreshToken: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
@@ -98,7 +79,7 @@ describe('auth-store', () => {
 
   it('setTokens does not regress isOnboarded from true to false', () => {
     useAuthStore.getState().setTokens({
-      accessToken,
+      accessToken: 'access-123',
       refreshToken: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
@@ -107,7 +88,7 @@ describe('auth-store', () => {
 
     // Simulate a token refresh where backend returns isOnboarded: false (stale JWT claim).
     useAuthStore.getState().setTokens({
-      accessToken: refreshedAccessToken,
+      accessToken: 'access-new',
       refreshToken: 'refresh-new',
       userId: 'user-789',
       isOnboarded: false,
@@ -126,7 +107,7 @@ describe('auth-store', () => {
     expect(useAuthStore.getState().isVaultLocked).toBe(false)
 
     useAuthStore.getState().setTokens({
-      accessToken,
+      accessToken: 'access-123',
       refreshToken: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
@@ -179,7 +160,7 @@ describe('auth-store', () => {
 
   it('lockVault clears the keys but keeps the session', () => {
     useAuthStore.getState().setTokens({
-      accessToken,
+      accessToken: 'access-123',
       refreshToken: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
@@ -199,12 +180,12 @@ describe('auth-store', () => {
     expect(Array.from(privateKey)).toEqual([0])
     expect(state.isVaultLocked).toBe(true)
     // Session is intact — user is still logged in.
-    expect(state.accessToken).toBe(accessToken)
+    expect(state.accessToken).toBe('access-123')
   })
 
   it('expireSession wipes keys + access token but keeps the refresh token', () => {
     useAuthStore.getState().setTokens({
-      accessToken,
+      accessToken: 'access-123',
       refreshToken: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
@@ -245,7 +226,7 @@ describe('auth-store', () => {
 
   it('setTokens reflects emailVerified from the response body', () => {
     useAuthStore.getState().setTokens({
-      accessToken,
+      accessToken: 'access-123',
       refreshToken: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
@@ -256,7 +237,7 @@ describe('auth-store', () => {
 
   it('does not regress emailVerified from true to false on a stale refresh', () => {
     useAuthStore.getState().setTokens({
-      accessToken,
+      accessToken: 'access-123',
       refreshToken: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
@@ -266,7 +247,7 @@ describe('auth-store', () => {
 
     // A later refresh omits / regresses the flag — the banner must not resurrect.
     useAuthStore.getState().setTokens({
-      accessToken: refreshedAccessToken,
+      accessToken: 'access-new',
       refreshToken: 'refresh-new',
       userId: 'user-789',
       isOnboarded: true,
@@ -279,31 +260,5 @@ describe('auth-store', () => {
     expect(useAuthStore.getState().emailVerified).toBe(false)
     useAuthStore.getState().markEmailVerified()
     expect(useAuthStore.getState().emailVerified).toBe(true)
-  })
-
-  it('rejects a response whose userId differs from the JWT subject', () => {
-    expect(() => useAuthStore.getState().setTokens({
-      accessToken: jwt('jwt-user'),
-      refreshToken: 'refresh',
-      userId: 'body-user',
-      isOnboarded: true,
-    })).toThrow('does not match its JWT subject')
-    expect(useAuthStore.getState().accessToken).toBeNull()
-  })
-
-  it('rejects a JWT without an organization principal', () => {
-    const encode = (value: object) => btoa(JSON.stringify(value))
-      .replaceAll('=', '')
-    const tokenWithoutOrg = `${encode({ alg: 'none' })}.${encode({
-      sub: 'user-789',
-    })}.signature`
-
-    expect(() => useAuthStore.getState().setTokens({
-      accessToken: tokenWithoutOrg,
-      refreshToken: 'refresh',
-      userId: 'user-789',
-      isOnboarded: true,
-    })).toThrow('missing its organization principal')
-    expect(useAuthStore.getState().accessToken).toBeNull()
   })
 })

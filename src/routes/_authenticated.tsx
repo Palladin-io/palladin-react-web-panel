@@ -10,13 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
-import {
-  captureAuthenticatedSession,
-  terminateAuthenticatedSession,
-  useAuthenticatedQueryKey,
-  useAuthStore,
-  useSessionTimeout,
-} from '../features/auth'
+import { logoutAndReload, useAuthStore, useSessionTimeout } from '../features/auth'
 import { useAgents, AGENT_STATUS_PENDING } from '../features/agents'
 import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
@@ -130,7 +124,6 @@ function AuthenticatedLayout() {
   const userId = useAuthStore((state) => state.userId)
   const memberPrivateKey = useAuthStore((state) => state.privateKey)
   const isVaultLocked = useAuthStore((state) => state.isVaultLocked)
-  const accountQueryKey = useAuthenticatedQueryKey(ACCOUNT_QUERY_KEY)
 
   // Idle + absolute session timeout: locks the vault and drops the access token
   // when the user walks away, then routes to /unlock. No-op while locked.
@@ -143,7 +136,7 @@ function AuthenticatedLayout() {
   // an unknown/undefined value (older backend, still loading) never locks a
   // user out, and a stale persisted flag can't grant access.
   const account = useQuery({
-    queryKey: accountQueryKey,
+    queryKey: ACCOUNT_QUERY_KEY,
     queryFn: getAccount,
     staleTime: 5 * 60 * 1000,
   })
@@ -275,7 +268,6 @@ interface AppSidebarProps {
 
 function AppSidebar({ currentPath }: AppSidebarProps) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const permissions = useAuthStore((s) => s.permissions)
   const { theme, toggleTheme } = useThemeStore()
   const webPush = useWebPush()
@@ -293,10 +285,9 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
   }
 
   const [langOpen, setLangOpen] = useState(false)
-  const accountQueryKey = useAuthenticatedQueryKey(ACCOUNT_QUERY_KEY)
 
   const account = useQuery({
-    queryKey: accountQueryKey,
+    queryKey: ACCOUNT_QUERY_KEY,
     queryFn: getAccount,
     staleTime: 5 * 60 * 1000,
   })
@@ -317,12 +308,8 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
     : 'en'
   const currentFlag = LANG_OPTIONS.find((l) => l.code === currentLang)?.flag ?? '🌐'
 
-  async function handleLogout() {
-    const session = captureAuthenticatedSession()
-    void clearPushTokenOnLogout(session)
-    if (await terminateAuthenticatedSession(session)) {
-      navigate({ to: '/login' })
-    }
+  function handleLogout() {
+    void logoutAndReload('/login', clearPushTokenOnLogout)
   }
 
   function selectLanguage(code: string) {

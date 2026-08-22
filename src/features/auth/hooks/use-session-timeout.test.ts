@@ -20,15 +20,9 @@ import {
   useSessionTimeout,
 } from './use-session-timeout'
 
-function jwt(): string {
-  const encode = (value: object) => btoa(JSON.stringify(value))
-    .replaceAll('=', '')
-  return `${encode({ alg: 'none' })}.${encode({ sub: 'u', org_id: 'org' })}.signature`
-}
-
 function startUnlockedSession() {
   useAuthStore.getState().setTokens({
-    accessToken: jwt(),
+    accessToken: 'access-1',
     refreshToken: 'refresh-1',
     userId: 'u',
     isOnboarded: true,
@@ -58,13 +52,13 @@ describe('useSessionTimeout', () => {
     expect(useAuthStore.getState().accessToken).toBeNull()
   })
 
-  it('expires the session and routes to /unlock after the idle timeout', async () => {
+  it('expires the session and routes to /unlock after the idle timeout', () => {
     startUnlockedSession()
 
     renderHook(() => useSessionTimeout())
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(IDLE_TIMEOUT_MS)
+    act(() => {
+      vi.advanceTimersByTime(IDLE_TIMEOUT_MS)
     })
 
     const state = useAuthStore.getState()
@@ -94,10 +88,10 @@ describe('useSessionTimeout', () => {
 
     expect(navigateMock).not.toHaveBeenCalled()
     expect(useAuthStore.getState().isVaultLocked).toBe(false)
-    expect(useAuthStore.getState().accessToken).toBe(jwt())
+    expect(useAuthStore.getState().accessToken).toBe('access-1')
   })
 
-  it('expires at the absolute timeout even under continuous activity', async () => {
+  it('expires at the absolute timeout even under continuous activity', () => {
     startUnlockedSession()
     renderHook(() => useSessionTimeout())
 
@@ -106,9 +100,9 @@ describe('useSessionTimeout', () => {
       elapsed <= ABSOLUTE_TIMEOUT_MS;
       elapsed += 5 * 60_000
     ) {
-      await act(async () => {
+      act(() => {
         window.dispatchEvent(new Event('keydown'))
-        await vi.advanceTimersByTimeAsync(5 * 60_000)
+        vi.advanceTimersByTime(5 * 60_000)
       })
     }
 

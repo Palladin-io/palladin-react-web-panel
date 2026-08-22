@@ -17,9 +17,7 @@ const logout = vi.hoisted(() => vi.fn())
 
 vi.mock('../api/auth-api', () => ({ fetchLoginKdf, passwordLogin, totpLogin,
   isTotpRequired: (response: { totpRequired?: boolean }) => response.totpRequired === true }))
-vi.mock('../../../shared/api/account-api', () => ({
-  getAccountForSession: getAccount,
-}))
+vi.mock('../../../shared/api/account-api', () => ({ getAccount }))
 vi.mock('../../../shared/crypto/identity-kdf', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../../shared/crypto/identity-kdf')>(), deriveIdentityV1,
 }))
@@ -27,33 +25,6 @@ vi.mock('../../../shared/crypto/sodium', () => ({ decryptWithKey, wipe: vi.fn() 
 vi.mock('../stores/auth-store', () => ({ useAuthStore: { getState: () => ({
   setTokens, unlockVault, logout,
 }) } }))
-vi.mock('../session/session-boundary', () => ({
-  captureAuthenticatedSession: () => ({
-    accessToken: null, refreshToken: null, userId: null, organizationId: null,
-    sessionGeneration: 0, sessionBoundaryActive: false,
-  }),
-  authenticatedSessionMatches: () => true,
-  StaleAuthenticatedSessionError: class extends Error {},
-  replaceAuthenticatedSession: async (session: unknown) => {
-    setTokens(session)
-    return {
-      accessToken: 'a', refreshToken: 'r', userId: accountId,
-      organizationId: 'org', sessionGeneration: 1, sessionBoundaryActive: false,
-    }
-  },
-  terminateAuthenticatedSession: async () => {
-    logout()
-    return true
-  },
-  unlockVaultForSession: (
-    _session: unknown,
-    masterKey: Uint8Array,
-    privateKey: Uint8Array,
-  ) => {
-    unlockVault(masterKey, privateKey)
-    return true
-  },
-}))
 
 function wrapper({ children }: { children: ReactNode }) {
   return createElement(QueryClientProvider, { client: new QueryClient() }, children)

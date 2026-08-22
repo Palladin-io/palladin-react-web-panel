@@ -21,7 +21,8 @@ const resendState = vi.hoisted(() => ({
   cooldown: 0,
 }))
 const getAccountMock = vi.hoisted(() => vi.fn())
-const logoutMock = vi.hoisted(() => vi.fn())
+const logoutAndReloadMock = vi.hoisted(() => vi.fn())
+const clearPushTokenOnLogoutMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
@@ -32,30 +33,15 @@ vi.mock('../stores/auth-store', () => ({
   useAuthStore: Object.assign(
     (selector: (s: { emailVerified: boolean }) => unknown) =>
       selector({ emailVerified: authState.emailVerified }),
-    { getState: () => ({ logout: logoutMock, markEmailVerified: markVerifiedMock }) },
+    { getState: () => ({ markEmailVerified: markVerifiedMock }) },
   ),
 }))
+vi.mock('../session/client-session', () => ({ logoutAndReload: logoutAndReloadMock }))
 vi.mock('../hooks/use-verify-email', () => ({ useVerifyEmail: () => verifyState }))
 vi.mock('../hooks/use-resend-verification', () => ({ useResendVerification: () => resendState }))
-vi.mock('../session/session-boundary', () => ({
-  captureAuthenticatedSession: () => ({
-    accessToken: 'access',
-    refreshToken: 'refresh',
-    userId: 'user',
-    organizationId: 'org',
-    sessionGeneration: 1,
-    sessionBoundaryActive: false,
-  }),
-  markEmailVerifiedForSession: () => {
-    markVerifiedMock()
-    return true
-  },
-  terminateAuthenticatedSession: async () => {
-    logoutMock()
-    return true
-  },
+vi.mock('../../notifications', () => ({
+  clearPushTokenOnLogout: clearPushTokenOnLogoutMock,
 }))
-vi.mock('../../notifications', () => ({ clearPushTokenOnLogout: vi.fn() }))
 vi.mock('../../../shared/api/account-api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../shared/api/account-api')>()
   return { ...actual, getAccount: getAccountMock }
@@ -79,6 +65,8 @@ beforeEach(() => {
   resendState.cooldown = 0
   navigateMock.mockReset()
   markVerifiedMock.mockReset()
+  logoutAndReloadMock.mockReset()
+  clearPushTokenOnLogoutMock.mockReset()
   getAccountMock.mockReset().mockResolvedValue({ email: 'user@example.com', emailVerified: false })
 })
 
@@ -159,7 +147,10 @@ describe('VerifyEmailPage — hard gate (signed in, no token)', () => {
     const user = userEvent.setup()
     renderPage(<VerifyEmailPage token={undefined} />)
     await user.click(await screen.findByRole('button', { name: /log out/i }))
-    expect(logoutMock).toHaveBeenCalledOnce()
+    expect(logoutAndReloadMock).toHaveBeenCalledWith(
+      '/login',
+      clearPushTokenOnLogoutMock,
+    )
   })
 
   it('syncs the store before leaving when the account is already verified (no redirect loop)', async () => {

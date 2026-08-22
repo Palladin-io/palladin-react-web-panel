@@ -1,5 +1,4 @@
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
-import { useAuthenticatedMutation as useMutation } from '../auth'
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ORGANIZATION_MEMBERS_QUERY_KEY,
   requestOrganizationMemberRemoval,
@@ -7,15 +6,13 @@ import {
 import {
   getVaultMembers,
 } from './api/vault-members-api'
-import { authenticatedQueryKey, useAuthenticatedQueryKey } from '../auth'
 
 export const vaultMembersQueryKey = (vaultId: string) =>
   ['vaults', vaultId, 'members'] as const
 
 export function useVaultMembers(vaultId: string, enabled = true, poll = true) {
-  const queryKey = useAuthenticatedQueryKey(vaultMembersQueryKey(vaultId))
   return useInfiniteQuery({
-    queryKey,
+    queryKey: vaultMembersQueryKey(vaultId),
     queryFn: ({ pageParam }) => getVaultMembers(vaultId, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextAfterId ?? undefined,
@@ -32,12 +29,8 @@ export function useRequestMemberRemoval(vaultId: string) {
     mutationFn: requestOrganizationMemberRemoval,
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: authenticatedQueryKey(vaultMembersQueryKey(vaultId)),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: authenticatedQueryKey(ORGANIZATION_MEMBERS_QUERY_KEY),
-        }),
+        queryClient.invalidateQueries({ queryKey: vaultMembersQueryKey(vaultId) }),
+        queryClient.invalidateQueries({ queryKey: ORGANIZATION_MEMBERS_QUERY_KEY }),
       ])
     },
   })

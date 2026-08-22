@@ -6,13 +6,6 @@ import { deriveKey, RECOVERY_KEY_SALT_BYTES } from '../../shared/crypto/argon2'
 import { encodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
 import { encryptWithKey, randomBytes } from '../../shared/crypto/sodium'
 import { generateRecoveryMnemonic, joinMnemonic } from '../../shared/lib/mnemonic'
-import type { AuthResponse } from '../../shared/api/types'
-import {
-  authenticatedSessionMatches,
-  captureAuthenticatedSession,
-  StaleAuthenticatedSessionError,
-} from '../auth/session/session-boundary'
-import { useAuthStore } from '../auth/stores/auth-store'
 import { InvalidRecoveryKeyError, useRecover, type RecoverResult } from './use-recover'
 
 const getAccountMock = vi.fn()
@@ -24,8 +17,8 @@ vi.mock('../../shared/api/account-api', async () => {
   )
   return {
     ...actual,
-    getAccountForSession: (session: unknown) => getAccountMock(session),
-    recoverAccount: (payload: unknown, session: unknown) => recoverAccountMock(payload, session),
+    getAccount: () => getAccountMock(),
+    recoverAccount: (payload: unknown) => recoverAccountMock(payload),
   }
 })
 
@@ -51,27 +44,10 @@ async function buildFakeAccount(mnemonic: string[]) {
   }
 }
 
-function jwt(userId: string, organizationId: string): string {
-  const encode = (value: object) => btoa(JSON.stringify(value)).replaceAll('=', '')
-  return `${encode({ alg: 'none' })}.${encode({ sub: userId, org_id: organizationId })}.signature`
-}
-
-function session(userId: string, organizationId: string): AuthResponse {
-  return {
-    accessToken: jwt(userId, organizationId),
-    refreshToken: `refresh-${userId}-${organizationId}`,
-    userId,
-    isOnboarded: true,
-    emailVerified: true,
-  }
-}
-
 describe('useRecover', () => {
   beforeEach(() => {
     getAccountMock.mockReset()
     recoverAccountMock.mockReset()
-    useAuthStore.getState().logout()
-    useAuthStore.getState().setTokens(session('user-a', 'org-a'))
   })
 
   it('posts re-wrapped keys and returns a fresh 24-word mnemonic on success', async () => {
@@ -100,7 +76,6 @@ describe('useRecover', () => {
 
     expect(returned?.recoveryMnemonic).toHaveLength(24)
     expect(recoverAccountMock).toHaveBeenCalledTimes(1)
-    expect(recoverAccountMock.mock.calls[0][1]).toEqual(captureAuthenticatedSession())
 
     const payload = recoverAccountMock.mock.calls[0][0]
     expect(payload).toEqual(
@@ -167,34 +142,5 @@ describe('useRecover', () => {
     expect(captured).toBeInstanceOf(Error)
     expect((captured as Error).message).toMatch(/missing recovery material/i)
     expect(recoverAccountMock).not.toHaveBeenCalled()
-  })
-
-  it('does not send A-derived recovery material after the session switches to B', async () => {
-    const mnemonic = generateRecoveryMnemonic()
-    const { recoverySalt, encryptedPrivateKeyByRecovery } = await buildFakeAccount(mnemonic)
-    let releaseAccount!: (account: unknown) => void
-    getAccountMock.mockImplementationOnce(() => new Promise((resolve) => {
-      releaseAccount = resolve
-    }))
-    const { result } = renderHook(() => useRecover(), { wrapper })
-
-    const execution = result.current.mutateAsync({
-      recoveryMnemonic: mnemonic,
-      newPassword: 'correct-horse-battery-staple',
-    })
-    await waitFor(() => expect(getAccountMock).toHaveBeenCalledOnce())
-    useAuthStore.getState().logout()
-    useAuthStore.getState().setTokens(session('user-b', 'org-b'))
-    releaseAccount({
-      userId: '00112233-4455-4677-8899-aabbccddeeff',
-      recoverySalt,
-      encryptedPrivateKeyByRecovery,
-      kdf: { credentialRevision: 1, privateKeyWrapRevision: 2 },
-    })
-
-    await expect(execution).rejects.toBeInstanceOf(StaleAuthenticatedSessionError)
-    expect(authenticatedSessionMatches(captureAuthenticatedSession())).toBe(true)
-    expect(recoverAccountMock).not.toHaveBeenCalled()
-    expect(useAuthStore.getState().userId).toBe('user-b')
   })
 })

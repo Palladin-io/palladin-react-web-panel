@@ -1,8 +1,5 @@
-import { useAuthenticatedMutation as useMutation } from '../auth/session/use-authenticated-mutation'
-import {
-  StaleAuthenticatedSessionError,
-  unlockVaultForSession,
-} from '../auth/session/session-boundary'
+import { useMutation } from '@tanstack/react-query'
+import { useAuthStore } from '../auth'
 import {
   assertIdentityKdfProfile,
   deriveIdentityV1,
@@ -12,10 +9,7 @@ import {
 } from '../../shared/crypto/identity-kdf'
 import { decodeBase64Url, encodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
 import { decryptWithKey, derivePublicKey, wipe } from '../../shared/crypto/sodium'
-import {
-  getAccountForSession,
-  setupAccount,
-} from '../../shared/api/account-api'
+import { getAccount, setupAccount } from '../../shared/api/account-api'
 
 export class IncorrectMasterPasswordError extends Error {
   constructor() {
@@ -30,8 +24,8 @@ export interface UnlockInput {
 
 export function useUnlock() {
   return useMutation({
-    mutationFn: async ({ password }: UnlockInput, context) => {
-      const account = await getAccountForSession(context.sessionSnapshot)
+    mutationFn: async ({ password }: UnlockInput) => {
+      const account = await getAccount()
       if (!account.kdf || !account.encryptedPrivateKey) {
         throw new Error('Account setup incomplete')
       }
@@ -71,7 +65,7 @@ export function useUnlock() {
           && account.encryptedPrivateKeyByRecovery) {
           const publicKey = await derivePublicKey(privateKey)
           try {
-          await setupAccount({
+            await setupAccount({
               securityVersion: account.kdf.securityVersion,
               kdfProfileId: account.kdf.profileId,
               kdfSalt: account.kdf.kdfSalt,
@@ -80,18 +74,15 @@ export function useUnlock() {
               encryptedPrivateKey: account.encryptedPrivateKey,
               encryptedPrivateKeyByRecovery: account.encryptedPrivateKeyByRecovery,
               newAuthCredential: encodeBase64Url(authCredential),
-          }, context.sessionSnapshot)
+            })
           } finally {
             wipe(publicKey)
           }
         }
-        if (!unlockVaultForSession(
-          context.sessionSnapshot,
+        useAuthStore.getState().unlockVault(
           masterKey,
           privateKey,
-        )) {
-          throw new StaleAuthenticatedSessionError()
-        }
+        )
       } finally {
         wipe(salt)
         if (masterKey) wipe(masterKey)

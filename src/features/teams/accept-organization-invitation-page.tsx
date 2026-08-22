@@ -6,10 +6,7 @@ import { AuthStepShell } from '../../shared/components/auth-step-shell'
 import { AuthSubmitButton } from '../../shared/components/auth-submit-button'
 import { Icon } from '../../shared/components/icon'
 import { clearPushTokenOnLogout } from '../notifications'
-import {
-  captureAuthenticatedSession,
-  terminateAuthenticatedSession,
-} from '../auth'
+import { logoutAndReload } from '../auth'
 import { useAcceptOrganizationInvitation } from './use-accept-organization-invitation'
 
 type AcceptError =
@@ -61,29 +58,24 @@ export function AcceptOrganizationInvitationPage({
   const navigate = useNavigate()
   const accept = useAcceptOrganizationInvitation()
   const [error, setError] = useState<AcceptError | null>(null)
-  const [accepted, setAccepted] = useState(false)
 
   const handleAccept = () => {
     if (!token) return
     setError(null)
     accept.mutate(token, {
-      onSuccess: () => setAccepted(true),
       onError: async (cause) => setError(await classifyAcceptError(cause)),
     })
   }
 
-  const handleDifferentAccount = async () => {
+  const handleDifferentAccount = () => {
     const redirect = token
       ? `/invitations/accept?token=${encodeURIComponent(token)}`
       : '/invitations/accept'
-    const session = captureAuthenticatedSession()
-    void clearPushTokenOnLogout(session)
-    if (await terminateAuthenticatedSession(session)) {
-      navigate({ to: '/login', search: { redirect } })
-    }
+    const destination = `/login?redirect=${encodeURIComponent(redirect)}`
+    void logoutAndReload(destination, clearPushTokenOnLogout)
   }
 
-  if (accepted || accept.isSuccess) {
+  if (accept.isSuccess) {
     return (
       <AuthStepShell
         showLogo

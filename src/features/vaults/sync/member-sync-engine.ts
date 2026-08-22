@@ -100,7 +100,6 @@ export class MemberSyncEngine {
       }
       const retainedVaultIds = new Set(vaults.map((vault) => vault.id))
       await this.cache.removeMissingVaults(userId, retainedVaultIds)
-      assertNotAborted(signal)
       useMemberSyncStore.getState().retainVaults(retainedVaultIds)
       let failures = 0
       const projectionBudget: ProjectionBudget = { count: publishedEntryCount() }
@@ -120,7 +119,6 @@ export class MemberSyncEngine {
           projectionBudget.count = publishedEntryCount()
         }
       }
-      assertNotAborted(signal)
       if (failures > 0) useMemberSyncStore.getState().fail()
       else useMemberSyncStore.getState().complete()
     } catch (error) {
@@ -156,7 +154,6 @@ export class MemberSyncEngine {
     try {
       assertNotAborted(signal)
       const cached = await this.cache.getActiveState(userId, vault.id)
-      assertNotAborted(signal)
       if (!cached || !isCacheCompatible(cached.vault, vault) || compareSequence(cached.appliedThroughSequence, vault.memberSequence) > 0) {
         await this.rebuildSnapshot(userId, vault, vaultKey, metadata, projectionBudget, signal)
         return
@@ -177,7 +174,6 @@ export class MemberSyncEngine {
       } catch (error) {
         if (!(error instanceof MemberSyncResetRequiredError)) throw error
         projectionBudget.count = budgetBeforeVault
-        assertNotAborted(signal)
         useMemberSyncStore.getState().resetVault(vault.id)
         await this.rebuildSnapshot(userId, vault, vaultKey, metadata, projectionBudget, signal)
       }
@@ -202,7 +198,6 @@ export class MemberSyncEngine {
     do {
       assertNotAborted(signal)
       const page = await this.cache.readActiveItemPage(userId, vault.id, afterEntryId, CACHE_PAGE_ITEMS)
-      assertNotAborted(signal)
       await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
       afterEntryId = page.nextEntryId
     } while (afterEntryId)
@@ -245,16 +240,13 @@ export class MemberSyncEngine {
     do {
       assertNotAborted(signal)
       const page = await this.transport.snapshot(vault.id, cursor, signal)
-      assertNotAborted(signal)
       if (baseSequence === null) {
         baseSequence = page.snapshotBaseSequence
         await this.cache.beginSnapshot(userId, vault, namespace, baseSequence)
-        assertNotAborted(signal)
       } else if (page.snapshotBaseSequence !== baseSequence) {
         throw new Error('Vault snapshot boundary changed between pages')
       }
       await this.cache.applySnapshotPage(userId, vault.id, namespace, page.items, page.nextCursor)
-      assertNotAborted(signal)
       await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
       if (page.nextCursor) {
         if (seenCursors.has(page.nextCursor)) throw new Error('Vault snapshot cursor did not make progress')
@@ -285,10 +277,8 @@ export class MemberSyncEngine {
     do {
       assertNotAborted(signal)
       const page = await this.transport.delta(vault.id, continuation ? null : afterSequence, continuation, signal)
-      assertNotAborted(signal)
       deltaUpperBound = this.assertDeltaProgress(appliedThrough, deltaUpperBound, page)
       await this.cache.applyPendingDeltaPage(userId, vault.id, namespace, appliedThrough, page)
-      assertNotAborted(signal)
       await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
       appliedThrough = page.appliedThroughSequence
       continuation = page.continuationCursor
@@ -312,10 +302,8 @@ export class MemberSyncEngine {
     do {
       assertNotAborted(signal)
       const page = await this.transport.delta(vault.id, continuation ? null : afterSequence, continuation, signal)
-      assertNotAborted(signal)
       deltaUpperBound = this.assertDeltaProgress(appliedThrough, deltaUpperBound, page)
       await this.cache.applyActiveDeltaPage(userId, vault, appliedThrough, page)
-      assertNotAborted(signal)
       await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
       appliedThrough = page.appliedThroughSequence
       continuation = page.continuationCursor

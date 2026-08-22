@@ -1,8 +1,6 @@
-import { useQueryClient } from '@tanstack/react-query'
-import { useAuthenticatedMutation as useMutation } from '../auth'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { revokeGrant } from './api/grants-api'
 import { GRANTS_QUERY_KEY } from './query-keys'
-import { authenticatedQueryKey } from '../auth'
 
 export interface RevokeGrantInput {
   vaultId: string
@@ -22,7 +20,7 @@ export function useRevokeGrant() {
     mutationFn: ({ vaultId, grantId, reason }: RevokeGrantInput) =>
       revokeGrant(vaultId, grantId, reason),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(GRANTS_QUERY_KEY) })
+      queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY })
     },
   })
 }

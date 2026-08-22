@@ -1,4 +1,4 @@
-import { useAuthenticatedMutation as useMutation } from '../auth'
+import { useMutation } from '@tanstack/react-query'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
 import { fromMemberSecret, type MemberSecretView } from '../../shared/crypto/entry-draft'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'

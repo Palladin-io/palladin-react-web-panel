@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAuthenticatedQueryKey } from '../auth'
 import { getAgent } from './api/agents-api'
 
 export function agentQueryKey(agentId: string) {
@@ -7,9 +6,8 @@ export function agentQueryKey(agentId: string) {
 }
 
 export function useAgent(agentId: string) {
-  const queryKey = useAuthenticatedQueryKey(agentQueryKey(agentId))
   return useQuery({
-    queryKey,
+    queryKey: agentQueryKey(agentId),
     queryFn: () => getAgent(agentId),
     staleTime: 30_000,
     enabled: agentId.length > 0,

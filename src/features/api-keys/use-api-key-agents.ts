@@ -1,5 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { useAuthenticatedQueryKey, useAuthStore } from '../auth'
+import { useAuthStore } from '../auth/stores/auth-store'
 import { PERMISSION_READ_API_KEY } from '../../shared/lib/permissions'
 import { getApiKeyAgents } from './api/api-keys-api'
 
@@ -13,10 +13,9 @@ export const apiKeyAgentsQueryKey = (apiKeyId: string) =>
 export function useApiKeyAgents(apiKeyId: string | undefined) {
   const permissions = useAuthStore((s) => s.permissions)
   const canRead = (permissions & PERMISSION_READ_API_KEY) !== 0
-  const queryKey = useAuthenticatedQueryKey(apiKeyAgentsQueryKey(apiKeyId ?? ''))
 
   return useInfiniteQuery({
-    queryKey,
+    queryKey: apiKeyAgentsQueryKey(apiKeyId ?? ''),
     queryFn: ({ pageParam }) => getApiKeyAgents(apiKeyId!, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,

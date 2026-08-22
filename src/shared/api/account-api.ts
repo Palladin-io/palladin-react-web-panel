@@ -1,5 +1,4 @@
-import { api, authenticatedRequestContext } from './client'
-import type { AuthenticatedSessionSnapshot } from '../../features/auth/session/session-boundary'
+import { api } from './client'
 
 export interface AccountResponse {
   userId: string
@@ -101,23 +100,8 @@ export function getAccount(): Promise<AccountResponse> {
   return api.get('api/account').json<AccountResponse>()
 }
 
-export function getAccountForSession(
-  session: AuthenticatedSessionSnapshot,
-): Promise<AccountResponse> {
-  return api.get(
-    'api/account',
-    authenticatedRequestContext(session),
-  ).json<AccountResponse>()
-}
-
-export function setupAccount(
-  payload: SetupAccountPayload,
-  session?: AuthenticatedSessionSnapshot,
-): Promise<void> {
-  return api.post('api/account/setup', {
-    json: payload,
-    ...(session ? authenticatedRequestContext(session) : {}),
-  }).json<void>()
+export function setupAccount(payload: SetupAccountPayload): Promise<void> {
+  return api.post('api/account/setup', { json: payload }).json<void>()
 }
 
 /**
@@ -126,14 +110,8 @@ export function setupAccount(
  * salt/ciphertext fields atomically; the user's public key is unchanged
  * so existing vault entries remain decryptable after the next unlock.
  */
-export function recoverAccount(
-  payload: RecoverAccountPayload,
-  session?: AuthenticatedSessionSnapshot,
-): Promise<void> {
-  return api.put('api/account/recovery', {
-    json: payload,
-    ...(session ? authenticatedRequestContext(session) : {}),
-  }).json<void>()
+export function recoverAccount(payload: RecoverAccountPayload): Promise<void> {
+  return api.put('api/account/recovery', { json: payload }).json<void>()
 }
 
 /**
@@ -163,12 +141,8 @@ export interface ChangeMasterPasswordPayload {
  */
 export function changeMasterPassword(
   payload: ChangeMasterPasswordPayload,
-  session?: AuthenticatedSessionSnapshot,
 ): Promise<void> {
-  return api.put('api/account/password', {
-    json: payload,
-    ...(session ? authenticatedRequestContext(session) : {}),
-  }).json<void>()
+  return api.put('api/account/password', { json: payload }).json<void>()
 }
 
 /**
@@ -183,12 +157,6 @@ export type DefaultVaultPayload = Awaited<ReturnType<typeof import('../crypto/cr
  * The backend returns 201 on first call and 409 when one already exists.
  * Callers must handle 409 as a success (idempotent).
  */
-export async function createDefaultVault(
-  payload: DefaultVaultPayload,
-  session?: AuthenticatedSessionSnapshot,
-): Promise<void> {
-  await api.post('api/account/default-vault', {
-    json: payload,
-    ...(session ? authenticatedRequestContext(session) : {}),
-  })
+export async function createDefaultVault(payload: DefaultVaultPayload): Promise<void> {
+  await api.post('api/account/default-vault', { json: payload })
 }

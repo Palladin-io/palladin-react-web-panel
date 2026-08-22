@@ -1,23 +1,18 @@
-import { useAuthenticatedMutation as useMutation } from '../auth/session/use-authenticated-mutation'
-import {
-  replaceAuthenticatedSession,
-  StaleAuthenticatedSessionError,
-} from '../auth/session/session-boundary'
-import { clearPushTokenOnLogout } from '../notifications'
+import { useMutation } from '@tanstack/react-query'
+import { clearClientSession, useAuthStore } from '../auth'
 import { acceptOrganizationInvitation } from './api/organization-invitations-api'
 
 export function useAcceptOrganizationInvitation() {
   return useMutation({
-    mutationFn: async (input: Parameters<typeof acceptOrganizationInvitation>[0], context) => {
-      const response = await acceptOrganizationInvitation(input)
-      void clearPushTokenOnLogout(context.sessionSnapshot)
-      const session = await replaceAuthenticatedSession(response, {
-        expectedSession: context.sessionSnapshot,
-        lockVault: true,
-      })
-      if (!session) throw new StaleAuthenticatedSessionError()
-      context.adoptSession(session)
-      return response
+    mutationFn: acceptOrganizationInvitation,
+    onSuccess: (session) => {
+      clearClientSession()
+      const auth = useAuthStore.getState()
+      auth.setTokens(session)
+      // The session now points at another organization. Wipe the old
+      // organization's in-memory keys before any of its decrypted state can be
+      // rendered under the new JWT; the user unlocks again on the success CTA.
+      auth.lockVault()
     },
   })
 }

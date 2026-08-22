@@ -6,8 +6,7 @@ import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { FormInput } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { BUILTIN_AGENT_TYPES, type AgentType } from '../api/agents-api'
-import { AGENT_ICON_MAX_MB } from '../upload-agent-icon'
-import { useAgentIconUpload } from '../use-agent-icon-upload'
+import { AGENT_ICON_MAX_MB, uploadAgentIcon } from '../upload-agent-icon'
 import { useAgentTypes } from '../use-agent-types'
 import { AgentIconPicker, DEFAULT_AGENT_COLOR } from './agent-icon-picker'
 import { AgentTypeCombobox } from './agent-type-combobox'
@@ -50,8 +49,7 @@ export function ApproveAgentDialog({
   const [selectedIcon, setSelectedIcon] = useState<string | undefined>(undefined)
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_AGENT_COLOR)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
-  const iconUpload = useAgentIconUpload(agentId)
-  const isUploading = iconUpload.isUploading
+  const [isUploading, setIsUploading] = useState(false)
 
   if (!open) return null
 
@@ -62,9 +60,10 @@ export function ApproveAgentDialog({
 
     // Completion stores the stable catalog reference on the Agent aggregate.
     if (pendingFile) {
-      const result = await iconUpload.uploadResult(pendingFile)
-      if (!result?.ok) {
-        if (!result) return
+      setIsUploading(true)
+      const result = await uploadAgentIcon(agentId, pendingFile)
+      setIsUploading(false)
+      if (!result.ok) {
         if (result.reason === 'invalid-type') {
           toast.error(t('vault.iconUploadError.invalidType'))
         } else if (result.reason === 'too-large') {

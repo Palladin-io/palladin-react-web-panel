@@ -2,9 +2,6 @@ import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { AuthResponse } from '../../shared/api/types'
-import { StaleAuthenticatedSessionError } from '../auth/session/session-boundary'
-import { useAuthStore } from '../auth/stores/auth-store'
 
 const mocks = vi.hoisted(() => ({
   create: vi.fn(),
@@ -45,10 +42,7 @@ vi.mock('../../shared/crypto/grant-protocol', () => ({
 }))
 vi.mock('../../shared/crypto/vault-plaintext', () => ({ listGrantableFieldIds: vi.fn(() => ['value']) }))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
-vi.mock('../auth', () => ({
-  authenticatedQueryKey: (queryKey: readonly unknown[]) => queryKey,
-  useAuthStore: { getState: () => ({ privateKey: mocks.privateKey }) },
-}))
+vi.mock('../auth', () => ({ useAuthStore: { getState: () => ({ privateKey: mocks.privateKey }) } }))
 
 import { useCreateGrant } from './use-create-grant'
 
@@ -58,26 +52,9 @@ function wrapper({ children }: { children: ReactNode }) {
   } })}>{children}</QueryClientProvider>
 }
 
-function jwt(userId: string, organizationId: string): string {
-  const encode = (value: object) => btoa(JSON.stringify(value)).replaceAll('=', '')
-  return `${encode({ alg: 'none' })}.${encode({ sub: userId, org_id: organizationId })}.signature`
-}
-
-function session(userId: string, organizationId: string): AuthResponse {
-  return {
-    accessToken: jwt(userId, organizationId),
-    refreshToken: `refresh-${userId}-${organizationId}`,
-    userId,
-    isOnboarded: true,
-    emailVerified: true,
-  }
-}
-
 describe('useCreateGrant', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useAuthStore.getState().logout()
-    useAuthStore.getState().setTokens(session('user-a', 'org-a'))
     mocks.vaultState.status = 'ready'
     mocks.vaultState.entries = new Map()
     mocks.create.mockResolvedValue({ id: 'new' })
@@ -141,23 +118,14 @@ describe('useCreateGrant', () => {
     })
     await waitFor(() => expect(mocks.commitFull).toHaveBeenCalled(), { timeout: 5_000 })
     expect(mocks.prepareFull).toHaveBeenCalledTimes(1)
-    expect(mocks.prepareFull).toHaveBeenCalledWith(
-      'v1',
-      expect.objectContaining({ methods: 'Get' }),
-      expect.objectContaining({ userId: 'user-a', organizationId: 'org-a' }),
-    )
+    expect(mocks.prepareFull).toHaveBeenCalledWith('v1', expect.objectContaining({ methods: 'Get' }))
     expect(mocks.getFullMaterial).toHaveBeenCalledTimes(1)
     expect(mocks.getEntry).not.toHaveBeenCalled()
     expect(mocks.produce).toHaveBeenCalledTimes(2)
-    expect(mocks.appendFullEntries).toHaveBeenCalledWith(
-      'v1',
-      expect.any(String),
-      [
-        expect.objectContaining({ entryId: 'e1' }),
-        expect.objectContaining({ entryId: 'e3' }),
-      ],
-      expect.objectContaining({ userId: 'user-a', organizationId: 'org-a' }),
-    )
+    expect(mocks.appendFullEntries).toHaveBeenCalledWith('v1', expect.any(String), [
+      expect.objectContaining({ entryId: 'e1' }),
+      expect.objectContaining({ entryId: 'e3' }),
+    ])
     expect(mocks.create).not.toHaveBeenCalled()
   })
 
@@ -305,29 +273,5 @@ describe('useCreateGrant', () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(mocks.openVaultKey).not.toHaveBeenCalled()
     expect(mocks.create).not.toHaveBeenCalled()
-  })
-
-  it('does not send an A grant envelope after switching to B before the final request', async () => {
-    let releaseEnvelope!: (envelope: unknown) => void
-    mocks.produce.mockImplementationOnce(() => new Promise((resolve) => {
-      releaseEnvelope = resolve
-    }))
-    const { result } = renderHook(() => useCreateGrant(), { wrapper })
-
-    const execution = result.current.mutateAsync({
-      vaultId: 'v1', agentId: 'a1', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
-      type: 'granular', entryId: 'e1', policy: {}, methods: ['get'],
-    })
-    await waitFor(() => expect(mocks.produce).toHaveBeenCalledOnce())
-    useAuthStore.getState().logout()
-    useAuthStore.getState().setTokens(session('user-b', 'org-b'))
-    releaseEnvelope({
-      entryId: 'e1',
-      descriptor: { binding: { recipientKeyFingerprint: 'fingerprint' } },
-    })
-
-    await expect(execution).rejects.toBeInstanceOf(StaleAuthenticatedSessionError)
-    expect(mocks.create).not.toHaveBeenCalled()
-    expect(useAuthStore.getState().userId).toBe('user-b')
   })
 })

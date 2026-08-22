@@ -8,14 +8,9 @@ import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../../shared/api/account-api'
 import { clearPushTokenOnLogout } from '../../notifications'
 import { getIsAuthenticated, useAuthStore } from '../stores/auth-store'
-import { useAuthenticatedQueryKey } from '../session/authenticated-query-key'
+import { logoutAndReload } from '../session/client-session'
 import { useResendVerification } from '../hooks/use-resend-verification'
 import { useVerifyEmail } from '../hooks/use-verify-email'
-import {
-  captureAuthenticatedSession,
-  markEmailVerifiedForSession,
-  terminateAuthenticatedSession,
-} from '../session/session-boundary'
 
 export interface VerifyEmailPageProps {
   /** The verification token from the `?token=` query param. */
@@ -46,9 +41,8 @@ export function VerifyEmailPage({ token }: VerifyEmailPageProps) {
 function VerifyEmailGate() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const accountQueryKey = useAuthenticatedQueryKey(ACCOUNT_QUERY_KEY)
   const account = useQuery({
-    queryKey: accountQueryKey,
+    queryKey: ACCOUNT_QUERY_KEY,
     queryFn: getAccount,
     staleTime: 5 * 60 * 1000,
   })
@@ -63,18 +57,13 @@ function VerifyEmailGate() {
   // them through.
   useEffect(() => {
     if (account.data?.emailVerified === true) {
-      if (markEmailVerifiedForSession(captureAuthenticatedSession())) {
-        navigate({ to: '/' })
-      }
+      useAuthStore.getState().markEmailVerified()
+      navigate({ to: '/' })
     }
   }, [account.data?.emailVerified, navigate])
 
-  const handleLogout = async () => {
-    const session = captureAuthenticatedSession()
-    void clearPushTokenOnLogout(session)
-    if (await terminateAuthenticatedSession(session)) {
-      navigate({ to: '/login' })
-    }
+  const handleLogout = () => {
+    void logoutAndReload('/login', clearPushTokenOnLogout)
   }
 
   const resendLabel = isPending

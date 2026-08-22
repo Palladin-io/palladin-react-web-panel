@@ -1,12 +1,6 @@
-import {
-  api,
-  authenticatedRequestContext,
-} from '../../../shared/api/client'
+import { api } from '../../../shared/api/client'
 import type { AuthResponse } from '../../../shared/api/types'
-import {
-  captureAuthenticatedSession,
-  terminateAuthenticatedSession,
-} from '../session/session-boundary'
+import { clearClientSession } from '../session/client-session'
 
 export function oauthGoogle(token: string): Promise<AuthResponse> {
   return api.post('api/auth/oauth/google', { json: { token } }).json()
@@ -143,13 +137,9 @@ export function refreshToken(refreshToken: string): Promise<AuthResponse> {
 }
 
 export async function logout(refreshToken: string): Promise<void> {
-  const session = captureAuthenticatedSession()
   try {
-    await api.post('api/auth/logout', {
-      json: { refreshToken },
-      ...authenticatedRequestContext(session),
-    }).json()
+    await api.post('api/auth/logout', { json: { refreshToken } }).json()
   } finally {
-    await terminateAuthenticatedSession(session)
+    clearClientSession()
   }
 }

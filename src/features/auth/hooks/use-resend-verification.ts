@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useAuthenticatedMutation as useMutation } from '../session/use-authenticated-mutation'
+import { useMutation } from '@tanstack/react-query'
 import { analytics } from '../../../shared/lib/analytics'
 import { resendVerificationEmail } from '../api/auth-api'
 

@@ -3,11 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { openEncryptedReason, type EncryptedReasonContract } from '../../shared/crypto/reason-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
-import {
-  authenticatedQueryKey,
-  useAuthenticatedQueryKey,
-  useAuthStore,
-} from '../auth'
+import { useAuthStore } from '../auth'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import { GRANT_REASONS_QUERY_KEY } from './query-keys'
 
@@ -41,13 +37,9 @@ export function useGrantReasons(grants: readonly GrantReasonSource[]) {
     ] as const),
     [eligible],
   )
-  const queryKey = useAuthenticatedQueryKey([
-    ...GRANT_REASONS_QUERY_KEY,
-    reasonCoordinates,
-  ])
 
   const query = useQuery({
-    queryKey,
+    queryKey: [...GRANT_REASONS_QUERY_KEY, reasonCoordinates] as const,
     enabled: Boolean(sessionKey && eligible.length > 0),
     staleTime: 0,
     gcTime: 0,
@@ -106,11 +98,7 @@ export function useGrantReasons(grants: readonly GrantReasonSource[]) {
   })
 
   useEffect(() => {
-    if (!sessionKey) {
-      queryClient.removeQueries({
-        queryKey: authenticatedQueryKey(GRANT_REASONS_QUERY_KEY),
-      })
-    }
+    if (!sessionKey) queryClient.removeQueries({ queryKey: GRANT_REASONS_QUERY_KEY })
   }, [queryClient, sessionKey])
 
   return sessionKey ? query.data ?? EMPTY_REASONS : EMPTY_REASONS

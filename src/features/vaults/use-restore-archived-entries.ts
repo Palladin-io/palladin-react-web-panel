@@ -1,9 +1,8 @@
-import { useQueryClient } from '@tanstack/react-query'
-import { useAuthenticatedMutation as useMutation } from '../auth'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
-import { authenticatedQueryKey, useAuthStore } from '../auth'
+import { useAuthStore } from '../auth'
 import { getCanonicalEntry, restoreCanonicalEntry } from './api/vault-api'
 import { getEncryptedVault } from './sync/member-sync-api'
 import { useMemberSyncStore } from './sync/member-sync-store'
@@ -95,16 +94,10 @@ export function useRestoreArchivedEntries(vaultId: string) {
     },
     onSuccess: async ({ restored }) => {
       await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: authenticatedQueryKey(entriesQueryKey(vaultId)),
-        }),
+        queryClient.invalidateQueries({ queryKey: entriesQueryKey(vaultId) }),
         ...restored.flatMap((entryId) => [
-          queryClient.invalidateQueries({
-            queryKey: authenticatedQueryKey(entryDetailQueryKey(vaultId, entryId)),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: authenticatedQueryKey(entryHistoryQueryKey(vaultId, entryId)),
-          }),
+          queryClient.invalidateQueries({ queryKey: entryDetailQueryKey(vaultId, entryId) }),
+          queryClient.invalidateQueries({ queryKey: entryHistoryQueryKey(vaultId, entryId) }),
         ]),
       ])
       useMemberSyncStore.getState().retry()

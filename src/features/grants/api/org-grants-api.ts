@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { api, authenticatedRequestContext } from "../../../shared/api/client";
-import type { AuthenticatedSessionSnapshot } from "../../auth/session/session-boundary";
+import { api } from "../../../shared/api/client";
 import type { buildCanonicalGrantEnvelope } from "../../../shared/crypto/grant-protocol";
 import { encryptedReasonEnvelopeSchema } from "../../vaults/sync/entry-envelope-schema";
 
@@ -145,7 +144,6 @@ export interface OrgGrantPage {
  */
 export async function getOrgGrants(
   params: GetOrgGrantsParams = {},
-  session?: AuthenticatedSessionSnapshot,
 ): Promise<OrgGrantPage> {
   const searchParams = new URLSearchParams();
   if (params.status) searchParams.set("status", params.status);
@@ -156,10 +154,7 @@ export async function getOrgGrants(
   if (params.cursor) searchParams.set("cursor", params.cursor);
   if (params.pageSize) searchParams.set("pageSize", String(params.pageSize));
 
-  const raw = await api.get("api/grants", {
-    searchParams,
-    ...(session ? authenticatedRequestContext(session) : {}),
-  }).json();
+  const raw = await api.get("api/grants", { searchParams }).json();
   const page = orgGrantPageSchema.parse(raw);
 
   const items: OrgGrant[] = [];
@@ -194,7 +189,6 @@ export interface ActiveFullGrant {
  */
 export async function collectActiveFullGrants(
   vaultId: string,
-  session?: AuthenticatedSessionSnapshot,
 ): Promise<ActiveFullGrant[]> {
   const grants: ActiveFullGrant[] = [];
   let cursor: string | undefined;
@@ -205,7 +199,7 @@ export async function collectActiveFullGrants(
       cursor,
       // Backend caps cursor pagination at 100 per page.
       pageSize: 100,
-    }, session);
+    });
     for (const grant of page.items) {
       if (
         grant.type === GRANT_TYPE_FULL &&
@@ -268,12 +262,8 @@ export interface CreateGrantBody {
 export async function createGrantProactively(
   vaultId: string,
   body: CreateGrantBody,
-  session?: AuthenticatedSessionSnapshot,
 ): Promise<{ id: string }> {
   return api
-    .post(`api/vaults/${vaultId}/grants`, {
-      json: body,
-      ...(session ? authenticatedRequestContext(session) : {}),
-    })
+    .post(`api/vaults/${vaultId}/grants`, { json: body })
     .json<{ id: string }>();
 }

@@ -54,7 +54,6 @@ import {
   notificationDeepLink,
   resolveNotificationItem,
 } from "./notification-resolution";
-import { authenticatedQueryKey } from "../auth";
 
 type Segment = "all" | "todo" | "history" | "grants";
 
@@ -110,9 +109,7 @@ export function NotificationCenterPage({
   // 15s staleTime — which risks a double-submit. The grant mutations already
   // invalidate ['grants']; this covers the notifications side.
   const refreshFeed = () =>
-    queryClient.invalidateQueries({
-      queryKey: authenticatedQueryKey(NOTIFICATIONS_QUERY_KEY),
-    });
+    queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
 
   const [segment, setSegment] = useState<Segment>(initialSegment ?? "all");
   const [query, setQuery] = useState("");

@@ -4,7 +4,6 @@ import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useNotificationInvalidation } from './use-notification-invalidation'
 import type { NotificationPayload } from './notification-types'
-import { authenticatedQueryKey } from '../auth'
 
 function setup() {
   const client = new QueryClient({
@@ -28,40 +27,30 @@ describe('useNotificationInvalidation', () => {
       const { invalidate, invalidateSpy } = setup()
       invalidate(payload(type))
       // Root invalidation prefix-matches ['grants','pending'] and ['grants','org'].
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: authenticatedQueryKey(['grants']),
-      })
-      expect(invalidateSpy).toHaveBeenCalledWith({
-        queryKey: authenticatedQueryKey(['notifications']),
-      })
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['grants'] })
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['notifications'] })
     }
   })
 
   it('invalidates agents for agent_pending', () => {
     const { invalidate, invalidateSpy } = setup()
     invalidate(payload('agent_pending'))
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: authenticatedQueryKey(['agents']),
-    })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['agents'] })
   })
 
   it('invalidates the entry detail when credential_accessed carries ids', () => {
     const { invalidate, invalidateSpy } = setup()
     invalidate(payload('credential_accessed', { vaultId: 'v1', entryId: 'e1' }))
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['agents'] })
     expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: authenticatedQueryKey(['agents']),
-    })
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: authenticatedQueryKey(['vaults', 'v1', 'entries', 'e1']),
+      queryKey: ['vaults', 'v1', 'entries', 'e1'],
     })
   })
 
   it('skips entry invalidation when ids are missing', () => {
     const { invalidate, invalidateSpy } = setup()
     invalidate(payload('credential_accessed'))
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: authenticatedQueryKey(['agents']),
-    })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['agents'] })
     expect(invalidateSpy).not.toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: expect.arrayContaining(['vaults']) }),
     )
@@ -71,8 +60,6 @@ describe('useNotificationInvalidation', () => {
     const { invalidate, invalidateSpy } = setup()
     invalidate(payload('future_type'))
     expect(invalidateSpy).toHaveBeenCalledTimes(1)
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: authenticatedQueryKey(['notifications']),
-    })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['notifications'] })
   })
 })

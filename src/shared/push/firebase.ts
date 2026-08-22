@@ -1,5 +1,5 @@
 import type { FirebaseApp } from 'firebase/app'
-import type { MessagePayload, Messaging } from 'firebase/messaging'
+import type { Messaging } from 'firebase/messaging'
 import { env, isFirebaseConfigured } from '../lib/env'
 
 /**
@@ -50,25 +50,4 @@ export async function getFirebaseMessaging(): Promise<Messaging | null> {
     })()
   }
   return messagingPromise
-}
-
-export async function getFirebaseToken(
-  messaging: Messaging,
-  options: { vapidKey: string; serviceWorkerRegistration: ServiceWorkerRegistration },
-): Promise<string> {
-  const { getToken } = await import('firebase/messaging')
-  return getToken(messaging, options)
-}
-
-export async function deleteFirebaseToken(messaging: Messaging): Promise<boolean> {
-  const { deleteToken } = await import('firebase/messaging')
-  return deleteToken(messaging)
-}
-
-export async function onFirebaseMessage(
-  messaging: Messaging,
-  handler: (message: MessagePayload) => void,
-): Promise<() => void> {
-  const { onMessage } = await import('firebase/messaging')
-  return onMessage(messaging, handler)
 }

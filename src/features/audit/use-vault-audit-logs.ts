@@ -1,5 +1,4 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
-import { useAuthenticatedQueryKey } from '../auth'
 import {
   getVaultAuditLogs,
   type GetVaultAuditLogsParams,
@@ -21,13 +20,8 @@ export function useVaultAuditLogs(
   params: Omit<GetVaultAuditLogsParams, 'cursor' | 'pageSize'> = {},
   enabled = true,
 ) {
-  const queryKey = useAuthenticatedQueryKey([
-    ...AUDIT_LOGS_QUERY_KEY,
-    vaultId,
-    params,
-  ])
   return useInfiniteQuery({
-    queryKey,
+    queryKey: [...AUDIT_LOGS_QUERY_KEY, vaultId, params] as const,
     queryFn: ({ pageParam }) =>
       getVaultAuditLogs(vaultId, {
         ...params,

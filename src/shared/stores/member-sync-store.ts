@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import type { MemberIndexV1, MemberVaultMetadataV1 } from '../crypto/vault-plaintext'
 import { memberIndexSearchValues } from '../crypto/vault-plaintext'
-import { registerAuthenticatedPrincipalReset } from '../lib/authenticated-principal-reset'
 
 interface MemberVaultSummary {
   id: string
@@ -145,8 +144,6 @@ export const useMemberSyncStore = create<MemberSyncState>((set) => ({
   fail: () => set({ status: 'error', error: 'member-sync-failed' }),
   clear: () => set(initialState),
 }))
-
-registerAuthenticatedPrincipalReset(() => useMemberSyncStore.getState().clear())
 
 export function searchMemberIndex(query: string, states?: ReadonlySet<MemberEntryState>): MemberIndexRecord[] {
   const normalized = query.normalize('NFC').trim().toLocaleLowerCase()

@@ -1,5 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query'
-import { useAuthenticatedMutation as useMutation } from '../session/use-authenticated-mutation'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   deriveKey,
   RECOVERY_KEY_SALT_BYTES,
@@ -22,12 +21,7 @@ import { ACCOUNT_QUERY_KEY } from '../../../shared/api/account-api'
 import i18n from '../../../shared/lib/i18n'
 import { joinMnemonic } from '../../../shared/lib/mnemonic'
 import { register } from '../api/auth-api'
-import { authenticatedQueryKey } from '../session/authenticated-query-key'
-import {
-  replaceAuthenticatedSession,
-  StaleAuthenticatedSessionError,
-  unlockVaultForSession,
-} from '../session/session-boundary'
+import { useAuthStore } from '../stores/auth-store'
 
 export interface RegisterInput {
   email: string
@@ -52,7 +46,7 @@ export function useRegister() {
       email,
       masterPassword,
       recoveryMnemonic,
-    }: RegisterInput, context) => {
+    }: RegisterInput) => {
       const accountId = generateIdentityAccountId()
       let kdfSalt: Uint8Array | null = null
       let recoverySalt: Uint8Array | null = null
@@ -99,18 +93,10 @@ export function useRegister() {
 
         // Establish the session, then land the user already unlocked (we hold
         // MK + private key). Pass copies — the `finally` wipes the originals.
-        const session = await replaceAuthenticatedSession(response, {
-          expectedSession: context.sessionSnapshot,
-        })
-        if (!session) throw new StaleAuthenticatedSessionError()
-        context.adoptSession(session)
-        if (!unlockVaultForSession(
-          session,
-          identity.masterKey,
-          keyPair.privateKey,
-        )) {
-          throw new StaleAuthenticatedSessionError()
-        }
+        useAuthStore.getState().setTokens(response)
+        useAuthStore
+          .getState()
+          .unlockVault(identity.masterKey, keyPair.privateKey)
       } finally {
         if (identity) {
           wipe(identity.masterKey)
@@ -132,7 +118,7 @@ export function useRegister() {
       // gate routes the user to /verify-email; the first vault is created later.
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(ACCOUNT_QUERY_KEY) })
+      queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY })
     },
   })
 }

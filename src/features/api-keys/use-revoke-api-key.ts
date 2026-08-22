@@ -1,8 +1,6 @@
-import { useQueryClient } from '@tanstack/react-query'
-import { useAuthenticatedMutation as useMutation } from '../auth'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { revokeApiKey } from './api/api-keys-api'
 import { API_KEYS_QUERY_KEY } from './use-api-keys'
-import { authenticatedQueryKey } from '../auth'
 
 export function useRevokeApiKey() {
   const queryClient = useQueryClient()
@@ -12,7 +10,7 @@ export function useRevokeApiKey() {
     onSuccess: () => {
       // The revoked key's status flipped to Revoked — invalidate so the
       // list badge updates.
-      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(API_KEYS_QUERY_KEY) })
+      queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY })
     },
   })
 }

@@ -16,19 +16,6 @@ interface FakeConnection {
 const connections: FakeConnection[] = []
 const configuredLogLevels: number[] = []
 let startBehaviour: () => Promise<void> = () => Promise.resolve()
-const invalidateMock = vi.hoisted(() => vi.fn())
-const authProbe = vi.hoisted(() => ({
-  current: {
-    accessToken: 'jwt-a',
-    refreshToken: 'refresh-a',
-    userId: 'user-a',
-    organizationId: 'org-a',
-    sessionGeneration: 1,
-    sessionBoundaryActive: false,
-    isVaultLocked: false,
-  },
-  listeners: new Set<() => void>(),
-}))
 
 function makeConnection(): FakeConnection {
   const conn: FakeConnection = {
@@ -76,33 +63,15 @@ vi.mock('@microsoft/signalr', () => {
 
 // Auth store: report "wants connection" (token present, vault unlocked).
 vi.mock('../auth', () => ({
-  authenticatedQueryKey: (key: readonly unknown[]) => [
-    'authenticated',
-    authProbe.current.userId,
-    authProbe.current.organizationId,
-    authProbe.current.sessionGeneration,
-    ...key,
-  ],
-  captureAuthenticatedSession: () => ({ ...authProbe.current }),
-  authenticatedSessionMatches: (session: typeof authProbe.current) =>
-    session.accessToken === authProbe.current.accessToken
-    && session.refreshToken === authProbe.current.refreshToken
-    && session.userId === authProbe.current.userId
-    && session.organizationId === authProbe.current.organizationId
-    && session.sessionGeneration === authProbe.current.sessionGeneration
-    && session.sessionBoundaryActive === authProbe.current.sessionBoundaryActive,
   useAuthStore: {
-    getState: () => authProbe.current,
-    subscribe: (listener: () => void) => {
-      authProbe.listeners.add(listener)
-      return () => authProbe.listeners.delete(listener)
-    },
+    getState: () => ({ accessToken: 'jwt', isVaultLocked: false }),
+    subscribe: () => () => {},
   },
 }))
 
 vi.mock('../../shared/lib/env', () => ({ env: { signalrHubUrl: 'http://x/hub' } }))
 vi.mock('./use-notification-invalidation', () => ({
-  useNotificationInvalidation: () => invalidateMock,
+  useNotificationInvalidation: () => vi.fn(),
 }))
 vi.mock('./use-pending-alerts', () => ({
   usePendingAlerts: () => ({ notifyPending: vi.fn(), reset: vi.fn() }),
@@ -125,17 +94,6 @@ describe('SignalRProvider lifecycle', () => {
     connections.length = 0
     configuredLogLevels.length = 0
     startBehaviour = () => Promise.resolve()
-    invalidateMock.mockReset()
-    authProbe.current = {
-      accessToken: 'jwt-a',
-      refreshToken: 'refresh-a',
-      userId: 'user-a',
-      organizationId: 'org-a',
-      sessionGeneration: 1,
-      sessionBoundaryActive: false,
-      isVaultLocked: false,
-    }
-    authProbe.listeners.clear()
   })
 
   afterEach(() => vi.restoreAllMocks())
@@ -192,35 +150,5 @@ describe('SignalRProvider lifecycle', () => {
     const connected = connections.filter((c) => c.state === 'Connected')
     expect(connected.length).toBeGreaterThanOrEqual(1)
     vi.useRealTimers()
-  })
-
-  it('rejects an old-generation event synchronously after the session changes', async () => {
-    renderProvider()
-    await flush()
-    const started = connections.find((connection) => (
-      connection.start.mock.calls.length > 0
-    ))!
-    const receive = started.on.mock.calls.find(([name]) => (
-      name === 'ReceiveNotification'
-    ))?.[1] as (type: string, payload: unknown) => void
-
-    authProbe.current = {
-      accessToken: 'jwt-b',
-      refreshToken: 'refresh-b',
-      userId: 'user-b',
-      organizationId: 'org-b',
-      sessionGeneration: 2,
-      sessionBoundaryActive: false,
-      isVaultLocked: false,
-    }
-    for (const listener of authProbe.listeners) listener()
-    receive('grant_pending', {
-      type: 'grant_pending',
-      subjectId: 'grant-a',
-      occurredAt: '2026-08-22T00:00:00Z',
-      data: {},
-    })
-
-    expect(invalidateMock).not.toHaveBeenCalled()
   })
 })

@@ -5,7 +5,7 @@ import { Toaster } from 'sonner'
 import { ErrorBoundary } from '../shared/components/error-boundary'
 import { env } from '../shared/lib/env'
 import { useThemeStore } from '../shared/stores/theme-store'
-import { queryClient } from './query-client'
+import { queryClient } from '../shared/api/query-client'
 
 function ThemeSync() {
   const theme = useThemeStore((s) => s.theme)

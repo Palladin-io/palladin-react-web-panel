@@ -1,13 +1,8 @@
-import { useQueryClient } from '@tanstack/react-query'
-import { useAuthenticatedMutation as useMutation } from '../session/use-authenticated-mutation'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
-import {
-  ACCOUNT_QUERY_KEY,
-  getAccountForSession,
-} from '../../../shared/api/account-api'
+import { ACCOUNT_QUERY_KEY } from '../../../shared/api/account-api'
 import { verifyEmail } from '../api/auth-api'
-import { authenticatedQueryKey } from '../session/authenticated-query-key'
-import { markEmailVerifiedForSession } from '../session/session-boundary'
+import { getIsAuthenticated, useAuthStore } from '../stores/auth-store'
 
 /** Outcome the verification-result screen renders. */
 export type VerifyEmailOutcome = 'verified' | 'expired' | 'invalid'
@@ -34,39 +29,23 @@ async function classifyError(error: unknown): Promise<VerifyEmailOutcome> {
 export function useVerifyEmail() {
   const queryClient = useQueryClient()
   return useMutation<VerifyEmailOutcome, never, string>({
-    mutationFn: async (token: string, context) => {
+    mutationFn: async (token: string) => {
       try {
         await verifyEmail(token)
+        // Only reflect verification into THIS browser's session when it's the
+        // logged-in user's own session. The verification link may be opened
+        // anonymously (or after signing into a different account on the same
+        // browser) — writing `emailVerified: true` there would poison the
+        // persisted, anti-regress store and hide the banner for a later account
+        // that genuinely isn't verified.
+        if (getIsAuthenticated()) {
+          useAuthStore.getState().markEmailVerified()
+          queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY })
+        }
+        return 'verified'
       } catch (error) {
         return classifyError(error)
       }
-
-      // The token endpoint is intentionally usable without a session. Reflect
-      // its result into Zustand only when the initiating authenticated owner
-      // is still current AND a request bound to that same owner confirms the
-      // server-side account is now verified. A token opened under A can never
-      // mark a later B session verified.
-      const owner = context.sessionSnapshot
-      if (!owner.userId || (!owner.accessToken && !owner.refreshToken)) {
-        return 'verified'
-      }
-      try {
-        context.assertSessionCurrent()
-        const account = await getAccountForSession(owner)
-        context.assertSessionCurrent()
-        if (account.userId !== owner.userId || account.emailVerified !== true) {
-          return 'verified'
-        }
-        if (markEmailVerifiedForSession(owner)) {
-          queryClient.invalidateQueries({
-            queryKey: authenticatedQueryKey(ACCOUNT_QUERY_KEY),
-          })
-        }
-      } catch {
-        // Verification itself succeeded. A failed/stale confirmation must not
-        // downgrade that outcome, and must not touch another principal's store.
-      }
-      return 'verified'
     },
   })
 }

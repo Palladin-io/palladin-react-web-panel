@@ -1,5 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useAuthenticatedMutation as useMutation } from '../auth'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ORG_QUERY_KEY } from '../settings/use-org'
 import {
   cancelOrganizationInvitation,
@@ -7,20 +6,17 @@ import {
   resendOrganizationInvitation,
   updateOrganizationInvitationRole,
 } from './api/organization-invitations-api'
-import {
-  authenticatedQueryKey,
-  useAuthenticatedQueryKey,
-  useAuthStore,
-} from '../auth'
+import { useAuthStore } from '../auth'
+import { parseJwtPayload } from '../../shared/lib/jwt'
 
 export const ORGANIZATION_INVITATIONS_QUERY_KEY = ['organization-invitations'] as const
 
 export function useOrganizationInvitations(enabled = true) {
-  const organizationId = useAuthStore((state) => state.organizationId)
-  const queryKey = useAuthenticatedQueryKey(ORGANIZATION_INVITATIONS_QUERY_KEY)
+  const accessToken = useAuthStore((state) => state.accessToken)
+  const organizationId = organizationIdFromToken(accessToken)
 
   return useQuery({
-    queryKey,
+    queryKey: [...ORGANIZATION_INVITATIONS_QUERY_KEY, organizationId ?? 'session'],
     queryFn: getOrganizationInvitations,
     staleTime: 30_000,
     enabled: enabled && organizationId !== null,
@@ -34,10 +30,8 @@ export function useCancelOrganizationInvitation() {
     mutationFn: cancelOrganizationInvitation,
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: authenticatedQueryKey(ORGANIZATION_INVITATIONS_QUERY_KEY),
-        }),
-        queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(ORG_QUERY_KEY) }),
+        queryClient.invalidateQueries({ queryKey: ORGANIZATION_INVITATIONS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: ORG_QUERY_KEY }),
       ])
     },
   })
@@ -49,9 +43,7 @@ export function useUpdateOrganizationInvitationRole() {
   return useMutation({
     mutationFn: updateOrganizationInvitationRole,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: authenticatedQueryKey(ORGANIZATION_INVITATIONS_QUERY_KEY),
-      })
+      await queryClient.invalidateQueries({ queryKey: ORGANIZATION_INVITATIONS_QUERY_KEY })
     },
   })
 }
@@ -62,9 +54,13 @@ export function useResendOrganizationInvitation() {
   return useMutation({
     mutationFn: resendOrganizationInvitation,
     onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: authenticatedQueryKey(ORGANIZATION_INVITATIONS_QUERY_KEY),
-      })
+      await queryClient.invalidateQueries({ queryKey: ORGANIZATION_INVITATIONS_QUERY_KEY })
     },
   })
+}
+
+function organizationIdFromToken(accessToken: string | null): string | null {
+  if (!accessToken) return null
+  const value = parseJwtPayload(accessToken)['org_id']
+  return typeof value === 'string' ? value : null
 }

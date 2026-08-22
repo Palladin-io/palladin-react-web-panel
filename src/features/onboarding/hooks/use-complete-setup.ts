@@ -1,12 +1,5 @@
-import { useQueryClient } from '@tanstack/react-query'
-import { useAuthenticatedMutation as useMutation } from '../../auth'
-import {
-  authenticatedQueryKey,
-  markOnboardedForSession,
-  StaleAuthenticatedSessionError,
-  unlockVaultForSession,
-  useAuthStore,
-} from '../../auth'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuthStore } from '../../auth'
 import { deriveKey, RECOVERY_KEY_SALT_BYTES } from '../../../shared/crypto/argon2'
 import {
   deriveIdentityV1,
@@ -21,11 +14,7 @@ import {
   randomBytes,
   wipe,
 } from '../../../shared/crypto/sodium'
-import {
-  ACCOUNT_QUERY_KEY,
-  getAccountForSession,
-  setupAccount,
-} from '../../../shared/api/account-api'
+import { ACCOUNT_QUERY_KEY, getAccount, setupAccount } from '../../../shared/api/account-api'
 import i18n from '../../../shared/lib/i18n'
 import { joinMnemonic } from '../../../shared/lib/mnemonic'
 import { createDefaultVaultSafe } from '../../../shared/lib/create-default-vault-safe'
@@ -42,8 +31,8 @@ export function useCompleteSetup() {
     mutationFn: async ({
       masterPassword,
       recoveryMnemonic,
-    }: CompleteSetupInput, context) => {
-      const account = await getAccountForSession(context.sessionSnapshot)
+    }: CompleteSetupInput) => {
+      const account = await getAccount()
       let kdfSalt: Uint8Array | null = null
       let identity: Awaited<ReturnType<typeof deriveIdentityV1>> | null = null
       let keyPair: Awaited<ReturnType<typeof generateKeyPair>> | null = null
@@ -80,15 +69,12 @@ export function useCompleteSetup() {
           encryptedPrivateKey: encodeBase64Url(encryptedPrivateKey),
           encryptedPrivateKeyByRecovery: encodeBase64Url(encryptedPrivateKeyByRecovery),
           newAuthCredential: encodeBase64Url(identity.authCredential),
-        }, context.sessionSnapshot)
+        })
 
-        if (!unlockVaultForSession(
-          context.sessionSnapshot,
+        useAuthStore.getState().unlockVault(
           identity.masterKey,
           keyPair.privateKey,
-        )) {
-          throw new StaleAuthenticatedSessionError()
-        }
+        )
       } finally {
         if (kdfSalt) wipe(kdfSalt)
         if (recoverySalt) wipe(recoverySalt)
@@ -104,17 +90,13 @@ export function useCompleteSetup() {
 
       const privateKey = useAuthStore.getState().privateKey
       if (privateKey) {
-        await createDefaultVaultSafe(
-          privateKey,
-          i18n.t('vault.defaultName'),
-          context.sessionSnapshot,
-        )
+        await createDefaultVaultSafe(privateKey, i18n.t('vault.defaultName'))
       }
     },
-    onSuccess: (_data, _variables, _result, context) => {
-      if (!markOnboardedForSession(context.sessionSnapshot)) return
-      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(ACCOUNT_QUERY_KEY) })
-      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(['vaults']) })
+    onSuccess: () => {
+      useAuthStore.getState().markOnboarded()
+      queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: ['vaults'] })
     },
   })
 }

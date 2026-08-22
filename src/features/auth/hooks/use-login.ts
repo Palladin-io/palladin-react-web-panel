@@ -1,25 +1,16 @@
-import { useAuthenticatedMutation as useMutation } from '../session/use-authenticated-mutation'
+import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { oauthGoogle } from '../api/auth-api'
-import {
-  replaceAuthenticatedSession,
-  StaleAuthenticatedSessionError,
-} from '../session/session-boundary'
+import { useAuthStore } from '../stores/auth-store'
 
 export function useLogin(redirectTo = '/') {
+  const setTokens = useAuthStore((s) => s.setTokens)
   const navigate = useNavigate()
 
   return useMutation({
-    mutationFn: async (token: string, context) => {
-      const data = await oauthGoogle(token)
-      const session = await replaceAuthenticatedSession(data, {
-        expectedSession: context.sessionSnapshot,
-      })
-      if (!session) throw new StaleAuthenticatedSessionError()
-      context.adoptSession(session)
-      return data
-    },
-    onSuccess: () => {
+    mutationFn: oauthGoogle,
+    onSuccess: (data) => {
+      setTokens(data)
       navigate({ href: redirectTo })
     },
   })

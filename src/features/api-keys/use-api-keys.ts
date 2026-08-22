@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAuthenticatedQueryKey, useAuthStore } from '../auth'
+import { useAuthStore } from '../auth/stores/auth-store'
 import { PERMISSION_READ_API_KEY, PERMISSION_WRITE_API_KEY } from '../../shared/lib/permissions'
 import { getApiKeys } from './api/api-keys-api'
 
@@ -8,10 +8,9 @@ export const API_KEYS_QUERY_KEY = ['api-keys'] as const
 export function useApiKeys() {
   const permissions = useAuthStore((s) => s.permissions)
   const canRead = (permissions & PERMISSION_READ_API_KEY) !== 0
-  const queryKey = useAuthenticatedQueryKey(API_KEYS_QUERY_KEY)
 
   return useQuery({
-    queryKey,
+    queryKey: API_KEYS_QUERY_KEY,
     queryFn: getApiKeys,
     staleTime: 30_000,
     enabled: canRead,

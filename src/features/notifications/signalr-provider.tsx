@@ -7,13 +7,7 @@ import {
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import {
-  authenticatedQueryKey,
-  authenticatedSessionMatches,
-  captureAuthenticatedSession,
-  useAuthStore,
-  type AuthenticatedSessionSnapshot,
-} from '../auth'
+import { useAuthStore } from '../auth'
 import { AGENTS_QUERY_KEY, type Agent } from '../agents'
 import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
 import { env } from '../../shared/lib/env'
@@ -24,7 +18,6 @@ import { useNotificationInvalidation } from './use-notification-invalidation'
 import { usePendingAlerts } from './use-pending-alerts'
 import { claimNotificationEvent } from './notification-deduplication'
 import { resolveNotificationPayload } from './notification-resolution'
-import { registerAuthenticatedPrincipalProducerStop } from '../../shared/lib/authenticated-principal-reset'
 
 /** Notification types that demand the user's attention (sound + tab flash). */
 const ATTENTION_TYPES = new Set([
@@ -67,14 +60,9 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
 
   // Keep the latest handler in a ref so the connection's message subscription
   // always calls the current closure without needing to be re-registered.
-  const handlerRef = useRef<(
-    type: string,
-    raw: unknown,
-    session: AuthenticatedSessionSnapshot,
-  ) => void>(() => {})
+  const handlerRef = useRef<(type: string, raw: unknown) => void>(() => {})
   useEffect(() => {
-    handlerRef.current = (type, raw, session) => {
-      if (!authenticatedSessionMatches(session)) return
+    handlerRef.current = (type: string, raw: unknown) => {
       // Visible confirmation that an event actually reached the client — the
       // key diagnostic for "connection up but list not refreshing".
       signalrLog.info(`event received: ${type}`)
@@ -90,9 +78,7 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       if (!claimNotificationEvent(payload)) return
       const resolved = resolveNotificationPayload(payload, {
         vaults: useMemberSyncStore.getState().vaults,
-        agents: new Map((queryClient.getQueryData<Agent[]>(
-          authenticatedQueryKey(AGENTS_QUERY_KEY),
-        ) ?? [])
+        agents: new Map((queryClient.getQueryData<Agent[]>(AGENTS_QUERY_KEY) ?? [])
           .map((agent) => [agent.agentId, agent])),
       })
       showNotificationToast(resolved, () => navigate({ to: '/inbox' }))
@@ -109,21 +95,20 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
     // tears down instead of leaving a stray live connection.
     let disposed = false
     let connection: HubConnection | null = null
-    let connectionSession: AuthenticatedSessionSnapshot | null = null
     let retryTimer: ReturnType<typeof setTimeout> | null = null
     // Serialises start/stop — every transition chains onto the previous op so
     // they can never overlap (the root-cause fix for the negotiation race).
     let op: Promise<void> = Promise.resolve()
 
     function wantsConnection(): boolean {
-      const { accessToken, isVaultLocked, sessionBoundaryActive } = useAuthStore.getState()
-      return Boolean(accessToken) && !isVaultLocked && !sessionBoundaryActive
+      const { accessToken, isVaultLocked } = useAuthStore.getState()
+      return Boolean(accessToken) && !isVaultLocked
     }
 
-    function buildConnection(session: AuthenticatedSessionSnapshot): HubConnection {
+    function buildConnection(): HubConnection {
       const conn = new HubConnectionBuilder()
         .withUrl(env.signalrHubUrl, {
-          accessTokenFactory: () => session.accessToken ?? '',
+          accessTokenFactory: () => useAuthStore.getState().accessToken ?? '',
         })
         .withAutomaticReconnect()
         .configureLogging(LogLevel.None)
@@ -132,8 +117,7 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       // type + payload — server pushes both; we forward both so the handler can
       // log the type even when the payload body is unparseable.
       conn.on('ReceiveNotification', (type: string, payload: unknown) => {
-        if (connection !== conn || !authenticatedSessionMatches(session)) return
-        handlerRef.current(type, payload, session)
+        handlerRef.current(type, payload)
       })
 
       // Lifecycle diagnostics — make drops/reconnects visible instead of silent.
@@ -158,19 +142,14 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       // State may have changed while earlier ops in the chain settled.
       if (disposed || !wantsConnection() || connection) return
 
-      const session = captureAuthenticatedSession()
-      if (!session.accessToken || !authenticatedSessionMatches(session)) return
-      const conn = buildConnection(session)
+      const conn = buildConnection()
       connection = conn
-      connectionSession = session
       signalrLog.info(`connecting to ${env.signalrHubUrl} (attempt ${attempt + 1})`)
       try {
         await conn.start()
-        if (disposed || !wantsConnection()
-          || !authenticatedSessionMatches(session)) {
+        if (disposed || !wantsConnection()) {
           // Unmounted / state flipped during negotiate — tear this one down.
           connection = null
-          connectionSession = null
           await conn.stop()
           return
         }
@@ -179,9 +158,7 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
         // Start failed or was aborted mid-negotiate. Not fatal — drop the
         // handle and retry with backoff while we still want a connection.
         connection = null
-        connectionSession = null
-        if (disposed || !wantsConnection()
-          || !authenticatedSessionMatches(session)) return
+        if (disposed || !wantsConnection()) return
         const delay = RETRY_BACKOFF_MS[Math.min(attempt, RETRY_BACKOFF_MS.length - 1)]
         signalrLog.warn(
           `start failed (${(err as Error)?.message ?? 'unknown'}) — retrying in ${delay}ms`,
@@ -197,7 +174,6 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
       clearRetry()
       const conn = connection
       connection = null
-      connectionSession = null
       if (conn && conn.state !== HubConnectionState.Disconnected) {
         // Awaited so a subsequent start (next chained op) can't begin until the
         // socket is fully closed.
@@ -207,29 +183,19 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
 
     function evaluate() {
       if (wantsConnection()) {
-        if (connectionSession && !authenticatedSessionMatches(connectionSession)) {
-          op = op.then(() => doStop()).then(() => doStart(0))
-        } else {
-          op = op.then(() => doStart(0))
-        }
+        op = op.then(() => doStart(0))
       } else {
         op = op.then(() => doStop())
       }
     }
 
     evaluate()
-    const unregisterProducerStop = registerAuthenticatedPrincipalProducerStop(() => {
-      clearRetry()
-      connectionSession = null
-      op = op.then(() => doStop())
-    })
     // React to login/logout/unlock/lock without rebuilding the effect.
     const unsubscribe = useAuthStore.subscribe(evaluate)
 
     return () => {
       disposed = true
       unsubscribe()
-      unregisterProducerStop()
       clearRetry()
       // Chain the final stop so it waits for any in-flight start to settle
       // before tearing down — prevents the StrictMode negotiation abort.

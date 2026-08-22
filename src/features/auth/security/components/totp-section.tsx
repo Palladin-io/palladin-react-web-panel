@@ -6,7 +6,6 @@ import { Button } from '../../../../shared/components/button'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../../../shared/api/account-api'
 import { TotpEnrollmentDialog } from './totp-enrollment-dialog'
 import { TotpDisableDialog } from './totp-disable-dialog'
-import { useAuthenticatedQueryKey } from '../../session/authenticated-query-key'
 
 /**
  * Two-factor authentication management. Reflects the account's
@@ -15,9 +14,8 @@ import { useAuthenticatedQueryKey } from '../../session/authenticated-query-key'
  */
 export function TotpSection() {
   const { t } = useTranslation()
-  const accountQueryKey = useAuthenticatedQueryKey(ACCOUNT_QUERY_KEY)
   const account = useQuery({
-    queryKey: accountQueryKey,
+    queryKey: ACCOUNT_QUERY_KEY,
     queryFn: getAccount,
     staleTime: 5 * 60 * 1000,
   })

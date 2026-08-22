@@ -1,7 +1,6 @@
 import { z } from 'zod'
-import { api, authenticatedRequestContext } from '../../../shared/api/client'
+import { api } from '../../../shared/api/client'
 import { getPublicAssetsByIds } from '../../../shared/api/public-assets-api'
-import type { AuthenticatedSessionSnapshot } from '../../auth/session/session-boundary'
 
 /** Agent lifecycle status — camelCase strings matching backend JsonStringEnumConverter. */
 export const AGENT_STATUS_PENDING = 'pending' as const
@@ -181,13 +180,9 @@ export async function updateAgent(
 export async function presignAgentIcon(
   agentId: string,
   input: { mediaType: string; byteLength: number; sha256: string },
-  session?: AuthenticatedSessionSnapshot,
 ): Promise<z.infer<typeof presignIconSchema>> {
   const raw = await api
-    .post(`api/agents/${agentId}/icon/presign`, {
-      json: { agentId, ...input },
-      ...(session ? authenticatedRequestContext(session) : {}),
-    })
+    .post(`api/agents/${agentId}/icon/presign`, { json: { agentId, ...input } })
     .json()
   return presignIconSchema.parse(raw)
 }
@@ -195,11 +190,9 @@ export async function presignAgentIcon(
 export async function completeAgentIconUpload(
   agentId: string,
   uploadSessionId: string,
-  session?: AuthenticatedSessionSnapshot,
 ): Promise<z.infer<typeof completeIconSchema>> {
   const raw = await api.post(`api/agents/${agentId}/icon/complete`, {
     json: { agentId, uploadSessionId },
-    ...(session ? authenticatedRequestContext(session) : {}),
   }).json()
   return completeIconSchema.parse(raw)
 }

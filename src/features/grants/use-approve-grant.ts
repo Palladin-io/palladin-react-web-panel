@@ -1,6 +1,5 @@
-import { useQueryClient } from '@tanstack/react-query'
-import { useAuthenticatedMutation as useMutation } from '../auth'
-import { authenticatedQueryKey, useAuthStore } from '../auth'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useAuthStore } from '../auth'
 import { getAgent } from '../agents'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
 import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
@@ -116,8 +115,6 @@ export function useApproveGrant() {
         wipe(vaultKey)
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({
-      queryKey: authenticatedQueryKey(GRANTS_QUERY_KEY),
-    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY }),
   })
 }

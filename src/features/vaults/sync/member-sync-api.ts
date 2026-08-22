@@ -1,6 +1,5 @@
 import { z } from 'zod'
-import { api, authenticatedRequestContext } from '../../../shared/api/client'
-import type { AuthenticatedSessionSnapshot } from '../../auth/session/session-boundary'
+import { api } from '../../../shared/api/client'
 import {
   canonicalU64Schema as canonicalU64,
   canonicalUuidSchema as canonicalUuid,
@@ -233,16 +232,8 @@ export async function listEncryptedVaults(signal?: AbortSignal): Promise<Encrypt
   return vaults
 }
 
-export async function getEncryptedVault(
-  vaultId: string,
-  signal?: AbortSignal,
-  session?: AuthenticatedSessionSnapshot,
-): Promise<EncryptedVaultDetail> {
-  const response = await api.get(`api/vaults/${vaultId}`, {
-    signal,
-    throwHttpErrors: false,
-    ...(session ? authenticatedRequestContext(session) : {}),
-  })
+export async function getEncryptedVault(vaultId: string, signal?: AbortSignal): Promise<EncryptedVaultDetail> {
+  const response = await api.get(`api/vaults/${vaultId}`, { signal, throwHttpErrors: false })
   return parseResponse(response, encryptedVaultDetailSchema)
 }
 

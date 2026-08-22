@@ -1,10 +1,9 @@
-import { useQueryClient } from '@tanstack/react-query'
-import { useAuthenticatedMutation as useMutation } from '../auth'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { toMemberSecret, type AgentVisibilityPolicy } from '../../shared/crypto/entry-draft'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
-import { authenticatedQueryKey, useAuthStore } from '../auth'
+import { useAuthStore } from '../auth'
 import { collectActiveFullGrants } from '../grants'
 import { createEntry, issueEntryCreationChallenge, updateCanonicalEntry } from './api/vault-api'
 import { deleteEncryptedAsset } from './assets/encrypted-asset-api'
@@ -53,14 +52,14 @@ export function useCreateEntry() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (input: CreateEntryInput, context) => {
+    mutationFn: async (input: CreateEntryInput) => {
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new VaultLockedError()
 
       const [vault, challenge, fullGrants] = await Promise.all([
-        getEncryptedVault(input.vaultId, undefined, context.sessionSnapshot),
-        issueEntryCreationChallenge(input.vaultId, context.sessionSnapshot),
-        collectActiveFullGrants(input.vaultId, context.sessionSnapshot),
+        getEncryptedVault(input.vaultId),
+        issueEntryCreationChallenge(input.vaultId),
+        collectActiveFullGrants(input.vaultId),
       ])
       if (fullGrants.length > 0) throw new ActiveFullGrantMaterialRequiredError()
 
@@ -85,12 +84,11 @@ export function useCreateEntry() {
           vdkVersion: vault.currentKeyEpoch.vdkVersion,
           memberKeyGeneration: vault.memberKeyGeneration,
         }, secret, vaultKey, discoveryKey, 1)
-        context.assertSessionCurrent()
         const created = await createEntry(input.vaultId, {
           entryId: challenge.entryId,
           ...material,
           grantEnvelopes: [],
-        }, context.sessionSnapshot)
+        })
         if (!input.iconFile) return created
 
         let uploadedAssetId: string | undefined
@@ -106,8 +104,6 @@ export function useCreateEntry() {
               memberKeyGeneration: vault.memberKeyGeneration,
             },
             baseKey: vaultKey,
-            session: context.sessionSnapshot,
-            assertSessionCurrent: context.assertSessionCurrent,
           })
           uploadedAssetId = uploaded.assetId
           const secretWithIcon = toMemberSecret({
@@ -129,7 +125,6 @@ export function useCreateEntry() {
             vdkVersion: vault.currentKeyEpoch.vdkVersion,
             memberKeyGeneration: vault.memberKeyGeneration,
           }, secretWithIcon, vaultKey, discoveryKey, 2)
-          context.assertSessionCurrent()
           await updateCanonicalEntry(input.vaultId, challenge.entryId, {
             baseRevision: created.currentRevision,
             newEntryKey: withIcon.entryKey,
@@ -137,15 +132,11 @@ export function useCreateEntry() {
             memberIndex: withIcon.memberIndex,
             agentDiscoveryChanged: false,
             grantEnvelopes: [],
-          }, context.sessionSnapshot)
+          })
           return { ...created, currentRevision: revision }
         } catch (error) {
           if (uploadedAssetId) {
-            await deleteEncryptedAsset(
-              input.vaultId,
-              uploadedAssetId,
-              context.sessionSnapshot,
-            ).catch(() => undefined)
+            await deleteEncryptedAsset(input.vaultId, uploadedAssetId).catch(() => undefined)
           }
           throw error
         }
@@ -155,13 +146,9 @@ export function useCreateEntry() {
       }
     },
     onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: authenticatedQueryKey(entriesQueryKey(variables.vaultId)),
-      })
-      queryClient.invalidateQueries({
-        queryKey: authenticatedQueryKey(vaultQueryKey(variables.vaultId)),
-      })
-      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(VAULTS_QUERY_KEY) })
+      queryClient.invalidateQueries({ queryKey: entriesQueryKey(variables.vaultId) })
+      queryClient.invalidateQueries({ queryKey: vaultQueryKey(variables.vaultId) })
+      queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
       // The entries list is backed by the decrypted member-sync store rather
       // than React Query. Pull the committed delta immediately so returning
       // from the selected entry never waits for the background sync interval.

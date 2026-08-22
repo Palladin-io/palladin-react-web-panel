@@ -1,5 +1,4 @@
 import type { NotificationPayload } from './notification-types'
-import { registerAuthenticatedPrincipalReset } from '../../shared/lib/authenticated-principal-reset'
 
 const RETENTION_MS = 2 * 60_000
 const MAX_RECENT = 256
@@ -21,10 +20,6 @@ export function claimNotificationEvent(payload: NotificationPayload, now = Date.
   return true
 }
 
-export function clearNotificationDeduplication(): void {
+export function resetNotificationDeduplicationForTests(): void {
   recent.clear()
 }
-
-export const resetNotificationDeduplicationForTests = clearNotificationDeduplication
-
-registerAuthenticatedPrincipalReset(clearNotificationDeduplication)

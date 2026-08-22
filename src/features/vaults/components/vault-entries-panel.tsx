@@ -2,7 +2,7 @@ import { memo, useCallback, useState, type UIEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { authenticatedQueryKey, useAuthStore } from '../../auth'
+import { useAuthStore } from '../../auth'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
@@ -63,11 +63,11 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
   }, [entries.items.length, onScroll, search])
   const prefetchEntry = useCallback((entryId: string) => {
     void queryClient.prefetchQuery({
-      queryKey: authenticatedQueryKey(canonicalEntryDetailQueryKey(
+      queryKey: canonicalEntryDetailQueryKey(
         vault.id,
         entryId,
         cryptoSessionGeneration,
-      )),
+      ),
       queryFn: () => getCanonicalEntry(vault.id, entryId),
       staleTime: Infinity,
     })

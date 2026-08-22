@@ -4,7 +4,6 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { ORGANIZATION_MEMBERS_QUERY_KEY } from '../../shared/api/organization-members-api'
 import { useRequestMemberRemoval, vaultMembersQueryKey } from './use-vault-members'
-import { authenticatedQueryKey } from '../auth'
 
 const api = vi.hoisted(() => ({ delete: vi.fn() }))
 vi.mock('../../shared/api/client', () => ({ api }))
@@ -22,11 +21,7 @@ describe('useRequestMemberRemoval', () => {
     await act(() => result.current.mutateAsync('member-1'))
 
     expect(api.delete).toHaveBeenCalledWith('api/organization/members/member-1')
-    expect(invalidate).toHaveBeenCalledWith({
-      queryKey: authenticatedQueryKey(vaultMembersQueryKey('vault-1')),
-    })
-    expect(invalidate).toHaveBeenCalledWith({
-      queryKey: authenticatedQueryKey(ORGANIZATION_MEMBERS_QUERY_KEY),
-    })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: vaultMembersQueryKey('vault-1') })
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ORGANIZATION_MEMBERS_QUERY_KEY })
   })
 })

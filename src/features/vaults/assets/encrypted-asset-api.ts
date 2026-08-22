@@ -1,6 +1,5 @@
 import { z } from 'zod'
-import { api, authenticatedRequestContext } from '../../../shared/api/client'
-import type { AuthenticatedSessionSnapshot } from '../../auth/session/session-boundary'
+import { api } from '../../../shared/api/client'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import type { EncryptedAssetMediaType, EncryptedAssetTarget } from '../../../shared/crypto/vault-v2-assets'
 
@@ -28,10 +27,7 @@ async function sha256(bytes: Uint8Array): Promise<string> {
   return encodeBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(bytes).buffer)))
 }
 
-export async function uploadEncryptedAsset(
-  input: EncryptedAssetUpload,
-  session?: AuthenticatedSessionSnapshot,
-): Promise<void> {
+export async function uploadEncryptedAsset(input: EncryptedAssetUpload): Promise<void> {
   const ciphertextSha256 = await sha256(input.ciphertext)
   await api.post(`api/vaults/${input.vaultId}/assets`, {
     json: {
@@ -43,7 +39,6 @@ export async function uploadEncryptedAsset(
       ciphertext: encodeBase64Url(input.ciphertext),
       ciphertextSha256,
     },
-    ...(session ? authenticatedRequestContext(session) : {}),
   })
 }
 
@@ -95,13 +90,6 @@ export async function downloadEncryptedAsset(vaultId: string, assetId: string, s
   }
 }
 
-export async function deleteEncryptedAsset(
-  vaultId: string,
-  assetId: string,
-  session?: AuthenticatedSessionSnapshot,
-): Promise<void> {
-  await api.delete(
-    `api/vaults/${vaultId}/assets/${assetId}`,
-    session ? authenticatedRequestContext(session) : undefined,
-  )
+export async function deleteEncryptedAsset(vaultId: string, assetId: string): Promise<void> {
+  await api.delete(`api/vaults/${vaultId}/assets/${assetId}`)
 }
