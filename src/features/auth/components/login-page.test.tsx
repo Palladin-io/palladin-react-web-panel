@@ -8,9 +8,11 @@ import { LoginPage } from './login-page'
 const startMutate = vi.hoisted(() => vi.fn())
 const totpMutate = vi.hoisted(() => vi.fn())
 const navigateMock = vi.hoisted(() => vi.fn())
+const clearClientSessionMock = vi.hoisted(() => vi.fn())
+const googleLoginMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@react-oauth/google', () => ({
-  useGoogleLogin: () => vi.fn(),
+  useGoogleLogin: () => googleLoginMock,
 }))
 
 vi.mock('@tanstack/react-router', () => ({
@@ -31,6 +33,10 @@ vi.mock('../hooks/use-password-login', () => ({
   }),
 }))
 
+vi.mock('../session/client-session', () => ({
+  clearClientSession: clearClientSessionMock,
+}))
+
 vi.mock('../hooks/use-identity-kdf-migration', () => ({
   useIdentityKdfMigration: () => ({
     mutate: vi.fn(),
@@ -43,6 +49,8 @@ describe('LoginPage', () => {
     startMutate.mockReset()
     totpMutate.mockReset()
     navigateMock.mockReset()
+    clearClientSessionMock.mockReset()
+    googleLoginMock.mockReset()
   })
 
   it('renders the wordmark and the email/password fields', () => {
@@ -74,11 +82,25 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText(/master password/i), 'hunter2hunter2')
     await user.click(screen.getByRole('button', { name: /^sign in$/i }))
 
+    expect(clearClientSessionMock).toHaveBeenCalledOnce()
+    expect(clearClientSessionMock.mock.invocationCallOrder[0])
+      .toBeLessThan(startMutate.mock.invocationCallOrder[0])
     expect(startMutate).toHaveBeenCalledTimes(1)
     expect(startMutate.mock.calls[0][0]).toEqual({
       email: 'user@example.com',
       password: 'hunter2hunter2',
     })
+  })
+
+  it('clears the previous client session before opening Google login', async () => {
+    const user = userEvent.setup()
+    render(<LoginPage />)
+
+    await user.click(screen.getByRole('button', { name: /continue with google/i }))
+
+    expect(clearClientSessionMock).toHaveBeenCalledOnce()
+    expect(clearClientSessionMock.mock.invocationCallOrder[0])
+      .toBeLessThan(googleLoginMock.mock.invocationCallOrder[0])
   })
 
   it('advances to the TOTP challenge when the server requires it', async () => {

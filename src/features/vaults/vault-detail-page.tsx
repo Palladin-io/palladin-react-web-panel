@@ -53,10 +53,13 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
   const vault = useVault(vaultId)
   const [activeTab, setActiveTab] = useState<VaultDetailTab>(initialTab ?? 'entries')
   const [createEntryOpen, setCreateEntryOpen] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
+  const [importVault, setImportVault] = useState<Vault | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [addAgentOpen, setAddAgentOpen] = useState(false)
   const isWide = useWideScreen()
+  const openImport = () => {
+    if (vault.data) setImportVault(vault.data)
+  }
 
   const vaultContent = vault.isPending ? (
     <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />
@@ -70,7 +73,7 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
         onTabChange={setActiveTab}
         onBack={() => navigate({ to: '/vaults' })}
         onAddEntry={() => setCreateEntryOpen(true)}
-        onImport={() => setImportOpen(true)}
+        onImport={openImport}
         onExport={() => setExportOpen(true)}
         onAddAgent={() => setAddAgentOpen(true)}
         showHeader={!isWide}
@@ -80,15 +83,6 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
         vault={vault.data}
         onClose={() => setCreateEntryOpen(false)}
       />
-      {importOpen && (
-        <Suspense fallback={null}>
-          <ImportWizardModal
-            open
-            vault={vault.data}
-            onClose={() => setImportOpen(false)}
-          />
-        </Suspense>
-      )}
       <ExportDialog
         open={exportOpen}
         vaults={[{ id: vault.data.id, name: vault.data.name }]}
@@ -103,25 +97,41 @@ export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
     </>
   )
 
+  const importModal = importVault ? (
+    <Suspense fallback={null}>
+      <ImportWizardModal
+        open
+        vault={importVault}
+        onClose={() => setImportVault(null)}
+      />
+    </Suspense>
+  ) : null
+
   if (isWide) {
     return (
-      <div className="flex h-full overflow-hidden text-[var(--cv-t1)]">
-        <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
-          <div className="h-full px-4 pt-4">
-            <VaultListPanel selectedVaultId={vaultId} />
+      <>
+        <div className="flex h-full overflow-hidden text-[var(--cv-t1)]">
+          <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+            <div className="h-full px-4 pt-4">
+              <VaultListPanel selectedVaultId={vaultId} />
+            </div>
+          </div>
+          <div className="flex-1 overflow-hidden min-w-0">
+            <div className="h-full px-4 pt-4">{vaultContent}</div>
           </div>
         </div>
-        <div className="flex-1 overflow-hidden min-w-0">
-          <div className="h-full px-4 pt-4">{vaultContent}</div>
-        </div>
-      </div>
+        {importModal}
+      </>
     )
   }
 
   return (
-    <div className="min-h-screen text-[var(--cv-t1)]">
-      <div className="px-6 py-8">{vaultContent}</div>
-    </div>
+    <>
+      <div className="min-h-screen text-[var(--cv-t1)]">
+        <div className="px-6 py-8">{vaultContent}</div>
+      </div>
+      {importModal}
+    </>
   )
 }
 

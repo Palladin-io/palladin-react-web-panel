@@ -1,11 +1,12 @@
 import { useMutation } from '@tanstack/react-query'
-import { useAuthStore } from '../auth'
+import { clearClientSession, useAuthStore } from '../auth'
 import { acceptOrganizationInvitation } from './api/organization-invitations-api'
 
 export function useAcceptOrganizationInvitation() {
   return useMutation({
     mutationFn: acceptOrganizationInvitation,
     onSuccess: (session) => {
+      clearClientSession()
       const auth = useAuthStore.getState()
       auth.setTokens(session)
       // The session now points at another organization. Wipe the old

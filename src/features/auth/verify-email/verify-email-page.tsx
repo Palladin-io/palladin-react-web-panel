@@ -8,6 +8,7 @@ import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../../shared/api/account-api'
 import { clearPushTokenOnLogout } from '../../notifications'
 import { getIsAuthenticated, useAuthStore } from '../stores/auth-store'
+import { logoutAndReload } from '../session/client-session'
 import { useResendVerification } from '../hooks/use-resend-verification'
 import { useVerifyEmail } from '../hooks/use-verify-email'
 
@@ -62,9 +63,7 @@ function VerifyEmailGate() {
   }, [account.data?.emailVerified, navigate])
 
   const handleLogout = () => {
-    void clearPushTokenOnLogout()
-    useAuthStore.getState().logout()
-    navigate({ to: '/login' })
+    void logoutAndReload('/login', clearPushTokenOnLogout)
   }
 
   const resendLabel = isPending

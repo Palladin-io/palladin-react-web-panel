@@ -35,9 +35,10 @@ const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock, c
   })),
   ensureWebsiteIconsMock: vi.fn(async (
     hostnames: string[],
-    _timeoutMs?: number,
     onProgress?: (ready: number, total: number) => void,
+    assertActive?: () => void,
   ) => {
+    assertActive?.()
     onProgress?.(hostnames.length, hostnames.length)
     return new Map(hostnames.map((hostname) => [hostname, {
       id: '11111111-1111-4111-8111-111111111111', type: 'websiteIcon', name: hostname,
@@ -52,7 +53,7 @@ vi.mock('../../shared/api/public-assets-api', () => ({
     ? new URL(value).hostname
     : value || null,
   ensureWebsiteIcons: ensureWebsiteIconsMock,
-  ensureWebsiteIconsWithin: ensureWebsiteIconsMock,
+  ensureWebsiteIconsUntilSettled: ensureWebsiteIconsMock,
 }))
 
 vi.mock('./api/vault-api', () => ({
@@ -182,7 +183,9 @@ describe('useImportEntries', () => {
     expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
       iconReference: 'public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2Fgithub.com.png',
     }))
-    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith(['github.com'], 15_000, expect.any(Function))
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith(
+      ['github.com'], expect.any(Function), expect.any(Function),
+    )
   })
 
   it('omits the website reference when the catalog does not return a ready asset', async () => {
@@ -221,7 +224,9 @@ describe('useImportEntries', () => {
     expect(toMemberSecretMock).toHaveBeenCalledWith(expect.objectContaining({
       iconReference: `public-asset:11111111-1111-4111-8111-111111111111|1|https%3A%2F%2Fassets.palladin.io%2F${hostname}.png`,
     }))
-    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith([hostname], 15_000, expect.any(Function))
+    expect(ensureWebsiteIconsMock).toHaveBeenCalledWith(
+      [hostname], expect.any(Function), expect.any(Function),
+    )
   })
 
   it('resolves all imported hostnames in one catalog phase while saving 50-entry chunks', async () => {
@@ -237,7 +242,7 @@ describe('useImportEntries', () => {
     expect(ensureWebsiteIconsMock).toHaveBeenCalledTimes(1)
     expect(ensureWebsiteIconsMock.mock.calls[0][0]).toHaveLength(539)
     expect(ensureWebsiteIconsMock.mock.calls[0][0]).toContain('app-538.example.com')
-    expect(ensureWebsiteIconsMock.mock.calls[0][1]).toBe(15_000)
+    expect(ensureWebsiteIconsMock.mock.calls[0][1]).toEqual(expect.any(Function))
     expect(ensureWebsiteIconsMock.mock.calls[0][2]).toEqual(expect.any(Function))
     expect(importEntriesMock).toHaveBeenCalledTimes(11)
   })
@@ -245,7 +250,6 @@ describe('useImportEntries', () => {
   it('reports icon preparation before encryption starts', async () => {
     ensureWebsiteIconsMock.mockImplementationOnce(async (
       hostnames: string[],
-      _timeoutMs: number,
       onProgress?: (ready: number, total: number) => void,
     ) => {
       onProgress?.(1, hostnames.length)
@@ -269,7 +273,7 @@ describe('useImportEntries', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(onProgress).toHaveBeenCalledWith(0, 2, 'icons')
     expect(onProgress).toHaveBeenCalledWith(1, 2, 'icons')
-    expect(onProgress).toHaveBeenCalledWith(2, 2, 'icons')
+    expect(onProgress).not.toHaveBeenCalledWith(2, 2, 'icons')
     expect(onProgress).toHaveBeenCalledWith(1, 2, 'encrypt')
   })
 

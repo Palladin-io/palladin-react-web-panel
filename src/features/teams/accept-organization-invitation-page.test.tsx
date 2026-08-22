@@ -6,7 +6,8 @@ import { AcceptOrganizationInvitationPage } from './accept-organization-invitati
 const navigateMock = vi.hoisted(() => vi.fn())
 const mutateMock = vi.hoisted(() => vi.fn())
 const hasApiErrorKeyMock = vi.hoisted(() => vi.fn())
-const logoutMock = vi.hoisted(() => vi.fn())
+const logoutAndReloadMock = vi.hoisted(() => vi.fn())
+const clearPushTokenOnLogoutMock = vi.hoisted(() => vi.fn())
 const acceptState = vi.hoisted(() => ({
   isPending: false,
   isSuccess: false,
@@ -16,9 +17,11 @@ vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigateMock }))
 vi.mock('../../shared/api/error-response', () => ({
   hasApiErrorKey: hasApiErrorKeyMock,
 }))
-vi.mock('../notifications', () => ({ clearPushTokenOnLogout: vi.fn() }))
+vi.mock('../notifications', () => ({
+  clearPushTokenOnLogout: clearPushTokenOnLogoutMock,
+}))
 vi.mock('../auth', () => ({
-  useAuthStore: { getState: () => ({ logout: logoutMock }) },
+  logoutAndReload: logoutAndReloadMock,
 }))
 vi.mock('./use-accept-organization-invitation', () => ({
   useAcceptOrganizationInvitation: () => ({
@@ -33,7 +36,8 @@ describe('AcceptOrganizationInvitationPage', () => {
     navigateMock.mockReset()
     mutateMock.mockReset()
     hasApiErrorKeyMock.mockReset().mockResolvedValue(false)
-    logoutMock.mockReset()
+    logoutAndReloadMock.mockReset()
+    clearPushTokenOnLogoutMock.mockReset()
     acceptState.isPending = false
     acceptState.isSuccess = false
   })
@@ -81,11 +85,10 @@ describe('AcceptOrganizationInvitationPage', () => {
 
     expect(await screen.findByText(/sent to a different email address/i)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /sign in with another account/i }))
-    await waitFor(() => expect(logoutMock).toHaveBeenCalledOnce())
-    expect(navigateMock).toHaveBeenCalledWith({
-      to: '/login',
-      search: { redirect: '/invitations/accept?token=opaque-token' },
-    })
+    await waitFor(() => expect(logoutAndReloadMock).toHaveBeenCalledWith(
+      '/login?redirect=%2Finvitations%2Faccept%3Ftoken%3Dopaque-token',
+      clearPushTokenOnLogoutMock,
+    ))
   })
 
   it('rejects a link without a token before any API call', () => {

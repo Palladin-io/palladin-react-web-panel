@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { AuthSubmitButton } from '../../shared/components/auth-submit-button'
 import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { analytics } from '../../shared/lib/analytics'
-import { useAuthStore } from '../auth'
+import { logoutAndReload, useAuthStore } from '../auth'
 import { clearPushTokenOnLogout } from '../notifications'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../shared/api/account-api'
 import { OnboardingWizard } from '../onboarding'
@@ -85,13 +85,9 @@ function AccountLoadError({
   onRetry: () => void
 }) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
-  const logout = useAuthStore((s) => s.logout)
 
   const handleLogout = () => {
-    void clearPushTokenOnLogout()
-    logout()
-    navigate({ to: '/login' })
+    void logoutAndReload('/login', clearPushTokenOnLogout)
   }
 
   return (
@@ -133,7 +129,6 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const unlock = useUnlock()
-  const logout = useAuthStore((s) => s.logout)
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -141,9 +136,7 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
   // session, redirect to login. The only escape hatch from a locked vault when
   // the master password is lost or the wrong account is signed in.
   const handleLogout = () => {
-    void clearPushTokenOnLogout()
-    logout()
-    navigate({ to: '/login' })
+    void logoutAndReload('/login', clearPushTokenOnLogout)
   }
 
   const isPending = unlock.isPending
