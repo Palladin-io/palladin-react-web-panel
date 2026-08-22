@@ -188,6 +188,92 @@ describe('api client — 401 with failing refresh', () => {
     })
     expect(window.location.href).toBe('http://localhost:5000/')
   })
+
+  it('does not send an automatic retry after the session changes', async () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-a',
+      refreshToken: 'refresh-a',
+      userId: 'user-a',
+      isOnboarded: true,
+    })
+    const fetchMock = vi.fn(async () => {
+      clearClientSession()
+      useAuthStore.getState().setTokens({
+        accessToken: 'access-b',
+        refreshToken: 'refresh-b',
+        userId: 'user-b',
+        isOnboarded: true,
+      })
+      return new Response('temporary failure', {
+        status: 500,
+        statusText: 'Internal Server Error',
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(api.get('vaults').json()).rejects.toMatchObject({
+      response: expect.objectContaining({ status: 409 }),
+    })
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: 'access-b',
+      refreshToken: 'refresh-b',
+      userId: 'user-b',
+    })
+    expect(window.location.href).toBe('http://localhost:5000/')
+  })
+
+  it('does not redirect for an old 403 parsed after the session changes', async () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-a',
+      refreshToken: 'refresh-a',
+      userId: 'user-a',
+      isOnboarded: true,
+    })
+    let releaseBody!: () => void
+    let markBodyRead!: () => void
+    const bodyRead = new Promise<void>((resolve) => {
+      markBodyRead = resolve
+    })
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        markBodyRead()
+        return new Promise<void>((resolve) => {
+          releaseBody = () => {
+            controller.enqueue(new TextEncoder().encode(JSON.stringify({
+              error: 'errors.backend.email-not-verified',
+            })))
+            controller.close()
+            resolve()
+          }
+        })
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(body, {
+      status: 403,
+      statusText: 'Forbidden',
+      headers: { 'content-type': 'application/json' },
+    })))
+
+    const request = api.get('vaults').json()
+    await bodyRead
+    clearClientSession()
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-b',
+      refreshToken: 'refresh-b',
+      userId: 'user-b',
+      isOnboarded: true,
+    })
+    releaseBody()
+
+    await expect(request).rejects.toBeInstanceOf(HTTPError)
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: 'access-b',
+      refreshToken: 'refresh-b',
+      userId: 'user-b',
+    })
+    expect(window.location.href).toBe('http://localhost:5000/')
+  })
 })
 
 describe('api client — 403 email-verification backstop', () => {

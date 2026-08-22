@@ -65,8 +65,11 @@ export const api = ky.create({
   hooks: {
     beforeRequest: [
       (request, options) => {
-        if (!requestSessionGenerations.has(options)) {
+        const generation = requestSessionGenerations.get(options)
+        if (generation === undefined) {
           requestSessionGenerations.set(options, captureClientSessionGeneration())
+        } else if (!clientSessionGenerationMatches(generation)) {
+          return new Response(null, { status: 409, statusText: 'Stale Client Session' })
         }
         const headers = getAnalyticsHeaders()
         for (const [key, value] of Object.entries(headers)) {
@@ -91,7 +94,9 @@ export const api = ky.create({
         // lets a request through before the gate resolves. The backend marks
         // exactly this case with a distinguishable key — every OTHER 403 (a real
         // permission denial) is left untouched for the caller to handle.
-        if (response.status === 403 && (await isEmailNotVerified(response))) {
+        if (response.status === 403
+          && (await isEmailNotVerified(response))
+          && clientSessionGenerationMatches(generation)) {
           window.location.href = '/verify-email'
           return response
         }
