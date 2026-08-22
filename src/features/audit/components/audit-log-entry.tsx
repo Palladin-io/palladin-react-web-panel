@@ -261,6 +261,7 @@ function Name({ children }: { children: ReactNode }) {
 
 /** Maps a dotted event type to the camelCase suffix of its sentence i18n key. */
 const SENTENCE_KEY: Record<string, string> = {
+  'auth.login-failed': 'loginFailed',
   'credential.accessed': 'credentialAccessed',
   'credential.access-denied': 'credentialAccessDenied',
   'grant.requested': 'grantRequested',

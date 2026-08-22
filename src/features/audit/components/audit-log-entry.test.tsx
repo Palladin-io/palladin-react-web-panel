@@ -23,6 +23,25 @@ function item(overrides: Partial<AuditLogItem>): AuditLogItem {
 }
 
 describe('AuditLogEntry', () => {
+  it('renders a failed login as a danger audit event without naming the target as actor', () => {
+    render(
+      <AuditLogEntry
+        item={item({
+          eventType: 'auth.login-failed',
+          actorType: 'system',
+          agentId: null,
+          entryId: null,
+          userId: null,
+          metadata: { factor: 'password', targetUserId: 'target-user-id' },
+        })}
+      />,
+    )
+
+    expect(screen.getByText('Failed login attempt')).toBeInTheDocument()
+    expect(screen.getByText('Login Failed')).toBeInTheDocument()
+    expect(screen.queryByText('target-user-id')).not.toBeInTheDocument()
+  })
+
   it('renders the credential-accessed sentence with the resolved agent name', () => {
     render(
       <AuditLogEntry

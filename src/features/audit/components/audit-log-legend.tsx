@@ -84,6 +84,7 @@ function LegendRows({ types }: { types: AuditEventType[] }) {
 
 /** event type → camelCase suffix of its description i18n key. */
 const SENTENCE_DESC: Record<AuditEventType, string> = {
+  'auth.login-failed': 'loginFailed',
   'credential.accessed': 'credentialAccessed',
   'credential.access-denied': 'credentialAccessDenied',
   'grant.requested': 'grantRequested',

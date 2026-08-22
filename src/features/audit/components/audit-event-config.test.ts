@@ -31,6 +31,7 @@ describe('audit-event-config', () => {
     expect(auditEventConfig('agent.reactivated').color).toBe('var(--cv-success)')
     // Danger — denial / destruction.
     expect(auditEventConfig('credential.access-denied').color).toBe('var(--cv-primary)')
+    expect(auditEventConfig('auth.login-failed').color).toBe('var(--cv-primary)')
     expect(auditEventConfig('grant.revoked').color).toBe('var(--cv-primary)')
     expect(auditEventConfig('agent.deleted').color).toBe('var(--cv-primary)')
     expect(auditEventConfig('org.invitation-cancelled').color).toBe('var(--cv-primary)')
