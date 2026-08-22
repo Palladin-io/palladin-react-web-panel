@@ -1321,6 +1321,7 @@
   "login.signingIn": "Logowanie…",
   "login.signIn": "Zaloguj się",
   "login.errorInvalid": "Nieprawidłowy e-mail lub hasło",
+  "auth.errorRateLimited": "Zbyt wiele prób. Spróbuj ponownie później.",
   "login.orContinueWith": "lub kontynuuj przez",
   "login.createAccount": "Załóż konto",
   "totpChallenge.codeLabel": "Kod uwierzytelniający",

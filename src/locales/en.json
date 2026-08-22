@@ -1274,6 +1274,7 @@
   "login.signingIn": "Signing in…",
   "login.signIn": "Sign In",
   "login.errorInvalid": "Incorrect email or password",
+  "auth.errorRateLimited": "Too many attempts. Try again later.",
   "login.orContinueWith": "or continue with",
   "login.createAccount": "Create an account",
   "totpChallenge.codeLabel": "Authentication Code",

@@ -1,3 +1,4 @@
+import { HTTPError } from 'ky'
 import { api } from '../../../shared/api/client'
 import type { AuthResponse } from '../../../shared/api/types'
 import { useAuthStore } from '../stores/auth-store'
@@ -38,6 +39,39 @@ export interface TotpRequiredResponse {
 
 export type PasswordLoginResponse = AuthResponse | TotpRequiredResponse
 
+export class AuthRateLimitError extends Error {
+  readonly retryAfterSeconds: number | null
+
+  constructor(retryAfterSeconds: number | null) {
+    super('auth-rate-limited')
+    this.name = 'AuthRateLimitError'
+    this.retryAfterSeconds = retryAfterSeconds
+  }
+}
+
+function retryAfterSeconds(response: Response): number | null {
+  const header = response.headers.get('Retry-After')
+  if (!header) return null
+
+  const seconds = Number(header)
+  if (Number.isInteger(seconds) && seconds > 0) return seconds
+
+  const retryAt = Date.parse(header)
+  if (Number.isNaN(retryAt)) return null
+  return Math.max(1, Math.ceil((retryAt - Date.now()) / 1000))
+}
+
+async function mapAuthRateLimit<T>(operation: Promise<T>): Promise<T> {
+  try {
+    return await operation
+  } catch (error) {
+    if (error instanceof HTTPError && error.response.status === 429) {
+      throw new AuthRateLimitError(retryAfterSeconds(error.response))
+    }
+    throw error
+  }
+}
+
 export function isTotpRequired(
   response: PasswordLoginResponse,
 ): response is TotpRequiredResponse {
@@ -66,7 +100,9 @@ export function fetchLoginKdf(
   email: string,
   profileId: string,
 ): Promise<LoginKdfBootstrap> {
-  return api.post('api/auth/login/salt', { json: { email, profileId } }).json()
+  return mapAuthRateLimit(
+    api.post('api/auth/login/salt', { json: { email, profileId } }).json(),
+  )
 }
 
 export function passwordLogin(input: {
@@ -75,7 +111,7 @@ export function passwordLogin(input: {
   kdfProfileId: string
   authCredential: string
 }): Promise<PasswordLoginResponse> {
-  return api.post('api/auth/login', { json: input }).json()
+  return mapAuthRateLimit(api.post('api/auth/login', { json: input }).json())
 }
 
 /**
@@ -86,7 +122,7 @@ export function totpLogin(input: {
   challengeToken: string
   code: string
 }): Promise<AuthResponse> {
-  return api.post('api/auth/login/totp', { json: input }).json()
+  return mapAuthRateLimit(api.post('api/auth/login/totp', { json: input }).json())
 }
 
 // ─── Email verification ───────────────────────────────────────────────────────
