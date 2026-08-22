@@ -8,7 +8,9 @@ import { SingleSelectDropdown, TypeFilterDropdown } from '../../../shared/compon
 import { Icon } from '../../../shared/components/icon'
 import { LoadMoreSentinel } from '../../../shared/components/load-more-sentinel'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
+import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
 import { shortenKey } from '../../../shared/lib/shorten-key'
+import { useAuthStore } from '../../auth'
 import type { Vault } from '../types'
 import { usePersistedEntriesList } from '../use-entries-list-ui'
 import {
@@ -25,6 +27,10 @@ import { EntryIcon } from './entry-icon'
 import { useRestoreArchivedEntries } from '../use-restore-archived-entries'
 import { useDestroyEntry, useRecentlyDeletedEntries } from '../use-recently-deleted-entries'
 import { DestroyEntryDialog } from './destroy-entry-dialog'
+import {
+  useRepairMissingWebsiteIcons,
+  type MissingWebsiteIconRepairProgress,
+} from '../use-repair-missing-website-icons'
 
 export interface VaultEntriesTabProps {
   vault: Vault
@@ -43,9 +49,13 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
   const [selectedStates, setSelectedStates] = useState<Set<string>>(new Set(['active']))
   const [selectedArchived, setSelectedArchived] = useState<Set<string>>(new Set())
   const [destroyCandidate, setDestroyCandidate] = useState<MemberEntryListItem | null>(null)
+  const [repairProgress, setRepairProgress] = useState<MissingWebsiteIconRepairProgress | null>(null)
   const [renderWindow, setRenderWindow] = useState({ context: '', limit: 50 })
   const restore = useRestoreArchivedEntries(vault.id)
   const destroy = useDestroyEntry(vault.id)
+  const repairIcons = useRepairMissingWebsiteIcons(vault.id)
+  const permissions = useAuthStore((state) => state.permissions)
+  const canManageVault = (permissions & PERMISSION_VAULT_MANAGE) !== 0
 
   const hasMemberProjection = useMemberSyncStore((store) => store.vaults.has(vault.id))
   // Persist list context per vault so it survives navigating into an entry.
@@ -104,6 +114,33 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
     }
   }
 
+  const repairMissingIcons = () => {
+    setRepairProgress({ phase: 'prepare', done: 0, total: repairIcons.candidateCount })
+    repairIcons.mutate(
+      { onProgress: setRepairProgress },
+      {
+        onSuccess: (result) => {
+          if (result.repaired > 0
+            && result.repaired === result.candidates
+            && result.failed === 0) {
+            toast.success(t('vault.entries.repairIconsSuccess', { count: result.repaired }))
+          } else if (result.repaired > 0) {
+            toast.info(t('vault.entries.repairIconsPartial', {
+              repaired: result.repaired,
+              total: result.candidates,
+            }))
+          } else if (result.failed > 0) {
+            toast.error(t('vault.entries.repairIconsError'))
+          } else {
+            toast.info(t('vault.entries.repairIconsPending'))
+          }
+        },
+        onError: () => toast.error(t('vault.entries.repairIconsError')),
+        onSettled: () => setRepairProgress(null),
+      },
+    )
+  }
+
   if ((entries.status === 'idle' || entries.status === 'syncing') && entries.vaultStatus === null) {
     return <EntriesLoadingSkeleton />
   }
@@ -135,6 +172,38 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
         <div className="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.06)] px-3 py-2 text-meta text-[var(--cv-t2)]">
           <span>{t('vault.entries.partialSyncError')}</span>
           <Button variant="ghost" size="sm" onClick={entries.retry}>{t('vault.list.retry')}</Button>
+        </div>
+      ) : null}
+      {canManageVault && repairIcons.candidateCount > 0 ? (
+        <div
+          className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl
+            border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-3 py-2"
+        >
+          <p className="text-ui text-[var(--cv-t2)]">
+            {t('vault.entries.repairIconsDescription', { count: repairIcons.candidateCount })}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={repairIcons.isPending}
+            onClick={repairMissingIcons}
+          >
+            <Icon
+              name={repairIcons.isPending ? 'progress_activity' : 'image_search'}
+              size={14}
+              className={repairIcons.isPending ? 'animate-spin' : undefined}
+            />
+            <span aria-live="polite" aria-atomic="true">
+              {repairProgress
+                ? t(repairProgress.phase === 'prepare'
+                  ? 'vault.entries.repairIconsPreparing'
+                  : 'vault.entries.repairIconsUpdating', {
+                  done: repairProgress.done,
+                  total: repairProgress.total,
+                })
+                : t('vault.entries.repairIcons')}
+            </span>
+          </Button>
         </div>
       ) : null}
       <div className="mb-3 flex shrink-0 items-center gap-2">

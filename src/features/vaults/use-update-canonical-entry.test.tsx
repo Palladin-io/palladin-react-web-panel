@@ -115,6 +115,32 @@ describe('useUpdateCanonicalEntry', () => {
     expect(mocks.wipe).toHaveBeenCalledTimes(2)
   })
 
+  it('takes the batch target from detail.id when no fixed Entry id is provided', async () => {
+    const { result } = renderHook(() => useUpdateCanonicalEntry('vault'), { wrapper })
+    result.current.mutate(input as never)
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mocks.update).toHaveBeenCalledWith('vault', 'entry', expect.anything())
+    expect(mocks.createMaterial).toHaveBeenCalledWith(
+      expect.objectContaining({ entryId: 'entry' }),
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
+      2,
+    )
+  })
+
+  it('rejects a fixed Entry id that does not match the canonical detail scope', async () => {
+    const { result } = renderHook(() => useUpdateCanonicalEntry('vault', 'another-entry'), { wrapper })
+    result.current.mutate(input as never)
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error?.message).toBe('Canonical Entry update scope mismatch')
+    expect(mocks.getGrants).not.toHaveBeenCalled()
+    expect(mocks.getVault).not.toHaveBeenCalled()
+    expect(mocks.update).not.toHaveBeenCalled()
+  })
+
   it('does not submit ciphertext prepared by a replaced unlock session', async () => {
     let finishMaterial: ((value: {
       entryKey: object; memberIndex: object; memberSecret: object; agentDiscovery: null
@@ -125,6 +151,24 @@ describe('useUpdateCanonicalEntry', () => {
     await waitFor(() => expect(mocks.createMaterial).toHaveBeenCalled())
 
     useAuthStore.setState({ privateKey: new Uint8Array(32).fill(9) })
+    finishMaterial?.({ entryKey: {}, memberIndex: {}, memberSecret: {}, agentDiscovery: null })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(mocks.wipe).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not submit batch plaintext after its non-secret crypto session generation changes', async () => {
+    let finishMaterial: ((value: {
+      entryKey: object; memberIndex: object; memberSecret: object; agentDiscovery: null
+    }) => void) | undefined
+    mocks.createMaterial.mockImplementationOnce(() => new Promise((resolve) => { finishMaterial = resolve }))
+    const cryptoSessionGeneration = useAuthStore.getState().cryptoSessionGeneration
+    const { result } = renderHook(() => useUpdateCanonicalEntry('vault'), { wrapper })
+    result.current.mutate({ ...input, cryptoSessionGeneration } as never)
+    await waitFor(() => expect(mocks.createMaterial).toHaveBeenCalled())
+
+    useAuthStore.setState({ cryptoSessionGeneration: cryptoSessionGeneration + 1 })
     finishMaterial?.({ entryKey: {}, memberIndex: {}, memberSecret: {}, agentDiscovery: null })
 
     await waitFor(() => expect(result.current.isError).toBe(true))

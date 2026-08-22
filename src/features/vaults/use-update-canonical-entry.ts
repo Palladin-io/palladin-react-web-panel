@@ -28,6 +28,8 @@ export interface UpdateCanonicalEntryInput {
   detail: CanonicalEntryDetail
   previous: MemberSecretView
   draft: EntryDraft
+  /** Non-secret guard used by batch writers that decrypted `previous` earlier. */
+  cryptoSessionGeneration?: number
 }
 
 async function activeCoveringGrants(vaultId: string, entryId: string): Promise<OrgGrant[]> {
@@ -41,14 +43,31 @@ async function activeCoveringGrants(vaultId: string, entryId: string): Promise<O
   return result
 }
 
-export function useUpdateCanonicalEntry(vaultId: string, entryId: string) {
+export function useUpdateCanonicalEntry(vaultId: string, entryId?: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async ({ detail, previous, draft }: UpdateCanonicalEntryInput) => {
+    mutationFn: async ({
+      detail,
+      previous,
+      draft,
+      cryptoSessionGeneration,
+    }: UpdateCanonicalEntryInput) => {
+      const targetEntryId = entryId ?? detail.id
+      if (detail.vaultId !== vaultId || detail.id !== targetEntryId) {
+        throw new Error('Canonical Entry update scope mismatch')
+      }
+      if (cryptoSessionGeneration !== undefined
+        && useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration) {
+        throw new Error('Vault lock session changed')
+      }
       const [grants, vault] = await Promise.all([
-        activeCoveringGrants(vaultId, entryId),
+        activeCoveringGrants(vaultId, targetEntryId),
         getEncryptedVault(vaultId),
       ])
+      if (cryptoSessionGeneration !== undefined
+        && useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration) {
+        throw new Error('Vault lock session changed')
+      }
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new Error('Vault is locked')
       const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
@@ -75,7 +94,7 @@ export function useUpdateCanonicalEntry(vaultId: string, entryId: string) {
         const previousDiscovery = projectAgentDiscovery(previousSecret)
         const agentDiscoveryChanged = JSON.stringify(nextDiscovery) !== JSON.stringify(previousDiscovery)
         const envelopes = await sealCanonicalEntry({
-          organizationId: detail.organizationId, vaultId, entryId,
+          organizationId: detail.organizationId, vaultId, entryId: targetEntryId,
           revision: nextRevision,
           // A replacement Entry key advances keyVersion, but its independent
           // wrapper revision starts at 1 (it is not a rewrap of the old key).
@@ -100,7 +119,7 @@ export function useUpdateCanonicalEntry(vaultId: string, entryId: string) {
           const grantEnvelopes = []
           const grantable = new Set(listGrantableFields(nextSecret).map((field) => field.id))
           for (const grant of grants) {
-            const scope = grant.entryScopes.find((candidate) => candidate.entryId === entryId)
+            const scope = grant.entryScopes.find((candidate) => candidate.entryId === targetEntryId)
             const methods = parseGrantMethods(grant.methods)
             if (!scope?.grantEnvelopeRevision || !scope.grantKeyVersion || !scope.fieldIds.length
               || !grant.agentId || !grant.agentPublicKey || !grant.recipientAgentKeyVersion
@@ -114,7 +133,7 @@ export function useUpdateCanonicalEntry(vaultId: string, entryId: string) {
                 agentPublicKey: grant.agentPublicKey,
                 approvedFieldIds,
                 organizationId: detail.organizationId, vaultId, grantId: grant.id,
-                agentId: grant.agentId, entryId, entryRevision: nextRevision,
+                agentId: grant.agentId, entryId: targetEntryId, entryRevision: nextRevision,
                 grantEnvelopeRevision: (BigInt(scope.grantEnvelopeRevision) + 1n).toString(),
                 grantKeyVersion: scope.grantKeyVersion + 1,
                 memberKeyGeneration: vault.memberKeyGeneration,
@@ -133,19 +152,22 @@ export function useUpdateCanonicalEntry(vaultId: string, entryId: string) {
         }
         // Ciphertext prepared by an invalidated unlock session must never be
         // submitted, even when the user has already unlocked again.
-        if (useAuthStore.getState().privateKey !== privateKey) {
+        if (useAuthStore.getState().privateKey !== privateKey
+          || (cryptoSessionGeneration !== undefined
+            && useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration)) {
           throw new Error('Vault lock session changed')
         }
-        return updateCanonicalEntry(vaultId, entryId, material)
+        return updateCanonicalEntry(vaultId, targetEntryId, material)
       } finally {
         wipe(vaultKey)
         if (discoveryKey) wipe(discoveryKey)
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: entryDetailQueryKey(vaultId, entryId) })
+    onSuccess: (_result, variables) => {
+      const targetEntryId = entryId ?? variables.detail.id
+      queryClient.invalidateQueries({ queryKey: entryDetailQueryKey(vaultId, targetEntryId) })
       queryClient.invalidateQueries({ queryKey: entriesQueryKey(vaultId) })
-      queryClient.invalidateQueries({ queryKey: entryHistoryQueryKey(vaultId, entryId) })
+      queryClient.invalidateQueries({ queryKey: entryHistoryQueryKey(vaultId, targetEntryId) })
     },
   })
 }

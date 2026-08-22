@@ -2,6 +2,8 @@ import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { AnchorHTMLAttributes, ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
+import { useAuthStore } from '../../auth'
 import { useMemberSyncStore, type MemberIndexRecord } from '../sync/member-sync-store'
 import type { Vault } from '../types'
 import { useEntriesListUi } from '../use-entries-list-ui'
@@ -10,6 +12,8 @@ import { VaultEntriesTab } from './vault-entries-tab'
 const restoreMutate = vi.hoisted(() => vi.fn())
 const destroyMutate = vi.hoisted(() => vi.fn())
 const fetchDeletedNextPage = vi.hoisted(() => vi.fn())
+const repairIconsMutate = vi.hoisted(() => vi.fn())
+const repairIconsState = vi.hoisted(() => ({ candidateCount: 0, isPending: false }))
 const recentlyDeletedState = vi.hoisted(() => ({
   hasNextPage: false,
   isFetchingNextPage: false,
@@ -38,6 +42,9 @@ vi.mock('../use-recently-deleted-entries', () => ({
     fetchNextPage: fetchDeletedNextPage, refetch: vi.fn(),
   }),
   useDestroyEntry: () => ({ mutateAsync: destroyMutate, isPending: false }),
+}))
+vi.mock('../use-repair-missing-website-icons', () => ({
+  useRepairMissingWebsiteIcons: () => ({ ...repairIconsState, mutate: repairIconsMutate }),
 }))
 
 const VAULT: Vault = {
@@ -104,6 +111,9 @@ beforeEach(() => {
   restoreMutate.mockReset()
   destroyMutate.mockReset()
   fetchDeletedNextPage.mockReset()
+  repairIconsMutate.mockReset()
+  Object.assign(repairIconsState, { candidateCount: 0, isPending: false })
+  useAuthStore.setState({ permissions: 0 })
   Object.assign(recentlyDeletedState, {
     hasNextPage: false,
     isFetchingNextPage: false,
@@ -132,6 +142,50 @@ describe('VaultEntriesTab', () => {
     ])
     render(<VaultEntriesTab vault={VAULT} />)
     expect(screen.getByTestId('active-entry')).toHaveTextContent('Stripe API Key')
+  })
+
+  it('offers explicit missing-icon repair only to Vault managers with eligible Entries', async () => {
+    const user = userEvent.setup()
+    useAuthStore.setState({ permissions: PERMISSION_VAULT_MANAGE })
+    repairIconsState.candidateCount = 1
+    publish([record('entry-1', 'GitHub', 'active', {
+      payload: {
+        schema: 'palladin.member-index.v1', memberLabel: 'GitHub', entryType: 'credential',
+        description: null, icon: null, color: null, username: 'user',
+        urlDomain: 'github.com', customIndex: [],
+      },
+    })])
+
+    render(<VaultEntriesTab vault={VAULT} />)
+    expect(screen.getByText('Active credentials without a website icon: 1')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Repair icons' }))
+
+    expect(repairIconsMutate).toHaveBeenCalledWith(
+      { onProgress: expect.any(Function) },
+      expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
+    )
+  })
+
+  it('does not expose missing-icon repair without VaultManage', () => {
+    repairIconsState.candidateCount = 1
+    publish([record('entry-1', 'GitHub')])
+
+    render(<VaultEntriesTab vault={VAULT} />)
+
+    expect(screen.queryByRole('button', { name: /Repair icons/ })).not.toBeInTheDocument()
+  })
+
+  it('announces repair progress and replaces the action icon with a spinner', () => {
+    useAuthStore.setState({ permissions: PERMISSION_VAULT_MANAGE })
+    Object.assign(repairIconsState, { candidateCount: 1, isPending: true })
+    publish([record('entry-1', 'GitHub')])
+
+    render(<VaultEntriesTab vault={VAULT} />)
+
+    expect(screen.getByRole('button', { name: 'Repair icons' })).toBeDisabled()
+    expect(screen.getByText('Repair icons')).toHaveAttribute('aria-live', 'polite')
+    expect(screen.getByText('Repair icons')).toHaveAttribute('aria-atomic', 'true')
+    expect(screen.getByText('progress_activity')).toHaveClass('animate-spin')
   })
 
   it('searches decrypted MemberIndex fields locally', async () => {
