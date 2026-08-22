@@ -21,14 +21,12 @@ import { useAuthStore } from '../stores/auth-store'
 
 interface PendingV2Unlock {
   masterKey: Uint8Array
-  bootstrap: LoginKdfBootstrap & { accountId: string }
+  bootstrap: LoginKdfBootstrap
 }
-
-const ANTI_ENUMERATION_ACCOUNT_ID = '00000000-0000-4000-8000-000000000000'
 
 function assertAuthenticatedV2Account(
   account: AccountResponse,
-  bootstrap: LoginKdfBootstrap & { accountId: string },
+  bootstrap: LoginKdfBootstrap,
 ): void {
   if (!account.kdf
     || account.userId !== bootstrap.accountId
@@ -49,7 +47,7 @@ function assertAuthenticatedV2Account(
 async function unlockWithMasterKey(
   response: AuthResponse,
   masterKey: Uint8Array,
-  bootstrap?: LoginKdfBootstrap & { accountId: string },
+  bootstrap?: LoginKdfBootstrap,
 ): Promise<AccountResponse> {
   useAuthStore.getState().setTokens(response)
   try {
@@ -99,11 +97,10 @@ export function usePasswordLogin() {
       clearPendingV2()
       const bootstrap = await fetchLoginKdf(email, IDENTITY_KDF_PROFILE_ID)
       assertIdentityKdfProfile(bootstrap)
-      const derivationAccountId = bootstrap.accountId ?? ANTI_ENUMERATION_ACCOUNT_ID
       const kdfSalt = decodeBase64Url(bootstrap.kdfSalt, 16)
       const identity = await deriveIdentityV1(
         password,
-        derivationAccountId,
+        bootstrap.accountId,
         kdfSalt,
       )
       try {
@@ -114,18 +111,16 @@ export function usePasswordLogin() {
           authCredential: encodeBase64Url(identity.authCredential),
         })
         if (isTotpRequired(response)) {
-          if (!bootstrap.accountId) throw new Error('invalid-credentials')
           pendingV2.current = {
             masterKey: new Uint8Array(identity.masterKey),
-            bootstrap: { ...bootstrap, accountId: bootstrap.accountId },
+            bootstrap,
           }
           return { kind: 'totp', challengeToken: response.challengeToken }
         }
-        if (!bootstrap.accountId) throw new Error('invalid-credentials')
         await unlockWithMasterKey(
           response,
           identity.masterKey,
-          { ...bootstrap, accountId: bootstrap.accountId },
+          bootstrap,
         )
         return { kind: 'done' }
       } finally {

@@ -67,7 +67,8 @@ describe('usePasswordLogin password KDF v1', () => {
   })
 
   it('derives and calls login for an unknown account pseudo-bootstrap', async () => {
-    fetchLoginKdf.mockResolvedValue({ ...profile, accountId: null })
+    const pseudoAccountId = 'ffeeddcc-bbaa-4a99-8877-665544332211'
+    fetchLoginKdf.mockResolvedValue({ ...profile, accountId: pseudoAccountId })
     passwordLogin.mockRejectedValue(new Error('invalid-credentials'))
     const { result } = renderHook(() => usePasswordLogin(), { wrapper })
 
@@ -78,7 +79,7 @@ describe('usePasswordLogin password KDF v1', () => {
 
     expect(deriveIdentityV1).toHaveBeenCalledWith(
       'password',
-      '00000000-0000-4000-8000-000000000000',
+      pseudoAccountId,
       expect.any(Uint8Array),
     )
     expect(passwordLogin).toHaveBeenCalledOnce()

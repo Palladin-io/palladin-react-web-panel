@@ -87,7 +87,7 @@ export function register(payload: RegisterPayload): Promise<AuthResponse> {
  * pseudo-profile response (anti-enumeration), never a 404.
  */
 export interface LoginKdfBootstrap {
-  accountId: string | null
+  accountId: string
   profileId: string
   securityVersion: number
   kdfSalt: string
