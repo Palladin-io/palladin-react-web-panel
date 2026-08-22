@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { HTTPError } from 'ky'
 import { api } from './client'
 import { env } from '../lib/env'
 
@@ -36,6 +37,29 @@ const websiteAssetStatusCache = new Map<string, z.infer<typeof websiteIconEnsure
 const cacheListeners = new Set<() => void>()
 let cacheRevision = 0
 const WEBSITE_ICON_POLL_INTERVAL_MS = 1_000
+const COMPLETE_WEBSITE_ICON_POLL_INTERVAL_MS = 3_000
+const WEBSITE_ICON_ACTIVITY_CHECK_INTERVAL_MS = 1_000
+
+function retryAfterMilliseconds(error: unknown): number | null {
+  if (!(error instanceof HTTPError) || error.response.status !== 429) return null
+  const value = error.response.headers.get('retry-after')?.trim()
+  if (!value) return null
+  const seconds = Number(value)
+  if (Number.isFinite(seconds) && seconds >= 0) return seconds * 1_000
+  const retryAt = Date.parse(value)
+  return Number.isNaN(retryAt) ? null : Math.max(0, retryAt - Date.now())
+}
+
+async function waitForWebsiteIconPoll(delayMs: number, assertActive?: () => void): Promise<void> {
+  const deadline = Date.now() + delayMs
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(
+      resolve,
+      Math.min(WEBSITE_ICON_ACTIVITY_CHECK_INTERVAL_MS, deadline - Date.now()),
+    ))
+    assertActive?.()
+  }
+}
 
 function notifyCacheChanged(): void {
   cacheRevision += 1
@@ -220,16 +244,21 @@ export async function ensureWebsiteIconsUntilSettled(
     assertActive?.()
     const unresolved = unresolvedHostnames()
     if (unresolved.length === 0) return cachedResult()
+    let nextPollDelay = COMPLETE_WEBSITE_ICON_POLL_INTERVAL_MS
     try {
       await ensureWebsiteIcons(unresolved)
-    } catch {
+    } catch (error) {
       // A request-level failure is retried. Successfully completed sibling
       // pages stay cached, so one transient page cannot reset the batch.
+      nextPollDelay = Math.max(
+        COMPLETE_WEBSITE_ICON_POLL_INTERVAL_MS,
+        retryAfterMilliseconds(error) ?? 0,
+      )
     }
     reportProgress()
     assertActive?.()
     if (unresolvedHostnames().length === 0) return cachedResult()
-    await new Promise((resolve) => setTimeout(resolve, WEBSITE_ICON_POLL_INTERVAL_MS))
+    await waitForWebsiteIconPoll(nextPollDelay, assertActive)
   }
 }
 
