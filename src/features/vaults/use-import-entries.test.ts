@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useAuthStore } from '../auth'
+import { authenticatedQueryKey, useAuthStore } from '../auth'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY } from './types'
 import type { ParsedEntry } from './import'
 import { useImportEntries } from './use-import-entries'
@@ -316,8 +316,8 @@ describe('useImportEntries', () => {
     expect(result.current.data).toEqual({ importedCount: 1, updatedCount: 1, failed: [] })
 
     const keys = invalidateSpy.mock.calls.map((c) => c[0]?.queryKey)
-    expect(keys).toContainEqual(VAULTS_QUERY_KEY)
-    expect(keys).toContainEqual(entriesQueryKey('vault-1'))
+    expect(keys).toContainEqual(authenticatedQueryKey(VAULTS_QUERY_KEY))
+    expect(keys).toContainEqual(authenticatedQueryKey(entriesQueryKey('vault-1')))
     expect(useMemberSyncStore.getState().retryGeneration).toBe(retryGeneration + 1)
   })
 

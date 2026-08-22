@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAuthenticatedQueryKey } from '../auth'
 import { getOrgGrants, type GetOrgGrantsParams } from './api/org-grants-api'
 import { ORG_GRANTS_QUERY_KEY } from './query-keys'
 
@@ -11,8 +12,9 @@ import { ORG_GRANTS_QUERY_KEY } from './query-keys'
  * lifecycle invalidations refresh it live.
  */
 export function useOrgGrants(params: GetOrgGrantsParams = {}, enabled = true) {
+  const queryKey = useAuthenticatedQueryKey([...ORG_GRANTS_QUERY_KEY, params])
   return useQuery({
-    queryKey: [...ORG_GRANTS_QUERY_KEY, params] as const,
+    queryKey,
     queryFn: () => getOrgGrants(params),
     staleTime: 15_000,
     enabled,

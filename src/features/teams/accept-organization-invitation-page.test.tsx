@@ -18,7 +18,18 @@ vi.mock('../../shared/api/error-response', () => ({
 }))
 vi.mock('../notifications', () => ({ clearPushTokenOnLogout: vi.fn() }))
 vi.mock('../auth', () => ({
-  useAuthStore: { getState: () => ({ logout: logoutMock }) },
+  captureAuthenticatedSession: () => ({
+    accessToken: 'access',
+    refreshToken: 'refresh',
+    userId: 'user',
+    organizationId: 'org',
+    sessionGeneration: 1,
+    sessionBoundaryActive: false,
+  }),
+  terminateAuthenticatedSession: async () => {
+    logoutMock()
+    return true
+  },
 }))
 vi.mock('./use-accept-organization-invitation', () => ({
   useAcceptOrganizationInvitation: () => ({
@@ -66,6 +77,19 @@ describe('AcceptOrganizationInvitationPage', () => {
       to: '/unlock',
       search: { redirect: '/' },
     })
+  })
+
+  it('shows success from the boundary-safe callback after MutationCache is cleared', async () => {
+    mutateMock.mockImplementation((_token, options) => {
+      void options.onSuccess()
+    })
+    const user = userEvent.setup()
+    render(<AcceptOrganizationInvitationPage token="opaque-token" />)
+
+    await user.click(screen.getByRole('button', { name: /accept invitation/i }))
+
+    expect(await screen.findByRole('button', { name: /unlock organization/i }))
+      .toBeInTheDocument()
   })
 
   it('explains an email mismatch and offers a safe account switch', async () => {

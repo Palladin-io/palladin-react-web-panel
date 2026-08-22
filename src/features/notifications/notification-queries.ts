@@ -1,6 +1,5 @@
 import {
   useInfiniteQuery,
-  useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
@@ -21,6 +20,11 @@ import {
   type PreferenceItem,
   type PreferenceUpdate,
 } from './preferences-api'
+import {
+  authenticatedQueryKeyForSession,
+  useAuthenticatedMutation as useMutation,
+  useAuthenticatedQueryKey,
+} from '../auth'
 
 /** Root key — SignalR/FCM invalidate this prefix so every feed + the badge refresh live. */
 export const NOTIFICATIONS_QUERY_KEY = ['notifications'] as const
@@ -48,10 +52,11 @@ type NotificationsInfiniteData = InfiniteData<NotificationsPage, string | undefi
  */
 function patchFeedItems(
   queryClient: ReturnType<typeof useQueryClient>,
+  session: Parameters<typeof authenticatedQueryKeyForSession>[0],
   patch: (item: NotificationItem) => NotificationItem,
 ): [readonly unknown[], NotificationsInfiniteData | undefined][] {
   const entries = queryClient.getQueriesData<NotificationsInfiniteData>({
-    queryKey: NOTIFICATIONS_LIST_PREFIX,
+    queryKey: authenticatedQueryKeyForSession(session, NOTIFICATIONS_LIST_PREFIX),
   })
   for (const [key, data] of entries) {
     if (!data) continue
@@ -71,8 +76,9 @@ function patchFeedItems(
  * by current vault access; we never re-filter for security on the client.
  */
 export function useNotifications(category?: NotificationCategory) {
+  const queryKey = useAuthenticatedQueryKey(notificationsListQueryKey(category))
   return useInfiniteQuery({
-    queryKey: notificationsListQueryKey(category),
+    queryKey,
     queryFn: ({ pageParam }) =>
       getNotifications({ cursor: pageParam, category }),
     initialPageParam: undefined as string | undefined,
@@ -83,8 +89,9 @@ export function useNotifications(category?: NotificationCategory) {
 
 /** Drives the nav badge (`unreadCount`) + the To-do header (`pendingActionCount`). */
 export function useNotificationsSummary() {
+  const queryKey = useAuthenticatedQueryKey(NOTIFICATIONS_SUMMARY_QUERY_KEY)
   return useQuery({
-    queryKey: NOTIFICATIONS_SUMMARY_QUERY_KEY,
+    queryKey,
     queryFn: getNotificationsSummary,
     staleTime: 15_000,
   })
@@ -104,32 +111,50 @@ export function useMarkNotificationRead() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: markNotificationRead,
-    onMutate: async (id: string) => {
+    onMutate: async (id: string, context) => {
+      const session = context.sessionSnapshot
+      const listQueryKey = authenticatedQueryKeyForSession(
+        session,
+        NOTIFICATIONS_LIST_PREFIX,
+      )
+      const summaryQueryKey = authenticatedQueryKeyForSession(
+        session,
+        NOTIFICATIONS_SUMMARY_QUERY_KEY,
+      )
       // Scope cancellation to the feed caches we actually patch — a broad
       // `['notifications']` prefix would also abort an in-flight preferences
       // fetch (`['notifications','preferences']`).
-      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_LIST_PREFIX })
+      await queryClient.cancelQueries({
+        queryKey: listQueryKey,
+      })
+      context.assertSessionCurrent()
       const readAt = new Date().toISOString()
-      const previousFeeds = patchFeedItems(queryClient, (item) =>
+      const previousFeeds = patchFeedItems(queryClient, session, (item) =>
         item.id === id && !item.readAt ? { ...item, readAt } : item,
       )
       const previousSummary = queryClient.getQueryData<NotificationsSummary>(
-        NOTIFICATIONS_SUMMARY_QUERY_KEY,
+        summaryQueryKey,
       )
       if (previousSummary) {
-        queryClient.setQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY, {
-          ...previousSummary,
-          unreadCount: Math.max(0, previousSummary.unreadCount - 1),
-        })
+        queryClient.setQueryData<NotificationsSummary>(
+          summaryQueryKey,
+          {
+            ...previousSummary,
+            unreadCount: Math.max(0, previousSummary.unreadCount - 1),
+          },
+        )
       }
-      return { previousFeeds, previousSummary }
+      return { previousFeeds, previousSummary, summaryQueryKey }
     },
     onError: (_err, _id, context) => {
       context?.previousFeeds?.forEach(([key, data]) =>
         queryClient.setQueryData(key, data),
       )
       if (context?.previousSummary) {
-        queryClient.setQueryData(NOTIFICATIONS_SUMMARY_QUERY_KEY, context.previousSummary)
+        queryClient.setQueryData(
+          context.summaryQueryKey,
+          context.previousSummary,
+        )
       }
     },
   })
@@ -144,30 +169,45 @@ export function useMarkAllNotificationsRead() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: markAllNotificationsRead,
-    onMutate: async () => {
+    onMutate: async (_variables, context) => {
+      const session = context.sessionSnapshot
+      const listQueryKey = authenticatedQueryKeyForSession(
+        session,
+        NOTIFICATIONS_LIST_PREFIX,
+      )
+      const summaryQueryKey = authenticatedQueryKeyForSession(
+        session,
+        NOTIFICATIONS_SUMMARY_QUERY_KEY,
+      )
       // Same scoping rationale as useMarkNotificationRead — only the feed lists.
-      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_LIST_PREFIX })
+      await queryClient.cancelQueries({
+        queryKey: listQueryKey,
+      })
+      context.assertSessionCurrent()
       const readAt = new Date().toISOString()
-      const previousFeeds = patchFeedItems(queryClient, (item) =>
+      const previousFeeds = patchFeedItems(queryClient, session, (item) =>
         item.readAt ? item : { ...item, readAt },
       )
       const previousSummary = queryClient.getQueryData<NotificationsSummary>(
-        NOTIFICATIONS_SUMMARY_QUERY_KEY,
+        summaryQueryKey,
       )
       if (previousSummary) {
-        queryClient.setQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY, {
-          ...previousSummary,
-          unreadCount: 0,
-        })
+        queryClient.setQueryData<NotificationsSummary>(
+          summaryQueryKey,
+          { ...previousSummary, unreadCount: 0 },
+        )
       }
-      return { previousFeeds, previousSummary }
+      return { previousFeeds, previousSummary, summaryQueryKey }
     },
     onError: (_err, _vars, context) => {
       context?.previousFeeds?.forEach(([key, data]) =>
         queryClient.setQueryData(key, data),
       )
       if (context?.previousSummary) {
-        queryClient.setQueryData(NOTIFICATIONS_SUMMARY_QUERY_KEY, context.previousSummary)
+        queryClient.setQueryData(
+          context.summaryQueryKey,
+          context.previousSummary,
+        )
       }
     },
   })
@@ -175,8 +215,9 @@ export function useMarkAllNotificationsRead() {
 
 /** Per-type × per-channel preferences (LinkedIn-style matrix). */
 export function useNotificationPreferences() {
+  const queryKey = useAuthenticatedQueryKey(NOTIFICATIONS_PREFERENCES_QUERY_KEY)
   return useQuery({
-    queryKey: NOTIFICATIONS_PREFERENCES_QUERY_KEY,
+    queryKey,
     queryFn: getNotificationPreferences,
     staleTime: 60_000,
   })
@@ -193,15 +234,20 @@ export function useUpdateNotificationPreferences() {
   return useMutation({
     mutationFn: (updates: PreferenceUpdate[]) =>
       updateNotificationPreferences(updates),
-    onMutate: async (updates: PreferenceUpdate[]) => {
-      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_PREFERENCES_QUERY_KEY })
-      const previous = queryClient.getQueryData<PreferenceItem[]>(
+    onMutate: async (updates: PreferenceUpdate[], context) => {
+      const preferencesQueryKey = authenticatedQueryKeyForSession(
+        context.sessionSnapshot,
         NOTIFICATIONS_PREFERENCES_QUERY_KEY,
+      )
+      await queryClient.cancelQueries({ queryKey: preferencesQueryKey })
+      context.assertSessionCurrent()
+      const previous = queryClient.getQueryData<PreferenceItem[]>(
+        preferencesQueryKey,
       )
       if (previous) {
         const byType = new Map(updates.map((u) => [u.type, u]))
         queryClient.setQueryData<PreferenceItem[]>(
-          NOTIFICATIONS_PREFERENCES_QUERY_KEY,
+          preferencesQueryKey,
           previous.map((item) => {
             const update = byType.get(item.type)
             if (!update) return item
@@ -217,16 +263,23 @@ export function useUpdateNotificationPreferences() {
           }),
         )
       }
-      return { previous }
+      return { previous, preferencesQueryKey }
     },
     onError: (_err, _updates, context) => {
       if (context?.previous) {
-        queryClient.setQueryData(NOTIFICATIONS_PREFERENCES_QUERY_KEY, context.previous)
+        queryClient.setQueryData(
+          context.preferencesQueryKey,
+          context.previous,
+        )
       }
     },
-    onSuccess: (items: PreferenceItem[]) => {
+    onSuccess: (items: PreferenceItem[], _updates, context) => {
+      if (!context) return
       // Server returns the EFFECTIVE state (mandatory locks applied).
-      queryClient.setQueryData(NOTIFICATIONS_PREFERENCES_QUERY_KEY, items)
+      queryClient.setQueryData(
+        context.preferencesQueryKey,
+        items,
+      )
     },
   })
 }

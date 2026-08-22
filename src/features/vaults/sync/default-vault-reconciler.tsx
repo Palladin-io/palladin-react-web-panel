@@ -2,6 +2,11 @@ import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { createDefaultVaultSafe } from '../../../shared/lib/create-default-vault-safe'
 import i18n from '../../../shared/lib/i18n'
+import {
+  authenticatedSessionMatches,
+  captureAuthenticatedSession,
+} from '../../auth/session/session-boundary'
+import { registerAuthenticatedPrincipalProducerStop } from '../../../shared/lib/authenticated-principal-reset'
 import { useMemberSyncStore } from './member-sync-store'
 
 const RETRY_DELAYS_MS = [0, 250, 750] as const
@@ -32,7 +37,12 @@ export function DefaultVaultReconciler({ enabled, memberPrivateKey }: DefaultVau
     if (!enabled || !memberPrivateKey || status !== 'ready'
       || hasDefaultVault || conflictSeen.current || inFlight.current) return
 
+    const session = captureAuthenticatedSession()
+    if (!authenticatedSessionMatches(session) || session.sessionBoundaryActive) return
     let cancelled = false
+    const unregisterProducerStop = registerAuthenticatedPrincipalProducerStop(() => {
+      cancelled = true
+    })
     inFlight.current = true
     const reconcile = async () => {
       for (let attempt = 0; attempt < RETRY_DELAYS_MS.length && !cancelled; attempt++) {
@@ -40,7 +50,12 @@ export function DefaultVaultReconciler({ enabled, memberPrivateKey }: DefaultVau
           await new Promise((resolve) => window.setTimeout(resolve, RETRY_DELAYS_MS[attempt]))
         }
         if (cancelled) break
-        const result = await createDefaultVaultSafe(memberPrivateKey, i18n.t('vault.defaultName'))
+        const result = await createDefaultVaultSafe(
+          memberPrivateKey,
+          i18n.t('vault.defaultName'),
+          session,
+        )
+        if (cancelled || !authenticatedSessionMatches(session)) return
         if (result === 'created') {
           if (!cancelled) useMemberSyncStore.getState().retry()
           return
@@ -59,6 +74,7 @@ export function DefaultVaultReconciler({ enabled, memberPrivateKey }: DefaultVau
     return () => {
       cancelled = true
       inFlight.current = false
+      unregisterProducerStop()
     }
   }, [enabled, hasDefaultVault, memberPrivateKey, status])
 

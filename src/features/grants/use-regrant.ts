@@ -1,5 +1,6 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuthStore } from '../auth'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../auth'
+import { authenticatedQueryKey, useAuthStore } from '../auth'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
 import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
 import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
@@ -90,7 +91,7 @@ export function useRegrant() {
     },
     onSuccess: () => {
       for (const queryKey of GRANT_MUTATION_INVALIDATION_KEYS) {
-        queryClient.invalidateQueries({ queryKey })
+        queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(queryKey) })
       }
     },
   })

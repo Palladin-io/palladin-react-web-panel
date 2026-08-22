@@ -1,14 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { getOrganizationRoles, ORGANIZATION_ROLES_QUERY_KEY } from '../../shared/api/organization-roles-api'
-import { parseJwtPayload } from '../../shared/lib/jwt'
-import { useAuthStore } from '../auth'
+import { useAuthenticatedQueryKey, useAuthStore } from '../auth'
 
 export function useOrganizationRoles() {
-  const accessToken = useAuthStore((state) => state.accessToken)
-  const claim = accessToken ? parseJwtPayload(accessToken)['org_id'] : null
-  const organizationId = typeof claim === 'string' ? claim : null
+  const organizationId = useAuthStore((state) => state.organizationId)
+  const queryKey = useAuthenticatedQueryKey(ORGANIZATION_ROLES_QUERY_KEY)
   return useQuery({
-    queryKey: [...ORGANIZATION_ROLES_QUERY_KEY, organizationId ?? 'session'],
+    queryKey,
     queryFn: getOrganizationRoles,
     staleTime: 30_000,
     enabled: organizationId !== null,

@@ -18,6 +18,12 @@ interface AuthState {
    */
   emailVerified: boolean
   permissions: number
+  /** Organization bound to the current JWT principal. Non-secret. */
+  organizationId: string | null
+  /** Non-secret namespace advanced whenever the authenticated principal changes. */
+  sessionGeneration: number
+  /** Synchronous fence while the serialized session boundary is clearing state. */
+  sessionBoundaryActive: boolean
 
   /**
    * Vault lock state. True whenever we do not currently hold the in-memory
@@ -50,6 +56,7 @@ interface AuthState {
   lockVault: () => void
   /** Session timeout: wipes crypto keys AND the access token, so a walked-away tab holds neither. */
   expireSession: () => void
+  /** Internal state transition. Call the session-boundary helpers from application code. */
   logout: () => void
 }
 
@@ -60,10 +67,29 @@ const initialState = {
   isOnboarded: false,
   emailVerified: false,
   permissions: 0,
+  organizationId: null,
+  sessionGeneration: 0,
+  sessionBoundaryActive: false,
   isVaultLocked: true,
   masterKey: null,
   privateKey: null,
   cryptoSessionGeneration: 0,
+}
+
+export function assertAuthenticatedPrincipal(data: {
+  accessToken: string
+  userId: string
+}): { payload: Record<string, unknown>; organizationId: string } {
+  const payload = parseJwtPayload(data.accessToken)
+  const subject = payload['sub']
+  const organizationId = payload['org_id']
+  if (typeof subject !== 'string' || subject !== data.userId) {
+    throw new Error('Authenticated response principal does not match its JWT subject')
+  }
+  if (typeof organizationId !== 'string' || organizationId.length === 0) {
+    throw new Error('Authenticated response JWT is missing its organization principal')
+  }
+  return { payload, organizationId }
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -73,7 +99,7 @@ export const useAuthStore = create<AuthState>()(
 
       setTokens: (data) =>
         set((state) => {
-          const jwtPayload = parseJwtPayload(data.accessToken)
+          const { payload: jwtPayload, organizationId } = assertAuthenticatedPrincipal(data)
           const rawPerm = jwtPayload['permissions']
           const permissions =
             typeof rawPerm === 'number'
@@ -102,6 +128,7 @@ export const useAuthStore = create<AuthState>()(
             isOnboarded: state.isOnboarded || data.isOnboarded,
             emailVerified,
             permissions,
+            organizationId,
             // isVaultLocked is intentionally NOT set here — see lockVault().
           }
         }),
@@ -136,7 +163,14 @@ export const useAuthStore = create<AuthState>()(
         set((state) => {
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
-          return { masterKey: null, privateKey: null, isVaultLocked: true, accessToken: null }
+          return {
+            masterKey: null,
+            privateKey: null,
+            isVaultLocked: true,
+            accessToken: null,
+            sessionGeneration: state.sessionGeneration + 1,
+            sessionBoundaryActive: false,
+          }
         }),
 
       logout: () => set((state) => {
@@ -145,6 +179,7 @@ export const useAuthStore = create<AuthState>()(
         return {
           ...initialState,
           cryptoSessionGeneration: (state.cryptoSessionGeneration ?? 0) + 1,
+          sessionGeneration: state.sessionGeneration + 1,
         }
       }),
     }),
@@ -159,6 +194,7 @@ export const useAuthStore = create<AuthState>()(
         isOnboarded: state.isOnboarded,
         emailVerified: state.emailVerified,
         permissions: state.permissions,
+        organizationId: state.organizationId,
       }),
     },
   ),

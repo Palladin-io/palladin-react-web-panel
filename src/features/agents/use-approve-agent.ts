@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../auth'
 import { approveAgent, type ApproveAgentInput } from './api/agents-api'
 import { agentQueryKey } from './use-agent'
 import { AGENTS_QUERY_KEY } from './use-agents'
-import { useAuthStore } from '../auth'
+import { authenticatedQueryKey, useAuthStore } from '../auth'
 import { reconcileAgentDiscovery } from '../vaults/sync/agent-discovery-reconciler'
 
 export type AgentApprovalPhase = 'idle' | 'approving' | 'provisioning'
@@ -48,8 +49,10 @@ export function useApproveAgent() {
       }
     },
     onSuccess: (_data, { agentId }) => {
-      queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY })
-      queryClient.invalidateQueries({ queryKey: agentQueryKey(agentId) })
+      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(AGENTS_QUERY_KEY) })
+      queryClient.invalidateQueries({
+        queryKey: authenticatedQueryKey(agentQueryKey(agentId)),
+      })
     },
     onSettled: () => setPhase('idle'),
   })

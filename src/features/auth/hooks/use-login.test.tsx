@@ -3,9 +3,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useLogin } from './use-login'
+import { captureAuthenticatedSession } from '../session/session-boundary'
 
 const navigateMock = vi.hoisted(() => vi.fn())
 const setTokensMock = vi.hoisted(() => vi.fn())
+const replaceSessionMock = vi.hoisted(() => vi.fn())
 const oauthGoogleMock = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
@@ -16,10 +18,9 @@ vi.mock('../api/auth-api', () => ({
   oauthGoogle: oauthGoogleMock,
 }))
 
-vi.mock('../stores/auth-store', () => ({
-  useAuthStore: (
-    selector: (state: { setTokens: typeof setTokensMock }) => unknown,
-  ) => selector({ setTokens: setTokensMock }),
+vi.mock('../session/session-boundary', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../session/session-boundary')>(),
+  replaceAuthenticatedSession: replaceSessionMock,
 }))
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -33,6 +34,10 @@ describe('useLogin', () => {
   beforeEach(() => {
     navigateMock.mockReset()
     setTokensMock.mockReset()
+    replaceSessionMock.mockReset().mockImplementation(async (session) => {
+      setTokensMock(session)
+      return captureAuthenticatedSession()
+    })
     oauthGoogleMock.mockReset()
   })
 
@@ -54,6 +59,9 @@ describe('useLogin', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(setTokensMock).toHaveBeenCalledWith(response)
+    expect(replaceSessionMock).toHaveBeenCalledWith(response, {
+      expectedSession: expect.objectContaining({ sessionGeneration: expect.any(Number) }),
+    })
     expect(navigateMock).toHaveBeenCalledWith({
       href: '/vaults/vault-1/entries/entry-1?tab=logs#history',
     })

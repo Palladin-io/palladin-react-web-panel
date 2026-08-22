@@ -1,9 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { AGENTS_QUERY_KEY } from './use-agents'
 import { agentQueryKey } from './use-agent'
-import { AGENT_ICON_MAX_MB, uploadAgentIcon } from './upload-agent-icon'
+import {
+  AGENT_ICON_MAX_MB,
+  uploadAgentIcon,
+  type UploadAgentIconResult,
+} from './upload-agent-icon'
+import {
+  authenticatedQueryKey,
+  authenticatedSessionMatches,
+  captureAuthenticatedSession,
+  useAuthenticatedMutation,
+} from '../auth'
+import { registerAuthenticatedPrincipalReset } from '../../shared/lib/authenticated-principal-reset'
 
 /**
  * Uploads and completes a custom agent icon. Completion atomically stores the
@@ -13,16 +24,31 @@ import { AGENT_ICON_MAX_MB, uploadAgentIcon } from './upload-agent-icon'
 export function useAgentIconUpload(agentId: string) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function upload(file: File): Promise<string | null> {
-    setIsUploading(true)
-    setError(null)
+  useEffect(() => registerAuthenticatedPrincipalReset(() => setError(null)), [])
 
-    const result = await uploadAgentIcon(agentId, file)
-    if (!result.ok) {
-      setIsUploading(false)
+  const mutation = useAuthenticatedMutation({
+    mutationKey: ['agents', agentId, 'icon-upload'],
+    mutationFn: async (file: File, context): Promise<UploadAgentIconResult> => {
+      const result = await uploadAgentIcon(
+        agentId,
+        file,
+        context.sessionSnapshot,
+        context.assertSessionCurrent,
+      )
+      context.assertSessionCurrent()
+      return result
+    },
+    onSuccess: (result) => {
+      if (result.ok) {
+        setError(null)
+        queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(AGENTS_QUERY_KEY) })
+        queryClient.invalidateQueries({
+          queryKey: authenticatedQueryKey(agentQueryKey(agentId)),
+        })
+        return
+      }
       if (result.reason === 'invalid-type') {
         setError(t('vault.iconUploadError.invalidType'))
       } else if (result.reason === 'too-large') {
@@ -30,20 +56,29 @@ export function useAgentIconUpload(agentId: string) {
       } else {
         setError(t('vault.iconUploadError.failed'))
       }
-      return null
-    }
+    },
+  })
 
+  async function uploadResult(file: File): Promise<UploadAgentIconResult | null> {
+    const owner = captureAuthenticatedSession()
+    setError(null)
     try {
-      queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY })
-      queryClient.invalidateQueries({ queryKey: agentQueryKey(agentId) })
-      return result.iconReference
+      const result = await mutation.mutateAsync(file)
+      return authenticatedSessionMatches(owner) ? result : null
     } catch {
-      setError(t('vault.iconUploadError.failed'))
       return null
-    } finally {
-      setIsUploading(false)
     }
   }
 
-  return { upload, isUploading, error }
+  async function upload(file: File): Promise<string | null> {
+    const result = await uploadResult(file)
+    return result?.ok ? result.iconReference : null
+  }
+
+  return {
+    upload,
+    uploadResult,
+    isUploading: mutation.isPending,
+    error,
+  }
 }

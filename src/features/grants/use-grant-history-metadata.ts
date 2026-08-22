@@ -6,6 +6,7 @@ import { vaultMembersQueryKey } from "../vaults/use-vault-members";
 import { getOrgGrants, type OrgGrant } from "./api/org-grants-api";
 import { ORG_GRANTS_QUERY_KEY } from "./query-keys";
 import { useGrantReasons } from "./use-grant-reasons";
+import { useAuthenticatedQueryKey } from "../auth";
 
 export interface GrantHistoryCoordinate {
   type: "grant_approved" | "grant_denied" | "grant_revoked";
@@ -33,10 +34,12 @@ export function useGrantHistoryMetadata(
     }
     return [...groups];
   }, [coordinates]);
+  const queryNamespace = useAuthenticatedQueryKey([]);
 
   const grantQueries = useQueries({
     queries: byVault.map(([vaultId, wantedIds]) => ({
       queryKey: [
+        ...queryNamespace,
         ...ORG_GRANTS_QUERY_KEY,
         "notification-history",
         vaultId,
@@ -54,6 +57,7 @@ export function useGrantHistoryMetadata(
   const memberQueries = useQueries({
     queries: byVault.map(([vaultId]) => ({
       queryKey: [
+        ...queryNamespace,
         ...vaultMembersQueryKey(vaultId),
         "notification-history",
       ] as const,

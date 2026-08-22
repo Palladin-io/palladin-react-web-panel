@@ -4,6 +4,12 @@ import { MemberSyncEngine } from './member-sync-engine'
 import { useMemberSyncStore } from './member-sync-store'
 import { DefaultVaultReconciler } from './default-vault-reconciler'
 import { AGENT_DISCOVERY_RECONCILE_EVENT, reconcileAgentDiscovery } from './agent-discovery-reconciler'
+import {
+  authenticatedSessionMatches,
+  captureAuthenticatedSession,
+  useAuthStore,
+} from '../../auth'
+import { registerAuthenticatedPrincipalProducerStop } from '../../../shared/lib/authenticated-principal-reset'
 
 const memberSyncEngine = typeof indexedDB === 'undefined'
   ? null
@@ -20,16 +26,27 @@ interface MemberSyncProviderProps {
 
 export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey }: MemberSyncProviderProps) {
   const retryGeneration = useMemberSyncStore((state) => state.retryGeneration)
+  const sessionGeneration = useAuthStore((state) => state.sessionGeneration)
   const retrySync = useRef<(() => void) | null>(null)
 
   useEffect(() => {
-    if (!memberSyncEngine || !enabled || !userId || !memberPrivateKey) {
+    const session = captureAuthenticatedSession()
+    if (!memberSyncEngine || !enabled || !userId || !memberPrivateKey
+      || session.sessionBoundaryActive) {
       useMemberSyncStore.getState().clear()
       return
     }
 
     let active: AbortController | null = null
+    let stopped = false
+    const stop = () => {
+      stopped = true
+      retrySync.current = null
+      active?.abort()
+    }
+    const unregisterProducerStop = registerAuthenticatedPrincipalProducerStop(stop)
     const synchronize = (replaceActive = true) => {
+      if (stopped || !authenticatedSessionMatches(session)) return
       if (active && !replaceActive) return
       active?.abort()
       const controller = new AbortController()
@@ -53,25 +70,33 @@ export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey
       if (document.visibilityState === 'visible' && navigator.onLine) synchronize(false)
     }, MEMBER_DELTA_POLL_INTERVAL_MS)
     return () => {
-      retrySync.current = null
-      active?.abort()
+      stop()
+      unregisterProducerStop()
       window.clearInterval(pollTimer)
       window.removeEventListener('online', synchronizeWhenOnline)
       document.removeEventListener('visibilitychange', synchronizeWhenVisible)
       useMemberSyncStore.getState().clear()
     }
-  }, [enabled, memberPrivateKey, userId])
+  }, [enabled, memberPrivateKey, sessionGeneration, userId])
 
   useEffect(() => {
     if (retryGeneration > 0) retrySync.current?.()
   }, [retryGeneration])
 
   useEffect(() => {
-    if (!enabled || !memberPrivateKey) return
+    const session = captureAuthenticatedSession()
+    if (!enabled || !memberPrivateKey || session.sessionBoundaryActive) return
     let active: AbortController | null = null
     let rerunRequested = false
     let disposed = false
+    const stop = () => {
+      disposed = true
+      rerunRequested = false
+      active?.abort()
+    }
+    const unregisterProducerStop = registerAuthenticatedPrincipalProducerStop(stop)
     const reconcile = () => {
+      if (disposed || !authenticatedSessionMatches(session)) return
       if (active) {
         rerunRequested = true
         return
@@ -100,15 +125,14 @@ export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey
     document.addEventListener('visibilitychange', reconcileWhenVisible)
     const timer = window.setInterval(reconcileWhenVisible, AGENT_DISCOVERY_RECONCILE_INTERVAL_MS)
     return () => {
-      disposed = true
-      rerunRequested = false
-      active?.abort()
+      stop()
+      unregisterProducerStop()
       window.clearInterval(timer)
       window.removeEventListener(AGENT_DISCOVERY_RECONCILE_EVENT, reconcile)
       window.removeEventListener('online', reconcile)
       document.removeEventListener('visibilitychange', reconcileWhenVisible)
     }
-  }, [enabled, memberPrivateKey])
+  }, [enabled, memberPrivateKey, sessionGeneration])
 
   return (
     <>

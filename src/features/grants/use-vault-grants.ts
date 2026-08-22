@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAuthenticatedQueryKey } from '../auth'
 import { getVaultGrants, type GrantStatus } from './api/grants-api'
 import { vaultGrantsQueryKey } from './query-keys'
 
@@ -16,8 +17,9 @@ export interface UseVaultGrantsParams {
  * surface is needed.
  */
 export function useVaultGrants(vaultId: string, params: UseVaultGrantsParams = {}) {
+  const queryKey = useAuthenticatedQueryKey(vaultGrantsQueryKey(vaultId, params))
   return useQuery({
-    queryKey: vaultGrantsQueryKey(vaultId, params),
+    queryKey,
     queryFn: () => getVaultGrants(vaultId, params),
     staleTime: 30_000,
     enabled: Boolean(vaultId),

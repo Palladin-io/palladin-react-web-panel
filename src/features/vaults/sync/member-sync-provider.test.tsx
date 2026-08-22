@@ -24,6 +24,7 @@ vi.mock('./agent-discovery-reconciler', () => ({
 
 import { MemberSyncProvider } from './member-sync-provider'
 import { useMemberSyncStore } from './member-sync-store'
+import { stopAuthenticatedPrincipalProducers } from '../../../shared/lib/authenticated-principal-reset'
 
 describe('MemberSyncProvider refresh lifecycle', () => {
   beforeEach(() => {
@@ -117,6 +118,33 @@ describe('MemberSyncProvider refresh lifecycle', () => {
     expect(probe.synchronize).toHaveBeenCalledTimes(1)
   })
 
+  it('aborts the old-generation producer synchronously at the session boundary', async () => {
+    let syncSignal: AbortSignal | undefined
+    probe.synchronize.mockImplementationOnce(async (
+      _userId: string,
+      _privateKey: Uint8Array,
+      signal: AbortSignal,
+    ) => {
+      syncSignal = signal
+      await new Promise<void>(() => {})
+    })
+    render(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={new Uint8Array(32)}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+    await act(async () => { await Promise.resolve() })
+    expect(syncSignal?.aborted).toBe(false)
+
+    stopAuthenticatedPrincipalProducers()
+
+    expect(syncSignal?.aborted).toBe(true)
+  })
+
   it('queues Discovery reconciliation when an Agent is approved during an active pass', async () => {
     let finishFirst!: () => void
     probe.reconcileDiscovery.mockImplementationOnce(() => new Promise<void>((resolve) => {
@@ -187,9 +215,45 @@ describe('MemberSyncProvider refresh lifecycle', () => {
       await Promise.resolve()
     })
 
-    expect(probe.createDefaultVault).toHaveBeenCalledWith(privateKey, expect.any(String))
+    expect(probe.createDefaultVault).toHaveBeenCalledWith(
+      privateKey,
+      expect.any(String),
+      expect.objectContaining({ sessionGeneration: expect.any(Number) }),
+    )
     expect(useMemberSyncStore.getState().retryGeneration).toBe(1)
     expect(probe.synchronize).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not publish an old-generation default-Vault repair after a boundary', async () => {
+    let finishCreation!: (result: 'created') => void
+    probe.createDefaultVault.mockImplementationOnce(() => (
+      new Promise<'created'>((resolve) => {
+        finishCreation = resolve
+      })
+    ))
+    render(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={new Uint8Array(32).fill(9)}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+    await act(async () => {
+      useMemberSyncStore.getState().complete()
+      await Promise.resolve()
+    })
+    expect(probe.createDefaultVault).toHaveBeenCalledOnce()
+
+    stopAuthenticatedPrincipalProducers()
+    await act(async () => {
+      finishCreation('created')
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(useMemberSyncStore.getState().retryGeneration).toBe(0)
   })
 
   it('resyncs once without restarting creation when a concurrent creator wins', async () => {

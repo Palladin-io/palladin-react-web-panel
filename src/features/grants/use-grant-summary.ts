@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAuthenticatedQueryKey } from '../auth'
 import { getGrantSummary } from './api/grant-summary-api'
 import { GRANT_SUMMARY_QUERY_KEY } from './query-keys'
 
@@ -9,8 +10,9 @@ import { GRANT_SUMMARY_QUERY_KEY } from './query-keys'
  * refresh the counts live.
  */
 export function useGrantSummary(enabled = true) {
+  const queryKey = useAuthenticatedQueryKey(GRANT_SUMMARY_QUERY_KEY)
   return useQuery({
-    queryKey: GRANT_SUMMARY_QUERY_KEY,
+    queryKey,
     queryFn: getGrantSummary,
     staleTime: 15_000,
     enabled,

@@ -37,6 +37,24 @@ vi.mock('../stores/auth-store', () => ({
 }))
 vi.mock('../hooks/use-verify-email', () => ({ useVerifyEmail: () => verifyState }))
 vi.mock('../hooks/use-resend-verification', () => ({ useResendVerification: () => resendState }))
+vi.mock('../session/session-boundary', () => ({
+  captureAuthenticatedSession: () => ({
+    accessToken: 'access',
+    refreshToken: 'refresh',
+    userId: 'user',
+    organizationId: 'org',
+    sessionGeneration: 1,
+    sessionBoundaryActive: false,
+  }),
+  markEmailVerifiedForSession: () => {
+    markVerifiedMock()
+    return true
+  },
+  terminateAuthenticatedSession: async () => {
+    logoutMock()
+    return true
+  },
+}))
 vi.mock('../../notifications', () => ({ clearPushTokenOnLogout: vi.fn() }))
 vi.mock('../../../shared/api/account-api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../shared/api/account-api')>()

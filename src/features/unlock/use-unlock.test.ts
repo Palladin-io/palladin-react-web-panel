@@ -12,7 +12,10 @@ const decryptWithKey = vi.hoisted(() => vi.fn())
 const derivePublicKey = vi.hoisted(() => vi.fn())
 const unlockVault = vi.hoisted(() => vi.fn())
 
-vi.mock('../../shared/api/account-api', () => ({ getAccount, setupAccount }))
+vi.mock('../../shared/api/account-api', () => ({
+  getAccountForSession: getAccount,
+  setupAccount,
+}))
 vi.mock('../../shared/crypto/identity-kdf', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../shared/crypto/identity-kdf')>(),
   deriveIdentityV1,
@@ -22,8 +25,16 @@ vi.mock('../../shared/crypto/sodium', () => ({
   derivePublicKey,
   wipe: vi.fn(),
 }))
-vi.mock('../auth', () => ({
-  useAuthStore: { getState: () => ({ unlockVault }) },
+vi.mock('../auth/session/session-boundary', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../auth/session/session-boundary')>(),
+  unlockVaultForSession: (
+    _session: unknown,
+    masterKey: Uint8Array,
+    privateKey: Uint8Array,
+  ) => {
+    unlockVault(masterKey, privateKey)
+    return true
+  },
 }))
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -68,12 +79,15 @@ describe('useUnlock', () => {
 
     await result.current.mutateAsync({ password: 'master-password' })
 
-    expect(setupAccount).toHaveBeenCalledWith(expect.objectContaining({
-      kdfSalt,
-      encryptedPrivateKey,
-      encryptedPrivateKeyByRecovery,
-      newAuthCredential: encodeBase64Url(new Uint8Array(32).fill(5)),
-    }))
+    expect(setupAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kdfSalt,
+        encryptedPrivateKey,
+        encryptedPrivateKeyByRecovery,
+        newAuthCredential: encodeBase64Url(new Uint8Array(32).fill(5)),
+      }),
+      expect.objectContaining({ sessionGeneration: expect.any(Number) }),
+    )
     expect(unlockVault).toHaveBeenCalledOnce()
   })
 

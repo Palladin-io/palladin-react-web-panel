@@ -26,6 +26,29 @@ vi.mock('../stores/auth-store', () => ({
     }),
   },
 }))
+vi.mock('../session/session-boundary', () => ({
+  captureAuthenticatedSession: () => ({
+    accessToken: null, refreshToken: null, userId: null, organizationId: null,
+    sessionGeneration: 0, sessionBoundaryActive: false,
+  }),
+  authenticatedSessionMatches: () => true,
+  StaleAuthenticatedSessionError: class extends Error {},
+  replaceAuthenticatedSession: (session: unknown) => {
+    setTokensMock(session)
+    return {
+      accessToken: 'a', refreshToken: 'r', userId: 'u', organizationId: 'org',
+      sessionGeneration: 1, sessionBoundaryActive: false,
+    }
+  },
+  unlockVaultForSession: (
+    _session: unknown,
+    masterKey: Uint8Array,
+    privateKey: Uint8Array,
+  ) => {
+    unlockVaultMock(masterKey, privateKey)
+    return true
+  },
+}))
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })

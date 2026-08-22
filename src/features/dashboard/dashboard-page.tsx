@@ -12,7 +12,7 @@ import {
 import { useAgents } from '../agents'
 import { useApiKeys } from '../api-keys'
 import { useOrgAuditLogs } from '../audit'
-import { useAuthStore } from '../auth'
+import { useAuthenticatedQueryKey, useAuthStore } from '../auth'
 import {
   PendingGrantsPanel,
   useGrantSummary,
@@ -40,7 +40,8 @@ function readFlag(key: string): boolean {
 export function DashboardPage() {
   const { t } = useTranslation()
 
-  const account = useQuery({ queryKey: ACCOUNT_QUERY_KEY, queryFn: getAccount })
+  const accountQueryKey = useAuthenticatedQueryKey(ACCOUNT_QUERY_KEY)
+  const account = useQuery({ queryKey: accountQueryKey, queryFn: getAccount })
   const vaults = useVaults()
   const apiKeys = useApiKeys()
   const agents = useAgents()

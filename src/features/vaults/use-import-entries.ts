@@ -1,4 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../auth'
 import { HTTPError } from 'ky'
 import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { defaultAgentVisibilityPolicy, toMemberSecret, type EntryDraft } from '../../shared/crypto/entry-draft'
@@ -6,7 +7,7 @@ import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/c
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { projectAgentDiscovery, publicAssetIconReference } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
-import { useAuthStore } from '../auth'
+import { authenticatedQueryKey, useAuthStore } from '../auth'
 import {
   collectActiveFullGrants,
   getOrgGrants,
@@ -394,9 +395,13 @@ export function useImportEntries() {
       // Same server-state invalidations as a single create. Local recents and
       // search update through the synchronized MemberIndex store.
       // Prefix match — also covers the entries/all + entry-detail sub-keys.
-      queryClient.invalidateQueries({ queryKey: entriesQueryKey(variables.vaultId) })
-      queryClient.invalidateQueries({ queryKey: vaultQueryKey(variables.vaultId) })
-      queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
+      queryClient.invalidateQueries({
+        queryKey: authenticatedQueryKey(entriesQueryKey(variables.vaultId)),
+      })
+      queryClient.invalidateQueries({
+        queryKey: authenticatedQueryKey(vaultQueryKey(variables.vaultId)),
+      })
+      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(VAULTS_QUERY_KEY) })
       useMemberSyncStore.getState().retry()
 
     },

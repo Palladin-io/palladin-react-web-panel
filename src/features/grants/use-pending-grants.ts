@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useAuthenticatedQueryKey } from '../auth'
 import { getPendingGrants } from './api/pending-grants-api'
 import { PENDING_GRANTS_QUERY_KEY } from './query-keys'
 
@@ -11,8 +12,9 @@ import { PENDING_GRANTS_QUERY_KEY } from './query-keys'
  * any consumer — list view or badge — live.
  */
 export function usePendingGrants(enabled = true) {
+  const queryKey = useAuthenticatedQueryKey(PENDING_GRANTS_QUERY_KEY)
   return useQuery({
-    queryKey: PENDING_GRANTS_QUERY_KEY,
+    queryKey,
     queryFn: getPendingGrants,
     staleTime: 15_000,
     enabled,

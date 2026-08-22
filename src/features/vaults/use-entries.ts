@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { useAuthStore } from '../auth'
+import { useAuthenticatedQueryKey, useAuthStore } from '../auth'
 import { getAllEntries, getCanonicalEntry, getEntries, getEntry, getEntryHistory } from './api/vault-api'
 
 export function entriesQueryKey(vaultId: string) {
@@ -31,8 +31,9 @@ export function canonicalEntryDetailQueryKey(
 }
 
 export function useEntryHistory(vaultId: string, entryId: string, enabled: boolean) {
+  const queryKey = useAuthenticatedQueryKey(entryHistoryQueryKey(vaultId, entryId))
   return useInfiniteQuery({
-    queryKey: entryHistoryQueryKey(vaultId, entryId),
+    queryKey,
     queryFn: ({ pageParam }) => getEntryHistory(vaultId, entryId, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextBeforeRevision ?? undefined,
@@ -49,8 +50,9 @@ export function useEntryHistory(vaultId: string, entryId: string, enabled: boole
  * conflict detection) use {@link useAllEntries} / `getAllEntries`.
  */
 export function useEntriesInfinite(vaultId: string) {
+  const queryKey = useAuthenticatedQueryKey(entriesQueryKey(vaultId))
   return useInfiniteQuery({
-    queryKey: entriesQueryKey(vaultId),
+    queryKey,
     queryFn: ({ pageParam }) => getEntries(vaultId, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor ?? undefined,
@@ -65,8 +67,9 @@ export function useEntriesInfinite(vaultId: string) {
  * {@link useEntries} cache.
  */
 export function useAllEntries(vaultId: string, enabled = true) {
+  const queryKey = useAuthenticatedQueryKey(allEntriesQueryKey(vaultId))
   return useQuery({
-    queryKey: allEntriesQueryKey(vaultId),
+    queryKey,
     queryFn: () => getAllEntries(vaultId),
     enabled,
     staleTime: 30_000,
@@ -84,8 +87,9 @@ export function useEntryDetail(
   entryId: string,
   enabled: boolean,
 ) {
+  const queryKey = useAuthenticatedQueryKey(entryDetailQueryKey(vaultId, entryId))
   return useQuery({
-    queryKey: entryDetailQueryKey(vaultId, entryId),
+    queryKey,
     queryFn: () => getEntry(vaultId, entryId),
     enabled,
     // Reveal-only — keep the blob in cache for the rest of the session
@@ -99,12 +103,13 @@ export function useCanonicalEntryDetail(vaultId: string, entryId: string, enable
   const cryptoSessionGeneration = useAuthStore(
     (state) => state.cryptoSessionGeneration,
   )
+  const queryKey = useAuthenticatedQueryKey(canonicalEntryDetailQueryKey(
+    vaultId,
+    entryId,
+    cryptoSessionGeneration,
+  ))
   return useQuery({
-    queryKey: canonicalEntryDetailQueryKey(
-      vaultId,
-      entryId,
-      cryptoSessionGeneration,
-    ),
+    queryKey,
     queryFn: () => getCanonicalEntry(vaultId, entryId),
     enabled,
     staleTime: Infinity,

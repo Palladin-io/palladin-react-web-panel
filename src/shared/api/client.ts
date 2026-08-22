@@ -1,11 +1,35 @@
 import ky from 'ky'
 import { env } from '../lib/env'
 import { buildLoginRedirectHref } from '../lib/auth-redirect'
-import { useAuthStore } from '../../features/auth'
+import {
+  assertAuthenticatedPrincipal,
+  useAuthStore,
+} from '../../features/auth/stores/auth-store'
+import {
+  authenticatedSessionMatches,
+  captureAuthenticatedSession,
+  StaleAuthenticatedSessionError,
+  terminateAuthenticatedSession,
+  type AuthenticatedSessionSnapshot,
+} from '../../features/auth/session/session-boundary'
 import { getAnalyticsHeaders } from './analytics-headers'
 import type { AuthResponse } from './types'
 
-let refreshPromise: Promise<AuthResponse> | null = null
+interface RefreshAttempt {
+  snapshot: AuthenticatedSessionSnapshot
+  promise: Promise<AuthResponse>
+  appliedSession: AuthenticatedSessionSnapshot | null
+}
+
+let refreshAttempt: RefreshAttempt | null = null
+const SESSION_CONTEXT_KEY = 'palladinAuthenticatedSession'
+
+/** Bind a request to a previously captured session instead of the send-time session. */
+export function authenticatedRequestContext(
+  snapshot: AuthenticatedSessionSnapshot,
+): { context: Record<string, unknown> } {
+  return { context: { [SESSION_CONTEXT_KEY]: snapshot } }
+}
 
 /** Backend error key for a 403 caused specifically by an unverified email. */
 const EMAIL_NOT_VERIFIED_KEY = 'errors.backend.email-not-verified'
@@ -25,66 +49,128 @@ async function isEmailNotVerified(response: Response): Promise<boolean> {
   }
 }
 
+function refreshContextMatches(snapshot: AuthenticatedSessionSnapshot): boolean {
+  return authenticatedSessionMatches(snapshot)
+}
+
+function assertRefreshResponsePrincipal(
+  response: AuthResponse,
+  snapshot: AuthenticatedSessionSnapshot,
+): void {
+  const principal = assertAuthenticatedPrincipal(response)
+  if (!snapshot.userId || response.userId !== snapshot.userId) {
+    throw new Error('Refresh response user does not match the initiating principal')
+  }
+  if (!snapshot.organizationId
+    || principal.organizationId !== snapshot.organizationId) {
+    throw new Error('Refresh response organization does not match the initiating principal')
+  }
+}
+
+function applyRefreshResponse(
+  response: AuthResponse,
+  snapshot: AuthenticatedSessionSnapshot,
+): AuthenticatedSessionSnapshot | null {
+  assertRefreshResponsePrincipal(response, snapshot)
+  if (!authenticatedSessionMatches(snapshot)) return null
+  useAuthStore.getState().setTokens(response)
+  return captureAuthenticatedSession()
+}
+
+function getRefreshAttempt(snapshot: AuthenticatedSessionSnapshot): RefreshAttempt {
+  if (refreshAttempt && refreshContextMatches(refreshAttempt.snapshot)) {
+    return refreshAttempt
+  }
+
+  const promise = ky
+    .post('api/auth/refresh', {
+      prefixUrl: env.apiUrl,
+      json: { refreshToken: snapshot.refreshToken },
+    })
+    .json<AuthResponse>()
+  const attempt = { snapshot, promise, appliedSession: null }
+  refreshAttempt = attempt
+  void promise.finally(() => {
+    if (refreshAttempt === attempt) refreshAttempt = null
+  }).catch(() => undefined)
+  return attempt
+}
+
 export const api = ky.create({
   prefixUrl: env.apiUrl,
   hooks: {
     beforeRequest: [
-      (request) => {
+      (request, options) => {
         const headers = getAnalyticsHeaders()
         for (const [key, value] of Object.entries(headers)) {
           request.headers.set(key, value)
         }
 
-        const { accessToken } = useAuthStore.getState()
-        if (accessToken) {
-          request.headers.set('Authorization', `Bearer ${accessToken}`)
+        const bound = options.context?.[SESSION_CONTEXT_KEY]
+        const snapshot = bound
+          ? bound as AuthenticatedSessionSnapshot
+          : captureAuthenticatedSession()
+        if (snapshot.sessionBoundaryActive
+          || (bound && !authenticatedSessionMatches(snapshot))) {
+          throw new StaleAuthenticatedSessionError()
+        }
+        options.context[SESSION_CONTEXT_KEY] = snapshot
+        if (snapshot.accessToken) {
+          request.headers.set('Authorization', `Bearer ${snapshot.accessToken}`)
         }
       },
     ],
     afterResponse: [
-      async (request, _options, response) => {
+      async (request, options, response) => {
+        const requestSnapshot = options.context?.[SESSION_CONTEXT_KEY] as
+          | AuthenticatedSessionSnapshot
+          | undefined
+        if (!requestSnapshot) return response
+
         // Targeted email-verification backstop. The router gate is the primary
         // mechanism; this only catches the window where a stale in-memory token
         // lets a request through before the gate resolves. The backend marks
         // exactly this case with a distinguishable key — every OTHER 403 (a real
         // permission denial) is left untouched for the caller to handle.
-        if (response.status === 403 && (await isEmailNotVerified(response))) {
-          window.location.href = '/verify-email'
+        if (response.status === 403) {
+          if (!authenticatedSessionMatches(requestSnapshot)) return response
+          if ((await isEmailNotVerified(response))
+            && authenticatedSessionMatches(requestSnapshot)) {
+            window.location.href = '/verify-email'
+          }
           return response
         }
 
         if (response.status !== 401) return response
+        if (!authenticatedSessionMatches(requestSnapshot)) return response
 
-        const { refreshToken, setTokens } = useAuthStore.getState()
+        const { refreshToken } = requestSnapshot
         if (!refreshToken) {
-          useAuthStore.getState().logout()
-          window.location.href = buildLoginRedirectHref(window.location.href)
+          if (await terminateAuthenticatedSession(requestSnapshot)) {
+            window.location.href = buildLoginRedirectHref(window.location.href)
+          }
           return response
         }
 
-        if (!refreshPromise) {
-          refreshPromise = ky
-            .post('api/auth/refresh', {
-              prefixUrl: env.apiUrl,
-              json: { refreshToken },
-            })
-            .json<AuthResponse>()
-            .finally(() => {
-              refreshPromise = null
-            })
-        }
+        const attempt = getRefreshAttempt(requestSnapshot)
 
         try {
-          const data = await refreshPromise
-          setTokens(data)
+          const data = await attempt.promise
+          if (!attempt.appliedSession) {
+            attempt.appliedSession = applyRefreshResponse(data, attempt.snapshot)
+          }
+          const appliedSession = attempt.appliedSession
+          if (!appliedSession || !authenticatedSessionMatches(appliedSession)) return response
 
           // Retry original request with new token
           request.headers.set('Authorization', `Bearer ${data.accessToken}`)
           return ky(request)
         } catch {
-          // Unconditional: accessToken is in-memory only (null after reload), so gating on it would strand the user.
-          useAuthStore.getState().logout()
-          window.location.href = buildLoginRedirectHref(window.location.href)
+          if (refreshContextMatches(attempt.snapshot)) {
+            if (await terminateAuthenticatedSession(attempt.snapshot)) {
+              window.location.href = buildLoginRedirectHref(window.location.href)
+            }
+          }
           return response
         }
       },

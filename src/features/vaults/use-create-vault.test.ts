@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useAuthStore } from '../auth'
+import { authenticatedQueryKey, useAuthStore } from '../auth'
 import { useMemberSyncStore } from './sync/member-sync-store'
 import { useCreateVault, VaultLockedError } from './use-create-vault'
 
@@ -208,7 +208,9 @@ describe('useCreateVault', () => {
 
     await act(() => result.current.mutateAsync({ name: 'Production' }))
 
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['vaults'] })
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: authenticatedQueryKey(['vaults']),
+    })
     expect(useMemberSyncStore.getState().retryGeneration).toBe(retryGeneration + 1)
     expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
       type: 'palladin:agent-discovery-reconcile',

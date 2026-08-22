@@ -1,5 +1,7 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuthStore } from '../auth'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../auth/session/use-authenticated-mutation'
+import type { AuthenticatedMutationContext } from '../auth/session/use-authenticated-mutation'
+import { authenticatedQueryKey, useAuthStore } from '../auth'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
 import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
 import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
@@ -50,6 +52,7 @@ interface PreparedFullGrantInput {
   approvedMethods: number
   policy: GrantPolicyBody
   methods: GrantMethod[]
+  context: AuthenticatedMutationContext
 }
 
 function assertCurrentUnlockSession(privateKey: Uint8Array): void {
@@ -64,6 +67,7 @@ async function createPreparedFullGrant({
   approvedMethods,
   policy,
   methods,
+  context,
 }: PreparedFullGrantInput): Promise<void> {
   let shouldCancel = true
   let vaultKey: Uint8Array | undefined
@@ -73,10 +77,11 @@ async function createPreparedFullGrant({
       agentId,
       methods: serializeGrantMethods(methods),
       ...policy,
-    })
+    }, context.sessionSnapshot)
+    context.assertSessionCurrent()
     assertCurrentUnlockSession(privateKey)
 
-    const vault = await getEncryptedVault(vaultId)
+    const vault = await getEncryptedVault(vaultId, undefined, context.sessionSnapshot)
     if (vault.organizationId !== preparation.organizationId
       || vault.memberKeyGeneration !== preparation.memberKeyGeneration) {
       throw new MissingGrantMaterialError()
@@ -88,10 +93,11 @@ async function createPreparedFullGrant({
     let afterEntryId: string | undefined
     while (true) {
       assertCurrentUnlockSession(privateKey)
+      context.assertSessionCurrent()
       const page = await getFullGrantPreparationMaterial(vaultId, grantId, {
         organizationId: preparation.organizationId,
         memberKeyGeneration: preparation.memberKeyGeneration,
-      }, afterEntryId)
+      }, afterEntryId, context.sessionSnapshot)
       const grantEntries = []
       for (const material of page.items) {
         if (seenEntryIds.has(material.entryId)) throw new MissingGrantMaterialError()
@@ -134,7 +140,13 @@ async function createPreparedFullGrant({
       }
       if (grantEntries.length > 0) {
         assertCurrentUnlockSession(privateKey)
-        await appendFullGrantPreparationEntries(vaultId, grantId, grantEntries)
+        context.assertSessionCurrent()
+        await appendFullGrantPreparationEntries(
+          vaultId,
+          grantId,
+          grantEntries,
+          context.sessionSnapshot,
+        )
       }
 
       const nextCursor = page.nextAfterEntryId
@@ -145,11 +157,16 @@ async function createPreparedFullGrant({
     }
 
     assertCurrentUnlockSession(privateKey)
-    await commitFullGrantPreparation(vaultId, grantId)
+    context.assertSessionCurrent()
+    await commitFullGrantPreparation(vaultId, grantId, context.sessionSnapshot)
     shouldCancel = false
   } catch (error) {
     if (shouldCancel) {
-      await cancelFullGrantPreparation(vaultId, grantId).catch(() => undefined)
+      await cancelFullGrantPreparation(
+        vaultId,
+        grantId,
+        context.sessionSnapshot,
+      ).catch(() => undefined)
     }
     throw error
   } finally {
@@ -170,7 +187,7 @@ export function useCreateGrant() {
       entryId,
       policy,
       methods,
-    }: CreateGrantInput) => {
+    }: CreateGrantInput, context) => {
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new VaultLockedError()
       const requestedMethods = grantMethodsMask(methods)
@@ -179,7 +196,8 @@ export function useCreateGrant() {
 
       if (type === GRANT_TYPE_FULL) {
         await createPreparedFullGrant({
-          vaultId, agentId, grantId, privateKey, approvedMethods: requestedMethods, policy, methods,
+          vaultId, agentId, grantId, privateKey, approvedMethods: requestedMethods,
+          policy, methods, context,
         })
         return
       }
@@ -191,10 +209,15 @@ export function useCreateGrant() {
       const syncedVault = useMemberSyncStore.getState().vaults.get(vaultId)
       if (!syncedVault || syncedVault.status !== 'ready') throw new MissingGrantMaterialError()
 
-      const vault = await getEncryptedVault(vaultId)
+      const vault = await getEncryptedVault(vaultId, undefined, context.sessionSnapshot)
       const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
       try {
-        const detail = await getCanonicalEntry(vaultId, entryId)
+        const detail = await getCanonicalEntry(
+          vaultId,
+          entryId,
+          undefined,
+          context.sessionSnapshot,
+        )
         const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId, entryId,
           revision: detail.currentRevision,
@@ -223,14 +246,15 @@ export function useCreateGrant() {
           ...policy,
           methods: serializeGrantMethods(grantMethodsFromMask(approvedMethods)),
         }
-        await createGrantProactively(vaultId, body)
+        context.assertSessionCurrent()
+        await createGrantProactively(vaultId, body, context.sessionSnapshot)
       } finally {
         wipe(vaultKey)
       }
     },
     onSuccess: () => {
       for (const queryKey of GRANT_MUTATION_INVALIDATION_KEYS) {
-        queryClient.invalidateQueries({ queryKey })
+        queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(queryKey) })
       }
     },
   })

@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../auth'
 import { HTTPError } from 'ky'
 import { createVaultProtocolPayload } from '../../shared/crypto/create-vault-protocol'
 import { parseJwtPayload } from '../../shared/lib/jwt'
 import { getAccount } from '../../shared/api/account-api'
-import { useAuthStore } from '../auth'
+import { authenticatedQueryKey, useAuthStore } from '../auth'
 import { createVault, issueVaultCreationChallenge, type CreateVaultPayload } from './api/vault-api'
 import type { CreateVaultInput } from './types'
 import { VAULTS_QUERY_KEY } from './use-vaults'
@@ -148,7 +149,7 @@ export function useCreateVault() {
       return { vaultId: attempt.vaultId }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(VAULTS_QUERY_KEY) })
       useMemberSyncStore.getState().retry()
       window.dispatchEvent(new Event(AGENT_DISCOVERY_RECONCILE_EVENT))
     },

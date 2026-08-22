@@ -1,4 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../session/use-authenticated-mutation'
 import {
   assertIdentityKdfProfile,
   deriveIdentityV1,
@@ -11,9 +12,13 @@ import { decryptWithKey, encryptWithKey, randomBytes, wipe } from '../../../shar
 import {
   ACCOUNT_QUERY_KEY,
   changeMasterPassword,
-  getAccount,
+  getAccountForSession,
 } from '../../../shared/api/account-api'
-import { useAuthStore } from '../stores/auth-store'
+import { authenticatedQueryKey } from '../session/authenticated-query-key'
+import {
+  StaleAuthenticatedSessionError,
+  unlockVaultForSession,
+} from '../session/session-boundary'
 
 export class IncorrectCurrentPasswordError extends Error {
   constructor() {
@@ -31,8 +36,11 @@ export function useChangeMasterPassword() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ currentPassword, newPassword }: ChangeMasterPasswordInput) => {
-      const account = await getAccount()
+    mutationFn: async (
+      { currentPassword, newPassword }: ChangeMasterPasswordInput,
+      context,
+    ) => {
+      const account = await getAccountForSession(context.sessionSnapshot)
       if (!account.kdf || !account.encryptedPrivateKey) {
         throw new Error('Account is missing versioned key material')
       }
@@ -74,6 +82,7 @@ export function useChangeMasterPassword() {
         }
 
         newEncryptedPrivateKey = await encryptWithKey(privateKey, next.masterKey)
+        context.assertSessionCurrent()
         await changeMasterPassword({
           securityVersion: IDENTITY_KDF_PROFILE.securityVersion,
           kdfProfileId: IDENTITY_KDF_PROFILE_ID,
@@ -83,9 +92,15 @@ export function useChangeMasterPassword() {
           newAuthCredential: encodeBase64Url(next.authCredential),
           newKdfSalt: encodeBase64Url(newSalt),
           newEncryptedPrivateKey: encodeBase64Url(newEncryptedPrivateKey),
-        })
+        }, context.sessionSnapshot)
 
-        useAuthStore.getState().unlockVault(next.masterKey, privateKey)
+        if (!unlockVaultForSession(
+          context.sessionSnapshot,
+          next.masterKey,
+          privateKey,
+        )) {
+          throw new StaleAuthenticatedSessionError()
+        }
       } finally {
         if (currentSalt) wipe(currentSalt)
         if (newSalt) wipe(newSalt)
@@ -103,7 +118,7 @@ export function useChangeMasterPassword() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(ACCOUNT_QUERY_KEY) })
     },
   })
 }

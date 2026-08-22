@@ -1,7 +1,11 @@
-import { createDefaultVault, getAccount } from '../api/account-api'
+import { createDefaultVault, getAccountForSession } from '../api/account-api'
 import { createVaultProtocolPayload } from '../crypto/create-vault-protocol'
 import { parseJwtPayload } from './jwt'
-import { useAuthStore } from '../../features/auth'
+import {
+  authenticatedSessionMatches,
+  captureAuthenticatedSession,
+  type AuthenticatedSessionSnapshot,
+} from '../../features/auth/session/session-boundary'
 import { issueVaultCreationChallenge } from '../../features/vaults/api/vault-api'
 
 // Defaults mirror those in vault-presentation.ts but are kept here as
@@ -22,18 +26,24 @@ export type DefaultVaultCreationResult = 'created' | 'already-exists' | 'failed'
 export async function createDefaultVaultSafe(
   privateKey: Uint8Array,
   name: string,
+  session: AuthenticatedSessionSnapshot = captureAuthenticatedSession(),
 ): Promise<DefaultVaultCreationResult> {
   try {
-    const auth = useAuthStore.getState()
-    if (!auth.userId || !auth.accessToken) return 'failed'
-    const organizationId = parseJwtPayload(auth.accessToken)['org_id']
+    if (!session.userId || !session.accessToken
+      || session.sessionBoundaryActive
+      || !authenticatedSessionMatches(session)) return 'failed'
+    const organizationId = parseJwtPayload(session.accessToken)['org_id']
     if (typeof organizationId !== 'string') return 'failed'
-    const [challenge, account] = await Promise.all([issueVaultCreationChallenge(), getAccount()])
+    const [challenge, account] = await Promise.all([
+      issueVaultCreationChallenge(session),
+      getAccountForSession(session),
+    ])
+    if (!authenticatedSessionMatches(session)) return 'failed'
     if (!account.memberKeyVersion) return 'failed'
     const payload = await createVaultProtocolPayload({
       organizationId,
       vaultId: challenge.vaultId,
-      memberId: auth.userId,
+      memberId: session.userId,
       memberKeyVersion: account.memberKeyVersion,
       memberPrivateKey: privateKey,
       metadata: {
@@ -45,7 +55,9 @@ export async function createDefaultVaultSafe(
         grantMode: 'granular',
       },
     })
-    await createDefaultVault(payload)
+    if (!authenticatedSessionMatches(session)) return 'failed'
+    await createDefaultVault(payload, session)
+    if (!authenticatedSessionMatches(session)) return 'failed'
     return 'created'
   } catch (error) {
     // The backend uniqueness constraint makes the operation idempotent. An

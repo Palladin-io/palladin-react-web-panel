@@ -1,6 +1,10 @@
 import { useEffect } from 'react'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useAuthStore } from '../stores/auth-store'
+import {
+  captureAuthenticatedSession,
+  expireAuthenticatedSession,
+} from '../session/session-boundary'
 
 /** Lock after this long with no user interaction. */
 export const IDLE_TIMEOUT_MS = 15 * 60_000 // 15 minutes
@@ -32,7 +36,6 @@ const ACTIVITY_EVENTS = [
  */
 export function useSessionTimeout() {
   const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
-  const expireSession = useAuthStore((s) => s.expireSession)
   const navigate = useNavigate()
   const router = useRouter()
 
@@ -40,6 +43,7 @@ export function useSessionTimeout() {
     if (isVaultLocked) return
 
     const unlockedAt = Date.now()
+    const session = captureAuthenticatedSession()
     let lastActivity = Date.now()
     const markActivity = () => {
       lastActivity = Date.now()
@@ -49,16 +53,17 @@ export function useSessionTimeout() {
       window.addEventListener(event, markActivity, { passive: true })
     }
 
-    const interval = window.setInterval(() => {
+    const interval = window.setInterval(async () => {
       const now = Date.now()
       const idle = now - lastActivity >= IDLE_TIMEOUT_MS
       const expired = now - unlockedAt >= ABSOLUTE_TIMEOUT_MS
       if (idle || expired) {
-        expireSession()
-        void navigate({
-          to: '/unlock',
-          search: { redirect: router.state.location.href },
-        })
+        if (await expireAuthenticatedSession(session)) {
+          void navigate({
+            to: '/unlock',
+            search: { redirect: router.state.location.href },
+          })
+        }
       }
     }, CHECK_INTERVAL_MS)
 
@@ -68,5 +73,5 @@ export function useSessionTimeout() {
         window.removeEventListener(event, markActivity)
       }
     }
-  }, [isVaultLocked, expireSession, navigate, router])
+  }, [isVaultLocked, navigate, router])
 }

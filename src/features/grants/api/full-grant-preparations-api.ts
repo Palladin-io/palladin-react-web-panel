@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { api } from '../../../shared/api/client'
+import { api, authenticatedRequestContext } from '../../../shared/api/client'
+import type { AuthenticatedSessionSnapshot } from '../../auth/session/session-boundary'
 import { fromBase64, fromBase64Url, toBase64 } from '../../../shared/crypto/encoding'
 import type { buildCanonicalGrantEnvelope } from '../../../shared/crypto/grant-protocol'
 import { loadSodium, wipe } from '../../../shared/crypto/sodium'
@@ -79,8 +80,12 @@ function preparationPath(vaultId: string, grantId?: string): string {
 export async function prepareFullGrant(
   vaultId: string,
   body: PrepareFullGrantBody,
+  session?: AuthenticatedSessionSnapshot,
 ): Promise<FullGrantPreparation> {
-  const raw = await api.post(preparationPath(vaultId), { json: body }).json()
+  const raw = await api.post(preparationPath(vaultId), {
+    json: body,
+    ...(session ? authenticatedRequestContext(session) : {}),
+  }).json()
   const preparation = fullGrantPreparationSchema.parse(raw)
   if (preparation.grantId !== body.grantId) throw new Error('Full grant preparation id mismatch')
   await validateRecipientKeyMaterial(preparation.agentPublicKey, preparation.agentKeyFingerprint)
@@ -92,12 +97,14 @@ export async function getFullGrantPreparationMaterial(
   grantId: string,
   expected: FullGrantMaterialScope,
   afterEntryId?: string,
+  session?: AuthenticatedSessionSnapshot,
 ): Promise<FullGrantMaterialPage> {
   const raw = await api.get(`${preparationPath(vaultId, grantId)}/material`, {
     searchParams: {
       pageSize: String(FULL_GRANT_PREPARATION_PAGE_SIZE),
       ...(afterEntryId ? { afterEntryId } : {}),
     },
+    ...(session ? authenticatedRequestContext(session) : {}),
   }).json()
   const page = fullGrantMaterialPageSchema.parse(raw)
   for (const item of page.items) {
@@ -143,12 +150,14 @@ export async function appendFullGrantPreparationEntries(
   vaultId: string,
   grantId: string,
   grantEntries: CanonicalGrantEnvelope[],
+  session?: AuthenticatedSessionSnapshot,
 ): Promise<z.infer<typeof appendFullGrantEntriesResponseSchema>> {
   if (grantEntries.length === 0 || grantEntries.length > FULL_GRANT_PREPARATION_PAGE_SIZE) {
     throw new RangeError('Full grant preparation append must contain between 1 and 100 entries')
   }
   const raw = await api.put(`${preparationPath(vaultId, grantId)}/entries`, {
     json: { grantEntries },
+    ...(session ? authenticatedRequestContext(session) : {}),
   }).json()
   return appendFullGrantEntriesResponseSchema.parse(raw)
 }
@@ -156,11 +165,22 @@ export async function appendFullGrantPreparationEntries(
 export async function commitFullGrantPreparation(
   vaultId: string,
   grantId: string,
+  session?: AuthenticatedSessionSnapshot,
 ): Promise<{ id: string }> {
-  const raw = await api.post(`${preparationPath(vaultId, grantId)}/commit`).json()
+  const path = `${preparationPath(vaultId, grantId)}/commit`
+  const raw = await (session
+    ? api.post(path, authenticatedRequestContext(session))
+    : api.post(path)).json()
   return committedFullGrantSchema.parse(raw)
 }
 
-export async function cancelFullGrantPreparation(vaultId: string, grantId: string): Promise<void> {
-  await api.delete(preparationPath(vaultId, grantId))
+export async function cancelFullGrantPreparation(
+  vaultId: string,
+  grantId: string,
+  session?: AuthenticatedSessionSnapshot,
+): Promise<void> {
+  const path = preparationPath(vaultId, grantId)
+  await (session
+    ? api.delete(path, authenticatedRequestContext(session))
+    : api.delete(path))
 }

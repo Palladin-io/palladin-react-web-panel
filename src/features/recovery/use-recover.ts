@@ -1,4 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../auth'
 import { deriveKey, RECOVERY_KEY_SALT_BYTES } from '../../shared/crypto/argon2'
 import {
   deriveIdentityV1,
@@ -15,10 +16,11 @@ import {
 } from '../../shared/crypto/sodium'
 import {
   ACCOUNT_QUERY_KEY,
-  getAccount,
+  getAccountForSession,
   recoverAccount,
 } from '../../shared/api/account-api'
 import { generateRecoveryMnemonic, joinMnemonic } from '../../shared/lib/mnemonic'
+import { authenticatedQueryKey } from '../auth'
 
 export class InvalidRecoveryKeyError extends Error {
   constructor() {
@@ -40,8 +42,11 @@ export function useRecover() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async ({ recoveryMnemonic, newPassword }: RecoverInput): Promise<RecoverResult> => {
-      const account = await getAccount()
+    mutationFn: async (
+      { recoveryMnemonic, newPassword }: RecoverInput,
+      context,
+    ): Promise<RecoverResult> => {
+      const account = await getAccountForSession(context.sessionSnapshot)
       if (!account.recoverySalt || !account.encryptedPrivateKeyByRecovery || !account.kdf) {
         throw new Error('Account is missing recovery material')
       }
@@ -85,6 +90,7 @@ export function useRecover() {
           newRecoveryKey,
         )
 
+        context.assertSessionCurrent()
         await recoverAccount({
           securityVersion: IDENTITY_KDF_PROFILE.securityVersion,
           kdfProfileId: IDENTITY_KDF_PROFILE_ID,
@@ -97,7 +103,7 @@ export function useRecover() {
           ...(account.kdf.credentialRevision > 0
             ? { newAuthCredential: encodeBase64Url(identity.authCredential) }
             : {}),
-        })
+        }, context.sessionSnapshot)
 
         return { recoveryMnemonic: newRecoveryMnemonic }
       } finally {
@@ -115,7 +121,7 @@ export function useRecover() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ACCOUNT_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(ACCOUNT_QUERY_KEY) })
     },
   })
 }

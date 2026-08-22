@@ -94,6 +94,8 @@ src/
 - **Zustand** for client-only state: unlocked keys, UI preferences
 - **TanStack Query** for server state: vaults, entries, grants, audit logs
 - Never duplicate server state in Zustand
+- Every authenticated query/cache operation uses `authenticatedQueryKey` or `useAuthenticatedQueryKey`; authenticated mutations use `useAuthenticatedMutation`, which snapshots and CAS-fences their namespace/callbacks at invocation. The wrapper does not automatically bind API calls made after an `await`: multi-step mutations must pass `context.sessionSnapshot` into every authenticated API call via `authenticatedRequestContext` and call `context.assertSessionCurrent()` before sending derived or sensitive material.
+- Logout, expiry, login replacement, and organization switch use the serialized central auth session boundary so producers stop and in-flight queries are cancelled before query/mutation cache and principal state are cleared.
 
 ### Route Guards
 - **Prefer non-persisted Zustand state for security-critical routing.** `isVaultLocked` is never persisted — it always starts `true` on page load and is only set `false` by `unlockVault()`. This makes it reliable regardless of localStorage corruption or stale JWT claims. Persisted fields like `isOnboarded` can drift and cause false-positive redirects.

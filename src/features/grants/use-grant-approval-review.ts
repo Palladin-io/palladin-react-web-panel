@@ -6,7 +6,7 @@ import { openEncryptedReason } from '../../shared/crypto/reason-protocol'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { ENVELOPE_PURPOSE } from '../../shared/crypto/envelope'
 import { wipe } from '../../shared/crypto/sodium'
-import { useAuthStore } from '../auth'
+import { useAuthenticatedQueryKey, useAuthStore } from '../auth'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import type { PendingGrant } from './api/pending-grants-api'
@@ -33,7 +33,11 @@ export class GrantReviewUnavailableError extends Error {
 export function useGrantApprovalReview(grant: PendingGrant | null) {
   const sessionKey = useAuthStore((state) => state.privateKey)
   const queryClient = useQueryClient()
-  const queryKey = useMemo(() => ['grants', 'approval-review', grant?.id] as const, [grant?.id])
+  const semanticQueryKey = useMemo(
+    () => ['grants', 'approval-review', grant?.id] as const,
+    [grant?.id],
+  )
+  const queryKey = useAuthenticatedQueryKey(semanticQueryKey)
   const query = useQuery({
     queryKey,
     enabled: Boolean(grant && sessionKey),

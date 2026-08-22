@@ -5,7 +5,12 @@ import { useTranslation } from 'react-i18next'
 import { AuthSubmitButton } from '../../shared/components/auth-submit-button'
 import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { analytics } from '../../shared/lib/analytics'
-import { useAuthStore } from '../auth'
+import {
+  captureAuthenticatedSession,
+  terminateAuthenticatedSession,
+  useAuthenticatedQueryKey,
+  useAuthStore,
+} from '../auth'
 import { clearPushTokenOnLogout } from '../notifications'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../shared/api/account-api'
 import { OnboardingWizard } from '../onboarding'
@@ -27,9 +32,10 @@ export function UnlockPage({ redirectTo = '/' }: UnlockPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
+  const accountQueryKey = useAuthenticatedQueryKey(ACCOUNT_QUERY_KEY)
 
   const account = useQuery({
-    queryKey: ACCOUNT_QUERY_KEY,
+    queryKey: accountQueryKey,
     queryFn: getAccount,
     staleTime: 5 * 60 * 1000,
   })
@@ -86,12 +92,13 @@ function AccountLoadError({
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const logout = useAuthStore((s) => s.logout)
 
-  const handleLogout = () => {
-    void clearPushTokenOnLogout()
-    logout()
-    navigate({ to: '/login' })
+  const handleLogout = async () => {
+    const session = captureAuthenticatedSession()
+    void clearPushTokenOnLogout(session)
+    if (await terminateAuthenticatedSession(session)) {
+      navigate({ to: '/login' })
+    }
   }
 
   return (
@@ -133,17 +140,18 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const unlock = useUnlock()
-  const logout = useAuthStore((s) => s.logout)
   const [password, setPassword] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   // Same logout flow as the app shell: best-effort push-token cleanup, clear
   // session, redirect to login. The only escape hatch from a locked vault when
   // the master password is lost or the wrong account is signed in.
-  const handleLogout = () => {
-    void clearPushTokenOnLogout()
-    logout()
-    navigate({ to: '/login' })
+  const handleLogout = async () => {
+    const session = captureAuthenticatedSession()
+    void clearPushTokenOnLogout(session)
+    if (await terminateAuthenticatedSession(session)) {
+      navigate({ to: '/login' })
+    }
   }
 
   const isPending = unlock.isPending

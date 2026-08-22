@@ -2,7 +2,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { useAuthStore } from '../auth'
+import { authenticatedQueryKey, useAuthStore } from '../auth'
+import type { AuthResponse } from '../../shared/api/types'
+import { StaleAuthenticatedSessionError } from '../auth/session/session-boundary'
 import { defaultAgentVisibilityPolicy } from '../../shared/crypto/entry-draft'
 import {
   ActiveFullGrantMaterialRequiredError,
@@ -80,11 +82,28 @@ const input = {
   policy: defaultAgentVisibilityPolicy(ENTRY_TYPE_KEY),
 }
 
+function jwt(userId: string, organizationId: string): string {
+  const encode = (value: object) => btoa(JSON.stringify(value)).replaceAll('=', '')
+  return `${encode({ alg: 'none' })}.${encode({ sub: userId, org_id: organizationId })}.signature`
+}
+
+function session(userId: string, organizationId: string): AuthResponse {
+  return {
+    accessToken: jwt(userId, organizationId),
+    refreshToken: `refresh-${userId}-${organizationId}`,
+    userId,
+    isOnboarded: true,
+    emailVerified: true,
+  }
+}
+
 describe('useCreateEntry', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.getVault.mockResolvedValue(vault)
     mocks.collectGrants.mockResolvedValue([])
+    useAuthStore.getState().logout()
+    useAuthStore.getState().setTokens(session('user-a', 'org-a'))
     useAuthStore.setState({ privateKey: new Uint8Array(32).fill(5) })
   })
 
@@ -143,8 +162,10 @@ describe('useCreateEntry', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(mocks.createEntry.mock.calls[0][1]).not.toHaveProperty('entryType')
     const invalidatedKeys = invalidateSpy.mock.calls.map((call) => call[0]?.queryKey)
-    expect(invalidatedKeys).toContainEqual(VAULTS_QUERY_KEY)
-    expect(invalidatedKeys).toContainEqual(entriesQueryKey(vault.id))
+    expect(invalidatedKeys).toContainEqual(authenticatedQueryKey(VAULTS_QUERY_KEY))
+    expect(invalidatedKeys).toContainEqual(
+      authenticatedQueryKey(entriesQueryKey(vault.id)),
+    )
   })
 
   it('uploads a custom icon only after the Entry exists and commits its encrypted reference', async () => {
@@ -171,5 +192,34 @@ describe('useCreateEntry', () => {
       2,
     )
     expect(mocks.updateEntry).toHaveBeenCalledOnce()
+  })
+
+  it('does not send A-encrypted entry material after switching to B before the final request', async () => {
+    let releaseMaterial!: (material: {
+      entryKey: { opaque: string }
+      memberIndex: { opaque: string }
+      memberSecret: { opaque: string }
+      agentDiscovery: { opaque: string }
+    }) => void
+    mocks.createMaterial.mockImplementationOnce(() => new Promise((resolve) => {
+      releaseMaterial = resolve
+    }))
+    const { wrapper } = makeWrapper()
+    const { result } = renderHook(() => useCreateEntry(), { wrapper })
+
+    const execution = result.current.mutateAsync(input)
+    await waitFor(() => expect(mocks.createMaterial).toHaveBeenCalledOnce())
+    useAuthStore.getState().logout()
+    useAuthStore.getState().setTokens(session('user-b', 'org-b'))
+    releaseMaterial({
+      entryKey: { opaque: 'entry-key-a' },
+      memberIndex: { opaque: 'member-index-a' },
+      memberSecret: { opaque: 'member-secret-a' },
+      agentDiscovery: { opaque: 'agent-discovery-a' },
+    })
+
+    await expect(execution).rejects.toBeInstanceOf(StaleAuthenticatedSessionError)
+    expect(mocks.createEntry).not.toHaveBeenCalled()
+    expect(useAuthStore.getState().userId).toBe('user-b')
   })
 })

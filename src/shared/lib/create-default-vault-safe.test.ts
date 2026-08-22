@@ -1,20 +1,33 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mocks must be hoisted before the module under test is imported.
-const createDefaultVaultMock = vi.hoisted(() => vi.fn<[unknown], Promise<void>>())
+const createDefaultVaultMock = vi.hoisted(() => vi.fn<[unknown, unknown?], Promise<void>>())
 const createPayloadMock = vi.hoisted(() => vi.fn())
 const challengeMock = vi.hoisted(() => vi.fn(async () => ({ vaultId: 'vault-1' })))
 
 vi.mock('../crypto/create-vault-protocol', () => ({ createVaultProtocolPayload: createPayloadMock }))
 vi.mock('./jwt', () => ({ parseJwtPayload: () => ({ org_id: 'org-1' }) }))
 vi.mock('../../features/vaults/api/vault-api', () => ({ issueVaultCreationChallenge: challengeMock }))
-vi.mock('../../features/auth', () => ({
-  useAuthStore: { getState: () => ({ userId: 'member-1', accessToken: 'token' }) },
+const testSession = {
+  accessToken: 'token',
+  refreshToken: 'refresh',
+  userId: 'member-1',
+  organizationId: 'org-1',
+  sessionGeneration: 1,
+  sessionBoundaryActive: false,
+}
+vi.mock('../../features/auth/session/session-boundary', () => ({
+  captureAuthenticatedSession: () => testSession,
+  authenticatedSessionMatches: () => true,
 }))
 
 vi.mock('../api/account-api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/account-api')>()
-  return { ...actual, createDefaultVault: createDefaultVaultMock, getAccount: vi.fn(async () => ({ memberKeyVersion: 3 })) }
+  return {
+    ...actual,
+    createDefaultVault: createDefaultVaultMock,
+    getAccountForSession: vi.fn(async () => ({ memberKeyVersion: 3 })),
+  }
 })
 
 import { createDefaultVaultSafe } from './create-default-vault-safe'
@@ -38,7 +51,7 @@ describe('createDefaultVaultSafe', () => {
       metadata: expect.objectContaining({ name: 'Personal', grantMode: 'granular' }),
     }))
     expect(createDefaultVaultMock).toHaveBeenCalledOnce()
-    expect(createDefaultVaultMock).toHaveBeenCalledWith(PAYLOAD)
+    expect(createDefaultVaultMock).toHaveBeenCalledWith(PAYLOAD, testSession)
   })
 
   it('resolves without throwing when the backend returns 409 (already exists)', async () => {

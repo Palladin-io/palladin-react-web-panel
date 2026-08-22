@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAuthStore } from '../auth'
+import { useAuthenticatedQueryKey, useAuthStore } from '../auth'
 import { PERMISSION_VAULT_MANAGE } from '../../shared/lib/permissions'
 import {
   DISCOVERY_STATUS_PENDING,
@@ -15,8 +15,9 @@ export function agentDiscoveryProvisioningQueryKey(vaultId: string) {
 export function useAgentDiscoveryProvisioning(vaultId: string) {
   const permissions = useAuthStore((state) => state.permissions)
   const canManageVault = (permissions & PERMISSION_VAULT_MANAGE) !== 0
+  const queryKey = useAuthenticatedQueryKey(agentDiscoveryProvisioningQueryKey(vaultId))
   const query = useQuery({
-    queryKey: agentDiscoveryProvisioningQueryKey(vaultId),
+    queryKey,
     queryFn: () => getAgentDiscoveryProvisioning(vaultId),
     enabled: canManageVault,
     staleTime: 30_000,

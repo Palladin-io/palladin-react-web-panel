@@ -24,7 +24,7 @@ import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { analytics } from '../../shared/lib/analytics'
 import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
-import { useAuthStore } from '../auth'
+import { authenticatedQueryKey, useAuthStore } from '../auth'
 import {
   GRANT_STATUS_ACTIVE,
   GrantAccessDialog,
@@ -439,12 +439,12 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setDecrypting(true)
     try {
       const encryptedVault = await queryClient.fetchQuery({
-        queryKey: [
+        queryKey: authenticatedQueryKey([
           'vaults',
           vault.id,
           'encrypted-detail',
           cryptoSessionGeneration,
-        ],
+        ]),
         queryFn: () => getEncryptedVault(vault.id),
         staleTime: Infinity,
       })

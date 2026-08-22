@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../session/use-authenticated-mutation'
 import {
   assertIdentityKdfProfile,
   deriveIdentityV1,
@@ -8,7 +8,10 @@ import {
 } from '../../../shared/crypto/identity-kdf'
 import { decodeBase64Url, encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { decryptWithKey, wipe } from '../../../shared/crypto/sodium'
-import { getAccount, type AccountResponse } from '../../../shared/api/account-api'
+import {
+  getAccountForSession,
+  type AccountResponse,
+} from '../../../shared/api/account-api'
 import type { AuthResponse } from '../../../shared/api/types'
 import {
   fetchLoginKdf,
@@ -17,7 +20,14 @@ import {
   totpLogin,
   type LoginKdfBootstrap,
 } from '../api/auth-api'
-import { useAuthStore } from '../stores/auth-store'
+import {
+  captureAuthenticatedSession,
+  replaceAuthenticatedSession,
+  StaleAuthenticatedSessionError,
+  terminateAuthenticatedSession,
+  unlockVaultForSession,
+} from '../session/session-boundary'
+import type { AuthenticatedMutationContext } from '../session/use-authenticated-mutation'
 
 interface PendingV2Unlock {
   masterKey: Uint8Array
@@ -47,11 +57,16 @@ function assertAuthenticatedV2Account(
 async function unlockWithMasterKey(
   response: AuthResponse,
   masterKey: Uint8Array,
+  context: AuthenticatedMutationContext,
   bootstrap?: LoginKdfBootstrap & { accountId: string },
 ): Promise<AccountResponse> {
-  useAuthStore.getState().setTokens(response)
+  const session = await replaceAuthenticatedSession(response, {
+    expectedSession: context.sessionSnapshot,
+  })
+  if (!session) throw new StaleAuthenticatedSessionError()
+  context.adoptSession(session)
   try {
-    const account = await getAccount()
+    const account = await getAccountForSession(session)
     if (!account.encryptedPrivateKey) throw new Error('Account key material is missing')
     if (bootstrap) assertAuthenticatedV2Account(account, bootstrap)
 
@@ -59,14 +74,18 @@ async function unlockWithMasterKey(
     let privateKey: Uint8Array | null = null
     try {
       privateKey = await decryptWithKey(encryptedPrivateKey, masterKey)
-      useAuthStore.getState().unlockVault(masterKey, privateKey)
+      if (!unlockVaultForSession(session, masterKey, privateKey)) {
+        throw new StaleAuthenticatedSessionError()
+      }
       return account
     } finally {
       wipe(encryptedPrivateKey)
       if (privateKey) wipe(privateKey)
     }
   } catch (error) {
-    useAuthStore.getState().logout()
+    if (await terminateAuthenticatedSession(session)) {
+      context.adoptSession(captureAuthenticatedSession())
+    }
     throw error
   }
 }
@@ -93,7 +112,7 @@ export function usePasswordLogin() {
     }: {
       email: string
       password: string
-    }): Promise<LoginStartResult> => {
+    }, context): Promise<LoginStartResult> => {
       clearPendingV2()
       const bootstrap = await fetchLoginKdf(email, IDENTITY_KDF_PROFILE_ID)
       assertIdentityKdfProfile(bootstrap)
@@ -112,6 +131,7 @@ export function usePasswordLogin() {
           authCredential: encodeBase64Url(identity.authCredential),
         })
         if (isTotpRequired(response)) {
+          context.assertSessionCurrent()
           pendingV2.current = {
             masterKey: new Uint8Array(identity.masterKey),
             bootstrap: { ...bootstrap, accountId: bootstrap.accountId },
@@ -121,6 +141,7 @@ export function usePasswordLogin() {
         await unlockWithMasterKey(
           response,
           identity.masterKey,
+          context,
           { ...bootstrap, accountId: bootstrap.accountId },
         )
         return { kind: 'done' }
@@ -139,7 +160,7 @@ export function usePasswordLogin() {
     }: {
       challengeToken: string
       code: string
-    }): Promise<void> => {
+    }, context): Promise<void> => {
       const response = await totpLogin({ challengeToken, code: code.trim() })
       if (!pendingV2.current) throw new Error('Missing pending login state')
 
@@ -148,6 +169,7 @@ export function usePasswordLogin() {
         await unlockWithMasterKey(
           response,
           pending.masterKey,
+          context,
           pending.bootstrap,
         )
       } finally {

@@ -1,4 +1,5 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../auth'
 import { ORGANIZATION_MEMBERS_QUERY_KEY } from '../../shared/api/organization-members-api'
 import {
   createOrganizationRole,
@@ -7,12 +8,17 @@ import {
   updateOrganizationRole,
   type SaveOrganizationRoleInput,
 } from '../../shared/api/organization-roles-api'
+import { authenticatedQueryKey } from '../auth'
 
 function useInvalidateRoles() {
   const queryClient = useQueryClient()
   return () => {
-    void queryClient.invalidateQueries({ queryKey: ORGANIZATION_ROLES_QUERY_KEY })
-    void queryClient.invalidateQueries({ queryKey: ORGANIZATION_MEMBERS_QUERY_KEY })
+    void queryClient.invalidateQueries({
+      queryKey: authenticatedQueryKey(ORGANIZATION_ROLES_QUERY_KEY),
+    })
+    void queryClient.invalidateQueries({
+      queryKey: authenticatedQueryKey(ORGANIZATION_MEMBERS_QUERY_KEY),
+    })
   }
 }
 

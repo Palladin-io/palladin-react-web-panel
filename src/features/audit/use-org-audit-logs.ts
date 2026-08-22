@@ -1,4 +1,5 @@
 import { useInfiniteQuery } from '@tanstack/react-query'
+import { useAuthenticatedQueryKey } from '../auth'
 import { getOrgAuditLogs, type GetOrgAuditLogsParams } from './api/audit-api'
 
 export const ORG_AUDIT_LOGS_QUERY_KEY = ['audit-logs', 'org'] as const
@@ -15,8 +16,9 @@ export function useOrgAuditLogs(
   params: Omit<GetOrgAuditLogsParams, 'cursor' | 'pageSize'> = {},
   enabled = true,
 ) {
+  const queryKey = useAuthenticatedQueryKey([...ORG_AUDIT_LOGS_QUERY_KEY, params])
   return useInfiniteQuery({
-    queryKey: [...ORG_AUDIT_LOGS_QUERY_KEY, params] as const,
+    queryKey,
     queryFn: ({ pageParam }) =>
       getOrgAuditLogs({
         ...params,

@@ -1,8 +1,10 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../auth'
 import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 import { useMemberSyncStore } from './sync/member-sync-store'
 import { updateEncryptedVaultSettings, type EditableVaultMetadata } from './vault-settings-service'
+import { authenticatedQueryKey } from '../auth'
 
 export interface UpdateVaultSettingsInput {
   expectedMetadata: EditableVaultMetadata
@@ -16,8 +18,10 @@ export function useUpdateVault(id: string) {
   return useMutation({
     mutationFn: (input: UpdateVaultSettingsInput) => updateEncryptedVaultSettings({ vaultId: id, ...input }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })
-      queryClient.invalidateQueries({ queryKey: vaultQueryKey(id) })
+      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(VAULTS_QUERY_KEY) })
+      queryClient.invalidateQueries({
+        queryKey: authenticatedQueryKey(vaultQueryKey(id)),
+      })
       useMemberSyncStore.getState().retry()
     },
     onError: () => {

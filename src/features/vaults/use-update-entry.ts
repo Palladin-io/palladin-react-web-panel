@@ -1,7 +1,9 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../auth'
 import { updateEntry } from './api/vault-api'
 import type { EntryContent } from './types'
 import { entriesQueryKey, entryDetailQueryKey } from './use-entries'
+import { authenticatedQueryKey } from '../auth'
 
 export interface UpdateEntryInput {
   label?: string
@@ -29,8 +31,12 @@ export function useUpdateEntry(vaultId: string, entryId: string) {
   return useMutation({
     mutationFn: (input: UpdateEntryInput) => updateEntry(vaultId, entryId, input),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: entryDetailQueryKey(vaultId, entryId) })
-      queryClient.invalidateQueries({ queryKey: entriesQueryKey(vaultId) })
+      queryClient.invalidateQueries({
+        queryKey: authenticatedQueryKey(entryDetailQueryKey(vaultId, entryId)),
+      })
+      queryClient.invalidateQueries({
+        queryKey: authenticatedQueryKey(entriesQueryKey(vaultId)),
+      })
     },
   })
 }

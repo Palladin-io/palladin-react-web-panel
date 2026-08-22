@@ -1,6 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../auth'
 import { generateApiKey } from './api/api-keys-api'
 import { API_KEYS_QUERY_KEY } from './use-api-keys'
+import { authenticatedQueryKey } from '../auth'
 
 export function useGenerateApiKey() {
   const queryClient = useQueryClient()
@@ -10,7 +12,7 @@ export function useGenerateApiKey() {
     onSuccess: () => {
       // A new key now exists server-side — invalidate the list so it
       // appears once the user closes the one-time-secret modal.
-      queryClient.invalidateQueries({ queryKey: API_KEYS_QUERY_KEY })
+      queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(API_KEYS_QUERY_KEY) })
     },
   })
 }

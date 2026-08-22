@@ -1,7 +1,9 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../auth'
 import { ORG_QUERY_KEY } from '../settings/use-org'
 import { inviteOrganizationMember } from './api/organization-invitations-api'
 import { ORGANIZATION_INVITATIONS_QUERY_KEY } from './use-organization-invitations'
+import { authenticatedQueryKey } from '../auth'
 
 export interface InviteMembersInput {
   emails: string[]
@@ -35,8 +37,10 @@ export function useInviteMembers() {
     onSuccess: async ({ succeeded }) => {
       if (succeeded.length === 0) return
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ORGANIZATION_INVITATIONS_QUERY_KEY }),
-        queryClient.invalidateQueries({ queryKey: ORG_QUERY_KEY }),
+        queryClient.invalidateQueries({
+          queryKey: authenticatedQueryKey(ORGANIZATION_INVITATIONS_QUERY_KEY),
+        }),
+        queryClient.invalidateQueries({ queryKey: authenticatedQueryKey(ORG_QUERY_KEY) }),
       ])
     },
   })

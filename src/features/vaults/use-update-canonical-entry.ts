@@ -1,11 +1,12 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAuthenticatedMutation as useMutation } from '../auth'
 import { sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { toMemberSecret, type EntryDraft, type MemberSecretView } from '../../shared/crypto/entry-draft'
 import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { projectAgentDiscovery } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
-import { useAuthStore } from '../auth'
+import { authenticatedQueryKey, useAuthStore } from '../auth'
 import {
   GRANT_STATUS_ACTIVE,
   GRANT_TYPE_FULL,
@@ -143,9 +144,15 @@ export function useUpdateCanonicalEntry(vaultId: string, entryId: string) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: entryDetailQueryKey(vaultId, entryId) })
-      queryClient.invalidateQueries({ queryKey: entriesQueryKey(vaultId) })
-      queryClient.invalidateQueries({ queryKey: entryHistoryQueryKey(vaultId, entryId) })
+      queryClient.invalidateQueries({
+        queryKey: authenticatedQueryKey(entryDetailQueryKey(vaultId, entryId)),
+      })
+      queryClient.invalidateQueries({
+        queryKey: authenticatedQueryKey(entriesQueryKey(vaultId)),
+      })
+      queryClient.invalidateQueries({
+        queryKey: authenticatedQueryKey(entryHistoryQueryKey(vaultId, entryId)),
+      })
     },
   })
 }
