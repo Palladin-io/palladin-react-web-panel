@@ -150,6 +150,44 @@ describe('api client — 401 with failing refresh', () => {
     })
     expect(window.location.href).toBe('http://localhost:5000/')
   })
+
+  it('does not refresh or retry a request started by the previous session', async () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-a',
+      refreshToken: 'refresh-a',
+      userId: 'user-a',
+      isOnboarded: true,
+    })
+    let resolveRequest!: (response: Response) => void
+    const fetchMock = vi.fn(async () => new Promise<Response>((resolve) => {
+      resolveRequest = resolve
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const request = api.delete('vaults/vault-a').json()
+    await vi.waitFor(() => expect(resolveRequest).toBeTypeOf('function'))
+
+    clearClientSession()
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-b',
+      refreshToken: 'refresh-b',
+      userId: 'user-b',
+      isOnboarded: true,
+    })
+    resolveRequest(new Response('unauthorized', {
+      status: 401,
+      statusText: 'Unauthorized',
+    }))
+
+    await expect(request).rejects.toBeInstanceOf(HTTPError)
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: 'access-b',
+      refreshToken: 'refresh-b',
+      userId: 'user-b',
+    })
+    expect(window.location.href).toBe('http://localhost:5000/')
+  })
 })
 
 describe('api client — 403 email-verification backstop', () => {

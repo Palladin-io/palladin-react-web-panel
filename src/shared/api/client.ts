@@ -17,6 +17,7 @@ interface RefreshAttempt {
 }
 
 let refreshAttempt: RefreshAttempt | null = null
+const requestSessionGenerations = new WeakMap<object, number>()
 
 function getRefreshAttempt(generation: number, refreshToken: string): RefreshAttempt {
   if (refreshAttempt
@@ -63,7 +64,10 @@ export const api = ky.create({
   prefixUrl: env.apiUrl,
   hooks: {
     beforeRequest: [
-      (request) => {
+      (request, options) => {
+        if (!requestSessionGenerations.has(options)) {
+          requestSessionGenerations.set(options, captureClientSessionGeneration())
+        }
         const headers = getAnalyticsHeaders()
         for (const [key, value] of Object.entries(headers)) {
           request.headers.set(key, value)
@@ -76,7 +80,12 @@ export const api = ky.create({
       },
     ],
     afterResponse: [
-      async (request, _options, response) => {
+      async (request, options, response) => {
+        const generation = requestSessionGenerations.get(options)
+        if (generation === undefined || !clientSessionGenerationMatches(generation)) {
+          return response
+        }
+
         // Targeted email-verification backstop. The router gate is the primary
         // mechanism; this only catches the window where a stale in-memory token
         // lets a request through before the gate resolves. The backend marks
@@ -89,7 +98,6 @@ export const api = ky.create({
 
         if (response.status !== 401) return response
 
-        const generation = captureClientSessionGeneration()
         const { refreshToken, setTokens } = useAuthStore.getState()
         if (!refreshToken) {
           clearClientSession()
