@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { AppWordmark } from '../../../shared/components/app-wordmark'
 import { useLogin } from '../hooks/use-login'
 import { usePasswordLogin } from '../hooks/use-password-login'
+import { clearClientSession } from '../session/client-session'
 import { EmailPasswordForm } from './email-password-form'
 import { TotpChallengeStep } from './totp-challenge-step'
 
@@ -74,7 +75,13 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
     },
   })
 
+  const handleGoogleLogin = () => {
+    clearClientSession()
+    googleLogin()
+  }
+
   const handleCredentials = (email: string, password: string) => {
+    clearClientSession()
     setPasswordError(null)
     start.mutate(
       { email, password },
@@ -155,7 +162,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
                 {/* Google — active */}
                 <button
                   type="button"
-                  onClick={() => googleLogin()}
+                  onClick={handleGoogleLogin}
                   disabled={oauth.isPending}
                   className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232,234,237,0.06)]
                     bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-heading-sm font-medium

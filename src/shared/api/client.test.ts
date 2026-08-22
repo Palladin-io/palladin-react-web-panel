@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { HTTPError } from 'ky'
 import { api } from './client'
 import { useAuthStore } from '../../features/auth'
+import { clearClientSession } from '../../features/auth/session/client-session'
 
 /**
  * Regression: the access token now lives in memory only and
@@ -103,6 +104,175 @@ describe('api client — 401 with failing refresh', () => {
     expect(window.location.href).toBe(
       '/login?redirect=%2Fvaults%2Fvault-1%2Fentries%2Fentry-1%3Ftab%3Dlogs%23history',
     )
+  })
+
+  it('ignores a refresh response that belongs to the cleared session', async () => {
+    let resolveRefresh!: (response: Response) => void
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = input instanceof Request ? input.url : input.toString()
+      if (url.includes('api/auth/refresh')) {
+        return new Promise<Response>((resolve) => {
+          resolveRefresh = resolve
+        })
+      }
+      return new Response('unauthorized', {
+        status: 401,
+        statusText: 'Unauthorized',
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const request = api.get('vaults').json()
+    await vi.waitFor(() => expect(resolveRefresh).toBeTypeOf('function'))
+
+    clearClientSession()
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-b',
+      refreshToken: 'refresh-b',
+      userId: 'user-b',
+      isOnboarded: true,
+    })
+    resolveRefresh(new Response(JSON.stringify({
+      accessToken: 'late-access-a',
+      refreshToken: 'late-refresh-a',
+      userId: 'user-a',
+      isOnboarded: true,
+    }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }))
+
+    await expect(request).rejects.toBeInstanceOf(HTTPError)
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: 'access-b',
+      refreshToken: 'refresh-b',
+      userId: 'user-b',
+    })
+    expect(window.location.href).toBe('http://localhost:5000/')
+  })
+
+  it('does not refresh or retry a request started by the previous session', async () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-a',
+      refreshToken: 'refresh-a',
+      userId: 'user-a',
+      isOnboarded: true,
+    })
+    let resolveRequest!: (response: Response) => void
+    const fetchMock = vi.fn(async () => new Promise<Response>((resolve) => {
+      resolveRequest = resolve
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const request = api.delete('vaults/vault-a').json()
+    await vi.waitFor(() => expect(resolveRequest).toBeTypeOf('function'))
+
+    clearClientSession()
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-b',
+      refreshToken: 'refresh-b',
+      userId: 'user-b',
+      isOnboarded: true,
+    })
+    resolveRequest(new Response('unauthorized', {
+      status: 401,
+      statusText: 'Unauthorized',
+    }))
+
+    await expect(request).rejects.toBeInstanceOf(HTTPError)
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: 'access-b',
+      refreshToken: 'refresh-b',
+      userId: 'user-b',
+    })
+    expect(window.location.href).toBe('http://localhost:5000/')
+  })
+
+  it('does not send an automatic retry after the session changes', async () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-a',
+      refreshToken: 'refresh-a',
+      userId: 'user-a',
+      isOnboarded: true,
+    })
+    const fetchMock = vi.fn(async () => {
+      clearClientSession()
+      useAuthStore.getState().setTokens({
+        accessToken: 'access-b',
+        refreshToken: 'refresh-b',
+        userId: 'user-b',
+        isOnboarded: true,
+      })
+      return new Response('temporary failure', {
+        status: 500,
+        statusText: 'Internal Server Error',
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(api.get('vaults').json()).rejects.toMatchObject({
+      response: expect.objectContaining({ status: 409 }),
+    })
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: 'access-b',
+      refreshToken: 'refresh-b',
+      userId: 'user-b',
+    })
+    expect(window.location.href).toBe('http://localhost:5000/')
+  })
+
+  it('does not redirect for an old 403 parsed after the session changes', async () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-a',
+      refreshToken: 'refresh-a',
+      userId: 'user-a',
+      isOnboarded: true,
+    })
+    let releaseBody!: () => void
+    let markBodyRead!: () => void
+    const bodyRead = new Promise<void>((resolve) => {
+      markBodyRead = resolve
+    })
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        markBodyRead()
+        return new Promise<void>((resolve) => {
+          releaseBody = () => {
+            controller.enqueue(new TextEncoder().encode(JSON.stringify({
+              error: 'errors.backend.email-not-verified',
+            })))
+            controller.close()
+            resolve()
+          }
+        })
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(body, {
+      status: 403,
+      statusText: 'Forbidden',
+      headers: { 'content-type': 'application/json' },
+    })))
+
+    const request = api.get('vaults').json()
+    await bodyRead
+    clearClientSession()
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-b',
+      refreshToken: 'refresh-b',
+      userId: 'user-b',
+      isOnboarded: true,
+    })
+    releaseBody()
+
+    await expect(request).rejects.toBeInstanceOf(HTTPError)
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: 'access-b',
+      refreshToken: 'refresh-b',
+      userId: 'user-b',
+    })
+    expect(window.location.href).toBe('http://localhost:5000/')
   })
 })
 

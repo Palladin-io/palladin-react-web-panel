@@ -10,7 +10,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
-import { useAuthStore, useSessionTimeout } from '../features/auth'
+import { logoutAndReload, useAuthStore, useSessionTimeout } from '../features/auth'
 import { useAgents, AGENT_STATUS_PENDING } from '../features/agents'
 import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
@@ -268,8 +268,6 @@ interface AppSidebarProps {
 
 function AppSidebar({ currentPath }: AppSidebarProps) {
   const { t } = useTranslation()
-  const navigate = useNavigate()
-  const logout = useAuthStore((s) => s.logout)
   const permissions = useAuthStore((s) => s.permissions)
   const { theme, toggleTheme } = useThemeStore()
   const webPush = useWebPush()
@@ -311,11 +309,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
   const currentFlag = LANG_OPTIONS.find((l) => l.code === currentLang)?.flag ?? '🌐'
 
   function handleLogout() {
-    // Best-effort: delete the FCM push token server-side before the JWT is
-    // cleared. Fire-and-forget — logout must not wait on or fail from cleanup.
-    void clearPushTokenOnLogout()
-    logout()
-    navigate({ to: '/login' })
+    void logoutAndReload('/login', clearPushTokenOnLogout)
   }
 
   function selectLanguage(code: string) {

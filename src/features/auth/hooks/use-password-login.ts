@@ -18,6 +18,7 @@ import {
   type LoginKdfBootstrap,
 } from '../api/auth-api'
 import { useAuthStore } from '../stores/auth-store'
+import { clearClientSession } from '../session/client-session'
 
 interface PendingV2Unlock {
   masterKey: Uint8Array
@@ -66,7 +67,7 @@ async function unlockWithMasterKey(
       if (privateKey) wipe(privateKey)
     }
   } catch (error) {
-    useAuthStore.getState().logout()
+    clearClientSession()
     throw error
   }
 }

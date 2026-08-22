@@ -6,7 +6,7 @@ import { AuthStepShell } from '../../shared/components/auth-step-shell'
 import { AuthSubmitButton } from '../../shared/components/auth-submit-button'
 import { Icon } from '../../shared/components/icon'
 import { clearPushTokenOnLogout } from '../notifications'
-import { useAuthStore } from '../auth'
+import { logoutAndReload } from '../auth'
 import { useAcceptOrganizationInvitation } from './use-accept-organization-invitation'
 
 type AcceptError =
@@ -71,9 +71,8 @@ export function AcceptOrganizationInvitationPage({
     const redirect = token
       ? `/invitations/accept?token=${encodeURIComponent(token)}`
       : '/invitations/accept'
-    void clearPushTokenOnLogout()
-    useAuthStore.getState().logout()
-    navigate({ to: '/login', search: { redirect } })
+    const destination = `/login?redirect=${encodeURIComponent(redirect)}`
+    void logoutAndReload(destination, clearPushTokenOnLogout)
   }
 
   if (accept.isSuccess) {
