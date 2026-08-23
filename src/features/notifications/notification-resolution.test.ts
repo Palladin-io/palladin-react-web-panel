@@ -44,4 +44,24 @@ describe('notification local resolution', () => {
     })
     expect(notificationDeepLink({ ...item, type: 'future', metadata: {} })).toBeNull()
   })
+
+  it('resolves the approver of an approved agent from the authorized Agent cache', () => {
+    const agent = {
+      agentId,
+      name: 'Deploy Bot',
+      enrolledByName: 'Patryk R.',
+    } as Agent
+    const approved = {
+      ...item,
+      type: 'agent_approved',
+      category: 'update' as const,
+      metadata: { agentId },
+      actionState: null,
+    }
+
+    expect(resolveNotificationItem(approved, {
+      vaults: new Map(),
+      agents: new Map([[agentId, agent]]),
+    }).metadata.actorName).toBe('Patryk R.')
+  })
 })

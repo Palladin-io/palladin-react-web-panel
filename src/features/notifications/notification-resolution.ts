@@ -11,6 +11,7 @@ interface ResolutionSources {
 function resolvedMetadata(
   metadata: Record<string, string>,
   sources: ResolutionSources,
+  type: string,
 ): Record<string, string> {
   const next = { ...metadata }
   const vault = metadata.vaultId ? sources.vaults.get(metadata.vaultId) : undefined
@@ -24,6 +25,7 @@ function resolvedMetadata(
   if (agent?.lastHostname) next.host = agent.lastHostname
   if (agent?.lastIp) next.ip = agent.lastIp
   if (agent?.iconKey) next.agentIconKey = agent.iconKey
+  if (type === 'agent_approved' && agent?.enrolledByName) next.actorName = agent.enrolledByName
   return next
 }
 
@@ -31,14 +33,14 @@ export function resolveNotificationItem(
   item: NotificationItem,
   sources: ResolutionSources,
 ): NotificationItem {
-  return { ...item, metadata: resolvedMetadata(item.metadata ?? {}, sources) }
+  return { ...item, metadata: resolvedMetadata(item.metadata ?? {}, sources, item.type) }
 }
 
 export function resolveNotificationPayload(
   payload: NotificationPayload,
   sources: ResolutionSources,
 ): NotificationPayload {
-  return { ...payload, data: resolvedMetadata(payload.data, sources) }
+  return { ...payload, data: resolvedMetadata(payload.data, sources, payload.type) }
 }
 
 export function notificationDeepLink(item: NotificationItem):
