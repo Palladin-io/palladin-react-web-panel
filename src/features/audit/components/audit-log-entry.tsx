@@ -213,7 +213,6 @@ function resolveObject(
     vaultName ??
     (item.eventType.startsWith('apikey.') ? item.metadata.keyName : undefined) ??
     (allowDenormalizedNames ? item.metadata.name : undefined) ??
-    (allowDenormalizedNames ? item.metadata.keyName : undefined) ??
     t('audit.object.unnamed')
   )
 }
