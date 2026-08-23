@@ -95,7 +95,7 @@ describe('AuditLogEntry', () => {
     ).toBeInTheDocument()
   })
 
-  it('uses local Vault names and requires an explicit opt-in for legacy API-key metadata', () => {
+  it('uses local Vault names and renders the API-key name from audit metadata', () => {
     const { rerender } = render(
       <AuditLogEntry
         item={item({
@@ -128,7 +128,6 @@ describe('AuditLogEntry', () => {
           metadata: { keyName: 'CI Token' },
         })}
         actorName="Patryk"
-        allowDenormalizedNames
       />,
     )
     expect(
