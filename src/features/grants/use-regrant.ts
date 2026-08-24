@@ -12,11 +12,13 @@ import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import {
   createGrantProactively,
   GRANT_TYPE_FULL,
+  GRANT_TYPE_SCRIPT_EXECUTION,
   type CreateGrantBody,
   type GrantType,
 } from './api/org-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
 import {
+  GRANT_METHOD_EXEC,
   grantMethodsFromMask,
   grantMethodsMask,
   parseGrantMethods,
@@ -24,6 +26,7 @@ import {
 } from './grant-methods'
 import { MissingGrantMaterialError, VaultLockedError } from './use-approve-grant'
 import { GRANT_MUTATION_INVALIDATION_KEYS } from './query-keys'
+import { buildCompleteScriptExecutionPackage } from '../vaults/script-execution-package'
 
 export interface RegrantInput {
   vaultId: string
@@ -84,6 +87,34 @@ export function useRegrant() {
             methods: serializeGrantMethods(grantMethodsFromMask(grantMethodsMask(methods))),
           }
           await createGrantProactively(vaultId, body)
+          return
+        }
+
+        if (type === GRANT_TYPE_SCRIPT_EXECUTION) {
+          if (methods.length !== 1 || methods[0] !== GRANT_METHOD_EXEC || !entryId) {
+            throw new MissingGrantMaterialError()
+          }
+          const scriptPackage = await buildCompleteScriptExecutionPackage({
+            organizationId: vault.organizationId,
+            vaultId,
+            scriptEntryId: entryId,
+            agentId,
+            agentAccessEpoch: agent.accessEpoch,
+            grantId,
+            packageRevision: '1',
+            recipientAgentKeyVersion: agent.recipientKeyVersion,
+            agentPublicKey: agent.publicKey,
+            vaultKey,
+          })
+          await createGrantProactively(vaultId, {
+            grantId,
+            agentId,
+            type,
+            scriptEntryId: entryId,
+            scriptPackage,
+            ...policy,
+            methods: serializeGrantMethods([GRANT_METHOD_EXEC]),
+          })
           return
         }
 

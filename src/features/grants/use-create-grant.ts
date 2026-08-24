@@ -11,12 +11,14 @@ import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import { useMemberSyncStore } from '../../shared/stores/member-sync-store'
 import {
   GRANT_TYPE_FULL,
+  GRANT_TYPE_SCRIPT_EXECUTION,
   createGrantProactively,
   type CreateGrantBody,
   type GrantType,
 } from './api/org-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
 import {
+  GRANT_METHOD_EXEC,
   grantMethodsFromMask,
   grantMethodsMask,
   serializeGrantMethods,
@@ -24,6 +26,7 @@ import {
 } from './grant-methods'
 import { MissingGrantMaterialError, VaultLockedError } from './use-approve-grant'
 import { GRANT_MUTATION_INVALIDATION_KEYS } from './query-keys'
+import { buildCompleteScriptExecutionPackage } from '../vaults/script-execution-package'
 
 export interface CreateGrantInput {
   vaultId: string
@@ -90,6 +93,36 @@ export function useCreateGrant() {
             agentWrappedVaultKey,
             ...policy,
             methods: serializeGrantMethods(methods),
+          }
+          assertCurrentUnlockSession(privateKey)
+          await createGrantProactively(vaultId, body)
+          return
+        }
+
+        if (type === GRANT_TYPE_SCRIPT_EXECUTION) {
+          if (methods.length !== 1 || methods[0] !== GRANT_METHOD_EXEC || !entryId) {
+            throw new MissingGrantMaterialError()
+          }
+          const scriptPackage = await buildCompleteScriptExecutionPackage({
+            organizationId: vault.organizationId,
+            vaultId,
+            scriptEntryId: entryId,
+            agentId,
+            agentAccessEpoch,
+            grantId,
+            packageRevision: '1',
+            recipientAgentKeyVersion,
+            agentPublicKey,
+            vaultKey,
+          })
+          const body: CreateGrantBody = {
+            grantId,
+            agentId,
+            type,
+            scriptEntryId: entryId,
+            scriptPackage,
+            ...policy,
+            methods: serializeGrantMethods([GRANT_METHOD_EXEC]),
           }
           assertCurrentUnlockSession(privateKey)
           await createGrantProactively(vaultId, body)

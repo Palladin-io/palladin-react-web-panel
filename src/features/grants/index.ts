@@ -35,6 +35,7 @@ export type { OrgGrant } from "./api/org-grants-api";
 export {
   GRANT_TYPE_GRANULAR,
   GRANT_TYPE_FULL,
+  GRANT_TYPE_SCRIPT_EXECUTION,
   GRANT_STATUS_ACTIVE,
   getOrgGrants,
 } from "./api/org-grants-api";

@@ -1,14 +1,23 @@
-import { useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
 import {
   ENTRY_TYPE_CREDENTIAL,
+  ENTRY_TYPE_CREDIT_CARD,
   ENTRY_TYPE_KEY,
+  ENTRY_TYPE_SCRIPT,
   type EntryListItem,
   type ScriptRef,
 } from '../types'
 import { useAllEntries } from '../use-entries'
 import { PopoverMenu, type MenuEntry } from './popover-menu'
+import { useAuthStore } from '../../auth'
+import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
+import { fromMemberSecret } from '../../../shared/crypto/entry-draft'
+import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
+import { wipe } from '../../../shared/crypto/sodium'
+import { getCanonicalEntry } from '../api/vault-api'
+import { getEncryptedVault } from '../sync/member-sync-api'
 
 export interface ScriptRefsEditorProps {
   vaultId: string
@@ -19,18 +28,14 @@ export interface ScriptRefsEditorProps {
   disabled?: boolean
 }
 
-/** Well-known, addressable fields per entry type — the values an agent can inject. */
-const FIELD_ALIASES: Record<number, string[]> = {
-  [ENTRY_TYPE_KEY]: ['value'],
-  [ENTRY_TYPE_CREDENTIAL]: ['username', 'password', 'url'],
-}
+interface ReferenceFieldOption { id: string; label: string }
 
 /**
  * "Injected vault data" — the SCRIPT `refs[]` as a grouped list matching the
  * approved redesign: each row is `$ ENV → entry · field`. Every ref written here
- * carries its vault id (sources are same-vault). Only KEY/CREDENTIAL entries are
- * offered (a script can't inject another script); fields are the well-known
- * aliases for the chosen entry's type.
+ * carries its vault id (sources are same-vault). Every non-Script Entry is
+ * eligible; selecting it decrypts its current field schema locally so custom
+ * and TOTP selectors never cross the backend in plaintext.
  */
 export function ScriptRefsEditor({
   vaultId,
@@ -41,11 +46,12 @@ export function ScriptRefsEditor({
 }: ScriptRefsEditorProps) {
   const { t } = useTranslation()
   const entriesQuery = useAllEntries(vaultId)
+  const [fieldOptions, setFieldOptions] = useState<Map<string, ReferenceFieldOption[]>>(new Map())
 
   const sources = useMemo(
     () =>
       (entriesQuery.data ?? []).filter(
-        (e) => e.id !== currentEntryId && e.type !== undefined && FIELD_ALIASES[e.type] !== undefined,
+        (e) => e.id !== currentEntryId && e.type !== undefined && e.type !== ENTRY_TYPE_SCRIPT,
       ),
     [entriesQuery.data, currentEntryId],
   )
@@ -57,6 +63,59 @@ export function ScriptRefsEditor({
 
   const add = () => onChange([...refs, { env: '', vaultId, entryId: '', field: '' }])
 
+  const loadFields = useCallback(async (entryId: string) => {
+    if (!entryId || fieldOptions.has(entryId)) return
+    const privateKey = useAuthStore.getState().privateKey
+    if (!privateKey) return
+    let vaultKey: Uint8Array | undefined
+    try {
+      const [vault, detail] = await Promise.all([
+        getEncryptedVault(vaultId),
+        getCanonicalEntry(vaultId, entryId),
+      ])
+      vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+      const secret = fromMemberSecret(await openMemberSecret(
+        detail.entryKey,
+        detail.memberSecret,
+        vaultKey,
+        { organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision },
+      ))
+      if (useAuthStore.getState().privateKey !== privateKey) return
+      const content = secret.content
+      const options: ReferenceFieldOption[] = content.type === ENTRY_TYPE_KEY
+        ? [{ id: 'value', label: t('vault.entries.valueLabel') }]
+        : content.type === ENTRY_TYPE_CREDENTIAL
+          ? [
+              { id: 'username', label: t('vault.entries.usernameLabel') },
+              { id: 'password', label: t('vault.entries.passwordLabel') },
+              ...(content.url ? [{ id: 'url', label: t('vault.entries.urlLabel') }] : []),
+              ...(content.totp
+                ? [{ id: 'totp', label: t('vault.entries.totp.section') }]
+                : []),
+            ]
+          : content.type === ENTRY_TYPE_CREDIT_CARD
+            ? [
+                { id: 'cardholderName', label: t('vault.entries.card.cardholderName') },
+                { id: 'cardNumber', label: t('vault.entries.card.cardNumber') },
+                { id: 'expiryMonth', label: t('vault.entries.card.expiryMonth') },
+                { id: 'expiryYear', label: t('vault.entries.card.expiryYear') },
+                ...(content.billingAddress
+                  ? [{ id: 'billingAddress', label: t('vault.entries.card.billingAddress') }]
+                  : []),
+              ]
+            : []
+      for (const field of content.fields ?? []) {
+        options.push({ id: `custom:${field.id.replace(/^custom:/, '')}`, label: field.label })
+      }
+      if (content.notes) options.push({ id: 'notes', label: t('vault.entries.notesLabel') })
+      setFieldOptions((current) => new Map(current).set(entryId, options))
+    } catch {
+      setFieldOptions((current) => new Map(current).set(entryId, []))
+    } finally {
+      if (vaultKey) wipe(vaultKey)
+    }
+  }, [fieldOptions, t, vaultId])
+
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
       {refs.map((ref, index) => (
@@ -65,6 +124,8 @@ export function ScriptRefsEditor({
           ref_={ref}
           vaultId={vaultId}
           sources={sources}
+          fieldOptions={ref.entryId ? fieldOptions.get(ref.entryId) : undefined}
+          loadFields={loadFields}
           first={index === 0}
           disabled={disabled}
           onChange={(patch) => update(index, patch)}
@@ -91,6 +152,8 @@ function RefRow({
   ref_,
   vaultId,
   sources,
+  fieldOptions,
+  loadFields,
   first,
   disabled,
   onChange,
@@ -99,6 +162,8 @@ function RefRow({
   ref_: ScriptRef
   vaultId: string
   sources: EntryListItem[]
+  fieldOptions?: ReferenceFieldOption[]
+  loadFields: (entryId: string) => Promise<void>
   first: boolean
   disabled?: boolean
   onChange: (patch: Partial<ScriptRef>) => void
@@ -106,7 +171,9 @@ function RefRow({
 }) {
   const { t } = useTranslation()
   const selectedEntry = sources.find((e) => e.id === ref_.entryId)
-  const fieldOptions = selectedEntry ? (FIELD_ALIASES[selectedEntry.type] ?? []) : []
+  useEffect(() => {
+    if (selectedEntry) void loadFields(selectedEntry.id)
+  }, [loadFields, selectedEntry])
 
   const selectClass =
     'min-w-0 max-w-[8.125rem] cursor-pointer appearance-none border-0 bg-transparent p-0 text-ui text-[var(--cv-t1)] outline-none disabled:cursor-not-allowed'
@@ -125,7 +192,7 @@ function RefRow({
         onChange={(e) => onChange({ env: e.target.value })}
         placeholder="GITHUB_TOKEN"
         disabled={disabled}
-        maxLength={100}
+        maxLength={64}
         className="w-36 shrink-0 border-0 bg-transparent p-0 font-mono text-meta text-[var(--cv-info)]
           outline-none placeholder:text-[var(--cv-input-placeholder)]"
       />
@@ -156,9 +223,9 @@ function RefRow({
           className={selectClass}
         >
           <option value="">{t('vault.entries.script.selectField')}</option>
-          {fieldOptions.map((alias) => (
-            <option key={alias} value={alias}>
-              {alias}
+          {(fieldOptions ?? []).map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
             </option>
           ))}
         </select>

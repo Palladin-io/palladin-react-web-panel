@@ -16,9 +16,16 @@ const mocks = vi.hoisted(() => ({
     content: { customFields: [] }, agentFieldAccess: { value: 'onGrantValue' },
   })),
   produce: vi.fn(async () => ({ grantId: 'grant', entryId: 'entry' })),
+  buildScriptPackage: vi.fn(async () => ({ grantId: 'script-grant', packageRevision: '10' })),
   update: vi.fn(async () => ({ currentRevision: '2' })), wipe: vi.fn(),
 }))
-vi.mock('../grants', () => ({ GRANT_STATUS_ACTIVE: 'active', GRANT_TYPE_FULL: 'full', getOrgGrants: mocks.getGrants }))
+vi.mock('../grants', () => ({
+  GRANT_STATUS_ACTIVE: 'active',
+  GRANT_TYPE_FULL: 'full',
+  GRANT_TYPE_GRANULAR: 'granular',
+  GRANT_TYPE_SCRIPT_EXECUTION: 'scriptExecution',
+  getOrgGrants: mocks.getGrants,
+}))
 vi.mock('./sync/member-sync-api', () => ({ getEncryptedVault: mocks.getVault }))
 vi.mock('../../shared/crypto/vault-protocol', () => ({
   openMemberVaultKey: mocks.openVaultKey, openVaultDerivedEnvelope: mocks.openDiscoveryKey,
@@ -28,13 +35,16 @@ vi.mock('../../shared/crypto/entry-draft', () => ({ toMemberSecret: mocks.toSecr
 vi.mock('../../shared/crypto/vault-plaintext', () => ({ projectAgentDiscovery: vi.fn(() => null) }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: mocks.produce,
-  GRANT_DELIVERY_POLICY_NAME: { standard: 'standard' },
+  GRANT_DELIVERY_POLICY: { standard: 1, execOnly: 2, injectOnly: 3 },
   listGrantableFields: vi.fn(() => [
     { id: 'value', label: 'value', access: 'onGrantValue' },
     { id: 'custom:new', label: 'New field', access: 'onGrantValue' },
   ]),
 }))
 vi.mock('./api/vault-api', () => ({ updateCanonicalEntry: mocks.update }))
+vi.mock('./script-execution-package', () => ({
+  buildCompleteScriptExecutionPackage: mocks.buildScriptPackage,
+}))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -46,7 +56,7 @@ function wrapper({ children }: { children: ReactNode }) {
 const input = {
   detail: { organizationId: 'org', vaultId: 'vault', id: 'entry', currentRevision: '1',
     memberIndexRevision: '1', agentDiscoveryRevisionHighWatermark: '0', currentKeyVersion: 1,
-    entryKey: { descriptor: { resourceRevision: '1' } } },
+    deliveryPolicy: 'standard', entryKey: { descriptor: { resourceRevision: '1' } } },
   previous: { schemaVersion: 1 as const, memberLabel: 'Old', agentLabel: 'Agent', entryType: ENTRY_TYPE_KEY,
     content: { type: ENTRY_TYPE_KEY, value: 'secret' }, agentVisibilityPolicy: { discoverable: true, fields: {} } },
   draft: { memberLabel: 'New', agentLabel: 'Agent', color: '#EB4747', entryType: ENTRY_TYPE_KEY,
@@ -101,6 +111,41 @@ describe('useUpdateCanonicalEntry', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({ approvedMethods: 6 }))
     expect(mocks.update).toHaveBeenCalledTimes(1)
+  })
+
+  it('refreshes an affected Script package under the same grant id and the next package revision', async () => {
+    mocks.getGrants.mockResolvedValue({ items: [{
+      id: 'script-grant', type: 'scriptExecution', agentId: 'agent', agentAccessEpoch: 7,
+      agentPublicKey: 'PK', recipientAgentKeyVersion: 4, scriptPackageRevision: '9',
+      entryScopes: [], methods: 'exec',
+      scriptScopes: [{ entryId: 'entry', entryRevision: '1', isScript: true }],
+    }], nextCursor: null })
+    const scriptInput = {
+      ...input,
+      previous: { ...input.previous, entryType: ENTRY_TYPE_SCRIPT },
+      draft: {
+        ...input.draft,
+        entryType: ENTRY_TYPE_SCRIPT,
+        content: { type: ENTRY_TYPE_SCRIPT, script: 'echo ok', refs: [] },
+      },
+    }
+    const { result } = renderHook(() => useUpdateCanonicalEntry('vault', 'entry'), { wrapper })
+    result.current.mutate(scriptInput as never)
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mocks.buildScriptPackage).toHaveBeenCalledWith(expect.objectContaining({
+      grantId: 'script-grant',
+      scriptEntryId: 'entry',
+      packageRevision: '10',
+      agentAccessEpoch: 7,
+      recipientAgentKeyVersion: 4,
+      overrides: expect.any(Map),
+    }))
+    const packageInput = mocks.buildScriptPackage.mock.calls[0][0]
+    expect(packageInput.overrides.get('entry')).toMatchObject({ revision: '2' })
+    expect(mocks.update.mock.calls[0][2].scriptGrantPackages).toEqual([
+      { grantId: 'script-grant', packageRevision: '10' },
+    ])
   })
 
   it('submits canonical ciphertext without grant material when no coverage exists and wipes keys', async () => {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -12,6 +12,7 @@ import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
 import {
   GRANT_TYPE_FULL,
   GRANT_TYPE_GRANULAR,
+  GRANT_TYPE_SCRIPT_EXECUTION,
   type GrantType,
   type OrgGrant,
 } from '../api/org-grants-api'
@@ -31,10 +32,18 @@ import {
 } from '../grant-policy'
 import { useCreateGrant } from '../use-create-grant'
 import { useOrgGrants } from '../use-org-grants'
-import { DEFAULT_GRANT_METHODS, type GrantMethod } from '../grant-methods'
+import { DEFAULT_GRANT_METHODS, GRANT_METHOD_EXEC, type GrantMethod } from '../grant-methods'
 import { EntityCombobox, type ComboboxOption } from './entity-combobox'
 import { GrantPolicyFields } from './grant-policy-fields'
 import { GrantMethodsSelect } from './grant-methods-select'
+import { ENTRY_TYPE_SCRIPT } from '../../../shared/types/entry-type'
+import { useAuthStore } from '../../auth'
+import { getCanonicalEntry } from '../../vaults/api/vault-api'
+import { getEncryptedVault } from '../../vaults/sync/member-sync-api'
+import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
+import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
+import { wipe } from '../../../shared/crypto/sodium'
+import { effectiveReturnResultToAgent, type ScriptExecutionMetadataV1 } from '../../../shared/crypto/script-execution'
 
 /**
  * Where the dialog was opened from — drives which subject the user picks and
@@ -74,6 +83,11 @@ function targetReadiness(
   return {}
 }
 
+function entryGrantType(vaultId: string, entryId: string): GrantType {
+  const entry = useMemberSyncStore.getState().vaults.get(vaultId)?.entries.get(entryId)
+  return entry?.payload?.entryType === 'script' ? GRANT_TYPE_SCRIPT_EXECUTION : GRANT_TYPE_GRANULAR
+}
+
 /**
  * One shared dialog for proactively granting access, reused from three entry
  * points (mode prop). A shared policy segment (Time/Uses/Lifetime) is common to
@@ -97,6 +111,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
   // Methods the grant permits. Default to the privacy-preserving set; `get` is opt-in.
   const [methods, setMethods] = useState<GrantMethod[]>(DEFAULT_GRANT_METHODS)
   const [methodsError, setMethodsError] = useState<string | null>(null)
+  const [scriptSummaryReady, setScriptSummaryReady] = useState<boolean | null>(null)
 
   // Subject selection (resolved on confirm).
   const [subject, setSubject] = useState<ResolvedSubject | null>(null)
@@ -105,7 +120,9 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
     ...subject,
     ...targetReadiness(subject.vaultId, subject.entryId, syncedVaults),
   })
-  const effectiveMethods: GrantMethod[] = methods
+  const effectiveMethods: GrantMethod[] = currentSubject?.type === GRANT_TYPE_SCRIPT_EXECUTION
+    ? [GRANT_METHOD_EXEC]
+    : methods
 
   function resetPolicyError() {
     setPolicyError(null)
@@ -117,6 +134,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
       return
     }
     if (currentSubject.constraintsUnavailable) return
+    if (currentSubject.type === GRANT_TYPE_SCRIPT_EXECUTION && scriptSummaryReady !== true) return
     const policyInput = { kind, expiresAt, queryLimit }
     const validationError = validateGrantPolicy(policyInput)
     if (validationError) {
@@ -174,7 +192,10 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           <Button variant="subtle" size="sm" onClick={onClose} disabled={createGrant.isPending} className="flex-1">
             {t('grants.cancel')}
           </Button>
-          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={createGrant.isPending || currentSubject?.constraintsUnavailable} className="flex-[2]">
+          <Button variant="positive" size="sm" onClick={handleConfirm}
+            disabled={createGrant.isPending || currentSubject?.constraintsUnavailable
+              || (currentSubject?.type === GRANT_TYPE_SCRIPT_EXECUTION && scriptSummaryReady !== true)}
+            className="flex-[2]">
             {createGrant.isPending ? t('grants.create.granting') : t('grants.create.confirm')}
           </Button>
         </DialogFooter>
@@ -192,6 +213,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             disabled={createGrant.isPending}
             onSubjectChange={(s) => {
               setSubject(s)
+              setScriptSummaryReady(null)
               setSubjectError(false)
             }}
           />
@@ -208,6 +230,11 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             {t('grants.create.fullTrustBody')}
           </WarningZone>
         )}
+
+        {currentSubject?.type === GRANT_TYPE_SCRIPT_EXECUTION && currentSubject.entryId ? (
+          <ScriptGrantSummary vaultId={currentSubject.vaultId} scriptEntryId={currentSubject.entryId}
+            onStatusChange={setScriptSummaryReady} />
+        ) : null}
 
         {/* Shared policy segment */}
         <GrantPolicyFields
@@ -231,7 +258,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           }}
         />
 
-        <GrantMethodsSelect
+        {currentSubject?.type !== GRANT_TYPE_SCRIPT_EXECUTION ? <GrantMethodsSelect
           idPrefix="create-grant"
           value={effectiveMethods}
           disabled={createGrant.isPending}
@@ -240,7 +267,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             setMethods(m)
             setMethodsError(null)
           }}
-        />
+        /> : null}
 
       </div>
     </ModalShell>
@@ -286,7 +313,7 @@ function SubjectSegment({
               ? {
                   vaultId: mode.vaultId,
                   agentId,
-                  type: GRANT_TYPE_GRANULAR,
+                  type: entryGrantType(mode.vaultId, mode.entryId),
                   entryId: mode.entryId,
                   ...targetReadiness(mode.vaultId, mode.entryId),
                 }
@@ -517,9 +544,9 @@ function CrossVaultEntryPicker({
   }, [entries, coverage])
 
   // Track vaultId for the selected entry so we can build the subject.
-  const entryVaultId = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const e of entries) map.set(e.id, e.vaultId)
+  const entryCoordinates = useMemo(() => {
+    const map = new Map<string, { vaultId: string; type: number }>()
+    for (const e of entries) map.set(e.id, { vaultId: e.vaultId, type: e.type })
     return map
   }, [entries])
 
@@ -543,13 +570,99 @@ function CrossVaultEntryPicker({
       }
       disabled={disabled}
       onSelect={(opt) => {
-        const vaultId = entryVaultId.get(opt.id)
-        if (!vaultId) return
+        const coordinates = entryCoordinates.get(opt.id)
+        if (!coordinates) return
+        const { vaultId, type } = coordinates
         setSelectedLabel(opt.label)
         setQuery('')
-        onPick({ vaultId, agentId, type: GRANT_TYPE_GRANULAR, entryId: opt.id,
+        onPick({ vaultId, agentId, type: type === ENTRY_TYPE_SCRIPT
+          ? GRANT_TYPE_SCRIPT_EXECUTION
+          : GRANT_TYPE_GRANULAR, entryId: opt.id,
           ...targetReadiness(vaultId, opt.id) })
       }}
     />
+  )
+}
+
+function ScriptGrantSummary({
+  vaultId,
+  scriptEntryId,
+  onStatusChange,
+}: {
+  vaultId: string
+  scriptEntryId: string
+  onStatusChange: (ready: boolean) => void
+}) {
+  const { t } = useTranslation()
+  const [metadata, setMetadata] = useState<ScriptExecutionMetadataV1 | null>(null)
+  const [referenceCount, setReferenceCount] = useState(0)
+  const [unavailable, setUnavailable] = useState(() => !useAuthStore.getState().privateKey)
+
+  useEffect(() => {
+    let active = true
+    const privateKey = useAuthStore.getState().privateKey
+    if (!privateKey) {
+      onStatusChange(false)
+      return
+    }
+    void (async () => {
+      let vaultKey: Uint8Array | undefined
+      try {
+        const [vault, detail] = await Promise.all([
+          getEncryptedVault(vaultId),
+          getCanonicalEntry(vaultId, scriptEntryId),
+        ])
+        vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+        const secret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
+          organizationId: detail.organizationId,
+          vaultId,
+          entryId: scriptEntryId,
+          revision: detail.currentRevision,
+        })
+        if (!active || useAuthStore.getState().privateKey !== privateKey) return
+        if (secret.entryType !== 'script' || !secret.content.execution) {
+          setUnavailable(true)
+          onStatusChange(false)
+          return
+        }
+        setMetadata(secret.content.execution)
+        setReferenceCount(secret.content.refs.length)
+        onStatusChange(true)
+      } catch {
+        if (active) {
+          setUnavailable(true)
+          onStatusChange(false)
+        }
+      } finally {
+        if (vaultKey) wipe(vaultKey)
+      }
+    })()
+    return () => { active = false }
+  }, [onStatusChange, scriptEntryId, vaultId])
+
+  if (unavailable) {
+    return <WarningZone title={t('grants.create.scriptUnavailableTitle')}>
+      {t('grants.create.scriptUnavailableBody')}
+    </WarningZone>
+  }
+  if (!metadata) return <p className="text-meta text-[var(--cv-t3)]">{t('grants.create.scriptLoading')}</p>
+  return (
+    <div className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3">
+      <p className="text-ui font-semibold text-[var(--cv-t1)]">{metadata.description}</p>
+      <dl className="mt-2 grid grid-cols-2 gap-2 text-meta text-[var(--cv-t2)]">
+        <div><dt>{t('grants.create.scriptParameters')}</dt><dd>{metadata.parameters.length}</dd></div>
+        <div><dt>{t('grants.create.scriptReferences')}</dt><dd>{referenceCount}</dd></div>
+        <div className="col-span-2"><dt>{t('grants.create.scriptResult')}</dt><dd>
+          {t(effectiveReturnResultToAgent(metadata)
+            ? 'grants.create.scriptResultReturned'
+            : 'grants.create.scriptResultWithheld')}
+        </dd></div>
+      </dl>
+      {effectiveReturnResultToAgent(metadata) ? (
+        <p className="mt-2 text-meta text-[var(--cv-pending)]">
+          {t('grants.create.scriptResultTrust')}
+        </p>
+      ) : null}
+    </div>
   )
 }

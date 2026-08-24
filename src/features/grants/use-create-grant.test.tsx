@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   decrypt: vi.fn(async () => ({ schemaVersion: 1, entryType: 'key' })),
   produce: vi.fn(),
   buildFull: vi.fn(),
+  buildScriptPackage: vi.fn(),
   wipe: vi.fn(),
   privateKey: new Uint8Array(32),
   vaultState: { status: 'ready' },
@@ -29,6 +30,9 @@ vi.mock('../../shared/crypto/vault-protocol', () => ({ openMemberVaultKey: mocks
 vi.mock('../../shared/crypto/entry-protocol', () => ({ openMemberSecret: mocks.decrypt }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({ buildCanonicalGrantEnvelope: mocks.produce }))
 vi.mock('../../shared/crypto/x25519-wrapper', () => ({ buildAgentWrappedVaultKey: mocks.buildFull }))
+vi.mock('../vaults/script-execution-package', () => ({
+  buildCompleteScriptExecutionPackage: mocks.buildScriptPackage,
+}))
 vi.mock('../../shared/crypto/vault-plaintext', () => ({ listGrantableFieldIds: vi.fn(() => ['value']) }))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
 vi.mock('../auth', () => ({ useAuthStore: { getState: () => ({ privateKey: mocks.privateKey }) } }))
@@ -62,6 +66,10 @@ describe('useCreateGrant', () => {
     mocks.produce.mockResolvedValue({ descriptor: { binding: {} } })
     mocks.buildFull.mockResolvedValue({
       wrappedVaultKey: { descriptor: {}, encodedSealedKeyPackage: 'sealed' },
+    })
+    mocks.buildScriptPackage.mockResolvedValue({
+      contractVersion: 1,
+      encodedPackageCiphertext: 'sealed-script-package',
     })
   })
 
@@ -119,6 +127,40 @@ describe('useCreateGrant', () => {
     expect(body.type).toBe('full')
     expect(body.agentWrappedVaultKey).toBeDefined()
     expect(body.entryId).toBeUndefined()
+    expect(body.grantEntries).toBeUndefined()
+    expect(mocks.getEntry).not.toHaveBeenCalled()
+    expect(mocks.produce).not.toHaveBeenCalled()
+  })
+
+  it('creates one ScriptExecution grant with one complete package and Exec only', async () => {
+    const { result } = renderHook(() => useCreateGrant(), { wrapper })
+    await result.current.mutateAsync({
+      vaultId: 'v1',
+      agentId: '22222222-2222-4222-8222-222222222222',
+      agentPublicKey: 'agent-public-key',
+      recipientAgentKeyVersion: 4,
+      agentAccessEpoch: 2,
+      type: 'scriptExecution',
+      entryId: '33333333-3333-4333-8332-333333333333',
+      policy: { queryLimit: 3 },
+      methods: ['exec'],
+    })
+
+    expect(mocks.buildScriptPackage).toHaveBeenCalledTimes(1)
+    expect(mocks.buildScriptPackage).toHaveBeenCalledWith(expect.objectContaining({
+      scriptEntryId: '33333333-3333-4333-8332-333333333333',
+      packageRevision: '1',
+      agentAccessEpoch: 2,
+      recipientAgentKeyVersion: 4,
+    }))
+    const [, body] = mocks.create.mock.calls[0]
+    expect(body).toMatchObject({
+      type: 'scriptExecution',
+      scriptEntryId: '33333333-3333-4333-8332-333333333333',
+      methods: 'Exec',
+      queryLimit: 3,
+      scriptPackage: { encodedPackageCiphertext: 'sealed-script-package' },
+    })
     expect(body.grantEntries).toBeUndefined()
     expect(mocks.getEntry).not.toHaveBeenCalled()
     expect(mocks.produce).not.toHaveBeenCalled()

@@ -122,7 +122,7 @@ describe('Vault plaintext v1', () => {
       },
     }
 
-    expect(projectAgentDiscovery(card)).toMatchObject({ capabilities: ['get', 'exec', 'inject'], fields: [] })
+    expect(projectAgentDiscovery(card)).toMatchObject({ capabilities: ['inject'], fields: [] })
     expect(projectGrantPayload(card, ['creditCard.cardNumber']).fields[0]).toMatchObject({ mode: 'runtime' })
     expect(() => encodeMemberSecret({
       ...card,

@@ -9,6 +9,7 @@ export const WRAPPER_PURPOSE = {
   reasonDek: 3,
   grantDek: 4,
   agentVaultKey: 5,
+  scriptExecutionDek: 6,
 } as const
 
 export type WrapperPurpose = (typeof WRAPPER_PURPOSE)[keyof typeof WRAPPER_PURPOSE]
@@ -175,6 +176,8 @@ function validateContext(context: X25519WrapperContext): void {
           ? { scope: parentBound, kind: VAULT_KEY_KIND.agentX25519, parent: true, generation: true }
           : context.purpose === WRAPPER_PURPOSE.agentVaultKey
             ? { scope: vault | SCOPE.grantOrRequest | SCOPE.agent, kind: VAULT_KEY_KIND.agentX25519, parent: false, generation: false }
+            : context.purpose === WRAPPER_PURPOSE.scriptExecutionDek
+              ? { scope: parentBound, kind: VAULT_KEY_KIND.agentX25519, parent: true, generation: false }
             : undefined
   if (!expected || presentScopeBitmap(context) !== expected.scope
     || context.recipientKeyKind !== expected.kind

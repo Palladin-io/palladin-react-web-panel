@@ -2,6 +2,7 @@ import { api } from '../../../shared/api/client'
 import { z } from 'zod'
 import type { buildCanonicalGrantEnvelope } from '../../../shared/crypto/grant-protocol'
 import type { CreateVaultProtocolPayload } from '../../../shared/crypto/create-vault-protocol'
+import type { ScriptExecutionEncryptedPackageV1 } from '../../../shared/crypto/script-execution'
 import type { CanonicalEntryEnvelopes } from '../../../shared/crypto/entry-protocol'
 import {
   agentDiscoveryEnvelopeSchema,
@@ -169,6 +170,7 @@ export interface EntryUpdateMaterial {
   agentDiscovery?: NonNullable<CanonicalEntryEnvelopes['agentDiscovery']>
   deliveryPolicy: 'standard' | 'execOnly' | 'injectOnly'
   grantEnvelopes: CanonicalGrantEnvelope[]
+  scriptGrantPackages?: ScriptExecutionEncryptedPackageV1[]
 }
 export interface EntryLifecycleMaterial {
   baseRevision: string
@@ -282,6 +284,18 @@ export async function updateCanonicalEntry(
 ): Promise<{ currentRevision: string }> {
   return api.put(`api/vaults/${vaultId}/entries/${entryId}`, { json: material })
     .json<{ currentRevision: string }>()
+}
+
+export interface ScriptAccessImpact {
+  effectiveAgentCount: number
+  directAgentCount: number
+  fullAgentCount: number
+  hasOverlappingCoverage: boolean
+}
+
+export function getScriptAccessImpact(vaultId: string, scriptEntryId: string): Promise<ScriptAccessImpact> {
+  return api.get(`api/vaults/${vaultId}/scripts/${scriptEntryId}/access-impact`)
+    .json<ScriptAccessImpact>()
 }
 
 export async function restoreCanonicalEntry(

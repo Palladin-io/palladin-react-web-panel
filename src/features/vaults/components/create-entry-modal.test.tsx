@@ -314,6 +314,7 @@ describe('CreateEntryModal', () => {
 
     await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_SCRIPT))
     await user.type(screen.getByLabelText(/^label$/i), 'Deploy')
+    await user.type(screen.getByLabelText(/description/i), 'Returns the deployment status')
     await user.type(screen.getByLabelText(/script editor/i), '  echo hi  ')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
@@ -327,6 +328,11 @@ describe('CreateEntryModal', () => {
       type: ENTRY_TYPE_SCRIPT,
       script: 'echo hi',
       interpreter: 'bash',
+      execution: expect.objectContaining({
+        description: 'Returns the deployment status',
+        parameters: [],
+        returnResultToAgent: true,
+      }),
     })
   })
 

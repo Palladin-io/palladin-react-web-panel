@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ScriptRef } from '../types'
 import { ScriptRefsEditor } from './script-refs-editor'
+import { validateScriptRefs } from '../script-refs'
 
 // The editor loads the vault's entries for its source picker.
 vi.mock('../use-entries', async (orig) => ({
@@ -36,5 +37,17 @@ describe('ScriptRefsEditor', () => {
     expect(screen.getByTestId('count')).toHaveTextContent('1')
     // The new row exposes the env-var input.
     expect(screen.getByLabelText(/env variable/i)).toBeInTheDocument()
+  })
+
+  it('rejects unsafe process variables and duplicate reference names', () => {
+    const base = { vaultId: 'v1', entryId: 'entry-1', field: 'password' }
+    expect(validateScriptRefs([{ ...base, env: 'DATABASE_PASSWORD' }], 'v1')).toBe(true)
+    expect(validateScriptRefs([{ ...base, env: 'PATH' }], 'v1')).toBe(false)
+    expect(validateScriptRefs([{ ...base, env: 'LD_PRELOAD' }], 'v1')).toBe(false)
+    expect(validateScriptRefs([{ ...base, env: 'PALLADIN_TOKEN' }], 'v1')).toBe(false)
+    expect(validateScriptRefs([
+      { ...base, env: 'DATABASE_PASSWORD' },
+      { ...base, entryId: 'entry-2', env: 'database_password' },
+    ], 'v1')).toBe(false)
   })
 })

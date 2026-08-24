@@ -155,13 +155,15 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
   }
 
   function handleRegrant(grant: OrgGrant, policy: GrantPolicyBody) {
+    const scopedEntryId = grant.entryId
+      ?? grant.scriptScopes.find((scope) => scope.isScript)?.entryId
     if (!grant.agentId || !grant.type
-      || (grant.type !== GRANT_TYPE_FULL && !grant.entryId)) return
+      || (grant.type !== GRANT_TYPE_FULL && !scopedEntryId)) return
     regrant.mutate(
       {
         vaultId: grant.vaultId,
         agentId: grant.agentId,
-        ...(grant.entryId ? { entryId: grant.entryId } : {}),
+        ...(scopedEntryId ? { entryId: scopedEntryId } : {}),
         type: grant.type,
         policy,
         methods: grant.methods,

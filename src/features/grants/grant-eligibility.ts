@@ -1,4 +1,9 @@
-import { GRANT_STATUS_ACTIVE, GRANT_TYPE_FULL, type OrgGrant } from './api/org-grants-api'
+import {
+  GRANT_STATUS_ACTIVE,
+  GRANT_TYPE_FULL,
+  GRANT_TYPE_SCRIPT_EXECUTION,
+  type OrgGrant,
+} from './api/org-grants-api'
 
 /** Only ACTIVE grants count as existing coverage. */
 function activeGrants(grants: OrgGrant[]): OrgGrant[] {
@@ -27,7 +32,11 @@ export function agentsCoveringEntry(grants: OrgGrant[], entryId: string): Set<st
   const covered = new Set<string>()
   for (const g of activeGrants(grants)) {
     if (!g.agentId) continue
-    if (g.type === GRANT_TYPE_FULL || g.entryId === entryId) covered.add(g.agentId)
+    if (g.type === GRANT_TYPE_FULL || g.entryId === entryId
+      || (g.type === GRANT_TYPE_SCRIPT_EXECUTION
+        && g.scriptScopes.some((scope) => scope.isScript && scope.entryId === entryId))) {
+      covered.add(g.agentId)
+    }
   }
   return covered
 }
@@ -61,6 +70,10 @@ export function entryCoverageByAgent(grants: OrgGrant[]): {
   for (const g of activeGrants(grants)) {
     if (g.type === GRANT_TYPE_FULL) fullCoveredVaultIds.add(g.vaultId)
     else if (g.entryId) coveredEntryIds.add(g.entryId)
+    else if (g.type === GRANT_TYPE_SCRIPT_EXECUTION) {
+      const parent = g.scriptScopes.find((scope) => scope.isScript)
+      if (parent) coveredEntryIds.add(parent.entryId)
+    }
   }
   return { coveredEntryIds, fullCoveredVaultIds }
 }

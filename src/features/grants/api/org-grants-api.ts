@@ -28,7 +28,9 @@ export type GrantStatus = (typeof GRANT_STATUSES)[number];
 
 export const GRANT_TYPE_FULL = "full" as const;
 export const GRANT_TYPE_GRANULAR = "granular" as const;
-export type GrantType = typeof GRANT_TYPE_FULL | typeof GRANT_TYPE_GRANULAR;
+export const GRANT_TYPE_SCRIPT_EXECUTION = "scriptExecution" as const;
+export type GrantType = typeof GRANT_TYPE_FULL | typeof GRANT_TYPE_GRANULAR
+  | typeof GRANT_TYPE_SCRIPT_EXECUTION;
 
 /**
  * Org-wide grant row from `GET /api/grants` (enriched `GrantResponse`). No
@@ -66,12 +68,13 @@ const orgGrantSchema = z.object({
     .nullable()
     .optional(),
   agentSigningKeyFingerprint: z.string().nullable().optional(),
-  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]).nullable().optional(),
+  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR, GRANT_TYPE_SCRIPT_EXECUTION]).nullable().optional(),
   status: z.enum(GRANT_STATUSES),
   // Combined-flags string of permitted methods, e.g. "get, exec". Optional for
   // pre-methods backends; the badge is hidden when absent/empty.
   methods: z.string().nullable().optional(),
   entryId: z.string().nullable().optional(),
+  scriptEntryId: z.string().nullable().optional(),
   entryLabel: z.string().nullable().optional(),
   entryScopes: z
     .array(
@@ -90,6 +93,12 @@ const orgGrantSchema = z.object({
     )
     .optional()
     .default([]),
+  scriptScopes: z.array(z.object({
+    entryId: z.string(),
+    entryRevision: z.string(),
+    isScript: z.boolean(),
+  }).strict()).optional().default([]),
+  scriptPackageRevision: z.string().nullable().optional(),
   reason: z.string().nullable().optional(),
   encryptedReason: encryptedReasonEnvelopeSchema.nullable().optional(),
   expiresAt: z.string().nullable().optional(),
@@ -192,14 +201,17 @@ export async function revokeGrant(
  *
  * - GRANULAR: `entryId` set + a single-element `grantEntries`.
  * - FULL: no per-Entry material; one current VK sealed to the Agent recipient.
+ * - ScriptExecution: one parent Script id and one complete opaque package.
  */
 export interface CreateGrantBody {
   grantId: string;
   agentId: string;
   type: GrantType;
   entryId?: string;
+  scriptEntryId?: string;
   grantEntries?: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>[];
   agentWrappedVaultKey?: AgentWrappedVaultKeyContract;
+  scriptPackage?: import('../../../shared/crypto/script-execution').ScriptExecutionEncryptedPackageV1;
   expiresAt?: string;
   queryLimit?: number;
   /** Combined-flags string of permitted methods, e.g. "Exec, Inject". */
