@@ -4,11 +4,7 @@ import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth'
 import { defaultAgentVisibilityPolicy } from '../../shared/crypto/entry-draft'
-import {
-  ActiveFullGrantMaterialRequiredError,
-  useCreateEntry,
-  VaultLockedError,
-} from './use-create-entry'
+import { useCreateEntry, VaultLockedError } from './use-create-entry'
 import { ENTRY_TYPE_KEY } from './types'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 import { entriesQueryKey } from './use-entries'
@@ -108,7 +104,7 @@ describe('useCreateEntry', () => {
       memberIndex: { opaque: 'member-index' },
       memberSecret: { opaque: 'member-secret' },
       agentDiscovery: { opaque: 'agent-discovery' },
-      grantEnvelopes: [],
+      deliveryPolicy: 'standard',
     }))
     expect(body).not.toHaveProperty('label')
     expect(body).not.toHaveProperty('content')
@@ -125,15 +121,15 @@ describe('useCreateEntry', () => {
     expect(mocks.createEntry).not.toHaveBeenCalled()
   })
 
-  it('does not create a partial Entry when an active FULL grant cannot be refreshed canonically', async () => {
+  it('does not enumerate or fan out active FULL grants for a new Entry', async () => {
     mocks.collectGrants.mockResolvedValue([{ grantId: 'grant-1', agentPublicKey: 'public-key' }])
     const { wrapper } = makeWrapper()
     const { result } = renderHook(() => useCreateEntry(), { wrapper })
     result.current.mutate(input)
-    await waitFor(() => expect(result.current.error).toBeInstanceOf(ActiveFullGrantMaterialRequiredError))
-    expect(mocks.openVaultKey).not.toHaveBeenCalled()
-    expect(mocks.createMaterial).not.toHaveBeenCalled()
-    expect(mocks.createEntry).not.toHaveBeenCalled()
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mocks.collectGrants).not.toHaveBeenCalled()
+    expect(mocks.createEntry).toHaveBeenCalledOnce()
+    expect(mocks.createEntry.mock.calls[0][1]).not.toHaveProperty('grantEnvelopes')
   })
 
   it('invalidates encrypted sync consumers after success', async () => {

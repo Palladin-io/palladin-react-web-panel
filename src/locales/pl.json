@@ -965,6 +965,8 @@
   "grants.create.error": "Nie udało się przyznać dostępu",
   "grants.create.subjectRequired": "Wybierz komu lub czemu przyznać",
   "grants.create.waitForVaultSync": "Poczekaj na zakończenie synchronizacji sejfu przed przyznaniem dostępu.",
+  "grants.create.fullTrustTitle": "Pełne zaufanie do sejfu",
+  "grants.create.fullTrustBody": "Ten grant daje kryptograficzny dostęp do wszystkich bieżących i przyszłych wpisów w sejfie. Odebranie grantu blokuje nowe operacje online, ale nie wymazuje klucza skopiowanego przez przejętego agenta; po podejrzeniu kompromitacji obróć Vault Key.",
   "grants.create.agentLabel": "Agent",
   "grants.create.agentPlaceholder": "Szukaj agentów…",
   "grants.create.noEligibleAgents": "Brak dostępnych agentów",

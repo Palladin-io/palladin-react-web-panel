@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
-import type { OrgGrant } from '../api/org-grants-api'
+import { WarningZone } from '../../../shared/components/warning-zone'
+import { GRANT_TYPE_FULL, type OrgGrant } from '../api/org-grants-api'
 import {
   DEFAULT_GRANT_POLICY_KIND,
   grantPolicyToBody,
@@ -77,6 +78,12 @@ export function GrantAgainDialog({
           {t('grants.regrant.subtitleAccessTo')}{' '}
           <span className="font-semibold text-[var(--cv-t1)]">{entryLabel}</span>.
         </p>
+
+        {grant.type === GRANT_TYPE_FULL && (
+          <WarningZone title={t('grants.create.fullTrustTitle')}>
+            {t('grants.create.fullTrustBody')}
+          </WarningZone>
+        )}
 
         <GrantPolicyFields
           idPrefix="regrant"

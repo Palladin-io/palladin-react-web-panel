@@ -95,6 +95,7 @@ vi.mock('../../shared/crypto/entry-protocol', () => ({
 }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: grantEnvelopeMock,
+  GRANT_DELIVERY_POLICY_NAME: { standard: 'standard' },
   listGrantableFields: vi.fn(() => [{ id: 'credential.username' }]),
 }))
 vi.mock('../../shared/crypto/vault-plaintext', async (importOriginal) => ({
@@ -369,7 +370,7 @@ describe('useImportEntries', () => {
     ])
   })
 
-  it('creates exact canonical envelopes for every active FULL grant', async () => {
+  it('does not enumerate or fan out active FULL grants during import', async () => {
     fullGrantsMock.mockResolvedValue([
       { grantId: 'g1', agentId: 'a1', agentPublicKey: 'pk1', recipientAgentKeyVersion: 1, methods: 'exec' },
       { grantId: 'g2', agentId: 'a2', agentPublicKey: 'pk2', recipientAgentKeyVersion: 1, methods: 'inject' },
@@ -385,11 +386,13 @@ describe('useImportEntries', () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(grantEnvelopeMock).toHaveBeenCalledTimes(4)
-    expect(importEntriesMock.mock.calls[0][1].entries[0].grantEnvelopes).toHaveLength(2)
+    expect(fullGrantsMock).not.toHaveBeenCalled()
+    expect(grantEnvelopeMock).not.toHaveBeenCalled()
+    expect(importEntriesMock.mock.calls[0][1].entries[0]).not.toHaveProperty('grantEnvelopes')
+    expect(importEntriesMock.mock.calls[0][1].entries[0].deliveryPolicy).toBe('standard')
   })
 
-  it('preserves an existing FULL grant with only the Inject method when importing a card', async () => {
+  it('defaults an imported card to standard policy without per-grant material', async () => {
     fullGrantsMock.mockResolvedValue([
       { grantId: 'g1', agentId: 'a1', agentPublicKey: 'pk1', recipientAgentKeyVersion: 1, methods: 'inject' },
     ])
@@ -401,23 +404,8 @@ describe('useImportEntries', () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(grantEnvelopeMock).toHaveBeenCalledWith(expect.objectContaining({ approvedMethods: 4 }))
-    expect(importEntriesMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('preserves a wider existing FULL grant when importing a card', async () => {
-    fullGrantsMock.mockResolvedValue([
-      { grantId: 'g1', agentId: 'a1', agentPublicKey: 'pk1', recipientAgentKeyVersion: 1, methods: 'exec, inject' },
-    ])
-    const { wrapper } = makeWrapper()
-    const { result } = renderHook(() => useImportEntries(), { wrapper })
-
-    result.current.mutate({
-      vaultId: 'vault-1', format: 'palladin-json', creates: [creditCard('Travel card')], overwrites: [],
-    })
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    expect(grantEnvelopeMock).toHaveBeenCalledWith(expect.objectContaining({ approvedMethods: 6 }))
+    expect(grantEnvelopeMock).not.toHaveBeenCalled()
+    expect(importEntriesMock.mock.calls[0][1].entries[0].deliveryPolicy).toBe('standard')
     expect(importEntriesMock).toHaveBeenCalledTimes(1)
   })
 

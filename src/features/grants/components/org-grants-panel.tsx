@@ -155,14 +155,13 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
   }
 
   function handleRegrant(grant: OrgGrant, policy: GrantPolicyBody) {
-    if (!grant.agentId || !grant.entryId || !grant.type) return
+    if (!grant.agentId || !grant.type
+      || (grant.type !== GRANT_TYPE_FULL && !grant.entryId)) return
     regrant.mutate(
       {
         vaultId: grant.vaultId,
         agentId: grant.agentId,
-        entryId: grant.entryId,
-        agentPublicKey: grant.agentPublicKey,
-        recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
+        ...(grant.entryId ? { entryId: grant.entryId } : {}),
         type: grant.type,
         policy,
         methods: grant.methods,

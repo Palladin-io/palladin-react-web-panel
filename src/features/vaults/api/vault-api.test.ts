@@ -96,6 +96,7 @@ describe('getCanonicalEntry', () => {
     const vaultId = '11112233-4455-4677-8899-aabbccddeeff'
     const id = '22222233-4455-4677-8899-aabbccddeeff'
     getJson.mockResolvedValueOnce({ organizationId, vaultId, id, state: 'active', currentRevision: '1',
+      deliveryPolicy: 'standard',
       memberIndexRevision: '1', agentDiscoveryRevision: null, agentDiscoveryRevisionHighWatermark: '0', currentKeyVersion: 1,
       createdAt: '2026-07-26T00:00:00Z', createdBy: organizationId,
       updatedAt: '2026-07-26T00:00:00Z', updatedBy: organizationId,

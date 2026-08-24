@@ -78,6 +78,7 @@ export const agentSchema = z.object({
   // backend ships it; the list endpoint keeps returning only prefix/suffix.
   publicKey: z.string().nullable().optional(),
   recipientKeyVersion: z.number().int().positive().max(0xffffffff),
+  accessEpoch: z.number().int().positive().max(0xffffffff),
   createdAt: z.string(),
   enrolledAt: z.string().nullable(),
   enrolledByName: z.string().nullable(),
