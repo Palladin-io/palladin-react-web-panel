@@ -9,63 +9,47 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VerifyEmailRouteImport } from './routes/verify-email'
-import { Route as RegisterRouteImport } from './routes/register'
-import { Route as RecoveryRouteImport } from './routes/recovery'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as DevToastsRouteImport } from './routes/dev-toasts'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
+import { Route as DevToastsRouteImport } from './routes/dev-toasts'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as RecoveryRouteImport } from './routes/recovery'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
-import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated/vaults'
-import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
-import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
-import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
-import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
-import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
-import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
-import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
-import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
-import { Route as AuthenticatedApiKeysRouteImport } from './routes/_authenticated/api-keys'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
-import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings.index'
-import { Route as AuthenticatedVaultsVaultIdRouteImport } from './routes/_authenticated/vaults_.$vaultId'
-import { Route as AuthenticatedSettingsTeamRouteImport } from './routes/_authenticated/settings.team'
-import { Route as AuthenticatedSettingsSecurityRouteImport } from './routes/_authenticated/settings.security'
-import { Route as AuthenticatedSettingsPermissionsRouteImport } from './routes/_authenticated/settings.permissions'
-import { Route as AuthenticatedSettingsGeneralRouteImport } from './routes/_authenticated/settings.general'
-import { Route as AuthenticatedSettingsDataExportRouteImport } from './routes/_authenticated/settings.data-export'
-import { Route as AuthenticatedSettingsBillingRouteImport } from './routes/_authenticated/settings.billing'
-import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_authenticated/settings.api-keys'
-import { Route as AuthenticatedInvitationsAcceptRouteImport } from './routes/_authenticated/invitations.accept'
-import { Route as AuthenticatedApiKeysKeyIdRouteImport } from './routes/_authenticated/api-keys_.$keyId'
+import { Route as AuthenticatedApiKeysRouteImport } from './routes/_authenticated/api-keys'
+import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
+import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
+import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
+import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
+import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
+import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
+import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated/vaults'
 import { Route as AuthenticatedAgentsAgentIdRouteImport } from './routes/_authenticated/agents_.$agentId'
-import { Route as AuthenticatedVaultsVaultIdSettingsRouteImport } from './routes/_authenticated/vaults_.$vaultId_.settings'
-import { Route as AuthenticatedVaultsVaultIdGrantsRouteImport } from './routes/_authenticated/vaults_.$vaultId_.grants'
-import { Route as AuthenticatedSettingsTeamMemberIdRouteImport } from './routes/_authenticated/settings.team_.$memberId'
-import { Route as AuthenticatedSettingsPermissionsRoleIdRouteImport } from './routes/_authenticated/settings.permissions_.$roleId'
+import { Route as AuthenticatedApiKeysKeyIdRouteImport } from './routes/_authenticated/api-keys_.$keyId'
+import { Route as AuthenticatedInvitationsAcceptRouteImport } from './routes/_authenticated/invitations.accept'
+import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings.index'
+import { Route as AuthenticatedSettingsApiKeysRouteImport } from './routes/_authenticated/settings.api-keys'
+import { Route as AuthenticatedSettingsBillingRouteImport } from './routes/_authenticated/settings.billing'
+import { Route as AuthenticatedSettingsDataExportRouteImport } from './routes/_authenticated/settings.data-export'
+import { Route as AuthenticatedSettingsGeneralRouteImport } from './routes/_authenticated/settings.general'
+import { Route as AuthenticatedSettingsPermissionsRouteImport } from './routes/_authenticated/settings.permissions'
+import { Route as AuthenticatedSettingsSecurityRouteImport } from './routes/_authenticated/settings.security'
+import { Route as AuthenticatedSettingsTeamRouteImport } from './routes/_authenticated/settings.team'
+import { Route as AuthenticatedVaultsVaultIdRouteImport } from './routes/_authenticated/vaults_.$vaultId'
 import { Route as AuthenticatedSettingsApiKeysKeyIdRouteImport } from './routes/_authenticated/settings.api-keys_.$keyId'
-import { Route as AuthenticatedVaultsVaultIdGrantsGrantIdRouteImport } from './routes/_authenticated/vaults_.$vaultId_.grants_.$grantId'
-import { Route as AuthenticatedVaultsVaultIdEntriesEntryIdRouteImport } from './routes/_authenticated/vaults_.$vaultId_.entries_.$entryId'
+import { Route as AuthenticatedSettingsPermissionsRoleIdRouteImport } from './routes/_authenticated/settings.permissions_.$roleId'
+import { Route as AuthenticatedSettingsTeamMemberIdRouteImport } from './routes/_authenticated/settings.team_.$memberId'
+import { Route as AuthenticatedVaultsVaultIdGrantsRouteImport } from './routes/_authenticated/vaults_.$vaultId_.grants'
+import { Route as AuthenticatedVaultsVaultIdSettingsRouteImport } from './routes/_authenticated/vaults_.$vaultId_.settings'
 import { Route as AuthenticatedSettingsTeamInvitationsInvitationIdRouteImport } from './routes/_authenticated/settings.team_.invitations_.$invitationId'
+import { Route as AuthenticatedVaultsVaultIdEntriesEntryIdRouteImport } from './routes/_authenticated/vaults_.$vaultId_.entries_.$entryId'
+import { Route as AuthenticatedVaultsVaultIdGrantsGrantIdRouteImport } from './routes/_authenticated/vaults_.$vaultId_.grants_.$grantId'
 
-const VerifyEmailRoute = VerifyEmailRouteImport.update({
-  id: '/verify-email',
-  path: '/verify-email',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecoveryRoute = RecoveryRouteImport.update({
-  id: '/recovery',
-  path: '/recovery',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const AuthenticatedRoute = AuthenticatedRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DevToastsRoute = DevToastsRouteImport.update({
@@ -73,8 +57,24 @@ const DevToastsRoute = DevToastsRouteImport.update({
   path: '/dev-toasts',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedRoute = AuthenticatedRouteImport.update({
-  id: '/_authenticated',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecoveryRoute = RecoveryRouteImport.update({
+  id: '/recovery',
+  path: '/recovery',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
@@ -82,49 +82,9 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedVaultsRoute = AuthenticatedVaultsRouteImport.update({
-  id: '/vaults',
-  path: '/vaults',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedUnlockRoute = AuthenticatedUnlockRouteImport.update({
-  id: '/unlock',
-  path: '/unlock',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
-  id: '/team',
-  path: '/team',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedSecurityRoute = AuthenticatedSecurityRouteImport.update({
-  id: '/security',
-  path: '/security',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
-  id: '/inbox',
-  path: '/inbox',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
-  id: '/billing',
-  path: '/billing',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
-  getParentRoute: () => AuthenticatedRoute,
-} as any)
-const AuthenticatedApprovalsRoute = AuthenticatedApprovalsRouteImport.update({
-  id: '/approvals',
-  path: '/approvals',
+const AuthenticatedAgentsRoute = AuthenticatedAgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedApiKeysRoute = AuthenticatedApiKeysRouteImport.update({
@@ -132,69 +92,55 @@ const AuthenticatedApiKeysRoute = AuthenticatedApiKeysRouteImport.update({
   path: '/api-keys',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedAgentsRoute = AuthenticatedAgentsRouteImport.update({
-  id: '/agents',
-  path: '/agents',
+const AuthenticatedApprovalsRoute = AuthenticatedApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedSettingsIndexRoute =
-  AuthenticatedSettingsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedVaultsVaultIdRoute =
-  AuthenticatedVaultsVaultIdRouteImport.update({
-    id: '/vaults_/$vaultId',
-    path: '/vaults/$vaultId',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedSettingsTeamRoute =
-  AuthenticatedSettingsTeamRouteImport.update({
-    id: '/team',
-    path: '/team',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedSettingsSecurityRoute =
-  AuthenticatedSettingsSecurityRouteImport.update({
-    id: '/security',
-    path: '/security',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedSettingsPermissionsRoute =
-  AuthenticatedSettingsPermissionsRouteImport.update({
-    id: '/permissions',
-    path: '/permissions',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedSettingsGeneralRoute =
-  AuthenticatedSettingsGeneralRouteImport.update({
-    id: '/general',
-    path: '/general',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedSettingsDataExportRoute =
-  AuthenticatedSettingsDataExportRouteImport.update({
-    id: '/data-export',
-    path: '/data-export',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedSettingsBillingRoute =
-  AuthenticatedSettingsBillingRouteImport.update({
-    id: '/billing',
-    path: '/billing',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedSettingsApiKeysRoute =
-  AuthenticatedSettingsApiKeysRouteImport.update({
-    id: '/api-keys',
-    path: '/api-keys',
-    getParentRoute: () => AuthenticatedSettingsRoute,
-  } as any)
-const AuthenticatedInvitationsAcceptRoute =
-  AuthenticatedInvitationsAcceptRouteImport.update({
-    id: '/invitations/accept',
-    path: '/invitations/accept',
+const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
+  id: '/billing',
+  path: '/billing',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSecurityRoute = AuthenticatedSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedUnlockRoute = AuthenticatedUnlockRouteImport.update({
+  id: '/unlock',
+  path: '/unlock',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedVaultsRoute = AuthenticatedVaultsRouteImport.update({
+  id: '/vaults',
+  path: '/vaults',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAgentsAgentIdRoute =
+  AuthenticatedAgentsAgentIdRouteImport.update({
+    id: '/agents_/$agentId',
+    path: '/agents/$agentId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedApiKeysKeyIdRoute =
@@ -203,28 +149,70 @@ const AuthenticatedApiKeysKeyIdRoute =
     path: '/api-keys/$keyId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedAgentsAgentIdRoute =
-  AuthenticatedAgentsAgentIdRouteImport.update({
-    id: '/agents_/$agentId',
-    path: '/agents/$agentId',
+const AuthenticatedInvitationsAcceptRoute =
+  AuthenticatedInvitationsAcceptRouteImport.update({
+    id: '/invitations/accept',
+    path: '/invitations/accept',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedVaultsVaultIdSettingsRoute =
-  AuthenticatedVaultsVaultIdSettingsRouteImport.update({
-    id: '/vaults_/$vaultId_/settings',
-    path: '/vaults/$vaultId/settings',
+const AuthenticatedSettingsIndexRoute =
+  AuthenticatedSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsApiKeysRoute =
+  AuthenticatedSettingsApiKeysRouteImport.update({
+    id: '/api-keys',
+    path: '/api-keys',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsBillingRoute =
+  AuthenticatedSettingsBillingRouteImport.update({
+    id: '/billing',
+    path: '/billing',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsDataExportRoute =
+  AuthenticatedSettingsDataExportRouteImport.update({
+    id: '/data-export',
+    path: '/data-export',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsGeneralRoute =
+  AuthenticatedSettingsGeneralRouteImport.update({
+    id: '/general',
+    path: '/general',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsPermissionsRoute =
+  AuthenticatedSettingsPermissionsRouteImport.update({
+    id: '/permissions',
+    path: '/permissions',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsSecurityRoute =
+  AuthenticatedSettingsSecurityRouteImport.update({
+    id: '/security',
+    path: '/security',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedSettingsTeamRoute =
+  AuthenticatedSettingsTeamRouteImport.update({
+    id: '/team',
+    path: '/team',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedVaultsVaultIdRoute =
+  AuthenticatedVaultsVaultIdRouteImport.update({
+    id: '/vaults_/$vaultId',
+    path: '/vaults/$vaultId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedVaultsVaultIdGrantsRoute =
-  AuthenticatedVaultsVaultIdGrantsRouteImport.update({
-    id: '/vaults_/$vaultId_/grants',
-    path: '/vaults/$vaultId/grants',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
-const AuthenticatedSettingsTeamMemberIdRoute =
-  AuthenticatedSettingsTeamMemberIdRouteImport.update({
-    id: '/team_/$memberId',
-    path: '/team/$memberId',
+const AuthenticatedSettingsApiKeysKeyIdRoute =
+  AuthenticatedSettingsApiKeysKeyIdRouteImport.update({
+    id: '/api-keys_/$keyId',
+    path: '/api-keys/$keyId',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
 const AuthenticatedSettingsPermissionsRoleIdRoute =
@@ -233,22 +221,22 @@ const AuthenticatedSettingsPermissionsRoleIdRoute =
     path: '/permissions/$roleId',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
-const AuthenticatedSettingsApiKeysKeyIdRoute =
-  AuthenticatedSettingsApiKeysKeyIdRouteImport.update({
-    id: '/api-keys_/$keyId',
-    path: '/api-keys/$keyId',
+const AuthenticatedSettingsTeamMemberIdRoute =
+  AuthenticatedSettingsTeamMemberIdRouteImport.update({
+    id: '/team_/$memberId',
+    path: '/team/$memberId',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
-const AuthenticatedVaultsVaultIdGrantsGrantIdRoute =
-  AuthenticatedVaultsVaultIdGrantsGrantIdRouteImport.update({
-    id: '/vaults_/$vaultId_/grants_/$grantId',
-    path: '/vaults/$vaultId/grants/$grantId',
+const AuthenticatedVaultsVaultIdGrantsRoute =
+  AuthenticatedVaultsVaultIdGrantsRouteImport.update({
+    id: '/vaults_/$vaultId_/grants',
+    path: '/vaults/$vaultId/grants',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedVaultsVaultIdEntriesEntryIdRoute =
-  AuthenticatedVaultsVaultIdEntriesEntryIdRouteImport.update({
-    id: '/vaults_/$vaultId_/entries_/$entryId',
-    path: '/vaults/$vaultId/entries/$entryId',
+const AuthenticatedVaultsVaultIdSettingsRoute =
+  AuthenticatedVaultsVaultIdSettingsRouteImport.update({
+    id: '/vaults_/$vaultId_/settings',
+    path: '/vaults/$vaultId/settings',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedSettingsTeamInvitationsInvitationIdRoute =
@@ -256,6 +244,18 @@ const AuthenticatedSettingsTeamInvitationsInvitationIdRoute =
     id: '/team_/invitations_/$invitationId',
     path: '/team/invitations/$invitationId',
     getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
+const AuthenticatedVaultsVaultIdEntriesEntryIdRoute =
+  AuthenticatedVaultsVaultIdEntriesEntryIdRouteImport.update({
+    id: '/vaults_/$vaultId_/entries_/$entryId',
+    path: '/vaults/$vaultId/entries/$entryId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedVaultsVaultIdGrantsGrantIdRoute =
+  AuthenticatedVaultsVaultIdGrantsGrantIdRouteImport.update({
+    id: '/vaults_/$vaultId_/grants_/$grantId',
+    path: '/vaults/$vaultId/grants/$grantId',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -507,32 +507,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/verify-email': {
-      id: '/verify-email'
-      path: '/verify-email'
-      fullPath: '/verify-email'
-      preLoaderRoute: typeof VerifyEmailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/recovery': {
-      id: '/recovery'
-      path: '/recovery'
-      fullPath: '/recovery'
-      preLoaderRoute: typeof RecoveryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dev-toasts': {
@@ -542,11 +521,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevToastsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated': {
-      id: '/_authenticated'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recovery': {
+      id: '/recovery'
+      path: '/recovery'
+      fullPath: '/recovery'
+      preLoaderRoute: typeof RecoveryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/': {
@@ -556,67 +556,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/vaults': {
-      id: '/_authenticated/vaults'
-      path: '/vaults'
-      fullPath: '/vaults'
-      preLoaderRoute: typeof AuthenticatedVaultsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/unlock': {
-      id: '/_authenticated/unlock'
-      path: '/unlock'
-      fullPath: '/unlock'
-      preLoaderRoute: typeof AuthenticatedUnlockRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/team': {
-      id: '/_authenticated/team'
-      path: '/team'
-      fullPath: '/team'
-      preLoaderRoute: typeof AuthenticatedTeamRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/settings': {
-      id: '/_authenticated/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/security': {
-      id: '/_authenticated/security'
-      path: '/security'
-      fullPath: '/security'
-      preLoaderRoute: typeof AuthenticatedSecurityRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/inbox': {
-      id: '/_authenticated/inbox'
-      path: '/inbox'
-      fullPath: '/inbox'
-      preLoaderRoute: typeof AuthenticatedInboxRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/billing': {
-      id: '/_authenticated/billing'
-      path: '/billing'
-      fullPath: '/billing'
-      preLoaderRoute: typeof AuthenticatedBillingRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/audit': {
-      id: '/_authenticated/audit'
-      path: '/audit'
-      fullPath: '/audit'
-      preLoaderRoute: typeof AuthenticatedAuditRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
-    '/_authenticated/approvals': {
-      id: '/_authenticated/approvals'
-      path: '/approvals'
-      fullPath: '/approvals'
-      preLoaderRoute: typeof AuthenticatedApprovalsRouteImport
+    '/_authenticated/agents': {
+      id: '/_authenticated/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof AuthenticatedAgentsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/api-keys': {
@@ -626,88 +570,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedApiKeysRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/agents': {
-      id: '/_authenticated/agents'
-      path: '/agents'
-      fullPath: '/agents'
-      preLoaderRoute: typeof AuthenticatedAgentsRouteImport
+    '/_authenticated/approvals': {
+      id: '/_authenticated/approvals'
+      path: '/approvals'
+      fullPath: '/approvals'
+      preLoaderRoute: typeof AuthenticatedApprovalsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/settings/': {
-      id: '/_authenticated/settings/'
-      path: '/'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/vaults_/$vaultId': {
-      id: '/_authenticated/vaults_/$vaultId'
-      path: '/vaults/$vaultId'
-      fullPath: '/vaults/$vaultId'
-      preLoaderRoute: typeof AuthenticatedVaultsVaultIdRouteImport
+    '/_authenticated/audit': {
+      id: '/_authenticated/audit'
+      path: '/audit'
+      fullPath: '/audit'
+      preLoaderRoute: typeof AuthenticatedAuditRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/settings/team': {
-      id: '/_authenticated/settings/team'
-      path: '/team'
-      fullPath: '/settings/team'
-      preLoaderRoute: typeof AuthenticatedSettingsTeamRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/settings/security': {
-      id: '/_authenticated/settings/security'
-      path: '/security'
-      fullPath: '/settings/security'
-      preLoaderRoute: typeof AuthenticatedSettingsSecurityRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/settings/permissions': {
-      id: '/_authenticated/settings/permissions'
-      path: '/permissions'
-      fullPath: '/settings/permissions'
-      preLoaderRoute: typeof AuthenticatedSettingsPermissionsRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/settings/general': {
-      id: '/_authenticated/settings/general'
-      path: '/general'
-      fullPath: '/settings/general'
-      preLoaderRoute: typeof AuthenticatedSettingsGeneralRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/settings/data-export': {
-      id: '/_authenticated/settings/data-export'
-      path: '/data-export'
-      fullPath: '/settings/data-export'
-      preLoaderRoute: typeof AuthenticatedSettingsDataExportRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/settings/billing': {
-      id: '/_authenticated/settings/billing'
+    '/_authenticated/billing': {
+      id: '/_authenticated/billing'
       path: '/billing'
-      fullPath: '/settings/billing'
-      preLoaderRoute: typeof AuthenticatedSettingsBillingRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/settings/api-keys': {
-      id: '/_authenticated/settings/api-keys'
-      path: '/api-keys'
-      fullPath: '/settings/api-keys'
-      preLoaderRoute: typeof AuthenticatedSettingsApiKeysRouteImport
-      parentRoute: typeof AuthenticatedSettingsRoute
-    }
-    '/_authenticated/invitations/accept': {
-      id: '/_authenticated/invitations/accept'
-      path: '/invitations/accept'
-      fullPath: '/invitations/accept'
-      preLoaderRoute: typeof AuthenticatedInvitationsAcceptRouteImport
+      fullPath: '/billing'
+      preLoaderRoute: typeof AuthenticatedBillingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/api-keys_/$keyId': {
-      id: '/_authenticated/api-keys_/$keyId'
-      path: '/api-keys/$keyId'
-      fullPath: '/api-keys/$keyId'
-      preLoaderRoute: typeof AuthenticatedApiKeysKeyIdRouteImport
+    '/_authenticated/inbox': {
+      id: '/_authenticated/inbox'
+      path: '/inbox'
+      fullPath: '/inbox'
+      preLoaderRoute: typeof AuthenticatedInboxRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/security': {
+      id: '/_authenticated/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof AuthenticatedSecurityRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/team': {
+      id: '/_authenticated/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof AuthenticatedTeamRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/unlock': {
+      id: '/_authenticated/unlock'
+      path: '/unlock'
+      fullPath: '/unlock'
+      preLoaderRoute: typeof AuthenticatedUnlockRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/vaults': {
+      id: '/_authenticated/vaults'
+      path: '/vaults'
+      fullPath: '/vaults'
+      preLoaderRoute: typeof AuthenticatedVaultsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/agents_/$agentId': {
@@ -717,25 +640,88 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgentsAgentIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/vaults_/$vaultId_/settings': {
-      id: '/_authenticated/vaults_/$vaultId_/settings'
-      path: '/vaults/$vaultId/settings'
-      fullPath: '/vaults/$vaultId/settings'
-      preLoaderRoute: typeof AuthenticatedVaultsVaultIdSettingsRouteImport
+    '/_authenticated/api-keys_/$keyId': {
+      id: '/_authenticated/api-keys_/$keyId'
+      path: '/api-keys/$keyId'
+      fullPath: '/api-keys/$keyId'
+      preLoaderRoute: typeof AuthenticatedApiKeysKeyIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/vaults_/$vaultId_/grants': {
-      id: '/_authenticated/vaults_/$vaultId_/grants'
-      path: '/vaults/$vaultId/grants'
-      fullPath: '/vaults/$vaultId/grants'
-      preLoaderRoute: typeof AuthenticatedVaultsVaultIdGrantsRouteImport
+    '/_authenticated/invitations/accept': {
+      id: '/_authenticated/invitations/accept'
+      path: '/invitations/accept'
+      fullPath: '/invitations/accept'
+      preLoaderRoute: typeof AuthenticatedInvitationsAcceptRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/settings/team_/$memberId': {
-      id: '/_authenticated/settings/team_/$memberId'
-      path: '/team/$memberId'
-      fullPath: '/settings/team/$memberId'
-      preLoaderRoute: typeof AuthenticatedSettingsTeamMemberIdRouteImport
+    '/_authenticated/settings/': {
+      id: '/_authenticated/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AuthenticatedSettingsIndexRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/api-keys': {
+      id: '/_authenticated/settings/api-keys'
+      path: '/api-keys'
+      fullPath: '/settings/api-keys'
+      preLoaderRoute: typeof AuthenticatedSettingsApiKeysRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/billing': {
+      id: '/_authenticated/settings/billing'
+      path: '/billing'
+      fullPath: '/settings/billing'
+      preLoaderRoute: typeof AuthenticatedSettingsBillingRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/data-export': {
+      id: '/_authenticated/settings/data-export'
+      path: '/data-export'
+      fullPath: '/settings/data-export'
+      preLoaderRoute: typeof AuthenticatedSettingsDataExportRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/general': {
+      id: '/_authenticated/settings/general'
+      path: '/general'
+      fullPath: '/settings/general'
+      preLoaderRoute: typeof AuthenticatedSettingsGeneralRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/permissions': {
+      id: '/_authenticated/settings/permissions'
+      path: '/permissions'
+      fullPath: '/settings/permissions'
+      preLoaderRoute: typeof AuthenticatedSettingsPermissionsRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/security': {
+      id: '/_authenticated/settings/security'
+      path: '/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof AuthenticatedSettingsSecurityRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/settings/team': {
+      id: '/_authenticated/settings/team'
+      path: '/team'
+      fullPath: '/settings/team'
+      preLoaderRoute: typeof AuthenticatedSettingsTeamRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/vaults_/$vaultId': {
+      id: '/_authenticated/vaults_/$vaultId'
+      path: '/vaults/$vaultId'
+      fullPath: '/vaults/$vaultId'
+      preLoaderRoute: typeof AuthenticatedVaultsVaultIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/settings/api-keys_/$keyId': {
+      id: '/_authenticated/settings/api-keys_/$keyId'
+      path: '/api-keys/$keyId'
+      fullPath: '/settings/api-keys/$keyId'
+      preLoaderRoute: typeof AuthenticatedSettingsApiKeysKeyIdRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
     '/_authenticated/settings/permissions_/$roleId': {
@@ -745,25 +731,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsPermissionsRoleIdRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    '/_authenticated/settings/api-keys_/$keyId': {
-      id: '/_authenticated/settings/api-keys_/$keyId'
-      path: '/api-keys/$keyId'
-      fullPath: '/settings/api-keys/$keyId'
-      preLoaderRoute: typeof AuthenticatedSettingsApiKeysKeyIdRouteImport
+    '/_authenticated/settings/team_/$memberId': {
+      id: '/_authenticated/settings/team_/$memberId'
+      path: '/team/$memberId'
+      fullPath: '/settings/team/$memberId'
+      preLoaderRoute: typeof AuthenticatedSettingsTeamMemberIdRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
-    '/_authenticated/vaults_/$vaultId_/grants_/$grantId': {
-      id: '/_authenticated/vaults_/$vaultId_/grants_/$grantId'
-      path: '/vaults/$vaultId/grants/$grantId'
-      fullPath: '/vaults/$vaultId/grants/$grantId'
-      preLoaderRoute: typeof AuthenticatedVaultsVaultIdGrantsGrantIdRouteImport
+    '/_authenticated/vaults_/$vaultId_/grants': {
+      id: '/_authenticated/vaults_/$vaultId_/grants'
+      path: '/vaults/$vaultId/grants'
+      fullPath: '/vaults/$vaultId/grants'
+      preLoaderRoute: typeof AuthenticatedVaultsVaultIdGrantsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/vaults_/$vaultId_/entries_/$entryId': {
-      id: '/_authenticated/vaults_/$vaultId_/entries_/$entryId'
-      path: '/vaults/$vaultId/entries/$entryId'
-      fullPath: '/vaults/$vaultId/entries/$entryId'
-      preLoaderRoute: typeof AuthenticatedVaultsVaultIdEntriesEntryIdRouteImport
+    '/_authenticated/vaults_/$vaultId_/settings': {
+      id: '/_authenticated/vaults_/$vaultId_/settings'
+      path: '/vaults/$vaultId/settings'
+      fullPath: '/vaults/$vaultId/settings'
+      preLoaderRoute: typeof AuthenticatedVaultsVaultIdSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/settings/team_/invitations_/$invitationId': {
@@ -772,6 +758,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/team/invitations/$invitationId'
       preLoaderRoute: typeof AuthenticatedSettingsTeamInvitationsInvitationIdRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
+    }
+    '/_authenticated/vaults_/$vaultId_/entries_/$entryId': {
+      id: '/_authenticated/vaults_/$vaultId_/entries_/$entryId'
+      path: '/vaults/$vaultId/entries/$entryId'
+      fullPath: '/vaults/$vaultId/entries/$entryId'
+      preLoaderRoute: typeof AuthenticatedVaultsVaultIdEntriesEntryIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/vaults_/$vaultId_/grants_/$grantId': {
+      id: '/_authenticated/vaults_/$vaultId_/grants_/$grantId'
+      path: '/vaults/$vaultId/grants/$grantId'
+      fullPath: '/vaults/$vaultId/grants/$grantId'
+      preLoaderRoute: typeof AuthenticatedVaultsVaultIdGrantsGrantIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
   }
 }

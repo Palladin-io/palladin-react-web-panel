@@ -28,6 +28,7 @@ vi.mock('../../shared/crypto/entry-draft', () => ({ toMemberSecret: mocks.toSecr
 vi.mock('../../shared/crypto/vault-plaintext', () => ({ projectAgentDiscovery: vi.fn(() => null) }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: mocks.produce,
+  GRANT_DELIVERY_POLICY_NAME: { standard: 'standard' },
   listGrantableFields: vi.fn(() => [
     { id: 'value', label: 'value', access: 'onGrantValue' },
     { id: 'custom:new', label: 'New field', access: 'onGrantValue' },
@@ -63,7 +64,7 @@ describe('useUpdateCanonicalEntry', () => {
 
   it('atomically refreshes each active covering grant against the new Entry revision', async () => {
     mocks.getGrants.mockResolvedValue({ items: [{
-      id: 'grant', type: 'full', agentId: 'agent', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
+      id: 'grant', type: 'granular', entryId: 'entry', agentId: 'agent', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
       methods: 'exec, inject', expiresAt: null, queryLimit: 8, queryCount: 3,
       entryScopes: [{ entryId: 'entry', fieldIds: ['value'], grantEnvelopeRevision: '9',
         entryRevision: '1', grantKeyVersion: 5 }],
@@ -81,7 +82,7 @@ describe('useUpdateCanonicalEntry', () => {
 
   it('preserves an existing grant mask when an Entry changes to Script', async () => {
     mocks.getGrants.mockResolvedValue({ items: [{
-      id: 'grant', type: 'full', agentId: 'agent', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
+      id: 'grant', type: 'granular', entryId: 'entry', agentId: 'agent', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
       methods: 'exec, inject', expiresAt: null, queryLimit: null,
       entryScopes: [{ entryId: 'entry', fieldIds: ['value'], grantEnvelopeRevision: '9',
         entryRevision: '1', grantKeyVersion: 5 }],

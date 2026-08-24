@@ -5,6 +5,7 @@ import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { FeedbackSlot } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
+import { WarningZone } from '../../../shared/components/warning-zone'
 import { AGENT_STATUS_ACTIVE, getAgent, useAgents } from '../../agents'
 import { useVaults } from '../../vaults/use-vaults'
 import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
@@ -63,13 +64,11 @@ function targetReadiness(
   entryId?: string,
   vaults = useMemberSyncStore.getState().vaults,
 ): Pick<ResolvedSubject, 'constraintsUnavailable'> {
+  if (!entryId) return {}
   const vault = vaults.get(vaultId)
   if (!vault || vault.status !== 'ready') return { constraintsUnavailable: true }
-  const entries = entryId
-    ? [vault.entries.get(entryId)]
-    : [...vault.entries.values()].filter((entry) => entry.state === 'active')
-  if ((entryId && entries.length === 0)
-    || entries.some((entry) => !entry || entry.corrupt || !entry.payload)) {
+  const entry = vault.entries.get(entryId)
+  if (!entry || entry.corrupt || !entry.payload) {
     return { constraintsUnavailable: true }
   }
   return {}
@@ -81,8 +80,8 @@ function targetReadiness(
  * every mode; the swappable "subject" segment picks the agent / vault / entry
  * with backend-driven eligibility (agents/vaults/entries already covered by an
  * active grant are excluded). On confirm it delegates envelope production to
- * `useCreateGrant`; staged FULL grants resolve authoritative recipient key
- * material from their backend preparation.
+ * `useCreateGrant`; FULL grants resolve authoritative recipient key material
+ * immediately before sealing the current Vault key.
  */
 export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
   const { t } = useTranslation()
@@ -131,15 +130,15 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
 
     let agentPublicKey: string | null | undefined
     let recipientAgentKeyVersion: number | null | undefined
-    if (currentSubject.type !== GRANT_TYPE_FULL) {
-      try {
-        const agent = await getAgent(currentSubject.agentId)
-        agentPublicKey = agent.publicKey
-        recipientAgentKeyVersion = agent.recipientKeyVersion
-      } catch {
-        toast.error(t('grants.create.error'))
-        return
-      }
+    let agentAccessEpoch: number | null | undefined
+    try {
+      const agent = await getAgent(currentSubject.agentId)
+      agentPublicKey = agent.publicKey
+      recipientAgentKeyVersion = agent.recipientKeyVersion
+      agentAccessEpoch = agent.accessEpoch
+    } catch {
+      toast.error(t('grants.create.error'))
+      return
     }
 
     createGrant.mutate(
@@ -148,6 +147,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         agentId: currentSubject.agentId,
         agentPublicKey,
         recipientAgentKeyVersion,
+        agentAccessEpoch,
         type: currentSubject.type,
         entryId: currentSubject.entryId,
         policy: grantPolicyToBody(policyInput),
@@ -202,6 +202,12 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             {t('grants.create.waitForVaultSync')}
           </FeedbackSlot>
         </div>
+
+        {currentSubject?.type === GRANT_TYPE_FULL && (
+          <WarningZone title={t('grants.create.fullTrustTitle')}>
+            {t('grants.create.fullTrustBody')}
+          </WarningZone>
+        )}
 
         {/* Shared policy segment */}
         <GrantPolicyFields

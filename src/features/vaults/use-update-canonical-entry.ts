@@ -1,14 +1,13 @@
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { toMemberSecret, type EntryDraft, type MemberSecretView } from '../../shared/crypto/entry-draft'
-import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
+import { buildCanonicalGrantEnvelope, GRANT_DELIVERY_POLICY_NAME, listGrantableFields } from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { projectAgentDiscovery, type MemberSecretV1 } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
 import {
   GRANT_STATUS_ACTIVE,
-  GRANT_TYPE_FULL,
   getOrgGrants,
   type OrgGrant,
 } from '../grants'
@@ -40,7 +39,7 @@ async function activeCoveringGrants(vaultId: string, entryId: string): Promise<O
   let cursor: string | undefined
   do {
     const page = await getOrgGrants({ vaultId, status: GRANT_STATUS_ACTIVE, cursor, pageSize: 100 })
-    result.push(...page.items.filter((grant) => grant.type === GRANT_TYPE_FULL || grant.entryId === entryId))
+    result.push(...page.items.filter((grant) => grant.entryId === entryId))
     cursor = page.nextCursor ?? undefined
   } while (cursor)
   return result
@@ -119,6 +118,7 @@ export async function updateCanonicalEntryNow(
       memberIndex: envelopes.memberIndex,
       agentDiscoveryChanged,
       ...(agentDiscoveryChanged && envelopes.agentDiscovery ? { agentDiscovery: envelopes.agentDiscovery } : {}),
+      deliveryPolicy: GRANT_DELIVERY_POLICY_NAME.standard,
       grantEnvelopes: [] as Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>[],
     }
     if (grants.length > 0) {

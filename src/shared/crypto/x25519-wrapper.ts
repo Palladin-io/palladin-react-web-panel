@@ -1,5 +1,5 @@
 import { loadSodium, wipe } from './sodium'
-import { fromBase64Url } from './encoding'
+import { fromBase64, fromBase64Url, toBase64Url } from './encoding'
 
 export const X25519_SEALED_BOX_V1 = 'palladin-x25519-sealed-box-v1'
 
@@ -8,6 +8,7 @@ export const WRAPPER_PURPOSE = {
   agentVaultDiscoveryKey: 2,
   reasonDek: 3,
   grantDek: 4,
+  agentVaultKey: 5,
 } as const
 
 export type WrapperPurpose = (typeof WRAPPER_PURPOSE)[keyof typeof WRAPPER_PURPOSE]
@@ -42,6 +43,13 @@ export interface X25519WrapperContext {
 }
 
 export interface MemberVaultKeyEnvelopeContract {
+  wrappedVaultKey: {
+    descriptor: X25519WrapperDescriptorContract
+    encodedSealedKeyPackage: string
+  }
+}
+
+export interface AgentWrappedVaultKeyContract {
   wrappedVaultKey: {
     descriptor: X25519WrapperDescriptorContract
     encodedSealedKeyPackage: string
@@ -158,22 +166,88 @@ function validateContext(context: X25519WrapperContext): void {
   const vault = SCOPE.organization | SCOPE.vault
   const parentBound = vault | SCOPE.entry | SCOPE.grantOrRequest | SCOPE.agent
   const expected = context.purpose === WRAPPER_PURPOSE.memberVaultKey
-    ? { scope: vault | SCOPE.member, kind: VAULT_KEY_KIND.memberX25519, parent: false }
+    ? { scope: vault | SCOPE.member, kind: VAULT_KEY_KIND.memberX25519, parent: false, generation: true }
     : context.purpose === WRAPPER_PURPOSE.agentVaultDiscoveryKey
-      ? { scope: vault | SCOPE.agent, kind: VAULT_KEY_KIND.agentX25519, parent: false }
+      ? { scope: vault | SCOPE.agent, kind: VAULT_KEY_KIND.agentX25519, parent: false, generation: false }
       : context.purpose === WRAPPER_PURPOSE.reasonDek
-        ? { scope: parentBound, kind: VAULT_KEY_KIND.vaultMessageX25519, parent: true }
+        ? { scope: parentBound, kind: VAULT_KEY_KIND.vaultMessageX25519, parent: true, generation: true }
         : context.purpose === WRAPPER_PURPOSE.grantDek
-          ? { scope: parentBound, kind: VAULT_KEY_KIND.agentX25519, parent: true }
-          : undefined
+          ? { scope: parentBound, kind: VAULT_KEY_KIND.agentX25519, parent: true, generation: true }
+          : context.purpose === WRAPPER_PURPOSE.agentVaultKey
+            ? { scope: vault | SCOPE.grantOrRequest | SCOPE.agent, kind: VAULT_KEY_KIND.agentX25519, parent: false, generation: false }
+            : undefined
   if (!expected || presentScopeBitmap(context) !== expected.scope
     || context.recipientKeyKind !== expected.kind
-    || (context.parentDescriptorHash !== undefined) !== expected.parent) {
+    || (context.parentDescriptorHash !== undefined) !== expected.parent
+    || (context.memberKeyGeneration !== undefined) !== expected.generation) {
     throw new TypeError('Wrapper context does not match its registered purpose')
   }
   if (context.resourceRevision === 0 || context.resourceRevision === 0n || context.wrappedKeyVersion === 0
     || context.memberKeyGeneration === 0 || context.recipientKeyVersion === 0) {
     throw new RangeError('Wrapper context versions must be positive')
+  }
+}
+
+export async function buildAgentWrappedVaultKey(input: {
+  vaultKey: Uint8Array
+  organizationId: string
+  vaultId: string
+  grantId: string
+  agentId: string
+  agentAccessEpoch: number
+  vaultKeyVersion: number
+  recipientAgentKeyVersion: number
+  agentPublicKey: string
+}): Promise<AgentWrappedVaultKeyContract> {
+  const recipientPublicKey = fromBase64(input.agentPublicKey)
+  let fingerprint: Uint8Array | undefined
+  let sealedPackage: Uint8Array | undefined
+  try {
+    fingerprint = await computeVaultKeyFingerprint(recipientPublicKey, VAULT_KEY_KIND.agentX25519)
+    const context: X25519WrapperContext = {
+      protocolVersion: 2,
+      wrapperSuiteId: X25519_SEALED_BOX_V1,
+      purpose: WRAPPER_PURPOSE.agentVaultKey,
+      organizationId: input.organizationId,
+      vaultId: input.vaultId,
+      grantOrRequestId: input.grantId,
+      agentId: input.agentId,
+      resourceRevision: input.agentAccessEpoch,
+      wrappedKeyVersion: input.vaultKeyVersion,
+      recipientKeyKind: VAULT_KEY_KIND.agentX25519,
+      recipientKeyVersion: input.recipientAgentKeyVersion,
+      recipientFingerprint: fingerprint,
+    }
+    sealedPackage = await sealKeyToX25519Recipient(input.vaultKey, recipientPublicKey, context)
+    return {
+      wrappedVaultKey: {
+        descriptor: {
+          protocolVersion: 2,
+          wrapperSuiteId: X25519_SEALED_BOX_V1,
+          purpose: WRAPPER_PURPOSE.agentVaultKey,
+          scope: {
+            organizationId: input.organizationId,
+            vaultId: input.vaultId,
+            entryId: null,
+            grantOrRequestId: input.grantId,
+            agentId: input.agentId,
+            memberId: null,
+          },
+          resourceRevision: String(input.agentAccessEpoch),
+          wrappedKeyVersion: input.vaultKeyVersion,
+          memberKeyGeneration: null,
+          recipientKeyKind: VAULT_KEY_KIND.agentX25519,
+          recipientKeyVersion: input.recipientAgentKeyVersion,
+          recipientFingerprint: toBase64Url(fingerprint),
+          parentDescriptorHash: null,
+        },
+        encodedSealedKeyPackage: toBase64Url(sealedPackage),
+      },
+    }
+  } finally {
+    wipe(recipientPublicKey)
+    if (fingerprint) wipe(fingerprint)
+    if (sealedPackage) wipe(sealedPackage)
   }
 }
 
