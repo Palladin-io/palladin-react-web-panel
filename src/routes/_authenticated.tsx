@@ -10,7 +10,12 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
-import { logoutAndReload, useAuthStore, useSessionTimeout } from '../features/auth'
+import {
+  logoutAndReload,
+  useAuthStore,
+  useSessionTimeout,
+  WaitlistDeveloperBenefitBanner,
+} from '../features/auth'
 import { useAgents, AGENT_STATUS_PENDING } from '../features/agents'
 import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
@@ -186,6 +191,7 @@ function AuthenticatedLayout() {
             >
               <AppSidebar currentPath={pathname} />
               <main className="subtle-scrollbar h-full min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+                <WaitlistDeveloperBenefitBanner />
                 <Outlet />
               </main>
             </div>

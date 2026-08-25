@@ -17,6 +17,9 @@ interface AuthState {
    * server-authoritative account query resolves.
    */
   emailVerified: boolean
+  /** Active waitlist Developer benefit window. Never persisted. */
+  waitlistDeveloperBenefitStartedAt: string | null
+  waitlistDeveloperBenefitEndsAt: string | null
   permissions: number
 
   /**
@@ -38,6 +41,8 @@ interface AuthState {
     userId: string
     isOnboarded: boolean
     emailVerified?: boolean
+    waitlistDeveloperBenefitStartedAt?: string | null
+    waitlistDeveloperBenefitEndsAt?: string | null
     permissions?: number
   }) => void
   markOnboarded: () => void
@@ -59,6 +64,8 @@ const initialState = {
   userId: null,
   isOnboarded: false,
   emailVerified: false,
+  waitlistDeveloperBenefitStartedAt: null,
+  waitlistDeveloperBenefitEndsAt: null,
   permissions: 0,
   isVaultLocked: true,
   masterKey: null,
@@ -91,6 +98,20 @@ export const useAuthStore = create<AuthState>()(
             claimVerified === true ||
             data.emailVerified === true
 
+          const sameUser = state.userId === data.userId
+          const responseOmittedBenefit =
+            data.waitlistDeveloperBenefitStartedAt === undefined &&
+            data.waitlistDeveloperBenefitEndsAt === undefined
+          const benefit = responseOmittedBenefit && sameUser
+            ? {
+                startedAt: state.waitlistDeveloperBenefitStartedAt,
+                endsAt: state.waitlistDeveloperBenefitEndsAt,
+              }
+            : activeBenefitPeriod(
+                data.waitlistDeveloperBenefitStartedAt,
+                data.waitlistDeveloperBenefitEndsAt,
+              )
+
           return {
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
@@ -101,6 +122,8 @@ export const useAuthStore = create<AuthState>()(
             // wizard to appear for already-onboarded users.
             isOnboarded: state.isOnboarded || data.isOnboarded,
             emailVerified,
+            waitlistDeveloperBenefitStartedAt: benefit.startedAt,
+            waitlistDeveloperBenefitEndsAt: benefit.endsAt,
             permissions,
             // isVaultLocked is intentionally NOT set here — see lockVault().
           }
@@ -163,6 +186,26 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 )
+
+function activeBenefitPeriod(
+  startedAt: string | null | undefined,
+  endsAt: string | null | undefined,
+): { startedAt: string | null; endsAt: string | null } {
+  if (typeof startedAt !== 'string' || typeof endsAt !== 'string') {
+    return { startedAt: null, endsAt: null }
+  }
+
+  const startsAtMs = Date.parse(startedAt)
+  const endsAtMs = Date.parse(endsAt)
+  if (!Number.isFinite(startsAtMs)
+    || !Number.isFinite(endsAtMs)
+    || startsAtMs >= endsAtMs
+    || endsAtMs <= Date.now()) {
+    return { startedAt: null, endsAt: null }
+  }
+
+  return { startedAt, endsAt }
+}
 
 export function getIsAuthenticated() {
   // A persisted refresh token counts as authenticated — accessToken is null after a reload.

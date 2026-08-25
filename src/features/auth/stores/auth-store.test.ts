@@ -12,6 +12,8 @@ describe('auth-store', () => {
     expect(state.refreshToken).toBeNull()
     expect(state.userId).toBeNull()
     expect(state.isOnboarded).toBe(false)
+    expect(state.waitlistDeveloperBenefitStartedAt).toBeNull()
+    expect(state.waitlistDeveloperBenefitEndsAt).toBeNull()
     expect(state.permissions).toBe(0)
     expect(state.isVaultLocked).toBe(true)
     expect(state.masterKey).toBeNull()
@@ -260,5 +262,41 @@ describe('auth-store', () => {
     expect(useAuthStore.getState().emailVerified).toBe(false)
     useAuthStore.getState().markEmailVerified()
     expect(useAuthStore.getState().emailVerified).toBe(true)
+  })
+
+  it('keeps an active waitlist Developer period in memory only', () => {
+    localStorage.clear()
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-123',
+      refreshToken: 'refresh-456',
+      userId: 'user-789',
+      isOnboarded: true,
+      waitlistDeveloperBenefitStartedAt: '2026-08-25T12:00:00Z',
+      waitlistDeveloperBenefitEndsAt: '2099-09-25T12:00:00Z',
+    })
+
+    const state = useAuthStore.getState()
+    expect(state.waitlistDeveloperBenefitStartedAt).toBe('2026-08-25T12:00:00Z')
+    expect(state.waitlistDeveloperBenefitEndsAt).toBe('2099-09-25T12:00:00Z')
+
+    const persisted = JSON.parse(localStorage.getItem('palladin-auth')!) as {
+      state: Record<string, unknown>
+    }
+    expect(persisted.state).not.toHaveProperty('waitlistDeveloperBenefitStartedAt')
+    expect(persisted.state).not.toHaveProperty('waitlistDeveloperBenefitEndsAt')
+  })
+
+  it('drops an expired or incomplete waitlist Developer period', () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-123',
+      refreshToken: 'refresh-456',
+      userId: 'user-789',
+      isOnboarded: true,
+      waitlistDeveloperBenefitStartedAt: '2020-08-25T12:00:00Z',
+      waitlistDeveloperBenefitEndsAt: '2020-09-25T12:00:00Z',
+    })
+
+    expect(useAuthStore.getState().waitlistDeveloperBenefitStartedAt).toBeNull()
+    expect(useAuthStore.getState().waitlistDeveloperBenefitEndsAt).toBeNull()
   })
 })
