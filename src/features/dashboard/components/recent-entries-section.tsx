@@ -76,7 +76,7 @@ function RecentEntryRow({ entry }: { entry: EntrySearchItem }) {
       params={{ vaultId: entry.vaultId, entryId: entry.id }}
       className={`flex items-center gap-3 px-4 py-2.5 ${HOVERABLE_CARD_CLASSES}`}
     >
-      <EntryIcon icon={entry.icon} type={type} />
+      <EntryIcon icon={entry.icon} type={type} color={entry.color} />
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
           {entry.label}

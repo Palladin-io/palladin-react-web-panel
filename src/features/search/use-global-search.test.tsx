@@ -143,6 +143,12 @@ describe('local global-search providers', () => {
   it('keeps cross-Vault grant picking and dashboard recents on the same local index', () => {
     const search = renderHook(() => useLocalEntrySearch('github', 20, 'label')).result
     expect(search.current.map((item) => item.id)).toEqual(['entry-b', 'entry-a'])
+    expect(search.current.find((item) => item.id === 'entry-a')).toEqual(
+      expect.objectContaining({
+        icon: 'public-asset:11111111-1111-4111-8111-111111111111|2|https%3A%2F%2Fassets.palladin.io%2Fgithub.png',
+        color: '#60A5FA',
+      }),
+    )
     const recent = renderHook(() => useLocalEntrySearch('', 1, 'recent')).result
     expect(recent.current.map((item) => item.id)).toEqual(['entry-b'])
   })

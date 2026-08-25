@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
 }))
+const entryIconMock = vi.hoisted(() => vi.fn(() => null))
 
 vi.mock('../../grants', () => ({
   useRecentEntries: () => state.recent,
@@ -24,8 +25,8 @@ vi.mock('../../vaults', () => ({
   ENTRY_TYPE_CREDENTIAL: 1,
   normalizeEntryType: (raw: unknown) =>
     raw === 'key' || raw === 0 ? 0 : 1,
-  // Icon rendering is covered by entry-icon's own tests — stub here.
-  EntryIcon: () => null,
+  // Icon rendering is covered by entry-icon's own tests — capture its contract here.
+  EntryIcon: entryIconMock,
 }))
 
 vi.mock('@tanstack/react-router', () => ({
@@ -38,13 +39,15 @@ const entry = {
   vaultId: 'v1',
   vaultName: 'Work',
   type: 0,
-  icon: null,
+  icon: 'public-asset:11111111-1111-4111-8111-111111111111|2|https%3A%2F%2Fassets.palladin.io%2Fgithub.png',
+  color: '#60A5FA',
   updatedAt: '2026-06-29T10:00:00Z',
   createdAt: '2026-06-01T10:00:00Z',
 }
 
 describe('RecentEntriesSection', () => {
   beforeEach(() => {
+    entryIconMock.mockClear()
     state.recent = { data: [], isPending: false, isError: false, refetch: vi.fn() }
   })
 
@@ -59,6 +62,10 @@ describe('RecentEntriesSection', () => {
     expect(screen.getByText('Recently added / modified')).toBeInTheDocument()
     expect(screen.getByText('Production DB')).toBeInTheDocument()
     expect(screen.getByText(/Work · 2m ago/)).toBeInTheDocument()
+    expect(entryIconMock).toHaveBeenCalledWith(
+      expect.objectContaining({ icon: entry.icon, color: entry.color, type: 0 }),
+      undefined,
+    )
   })
 
   it('shows the empty state when there are no entries', () => {
