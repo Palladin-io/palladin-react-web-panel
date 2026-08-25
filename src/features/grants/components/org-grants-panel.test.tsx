@@ -1,10 +1,13 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSION_GRANT_MANAGE } from '../../../shared/lib/permissions'
 import { useOrgGrants } from '../use-org-grants'
 import { OrgGrantsPanel } from './org-grants-panel'
 
 const authState = vi.hoisted(() => ({ permissions: 0 }))
+const getAgent = vi.hoisted(() => vi.fn())
+const createGrantMutation = vi.hoisted(() => ({ mutate: vi.fn(), isPending: false }))
 
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
@@ -12,11 +15,12 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('../../auth', () => ({
   useAuthStore: (selector: (state: { permissions: number }) => unknown) => selector(authState),
 }))
+vi.mock('../../agents', () => ({ getAgent }))
 vi.mock('../use-org-grants', () => ({ useOrgGrants: vi.fn() }))
 vi.mock('../use-grant-reasons', () => ({
   useGrantReasons: () => new Map([['grant-1', 'Deploy the release']]),
 }))
-vi.mock('../use-create-grant', () => ({ useCreateGrant: () => ({ mutate: vi.fn(), isPending: false }) }))
+vi.mock('../use-create-grant', () => ({ useCreateGrant: () => createGrantMutation }))
 vi.mock('../use-revoke-org-grant', () => ({
   useRevokeOrgGrant: () => ({ mutate: vi.fn(), isPending: false }),
 }))
@@ -56,6 +60,8 @@ const expiredGrant = {
 describe('OrgGrantsPanel footer actions', () => {
   beforeEach(() => {
     authState.permissions = PERMISSION_GRANT_MANAGE
+    getAgent.mockReset()
+    createGrantMutation.mutate.mockReset()
     mockOrgGrants.mockReturnValue({
       data: { items: [expiredGrant], nextCursor: null },
       isPending: false,
@@ -71,6 +77,23 @@ describe('OrgGrantsPanel footer actions', () => {
     expect(screen.getByText('Deploy token')).toBeInTheDocument()
     expect(screen.getByText('Deploy the release')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Grant again' })).toBeInTheDocument()
+  })
+
+  it('uses the Agent current recipient key for a granular regrant', async () => {
+    getAgent.mockResolvedValue({ publicKey: 'current-public-key', recipientKeyVersion: 7 })
+    const user = userEvent.setup()
+    render(<OrgGrantsPanel vaultId="vault-1" />)
+
+    await user.click(screen.getByRole('button', { name: 'Grant again' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Grant again' }))
+      .getByRole('button', { name: 'Grant access' }))
+
+    await waitFor(() => expect(createGrantMutation.mutate).toHaveBeenCalledTimes(1))
+    expect(getAgent).toHaveBeenCalledWith('agent-1')
+    expect(createGrantMutation.mutate.mock.calls[0][0]).toEqual(expect.objectContaining({
+      agentPublicKey: 'current-public-key',
+      recipientAgentKeyVersion: 7,
+    }))
   })
 
   it('links from terminal history to the newer active grant', () => {

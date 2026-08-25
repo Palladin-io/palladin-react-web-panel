@@ -96,6 +96,18 @@ describe('pending-grants-api', () => {
     expect(items[0].entryId).toBe(samplePending.entryId)
   })
 
+  it('defaults covering grants when reading a pre-rollout pending response', async () => {
+    const preRolloutPending = Object.fromEntries(
+      Object.entries(samplePending).filter(([key]) => key !== 'activeCoveringGrantIds'),
+    )
+    getJson.mockResolvedValue({ items: [preRolloutPending], nextCursor: null })
+
+    const items = await getPendingGrants()
+
+    expect(items).toHaveLength(1)
+    expect(items[0].activeCoveringGrantIds).toEqual([])
+  })
+
   it('isolates an item with unknown sensitive fields at the parse boundary', async () => {
     getJson.mockResolvedValue({
       items: [

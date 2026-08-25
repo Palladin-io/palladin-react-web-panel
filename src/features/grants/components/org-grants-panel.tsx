@@ -10,6 +10,7 @@ import { Tooltip } from '../../../shared/components/tooltip'
 import { TypeFilterDropdown } from '../../../shared/components/type-filter-dropdown'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_GRANT_MANAGE } from '../../../shared/lib/permissions'
+import { getAgent } from '../../agents'
 import { AgentAvatar } from '../../agents/components/agent-avatar'
 import {
   GRANT_STATUS_PENDING,
@@ -154,15 +155,29 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
     )
   }
 
-  function handleRegrant(grant: OrgGrant, policy: GrantPolicyBody) {
+  async function handleRegrant(grant: OrgGrant, policy: GrantPolicyBody) {
     if (!grant.agentId || !grant.type || (grant.type !== GRANT_TYPE_FULL && !grant.entryId)) return
+
+    let agentPublicKey: string | null | undefined
+    let recipientAgentKeyVersion: number | null | undefined
+    if (grant.type !== GRANT_TYPE_FULL) {
+      try {
+        const agent = await getAgent(grant.agentId)
+        agentPublicKey = agent.publicKey
+        recipientAgentKeyVersion = agent.recipientKeyVersion
+      } catch {
+        toast.error(t('grants.regrant.error'))
+        return
+      }
+    }
+
     regrant.mutate(
       {
         vaultId: grant.vaultId,
         agentId: grant.agentId,
         entryId: grant.entryId ?? undefined,
-        agentPublicKey: grant.agentPublicKey,
-        recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
+        agentPublicKey,
+        recipientAgentKeyVersion,
         type: grant.type,
         policy,
         methods: parseGrantMethods(grant.methods),
