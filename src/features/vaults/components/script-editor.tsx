@@ -16,7 +16,7 @@ export interface ScriptEditorProps {
   interpreter: ScriptInterpreter
   disabled?: boolean
   placeholder?: string
-  /** Fixed editor height; the editor scrolls internally past it. */
+  /** Initial editor height; the user can resize it vertically. */
   height?: string
 }
 
@@ -24,8 +24,8 @@ export interface ScriptEditorProps {
  * CodeMirror 6 editor for SCRIPT entries. Syntax highlighting follows the
  * interpreter picker (bash/sh → shell, node → JS, python → Python). The chrome
  * (background, text, gutter, cursor, selection) is driven entirely by `--cv-*`
- * tokens so it adapts to light/dark with the app; a fixed height keeps the modal
- * compact while the editor scrolls its own overflow.
+ * tokens so it adapts to light/dark with the app. The initial height keeps the
+ * modal compact, while native vertical resizing lets the user expose more code.
  */
 export function ScriptEditor({
   value,
@@ -43,14 +43,19 @@ export function ScriptEditor({
   const lineCount = value.length === 0 ? 1 : value.split('\n').length
 
   return (
-    <div className="overflow-hidden rounded-[0.625rem] border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]">
+    <div
+      data-testid="script-editor-frame"
+      style={{ height }}
+      className="flex min-h-[8rem] max-h-[70vh] resize-y flex-col overflow-hidden rounded-[0.625rem]
+        border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)]"
+    >
       {/* `min-w-0` lets the editor shrink inside the modal so a long line scrolls
           the editor internally instead of pushing the whole dialog wider. */}
-      <div className="min-w-0">
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         <CodeMirror
           value={value}
           onChange={onChange}
-          height={height}
+          height="100%"
           editable={!disabled}
           readOnly={disabled}
           placeholder={placeholder}
@@ -91,6 +96,7 @@ function languageFor(interpreter: ScriptInterpreter): Extension {
  */
 const CV_THEME: Extension = EditorView.theme({
   '&': {
+    height: '100%',
     fontSize: 'var(--text-ui)',
     maxWidth: '100%',
     backgroundColor: 'transparent',

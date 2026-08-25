@@ -8,7 +8,7 @@ import {
   ENTRY_TYPE_SCRIPT,
   type ScriptRef,
 } from '../types'
-import { PopoverMenu, type MenuEntry } from './popover-menu'
+import type { MenuEntry } from './popover-menu'
 import { useAuthStore } from '../../auth'
 import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
 import { fromMemberSecret } from '../../../shared/crypto/entry-draft'
@@ -19,6 +19,7 @@ import { getEncryptedVault } from '../sync/member-sync-api'
 import { isScriptReferenceFieldSelectable } from '../script-refs'
 import { buildMemberEntryList, type MemberEntryListItem } from '../sync/member-entry-list'
 import { useMemberSyncStore } from '../sync/member-sync-store'
+import { ScriptMappingRow } from './script-mapping-row'
 
 export interface ScriptRefsEditorProps {
   vaultId: string
@@ -189,27 +190,15 @@ function RefRow({
     'min-w-0 max-w-[8.125rem] cursor-pointer appearance-none border-0 bg-transparent p-0 text-ui text-[var(--cv-t1)] outline-none disabled:cursor-not-allowed'
 
   return (
-    <div className={`flex items-center gap-2 px-2.5 py-2 ${first ? '' : 'border-t border-[var(--cv-divider)]'}`}>
-      <span className="flex text-[var(--cv-icon-muted)] opacity-60" aria-hidden>
-        <Icon name="drag_indicator" size={14} />
-      </span>
-      <span className="flex text-[var(--cv-info)]" aria-hidden>
-        <Icon name="attach_money" size={14} />
-      </span>
-      <input
-        aria-label={t('vault.entries.script.envLabel')}
-        value={ref_.env}
-        onChange={(e) => onChange({ env: e.target.value })}
-        placeholder="GITHUB_TOKEN"
-        disabled={disabled}
-        maxLength={64}
-        className="w-36 shrink-0 border-0 bg-transparent p-0 font-mono text-meta text-[var(--cv-info)]
-          outline-none placeholder:text-[var(--cv-input-placeholder)]"
-      />
-      <span className="flex flex-1 justify-center text-[var(--cv-t3)]" aria-hidden>
-        <Icon name="arrow_back" size={14} />
-      </span>
-      <div className="flex shrink-0 items-center gap-1.5">
+    <ScriptMappingRow
+      first={first}
+      icon="attach_money"
+      name={ref_.env}
+      nameLabel={t('vault.entries.script.envLabel')}
+      namePlaceholder="GITHUB_TOKEN"
+      onNameChange={(env) => onChange({ env })}
+      disabled={disabled}
+      right={<div className="flex min-w-0 items-center justify-end gap-1.5">
         <select
           aria-label={t('vault.entries.script.sourceEntry')}
           value={ref_.entryId}
@@ -239,13 +228,9 @@ function RefRow({
             </option>
           ))}
         </select>
-      </div>
-      <PopoverMenu
-        trigger={<Icon name="more_horiz" size={16} />}
-        items={[{ icon: 'delete', label: t('common.remove'), danger: true, onSelect: onRemove } as MenuEntry]}
-        ariaLabel={t('common.moreActions')}
-        disabled={disabled}
-      />
-    </div>
+      </div>}
+      menuItems={[{ icon: 'delete', label: t('common.remove'), danger: true, onSelect: onRemove } as MenuEntry]}
+      menuLabel={t('common.moreActions')}
+    />
   )
 }
