@@ -253,6 +253,7 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     expect(mutateMock.mock.calls[0][0]).toMatchObject({
       type: 'scriptExecution',
       entryId: 'script',
+      reviewedScriptRevision: '1',
       methods: ['exec'],
     })
   })

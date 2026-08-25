@@ -18,6 +18,7 @@ import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
 import { wipe } from '../../../shared/crypto/sodium'
 import { getCanonicalEntry } from '../api/vault-api'
 import { getEncryptedVault } from '../sync/member-sync-api'
+import { isScriptReferenceFieldSelectable } from '../script-refs'
 
 export interface ScriptRefsEditorProps {
   vaultId: string
@@ -108,7 +109,13 @@ export function ScriptRefsEditor({
         options.push({ id: `custom:${field.id.replace(/^custom:/, '')}`, label: field.label })
       }
       if (content.notes) options.push({ id: 'notes', label: t('vault.entries.notesLabel') })
-      setFieldOptions((current) => new Map(current).set(entryId, options))
+      setFieldOptions((current) => new Map(current).set(
+        entryId,
+        options.filter((option) => isScriptReferenceFieldSelectable(
+          secret.agentVisibilityPolicy,
+          option.id,
+        )),
+      ))
     } catch {
       setFieldOptions((current) => new Map(current).set(entryId, []))
     } finally {

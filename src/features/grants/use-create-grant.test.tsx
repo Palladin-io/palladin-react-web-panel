@@ -74,6 +74,7 @@ describe('useCreateGrant', () => {
     })
     mocks.buildScriptPackage.mockResolvedValue({
       contractVersion: 1,
+      scriptRevision: '7',
       encodedPackageCiphertext: 'sealed-script-package',
     })
   })
@@ -149,6 +150,7 @@ describe('useCreateGrant', () => {
       agentAccessEpoch: 2,
       type: 'scriptExecution',
       entryId: '33333333-3333-4333-8332-333333333333',
+      reviewedScriptRevision: '7',
       policy: { queryLimit: 3 },
       methods: ['exec'],
     })
@@ -171,6 +173,30 @@ describe('useCreateGrant', () => {
     expect(body.grantEntries).toBeUndefined()
     expect(mocks.getEntry).not.toHaveBeenCalled()
     expect(mocks.produce).not.toHaveBeenCalled()
+  })
+
+  it('does not create a Script grant when its revision changed after review', async () => {
+    mocks.buildScriptPackage.mockResolvedValueOnce({
+      contractVersion: 1,
+      scriptRevision: '8',
+      encodedPackageCiphertext: 'sealed-script-package',
+    })
+    const { result } = renderHook(() => useCreateGrant(), { wrapper })
+
+    await expect(result.current.mutateAsync({
+      vaultId: 'v1',
+      agentId: '22222222-2222-4222-8222-222222222222',
+      agentPublicKey: 'agent-public-key',
+      recipientAgentKeyVersion: 4,
+      agentAccessEpoch: 2,
+      type: 'scriptExecution',
+      entryId: '33333333-3333-4333-8332-333333333333',
+      reviewedScriptRevision: '7',
+      policy: {},
+      methods: ['exec'],
+    })).rejects.toThrow('Cannot produce a revision-bound grant envelope')
+
+    expect(mocks.create).not.toHaveBeenCalled()
   })
 
   it('fails before opening Vault keys when access-epoch metadata is missing', async () => {

@@ -73,13 +73,16 @@ describe('grant-eligibility', () => {
   })
 
   it('entryCoverageByAgent splits granular entries from full-covered vaults', () => {
-    const { coveredEntryIds, fullCoveredVaultIds } = entryCoverageByAgent([
+    const { coveredEntryIds, fullCoveredVaultIds, fullExecCoveredVaultIds } = entryCoverageByAgent([
       grant({ type: 'granular', entryId: 'e1', vaultId: 'v1' }),
-      grant({ type: 'full', vaultId: 'v2' }),
+      grant({ type: 'full', vaultId: 'v2', methods: 'Get, Inject' }),
+      grant({ type: 'full', vaultId: 'v4', methods: 'Exec' }),
       grant({ type: 'granular', entryId: 'e3', vaultId: 'v3', status: 'revoked' }),
     ])
     expect(coveredEntryIds.has('e1')).toBe(true)
     expect(coveredEntryIds.has('e3')).toBe(false) // inactive
     expect(fullCoveredVaultIds.has('v2')).toBe(true)
+    expect(fullExecCoveredVaultIds.has('v2')).toBe(false)
+    expect(fullExecCoveredVaultIds.has('v4')).toBe(true)
   })
 })

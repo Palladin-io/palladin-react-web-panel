@@ -117,7 +117,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
   // Methods the grant permits. Default to the privacy-preserving set; `get` is opt-in.
   const [methods, setMethods] = useState<GrantMethod[]>(DEFAULT_GRANT_METHODS)
   const [methodsError, setMethodsError] = useState<string | null>(null)
-  const [scriptSummaryReady, setScriptSummaryReady] = useState<boolean | null>(null)
+  const [reviewedScriptRevision, setReviewedScriptRevision] = useState<string | null>(null)
 
   // Subject selection (resolved on confirm).
   const [subject, setSubject] = useState<ResolvedSubject | null>(null)
@@ -140,7 +140,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
       return
     }
     if (currentSubject.constraintsUnavailable) return
-    if (currentSubject.type === GRANT_TYPE_SCRIPT_EXECUTION && scriptSummaryReady !== true) return
+    if (currentSubject.type === GRANT_TYPE_SCRIPT_EXECUTION && !reviewedScriptRevision) return
     const policyInput = { kind, expiresAt, queryLimit }
     const validationError = validateGrantPolicy(policyInput)
     if (validationError) {
@@ -174,6 +174,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         agentAccessEpoch,
         type: currentSubject.type,
         entryId: currentSubject.entryId,
+        reviewedScriptRevision: reviewedScriptRevision ?? undefined,
         policy: grantPolicyToBody(policyInput),
         methods: effectiveMethods,
       },
@@ -200,7 +201,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           </Button>
           <Button variant="positive" size="sm" onClick={handleConfirm}
             disabled={createGrant.isPending || currentSubject?.constraintsUnavailable
-              || (currentSubject?.type === GRANT_TYPE_SCRIPT_EXECUTION && scriptSummaryReady !== true)}
+              || (currentSubject?.type === GRANT_TYPE_SCRIPT_EXECUTION && !reviewedScriptRevision)}
             className="flex-[2]">
             {createGrant.isPending ? t('grants.create.granting') : t('grants.create.confirm')}
           </Button>
@@ -219,7 +220,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             disabled={createGrant.isPending}
             onSubjectChange={(s) => {
               setSubject(s)
-              setScriptSummaryReady(null)
+              setReviewedScriptRevision(null)
               setSubjectError(false)
             }}
           />
@@ -239,7 +240,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
 
         {currentSubject?.type === GRANT_TYPE_SCRIPT_EXECUTION && currentSubject.entryId ? (
           <ScriptGrantSummary vaultId={currentSubject.vaultId} scriptEntryId={currentSubject.entryId}
-            onStatusChange={setScriptSummaryReady} />
+            onStatusChange={setReviewedScriptRevision} />
         ) : null}
 
         {/* Shared policy segment */}
@@ -547,7 +548,9 @@ function CrossVaultEntryPicker({
       .filter(
         (e) =>
           !coverage.coveredEntryIds.has(e.id) &&
-          !coverage.fullCoveredVaultIds.has(e.vaultId),
+          !(e.type === ENTRY_TYPE_SCRIPT
+            ? coverage.fullExecCoveredVaultIds.has(e.vaultId)
+            : coverage.fullCoveredVaultIds.has(e.vaultId)),
       )
       .map((e) => ({ id: e.id, label: e.label, sublabel: e.vaultName }))
   }, [entries, coverage])
@@ -600,7 +603,7 @@ function ScriptGrantSummary({
 }: {
   vaultId: string
   scriptEntryId: string
-  onStatusChange: (ready: boolean) => void
+  onStatusChange: (reviewedRevision: string | null) => void
 }) {
   const { t } = useTranslation()
   const [metadata, setMetadata] = useState<ScriptExecutionMetadataV1 | null>(null)
@@ -611,7 +614,7 @@ function ScriptGrantSummary({
     let active = true
     const privateKey = useAuthStore.getState().privateKey
     if (!privateKey) {
-      onStatusChange(false)
+      onStatusChange(null)
       return
     }
     void (async () => {
@@ -631,16 +634,16 @@ function ScriptGrantSummary({
         if (!active || useAuthStore.getState().privateKey !== privateKey) return
         if (secret.entryType !== 'script') {
           setUnavailable(true)
-          onStatusChange(false)
+          onStatusChange(null)
           return
         }
         setMetadata(normalizeScriptExecutionMetadata(secret.content.execution, secret.description))
         setReferences(secret.content.refs.map(({ env, entryId, fieldId }) => ({ env, entryId, fieldId })))
-        onStatusChange(true)
+        onStatusChange(detail.currentRevision)
       } catch {
         if (active) {
           setUnavailable(true)
-          onStatusChange(false)
+          onStatusChange(null)
         }
       } finally {
         if (vaultKey) wipe(vaultKey)

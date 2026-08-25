@@ -38,6 +38,7 @@ export interface CreateGrantInput {
   agentAccessEpoch: number | null | undefined
   type: GrantType
   entryId?: string
+  reviewedScriptRevision?: string
   policy: GrantPolicyBody
   methods: GrantMethod[]
 }
@@ -58,6 +59,7 @@ export function useCreateGrant() {
       agentAccessEpoch,
       type,
       entryId,
+      reviewedScriptRevision,
       policy,
       methods,
     }: CreateGrantInput) => {
@@ -115,7 +117,8 @@ export function useCreateGrant() {
         }
 
         if (type === GRANT_TYPE_SCRIPT_EXECUTION) {
-          if (methods.length !== 1 || methods[0] !== GRANT_METHOD_EXEC || !entryId) {
+          if (methods.length !== 1 || methods[0] !== GRANT_METHOD_EXEC
+            || !entryId || !reviewedScriptRevision) {
             throw new MissingGrantMaterialError()
           }
           const scriptPackage = await buildCompleteScriptExecutionPackage({
@@ -130,6 +133,9 @@ export function useCreateGrant() {
             agentPublicKey,
             vaultKey,
           })
+          if (scriptPackage.scriptRevision !== reviewedScriptRevision) {
+            throw new MissingGrantMaterialError()
+          }
           const body: CreateGrantBody = {
             grantId,
             agentId,

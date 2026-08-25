@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ScriptRef } from '../types'
 import { ScriptRefsEditor } from './script-refs-editor'
-import { validateScriptRefs } from '../script-refs'
+import { isScriptReferenceFieldSelectable, validateScriptRefs } from '../script-refs'
 
 // The editor loads the vault's entries for its source picker.
 vi.mock('../use-entries', async (orig) => ({
@@ -49,5 +49,20 @@ describe('ScriptRefsEditor', () => {
       { ...base, env: 'DATABASE_PASSWORD' },
       { ...base, entryId: 'entry-2', env: 'database_password' },
     ], 'v1')).toBe(false)
+  })
+
+  it('offers only fields whose agent visibility is not never', () => {
+    const policy = {
+      fields: {
+        username: 'discovery',
+        password: 'onGrant',
+        notes: 'never',
+      },
+    }
+
+    expect(isScriptReferenceFieldSelectable(policy, 'username')).toBe(true)
+    expect(isScriptReferenceFieldSelectable(policy, 'password')).toBe(true)
+    expect(isScriptReferenceFieldSelectable(policy, 'notes')).toBe(false)
+    expect(isScriptReferenceFieldSelectable(policy, 'missing')).toBe(false)
   })
 })

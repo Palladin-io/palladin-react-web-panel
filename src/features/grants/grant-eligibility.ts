@@ -79,16 +79,23 @@ export function vaultsCoveredByAgent(grants: OrgGrant[]): Set<string> {
 export function entryCoverageByAgent(grants: OrgGrant[]): {
   coveredEntryIds: Set<string>
   fullCoveredVaultIds: Set<string>
+  fullExecCoveredVaultIds: Set<string>
 } {
   const coveredEntryIds = new Set<string>()
   const fullCoveredVaultIds = new Set<string>()
+  const fullExecCoveredVaultIds = new Set<string>()
   for (const g of activeGrants(grants)) {
-    if (g.type === GRANT_TYPE_FULL) fullCoveredVaultIds.add(g.vaultId)
+    if (g.type === GRANT_TYPE_FULL) {
+      fullCoveredVaultIds.add(g.vaultId)
+      if (parseGrantMethods(g.methods).includes(GRANT_METHOD_EXEC)) {
+        fullExecCoveredVaultIds.add(g.vaultId)
+      }
+    }
     else if (g.entryId) coveredEntryIds.add(g.entryId)
     else if (g.type === GRANT_TYPE_SCRIPT_EXECUTION) {
       const parent = g.scriptScopes.find((scope) => scope.isScript)
       if (parent) coveredEntryIds.add(parent.entryId)
     }
   }
-  return { coveredEntryIds, fullCoveredVaultIds }
+  return { coveredEntryIds, fullCoveredVaultIds, fullExecCoveredVaultIds }
 }
