@@ -291,6 +291,7 @@ export interface ScriptAccessImpact {
   directAgentCount: number
   fullAgentCount: number
   hasOverlappingCoverage: boolean
+  agentIds: string[]
 }
 
 export function getScriptAccessImpact(vaultId: string, scriptEntryId: string): Promise<ScriptAccessImpact> {

@@ -37,7 +37,7 @@ function scriptSecret(): MemberSecretV1 {
     content: {
       source: 'psql "$DATABASE_URL" -c "select email from users where team = $TEAM"',
       interpreter: 'bash',
-      refs: [{ env: 'DATABASE_URL', vaultId, entryId: referencedEntryId, fieldId: 'credential.password' }],
+      refs: [{ env: 'DATABASE_USER', vaultId, entryId: referencedEntryId, fieldId: 'credential.username' }],
       customFields: [],
       execution: {
         contractVersion: 1,
@@ -69,7 +69,7 @@ function referenceSecret(): MemberSecretV1 {
     },
     agentFieldAccess: {
       memberLabel: 'never', agentLabel: 'never', description: 'never', icon: 'never', color: 'never',
-      entryType: 'never', 'credential.username': 'never', 'credential.password': 'onGrantValue',
+      entryType: 'never', 'credential.username': 'discovery', 'credential.password': 'onGrantValue',
       'credential.url': 'never', 'credential.urlDomain': 'never', 'credential.totp': 'never', notes: 'never',
     },
   }
@@ -174,7 +174,7 @@ describe('Script execution package', () => {
         encodedGrantPayload: expect.any(String),
       }])
       expect(parseGrantPayload(fromBase64Url(payload.entries[0].encodedGrantPayload))).toMatchObject({
-        fields: [{ id: 'credential.password', value: 'fixture_password' }],
+        fields: [{ id: 'credential.username', mode: 'runtime', value: 'fixture_user' }],
       })
       expect(payload.binding.authorization).toEqual({ source: 'scriptExecution', grantId })
       expect(context.purpose).toBe(6)
@@ -193,6 +193,19 @@ describe('Script execution package', () => {
     expect(effectiveReturnResultToAgent(undefined)).toBe(false)
     expect(effectiveReturnResultToAgent({})).toBe(false)
     expect(effectiveReturnResultToAgent({ returnResultToAgent: true })).toBe(true)
+
+    const legacy = scriptSecret()
+    if (legacy.entryType !== 'script') throw new Error('fixture')
+    delete legacy.content.execution
+    const legacyManifest = buildScriptExecutionManifest({
+      organizationId, agentId, agentAccessEpoch: 1, vaultId, scriptEntryId, scriptRevision: '1',
+      memberSecret: legacy, referenceRevisions: { [referencedEntryId]: '1' },
+    })
+    expect(legacyManifest).toMatchObject({
+      description: 'Returns active users from SQL',
+      parameters: [],
+      returnResultToAgent: false,
+    })
 
     const sodium = await loadSodium()
     const agent = sodium.crypto_box_keypair()

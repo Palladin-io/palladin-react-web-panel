@@ -25,6 +25,7 @@ import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { analytics } from '../../shared/lib/analytics'
 import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
 import { useAuthStore } from '../auth'
+import { useAgentNames } from '../agents'
 import {
   GRANT_STATUS_ACTIVE,
   GrantAccessDialog,
@@ -96,6 +97,7 @@ import { useUpdateCanonicalEntry } from './use-update-canonical-entry'
 import { useVault } from './use-vault'
 import { getEncryptedVault } from './sync/member-sync-api'
 import { useMemberSyncStore } from './sync/member-sync-store'
+import { shortenKey } from '../../shared/lib/shorten-key'
 
 export interface EntryDetailPageProps {
   vaultId: string
@@ -734,7 +736,8 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       void handleDecrypt()
       return
     }
-    if (entry.type === ENTRY_TYPE_SCRIPT && originalPlaintext?.type === ENTRY_TYPE_SCRIPT
+    if (originalPlaintext
+      && (originalPlaintext.type === ENTRY_TYPE_SCRIPT || current.type === ENTRY_TYPE_SCRIPT)
       && (permissions & PERMISSION_GRANT_MANAGE) !== 0) {
       try {
         const impact = await getScriptAccessImpact(vault.id, entry.id)
@@ -1216,6 +1219,10 @@ function ScriptAccessImpactDialog({
   onCancel: () => void
 }) {
   const { t } = useTranslation()
+  const agents = useAgentNames(open)
+  const agentNameById = useMemo(() => new Map(
+    (agents.data ?? []).map((agent) => [agent.agentId, agent.name?.trim() || shortenKey(agent.agentId)]),
+  ), [agents.data])
   if (!open || !impact) return null
   return (
     <ModalShell
@@ -1242,6 +1249,16 @@ function ScriptAccessImpactDialog({
           <div><dt className="text-[var(--cv-t3)]">{t('vault.entries.script.impactFull')}</dt>
             <dd className="font-semibold text-[var(--cv-t1)]">{impact.fullAgentCount}</dd></div>
         </dl>
+        <div>
+          <p className="text-meta font-semibold text-[var(--cv-t1)]">
+            {t('vault.entries.script.impactAgents')}
+          </p>
+          <ul className="mt-1 space-y-1 text-meta text-[var(--cv-t2)]">
+            {impact.agentIds.map((agentId) => (
+              <li key={agentId}>{agentNameById.get(agentId) ?? shortenKey(agentId)}</li>
+            ))}
+          </ul>
+        </div>
         <div>
           <p className="text-meta font-semibold text-[var(--cv-t1)]">{t('vault.entries.script.impactChanges')}</p>
           <ul className="mt-1 list-disc pl-5 text-meta text-[var(--cv-t2)]">

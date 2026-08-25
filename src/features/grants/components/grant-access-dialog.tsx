@@ -19,6 +19,7 @@ import {
 import { useLocalEntrySearch } from '../use-local-entry-search'
 import {
   agentsCoveringEntry,
+  agentsCoveringScriptExecution,
   agentsCoveringVault,
   entryCoverageByAgent,
   vaultsCoveredByAgent,
@@ -43,7 +44,12 @@ import { getEncryptedVault } from '../../vaults/sync/member-sync-api'
 import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
 import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
 import { wipe } from '../../../shared/crypto/sodium'
-import { effectiveReturnResultToAgent, type ScriptExecutionMetadataV1 } from '../../../shared/crypto/script-execution'
+import {
+  effectiveReturnResultToAgent,
+  normalizeScriptExecutionMetadata,
+  type ScriptExecutionMetadataV1,
+} from '../../../shared/crypto/script-execution'
+import { shortenKey } from '../../../shared/lib/shorten-key'
 
 /**
  * Where the dialog was opened from — drives which subject the user picks and
@@ -353,8 +359,11 @@ function AgentPicker({
 
   const covered = useMemo(() => {
     const items = vaultGrants.data?.items ?? []
-    return entryId ? agentsCoveringEntry(items, entryId) : agentsCoveringVault(items)
-  }, [vaultGrants.data, entryId])
+    if (!entryId) return agentsCoveringVault(items)
+    return entryGrantType(vaultId, entryId) === GRANT_TYPE_SCRIPT_EXECUTION
+      ? agentsCoveringScriptExecution(items, entryId)
+      : agentsCoveringEntry(items, entryId)
+  }, [vaultGrants.data, entryId, vaultId])
 
   const options = useMemo<ComboboxOption[]>(() => {
     const q = query.trim().toLowerCase()
@@ -595,7 +604,7 @@ function ScriptGrantSummary({
 }) {
   const { t } = useTranslation()
   const [metadata, setMetadata] = useState<ScriptExecutionMetadataV1 | null>(null)
-  const [referenceCount, setReferenceCount] = useState(0)
+  const [references, setReferences] = useState<Array<{ env: string; entryId: string; fieldId: string }>>([])
   const [unavailable, setUnavailable] = useState(() => !useAuthStore.getState().privateKey)
 
   useEffect(() => {
@@ -620,13 +629,13 @@ function ScriptGrantSummary({
           revision: detail.currentRevision,
         })
         if (!active || useAuthStore.getState().privateKey !== privateKey) return
-        if (secret.entryType !== 'script' || !secret.content.execution) {
+        if (secret.entryType !== 'script') {
           setUnavailable(true)
           onStatusChange(false)
           return
         }
-        setMetadata(secret.content.execution)
-        setReferenceCount(secret.content.refs.length)
+        setMetadata(normalizeScriptExecutionMetadata(secret.content.execution, secret.description))
+        setReferences(secret.content.refs.map(({ env, entryId, fieldId }) => ({ env, entryId, fieldId })))
         onStatusChange(true)
       } catch {
         if (active) {
@@ -651,13 +660,27 @@ function ScriptGrantSummary({
       <p className="text-ui font-semibold text-[var(--cv-t1)]">{metadata.description}</p>
       <dl className="mt-2 grid grid-cols-2 gap-2 text-meta text-[var(--cv-t2)]">
         <div><dt>{t('grants.create.scriptParameters')}</dt><dd>{metadata.parameters.length}</dd></div>
-        <div><dt>{t('grants.create.scriptReferences')}</dt><dd>{referenceCount}</dd></div>
+        <div><dt>{t('grants.create.scriptReferences')}</dt><dd>{references.length}</dd></div>
         <div className="col-span-2"><dt>{t('grants.create.scriptResult')}</dt><dd>
           {t(effectiveReturnResultToAgent(metadata)
             ? 'grants.create.scriptResultReturned'
             : 'grants.create.scriptResultWithheld')}
         </dd></div>
       </dl>
+      {references.length > 0 ? (
+        <div className="mt-3">
+          <p className="text-meta font-semibold text-[var(--cv-t1)]">
+            {t('grants.create.scriptReferenceDetails')}
+          </p>
+          <ul className="mt-1 space-y-1 text-meta text-[var(--cv-t2)]">
+            {references.map((reference) => (
+              <li key={`${reference.env}:${reference.entryId}:${reference.fieldId}`} className="font-mono">
+                ${reference.env} ← {shortenKey(reference.entryId)} · {reference.fieldId}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       {effectiveReturnResultToAgent(metadata) ? (
         <p className="mt-2 text-meta text-[var(--cv-pending)]">
           {t('grants.create.scriptResultTrust')}

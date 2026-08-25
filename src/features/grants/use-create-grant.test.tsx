@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getEntry: vi.fn(),
   getVault: vi.fn(),
   openVaultKey: vi.fn(async () => new Uint8Array(32)),
+  openSigningKey: vi.fn(async () => new Uint8Array(64)),
   decrypt: vi.fn(async () => ({ schemaVersion: 1, entryType: 'key' })),
   produce: vi.fn(),
   buildFull: vi.fn(),
@@ -26,7 +27,10 @@ vi.mock('../vaults/sync/member-sync-api', () => ({ getEncryptedVault: mocks.getV
 vi.mock('../../shared/stores/member-sync-store', () => ({ useMemberSyncStore: {
   getState: () => ({ vaults: new Map([['v1', mocks.vaultState]]) }),
 } }))
-vi.mock('../../shared/crypto/vault-protocol', () => ({ openMemberVaultKey: mocks.openVaultKey }))
+vi.mock('../../shared/crypto/vault-protocol', () => ({
+  openMemberVaultKey: mocks.openVaultKey,
+  openVaultDerivedEnvelope: mocks.openSigningKey,
+}))
 vi.mock('../../shared/crypto/entry-protocol', () => ({ openMemberSecret: mocks.decrypt }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({ buildCanonicalGrantEnvelope: mocks.produce }))
 vi.mock('../../shared/crypto/x25519-wrapper', () => ({ buildAgentWrappedVaultKey: mocks.buildFull }))
@@ -54,7 +58,8 @@ describe('useCreateGrant', () => {
       organizationId: '11111111-1111-4111-8111-111111111111',
       memberVaultKey: {},
       memberKeyGeneration: 3,
-      currentKeyEpoch: { vaultKeyVersion: 2 },
+      currentKeyEpoch: { vaultKeyVersion: 2, manifestSigningKeyVersion: 5 },
+      vaultPrivateKeys: [{ descriptor: { purpose: 4, keyVersion: 5 } }],
     })
     mocks.getEntry.mockResolvedValue({
       organizationId: '11111111-1111-4111-8111-111111111111',
@@ -80,6 +85,8 @@ describe('useCreateGrant', () => {
       agentId: '22222222-2222-4222-8222-222222222222',
       agentPublicKey: 'agent-public-key',
       recipientAgentKeyVersion: 4,
+      vaultSigningKeyVersion: 5,
+      vaultSigningPrivateKey: expect.any(Uint8Array),
       agentAccessEpoch: 2,
       type: 'granular',
       entryId: '33333333-3333-4333-8332-333333333333',

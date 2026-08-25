@@ -218,7 +218,12 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     scriptCrypto.openSecret.mockResolvedValue({
       entryType: 'script',
       content: {
-        refs: [{ env: 'TOKEN' }],
+        refs: [{
+          env: 'TOKEN',
+          vaultId: 'v1',
+          entryId: '33333333-3333-4333-8333-333333333333',
+          fieldId: 'credential.password',
+        }],
         execution: {
           contractVersion: 1,
           description: 'Returns deployment status',

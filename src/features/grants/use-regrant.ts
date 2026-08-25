@@ -4,7 +4,7 @@ import { getAgent } from '../agents'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
 import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
 import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
-import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
+import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { buildAgentWrappedVaultKey } from '../../shared/crypto/x25519-wrapper'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
@@ -27,6 +27,8 @@ import {
 import { MissingGrantMaterialError, VaultLockedError } from './use-approve-grant'
 import { GRANT_MUTATION_INVALIDATION_KEYS } from './query-keys'
 import { buildCompleteScriptExecutionPackage } from '../vaults/script-execution-package'
+
+const MANIFEST_SIGNING_PRIVATE_PURPOSE = 4
 
 export interface RegrantInput {
   vaultId: string
@@ -67,17 +69,30 @@ export function useRegrant() {
       const grantId = crypto.randomUUID()
       try {
         if (type === GRANT_TYPE_FULL) {
-          const agentWrappedVaultKey = await buildAgentWrappedVaultKey({
-            vaultKey,
-            organizationId: vault.organizationId,
-            vaultId,
-            grantId,
-            agentId,
-            agentAccessEpoch: agent.accessEpoch,
-            vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
-            recipientAgentKeyVersion: agent.recipientKeyVersion,
-            agentPublicKey: agent.publicKey,
-          })
+          const signingEnvelope = vault.vaultPrivateKeys.find(
+            (candidate) => candidate.descriptor.purpose === MANIFEST_SIGNING_PRIVATE_PURPOSE
+              && candidate.descriptor.keyVersion === vault.currentKeyEpoch.manifestSigningKeyVersion,
+          )
+          if (!signingEnvelope) throw new MissingGrantMaterialError()
+          const vaultSigningPrivateKey = await openVaultDerivedEnvelope(signingEnvelope, vaultKey)
+          let agentWrappedVaultKey
+          try {
+            agentWrappedVaultKey = await buildAgentWrappedVaultKey({
+              vaultKey,
+              organizationId: vault.organizationId,
+              vaultId,
+              grantId,
+              agentId,
+              agentAccessEpoch: agent.accessEpoch,
+              vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
+              recipientAgentKeyVersion: agent.recipientKeyVersion,
+              agentPublicKey: agent.publicKey,
+              vaultSigningKeyVersion: vault.currentKeyEpoch.manifestSigningKeyVersion,
+              vaultSigningPrivateKey,
+            })
+          } finally {
+            wipe(vaultSigningPrivateKey)
+          }
           const body: CreateGrantBody = {
             grantId,
             agentId,
@@ -86,6 +101,7 @@ export function useRegrant() {
             ...policy,
             methods: serializeGrantMethods(grantMethodsFromMask(grantMethodsMask(methods))),
           }
+          if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
           await createGrantProactively(vaultId, body)
           return
         }
@@ -106,6 +122,7 @@ export function useRegrant() {
             agentPublicKey: agent.publicKey,
             vaultKey,
           })
+          if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
           await createGrantProactively(vaultId, {
             grantId,
             agentId,
@@ -141,6 +158,7 @@ export function useRegrant() {
           ...policy,
           methods: serializeGrantMethods(grantMethodsFromMask(approvedMethods)),
         }
+        if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
         await createGrantProactively(vaultId, body)
       } finally {
         wipe(vaultKey)

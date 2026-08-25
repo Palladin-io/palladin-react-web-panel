@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   agentsCoveringEntry,
+  agentsCoveringScriptExecution,
   agentsCoveringVault,
   entryCoverageByAgent,
   vaultsCoveredByAgent,
@@ -46,6 +47,18 @@ describe('grant-eligibility', () => {
     expect(set.has('granularMatch')).toBe(true)
     expect(set.has('granularOther')).toBe(false)
     expect(set.has('inactive')).toBe(false)
+  })
+
+  it('Script coverage requires direct ScriptExecution or FULL with Exec', () => {
+    const set = agentsCoveringScriptExecution([
+      grant({ agentId: 'fullExec', type: 'full', methods: 'Get, Exec' }),
+      grant({ agentId: 'fullWithoutExec', type: 'full', methods: 'Get, Inject' }),
+      grant({ agentId: 'legacyGranular', type: 'granular', entryId: 'script-1', methods: 'Exec' }),
+      grant({ agentId: 'direct', type: 'scriptExecution', scriptScopes: [
+        { entryId: 'script-1', entryRevision: '2', isScript: true },
+      ] }),
+    ], 'script-1')
+    expect([...set].sort()).toEqual(['direct', 'fullExec'])
   })
 
   it('vaultsCoveredByAgent collects only vaults with an active FULL grant', () => {

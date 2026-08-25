@@ -20,7 +20,7 @@ import {
   encodeGrantPayload,
   parseGrantPayload,
   parseMemberSecret,
-  projectGrantPayload,
+  projectScriptReferencePayload,
   type MemberSecretV1,
 } from './vault-plaintext'
 import { signVaultObject, type CanonicalJson } from './vault-v2-signatures'
@@ -170,8 +170,16 @@ export function effectiveReturnResultToAgent(
   return metadata?.returnResultToAgent === true
 }
 
-export function normalizeScriptExecutionMetadata(value: unknown): ScriptExecutionMetadataV1 {
-  const parsed = scriptExecutionMetadataSchema.parse(value)
+export function normalizeScriptExecutionMetadata(value: unknown, legacyDescription?: string | null): ScriptExecutionMetadataV1 {
+  const normalizedValue = value ?? (legacyDescription?.trim()
+    ? {
+        contractVersion: SCRIPT_EXECUTION_CONTRACT_VERSION,
+        description: legacyDescription.trim(),
+        parameters: [],
+        returnResultToAgent: false,
+      }
+    : value)
+  const parsed = scriptExecutionMetadataSchema.parse(normalizedValue)
   const parameters = sortedUnique(parsed.parameters, (item) => item.name, 'Script parameter names')
   validateParameterDefinitions(parameters)
   return { ...parsed, description: parsed.description.trim(), parameters }
@@ -179,7 +187,10 @@ export function normalizeScriptExecutionMetadata(value: unknown): ScriptExecutio
 
 export function buildScriptExecutionManifest(input: BuildScriptExecutionManifestInput): ScriptExecutionManifestV1 {
   if (input.memberSecret.entryType !== 'script') throw new Error('Entry is not a Script')
-  const metadata = normalizeScriptExecutionMetadata(input.memberSecret.content.execution)
+  const metadata = normalizeScriptExecutionMetadata(
+    input.memberSecret.content.execution,
+    input.memberSecret.description,
+  )
   const references = sortedUnique(input.memberSecret.content.refs.map((reference) => {
     if (reference.vaultId !== input.vaultId) throw new Error('Cross-Vault Script references are forbidden')
     const entryRevision = input.referenceRevisions[reference.entryId]
@@ -426,7 +437,7 @@ function projectReferenceEntries(
     for (const entry of entries) {
       const fieldIds = fieldIdsByEntry.get(entry.entryId)
       if (!fieldIds) throw new Error('Script package referenced Entries are incomplete')
-      const encodedGrantPayload = encodeGrantPayload(projectGrantPayload(
+      const encodedGrantPayload = encodeGrantPayload(projectScriptReferencePayload(
         parseMemberSecret(entry.encodedMemberSecret),
         [...fieldIds].sort(compareUtf8),
       ))
