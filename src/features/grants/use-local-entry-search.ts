@@ -12,15 +12,11 @@ export interface EntrySearchItem {
   vaultName: string
   type: number
   icon?: string
+  color?: string
   updatedAt: string
 }
 
 export type EntrySort = 'label' | 'recent'
-
-function builtinIcon(reference: string | undefined): string | undefined {
-  if (!reference?.startsWith('builtin:')) return undefined
-  return reference.slice('builtin:'.length) || undefined
-}
 
 export function useLocalEntrySearch(
   query: string,
@@ -39,7 +35,7 @@ export function useLocalEntrySearch(
         if (record.state !== 'active' || record.corrupt || !record.payload) continue
         const fields = memberIndexSearchValues(record.payload)
         if (needle && !fields.some((field) => field.normalize('NFC').toLocaleLowerCase().includes(needle))) continue
-        const icon = builtinIcon(presentationIconReference(record.payload.icon))
+        const icon = presentationIconReference(record.payload.icon)
         entries.push({
           id: record.entryId,
           label: record.payload.memberLabel,
@@ -47,6 +43,7 @@ export function useLocalEntrySearch(
           vaultName: vault.metadata.name,
           type: normalizeEntryType(record.payload.entryType),
           ...(icon ? { icon } : {}),
+          ...(record.payload.color ? { color: record.payload.color } : {}),
           updatedAt: record.updatedAt,
         })
       }
