@@ -13,7 +13,6 @@ export { GrantReviewUnavailableError } from "./use-grant-approval-review";
 export type { GrantReviewStage } from "./use-grant-approval-review";
 export { useDenyGrant } from "./use-deny-grant";
 export { useRevokeOrgGrant } from "./use-revoke-org-grant";
-export { useRegrant } from "./use-regrant";
 export { ApproveGrantDialog } from "./components/approve-grant-dialog";
 export { DenyGrantDialog } from "./components/deny-grant-dialog";
 export { RevokeGrantDialog } from "./components/revoke-grant-dialog";
