@@ -30,6 +30,11 @@ vi.mock('../sync/member-sync-api', () => ({
   })),
 }))
 vi.mock('../../../shared/crypto/sodium', () => ({ wipe: vi.fn() }))
+vi.mock('../../../shared/hooks/use-organization-member-directory', () => ({
+  useOrganizationMemberDirectory: () => ({
+    nameById: { '33332233-4455-4677-8899-aabbccddeeff': 'Ada Admin' },
+  }),
+}))
 
 const detail = {
   organizationId: '00112233-4455-4677-8899-aabbccddeeff',
@@ -44,8 +49,10 @@ const detail = {
 }
 const oldSecret = {
   schemaVersion: 1 as const, memberLabel: 'Old label', agentLabel: 'Old agent', entryType: 0 as const,
-  content: { type: 0 as const, value: 'old-secret' },
-  agentVisibilityPolicy: { discoverable: false, fields: {} },
+  description: 'Old description', iconReference: 'builtin:key', color: '#EB4747',
+  content: { type: 0 as const, value: 'old-secret', url: 'https://old.example.com',
+    notes: 'Old notes', fields: [{ id: 'field-1', label: 'Config', type: 'multiline', value: 'A=1\nB=2' }] },
+  agentVisibilityPolicy: { discoverable: false, fields: { value: 'onGrantValue' as const } },
 }
 const currentSecret = { ...oldSecret, memberLabel: 'Current label', content: { type: 0 as const, value: 'current-secret' } }
 const item = {
@@ -61,7 +68,9 @@ describe('EntryHistoryTab', () => {
     useAuthStore.setState({ privateKey: new Uint8Array(32).fill(3) })
     mocks.history.mockReturnValue({ data: { pages: [{ items: [item] }] }, isPending: false, isError: false,
       hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn(), refetch: vi.fn() })
-    mocks.decryptHistory.mockResolvedValueOnce(oldSecret).mockResolvedValueOnce(currentSecret)
+    mocks.decryptHistory.mockReset()
+      .mockResolvedValueOnce(oldSecret)
+      .mockResolvedValueOnce(currentSecret)
     mocks.mutateAsync.mockResolvedValue({ currentRevision: '3' })
   })
 
@@ -69,19 +78,26 @@ describe('EntryHistoryTab', () => {
     const user = userEvent.setup()
     render(<EntryHistoryTab detail={detail as never} />)
     expect(mocks.decryptHistory).not.toHaveBeenCalled()
-    expect(screen.getByText(/33332233…ddeeff/)).toBeInTheDocument()
+    expect(screen.getByText(/Ada Admin/)).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /reveal/i }))
-    expect(await screen.findByText('Old label')).toBeInTheDocument()
+    expect(await screen.findByTestId('historical-entry-form')).toBeInTheDocument()
+    expect(screen.getByLabelText('Label')).toHaveValue('Old label')
+    expect(screen.getByLabelText('Entry Type')).toHaveValue('Key')
+    expect(screen.getByLabelText('URL')).toHaveValue('https://old.example.com')
+    expect(screen.getByLabelText('Notes')).toHaveValue('Old notes')
+    expect(screen.getByText(/A=1/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /restore this version/i }))
 
     await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledWith({
       detail,
       previous: currentSecret,
       draft: {
-        memberLabel: 'Old label', agentLabel: 'Old agent', entryType: 0,
-        content: { type: 0, value: 'old-secret' },
-        policy: { discoverable: false, fields: {} },
+        memberLabel: 'Old label', agentLabel: 'Old agent', description: 'Old description',
+        iconReference: 'builtin:key', color: '#EB4747', entryType: 0,
+        content: { type: 0, value: 'old-secret', url: 'https://old.example.com',
+          notes: 'Old notes', fields: [{ id: 'field-1', label: 'Config', type: 'multiline', value: 'A=1\nB=2' }] },
+        policy: { discoverable: false, fields: { value: 'onGrantValue' } },
       },
     }))
   })
@@ -90,9 +106,20 @@ describe('EntryHistoryTab', () => {
     const user = userEvent.setup()
     render(<EntryHistoryTab detail={detail as never} />)
     await user.click(screen.getByRole('button', { name: /reveal/i }))
-    expect(await screen.findByText('Old label')).toBeInTheDocument()
+    expect(await screen.findByDisplayValue('Old label')).toBeInTheDocument()
     act(() => useAuthStore.setState({ privateKey: null }))
-    await waitFor(() => expect(screen.queryByText('Old label')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByDisplayValue('Old label')).not.toBeInTheDocument())
+  })
+
+  it('drops revealed plaintext when the unlock session is replaced', async () => {
+    const user = userEvent.setup()
+    render(<EntryHistoryTab detail={detail as never} />)
+    await user.click(screen.getByRole('button', { name: /reveal/i }))
+    expect(await screen.findByDisplayValue('Old label')).toBeInTheDocument()
+
+    act(() => useAuthStore.setState({ privateKey: new Uint8Array(32).fill(9) }))
+
+    await waitFor(() => expect(screen.queryByDisplayValue('Old label')).not.toBeInTheDocument())
   })
 
   it('does not publish plaintext decrypted by a replaced unlock session', async () => {
@@ -105,7 +132,7 @@ describe('EntryHistoryTab', () => {
     act(() => useAuthStore.setState({ privateKey: new Uint8Array(32).fill(9) }))
     await act(async () => finishDecrypt?.(oldSecret))
 
-    await waitFor(() => expect(screen.queryByText('Old label')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByDisplayValue('Old label')).not.toBeInTheDocument())
     expect(mocks.mutateAsync).not.toHaveBeenCalled()
   })
 })

@@ -8,6 +8,7 @@ React SPA for managing vaults, entries, agents, and grants. Zero-knowledge archi
 
 - **Full control catalog** (every shared component + props + controls still to extract + reuse rules): `docs/architecture/component-catalog.md`.
 - **Architecture index:** `docs/architecture/README.md`.
+- **Organization member identity resolution:** `docs/architecture/member-directory.md`. Audit and immutable history use this single organization-scoped, memory-only current/former member cache; never add per-row identity requests or use the Team member payload as the shared resolver.
 
 **Before implementing in a feature, read its architecture doc first** — it lists existing components, hooks, queries, patterns, and cross-feature deps so you extend rather than duplicate.
 

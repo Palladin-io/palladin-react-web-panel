@@ -7,12 +7,15 @@ import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
 import { fromMemberSecret, type EntryDraft, type MemberSecretView } from '../../../shared/crypto/entry-draft'
 import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
 import { wipe } from '../../../shared/crypto/sodium'
+import { useOrganizationMemberDirectory } from '../../../shared/hooks/use-organization-member-directory'
+import { organizationIdFromAccessToken } from '../../../shared/lib/organization-scope'
 import { shortenKey } from '../../../shared/lib/shorten-key'
 import { useAuthStore } from '../../auth'
 import type { CanonicalEntryDetail, EntryHistoryItem } from '../api/vault-api'
 import { getEncryptedVault } from '../sync/member-sync-api'
 import { useEntryHistory } from '../use-entries'
 import { useUpdateCanonicalEntry } from '../use-update-canonical-entry'
+import { HistoricalEntryForm } from './historical-entry-form'
 
 export interface EntryHistoryTabProps {
   detail: CanonicalEntryDetail
@@ -24,6 +27,7 @@ function asDraft(secret: MemberSecretView): EntryDraft {
     agentLabel: secret.agentLabel,
     ...(secret.description ? { description: secret.description } : {}),
     ...(secret.iconReference ? { iconReference: secret.iconReference } : {}),
+    ...(secret.color ? { color: secret.color } : {}),
     entryType: secret.entryType,
     content: secret.content,
     policy: secret.agentVisibilityPolicy,
@@ -31,6 +35,11 @@ function asDraft(secret: MemberSecretView): EntryDraft {
 }
 
 export function EntryHistoryTab({ detail }: EntryHistoryTabProps) {
+  const scopeKey = `${detail.organizationId}:${detail.vaultId}:${detail.id}`
+  return <ScopedEntryHistoryTab key={scopeKey} detail={detail} />
+}
+
+function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
   const { t, i18n } = useTranslation()
   const history = useEntryHistory(detail.vaultId, detail.id, true)
   const update = useUpdateCanonicalEntry(detail.vaultId, detail.id)
@@ -38,10 +47,33 @@ export function EntryHistoryTab({ detail }: EntryHistoryTabProps) {
   const [revealingRevision, setRevealingRevision] = useState<string | null>(null)
 
   useEffect(() => useAuthStore.subscribe((state, previous) => {
-    if (previous.privateKey && !state.privateKey) setSelected(null)
+    if (previous.privateKey !== state.privateKey) setSelected(null)
   }), [])
 
   const items = useMemo(() => history.data?.pages.flatMap((page) => page.items) ?? [], [history.data])
+  const accessToken = useAuthStore((state) => state.accessToken)
+  const memberIds = useMemo(
+    () => items
+      .filter((item) => item.changedByType === 1)
+      .map((item) => item.changedById),
+    [items],
+  )
+  const memberDirectory = useOrganizationMemberDirectory(
+    organizationIdFromAccessToken(accessToken),
+    memberIds,
+  )
+
+  const actorLabel = (item: EntryHistoryItem): string => {
+    if (item.changedByType === 1) {
+      return t('vault.entry.history.actor.1', {
+        name: memberDirectory.nameById[item.changedById] ?? shortenKey(item.changedById),
+      })
+    }
+    if (item.changedByType === 2) {
+      return t('vault.entry.history.actor.2', { name: shortenKey(item.changedById) })
+    }
+    return t('vault.entry.history.actor.3')
+  }
 
   const withVaultKey = async <T,>(run: (vaultKey: Uint8Array) => Promise<T>): Promise<T> => {
     const key = useAuthStore.getState().privateKey
@@ -101,7 +133,6 @@ export function EntryHistoryTab({ detail }: EntryHistoryTabProps) {
 
   return (
     <div className="space-y-3" data-testid="entry-history-tab">
-      <p className="text-body text-[var(--cv-t3)]">{t('vault.entry.history.description')}</p>
       {items.map((item) => {
         const isCurrent = item.revision === detail.currentRevision
         const isSelected = selected?.revision === item.revision
@@ -116,7 +147,7 @@ export function EntryHistoryTab({ detail }: EntryHistoryTabProps) {
                 <p className="text-meta text-[var(--cv-t3)]">
                   {new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.changedAt))}
                   {' · '}{t(`vault.entry.history.operation.${item.operation}`)}
-                  {' · '}{t(`vault.entry.history.actor.${item.changedByType}`, { id: shortenKey(item.changedById) })}
+                  {' · '}{actorLabel(item)}
                 </p>
               </div>
               <Button
@@ -131,13 +162,17 @@ export function EntryHistoryTab({ detail }: EntryHistoryTabProps) {
               </Button>
             </div>
             {isSelected ? (
-              <div className="mt-3 rounded-lg bg-[var(--cv-surface-subtle)] p-3">
-                <p className="text-ui font-semibold">{selected.value.memberLabel}</p>
-                {selected.value.description ? <p className="mt-1 text-body text-[var(--cv-t2)]">{selected.value.description}</p> : null}
+              <div className="mt-3 rounded-xl border border-[var(--cv-divider)] bg-[var(--cv-surface-subtle)] p-4">
+                <HistoricalEntryForm
+                  revision={selected.revision}
+                  secret={selected.value}
+                />
                 {!isCurrent ? (
-                  <Button className="mt-3" variant="accent" size="sm" icon="restore" onClick={restore} disabled={update.isPending}>
-                    {update.isPending ? t('vault.entry.history.restoring') : t('vault.entry.history.restore')}
-                  </Button>
+                  <div className="mt-4 flex justify-end border-t border-[var(--cv-divider)] pt-4">
+                    <Button variant="accent" size="sm" icon="restore" onClick={restore} disabled={update.isPending}>
+                      {update.isPending ? t('vault.entry.history.restoring') : t('vault.entry.history.restore')}
+                    </Button>
+                  </div>
                 ) : null}
               </div>
             ) : null}

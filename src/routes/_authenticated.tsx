@@ -15,6 +15,8 @@ import { useAgents, AGENT_STATUS_PENDING } from '../features/agents'
 import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
 import { getAuthRedirectFromHref } from '../shared/lib/auth-redirect'
+import { useOrganizationMemberDirectory } from '../shared/hooks/use-organization-member-directory'
+import { organizationIdFromAccessToken } from '../shared/lib/organization-scope'
 import { AppWordmark } from '../shared/components/app-wordmark'
 import { Icon } from '../shared/components/icon'
 import {
@@ -142,6 +144,11 @@ function AuthenticatedLayout() {
   })
   const memberId = account.data?.userId ?? userId
   const emailUnverified = account.data?.emailVerified === false
+  useOrganizationMemberDirectory(
+    organizationIdFromAccessToken(accessToken),
+    [],
+    !emailUnverified,
+  )
   useEffect(() => {
     if (emailUnverified) navigate({ to: '/verify-email' })
   }, [emailUnverified, navigate])

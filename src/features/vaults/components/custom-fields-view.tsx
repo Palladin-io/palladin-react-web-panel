@@ -15,15 +15,17 @@ export interface CustomFieldsViewProps {
 /**
  * Read-only display of custom fields on the entry-detail Details tab, following
  * the Locked Value Pattern: `concealed` values start masked with a reveal
- * toggle, `totp` renders a live code, plain `text` shows inline. Every field is
- * copyable. Unknown field types are skipped (forward-compat) rather than
+ * toggle, `totp` renders a live code, plain `text` shows inline, and
+ * `multiline` preserves line breaks. Every field is copyable. Unknown field
+ * types are skipped (forward-compat) rather than
  * throwing. The whole block is `ph-no-capture` — labels and values are
  * encrypted-at-rest and treated as secret in analytics.
  */
 export function CustomFieldsView({ fields }: CustomFieldsViewProps) {
   const { t } = useTranslation()
   const renderable = fields.filter(
-    (f) => isTotpField(f) || (typeof f.value === 'string' && (f.type === 'text' || f.type === 'concealed')),
+    (f) => isTotpField(f) || (typeof f.value === 'string'
+      && (f.type === 'text' || f.type === 'multiline' || f.type === 'concealed')),
   )
   if (renderable.length === 0) return null
 
@@ -69,6 +71,13 @@ function FieldViewRow({ field }: { field: CustomField }) {
               <Icon name={shown ? 'visibility_off' : 'visibility'} size={15} />
             </button>
             <SecretCopyButton value={String(field.value)} />
+          </>
+        ) : field.type === 'multiline' ? (
+          <>
+            <span className="min-w-0 flex-1 whitespace-pre-wrap text-right font-mono text-meta leading-relaxed text-[var(--cv-t1)]">
+              {String(field.value)}
+            </span>
+            <CopyButton value={String(field.value)} label={t('common.copy')} />
           </>
         ) : (
           <>

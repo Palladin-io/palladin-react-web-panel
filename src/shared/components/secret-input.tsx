@@ -14,6 +14,7 @@ export interface SecretInputProps {
   onToggleShown: () => void
   placeholder?: string
   disabled?: boolean
+  readOnly?: boolean
   monospace?: boolean
   autoComplete?: string
   /** Show a red border to signal a validation error. */
@@ -34,7 +35,7 @@ const PADDING_FOR_ACTION_COUNT: Record<number, string> = { 1: ' pr-10', 2: ' pr-
 
 export function SecretInput({
   id, label, labelClassName, value, onChange, shown, onToggleShown,
-  placeholder, disabled, monospace, autoComplete = 'off', error, onBlur,
+  placeholder, disabled, readOnly, monospace, autoComplete = 'off', error, onBlur,
   copyable, copyLabel, onGenerate,
 }: SecretInputProps) {
   const { t } = useTranslation()
@@ -62,6 +63,7 @@ export function SecretInput({
           onBlur={onBlur}
           placeholder={placeholder}
           disabled={disabled}
+          readOnly={readOnly}
           autoComplete={autoComplete}
           autoCorrect="off"
           autoCapitalize="off"
