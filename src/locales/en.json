@@ -534,7 +534,7 @@
   "vault.entries.script.parameterDescription": "Description",
   "vault.entries.script.parameterRequired": "Required",
   "vault.entries.script.parameterAllowedValues": "Allowed values (optional)",
-  "vault.entries.script.parameterValuesPlaceholder": "Comma-separated values",
+  "vault.entries.script.parameterValuesPlaceholder": "JSON array, e.g. [\"core\", \"platform\"]",
   "vault.entries.script.parameterTypeString": "Text",
   "vault.entries.script.parameterTypeInteger": "Integer",
   "vault.entries.script.parameterTypeNumber": "Number",

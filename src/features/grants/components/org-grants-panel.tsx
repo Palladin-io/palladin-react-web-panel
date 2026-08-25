@@ -154,8 +154,8 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
     )
   }
 
-  function handleRegrant(grant: OrgGrant, policy: GrantPolicyBody) {
-    const scopedEntryId = grant.entryId
+  function handleRegrant(grant: OrgGrant, policy: GrantPolicyBody, reviewedScriptRevision?: string) {
+    const scopedEntryId = grant.scriptEntryId ?? grant.entryId
       ?? grant.scriptScopes.find((scope) => scope.isScript)?.entryId
     if (!grant.agentId || !grant.type
       || (grant.type !== GRANT_TYPE_FULL && !scopedEntryId)) return
@@ -164,6 +164,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
         vaultId: grant.vaultId,
         agentId: grant.agentId,
         ...(scopedEntryId ? { entryId: scopedEntryId } : {}),
+        ...(reviewedScriptRevision ? { reviewedScriptRevision } : {}),
         type: grant.type,
         policy,
         methods: grant.methods,
@@ -301,9 +302,12 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
 
       {regrantTarget && (
         <GrantAgainDialog
+          key={regrantTarget.id}
           grant={regrantTarget}
           isPending={regrant.isPending}
-          onConfirm={(policy) => handleRegrant(regrantTarget, policy)}
+          onConfirm={(policy, reviewedScriptRevision) => (
+            handleRegrant(regrantTarget, policy, reviewedScriptRevision)
+          )}
           onCancel={() => setRegrantTarget(null)}
         />
       )}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -38,18 +38,7 @@ import { EntityCombobox, type ComboboxOption } from './entity-combobox'
 import { GrantPolicyFields } from './grant-policy-fields'
 import { GrantMethodsSelect } from './grant-methods-select'
 import { ENTRY_TYPE_SCRIPT } from '../../../shared/types/entry-type'
-import { useAuthStore } from '../../auth'
-import { getCanonicalEntry } from '../../vaults/api/vault-api'
-import { getEncryptedVault } from '../../vaults/sync/member-sync-api'
-import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
-import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
-import { wipe } from '../../../shared/crypto/sodium'
-import {
-  effectiveReturnResultToAgent,
-  normalizeScriptExecutionMetadata,
-  type ScriptExecutionMetadataV1,
-} from '../../../shared/crypto/script-execution'
-import { shortenKey } from '../../../shared/lib/shorten-key'
+import { ScriptGrantSummary } from './script-grant-summary'
 
 /**
  * Where the dialog was opened from — drives which subject the user picks and
@@ -593,102 +582,5 @@ function CrossVaultEntryPicker({
           ...targetReadiness(vaultId, opt.id) })
       }}
     />
-  )
-}
-
-function ScriptGrantSummary({
-  vaultId,
-  scriptEntryId,
-  onStatusChange,
-}: {
-  vaultId: string
-  scriptEntryId: string
-  onStatusChange: (reviewedRevision: string | null) => void
-}) {
-  const { t } = useTranslation()
-  const [metadata, setMetadata] = useState<ScriptExecutionMetadataV1 | null>(null)
-  const [references, setReferences] = useState<Array<{ env: string; entryId: string; fieldId: string }>>([])
-  const [unavailable, setUnavailable] = useState(() => !useAuthStore.getState().privateKey)
-
-  useEffect(() => {
-    let active = true
-    const privateKey = useAuthStore.getState().privateKey
-    if (!privateKey) {
-      onStatusChange(null)
-      return
-    }
-    void (async () => {
-      let vaultKey: Uint8Array | undefined
-      try {
-        const [vault, detail] = await Promise.all([
-          getEncryptedVault(vaultId),
-          getCanonicalEntry(vaultId, scriptEntryId),
-        ])
-        vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
-        const secret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
-          organizationId: detail.organizationId,
-          vaultId,
-          entryId: scriptEntryId,
-          revision: detail.currentRevision,
-        })
-        if (!active || useAuthStore.getState().privateKey !== privateKey) return
-        if (secret.entryType !== 'script') {
-          setUnavailable(true)
-          onStatusChange(null)
-          return
-        }
-        setMetadata(normalizeScriptExecutionMetadata(secret.content.execution, secret.description))
-        setReferences(secret.content.refs.map(({ env, entryId, fieldId }) => ({ env, entryId, fieldId })))
-        onStatusChange(detail.currentRevision)
-      } catch {
-        if (active) {
-          setUnavailable(true)
-          onStatusChange(null)
-        }
-      } finally {
-        if (vaultKey) wipe(vaultKey)
-      }
-    })()
-    return () => { active = false }
-  }, [onStatusChange, scriptEntryId, vaultId])
-
-  if (unavailable) {
-    return <WarningZone title={t('grants.create.scriptUnavailableTitle')}>
-      {t('grants.create.scriptUnavailableBody')}
-    </WarningZone>
-  }
-  if (!metadata) return <p className="text-meta text-[var(--cv-t3)]">{t('grants.create.scriptLoading')}</p>
-  return (
-    <div className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3">
-      <p className="text-ui font-semibold text-[var(--cv-t1)]">{metadata.description}</p>
-      <dl className="mt-2 grid grid-cols-2 gap-2 text-meta text-[var(--cv-t2)]">
-        <div><dt>{t('grants.create.scriptParameters')}</dt><dd>{metadata.parameters.length}</dd></div>
-        <div><dt>{t('grants.create.scriptReferences')}</dt><dd>{references.length}</dd></div>
-        <div className="col-span-2"><dt>{t('grants.create.scriptResult')}</dt><dd>
-          {t(effectiveReturnResultToAgent(metadata)
-            ? 'grants.create.scriptResultReturned'
-            : 'grants.create.scriptResultWithheld')}
-        </dd></div>
-      </dl>
-      {references.length > 0 ? (
-        <div className="mt-3">
-          <p className="text-meta font-semibold text-[var(--cv-t1)]">
-            {t('grants.create.scriptReferenceDetails')}
-          </p>
-          <ul className="mt-1 space-y-1 text-meta text-[var(--cv-t2)]">
-            {references.map((reference) => (
-              <li key={`${reference.env}:${reference.entryId}:${reference.fieldId}`} className="font-mono">
-                ${reference.env} ← {shortenKey(reference.entryId)} · {reference.fieldId}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-      {effectiveReturnResultToAgent(metadata) ? (
-        <p className="mt-2 text-meta text-[var(--cv-pending)]">
-          {t('grants.create.scriptResultTrust')}
-        </p>
-      ) : null}
-    </div>
   )
 }

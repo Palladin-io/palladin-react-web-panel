@@ -554,7 +554,7 @@
   "vault.entries.script.parameterDescription": "Opis",
   "vault.entries.script.parameterRequired": "Wymagany",
   "vault.entries.script.parameterAllowedValues": "Dozwolone wartości (opcjonalnie)",
-  "vault.entries.script.parameterValuesPlaceholder": "Wartości rozdzielone przecinkami",
+  "vault.entries.script.parameterValuesPlaceholder": "Tablica JSON, np. [\"core\", \"platform\"]",
   "vault.entries.script.parameterTypeString": "Tekst",
   "vault.entries.script.parameterTypeInteger": "Liczba całkowita",
   "vault.entries.script.parameterTypeNumber": "Liczba",

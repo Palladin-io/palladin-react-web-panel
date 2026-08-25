@@ -88,23 +88,27 @@ export function scriptParameterDrafts(
     description: definition.description,
     type: definition.type,
     required: definition.required,
-    allowedValues: definition.enum?.map(String).join(', ') ?? '',
+    allowedValues: definition.enum ? JSON.stringify(definition.enum) : '',
   }))
 }
 
 function parseAllowedValues(
   parameter: Pick<ScriptParameterDraft, 'type' | 'allowedValues'>,
 ): Array<string | number | boolean> {
-  const tokens = parameter.allowedValues.split(',').map((value) => value.trim()).filter(Boolean)
-  if (tokens.length === 0) return []
-  const values = tokens.map((token) => {
-    if (parameter.type === 'string') return token.normalize('NFC')
-    if (parameter.type === 'boolean') {
-      if (token !== 'true' && token !== 'false') throw new Error('Boolean allowed values must be true or false')
-      return token === 'true'
+  if (!parameter.allowedValues.trim()) return []
+  const parsed: unknown = JSON.parse(parameter.allowedValues)
+  if (!Array.isArray(parsed)) throw new Error('Allowed values must be a JSON array')
+  const values = parsed.map((value) => {
+    if (parameter.type === 'string') {
+      if (typeof value !== 'string') throw new Error('Allowed value does not match its parameter type')
+      return value.normalize('NFC')
     }
-    const value = Number(token)
-    if (!Number.isFinite(value) || (parameter.type === 'integer' && !Number.isSafeInteger(value))) {
+    if (parameter.type === 'boolean') {
+      if (typeof value !== 'boolean') throw new Error('Boolean allowed values must be true or false')
+      return value
+    }
+    if (typeof value !== 'number' || !Number.isFinite(value)
+      || (parameter.type === 'integer' && !Number.isSafeInteger(value))) {
       throw new Error('Allowed value does not match its parameter type')
     }
     return value

@@ -97,7 +97,7 @@ export function ScriptParametersEditor({
               label={t('vault.entries.script.parameterAllowedValues')}
               value={parameter.allowedValues}
               onChange={(event) => update(parameter.id, { allowedValues: event.target.value })}
-              placeholder={parameter.type === 'boolean' ? 'true, false' : t('vault.entries.script.parameterValuesPlaceholder')}
+              placeholder={parameter.type === 'boolean' ? '[true, false]' : t('vault.entries.script.parameterValuesPlaceholder')}
               disabled={disabled}
               autoComplete="off"
               error={error === 'allowedValues'}

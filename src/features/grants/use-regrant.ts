@@ -34,6 +34,7 @@ export interface RegrantInput {
   vaultId: string
   agentId: string
   entryId?: string
+  reviewedScriptRevision?: string
   type: GrantType
   policy: GrantPolicyBody
   methods: string | null | undefined
@@ -47,6 +48,7 @@ export function useRegrant() {
       vaultId,
       agentId,
       entryId,
+      reviewedScriptRevision,
       type,
       policy,
       methods: serializedMethods,
@@ -107,7 +109,8 @@ export function useRegrant() {
         }
 
         if (type === GRANT_TYPE_SCRIPT_EXECUTION) {
-          if (methods.length !== 1 || methods[0] !== GRANT_METHOD_EXEC || !entryId) {
+          if (methods.length !== 1 || methods[0] !== GRANT_METHOD_EXEC
+            || !entryId || !reviewedScriptRevision) {
             throw new MissingGrantMaterialError()
           }
           const scriptPackage = await buildCompleteScriptExecutionPackage({
@@ -122,6 +125,9 @@ export function useRegrant() {
             agentPublicKey: agent.publicKey,
             vaultKey,
           })
+          if (scriptPackage.scriptRevision !== reviewedScriptRevision) {
+            throw new MissingGrantMaterialError()
+          }
           if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
           await createGrantProactively(vaultId, {
             grantId,
