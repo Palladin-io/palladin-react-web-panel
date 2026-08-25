@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MemberSecretView } from '../../../shared/crypto/entry-draft'
-import { compareEntryVersionToCurrent } from './entry-history-diff'
+import { compareEntryVersionToPrevious } from './entry-history-diff'
 
 const historical: MemberSecretView = {
   memberLabel: 'Old label',
@@ -22,9 +22,9 @@ const historical: MemberSecretView = {
   agentVisibilityPolicy: { discoverable: false, fields: { value: 'onGrantValue' } },
 }
 
-describe('compareEntryVersionToCurrent', () => {
-  it('marks only visible values that differ from the current version', () => {
-    const current: MemberSecretView = {
+describe('compareEntryVersionToPrevious', () => {
+  it('marks only visible values changed by the selected revision', () => {
+    const previous: MemberSecretView = {
       ...historical,
       memberLabel: 'Current label',
       description: 'Current description',
@@ -39,7 +39,7 @@ describe('compareEntryVersionToCurrent', () => {
       },
     }
 
-    const result = compareEntryVersionToCurrent(historical, current)
+    const result = compareEntryVersionToPrevious(historical, previous)
 
     expect([...result.fields]).toEqual([
       'memberLabel', 'description', 'url', 'value', 'customFields',
@@ -49,11 +49,11 @@ describe('compareEntryVersionToCurrent', () => {
   })
 
   it('does not depend on object key insertion order', () => {
-    const current: MemberSecretView = {
+    const previous: MemberSecretView = {
       ...historical,
       agentVisibilityPolicy: { discoverable: false, fields: { value: 'onGrantValue' } },
     }
 
-    expect(compareEntryVersionToCurrent(historical, current).hasChanges).toBe(false)
+    expect(compareEntryVersionToPrevious(historical, previous).hasChanges).toBe(false)
   })
 })

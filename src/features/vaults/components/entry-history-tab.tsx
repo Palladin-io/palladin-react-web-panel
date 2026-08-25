@@ -48,7 +48,7 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
   const [selected, setSelected] = useState<{
     revision: string
     canonicalSecret: MemberSecretV1
-    currentView: MemberSecretView
+    previousView?: MemberSecretView
     cryptoSessionGeneration: number
   } | null>(null)
   const [revealingRevision, setRevealingRevision] = useState<string | null>(null)
@@ -101,29 +101,41 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
     }
   }
 
+  const previousItemFor = async (item: EntryHistoryItem): Promise<EntryHistoryItem | undefined> => {
+    const loadedIndex = items.findIndex((candidate) => candidate.revision === item.revision)
+    if (loadedIndex >= 0 && loadedIndex + 1 < items.length) return items[loadedIndex + 1]
+    if (!history.hasNextPage) return undefined
+    const next = await history.fetchNextPage()
+    const expandedItems = next.data?.pages.flatMap((page) => page.items) ?? items
+    const expandedIndex = expandedItems.findIndex((candidate) => candidate.revision === item.revision)
+    return expandedIndex >= 0 ? expandedItems[expandedIndex + 1] : undefined
+  }
+
   const reveal = async (item: EntryHistoryItem) => {
     setSelected(null)
     setRevealingRevision(item.revision)
     const cryptoSessionGeneration = useAuthStore.getState().cryptoSessionGeneration
     try {
+      const previousItem = item.operation === 1 ? undefined : await previousItemFor(item)
+      if (useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration) {
+        throw new Error('Vault lock session changed')
+      }
       const revealed = await withVaultKey(async (vaultKey) => {
         const canonicalSecret = await openMemberSecret(item.entryKey, item.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId: detail.vaultId,
           entryId: detail.id, revision: item.revision,
         })
-        if (item.revision === detail.currentRevision) {
-          return { canonicalSecret, currentView: fromMemberSecret(canonicalSecret) }
-        }
+        if (!previousItem) return { canonicalSecret }
         if (useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration) {
           throw new Error('Vault lock session changed')
         }
-        const currentCanonicalSecret = await openMemberSecret(
-          detail.entryKey, detail.memberSecret, vaultKey, {
+        const previousCanonicalSecret = await openMemberSecret(
+          previousItem.entryKey, previousItem.memberSecret, vaultKey, {
             organizationId: detail.organizationId, vaultId: detail.vaultId,
-            entryId: detail.id, revision: detail.currentRevision,
+            entryId: detail.id, revision: previousItem.revision,
           },
         )
-        return { canonicalSecret, currentView: fromMemberSecret(currentCanonicalSecret) }
+        return { canonicalSecret, previousView: fromMemberSecret(previousCanonicalSecret) }
       })
       if (useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration) {
         throw new Error('Vault lock session changed')
@@ -211,7 +223,7 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
                 <HistoricalEntryForm
                   revision={selected.revision}
                   secret={selectedView!}
-                  currentSecret={selected.currentView}
+                  previousSecret={selected.previousView}
                 />
                 {!isCurrent ? (
                   <div className="mt-4 flex justify-end border-t border-[var(--cv-divider)] pt-4">

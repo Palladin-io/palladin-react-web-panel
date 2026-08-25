@@ -14,7 +14,7 @@ import {
 } from '../types'
 import { readCustomFields } from '../entry-blob'
 import { CustomFieldsView } from './custom-fields-view'
-import { compareEntryVersionToCurrent, type HistoricalEntryField } from './entry-history-diff'
+import { compareEntryVersionToPrevious, type HistoricalEntryField } from './entry-history-diff'
 import { EntryIcon } from './entry-icon'
 import { OtpauthTotp } from './totp-display'
 import { ScriptEditor } from './script-editor'
@@ -23,19 +23,25 @@ import { SectionHeader } from './section-header'
 export interface HistoricalEntryFormProps {
   revision: string
   secret: MemberSecretView
-  currentSecret: MemberSecretView
+  previousSecret?: MemberSecretView
 }
 
 const CHANGE_BORDER_CLASS =
   'border-2 border-[var(--cv-change)] bg-[rgb(var(--cv-change-rgb)/0.08)] focus:border-[var(--cv-change)]'
 
-export function HistoricalEntryForm({ revision, secret, currentSecret }: HistoricalEntryFormProps) {
+const NO_CHANGES = {
+  fields: new Set<HistoricalEntryField>(),
+  customFieldIds: new Set<string>(),
+  hasChanges: false,
+}
+
+export function HistoricalEntryForm({ revision, secret, previousSecret }: HistoricalEntryFormProps) {
   const { t } = useTranslation()
   const [mainSecretShown, setMainSecretShown] = useState(false)
   const content = secret.content
   const inputId = (field: string) => `entry-history-${revision}-${field}`
   const customFields = readCustomFields(content)
-  const diff = compareEntryVersionToCurrent(secret, currentSecret)
+  const diff = previousSecret ? compareEntryVersionToPrevious(secret, previousSecret) : NO_CHANGES
   const changeDescriptionId = inputId('change-description')
   const changedInputProps = (field: HistoricalEntryField) => {
     const changed = diff.fields.has(field)
@@ -66,7 +72,7 @@ export function HistoricalEntryForm({ revision, secret, currentSecret }: Histori
             text-meta font-medium text-[var(--cv-change)]"
         >
           <Icon name="difference" size={15} className="shrink-0" />
-          <span>{t('vault.entry.history.changedFromCurrent')}</span>
+          <span>{t('vault.entry.history.changedInRevision')}</span>
         </div>
       ) : null}
       <div>

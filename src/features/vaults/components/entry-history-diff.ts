@@ -41,63 +41,63 @@ export interface EntryHistoryDiff {
  * revision envelopes; field-level history remains inside the zero-knowledge
  * boundary and is discarded together with the revealed form.
  */
-export function compareEntryVersionToCurrent(
-  historical: MemberSecretView,
-  current: MemberSecretView,
+export function compareEntryVersionToPrevious(
+  version: MemberSecretView,
+  previous: MemberSecretView,
 ): EntryHistoryDiff {
   const fields = new Set<HistoricalEntryField>()
   const changed = (field: HistoricalEntryField, before: unknown, now: unknown) => {
     if (!sameValue(before, now)) fields.add(field)
   }
 
-  changed('memberLabel', historical.memberLabel, current.memberLabel)
-  changed('icon', [historical.iconReference ?? '', historical.color ?? ''], [
-    current.iconReference ?? '', current.color ?? '',
+  changed('memberLabel', version.memberLabel, previous.memberLabel)
+  changed('icon', [version.iconReference ?? '', version.color ?? ''], [
+    previous.iconReference ?? '', previous.color ?? '',
   ])
-  changed('entryType', historical.entryType, current.entryType)
-  changed('agentLabel', historical.agentLabel, current.agentLabel)
-  changed('description', historical.description ?? '', current.description ?? '')
-  changed('notes', historical.content.notes ?? '', current.content.notes ?? '')
-  changed('discoverable', historical.agentVisibilityPolicy.discoverable, current.agentVisibilityPolicy.discoverable)
-  changed('fieldPolicy', historical.agentVisibilityPolicy.fields, current.agentVisibilityPolicy.fields)
+  changed('entryType', version.entryType, previous.entryType)
+  changed('agentLabel', version.agentLabel, previous.agentLabel)
+  changed('description', version.description ?? '', previous.description ?? '')
+  changed('notes', version.content.notes ?? '', previous.content.notes ?? '')
+  changed('discoverable', version.agentVisibilityPolicy.discoverable, previous.agentVisibilityPolicy.discoverable)
+  changed('fieldPolicy', version.agentVisibilityPolicy.fields, previous.agentVisibilityPolicy.fields)
 
-  if (historical.content.type !== current.content.type) {
-    markVisibleContentFields(fields, historical)
-  } else if (historical.content.type === ENTRY_TYPE_KEY && current.content.type === ENTRY_TYPE_KEY) {
-    changed('url', historical.content.url ?? '', current.content.url ?? '')
-    changed('value', historical.content.value, current.content.value)
-  } else if (historical.content.type === ENTRY_TYPE_CREDENTIAL
-    && current.content.type === ENTRY_TYPE_CREDENTIAL) {
-    changed('url', historical.content.url ?? '', current.content.url ?? '')
-    changed('username', historical.content.username, current.content.username)
-    changed('password', historical.content.password, current.content.password)
-    changed('totp', historical.content.totp ?? '', current.content.totp ?? '')
-  } else if (historical.content.type === ENTRY_TYPE_SCRIPT
-    && current.content.type === ENTRY_TYPE_SCRIPT) {
-    changed('interpreter', historical.content.interpreter, current.content.interpreter)
-    changed('script', historical.content.script, current.content.script)
-    changed('refs', historical.content.refs ?? [], current.content.refs ?? [])
-  } else if (historical.content.type === ENTRY_TYPE_CREDIT_CARD
-    && current.content.type === ENTRY_TYPE_CREDIT_CARD) {
-    changed('cardholderName', historical.content.cardholderName, current.content.cardholderName)
-    changed('cardNumber', historical.content.cardNumber, current.content.cardNumber)
-    changed('expiryMonth', historical.content.expiryMonth, current.content.expiryMonth)
-    changed('expiryYear', historical.content.expiryYear, current.content.expiryYear)
-    changed('billingAddress', historical.content.billingAddress ?? '', current.content.billingAddress ?? '')
+  if (version.content.type !== previous.content.type) {
+    markVisibleContentFields(fields, version)
+  } else if (version.content.type === ENTRY_TYPE_KEY && previous.content.type === ENTRY_TYPE_KEY) {
+    changed('url', version.content.url ?? '', previous.content.url ?? '')
+    changed('value', version.content.value, previous.content.value)
+  } else if (version.content.type === ENTRY_TYPE_CREDENTIAL
+    && previous.content.type === ENTRY_TYPE_CREDENTIAL) {
+    changed('url', version.content.url ?? '', previous.content.url ?? '')
+    changed('username', version.content.username, previous.content.username)
+    changed('password', version.content.password, previous.content.password)
+    changed('totp', version.content.totp ?? '', previous.content.totp ?? '')
+  } else if (version.content.type === ENTRY_TYPE_SCRIPT
+    && previous.content.type === ENTRY_TYPE_SCRIPT) {
+    changed('interpreter', version.content.interpreter, previous.content.interpreter)
+    changed('script', version.content.script, previous.content.script)
+    changed('refs', version.content.refs ?? [], previous.content.refs ?? [])
+  } else if (version.content.type === ENTRY_TYPE_CREDIT_CARD
+    && previous.content.type === ENTRY_TYPE_CREDIT_CARD) {
+    changed('cardholderName', version.content.cardholderName, previous.content.cardholderName)
+    changed('cardNumber', version.content.cardNumber, previous.content.cardNumber)
+    changed('expiryMonth', version.content.expiryMonth, previous.content.expiryMonth)
+    changed('expiryYear', version.content.expiryYear, previous.content.expiryYear)
+    changed('billingAddress', version.content.billingAddress ?? '', previous.content.billingAddress ?? '')
   }
 
-  const historicalCustomFields = historical.content.fields ?? []
-  const currentCustomFields = current.content.fields ?? []
-  const currentById = new Map(currentCustomFields.map((field) => [field.id, field]))
-  const historicalIds = new Set(historicalCustomFields.map((field) => field.id))
+  const versionCustomFields = version.content.fields ?? []
+  const previousCustomFields = previous.content.fields ?? []
+  const previousById = new Map(previousCustomFields.map((field) => [field.id, field]))
+  const versionIds = new Set(versionCustomFields.map((field) => field.id))
   const customFieldIds = new Set(
-    historicalCustomFields
-      .filter((field) => !sameValue(field, currentById.get(field.id)))
+    versionCustomFields
+      .filter((field) => !sameValue(field, previousById.get(field.id)))
       .map((field) => field.id),
   )
   if (customFieldIds.size > 0
-    || currentCustomFields.some((field) => !historicalIds.has(field.id))
-    || !sameValue(historicalCustomFields.map((field) => field.id), currentCustomFields.map((field) => field.id))) {
+    || previousCustomFields.some((field) => !versionIds.has(field.id))
+    || !sameValue(versionCustomFields.map((field) => field.id), previousCustomFields.map((field) => field.id))) {
     fields.add('customFields')
   }
 

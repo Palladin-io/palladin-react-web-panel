@@ -42,7 +42,7 @@ const detail = {
   organizationId: '00112233-4455-4677-8899-aabbccddeeff',
   vaultId: '11112233-4455-4677-8899-aabbccddeeff',
   id: '22222233-4455-4677-8899-aabbccddeeff',
-  currentRevision: '2', memberIndexRevision: '2', agentDiscoveryRevision: null,
+  currentRevision: '3', memberIndexRevision: '3', agentDiscoveryRevision: null,
   agentDiscoveryRevisionHighWatermark: '1',
   currentKeyVersion: 2, state: 'active' as const,
   createdAt: '2026-07-25T10:00:00Z', updatedAt: '2026-07-26T10:00:00Z',
@@ -60,13 +60,20 @@ const oldSecret = {
   agentVisibilityPolicy: { discoverable: false, fields: { value: 'onGrantValue' as const } },
 }
 const currentSecret = { ...oldSecret, memberLabel: 'Current label', content: { type: 0 as const, value: 'current-secret' } }
+const previousSecret = { ...oldSecret, memberLabel: 'Previous label', content: {
+  ...oldSecret.content, value: 'previous-secret',
+} }
 const oldCanonicalSecret = { marker: 'old-canonical', view: oldSecret }
 const currentCanonicalSecret = { marker: 'current-canonical', view: currentSecret }
+const previousCanonicalSecret = { marker: 'previous-canonical', view: previousSecret }
 const item = {
-  revision: '1', memberSequence: '1', discoverySequence: null,
+  revision: '2', memberSequence: '2', discoverySequence: null,
   changedAt: '2026-07-25T10:00:00Z', changedByType: 1 as const,
-  changedById: '33332233-4455-4677-8899-aabbccddeeff', operation: 1 as const, keyVersion: 1,
+  changedById: '33332233-4455-4677-8899-aabbccddeeff', operation: 2 as const, keyVersion: 1,
   entryKey: {}, memberSecret: {},
+}
+const previousItem = {
+  ...item, revision: '1', memberSequence: '1', operation: 1 as const,
 }
 
 describe('EntryHistoryTab', () => {
@@ -74,10 +81,12 @@ describe('EntryHistoryTab', () => {
     vi.clearAllMocks()
     useAuthStore.setState({ privateKey: new Uint8Array(32).fill(3), cryptoSessionGeneration: 7 })
     mocks.history.mockReturnValue({ data: { pages: [{ items: [item] }] }, isPending: false, isError: false,
-      hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn(), refetch: vi.fn() })
+      hasNextPage: true, isFetchingNextPage: false,
+      fetchNextPage: vi.fn().mockResolvedValue({ data: { pages: [{ items: [item] }, { items: [previousItem] }] } }),
+      refetch: vi.fn() })
     mocks.decryptHistory.mockReset()
       .mockResolvedValueOnce(oldCanonicalSecret)
-      .mockResolvedValueOnce(currentCanonicalSecret)
+      .mockResolvedValueOnce(previousCanonicalSecret)
       .mockResolvedValueOnce(currentCanonicalSecret)
     mocks.mutateAsync.mockResolvedValue({ currentRevision: '3' })
   })
@@ -87,7 +96,7 @@ describe('EntryHistoryTab', () => {
     render(<EntryHistoryTab detail={detail as never} />)
     expect(mocks.decryptHistory).not.toHaveBeenCalled()
     expect(screen.getByText(/Ada Admin/)).toBeInTheDocument()
-    expect(screen.getByTestId('entry-history-audit-footer')).toHaveTextContent(/Created.*Ada Admin/i)
+    expect(screen.getByTestId('entry-history-audit-footer')).toHaveTextContent(/Updated.*Ada Admin/i)
     expect(screen.getByRole('button', { name: /reveal/i })).toHaveClass('bg-[var(--cv-primary)]')
 
     await user.click(screen.getByRole('button', { name: /reveal/i }))
