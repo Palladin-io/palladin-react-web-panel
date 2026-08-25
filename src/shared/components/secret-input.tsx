@@ -19,6 +19,8 @@ export interface SecretInputProps {
   autoComplete?: string
   /** Show a red border to signal a validation error. */
   error?: boolean
+  /** Override border + focus-border classes for a semantic read-only state. */
+  borderClass?: string
   onBlur?: () => void
   /** Render a copy-to-clipboard button that copies the value without revealing it. */
   copyable?: boolean
@@ -36,7 +38,7 @@ const PADDING_FOR_ACTION_COUNT: Record<number, string> = { 1: ' pr-10', 2: ' pr-
 export function SecretInput({
   id, label, labelClassName, value, onChange, shown, onToggleShown,
   placeholder, disabled, readOnly, monospace, autoComplete = 'off', error, onBlur,
-  copyable, copyLabel, onGenerate,
+  borderClass, copyable, copyLabel, onGenerate,
 }: SecretInputProps) {
   const { t } = useTranslation()
   const actionCount = 1 + (copyable ? 1 : 0) + (onGenerate ? 1 : 0)
@@ -81,10 +83,10 @@ export function SecretInput({
             focus:outline-none transition-colors duration-200 disabled:opacity-60${monospace ? ' font-mono' : ''}
             ${paddingRight}
             ${!shown && value ? ' secret-mask' : ''}
-            ${error
+            ${borderClass ?? (error
               ? 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
               : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
-            }`}
+            )}`}
         />
         <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
           {onGenerate ? <PasswordGeneratorPopover onUse={onGenerate} disabled={disabled} /> : null}

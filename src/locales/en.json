@@ -292,6 +292,7 @@
   "vault.entry.history.reveal": "Reveal",
   "vault.entry.history.hide": "Hide",
   "vault.entry.history.decrypting": "Decrypting…",
+  "vault.entry.history.changedFromCurrent": "Highlighted fields differ from the current version.",
   "vault.entry.history.restore": "Restore this version",
   "vault.entry.history.restoring": "Restoring…",
   "vault.entry.history.loadMore": "Load older versions",

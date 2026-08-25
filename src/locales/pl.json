@@ -308,6 +308,7 @@
   "vault.entry.history.reveal": "Pokaż",
   "vault.entry.history.hide": "Ukryj",
   "vault.entry.history.decrypting": "Odszyfrowywanie…",
+  "vault.entry.history.changedFromCurrent": "Wyróżnione pola różnią się od bieżącej wersji.",
   "vault.entry.history.restore": "Przywróć tę wersję",
   "vault.entry.history.restoring": "Przywracanie…",
   "vault.entry.history.loadMore": "Załaduj starsze wersje",

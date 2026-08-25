@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
+import { Icon } from '../../../shared/components/icon'
 import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
 import { fromMemberSecret, type EntryDraft, type MemberSecretView } from '../../../shared/crypto/entry-draft'
 import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
@@ -36,7 +37,7 @@ function asDraft(secret: MemberSecretView): EntryDraft {
 }
 
 export function EntryHistoryTab({ detail }: EntryHistoryTabProps) {
-  const scopeKey = `${detail.organizationId}:${detail.vaultId}:${detail.id}`
+  const scopeKey = `${detail.organizationId}:${detail.vaultId}:${detail.id}:${detail.currentRevision}`
   return <ScopedEntryHistoryTab key={scopeKey} detail={detail} />
 }
 
@@ -47,6 +48,7 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
   const [selected, setSelected] = useState<{
     revision: string
     canonicalSecret: MemberSecretV1
+    currentView: MemberSecretView
     cryptoSessionGeneration: number
   } | null>(null)
   const [revealingRevision, setRevealingRevision] = useState<string | null>(null)
@@ -104,16 +106,29 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
     setRevealingRevision(item.revision)
     const cryptoSessionGeneration = useAuthStore.getState().cryptoSessionGeneration
     try {
-      const canonicalSecret = await withVaultKey(async (vaultKey) => openMemberSecret(
-        item.entryKey, item.memberSecret, vaultKey, {
+      const revealed = await withVaultKey(async (vaultKey) => {
+        const canonicalSecret = await openMemberSecret(item.entryKey, item.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId: detail.vaultId,
           entryId: detail.id, revision: item.revision,
-        },
-      ))
+        })
+        if (item.revision === detail.currentRevision) {
+          return { canonicalSecret, currentView: fromMemberSecret(canonicalSecret) }
+        }
+        if (useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration) {
+          throw new Error('Vault lock session changed')
+        }
+        const currentCanonicalSecret = await openMemberSecret(
+          detail.entryKey, detail.memberSecret, vaultKey, {
+            organizationId: detail.organizationId, vaultId: detail.vaultId,
+            entryId: detail.id, revision: detail.currentRevision,
+          },
+        )
+        return { canonicalSecret, currentView: fromMemberSecret(currentCanonicalSecret) }
+      })
       if (useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration) {
         throw new Error('Vault lock session changed')
       }
-      setSelected({ revision: item.revision, canonicalSecret, cryptoSessionGeneration })
+      setSelected({ revision: item.revision, ...revealed, cryptoSessionGeneration })
     } catch {
       toast.error(t('vault.entry.history.decryptError'))
     } finally {
@@ -162,35 +177,41 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
         const isCurrent = item.revision === detail.currentRevision
         const isSelected = selected?.revision === item.revision
         return (
-          <article key={item.revision} className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+          <article
+            key={item.revision}
+            className="overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-ui font-semibold">{t('vault.entry.history.revision', { revision: item.revision })}</span>
                   {isCurrent ? <span className="text-meta text-[var(--cv-success)]">{t('vault.entry.history.current')}</span> : null}
                 </div>
-                <p className="text-meta text-[var(--cv-t3)]">
-                  {new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.changedAt))}
-                  {' · '}{t(`vault.entry.history.operation.${item.operation}`)}
-                  {' · '}{actorLabel(item)}
-                </p>
               </div>
               <Button
-                variant="outline"
+                variant={isSelected ? 'subtle' : 'accent'}
                 size="sm"
                 onClick={() => isSelected ? setSelected(null) : reveal(item)}
                 disabled={revealingRevision !== null}
               >
+                <Icon
+                  name={revealingRevision === item.revision
+                    ? 'progress_activity'
+                    : isSelected ? 'visibility_off' : 'visibility'}
+                  size={14}
+                  className={revealingRevision === item.revision ? 'animate-spin motion-reduce:animate-none' : undefined}
+                />
                 {revealingRevision === item.revision
                   ? t('vault.entry.history.decrypting')
                   : isSelected ? t('vault.entry.history.hide') : t('vault.entry.history.reveal')}
               </Button>
             </div>
             {isSelected ? (
-              <div className="mt-3 rounded-xl border border-[var(--cv-divider)] bg-[var(--cv-surface-subtle)] p-4">
+              <div className="entry-history-reveal border-t border-[var(--cv-divider)] bg-[var(--cv-bg-subtle)] p-4">
                 <HistoricalEntryForm
                   revision={selected.revision}
                   secret={selectedView!}
+                  currentSecret={selected.currentView}
                 />
                 {!isCurrent ? (
                   <div className="mt-4 flex justify-end border-t border-[var(--cv-divider)] pt-4">
@@ -201,6 +222,23 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
                 ) : null}
               </div>
             ) : null}
+            <footer
+              data-testid="entry-history-audit-footer"
+              className="flex min-h-[2.875rem] flex-wrap items-center justify-between gap-x-4 gap-y-1
+                border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2"
+            >
+              <div className="flex min-w-0 items-center gap-1.5 text-micro text-[var(--cv-t3)]">
+                <Icon name="history" size={13} className="shrink-0" />
+                <span className="truncate">
+                  {t(`vault.entry.history.operation.${item.operation}`)}
+                  {' · '}
+                  {new Intl.DateTimeFormat(i18n.language, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(item.changedAt))}
+                </span>
+              </div>
+              <span className="min-w-0 truncate text-micro text-[var(--cv-t3)]">
+                {actorLabel(item)}
+              </span>
+            </footer>
           </article>
         )
       })}

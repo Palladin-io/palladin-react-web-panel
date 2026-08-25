@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
+import { Icon } from '../../../shared/components/icon'
 import { SecretInput } from '../../../shared/components/secret-input'
 import type { MemberSecretView } from '../../../shared/crypto/entry-draft'
 import { shortenKey } from '../../../shared/lib/shorten-key'
@@ -13,6 +14,7 @@ import {
 } from '../types'
 import { readCustomFields } from '../entry-blob'
 import { CustomFieldsView } from './custom-fields-view'
+import { compareEntryVersionToCurrent, type HistoricalEntryField } from './entry-history-diff'
 import { EntryIcon } from './entry-icon'
 import { OtpauthTotp } from './totp-display'
 import { ScriptEditor } from './script-editor'
@@ -21,17 +23,52 @@ import { SectionHeader } from './section-header'
 export interface HistoricalEntryFormProps {
   revision: string
   secret: MemberSecretView
+  currentSecret: MemberSecretView
 }
 
-export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormProps) {
+const CHANGE_BORDER_CLASS =
+  'border-2 border-[var(--cv-change)] bg-[rgb(var(--cv-change-rgb)/0.08)] focus:border-[var(--cv-change)]'
+
+export function HistoricalEntryForm({ revision, secret, currentSecret }: HistoricalEntryFormProps) {
   const { t } = useTranslation()
   const [mainSecretShown, setMainSecretShown] = useState(false)
   const content = secret.content
   const inputId = (field: string) => `entry-history-${revision}-${field}`
   const customFields = readCustomFields(content)
+  const diff = compareEntryVersionToCurrent(secret, currentSecret)
+  const changeDescriptionId = inputId('change-description')
+  const changedInputProps = (field: HistoricalEntryField) => {
+    const changed = diff.fields.has(field)
+    return {
+      borderClass: changed ? CHANGE_BORDER_CLASS : undefined,
+      'aria-describedby': changed ? changeDescriptionId : undefined,
+      'data-history-changed': changed || undefined,
+    }
+  }
+  const changedSurfaceProps = (field: HistoricalEntryField) => {
+    const changed = diff.fields.has(field)
+    return {
+      role: changed ? 'group' as const : undefined,
+      'aria-describedby': changed ? changeDescriptionId : undefined,
+      'data-history-changed': changed || undefined,
+    }
+  }
+  const changedSurfaceClass = (field: HistoricalEntryField) => diff.fields.has(field)
+    ? 'rounded-xl border-2 border-[var(--cv-change)] bg-[rgb(var(--cv-change-rgb)/0.08)]'
+    : ''
 
   return (
     <div className="ph-no-capture flex flex-col gap-3" data-testid="historical-entry-form">
+      {diff.hasChanges ? (
+        <div
+          id={changeDescriptionId}
+          className="flex items-center gap-2 rounded-lg bg-[rgb(var(--cv-change-rgb)/0.1)] px-3 py-2
+            text-meta font-medium text-[var(--cv-change)]"
+        >
+          <Icon name="difference" size={15} className="shrink-0" />
+          <span>{t('vault.entry.history.changedFromCurrent')}</span>
+        </div>
+      ) : null}
       <div>
         <label
           htmlFor={inputId('label')}
@@ -44,7 +81,11 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
             icon={secret.iconReference}
             color={secret.color}
             type={secret.entryType}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[0.625rem] border border-[var(--cv-input-border)]"
+            className={`grid h-9 w-9 shrink-0 place-items-center rounded-[0.625rem] border ${
+              diff.fields.has('icon')
+                ? 'border-2 border-[var(--cv-change)] bg-[rgb(var(--cv-change-rgb)/0.08)]'
+                : 'border-[var(--cv-input-border)]'
+            }`}
           />
           <div className="min-w-0 flex-1">
             <FormInput
@@ -53,6 +94,7 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
               labelClassName="sr-only"
               value={secret.memberLabel}
               readOnly
+              {...changedInputProps('memberLabel')}
             />
           </div>
         </div>
@@ -64,12 +106,14 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
           label={t('vault.entries.typeLabel')}
           value={t(`vault.entry.history.type.${secret.entryType}`)}
           readOnly
+          {...changedInputProps('entryType')}
         />
         <FormInput
           id={inputId('agent-label')}
           label={t('vault.entries.visibility.agentLabel')}
           value={secret.agentLabel}
           readOnly
+          {...changedInputProps('agentLabel')}
         />
       </div>
 
@@ -78,6 +122,7 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
         label={t('vault.entries.descriptionLabel')}
         value={secret.description ?? ''}
         readOnly
+        {...changedInputProps('description')}
       />
 
       {(content.type === ENTRY_TYPE_KEY || content.type === ENTRY_TYPE_CREDENTIAL) ? (
@@ -86,6 +131,7 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
           label={t('vault.entries.urlLabel')}
           value={content.url ?? ''}
           readOnly
+          {...changedInputProps('url')}
         />
       ) : null}
 
@@ -101,6 +147,7 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
           monospace
           copyable
           copyLabel={t('vault.entry.copyKey')}
+          {...changedInputProps('value')}
         />
       ) : null}
 
@@ -114,6 +161,7 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
               readOnly
               copyable
               copyLabel={t('vault.entry.copyUsername')}
+              {...changedInputProps('username')}
             />
             <SecretInput
               id={inputId('password')}
@@ -126,12 +174,18 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
               monospace
               copyable
               copyLabel={t('vault.entry.copyPassword')}
+              {...changedInputProps('password')}
             />
           </div>
           {content.totp ? (
             <div>
               <SectionHeader>{t('vault.entries.totp.section')}</SectionHeader>
-              <div className="mt-2 rounded-xl border border-[var(--cv-input-border)] px-3 py-2.5">
+              <div
+                {...changedSurfaceProps('totp')}
+                className={`mt-2 px-3 py-2.5 ${diff.fields.has('totp')
+                  ? changedSurfaceClass('totp')
+                  : 'rounded-xl border border-[var(--cv-input-border)]'}`}
+              >
                 <OtpauthTotp uri={content.totp} />
               </div>
             </div>
@@ -146,20 +200,31 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
             label={t('vault.entries.script.interpreterLabel')}
             value={content.interpreter}
             readOnly
+            {...changedInputProps('interpreter')}
           />
           <div>
             <label className="mb-1.5 block text-meta font-semibold text-[var(--cv-label-text)]">
               {t('vault.entries.script.bodyLabel')}
             </label>
-            <ScriptEditor
-              value={content.script}
-              onChange={() => undefined}
-              interpreter={content.interpreter}
-              disabled
-            />
+            <div
+              {...changedSurfaceProps('script')}
+              className={changedSurfaceClass('script')}
+            >
+              <ScriptEditor
+                value={content.script}
+                onChange={() => undefined}
+                interpreter={content.interpreter}
+                disabled
+              />
+            </div>
           </div>
           {content.refs && content.refs.length > 0 ? (
-            <div className="flex flex-col gap-2">
+            <div
+              {...changedSurfaceProps('refs')}
+              className={`flex flex-col gap-2 ${diff.fields.has('refs') ? 'p-2' : ''} ${
+                changedSurfaceClass('refs')
+              }`}
+            >
               <SectionHeader>{t('vault.entries.script.refsTitle')}</SectionHeader>
               {content.refs.map((ref, index) => (
                 <div
@@ -194,6 +259,7 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
             label={t('vault.entries.card.cardholderName')}
             value={content.cardholderName}
             readOnly
+            {...changedInputProps('cardholderName')}
           />
           <SecretInput
             id={inputId('card-number')}
@@ -205,18 +271,21 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
             readOnly
             monospace
             copyable
+            {...changedInputProps('cardNumber')}
           />
           <FormInput
             id={inputId('expiry-month')}
             label={t('vault.entries.card.expiryMonth')}
             value={content.expiryMonth}
             readOnly
+            {...changedInputProps('expiryMonth')}
           />
           <FormInput
             id={inputId('expiry-year')}
             label={t('vault.entries.card.expiryYear')}
             value={content.expiryYear}
             readOnly
+            {...changedInputProps('expiryYear')}
           />
           <div className="sm:col-span-2">
             <FormInput
@@ -224,12 +293,19 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
               label={t('vault.entries.card.billingAddress')}
               value={content.billingAddress ?? ''}
               readOnly
+              {...changedInputProps('billingAddress')}
             />
           </div>
         </div>
       ) : null}
 
-      {customFields.length > 0 ? <CustomFieldsView fields={customFields} /> : null}
+      {customFields.length > 0 ? (
+        <CustomFieldsView
+          fields={customFields}
+          changedFieldIds={diff.customFieldIds}
+          changeDescriptionId={changeDescriptionId}
+        />
+      ) : null}
 
       <FormTextarea
         id={inputId('notes')}
@@ -237,6 +313,7 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
         value={content.notes ?? ''}
         readOnly
         rows={2}
+        {...changedInputProps('notes')}
       />
 
       <SectionHeader>{t('vault.entries.visibility.title')}</SectionHeader>
@@ -248,6 +325,7 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
             ? 'vault.entries.visibility.enabled'
             : 'vault.entries.visibility.disabled')}
           readOnly
+          {...changedInputProps('discoverable')}
         />
         <FormInput
           id={inputId('field-policy')}
@@ -256,6 +334,7 @@ export function HistoricalEntryForm({ revision, secret }: HistoricalEntryFormPro
             .map(([field, access]) => `${field}: ${t(`vault.entries.visibility.${access}`)}`)
             .join(' · ')}
           readOnly
+          {...changedInputProps('fieldPolicy')}
         />
       </div>
     </div>

@@ -10,6 +10,10 @@ import { TotpDisplay } from './totp-display'
 
 export interface CustomFieldsViewProps {
   fields: CustomField[]
+  /** Field ids whose locally decrypted value differs from the current revision. */
+  changedFieldIds?: ReadonlySet<string>
+  /** Accessible description shared by changed historical fields. */
+  changeDescriptionId?: string
 }
 
 /**
@@ -22,7 +26,7 @@ export interface CustomFieldsViewProps {
  * handled fail-closed. The whole block is `ph-no-capture` — labels and values
  * are encrypted-at-rest and treated as secret in analytics.
  */
-export function CustomFieldsView({ fields }: CustomFieldsViewProps) {
+export function CustomFieldsView({ fields, changedFieldIds, changeDescriptionId }: CustomFieldsViewProps) {
   const { t } = useTranslation()
   if (fields.length === 0) return null
 
@@ -33,14 +37,27 @@ export function CustomFieldsView({ fields }: CustomFieldsViewProps) {
       </h3>
       <div className="flex flex-col divide-y divide-[var(--cv-divider)] rounded-lg border border-[var(--cv-input-border)]">
         {fields.map((field) => (
-          <FieldViewRow key={field.id} field={field} />
+          <FieldViewRow
+            key={field.id}
+            field={field}
+            changed={changedFieldIds?.has(field.id) ?? false}
+            changeDescriptionId={changeDescriptionId}
+          />
         ))}
       </div>
     </section>
   )
 }
 
-function FieldViewRow({ field }: { field: CustomField }) {
+function FieldViewRow({
+  field,
+  changed,
+  changeDescriptionId,
+}: {
+  field: CustomField
+  changed: boolean
+  changeDescriptionId?: string
+}) {
   const { t } = useTranslation()
   const [shown, setShown] = useState(false)
   const isText = field.type === 'text' && typeof field.value === 'string'
@@ -50,7 +67,14 @@ function FieldViewRow({ field }: { field: CustomField }) {
   const isSecretLike = field.type === 'concealed' || (!isRenderableTotp && !isText && !isMultiline)
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2">
+    <div
+      role={changed ? 'group' : undefined}
+      aria-describedby={changed ? changeDescriptionId : undefined}
+      data-history-changed={changed || undefined}
+      className={`flex items-center gap-3 px-3 py-2 transition-colors ${changed
+        ? 'border-l-2 border-[var(--cv-change)] bg-[rgb(var(--cv-change-rgb)/0.08)]'
+        : ''}`}
+    >
       <Tooltip content={field.label} className="w-32 shrink-0 truncate text-meta text-[var(--cv-t3)]">
         {field.label}
       </Tooltip>
