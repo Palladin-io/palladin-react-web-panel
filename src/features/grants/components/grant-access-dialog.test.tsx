@@ -93,7 +93,8 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'Agent' }))
     await user.click(screen.getByText('Deploy Bot'))
-    expect(screen.getByRole('alert')).toHaveTextContent(/cryptographic access to every current and future entry/i)
+    expect(screen.queryByText(/cryptographic access to every current and future entry/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^grant access$/i })).toHaveClass('bg-[var(--cv-primary)]')
     // Default policy = Time Limited, pre-filled ~1 day ahead — already a valid future expiry.
     await user.click(screen.getByRole('button', { name: /^grant access$/i }))
 

@@ -33,6 +33,7 @@ describe('GrantAgainDialog resource label', () => {
 
     expect(screen.getByText('Production Vault')).toBeInTheDocument()
     expect(screen.queryByText('Deploy token')).not.toBeInTheDocument()
+    expect(screen.queryByText(/cryptographic access to every current and future entry/i)).not.toBeInTheDocument()
   })
 
   it('names the Entry for a GRANULAR grant', () => {

@@ -5,7 +5,6 @@ import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { FeedbackSlot } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
-import { WarningZone } from '../../../shared/components/warning-zone'
 import { AGENT_STATUS_ACTIVE, getAgent, useAgents } from '../../agents'
 import { useVaults } from '../../vaults/use-vaults'
 import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
@@ -174,7 +173,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           <Button variant="subtle" size="sm" onClick={onClose} disabled={createGrant.isPending} className="flex-1">
             {t('grants.cancel')}
           </Button>
-          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={createGrant.isPending || currentSubject?.constraintsUnavailable} className="flex-[2]">
+          <Button variant="accent" size="sm" onClick={handleConfirm} disabled={createGrant.isPending || currentSubject?.constraintsUnavailable} className="flex-[2]">
             {createGrant.isPending ? t('grants.create.granting') : t('grants.create.confirm')}
           </Button>
         </DialogFooter>
@@ -202,12 +201,6 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             {t('grants.create.waitForVaultSync')}
           </FeedbackSlot>
         </div>
-
-        {currentSubject?.type === GRANT_TYPE_FULL && (
-          <WarningZone title={t('grants.create.fullTrustTitle')}>
-            {t('grants.create.fullTrustBody')}
-          </WarningZone>
-        )}
 
         {/* Shared policy segment */}
         <GrantPolicyFields
