@@ -28,7 +28,7 @@ vi.mock('../../shared/crypto/entry-draft', () => ({ toMemberSecret: mocks.toSecr
 vi.mock('../../shared/crypto/vault-plaintext', () => ({ projectAgentDiscovery: vi.fn(() => null) }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: mocks.produce,
-  GRANT_DELIVERY_POLICY_NAME: { standard: 'standard' },
+  GRANT_DELIVERY_POLICY: { standard: 0, execOnly: 1, injectOnly: 2 },
   listGrantableFields: vi.fn(() => [
     { id: 'value', label: 'value', access: 'onGrantValue' },
     { id: 'custom:new', label: 'New field', access: 'onGrantValue' },
@@ -46,7 +46,7 @@ function wrapper({ children }: { children: ReactNode }) {
 const input = {
   detail: { organizationId: 'org', vaultId: 'vault', id: 'entry', currentRevision: '1',
     memberIndexRevision: '1', agentDiscoveryRevisionHighWatermark: '0', currentKeyVersion: 1,
-    entryKey: { descriptor: { resourceRevision: '1' } } },
+    deliveryPolicy: 'execOnly', entryKey: { descriptor: { resourceRevision: '1' } } },
   previous: { schemaVersion: 1 as const, memberLabel: 'Old', agentLabel: 'Agent', entryType: ENTRY_TYPE_KEY,
     content: { type: ENTRY_TYPE_KEY, value: 'secret' }, agentVisibilityPolicy: { discoverable: true, fields: {} } },
   draft: { memberLabel: 'New', agentLabel: 'Agent', color: '#EB4747', entryType: ENTRY_TYPE_KEY,
@@ -75,8 +75,9 @@ describe('useUpdateCanonicalEntry', () => {
     expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({
       approvedFieldIds: ['value'], entryRevision: '2', grantEnvelopeRevision: '10',
       grantKeyVersion: 6, memberKeyGeneration: 3, recipientKeyVersion: 4,
-      approvedMethods: 6, remainingUses: 5,
+      approvedMethods: 6, deliveryPolicy: 1, remainingUses: 5,
     }))
+    expect(mocks.update.mock.calls[0][2].deliveryPolicy).toBe('execOnly')
     expect(mocks.update.mock.calls[0][2].grantEnvelopes).toEqual([{ grantId: 'grant', entryId: 'entry' }])
   })
 

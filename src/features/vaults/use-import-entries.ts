@@ -4,6 +4,7 @@ import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-
 import { defaultAgentVisibilityPolicy, toMemberSecret, type EntryDraft } from '../../shared/crypto/entry-draft'
 import {
   buildCanonicalGrantEnvelope,
+  GRANT_DELIVERY_POLICY,
   GRANT_DELIVERY_POLICY_NAME,
   listGrantableFields,
 } from '../../shared/crypto/grant-protocol'
@@ -334,7 +335,7 @@ export function useImportEntries() {
               memberIndex: envelopes.memberIndex,
               agentDiscoveryChanged,
               ...(agentDiscoveryChanged && envelopes.agentDiscovery ? { agentDiscovery: envelopes.agentDiscovery } : {}),
-              deliveryPolicy: GRANT_DELIVERY_POLICY_NAME.standard,
+              deliveryPolicy: detail.deliveryPolicy,
               grantEnvelopes: [] as Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>[],
             }
             const grantable = new Set(listGrantableFields(nextSecret).map((field) => field.id))
@@ -358,6 +359,7 @@ export function useImportEntries() {
                 memberKeyGeneration: vault.memberKeyGeneration,
                 recipientKeyVersion: grant.recipientAgentKeyVersion,
                 approvedMethods: grantMethodsMask(methods),
+                deliveryPolicy: GRANT_DELIVERY_POLICY[detail.deliveryPolicy],
                 ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
                 ...(grant.queryLimit !== null && grant.queryLimit !== undefined
                   ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }
