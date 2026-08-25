@@ -176,6 +176,8 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     await user.click(screen.getByRole('combobox', { name: 'Agent' }))
     await user.click(screen.getByText('Deploy Bot'))
 
+    expect(screen.getByText(/access to all current and future entries in this vault/i)).toBeInTheDocument()
+    expect(screen.queryByText(/access to a credential/i)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^grant access$/i })).toBeEnabled()
   })
 

@@ -173,6 +173,32 @@ describe('OrgGrantsPanel footer actions', () => {
     expect(screen.queryByText('Unknown')).not.toBeInTheDocument()
   })
 
+  it('prefers the current decrypted Vault name over a stale projection name', () => {
+    mockOrgGrants.mockReturnValue({
+      data: {
+        items: [{
+          ...expiredGrant,
+          type: 'full',
+          status: 'active',
+          vaultName: 'Old name',
+          entryId: null,
+          entryLabel: null,
+          canRevoke: true,
+          canGrantAgain: false,
+        }],
+        nextCursor: null,
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useOrgGrants>)
+
+    render(<OrgGrantsPanel vaultId="vault-1" />)
+
+    expect(screen.getByText('Personal')).toBeInTheDocument()
+    expect(screen.queryByText('Old name')).not.toBeInTheDocument()
+  })
+
   it('links from terminal history to the newer active grant', () => {
     mockOrgGrants.mockReturnValue({
       data: {

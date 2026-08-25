@@ -115,7 +115,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
         .filter((g) => g.status !== GRANT_STATUS_PENDING)
         .map((grant) => {
           const memberVault = memberVaults.get(grant.vaultId)
-          const vaultName = grant.vaultName ?? memberVault?.metadata?.name ?? null
+          const vaultName = memberVault?.metadata?.name ?? grant.vaultName ?? null
           const entry = grant.entryId ? memberVault?.entries.get(grant.entryId) : undefined
           const entryLabel = grant.entryLabel
             ?? (!entry?.corrupt ? entry?.payload?.memberLabel ?? null : null)

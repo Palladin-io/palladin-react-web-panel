@@ -979,6 +979,7 @@
   "grants.create.fullVaultSubtitle_few": "Agent będzie miał dostęp do wszystkich <b>{{count}}</b> obecnych wpisów w sejfie <b>„{{vaultName}}”</b> oraz do wpisów dodanych później.",
   "grants.create.fullVaultSubtitle_many": "Agent będzie miał dostęp do wszystkich <b>{{count}}</b> obecnych wpisów w sejfie <b>„{{vaultName}}”</b> oraz do wpisów dodanych później.",
   "grants.create.fullVaultSubtitle_other": "Agent będzie miał dostęp do wszystkich <b>{{count}}</b> obecnych wpisów w sejfie <b>„{{vaultName}}”</b> oraz do wpisów dodanych później.",
+  "grants.create.fullVaultSubtitleFallback": "Agent będzie miał dostęp do wszystkich obecnych i przyszłych wpisów w tym sejfie.",
   "grants.create.confirm": "Przyznaj dostęp",
   "grants.create.granting": "Przyznawanie…",
   "grants.create.success": "Dostęp przyznany",

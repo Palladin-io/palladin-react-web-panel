@@ -199,7 +199,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
                 b: <strong className="font-semibold text-[var(--cv-t1)]" />,
               }}
             />
-          ) : t('grants.create.subtitle')}
+          ) : fullVaultId ? t('grants.create.fullVaultSubtitleFallback') : t('grants.create.subtitle')}
         </p>
 
         {/* Swappable subject segment. Feedback collapses when there is no error. */}
