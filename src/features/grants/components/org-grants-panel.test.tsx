@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSION_GRANT_MANAGE } from '../../../shared/lib/permissions'
+import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
 import { useOrgGrants } from '../use-org-grants'
 import { OrgGrantsPanel } from './org-grants-panel'
 
@@ -25,7 +26,6 @@ vi.mock('../use-revoke-org-grant', () => ({
   useRevokeOrgGrant: () => ({ mutate: vi.fn(), isPending: false }),
 }))
 vi.mock('../../agents/components/agent-avatar', () => ({ AgentAvatar: () => <span /> }))
-
 const mockOrgGrants = vi.mocked(useOrgGrants)
 const expiredGrant = {
   id: 'grant-1',
@@ -62,6 +62,18 @@ describe('OrgGrantsPanel footer actions', () => {
     authState.permissions = PERMISSION_GRANT_MANAGE
     getAgent.mockReset()
     createGrantMutation.mutate.mockReset()
+    useMemberSyncStore.setState({
+      status: 'ready',
+      vaults: new Map([['vault-1', {
+        vaultId: 'vault-1',
+        metadata: { name: 'Personal' },
+        structure: {},
+        entries: new Map(),
+        appliedThroughSequence: '0',
+        status: 'ready',
+        failureKind: null,
+      } as never]]),
+    })
     mockOrgGrants.mockReturnValue({
       data: { items: [expiredGrant], nextCursor: null },
       isPending: false,
@@ -133,6 +145,32 @@ describe('OrgGrantsPanel footer actions', () => {
       'access to the entire vault Production',
     )
     expect(dialog.queryByText('this entry')).not.toBeInTheDocument()
+  })
+
+  it('resolves an encrypted FULL Vault name from the unlocked member store', () => {
+    mockOrgGrants.mockReturnValue({
+      data: {
+        items: [{
+          ...expiredGrant,
+          type: 'full',
+          status: 'active',
+          vaultName: null,
+          entryId: null,
+          entryLabel: null,
+          canRevoke: true,
+          canGrantAgain: false,
+        }],
+        nextCursor: null,
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useOrgGrants>)
+
+    render(<OrgGrantsPanel vaultId="vault-1" />)
+
+    expect(screen.getByText('Personal')).toBeInTheDocument()
+    expect(screen.queryByText('Unknown')).not.toBeInTheDocument()
   })
 
   it('links from terminal history to the newer active grant', () => {

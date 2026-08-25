@@ -104,20 +104,24 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
     agentId ? { agentId } : vaultId ? { vaultId } : entryId ? { entryId } : {},
     canManage,
   )
-  // Entry labels are encrypted vault metadata and therefore intentionally do
-  // not come from the backend grant projection. Resolve them from the
-  // in-memory member sync store when the vault is unlocked; keep the server
-  // value as a fallback for older/public projections.
+  // Vault names and Entry labels are encrypted vault metadata and therefore
+  // intentionally do not come from the backend grant projection. Resolve them
+  // from the in-memory member sync store when the Vault is unlocked; keep any
+  // server value as a fallback for older/public projections.
   const memberVaults = useMemberSyncStore((state) => state.vaults)
   const items = useMemo(
     () =>
       (grants.data?.items ?? [])
         .filter((g) => g.status !== GRANT_STATUS_PENDING)
         .map((grant) => {
-          if (grant.entryLabel || !grant.entryId) return grant
-          const entry = memberVaults.get(grant.vaultId)?.entries.get(grant.entryId)
-          const entryLabel = !entry?.corrupt ? entry?.payload?.memberLabel ?? null : null
-          return entryLabel ? { ...grant, entryLabel } : grant
+          const memberVault = memberVaults.get(grant.vaultId)
+          const vaultName = grant.vaultName ?? memberVault?.metadata?.name ?? null
+          const entry = grant.entryId ? memberVault?.entries.get(grant.entryId) : undefined
+          const entryLabel = grant.entryLabel
+            ?? (!entry?.corrupt ? entry?.payload?.memberLabel ?? null : null)
+          return vaultName !== grant.vaultName || entryLabel !== grant.entryLabel
+            ? { ...grant, vaultName, entryLabel }
+            : grant
         }),
     [grants.data, memberVaults],
   )
