@@ -6,6 +6,7 @@ import { ErrorState } from '../../../shared/components/error-state'
 import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
 import { fromMemberSecret, type EntryDraft, type MemberSecretView } from '../../../shared/crypto/entry-draft'
 import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
+import type { MemberSecretV1 } from '../../../shared/crypto/vault-plaintext'
 import { wipe } from '../../../shared/crypto/sodium'
 import { useOrganizationMemberDirectory } from '../../../shared/hooks/use-organization-member-directory'
 import { organizationIdFromAccessToken } from '../../../shared/lib/organization-scope'
@@ -45,10 +46,14 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
   const update = useUpdateCanonicalEntry(detail.vaultId, detail.id)
   const [selected, setSelected] = useState<{
     revision: string
-    value: MemberSecretView
+    canonicalSecret: MemberSecretV1
     cryptoSessionGeneration: number
   } | null>(null)
   const [revealingRevision, setRevealingRevision] = useState<string | null>(null)
+  const selectedView = useMemo(
+    () => selected ? fromMemberSecret(selected.canonicalSecret) : null,
+    [selected],
+  )
 
   useEffect(() => useAuthStore.subscribe((state, previous) => {
     if (previous.privateKey !== state.privateKey
@@ -99,16 +104,16 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
     setRevealingRevision(item.revision)
     const cryptoSessionGeneration = useAuthStore.getState().cryptoSessionGeneration
     try {
-      const value = await withVaultKey(async (vaultKey) => fromMemberSecret(await openMemberSecret(
+      const canonicalSecret = await withVaultKey(async (vaultKey) => openMemberSecret(
         item.entryKey, item.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId: detail.vaultId,
           entryId: detail.id, revision: item.revision,
         },
-      )))
+      ))
       if (useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration) {
         throw new Error('Vault lock session changed')
       }
-      setSelected({ revision: item.revision, value, cryptoSessionGeneration })
+      setSelected({ revision: item.revision, canonicalSecret, cryptoSessionGeneration })
     } catch {
       toast.error(t('vault.entry.history.decryptError'))
     } finally {
@@ -117,22 +122,25 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
   }
 
   const restore = async () => {
-    if (!selected || selected.revision === detail.currentRevision) return
+    if (!selected || !selectedView || selected.revision === detail.currentRevision) return
     try {
       if (useAuthStore.getState().cryptoSessionGeneration !== selected.cryptoSessionGeneration) {
         throw new Error('Vault lock session changed')
       }
-      const current = await withVaultKey(async (vaultKey) => fromMemberSecret(await openMemberSecret(
+      const currentCanonicalSecret = await withVaultKey(async (vaultKey) => openMemberSecret(
         detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId: detail.vaultId,
           entryId: detail.id, revision: detail.currentRevision,
         },
-      )))
+      ))
+      const current = fromMemberSecret(currentCanonicalSecret)
       await update.mutateAsync({
         detail,
         previous: current,
-        draft: asDraft(selected.value),
+        draft: asDraft(selectedView),
         cryptoSessionGeneration: selected.cryptoSessionGeneration,
+        previousCanonicalMemberSecret: currentCanonicalSecret,
+        nextCanonicalMemberSecret: selected.canonicalSecret,
       })
       setSelected(null)
       toast.success(t('vault.entry.history.restoreSuccess'))
@@ -182,7 +190,7 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
               <div className="mt-3 rounded-xl border border-[var(--cv-divider)] bg-[var(--cv-surface-subtle)] p-4">
                 <HistoricalEntryForm
                   revision={selected.revision}
-                  secret={selected.value}
+                  secret={selectedView!}
                 />
                 {!isCurrent ? (
                   <div className="mt-4 flex justify-end border-t border-[var(--cv-divider)] pt-4">

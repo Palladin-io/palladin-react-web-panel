@@ -115,6 +115,21 @@ describe('useUpdateCanonicalEntry', () => {
     expect(mocks.wipe).toHaveBeenCalledTimes(2)
   })
 
+  it('uses exact canonical MemberSecrets for immutable-history restore', async () => {
+    const previousCanonicalMemberSecret = { marker: 'previous', content: { totp: { account: null } } }
+    const nextCanonicalMemberSecret = { marker: 'historical', content: { totp: { account: null } } }
+    const { result } = renderHook(() => useUpdateCanonicalEntry('vault', 'entry'), { wrapper })
+    result.current.mutate({
+      ...input,
+      previousCanonicalMemberSecret,
+      nextCanonicalMemberSecret,
+    } as never)
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mocks.toSecret).not.toHaveBeenCalled()
+    expect(mocks.createMaterial.mock.calls[0][1]).toBe(nextCanonicalMemberSecret)
+  })
+
   it('takes the batch target from detail.id when no fixed Entry id is provided', async () => {
     const { result } = renderHook(() => useUpdateCanonicalEntry('vault'), { wrapper })
     result.current.mutate(input as never)

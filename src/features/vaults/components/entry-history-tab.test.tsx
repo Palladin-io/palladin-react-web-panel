@@ -18,7 +18,9 @@ vi.mock('../use-update-canonical-entry', () => ({
 vi.mock('../../../shared/crypto/entry-protocol', () => ({
   openMemberSecret: (...args: unknown[]) => mocks.decryptHistory(...args),
 }))
-vi.mock('../../../shared/crypto/entry-draft', () => ({ fromMemberSecret: (value: unknown) => value }))
+vi.mock('../../../shared/crypto/entry-draft', () => ({
+  fromMemberSecret: (value: { view?: unknown }) => value.view ?? value,
+}))
 vi.mock('../../../shared/crypto/vault-protocol', () => ({
   openMemberVaultKey: vi.fn(async () => new Uint8Array(32).fill(7)),
 }))
@@ -58,6 +60,8 @@ const oldSecret = {
   agentVisibilityPolicy: { discoverable: false, fields: { value: 'onGrantValue' as const } },
 }
 const currentSecret = { ...oldSecret, memberLabel: 'Current label', content: { type: 0 as const, value: 'current-secret' } }
+const oldCanonicalSecret = { marker: 'old-canonical', view: oldSecret }
+const currentCanonicalSecret = { marker: 'current-canonical', view: currentSecret }
 const item = {
   revision: '1', memberSequence: '1', discoverySequence: null,
   changedAt: '2026-07-25T10:00:00Z', changedByType: 1 as const,
@@ -72,8 +76,8 @@ describe('EntryHistoryTab', () => {
     mocks.history.mockReturnValue({ data: { pages: [{ items: [item] }] }, isPending: false, isError: false,
       hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn(), refetch: vi.fn() })
     mocks.decryptHistory.mockReset()
-      .mockResolvedValueOnce(oldSecret)
-      .mockResolvedValueOnce(currentSecret)
+      .mockResolvedValueOnce(oldCanonicalSecret)
+      .mockResolvedValueOnce(currentCanonicalSecret)
     mocks.mutateAsync.mockResolvedValue({ currentRevision: '3' })
   })
 
@@ -107,6 +111,8 @@ describe('EntryHistoryTab', () => {
         policy: { discoverable: false, fields: { value: 'onGrantValue' } },
       },
       cryptoSessionGeneration: 7,
+      previousCanonicalMemberSecret: currentCanonicalSecret,
+      nextCanonicalMemberSecret: oldCanonicalSecret,
     }))
   })
 
@@ -131,14 +137,14 @@ describe('EntryHistoryTab', () => {
   })
 
   it('does not publish plaintext decrypted by a replaced unlock session', async () => {
-    let finishDecrypt: ((value: typeof oldSecret) => void) | undefined
+    let finishDecrypt: ((value: typeof oldCanonicalSecret) => void) | undefined
     mocks.decryptHistory.mockReset().mockImplementation(() => new Promise((resolve) => { finishDecrypt = resolve }))
     const user = userEvent.setup()
     render(<EntryHistoryTab detail={detail as never} />)
 
     await user.click(screen.getByRole('button', { name: /reveal/i }))
     act(() => useAuthStore.setState({ privateKey: new Uint8Array(32).fill(9) }))
-    await act(async () => finishDecrypt?.(oldSecret))
+    await act(async () => finishDecrypt?.(oldCanonicalSecret))
 
     await waitFor(() => expect(screen.queryByDisplayValue('Old label')).not.toBeInTheDocument())
     expect(mocks.mutateAsync).not.toHaveBeenCalled()
