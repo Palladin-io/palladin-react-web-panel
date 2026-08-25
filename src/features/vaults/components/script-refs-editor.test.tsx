@@ -2,14 +2,26 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import type { ScriptRef } from '../types'
+import { ENTRY_TYPE_KEY, type ScriptRef } from '../types'
 import { ScriptRefsEditor } from './script-refs-editor'
 import { isScriptReferenceFieldSelectable, validateScriptRefs } from '../script-refs'
 
-// The editor loads the vault's entries for its source picker.
-vi.mock('../use-entries', async (orig) => ({
-  ...(await orig<typeof import('../use-entries')>()),
-  useAllEntries: () => ({ data: [] }),
+vi.mock('../sync/member-sync-store', () => ({
+  useMemberSyncStore: (selector: (state: unknown) => unknown) => selector({
+    vaults: new Map([['v1', {
+      entries: new Map([['entry-1', {
+        entryId: 'entry-1',
+        state: 'active',
+        currentRevision: '1',
+        corrupt: false,
+        payload: {
+          memberLabel: 'QA SQL Host',
+          entryType: ENTRY_TYPE_KEY,
+          customIndex: [],
+        },
+      }]]),
+    }]]),
+  }),
 }))
 
 function Harness() {
@@ -20,6 +32,16 @@ function Harness() {
       <output data-testid="count">{refs.length}</output>
     </>
   )
+}
+
+function ExistingReferenceHarness() {
+  const [refs, setRefs] = useState<ScriptRef[]>([{
+    env: 'DB_HOST',
+    vaultId: 'v1',
+    entryId: 'entry-1',
+    field: 'value',
+  }])
+  return <ScriptRefsEditor vaultId="v1" refs={refs} onChange={setRefs} />
 }
 
 describe('ScriptRefsEditor', () => {
@@ -37,6 +59,12 @@ describe('ScriptRefsEditor', () => {
     expect(screen.getByTestId('count')).toHaveTextContent('1')
     // The new row exposes the env-var input.
     expect(screen.getByLabelText(/env variable/i)).toBeInTheDocument()
+  })
+
+  it('shows source names from the decrypted member projection', () => {
+    render(<ExistingReferenceHarness />)
+
+    expect(screen.getByRole('combobox', { name: /^entry$/i })).toHaveDisplayValue('QA SQL Host')
   })
 
   it('rejects unsafe process variables and duplicate reference names', () => {

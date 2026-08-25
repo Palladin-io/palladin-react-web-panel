@@ -6,10 +6,8 @@ import {
   ENTRY_TYPE_CREDIT_CARD,
   ENTRY_TYPE_KEY,
   ENTRY_TYPE_SCRIPT,
-  type EntryListItem,
   type ScriptRef,
 } from '../types'
-import { useAllEntries } from '../use-entries'
 import { PopoverMenu, type MenuEntry } from './popover-menu'
 import { useAuthStore } from '../../auth'
 import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
@@ -19,6 +17,8 @@ import { wipe } from '../../../shared/crypto/sodium'
 import { getCanonicalEntry } from '../api/vault-api'
 import { getEncryptedVault } from '../sync/member-sync-api'
 import { isScriptReferenceFieldSelectable } from '../script-refs'
+import { buildMemberEntryList, type MemberEntryListItem } from '../sync/member-entry-list'
+import { useMemberSyncStore } from '../sync/member-sync-store'
 
 export interface ScriptRefsEditorProps {
   vaultId: string
@@ -46,15 +46,18 @@ export function ScriptRefsEditor({
   disabled,
 }: ScriptRefsEditorProps) {
   const { t } = useTranslation()
-  const entriesQuery = useAllEntries(vaultId)
+  const memberVault = useMemberSyncStore((store) => store.vaults.get(vaultId))
   const [fieldOptions, setFieldOptions] = useState<Map<string, ReferenceFieldOption[]>>(new Map())
 
   const sources = useMemo(
     () =>
-      (entriesQuery.data ?? []).filter(
-        (e) => e.id !== currentEntryId && e.type !== undefined && e.type !== ENTRY_TYPE_SCRIPT,
+      buildMemberEntryList(memberVault).filter(
+        (entry) => entry.state === 'active'
+          && !entry.corrupt
+          && entry.id !== currentEntryId
+          && entry.type !== ENTRY_TYPE_SCRIPT,
       ),
-    [entriesQuery.data, currentEntryId],
+    [memberVault, currentEntryId],
   )
 
   const update = (index: number, patch: Partial<ScriptRef>) =>
@@ -168,7 +171,7 @@ function RefRow({
 }: {
   ref_: ScriptRef
   vaultId: string
-  sources: EntryListItem[]
+  sources: MemberEntryListItem[]
   fieldOptions?: ReferenceFieldOption[]
   loadFields: (entryId: string) => Promise<void>
   first: boolean
