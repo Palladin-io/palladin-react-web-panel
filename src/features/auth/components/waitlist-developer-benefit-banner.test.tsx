@@ -26,7 +26,7 @@ describe('WaitlistDeveloperBenefitBanner', () => {
     expect(screen.getByText(/2020/)).toBeInTheDocument()
     expect(screen.getByText(/2099/)).toBeInTheDocument()
     expect(screen.getByText(/No card, automatic renewal or charge/)).toBeInTheDocument()
-    expect(screen.getByText(/returns to Free/)).toBeInTheDocument()
+    expect(screen.getByText(/plan available without this promotion/)).toBeInTheDocument()
   })
 
   it('renders nothing without a complete active period', () => {

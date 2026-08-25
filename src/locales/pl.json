@@ -14,7 +14,7 @@
   "auth.comingSoon": "Wkrótce",
   "waitlistBenefit.title": "Twój miesiąc planu Developer jest aktywny",
   "waitlistBenefit.period": "Aktywny od {{startsAt}} do {{endsAt}}.",
-  "waitlistBenefit.terms": "Bez karty, automatycznego odnowienia ani opłat. Potem konto wróci do planu Free.",
+  "waitlistBenefit.terms": "Bez karty, automatycznego odnowienia ani opłat. Po zakończeniu konto wróci do planu dostępnego bez tej promocji.",
   "unlock.title": "Odblokuj skarbiec",
   "unlock.subtitle": "Wprowadź hasło główne, aby uzyskać dostęp do danych.",
   "unlock.passwordLabel": "Hasło główne",

@@ -14,7 +14,7 @@
   "auth.comingSoon": "Coming soon",
   "waitlistBenefit.title": "Your Developer month is active",
   "waitlistBenefit.period": "Active from {{startsAt}} until {{endsAt}}.",
-  "waitlistBenefit.terms": "No card, automatic renewal or charge. Then your account returns to Free.",
+  "waitlistBenefit.terms": "No card, automatic renewal or charge. When it ends, your account returns to the plan available without this promotion.",
   "unlock.title": "Unlock Your Vault",
   "unlock.subtitle": "Enter your master password to access your credentials.",
   "unlock.passwordLabel": "Master Password",
