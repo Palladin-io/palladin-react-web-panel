@@ -55,6 +55,7 @@ const samplePending = {
   lastAccessHostname: null,
   canRevoke: false,
   canGrantAgain: false,
+  activeCoveringGrantIds: [],
   encryptedReason: {
     descriptor: {
       protocolVersion: 2, cryptoSuiteId: 'palladin-vault-xchacha-v1', purpose: 'encryptedReason',

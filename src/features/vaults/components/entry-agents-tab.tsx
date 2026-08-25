@@ -15,7 +15,5 @@ interface EntryAgentsTabProps {
  * Details tab. This tab is intentionally limited to scoped Agent grants.
  */
 export function EntryAgentsTab({ entryId }: EntryAgentsTabProps) {
-  return (
-    <OrgGrantsPanel entryId={entryId} allowRegrant={false} />
-  )
+  return <OrgGrantsPanel entryId={entryId} />
 }

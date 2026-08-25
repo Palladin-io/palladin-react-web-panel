@@ -112,6 +112,7 @@ const orgGrantSchema = z.object({
   // is wrongly shown before the contract lands.
   canRevoke: z.boolean().optional().default(false),
   canGrantAgain: z.boolean().optional().default(false),
+  activeCoveringGrantIds: z.array(z.string().uuid()).optional().default([]),
 });
 
 export type OrgGrant = z.infer<typeof orgGrantSchema>;

@@ -38,14 +38,16 @@ export type GrantMode = typeof GRANT_MODE_FULL | typeof GRANT_MODE_GRANULAR
  * UI honest about that.
  */
 const grantSchema = z.object({
-  grantId: z.string(),
+  grantId: z.string().optional(),
+  id: z.string().optional(),
   vaultId: z.string(),
   agentId: z.string().nullable(),
   agentName: z.string().nullable(),
   entryId: z.string().nullable(),
   entryLabel: z.string().nullable().optional(),
   status: z.enum(GRANT_STATUSES),
-  mode: z.enum([GRANT_MODE_FULL, GRANT_MODE_GRANULAR]),
+  mode: z.enum([GRANT_MODE_FULL, GRANT_MODE_GRANULAR]).optional(),
+  type: z.enum([GRANT_MODE_FULL, GRANT_MODE_GRANULAR]).optional(),
   // Combined-flags string of permitted methods, e.g. "get, exec". Optional for
   // pre-methods backends; the detail row is hidden when absent/empty.
   methods: z.string().nullable().optional(),
@@ -58,7 +60,18 @@ const grantSchema = z.object({
   revokedByName: z.string().nullable(),
   reason: z.string().nullable().optional(),
   revokeReason: z.string().nullable().optional(),
-})
+}).superRefine((grant, context) => {
+  if (!grant.grantId && !grant.id) {
+    context.addIssue({ code: 'custom', message: 'Grant id is required' })
+  }
+  if (!grant.mode && !grant.type) {
+    context.addIssue({ code: 'custom', message: 'Grant mode is required' })
+  }
+}).transform(({ id, type, ...grant }) => ({
+  ...grant,
+  grantId: grant.grantId ?? id!,
+  mode: grant.mode ?? type!,
+}))
 
 export type Grant = z.infer<typeof grantSchema>
 

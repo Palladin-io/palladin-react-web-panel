@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Button } from '../../../shared/components/button'
+import { Button, POSITIVE_BUTTON_SM_CLASS } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import { SearchBar } from '../../../shared/components/search-bar'
@@ -23,9 +23,10 @@ import {
   grantStatusPresentation,
 } from '../org-grant-presentation'
 import type { GrantPolicyBody } from '../grant-policy'
+import { parseGrantMethods } from '../grant-methods'
 import { useOrgGrants } from '../use-org-grants'
 import { useGrantReasons } from '../use-grant-reasons'
-import { useRegrant } from '../use-regrant'
+import { useCreateGrant } from '../use-create-grant'
 import { useRevokeOrgGrant } from '../use-revoke-org-grant'
 import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
 import {
@@ -66,7 +67,6 @@ export interface OrgGrantsPanelProps {
   agentId?: string
   vaultId?: string
   entryId?: string
-  allowRegrant?: boolean
   /**
    * Chromeless variant for the inbox Grants segment: drops the title/status-count
    * header and the time-bucket group labels, rendering one flat grid. The segment
@@ -75,7 +75,7 @@ export interface OrgGrantsPanelProps {
   bare?: boolean
 }
 
-export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true, bare }: OrgGrantsPanelProps = {}) {
+export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPanelProps = {}) {
   const { t } = useTranslation()
   const [statusFilter, setStatusFilter] = useState<Set<GrantStatus>>(new Set())
   const [search, setSearch] = useState('')
@@ -137,7 +137,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
   const groups = useMemo(() => groupByTime(filtered), [filtered])
 
   const revoke = useRevokeOrgGrant()
-  const regrant = useRegrant()
+  const regrant = useCreateGrant()
   const [revokeTarget, setRevokeTarget] = useState<OrgGrant | null>(null)
   const [regrantTarget, setRegrantTarget] = useState<OrgGrant | null>(null)
 
@@ -155,17 +155,17 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
   }
 
   function handleRegrant(grant: OrgGrant, policy: GrantPolicyBody) {
-    if (!grant.agentId || !grant.entryId || !grant.type) return
+    if (!grant.agentId || !grant.type || (grant.type !== GRANT_TYPE_FULL && !grant.entryId)) return
     regrant.mutate(
       {
         vaultId: grant.vaultId,
         agentId: grant.agentId,
-        entryId: grant.entryId,
+        entryId: grant.entryId ?? undefined,
         agentPublicKey: grant.agentPublicKey,
         recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
         type: grant.type,
         policy,
-        methods: grant.methods,
+        methods: parseGrantMethods(grant.methods),
       },
       {
         onSuccess: () => {
@@ -252,7 +252,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
                 grant={grant}
                 accessReason={reasons.get(grant.id)}
                 onRevoke={() => setRevokeTarget(grant)}
-                onRegrant={allowRegrant ? () => setRegrantTarget(grant) : undefined}
+                onRegrant={() => setRegrantTarget(grant)}
                 disabled={revoke.isPending || regrant.isPending}
               />
             </li>
@@ -279,7 +279,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, allowRegrant = true,
                       grant={grant}
                       accessReason={reasons.get(grant.id)}
                       onRevoke={() => setRevokeTarget(grant)}
-                      onRegrant={allowRegrant ? () => setRegrantTarget(grant) : undefined}
+                      onRegrant={() => setRegrantTarget(grant)}
                       disabled={revoke.isPending || regrant.isPending}
                     />
                   </li>
@@ -320,7 +320,7 @@ function OrgGrantRow({
   grant: OrgGrant
   accessReason?: string
   onRevoke: () => void
-  onRegrant?: () => void
+  onRegrant: () => void
   disabled: boolean
 }) {
   const { t } = useTranslation()
@@ -332,6 +332,7 @@ function OrgGrantRow({
   const actor = grantActorName(grant) ?? t('grants.org.actorSystem')
   const reason = contextualReason(grant, t, accessReason)
   const accessText = accessSummary(grant, t)
+  const activeCoveringGrantId = grant.activeCoveringGrantIds[0]
 
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
@@ -418,7 +419,7 @@ function OrgGrantRow({
         </Row>
       </div>
 
-      {(grant.canRevoke || (grant.canGrantAgain && onRegrant)) && (
+      {(grant.canRevoke || grant.canGrantAgain) && (
         <div
           className="flex min-h-[2.875rem] items-center gap-2 border-t border-[var(--cv-divider)] px-[0.875rem] py-2
             bg-[var(--cv-card-footer)]"
@@ -434,7 +435,7 @@ function OrgGrantRow({
               {t('grants.revoke.action')}
             </Button>
           )}
-          {grant.canGrantAgain && onRegrant && (
+          {grant.canGrantAgain && (
             <Button
               variant="positive"
               size="sm"
@@ -448,20 +449,61 @@ function OrgGrantRow({
         </div>
       )}
 
-      {/* Terminal grant with no available action means the agent already has
-          active coverage of this entry/vault (backend: canGrantAgain=false &&
-          canRevoke=false). Surface WHY re-granting is unavailable instead of an
-          empty footer — centred, same height as the action footer. */}
-      {isTerminal(grant.status) && !grant.canGrantAgain && !grant.canRevoke && (
+      {isTerminal(grant.status) && !grant.canGrantAgain && !grant.canRevoke
+        && activeCoveringGrantId && (
         <div
-          className="flex min-h-[2.875rem] items-center justify-center gap-1.5 border-t border-[var(--cv-divider)]
+          className="flex min-h-[2.875rem] items-center gap-2 border-t border-[var(--cv-divider)]
             px-[0.875rem] py-2 bg-[var(--cv-card-footer)]"
           title={t('grants.org.alreadyActiveHint')}
         >
-          <Icon name="check_circle" size={14} color="#10B981" />
-          <span className="text-meta font-semibold text-[#10B981]">
+          <Icon name="check_circle" size={14} color="var(--cv-success)" />
+          <span className="min-w-0 flex-1 text-meta font-semibold text-[var(--cv-success)]">
             {t('grants.org.alreadyActive')}
           </span>
+          <Link
+            to="/vaults/$vaultId/grants/$grantId"
+            params={{ vaultId: grant.vaultId, grantId: activeCoveringGrantId }}
+            className={`${POSITIVE_BUTTON_SM_CLASS} shrink-0`}
+          >
+            {t('grants.org.showActiveGrant')}
+          </Link>
+        </div>
+      )}
+
+      {isTerminal(grant.status) && !grant.canGrantAgain && !grant.canRevoke
+        && !activeCoveringGrantId && (
+        <div
+          className="flex min-h-[2.875rem] items-center gap-2 border-t border-[var(--cv-divider)]
+            px-[0.875rem] py-2 bg-[var(--cv-card-footer)]"
+          title={t('grants.org.regrantUnavailableHint')}
+        >
+          <Icon name="info" size={14} color="var(--cv-t3)" />
+          <span className="min-w-0 flex-1 text-meta font-semibold text-[var(--cv-t3)]">
+            {t('grants.org.regrantUnavailable')}
+          </span>
+          {grant.agentId ? (
+            <Link
+              to="/agents/$agentId"
+              params={{ agentId: grant.agentId }}
+              className="inline-flex h-action shrink-0 items-center justify-center rounded-lg border
+                border-[var(--cv-btn-outline-border)] bg-transparent px-3 text-action font-semibold
+                leading-none text-[var(--cv-btn-outline-text)] transition-colors
+                hover:bg-[var(--cv-btn-outline-hover)]"
+            >
+              {t('grants.org.viewAgent')}
+            </Link>
+          ) : (
+            <Link
+              to="/vaults/$vaultId"
+              params={{ vaultId: grant.vaultId }}
+              className="inline-flex h-action shrink-0 items-center justify-center rounded-lg border
+                border-[var(--cv-btn-outline-border)] bg-transparent px-3 text-action font-semibold
+                leading-none text-[var(--cv-btn-outline-text)] transition-colors
+                hover:bg-[var(--cv-btn-outline-hover)]"
+            >
+              {t('grants.org.viewVault')}
+            </Link>
+          )}
         </div>
       )}
     </div>

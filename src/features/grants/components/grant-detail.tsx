@@ -47,7 +47,8 @@ export function GrantDetail({ grant }: GrantDetailProps) {
   const revoke = useRevokeGrant()
 
   const presentation = grantStatusPresentation(grant.status)
-  const target = grant.entryLabel ?? t('grants.detail.wholeVault')
+  const target = grant.entryLabel
+    ?? (grant.mode === 'full' ? t('grants.detail.wholeVault') : t('grants.unknownTarget'))
   const showRevoke = canManage && isRevocable(grant.status)
   const grantMethods = parseGrantMethods(grant.methods)
 

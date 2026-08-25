@@ -50,6 +50,21 @@ describe('grants-api', () => {
     expect(page.nextCursor).toBe('next')
   })
 
+  it('maps the current backend id/type projection for grant detail links', async () => {
+    getJson.mockResolvedValue({
+      ...sampleGrant,
+      id: 'g2',
+      type: 'full',
+      grantId: undefined,
+      mode: undefined,
+      entryId: null,
+    })
+
+    const grant = await getGrant('v1', 'g2')
+    expect(grant.grantId).toBe('g2')
+    expect(grant.mode).toBe('full')
+  })
+
   it('skips a single malformed item instead of collapsing the whole list', async () => {
     getJson.mockResolvedValue({
       items: [sampleGrant, { foo: 'bar' }],

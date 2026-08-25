@@ -1,18 +1,22 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSION_GRANT_MANAGE } from '../../../shared/lib/permissions'
-import { useAuthStore } from '../../auth'
 import { useOrgGrants } from '../use-org-grants'
 import { OrgGrantsPanel } from './org-grants-panel'
 
+const authState = vi.hoisted(() => ({ permissions: 0 }))
+
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: { children: React.ReactNode }) => <span>{children}</span>,
+}))
+vi.mock('../../auth', () => ({
+  useAuthStore: (selector: (state: { permissions: number }) => unknown) => selector(authState),
 }))
 vi.mock('../use-org-grants', () => ({ useOrgGrants: vi.fn() }))
 vi.mock('../use-grant-reasons', () => ({
   useGrantReasons: () => new Map([['grant-1', 'Deploy the release']]),
 }))
-vi.mock('../use-regrant', () => ({ useRegrant: () => ({ mutate: vi.fn(), isPending: false }) }))
+vi.mock('../use-create-grant', () => ({ useCreateGrant: () => ({ mutate: vi.fn(), isPending: false }) }))
 vi.mock('../use-revoke-org-grant', () => ({
   useRevokeOrgGrant: () => ({ mutate: vi.fn(), isPending: false }),
 }))
@@ -46,11 +50,12 @@ const expiredGrant = {
   lastAccessHostname: null,
   canRevoke: false,
   canGrantAgain: true,
+  activeCoveringGrantIds: [],
 }
 
-describe('OrgGrantsPanel regrant boundary', () => {
+describe('OrgGrantsPanel footer actions', () => {
   beforeEach(() => {
-    useAuthStore.setState({ permissions: PERMISSION_GRANT_MANAGE })
+    authState.permissions = PERMISSION_GRANT_MANAGE
     mockOrgGrants.mockReturnValue({
       data: { items: [expiredGrant], nextCursor: null },
       isPending: false,
@@ -59,21 +64,37 @@ describe('OrgGrantsPanel regrant boundary', () => {
     } as unknown as ReturnType<typeof useOrgGrants>)
   })
 
-  it('shows expired history without exposing legacy regrant on protocol 2 Vault tabs', () => {
-    render(<OrgGrantsPanel vaultId="vault-1" allowRegrant={false} />)
+  it('offers regrant on protocol 2 Vault tabs', () => {
+    render(<OrgGrantsPanel vaultId="vault-1" />)
 
     expect(screen.getAllByText('Expired')).not.toHaveLength(0)
     expect(screen.getByText('Deploy token')).toBeInTheDocument()
     expect(screen.getByText('Deploy the release')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Grant again' })).not.toBeInTheDocument()
-  })
-
-  it('keeps regrant available on legacy surfaces until their migration task lands', () => {
-    render(<OrgGrantsPanel vaultId="vault-1" />)
     expect(screen.getByRole('button', { name: 'Grant again' })).toBeInTheDocument()
   })
 
-  it('renders only the explanatory footer when a terminal grant has active coverage', () => {
+  it('links from terminal history to the newer active grant', () => {
+    mockOrgGrants.mockReturnValue({
+      data: {
+        items: [{
+          ...expiredGrant,
+          canGrantAgain: false,
+          activeCoveringGrantIds: ['11111111-1111-4111-8111-111111111111'],
+        }],
+        nextCursor: null,
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useOrgGrants>)
+
+    const { container } = render(<OrgGrantsPanel vaultId="vault-1" />)
+    expect(screen.getByText('Active in a newer grant')).toBeInTheDocument()
+    expect(screen.getByText('Show active grant')).toBeInTheDocument()
+    expect(container.querySelectorAll('[class*="bg-[var(--cv-card-footer)]"]')).toHaveLength(1)
+  })
+
+  it('links to an Agent when regrant is otherwise unavailable', () => {
     mockOrgGrants.mockReturnValue({
       data: {
         items: [{ ...expiredGrant, canGrantAgain: false }],
@@ -84,8 +105,8 @@ describe('OrgGrantsPanel regrant boundary', () => {
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof useOrgGrants>)
 
-    const { container } = render(<OrgGrantsPanel vaultId="vault-1" />)
-    expect(screen.getByText('Already Active')).toBeInTheDocument()
-    expect(container.querySelectorAll('[class*="bg-[var(--cv-card-footer)]"]')).toHaveLength(1)
+    render(<OrgGrantsPanel vaultId="vault-1" />)
+    expect(screen.getByText('Grant again unavailable')).toBeInTheDocument()
+    expect(screen.getByText('View agent')).toBeInTheDocument()
   })
 })
