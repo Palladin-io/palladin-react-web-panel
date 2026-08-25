@@ -48,12 +48,20 @@ import { extractDomain, openExternalUrl } from './entry-presentation'
 import { defaultColorFor, defaultIconFor } from './entry-presentation'
 import { FormSelect } from '../../../shared/components/form-select'
 import { ModalShell } from '../../../shared/components/modal-shell'
+import { WarningZone } from '../../../shared/components/warning-zone'
 import { DiscoveryToggle, discoveryAction } from './discovery-toggle'
 import {
   ensureWebsiteIconsWithin,
   normalizePublicHostname,
 } from '../../../shared/api/public-assets-api'
 import { publicAssetIconReference } from '../../../shared/crypto/vault-plaintext'
+import {
+  buildScriptParameterDefinitions,
+  validateScriptParameterDrafts,
+  type ScriptParameterDraft,
+} from '../script-parameters'
+import { validateScriptRefs } from '../script-refs'
+import { ScriptParametersEditor } from './script-parameters-editor'
 
 export interface CreateEntryModalProps {
   open: boolean
@@ -90,6 +98,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [label, setLabel] = useState('')
   const [labelError, setLabelError] = useState(false)
   const [description, setDescription] = useState('')
+  const [descriptionError, setDescriptionError] = useState(false)
   const [keyValue, setKeyValue] = useState('')
   const [keyValueError, setKeyValueError] = useState(false)
   const [keyVisible, setKeyVisible] = useState(false)
@@ -117,6 +126,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [scriptError, setScriptError] = useState(false)
   const [interpreter, setInterpreter] = useState<ScriptInterpreter>('bash')
   const [refs, setRefs] = useState<ScriptRef[]>([])
+  const [scriptParameters, setScriptParameters] = useState<ScriptParameterDraft[]>([])
+  const [returnResultToAgent, setReturnResultToAgent] = useState(true)
   const [iconTouched, setIconTouched] = useState(false)
   const [automaticIcon, setAutomaticIcon] = useState<{ hostname: string; reference: string } | null>(null)
   const [discoverable, setDiscoverable] = useState(true)
@@ -132,15 +143,20 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const agentLabel = label
   const policy = useMemo<AgentVisibilityPolicy>(() => {
     const defaults = defaultAgentVisibilityPolicy(type, allFields)
+    const effectiveDiscoverable = type === ENTRY_TYPE_SCRIPT || discoverable
     const customTypes = new Map(allFields.map((field) => [`custom:${field.id}`, field.type]))
     return {
-      discoverable,
+      discoverable: effectiveDiscoverable,
       fields: Object.fromEntries(Object.entries(defaults.fields).map(([fieldId, fallback]) => {
         const candidate = policyOverrides[fieldId]
         const access = candidate && allowedAgentFieldAccess(type, fieldId, customTypes.get(fieldId)).includes(candidate)
           ? candidate
           : fallback
-        return [fieldId, fieldId === ENTRY_FIELD.agentLabel ? (discoverable ? 'discovery' : 'never') : access]
+        return [fieldId, fieldId === ENTRY_FIELD.agentLabel
+          ? (effectiveDiscoverable ? 'discovery' : 'never')
+          : fieldId === ENTRY_FIELD.description && type === ENTRY_TYPE_SCRIPT
+            ? 'discovery'
+            : access]
       })),
     }
   }, [allFields, discoverable, policyOverrides, type])
@@ -180,12 +196,16 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     if (!label.trim()) return false
     if (type === ENTRY_TYPE_KEY) return keyValue.trim().length > 0
     if (type === ENTRY_TYPE_SCRIPT) return script.trim().length > 0
+      && description.trim().length > 0
+      && validateScriptParameterDrafts(scriptParameters) === null
+      && validateScriptRefs(refs, vault.id)
     if (type === ENTRY_TYPE_CREDIT_CARD) return cardholderName.trim().length > 0
       && cardholderName.trim().length <= 256
       && /^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
       && /^(0[1-9]|1[0-2])$/.test(expiryMonth) && /^\d{4}$/.test(expiryYear)
     return username.trim().length > 0 && password.trim().length > 0
-  }, [isPending, label, type, keyValue, username, password, script, cardholderName, cardNumber, expiryMonth, expiryYear])
+  }, [isPending, label, type, keyValue, username, password, script, description, scriptParameters,
+    refs, vault.id, cardholderName, cardNumber, expiryMonth, expiryYear])
 
   const fieldsInvalid = validateCustomFields(allFields).hasError
 
@@ -213,6 +233,9 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       script,
       interpreter,
       refs,
+      executionDescription: description,
+      scriptParameters,
+      returnResultToAgent,
       cardholderName, cardNumber, expiryMonth, expiryYear, billingAddress,
     })
 
@@ -309,6 +332,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 setUsernameError(false)
                 setPasswordError(false)
                 setScriptError(false)
+                setDescriptionError(false)
                 if (nextType === ENTRY_TYPE_CREDIT_CARD) {
                   setUrl('')
                   setUrlError(false)
@@ -359,8 +383,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                     label: t(discoverable
                       ? 'vault.entries.visibility.hideFromDiscovery'
                       : 'vault.entries.visibility.showInDiscovery'),
-                    active: discoverable,
-                    disabled: isPending,
+                    active: type === ENTRY_TYPE_SCRIPT || discoverable,
+                    disabled: isPending || type === ENTRY_TYPE_SCRIPT,
                     onClick: () => setDiscoverable(!discoverable),
                   }]}
                   value={label}
@@ -380,24 +404,38 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             </div>
           </div>
 
-          <FormInput
-            id="entry-description"
-            label={t('vault.entries.descriptionLabel')}
-            trailingActions={[discoveryAction(
-              policy.fields[ENTRY_FIELD.description] === 'discovery',
-              isPending || !discoverable,
-              (active) => setPolicyOverrides((current) => ({
-                ...current, [ENTRY_FIELD.description]: active ? 'discovery' : 'never',
-              })),
-              t,
-            )]}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={t('vault.entries.descriptionPlaceholder')}
-            autoComplete="off"
-            disabled={isPending}
-            maxLength={500}
-          />
+          <div>
+            <FormInput
+              id="entry-description"
+              label={type === ENTRY_TYPE_SCRIPT
+                ? t('vault.entries.script.descriptionLabel')
+                : t('vault.entries.descriptionLabel')}
+              labelSuffix={type === ENTRY_TYPE_SCRIPT
+                ? <>· {t('vault.entries.script.visibleInDiscovery')}</>
+                : undefined}
+              trailingActions={type === ENTRY_TYPE_SCRIPT ? undefined : [discoveryAction(
+                policy.fields[ENTRY_FIELD.description] === 'discovery',
+                isPending || !discoverable,
+                (active) => setPolicyOverrides((current) => ({
+                  ...current, [ENTRY_FIELD.description]: active ? 'discovery' : 'never',
+                })),
+                t,
+              )]}
+              value={description}
+              onChange={(e) => { setDescription(e.target.value); setDescriptionError(false) }}
+              onBlur={() => setDescriptionError(type === ENTRY_TYPE_SCRIPT && !description.trim())}
+              placeholder={type === ENTRY_TYPE_SCRIPT
+                ? t('vault.entries.script.descriptionPlaceholder')
+                : t('vault.entries.descriptionPlaceholder')}
+              autoComplete="off"
+              disabled={isPending}
+              maxLength={type === ENTRY_TYPE_SCRIPT ? 4096 : 500}
+              error={descriptionError}
+            />
+            <FeedbackSlot visible={descriptionError} color="red">
+              {t('validation.required')}
+            </FeedbackSlot>
+          </div>
 
           {type === ENTRY_TYPE_KEY ? (
             <>
@@ -555,6 +593,38 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               </div>
               <SectionHeader>{t('vault.entries.script.refsTitle')}</SectionHeader>
               <ScriptRefsEditor vaultId={vault.id} refs={refs} onChange={setRefs} disabled={isPending} />
+              <FeedbackSlot visible={!validateScriptRefs(refs, vault.id)} color="red">
+                {t('vault.entries.script.refsInvalid')}
+              </FeedbackSlot>
+              <SectionHeader>{t('vault.entries.script.parametersTitle')}</SectionHeader>
+              <ScriptParametersEditor
+                parameters={scriptParameters}
+                onChange={setScriptParameters}
+                disabled={isPending}
+                error={validateScriptParameterDrafts(scriptParameters)}
+              />
+              <label className="flex items-start gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3">
+                <input
+                  type="checkbox"
+                  checked={returnResultToAgent}
+                  onChange={(event) => setReturnResultToAgent(event.target.checked)}
+                  disabled={isPending}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="block text-ui font-semibold text-[var(--cv-t1)]">
+                    {t('vault.entries.script.returnResultLabel')}
+                  </span>
+                  <span className="block text-meta text-[var(--cv-t2)]">
+                    {t('vault.entries.script.returnResultHint')}
+                  </span>
+                </span>
+              </label>
+              {returnResultToAgent ? (
+                <WarningZone title={t('vault.entries.script.resultTrustTitle')}>
+                  {t('vault.entries.script.resultTrustBody')}
+                </WarningZone>
+              ) : null}
             </>
           )}
 
@@ -639,6 +709,9 @@ interface BuildPayloadInput {
   script: string
   interpreter: ScriptInterpreter
   refs: ScriptRef[]
+  executionDescription: string
+  scriptParameters: ScriptParameterDraft[]
+  returnResultToAgent: boolean
   cardholderName: string
   cardNumber: string
   expiryMonth: string
@@ -667,6 +740,12 @@ function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
         type: ENTRY_TYPE_SCRIPT,
         script: input.script.trim(),
         interpreter: input.interpreter,
+        execution: {
+          contractVersion: 1,
+          description: input.executionDescription.trim(),
+          parameters: buildScriptParameterDefinitions(input.scriptParameters),
+          returnResultToAgent: input.returnResultToAgent,
+        },
         notes: trimmedNotes,
         ...(refs.length > 0 ? { refs } : {}),
       },

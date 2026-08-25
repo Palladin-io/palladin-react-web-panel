@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { scriptExecutionMetadataSchema } from './script-execution-metadata'
 
 export const AGENT_FIELD_ACCESS = [
   'never',
@@ -68,6 +69,7 @@ const scriptContent = z.object({
   source: normalizedString,
   interpreter: z.enum(['bash', 'sh', 'node', 'python']),
   refs: z.array(scriptRef),
+  execution: scriptExecutionMetadataSchema.optional(),
   notes: nullableString,
   customFields: z.array(customField),
 }).strict()
@@ -133,6 +135,7 @@ const agentDiscoverySchema = z.object({
   agentLabel: normalizedString.min(1),
   capabilities: z.array(z.enum(['get', 'exec', 'inject'])),
   fields: z.array(projectedField),
+  execution: scriptExecutionMetadataSchema.optional(),
 }).strict()
 const grantField = z.object({
   id: normalizedString,
@@ -357,17 +360,41 @@ export function projectAgentDiscovery(secret: MemberSecretV1): AgentDiscoveryV1 
     .map(([id]) => ({ id, value: fieldValue(secret, id) }))
   return agentDiscoverySchema.parse({
     schema: 'palladin.agent-discovery.v1', entryType: secret.entryType, agentLabel: secret.agentLabel,
-    capabilities: ['get', 'exec', 'inject'], fields,
+    capabilities: secret.entryType === 'script'
+      ? ['exec']
+      : secret.entryType === 'creditCard'
+        ? ['inject']
+        : ['get', 'exec', 'inject'],
+    fields,
+    ...(secret.entryType === 'script' && secret.content.execution
+      ? { execution: secret.content.execution }
+      : {}),
   })
 }
 
 export function projectGrantPayload(secret: MemberSecretV1, fieldIds: readonly string[]): GrantPayloadV1 {
+  return projectPayload(secret, fieldIds, false)
+}
+
+/** Exact Script refs may project discovery fields, but only as runtime-only values. */
+export function projectScriptReferencePayload(secret: MemberSecretV1, fieldIds: readonly string[]): GrantPayloadV1 {
+  return projectPayload(secret, fieldIds, true)
+}
+
+function projectPayload(
+  secret: MemberSecretV1,
+  fieldIds: readonly string[],
+  allowDiscoveryRuntime: boolean,
+): GrantPayloadV1 {
   assertPolicy(secret)
   const sorted = [...fieldIds].sort()
   if (new Set(sorted).size !== sorted.length) throw new Error('Grant field IDs must be distinct')
   const fields = sorted.map((id) => {
     const access = secret.agentFieldAccess[id]
-    const mode = access === 'onGrantValue' ? 'value' : access === 'onGrantDerived' ? 'derived' : access === 'onGrantRuntime' ? 'runtime' : undefined
+    const mode = access === 'onGrantValue' ? 'value'
+      : access === 'onGrantDerived' ? 'derived'
+        : access === 'onGrantRuntime' || (allowDiscoveryRuntime && access === 'discovery') ? 'runtime'
+          : undefined
     const value = fieldValue(secret, id)
     if (!mode || value === undefined) throw new Error(`Field ${id} is not grantable`)
     const custom = id.startsWith('custom:') ? secret.content.customFields.find((field) => field.id === id) : undefined

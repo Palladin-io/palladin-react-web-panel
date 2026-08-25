@@ -25,6 +25,7 @@ import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { analytics } from '../../shared/lib/analytics'
 import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
 import { useAuthStore } from '../auth'
+import { useAgentNames } from '../agents'
 import {
   GRANT_STATUS_ACTIVE,
   GrantAccessDialog,
@@ -41,6 +42,7 @@ import {
 } from './components/entry-presentation'
 import { ModalShell } from '../../shared/components/modal-shell'
 import { DialogFooter } from '../../shared/components/dialog-footer'
+import { WarningZone } from '../../shared/components/warning-zone'
 import { VaultDetailHeader } from './components/vault-detail-header'
 import { VaultEntriesPanel } from './components/vault-entries-panel'
 import {
@@ -74,15 +76,28 @@ import { CredentialTotpField } from './components/credential-totp-field'
 import { ScriptEditor } from './components/script-editor'
 import { ScriptExecHint } from './components/script-exec-hint'
 import { ScriptRefsEditor } from './components/script-refs-editor'
+import {
+  buildScriptParameterDefinitions,
+  scriptParameterDrafts,
+  validateScriptParameterDrafts,
+  type ScriptParameterDraft,
+} from './script-parameters'
+import { validateScriptRefs } from './script-refs'
+import { ScriptParametersEditor } from './components/script-parameters-editor'
 import { SectionHeader } from './components/section-header'
 import { DiscoveryToggle, discoveryAction } from './components/discovery-toggle'
 import { useDeleteEntry } from './use-delete-entry'
-import type { CanonicalEntryDetail } from './api/vault-api'
+import {
+  getScriptAccessImpact,
+  type CanonicalEntryDetail,
+  type ScriptAccessImpact,
+} from './api/vault-api'
 import { useCanonicalEntryDetail } from './use-entries'
 import { useUpdateCanonicalEntry } from './use-update-canonical-entry'
 import { useVault } from './use-vault'
 import { getEncryptedVault } from './sync/member-sync-api'
 import { useMemberSyncStore } from './sync/member-sync-store'
+import { shortenKey } from '../../shared/lib/shorten-key'
 
 export interface EntryDetailPageProps {
   vaultId: string
@@ -369,6 +384,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const cryptoSessionGeneration = useAuthStore(
     (state) => state.cryptoSessionGeneration,
   )
+  const permissions = useAuthStore((state) => state.permissions)
   const update = useUpdateCanonicalEntry(vault.id, entry.id)
   const remove = useDeleteEntry(vault.id)
 
@@ -376,6 +392,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   // current server values on Discard.
   const [label, setLabel] = useState(entry.label)
   const [description, setDescription] = useState(entry.description ?? '')
+  const [descriptionError, setDescriptionError] = useState(false)
   const [icon, setIcon] = useState<string | undefined>(entry.icon)
   const [color, setColor] = useState<string>(
     entry.color ?? (ENTRY_ICON_COLORS[entry.icon ?? ''] ?? (entry.type === ENTRY_TYPE_KEY ? '#10B981' : '#60A5FA'))
@@ -421,6 +438,11 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [scriptError, setScriptError] = useState(false)
   const [interpreter, setInterpreter] = useState<ScriptInterpreter>('bash')
   const [refs, setRefs] = useState<ScriptRef[]>([])
+  const [scriptParameters, setScriptParameters] = useState<ScriptParameterDraft[]>([])
+  const [returnResultToAgent, setReturnResultToAgent] = useState(false)
+  const [scriptImpact, setScriptImpact] = useState<ScriptAccessImpact | null>(null)
+  const [pendingScriptSave, setPendingScriptSave] = useState<EntryPlaintext | null>(null)
+  const [scriptChangeKinds, setScriptChangeKinds] = useState<string[]>([])
 
   // Reveal toggles.
   const [showSecret, setShowSecret] = useState(false)
@@ -473,6 +495,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         } else if (pt.type === ENTRY_TYPE_SCRIPT) {
           setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt)); setScript(pt.script)
           setInterpreter(pt.interpreter); setRefs(pt.refs ?? []); setNotes(pt.notes ?? '')
+          setDescription(pt.execution?.description ?? secret.description ?? '')
+          setScriptParameters(scriptParameterDrafts(pt.execution?.parameters))
+          setReturnResultToAgent(pt.execution?.returnResultToAgent === true)
         } else if (pt.type === ENTRY_TYPE_CREDENTIAL) {
           const { pinned, rest, baseline } = pinCredentialTotp(pt)
           setOriginalPlaintext(baseline); setCredentialTotp(pinned); setCustomFields(rest)
@@ -519,6 +544,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       script,
       interpreter,
       refs,
+      executionDescription: description,
+      scriptParameters,
+      returnResultToAgent,
       customFields,
       credentialTotp,
       cardholderName, cardNumber, expiryMonth, expiryYear, billingAddress,
@@ -534,6 +562,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     script,
     interpreter,
     refs,
+    description,
+    scriptParameters,
+    returnResultToAgent,
     customFields,
     credentialTotp,
     cardholderName, cardNumber, expiryMonth, expiryYear, billingAddress,
@@ -546,6 +577,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       ? mergeCredentialTotp(credentialTotp, customFields)
       : customFields
   const fieldsInvalid = validateCustomFields(mergedFields).hasError
+  const scriptContractInvalid = entry.type === ENTRY_TYPE_SCRIPT
+    && (!description.trim() || validateScriptParameterDrafts(scriptParameters) !== null
+      || !validateScriptRefs(refs, vault.id))
 
   const contentChanged = useMemo(() => {
     const current = currentPlaintext()
@@ -579,6 +613,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     setPolicy(originalSecret?.agentVisibilityPolicy ?? null)
     setUrlError(false)
     setScriptError(false)
+    setDescriptionError(false)
     setCardholderNameError(false)
     setCardNumberError(false)
     setExpiryMonthError(false)
@@ -594,6 +629,9 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         setScript(originalPlaintext.script)
         setInterpreter(originalPlaintext.interpreter)
         setRefs(originalPlaintext.refs ?? [])
+        setDescription(originalPlaintext.execution?.description ?? originalSecret?.description ?? '')
+        setScriptParameters(scriptParameterDrafts(originalPlaintext.execution?.parameters))
+        setReturnResultToAgent(originalPlaintext.execution?.returnResultToAgent === true)
         setNotes(originalPlaintext.notes ?? '')
       } else if (originalPlaintext.type === ENTRY_TYPE_CREDENTIAL) {
         const { pinned, rest } = pinCredentialTotp(originalPlaintext)
@@ -612,12 +650,58 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     }
   }
 
+  const submitUpdate = (current: EntryPlaintext) => {
+    if (!originalSecret) return
+    const originalIcon = originalSecret.iconReference
+    const iconReference = icon
+      ? /^(?:website|public-asset|vault-asset):/.test(icon) ? icon : `builtin:${icon}`
+      : originalIcon?.startsWith('builtin:') ? undefined : originalIcon
+    const basePolicy = policy ?? originalSecret.agentVisibilityPolicy
+    const nextPolicy = entry.type === ENTRY_TYPE_SCRIPT
+      ? {
+          ...basePolicy,
+          discoverable: true,
+          fields: {
+            ...basePolicy.fields,
+            [ENTRY_FIELD.agentLabel]: 'discovery' as const,
+            [ENTRY_FIELD.description]: 'discovery' as const,
+          },
+        }
+      : basePolicy
+    update.mutate({
+      detail: entry.canonical,
+      previous: originalSecret,
+      draft: {
+        memberLabel: label.trim(),
+        agentLabel: label.trim(),
+        ...(description.trim() ? { description: description.trim() } : {}),
+        ...(iconReference ? { iconReference } : {}),
+        entryType: originalSecret.entryType,
+        content: current,
+        policy: nextPolicy,
+      },
+    }, {
+      onSuccess: () => {
+        toast.success(t('vault.entry.detail.saveSuccess'))
+        setOriginalPlaintext(current)
+        setPendingScriptSave(null)
+        setScriptImpact(null)
+      },
+      onError: () => toast.error(t('vault.entry.detail.saveError')),
+    })
+  }
+
   const handleSave = async () => {
     if (!label.trim()) {
       setLabelError(true)
       return
     }
     if (fieldsInvalid) return
+    if (entry.type === ENTRY_TYPE_SCRIPT && !description.trim()) {
+      setDescriptionError(true)
+      return
+    }
+    if (scriptContractInvalid) return
     if (originalPlaintext) {
       if (entry.type === ENTRY_TYPE_KEY && !secretValue.trim()) {
         setSecretValueError(true)
@@ -652,31 +736,23 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       void handleDecrypt()
       return
     }
-    const originalIcon = originalSecret.iconReference
-    const iconReference = icon
-      ? /^(?:website|public-asset|vault-asset):/.test(icon) ? icon : `builtin:${icon}`
-      : originalIcon?.startsWith('builtin:') ? undefined : originalIcon
-    update.mutate({
-      detail: entry.canonical,
-      previous: originalSecret,
-      draft: {
-        memberLabel: label.trim(),
-        agentLabel: label.trim(),
-        ...(description.trim() ? { description: description.trim() } : {}),
-        ...(iconReference ? { iconReference } : {}),
-        entryType: originalSecret.entryType,
-        content: current,
-        policy: policy ?? originalSecret.agentVisibilityPolicy,
-      },
-    }, {
-      onSuccess: () => {
-        toast.success(t('vault.entry.detail.saveSuccess'))
-        setOriginalPlaintext(current)
-      },
-      onError: () => {
+    if (originalPlaintext
+      && (originalPlaintext.type === ENTRY_TYPE_SCRIPT || current.type === ENTRY_TYPE_SCRIPT)
+      && (permissions & PERMISSION_GRANT_MANAGE) !== 0) {
+      try {
+        const impact = await getScriptAccessImpact(vault.id, entry.id)
+        if (impact.effectiveAgentCount > 0) {
+          setScriptChangeKinds(scriptChangeKindKeys(originalPlaintext, current))
+          setPendingScriptSave(current)
+          setScriptImpact(impact)
+          return
+        }
+      } catch {
         toast.error(t('vault.entry.detail.saveError'))
-      },
-    })
+        return
+      }
+    }
+    submitUpdate(current)
   }
 
   const handleDelete = () => {
@@ -719,8 +795,8 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     label={t('vault.entries.labelLabel')}
                     labelClassName="sr-only"
                     trailingActions={policy ? [discoveryAction(
-                      policy.discoverable,
-                      isSaving,
+                      entry.type === ENTRY_TYPE_SCRIPT || policy.discoverable,
+                      isSaving || entry.type === ENTRY_TYPE_SCRIPT,
                       (active) => setPolicy({
                         ...policy,
                         discoverable: active,
@@ -742,24 +818,36 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                 </div>
               </div>
             </div>
-            <FormInput
-              id="entry-detail-description"
-              label={t('vault.entries.descriptionLabel')}
-              trailingActions={policy ? [discoveryAction(
-                policy.fields[ENTRY_FIELD.description] === 'discovery',
-                isSaving || !policy.discoverable,
-                (active) => setPolicy({
-                  ...policy,
-                  fields: { ...policy.fields, [ENTRY_FIELD.description]: active ? 'discovery' : 'never' },
-                }),
-                t,
-              )] : undefined}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t('vault.entries.descriptionPlaceholder')}
-              disabled={isSaving || !originalSecret}
-              maxLength={500}
-            />
+            <div>
+              <FormInput
+                id="entry-detail-description"
+                label={entry.type === ENTRY_TYPE_SCRIPT
+                  ? t('vault.entries.script.descriptionLabel')
+                  : t('vault.entries.descriptionLabel')}
+                labelSuffix={entry.type === ENTRY_TYPE_SCRIPT
+                  ? <>· {t('vault.entries.script.visibleInDiscovery')}</>
+                  : undefined}
+                trailingActions={policy && entry.type !== ENTRY_TYPE_SCRIPT ? [discoveryAction(
+                  policy.fields[ENTRY_FIELD.description] === 'discovery',
+                  isSaving || !policy.discoverable,
+                  (active) => setPolicy({
+                    ...policy,
+                    fields: { ...policy.fields, [ENTRY_FIELD.description]: active ? 'discovery' : 'never' },
+                  }),
+                  t,
+                )] : undefined}
+                value={description}
+                onChange={(e) => { setDescription(e.target.value); setDescriptionError(false) }}
+                onBlur={() => setDescriptionError(entry.type === ENTRY_TYPE_SCRIPT && !description.trim())}
+                placeholder={entry.type === ENTRY_TYPE_SCRIPT
+                  ? t('vault.entries.script.descriptionPlaceholder')
+                  : t('vault.entries.descriptionPlaceholder')}
+                disabled={isSaving || !originalSecret}
+                maxLength={entry.type === ENTRY_TYPE_SCRIPT ? 4096 : 500}
+                error={descriptionError}
+              />
+              <FeedbackSlot visible={descriptionError} color="red">{t('validation.required')}</FeedbackSlot>
+            </div>
             {entry.type === ENTRY_TYPE_KEY || entry.type === ENTRY_TYPE_CREDENTIAL ? (
               <div>
                 <FormInput
@@ -878,6 +966,32 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   onChange={setRefs}
                   disabled={isSaving || decrypting}
                 />
+                <FeedbackSlot visible={!validateScriptRefs(refs, vault.id)} color="red">
+                  {t('vault.entries.script.refsInvalid')}
+                </FeedbackSlot>
+                <SectionHeader>{t('vault.entries.script.parametersTitle')}</SectionHeader>
+                <ScriptParametersEditor
+                  parameters={scriptParameters}
+                  onChange={setScriptParameters}
+                  disabled={isSaving || decrypting}
+                  error={validateScriptParameterDrafts(scriptParameters)}
+                />
+                <label className="flex items-start gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3">
+                  <input type="checkbox" checked={returnResultToAgent}
+                    onChange={(event) => setReturnResultToAgent(event.target.checked)}
+                    disabled={isSaving || decrypting} className="mt-1" />
+                  <span>
+                    <span className="block text-ui font-semibold text-[var(--cv-t1)]">
+                      {t('vault.entries.script.returnResultLabel')}
+                    </span>
+                    <span className="block text-meta text-[var(--cv-t2)]">
+                      {t('vault.entries.script.returnResultHint')}
+                    </span>
+                  </span>
+                </label>
+                {returnResultToAgent ? <WarningZone title={t('vault.entries.script.resultTrustTitle')}>
+                  {t('vault.entries.script.resultTrustBody')}
+                </WarningZone> : null}
               </div>
             ) : entry.type === ENTRY_TYPE_CREDIT_CARD ? (
               <div className="grid grid-cols-2 gap-3">
@@ -1012,7 +1126,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
             variant="accent"
             size="sm"
             onClick={handleSave}
-            disabled={isSaving || !originalSecret || !hasChanges || fieldsInvalid}
+            disabled={isSaving || !originalSecret || !hasChanges || fieldsInvalid || scriptContractInvalid}
           >
             {isSaving ? t('vault.entry.detail.saving') : t('vault.entry.detail.save')}
           </Button>
@@ -1032,6 +1146,14 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         isPending={isRemoving}
         onConfirm={handleDelete}
         onCancel={() => setShowDelete(false)}
+      />
+      <ScriptAccessImpactDialog
+        open={scriptImpact !== null && pendingScriptSave !== null}
+        impact={scriptImpact}
+        changes={scriptChangeKinds}
+        isPending={isSaving}
+        onCancel={() => { setScriptImpact(null); setPendingScriptSave(null) }}
+        onConfirm={() => { if (pendingScriptSave) submitUpdate(pendingScriptSave) }}
       />
     </>
   )
@@ -1081,6 +1203,78 @@ interface DeleteEntryDialogProps {
   onCancel: () => void
 }
 
+function ScriptAccessImpactDialog({
+  open,
+  impact,
+  changes,
+  isPending,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean
+  impact: ScriptAccessImpact | null
+  changes: string[]
+  isPending: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  const { t } = useTranslation()
+  const agents = useAgentNames(open)
+  const agentNameById = useMemo(() => new Map(
+    (agents.data ?? []).map((agent) => [agent.agentId, agent.name?.trim() || shortenKey(agent.agentId)]),
+  ), [agents.data])
+  if (!open || !impact) return null
+  return (
+    <ModalShell
+      onClose={isPending ? undefined : onCancel}
+      ariaLabel={t('vault.entries.script.impactTitle')}
+      title={t('vault.entries.script.impactTitle')}
+      width={480}
+      footer={<DialogFooter>
+        <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
+          {t('vault.cancel')}
+        </Button>
+        <Button variant="accent" size="sm" onClick={onConfirm} disabled={isPending} className="flex-[2]">
+          {isPending ? t('vault.entry.detail.saving') : t('vault.entries.script.impactConfirm')}
+        </Button>
+      </DialogFooter>}
+    >
+      <div className="flex flex-col gap-3">
+        <WarningZone title={t('vault.entries.script.impactWarningTitle')}>
+          {t('vault.entries.script.impactWarningBody', { count: impact.effectiveAgentCount })}
+        </WarningZone>
+        <dl className="grid grid-cols-2 gap-2 rounded-xl border border-[var(--cv-border)] p-3 text-meta">
+          <div><dt className="text-[var(--cv-t3)]">{t('vault.entries.script.impactDirect')}</dt>
+            <dd className="font-semibold text-[var(--cv-t1)]">{impact.directAgentCount}</dd></div>
+          <div><dt className="text-[var(--cv-t3)]">{t('vault.entries.script.impactFull')}</dt>
+            <dd className="font-semibold text-[var(--cv-t1)]">{impact.fullAgentCount}</dd></div>
+        </dl>
+        <div>
+          <p className="text-meta font-semibold text-[var(--cv-t1)]">
+            {t('vault.entries.script.impactAgents')}
+          </p>
+          <ul className="mt-1 space-y-1 text-meta text-[var(--cv-t2)]">
+            {impact.agentIds.map((agentId) => (
+              <li key={agentId}>{agentNameById.get(agentId) ?? shortenKey(agentId)}</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <p className="text-meta font-semibold text-[var(--cv-t1)]">{t('vault.entries.script.impactChanges')}</p>
+          <ul className="mt-1 list-disc pl-5 text-meta text-[var(--cv-t2)]">
+            {changes.map((key) => <li key={key}>{t(key)}</li>)}
+          </ul>
+        </div>
+        {changes.includes('vault.entries.script.changeReferences') ? (
+          <p className="text-meta text-[var(--cv-pending)]">
+            {t('vault.entries.script.impactReferencesBody')}
+          </p>
+        ) : null}
+      </div>
+    </ModalShell>
+  )
+}
+
 function DeleteEntryDialog({
   open,
   entryLabel,
@@ -1126,6 +1320,9 @@ interface CurrentFormValues {
   script: string
   interpreter: ScriptInterpreter
   refs: ScriptRef[]
+  executionDescription: string
+  scriptParameters: ScriptParameterDraft[]
+  returnResultToAgent: boolean
   customFields: CustomField[]
   /** Pinned credential 2FA field (CREDENTIAL only). */
   credentialTotp: CustomField | null
@@ -1170,6 +1367,12 @@ function buildCurrentPlaintext(
       type: ENTRY_TYPE_SCRIPT,
       script: values.script.trim(),
       interpreter: values.interpreter,
+      execution: {
+        contractVersion: 1,
+        description: values.executionDescription.trim(),
+        parameters: buildScriptParameterDefinitions(values.scriptParameters),
+        returnResultToAgent: values.returnResultToAgent,
+      },
       notes,
       ...(scriptRefs.length > 0 ? { refs: scriptRefs } : {}),
       ...fieldsPart,
@@ -1201,6 +1404,29 @@ function buildCurrentPlaintext(
     ...(legacyTotp ? { totp: legacyTotp } : {}),
     ...fieldsPart,
   }
+}
+
+function scriptChangeKindKeys(previous: EntryPlaintext, next: EntryPlaintext): string[] {
+  if (previous.type !== ENTRY_TYPE_SCRIPT || next.type !== ENTRY_TYPE_SCRIPT) {
+    return ['vault.entries.script.changeExecution']
+  }
+  const changes: string[] = []
+  if (previous.script !== next.script || previous.interpreter !== next.interpreter) {
+    changes.push('vault.entries.script.changeExecution')
+  }
+  if ((previous.execution?.description ?? '') !== (next.execution?.description ?? '')) {
+    changes.push('vault.entries.script.changeDescription')
+  }
+  if (JSON.stringify(previous.execution?.parameters ?? []) !== JSON.stringify(next.execution?.parameters ?? [])) {
+    changes.push('vault.entries.script.changeParameters')
+  }
+  if (JSON.stringify(previous.refs ?? []) !== JSON.stringify(next.refs ?? [])) {
+    changes.push('vault.entries.script.changeReferences')
+  }
+  if ((previous.execution?.returnResultToAgent === true) !== (next.execution?.returnResultToAgent === true)) {
+    changes.push('vault.entries.script.changeResultPolicy')
+  }
+  return changes.length > 0 ? changes : ['vault.entries.script.changeMetadata']
 }
 
 function foldFieldsPart(fields: CustomField[]): { v?: typeof BLOB_VERSION_V2; fields?: CustomField[] } {

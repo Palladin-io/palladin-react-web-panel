@@ -4,12 +4,12 @@ import { toMemberSecret, type AgentVisibilityPolicy } from '../../shared/crypto/
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
-import { collectActiveFullGrants } from '../grants'
+import { GRANT_DELIVERY_POLICY_NAME } from '../../shared/crypto/grant-protocol'
 import { createEntry, issueEntryCreationChallenge, updateCanonicalEntry } from './api/vault-api'
 import { deleteEncryptedAsset } from './assets/encrypted-asset-api'
 import { encryptAndUploadPresentationAsset } from './assets/encrypted-asset-service'
 import { getEncryptedVault } from './sync/member-sync-api'
-import type { EntryPlaintext, EntryType } from './types'
+import { ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_SCRIPT, type EntryPlaintext, type EntryType } from './types'
 import { entriesQueryKey } from './use-entries'
 import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
@@ -29,13 +29,6 @@ export class MissingWrappedVaultKeyError extends Error {
   }
 }
 
-export class ActiveFullGrantMaterialRequiredError extends Error {
-  constructor() {
-    super('Canonical grant material is required for active FULL grants')
-    this.name = 'ActiveFullGrantMaterialRequiredError'
-  }
-}
-
 export interface CreateEntryInput {
   vaultId: string
   label: string
@@ -48,6 +41,14 @@ export interface CreateEntryInput {
   policy: AgentVisibilityPolicy
 }
 
+function deliveryPolicyFor(type: EntryType) {
+  return type === ENTRY_TYPE_SCRIPT
+    ? GRANT_DELIVERY_POLICY_NAME.execOnly
+    : type === ENTRY_TYPE_CREDIT_CARD
+      ? GRANT_DELIVERY_POLICY_NAME.injectOnly
+      : GRANT_DELIVERY_POLICY_NAME.standard
+}
+
 export function useCreateEntry() {
   const queryClient = useQueryClient()
 
@@ -56,12 +57,10 @@ export function useCreateEntry() {
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new VaultLockedError()
 
-      const [vault, challenge, fullGrants] = await Promise.all([
+      const [vault, challenge] = await Promise.all([
         getEncryptedVault(input.vaultId),
         issueEntryCreationChallenge(input.vaultId),
-        collectActiveFullGrants(input.vaultId),
       ])
-      if (fullGrants.length > 0) throw new ActiveFullGrantMaterialRequiredError()
 
       const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
       let discoveryKey: Uint8Array | undefined
@@ -87,7 +86,7 @@ export function useCreateEntry() {
         const created = await createEntry(input.vaultId, {
           entryId: challenge.entryId,
           ...material,
-          grantEnvelopes: [],
+          deliveryPolicy: deliveryPolicyFor(input.type),
         })
         if (!input.iconFile) return created
 
@@ -131,6 +130,7 @@ export function useCreateEntry() {
             memberSecret: withIcon.memberSecret,
             memberIndex: withIcon.memberIndex,
             agentDiscoveryChanged: false,
+            deliveryPolicy: deliveryPolicyFor(input.type),
             grantEnvelopes: [],
           })
           return { ...created, currentRevision: revision }

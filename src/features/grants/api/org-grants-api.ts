@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { api } from "../../../shared/api/client";
 import type { buildCanonicalGrantEnvelope } from "../../../shared/crypto/grant-protocol";
+import type { AgentWrappedVaultKeyContract } from "../../../shared/crypto/x25519-wrapper";
 import { encryptedReasonEnvelopeSchema } from "../../vaults/sync/entry-envelope-schema";
 
 /**
@@ -27,7 +28,9 @@ export type GrantStatus = (typeof GRANT_STATUSES)[number];
 
 export const GRANT_TYPE_FULL = "full" as const;
 export const GRANT_TYPE_GRANULAR = "granular" as const;
-export type GrantType = typeof GRANT_TYPE_FULL | typeof GRANT_TYPE_GRANULAR;
+export const GRANT_TYPE_SCRIPT_EXECUTION = "scriptExecution" as const;
+export type GrantType = typeof GRANT_TYPE_FULL | typeof GRANT_TYPE_GRANULAR
+  | typeof GRANT_TYPE_SCRIPT_EXECUTION;
 
 /**
  * Org-wide grant row from `GET /api/grants` (enriched `GrantResponse`). No
@@ -41,6 +44,7 @@ const orgGrantSchema = z.object({
   vaultId: z.string(),
   vaultName: z.string().nullable().optional(),
   agentId: z.string().nullable().optional(),
+  agentAccessEpoch: z.number().int().positive().max(0xffffffff).nullable().optional(),
   agentName: z.string().nullable().optional(),
   // Agent's chosen icon — a Material glyph name or an uploaded S3 URL. Lets the
   // panel render the agent's real avatar instead of a generic robot. Optional
@@ -64,12 +68,13 @@ const orgGrantSchema = z.object({
     .nullable()
     .optional(),
   agentSigningKeyFingerprint: z.string().nullable().optional(),
-  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]).nullable().optional(),
+  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR, GRANT_TYPE_SCRIPT_EXECUTION]).nullable().optional(),
   status: z.enum(GRANT_STATUSES),
   // Combined-flags string of permitted methods, e.g. "get, exec". Optional for
   // pre-methods backends; the badge is hidden when absent/empty.
   methods: z.string().nullable().optional(),
   entryId: z.string().nullable().optional(),
+  scriptEntryId: z.string().nullable().optional(),
   entryLabel: z.string().nullable().optional(),
   entryScopes: z
     .array(
@@ -88,6 +93,12 @@ const orgGrantSchema = z.object({
     )
     .optional()
     .default([]),
+  scriptScopes: z.array(z.object({
+    entryId: z.string(),
+    entryRevision: z.string(),
+    isScript: z.boolean(),
+  }).strict()).optional().default([]),
+  scriptPackageRevision: z.string().nullable().optional(),
   reason: z.string().nullable().optional(),
   encryptedReason: encryptedReasonEnvelopeSchema.nullable().optional(),
   expiresAt: z.string().nullable().optional(),
@@ -171,61 +182,6 @@ export async function getOrgGrants(
 }
 
 /** A vault's active FULL grant, reduced to what a re-wrap needs. */
-export interface ActiveFullGrant {
-  grantId: string;
-  agentId: string;
-  agentPublicKey: string;
-  recipientAgentKeyVersion: number;
-  methods: string;
-  expiresAt?: string;
-  remainingUses?: number;
-}
-
-/**
- * Collect every ACTIVE FULL grant on a vault, paginating the org-grants list.
- * Rows without an agent public key are dropped — the client cannot seal a DEK
- * without it. Used by the Import Wizard to re-wrap each new entry for the agents
- * that already hold vault-wide access (the backend requires exactly these).
- */
-export async function collectActiveFullGrants(
-  vaultId: string,
-): Promise<ActiveFullGrant[]> {
-  const grants: ActiveFullGrant[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await getOrgGrants({
-      vaultId,
-      status: GRANT_STATUS_ACTIVE,
-      cursor,
-      // Backend caps cursor pagination at 100 per page.
-      pageSize: 100,
-    });
-    for (const grant of page.items) {
-      if (
-        grant.type === GRANT_TYPE_FULL &&
-        grant.agentId &&
-        grant.agentPublicKey &&
-        grant.recipientAgentKeyVersion &&
-        grant.methods
-      ) {
-        grants.push({
-          grantId: grant.id,
-          agentId: grant.agentId,
-          agentPublicKey: grant.agentPublicKey,
-          recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
-          methods: grant.methods,
-          ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
-          ...(grant.queryLimit !== null && grant.queryLimit !== undefined
-            ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }
-            : {}),
-        });
-      }
-    }
-    cursor = page.nextCursor ?? undefined;
-  } while (cursor);
-  return grants;
-}
-
 /** Revoke an active grant (optional reason, max 500 chars). */
 export async function revokeGrant(
   vaultId: string,
@@ -244,15 +200,18 @@ export async function revokeGrant(
  * a lifetime grant.
  *
  * - GRANULAR: `entryId` set + a single-element `grantEntries`.
- * - FULL: legacy bounded one-shot contract. Interactive web creation uses the
- *   staged full-grant preparation API so Vault size never determines one body.
+ * - FULL: no per-Entry material; one current VK sealed to the Agent recipient.
+ * - ScriptExecution: one parent Script id and one complete opaque package.
  */
 export interface CreateGrantBody {
   grantId: string;
   agentId: string;
   type: GrantType;
   entryId?: string;
-  grantEntries: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>[];
+  scriptEntryId?: string;
+  grantEntries?: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>[];
+  agentWrappedVaultKey?: AgentWrappedVaultKeyContract;
+  scriptPackage?: import('../../../shared/crypto/script-execution').ScriptExecutionEncryptedPackageV1;
   expiresAt?: string;
   queryLimit?: number;
   /** Combined-flags string of permitted methods, e.g. "Exec, Inject". */

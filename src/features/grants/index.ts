@@ -35,12 +35,10 @@ export type { OrgGrant } from "./api/org-grants-api";
 export {
   GRANT_TYPE_GRANULAR,
   GRANT_TYPE_FULL,
+  GRANT_TYPE_SCRIPT_EXECUTION,
   GRANT_STATUS_ACTIVE,
   getOrgGrants,
 } from "./api/org-grants-api";
-// Promoted for the Import Wizard: a bulk import must re-wrap each new
-// entry for the vault's active FULL grants, mirroring the single-grant flow.
-export { collectActiveFullGrants } from "./api/org-grants-api";
 // Promoted for the Entry Detail · Agents tab: the header needs the
 // active-agent count, computed from the same (deduped) org-grants query the
 // embedded panel already runs.

@@ -2,6 +2,7 @@ import { api } from '../../../shared/api/client'
 import { z } from 'zod'
 import type { buildCanonicalGrantEnvelope } from '../../../shared/crypto/grant-protocol'
 import type { CreateVaultProtocolPayload } from '../../../shared/crypto/create-vault-protocol'
+import type { ScriptExecutionEncryptedPackageV1 } from '../../../shared/crypto/script-execution'
 import type { CanonicalEntryEnvelopes } from '../../../shared/crypto/entry-protocol'
 import {
   agentDiscoveryEnvelopeSchema,
@@ -131,6 +132,7 @@ const canonicalEntryDetailSchema = z.object({
   agentDiscoveryRevision: canonicalU64Schema.nullable(),
   agentDiscoveryRevisionHighWatermark: canonicalU64Schema,
   currentKeyVersion: u32Schema,
+  deliveryPolicy: z.enum(['standard', 'execOnly', 'injectOnly']),
   createdAt: z.string(),
   createdBy: canonicalUuidSchema,
   updatedAt: z.string(),
@@ -166,7 +168,9 @@ export interface EntryUpdateMaterial {
   memberIndex?: CanonicalEntryEnvelopes['memberIndex']
   agentDiscoveryChanged: boolean
   agentDiscovery?: NonNullable<CanonicalEntryEnvelopes['agentDiscovery']>
+  deliveryPolicy: 'standard' | 'execOnly' | 'injectOnly'
   grantEnvelopes: CanonicalGrantEnvelope[]
+  scriptGrantPackages?: ScriptExecutionEncryptedPackageV1[]
 }
 export interface EntryLifecycleMaterial {
   baseRevision: string
@@ -282,6 +286,19 @@ export async function updateCanonicalEntry(
     .json<{ currentRevision: string }>()
 }
 
+export interface ScriptAccessImpact {
+  effectiveAgentCount: number
+  directAgentCount: number
+  fullAgentCount: number
+  hasOverlappingCoverage: boolean
+  agentIds: string[]
+}
+
+export function getScriptAccessImpact(vaultId: string, scriptEntryId: string): Promise<ScriptAccessImpact> {
+  return api.get(`api/vaults/${vaultId}/scripts/${scriptEntryId}/access-impact`)
+    .json<ScriptAccessImpact>()
+}
+
 export async function restoreCanonicalEntry(
   vaultId: string,
   entryId: string,
@@ -312,7 +329,7 @@ export async function destroyCanonicalEntry(vaultId: string, entryId: string): P
 
 export function createEntry(
   vaultId: string,
-  payload: { entryId: string; grantEnvelopes: unknown[] } & CanonicalEntryEnvelopes,
+  payload: { entryId: string; deliveryPolicy: 'standard' | 'execOnly' | 'injectOnly' } & CanonicalEntryEnvelopes,
 ): Promise<{ id: string; currentRevision: string }> {
   return api
     .post(`api/vaults/${vaultId}/entries`, { json: payload })
@@ -360,12 +377,9 @@ export async function deleteEntry(
 }
 
 /**
- * One entry in a bulk import request — a single create-entry payload plus the
- * `grantEntries` re-wrap material. The backend requires exactly one entry here
- * per ACTIVE FULL grant on the vault (empty when none): each carries the new
- * entry's plaintext re-encrypted under a fresh DEK sealed to that grant's agent,
- * keyed by `grantId`. The client encrypts against the vault key before building
- * this.
+ * One encrypted Entry in a bulk import request. FULL access no longer adds any
+ * per-Entry fan-out; the non-secret delivery policy lets the backend enforce
+ * Script/CreditCard method restrictions before returning ciphertext.
  */
 export interface ImportEntryItem {
   entryId: string
@@ -373,7 +387,7 @@ export interface ImportEntryItem {
   memberIndex: CanonicalEntryEnvelopes['memberIndex']
   memberSecret: CanonicalEntryEnvelopes['memberSecret']
   agentDiscovery?: CanonicalEntryEnvelopes['agentDiscovery']
-  grantEnvelopes: CanonicalGrantEnvelope[]
+  deliveryPolicy: 'standard' | 'execOnly' | 'injectOnly'
 }
 
 export interface ImportEntriesBody {

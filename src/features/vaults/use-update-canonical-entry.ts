@@ -1,14 +1,19 @@
 import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { toMemberSecret, type EntryDraft, type MemberSecretView } from '../../shared/crypto/entry-draft'
-import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
+import {
+  buildCanonicalGrantEnvelope,
+  GRANT_DELIVERY_POLICY,
+  listGrantableFields,
+} from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { projectAgentDiscovery, type MemberSecretV1 } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
 import {
   GRANT_STATUS_ACTIVE,
-  GRANT_TYPE_FULL,
+  GRANT_TYPE_GRANULAR,
+  GRANT_TYPE_SCRIPT_EXECUTION,
   getOrgGrants,
   type OrgGrant,
 } from '../grants'
@@ -16,6 +21,7 @@ import { grantMethodsMask, parseGrantMethods } from '../grants/grant-methods'
 import { updateCanonicalEntry, type CanonicalEntryDetail } from './api/vault-api'
 import { getEncryptedVault } from './sync/member-sync-api'
 import { entriesQueryKey, entryDetailQueryKey, entryHistoryQueryKey } from './use-entries'
+import { buildCompleteScriptExecutionPackage } from './script-execution-package'
 
 export class ActiveGrantRefreshRequiredError extends Error {
   constructor() {
@@ -35,12 +41,12 @@ export interface UpdateCanonicalEntryInput {
   nextCanonicalMemberSecret?: MemberSecretV1
 }
 
-async function activeCoveringGrants(vaultId: string, entryId: string): Promise<OrgGrant[]> {
+async function activeVaultGrants(vaultId: string): Promise<OrgGrant[]> {
   const result: OrgGrant[] = []
   let cursor: string | undefined
   do {
     const page = await getOrgGrants({ vaultId, status: GRANT_STATUS_ACTIVE, cursor, pageSize: 100 })
-    result.push(...page.items.filter((grant) => grant.type === GRANT_TYPE_FULL || grant.entryId === entryId))
+    result.push(...page.items)
     cursor = page.nextCursor ?? undefined
   } while (cursor)
   return result
@@ -67,7 +73,7 @@ export async function updateCanonicalEntryNow(
     throw new Error('Vault lock session changed')
   }
   const [grants, vault] = await Promise.all([
-    activeCoveringGrants(vaultId, targetEntryId),
+    activeVaultGrants(vaultId),
     getEncryptedVault(vaultId),
   ])
   if (cryptoSessionGeneration !== undefined
@@ -96,6 +102,10 @@ export async function updateCanonicalEntryNow(
       policy: previous.agentVisibilityPolicy, vaultId,
     })
     const nextRevision = (BigInt(detail.currentRevision) + 1n).toString()
+    const granularGrants = grants.filter((grant) => grant.type === GRANT_TYPE_GRANULAR
+      && grant.entryId === targetEntryId)
+    const scriptGrants = grants.filter((grant) => grant.type === GRANT_TYPE_SCRIPT_EXECUTION
+      && grant.scriptScopes.some((scope) => scope.entryId === targetEntryId))
     const nextDiscovery = projectAgentDiscovery(nextSecret)
     const previousDiscovery = projectAgentDiscovery(previousSecret)
     const agentDiscoveryChanged = JSON.stringify(nextDiscovery) !== JSON.stringify(previousDiscovery)
@@ -119,12 +129,14 @@ export async function updateCanonicalEntryNow(
       memberIndex: envelopes.memberIndex,
       agentDiscoveryChanged,
       ...(agentDiscoveryChanged && envelopes.agentDiscovery ? { agentDiscovery: envelopes.agentDiscovery } : {}),
+      deliveryPolicy: detail.deliveryPolicy,
       grantEnvelopes: [] as Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>[],
+      scriptGrantPackages: [] as Awaited<ReturnType<typeof buildCompleteScriptExecutionPackage>>[],
     }
-    if (grants.length > 0) {
+    if (granularGrants.length > 0) {
       const grantEnvelopes = []
       const grantable = new Set(listGrantableFields(nextSecret).map((field) => field.id))
-      for (const grant of grants) {
+      for (const grant of granularGrants) {
         const scope = grant.entryScopes.find((candidate) => candidate.entryId === targetEntryId)
         const methods = parseGrantMethods(grant.methods)
         if (!scope?.grantEnvelopeRevision || !scope.grantKeyVersion || !scope.fieldIds.length
@@ -145,6 +157,11 @@ export async function updateCanonicalEntryNow(
             memberKeyGeneration: vault.memberKeyGeneration,
             recipientKeyVersion: grant.recipientAgentKeyVersion,
             approvedMethods,
+            deliveryPolicy: detail.deliveryPolicy === 'execOnly'
+              ? GRANT_DELIVERY_POLICY.execOnly
+              : detail.deliveryPolicy === 'injectOnly'
+                ? GRANT_DELIVERY_POLICY.injectOnly
+                : GRANT_DELIVERY_POLICY.standard,
             ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
             ...(grant.queryLimit !== null && grant.queryLimit !== undefined
               ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }
@@ -155,6 +172,33 @@ export async function updateCanonicalEntryNow(
         }
       }
       material.grantEnvelopes = grantEnvelopes
+    }
+    if (scriptGrants.length > 0) {
+      const overrides = new Map([[targetEntryId, { detail, secret: nextSecret, revision: nextRevision }]])
+      for (const grant of scriptGrants) {
+        const parent = grant.scriptScopes.find((scope) => scope.isScript)
+        if (!parent || !grant.agentId || !grant.agentAccessEpoch || !grant.agentPublicKey
+          || !grant.recipientAgentKeyVersion || !grant.scriptPackageRevision) {
+          throw new ActiveGrantRefreshRequiredError()
+        }
+        try {
+          material.scriptGrantPackages.push(await buildCompleteScriptExecutionPackage({
+            organizationId: detail.organizationId,
+            vaultId,
+            scriptEntryId: parent.entryId,
+            agentId: grant.agentId,
+            agentAccessEpoch: grant.agentAccessEpoch,
+            grantId: grant.id,
+            packageRevision: (BigInt(grant.scriptPackageRevision) + 1n).toString(),
+            recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
+            agentPublicKey: grant.agentPublicKey,
+            vaultKey,
+            overrides,
+          }))
+        } catch {
+          throw new ActiveGrantRefreshRequiredError()
+        }
+      }
     }
     // Ciphertext prepared by an invalidated unlock session must never be
     // submitted, even when the user has already unlocked again.

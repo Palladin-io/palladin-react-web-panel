@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { toBase64Url } from './encoding'
+import { fromBase64Url, toBase64, toBase64Url } from './encoding'
+import { loadSodium, wipe } from './sodium'
 import {
+  buildAgentWrappedVaultKey,
+  AGENT_WRAPPED_VAULT_KEY_SIGNATURE_DOMAIN,
   computeVaultKeyFingerprint,
+  openKeyFromX25519Recipient,
+  type X25519WrapperContext,
   VAULT_KEY_KIND,
   wrapperContextFromMemberVaultKey,
   X25519_SEALED_BOX_V1,
 } from './x25519-wrapper'
+import { verifyVaultSignature, type CanonicalJson } from './vault-v2-signatures'
 
 describe('Member Vault-key wrapper context', () => {
   it('uses the frozen vkVersion rule and domain-separated Member fingerprint', async () => {
@@ -45,5 +51,73 @@ describe('Member Vault-key wrapper context', () => {
         }, encodedSealedKeyPackage: toBase64Url(new Uint8Array(120)),
       },
     })).toThrow('downgraded')
+  })
+
+  it('wraps the whole VK to one Agent and binds grant plus access epoch', async () => {
+    const sodium = await loadSodium()
+    const agent = sodium.crypto_box_keypair()
+    const signer = sodium.crypto_sign_keypair()
+    const vaultKey = new Uint8Array(32).fill(0x5a)
+    try {
+      const envelope = await buildAgentWrappedVaultKey({
+        vaultKey,
+        organizationId: '00112233-4455-6677-8899-aabbccddeeff',
+        vaultId: '11112222-3333-4444-8555-666677778888',
+        grantId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+        agentId: 'cccccccc-dddd-4eee-8fff-000000000000',
+        agentAccessEpoch: 7,
+        vaultKeyVersion: 3,
+        recipientAgentKeyVersion: 4,
+        agentPublicKey: toBase64(agent.publicKey),
+        vaultSigningKeyVersion: 5,
+        vaultSigningPrivateKey: signer.privateKey,
+      })
+      const descriptor = envelope.wrappedVaultKey.descriptor
+      expect(descriptor).toMatchObject({
+        purpose: 5,
+        resourceRevision: '7',
+        wrappedKeyVersion: 3,
+        memberKeyGeneration: null,
+        scope: {
+          grantOrRequestId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+          agentId: 'cccccccc-dddd-4eee-8fff-000000000000',
+        },
+      })
+      expect(envelope.vaultSigningKeyVersion).toBe(5)
+      const { producerSignature, ...unsigned } = envelope
+      expect(await verifyVaultSignature(
+        AGENT_WRAPPED_VAULT_KEY_SIGNATURE_DOMAIN,
+        unsigned as unknown as CanonicalJson,
+        producerSignature,
+        signer.publicKey,
+      )).toBe(true)
+      const opened = await openKeyFromX25519Recipient(
+        fromBase64Url(envelope.wrappedVaultKey.encodedSealedKeyPackage),
+        agent.publicKey,
+        agent.privateKey,
+        {
+          protocolVersion: descriptor.protocolVersion,
+          wrapperSuiteId: X25519_SEALED_BOX_V1,
+          purpose: descriptor.purpose,
+          organizationId: descriptor.scope.organizationId,
+          vaultId: descriptor.scope.vaultId,
+          grantOrRequestId: descriptor.scope.grantOrRequestId ?? undefined,
+          agentId: descriptor.scope.agentId ?? undefined,
+          resourceRevision: BigInt(descriptor.resourceRevision),
+          wrappedKeyVersion: descriptor.wrappedKeyVersion,
+          recipientKeyKind: descriptor.recipientKeyKind,
+          recipientKeyVersion: descriptor.recipientKeyVersion,
+          recipientFingerprint: fromBase64Url(descriptor.recipientFingerprint),
+        } satisfies X25519WrapperContext,
+      )
+      expect(opened).toEqual(vaultKey)
+      wipe(opened)
+    } finally {
+      wipe(vaultKey)
+      wipe(agent.privateKey)
+      wipe(agent.publicKey)
+      wipe(signer.privateKey)
+      wipe(signer.publicKey)
+    }
   })
 })

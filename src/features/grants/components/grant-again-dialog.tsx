@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
-import type { OrgGrant } from '../api/org-grants-api'
+import { WarningZone } from '../../../shared/components/warning-zone'
+import { GRANT_TYPE_FULL, GRANT_TYPE_SCRIPT_EXECUTION, type OrgGrant } from '../api/org-grants-api'
 import {
   DEFAULT_GRANT_POLICY_KIND,
   grantPolicyToBody,
@@ -13,12 +14,13 @@ import {
   type GrantPolicyKind,
 } from '../grant-policy'
 import { GrantPolicyFields } from './grant-policy-fields'
+import { ScriptGrantSummary } from './script-grant-summary'
 
 export interface GrantAgainDialogProps {
   grant: OrgGrant
   isPending: boolean
   /** Confirm with the resolved policy (time → expiresAt, uses → queryLimit, lifetime → {}). */
-  onConfirm: (policy: GrantPolicyBody) => void
+  onConfirm: (policy: GrantPolicyBody, reviewedScriptRevision?: string) => void
   onCancel: () => void
 }
 
@@ -39,18 +41,23 @@ export function GrantAgainDialog({
   const [expiresAt, setExpiresAt] = useState('')
   const [queryLimit, setQueryLimit] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [reviewedScriptRevision, setReviewedScriptRevision] = useState<string | null>(null)
 
   const entryLabel = grant.entryLabel ?? t('grants.approve.fallbackEntry')
   const agentName = grant.agentName ?? t('grants.approve.fallbackAgent')
+  const scriptEntryId = grant.scriptEntryId ?? grant.entryId
+    ?? grant.scriptScopes.find((scope) => scope.isScript)?.entryId
+  const isScript = grant.type === GRANT_TYPE_SCRIPT_EXECUTION
 
   function handleConfirm() {
+    if (isScript && !reviewedScriptRevision) return
     const input = { kind, expiresAt, queryLimit }
     const validationError = validateGrantPolicy(input)
     if (validationError) {
       setError(POLICY_ERROR_KEY[validationError])
       return
     }
-    onConfirm(grantPolicyToBody(input))
+    onConfirm(grantPolicyToBody(input), reviewedScriptRevision ?? undefined)
   }
 
   return (
@@ -64,7 +71,8 @@ export function GrantAgainDialog({
           <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('grants.cancel')}
           </Button>
-          <Button variant="accent" size="sm" onClick={handleConfirm} disabled={isPending} className="flex-[2]">
+          <Button variant="accent" size="sm" onClick={handleConfirm}
+            disabled={isPending || (isScript && !reviewedScriptRevision)} className="flex-[2]">
             {isPending ? t('grants.regrant.granting') : t('grants.regrant.confirm')}
           </Button>
         </DialogFooter>
@@ -77,6 +85,17 @@ export function GrantAgainDialog({
           {t('grants.regrant.subtitleAccessTo')}{' '}
           <span className="font-semibold text-[var(--cv-t1)]">{entryLabel}</span>.
         </p>
+
+        {grant.type === GRANT_TYPE_FULL && (
+          <WarningZone title={t('grants.create.fullTrustTitle')}>
+            {t('grants.create.fullTrustBody')}
+          </WarningZone>
+        )}
+
+        {isScript && scriptEntryId ? (
+          <ScriptGrantSummary vaultId={grant.vaultId} scriptEntryId={scriptEntryId}
+            onStatusChange={setReviewedScriptRevision} />
+        ) : null}
 
         <GrantPolicyFields
           idPrefix="regrant"
