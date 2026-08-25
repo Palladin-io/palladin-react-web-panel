@@ -65,11 +65,19 @@ describe('org-grants-api', () => {
 
   it('reads per-grant capability flags', async () => {
     getJson.mockResolvedValue({
-      items: [{ ...sampleGrant, canRevoke: true, canGrantAgain: false }],
+      items: [{
+        ...sampleGrant,
+        canRevoke: true,
+        canGrantAgain: false,
+        activeCoveringGrantIds: ['11111111-1111-4111-8111-111111111111'],
+      }],
     })
     const page = await getOrgGrants()
     expect(page.items[0].canRevoke).toBe(true)
     expect(page.items[0].canGrantAgain).toBe(false)
+    expect(page.items[0].activeCoveringGrantIds).toEqual([
+      '11111111-1111-4111-8111-111111111111',
+    ])
   })
 
   it('defaults capability flags to false when the backend omits them', async () => {
@@ -78,6 +86,7 @@ describe('org-grants-api', () => {
     const page = await getOrgGrants()
     expect(page.items[0].canRevoke).toBe(false)
     expect(page.items[0].canGrantAgain).toBe(false)
+    expect(page.items[0].activeCoveringGrantIds).toEqual([])
   })
 
   it('forwards filters as search params', async () => {

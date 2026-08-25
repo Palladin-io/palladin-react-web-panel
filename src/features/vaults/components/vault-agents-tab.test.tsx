@@ -13,8 +13,9 @@ describe('VaultAgentsTab', () => {
     expect(screen.queryByText(/Scoped grants/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/Discovery synchronization/i)).not.toBeInTheDocument()
     expect(orgGrantsPanel).toHaveBeenCalledWith(
-      expect.objectContaining({ vaultId: 'vault-1', allowRegrant: false }),
+      expect.objectContaining({ vaultId: 'vault-1' }),
       undefined,
     )
+    expect(orgGrantsPanel.mock.calls[0][0]).not.toHaveProperty('allowRegrant')
   })
 })
