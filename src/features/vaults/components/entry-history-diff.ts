@@ -27,8 +27,6 @@ export type HistoricalEntryField =
   | 'billingAddress'
   | 'customFields'
   | 'notes'
-  | 'discoverable'
-  | 'fieldPolicy'
 
 export interface EntryHistoryDiff {
   fields: ReadonlySet<HistoricalEntryField>
@@ -58,8 +56,6 @@ export function compareEntryVersionToPrevious(
   changed('agentLabel', version.agentLabel, previous.agentLabel)
   changed('description', version.description ?? '', previous.description ?? '')
   changed('notes', version.content.notes ?? '', previous.content.notes ?? '')
-  changed('discoverable', version.agentVisibilityPolicy.discoverable, previous.agentVisibilityPolicy.discoverable)
-  changed('fieldPolicy', version.agentVisibilityPolicy.fields, previous.agentVisibilityPolicy.fields)
 
   if (version.content.type !== previous.content.type) {
     markVisibleContentFields(fields, version)

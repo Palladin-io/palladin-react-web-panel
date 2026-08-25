@@ -96,12 +96,15 @@ describe('EntryHistoryTab', () => {
     render(<EntryHistoryTab detail={detail as never} />)
     expect(mocks.decryptHistory).not.toHaveBeenCalled()
     expect(screen.getByText(/Ada Admin/)).toBeInTheDocument()
-    expect(screen.getByTestId('entry-history-audit-footer')).toHaveTextContent(/Updated.*Ada Admin/i)
+    const auditFooter = screen.getByTestId('entry-history-audit-footer')
+    expect(auditFooter).toHaveTextContent(/Updated.*Ada Admin/i)
+    expect(auditFooter).toHaveClass('min-h-[2.25rem]', 'py-1.5')
     expect(screen.getByRole('button', { name: /reveal/i })).toHaveClass('bg-[var(--cv-primary)]')
 
     await user.click(screen.getByRole('button', { name: /reveal/i }))
     const historicalForm = await screen.findByTestId('historical-entry-form')
     expect(historicalForm.parentElement).toHaveClass('entry-history-reveal')
+    expect(historicalForm.parentElement).not.toHaveClass('bg-[var(--cv-bg-subtle)]')
     expect(screen.getByLabelText('Label')).toHaveValue('Old label')
     expect(screen.getByLabelText('Label')).toHaveAttribute('data-history-changed', 'true')
     expect(screen.getByLabelText('Agent-facing label')).not.toHaveAttribute('data-history-changed')
@@ -110,6 +113,7 @@ describe('EntryHistoryTab', () => {
     expect(screen.getByLabelText('Notes')).toHaveValue('Old notes')
     expect(screen.getByText(/A=1/)).toBeInTheDocument()
     expect(screen.getByText('Future config')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Entry discovery')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /restore this version/i }))
 
     await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledWith({
@@ -129,6 +133,20 @@ describe('EntryHistoryTab', () => {
       previousCanonicalMemberSecret: currentCanonicalSecret,
       nextCanonicalMemberSecret: oldCanonicalSecret,
     }))
+  })
+
+  it('renders the current revision as a compact status badge', () => {
+    const currentItem = { ...item, revision: '3', memberSequence: '3' }
+    mocks.history.mockReturnValue({ data: { pages: [{ items: [currentItem] }] }, isPending: false, isError: false,
+      hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn(), refetch: vi.fn() })
+
+    render(<EntryHistoryTab detail={detail as never} />)
+
+    expect(screen.getByText(/^Current$/)).toHaveClass(
+      'rounded-full',
+      'bg-[rgb(var(--cv-success-rgb)/0.1)]',
+      'text-micro',
+    )
   })
 
   it('drops revealed plaintext immediately when the vault locks', async () => {

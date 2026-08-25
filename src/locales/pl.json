@@ -330,7 +330,6 @@
   "vault.entry.history.type.1": "Dane logowania",
   "vault.entry.history.type.2": "Skrypt",
   "vault.entry.history.type.3": "Karta płatnicza",
-  "vault.entry.history.fieldPolicy": "Dostęp agentów do pól",
   "vault.entry.detail.discard": "Odrzuć",
   "vault.entry.detail.save": "Zapisz zmiany",
   "vault.entry.detail.saving": "Zapisywanie...",

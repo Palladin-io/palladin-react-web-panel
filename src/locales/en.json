@@ -314,7 +314,6 @@
   "vault.entry.history.type.1": "Credential",
   "vault.entry.history.type.2": "Script",
   "vault.entry.history.type.3": "Credit card",
-  "vault.entry.history.fieldPolicy": "Field access for Agents",
   "vault.entry.detail.discard": "Discard",
   "vault.entry.detail.save": "Save Changes",
   "vault.entry.detail.saving": "Saving...",

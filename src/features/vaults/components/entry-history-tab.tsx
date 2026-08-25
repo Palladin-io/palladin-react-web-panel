@@ -197,7 +197,15 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-ui font-semibold">{t('vault.entry.history.revision', { revision: item.revision })}</span>
-                  {isCurrent ? <span className="text-meta text-[var(--cv-success)]">{t('vault.entry.history.current')}</span> : null}
+                  {isCurrent ? (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full bg-[rgb(var(--cv-success-rgb)/0.1)]
+                        px-1.5 py-0.5 text-micro font-semibold text-[var(--cv-success)]"
+                    >
+                      <span className="h-1 w-1 rounded-full bg-[var(--cv-success)]" aria-hidden="true" />
+                      {t('vault.entry.history.current')}
+                    </span>
+                  ) : null}
                 </div>
               </div>
               <Button
@@ -219,7 +227,7 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
               </Button>
             </div>
             {isSelected ? (
-              <div className="entry-history-reveal border-t border-[var(--cv-divider)] bg-[var(--cv-bg-subtle)] p-4">
+              <div className="entry-history-reveal border-t border-[var(--cv-divider)] p-4">
                 <HistoricalEntryForm
                   revision={selected.revision}
                   secret={selectedView!}
@@ -236,8 +244,8 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
             ) : null}
             <footer
               data-testid="entry-history-audit-footer"
-              className="flex min-h-[2.875rem] flex-wrap items-center justify-between gap-x-4 gap-y-1
-                border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2"
+              className="flex min-h-[2.25rem] flex-wrap items-center justify-between gap-x-4 gap-y-0.5
+                border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-1.5"
             >
               <div className="flex min-w-0 items-center gap-1.5 text-micro text-[var(--cv-t3)]">
                 <Icon name="history" size={13} className="shrink-0" />

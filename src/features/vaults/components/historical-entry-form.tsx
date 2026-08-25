@@ -321,28 +321,6 @@ export function HistoricalEntryForm({ revision, secret, previousSecret }: Histor
         rows={2}
         {...changedInputProps('notes')}
       />
-
-      <SectionHeader>{t('vault.entries.visibility.title')}</SectionHeader>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <FormInput
-          id={inputId('discoverable')}
-          label={t('vault.entries.visibility.entryDiscovery')}
-          value={t(secret.agentVisibilityPolicy.discoverable
-            ? 'vault.entries.visibility.enabled'
-            : 'vault.entries.visibility.disabled')}
-          readOnly
-          {...changedInputProps('discoverable')}
-        />
-        <FormInput
-          id={inputId('field-policy')}
-          label={t('vault.entry.history.fieldPolicy')}
-          value={Object.entries(secret.agentVisibilityPolicy.fields)
-            .map(([field, access]) => `${field}: ${t(`vault.entries.visibility.${access}`)}`)
-            .join(' · ')}
-          readOnly
-          {...changedInputProps('fieldPolicy')}
-        />
-      </div>
     </div>
   )
 }
