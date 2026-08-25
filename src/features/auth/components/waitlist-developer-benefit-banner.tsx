@@ -52,7 +52,7 @@ export function WaitlistDeveloperBenefitBanner() {
   return (
     <section
       aria-labelledby="waitlist-developer-benefit-title"
-      className="sticky top-0 z-30 mx-4 mt-4 flex items-start gap-3 rounded-xl border border-[rgb(var(--cv-premium-rgb)/0.28)] bg-[color-mix(in_srgb,var(--cv-card-bg)_88%,transparent)] px-4 py-3 shadow-sm backdrop-blur-md"
+      className="sticky top-0 z-30 mx-4 mt-4 flex shrink-0 items-start gap-3 rounded-xl border border-[rgb(var(--cv-premium-rgb)/0.28)] bg-[color-mix(in_srgb,var(--cv-card-bg)_88%,transparent)] px-4 py-3 shadow-sm backdrop-blur-md"
     >
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[rgb(var(--cv-premium-rgb)/0.12)]">
         <Icon name="workspace_premium" size={16} color="var(--cv-premium)" />

@@ -190,9 +190,11 @@ function AuthenticatedLayout() {
               style={{ background: GRADIENTS[theme] }}
             >
               <AppSidebar currentPath={pathname} />
-              <main className="subtle-scrollbar h-full min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+              <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                 <WaitlistDeveloperBenefitBanner />
-                <Outlet />
+                <div className="subtle-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+                  <Outlet />
+                </div>
               </main>
             </div>
           </SignalRProvider>
