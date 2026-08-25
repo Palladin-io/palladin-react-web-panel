@@ -3,7 +3,7 @@ import { sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { toMemberSecret, type EntryDraft, type MemberSecretView } from '../../shared/crypto/entry-draft'
 import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
-import { projectAgentDiscovery } from '../../shared/crypto/vault-plaintext'
+import { projectAgentDiscovery, type MemberSecretV1 } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
 import {
@@ -30,6 +30,9 @@ export interface UpdateCanonicalEntryInput {
   draft: EntryDraft
   /** Non-secret guard used by batch writers that decrypted `previous` earlier. */
   cryptoSessionGeneration?: number
+  /** Exact decrypted inputs for immutable-history restore; bypasses lossy presentation adapters. */
+  previousCanonicalMemberSecret?: MemberSecretV1
+  nextCanonicalMemberSecret?: MemberSecretV1
 }
 
 async function activeCoveringGrants(vaultId: string, entryId: string): Promise<OrgGrant[]> {
@@ -50,6 +53,8 @@ export async function updateCanonicalEntryNow(
     previous,
     draft,
     cryptoSessionGeneration,
+    previousCanonicalMemberSecret,
+    nextCanonicalMemberSecret,
   }: UpdateCanonicalEntryInput,
   entryId?: string,
 ) {
@@ -75,14 +80,14 @@ export async function updateCanonicalEntryNow(
   let discoveryKey: Uint8Array | undefined
   try {
     discoveryKey = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)
-    const nextSecret = toMemberSecret({
+    const nextSecret = nextCanonicalMemberSecret ?? toMemberSecret({
       label: draft.memberLabel, agentLabel: draft.agentLabel,
       ...(draft.description ? { description: draft.description } : {}),
       ...(draft.iconReference ? { iconReference: draft.iconReference } : {}),
       ...(draft.color ? { color: draft.color } : {}),
       type: draft.entryType, payload: draft.content, policy: draft.policy, vaultId,
     })
-    const previousSecret = toMemberSecret({
+    const previousSecret = previousCanonicalMemberSecret ?? toMemberSecret({
       label: previous.memberLabel, agentLabel: previous.agentLabel,
       ...(previous.description ? { description: previous.description } : {}),
       ...(previous.iconReference ? { iconReference: previous.iconReference } : {}),

@@ -55,7 +55,7 @@ const input = {
 describe('useUpdateCanonicalEntry', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useAuthStore.setState({ privateKey: new Uint8Array(32).fill(3) })
+    useAuthStore.setState({ privateKey: new Uint8Array(32).fill(3), cryptoSessionGeneration: 1 })
     mocks.getGrants.mockResolvedValue({ items: [], nextCursor: null })
     mocks.getVault.mockResolvedValue({ memberVaultKey: {}, memberKeyGeneration: 3,
       currentKeyEpoch: { vaultKeyVersion: 1, vdkVersion: 1 }, discoveryKey: {} })
@@ -113,6 +113,21 @@ describe('useUpdateCanonicalEntry', () => {
     expect(mocks.toSecret).toHaveBeenCalledWith(expect.objectContaining({ color: '#EB4747' }))
     expect(mocks.produce).not.toHaveBeenCalled()
     expect(mocks.wipe).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses exact canonical MemberSecrets for immutable-history restore', async () => {
+    const previousCanonicalMemberSecret = { marker: 'previous', content: { totp: { account: null } } }
+    const nextCanonicalMemberSecret = { marker: 'historical', content: { totp: { account: null } } }
+    const { result } = renderHook(() => useUpdateCanonicalEntry('vault', 'entry'), { wrapper })
+    result.current.mutate({
+      ...input,
+      previousCanonicalMemberSecret,
+      nextCanonicalMemberSecret,
+    } as never)
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mocks.toSecret).not.toHaveBeenCalled()
+    expect(mocks.createMaterial.mock.calls[0][1]).toBe(nextCanonicalMemberSecret)
   })
 
   it('takes the batch target from detail.id when no fixed Entry id is provided', async () => {
@@ -174,5 +189,24 @@ describe('useUpdateCanonicalEntry', () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(mocks.update).not.toHaveBeenCalled()
     expect(mocks.wipe).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not open keys after the restore session changes while prerequisite requests are pending', async () => {
+    let finishGrants: ((value: { items: never[]; nextCursor: null }) => void) | undefined
+    mocks.getGrants.mockImplementationOnce(() => new Promise((resolve) => { finishGrants = resolve }))
+    const cryptoSessionGeneration = useAuthStore.getState().cryptoSessionGeneration
+    const { result } = renderHook(() => useUpdateCanonicalEntry('vault', 'entry'), { wrapper })
+    result.current.mutate({ ...input, cryptoSessionGeneration } as never)
+    await waitFor(() => expect(mocks.getGrants).toHaveBeenCalled())
+
+    useAuthStore.setState({
+      privateKey: new Uint8Array(32).fill(9),
+      cryptoSessionGeneration: cryptoSessionGeneration + 1,
+    })
+    finishGrants?.({ items: [], nextCursor: null })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(mocks.openVaultKey).not.toHaveBeenCalled()
+    expect(mocks.update).not.toHaveBeenCalled()
   })
 })

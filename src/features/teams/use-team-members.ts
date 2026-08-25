@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { parseJwtPayload } from '../../shared/lib/jwt'
 import { ORGANIZATION_MEMBERS_QUERY_KEY } from '../../shared/api/organization-members-api'
+import { organizationIdFromAccessToken } from '../../shared/lib/organization-scope'
 import { useAuthStore } from '../auth'
 import { getOrganizationMembers } from './api/team-members-api'
 
 export function useTeamMembers(enabled = true) {
   const accessToken = useAuthStore((state) => state.accessToken)
-  const organizationId = organizationIdFromToken(accessToken)
+  const organizationId = organizationIdFromAccessToken(accessToken)
 
   return useQuery({
     queryKey: [...ORGANIZATION_MEMBERS_QUERY_KEY, organizationId ?? 'session'],
@@ -14,10 +14,4 @@ export function useTeamMembers(enabled = true) {
     staleTime: 30_000,
     enabled: enabled && organizationId !== null,
   })
-}
-
-function organizationIdFromToken(accessToken: string | null): string | null {
-  if (!accessToken) return null
-  const value = parseJwtPayload(accessToken)['org_id']
-  return typeof value === 'string' ? value : null
 }

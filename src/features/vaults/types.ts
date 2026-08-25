@@ -134,7 +134,22 @@ export function canBeAgentVisible(type: string): boolean {
 export function isTotpField(
   field: CustomField,
 ): field is CustomField & { value: TotpParams } {
-  return field.type === 'totp' && typeof field.value === 'object' && field.value !== null
+  if (field.type !== 'totp' || typeof field.value !== 'object'
+    || field.value === null || Array.isArray(field.value)) return false
+  const value = field.value as unknown as Record<string, unknown>
+  const optionalText = (candidate: unknown) => candidate === undefined || typeof candidate === 'string'
+  const allowedKeys = new Set(['secret', 'algorithm', 'digits', 'period', 'issuer', 'account'])
+  return Object.keys(value).every((key) => allowedKeys.has(key))
+    && typeof value.secret === 'string'
+    && /^[A-Z2-7]*$/.test(value.secret)
+    && (value.algorithm === 'SHA1' || value.algorithm === 'SHA256' || value.algorithm === 'SHA512')
+    && (value.digits === 6 || value.digits === 8)
+    && typeof value.period === 'number'
+    && Number.isInteger(value.period)
+    && value.period >= 15
+    && value.period <= 120
+    && optionalText(value.issuer)
+    && optionalText(value.account)
 }
 
 /** Interpreters an agent may run a SCRIPT entry under (validated, never arbitrary). */

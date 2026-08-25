@@ -10,22 +10,25 @@ import { TotpDisplay } from './totp-display'
 
 export interface CustomFieldsViewProps {
   fields: CustomField[]
+  /** Field ids whose locally decrypted value differs from the current revision. */
+  changedFieldIds?: ReadonlySet<string>
+  /** Accessible description shared by changed historical fields. */
+  changeDescriptionId?: string
 }
 
 /**
  * Read-only display of custom fields on the entry-detail Details tab, following
  * the Locked Value Pattern: `concealed` values start masked with a reveal
- * toggle, `totp` renders a live code, plain `text` shows inline. Every field is
- * copyable. Unknown field types are skipped (forward-compat) rather than
- * throwing. The whole block is `ph-no-capture` — labels and values are
- * encrypted-at-rest and treated as secret in analytics.
+ * toggle, `totp` renders a live code, plain `text` shows inline, and
+ * `multiline` preserves line breaks. Every field is copyable. Unknown field
+ * types and values are rendered as concealed serialized data so a newer
+ * client's field is never silently omitted and its unknown sensitivity is
+ * handled fail-closed. The whole block is `ph-no-capture` — labels and values
+ * are encrypted-at-rest and treated as secret in analytics.
  */
-export function CustomFieldsView({ fields }: CustomFieldsViewProps) {
+export function CustomFieldsView({ fields, changedFieldIds, changeDescriptionId }: CustomFieldsViewProps) {
   const { t } = useTranslation()
-  const renderable = fields.filter(
-    (f) => isTotpField(f) || (typeof f.value === 'string' && (f.type === 'text' || f.type === 'concealed')),
-  )
-  if (renderable.length === 0) return null
+  if (fields.length === 0) return null
 
   return (
     <section className="ph-no-capture flex flex-col gap-1.5">
@@ -33,30 +36,55 @@ export function CustomFieldsView({ fields }: CustomFieldsViewProps) {
         {t('vault.entries.customFields.title')}
       </h3>
       <div className="flex flex-col divide-y divide-[var(--cv-divider)] rounded-lg border border-[var(--cv-input-border)]">
-        {renderable.map((field) => (
-          <FieldViewRow key={field.id} field={field} />
+        {fields.map((field) => (
+          <FieldViewRow
+            key={field.id}
+            field={field}
+            changed={changedFieldIds?.has(field.id) ?? false}
+            changeDescriptionId={changeDescriptionId}
+          />
         ))}
       </div>
     </section>
   )
 }
 
-function FieldViewRow({ field }: { field: CustomField }) {
+function FieldViewRow({
+  field,
+  changed,
+  changeDescriptionId,
+}: {
+  field: CustomField
+  changed: boolean
+  changeDescriptionId?: string
+}) {
   const { t } = useTranslation()
   const [shown, setShown] = useState(false)
+  const isText = field.type === 'text' && typeof field.value === 'string'
+  const isMultiline = field.type === 'multiline' && typeof field.value === 'string'
+  const isRenderableTotp = isTotpField(field) && field.value.secret.length > 0
+  const serializedValue = serializeCustomFieldValue(field.value)
+  const isSecretLike = field.type === 'concealed' || (!isRenderableTotp && !isText && !isMultiline)
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2">
+    <div
+      role={changed ? 'group' : undefined}
+      aria-describedby={changed ? changeDescriptionId : undefined}
+      data-history-changed={changed || undefined}
+      className={`flex items-center gap-3 px-3 py-2 transition-colors ${changed
+        ? 'border-l-2 border-[var(--cv-change)] bg-[rgb(var(--cv-change-rgb)/0.08)]'
+        : ''}`}
+    >
       <Tooltip content={field.label} className="w-32 shrink-0 truncate text-meta text-[var(--cv-t3)]">
         {field.label}
       </Tooltip>
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
-        {isTotpField(field) ? (
+        {isRenderableTotp ? (
           <TotpDisplay params={field.value} compact />
-        ) : field.type === 'concealed' ? (
+        ) : isSecretLike ? (
           <>
             <span className="min-w-0 flex-1 truncate text-right font-mono text-ui tracking-wide text-[var(--cv-t1)]">
-              {shown ? String(field.value) : maskValue(String(field.value).length)}
+              {shown ? serializedValue : maskValue(serializedValue.length)}
             </span>
             <button
               type="button"
@@ -68,7 +96,14 @@ function FieldViewRow({ field }: { field: CustomField }) {
             >
               <Icon name={shown ? 'visibility_off' : 'visibility'} size={15} />
             </button>
-            <SecretCopyButton value={String(field.value)} />
+            <SecretCopyButton value={serializedValue} />
+          </>
+        ) : isMultiline ? (
+          <>
+            <span className="min-w-0 flex-1 whitespace-pre-wrap text-right font-mono text-meta leading-relaxed text-[var(--cv-t1)]">
+              {String(field.value)}
+            </span>
+            <CopyButton value={String(field.value)} label={t('common.copy')} />
           </>
         ) : (
           <>
@@ -111,4 +146,13 @@ function SecretCopyButton({ value }: { value: string }) {
 
 function maskValue(length: number): string {
   return '•'.repeat(Math.min(Math.max(length, 8), 18))
+}
+
+function serializeCustomFieldValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  try {
+    return JSON.stringify(value) ?? String(value)
+  } catch {
+    return String(value)
+  }
 }

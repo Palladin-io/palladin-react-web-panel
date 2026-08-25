@@ -1,8 +1,10 @@
 import { useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useOrganizationMemberDirectory } from '../../shared/hooks/use-organization-member-directory'
+import { organizationIdFromAccessToken } from '../../shared/lib/organization-scope'
 import { shortenKey } from '../../shared/lib/shorten-key'
 import { useAgentNames } from '../agents'
-import { useTeamMembers } from '../teams/use-team-members'
+import { useAuthStore } from '../auth'
 import type { AuditLogItem } from './api/audit-api'
 import type { AuditFilterOption } from './components/audit-filter-bar'
 
@@ -31,7 +33,16 @@ export function useAuditAgentNames(
 ): AuditAgentNames {
   const { t } = useTranslation()
   const agents = useAgentNames(enabled)
-  const members = useTeamMembers(enabled)
+  const accessToken = useAuthStore((state) => state.accessToken)
+  const memberIds = useMemo(
+    () => items.flatMap((item) => item.userId ? [item.userId] : []),
+    [items],
+  )
+  const members = useOrganizationMemberDirectory(
+    organizationIdFromAccessToken(accessToken),
+    memberIds,
+    enabled,
+  )
 
   const agentNameById = useMemo(() => {
     const map: Record<string, string> = {}
@@ -42,12 +53,8 @@ export function useAuditAgentNames(
   }, [agents.data])
 
   const memberNameById = useMemo(() => {
-    const map: Record<string, string> = {}
-    for (const member of members.data ?? []) {
-      if (member.displayName.trim()) map[member.userId] = member.displayName.trim()
-    }
-    return map
-  }, [members.data])
+    return members.nameById
+  }, [members.nameById])
 
   const resolveAgentName = useCallback(
     (id: string) => agentNameById[id] ?? shortenKey(id),
