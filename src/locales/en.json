@@ -944,6 +944,8 @@
   "grants.regrant.error": "Could not grant access",
   "grants.create.title": "Grant Access",
   "grants.create.subtitle": "Give an agent access to a credential.",
+  "grants.create.fullVaultSubtitle_one": "The agent will have access to the current entry in vault “{{vaultName}}” and to entries added later.",
+  "grants.create.fullVaultSubtitle_other": "The agent will have access to all {{count}} current entries in vault “{{vaultName}}” and to entries added later.",
   "grants.create.confirm": "Grant access",
   "grants.create.granting": "Granting…",
   "grants.create.success": "Access granted",

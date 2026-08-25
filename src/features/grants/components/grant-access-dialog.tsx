@@ -104,6 +104,18 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
     ...subject,
     ...targetReadiness(subject.vaultId, subject.entryId, syncedVaults),
   })
+  const fullVaultId = currentSubject?.type === GRANT_TYPE_FULL
+    ? currentSubject.vaultId
+    : mode.kind === 'agent-for-vault'
+      ? mode.vaultId
+      : null
+  const fullVault = fullVaultId ? syncedVaults.get(fullVaultId) : undefined
+  const fullVaultSubtitle = fullVault?.metadata?.name
+    ? t('grants.create.fullVaultSubtitle', {
+        count: fullVault.structure.entryCount,
+        vaultName: fullVault.metadata.name,
+      })
+    : t('grants.create.subtitle')
   const effectiveMethods: GrantMethod[] = methods
 
   function resetPolicyError() {
@@ -181,7 +193,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
     >
       <div className="flex flex-col gap-4">
         <p className="text-ui text-[var(--cv-t2)]">
-          {t('grants.create.subtitle')}
+          {fullVaultSubtitle}
         </p>
 
         {/* Swappable subject segment. Feedback collapses when there is no error. */}

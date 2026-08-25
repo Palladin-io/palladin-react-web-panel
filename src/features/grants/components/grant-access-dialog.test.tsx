@@ -54,7 +54,8 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
       status: 'ready',
       vaults: new Map([['v1', {
         vaultId: 'v1', status: 'ready', entries: new Map(), failureKind: null,
-        metadata: null, structure: {}, appliedThroughSequence: '0',
+        metadata: { name: 'Production Vault' },
+        structure: { entryCount: 3 }, appliedThroughSequence: '0',
       } as never]]),
     })
   })
@@ -68,6 +69,7 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
   it('renders the title, agent picker, and access-type dropdown', () => {
     renderDialog()
     expect(screen.getByText('Grant Access')).toBeInTheDocument()
+    expect(screen.getByText(/access to all 3 current entries in vault “Production Vault”/i)).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Agent' })).toBeInTheDocument()
     expect(screen.getByLabelText(/Access type/i)).toBeInTheDocument()
   })
