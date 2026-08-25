@@ -88,7 +88,7 @@ export function SecretInput({
         />
         <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
           {onGenerate ? <PasswordGeneratorPopover onUse={onGenerate} disabled={disabled} /> : null}
-          {copyable ? <CopyButton value={value} label={copyLabel} /> : null}
+          {copyable ? <CopyButton value={value} label={copyLabel} secret /> : null}
           <button
             type="button"
             onClick={onToggleShown}

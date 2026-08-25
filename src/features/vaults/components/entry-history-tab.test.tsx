@@ -51,7 +51,10 @@ const oldSecret = {
   schemaVersion: 1 as const, memberLabel: 'Old label', agentLabel: 'Old agent', entryType: 0 as const,
   description: 'Old description', iconReference: 'builtin:key', color: '#EB4747',
   content: { type: 0 as const, value: 'old-secret', url: 'https://old.example.com',
-    notes: 'Old notes', fields: [{ id: 'field-1', label: 'Config', type: 'multiline', value: 'A=1\nB=2' }] },
+    notes: 'Old notes', fields: [
+      { id: 'field-1', label: 'Config', type: 'multiline', value: 'A=1\nB=2' },
+      { id: 'field-2', label: 'Future config', type: 'future-json', value: { region: 'eu', retries: 3 } },
+    ] },
   agentVisibilityPolicy: { discoverable: false, fields: { value: 'onGrantValue' as const } },
 }
 const currentSecret = { ...oldSecret, memberLabel: 'Current label', content: { type: 0 as const, value: 'current-secret' } }
@@ -87,6 +90,7 @@ describe('EntryHistoryTab', () => {
     expect(screen.getByLabelText('URL')).toHaveValue('https://old.example.com')
     expect(screen.getByLabelText('Notes')).toHaveValue('Old notes')
     expect(screen.getByText(/A=1/)).toBeInTheDocument()
+    expect(screen.getByText('Future config')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /restore this version/i }))
 
     await waitFor(() => expect(mocks.mutateAsync).toHaveBeenCalledWith({
@@ -96,7 +100,10 @@ describe('EntryHistoryTab', () => {
         memberLabel: 'Old label', agentLabel: 'Old agent', description: 'Old description',
         iconReference: 'builtin:key', color: '#EB4747', entryType: 0,
         content: { type: 0, value: 'old-secret', url: 'https://old.example.com',
-          notes: 'Old notes', fields: [{ id: 'field-1', label: 'Config', type: 'multiline', value: 'A=1\nB=2' }] },
+          notes: 'Old notes', fields: [
+            { id: 'field-1', label: 'Config', type: 'multiline', value: 'A=1\nB=2' },
+            { id: 'field-2', label: 'Future config', type: 'future-json', value: { region: 'eu', retries: 3 } },
+          ] },
         policy: { discoverable: false, fields: { value: 'onGrantValue' } },
       },
     }))

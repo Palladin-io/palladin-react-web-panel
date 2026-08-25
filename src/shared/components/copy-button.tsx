@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { copyToClipboard } from '../lib/clipboard'
+import { copySecretToClipboard, copyToClipboard } from '../lib/clipboard'
 import { Icon } from './icon'
 
 export interface CopyButtonProps {
@@ -12,6 +12,8 @@ export interface CopyButtonProps {
   size?: number
   /** Extra classes appended to the default icon-button styling. */
   className?: string
+  /** Copy through the bounded auto-clearing path for secrets. */
+  secret?: boolean
 }
 
 /**
@@ -20,7 +22,7 @@ export interface CopyButtonProps {
  * Copying a secret to the user's own clipboard is fine; the value is never
  * logged or sent anywhere. Disabled when there is nothing to copy.
  */
-export function CopyButton({ value, label, size = 16, className }: CopyButtonProps) {
+export function CopyButton({ value, label, size = 16, className, secret = false }: CopyButtonProps) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   const timeoutRef = useRef<number | null>(null)
@@ -33,7 +35,7 @@ export function CopyButton({ value, label, size = 16, className }: CopyButtonPro
   )
 
   const handleCopy = async () => {
-    const ok = await copyToClipboard(value)
+    const ok = await (secret ? copySecretToClipboard(value) : copyToClipboard(value))
     if (!ok) return
     setCopied(true)
     if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current)

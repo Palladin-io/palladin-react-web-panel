@@ -17,17 +17,14 @@ export interface CustomFieldsViewProps {
  * the Locked Value Pattern: `concealed` values start masked with a reveal
  * toggle, `totp` renders a live code, plain `text` shows inline, and
  * `multiline` preserves line breaks. Every field is copyable. Unknown field
- * types are skipped (forward-compat) rather than
- * throwing. The whole block is `ph-no-capture` — labels and values are
- * encrypted-at-rest and treated as secret in analytics.
+ * types and values are rendered as concealed serialized data so a newer
+ * client's field is never silently omitted and its unknown sensitivity is
+ * handled fail-closed. The whole block is `ph-no-capture` — labels and values
+ * are encrypted-at-rest and treated as secret in analytics.
  */
 export function CustomFieldsView({ fields }: CustomFieldsViewProps) {
   const { t } = useTranslation()
-  const renderable = fields.filter(
-    (f) => isTotpField(f) || (typeof f.value === 'string'
-      && (f.type === 'text' || f.type === 'multiline' || f.type === 'concealed')),
-  )
-  if (renderable.length === 0) return null
+  if (fields.length === 0) return null
 
   return (
     <section className="ph-no-capture flex flex-col gap-1.5">
@@ -35,7 +32,7 @@ export function CustomFieldsView({ fields }: CustomFieldsViewProps) {
         {t('vault.entries.customFields.title')}
       </h3>
       <div className="flex flex-col divide-y divide-[var(--cv-divider)] rounded-lg border border-[var(--cv-input-border)]">
-        {renderable.map((field) => (
+        {fields.map((field) => (
           <FieldViewRow key={field.id} field={field} />
         ))}
       </div>
@@ -46,6 +43,10 @@ export function CustomFieldsView({ fields }: CustomFieldsViewProps) {
 function FieldViewRow({ field }: { field: CustomField }) {
   const { t } = useTranslation()
   const [shown, setShown] = useState(false)
+  const isText = field.type === 'text' && typeof field.value === 'string'
+  const isMultiline = field.type === 'multiline' && typeof field.value === 'string'
+  const serializedValue = serializeCustomFieldValue(field.value)
+  const isSecretLike = field.type === 'concealed' || (!isTotpField(field) && !isText && !isMultiline)
 
   return (
     <div className="flex items-center gap-3 px-3 py-2">
@@ -55,10 +56,10 @@ function FieldViewRow({ field }: { field: CustomField }) {
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
         {isTotpField(field) ? (
           <TotpDisplay params={field.value} compact />
-        ) : field.type === 'concealed' ? (
+        ) : isSecretLike ? (
           <>
             <span className="min-w-0 flex-1 truncate text-right font-mono text-ui tracking-wide text-[var(--cv-t1)]">
-              {shown ? String(field.value) : maskValue(String(field.value).length)}
+              {shown ? serializedValue : maskValue(serializedValue.length)}
             </span>
             <button
               type="button"
@@ -70,9 +71,9 @@ function FieldViewRow({ field }: { field: CustomField }) {
             >
               <Icon name={shown ? 'visibility_off' : 'visibility'} size={15} />
             </button>
-            <SecretCopyButton value={String(field.value)} />
+            <SecretCopyButton value={serializedValue} />
           </>
-        ) : field.type === 'multiline' ? (
+        ) : isMultiline ? (
           <>
             <span className="min-w-0 flex-1 whitespace-pre-wrap text-right font-mono text-meta leading-relaxed text-[var(--cv-t1)]">
               {String(field.value)}
@@ -120,4 +121,13 @@ function SecretCopyButton({ value }: { value: string }) {
 
 function maskValue(length: number): string {
   return '•'.repeat(Math.min(Math.max(length, 8), 18))
+}
+
+function serializeCustomFieldValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  try {
+    return JSON.stringify(value) ?? String(value)
+  } catch {
+    return String(value)
+  }
 }
