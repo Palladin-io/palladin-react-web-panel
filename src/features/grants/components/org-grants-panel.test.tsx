@@ -96,6 +96,45 @@ describe('OrgGrantsPanel footer actions', () => {
     }))
   })
 
+  it('keeps the dialog locked while resolving the current Agent key', async () => {
+    let resolveAgent!: (agent: { publicKey: string; recipientKeyVersion: number }) => void
+    getAgent.mockReturnValue(new Promise((resolve) => { resolveAgent = resolve }))
+    const user = userEvent.setup()
+    render(<OrgGrantsPanel vaultId="vault-1" />)
+
+    await user.click(screen.getByRole('button', { name: 'Grant again' }))
+    const dialog = screen.getByRole('dialog', { name: 'Grant again' })
+    await user.click(within(dialog).getByRole('button', { name: 'Grant access' }))
+
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeDisabled())
+    expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
+
+    resolveAgent({ publicKey: 'current-public-key', recipientKeyVersion: 7 })
+    await waitFor(() => expect(createGrantMutation.mutate).toHaveBeenCalledTimes(1))
+  })
+
+  it('names the entire Vault scope when confirming a FULL regrant', async () => {
+    mockOrgGrants.mockReturnValue({
+      data: {
+        items: [{ ...expiredGrant, type: 'full', entryId: null, entryLabel: null }],
+        nextCursor: null,
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useOrgGrants>)
+    const user = userEvent.setup()
+    render(<OrgGrantsPanel vaultId="vault-1" />)
+
+    await user.click(screen.getByRole('button', { name: 'Grant again' }))
+
+    const dialog = within(screen.getByRole('dialog', { name: 'Grant again' }))
+    expect(dialog.getByText('Production').closest('p')).toHaveTextContent(
+      'access to the entire vault Production',
+    )
+    expect(dialog.queryByText('this entry')).not.toBeInTheDocument()
+  })
+
   it('links from terminal history to the newer active grant', () => {
     mockOrgGrants.mockReturnValue({
       data: {

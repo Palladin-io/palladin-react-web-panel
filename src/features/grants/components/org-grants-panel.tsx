@@ -139,8 +139,10 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
 
   const revoke = useRevokeOrgGrant()
   const regrant = useCreateGrant()
+  const [isResolvingRegrantRecipient, setIsResolvingRegrantRecipient] = useState(false)
   const [revokeTarget, setRevokeTarget] = useState<OrgGrant | null>(null)
   const [regrantTarget, setRegrantTarget] = useState<OrgGrant | null>(null)
+  const regrantBusy = regrant.isPending || isResolvingRegrantRecipient
 
   function handleRevoke(grant: OrgGrant, reason: string) {
     revoke.mutate(
@@ -161,11 +163,13 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
     let agentPublicKey: string | null | undefined
     let recipientAgentKeyVersion: number | null | undefined
     if (grant.type !== GRANT_TYPE_FULL) {
+      setIsResolvingRegrantRecipient(true)
       try {
         const agent = await getAgent(grant.agentId)
         agentPublicKey = agent.publicKey
         recipientAgentKeyVersion = agent.recipientKeyVersion
       } catch {
+        setIsResolvingRegrantRecipient(false)
         toast.error(t('grants.regrant.error'))
         return
       }
@@ -184,10 +188,14 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
       },
       {
         onSuccess: () => {
+          setIsResolvingRegrantRecipient(false)
           toast.success(t('grants.regrant.success'))
           setRegrantTarget(null)
         },
-        onError: () => toast.error(t('grants.regrant.error')),
+        onError: () => {
+          setIsResolvingRegrantRecipient(false)
+          toast.error(t('grants.regrant.error'))
+        },
       },
     )
   }
@@ -268,7 +276,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
                 accessReason={reasons.get(grant.id)}
                 onRevoke={() => setRevokeTarget(grant)}
                 onRegrant={() => setRegrantTarget(grant)}
-                disabled={revoke.isPending || regrant.isPending}
+                disabled={revoke.isPending || regrantBusy}
               />
             </li>
           ))}
@@ -295,7 +303,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
                       accessReason={reasons.get(grant.id)}
                       onRevoke={() => setRevokeTarget(grant)}
                       onRegrant={() => setRegrantTarget(grant)}
-                      disabled={revoke.isPending || regrant.isPending}
+                      disabled={revoke.isPending || regrantBusy}
                     />
                   </li>
                 ))}
@@ -316,7 +324,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
       {regrantTarget && (
         <GrantAgainDialog
           grant={regrantTarget}
-          isPending={regrant.isPending}
+          isPending={regrantBusy}
           onConfirm={(policy) => handleRegrant(regrantTarget, policy)}
           onCancel={() => setRegrantTarget(null)}
         />

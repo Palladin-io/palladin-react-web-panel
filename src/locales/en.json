@@ -931,6 +931,7 @@
   "grants.regrant.title": "Grant again",
   "grants.regrant.subtitlePrefix": "Re-issue",
   "grants.regrant.subtitleAccessTo": "access to",
+  "grants.regrant.subtitleAccessToVault": "access to the entire vault",
   "grants.regrant.confirm": "Grant access",
   "grants.regrant.granting": "Granting…",
   "grants.regrant.success": "Access granted",

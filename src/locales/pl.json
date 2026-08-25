@@ -962,6 +962,7 @@
   "grants.regrant.title": "Przyznaj ponownie",
   "grants.regrant.subtitlePrefix": "Ponownie przyznaj",
   "grants.regrant.subtitleAccessTo": "dostęp do",
+  "grants.regrant.subtitleAccessToVault": "dostęp do całego sejfu",
   "grants.regrant.confirm": "Przyznaj dostęp",
   "grants.regrant.granting": "Przyznawanie…",
   "grants.regrant.success": "Dostęp przyznany",
