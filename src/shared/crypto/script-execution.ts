@@ -7,8 +7,23 @@ import {
 } from './crypto-suite'
 import { toBase64Url } from './encoding'
 import type { CanonicalEnvelopeAad } from './envelope'
-import { randomBytes, wipe } from './sodium'
-import type { MemberSecretV1 } from './vault-plaintext'
+import { loadSodium, randomBytes, wipe } from './sodium'
+import {
+  SCRIPT_EXECUTION_CONTRACT_VERSION,
+  SCRIPT_EXECUTION_PARAMETER_MAX_COUNT,
+  scriptExecutionMetadataSchema,
+  scriptParameterDefinitionSchema,
+  type ScriptExecutionMetadataV1,
+  type ScriptParameterDefinition,
+} from './script-execution-metadata'
+import {
+  encodeGrantPayload,
+  parseGrantPayload,
+  parseMemberSecret,
+  projectGrantPayload,
+  type MemberSecretV1,
+} from './vault-plaintext'
+import { signVaultObject, type CanonicalJson } from './vault-v2-signatures'
 import {
   computeVaultKeyFingerprint,
   sealKeyToX25519Recipient,
@@ -18,10 +33,16 @@ import {
   type X25519WrapperContext,
 } from './x25519-wrapper'
 
-export const SCRIPT_EXECUTION_CONTRACT_VERSION = 1 as const
-export const SCRIPT_EXECUTION_PARAMETER_MAX_COUNT = 32
 export const SCRIPT_EXECUTION_REFERENCE_MAX_COUNT = 64
 export const SCRIPT_EXECUTION_PACKAGE_MAX_BYTES = 2_097_152
+export const SCRIPT_EXECUTION_PACKAGE_SIGNATURE_DOMAIN = 'PLDNV2SIG:SCRIPT-EXECUTION-PACKAGE:'
+export {
+  SCRIPT_EXECUTION_CONTRACT_VERSION,
+  SCRIPT_EXECUTION_PARAMETER_MAX_COUNT,
+  scriptExecutionMetadataSchema,
+  scriptParameterDefinitionSchema,
+}
+export type { ScriptExecutionMetadataV1, ScriptParameterDefinition }
 
 const uuid = z.string().uuid()
 const revision = z.string().regex(/^[1-9][0-9]*$/)
@@ -35,58 +56,6 @@ const RESERVED_REFERENCE_ENV_NAMES = new Set([
   'SHELL', 'SHELLOPTS', 'TEMP', 'TMP', 'TMPDIR', 'USER',
 ])
 const RESERVED_REFERENCE_ENV_PREFIXES = ['CLAW_', 'DYLD_', 'LD_', 'PALLADIN_'] as const
-
-const stringParameter = z.object({
-  name: parameterName,
-  description: normalizedString.min(1).max(1024),
-  type: z.literal('string'),
-  required: z.boolean(),
-  minLength: z.number().int().min(0).max(8192).optional(),
-  maxLength: z.number().int().min(0).max(8192).optional(),
-  enum: z.array(normalizedString.max(8192)).min(1).max(128).optional(),
-}).strict()
-
-const integerParameter = z.object({
-  name: parameterName,
-  description: normalizedString.min(1).max(1024),
-  type: z.literal('integer'),
-  required: z.boolean(),
-  minimum: z.number().safe().optional(),
-  maximum: z.number().safe().optional(),
-  enum: z.array(z.number().safe()).min(1).max(128).optional(),
-}).strict()
-
-const numberParameter = z.object({
-  name: parameterName,
-  description: normalizedString.min(1).max(1024),
-  type: z.literal('number'),
-  required: z.boolean(),
-  minimum: z.number().finite().optional(),
-  maximum: z.number().finite().optional(),
-  enum: z.array(z.number().finite()).min(1).max(128).optional(),
-}).strict()
-
-const booleanParameter = z.object({
-  name: parameterName,
-  description: normalizedString.min(1).max(1024),
-  type: z.literal('boolean'),
-  required: z.boolean(),
-  enum: z.array(z.boolean()).min(1).max(2).optional(),
-}).strict()
-
-export const scriptParameterDefinitionSchema = z.discriminatedUnion('type', [
-  stringParameter,
-  integerParameter,
-  numberParameter,
-  booleanParameter,
-])
-
-export const scriptExecutionMetadataSchema = z.object({
-  contractVersion: z.literal(SCRIPT_EXECUTION_CONTRACT_VERSION),
-  description: normalizedString.trim().min(1).max(4096),
-  parameters: z.array(scriptParameterDefinitionSchema).max(SCRIPT_EXECUTION_PARAMETER_MAX_COUNT),
-  returnResultToAgent: z.boolean().optional(),
-}).strict()
 
 const referenceSchema = z.object({
   env: parameterName,
@@ -152,12 +121,12 @@ const transportSchema = z.object({
   packageRevision: revision,
   recipientAgentKeyVersion: z.number().int().positive(),
   recipientAgentKeyFingerprint: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+  vaultSigningKeyVersion: z.number().int().positive(),
+  vaultSigningKeyFingerprint: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
   manifestDigest: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
   scopes: z.array(transportScopeSchema).min(1).max(SCRIPT_EXECUTION_REFERENCE_MAX_COUNT + 1),
 }).strict()
 
-export type ScriptParameterDefinition = z.infer<typeof scriptParameterDefinitionSchema>
-export type ScriptExecutionMetadataV1 = z.infer<typeof scriptExecutionMetadataSchema>
 export type ScriptExecutionManifestV1 = z.infer<typeof manifestSchema>
 export type ScriptExecutionPackageScopeV1 = z.infer<typeof packageScopeSchema>
 export type ScriptExecutionPackageTransportScopeV1 = z.infer<typeof transportScopeSchema>
@@ -170,6 +139,7 @@ export interface ScriptExecutionPackageReferenceInput {
 
 export interface ScriptExecutionEncryptedPackageV1 extends z.infer<typeof transportSchema> {
   encodedPackageCiphertext: string
+  producerSignature: string
 }
 
 export interface BuildScriptExecutionManifestInput {
@@ -189,6 +159,8 @@ export interface SealScriptExecutionPackageInput {
   packageRevision: string
   recipientAgentKeyVersion: number
   recipientAgentPublicKey: Uint8Array
+  vaultSigningKeyVersion: number
+  vaultSigningPrivateKey: Uint8Array
   entries: readonly ScriptExecutionPackageReferenceInput[]
 }
 
@@ -265,6 +237,10 @@ export async function sealScriptExecutionPackage(
   assertPositiveUInt64(input.packageRevision, 'Package revision')
   const entries = normalizeReferenceEntries(input.entries)
   let recipientFingerprint: Uint8Array | undefined
+  let vaultSigningPublicKey: Uint8Array | undefined
+  let vaultSigningPrivateKey: Uint8Array | undefined
+  let vaultSigningFingerprint: Uint8Array | undefined
+  let projectedEntries: { entryId: string; entryRevision: string; encodedGrantPayload: Uint8Array }[] | undefined
   let plaintext: Uint8Array | undefined
   let packageDek: Uint8Array | undefined
   let aad: Uint8Array | undefined
@@ -293,6 +269,13 @@ export async function sealScriptExecutionPackage(
       input.recipientAgentPublicKey,
       VAULT_KEY_KIND.agentX25519,
     )
+    ;({ publicKey: vaultSigningPublicKey, privateKey: vaultSigningPrivateKey }
+      = await normalizeVaultSigningKey(input.vaultSigningPrivateKey))
+    vaultSigningFingerprint = await computeVaultKeyFingerprint(
+      vaultSigningPublicKey,
+      VAULT_KEY_KIND.vaultSigningEd25519,
+    )
+    projectedEntries = projectReferenceEntries(manifest, entries)
     const transportScopes = new Map<string, ScriptExecutionPackageTransportScopeV1>()
     for (const scope of scopes) {
       const next = {
@@ -318,6 +301,8 @@ export async function sealScriptExecutionPackage(
       packageRevision: input.packageRevision,
       recipientAgentKeyVersion: input.recipientAgentKeyVersion,
       recipientAgentKeyFingerprint: toBase64Url(recipientFingerprint),
+      vaultSigningKeyVersion: input.vaultSigningKeyVersion,
+      vaultSigningKeyFingerprint: toBase64Url(vaultSigningFingerprint),
       manifestDigest,
       scopes: [...transportScopes.values()].sort((left, right) => compareUtf8(left.entryId, right.entryId)),
     })
@@ -325,10 +310,10 @@ export async function sealScriptExecutionPackage(
       schema: 'palladin.script-execution-package-payload.v1',
       binding,
       manifest,
-      entries: entries.map((entry) => ({
+      entries: projectedEntries.map((entry) => ({
         entryId: entry.entryId,
         entryRevision: entry.entryRevision,
-        encodedMemberSecret: toBase64Url(entry.encodedMemberSecret),
+        encodedGrantPayload: toBase64Url(entry.encodedGrantPayload),
       })),
     }))
     if (plaintext.length > MAX_ENCODED_SUITE_PAYLOAD_BYTES - 40) {
@@ -373,7 +358,13 @@ export async function sealScriptExecutionPackage(
         if (container.length > SCRIPT_EXECUTION_PACKAGE_MAX_BYTES) {
           throw new RangeError('Encoded Script execution package exceeds its transport limit')
         }
-        return { ...transport, encodedPackageCiphertext: toBase64Url(container) }
+        const unsignedPackage = { ...transport, encodedPackageCiphertext: toBase64Url(container) }
+        const producerSignature = await signVaultObject(
+          SCRIPT_EXECUTION_PACKAGE_SIGNATURE_DOMAIN,
+          canonicalObject(unsignedPackage),
+          vaultSigningPrivateKey,
+        )
+        return { ...unsignedPackage, producerSignature }
       } finally {
         wipe(container)
       }
@@ -383,7 +374,13 @@ export async function sealScriptExecutionPackage(
     }
   } finally {
     for (const entry of entries) wipe(entry.encodedMemberSecret)
+    if (projectedEntries) {
+      for (const entry of projectedEntries) wipe(entry.encodedGrantPayload)
+    }
     if (recipientFingerprint) wipe(recipientFingerprint)
+    if (vaultSigningPublicKey) wipe(vaultSigningPublicKey)
+    if (vaultSigningPrivateKey) wipe(vaultSigningPrivateKey)
+    if (vaultSigningFingerprint) wipe(vaultSigningFingerprint)
     if (plaintext) wipe(plaintext)
     if (packageDek) wipe(packageDek)
     if (aad) wipe(aad)
@@ -395,16 +392,56 @@ function normalizeReferenceEntries(
   values: readonly ScriptExecutionPackageReferenceInput[],
 ): ScriptExecutionPackageReferenceInput[] {
   if (values.length > SCRIPT_EXECUTION_REFERENCE_MAX_COUNT) throw new RangeError('Too many Script references')
-  return sortedUnique(values.map((entry) => {
-    uuid.parse(entry.entryId)
-    assertPositiveUInt64(entry.entryRevision, 'Reference Entry revision')
-    if (Object.prototype.toString.call(entry.encodedMemberSecret) !== '[object Uint8Array]'
-      || entry.encodedMemberSecret.length === 0
-      || entry.encodedMemberSecret.length > MAX_ENCODED_SUITE_PAYLOAD_BYTES) {
-      throw new RangeError('Encoded referenced MemberSecret is invalid')
+  const copies: ScriptExecutionPackageReferenceInput[] = []
+  try {
+    for (const entry of values) {
+      uuid.parse(entry.entryId)
+      assertPositiveUInt64(entry.entryRevision, 'Reference Entry revision')
+      if (Object.prototype.toString.call(entry.encodedMemberSecret) !== '[object Uint8Array]'
+        || entry.encodedMemberSecret.length === 0
+        || entry.encodedMemberSecret.length > MAX_ENCODED_SUITE_PAYLOAD_BYTES) {
+        throw new RangeError('Encoded referenced MemberSecret is invalid')
+      }
+      copies.push({ ...entry, encodedMemberSecret: new Uint8Array(entry.encodedMemberSecret) })
     }
-    return { ...entry, encodedMemberSecret: new Uint8Array(entry.encodedMemberSecret) }
-  }), (entry) => entry.entryId, 'Script package referenced Entries')
+    return sortedUnique(copies, (entry) => entry.entryId, 'Script package referenced Entries')
+  } catch (error) {
+    for (const entry of copies) wipe(entry.encodedMemberSecret)
+    throw error
+  }
+}
+
+function projectReferenceEntries(
+  manifest: ScriptExecutionManifestV1,
+  entries: readonly ScriptExecutionPackageReferenceInput[],
+): { entryId: string; entryRevision: string; encodedGrantPayload: Uint8Array }[] {
+  const fieldIdsByEntry = new Map<string, Set<string>>()
+  for (const reference of manifest.references) {
+    const fieldIds = fieldIdsByEntry.get(reference.entryId) ?? new Set<string>()
+    fieldIds.add(reference.fieldId)
+    fieldIdsByEntry.set(reference.entryId, fieldIds)
+  }
+  const projected: { entryId: string; entryRevision: string; encodedGrantPayload: Uint8Array }[] = []
+  try {
+    for (const entry of entries) {
+      const fieldIds = fieldIdsByEntry.get(entry.entryId)
+      if (!fieldIds) throw new Error('Script package referenced Entries are incomplete')
+      const encodedGrantPayload = encodeGrantPayload(projectGrantPayload(
+        parseMemberSecret(entry.encodedMemberSecret),
+        [...fieldIds].sort(compareUtf8),
+      ))
+      const projectedFieldIds = parseGrantPayload(encodedGrantPayload).fields.map((field) => field.id)
+      if (canonicalJson(projectedFieldIds) !== canonicalJson([...fieldIds].sort(compareUtf8))) {
+        wipe(encodedGrantPayload)
+        throw new Error('Script package field projection is incomplete or overbroad')
+      }
+      projected.push({ entryId: entry.entryId, entryRevision: entry.entryRevision, encodedGrantPayload })
+    }
+    return projected
+  } catch (error) {
+    for (const entry of projected) wipe(entry.encodedGrantPayload)
+    throw error
+  }
 }
 
 function assertReferenceEntriesMatchManifest(
@@ -507,6 +544,35 @@ function compareUtf8(left: string, right: string): number {
     if (leftBytes[index] !== rightBytes[index]) return leftBytes[index] - rightBytes[index]
   }
   return leftBytes.length - rightBytes.length
+}
+
+async function normalizeVaultSigningKey(
+  value: Uint8Array,
+): Promise<{ publicKey: Uint8Array; privateKey: Uint8Array }> {
+  if (!(value instanceof Uint8Array) || (value.length !== 32 && value.length !== 64)) {
+    throw new RangeError('Vault signing private key must be a 32-byte seed or 64-byte Ed25519 key')
+  }
+  const sodium = await loadSodium()
+  const seed = new Uint8Array(value.subarray(0, 32))
+  try {
+    const pair = sodium.crypto_sign_seed_keypair(seed)
+    if (value.length === 64 && !sodium.memcmp(pair.privateKey, value)) {
+      wipe(pair.publicKey)
+      wipe(pair.privateKey)
+      throw new Error('Vault signing private key is not canonical')
+    }
+    const publicKey = new Uint8Array(pair.publicKey)
+    const privateKey = new Uint8Array(pair.privateKey)
+    wipe(pair.publicKey)
+    wipe(pair.privateKey)
+    return { publicKey, privateKey }
+  } finally {
+    wipe(seed)
+  }
+}
+
+function canonicalObject(value: unknown): CanonicalJson {
+  return JSON.parse(canonicalJson(value)) as CanonicalJson
 }
 
 function canonicalJson(value: unknown): string {

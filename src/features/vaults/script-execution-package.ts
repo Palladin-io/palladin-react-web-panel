@@ -1,5 +1,6 @@
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
 import { fromBase64 } from '../../shared/crypto/encoding'
+import { openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import {
   buildScriptExecutionManifest,
   sealScriptExecutionPackage,
@@ -9,6 +10,9 @@ import {
 import { wipe } from '../../shared/crypto/sodium'
 import { encodeMemberSecret, type MemberSecretV1 } from '../../shared/crypto/vault-plaintext'
 import { getCanonicalEntry, type CanonicalEntryDetail } from './api/vault-api'
+import { getEncryptedVault } from './sync/member-sync-api'
+
+const MANIFEST_SIGNING_PRIVATE_PURPOSE = 4
 
 export interface ScriptPackageEntryOverride {
   detail: CanonicalEntryDetail
@@ -41,7 +45,23 @@ export async function buildCompleteScriptExecutionPackage(
 ): Promise<ScriptExecutionEncryptedPackageV1> {
   const encodedReferences: ScriptExecutionPackageReferenceInput[] = []
   const recipientPublicKey = fromBase64(input.agentPublicKey)
+  let vaultSigningPrivateKey: Uint8Array | undefined
   try {
+    const vault = await getEncryptedVault(input.vaultId)
+    if (vault.organizationId !== input.organizationId) {
+      throw new Error('Script package Vault organization mismatch')
+    }
+    const signingEnvelope = vault.vaultPrivateKeys.find(
+      (candidate) => candidate.descriptor.purpose === MANIFEST_SIGNING_PRIVATE_PURPOSE,
+    )
+    if (!signingEnvelope
+      || signingEnvelope.descriptor.keyVersion !== vault.currentKeyEpoch.manifestSigningKeyVersion) {
+      throw new Error('Current Vault signing material is unavailable')
+    }
+    vaultSigningPrivateKey = await openVaultDerivedEnvelope(signingEnvelope, input.vaultKey)
+    if (vaultSigningPrivateKey.length !== 32 && vaultSigningPrivateKey.length !== 64) {
+      throw new Error('Current Vault signing key has an invalid length')
+    }
     const script = await openEntry(input.scriptEntryId, input)
     if (script.secret.entryType !== 'script') throw new Error('ScriptExecution parent is not a Script')
     const referencedIds = [...new Set(script.secret.content.refs.map((reference) => reference.entryId))]
@@ -72,10 +92,13 @@ export async function buildCompleteScriptExecutionPackage(
       packageRevision: input.packageRevision,
       recipientAgentKeyVersion: input.recipientAgentKeyVersion,
       recipientAgentPublicKey: recipientPublicKey,
+      vaultSigningKeyVersion: vault.currentKeyEpoch.manifestSigningKeyVersion,
+      vaultSigningPrivateKey,
       entries: encodedReferences,
     })
   } finally {
     wipe(recipientPublicKey)
+    if (vaultSigningPrivateKey) wipe(vaultSigningPrivateKey)
     for (const reference of encodedReferences) wipe(reference.encodedMemberSecret)
   }
 }

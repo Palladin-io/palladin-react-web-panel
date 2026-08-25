@@ -9,7 +9,8 @@ import {
   sealScriptExecutionPackage,
 } from './script-execution'
 import { loadSodium, wipe } from './sodium'
-import type { MemberSecretV1 } from './vault-plaintext'
+import { encodeMemberSecret, parseGrantPayload, type MemberSecretV1 } from './vault-plaintext'
+import { verifyVaultSignature, type CanonicalJson } from './vault-v2-signatures'
 import {
   computeVaultKeyFingerprint,
   openKeyFromX25519Recipient,
@@ -52,11 +53,34 @@ function scriptSecret(): MemberSecretV1 {
   }
 }
 
+function referenceSecret(): MemberSecretV1 {
+  return {
+    schema: 'palladin.member-secret.v1',
+    entryType: 'credential',
+    memberLabel: 'Database',
+    agentLabel: null,
+    discoverable: false,
+    description: null,
+    icon: null,
+    color: null,
+    content: {
+      username: 'fixture_user', password: 'fixture_password', url: null, urlDomain: null,
+      totp: null, notes: null, customFields: [],
+    },
+    agentFieldAccess: {
+      memberLabel: 'never', agentLabel: 'never', description: 'never', icon: 'never', color: 'never',
+      entryType: 'never', 'credential.username': 'never', 'credential.password': 'onGrantValue',
+      'credential.url': 'never', 'credential.urlDomain': 'never', 'credential.totp': 'never', notes: 'never',
+    },
+  }
+}
+
 describe('Script execution package', () => {
   it('seals one package containing the Script contract and every referenced Entry', async () => {
     const sodium = await loadSodium()
     const agent = sodium.crypto_box_keypair()
-    const referencedSecret = new TextEncoder().encode('{"schemaVersion":1,"content":{"password":"secret"}}')
+    const signer = sodium.crypto_sign_keypair()
+    const referencedSecret = encodeMemberSecret(referenceSecret())
     let packageDek: Uint8Array | undefined
     let plaintext: Uint8Array | undefined
     try {
@@ -76,6 +100,8 @@ describe('Script execution package', () => {
         packageRevision: '3',
         recipientAgentKeyVersion: 4,
         recipientAgentPublicKey: agent.publicKey,
+        vaultSigningKeyVersion: 5,
+        vaultSigningPrivateKey: signer.privateKey,
         entries: [{ entryId: referencedEntryId, entryRevision: '9', encodedMemberSecret: referencedSecret }],
       })
 
@@ -90,12 +116,21 @@ describe('Script execution package', () => {
           { entryId: referencedEntryId, entryRevision: '9', isScript: false },
         ],
       })
+      const unsignedPackage = { ...sealed } as Record<string, unknown>
+      delete unsignedPackage.producerSignature
+      expect(await verifyVaultSignature(
+        'PLDNV2SIG:SCRIPT-EXECUTION-PACKAGE:',
+        JSON.parse(canonicalJson(unsignedPackage)) as CanonicalJson,
+        sealed.producerSignature,
+        signer.publicKey,
+      )).toBe(true)
       const container = JSON.parse(new TextDecoder().decode(fromBase64Url(sealed.encodedPackageCiphertext))) as {
         encodedSealedPackageDek: string
         encodedSuitePayload: string
       }
       const transport = { ...sealed } as Record<string, unknown>
       delete transport.encodedPackageCiphertext
+      delete transport.producerSignature
       const aad = new TextEncoder().encode(canonicalJson(transport)) as CanonicalEnvelopeAad
       const parentDescriptorHash = await hashWithDomain('PLDNSCRIPTAAD1', aad)
       const recipientFingerprint = await computeVaultKeyFingerprint(agent.publicKey, VAULT_KEY_KIND.agentX25519)
@@ -136,14 +171,19 @@ describe('Script execution package', () => {
       expect(payload.entries).toEqual([{
         entryId: referencedEntryId,
         entryRevision: '9',
-        encodedMemberSecret: expect.any(String),
+        encodedGrantPayload: expect.any(String),
       }])
+      expect(parseGrantPayload(fromBase64Url(payload.entries[0].encodedGrantPayload))).toMatchObject({
+        fields: [{ id: 'credential.password', value: 'fixture_password' }],
+      })
       expect(payload.binding.authorization).toEqual({ source: 'scriptExecution', grantId })
       expect(context.purpose).toBe(6)
     } finally {
       wipe(referencedSecret)
       wipe(agent.publicKey)
       wipe(agent.privateKey)
+      wipe(signer.publicKey)
+      wipe(signer.privateKey)
       if (packageDek) wipe(packageDek)
       if (plaintext) wipe(plaintext)
     }
@@ -156,6 +196,7 @@ describe('Script execution package', () => {
 
     const sodium = await loadSodium()
     const agent = sodium.crypto_box_keypair()
+    const signer = sodium.crypto_sign_keypair()
     try {
       const manifest = buildScriptExecutionManifest({
         organizationId, agentId, agentAccessEpoch: 1, vaultId, scriptEntryId, scriptRevision: '1',
@@ -163,11 +204,14 @@ describe('Script execution package', () => {
       })
       await expect(sealScriptExecutionPackage({
         manifest, grantId, packageRevision: '1', recipientAgentKeyVersion: 1,
-        recipientAgentPublicKey: agent.publicKey, entries: [],
+        recipientAgentPublicKey: agent.publicKey, vaultSigningKeyVersion: 1,
+        vaultSigningPrivateKey: signer.privateKey, entries: [],
       })).rejects.toThrow(/incomplete, stale or substituted/)
     } finally {
       wipe(agent.publicKey)
       wipe(agent.privateKey)
+      wipe(signer.publicKey)
+      wipe(signer.privateKey)
     }
   })
 })
