@@ -68,7 +68,7 @@ const item = {
 describe('EntryHistoryTab', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useAuthStore.setState({ privateKey: new Uint8Array(32).fill(3) })
+    useAuthStore.setState({ privateKey: new Uint8Array(32).fill(3), cryptoSessionGeneration: 7 })
     mocks.history.mockReturnValue({ data: { pages: [{ items: [item] }] }, isPending: false, isError: false,
       hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn(), refetch: vi.fn() })
     mocks.decryptHistory.mockReset()
@@ -106,6 +106,7 @@ describe('EntryHistoryTab', () => {
           ] },
         policy: { discoverable: false, fields: { value: 'onGrantValue' } },
       },
+      cryptoSessionGeneration: 7,
     }))
   })
 

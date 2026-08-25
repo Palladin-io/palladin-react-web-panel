@@ -43,11 +43,16 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
   const { t, i18n } = useTranslation()
   const history = useEntryHistory(detail.vaultId, detail.id, true)
   const update = useUpdateCanonicalEntry(detail.vaultId, detail.id)
-  const [selected, setSelected] = useState<{ revision: string; value: MemberSecretView } | null>(null)
+  const [selected, setSelected] = useState<{
+    revision: string
+    value: MemberSecretView
+    cryptoSessionGeneration: number
+  } | null>(null)
   const [revealingRevision, setRevealingRevision] = useState<string | null>(null)
 
   useEffect(() => useAuthStore.subscribe((state, previous) => {
-    if (previous.privateKey !== state.privateKey) setSelected(null)
+    if (previous.privateKey !== state.privateKey
+      || previous.cryptoSessionGeneration !== state.cryptoSessionGeneration) setSelected(null)
   }), [])
 
   const items = useMemo(() => history.data?.pages.flatMap((page) => page.items) ?? [], [history.data])
@@ -92,6 +97,7 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
   const reveal = async (item: EntryHistoryItem) => {
     setSelected(null)
     setRevealingRevision(item.revision)
+    const cryptoSessionGeneration = useAuthStore.getState().cryptoSessionGeneration
     try {
       const value = await withVaultKey(async (vaultKey) => fromMemberSecret(await openMemberSecret(
         item.entryKey, item.memberSecret, vaultKey, {
@@ -99,7 +105,10 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
           entryId: detail.id, revision: item.revision,
         },
       )))
-      setSelected({ revision: item.revision, value })
+      if (useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration) {
+        throw new Error('Vault lock session changed')
+      }
+      setSelected({ revision: item.revision, value, cryptoSessionGeneration })
     } catch {
       toast.error(t('vault.entry.history.decryptError'))
     } finally {
@@ -110,13 +119,21 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
   const restore = async () => {
     if (!selected || selected.revision === detail.currentRevision) return
     try {
+      if (useAuthStore.getState().cryptoSessionGeneration !== selected.cryptoSessionGeneration) {
+        throw new Error('Vault lock session changed')
+      }
       const current = await withVaultKey(async (vaultKey) => fromMemberSecret(await openMemberSecret(
         detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId: detail.vaultId,
           entryId: detail.id, revision: detail.currentRevision,
         },
       )))
-      await update.mutateAsync({ detail, previous: current, draft: asDraft(selected.value) })
+      await update.mutateAsync({
+        detail,
+        previous: current,
+        draft: asDraft(selected.value),
+        cryptoSessionGeneration: selected.cryptoSessionGeneration,
+      })
       setSelected(null)
       toast.success(t('vault.entry.history.restoreSuccess'))
     } catch {

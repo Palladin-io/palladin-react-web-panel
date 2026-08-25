@@ -18,4 +18,20 @@ describe('CustomFieldsView', () => {
 
     expect(screen.getByText('{"region":"eu","retries":3}')).toBeInTheDocument()
   })
+
+  it('falls back instead of treating unknown TOTP JSON as a live code', () => {
+    render(<CustomFieldsView fields={[{
+      id: 'field-future-totp',
+      label: 'Future TOTP',
+      type: 'totp',
+      value: { seed: 'new-format', revision: 2 } as never,
+    }]} />)
+
+    expect(screen.queryByLabelText(/current code/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('{"seed":"new-format","revision":2}')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /reveal/i }))
+
+    expect(screen.getByText('{"seed":"new-format","revision":2}')).toBeInTheDocument()
+  })
 })

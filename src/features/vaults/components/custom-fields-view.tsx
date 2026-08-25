@@ -45,8 +45,9 @@ function FieldViewRow({ field }: { field: CustomField }) {
   const [shown, setShown] = useState(false)
   const isText = field.type === 'text' && typeof field.value === 'string'
   const isMultiline = field.type === 'multiline' && typeof field.value === 'string'
+  const isRenderableTotp = isTotpField(field) && field.value.secret.length > 0
   const serializedValue = serializeCustomFieldValue(field.value)
-  const isSecretLike = field.type === 'concealed' || (!isTotpField(field) && !isText && !isMultiline)
+  const isSecretLike = field.type === 'concealed' || (!isRenderableTotp && !isText && !isMultiline)
 
   return (
     <div className="flex items-center gap-3 px-3 py-2">
@@ -54,7 +55,7 @@ function FieldViewRow({ field }: { field: CustomField }) {
         {field.label}
       </Tooltip>
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
-        {isTotpField(field) ? (
+        {isRenderableTotp ? (
           <TotpDisplay params={field.value} compact />
         ) : isSecretLike ? (
           <>
