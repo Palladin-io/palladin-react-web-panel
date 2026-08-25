@@ -69,7 +69,14 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
   it('renders the title, agent picker, and access-type dropdown', () => {
     renderDialog()
     expect(screen.getByText('Grant Access')).toBeInTheDocument()
-    expect(screen.getByText(/access to all 3 current entries in vault “Production Vault”/i)).toBeInTheDocument()
+    const entryCount = screen.getByText('3')
+    const vaultName = screen.getByText('“Production Vault”')
+    expect(entryCount.tagName).toBe('STRONG')
+    expect(vaultName.tagName).toBe('STRONG')
+    expect(entryCount.parentElement).toHaveClass('text-meta')
+    expect(entryCount.parentElement).toHaveTextContent(
+      /access to all 3 current entries in vault “Production Vault”/i,
+    )
     expect(screen.getByRole('combobox', { name: 'Agent' })).toBeInTheDocument()
     expect(screen.getByLabelText(/Access type/i)).toBeInTheDocument()
   })

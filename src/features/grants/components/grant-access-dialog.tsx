@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
@@ -110,12 +110,6 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
       ? mode.vaultId
       : null
   const fullVault = fullVaultId ? syncedVaults.get(fullVaultId) : undefined
-  const fullVaultSubtitle = fullVault?.metadata?.name
-    ? t('grants.create.fullVaultSubtitle', {
-        count: fullVault.structure.entryCount,
-        vaultName: fullVault.metadata.name,
-      })
-    : t('grants.create.subtitle')
   const effectiveMethods: GrantMethod[] = methods
 
   function resetPolicyError() {
@@ -192,8 +186,20 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-ui text-[var(--cv-t2)]">
-          {fullVaultSubtitle}
+        <p className="text-meta leading-relaxed text-[var(--cv-t2)]">
+          {fullVault?.metadata?.name ? (
+            <Trans
+              i18nKey="grants.create.fullVaultSubtitle"
+              count={fullVault.structure.entryCount}
+              values={{
+                count: fullVault.structure.entryCount,
+                vaultName: fullVault.metadata.name,
+              }}
+              components={{
+                b: <strong className="font-semibold text-[var(--cv-t1)]" />,
+              }}
+            />
+          ) : t('grants.create.subtitle')}
         </p>
 
         {/* Swappable subject segment. Feedback collapses when there is no error. */}
