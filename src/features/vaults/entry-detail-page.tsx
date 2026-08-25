@@ -84,8 +84,9 @@ import {
 } from './script-parameters'
 import { validateScriptRefs } from './script-refs'
 import { ScriptParametersEditor } from './components/script-parameters-editor'
+import { ScriptResultToggle } from './components/script-result-toggle'
 import { SectionHeader } from './components/section-header'
-import { DiscoveryToggle, discoveryAction } from './components/discovery-toggle'
+import { discoveryAction } from './components/discovery-toggle'
 import { useDeleteEntry } from './use-delete-entry'
 import {
   getScriptAccessImpact,
@@ -922,14 +923,6 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                     className="mb-1 flex items-center gap-2 text-meta font-semibold text-[var(--cv-label-text)]"
                   >
                     <span>{t('vault.entries.script.bodyLabel')}</span>
-                    {policy ? <DiscoveryToggle
-                      active={policy.fields[ENTRY_FIELD.interpreter] === 'discovery'}
-                      disabled={isSaving || !policy.discoverable}
-                      onChange={(active) => setPolicy({
-                        ...policy,
-                        fields: { ...policy.fields, [ENTRY_FIELD.interpreter]: active ? 'discovery' : 'never' },
-                      })}
-                    /> : null}
                     <span className="flex-1" />
                     <select
                       id="entry-detail-interpreter"
@@ -970,28 +963,20 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
                   {t('vault.entries.script.refsInvalid')}
                 </FeedbackSlot>
                 <SectionHeader>{t('vault.entries.script.parametersTitle')}</SectionHeader>
+                <p className="-mt-1 text-meta leading-snug text-[var(--cv-t2)]">
+                  {t('vault.entries.script.parametersHint')}
+                </p>
                 <ScriptParametersEditor
                   parameters={scriptParameters}
                   onChange={setScriptParameters}
                   disabled={isSaving || decrypting}
                   error={validateScriptParameterDrafts(scriptParameters)}
                 />
-                <label className="flex items-start gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3">
-                  <input type="checkbox" checked={returnResultToAgent}
-                    onChange={(event) => setReturnResultToAgent(event.target.checked)}
-                    disabled={isSaving || decrypting} className="mt-1" />
-                  <span>
-                    <span className="block text-ui font-semibold text-[var(--cv-t1)]">
-                      {t('vault.entries.script.returnResultLabel')}
-                    </span>
-                    <span className="block text-meta text-[var(--cv-t2)]">
-                      {t('vault.entries.script.returnResultHint')}
-                    </span>
-                  </span>
-                </label>
-                {returnResultToAgent ? <WarningZone title={t('vault.entries.script.resultTrustTitle')}>
-                  {t('vault.entries.script.resultTrustBody')}
-                </WarningZone> : null}
+                <ScriptResultToggle
+                  checked={returnResultToAgent}
+                  onChange={setReturnResultToAgent}
+                  disabled={isSaving || decrypting}
+                />
               </div>
             ) : entry.type === ENTRY_TYPE_CREDIT_CARD ? (
               <div className="grid grid-cols-2 gap-3">

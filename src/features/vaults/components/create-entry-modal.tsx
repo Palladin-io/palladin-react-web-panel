@@ -48,8 +48,7 @@ import { extractDomain, openExternalUrl } from './entry-presentation'
 import { defaultColorFor, defaultIconFor } from './entry-presentation'
 import { FormSelect } from '../../../shared/components/form-select'
 import { ModalShell } from '../../../shared/components/modal-shell'
-import { WarningZone } from '../../../shared/components/warning-zone'
-import { DiscoveryToggle, discoveryAction } from './discovery-toggle'
+import { discoveryAction } from './discovery-toggle'
 import {
   ensureWebsiteIconsWithin,
   normalizePublicHostname,
@@ -62,6 +61,7 @@ import {
 } from '../script-parameters'
 import { validateScriptRefs } from '../script-refs'
 import { ScriptParametersEditor } from './script-parameters-editor'
+import { ScriptResultToggle } from './script-result-toggle'
 
 export interface CreateEntryModalProps {
   open: boolean
@@ -556,13 +556,6 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   className="mb-1 flex items-center gap-2 text-meta font-semibold text-[var(--cv-label-text)]"
                 >
                   <span>{t('vault.entries.script.bodyLabel')}</span>
-                  <DiscoveryToggle
-                    active={policy.fields[ENTRY_FIELD.interpreter] === 'discovery'}
-                    disabled={isPending || !discoverable}
-                    onChange={(active) => setPolicyOverrides((current) => ({
-                      ...current, [ENTRY_FIELD.interpreter]: active ? 'discovery' : 'never',
-                    }))}
-                  />
                   <span className="flex-1" />
                   <select
                     id="entry-interpreter"
@@ -597,34 +590,20 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                 {t('vault.entries.script.refsInvalid')}
               </FeedbackSlot>
               <SectionHeader>{t('vault.entries.script.parametersTitle')}</SectionHeader>
+              <p className="-mt-1 text-meta leading-snug text-[var(--cv-t2)]">
+                {t('vault.entries.script.parametersHint')}
+              </p>
               <ScriptParametersEditor
                 parameters={scriptParameters}
                 onChange={setScriptParameters}
                 disabled={isPending}
                 error={validateScriptParameterDrafts(scriptParameters)}
               />
-              <label className="flex items-start gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3">
-                <input
-                  type="checkbox"
-                  checked={returnResultToAgent}
-                  onChange={(event) => setReturnResultToAgent(event.target.checked)}
-                  disabled={isPending}
-                  className="mt-1"
-                />
-                <span>
-                  <span className="block text-ui font-semibold text-[var(--cv-t1)]">
-                    {t('vault.entries.script.returnResultLabel')}
-                  </span>
-                  <span className="block text-meta text-[var(--cv-t2)]">
-                    {t('vault.entries.script.returnResultHint')}
-                  </span>
-                </span>
-              </label>
-              {returnResultToAgent ? (
-                <WarningZone title={t('vault.entries.script.resultTrustTitle')}>
-                  {t('vault.entries.script.resultTrustBody')}
-                </WarningZone>
-              ) : null}
+              <ScriptResultToggle
+                checked={returnResultToAgent}
+                onChange={setReturnResultToAgent}
+                disabled={isPending}
+              />
             </>
           )}
 
