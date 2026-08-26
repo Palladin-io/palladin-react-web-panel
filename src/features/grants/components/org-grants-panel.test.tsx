@@ -154,6 +154,36 @@ describe('OrgGrantsPanel footer actions', () => {
     expect(dialog.queryByText('this entry')).not.toBeInTheDocument()
   })
 
+  it('uses the Agent current key context for a FULL regrant', async () => {
+    getAgent.mockResolvedValue({
+      publicKey: 'current-public-key', recipientKeyVersion: 7, accessEpoch: 3,
+    })
+    mockOrgGrants.mockReturnValue({
+      data: {
+        items: [{ ...expiredGrant, type: 'full', entryId: null, entryLabel: null }],
+        nextCursor: null,
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useOrgGrants>)
+    const user = userEvent.setup()
+    render(<OrgGrantsPanel vaultId="vault-1" />)
+
+    await user.click(screen.getByRole('button', { name: 'Grant again' }))
+    await user.click(within(screen.getByRole('dialog', { name: 'Grant again' }))
+      .getByRole('button', { name: 'Grant access' }))
+
+    await waitFor(() => expect(createGrantMutation.mutate).toHaveBeenCalledTimes(1))
+    expect(getAgent).toHaveBeenCalledWith('agent-1')
+    expect(createGrantMutation.mutate.mock.calls[0][0]).toEqual(expect.objectContaining({
+      type: 'full',
+      agentPublicKey: 'current-public-key',
+      recipientAgentKeyVersion: 7,
+      agentAccessEpoch: 3,
+    }))
+  })
+
   it('resolves an encrypted FULL Vault name from the unlocked member store', () => {
     mockOrgGrants.mockReturnValue({
       data: {
