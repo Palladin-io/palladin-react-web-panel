@@ -69,7 +69,7 @@ const orgGrantSchema = z.object({
     .nullable()
     .optional(),
   agentSigningKeyFingerprint: z.string().nullable().optional(),
-  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]).nullable().optional(),
+  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]),
   status: z.enum(GRANT_STATUSES),
   // Combined-flags string of permitted methods, e.g. "get, exec". Optional for
   // pre-methods backends; the badge is hidden when absent/empty.

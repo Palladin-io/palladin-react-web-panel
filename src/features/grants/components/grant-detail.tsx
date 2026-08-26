@@ -32,7 +32,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 /**
  * Read-only detail view of a single grant: status, agent, target entry,
- * mode, expiry/usage limits, and lifecycle timestamps. Surfaces the revoke
+ * type, expiry/usage limits, and lifecycle timestamps. Surfaces the revoke
  * action when the grant is still revocable and the user holds GrantManage.
  *
  * No crypto material is present here — the management contract never returns
@@ -48,7 +48,7 @@ export function GrantDetail({ grant }: GrantDetailProps) {
 
   const presentation = grantStatusPresentation(grant.status)
   const target = grant.entryLabel
-    ?? (grant.mode === 'full' ? t('grants.detail.wholeVault') : t('grants.unknownTarget'))
+    ?? (grant.type === 'full' ? t('grants.detail.wholeVault') : t('grants.unknownTarget'))
   const showRevoke = canManage && isRevocable(grant.status)
   const grantMethods = parseGrantMethods(grant.methods)
 
@@ -98,7 +98,7 @@ export function GrantDetail({ grant }: GrantDetailProps) {
       <div className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-4 py-2">
         <DetailRow
           label={t('grants.detail.mode')}
-          value={t(grant.mode === 'full' ? 'grants.modeFull' : 'grants.modeGranular')}
+          value={t(grant.type === 'full' ? 'grants.modeFull' : 'grants.modeGranular')}
         />
         <DetailRow
           label={t('grants.detail.agent')}

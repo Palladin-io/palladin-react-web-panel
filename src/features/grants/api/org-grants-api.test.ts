@@ -46,6 +46,12 @@ const sampleGrant = {
   lastAccessHostname: 'ci-runner',
 }
 
+function withoutGrantType() {
+  const grant: Partial<typeof sampleGrant> = { ...sampleGrant }
+  delete grant.type
+  return grant
+}
+
 describe('org-grants-api', () => {
   beforeEach(() => {
     getJson.mockReset()
@@ -105,6 +111,13 @@ describe('org-grants-api', () => {
     getJson.mockResolvedValue({ items: [sampleGrant, { nope: true }] })
     const page = await getOrgGrants()
     expect(page.items).toHaveLength(1)
+  })
+
+  it('skips a row without the authoritative type discriminator', async () => {
+    getJson.mockResolvedValue({ items: [withoutGrantType()] })
+
+    const page = await getOrgGrants()
+    expect(page.items).toEqual([])
   })
 
   it('strips ciphertext fields at the parse boundary', async () => {
