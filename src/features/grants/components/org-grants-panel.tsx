@@ -167,17 +167,17 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
 
     let agentPublicKey: string | null | undefined
     let recipientAgentKeyVersion: number | null | undefined
-    if (grant.type !== GRANT_TYPE_FULL) {
-      setIsResolvingRegrantRecipient(true)
-      try {
-        const agent = await getAgent(grant.agentId)
-        agentPublicKey = agent.publicKey
-        recipientAgentKeyVersion = agent.recipientKeyVersion
-      } catch {
-        setIsResolvingRegrantRecipient(false)
-        toast.error(t('grants.regrant.error'))
-        return
-      }
+    let agentAccessEpoch: number | null | undefined
+    setIsResolvingRegrantRecipient(true)
+    try {
+      const agent = await getAgent(grant.agentId)
+      agentPublicKey = agent.publicKey
+      recipientAgentKeyVersion = agent.recipientKeyVersion
+      agentAccessEpoch = agent.accessEpoch
+    } catch {
+      setIsResolvingRegrantRecipient(false)
+      toast.error(t('grants.regrant.error'))
+      return
     }
 
     regrant.mutate(
@@ -187,6 +187,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
         entryId: grant.entryId ?? undefined,
         agentPublicKey,
         recipientAgentKeyVersion,
+        agentAccessEpoch,
         type: grant.type,
         policy,
         methods: parseGrantMethods(grant.methods),

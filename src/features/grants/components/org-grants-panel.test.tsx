@@ -92,7 +92,9 @@ describe('OrgGrantsPanel footer actions', () => {
   })
 
   it('uses the Agent current recipient key for a granular regrant', async () => {
-    getAgent.mockResolvedValue({ publicKey: 'current-public-key', recipientKeyVersion: 7 })
+    getAgent.mockResolvedValue({
+      publicKey: 'current-public-key', recipientKeyVersion: 7, accessEpoch: 3,
+    })
     const user = userEvent.setup()
     render(<OrgGrantsPanel vaultId="vault-1" />)
 
@@ -105,11 +107,16 @@ describe('OrgGrantsPanel footer actions', () => {
     expect(createGrantMutation.mutate.mock.calls[0][0]).toEqual(expect.objectContaining({
       agentPublicKey: 'current-public-key',
       recipientAgentKeyVersion: 7,
+      agentAccessEpoch: 3,
     }))
   })
 
   it('keeps the dialog locked while resolving the current Agent key', async () => {
-    let resolveAgent!: (agent: { publicKey: string; recipientKeyVersion: number }) => void
+    let resolveAgent!: (agent: {
+      publicKey: string
+      recipientKeyVersion: number
+      accessEpoch: number
+    }) => void
     getAgent.mockReturnValue(new Promise((resolve) => { resolveAgent = resolve }))
     const user = userEvent.setup()
     render(<OrgGrantsPanel vaultId="vault-1" />)
@@ -121,7 +128,7 @@ describe('OrgGrantsPanel footer actions', () => {
     await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeDisabled())
     expect(within(dialog).queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
 
-    resolveAgent({ publicKey: 'current-public-key', recipientKeyVersion: 7 })
+    resolveAgent({ publicKey: 'current-public-key', recipientKeyVersion: 7, accessEpoch: 3 })
     await waitFor(() => expect(createGrantMutation.mutate).toHaveBeenCalledTimes(1))
   })
 
@@ -141,8 +148,8 @@ describe('OrgGrantsPanel footer actions', () => {
     await user.click(screen.getByRole('button', { name: 'Grant again' }))
 
     const dialog = within(screen.getByRole('dialog', { name: 'Grant again' }))
-    expect(dialog.getByText('Production').closest('p')).toHaveTextContent(
-      'access to the entire vault Production',
+    expect(dialog.getByText('Personal').closest('p')).toHaveTextContent(
+      'access to the entire vault Personal',
     )
     expect(dialog.queryByText('this entry')).not.toBeInTheDocument()
   })
