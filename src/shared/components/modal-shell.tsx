@@ -12,8 +12,12 @@ export interface ModalShellProps {
    * divider. Omit `title` for the legacy bare box (children control everything).
    */
   title?: ReactNode
+  /** Optional semantic type override for the canonical header title. */
+  titleClassName?: string
   /** Footer content (usually the DialogFooter buttons). Only used with `title`. */
   footer?: ReactNode
+  /** Optional surface treatment for the canonical footer row. */
+  footerClassName?: string
   /** Design-pixel max width before density scaling. Defaults to 480 (560 for forms). */
   width?: number
   children: ReactNode
@@ -38,7 +42,9 @@ export function ModalShell({
   onClose,
   ariaLabel,
   title,
+  titleClassName,
   footer,
+  footerClassName,
   width = 480,
   children,
 }: ModalShellProps) {
@@ -74,7 +80,9 @@ export function ModalShell({
           style={{ maxWidth: `calc(${width}px * var(--cv-density-scale))` }}
         >
           <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--cv-divider)] px-6 py-4">
-            <h2 className="text-heading font-semibold text-[var(--cv-t1)]">{title}</h2>
+            <h2 className={`${titleClassName ?? 'text-heading'} font-semibold text-[var(--cv-t1)]`}>
+              {title}
+            </h2>
             {onClose ? (
               <button
                 type="button"
@@ -90,7 +98,12 @@ export function ModalShell({
             {children}
           </div>
           {footer ? (
-            <div className="shrink-0 border-t border-[var(--cv-divider)] px-6 py-4">{footer}</div>
+            <div
+              data-testid="modal-footer"
+              className={`shrink-0 border-t border-[var(--cv-divider)] px-6 py-4 ${footerClassName ?? ''}`}
+            >
+              {footer}
+            </div>
           ) : null}
         </div>
       </div>

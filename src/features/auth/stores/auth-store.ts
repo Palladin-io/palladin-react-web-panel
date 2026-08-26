@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { parseJwtPayload } from '../../../shared/lib/jwt'
 import { wipe } from '../../../shared/crypto/sodium'
+import { isWaitlistDeveloperBenefitActive } from '../lib/waitlist-developer-benefit'
 
 interface AuthState {
   accessToken: string | null
@@ -195,12 +196,7 @@ function activeBenefitPeriod(
     return { startedAt: null, endsAt: null }
   }
 
-  const startsAtMs = Date.parse(startedAt)
-  const endsAtMs = Date.parse(endsAt)
-  if (!Number.isFinite(startsAtMs)
-    || !Number.isFinite(endsAtMs)
-    || startsAtMs >= endsAtMs
-    || endsAtMs <= Date.now()) {
+  if (!isWaitlistDeveloperBenefitActive(startedAt, endsAt)) {
     return { startedAt: null, endsAt: null }
   }
 
