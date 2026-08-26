@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { ENTRY_TYPE_KEY, type ScriptRef } from '../types'
-import { ScriptRefsEditor } from './script-refs-editor'
+import { ReferenceFieldOptions, ScriptRefsEditor } from './script-refs-editor'
 import { isScriptReferenceFieldSelectable, validateScriptRefs } from '../script-refs'
 
 vi.mock('../sync/member-sync-store', () => ({
@@ -65,6 +65,17 @@ describe('ScriptRefsEditor', () => {
     render(<ExistingReferenceHarness />)
 
     expect(screen.getByRole('combobox', { name: /^entry$/i })).toHaveDisplayValue('QA SQL Host')
+    expect(screen.getAllByText('expand_more')).toHaveLength(2)
+  })
+
+  it('groups selectable custom fields in the field picker', () => {
+    render(<select aria-label="Field"><ReferenceFieldOptions options={[
+      { id: 'password', label: 'Password' },
+      { id: 'custom:tenant', label: 'Tenant', custom: true },
+    ]} /></select>)
+
+    expect(screen.getByRole('group', { name: 'Custom fields' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Tenant' })).toHaveValue('custom:tenant')
   })
 
   it('rejects unsafe process variables and duplicate reference names', () => {
@@ -90,6 +101,9 @@ describe('ScriptRefsEditor', () => {
 
     expect(isScriptReferenceFieldSelectable(policy, 'username')).toBe(true)
     expect(isScriptReferenceFieldSelectable(policy, 'password')).toBe(true)
+    expect(isScriptReferenceFieldSelectable({
+      fields: { 'custom:tenant': 'onGrantValue' },
+    }, 'custom:tenant')).toBe(true)
     expect(isScriptReferenceFieldSelectable(policy, 'notes')).toBe(false)
     expect(isScriptReferenceFieldSelectable(policy, 'missing')).toBe(false)
   })

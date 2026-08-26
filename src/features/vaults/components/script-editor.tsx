@@ -117,8 +117,14 @@ const CV_THEME: Extension = EditorView.theme({
   },
   '.cm-activeLine': { backgroundColor: 'rgb(var(--cv-primary-rgb) / 0.04)' },
   '.cm-activeLineGutter': { backgroundColor: 'transparent', color: 'var(--cv-t2)' },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection': {
-    backgroundColor: 'rgb(var(--cv-primary-rgb) / 0.18)',
+  '&.cm-focused .cm-selectionBackground': {
+    backgroundColor: 'rgb(var(--cv-info-rgb) / 0.28) !important',
+  },
+  '.cm-selectionBackground': {
+    backgroundColor: 'rgb(var(--cv-info-rgb) / 0.16) !important',
+  },
+  '.cm-content ::selection': {
+    backgroundColor: 'rgb(var(--cv-info-rgb) / 0.28) !important',
   },
   '.cm-placeholder': { color: 'var(--cv-input-placeholder)' },
 })

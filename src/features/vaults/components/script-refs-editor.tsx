@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+  type SelectHTMLAttributes,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
 import {
@@ -30,7 +37,11 @@ export interface ScriptRefsEditorProps {
   disabled?: boolean
 }
 
-interface ReferenceFieldOption { id: string; label: string }
+export interface ReferenceFieldOption {
+  id: string
+  label: string
+  custom?: boolean
+}
 
 /**
  * "Injected vault data" — the SCRIPT `refs[]` as a grouped list matching the
@@ -110,7 +121,11 @@ export function ScriptRefsEditor({
               ]
             : []
       for (const field of content.fields ?? []) {
-        options.push({ id: `custom:${field.id.replace(/^custom:/, '')}`, label: field.label })
+        options.push({
+          id: `custom:${field.id.replace(/^custom:/, '')}`,
+          label: field.label,
+          custom: true,
+        })
       }
       if (content.notes) options.push({ id: 'notes', label: t('vault.entries.notesLabel') })
       setFieldOptions((current) => new Map(current).set(
@@ -186,9 +201,6 @@ function RefRow({
     if (selectedEntry) void loadFields(selectedEntry.id)
   }, [loadFields, selectedEntry])
 
-  const selectClass =
-    'min-w-0 max-w-[8.125rem] cursor-pointer appearance-none border-0 bg-transparent p-0 text-ui text-[var(--cv-t1)] outline-none disabled:cursor-not-allowed'
-
   return (
     <ScriptMappingRow
       first={first}
@@ -198,13 +210,12 @@ function RefRow({
       namePlaceholder="GITHUB_TOKEN"
       onNameChange={(env) => onChange({ env })}
       disabled={disabled}
-      right={<div className="flex min-w-0 items-center justify-end gap-1.5">
-        <select
+      right={<div className="flex min-w-0 max-w-[22rem] flex-1 items-center justify-end gap-1">
+        <InlineMappingSelect
           aria-label={t('vault.entries.script.sourceEntry')}
           value={ref_.entryId}
           onChange={(e) => onChange({ entryId: e.target.value, vaultId, field: '' })}
           disabled={disabled}
-          className={selectClass}
         >
           <option value="">{t('vault.entries.script.selectEntry')}</option>
           {sources.map((entry) => (
@@ -212,25 +223,65 @@ function RefRow({
               {entry.label}
             </option>
           ))}
-        </select>
+        </InlineMappingSelect>
         <span className="text-[var(--cv-t3)]">·</span>
-        <select
+        <InlineMappingSelect
           aria-label={t('vault.entries.script.sourceField')}
           value={ref_.field}
           onChange={(e) => onChange({ field: e.target.value })}
           disabled={disabled || !selectedEntry}
-          className={selectClass}
         >
-          <option value="">{t('vault.entries.script.selectField')}</option>
-          {(fieldOptions ?? []).map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          <ReferenceFieldOptions options={fieldOptions ?? []} />
+        </InlineMappingSelect>
       </div>}
       menuItems={[{ icon: 'delete', label: t('common.remove'), danger: true, onSelect: onRemove } as MenuEntry]}
       menuLabel={t('common.moreActions')}
     />
+  )
+}
+
+function InlineMappingSelect({ children, ...props }: SelectHTMLAttributes<HTMLSelectElement> & {
+  children: ReactNode
+}) {
+  return (
+    <span className="relative min-w-0 max-w-[10rem] flex-1">
+      <select
+        {...props}
+        className="h-7 w-full cursor-pointer appearance-none truncate rounded-lg border-0 bg-transparent
+          py-1 pl-2 pr-6 text-meta text-[var(--cv-t2)] outline-none transition-colors
+          hover:bg-[var(--cv-btn-ghost-hover)] hover:text-[var(--cv-t1)]
+          focus-visible:bg-[var(--cv-btn-ghost-hover)] focus-visible:text-[var(--cv-t1)]
+          disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {children}
+      </select>
+      <Icon
+        name="expand_more"
+        size={14}
+        className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[var(--cv-icon-muted)]"
+      />
+    </span>
+  )
+}
+
+export function ReferenceFieldOptions({ options }: { options: ReferenceFieldOption[] }) {
+  const { t } = useTranslation()
+  const builtIn = options.filter((option) => !option.custom)
+  const custom = options.filter((option) => option.custom)
+
+  return (
+    <>
+      <option value="">{t('vault.entries.script.selectField')}</option>
+      {builtIn.map((option) => (
+        <option key={option.id} value={option.id}>{option.label}</option>
+      ))}
+      {custom.length > 0 ? (
+        <optgroup label={t('vault.entries.customFields.title')}>
+          {custom.map((option) => (
+            <option key={option.id} value={option.id}>{option.label}</option>
+          ))}
+        </optgroup>
+      ) : null}
+    </>
   )
 }

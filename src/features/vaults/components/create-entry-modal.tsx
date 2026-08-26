@@ -589,10 +589,12 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
               <FeedbackSlot visible={!validateScriptRefs(refs, vault.id)} color="red">
                 {t('vault.entries.script.refsInvalid')}
               </FeedbackSlot>
-              <SectionHeader>{t('vault.entries.script.parametersTitle')}</SectionHeader>
-              <p className="-mt-1 text-meta leading-snug text-[var(--cv-t2)]">
-                {t('vault.entries.script.parametersHint')}
-              </p>
+              <SectionHeader
+                hint={t('vault.entries.script.parametersHint')}
+                hintLabel={t('vault.entries.script.parametersInfoLabel')}
+              >
+                {t('vault.entries.script.parametersTitle')}
+              </SectionHeader>
               <ScriptParametersEditor
                 parameters={scriptParameters}
                 onChange={setScriptParameters}
