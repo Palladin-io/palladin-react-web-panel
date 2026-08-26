@@ -83,7 +83,8 @@ describe('VerifyEmailPage — token result flow', () => {
   it('shows the success state when verified', () => {
     verifyState.data = 'verified'
     renderPage(<VerifyEmailPage token="tok-123" />)
-    expect(screen.getByText(/email verified/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /email verified/i })).toBeInTheDocument()
+    expect(screen.queryByText(/^verified$/i)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /go to sign in/i })).toBeInTheDocument()
   })
 
@@ -128,6 +129,7 @@ describe('VerifyEmailPage — hard gate (signed in, no token)', () => {
     authState.authenticated = true
     renderPage(<VerifyEmailPage token={undefined} />)
     expect(await screen.findByText(/verify your email/i)).toBeInTheDocument()
+    expect(screen.getByText(/click it, then come back here/i).closest('p')).toHaveClass('text-meta')
     expect(screen.getByRole('button', { name: /resend email/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /log out/i })).toBeInTheDocument()
     // The gate never POSTs a (missing) token.

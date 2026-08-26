@@ -83,7 +83,7 @@ function VerifyEmailGate() {
       subtitle={t('verifyEmail.pendingSubtitle')}
     >
       <div className="flex flex-col items-center gap-4">
-        <p className="text-center text-ui text-[#B8C5D4]">
+        <p className="text-center text-meta text-[#B8C5D4]">
           {account.data?.email ? (
             <Trans i18nKey="verifyEmail.pendingBody" values={{ email: account.data.email }} />
           ) : (
@@ -189,12 +189,7 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
         title={t('verifyEmail.successTitle')}
         subtitle={t('verifyEmail.successSubtitle')}
       >
-        <div className="flex flex-col items-center gap-4">
-          <p className="text-heading-md font-bold text-[var(--cv-success)]">
-            {t('verifyEmail.verified')}
-          </p>
-          {forwardAction}
-        </div>
+        <div className="flex flex-col items-center gap-4">{forwardAction}</div>
       </AuthStepShell>
     )
   }

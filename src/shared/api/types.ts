@@ -9,4 +9,10 @@ export interface AuthResponse {
    * Optional so older backends that omit it don't break token parsing.
    */
   emailVerified?: boolean
+  /**
+   * Active waitlist Developer benefit window. The backend returns both values
+   * together and nulls them after expiry. Kept in memory only by auth-store.
+   */
+  waitlistDeveloperBenefitStartedAt?: string | null
+  waitlistDeveloperBenefitEndsAt?: string | null
 }

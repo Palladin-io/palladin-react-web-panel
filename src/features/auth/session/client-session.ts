@@ -1,6 +1,7 @@
 import { queryClient } from '../../../shared/api/query-client'
 import { analytics } from '../../../shared/lib/analytics'
 import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
+import { clearWaitlistDeveloperBenefitAcknowledgement } from '../lib/waitlist-developer-benefit'
 import { useAuthStore } from '../stores/auth-store'
 
 let clientSessionGeneration = 0
@@ -26,6 +27,7 @@ export function clearClientSession(): void {
   useAuthStore.getState().logout()
   runNonBlockingCleanup(() => queryClient.clear())
   runNonBlockingCleanup(() => useMemberSyncStore.getState().clear())
+  runNonBlockingCleanup(clearWaitlistDeveloperBenefitAcknowledgement)
   runNonBlockingCleanup(() => analytics.reset())
 }
 

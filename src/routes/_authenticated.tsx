@@ -10,7 +10,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import i18n, { LANGUAGE_STORAGE_KEY, SUPPORTED_LANGUAGES } from '../shared/lib/i18n'
-import { logoutAndReload, useAuthStore, useSessionTimeout } from '../features/auth'
+import {
+  logoutAndReload,
+  useAuthStore,
+  useSessionTimeout,
+  WaitlistDeveloperBenefitDialog,
+  isWaitlistDeveloperBenefitActive,
+} from '../features/auth'
 import { useAgents, AGENT_STATUS_PENDING } from '../features/agents'
 import { useThemeStore } from '../shared/stores/theme-store'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../shared/api/account-api'
@@ -192,8 +198,11 @@ function AuthenticatedLayout() {
               style={{ background: GRADIENTS[theme] }}
             >
               <AppSidebar currentPath={pathname} />
-              <main className="subtle-scrollbar h-full min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
-                <Outlet />
+              <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                <WaitlistDeveloperBenefitDialog />
+                <div className="subtle-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+                  <Outlet />
+                </div>
               </main>
             </div>
           </SignalRProvider>
@@ -276,6 +285,9 @@ interface AppSidebarProps {
 function AppSidebar({ currentPath }: AppSidebarProps) {
   const { t } = useTranslation()
   const permissions = useAuthStore((s) => s.permissions)
+  const benefitStartedAt = useAuthStore((s) => s.waitlistDeveloperBenefitStartedAt)
+  const benefitEndsAt = useAuthStore((s) => s.waitlistDeveloperBenefitEndsAt)
+  const [planClock, setPlanClock] = useState(() => Date.now())
   const { theme, toggleTheme } = useThemeStore()
   const webPush = useWebPush()
   const visibleNavItems = NAV_ITEMS.filter(
@@ -292,6 +304,24 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
   }
 
   const [langOpen, setLangOpen] = useState(false)
+
+  useEffect(() => {
+    if (!benefitEndsAt) return
+    const remaining = Date.parse(benefitEndsAt) - Date.now()
+    if (!Number.isFinite(remaining) || remaining <= 0) return
+
+    const timeout = window.setTimeout(
+      () => setPlanClock(Date.now()),
+      Math.min(remaining, 2_147_483_647),
+    )
+    return () => window.clearTimeout(timeout)
+  }, [benefitEndsAt, planClock])
+
+  const hasPremiumPlan = isWaitlistDeveloperBenefitActive(
+    benefitStartedAt,
+    benefitEndsAt,
+    planClock,
+  )
 
   const account = useQuery({
     queryKey: ACCOUNT_QUERY_KEY,
@@ -381,8 +411,12 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
         <div className="mb-3.5 flex items-center gap-2.5">
           <span
             className="flex h-8 w-8 shrink-0 items-center justify-center
-              rounded-full text-micro font-bold"
-            style={{ background: '#FFAB87', color: '#0C0E12' }}
+              rounded-full border-2 text-micro font-bold transition-colors"
+            style={{
+              background: '#FFAB87',
+              color: '#0C0E12',
+              borderColor: hasPremiumPlan ? 'var(--cv-premium)' : 'transparent',
+            }}
           >
             {initials || '?'}
           </span>
@@ -393,8 +427,11 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
             >
               {displayName || email}
             </p>
-            <p className="text-micro" style={{ color: mutedColor }}>
-              {t('sidebar.freePlan')}
+            <p
+              className={`text-micro ${hasPremiumPlan ? 'font-semibold' : ''}`}
+              style={{ color: hasPremiumPlan ? 'var(--cv-premium)' : mutedColor }}
+            >
+              {t(hasPremiumPlan ? 'sidebar.premiumPlan' : 'sidebar.freePlan')}
             </p>
           </div>
         </div>
