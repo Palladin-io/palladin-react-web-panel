@@ -47,6 +47,7 @@ const PANEL_STATUSES: GrantStatus[] = [
   'consumed',
   'denied',
   'revoked',
+  'superseded',
 ]
 
 /**
@@ -604,6 +605,9 @@ function contextualReason(
   if (grant.status === 'revoked' && grant.revokeReason) {
     return { label: t('grants.org.rowRevokeReason'), text: grant.revokeReason }
   }
+  if (grant.status === 'superseded') {
+    return { label: t('grants.org.rowReason'), text: t('grants.org.supersededReason') }
+  }
   return { label: t('grants.org.rowReason'), text: accessReason ?? grant.reason ?? '—' }
 }
 
@@ -611,7 +615,7 @@ function summarise(items: OrgGrant[]): string | null {
   if (items.length === 0) return null
   const counts: Partial<Record<GrantStatus, number>> = {}
   for (const g of items) counts[g.status] = (counts[g.status] ?? 0) + 1
-  const order: GrantStatus[] = ['active', 'expired', 'consumed', 'denied', 'revoked']
+  const order: GrantStatus[] = ['active', 'expired', 'consumed', 'denied', 'revoked', 'superseded']
   return order
     .filter((s) => counts[s])
     .map((s) => `${counts[s]} ${s}`)

@@ -18,7 +18,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('./api/org-grants-api', async (original) => ({
   ...(await original<typeof import('./api/org-grants-api')>()),
-  createGrantProactively: mocks.create,
+  createFullGrant: mocks.create,
+  createGranularGrant: mocks.create,
 }))
 vi.mock('../vaults/api/vault-api', () => ({ getCanonicalEntry: mocks.getEntry }))
 vi.mock('../vaults/sync/member-sync-api', () => ({ getEncryptedVault: mocks.getVault }))
@@ -79,9 +80,9 @@ describe('useCreateGrant', () => {
       methods: ['exec', 'inject'],
     })
 
-    const [, body] = mocks.create.mock.calls[0]
-    expect(body.entryId).toBe('33333333-3333-4333-8332-333333333333')
-    expect(body.grantEntries).toHaveLength(1)
+    const [, entryId, body] = mocks.create.mock.calls[0]
+    expect(entryId).toBe('33333333-3333-4333-8332-333333333333')
+    expect(body.grantEntry).toBeDefined()
     expect(body.agentWrappedVaultKey).toBeUndefined()
     expect(body.methods).toBe('Exec, Inject')
     expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({
@@ -116,10 +117,8 @@ describe('useCreateGrant', () => {
       recipientAgentKeyVersion: 4,
     }))
     const [, body] = mocks.create.mock.calls[0]
-    expect(body.type).toBe('full')
     expect(body.agentWrappedVaultKey).toBeDefined()
-    expect(body.entryId).toBeUndefined()
-    expect(body.grantEntries).toBeUndefined()
+    expect(body.grantEntry).toBeUndefined()
     expect(mocks.getEntry).not.toHaveBeenCalled()
     expect(mocks.produce).not.toHaveBeenCalled()
   })

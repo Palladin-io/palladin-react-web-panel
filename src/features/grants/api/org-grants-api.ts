@@ -6,7 +6,8 @@ import { encryptedReasonEnvelopeSchema } from "../../vaults/sync/entry-envelope-
 
 /**
  * Grant lifecycle status — camelCase strings matching the backend
- * JsonStringEnumConverter (PENDING / ACTIVE / EXPIRED / REVOKED / CONSUMED / DENIED).
+ * JsonStringEnumConverter
+ * (PENDING / ACTIVE / EXPIRED / REVOKED / CONSUMED / DENIED / SUPERSEDED).
  */
 export const GRANT_STATUS_PENDING = "pending" as const;
 export const GRANT_STATUS_ACTIVE = "active" as const;
@@ -14,6 +15,7 @@ export const GRANT_STATUS_EXPIRED = "expired" as const;
 export const GRANT_STATUS_REVOKED = "revoked" as const;
 export const GRANT_STATUS_CONSUMED = "consumed" as const;
 export const GRANT_STATUS_DENIED = "denied" as const;
+export const GRANT_STATUS_SUPERSEDED = "superseded" as const;
 
 export const GRANT_STATUSES = [
   GRANT_STATUS_PENDING,
@@ -22,6 +24,7 @@ export const GRANT_STATUSES = [
   GRANT_STATUS_REVOKED,
   GRANT_STATUS_CONSUMED,
   GRANT_STATUS_DENIED,
+  GRANT_STATUS_SUPERSEDED,
 ] as const;
 
 export type GrantStatus = (typeof GRANT_STATUSES)[number];
@@ -101,6 +104,8 @@ const orgGrantSchema = z.object({
   createdByName: z.string().nullable().optional(),
   revokedBy: z.string().uuid().nullable().optional(),
   revokedByName: z.string().nullable().optional(),
+  supersededAt: z.string().nullable().optional(),
+  supersededByGrantId: z.string().uuid().nullable().optional(),
   deniedBy: z.string().uuid().nullable().optional(),
   deniedByName: z.string().nullable().optional(),
   revokeReason: z.string().nullable().optional(),
@@ -187,31 +192,41 @@ export async function revokeGrant(
 }
 
 /**
- * Proactively create a new grant. The caller produces the envelope(s)
- * client-side; exactly one of `expiresAt` / `queryLimit` is set, or neither for
- * a lifetime grant.
- *
- * - GRANULAR: `entryId` set + a single-element `grantEntries`.
- * - FULL: no per-Entry material; one current VK sealed to the Agent recipient.
+ * The create API intentionally exposes two contracts and two routes: one Entry
+ * envelope cannot be confused with a Vault-key wrapper at either compile time
+ * or the HTTP boundary.
  */
-export interface CreateGrantBody {
+interface CreateGrantPolicyBody {
   grantId: string;
   agentId: string;
-  type: GrantType;
-  entryId?: string;
-  grantEntries?: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>[];
-  agentWrappedVaultKey?: AgentWrappedVaultKeyContract;
   expiresAt?: string;
   queryLimit?: number;
-  /** Combined-flags string of permitted methods, e.g. "Exec, Inject". */
   methods?: string;
 }
 
-export async function createGrantProactively(
+export interface CreateGranularGrantBody extends CreateGrantPolicyBody {
+  grantEntry: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>;
+}
+
+export interface CreateFullGrantBody extends CreateGrantPolicyBody {
+  agentWrappedVaultKey: AgentWrappedVaultKeyContract;
+}
+
+export async function createGranularGrant(
   vaultId: string,
-  body: CreateGrantBody,
+  entryId: string,
+  body: CreateGranularGrantBody,
 ): Promise<{ id: string }> {
   return api
-    .post(`api/vaults/${vaultId}/grants`, { json: body })
+    .post(`api/vaults/${vaultId}/entries/${entryId}/grants`, { json: body })
+    .json<{ id: string }>();
+}
+
+export async function createFullGrant(
+  vaultId: string,
+  body: CreateFullGrantBody,
+): Promise<{ id: string }> {
+  return api
+    .post(`api/vaults/${vaultId}/full-grants`, { json: body })
     .json<{ id: string }>();
 }

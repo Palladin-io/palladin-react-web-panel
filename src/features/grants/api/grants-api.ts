@@ -4,7 +4,7 @@ import { api } from '../../../shared/api/client'
 /**
  * Grant lifecycle status — camelCase strings matching the backend
  * JsonStringEnumConverter. Mirrors the `Status` enum on the Grant entity:
- * PENDING / ACTIVE / EXPIRED / REVOKED / CONSUMED / DENIED.
+ * PENDING / ACTIVE / EXPIRED / REVOKED / CONSUMED / DENIED / SUPERSEDED.
  */
 export const GRANT_STATUS_PENDING = 'pending' as const
 export const GRANT_STATUS_ACTIVE = 'active' as const
@@ -12,6 +12,7 @@ export const GRANT_STATUS_EXPIRED = 'expired' as const
 export const GRANT_STATUS_REVOKED = 'revoked' as const
 export const GRANT_STATUS_CONSUMED = 'consumed' as const
 export const GRANT_STATUS_DENIED = 'denied' as const
+export const GRANT_STATUS_SUPERSEDED = 'superseded' as const
 
 export const GRANT_STATUSES = [
   GRANT_STATUS_PENDING,
@@ -20,6 +21,7 @@ export const GRANT_STATUSES = [
   GRANT_STATUS_REVOKED,
   GRANT_STATUS_CONSUMED,
   GRANT_STATUS_DENIED,
+  GRANT_STATUS_SUPERSEDED,
 ] as const
 
 export type GrantStatus = (typeof GRANT_STATUSES)[number]
@@ -58,6 +60,8 @@ const grantSchema = z.object({
   createdByName: z.string().nullable(),
   revokedAt: z.string().nullable(),
   revokedByName: z.string().nullable(),
+  supersededAt: z.string().nullable().optional(),
+  supersededByGrantId: z.string().uuid().nullable().optional(),
   reason: z.string().nullable().optional(),
   revokeReason: z.string().nullable().optional(),
 }).superRefine((grant, context) => {

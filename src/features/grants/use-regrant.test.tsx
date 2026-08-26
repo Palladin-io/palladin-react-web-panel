@@ -16,7 +16,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('./api/org-grants-api', async (original) => ({
   ...(await original<typeof import('./api/org-grants-api')>()),
-  createGrantProactively: mocks.create,
+  createFullGrant: mocks.create,
+  createGranularGrant: mocks.create,
 }))
 vi.mock('../agents', () => ({ getAgent: mocks.getAgent }))
 vi.mock('../vaults/sync/member-sync-api', () => ({ getEncryptedVault: mocks.getVault }))
