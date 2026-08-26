@@ -1,12 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { VaultDetailPage } from './vault-detail-page'
 
 const layout = vi.hoisted(() => ({ isWide: true }))
+const navigate = vi.hoisted(() => vi.fn())
 
-vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }))
+vi.mock('@tanstack/react-router', () => ({ useNavigate: () => navigate }))
 vi.mock('../../shared/hooks/use-wide-screen', () => ({
   useWideScreen: () => layout.isWide,
 }))
@@ -58,6 +59,22 @@ vi.mock('./components/import-wizard-modal', () => ({
 }))
 
 describe('VaultDetailPage', () => {
+  beforeEach(() => {
+    navigate.mockClear()
+  })
+
+  it('opens Import once and consumes the onboarding query intent', async () => {
+    render(<VaultDetailPage vaultId="vault-1" initialImport />)
+
+    expect(await screen.findByRole('button', { name: 'Start tracked import' })).toBeInTheDocument()
+    expect(navigate).toHaveBeenCalledWith({
+      to: '/vaults/$vaultId',
+      params: { vaultId: 'vault-1' },
+      search: {},
+      replace: true,
+    })
+  })
+
   it('keeps the active import mounted when the responsive layout changes', async () => {
     layout.isWide = true
     const view = render(<VaultDetailPage vaultId="vault-1" />)

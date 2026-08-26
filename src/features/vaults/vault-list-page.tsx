@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
@@ -14,7 +14,11 @@ import { SearchBar } from '../../shared/components/search-bar'
 import { PERMISSION_MULTIPLE_VAULTS } from './types'
 import { useMemberVaultList, type MemberVaultListItem } from './sync/member-vault-list'
 
-export function VaultListPage() {
+export interface VaultListPageProps {
+  initialIntent?: 'import'
+}
+
+export function VaultListPage({ initialIntent }: VaultListPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const permissions = useAuthStore((s) => s.permissions)
@@ -24,11 +28,33 @@ export function VaultListPage() {
   const isWide = useWideScreen()
 
   const vaults = useMemberVaultList(search)
+  const importNavigationStarted = useRef(false)
   const list = vaults.allItems
   const filteredList = vaults.items
   const totalEntries = list.reduce((sum, vault) => sum + vault.entryCount, 0)
   const canCreateMore =
     list.length === 0 || (permissions & PERMISSION_MULTIPLE_VAULTS) !== 0
+
+  useEffect(() => {
+    if (
+      initialIntent !== 'import' ||
+      vaults.status !== 'ready' ||
+      importNavigationStarted.current
+    ) {
+      return
+    }
+
+    const defaultVault = vaults.allItems.find((vault) => vault.isDefault)
+    if (!defaultVault) return
+
+    importNavigationStarted.current = true
+    void navigate({
+      to: '/vaults/$vaultId',
+      params: { vaultId: defaultVault.id },
+      search: { import: true },
+      replace: true,
+    })
+  }, [initialIntent, navigate, vaults.allItems, vaults.status])
 
   const goToVault = (id: string) => {
     navigate({ to: '/vaults/$vaultId', params: { vaultId: id } })

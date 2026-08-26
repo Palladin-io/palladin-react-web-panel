@@ -35,6 +35,7 @@ describe('decrypted Member vault list', () => {
 
     expect(item).toEqual({
       id: 'vault-1',
+      isDefault: false,
       name: 'Personal',
       description: 'Private accounts',
       icon: 'lock',
@@ -48,6 +49,16 @@ describe('decrypted Member vault list', () => {
       failureKind: null,
     })
     expect(Object.keys(item)).not.toContain('ciphertext')
+  })
+
+  it('preserves the server-owned default Vault marker for deep-link routing', () => {
+    const personal = vault('vault-personal', 'Personal')
+    personal.structure.isDefault = true
+
+    expect(buildMemberVaultList(new Map([
+      ['vault-team', vault('vault-team', 'Team')],
+      ['vault-personal', personal],
+    ])).find((item) => item.isDefault)?.id).toBe('vault-personal')
   })
 
   it('searches decrypted names and descriptions locally with Unicode normalization', () => {
