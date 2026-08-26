@@ -9,6 +9,7 @@ const refreshAuthSessionMock = vi.hoisted(() => vi.fn())
 const markEmailVerifiedMock = vi.hoisted(() => vi.fn())
 const setWaitlistDeveloperBenefitMock = vi.hoisted(() => vi.fn())
 const setTokensMock = vi.hoisted(() => vi.fn())
+const clearClientSessionMock = vi.hoisted(() => vi.fn())
 const authState = vi.hoisted(() => ({
   authenticated: true,
   userId: 'current-user',
@@ -35,6 +36,7 @@ vi.mock('../stores/auth-store', () => ({
 
 vi.mock('../session/client-session', () => ({
   captureClientSessionGeneration: () => 7,
+  clearClientSession: clearClientSessionMock,
   clientSessionGenerationMatches: (generation: number) => generation === 7,
 }))
 
@@ -54,6 +56,7 @@ describe('useVerifyEmail', () => {
     markEmailVerifiedMock.mockReset()
     setWaitlistDeveloperBenefitMock.mockReset()
     setTokensMock.mockReset()
+    clearClientSessionMock.mockReset()
     authState.authenticated = true
     authState.userId = 'current-user'
     authState.refreshToken = 'current-refresh'
@@ -88,6 +91,7 @@ describe('useVerifyEmail', () => {
     )
     expect(refreshAuthSessionMock).toHaveBeenCalledWith('current-refresh')
     expect(setTokensMock).toHaveBeenCalledWith(refreshed)
+    expect(clearClientSessionMock).not.toHaveBeenCalled()
   })
 
   it('does not mutate a different account session opened in the same browser', async () => {
@@ -106,9 +110,38 @@ describe('useVerifyEmail', () => {
     expect(setWaitlistDeveloperBenefitMock).not.toHaveBeenCalled()
     expect(refreshAuthSessionMock).not.toHaveBeenCalled()
     expect(setTokensMock).not.toHaveBeenCalled()
+    expect(clearClientSessionMock).not.toHaveBeenCalled()
   })
 
-  it('keeps verification successful when the immediate session refresh fails', async () => {
+  it('retries a transient refresh before forwarding the verified session', async () => {
+    verifyEmailMock.mockResolvedValue({
+      status: 'verified',
+      userId: 'current-user',
+      waitlistDeveloperBenefitStartedAt: '2026-08-25T12:00:00Z',
+      waitlistDeveloperBenefitEndsAt: '2026-09-25T12:00:00Z',
+    })
+    const refreshed = {
+      accessToken: 'new-access',
+      refreshToken: 'new-refresh',
+      userId: 'current-user',
+      isOnboarded: true,
+      emailVerified: true,
+      permissions: 127,
+    }
+    refreshAuthSessionMock
+      .mockRejectedValueOnce(new Error('temporary refresh failure'))
+      .mockResolvedValueOnce(refreshed)
+    const { result } = renderHook(() => useVerifyEmail(), { wrapper })
+
+    act(() => result.current.mutate('verification-token'))
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(refreshAuthSessionMock).toHaveBeenCalledTimes(2)
+    expect(setTokensMock).toHaveBeenCalledWith(refreshed)
+    expect(clearClientSessionMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps verification successful but clears stale auth when refresh retries fail', async () => {
     verifyEmailMock.mockResolvedValue({
       status: 'verified',
       userId: 'current-user',
@@ -127,6 +160,8 @@ describe('useVerifyEmail', () => {
       '2026-08-25T12:00:00Z',
       '2026-09-25T12:00:00Z',
     )
+    expect(refreshAuthSessionMock).toHaveBeenCalledTimes(2)
     expect(setTokensMock).not.toHaveBeenCalled()
+    expect(clearClientSessionMock).toHaveBeenCalledOnce()
   })
 })

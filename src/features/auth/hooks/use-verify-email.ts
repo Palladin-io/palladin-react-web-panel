@@ -5,6 +5,7 @@ import { refreshToken as refreshAuthSession, verifyEmail } from '../api/auth-api
 import { getIsAuthenticated, useAuthStore } from '../stores/auth-store'
 import {
   captureClientSessionGeneration,
+  clearClientSession,
   clientSessionGenerationMatches,
 } from '../session/client-session'
 
@@ -59,7 +60,7 @@ export function useVerifyEmail() {
           const currentRefreshToken = authState.refreshToken
           if (currentRefreshToken) {
             try {
-              const refreshed = await refreshAuthSession(currentRefreshToken)
+              const refreshed = await refreshVerifiedSession(currentRefreshToken)
               const currentState = useAuthStore.getState()
               if (clientSessionGenerationMatches(generation)
                 && currentState.userId === response.userId
@@ -68,9 +69,15 @@ export function useVerifyEmail() {
               }
             } catch {
               // Verification already succeeded. A transient session-refresh
-              // failure must not turn the success screen into "invalid". The
-              // verified response's active benefit remains in memory until the
-              // regular refresh path replaces it with authoritative session data.
+              // failure must not turn the success screen into "invalid" or
+              // forward stale permissions. After one retry, clear only the same
+              // client session so the next login obtains current plan claims.
+              const currentState = useAuthStore.getState()
+              if (clientSessionGenerationMatches(generation)
+                && currentState.userId === response.userId
+                && currentState.refreshToken === currentRefreshToken) {
+                clearClientSession()
+              }
             }
           }
 
@@ -82,4 +89,12 @@ export function useVerifyEmail() {
       }
     },
   })
+}
+
+async function refreshVerifiedSession(refreshToken: string) {
+  try {
+    return await refreshAuthSession(refreshToken)
+  } catch {
+    return refreshAuthSession(refreshToken)
+  }
 }
