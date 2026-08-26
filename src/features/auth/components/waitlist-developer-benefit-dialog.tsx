@@ -4,9 +4,13 @@ import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { useAuthStore } from '../stores/auth-store'
-import { isWaitlistDeveloperBenefitActive } from '../lib/waitlist-developer-benefit'
+import {
+  deriveWaitlistDeveloperBenefitPeriodId,
+  isWaitlistDeveloperBenefitActive,
+  readWaitlistDeveloperBenefitAcknowledgement,
+  writeWaitlistDeveloperBenefitAcknowledgement,
+} from '../lib/waitlist-developer-benefit'
 
-const ACCEPTED_PERIOD_KEY = 'palladin:waitlist-developer-benefit-dialog-accepted'
 const MAX_TIMEOUT_MS = 2_147_483_647
 
 export function WaitlistDeveloperBenefitDialog() {
@@ -17,7 +21,14 @@ export function WaitlistDeveloperBenefitDialog() {
   const endsAt = useAuthStore(
     (state) => state.waitlistDeveloperBenefitEndsAt,
   )
-  const [acceptedPeriod, setAcceptedPeriod] = useState(readAcceptedPeriod)
+  const userId = useAuthStore((state) => state.userId)
+  const [acceptedPeriod, setAcceptedPeriod] = useState(
+    readWaitlistDeveloperBenefitAcknowledgement,
+  )
+  const [derivedPeriod, setDerivedPeriod] = useState<{
+    source: string
+    id: string
+  } | null>(null)
   const [now, setNow] = useState(() => Date.now())
 
   const period = useMemo(() => {
@@ -25,10 +36,34 @@ export function WaitlistDeveloperBenefitDialog() {
     const endsAtMs = Date.parse(endsAt)
     if (!isWaitlistDeveloperBenefitActive(startedAt, endsAt, now)) return null
     return {
-      id: `${startedAt}|${endsAt}`,
+      startedAt,
+      endsAt,
       endsAtMs,
     }
   }, [endsAt, now, startedAt])
+
+  const periodSource = period && userId
+    ? `${userId}\u0000${period.startedAt}\u0000${period.endsAt}`
+    : null
+
+  useEffect(() => {
+    let cancelled = false
+    if (!period || !periodSource || !userId) return () => { cancelled = true }
+
+    void deriveWaitlistDeveloperBenefitPeriodId(
+      userId,
+      period.startedAt,
+      period.endsAt,
+    ).then((id) => {
+      if (!cancelled) setDerivedPeriod({ source: periodSource, id })
+    })
+
+    return () => { cancelled = true }
+  }, [period, periodSource, userId])
+
+  const periodId = derivedPeriod?.source === periodSource
+    ? derivedPeriod.id
+    : null
 
   useEffect(() => {
     if (!period) return
@@ -39,7 +74,7 @@ export function WaitlistDeveloperBenefitDialog() {
     return () => window.clearTimeout(timeout)
   }, [period])
 
-  if (!period || acceptedPeriod === period.id) return null
+  if (!period || !periodId || acceptedPeriod === periodId) return null
 
   const locale = i18n.resolvedLanguage?.startsWith('pl') ? 'pl-PL' : 'en-GB'
   const formatter = new Intl.DateTimeFormat(locale, {
@@ -50,8 +85,8 @@ export function WaitlistDeveloperBenefitDialog() {
   const congratulations = t('waitlistBenefit.congratulations')
 
   const accept = () => {
-    writeAcceptedPeriod(period.id)
-    setAcceptedPeriod(period.id)
+    writeWaitlistDeveloperBenefitAcknowledgement(periodId)
+    setAcceptedPeriod(periodId)
   }
 
   return (
@@ -60,6 +95,7 @@ export function WaitlistDeveloperBenefitDialog() {
       width={420}
       title={congratulations}
       titleClassName="text-page-title"
+      trapFocus
       footerClassName="bg-[var(--cv-bg-subtle)]"
       footer={
         <DialogFooter>
@@ -151,22 +187,4 @@ function BenefitConfetti() {
       ))}
     </div>
   )
-}
-
-function readAcceptedPeriod(): string | null {
-  if (typeof window === 'undefined') return null
-  try {
-    return window.sessionStorage.getItem(ACCEPTED_PERIOD_KEY)
-  } catch {
-    return null
-  }
-}
-
-function writeAcceptedPeriod(period: string) {
-  try {
-    window.sessionStorage.setItem(ACCEPTED_PERIOD_KEY, period)
-  } catch {
-    // Storage can be unavailable in hardened browser modes. Component state
-    // still prevents the dialog from reopening during the current mount.
-  }
 }

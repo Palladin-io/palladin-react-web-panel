@@ -49,6 +49,11 @@ interface AuthState {
   markOnboarded: () => void
   /** Flip to verified after the user consumes their verification link. */
   markEmailVerified: () => void
+  /** Apply an active verified waitlist benefit to this in-memory session. */
+  setWaitlistDeveloperBenefit: (
+    startedAt: string | null | undefined,
+    endsAt: string | null | undefined,
+  ) => void
   unlockVault: (
     masterKey: Uint8Array,
     privateKey: Uint8Array,
@@ -133,6 +138,15 @@ export const useAuthStore = create<AuthState>()(
       markOnboarded: () => set({ isOnboarded: true }),
 
       markEmailVerified: () => set({ emailVerified: true }),
+
+      setWaitlistDeveloperBenefit: (startedAt, endsAt) =>
+        set(() => {
+          const benefit = activeBenefitPeriod(startedAt, endsAt)
+          return {
+            waitlistDeveloperBenefitStartedAt: benefit.startedAt,
+            waitlistDeveloperBenefitEndsAt: benefit.endsAt,
+          }
+        }),
 
       unlockVault: (masterKey, privateKey) =>
         // Store independent copies — callers routinely `wipe()` their local

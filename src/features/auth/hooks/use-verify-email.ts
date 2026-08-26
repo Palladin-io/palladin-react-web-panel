@@ -45,6 +45,10 @@ export function useVerifyEmail() {
         const authState = useAuthStore.getState()
         if (getIsAuthenticated() && authState.userId === response.userId) {
           authState.markEmailVerified()
+          authState.setWaitlistDeveloperBenefit(
+            response.waitlistDeveloperBenefitStartedAt,
+            response.waitlistDeveloperBenefitEndsAt,
+          )
 
           // The account-verification request activates the waitlist benefit on
           // the backend. Refresh THIS session so its plan claim and exact
@@ -64,8 +68,9 @@ export function useVerifyEmail() {
               }
             } catch {
               // Verification already succeeded. A transient session-refresh
-              // failure must not turn the success screen into "invalid"; the
-              // regular refresh path will recover the benefit window later.
+              // failure must not turn the success screen into "invalid". The
+              // verified response's active benefit remains in memory until the
+              // regular refresh path replaces it with authoritative session data.
             }
           }
 

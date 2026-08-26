@@ -7,6 +7,7 @@ import { useVerifyEmail } from './use-verify-email'
 const verifyEmailMock = vi.hoisted(() => vi.fn())
 const refreshAuthSessionMock = vi.hoisted(() => vi.fn())
 const markEmailVerifiedMock = vi.hoisted(() => vi.fn())
+const setWaitlistDeveloperBenefitMock = vi.hoisted(() => vi.fn())
 const setTokensMock = vi.hoisted(() => vi.fn())
 const authState = vi.hoisted(() => ({
   authenticated: true,
@@ -26,6 +27,7 @@ vi.mock('../stores/auth-store', () => ({
       userId: authState.userId,
       refreshToken: authState.refreshToken,
       markEmailVerified: markEmailVerifiedMock,
+      setWaitlistDeveloperBenefit: setWaitlistDeveloperBenefitMock,
       setTokens: setTokensMock,
     }),
   },
@@ -50,6 +52,7 @@ describe('useVerifyEmail', () => {
     verifyEmailMock.mockReset()
     refreshAuthSessionMock.mockReset()
     markEmailVerifiedMock.mockReset()
+    setWaitlistDeveloperBenefitMock.mockReset()
     setTokensMock.mockReset()
     authState.authenticated = true
     authState.userId = 'current-user'
@@ -79,6 +82,10 @@ describe('useVerifyEmail', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(markEmailVerifiedMock).toHaveBeenCalledOnce()
+    expect(setWaitlistDeveloperBenefitMock).toHaveBeenCalledWith(
+      '2026-08-25T12:00:00Z',
+      '2026-09-25T12:00:00Z',
+    )
     expect(refreshAuthSessionMock).toHaveBeenCalledWith('current-refresh')
     expect(setTokensMock).toHaveBeenCalledWith(refreshed)
   })
@@ -96,6 +103,7 @@ describe('useVerifyEmail', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(markEmailVerifiedMock).not.toHaveBeenCalled()
+    expect(setWaitlistDeveloperBenefitMock).not.toHaveBeenCalled()
     expect(refreshAuthSessionMock).not.toHaveBeenCalled()
     expect(setTokensMock).not.toHaveBeenCalled()
   })
@@ -115,6 +123,10 @@ describe('useVerifyEmail', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data).toBe('verified')
     expect(markEmailVerifiedMock).toHaveBeenCalledOnce()
+    expect(setWaitlistDeveloperBenefitMock).toHaveBeenCalledWith(
+      '2026-08-25T12:00:00Z',
+      '2026-09-25T12:00:00Z',
+    )
     expect(setTokensMock).not.toHaveBeenCalled()
   })
 })

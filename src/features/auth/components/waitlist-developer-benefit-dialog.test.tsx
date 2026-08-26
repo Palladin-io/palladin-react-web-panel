@@ -1,10 +1,11 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../../shared/lib/i18n'
 import { WaitlistDeveloperBenefitDialog } from './waitlist-developer-benefit-dialog'
 
 const benefitState = vi.hoisted(() => ({
+  userId: 'user-1',
   waitlistDeveloperBenefitStartedAt: null as string | null,
   waitlistDeveloperBenefitEndsAt: null as string | null,
 }))
@@ -30,9 +31,12 @@ describe('WaitlistDeveloperBenefitDialog', () => {
     )
 
     const user = userEvent.setup()
+    const previouslyFocused = document.createElement('button')
+    document.body.appendChild(previouslyFocused)
+    previouslyFocused.focus()
     const firstRender = render(<WaitlistDeveloperBenefitDialog />)
 
-    expect(screen.getByRole('dialog', { name: 'Congratulations!' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Congratulations!' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Congratulations!' }))
       .toHaveClass('text-page-title')
     const benefitHeading = screen.getByRole('heading', {
@@ -49,19 +53,32 @@ describe('WaitlistDeveloperBenefitDialog', () => {
     expect(screen.getByTestId('benefit-confetti').children.length).toBeGreaterThanOrEqual(24)
     expect(screen.getByTestId('modal-footer')).toHaveClass('bg-[var(--cv-bg-subtle)]')
 
+    const acceptButton = screen.getByRole('button', { name: 'Enjoy Palladin' })
+    await waitFor(() => expect(acceptButton).toHaveFocus())
+    await user.tab()
+    expect(acceptButton).toHaveFocus()
     await user.keyboard('{Escape}')
     expect(screen.getByRole('dialog', { name: 'Congratulations!' })).toBeInTheDocument()
 
     firstRender.unmount()
     const beforeAcceptance = render(<WaitlistDeveloperBenefitDialog />)
-    expect(screen.getByRole('dialog', { name: 'Congratulations!' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Congratulations!' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Enjoy Palladin' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(previouslyFocused).toHaveFocus()
+    const acknowledgement = window.sessionStorage.getItem(
+      'palladin:waitlist-developer-benefit-dialog-accepted',
+    )
+    expect(acknowledgement).toMatch(/^v1\./)
+    expect(acknowledgement).not.toContain('2020')
+    expect(acknowledgement).not.toContain('2099')
 
     beforeAcceptance.unmount()
     const secondRender = render(<WaitlistDeveloperBenefitDialog />)
+    await act(async () => { await Promise.resolve() })
     expect(secondRender.container).toBeEmptyDOMElement()
+    previouslyFocused.remove()
   })
 
   it('renders nothing without a complete active period', () => {

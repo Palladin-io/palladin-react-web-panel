@@ -299,4 +299,25 @@ describe('auth-store', () => {
     expect(useAuthStore.getState().waitlistDeveloperBenefitStartedAt).toBeNull()
     expect(useAuthStore.getState().waitlistDeveloperBenefitEndsAt).toBeNull()
   })
+
+  it('can apply the verified active benefit without replacing session tokens', () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-123',
+      refreshToken: 'refresh-456',
+      userId: 'user-789',
+      isOnboarded: true,
+    })
+
+    useAuthStore.getState().setWaitlistDeveloperBenefit(
+      '2026-08-25T12:00:00Z',
+      '2099-09-25T12:00:00Z',
+    )
+
+    expect(useAuthStore.getState()).toMatchObject({
+      accessToken: 'access-123',
+      refreshToken: 'refresh-456',
+      waitlistDeveloperBenefitStartedAt: '2026-08-25T12:00:00Z',
+      waitlistDeveloperBenefitEndsAt: '2099-09-25T12:00:00Z',
+    })
+  })
 })
