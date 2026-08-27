@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { api } from "../../../shared/api/client";
 import type { buildCanonicalGrantEnvelope } from "../../../shared/crypto/grant-protocol";
+import type { AgentWrappedVaultKeyContract } from "../../../shared/crypto/x25519-wrapper";
 import { encryptedReasonEnvelopeSchema } from "../../vaults/sync/entry-envelope-schema";
 
 /**
  * Grant lifecycle status — camelCase strings matching the backend
- * JsonStringEnumConverter (PENDING / ACTIVE / EXPIRED / REVOKED / CONSUMED / DENIED).
+ * JsonStringEnumConverter
+ * (PENDING / ACTIVE / EXPIRED / REVOKED / CONSUMED / DENIED / SUPERSEDED).
  */
 export const GRANT_STATUS_PENDING = "pending" as const;
 export const GRANT_STATUS_ACTIVE = "active" as const;
@@ -13,6 +15,7 @@ export const GRANT_STATUS_EXPIRED = "expired" as const;
 export const GRANT_STATUS_REVOKED = "revoked" as const;
 export const GRANT_STATUS_CONSUMED = "consumed" as const;
 export const GRANT_STATUS_DENIED = "denied" as const;
+export const GRANT_STATUS_SUPERSEDED = "superseded" as const;
 
 export const GRANT_STATUSES = [
   GRANT_STATUS_PENDING,
@@ -21,6 +24,7 @@ export const GRANT_STATUSES = [
   GRANT_STATUS_REVOKED,
   GRANT_STATUS_CONSUMED,
   GRANT_STATUS_DENIED,
+  GRANT_STATUS_SUPERSEDED,
 ] as const;
 
 export type GrantStatus = (typeof GRANT_STATUSES)[number];
@@ -41,6 +45,7 @@ const orgGrantSchema = z.object({
   vaultId: z.string(),
   vaultName: z.string().nullable().optional(),
   agentId: z.string().nullable().optional(),
+  agentAccessEpoch: z.number().int().positive().max(0xffffffff).nullable().optional(),
   agentName: z.string().nullable().optional(),
   // Agent's chosen icon — a Material glyph name or an uploaded S3 URL. Lets the
   // panel render the agent's real avatar instead of a generic robot. Optional
@@ -64,7 +69,7 @@ const orgGrantSchema = z.object({
     .nullable()
     .optional(),
   agentSigningKeyFingerprint: z.string().nullable().optional(),
-  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]).nullable().optional(),
+  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]),
   status: z.enum(GRANT_STATUSES),
   // Combined-flags string of permitted methods, e.g. "get, exec". Optional for
   // pre-methods backends; the badge is hidden when absent/empty.
@@ -99,6 +104,8 @@ const orgGrantSchema = z.object({
   createdByName: z.string().nullable().optional(),
   revokedBy: z.string().uuid().nullable().optional(),
   revokedByName: z.string().nullable().optional(),
+  supersededAt: z.string().nullable().optional(),
+  supersededByGrantId: z.string().uuid().nullable().optional(),
   deniedBy: z.string().uuid().nullable().optional(),
   deniedByName: z.string().nullable().optional(),
   revokeReason: z.string().nullable().optional(),
@@ -172,61 +179,6 @@ export async function getOrgGrants(
 }
 
 /** A vault's active FULL grant, reduced to what a re-wrap needs. */
-export interface ActiveFullGrant {
-  grantId: string;
-  agentId: string;
-  agentPublicKey: string;
-  recipientAgentKeyVersion: number;
-  methods: string;
-  expiresAt?: string;
-  remainingUses?: number;
-}
-
-/**
- * Collect every ACTIVE FULL grant on a vault, paginating the org-grants list.
- * Rows without an agent public key are dropped — the client cannot seal a DEK
- * without it. Used by the Import Wizard to re-wrap each new entry for the agents
- * that already hold vault-wide access (the backend requires exactly these).
- */
-export async function collectActiveFullGrants(
-  vaultId: string,
-): Promise<ActiveFullGrant[]> {
-  const grants: ActiveFullGrant[] = [];
-  let cursor: string | undefined;
-  do {
-    const page = await getOrgGrants({
-      vaultId,
-      status: GRANT_STATUS_ACTIVE,
-      cursor,
-      // Backend caps cursor pagination at 100 per page.
-      pageSize: 100,
-    });
-    for (const grant of page.items) {
-      if (
-        grant.type === GRANT_TYPE_FULL &&
-        grant.agentId &&
-        grant.agentPublicKey &&
-        grant.recipientAgentKeyVersion &&
-        grant.methods
-      ) {
-        grants.push({
-          grantId: grant.id,
-          agentId: grant.agentId,
-          agentPublicKey: grant.agentPublicKey,
-          recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
-          methods: grant.methods,
-          ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
-          ...(grant.queryLimit !== null && grant.queryLimit !== undefined
-            ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }
-            : {}),
-        });
-      }
-    }
-    cursor = page.nextCursor ?? undefined;
-  } while (cursor);
-  return grants;
-}
-
 /** Revoke an active grant (optional reason, max 500 chars). */
 export async function revokeGrant(
   vaultId: string,
@@ -240,31 +192,41 @@ export async function revokeGrant(
 }
 
 /**
- * Proactively create a new grant. The caller produces the envelope(s)
- * client-side; exactly one of `expiresAt` / `queryLimit` is set, or neither for
- * a lifetime grant.
- *
- * - GRANULAR: `entryId` set + a single-element `grantEntries`.
- * - FULL: legacy bounded one-shot contract. Interactive web creation uses the
- *   staged full-grant preparation API so Vault size never determines one body.
+ * The create API intentionally exposes two contracts and two routes: one Entry
+ * envelope cannot be confused with a Vault-key wrapper at either compile time
+ * or the HTTP boundary.
  */
-export interface CreateGrantBody {
+interface CreateGrantPolicyBody {
   grantId: string;
   agentId: string;
-  type: GrantType;
-  entryId?: string;
-  grantEntries: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>[];
   expiresAt?: string;
   queryLimit?: number;
-  /** Combined-flags string of permitted methods, e.g. "Exec, Inject". */
   methods?: string;
 }
 
-export async function createGrantProactively(
+export interface CreateGranularGrantBody extends CreateGrantPolicyBody {
+  grantEntry: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>;
+}
+
+export interface CreateFullGrantBody extends CreateGrantPolicyBody {
+  agentWrappedVaultKey: AgentWrappedVaultKeyContract;
+}
+
+export async function createGranularGrant(
   vaultId: string,
-  body: CreateGrantBody,
+  entryId: string,
+  body: CreateGranularGrantBody,
 ): Promise<{ id: string }> {
   return api
-    .post(`api/vaults/${vaultId}/grants`, { json: body })
+    .post(`api/vaults/${vaultId}/entries/${entryId}/grants`, { json: body })
+    .json<{ id: string }>();
+}
+
+export async function createFullGrant(
+  vaultId: string,
+  body: CreateFullGrantBody,
+): Promise<{ id: string }> {
+  return api
+    .post(`api/vaults/${vaultId}/full-grants`, { json: body })
     .json<{ id: string }>();
 }

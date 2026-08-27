@@ -17,6 +17,7 @@ export const AUDIT_EVENT_TYPES = [
   'grant.revoked',
   'grant.consumed',
   'grant.expired',
+  'grant.superseded',
   'agent.enrolled',
   'agent.blocked',
   'agent.reactivated',

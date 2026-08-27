@@ -1,10 +1,15 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
+import {
+  GRANT_TYPE_FULL,
+  GRANT_TYPE_GRANULAR,
+  type GrantType,
+} from './org-grants-api'
 
 /**
  * Grant lifecycle status — camelCase strings matching the backend
  * JsonStringEnumConverter. Mirrors the `Status` enum on the Grant entity:
- * PENDING / ACTIVE / EXPIRED / REVOKED / CONSUMED / DENIED.
+ * PENDING / ACTIVE / EXPIRED / REVOKED / CONSUMED / DENIED / SUPERSEDED.
  */
 export const GRANT_STATUS_PENDING = 'pending' as const
 export const GRANT_STATUS_ACTIVE = 'active' as const
@@ -12,6 +17,7 @@ export const GRANT_STATUS_EXPIRED = 'expired' as const
 export const GRANT_STATUS_REVOKED = 'revoked' as const
 export const GRANT_STATUS_CONSUMED = 'consumed' as const
 export const GRANT_STATUS_DENIED = 'denied' as const
+export const GRANT_STATUS_SUPERSEDED = 'superseded' as const
 
 export const GRANT_STATUSES = [
   GRANT_STATUS_PENDING,
@@ -20,14 +26,10 @@ export const GRANT_STATUSES = [
   GRANT_STATUS_REVOKED,
   GRANT_STATUS_CONSUMED,
   GRANT_STATUS_DENIED,
+  GRANT_STATUS_SUPERSEDED,
 ] as const
 
 export type GrantStatus = (typeof GRANT_STATUSES)[number]
-
-/** Grant mode — FULL (whole vault) or GRANULAR (single entry). */
-export const GRANT_MODE_FULL = 'full' as const
-export const GRANT_MODE_GRANULAR = 'granular' as const
-export type GrantMode = typeof GRANT_MODE_FULL | typeof GRANT_MODE_GRANULAR
 
 /**
  * A grant as returned by the management list/detail endpoints.
@@ -46,8 +48,7 @@ const grantSchema = z.object({
   entryId: z.string().nullable(),
   entryLabel: z.string().nullable().optional(),
   status: z.enum(GRANT_STATUSES),
-  mode: z.enum([GRANT_MODE_FULL, GRANT_MODE_GRANULAR]).optional(),
-  type: z.enum([GRANT_MODE_FULL, GRANT_MODE_GRANULAR]).optional(),
+  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]),
   // Combined-flags string of permitted methods, e.g. "get, exec". Optional for
   // pre-methods backends; the detail row is hidden when absent/empty.
   methods: z.string().nullable().optional(),
@@ -58,22 +59,21 @@ const grantSchema = z.object({
   createdByName: z.string().nullable(),
   revokedAt: z.string().nullable(),
   revokedByName: z.string().nullable(),
+  supersededAt: z.string().nullable().optional(),
+  supersededByGrantId: z.string().uuid().nullable().optional(),
   reason: z.string().nullable().optional(),
   revokeReason: z.string().nullable().optional(),
 }).superRefine((grant, context) => {
   if (!grant.grantId && !grant.id) {
     context.addIssue({ code: 'custom', message: 'Grant id is required' })
   }
-  if (!grant.mode && !grant.type) {
-    context.addIssue({ code: 'custom', message: 'Grant mode is required' })
-  }
-}).transform(({ id, type, ...grant }) => ({
+}).transform(({ id, ...grant }) => ({
   ...grant,
   grantId: grant.grantId ?? id!,
-  mode: grant.mode ?? type!,
 }))
 
 export type Grant = z.infer<typeof grantSchema>
+export type { GrantType }
 
 /** Cursor-paginated list envelope — items are parsed per-row below. */
 const grantPageEnvelopeSchema = z.object({

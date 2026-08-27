@@ -47,6 +47,7 @@ const PANEL_STATUSES: GrantStatus[] = [
   'consumed',
   'denied',
   'revoked',
+  'superseded',
 ]
 
 /**
@@ -104,20 +105,24 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
     agentId ? { agentId } : vaultId ? { vaultId } : entryId ? { entryId } : {},
     canManage,
   )
-  // Entry labels are encrypted vault metadata and therefore intentionally do
-  // not come from the backend grant projection. Resolve them from the
-  // in-memory member sync store when the vault is unlocked; keep the server
-  // value as a fallback for older/public projections.
+  // Vault names and Entry labels are encrypted vault metadata and therefore
+  // intentionally do not come from the backend grant projection. Resolve them
+  // from the in-memory member sync store when the Vault is unlocked; keep any
+  // server value as a fallback for older/public projections.
   const memberVaults = useMemberSyncStore((state) => state.vaults)
   const items = useMemo(
     () =>
       (grants.data?.items ?? [])
         .filter((g) => g.status !== GRANT_STATUS_PENDING)
         .map((grant) => {
-          if (grant.entryLabel || !grant.entryId) return grant
-          const entry = memberVaults.get(grant.vaultId)?.entries.get(grant.entryId)
-          const entryLabel = !entry?.corrupt ? entry?.payload?.memberLabel ?? null : null
-          return entryLabel ? { ...grant, entryLabel } : grant
+          const memberVault = memberVaults.get(grant.vaultId)
+          const vaultName = memberVault?.metadata?.name ?? grant.vaultName ?? null
+          const entry = grant.entryId ? memberVault?.entries.get(grant.entryId) : undefined
+          const entryLabel = grant.entryLabel
+            ?? (!entry?.corrupt ? entry?.payload?.memberLabel ?? null : null)
+          return vaultName !== grant.vaultName || entryLabel !== grant.entryLabel
+            ? { ...grant, vaultName, entryLabel }
+            : grant
         }),
     [grants.data, memberVaults],
   )
@@ -162,17 +167,17 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
 
     let agentPublicKey: string | null | undefined
     let recipientAgentKeyVersion: number | null | undefined
-    if (grant.type !== GRANT_TYPE_FULL) {
-      setIsResolvingRegrantRecipient(true)
-      try {
-        const agent = await getAgent(grant.agentId)
-        agentPublicKey = agent.publicKey
-        recipientAgentKeyVersion = agent.recipientKeyVersion
-      } catch {
-        setIsResolvingRegrantRecipient(false)
-        toast.error(t('grants.regrant.error'))
-        return
-      }
+    let agentAccessEpoch: number | null | undefined
+    setIsResolvingRegrantRecipient(true)
+    try {
+      const agent = await getAgent(grant.agentId)
+      agentPublicKey = agent.publicKey
+      recipientAgentKeyVersion = agent.recipientKeyVersion
+      agentAccessEpoch = agent.accessEpoch
+    } catch {
+      setIsResolvingRegrantRecipient(false)
+      toast.error(t('grants.regrant.error'))
+      return
     }
 
     regrant.mutate(
@@ -182,6 +187,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
         entryId: grant.entryId ?? undefined,
         agentPublicKey,
         recipientAgentKeyVersion,
+        agentAccessEpoch,
         type: grant.type,
         policy,
         methods: parseGrantMethods(grant.methods),
@@ -600,6 +606,9 @@ function contextualReason(
   if (grant.status === 'revoked' && grant.revokeReason) {
     return { label: t('grants.org.rowRevokeReason'), text: grant.revokeReason }
   }
+  if (grant.status === 'superseded') {
+    return { label: t('grants.org.rowReason'), text: t('grants.org.supersededReason') }
+  }
   return { label: t('grants.org.rowReason'), text: accessReason ?? grant.reason ?? '—' }
 }
 
@@ -607,7 +616,7 @@ function summarise(items: OrgGrant[]): string | null {
   if (items.length === 0) return null
   const counts: Partial<Record<GrantStatus, number>> = {}
   for (const g of items) counts[g.status] = (counts[g.status] ?? 0) + 1
-  const order: GrantStatus[] = ['active', 'expired', 'consumed', 'denied', 'revoked']
+  const order: GrantStatus[] = ['active', 'expired', 'consumed', 'denied', 'revoked', 'superseded']
   return order
     .filter((s) => counts[s])
     .map((s) => `${counts[s]} ${s}`)

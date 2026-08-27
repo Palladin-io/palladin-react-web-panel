@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
@@ -63,13 +63,11 @@ function targetReadiness(
   entryId?: string,
   vaults = useMemberSyncStore.getState().vaults,
 ): Pick<ResolvedSubject, 'constraintsUnavailable'> {
+  if (!entryId) return {}
   const vault = vaults.get(vaultId)
   if (!vault || vault.status !== 'ready') return { constraintsUnavailable: true }
-  const entries = entryId
-    ? [vault.entries.get(entryId)]
-    : [...vault.entries.values()].filter((entry) => entry.state === 'active')
-  if ((entryId && entries.length === 0)
-    || entries.some((entry) => !entry || entry.corrupt || !entry.payload)) {
+  const entry = vault.entries.get(entryId)
+  if (!entry || entry.corrupt || !entry.payload) {
     return { constraintsUnavailable: true }
   }
   return {}
@@ -81,8 +79,8 @@ function targetReadiness(
  * every mode; the swappable "subject" segment picks the agent / vault / entry
  * with backend-driven eligibility (agents/vaults/entries already covered by an
  * active grant are excluded). On confirm it delegates envelope production to
- * `useCreateGrant`; staged FULL grants resolve authoritative recipient key
- * material from their backend preparation.
+ * `useCreateGrant`; FULL grants resolve authoritative recipient key material
+ * immediately before sealing the current Vault key.
  */
 export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
   const { t } = useTranslation()
@@ -106,6 +104,12 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
     ...subject,
     ...targetReadiness(subject.vaultId, subject.entryId, syncedVaults),
   })
+  const fullVaultId = currentSubject?.type === GRANT_TYPE_FULL
+    ? currentSubject.vaultId
+    : mode.kind === 'agent-for-vault'
+      ? mode.vaultId
+      : null
+  const fullVault = fullVaultId ? syncedVaults.get(fullVaultId) : undefined
   const effectiveMethods: GrantMethod[] = methods
 
   function resetPolicyError() {
@@ -131,15 +135,15 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
 
     let agentPublicKey: string | null | undefined
     let recipientAgentKeyVersion: number | null | undefined
-    if (currentSubject.type !== GRANT_TYPE_FULL) {
-      try {
-        const agent = await getAgent(currentSubject.agentId)
-        agentPublicKey = agent.publicKey
-        recipientAgentKeyVersion = agent.recipientKeyVersion
-      } catch {
-        toast.error(t('grants.create.error'))
-        return
-      }
+    let agentAccessEpoch: number | null | undefined
+    try {
+      const agent = await getAgent(currentSubject.agentId)
+      agentPublicKey = agent.publicKey
+      recipientAgentKeyVersion = agent.recipientKeyVersion
+      agentAccessEpoch = agent.accessEpoch
+    } catch {
+      toast.error(t('grants.create.error'))
+      return
     }
 
     createGrant.mutate(
@@ -148,6 +152,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         agentId: currentSubject.agentId,
         agentPublicKey,
         recipientAgentKeyVersion,
+        agentAccessEpoch,
         type: currentSubject.type,
         entryId: currentSubject.entryId,
         policy: grantPolicyToBody(policyInput),
@@ -174,15 +179,27 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           <Button variant="subtle" size="sm" onClick={onClose} disabled={createGrant.isPending} className="flex-1">
             {t('grants.cancel')}
           </Button>
-          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={createGrant.isPending || currentSubject?.constraintsUnavailable} className="flex-[2]">
+          <Button variant="accent" size="sm" onClick={handleConfirm} disabled={createGrant.isPending || currentSubject?.constraintsUnavailable} className="flex-[2]">
             {createGrant.isPending ? t('grants.create.granting') : t('grants.create.confirm')}
           </Button>
         </DialogFooter>
       }
     >
       <div className="flex flex-col gap-4">
-        <p className="text-ui text-[var(--cv-t2)]">
-          {t('grants.create.subtitle')}
+        <p className="text-meta leading-relaxed text-[var(--cv-t2)]">
+          {fullVault?.metadata?.name ? (
+            <Trans
+              i18nKey="grants.create.fullVaultSubtitle"
+              count={fullVault.structure.entryCount}
+              values={{
+                count: fullVault.structure.entryCount,
+                vaultName: fullVault.metadata.name,
+              }}
+              components={{
+                b: <strong className="font-semibold text-[var(--cv-t1)]" />,
+              }}
+            />
+          ) : fullVaultId ? t('grants.create.fullVaultSubtitleFallback') : t('grants.create.subtitle')}
         </p>
 
         {/* Swappable subject segment. Feedback collapses when there is no error. */}

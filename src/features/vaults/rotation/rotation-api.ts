@@ -27,13 +27,24 @@ export const rotationSchema = z.object({
   triggeredAt: z.string(), committedAt: z.string().nullable(), lastFailureCode: z.string().nullable(),
 }).strict()
 const claimSchema = z.object({
-  rotation: rotationSchema, fencingToken: uuid, currentMemberVaultKey: memberVaultKeySchema,
+  organizationId: uuid, rotation: rotationSchema, fencingToken: uuid, currentMemberVaultKey: memberVaultKeySchema,
   currentDiscoveryKey: discoveryKeySchema, currentVaultPrivateKeys: z.array(privateKeySchema).max(2),
   pendingMemberVaultKey: memberVaultKeySchema.nullable(), pendingDiscoveryKey: discoveryKeySchema.nullable(),
   pendingVaultPrivateKeys: z.array(privateKeySchema).max(2), preparedMaterialReset: z.boolean(),
 }).strict()
 const memberSourceSchema = z.object({
   items: z.array(z.object({ memberId: uuid, recipientKeyVersion: u32, recipientKeyFingerprint: z.string(), x25519PublicKey: z.string() }).strict()).max(100),
+  nextAfterId: uuid.nullable(),
+}).strict()
+const fullGrantSourceSchema = z.object({
+  items: z.array(z.object({
+    grantId: uuid,
+    agentId: uuid,
+    agentAccessEpoch: u32,
+    recipientKeyVersion: u32,
+    recipientKeyFingerprint: z.string().min(1),
+    x25519PublicKey: z.string().min(1),
+  }).strict()).max(100),
   nextAfterId: uuid.nullable(),
 }).strict()
 const entryKeySourceSchema = z.object({
@@ -59,6 +70,7 @@ const listVaultsSchema = z.object({ vaults: z.array(vaultSummarySchema), total: 
 export type VaultRotation = z.infer<typeof rotationSchema>
 export type RotationClaim = z.infer<typeof claimSchema>
 export type RotationMemberSource = z.infer<typeof memberSourceSchema>['items'][number]
+export type RotationFullGrantSource = z.infer<typeof fullGrantSourceSchema>['items'][number]
 export type RotationEntryKey = z.infer<typeof vaultEntryKeyEnvelopeSchema>
 export type RotationDiscovery = z.infer<typeof discoverySourceSchema>['items'][number]
 export type RotationAgentSource = z.infer<typeof agentSourceSchema>['items'][number]
@@ -102,6 +114,13 @@ export async function getRotationMembers(vaultId: string, rotationId: string, fe
   return json(response, memberSourceSchema)
 }
 
+export async function getRotationFullGrants(vaultId: string, rotationId: string, fencingToken: string, afterId: string | null, signal: AbortSignal) {
+  const response = await api.get(`api/vaults/${vaultId}/key-rotations/${rotationId}/source/full-grants`, {
+    searchParams: cursorParams(fencingToken, afterId), signal, throwHttpErrors: false,
+  })
+  return json(response, fullGrantSourceSchema)
+}
+
 export async function getRotationEntryKeys(vaultId: string, rotationId: string, fencingToken: string, afterId: string | null, afterVersion: number | null, signal: AbortSignal) {
   const response = await api.get(`api/vaults/${vaultId}/key-rotations/${rotationId}/source/entry-keys`, {
     searchParams: cursorParams(fencingToken, afterId, afterVersion), signal, throwHttpErrors: false,
@@ -138,6 +157,7 @@ export async function getVaultMetadata(vaultId: string, signal: AbortSignal) {
 export interface RotationBatch {
   memberVaultMetadata?: unknown
   memberVaultKeys?: unknown[]
+  agentWrappedVaultKeys?: unknown[]
   entryKeys?: unknown[]
   entryDiscoveries?: unknown[]
   agentDiscoveries?: unknown[]
@@ -147,7 +167,7 @@ export interface RotationBatch {
 
 export async function prepareRotationBatch(vaultId: string, rotationId: string, fencingToken: string, batch: RotationBatch, signal: AbortSignal) {
   const response = await api.put(`api/vaults/${vaultId}/key-rotations/${rotationId}/batch`, {
-    json: { vaultId, rotationId, fencingToken, memberVaultKeys: [], entryKeys: [], entryDiscoveries: [], agentDiscoveries: [], vaultPrivateKeys: [], ...batch },
+    json: { vaultId, rotationId, fencingToken, memberVaultKeys: [], agentWrappedVaultKeys: [], entryKeys: [], entryDiscoveries: [], agentDiscoveries: [], vaultPrivateKeys: [], ...batch },
     signal, throwHttpErrors: false,
   })
   return json(response, z.object({ acceptedItems: z.number().int().nonnegative(), totalPreparedItems: z.number().int().nonnegative() }).strict())

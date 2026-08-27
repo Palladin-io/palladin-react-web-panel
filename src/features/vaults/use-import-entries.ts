@@ -2,16 +2,20 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
 import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { defaultAgentVisibilityPolicy, toMemberSecret, type EntryDraft } from '../../shared/crypto/entry-draft'
-import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
+import {
+  buildCanonicalGrantEnvelope,
+  GRANT_DELIVERY_POLICY,
+  GRANT_DELIVERY_POLICY_NAME,
+  listGrantableFields,
+} from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { projectAgentDiscovery, publicAssetIconReference } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
 import {
-  collectActiveFullGrants,
   getOrgGrants,
   GRANT_STATUS_ACTIVE,
-  GRANT_TYPE_FULL,
+  GRANT_TYPE_GRANULAR,
   type OrgGrant,
 } from '../grants'
 import { grantMethodsMask, parseGrantMethods } from '../grants/grant-methods'
@@ -46,7 +50,7 @@ import { extractDomain } from './components/entry-presentation'
 const IMPORT_CHUNK_SIZE = 50
 
 /** Which phase of the import failed — surfaced so a failure is attributable. */
-export type ImportStep = 'grants' | 'loadVault' | 'openVaultKey' | 'challenge' | 'encrypt' | 'save' | 'overwrite'
+export type ImportStep = 'loadVault' | 'openVaultKey' | 'challenge' | 'encrypt' | 'save' | 'overwrite'
 
 /**
  * Wraps the underlying error with the phase it happened in, so the UI can show a
@@ -152,7 +156,8 @@ async function activeCoveringGrants(vaultId: string, entryId: string): Promise<O
   let cursor: string | undefined
   do {
     const page = await getOrgGrants({ vaultId, status: GRANT_STATUS_ACTIVE, cursor, pageSize: 100 })
-    grants.push(...page.items.filter((grant) => grant.type === GRANT_TYPE_FULL || grant.entryId === entryId))
+    grants.push(...page.items.filter((grant) =>
+      grant.type === GRANT_TYPE_GRANULAR && grant.entryId === entryId))
     cursor = page.nextCursor ?? undefined
   } while (cursor)
   return grants
@@ -180,13 +185,6 @@ export function useImportEntries() {
       }
       const total = input.creates.length + input.overwrites.length
 
-      // Fetch active FULL grants once before opening keys. An empty list is valid.
-      let fullGrants
-      try {
-        fullGrants = await collectActiveFullGrants(input.vaultId)
-      } catch (error) {
-        throw new ImportStepError('grants', error)
-      }
       let vault: Awaited<ReturnType<typeof getEncryptedVault>>
       try {
         vault = await getEncryptedVault(input.vaultId)
@@ -282,25 +280,11 @@ export function useImportEntries() {
                 vdkVersion: vault.currentKeyEpoch.vdkVersion,
                 memberKeyGeneration: vault.memberKeyGeneration,
               }, memberSecret, vaultKey, discoveryKey, 1)
-              const grantEnvelopes = []
-              for (const grant of fullGrants) {
-                const methods = parseGrantMethods(grant.methods)
-                if (methods.length === 0) throw new Error('Active FULL grant method context is invalid')
-                grantEnvelopes.push(await buildCanonicalGrantEnvelope({
-                  secret: memberSecret,
-                  agentPublicKey: grant.agentPublicKey,
-                  approvedFieldIds: listGrantableFields(memberSecret).map((field) => field.id),
-                  organizationId, vaultId: vault.id, grantId: grant.grantId,
-                  agentId: grant.agentId, entryId, entryRevision: '1',
-                  grantEnvelopeRevision: '1', grantKeyVersion: 1,
-                  memberKeyGeneration: vault.memberKeyGeneration,
-                  recipientKeyVersion: grant.recipientAgentKeyVersion,
-                  approvedMethods: grantMethodsMask(methods),
-                  ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
-                  ...(grant.remainingUses !== undefined ? { remainingUses: grant.remainingUses } : {}),
-                }))
-              }
-              encryptedChunk.push({ entryId, ...material, grantEnvelopes })
+              encryptedChunk.push({
+                entryId,
+                ...material,
+                deliveryPolicy: GRANT_DELIVERY_POLICY_NAME.standard,
+              })
               labelsByEntryId.set(entryId, entry.label)
               input.onProgress?.(++encryptedCount, input.creates.length, 'encrypt')
             }
@@ -351,15 +335,17 @@ export function useImportEntries() {
               memberIndex: envelopes.memberIndex,
               agentDiscoveryChanged,
               ...(agentDiscoveryChanged && envelopes.agentDiscovery ? { agentDiscovery: envelopes.agentDiscovery } : {}),
+              deliveryPolicy: detail.deliveryPolicy,
               grantEnvelopes: [] as Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>[],
             }
+            const grantable = new Set(listGrantableFields(nextSecret).map((field) => field.id))
             for (const grant of grants) {
               const scope = grant.entryScopes.find((candidate) => candidate.entryId === entryId)
               const methods = parseGrantMethods(grant.methods)
               if (!scope?.grantEnvelopeRevision || !scope.grantKeyVersion || !scope.fieldIds.length
                 || !grant.agentId || !grant.agentPublicKey || !grant.recipientAgentKeyVersion
                 || methods.length === 0) throw new Error('Active grant refresh context is invalid')
-              const approvedFieldIds = listGrantableFields(nextSecret).map((field) => field.id)
+              const approvedFieldIds = scope.fieldIds.filter((fieldId) => grantable.has(fieldId))
               if (approvedFieldIds.length === 0) throw new Error('Active grant has no permitted fields')
               material.grantEnvelopes.push(await buildCanonicalGrantEnvelope({
                 secret: nextSecret,
@@ -373,6 +359,7 @@ export function useImportEntries() {
                 memberKeyGeneration: vault.memberKeyGeneration,
                 recipientKeyVersion: grant.recipientAgentKeyVersion,
                 approvedMethods: grantMethodsMask(methods),
+                deliveryPolicy: GRANT_DELIVERY_POLICY[detail.deliveryPolicy],
                 ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
                 ...(grant.queryLimit !== null && grant.queryLimit !== undefined
                   ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }
