@@ -27,7 +27,7 @@ export const rotationSchema = z.object({
   triggeredAt: z.string(), committedAt: z.string().nullable(), lastFailureCode: z.string().nullable(),
 }).strict()
 const claimSchema = z.object({
-  rotation: rotationSchema, fencingToken: uuid, currentMemberVaultKey: memberVaultKeySchema,
+  organizationId: uuid, rotation: rotationSchema, fencingToken: uuid, currentMemberVaultKey: memberVaultKeySchema,
   currentDiscoveryKey: discoveryKeySchema, currentVaultPrivateKeys: z.array(privateKeySchema).max(2),
   pendingMemberVaultKey: memberVaultKeySchema.nullable(), pendingDiscoveryKey: discoveryKeySchema.nullable(),
   pendingVaultPrivateKeys: z.array(privateKeySchema).max(2), preparedMaterialReset: z.boolean(),
