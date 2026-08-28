@@ -3,6 +3,7 @@ import { fromBase64Url, toBase64, toBase64Url } from './encoding'
 import { loadSodium, wipe } from './sodium'
 import {
   buildAgentWrappedVaultKey,
+  AGENT_WRAPPED_VAULT_KEY_SIGNATURE_DOMAIN,
   computeVaultKeyFingerprint,
   openKeyFromX25519Recipient,
   type X25519WrapperContext,
@@ -10,6 +11,7 @@ import {
   wrapperContextFromMemberVaultKey,
   X25519_SEALED_BOX_V1,
 } from './x25519-wrapper'
+import { verifyVaultSignature, type CanonicalJson } from './vault-v2-signatures'
 
 describe('Member Vault-key wrapper context', () => {
   it('uses the frozen vkVersion rule and domain-separated Member fingerprint', async () => {
@@ -54,6 +56,7 @@ describe('Member Vault-key wrapper context', () => {
   it('wraps the whole VK to one Agent and binds grant plus access epoch', async () => {
     const sodium = await loadSodium()
     const agent = sodium.crypto_box_keypair()
+    const signer = sodium.crypto_sign_keypair()
     const vaultKey = new Uint8Array(32).fill(0x5a)
     try {
       const envelope = await buildAgentWrappedVaultKey({
@@ -66,6 +69,8 @@ describe('Member Vault-key wrapper context', () => {
         vaultKeyVersion: 3,
         recipientAgentKeyVersion: 4,
         agentPublicKey: toBase64(agent.publicKey),
+        vaultSigningKeyVersion: 5,
+        vaultSigningPrivateKey: signer.privateKey,
       })
       const descriptor = envelope.wrappedVaultKey.descriptor
       expect(descriptor).toMatchObject({
@@ -78,6 +83,14 @@ describe('Member Vault-key wrapper context', () => {
           agentId: 'cccccccc-dddd-4eee-8fff-000000000000',
         },
       })
+      expect(envelope.vaultSigningKeyVersion).toBe(5)
+      const { producerSignature, ...unsigned } = envelope
+      expect(await verifyVaultSignature(
+        AGENT_WRAPPED_VAULT_KEY_SIGNATURE_DOMAIN,
+        unsigned as unknown as CanonicalJson,
+        producerSignature,
+        signer.publicKey,
+      )).toBe(true)
       const opened = await openKeyFromX25519Recipient(
         fromBase64Url(envelope.wrappedVaultKey.encodedSealedKeyPackage),
         agent.publicKey,
@@ -103,6 +116,8 @@ describe('Member Vault-key wrapper context', () => {
       wipe(vaultKey)
       wipe(agent.privateKey)
       wipe(agent.publicKey)
+      wipe(signer.privateKey)
+      wipe(signer.publicKey)
     }
   })
 })

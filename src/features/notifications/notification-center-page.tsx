@@ -227,7 +227,6 @@ export function NotificationCenterPage({
         onSuccess: () => {
           toast.success(t("grants.deny.success"));
           setDenyTarget(null);
-          refreshFeed();
         },
         onError: () => toast.error(t("grants.deny.error")),
       },
@@ -261,6 +260,7 @@ export function NotificationCenterPage({
       {
         grantId: approveTarget.id,
         agentId: approveTarget.agentId,
+        type: approveTarget.type,
         vaultId: approveTarget.vaultId,
         entryId: approveTarget.entryId,
         policy,
@@ -273,7 +273,6 @@ export function NotificationCenterPage({
       {
         onSuccess: () => {
           setApproveTarget(null);
-          refreshFeed();
         },
         onError: (error) =>
           toast.error(

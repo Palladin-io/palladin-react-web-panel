@@ -65,6 +65,17 @@ describe('Vault plaintext v1', () => {
     })
   })
 
+  it('omits an allowed Discovery field when its value is absent', () => {
+    const withoutUrl = {
+      ...secret,
+      content: { ...secret.content, url: null, urlDomain: null },
+    }
+
+    expect(projectAgentDiscovery(withoutUrl)?.fields).toEqual([
+      { id: 'credential.username', value: 'member@example.com' },
+    ])
+  })
+
   it('builds a sorted least-privilege GrantPayload and rejects Discovery fields', () => {
     const payload = projectGrantPayload(secret, ['credential.totp', 'credential.password'])
     expect(payload).toEqual({
@@ -162,7 +173,7 @@ describe('Vault plaintext v1', () => {
       },
     }
 
-    expect(projectAgentDiscovery(card)).toMatchObject({ capabilities: ['get', 'exec', 'inject'], fields: [] })
+    expect(projectAgentDiscovery(card)).toMatchObject({ capabilities: ['inject'], fields: [] })
     expect(projectGrantPayload(card, ['creditCard.cardNumber']).fields[0]).toMatchObject({ mode: 'runtime' })
     expect(() => encodeMemberSecret({
       ...card,

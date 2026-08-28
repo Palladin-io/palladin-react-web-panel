@@ -1,5 +1,8 @@
 import { loadSodium, wipe } from './sodium'
 import { fromBase64, fromBase64Url, toBase64Url } from './encoding'
+import { signVaultObject, type CanonicalJson } from './vault-v2-signatures'
+
+export const AGENT_WRAPPED_VAULT_KEY_SIGNATURE_DOMAIN = 'PLDNV2SIG:AGENT-WRAPPED-VAULT-KEY:'
 
 export const X25519_SEALED_BOX_V1 = 'palladin-x25519-sealed-box-v1'
 
@@ -9,6 +12,7 @@ export const WRAPPER_PURPOSE = {
   reasonDek: 3,
   grantDek: 4,
   agentVaultKey: 5,
+  scriptExecutionDek: 6,
 } as const
 
 export type WrapperPurpose = (typeof WRAPPER_PURPOSE)[keyof typeof WRAPPER_PURPOSE]
@@ -54,6 +58,9 @@ export interface AgentWrappedVaultKeyContract {
     descriptor: X25519WrapperDescriptorContract
     encodedSealedKeyPackage: string
   }
+  vaultSigningKeyVersion: number
+  vaultSigningKeyFingerprint: string
+  producerSignature: string
 }
 
 export interface X25519WrapperDescriptorContract {
@@ -175,6 +182,8 @@ function validateContext(context: X25519WrapperContext): void {
           ? { scope: parentBound, kind: VAULT_KEY_KIND.agentX25519, parent: true, generation: true }
           : context.purpose === WRAPPER_PURPOSE.agentVaultKey
             ? { scope: vault | SCOPE.grantOrRequest | SCOPE.agent, kind: VAULT_KEY_KIND.agentX25519, parent: false, generation: false }
+            : context.purpose === WRAPPER_PURPOSE.scriptExecutionDek
+              ? { scope: parentBound, kind: VAULT_KEY_KIND.agentX25519, parent: true, generation: false }
             : undefined
   if (!expected || presentScopeBitmap(context) !== expected.scope
     || context.recipientKeyKind !== expected.kind
@@ -198,10 +207,15 @@ export async function buildAgentWrappedVaultKey(input: {
   vaultKeyVersion: number
   recipientAgentKeyVersion: number
   agentPublicKey: string
+  vaultSigningKeyVersion: number
+  vaultSigningPrivateKey: Uint8Array
 }): Promise<AgentWrappedVaultKeyContract> {
   const recipientPublicKey = fromBase64(input.agentPublicKey)
   let fingerprint: Uint8Array | undefined
   let sealedPackage: Uint8Array | undefined
+  let signingPublicKey: Uint8Array | undefined
+  let signingPrivateKey: Uint8Array | undefined
+  let signingFingerprint: Uint8Array | undefined
   try {
     fingerprint = await computeVaultKeyFingerprint(recipientPublicKey, VAULT_KEY_KIND.agentX25519)
     const context: X25519WrapperContext = {
@@ -219,7 +233,33 @@ export async function buildAgentWrappedVaultKey(input: {
       recipientFingerprint: fingerprint,
     }
     sealedPackage = await sealKeyToX25519Recipient(input.vaultKey, recipientPublicKey, context)
-    return {
+    const sodium = await loadSodium()
+    if (input.vaultSigningPrivateKey.length !== 32 && input.vaultSigningPrivateKey.length !== 64) {
+      throw new RangeError('Vault signing private key must be a 32-byte seed or 64-byte Ed25519 key')
+    }
+    const seed = new Uint8Array(input.vaultSigningPrivateKey.subarray(0, 32))
+    try {
+      const pair = sodium.crypto_sign_seed_keypair(seed)
+      if (input.vaultSigningPrivateKey.length === 64
+        && !sodium.memcmp(pair.privateKey, input.vaultSigningPrivateKey)) {
+        wipe(pair.publicKey)
+        wipe(pair.privateKey)
+        throw new Error('Vault signing private key is not canonical')
+      }
+      signingPublicKey = new Uint8Array(pair.publicKey)
+      signingPrivateKey = new Uint8Array(pair.privateKey)
+      wipe(pair.publicKey)
+      wipe(pair.privateKey)
+    } finally {
+      wipe(seed)
+    }
+    signingFingerprint = await computeVaultKeyFingerprint(
+      signingPublicKey,
+      VAULT_KEY_KIND.vaultSigningEd25519,
+    )
+    const unsigned = {
+      vaultSigningKeyFingerprint: toBase64Url(signingFingerprint),
+      vaultSigningKeyVersion: input.vaultSigningKeyVersion,
       wrappedVaultKey: {
         descriptor: {
           protocolVersion: 2,
@@ -244,10 +284,19 @@ export async function buildAgentWrappedVaultKey(input: {
         encodedSealedKeyPackage: toBase64Url(sealedPackage),
       },
     }
+    const producerSignature = await signVaultObject(
+      AGENT_WRAPPED_VAULT_KEY_SIGNATURE_DOMAIN,
+      unsigned as unknown as CanonicalJson,
+      signingPrivateKey,
+    )
+    return { ...unsigned, producerSignature }
   } finally {
     wipe(recipientPublicKey)
     if (fingerprint) wipe(fingerprint)
     if (sealedPackage) wipe(sealedPackage)
+    if (signingPublicKey) wipe(signingPublicKey)
+    if (signingPrivateKey) wipe(signingPrivateKey)
+    if (signingFingerprint) wipe(signingFingerprint)
   }
 }
 

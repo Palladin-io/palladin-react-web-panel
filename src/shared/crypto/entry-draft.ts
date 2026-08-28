@@ -53,7 +53,8 @@ export function allowedAgentFieldAccess(type: EntryType, fieldId: string, custom
 
 export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomField[] = []): AgentVisibilityPolicy {
   const policy: AgentVisibilityPolicy = { discoverable: true, fields: {
-    agentLabel: 'discovery', description: 'never', notes: type === 2 || type === ENTRY_TYPE_CREDIT_CARD ? 'never' : 'onGrantValue',
+    agentLabel: 'discovery', description: type === 2 ? 'discovery' : 'never',
+    notes: type === 2 || type === ENTRY_TYPE_CREDIT_CARD ? 'never' : 'onGrantValue',
   } }
   if (type === ENTRY_TYPE_KEY) policy.fields.value = 'onGrantValue'
   else if (type === ENTRY_TYPE_CREDENTIAL) Object.assign(policy.fields, {
@@ -80,6 +81,7 @@ export const ENTRY_FIELD = {
 const FIELD_ID: Record<string, string> = {
   value: 'key.value', username: 'credential.username', password: 'credential.password',
   url: 'credential.url', urlDomain: 'credential.urlDomain', totp: 'credential.totp',
+  notes: 'notes',
   interpreter: 'script.interpreter', script: 'script.source', refs: 'script.refs',
   cardholderName: 'creditCard.cardholderName', cardNumber: 'creditCard.cardNumber',
   expiryMonth: 'creditCard.expiryMonth', expiryYear: 'creditCard.expiryYear',
@@ -205,6 +207,7 @@ export function fromMemberSecret(secret: MemberSecretV1): MemberSecretView {
     ...common, entryType: 2,
     content: {
       type: 2, script: secret.content.source, interpreter: secret.content.interpreter,
+      ...(secret.content.execution ? { execution: secret.content.execution } : {}),
       refs: secret.content.refs.map((ref) => ({
         env: ref.env, vaultId: ref.vaultId, entryId: ref.entryId,
         field: LEGACY_FIELD_ID[ref.fieldId] ?? ref.fieldId.replace(/^custom:/, ''),
@@ -265,6 +268,7 @@ export function toMemberSecret(input: {
   return {
     ...common, entryType: 'script', content: {
       source: input.payload.script.normalize('NFC'), interpreter: input.payload.interpreter,
+      ...(input.payload.execution ? { execution: input.payload.execution } : {}),
       refs: (input.payload.refs ?? []).map((ref) => ({
         env: ref.env, vaultId: ref.vaultId ?? input.vaultId ?? '', entryId: ref.entryId, fieldId: refFieldId(ref),
       })),

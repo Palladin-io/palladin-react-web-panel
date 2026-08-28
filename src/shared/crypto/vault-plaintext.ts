@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { scriptExecutionMetadataSchema } from './script-execution-metadata'
 
 export const AGENT_FIELD_ACCESS = [
   'never',
@@ -68,6 +69,7 @@ const scriptContent = z.object({
   source: normalizedString,
   interpreter: z.enum(['bash', 'sh', 'node', 'python']),
   refs: z.array(scriptRef),
+  execution: scriptExecutionMetadataSchema.optional(),
   notes: nullableString,
   customFields: z.array(customField),
 }).strict()
@@ -126,13 +128,14 @@ const memberIndexSchema = z.object({
   customIndex: z.array(customIndexItem).max(20),
 }).strict()
 
-const projectedField = z.object({ id: normalizedString, value: jsonValue }).strict()
+const projectedField = z.object({ id: normalizedString, value: normalizedString }).strict()
 const agentDiscoverySchema = z.object({
   schema: z.literal('palladin.agent-discovery.v1'),
   entryType: z.enum(['key', 'credential', 'script', 'creditCard']),
   agentLabel: normalizedString.min(1),
   capabilities: z.array(z.enum(['get', 'exec', 'inject'])),
   fields: z.array(projectedField),
+  execution: scriptExecutionMetadataSchema.optional(),
 }).strict()
 const grantField = z.object({
   id: normalizedString,
@@ -354,22 +357,44 @@ export function projectAgentDiscovery(secret: MemberSecretV1): AgentDiscoveryV1 
   const fields = Object.entries(secret.agentFieldAccess)
     .filter(([id, access]) => access === 'discovery' && id !== 'agentLabel' && id !== 'entryType')
     .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
-    .map(([id]) => ({ id, value: fieldValue(secret, id) }))
+    .flatMap(([id]) => {
+      const value = fieldValue(secret, id)
+      return typeof value === 'string' ? [{ id, value }] : []
+    })
   return agentDiscoverySchema.parse({
     schema: 'palladin.agent-discovery.v1', entryType: secret.entryType, agentLabel: secret.agentLabel,
-    capabilities: ['get', 'exec', 'inject'], fields,
+    capabilities: secret.entryType === 'script'
+      ? ['exec']
+      : secret.entryType === 'creditCard'
+        ? ['inject']
+        : ['get', 'exec', 'inject'],
+    fields,
+    ...(secret.entryType === 'script' && secret.content.execution
+      ? { execution: secret.content.execution }
+      : {}),
   })
 }
 
 export function projectGrantPayload(secret: MemberSecretV1, fieldIds: readonly string[]): GrantPayloadV1 {
+  return projectPayload(secret, fieldIds, false)
+}
+
+/** Exact Script refs may project discovery fields, but only as runtime-only values. */
+export function projectScriptReferencePayload(secret: MemberSecretV1, fieldIds: readonly string[]): GrantPayloadV1 {
+  return projectPayload(secret, fieldIds, true)
+}
+
+function projectPayload(
+  secret: MemberSecretV1,
+  fieldIds: readonly string[],
+  allowDiscoveryRuntime: boolean,
+): GrantPayloadV1 {
   assertPolicy(secret)
   const sorted = [...fieldIds].sort()
   if (new Set(sorted).size !== sorted.length) throw new Error('Grant field IDs must be distinct')
   const fields = sorted.map((id) => {
     const access = secret.agentFieldAccess[id]
-    const mode = access === 'onGrantValue' ? 'value' : access === 'onGrantDerived' ? 'derived' : access === 'onGrantRuntime' ? 'runtime' : undefined
     const value = fieldValue(secret, id)
-    if (!mode || value === undefined) throw new Error(`Field ${id} is not grantable`)
     const custom = id.startsWith('custom:') ? secret.content.customFields.find((field) => field.id === id) : undefined
     const kind = custom
       ? custom.type
@@ -388,6 +413,15 @@ export function projectGrantPayload(secret: MemberSecretV1, fieldIds: readonly s
                   : id === 'script.refs'
                     ? 'refs'
                     : 'text'
+    const mode = access === 'onGrantValue' ? 'value'
+      : access === 'onGrantDerived' ? 'derived'
+        : access === 'onGrantRuntime' ? 'runtime'
+          : allowDiscoveryRuntime && access === 'discovery'
+            ? kind === 'totp' ? 'derived'
+              : secret.entryType === 'script' || secret.entryType === 'creditCard' ? 'runtime'
+                : 'value'
+            : undefined
+    if (!mode || value === undefined) throw new Error(`Field ${id} is not grantable`)
     if (!['text', 'multiline', 'concealed', 'url', 'totp', 'script', 'interpreter', 'refs'].includes(kind)) {
       throw new Error(`Unknown field kind for ${id}`)
     }

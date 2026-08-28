@@ -6,8 +6,14 @@ import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
 import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
+import {
+  NOTIFICATIONS_CACHE_ROOT_KEY,
+  resolvePendingGrantNotification,
+} from '../../shared/lib/pending-grant-notification-reconciliation'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
+import { buildCompleteScriptExecutionPackage } from '../vaults/script-execution-package'
+import { GRANT_TYPE_SCRIPT_EXECUTION, type GrantType } from './api/org-grants-api'
 import { approveGrant, type ApproveGrantBody } from './api/pending-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
 import {
@@ -44,6 +50,7 @@ export interface ApproveGrantInput {
   vaultId: string
   entryId: string | null | undefined
   agentId: string | null | undefined
+  type: GrantType
   policy: GrantPolicyBody
   methods: GrantMethod[]
   fieldIds: string[]
@@ -60,6 +67,7 @@ export function useApproveGrant() {
       vaultId,
       entryId,
       agentId,
+      type,
       policy,
       methods,
       fieldIds,
@@ -87,6 +95,40 @@ export function useApproveGrant() {
       }
       const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
       try {
+        if (type === GRANT_TYPE_SCRIPT_EXECUTION) {
+          if (methods.length !== 1 || methods[0] !== 'exec'
+            || approvedMethods !== 2 || !agent.recipientKeyVersion || !agent.accessEpoch) {
+            throw new MissingGrantMaterialError()
+          }
+          const scriptPackage = await buildCompleteScriptExecutionPackage({
+            organizationId: vault.organizationId,
+            vaultId,
+            scriptEntryId: entryId,
+            agentId,
+            agentAccessEpoch: agent.accessEpoch,
+            grantId,
+            packageRevision: '1',
+            recipientAgentKeyVersion: agent.recipientKeyVersion,
+            agentPublicKey: agent.publicKey,
+            vaultKey,
+          })
+          if (scriptPackage.scriptRevision !== reviewedEntryRevision) {
+            throw new StaleGrantReviewError()
+          }
+          const body: ApproveGrantBody = {
+            scriptPackage,
+            ...policy,
+            methods: serializeGrantMethods(['exec']),
+          }
+          if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
+          const latest = await getCanonicalEntry(vaultId, entryId)
+          if (latest.currentRevision !== reviewedEntryRevision || (latest.state !== 'active' && latest.state !== 1)) {
+            throw new StaleGrantReviewError()
+          }
+          await approveGrant(vaultId, grantId, body)
+          return
+        }
+
         const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
         })
@@ -124,6 +166,13 @@ export function useApproveGrant() {
         wipe(vaultKey)
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY }),
+    onSuccess: (_data, input) => {
+      resolvePendingGrantNotification(queryClient, input.grantId)
+      void queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY })
+      void queryClient.invalidateQueries({
+        queryKey: NOTIFICATIONS_CACHE_ROOT_KEY,
+        refetchType: 'none',
+      })
+    },
   })
 }

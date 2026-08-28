@@ -6,15 +6,26 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // --- mocks ---
 const markNotificationRead = vi.hoisted(() => vi.fn())
 const markAllNotificationsRead = vi.hoisted(() => vi.fn())
+const getNotifications = vi.hoisted(() => vi.fn())
+const getNotificationsSummary = vi.hoisted(() => vi.fn())
 vi.mock('./notifications-api', async (orig) => {
   const actual = await orig<typeof import('./notifications-api')>()
-  return { ...actual, markNotificationRead, markAllNotificationsRead }
+  return {
+    ...actual,
+    getNotifications,
+    getNotificationsSummary,
+    markNotificationRead,
+    markAllNotificationsRead,
+  }
 })
 
 import type { NotificationItem, NotificationsSummary } from './notifications-api'
+import { resolvePendingGrantNotification } from '../../shared/lib/pending-grant-notification-reconciliation'
 import {
   NOTIFICATIONS_SUMMARY_QUERY_KEY,
   notificationsListQueryKey,
+  useNotifications,
+  useNotificationsSummary,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
 } from './notification-queries'
@@ -25,12 +36,78 @@ function makeItem(id: string, readAt: string | null): NotificationItem {
     type: 'grant_pending',
     category: 'actionRequired',
     titleKey: 'k',
-    metadata: {},
+    metadata: { grantId: id === 'n1' ? 'grant-1' : `grant-${id}` },
     occurredAt: '2026-06-17T10:00:00Z',
     readAt,
     actionState: 'pending',
   }
 }
+
+describe('resolvePendingGrantNotification', () => {
+  it('removes the handled action from every feed cache and decrements the pending count once', () => {
+    const client = seededClient()
+    client.setQueryData(notificationsListQueryKey('actionRequired'), {
+      pages: [{ items: [makeItem('n1', null)], nextCursor: null }],
+      pageParams: [undefined],
+    })
+
+    resolvePendingGrantNotification(client, 'grant-1')
+
+    expect(feedItems(client).some((item) => item.id === 'n1')).toBe(false)
+    const actionFeed = client.getQueryData<{ pages: { items: NotificationItem[] }[] }>(
+      notificationsListQueryKey('actionRequired'),
+    )
+    expect(actionFeed?.pages.flatMap((page) => page.items)).toEqual([])
+    expect(
+      client.getQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY)?.pendingActionCount,
+    ).toBe(1)
+  })
+
+  it('keeps a handled pending action hidden across an automatic refetch race', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    resolvePendingGrantNotification(client, 'grant-1')
+    getNotifications.mockResolvedValue({
+      items: [makeItem('n1', null), makeItem('n2', null)],
+      nextCursor: null,
+    })
+    const { result } = renderHook(() => useNotifications(), { wrapper: wrapper(client) })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.pages.flatMap((page) => page.items).map((item) => item.id))
+      .toEqual(['n2'])
+  })
+
+  it('keeps the grant adjustment across an unrelated aggregate-count decrease', async () => {
+    const client = seededClient()
+    resolvePendingGrantNotification(client, 'grant-1')
+    getNotificationsSummary.mockResolvedValueOnce({ unreadCount: 2, pendingActionCount: 2 })
+    const { result } = renderHook(() => useNotificationsSummary(), { wrapper: wrapper(client) })
+
+    await result.current.refetch()
+    expect(result.current.data?.pendingActionCount).toBe(1)
+
+    getNotificationsSummary.mockResolvedValueOnce({ unreadCount: 2, pendingActionCount: 1 })
+    const afterUnrelatedDecrease = await result.current.refetch()
+    expect(afterUnrelatedDecrease.data?.pendingActionCount).toBe(0)
+  })
+
+  it('applies the grant adjustment when the mutation ran before summary loaded', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    resolvePendingGrantNotification(client, 'grant-1')
+    getNotificationsSummary.mockResolvedValueOnce({ unreadCount: 3, pendingActionCount: 3 })
+    const { result } = renderHook(() => useNotificationsSummary(), { wrapper: wrapper(client) })
+
+    await waitFor(() => expect(result.current.data?.pendingActionCount).toBe(2))
+
+    getNotificationsSummary.mockResolvedValueOnce({ unreadCount: 2, pendingActionCount: 2 })
+    const afterUnrelatedDecrease = await result.current.refetch()
+    expect(afterUnrelatedDecrease.data?.pendingActionCount).toBe(1)
+  })
+})
 
 function seededClient() {
   const client = new QueryClient({

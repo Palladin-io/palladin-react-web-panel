@@ -23,6 +23,7 @@ const samplePending = {
   id: '33333333-3333-4333-8333-333333333333',
   vaultId: '22222222-2222-4222-8222-222222222222',
   agentId: '44444444-4444-4444-8444-444444444444',
+  agentAccessEpoch: 1,
   agentName: 'Deploy Bot',
   agentIconKey: null,
   agentPublicKey: 'public',
@@ -37,6 +38,8 @@ const samplePending = {
   entryLabel: 'Gmail',
   urlDomain: null,
   entryScopes: [],
+  scriptScopes: [],
+  scriptPackageRevision: null,
   expiresAt: null,
   queryLimit: null,
   queryCount: 0,
@@ -96,6 +99,26 @@ describe('pending-grants-api', () => {
     expect(items[0].entryId).toBe(samplePending.entryId)
   })
 
+  it('keeps a pending ScriptExecution request and its structural scope', async () => {
+    const script = {
+      ...samplePending,
+      type: 'scriptExecution',
+      methods: 'exec',
+      scriptScopes: [
+        { entryId: samplePending.entryId, entryRevision: '7', isScript: true },
+        { entryId: '77777777-7777-4777-8777-777777777777', entryRevision: '3', isScript: false },
+      ],
+    }
+    getJson.mockResolvedValue({ items: [script], nextCursor: null })
+
+    await expect(getPendingGrants()).resolves.toEqual([
+      expect.objectContaining({
+        type: 'scriptExecution',
+        scriptScopes: script.scriptScopes,
+      }),
+    ])
+  })
+
   it('defaults covering grants when reading a pre-rollout pending response', async () => {
     const preRolloutPending = Object.fromEntries(
       Object.entries(samplePending).filter(([key]) => key !== 'activeCoveringGrantIds'),
@@ -152,6 +175,22 @@ describe('pending-grants-api', () => {
           agentWrappedDek: 'dek',
         },
         expiresAt: '2026-06-04T12:00:00.000Z',
+      },
+    })
+  })
+
+  it('PUTs one complete Script package without granular material', async () => {
+    putFn.mockResolvedValue(undefined)
+    await approveGrant('v1', 'g1', {
+      scriptPackage: { encodedPackageCiphertext: 'sealed-script-package' },
+      queryLimit: 3,
+      methods: 'Exec',
+    } as never)
+    expect(putFn).toHaveBeenCalledWith('api/vaults/v1/grants/g1/approve', {
+      json: {
+        scriptPackage: { encodedPackageCiphertext: 'sealed-script-package' },
+        queryLimit: 3,
+        methods: 'Exec',
       },
     })
   })

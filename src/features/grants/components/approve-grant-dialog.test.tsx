@@ -163,6 +163,47 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     expect(onConfirm.mock.calls[0][1]).toEqual(['exec', 'inject'])
   })
 
+  it('shows the revision-bound Script contract before approving a ScriptExecution request', () => {
+    render(
+      <ApproveGrantDialog
+        grant={{
+          ...grant,
+          type: 'scriptExecution',
+          encryptedReason: { descriptor: { binding: { requestedMethods: 2 } } },
+        } as PendingGrant}
+        review={{
+          ...review,
+          entryType: ENTRY_TYPE_SCRIPT,
+          scriptContract: {
+            metadata: {
+              contractVersion: 1,
+              description: 'Returns deployment users',
+              parameters: [{
+                name: 'limit',
+                description: 'Maximum users',
+                type: 'integer',
+                required: true,
+              }],
+              returnResultToAgent: true,
+            },
+            references: [{
+              env: 'DB_PASSWORD',
+              entryId: '33333333-3333-4333-8333-333333333333',
+              fieldId: 'credential.password',
+            }],
+          },
+        }}
+        isPending={false}
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />,
+    )
+
+    expect(screen.getByText('Returns deployment users')).toBeInTheDocument()
+    expect(screen.getByText('$DB_PASSWORD ← 33333333…333333 · credential.password')).toBeInTheDocument()
+    expect(screen.getByText(/agent may receive stdout as result/i)).toBeInTheDocument()
+  })
+
   it('allows the authenticated Inject selection for Script entries', async () => {
     const user = userEvent.setup()
     render(

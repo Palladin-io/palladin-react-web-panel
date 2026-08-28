@@ -11,6 +11,7 @@ import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import type { PendingGrant } from './api/pending-grants-api'
 import { normalizeEntryType } from '../../shared/types/entry-type'
+import { normalizeScriptExecutionMetadata } from '../../shared/crypto/script-execution'
 
 export type GrantReviewStage =
   | 'fetch'
@@ -92,12 +93,26 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
             throw new GrantReviewUnavailableError('encryptedReason', { cause: error })
           })
         if (useAuthStore.getState().privateKey !== sessionKey) throw new GrantReviewUnavailableError('sessionChanged')
+        const scriptContract = memberSecret.entryType === 'script'
+          ? {
+              metadata: normalizeScriptExecutionMetadata(
+                memberSecret.content.execution,
+                memberSecret.description,
+              ),
+              references: memberSecret.content.refs.map(({ env, entryId, fieldId }) => ({
+                env,
+                entryId,
+                fieldId,
+              })),
+            }
+          : undefined
         return {
           entryLabel: memberSecret.memberLabel,
           reason: decryptedReason,
           entryRevision: detail.currentRevision,
           entryType: normalizeEntryType(memberSecret.entryType),
           fields: listGrantableFields(memberSecret),
+          scriptContract,
         }
       } finally {
         wipe(vaultKey)

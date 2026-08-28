@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
+import { confirmPendingGrantNotificationProjection } from '../../shared/lib/pending-grant-notification-reconciliation'
 import { AGENTS_QUERY_KEY } from '../agents/use-agents'
 import { GRANTS_QUERY_KEY } from '../grants'
 import { entryDetailQueryKey } from '../vaults/use-entries'
@@ -19,6 +20,12 @@ export function useNotificationInvalidation() {
   return useCallback(
     (payload: NotificationPayload) => {
       const { type, data } = payload
+      if (type === 'grant_approved' || type === 'grant_denied') {
+        confirmPendingGrantNotificationProjection(
+          queryClient,
+          data.grantId ?? payload.subjectId,
+        )
+      }
       queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY })
 
       switch (type) {

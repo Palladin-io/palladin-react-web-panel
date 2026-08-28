@@ -2,6 +2,7 @@ import { z } from "zod";
 import { api } from "../../../shared/api/client";
 import type { buildCanonicalGrantEnvelope } from "../../../shared/crypto/grant-protocol";
 import type { AgentWrappedVaultKeyContract } from "../../../shared/crypto/x25519-wrapper";
+import type { ScriptExecutionEncryptedPackageV1 } from "../../../shared/crypto/script-execution";
 import { encryptedReasonEnvelopeSchema } from "../../vaults/sync/entry-envelope-schema";
 
 /**
@@ -31,7 +32,9 @@ export type GrantStatus = (typeof GRANT_STATUSES)[number];
 
 export const GRANT_TYPE_FULL = "full" as const;
 export const GRANT_TYPE_GRANULAR = "granular" as const;
-export type GrantType = typeof GRANT_TYPE_FULL | typeof GRANT_TYPE_GRANULAR;
+export const GRANT_TYPE_SCRIPT_EXECUTION = "scriptExecution" as const;
+export type GrantType = typeof GRANT_TYPE_FULL | typeof GRANT_TYPE_GRANULAR
+  | typeof GRANT_TYPE_SCRIPT_EXECUTION;
 
 /**
  * Org-wide grant row from `GET /api/grants` (enriched `GrantResponse`). No
@@ -69,12 +72,13 @@ const orgGrantSchema = z.object({
     .nullable()
     .optional(),
   agentSigningKeyFingerprint: z.string().nullable().optional(),
-  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]),
+  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR, GRANT_TYPE_SCRIPT_EXECUTION]),
   status: z.enum(GRANT_STATUSES),
   // Combined-flags string of permitted methods, e.g. "get, exec". Optional for
   // pre-methods backends; the badge is hidden when absent/empty.
   methods: z.string().nullable().optional(),
   entryId: z.string().nullable().optional(),
+  scriptEntryId: z.string().nullable().optional(),
   entryLabel: z.string().nullable().optional(),
   entryScopes: z
     .array(
@@ -93,6 +97,12 @@ const orgGrantSchema = z.object({
     )
     .optional()
     .default([]),
+  scriptScopes: z.array(z.object({
+    entryId: z.string(),
+    entryRevision: z.string(),
+    isScript: z.boolean(),
+  }).strict()).optional().default([]),
+  scriptPackageRevision: z.string().nullable().optional(),
   reason: z.string().nullable().optional(),
   encryptedReason: encryptedReasonEnvelopeSchema.nullable().optional(),
   expiresAt: z.string().nullable().optional(),
@@ -192,9 +202,9 @@ export async function revokeGrant(
 }
 
 /**
- * The create API intentionally exposes two contracts and two routes: one Entry
- * envelope cannot be confused with a Vault-key wrapper at either compile time
- * or the HTTP boundary.
+ * Create APIs intentionally expose separate contracts and routes: a granular
+ * Entry envelope, a full-Vault key wrapper, and a complete Script package
+ * cannot be confused at either the TypeScript or HTTP boundary.
  */
 interface CreateGrantPolicyBody {
   grantId: string;
@@ -210,6 +220,10 @@ export interface CreateGranularGrantBody extends CreateGrantPolicyBody {
 
 export interface CreateFullGrantBody extends CreateGrantPolicyBody {
   agentWrappedVaultKey: AgentWrappedVaultKeyContract;
+}
+
+export interface CreateScriptExecutionGrantBody extends CreateGrantPolicyBody {
+  scriptPackage: ScriptExecutionEncryptedPackageV1;
 }
 
 export async function createGranularGrant(
@@ -228,5 +242,15 @@ export async function createFullGrant(
 ): Promise<{ id: string }> {
   return api
     .post(`api/vaults/${vaultId}/full-grants`, { json: body })
+    .json<{ id: string }>();
+}
+
+export async function createScriptExecutionGrant(
+  vaultId: string,
+  scriptEntryId: string,
+  body: CreateScriptExecutionGrantBody,
+): Promise<{ id: string }> {
+  return api
+    .post(`api/vaults/${vaultId}/scripts/${scriptEntryId}/grants`, { json: body })
     .json<{ id: string }>();
 }

@@ -33,7 +33,18 @@ vi.mock('../use-org-grants', () => ({
   }),
 }))
 
-vi.mock('../../vaults/api/vault-api', () => ({ getVaults: vi.fn() }))
+const scriptCrypto = vi.hoisted(() => ({
+  getEntry: vi.fn(),
+  getVault: vi.fn(),
+  openVaultKey: vi.fn(async () => new Uint8Array(32)),
+  openSecret: vi.fn(),
+  wipe: vi.fn(),
+}))
+vi.mock('../../vaults/api/vault-api', () => ({ getVaults: vi.fn(), getCanonicalEntry: scriptCrypto.getEntry }))
+vi.mock('../../vaults/sync/member-sync-api', () => ({ getEncryptedVault: scriptCrypto.getVault }))
+vi.mock('../../../shared/crypto/vault-protocol', () => ({ openMemberVaultKey: scriptCrypto.openVaultKey }))
+vi.mock('../../../shared/crypto/entry-protocol', () => ({ openMemberSecret: scriptCrypto.openSecret }))
+vi.mock('../../../shared/crypto/sodium', () => ({ wipe: scriptCrypto.wipe }))
 vi.mock('../use-local-entry-search', () => ({ useLocalEntrySearch: () => [] }))
 
 const toastError = vi.hoisted(() => vi.fn())
@@ -41,6 +52,7 @@ const toastSuccess = vi.hoisted(() => vi.fn())
 vi.mock('sonner', () => ({ toast: { error: toastError, success: toastSuccess } }))
 
 import { GrantAccessDialog } from './grant-access-dialog'
+import { useAuthStore } from '../../auth'
 import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
 
 describe('GrantAccessDialog (agent-for-vault)', () => {
@@ -50,6 +62,10 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     toastError.mockReset()
     toastSuccess.mockReset()
     isPending = false
+    useAuthStore.setState({ privateKey: new Uint8Array(32).fill(3) })
+    scriptCrypto.getEntry.mockReset()
+    scriptCrypto.getVault.mockReset()
+    scriptCrypto.openSecret.mockReset()
     useMemberSyncStore.setState({
       status: 'ready',
       vaults: new Map([['v1', {
@@ -102,8 +118,10 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'Agent' }))
     await user.click(screen.getByText('Deploy Bot'))
-    expect(screen.queryByText(/cryptographic access to every current and future entry/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^grant access$/i })).toHaveClass('bg-[var(--cv-primary)]')
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /cryptographic access to every current and future entry/i,
+    )
+    expect(screen.getByRole('button', { name: /^grant access$/i })).toBeEnabled()
     // Default policy = Time Limited, pre-filled ~1 day ahead — already a valid future expiry.
     await user.click(screen.getByRole('button', { name: /^grant access$/i }))
 
@@ -195,6 +213,63 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
 
     expect(screen.getByText(/wait for this vault to finish syncing/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^grant access$/i })).toBeDisabled()
+  })
+
+  it('summarizes a direct Script grant and fixes it to one Exec authorization', async () => {
+    useMemberSyncStore.setState({
+      vaults: new Map([['v1', {
+        vaultId: 'v1', status: 'ready', failureKind: null, metadata: null, structure: {},
+        appliedThroughSequence: '0', entries: new Map([['script', {
+          state: 'active', corrupt: false, payload: { entryType: 'script' },
+        }]]),
+      } as never]]),
+    })
+    scriptCrypto.getVault.mockResolvedValue({ memberVaultKey: {} })
+    scriptCrypto.getEntry.mockResolvedValue({
+      organizationId: '11111111-1111-4111-8111-111111111111', currentRevision: '1',
+      entryKey: {}, memberSecret: {},
+    })
+    scriptCrypto.openSecret.mockResolvedValue({
+      entryType: 'script',
+      content: {
+        refs: [{
+          env: 'TOKEN',
+          vaultId: 'v1',
+          entryId: '33333333-3333-4333-8333-333333333333',
+          fieldId: 'credential.password',
+        }],
+        execution: {
+          contractVersion: 1,
+          description: 'Returns deployment status',
+          parameters: [{ name: 'ENV', description: 'Environment', type: 'string', required: true }],
+          returnResultToAgent: true,
+        },
+      },
+    })
+    getAgent.mockResolvedValue({
+      agentId: 'a1', publicKey: 'PUBKEY', recipientKeyVersion: 4, accessEpoch: 7,
+    })
+    const user = userEvent.setup()
+    render(<GrantAccessDialog
+      mode={{ kind: 'agent-for-entry', vaultId: 'v1', entryId: 'script' }}
+      onClose={vi.fn()}
+    />)
+
+    await user.click(screen.getByRole('combobox', { name: 'Agent' }))
+    await user.click(screen.getByText('Deploy Bot'))
+    expect(await screen.findByText('Returns deployment status')).toBeInTheDocument()
+    expect(screen.getByText(/agent may receive stdout as result/i)).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /how the agent may use it/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^grant access$/i })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: /^grant access$/i }))
+
+    await waitFor(() => expect(mutateMock).toHaveBeenCalled())
+    expect(mutateMock.mock.calls[0][0]).toMatchObject({
+      type: 'scriptExecution',
+      entryId: 'script',
+      reviewedScriptRevision: '1',
+      methods: ['exec'],
+    })
   })
 
   it('blocks submit when no subject is chosen', async () => {

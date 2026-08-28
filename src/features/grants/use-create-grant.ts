@@ -3,7 +3,7 @@ import { useAuthStore } from '../auth'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
 import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
 import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
-import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
+import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { buildAgentWrappedVaultKey } from '../../shared/crypto/x25519-wrapper'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
@@ -11,14 +11,18 @@ import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import { useMemberSyncStore } from '../../shared/stores/member-sync-store'
 import {
   GRANT_TYPE_FULL,
+  GRANT_TYPE_SCRIPT_EXECUTION,
   createFullGrant,
   createGranularGrant,
+  createScriptExecutionGrant,
   type CreateFullGrantBody,
   type CreateGranularGrantBody,
+  type CreateScriptExecutionGrantBody,
   type GrantType,
 } from './api/org-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
 import {
+  GRANT_METHOD_EXEC,
   grantMethodsFromMask,
   grantMethodsMask,
   serializeGrantMethods,
@@ -26,6 +30,9 @@ import {
 } from './grant-methods'
 import { MissingGrantMaterialError, VaultLockedError } from './use-approve-grant'
 import { GRANT_MUTATION_INVALIDATION_KEYS } from './query-keys'
+import { buildCompleteScriptExecutionPackage } from '../vaults/script-execution-package'
+
+const MANIFEST_SIGNING_PRIVATE_PURPOSE = 4
 
 export interface CreateGrantInput {
   vaultId: string
@@ -35,6 +42,7 @@ export interface CreateGrantInput {
   agentAccessEpoch: number | null | undefined
   type: GrantType
   entryId?: string
+  reviewedScriptRevision?: string
   policy: GrantPolicyBody
   methods: GrantMethod[]
 }
@@ -55,6 +63,7 @@ export function useCreateGrant() {
       agentAccessEpoch,
       type,
       entryId,
+      reviewedScriptRevision,
       policy,
       methods,
     }: CreateGrantInput) => {
@@ -74,17 +83,30 @@ export function useCreateGrant() {
       try {
         if (type === GRANT_TYPE_FULL) {
           assertCurrentUnlockSession(privateKey)
-          const agentWrappedVaultKey = await buildAgentWrappedVaultKey({
-            vaultKey,
-            organizationId: vault.organizationId,
-            vaultId,
-            grantId,
-            agentId,
-            agentAccessEpoch,
-            vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
-            recipientAgentKeyVersion,
-            agentPublicKey,
-          })
+          const signingEnvelope = vault.vaultPrivateKeys.find(
+            (candidate) => candidate.descriptor.purpose === MANIFEST_SIGNING_PRIVATE_PURPOSE
+              && candidate.descriptor.keyVersion === vault.currentKeyEpoch.manifestSigningKeyVersion,
+          )
+          if (!signingEnvelope) throw new MissingGrantMaterialError()
+          const vaultSigningPrivateKey = await openVaultDerivedEnvelope(signingEnvelope, vaultKey)
+          let agentWrappedVaultKey
+          try {
+            agentWrappedVaultKey = await buildAgentWrappedVaultKey({
+              vaultKey,
+              organizationId: vault.organizationId,
+              vaultId,
+              grantId,
+              agentId,
+              agentAccessEpoch,
+              vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
+              recipientAgentKeyVersion,
+              agentPublicKey,
+              vaultSigningKeyVersion: vault.currentKeyEpoch.manifestSigningKeyVersion,
+              vaultSigningPrivateKey,
+            })
+          } finally {
+            wipe(vaultSigningPrivateKey)
+          }
           const body: CreateFullGrantBody = {
             grantId,
             agentId,
@@ -94,6 +116,38 @@ export function useCreateGrant() {
           }
           assertCurrentUnlockSession(privateKey)
           await createFullGrant(vaultId, body)
+          return
+        }
+
+        if (type === GRANT_TYPE_SCRIPT_EXECUTION) {
+          if (methods.length !== 1 || methods[0] !== GRANT_METHOD_EXEC
+            || !entryId || !reviewedScriptRevision) {
+            throw new MissingGrantMaterialError()
+          }
+          const scriptPackage = await buildCompleteScriptExecutionPackage({
+            organizationId: vault.organizationId,
+            vaultId,
+            scriptEntryId: entryId,
+            agentId,
+            agentAccessEpoch,
+            grantId,
+            packageRevision: '1',
+            recipientAgentKeyVersion,
+            agentPublicKey,
+            vaultKey,
+          })
+          if (scriptPackage.scriptRevision !== reviewedScriptRevision) {
+            throw new MissingGrantMaterialError()
+          }
+          const body: CreateScriptExecutionGrantBody = {
+            grantId,
+            agentId,
+            scriptPackage,
+            ...policy,
+            methods: serializeGrantMethods([GRANT_METHOD_EXEC]),
+          }
+          assertCurrentUnlockSession(privateKey)
+          await createScriptExecutionGrant(vaultId, entryId, body)
           return
         }
 

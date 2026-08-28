@@ -4,6 +4,10 @@ import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useNotificationInvalidation } from './use-notification-invalidation'
 import type { NotificationPayload } from './notification-types'
+import {
+  adjustPendingGrantNotificationSummary,
+  resolvePendingGrantNotification,
+} from '../../shared/lib/pending-grant-notification-reconciliation'
 
 function setup() {
   const client = new QueryClient({
@@ -14,11 +18,17 @@ function setup() {
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   )
   const { result } = renderHook(() => useNotificationInvalidation(), { wrapper })
-  return { invalidate: result.current, invalidateSpy }
+  return { client, invalidate: result.current, invalidateSpy }
 }
 
 function payload(type: string, data: Record<string, string> = {}): NotificationPayload {
-  return { type, title: 'T', body: 'B', data }
+  return {
+    subjectId: data.grantId ?? '11111111-1111-4111-8111-111111111111',
+    type,
+    category: 'update',
+    occurredAt: '2026-08-28T12:00:00Z',
+    data,
+  }
 }
 
 describe('useNotificationInvalidation', () => {
@@ -30,6 +40,18 @@ describe('useNotificationInvalidation', () => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['grants'] })
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['notifications'] })
     }
+  })
+
+  it('clears a local summary adjustment only for the matching terminal grant event', () => {
+    const { client, invalidate } = setup()
+    resolvePendingGrantNotification(client, 'grant-1')
+    expect(adjustPendingGrantNotificationSummary(client, { pendingActionCount: 1 }))
+      .toEqual({ pendingActionCount: 0 })
+
+    invalidate(payload('grant_approved', { grantId: 'grant-1' }))
+
+    expect(adjustPendingGrantNotificationSummary(client, { pendingActionCount: 1 }))
+      .toEqual({ pendingActionCount: 1 })
   })
 
   it('invalidates agents for agent_pending', () => {
