@@ -68,7 +68,7 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
       throw new Error(`Field ${id} is not grantable by its agent-access policy`)
     }
   }
-  const payload = projectGrantPayload(input.secret, approvedPolicyFieldIds)
+  const payload = await projectGrantPayload(input.secret, approvedPolicyFieldIds)
   const fieldIds = payload.fields.map(({ id }) => id)
   const publicKey = fromBase64(input.agentPublicKey)
   const fingerprint = await computeVaultKeyFingerprint(publicKey, VAULT_KEY_KIND.agentX25519)

@@ -31,6 +31,7 @@ import {
 import { MissingGrantMaterialError, VaultLockedError } from './use-approve-grant'
 import { GRANT_MUTATION_INVALIDATION_KEYS } from './query-keys'
 import { buildCompleteScriptExecutionPackage } from '../vaults/script-execution-package'
+import { ENTRY_TYPE_CREDIT_CARD, normalizeEntryType } from '../../shared/types/entry-type'
 
 const MANIFEST_SIGNING_PRIVATE_PURPOSE = 4
 
@@ -160,6 +161,9 @@ export function useCreateGrant() {
           organizationId: detail.organizationId, vaultId, entryId: granularEntryId,
           revision: detail.currentRevision,
         })
+        if (normalizeEntryType(memberSecret.entryType) === ENTRY_TYPE_CREDIT_CARD) {
+          throw new MissingGrantMaterialError()
+        }
         const approvedMethods = requestedMethods
         const approvedFieldIds = listGrantableFieldIds(memberSecret)
         if (approvedMethods === 0 || approvedFieldIds.length === 0) {

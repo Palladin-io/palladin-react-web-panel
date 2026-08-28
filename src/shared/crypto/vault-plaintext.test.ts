@@ -78,34 +78,36 @@ describe('Vault plaintext v1', () => {
     ])
   })
 
-  it('builds a sorted least-privilege GrantPayload and rejects Discovery fields', () => {
-    const payload = projectGrantPayload(secret, ['credential.totp', 'credential.password'])
-    expect(payload).toEqual({
+  it('builds a sorted least-privilege GrantPayload and rejects Discovery fields', async () => {
+    const payload = await projectGrantPayload(
+      secret,
+      ['credential.totp', 'credential.password'],
+      59_000,
+    )
+    expect(payload).toMatchObject({
       schema: 'palladin.grant-payload.v1',
       entryType: 'credential',
       fields: [
         { id: 'credential.password', kind: 'concealed', mode: 'value', value: 'secret' },
-        { id: 'credential.totp', kind: 'totp', mode: 'derived', value: { secret: 'JBSWY3DPEHPK3PXP', algorithm: 'SHA1', digits: 6, period: 30, issuer: null, account: null } },
+        { id: 'credential.totp', kind: 'totp', mode: 'derived', value: { code: expect.stringMatching(/^\d{6}$/), expiresIn: 1 } },
       ],
     })
-    expect(new TextDecoder().decode(encodeGrantPayload(payload))).toBe(
-      '{"entryType":"credential","fields":[{"id":"credential.password","kind":"concealed","mode":"value","value":"secret"},{"id":"credential.totp","kind":"totp","mode":"derived","value":{"account":null,"algorithm":"SHA1","digits":6,"issuer":null,"period":30,"secret":"JBSWY3DPEHPK3PXP"}}],"schema":"palladin.grant-payload.v1"}',
-    )
-    expect(() => projectGrantPayload(secret, ['credential.username'])).toThrow(/not grantable/)
+    expect(new TextDecoder().decode(encodeGrantPayload(payload))).not.toContain('JBSWY3DPEHPK3PXP')
+    await expect(projectGrantPayload(secret, ['credential.username'])).rejects.toThrow(/not grantable/)
   })
 
-  it('emits only registered GrantPayload fields and namespaces notes by Entry type', () => {
+  it('emits only registered GrantPayload fields and namespaces notes by Entry type', async () => {
     const keySecret: MemberSecretV1 = {
       ...secret,
       entryType: 'key',
       content: { value: 'secret', url: null, notes: 'private note', customFields: [] },
       agentFieldAccess: {
         memberLabel: 'never', agentLabel: 'discovery', description: 'never', icon: 'never', color: 'never',
-        entryType: 'discovery', 'key.value': 'never', notes: 'onGrantValue',
+        entryType: 'discovery', 'key.value': 'never', 'key.url': 'never', notes: 'onGrantValue',
       },
     }
 
-    expect(projectGrantPayload(keySecret, ['notes']).fields).toEqual([
+    expect((await projectGrantPayload(keySecret, ['notes'])).fields).toEqual([
       { id: 'key.notes', kind: 'multiline', mode: 'value', value: 'private note' },
     ])
     expect(grantPayloadPolicyFieldId('key', 'key.notes')).toBe('notes')
@@ -117,8 +119,8 @@ describe('Vault plaintext v1', () => {
         'credential.urlDomain': 'onGrantValue' as const,
       },
     }
-    expect(() => projectGrantPayload(discoveryOnly, ['credential.urlDomain']))
-      .toThrow(/not registered/)
+    await expect(projectGrantPayload(discoveryOnly, ['credential.urlDomain']))
+      .rejects.toThrow(/not registered/)
   })
 
   it('matches the public cross-client GrantPayload contract bytes', () => {
@@ -131,7 +133,7 @@ describe('Vault plaintext v1', () => {
     expect(payload.fields.map(({ id }) => id)).toEqual(vector.fieldIds)
   })
 
-  it('pins legacy mobile compatibility as read-only contract data', () => {
+  it('pins legacy mobile compatibility as read-only contract data', async () => {
     const vector = grantPayloadContract.compatibilityVectors[0]
     const encoded = new TextEncoder().encode(vector.plaintextCanonical)
 
@@ -147,7 +149,16 @@ describe('Vault plaintext v1', () => {
       ).toThrow()
     }
 
-    const produced = projectGrantPayload(secret, ['credential.password', 'credential.url'])
+    for (const rejected of grantPayloadContract.rejectedExamples.filter(
+      ({ id }) => id === 'totp-seed-material-is-not-a-derived-output'
+        || id === 'script-ref-non-canonical-uuid',
+    )) {
+      expect(() =>
+        parseGrantPayload(new TextEncoder().encode(JSON.stringify(rejected.value))),
+      ).toThrow()
+    }
+
+    const produced = await projectGrantPayload(secret, ['credential.password', 'credential.url'])
     expect(produced.schema).toBe('palladin.grant-payload.v1')
     expect(produced).not.toHaveProperty('schemaVersion')
   })
@@ -177,14 +188,14 @@ describe('Vault plaintext v1', () => {
       content: { value: 'sk_test', url: 'https://stripe.com', notes: null, customFields: [] },
       agentFieldAccess: {
         memberLabel: 'never', agentLabel: 'discovery', description: 'never', icon: 'never', color: 'never',
-        entryType: 'discovery', 'key.value': 'onGrantValue', notes: 'never',
+        entryType: 'discovery', 'key.value': 'onGrantValue', 'key.url': 'onGrantValue', notes: 'never',
       },
     }
 
     expect(parseMemberSecret(encodeMemberSecret(keySecret))).toEqual(keySecret)
   })
 
-  it('keeps every supported credit-card value runtime-only without narrowing grant methods', () => {
+  it('keeps every supported credit-card value runtime-only without narrowing grant methods', async () => {
     const card: MemberSecretV1 = {
       ...secret,
       entryType: 'creditCard',
@@ -204,7 +215,7 @@ describe('Vault plaintext v1', () => {
 
     expect(projectAgentDiscovery(card)).toMatchObject({ capabilities: ['inject'], fields: [] })
     expect(listGrantableFieldIds(card)).toEqual([])
-    expect(() => projectGrantPayload(card, ['creditCard.cardNumber'])).toThrow(/not registered/)
+    await expect(projectGrantPayload(card, ['creditCard.cardNumber'])).rejects.toThrow(/not registered/)
     expect(() => encodeMemberSecret({
       ...card,
       agentFieldAccess: { ...card.agentFieldAccess, 'creditCard.cardNumber': 'onGrantValue' },

@@ -286,7 +286,7 @@ function DetailBody({
     onTabChange(next)
   }
 
-  const agentAction = (
+  const agentAction = entry.type === ENTRY_TYPE_CREDIT_CARD ? null : (
     <div className="flex items-center gap-2">
       <span className="text-meta text-[var(--cv-t3)]">
         {t('vault.entry.detail.agentsWithAccess', { count: agentCount })}

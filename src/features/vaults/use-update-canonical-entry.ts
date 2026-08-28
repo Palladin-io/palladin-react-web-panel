@@ -108,6 +108,9 @@ export async function updateCanonicalEntryNow(
     const nextRevision = (BigInt(detail.currentRevision) + 1n).toString()
     const granularGrants = grants.filter((grant) => grant.type === GRANT_TYPE_GRANULAR
       && grant.entryId === targetEntryId)
+    if (nextSecret.entryType === 'creditCard' && granularGrants.length > 0) {
+      throw new ActiveGrantRefreshRequiredError()
+    }
     const scriptGrants = grants.filter((grant) => grant.type === GRANT_TYPE_SCRIPT_EXECUTION
       && grant.scriptScopes.some((scope) => scope.entryId === targetEntryId))
     const nextDiscovery = projectAgentDiscovery(nextSecret)

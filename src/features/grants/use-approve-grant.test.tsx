@@ -118,6 +118,21 @@ describe('useApproveGrant', () => {
     expect(mocks.wipe).toHaveBeenCalledTimes(1)
   })
 
+  it('rejects approval of a legacy pending credit-card grant before sealing', async () => {
+    mocks.openMemberSecret.mockResolvedValueOnce({ schemaVersion: 1, entryType: 'creditCard' })
+    const client = queryClient()
+    const { result } = renderHook(() => useApproveGrant(), { wrapper: wrapper(client) })
+
+    await expect(result.current.mutateAsync({
+      ...granularInput,
+      methods: [...granularInput.methods],
+    })).rejects.toBeInstanceOf(MissingGrantMaterialError)
+
+    expect(mocks.buildEnvelope).not.toHaveBeenCalled()
+    expect(mocks.approve).not.toHaveBeenCalled()
+    expect(mocks.wipe).toHaveBeenCalledTimes(1)
+  })
+
   it.each([
     ['missing reviewed field', ['credential.password']],
     ['broadened reviewed field', ['credential.password', 'credential.username', 'credential.url']],

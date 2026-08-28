@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { scriptExecutionMetadataSchema } from './script-execution-metadata'
+import { generateTotp } from './totp'
 
 export const AGENT_FIELD_ACCESS = [
   'never',
@@ -149,6 +150,71 @@ const grantPayloadSchema = z.object({
   fields: z.array(grantField),
 }).strict()
 
+const canonicalGrantUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+const customGrantFieldId = /^custom:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+const derivedTotpOutput = z.object({
+  code: z.string().regex(/^\d+$/).max(16),
+  expiresIn: z.number().int().positive().max(120),
+}).strict()
+const grantScriptReference = z.object({
+  env: z.string().regex(/^[A-Z_][A-Z0-9_]*$/),
+  vaultId: z.string().regex(canonicalGrantUuid),
+  entryId: z.string().regex(canonicalGrantUuid),
+  fieldId: normalizedString,
+}).strict()
+const currentGrantFields: Record<string, { kind: string; mode: string; nullable: boolean }> = {
+  'key.value': { kind: 'concealed', mode: 'value', nullable: false },
+  'key.url': { kind: 'url', mode: 'value', nullable: true },
+  'key.notes': { kind: 'multiline', mode: 'value', nullable: true },
+  'credential.username': { kind: 'text', mode: 'value', nullable: false },
+  'credential.password': { kind: 'concealed', mode: 'value', nullable: false },
+  'credential.url': { kind: 'url', mode: 'value', nullable: true },
+  'credential.notes': { kind: 'multiline', mode: 'value', nullable: true },
+  'credential.totp': { kind: 'totp', mode: 'derived', nullable: true },
+  'script.source': { kind: 'script', mode: 'runtime', nullable: false },
+  'script.refs': { kind: 'refs', mode: 'runtime', nullable: false },
+  'script.notes': { kind: 'multiline', mode: 'runtime', nullable: true },
+}
+
+function validateCurrentGrantPayload(value: unknown): GrantPayloadV1 {
+  const payload = grantPayloadSchema.parse(value)
+  if (payload.entryType === 'creditCard' || payload.fields.length === 0) {
+    throw new Error('Entry type is not registered in GrantPayload v1')
+  }
+  const ids = payload.fields.map(({ id }) => id)
+  const sorted = [...ids].sort()
+  if (new Set(ids).size !== ids.length || ids.some((id, index) => id !== sorted[index])) {
+    throw new Error('GrantPayload field IDs must be unique and sorted')
+  }
+  for (const field of payload.fields) {
+    const builtIn = currentGrantFields[field.id]
+    const expectedPrefix = `${payload.entryType}.`
+    if (builtIn && !field.id.startsWith(expectedPrefix)) {
+      throw new Error('GrantPayload field does not belong to the Entry type')
+    }
+    const custom = customGrantFieldId.test(field.id)
+    const expectedMode = field.kind === 'totp'
+      ? 'derived'
+      : payload.entryType === 'script' ? 'runtime' : 'value'
+    if ((!builtIn && !custom)
+      || (builtIn && (field.kind !== builtIn.kind || field.mode !== builtIn.mode))
+      || (custom && (!['text', 'multiline', 'concealed', 'totp'].includes(field.kind)
+        || field.mode !== expectedMode))) {
+      throw new Error('Unregistered GrantPayload field')
+    }
+    if (field.value === null) {
+      if (!builtIn?.nullable) throw new Error('GrantPayload field is not nullable')
+    } else if (field.kind === 'totp') {
+      derivedTotpOutput.parse(field.value)
+    } else if (field.kind === 'refs') {
+      z.array(grantScriptReference).parse(field.value)
+    } else if (typeof field.value !== 'string') {
+      throw new Error('GrantPayload field value has an invalid shape')
+    }
+  }
+  return payload
+}
+
 export type MemberVaultMetadataV1 = z.infer<typeof memberVaultMetadataSchema>
 export type MemberSecretV1 = z.infer<typeof memberSecretSchema>
 export type MemberIndexV1 = z.infer<typeof memberIndexSchema>
@@ -187,7 +253,7 @@ const ALLOWED_ACCESS: Record<string, readonly AgentFieldAccess[]> = {
   memberLabel: ['never'], icon: ['never'], color: ['never'],
   agentLabel: ['never', 'discovery'], entryType: ['never', 'discovery'],
   description: ['never', 'discovery'],
-  'key.value': ['never', 'onGrantValue'], notes: ['never', 'onGrantValue', 'onGrantRuntime'],
+  'key.value': ['never', 'onGrantValue'], 'key.url': ['never', 'onGrantValue'], notes: ['never', 'onGrantValue', 'onGrantRuntime'],
   'credential.username': ['never', 'discovery', 'onGrantValue'],
   'credential.password': ['never', 'onGrantValue'],
   'credential.url': ['never', 'onGrantValue'],
@@ -205,9 +271,18 @@ const ALLOWED_ACCESS: Record<string, readonly AgentFieldAccess[]> = {
 
 function assertPolicy(secret: MemberSecretV1): void {
   const customFields = secret.content.customFields
-  const expected = [...BUILTIN_FIELDS[secret.entryType], ...customFields.map((field) => field.id)].sort()
+  const required = [
+    ...BUILTIN_FIELDS[secret.entryType],
+    ...(secret.entryType === 'key' && typeof secret.content.url === 'string' ? ['key.url'] : []),
+    ...customFields.map((field) => field.id),
+  ].sort()
   const actual = Object.keys(secret.agentFieldAccess).sort()
-  if (expected.length !== actual.length || expected.some((field, index) => field !== actual[index])) {
+  const exact = (expected: readonly string[]) => expected.length === actual.length
+    && expected.every((field, index) => field === actual[index])
+  const acceptsNullableKeyUrl = secret.entryType === 'key'
+    && secret.content.url == null
+    && exact([...required, 'key.url'].sort())
+  if (!exact(required) && !acceptsNullableKeyUrl) {
     throw new Error('AgentFieldAccess keys do not exactly match the Entry schema')
   }
   if (!secret.discoverable && (secret.agentLabel !== null
@@ -301,13 +376,13 @@ export const encodeMemberVaultMetadata = (value: MemberVaultMetadataV1): Uint8Ar
 export const encodeMemberIndex = (value: MemberIndexV1): Uint8Array => encodeCanonicalVaultJson(memberIndexSchema.parse(value))
 export function encodeMemberSecret(value: MemberSecretV1): Uint8Array { const parsed = memberSecretSchema.parse(value); assertPolicy(parsed); return encodeCanonicalVaultJson(parsed) }
 export const encodeAgentDiscovery = (value: AgentDiscoveryV1): Uint8Array => encodeCanonicalVaultJson(agentDiscoverySchema.parse(value))
-export const encodeGrantPayload = (value: GrantPayloadV1): Uint8Array => encodeCanonicalVaultJson(grantPayloadSchema.parse(value))
+export const encodeGrantPayload = (value: GrantPayloadV1): Uint8Array => encodeCanonicalVaultJson(validateCurrentGrantPayload(value))
 
 export const parseMemberVaultMetadata = (bytes: Uint8Array): MemberVaultMetadataV1 => parse(bytes, memberVaultMetadataSchema)
 export const parseMemberIndex = (bytes: Uint8Array): MemberIndexV1 => parse(bytes, memberIndexSchema)
 export function parseMemberSecret(bytes: Uint8Array): MemberSecretV1 { const value = parse(bytes, memberSecretSchema); assertPolicy(value); return value }
 export const parseAgentDiscovery = (bytes: Uint8Array): AgentDiscoveryV1 => parse(bytes, agentDiscoverySchema)
-export const parseGrantPayload = (bytes: Uint8Array): GrantPayloadV1 => parse(bytes, grantPayloadSchema)
+export const parseGrantPayload = (bytes: Uint8Array): GrantPayloadV1 => validateCurrentGrantPayload(parse(bytes, grantPayloadSchema))
 
 function fieldValue(secret: MemberSecretV1, id: string): unknown {
   if (id === 'memberLabel') return secret.memberLabel
@@ -318,7 +393,10 @@ function fieldValue(secret: MemberSecretV1, id: string): unknown {
   if (id === 'entryType') return secret.entryType
   if (id === 'notes') return secret.content.notes
   if (id.startsWith('custom:')) return secret.content.customFields.find((field) => field.id === id)?.value
-  if (secret.entryType === 'key' && id === 'key.value') return secret.content.value
+  if (secret.entryType === 'key') {
+    const map = { 'key.value': secret.content.value, 'key.url': secret.content.url }
+    return map[id as keyof typeof map]
+  }
   if (secret.entryType === 'credential') {
     const map = { 'credential.username': secret.content.username, 'credential.password': secret.content.password, 'credential.url': secret.content.url, 'credential.urlDomain': secret.content.urlDomain, 'credential.totp': secret.content.totp }
     return map[id as keyof typeof map]
@@ -375,26 +453,35 @@ export function projectAgentDiscovery(secret: MemberSecretV1): AgentDiscoveryV1 
   })
 }
 
-export function projectGrantPayload(secret: MemberSecretV1, fieldIds: readonly string[]): GrantPayloadV1 {
-  return projectPayload(secret, fieldIds, false)
+export function projectGrantPayload(
+  secret: MemberSecretV1,
+  fieldIds: readonly string[],
+  now: number = Date.now(),
+): Promise<GrantPayloadV1> {
+  return projectPayload(secret, fieldIds, false, now)
 }
 
 /** Exact Script refs may project discovery fields, but only as runtime-only values. */
-export function projectScriptReferencePayload(secret: MemberSecretV1, fieldIds: readonly string[]): GrantPayloadV1 {
-  return projectPayload(secret, fieldIds, true)
+export function projectScriptReferencePayload(
+  secret: MemberSecretV1,
+  fieldIds: readonly string[],
+  now: number = Date.now(),
+): Promise<GrantPayloadV1> {
+  return projectPayload(secret, fieldIds, true, now)
 }
 
-function projectPayload(
+async function projectPayload(
   secret: MemberSecretV1,
   fieldIds: readonly string[],
   allowDiscoveryRuntime: boolean,
-): GrantPayloadV1 {
+  now: number,
+): Promise<GrantPayloadV1> {
   assertPolicy(secret)
   if (!allowDiscoveryRuntime && secret.entryType === 'creditCard') {
     throw new Error('Entry type creditCard is not registered in GrantPayload v1')
   }
   if (new Set(fieldIds).size !== fieldIds.length) throw new Error('Grant field IDs must be distinct')
-  const fields = fieldIds.map((id) => {
+  const fields = await Promise.all(fieldIds.map(async (id) => {
     if (!allowDiscoveryRuntime && !isRegisteredGrantPolicyField(secret.entryType, id)) {
       throw new Error(`Field ${id} is not registered in GrantPayload v1`)
     }
@@ -405,7 +492,7 @@ function projectPayload(
       ? custom.type
       : id === 'key.value' || id === 'credential.password' || id === 'creditCard.cardNumber'
         ? 'concealed'
-        : id === 'credential.url'
+        : id === 'key.url' || id === 'credential.url'
           ? 'url'
           : id === 'credential.totp'
             ? 'totp'
@@ -433,9 +520,23 @@ function projectPayload(
     const payloadId = !allowDiscoveryRuntime && id === 'notes'
       ? `${secret.entryType}.notes`
       : id
-    return { id: payloadId, kind: kind as GrantPayloadV1['fields'][number]['kind'], mode, value }
-  }).sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
-  return grantPayloadSchema.parse({ schema: 'palladin.grant-payload.v1', entryType: secret.entryType, fields })
+    const projectedValue = kind === 'totp' && value !== null
+      ? await generateTotp({
+          ...(value as z.infer<typeof totpValue>),
+          issuer: (value as z.infer<typeof totpValue>).issuer ?? undefined,
+          account: (value as z.infer<typeof totpValue>).account ?? undefined,
+        }, now).then(({ code, expiresIn }) => ({ code, expiresIn }))
+      : value
+    return {
+      id: payloadId,
+      kind: kind as GrantPayloadV1['fields'][number]['kind'],
+      mode,
+      value: projectedValue,
+    }
+  }))
+  fields.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+  const payload = { schema: 'palladin.grant-payload.v1', entryType: secret.entryType, fields }
+  return allowDiscoveryRuntime ? grantPayloadSchema.parse(payload) : validateCurrentGrantPayload(payload)
 }
 
 function isRegisteredGrantPolicyField(type: VaultEntryTypeName, id: string): boolean {

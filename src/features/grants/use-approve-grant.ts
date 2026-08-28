@@ -23,6 +23,7 @@ import {
   type GrantMethod,
 } from './grant-methods'
 import { GRANTS_QUERY_KEY } from './query-keys'
+import { ENTRY_TYPE_CREDIT_CARD, normalizeEntryType } from '../../shared/types/entry-type'
 
 export class VaultLockedError extends Error {
   constructor() {
@@ -132,6 +133,9 @@ export function useApproveGrant() {
         const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
         })
+        if (normalizeEntryType(memberSecret.entryType) === ENTRY_TYPE_CREDIT_CARD) {
+          throw new MissingGrantMaterialError()
+        }
         const approvedFieldIds = listGrantableFieldIds(memberSecret)
         const reviewedFieldIds = [...fieldIds].sort()
         const reviewedFieldSet = new Set(reviewedFieldIds)

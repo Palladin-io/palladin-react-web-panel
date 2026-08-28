@@ -110,6 +110,27 @@ describe('useCreateGrant', () => {
     expect(mocks.wipe).toHaveBeenCalled()
   })
 
+  it('rejects a new granular credit-card grant before sealing', async () => {
+    mocks.decrypt.mockResolvedValueOnce({ schemaVersion: 1, entryType: 'creditCard' })
+    const { result } = renderHook(() => useCreateGrant(), { wrapper })
+
+    await expect(result.current.mutateAsync({
+      vaultId: 'v1',
+      agentId: '22222222-2222-4222-8222-222222222222',
+      agentPublicKey: 'agent-public-key',
+      recipientAgentKeyVersion: 4,
+      agentAccessEpoch: 2,
+      type: 'granular',
+      entryId: '33333333-3333-4333-8332-333333333333',
+      policy: {},
+      methods: ['inject'],
+    })).rejects.toThrow('Cannot produce a revision-bound grant envelope')
+
+    expect(mocks.produce).not.toHaveBeenCalled()
+    expect(mocks.create).not.toHaveBeenCalled()
+    expect(mocks.wipe).toHaveBeenCalled()
+  })
+
   it('creates FULL with one whole-VK wrapper and no per-entry envelopes', async () => {
     mocks.vaultState.status = 'idle'
     const { result } = renderHook(() => useCreateGrant(), { wrapper })

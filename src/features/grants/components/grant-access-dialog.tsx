@@ -37,7 +37,7 @@ import { DEFAULT_GRANT_METHODS, GRANT_METHOD_EXEC, type GrantMethod } from '../g
 import { EntityCombobox, type ComboboxOption } from './entity-combobox'
 import { GrantPolicyFields } from './grant-policy-fields'
 import { GrantMethodsSelect } from './grant-methods-select'
-import { ENTRY_TYPE_SCRIPT } from '../../../shared/types/entry-type'
+import { ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_SCRIPT } from '../../../shared/types/entry-type'
 import { ScriptGrantSummary } from './script-grant-summary'
 
 /**
@@ -78,9 +78,10 @@ function targetReadiness(
   return {}
 }
 
-function entryGrantType(vaultId: string, entryId: string): GrantType {
+function entryGrantType(vaultId: string, entryId: string): GrantType | null {
   const entry = useMemberSyncStore.getState().vaults.get(vaultId)?.entries.get(entryId)
-  return entry?.payload?.entryType === 'script' ? GRANT_TYPE_SCRIPT_EXECUTION : GRANT_TYPE_GRANULAR
+  if (!entry?.payload || entry.payload.entryType === 'creditCard') return null
+  return entry.payload.entryType === 'script' ? GRANT_TYPE_SCRIPT_EXECUTION : GRANT_TYPE_GRANULAR
 }
 
 /**
@@ -316,6 +317,7 @@ function SubjectSegment({
     )
   }
   if (mode.kind === 'agent-for-entry') {
+    const type = entryGrantType(mode.vaultId, mode.entryId)
     return (
       <AgentPicker
         vaultId={mode.vaultId}
@@ -323,11 +325,11 @@ function SubjectSegment({
         disabled={disabled}
         onPick={(agentId) =>
           onSubjectChange(
-            agentId
+            agentId && type
               ? {
                   vaultId: mode.vaultId,
                   agentId,
-                  type: entryGrantType(mode.vaultId, mode.entryId),
+                  type,
                   entryId: mode.entryId,
                   ...targetReadiness(mode.vaultId, mode.entryId),
                 }
@@ -373,13 +375,16 @@ function AgentPicker({
       : agentsCoveringEntry(items, entryId)
   }, [vaultGrants.data, entryId, vaultId])
 
+  const entryType = entryId ? entryGrantType(vaultId, entryId) : undefined
+
   const options = useMemo<ComboboxOption[]>(() => {
     const q = query.trim().toLowerCase()
+    if (entryId && entryType === null) return []
     return (agents.data ?? [])
       .filter((a) => a.status === AGENT_STATUS_ACTIVE && !covered.has(a.agentId))
       .filter((a) => !q || (a.name ?? '').toLowerCase().includes(q))
       .map((a) => ({ id: a.agentId, label: a.name ?? a.agentId }))
-  }, [agents.data, covered, query])
+  }, [agents.data, covered, entryId, entryType, query])
 
   return (
     <EntityCombobox
@@ -554,6 +559,7 @@ function CrossVaultEntryPicker({
     return entries
       .filter(
         (e) =>
+          e.type !== ENTRY_TYPE_CREDIT_CARD &&
           !coverage.coveredEntryIds.has(e.id) &&
           !(e.type === ENTRY_TYPE_SCRIPT
             ? coverage.fullExecCoveredVaultIds.has(e.vaultId)
@@ -565,7 +571,9 @@ function CrossVaultEntryPicker({
   // Track vaultId for the selected entry so we can build the subject.
   const entryCoordinates = useMemo(() => {
     const map = new Map<string, { vaultId: string; type: number }>()
-    for (const e of entries) map.set(e.id, { vaultId: e.vaultId, type: e.type })
+    for (const e of entries) {
+      if (e.type !== ENTRY_TYPE_CREDIT_CARD) map.set(e.id, { vaultId: e.vaultId, type: e.type })
+    }
     return map
   }, [entries])
 

@@ -50,14 +50,17 @@ export function allowedAgentFieldAccess(
   customFieldType?: CustomField['type'],
 ): readonly AgentFieldAccess[] {
   if (fieldId === ENTRY_FIELD.agentLabel || fieldId === ENTRY_FIELD.description) return DISCOVERY_OR_NEVER
-  if (fieldId === ENTRY_FIELD.notes) return type === ENTRY_TYPE_SCRIPT || type === ENTRY_TYPE_CREDIT_CARD ? RUNTIME_OR_NEVER : VALUE_OR_NEVER
+  if (type === ENTRY_TYPE_CREDIT_CARD) return ['never'] as const
+  if (fieldId === ENTRY_FIELD.notes) return type === ENTRY_TYPE_SCRIPT ? RUNTIME_OR_NEVER : VALUE_OR_NEVER
   if (fieldId === ENTRY_FIELD.totp || customFieldType === 'totp') return DERIVED_OR_NEVER
   if (fieldId.startsWith('custom:')) {
-    return type === ENTRY_TYPE_SCRIPT || type === ENTRY_TYPE_CREDIT_CARD
+    return type === ENTRY_TYPE_SCRIPT
       ? RUNTIME_OR_NEVER
       : ['never', 'discovery', 'onGrantValue'] as const
   }
-  if (type === ENTRY_TYPE_KEY && fieldId === ENTRY_FIELD.value) return VALUE_OR_NEVER
+  if (type === ENTRY_TYPE_KEY && (fieldId === ENTRY_FIELD.value || fieldId === ENTRY_FIELD.url)) {
+    return VALUE_OR_NEVER
+  }
   if (type === ENTRY_TYPE_CREDENTIAL) {
     if (fieldId === ENTRY_FIELD.username) return ['never', 'discovery', 'onGrantValue'] as const
     if (fieldId === ENTRY_FIELD.urlDomain) return DISCOVERY_OR_NEVER
@@ -66,10 +69,6 @@ export function allowedAgentFieldAccess(
   if (type === ENTRY_TYPE_SCRIPT) {
     if (fieldId === ENTRY_FIELD.interpreter) return DISCOVERY_OR_NEVER
     if (fieldId === ENTRY_FIELD.script || fieldId === ENTRY_FIELD.refs) return RUNTIME_OR_NEVER
-  }
-  if (type === ENTRY_TYPE_CREDIT_CARD) {
-    if ([ENTRY_FIELD.cardholderName, ENTRY_FIELD.cardNumber, ENTRY_FIELD.expiryMonth, ENTRY_FIELD.expiryYear,
-      ENTRY_FIELD.billingAddress].includes(fieldId as never)) return RUNTIME_OR_NEVER
   }
   return ['never'] as const
 }
@@ -195,7 +194,10 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
     [ENTRY_FIELD.description]: 'never',
     [ENTRY_FIELD.notes]: type === ENTRY_TYPE_SCRIPT || type === ENTRY_TYPE_CREDIT_CARD ? 'never' : 'onGrantValue',
   }
-  if (type === ENTRY_TYPE_KEY) defaults[ENTRY_FIELD.value] = 'onGrantValue'
+  if (type === ENTRY_TYPE_KEY) {
+    defaults[ENTRY_FIELD.value] = 'onGrantValue'
+    defaults[ENTRY_FIELD.url] = 'onGrantValue'
+  }
   if (type === ENTRY_TYPE_CREDENTIAL) {
     defaults[ENTRY_FIELD.username] = 'discovery'
     defaults[ENTRY_FIELD.urlDomain] = 'discovery'
@@ -211,13 +213,13 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
   if (type === ENTRY_TYPE_CREDIT_CARD) {
     for (const id of [ENTRY_FIELD.cardholderName, ENTRY_FIELD.cardNumber, ENTRY_FIELD.expiryMonth,
       ENTRY_FIELD.expiryYear, ENTRY_FIELD.billingAddress]) {
-      defaults[id] = 'onGrantRuntime'
+      defaults[id] = 'never'
     }
   }
   for (const field of fields) {
     defaults[`custom:${field.id}`] = field.type === 'totp'
-      ? 'onGrantDerived'
-      : type === ENTRY_TYPE_SCRIPT || type === ENTRY_TYPE_CREDIT_CARD ? 'onGrantRuntime' : 'onGrantValue'
+      ? type === ENTRY_TYPE_CREDIT_CARD ? 'never' : 'onGrantDerived'
+      : type === ENTRY_TYPE_CREDIT_CARD ? 'never' : type === ENTRY_TYPE_SCRIPT ? 'onGrantRuntime' : 'onGrantValue'
   }
   return { discoverable: true, fields: defaults }
 }
