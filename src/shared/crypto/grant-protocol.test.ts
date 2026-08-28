@@ -80,7 +80,9 @@ describe('canonical Grant protocol', () => {
           deliveryPolicy: envelope.descriptor.binding.deliveryPolicy,
           fieldSetCommitment: fromBase64Url(envelope.descriptor.binding.fieldSetCommitment),
         })
-        expect(new TextDecoder().decode(plaintext)).toContain('"credential.password"')
+        expect(new TextDecoder().decode(plaintext)).toBe(
+          '{"approvedMethods":1,"entryRevision":"7","fields":{"credential.password":"secret"}}',
+        )
         wipe(plaintext)
       } finally {
         wipe(payloadKey)

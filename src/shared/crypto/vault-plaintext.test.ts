@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   encodeMemberSecret,
+  encodeGrantPayload,
   parseMemberSecret,
   projectAgentDiscovery,
   projectGrantPayload,
@@ -62,14 +63,27 @@ describe('Vault plaintext v1', () => {
   })
 
   it('builds a sorted least-privilege GrantPayload and rejects Discovery fields', () => {
-    expect(projectGrantPayload(secret, ['credential.totp', 'credential.password'])).toEqual({
-      schema: 'palladin.grant-payload.v1', entryType: 'credential',
-      fields: [
-        { id: 'credential.password', kind: 'concealed', mode: 'value', value: 'secret' },
-        { id: 'credential.totp', kind: 'totp', mode: 'derived', value: { secret: 'JBSWY3DPEHPK3PXP', algorithm: 'SHA1', digits: 6, period: 30, issuer: null, account: null } },
-      ],
+    const payload = projectGrantPayload(
+      secret,
+      ['credential.totp', 'credential.password'],
+      { approvedMethods: 4, entryRevision: '12' },
+    )
+    expect(payload).toEqual({
+      approvedMethods: 4,
+      entryRevision: '12',
+      fields: {
+        'credential.password': 'secret',
+        'credential.totp': { secret: 'JBSWY3DPEHPK3PXP', algorithm: 'SHA1', digits: 6, period: 30, issuer: null, account: null },
+      },
     })
-    expect(() => projectGrantPayload(secret, ['credential.username'])).toThrow(/not grantable/)
+    expect(new TextDecoder().decode(encodeGrantPayload(payload))).toBe(
+      '{"approvedMethods":4,"entryRevision":"12","fields":{"credential.password":"secret","credential.totp":{"account":null,"algorithm":"SHA1","digits":6,"issuer":null,"period":30,"secret":"JBSWY3DPEHPK3PXP"}}}',
+    )
+    expect(() => projectGrantPayload(
+      secret,
+      ['credential.username'],
+      { approvedMethods: 4, entryRevision: '12' },
+    )).toThrow(/not grantable/)
   })
 
   it('round-trips public catalog identity and direct delivery URL', () => {
@@ -123,7 +137,11 @@ describe('Vault plaintext v1', () => {
     }
 
     expect(projectAgentDiscovery(card)).toMatchObject({ capabilities: ['get', 'exec', 'inject'], fields: [] })
-    expect(projectGrantPayload(card, ['creditCard.cardNumber']).fields[0]).toMatchObject({ mode: 'runtime' })
+    expect(projectGrantPayload(
+      card,
+      ['creditCard.cardNumber'],
+      { approvedMethods: 4, entryRevision: '1' },
+    ).fields['creditCard.cardNumber']).toBe('4242424242424242')
     expect(() => encodeMemberSecret({
       ...card,
       agentFieldAccess: { ...card.agentFieldAccess, 'creditCard.cardNumber': 'onGrantValue' },

@@ -11,6 +11,9 @@ export type AgentFieldAccess = (typeof AGENT_FIELD_ACCESS)[number]
 export type VaultEntryTypeName = 'key' | 'credential' | 'script' | 'creditCard'
 
 const normalizedString = z.string().refine((value) => value === value.normalize('NFC'), 'String must be NFC')
+const canonicalUint64String = z.string()
+  .regex(/^(0|[1-9][0-9]*)$/)
+  .refine((value) => BigInt(value) <= 0xffffffffffffffffn, 'Value must fit UInt64')
 const nullableString = normalizedString.nullable()
 const color = z.string().regex(/^#[0-9A-F]{6}$/).nullable()
 const glyphIcon = z.object({ kind: z.literal('glyph'), value: normalizedString.min(1).max(64) }).strict()
@@ -134,16 +137,11 @@ const agentDiscoverySchema = z.object({
   capabilities: z.array(z.enum(['get', 'exec', 'inject'])),
   fields: z.array(projectedField),
 }).strict()
-const grantField = z.object({
-  id: normalizedString,
-  kind: z.enum(['text', 'multiline', 'concealed', 'url', 'totp', 'script', 'interpreter', 'refs']),
-  mode: z.enum(['value', 'derived', 'runtime']),
-  value: jsonValue,
-}).strict()
 const grantPayloadSchema = z.object({
-  schema: z.literal('palladin.grant-payload.v1'),
-  entryType: z.enum(['key', 'credential', 'script', 'creditCard']),
-  fields: z.array(grantField),
+  approvedMethods: z.number().int().min(1).max(7),
+  entryRevision: canonicalUint64String,
+  fields: z.record(normalizedString.min(1).max(128), jsonValue)
+    .refine((fields) => Object.keys(fields).length > 0, 'Grant payload requires at least one field'),
 }).strict()
 
 export type MemberVaultMetadataV1 = z.infer<typeof memberVaultMetadataSchema>
@@ -361,39 +359,26 @@ export function projectAgentDiscovery(secret: MemberSecretV1): AgentDiscoveryV1 
   })
 }
 
-export function projectGrantPayload(secret: MemberSecretV1, fieldIds: readonly string[]): GrantPayloadV1 {
+export function projectGrantPayload(
+  secret: MemberSecretV1,
+  fieldIds: readonly string[],
+  binding: Pick<GrantPayloadV1, 'approvedMethods' | 'entryRevision'>,
+): GrantPayloadV1 {
   assertPolicy(secret)
   const sorted = [...fieldIds].sort()
   if (new Set(sorted).size !== sorted.length) throw new Error('Grant field IDs must be distinct')
-  const fields = sorted.map((id) => {
+  const fields = Object.fromEntries(sorted.map((id) => {
     const access = secret.agentFieldAccess[id]
-    const mode = access === 'onGrantValue' ? 'value' : access === 'onGrantDerived' ? 'derived' : access === 'onGrantRuntime' ? 'runtime' : undefined
     const value = fieldValue(secret, id)
-    if (!mode || value === undefined) throw new Error(`Field ${id} is not grantable`)
-    const custom = id.startsWith('custom:') ? secret.content.customFields.find((field) => field.id === id) : undefined
-    const kind = custom
-      ? custom.type
-      : id === 'key.value' || id === 'credential.password' || id === 'creditCard.cardNumber'
-        ? 'concealed'
-        : id === 'credential.url'
-          ? 'url'
-          : id === 'credential.totp'
-            ? 'totp'
-            : id === 'notes'
-              ? 'multiline'
-              : id === 'script.source'
-                ? 'script'
-                : id === 'script.interpreter'
-                  ? 'interpreter'
-                  : id === 'script.refs'
-                    ? 'refs'
-                    : 'text'
-    if (!['text', 'multiline', 'concealed', 'url', 'totp', 'script', 'interpreter', 'refs'].includes(kind)) {
-      throw new Error(`Unknown field kind for ${id}`)
+    if (
+      (access !== 'onGrantValue' && access !== 'onGrantDerived' && access !== 'onGrantRuntime')
+      || value === undefined
+    ) {
+      throw new Error(`Field ${id} is not grantable`)
     }
-    return { id, kind: kind as GrantPayloadV1['fields'][number]['kind'], mode, value }
-  })
-  return grantPayloadSchema.parse({ schema: 'palladin.grant-payload.v1', entryType: secret.entryType, fields })
+    return [id, value]
+  }))
+  return grantPayloadSchema.parse({ ...binding, fields })
 }
 
 export function listGrantableFieldIds(secret: MemberSecretV1): string[] {
