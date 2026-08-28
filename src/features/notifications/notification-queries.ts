@@ -1,11 +1,16 @@
 import {
-  type QueryClient,
   useInfiniteQuery,
   useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
 import type { InfiniteData } from '@tanstack/react-query'
+import {
+  adjustPendingGrantNotificationSummary,
+  NOTIFICATIONS_CACHE_ROOT_KEY,
+  NOTIFICATIONS_CACHE_SUMMARY_KEY,
+  omitResolvedPendingGrantNotifications,
+} from '../../shared/lib/pending-grant-notification-reconciliation'
 import {
   getNotifications,
   getNotificationsSummary,
@@ -24,8 +29,8 @@ import {
 } from './preferences-api'
 
 /** Root key — SignalR/FCM invalidate this prefix so every feed + the badge refresh live. */
-export const NOTIFICATIONS_QUERY_KEY = ['notifications'] as const
-export const NOTIFICATIONS_SUMMARY_QUERY_KEY = ['notifications', 'summary'] as const
+export const NOTIFICATIONS_QUERY_KEY = NOTIFICATIONS_CACHE_ROOT_KEY
+export const NOTIFICATIONS_SUMMARY_QUERY_KEY = NOTIFICATIONS_CACHE_SUMMARY_KEY
 export const NOTIFICATIONS_PREFERENCES_QUERY_KEY = [
   'notifications',
   'preferences',
@@ -39,75 +44,7 @@ export function notificationsListQueryKey(category?: NotificationCategory) {
 /** Prefix that matches EVERY per-category feed cache (`['notifications','list', …]`). */
 const NOTIFICATIONS_LIST_PREFIX = ['notifications', 'list'] as const
 
-const resolvedGrantTombstones = new WeakMap<QueryClient, Set<string>>()
-const resolvedGrantSummaryThresholds = new WeakMap<QueryClient, Map<string, number | null>>()
-
 type NotificationsInfiniteData = InfiniteData<NotificationsPage, string | undefined>
-
-/**
- * Removes a successfully handled grant request from every cached Inbox feed.
- *
- * Grant approval/denial is committed by Vault before Notification's async
- * consumer collapses the immutable `grant_pending` row. Refetching immediately
- * can therefore race that projection and briefly restore already handled
- * actions. Patch the local projection after the authoritative mutation and
- * retain an in-memory tombstone for the QueryClient lifetime so any delayed
- * projection response cannot restore the completed controls.
- */
-export function resolvePendingGrantNotification(
-  queryClient: QueryClient,
-  grantId: string,
-): void {
-  const tombstones = resolvedGrantTombstones.get(queryClient) ?? new Set<string>()
-  const alreadyResolved = tombstones.has(grantId)
-  tombstones.add(grantId)
-  resolvedGrantTombstones.set(queryClient, tombstones)
-  const entries = queryClient.getQueriesData<NotificationsInfiniteData>({
-    queryKey: NOTIFICATIONS_LIST_PREFIX,
-  })
-  for (const [key, data] of entries) {
-    if (!data) continue
-    const pages = data.pages.map((page) => ({
-      ...page,
-      items: page.items.filter((item) => {
-        const matches = item.type === 'grant_pending' && item.metadata?.grantId === grantId
-        return !matches
-      }),
-    }))
-    queryClient.setQueryData<NotificationsInfiniteData>(key, { ...data, pages })
-  }
-
-  const summary = queryClient.getQueryData<NotificationsSummary>(
-    NOTIFICATIONS_SUMMARY_QUERY_KEY,
-  )
-  if (!alreadyResolved) {
-    const thresholds = resolvedGrantSummaryThresholds.get(queryClient)
-      ?? new Map<string, number | null>()
-    thresholds.set(grantId, summary ? Math.max(1, summary.pendingActionCount) : null)
-    resolvedGrantSummaryThresholds.set(queryClient, thresholds)
-  }
-  if (!alreadyResolved && summary) {
-    queryClient.setQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY, {
-      ...summary,
-      pendingActionCount: Math.max(0, summary.pendingActionCount - 1),
-    })
-  }
-}
-
-function omitResolvedPendingGrants(
-  queryClient: QueryClient,
-  page: NotificationsPage,
-): NotificationsPage {
-  const tombstones = resolvedGrantTombstones.get(queryClient)
-  if (!tombstones?.size) return page
-  return {
-    ...page,
-    items: page.items.filter((item) =>
-      item.type !== 'grant_pending'
-      || !item.metadata?.grantId
-      || !tombstones.has(item.metadata.grantId)),
-  }
-}
 
 /**
  * Optimistically patch matching feed rows across ALL list caches and capture a
@@ -143,7 +80,7 @@ export function useNotifications(category?: NotificationCategory) {
   const queryClient = useQueryClient()
   return useInfiniteQuery({
     queryKey: notificationsListQueryKey(category),
-    queryFn: async ({ pageParam }) => omitResolvedPendingGrants(
+    queryFn: async ({ pageParam }) => omitResolvedPendingGrantNotifications(
       queryClient,
       await getNotifications({ cursor: pageParam, category }),
     ),
@@ -159,21 +96,10 @@ export function useNotificationsSummary() {
   return useQuery({
     queryKey: NOTIFICATIONS_SUMMARY_QUERY_KEY,
     queryFn: async () => {
-      const summary = await getNotificationsSummary()
-      const thresholds = resolvedGrantSummaryThresholds.get(queryClient)
-      if (!thresholds?.size) return summary
-      for (const [grantId, threshold] of thresholds) {
-        if (threshold === null) {
-          if (summary.pendingActionCount === 0) thresholds.delete(grantId)
-          else thresholds.set(grantId, summary.pendingActionCount)
-        } else if (summary.pendingActionCount < threshold) {
-          thresholds.delete(grantId)
-        }
-      }
-      return {
-        ...summary,
-        pendingActionCount: Math.max(0, summary.pendingActionCount - thresholds.size),
-      }
+      return adjustPendingGrantNotificationSummary(
+        queryClient,
+        await getNotificationsSummary(),
+      )
     },
     staleTime: 15_000,
   })

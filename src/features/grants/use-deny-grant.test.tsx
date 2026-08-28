@@ -6,12 +6,16 @@ import { describe, expect, it, vi } from 'vitest'
 const denyGrant = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 vi.mock('./api/pending-grants-api', () => ({ denyGrant }))
 
-import {
-  NOTIFICATIONS_SUMMARY_QUERY_KEY,
-  notificationsListQueryKey,
-} from '../notifications/notification-queries'
-import type { NotificationsSummary } from '../notifications/notifications-api'
+import { NOTIFICATIONS_CACHE_SUMMARY_KEY } from '../../shared/lib/pending-grant-notification-reconciliation'
 import { useDenyGrant } from './use-deny-grant'
+
+const notificationsListQueryKey = (category: string) =>
+  ['notifications', 'list', category] as const
+
+interface NotificationsSummary {
+  unreadCount: number
+  pendingActionCount: number
+}
 
 describe('useDenyGrant', () => {
   it('registers the resolved notification tombstone from the shared mutation', async () => {
@@ -25,7 +29,7 @@ describe('useDenyGrant', () => {
       }],
       pageParams: [undefined],
     })
-    client.setQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY, {
+    client.setQueryData<NotificationsSummary>(NOTIFICATIONS_CACHE_SUMMARY_KEY, {
       unreadCount: 1,
       pendingActionCount: 1,
     })
@@ -38,7 +42,7 @@ describe('useDenyGrant', () => {
 
     expect(client.getQueryData<{ pages: { items: unknown[] }[] }>(notificationsListQueryKey('all'))
       ?.pages[0].items).toEqual([])
-    expect(client.getQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY)
+    expect(client.getQueryData<NotificationsSummary>(NOTIFICATIONS_CACHE_SUMMARY_KEY)
       ?.pendingActionCount).toBe(0)
   })
 })

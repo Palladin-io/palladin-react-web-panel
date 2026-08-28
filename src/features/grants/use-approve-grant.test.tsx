@@ -31,11 +31,15 @@ vi.mock('../vaults/script-execution-package', () => ({
 vi.mock('./api/pending-grants-api', () => ({ approveGrant: mocks.approve }))
 
 import { useApproveGrant } from './use-approve-grant'
-import {
-  NOTIFICATIONS_SUMMARY_QUERY_KEY,
-  notificationsListQueryKey,
-} from '../notifications/notification-queries'
-import type { NotificationsSummary } from '../notifications/notifications-api'
+import { NOTIFICATIONS_CACHE_SUMMARY_KEY } from '../../shared/lib/pending-grant-notification-reconciliation'
+
+const notificationsListQueryKey = (category: string) =>
+  ['notifications', 'list', category] as const
+
+interface NotificationsSummary {
+  unreadCount: number
+  pendingActionCount: number
+}
 
 function wrapper(client: QueryClient) {
   return ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -83,7 +87,7 @@ describe('useApproveGrant', () => {
       }],
       pageParams: [undefined],
     })
-    client.setQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY, {
+    client.setQueryData<NotificationsSummary>(NOTIFICATIONS_CACHE_SUMMARY_KEY, {
       unreadCount: 1,
       pendingActionCount: 1,
     })
@@ -124,7 +128,7 @@ describe('useApproveGrant', () => {
     expect(mocks.wipe).toHaveBeenCalled()
     expect(client.getQueryData<{ pages: { items: unknown[] }[] }>(notificationsListQueryKey('all'))
       ?.pages[0].items).toEqual([])
-    expect(client.getQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY)
+    expect(client.getQueryData<NotificationsSummary>(NOTIFICATIONS_CACHE_SUMMARY_KEY)
       ?.pendingActionCount).toBe(0)
   })
 })

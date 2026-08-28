@@ -20,10 +20,10 @@ vi.mock('./notifications-api', async (orig) => {
 })
 
 import type { NotificationItem, NotificationsSummary } from './notifications-api'
+import { resolvePendingGrantNotification } from '../../shared/lib/pending-grant-notification-reconciliation'
 import {
   NOTIFICATIONS_SUMMARY_QUERY_KEY,
   notificationsListQueryKey,
-  resolvePendingGrantNotification,
   useNotifications,
   useNotificationsSummary,
   useMarkAllNotificationsRead,
@@ -79,7 +79,7 @@ describe('resolvePendingGrantNotification', () => {
       .toEqual(['n2'])
   })
 
-  it('keeps the pending-action summary decremented until the projection catches up', async () => {
+  it('keeps the grant adjustment across an unrelated aggregate-count decrease', async () => {
     const client = seededClient()
     resolvePendingGrantNotification(client, 'grant-1')
     getNotificationsSummary.mockResolvedValueOnce({ unreadCount: 2, pendingActionCount: 2 })
@@ -89,11 +89,11 @@ describe('resolvePendingGrantNotification', () => {
     expect(result.current.data?.pendingActionCount).toBe(1)
 
     getNotificationsSummary.mockResolvedValueOnce({ unreadCount: 2, pendingActionCount: 1 })
-    await result.current.refetch()
-    expect(result.current.data?.pendingActionCount).toBe(1)
+    const afterUnrelatedDecrease = await result.current.refetch()
+    expect(afterUnrelatedDecrease.data?.pendingActionCount).toBe(0)
   })
 
-  it('establishes a summary race threshold when the mutation ran before summary loaded', async () => {
+  it('applies the grant adjustment when the mutation ran before summary loaded', async () => {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
@@ -104,8 +104,8 @@ describe('resolvePendingGrantNotification', () => {
     await waitFor(() => expect(result.current.data?.pendingActionCount).toBe(2))
 
     getNotificationsSummary.mockResolvedValueOnce({ unreadCount: 2, pendingActionCount: 2 })
-    await result.current.refetch()
-    expect(result.current.data?.pendingActionCount).toBe(2)
+    const afterUnrelatedDecrease = await result.current.refetch()
+    expect(afterUnrelatedDecrease.data?.pendingActionCount).toBe(1)
   })
 })
 

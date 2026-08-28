@@ -6,6 +6,10 @@ import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
 import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
+import {
+  NOTIFICATIONS_CACHE_ROOT_KEY,
+  resolvePendingGrantNotification,
+} from '../../shared/lib/pending-grant-notification-reconciliation'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import { buildCompleteScriptExecutionPackage } from '../vaults/script-execution-package'
@@ -19,10 +23,6 @@ import {
   type GrantMethod,
 } from './grant-methods'
 import { GRANTS_QUERY_KEY } from './query-keys'
-import {
-  NOTIFICATIONS_QUERY_KEY,
-  resolvePendingGrantNotification,
-} from '../notifications/notification-queries'
 
 export class VaultLockedError extends Error {
   constructor() {
@@ -161,7 +161,7 @@ export function useApproveGrant() {
       resolvePendingGrantNotification(queryClient, input.grantId)
       void queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY })
       void queryClient.invalidateQueries({
-        queryKey: NOTIFICATIONS_QUERY_KEY,
+        queryKey: NOTIFICATIONS_CACHE_ROOT_KEY,
         refetchType: 'none',
       })
     },

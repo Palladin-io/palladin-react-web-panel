@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  NOTIFICATIONS_CACHE_ROOT_KEY,
+  resolvePendingGrantNotification,
+} from '../../shared/lib/pending-grant-notification-reconciliation'
 import { denyGrant } from './api/pending-grants-api'
 import { GRANTS_QUERY_KEY } from './query-keys'
-import {
-  NOTIFICATIONS_QUERY_KEY,
-  resolvePendingGrantNotification,
-} from '../notifications/notification-queries'
 
 export interface DenyGrantInput {
   vaultId: string
@@ -24,7 +24,7 @@ export function useDenyGrant() {
       // Invalidating the grants root refreshes pending queue + org-grants list.
       void queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY })
       void queryClient.invalidateQueries({
-        queryKey: NOTIFICATIONS_QUERY_KEY,
+        queryKey: NOTIFICATIONS_CACHE_ROOT_KEY,
         refetchType: 'none',
       })
     },
