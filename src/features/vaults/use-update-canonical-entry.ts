@@ -7,7 +7,11 @@ import {
   listGrantableFields,
 } from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
-import { projectAgentDiscovery, type MemberSecretV1 } from '../../shared/crypto/vault-plaintext'
+import {
+  grantPayloadPolicyFieldId,
+  projectAgentDiscovery,
+  type MemberSecretV1,
+} from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
 import {
@@ -143,7 +147,9 @@ export async function updateCanonicalEntryNow(
           || !grant.agentId || !grant.agentPublicKey || !grant.recipientAgentKeyVersion
           || methods.length === 0) throw new ActiveGrantRefreshRequiredError()
         try {
-          const approvedFieldIds = scope.fieldIds.filter((fieldId) => grantable.has(fieldId))
+          const approvedFieldIds = scope.fieldIds
+            .map((fieldId) => grantPayloadPolicyFieldId(nextSecret.entryType, fieldId))
+            .filter((fieldId) => grantable.has(fieldId))
           if (approvedFieldIds.length === 0) throw new ActiveGrantRefreshRequiredError()
           const approvedMethods = grantMethodsMask(methods)
           grantEnvelopes.push(await buildCanonicalGrantEnvelope({

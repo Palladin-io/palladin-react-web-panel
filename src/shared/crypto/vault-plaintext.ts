@@ -390,9 +390,14 @@ function projectPayload(
   allowDiscoveryRuntime: boolean,
 ): GrantPayloadV1 {
   assertPolicy(secret)
-  const sorted = [...fieldIds].sort()
-  if (new Set(sorted).size !== sorted.length) throw new Error('Grant field IDs must be distinct')
-  const fields = sorted.map((id) => {
+  if (!allowDiscoveryRuntime && secret.entryType === 'creditCard') {
+    throw new Error('Entry type creditCard is not registered in GrantPayload v1')
+  }
+  if (new Set(fieldIds).size !== fieldIds.length) throw new Error('Grant field IDs must be distinct')
+  const fields = fieldIds.map((id) => {
+    if (!allowDiscoveryRuntime && !isRegisteredGrantPolicyField(secret.entryType, id)) {
+      throw new Error(`Field ${id} is not registered in GrantPayload v1`)
+    }
     const access = secret.agentFieldAccess[id]
     const value = fieldValue(secret, id)
     const custom = id.startsWith('custom:') ? secret.content.customFields.find((field) => field.id === id) : undefined
@@ -425,15 +430,35 @@ function projectPayload(
     if (!['text', 'multiline', 'concealed', 'url', 'totp', 'script', 'interpreter', 'refs'].includes(kind)) {
       throw new Error(`Unknown field kind for ${id}`)
     }
-    return { id, kind: kind as GrantPayloadV1['fields'][number]['kind'], mode, value }
-  })
+    const payloadId = !allowDiscoveryRuntime && id === 'notes'
+      ? `${secret.entryType}.notes`
+      : id
+    return { id: payloadId, kind: kind as GrantPayloadV1['fields'][number]['kind'], mode, value }
+  }).sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
   return grantPayloadSchema.parse({ schema: 'palladin.grant-payload.v1', entryType: secret.entryType, fields })
+}
+
+function isRegisteredGrantPolicyField(type: VaultEntryTypeName, id: string): boolean {
+  if (id.startsWith('custom:')) return type !== 'creditCard'
+  return type === 'key'
+    ? id === 'key.value' || id === 'key.url' || id === 'notes'
+    : type === 'credential'
+      ? id === 'credential.username' || id === 'credential.password'
+        || id === 'credential.url' || id === 'credential.totp' || id === 'notes'
+      : type === 'script'
+        ? id === 'script.source' || id === 'script.refs' || id === 'notes'
+        : false
+}
+
+export function grantPayloadPolicyFieldId(type: VaultEntryTypeName, payloadFieldId: string): string {
+  return payloadFieldId === `${type}.notes` ? 'notes' : payloadFieldId
 }
 
 export function listGrantableFieldIds(secret: MemberSecretV1): string[] {
   assertPolicy(secret)
   return Object.entries(secret.agentFieldAccess)
-    .filter(([, access]) => access === 'onGrantValue' || access === 'onGrantDerived' || access === 'onGrantRuntime')
+    .filter(([id, access]) => isRegisteredGrantPolicyField(secret.entryType, id)
+      && (access === 'onGrantValue' || access === 'onGrantDerived' || access === 'onGrantRuntime'))
     .map(([id]) => id)
     .sort()
 }

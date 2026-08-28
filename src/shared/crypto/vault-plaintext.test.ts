@@ -3,8 +3,10 @@ import grantPayloadContract from './fixtures/grant-payload/v1/vectors.json'
 import {
   encodeMemberSecret,
   encodeGrantPayload,
+  grantPayloadPolicyFieldId,
   parseGrantPayload,
   parseMemberSecret,
+  listGrantableFieldIds,
   projectAgentDiscovery,
   projectGrantPayload,
   projectMemberIndex,
@@ -92,6 +94,33 @@ describe('Vault plaintext v1', () => {
     expect(() => projectGrantPayload(secret, ['credential.username'])).toThrow(/not grantable/)
   })
 
+  it('emits only registered GrantPayload fields and namespaces notes by Entry type', () => {
+    const keySecret: MemberSecretV1 = {
+      ...secret,
+      entryType: 'key',
+      content: { value: 'secret', url: null, notes: 'private note', customFields: [] },
+      agentFieldAccess: {
+        memberLabel: 'never', agentLabel: 'discovery', description: 'never', icon: 'never', color: 'never',
+        entryType: 'discovery', 'key.value': 'never', notes: 'onGrantValue',
+      },
+    }
+
+    expect(projectGrantPayload(keySecret, ['notes']).fields).toEqual([
+      { id: 'key.notes', kind: 'multiline', mode: 'value', value: 'private note' },
+    ])
+    expect(grantPayloadPolicyFieldId('key', 'key.notes')).toBe('notes')
+
+    const discoveryOnly = {
+      ...secret,
+      agentFieldAccess: {
+        ...secret.agentFieldAccess,
+        'credential.urlDomain': 'onGrantValue' as const,
+      },
+    }
+    expect(() => projectGrantPayload(discoveryOnly, ['credential.urlDomain']))
+      .toThrow(/not registered/)
+  })
+
   it('matches the public cross-client GrantPayload contract bytes', () => {
     const vector = grantPayloadContract.vectors[0]
     const payload = vector.plaintext as GrantPayloadV1
@@ -174,7 +203,8 @@ describe('Vault plaintext v1', () => {
     }
 
     expect(projectAgentDiscovery(card)).toMatchObject({ capabilities: ['inject'], fields: [] })
-    expect(projectGrantPayload(card, ['creditCard.cardNumber']).fields[0]).toMatchObject({ mode: 'runtime' })
+    expect(listGrantableFieldIds(card)).toEqual([])
+    expect(() => projectGrantPayload(card, ['creditCard.cardNumber'])).toThrow(/not registered/)
     expect(() => encodeMemberSecret({
       ...card,
       agentFieldAccess: { ...card.agentFieldAccess, 'creditCard.cardNumber': 'onGrantValue' },

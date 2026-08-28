@@ -32,7 +32,10 @@ vi.mock('../../shared/crypto/vault-protocol', () => ({
 }))
 vi.mock('../../shared/crypto/entry-protocol', () => ({ sealCanonicalEntry: mocks.createMaterial }))
 vi.mock('../../shared/crypto/entry-draft', () => ({ toMemberSecret: mocks.toSecret }))
-vi.mock('../../shared/crypto/vault-plaintext', () => ({ projectAgentDiscovery: vi.fn(() => null) }))
+vi.mock('../../shared/crypto/vault-plaintext', () => ({
+  grantPayloadPolicyFieldId: vi.fn((_type: string, fieldId: string) => fieldId),
+  projectAgentDiscovery: vi.fn(() => null),
+}))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: mocks.produce,
   GRANT_DELIVERY_POLICY: { standard: 0, execOnly: 1, injectOnly: 2 },

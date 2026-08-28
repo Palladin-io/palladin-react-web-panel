@@ -9,7 +9,11 @@ import {
   listGrantableFields,
 } from '../../shared/crypto/grant-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
-import { projectAgentDiscovery, publicAssetIconReference } from '../../shared/crypto/vault-plaintext'
+import {
+  grantPayloadPolicyFieldId,
+  projectAgentDiscovery,
+  publicAssetIconReference,
+} from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
 import {
@@ -345,7 +349,9 @@ export function useImportEntries() {
               if (!scope?.grantEnvelopeRevision || !scope.grantKeyVersion || !scope.fieldIds.length
                 || !grant.agentId || !grant.agentPublicKey || !grant.recipientAgentKeyVersion
                 || methods.length === 0) throw new Error('Active grant refresh context is invalid')
-              const approvedFieldIds = scope.fieldIds.filter((fieldId) => grantable.has(fieldId))
+              const approvedFieldIds = scope.fieldIds
+                .map((fieldId) => grantPayloadPolicyFieldId(nextSecret.entryType, fieldId))
+                .filter((fieldId) => grantable.has(fieldId))
               if (approvedFieldIds.length === 0) throw new Error('Active grant has no permitted fields')
               material.grantEnvelopes.push(await buildCanonicalGrantEnvelope({
                 secret: nextSecret,

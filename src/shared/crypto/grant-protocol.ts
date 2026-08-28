@@ -4,7 +4,12 @@ import { ENVELOPE_PURPOSE } from './envelope'
 import { fromBase64, toBase64Url } from './encoding'
 import { randomBytes, wipe } from './sodium'
 import { deriveVaultSubkey } from './hkdf'
-import { encodeGrantPayload, projectGrantPayload, type MemberSecretV1 } from './vault-plaintext'
+import {
+  encodeGrantPayload,
+  listGrantableFieldIds,
+  projectGrantPayload,
+  type MemberSecretV1,
+} from './vault-plaintext'
 import { sealVaultEnvelope, toEnvelopeDescriptor, type EnvelopeDescriptorContract } from './vault-envelope'
 import { computeVaultKeyFingerprint, sealKeyToX25519Recipient, VAULT_KEY_KIND, WRAPPER_PURPOSE, X25519_SEALED_BOX_V1 } from './x25519-wrapper'
 
@@ -34,9 +39,11 @@ export interface GrantableField {
 
 export function listGrantableFields(secret: MemberSecretV1): GrantableField[] {
   const labels = new Map(secret.content.customFields.map((field) => [field.id, field.label]))
+  const registered = new Set(listGrantableFieldIds(secret))
   return Object.entries(secret.agentFieldAccess)
     .filter((entry): entry is [string, GrantableField['access']] =>
-      entry[1] === 'onGrantValue' || entry[1] === 'onGrantDerived' || entry[1] === 'onGrantRuntime')
+      registered.has(entry[0])
+      && (entry[1] === 'onGrantValue' || entry[1] === 'onGrantDerived' || entry[1] === 'onGrantRuntime'))
     .map(([id, access]) => ({ id, access, label: labels.get(id) ?? id }))
     .sort((left, right) => left.label.localeCompare(right.label))
 }
@@ -52,16 +59,17 @@ export async function buildCanonicalGrantEnvelope(input: BuildGrantEnvelopeInput
   if (BigInt(input.grantEnvelopeRevision) < 1n || input.grantKeyVersion < 1) {
     throw new RangeError('Grant envelope revisions must be positive')
   }
-  const fieldIds = [...new Set(input.approvedFieldIds)].sort()
-  if (fieldIds.length === 0) throw new Error('Grant payload requires at least one approved field')
+  const approvedPolicyFieldIds = [...new Set(input.approvedFieldIds)].sort()
+  if (approvedPolicyFieldIds.length === 0) throw new Error('Grant payload requires at least one approved field')
   const approvedMethods = input.approvedMethods
-  for (const id of fieldIds) {
+  for (const id of approvedPolicyFieldIds) {
     const access = input.secret.agentFieldAccess[id]
     if (access !== 'onGrantValue' && access !== 'onGrantDerived' && access !== 'onGrantRuntime') {
       throw new Error(`Field ${id} is not grantable by its agent-access policy`)
     }
   }
-  const payload = projectGrantPayload(input.secret, fieldIds)
+  const payload = projectGrantPayload(input.secret, approvedPolicyFieldIds)
+  const fieldIds = payload.fields.map(({ id }) => id)
   const publicKey = fromBase64(input.agentPublicKey)
   const fingerprint = await computeVaultKeyFingerprint(publicKey, VAULT_KEY_KIND.agentX25519)
   const commitment = await computeFieldSetCommitment(fieldIds)
