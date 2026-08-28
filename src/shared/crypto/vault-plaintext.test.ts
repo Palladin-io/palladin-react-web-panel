@@ -3,6 +3,7 @@ import grantPayloadContract from './fixtures/grant-payload/v1/vectors.json'
 import {
   encodeMemberSecret,
   encodeGrantPayload,
+  parseGrantPayload,
   parseMemberSecret,
   projectAgentDiscovery,
   projectGrantPayload,
@@ -88,6 +89,27 @@ describe('Vault plaintext v1', () => {
       vector.plaintextCanonical,
     )
     expect(payload.fields.map(({ id }) => id)).toEqual(vector.fieldIds)
+  })
+
+  it('pins legacy mobile compatibility as read-only contract data', () => {
+    const vector = grantPayloadContract.compatibilityVectors[0]
+    const encoded = new TextEncoder().encode(vector.plaintextCanonical)
+
+    expect(vector.readOnly).toBe(true)
+    expect(JSON.stringify(vector.plaintext)).toBe(vector.plaintextCanonical)
+    expect(() => parseGrantPayload(encoded)).toThrow()
+
+    for (const rejected of grantPayloadContract.rejectedExamples.filter(
+      ({ id }) => id.startsWith('legacy-'),
+    )) {
+      expect(() =>
+        parseGrantPayload(new TextEncoder().encode(JSON.stringify(rejected.value))),
+      ).toThrow()
+    }
+
+    const produced = projectGrantPayload(secret, ['credential.password', 'credential.url'])
+    expect(produced.schema).toBe('palladin.grant-payload.v1')
+    expect(produced).not.toHaveProperty('schemaVersion')
   })
 
   it('round-trips public catalog identity and direct delivery URL', () => {

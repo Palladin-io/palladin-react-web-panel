@@ -62,6 +62,7 @@ export function useApproveGrant() {
       agentId,
       policy,
       methods,
+      fieldIds,
       reviewedEntryRevision,
       requestedMethods,
     }: ApproveGrantInput) => {
@@ -90,14 +91,22 @@ export function useApproveGrant() {
           organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
         })
         const approvedFieldIds = listGrantableFieldIds(memberSecret)
-        if (approvedFieldIds.length === 0) throw new MissingGrantMaterialError()
+        const reviewedFieldIds = [...fieldIds].sort()
+        const reviewedFieldSet = new Set(reviewedFieldIds)
+        const currentFieldIds = [...approvedFieldIds].sort()
+        if (reviewedFieldIds.length === 0
+          || reviewedFieldSet.size !== reviewedFieldIds.length
+          || reviewedFieldIds.length !== currentFieldIds.length
+          || reviewedFieldIds.some((fieldId, index) => fieldId !== currentFieldIds[index])) {
+          throw new MissingGrantMaterialError()
+        }
         const envelope = await buildCanonicalGrantEnvelope({
           secret: memberSecret,
           agentPublicKey: agent.publicKey,
           organizationId: detail.organizationId, vaultId, grantId, agentId, entryId,
           entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
           memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: agent.recipientKeyVersion,
-          approvedMethods, approvedFieldIds,
+          approvedMethods, approvedFieldIds: currentFieldIds,
           ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
         })
         const body: ApproveGrantBody = {
