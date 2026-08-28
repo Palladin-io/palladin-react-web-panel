@@ -259,10 +259,10 @@ export async function sealScriptExecutionPackage(
   try {
     assertReferenceEntriesMatchManifest(manifest, entries)
     const manifestDigest = await digestManifest(manifest)
-    const scopes = sortedUnique<ScriptExecutionPackageScopeV1>([
+    const scopes = sortedDistinct<ScriptExecutionPackageScopeV1>([
       { vaultId: manifest.vaultId, entryId: manifest.scriptEntryId, fieldId: 'script.source', entryRevision: manifest.scriptRevision },
       ...manifest.references.map(({ vaultId, entryId, fieldId, entryRevision }) => ({ vaultId, entryId, fieldId, entryRevision })),
-    ], scopeKey, 'Script package scopes')
+    ], scopeKey)
     const binding = bindingSchema.parse({
       schema: 'palladin.script-execution-package-binding.v1',
       contractVersion: SCRIPT_EXECUTION_CONTRACT_VERSION,
@@ -537,6 +537,12 @@ function sortedUnique<T>(values: readonly T[], key: (value: T) => string, label:
     if (key(sorted[index - 1]) === key(sorted[index])) throw new Error(`${label} must be unique`)
   }
   return sorted
+}
+
+function sortedDistinct<T>(values: readonly T[], key: (value: T) => string): T[] {
+  const distinct = new Map<string, T>()
+  for (const value of values) distinct.set(key(value), value)
+  return [...distinct.values()].sort((left, right) => compareUtf8(key(left), key(right)))
 }
 
 function referenceKey(reference: z.infer<typeof referenceSchema>): string {

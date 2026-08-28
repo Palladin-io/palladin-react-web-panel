@@ -6,9 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // --- mocks ---
 const markNotificationRead = vi.hoisted(() => vi.fn())
 const markAllNotificationsRead = vi.hoisted(() => vi.fn())
+const getNotifications = vi.hoisted(() => vi.fn())
 vi.mock('./notifications-api', async (orig) => {
   const actual = await orig<typeof import('./notifications-api')>()
-  return { ...actual, markNotificationRead, markAllNotificationsRead }
+  return { ...actual, getNotifications, markNotificationRead, markAllNotificationsRead }
 })
 
 import type { NotificationItem, NotificationsSummary } from './notifications-api'
@@ -16,6 +17,7 @@ import {
   NOTIFICATIONS_SUMMARY_QUERY_KEY,
   notificationsListQueryKey,
   resolvePendingGrantNotification,
+  useNotifications,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
 } from './notification-queries'
@@ -51,6 +53,22 @@ describe('resolvePendingGrantNotification', () => {
     expect(
       client.getQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY)?.pendingActionCount,
     ).toBe(1)
+  })
+
+  it('keeps a handled pending action hidden across an automatic refetch race', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    resolvePendingGrantNotification(client, 'grant-1')
+    getNotifications.mockResolvedValue({
+      items: [makeItem('n1', null), makeItem('n2', null)],
+      nextCursor: null,
+    })
+    const { result } = renderHook(() => useNotifications(), { wrapper: wrapper(client) })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(result.current.data?.pages.flatMap((page) => page.items).map((item) => item.id))
+      .toEqual(['n2'])
   })
 })
 

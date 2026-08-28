@@ -91,6 +91,19 @@ export function ScriptGrantSummary({
     return <p className="text-meta text-[var(--cv-t3)]">{t('grants.create.scriptLoading')}</p>
   }
   const { metadata, references } = currentReview
+  return <ScriptGrantContractSummary metadata={metadata} references={references} />
+}
+
+export interface ScriptGrantContractReview {
+  metadata: ScriptExecutionMetadataV1
+  references: Array<{ env: string; entryId: string; fieldId: string }>
+}
+
+export function ScriptGrantContractSummary({
+  metadata,
+  references,
+}: ScriptGrantContractReview) {
+  const { t } = useTranslation()
   return (
     <div className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-3">
       <p className="text-ui font-semibold text-[var(--cv-t1)]">{metadata.description}</p>

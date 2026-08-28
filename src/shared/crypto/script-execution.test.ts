@@ -227,6 +227,63 @@ describe('Script execution package', () => {
       wipe(signer.privateKey)
     }
   })
+
+  it('keeps duplicate selector mappings while authorizing their scope once', async () => {
+    const sodium = await loadSodium()
+    const agent = sodium.crypto_box_keypair()
+    const signer = sodium.crypto_sign_keypair()
+    const memberSecret = scriptSecret()
+    if (memberSecret.entryType !== 'script') throw new Error('fixture')
+    memberSecret.content.refs.push({
+      env: 'DATABASE_USER_COPY',
+      vaultId,
+      entryId: referencedEntryId,
+      fieldId: 'credential.username',
+    })
+    const encodedReference = encodeMemberSecret(referenceSecret())
+    try {
+      const manifest = buildScriptExecutionManifest({
+        organizationId,
+        agentId,
+        agentAccessEpoch: 1,
+        vaultId,
+        scriptEntryId,
+        scriptRevision: '1',
+        memberSecret,
+        referenceRevisions: { [referencedEntryId]: '1' },
+      })
+      expect(manifest.references.map((reference) => reference.env)).toEqual([
+        'DATABASE_USER',
+        'DATABASE_USER_COPY',
+      ])
+
+      const sealed = await sealScriptExecutionPackage({
+        manifest,
+        grantId,
+        packageRevision: '1',
+        recipientAgentKeyVersion: 1,
+        recipientAgentPublicKey: agent.publicKey,
+        vaultSigningKeyVersion: 1,
+        vaultSigningPrivateKey: signer.privateKey,
+        entries: [{
+          entryId: referencedEntryId,
+          entryRevision: '1',
+          encodedMemberSecret: encodedReference,
+        }],
+      })
+
+      expect(sealed.scopes).toEqual([
+        { entryId: scriptEntryId, entryRevision: '1', isScript: true },
+        { entryId: referencedEntryId, entryRevision: '1', isScript: false },
+      ])
+    } finally {
+      wipe(encodedReference)
+      wipe(agent.publicKey)
+      wipe(agent.privateKey)
+      wipe(signer.publicKey)
+      wipe(signer.privateKey)
+    }
+  })
 })
 
 function canonicalJson(value: unknown): string {

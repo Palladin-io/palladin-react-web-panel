@@ -39,6 +39,8 @@ export function notificationsListQueryKey(category?: NotificationCategory) {
 /** Prefix that matches EVERY per-category feed cache (`['notifications','list', …]`). */
 const NOTIFICATIONS_LIST_PREFIX = ['notifications', 'list'] as const
 
+const resolvedGrantTombstones = new WeakMap<QueryClient, Set<string>>()
+
 type NotificationsInfiniteData = InfiniteData<NotificationsPage, string | undefined>
 
 /**
@@ -47,13 +49,17 @@ type NotificationsInfiniteData = InfiniteData<NotificationsPage, string | undefi
  * Grant approval/denial is committed by Vault before Notification's async
  * consumer collapses the immutable `grant_pending` row. Refetching immediately
  * can therefore race that projection and briefly restore already handled
- * actions. Patch the local projection after the authoritative mutation and let
- * the terminal notification/next refetch reconcile the feed.
+ * actions. Patch the local projection after the authoritative mutation and
+ * retain an in-memory tombstone for the QueryClient lifetime so any delayed
+ * projection response cannot restore the completed controls.
  */
 export function resolvePendingGrantNotification(
   queryClient: QueryClient,
   grantId: string,
 ): void {
+  const tombstones = resolvedGrantTombstones.get(queryClient) ?? new Set<string>()
+  tombstones.add(grantId)
+  resolvedGrantTombstones.set(queryClient, tombstones)
   let removed = false
   const entries = queryClient.getQueriesData<NotificationsInfiniteData>({
     queryKey: NOTIFICATIONS_LIST_PREFIX,
@@ -80,6 +86,21 @@ export function resolvePendingGrantNotification(
       ...summary,
       pendingActionCount: Math.max(0, summary.pendingActionCount - 1),
     })
+  }
+}
+
+function omitResolvedPendingGrants(
+  queryClient: QueryClient,
+  page: NotificationsPage,
+): NotificationsPage {
+  const tombstones = resolvedGrantTombstones.get(queryClient)
+  if (!tombstones?.size) return page
+  return {
+    ...page,
+    items: page.items.filter((item) =>
+      item.type !== 'grant_pending'
+      || !item.metadata?.grantId
+      || !tombstones.has(item.metadata.grantId)),
   }
 }
 
@@ -114,10 +135,13 @@ function patchFeedItems(
  * by current vault access; we never re-filter for security on the client.
  */
 export function useNotifications(category?: NotificationCategory) {
+  const queryClient = useQueryClient()
   return useInfiniteQuery({
     queryKey: notificationsListQueryKey(category),
-    queryFn: ({ pageParam }) =>
-      getNotifications({ cursor: pageParam, category }),
+    queryFn: async ({ pageParam }) => omitResolvedPendingGrants(
+      queryClient,
+      await getNotifications({ cursor: pageParam, category }),
+    ),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 15_000,

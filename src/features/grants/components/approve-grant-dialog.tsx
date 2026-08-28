@@ -20,6 +20,11 @@ import {
 } from '../grant-methods'
 import type { GrantableField } from '../../../shared/crypto/grant-protocol'
 import type { EntryType } from '../../../shared/types/entry-type'
+import { GRANT_TYPE_SCRIPT_EXECUTION } from '../api/org-grants-api'
+import {
+  ScriptGrantContractSummary,
+  type ScriptGrantContractReview,
+} from './script-grant-summary'
 
 export interface GrantApprovalReview {
   entryLabel: string
@@ -27,6 +32,7 @@ export interface GrantApprovalReview {
   entryRevision: string
   entryType: EntryType
   fields: GrantableField[]
+  scriptContract?: ScriptGrantContractReview
 }
 
 export interface ApproveGrantDialogProps {
@@ -131,6 +137,10 @@ export function ApproveGrantDialog({
             setError(null)
           }}
         />
+
+        {grant.type === GRANT_TYPE_SCRIPT_EXECUTION && review.scriptContract ? (
+          <ScriptGrantContractSummary {...review.scriptContract} />
+        ) : null}
 
         <GrantMethodsSelect
           idPrefix="approve"
