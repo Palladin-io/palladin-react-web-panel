@@ -81,7 +81,7 @@ describe('canonical Grant protocol', () => {
           fieldSetCommitment: fromBase64Url(envelope.descriptor.binding.fieldSetCommitment),
         })
         expect(new TextDecoder().decode(plaintext)).toBe(
-          '{"approvedMethods":1,"entryRevision":"7","fields":{"credential.password":"secret"}}',
+          '{"entryType":"credential","fields":[{"id":"credential.password","kind":"concealed","mode":"value","value":"secret"}],"schema":"palladin.grant-payload.v1"}',
         )
         wipe(plaintext)
       } finally {

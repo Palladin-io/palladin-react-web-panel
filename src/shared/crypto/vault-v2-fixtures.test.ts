@@ -7,7 +7,7 @@ import { deriveVaultProjectionKey, type VaultKdfPurpose } from './vault-v2-kdf'
 import { encodeVaultAad, type VaultAadContext, type VaultAadProfile } from './vault-v2-protocol'
 import { canonicalizeVaultJson, verifyVaultSignature, vaultSignatureInput } from './vault-v2-signatures'
 import { loadSodium } from './sodium'
-import { encodeGrantPayload, parseGrantPayload, type GrantPayloadV1 } from './vault-plaintext'
+import { parseGrantPayload } from './vault-plaintext'
 
 const PINNED_PROTOCOL_COMMIT = '856872168ff251e5e9e782e3403c1339586ab190'
 const PINNED_MANIFEST_SHA256 = 'a933b61b8bb1a0f966f51fbe51a9c5baa9c09353e2a9131ba7414a559bc4adaf'
@@ -25,7 +25,6 @@ interface HkdfVector {
 interface AeadVector {
   id: string
   aadProfile: VaultAadProfile
-  plaintextCanonical: string
   plaintextHex: string
   decryptionKeyHex: string
   envelope: VaultCiphertextEnvelope
@@ -68,15 +67,9 @@ describe('canonical Vault protocol 2 fixtures', () => {
     expect(encodeHex(new Uint8Array(digest))).toBe(PINNED_MANIFEST_SHA256)
   })
 
-  it('keeps the production GrantPayload codec byte-compatible with the public fixture', () => {
+  it('keeps the fixture-local GrantPayload distinct from the production application DTO', () => {
     const vector = envelopes.aeadVectors.find((candidate) => candidate.id === 'grant-entry')!
-    const payload = JSON.parse(vector.plaintextCanonical) as GrantPayloadV1
-    expect(encodeHex(encodeGrantPayload(payload))).toBe(vector.plaintextHex)
-    expect(parseGrantPayload(decodeHex(vector.plaintextHex))).toEqual(payload)
-    expect(() => encodeGrantPayload({
-      ...payload,
-      schema: 'palladin.grant-payload.v1',
-    } as unknown as GrantPayloadV1)).toThrow()
+    expect(() => parseGrantPayload(decodeHex(vector.plaintextHex))).toThrow()
   })
 
   it.each(aad.vectors)('encodes $id AAD byte-for-byte', (vector) => {

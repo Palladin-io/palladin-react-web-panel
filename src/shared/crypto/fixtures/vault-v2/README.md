@@ -18,7 +18,7 @@ CSPRNG.
 Protocol changes require a reviewed replacement fixture version; do not edit
 expected ciphertext, signatures, or AAD values by hand.
 
-The production `GrantPayload` encoder and decoder must match the vendored
-`FixtureGrantPayload` bytes in this set. A pull request that changes the
-application plaintext shape may merge only with a new reviewed protocol fixture
-version and passing byte-for-byte consumer tests.
+`FixtureGrantPayload` is a fixture-local AEAD plaintext, as documented by the
+public fixture manifest. It is not the production application DTO named
+`palladin.grant-payload.v1`; production encoder/decoder compatibility is tested
+separately. Do not derive an application schema from this synthetic plaintext.

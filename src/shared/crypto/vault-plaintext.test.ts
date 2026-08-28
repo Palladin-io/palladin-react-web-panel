@@ -7,6 +7,7 @@ import {
   projectGrantPayload,
   projectMemberIndex,
   presentationIconReference,
+  type GrantPayloadV1,
   type MemberSecretV1,
 } from './vault-plaintext'
 
@@ -63,27 +64,34 @@ describe('Vault plaintext v1', () => {
   })
 
   it('builds a sorted least-privilege GrantPayload and rejects Discovery fields', () => {
-    const payload = projectGrantPayload(
-      secret,
-      ['credential.totp', 'credential.password'],
-      { approvedMethods: 4, entryRevision: '12' },
-    )
+    const payload = projectGrantPayload(secret, ['credential.totp', 'credential.password'])
     expect(payload).toEqual({
-      approvedMethods: 4,
-      entryRevision: '12',
-      fields: {
-        'credential.password': 'secret',
-        'credential.totp': { secret: 'JBSWY3DPEHPK3PXP', algorithm: 'SHA1', digits: 6, period: 30, issuer: null, account: null },
-      },
+      schema: 'palladin.grant-payload.v1',
+      entryType: 'credential',
+      fields: [
+        { id: 'credential.password', kind: 'concealed', mode: 'value', value: 'secret' },
+        { id: 'credential.totp', kind: 'totp', mode: 'derived', value: { secret: 'JBSWY3DPEHPK3PXP', algorithm: 'SHA1', digits: 6, period: 30, issuer: null, account: null } },
+      ],
     })
     expect(new TextDecoder().decode(encodeGrantPayload(payload))).toBe(
-      '{"approvedMethods":4,"entryRevision":"12","fields":{"credential.password":"secret","credential.totp":{"account":null,"algorithm":"SHA1","digits":6,"issuer":null,"period":30,"secret":"JBSWY3DPEHPK3PXP"}}}',
+      '{"entryType":"credential","fields":[{"id":"credential.password","kind":"concealed","mode":"value","value":"secret"},{"id":"credential.totp","kind":"totp","mode":"derived","value":{"account":null,"algorithm":"SHA1","digits":6,"issuer":null,"period":30,"secret":"JBSWY3DPEHPK3PXP"}}],"schema":"palladin.grant-payload.v1"}',
     )
-    expect(() => projectGrantPayload(
-      secret,
-      ['credential.username'],
-      { approvedMethods: 4, entryRevision: '12' },
-    )).toThrow(/not grantable/)
+    expect(() => projectGrantPayload(secret, ['credential.username'])).toThrow(/not grantable/)
+  })
+
+  it('keeps the production palladin.grant-payload.v1 bytes consumed by decrypt_credential', () => {
+    const payload: GrantPayloadV1 = {
+      schema: 'palladin.grant-payload.v1',
+      entryType: 'credential',
+      fields: [
+        { id: 'credential.password', kind: 'concealed', mode: 'value', value: 'synthetic-secret' },
+        { id: 'credential.urlDomain', kind: 'text', mode: 'value', value: 'example.test' },
+      ],
+    }
+
+    expect(new TextDecoder().decode(encodeGrantPayload(payload))).toBe(
+      '{"entryType":"credential","fields":[{"id":"credential.password","kind":"concealed","mode":"value","value":"synthetic-secret"},{"id":"credential.urlDomain","kind":"text","mode":"value","value":"example.test"}],"schema":"palladin.grant-payload.v1"}',
+    )
   })
 
   it('round-trips public catalog identity and direct delivery URL', () => {
@@ -137,11 +145,7 @@ describe('Vault plaintext v1', () => {
     }
 
     expect(projectAgentDiscovery(card)).toMatchObject({ capabilities: ['get', 'exec', 'inject'], fields: [] })
-    expect(projectGrantPayload(
-      card,
-      ['creditCard.cardNumber'],
-      { approvedMethods: 4, entryRevision: '1' },
-    ).fields['creditCard.cardNumber']).toBe('4242424242424242')
+    expect(projectGrantPayload(card, ['creditCard.cardNumber']).fields[0]).toMatchObject({ mode: 'runtime' })
     expect(() => encodeMemberSecret({
       ...card,
       agentFieldAccess: { ...card.agentFieldAccess, 'creditCard.cardNumber': 'onGrantValue' },
