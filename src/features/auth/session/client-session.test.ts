@@ -46,6 +46,10 @@ describe('client session cleanup', () => {
       mutationFn: async () => undefined,
     })
     useMemberSyncStore.setState({ status: 'ready', error: null })
+    sessionStorage.setItem(
+      'palladin:waitlist-developer-benefit-dialog-accepted',
+      'v1.period-id',
+    )
     const generation = captureClientSessionGeneration()
 
     clearClientSession()
@@ -66,6 +70,9 @@ describe('client session cleanup', () => {
       vaults: new Map(),
       error: null,
     })
+    expect(sessionStorage.getItem(
+      'palladin:waitlist-developer-benefit-dialog-accepted',
+    )).toBeNull()
     expect(analytics.reset).toHaveBeenCalledOnce()
   })
 

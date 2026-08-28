@@ -17,6 +17,7 @@ const STATUS_PRESENTATION: Record<GrantStatus, StatusPresentation> = {
   revoked: { labelKey: 'grants.statusRevoked', color: 'var(--cv-primary)' },
   consumed: { labelKey: 'grants.statusConsumed', color: '#8A95A6' },
   denied: { labelKey: 'grants.statusDenied', color: 'var(--cv-primary)' },
+  superseded: { labelKey: 'grants.statusSuperseded', color: 'var(--cv-neutral)' },
 }
 
 export function grantStatusPresentation(status: GrantStatus): StatusPresentation {

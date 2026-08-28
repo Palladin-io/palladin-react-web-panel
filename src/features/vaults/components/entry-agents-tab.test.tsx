@@ -4,8 +4,8 @@ import { ENTRY_TYPE_CREDENTIAL } from '../types'
 import { EntryAgentsTab } from './entry-agents-tab'
 
 vi.mock('../../grants', () => ({
-  OrgGrantsPanel: ({ entryId, allowRegrant }: { entryId: string; allowRegrant: boolean }) => (
-    <div data-testid="grants" data-entry-id={entryId} data-regrant={String(allowRegrant)} />
+  OrgGrantsPanel: ({ entryId }: { entryId: string }) => (
+    <div data-testid="grants" data-entry-id={entryId} />
   ),
 }))
 

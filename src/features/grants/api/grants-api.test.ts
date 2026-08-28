@@ -21,7 +21,7 @@ const sampleGrant = {
   entryId: 'e1',
   entryLabel: 'Gmail',
   status: 'active',
-  mode: 'granular',
+  type: 'granular',
   reason: 'Need Gmail',
   expiresAt: null,
   queryLimit: 5,
@@ -31,6 +31,12 @@ const sampleGrant = {
   revokedAt: null,
   revokedByName: null,
   revokeReason: null,
+}
+
+function withoutGrantType() {
+  const grant: Partial<typeof sampleGrant> = { ...sampleGrant }
+  delete grant.type
+  return grant
 }
 
 describe('grants-api', () => {
@@ -48,6 +54,32 @@ describe('grants-api', () => {
     expect(page.items[0].entryLabel).toBe('Gmail')
     expect(page.items[0].reason).toBe('Need Gmail')
     expect(page.nextCursor).toBe('next')
+  })
+
+  it('maps the current backend id/type projection for grant detail links', async () => {
+    getJson.mockResolvedValue({
+      ...sampleGrant,
+      id: 'g2',
+      type: 'full',
+      grantId: undefined,
+      entryId: null,
+    })
+
+    const grant = await getGrant('v1', 'g2')
+    expect(grant.grantId).toBe('g2')
+    expect(grant.type).toBe('full')
+  })
+
+  it('rejects a grant without the authoritative type discriminator', async () => {
+    getJson.mockResolvedValue(withoutGrantType())
+
+    await expect(getGrant('v1', 'g1')).rejects.toBeDefined()
+  })
+
+  it('does not infer grant type from the legacy mode alias', async () => {
+    getJson.mockResolvedValue({ ...withoutGrantType(), mode: 'full' })
+
+    await expect(getGrant('v1', 'g1')).rejects.toBeDefined()
   })
 
   it('skips a single malformed item instead of collapsing the whole list', async () => {

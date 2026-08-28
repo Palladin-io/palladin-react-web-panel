@@ -12,8 +12,12 @@ import { useMemberSyncStore } from '../../shared/stores/member-sync-store'
 import {
   GRANT_TYPE_FULL,
   GRANT_TYPE_SCRIPT_EXECUTION,
-  createGrantProactively,
-  type CreateGrantBody,
+  createFullGrant,
+  createGranularGrant,
+  createScriptExecutionGrant,
+  type CreateFullGrantBody,
+  type CreateGranularGrantBody,
+  type CreateScriptExecutionGrantBody,
   type GrantType,
 } from './api/org-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
@@ -103,16 +107,15 @@ export function useCreateGrant() {
           } finally {
             wipe(vaultSigningPrivateKey)
           }
-          const body: CreateGrantBody = {
+          const body: CreateFullGrantBody = {
             grantId,
             agentId,
-            type,
             agentWrappedVaultKey,
             ...policy,
             methods: serializeGrantMethods(methods),
           }
           assertCurrentUnlockSession(privateKey)
-          await createGrantProactively(vaultId, body)
+          await createFullGrant(vaultId, body)
           return
         }
 
@@ -136,17 +139,15 @@ export function useCreateGrant() {
           if (scriptPackage.scriptRevision !== reviewedScriptRevision) {
             throw new MissingGrantMaterialError()
           }
-          const body: CreateGrantBody = {
+          const body: CreateScriptExecutionGrantBody = {
             grantId,
             agentId,
-            type,
-            scriptEntryId: entryId,
             scriptPackage,
             ...policy,
             methods: serializeGrantMethods([GRANT_METHOD_EXEC]),
           }
           assertCurrentUnlockSession(privateKey)
-          await createGrantProactively(vaultId, body)
+          await createScriptExecutionGrant(vaultId, entryId, body)
           return
         }
 
@@ -174,16 +175,14 @@ export function useCreateGrant() {
           ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
         })
 
-        const body: CreateGrantBody = {
+        const body: CreateGranularGrantBody = {
           grantId,
           agentId,
-          type,
-          entryId,
-          grantEntries: [envelope],
+          grantEntry: envelope,
           ...policy,
           methods: serializeGrantMethods(grantMethodsFromMask(approvedMethods)),
         }
-        await createGrantProactively(vaultId, body)
+        await createGranularGrant(vaultId, granularEntryId, body)
       } finally {
         wipe(vaultKey)
       }

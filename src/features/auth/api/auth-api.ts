@@ -129,6 +129,9 @@ export function totpLogin(input: {
 
 export interface VerifyEmailResponse {
   status: string
+  userId: string
+  waitlistDeveloperBenefitStartedAt?: string | null
+  waitlistDeveloperBenefitEndsAt?: string | null
 }
 
 export function verifyEmail(token: string): Promise<VerifyEmailResponse> {

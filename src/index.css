@@ -415,3 +415,46 @@ button,
 .tab-strip-scroll::-webkit-scrollbar {
   display: none;
 }
+
+/* A short, one-shot celebration for the waitlist Developer benefit. The
+   pieces vanish after entering so the dialog stays calm while awaiting an
+   explicit acknowledgement. */
+.benefit-confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 3px;
+  border-radius: 2px;
+  opacity: 0;
+  animation: benefit-confetti-pop 900ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.benefit-confetti-piece:nth-child(3n) {
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+}
+
+.benefit-confetti-piece:nth-child(4n) {
+  width: 3px;
+  height: 9px;
+}
+
+@keyframes benefit-confetti-pop {
+  0% {
+    opacity: 0;
+    translate: 0 -8px;
+  }
+  24% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    translate: 0 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .benefit-confetti-piece {
+    animation: none;
+  }
+}

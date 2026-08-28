@@ -13,7 +13,6 @@ export { GrantReviewUnavailableError } from "./use-grant-approval-review";
 export type { GrantReviewStage } from "./use-grant-approval-review";
 export { useDenyGrant } from "./use-deny-grant";
 export { useRevokeOrgGrant } from "./use-revoke-org-grant";
-export { useRegrant } from "./use-regrant";
 export { ApproveGrantDialog } from "./components/approve-grant-dialog";
 export { DenyGrantDialog } from "./components/deny-grant-dialog";
 export { RevokeGrantDialog } from "./components/revoke-grant-dialog";
@@ -26,12 +25,12 @@ export {
   vaultGrantsQueryKey,
   grantDetailQueryKey,
 } from "./query-keys";
-export type { Grant, GrantStatus, GrantMode } from "./api/grants-api";
+export type { Grant, GrantStatus } from "./api/grants-api";
 export type { PendingGrant } from "./api/pending-grants-api";
 // Promoted for the Notification Center: the Inbox shares the grant
 // date/relative-time formatters and the org-grant type + granular discriminant.
 export { formatGrantDate, formatRelativeTime } from "./components/grant-format";
-export type { OrgGrant } from "./api/org-grants-api";
+export type { GrantType, OrgGrant } from "./api/org-grants-api";
 export {
   GRANT_TYPE_GRANULAR,
   GRANT_TYPE_FULL,

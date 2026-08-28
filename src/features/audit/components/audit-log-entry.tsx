@@ -271,6 +271,7 @@ const SENTENCE_KEY: Record<string, string> = {
   'grant.revoked': 'grantRevoked',
   'grant.consumed': 'grantConsumed',
   'grant.expired': 'grantExpired',
+  'grant.superseded': 'grantSuperseded',
   'agent.enrolled': 'agentEnrolled',
   'agent.blocked': 'agentBlocked',
   'agent.reactivated': 'agentReactivated',

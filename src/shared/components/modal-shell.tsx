@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { Icon } from './icon'
 
 export interface ModalShellProps {
@@ -12,8 +12,14 @@ export interface ModalShellProps {
    * divider. Omit `title` for the legacy bare box (children control everything).
    */
   title?: ReactNode
+  /** Optional semantic type override for the canonical header title. */
+  titleClassName?: string
   /** Footer content (usually the DialogFooter buttons). Only used with `title`. */
   footer?: ReactNode
+  /** Optional surface treatment for the canonical footer row. */
+  footerClassName?: string
+  /** Move focus into the dialog, contain Tab navigation, and restore focus on close. */
+  trapFocus?: boolean
   /** Design-pixel max width before density scaling. Defaults to 480 (560 for forms). */
   width?: number
   children: ReactNode
@@ -38,22 +44,73 @@ export function ModalShell({
   onClose,
   ariaLabel,
   title,
+  titleClassName,
   footer,
+  footerClassName,
+  trapFocus = false,
   width = 480,
   children,
 }: ModalShellProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+
+    const focusableElements = () => {
+      const dialog = dialogRef.current
+      if (!dialog) return []
+      return Array.from(dialog.querySelectorAll<HTMLElement>([
+        'button:not([disabled])',
+        'a[href]',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+      ].join(','))).filter((element) => !element.hasAttribute('aria-hidden'))
+    }
+
     const handler = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose?.()
+      if (!trapFocus || event.key !== 'Tab') return
+
+      const dialog = dialogRef.current
+      if (!dialog) return
+      const focusable = focusableElements()
+      if (focusable.length === 0) {
+        event.preventDefault()
+        dialog.focus()
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const active = document.activeElement
+      if (event.shiftKey && (active === first || !dialog.contains(active))) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && (active === last || !dialog.contains(active))) {
+        event.preventDefault()
+        first.focus()
+      }
     }
     document.addEventListener('keydown', handler)
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+
+    if (trapFocus) {
+      const focusable = focusableElements()
+      const initialFocus = focusable[0] ?? dialogRef.current
+      initialFocus?.focus()
+    }
+
     return () => {
       document.removeEventListener('keydown', handler)
       document.body.style.overflow = previousOverflow
+      if (trapFocus && previouslyFocused?.isConnected) previouslyFocused.focus()
     }
-  }, [onClose])
+  }, [onClose, trapFocus])
 
   const backdrop = (
     <div aria-hidden onClick={onClose} className="absolute inset-0 h-full w-full bg-black/60" />
@@ -62,9 +119,11 @@ export function ModalShell({
   if (title !== undefined) {
     return (
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={ariaLabel}
+        tabIndex={trapFocus ? -1 : undefined}
         className="fixed inset-0 z-50 flex items-center justify-center px-4"
       >
         {backdrop}
@@ -74,7 +133,9 @@ export function ModalShell({
           style={{ maxWidth: `calc(${width}px * var(--cv-density-scale))` }}
         >
           <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--cv-divider)] px-6 py-4">
-            <h2 className="text-heading font-semibold text-[var(--cv-t1)]">{title}</h2>
+            <h2 className={`${titleClassName ?? 'text-heading'} font-semibold text-[var(--cv-t1)]`}>
+              {title}
+            </h2>
             {onClose ? (
               <button
                 type="button"
@@ -90,7 +151,12 @@ export function ModalShell({
             {children}
           </div>
           {footer ? (
-            <div className="shrink-0 border-t border-[var(--cv-divider)] px-6 py-4">{footer}</div>
+            <div
+              data-testid="modal-footer"
+              className={`shrink-0 border-t border-[var(--cv-divider)] px-6 py-4 ${footerClassName ?? ''}`}
+            >
+              {footer}
+            </div>
           ) : null}
         </div>
       </div>
@@ -99,9 +165,11 @@ export function ModalShell({
 
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel}
+      tabIndex={trapFocus ? -1 : undefined}
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
     >
       {backdrop}

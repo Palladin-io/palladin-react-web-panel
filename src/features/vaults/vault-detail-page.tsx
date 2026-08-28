@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
@@ -35,6 +35,8 @@ export interface VaultDetailPageProps {
   vaultId: string
   /** Tab to open initially (e.g. deep-linked `?tab=agents` from a notification). */
   initialTab?: VaultDetailTab
+  /** Opens Import once when arriving from an onboarding deep link. */
+  initialImport?: boolean
 }
 
 /**
@@ -47,19 +49,33 @@ export interface VaultDetailPageProps {
  * settings form so settings are reachable without leaving the page;
  * the dedicated `/vaults/:id/settings` route stays as a deep link.
  */
-export function VaultDetailPage({ vaultId, initialTab }: VaultDetailPageProps) {
+export function VaultDetailPage({ vaultId, initialTab, initialImport = false }: VaultDetailPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const vault = useVault(vaultId)
   const [activeTab, setActiveTab] = useState<VaultDetailTab>(initialTab ?? 'entries')
   const [createEntryOpen, setCreateEntryOpen] = useState(false)
   const [importVault, setImportVault] = useState<Vault | null>(null)
+  const initialImportHandled = useRef(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [addAgentOpen, setAddAgentOpen] = useState(false)
   const isWide = useWideScreen()
   const openImport = () => {
     if (vault.data) setImportVault(vault.data)
   }
+
+  useEffect(() => {
+    if (!initialImport || initialImportHandled.current || !vault.data) return
+
+    initialImportHandled.current = true
+    setImportVault(vault.data)
+    void navigate({
+      to: '/vaults/$vaultId',
+      params: { vaultId },
+      search: initialTab ? { tab: initialTab } : {},
+      replace: true,
+    })
+  }, [initialImport, initialTab, navigate, vault.data, vaultId])
 
   const vaultContent = vault.isPending ? (
     <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />

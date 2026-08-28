@@ -14,7 +14,8 @@ vi.mock('../../../shared/api/client', () => ({
 
 import { api } from '../../../shared/api/client'
 import {
-  createGrantProactively,
+  createFullGrant,
+  createGranularGrant,
   getOrgGrants,
   revokeGrant,
 } from './org-grants-api'
@@ -45,6 +46,12 @@ const sampleGrant = {
   lastAccessHostname: 'ci-runner',
 }
 
+function withoutGrantType() {
+  const grant: Partial<typeof sampleGrant> = { ...sampleGrant }
+  delete grant.type
+  return grant
+}
+
 describe('org-grants-api', () => {
   beforeEach(() => {
     getJson.mockReset()
@@ -65,11 +72,19 @@ describe('org-grants-api', () => {
 
   it('reads per-grant capability flags', async () => {
     getJson.mockResolvedValue({
-      items: [{ ...sampleGrant, canRevoke: true, canGrantAgain: false }],
+      items: [{
+        ...sampleGrant,
+        canRevoke: true,
+        canGrantAgain: false,
+        activeCoveringGrantIds: ['11111111-1111-4111-8111-111111111111'],
+      }],
     })
     const page = await getOrgGrants()
     expect(page.items[0].canRevoke).toBe(true)
     expect(page.items[0].canGrantAgain).toBe(false)
+    expect(page.items[0].activeCoveringGrantIds).toEqual([
+      '11111111-1111-4111-8111-111111111111',
+    ])
   })
 
   it('defaults capability flags to false when the backend omits them', async () => {
@@ -78,6 +93,7 @@ describe('org-grants-api', () => {
     const page = await getOrgGrants()
     expect(page.items[0].canRevoke).toBe(false)
     expect(page.items[0].canGrantAgain).toBe(false)
+    expect(page.items[0].activeCoveringGrantIds).toEqual([])
   })
 
   it('forwards filters as search params', async () => {
@@ -97,6 +113,13 @@ describe('org-grants-api', () => {
     expect(page.items).toHaveLength(1)
   })
 
+  it('skips a row without the authoritative type discriminator', async () => {
+    getJson.mockResolvedValue({ items: [withoutGrantType()] })
+
+    const page = await getOrgGrants()
+    expect(page.items).toEqual([])
+  })
+
   it('strips ciphertext fields at the parse boundary', async () => {
     getJson.mockResolvedValue({
       items: [{ ...sampleGrant, agentWrappedDek: 'leak', reEncryptedBlob: 'leak' }],
@@ -106,20 +129,29 @@ describe('org-grants-api', () => {
     expect(page.items[0]).not.toHaveProperty('reEncryptedBlob')
   })
 
-  it('POSTs a proactive grant with the envelope + queryLimit', async () => {
+  it('POSTs a granular grant to the entry-scoped route', async () => {
     postJson.mockResolvedValue({ id: 'new' })
-    const res = await createGrantProactively('v1', {
+    const res = await createGranularGrant('v1', 'e1', {
+      grantId: 'g1',
       agentId: 'a1',
-      type: 'granular',
-      entryId: 'e1',
-      grantEntries: [
-        { entryId: 'e1', reEncryptedBlob: 'b', nonce: 'n', agentWrappedDek: 'd' },
-      ],
+      grantEntry: { descriptor: {} } as never,
       queryLimit: 3,
     })
     expect(res.id).toBe('new')
-    expect(vi.mocked(api.post)).toHaveBeenCalledWith('api/vaults/v1/grants', {
+    expect(vi.mocked(api.post)).toHaveBeenCalledWith('api/vaults/v1/entries/e1/grants', {
       json: expect.objectContaining({ agentId: 'a1', queryLimit: 3 }),
+    })
+  })
+
+  it('POSTs a FULL grant to the full-vault route', async () => {
+    postJson.mockResolvedValue({ id: 'new' })
+    await createFullGrant('v1', {
+      grantId: 'g1',
+      agentId: 'a1',
+      agentWrappedVaultKey: { wrappedVaultKey: {} } as never,
+    })
+    expect(vi.mocked(api.post)).toHaveBeenCalledWith('api/vaults/v1/full-grants', {
+      json: expect.objectContaining({ agentId: 'a1' }),
     })
   })
 

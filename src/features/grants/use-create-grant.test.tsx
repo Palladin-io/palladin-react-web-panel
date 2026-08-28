@@ -20,7 +20,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('./api/org-grants-api', async (original) => ({
   ...(await original<typeof import('./api/org-grants-api')>()),
-  createGrantProactively: mocks.create,
+  createFullGrant: mocks.create,
+  createGranularGrant: mocks.create,
+  createScriptExecutionGrant: mocks.create,
 }))
 vi.mock('../vaults/api/vault-api', () => ({ getCanonicalEntry: mocks.getEntry }))
 vi.mock('../vaults/sync/member-sync-api', () => ({ getEncryptedVault: mocks.getVault }))
@@ -86,8 +88,6 @@ describe('useCreateGrant', () => {
       agentId: '22222222-2222-4222-8222-222222222222',
       agentPublicKey: 'agent-public-key',
       recipientAgentKeyVersion: 4,
-      vaultSigningKeyVersion: 5,
-      vaultSigningPrivateKey: expect.any(Uint8Array),
       agentAccessEpoch: 2,
       type: 'granular',
       entryId: '33333333-3333-4333-8332-333333333333',
@@ -95,9 +95,9 @@ describe('useCreateGrant', () => {
       methods: ['exec', 'inject'],
     })
 
-    const [, body] = mocks.create.mock.calls[0]
-    expect(body.entryId).toBe('33333333-3333-4333-8332-333333333333')
-    expect(body.grantEntries).toHaveLength(1)
+    const [, entryId, body] = mocks.create.mock.calls[0]
+    expect(entryId).toBe('33333333-3333-4333-8332-333333333333')
+    expect(body.grantEntry).toBeDefined()
     expect(body.agentWrappedVaultKey).toBeUndefined()
     expect(body.methods).toBe('Exec, Inject')
     expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({
@@ -130,12 +130,12 @@ describe('useCreateGrant', () => {
       agentAccessEpoch: 2,
       vaultKeyVersion: 2,
       recipientAgentKeyVersion: 4,
+      vaultSigningKeyVersion: 5,
+      vaultSigningPrivateKey: expect.any(Uint8Array),
     }))
     const [, body] = mocks.create.mock.calls[0]
-    expect(body.type).toBe('full')
     expect(body.agentWrappedVaultKey).toBeDefined()
-    expect(body.entryId).toBeUndefined()
-    expect(body.grantEntries).toBeUndefined()
+    expect(body.grantEntry).toBeUndefined()
     expect(mocks.getEntry).not.toHaveBeenCalled()
     expect(mocks.produce).not.toHaveBeenCalled()
   })
@@ -162,15 +162,14 @@ describe('useCreateGrant', () => {
       agentAccessEpoch: 2,
       recipientAgentKeyVersion: 4,
     }))
-    const [, body] = mocks.create.mock.calls[0]
+    const [, scriptEntryId, body] = mocks.create.mock.calls[0]
+    expect(scriptEntryId).toBe('33333333-3333-4333-8332-333333333333')
     expect(body).toMatchObject({
-      type: 'scriptExecution',
-      scriptEntryId: '33333333-3333-4333-8332-333333333333',
       methods: 'Exec',
       queryLimit: 3,
       scriptPackage: { encodedPackageCiphertext: 'sealed-script-package' },
     })
-    expect(body.grantEntries).toBeUndefined()
+    expect(body.grantEntry).toBeUndefined()
     expect(mocks.getEntry).not.toHaveBeenCalled()
     expect(mocks.produce).not.toHaveBeenCalled()
   })
@@ -198,7 +197,6 @@ describe('useCreateGrant', () => {
 
     expect(mocks.create).not.toHaveBeenCalled()
   })
-
   it('fails before opening Vault keys when access-epoch metadata is missing', async () => {
     const { result } = renderHook(() => useCreateGrant(), { wrapper })
     await expect(result.current.mutateAsync({

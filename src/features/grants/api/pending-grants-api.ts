@@ -73,6 +73,7 @@ const pendingGrantSchema = z.object({
   lastAccessHostname: z.string().nullable(),
   canRevoke: z.boolean(),
   canGrantAgain: z.boolean(),
+  activeCoveringGrantIds: z.array(canonicalUuidSchema).optional().default([]),
 }).strict().superRefine((grant, context) => {
   const scope = grant.encryptedReason.descriptor.scope
   if (scope.vaultId !== grant.vaultId || scope.grantOrRequestId !== grant.id

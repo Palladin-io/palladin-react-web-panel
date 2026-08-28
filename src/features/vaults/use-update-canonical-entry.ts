@@ -157,11 +157,7 @@ export async function updateCanonicalEntryNow(
             memberKeyGeneration: vault.memberKeyGeneration,
             recipientKeyVersion: grant.recipientAgentKeyVersion,
             approvedMethods,
-            deliveryPolicy: detail.deliveryPolicy === 'execOnly'
-              ? GRANT_DELIVERY_POLICY.execOnly
-              : detail.deliveryPolicy === 'injectOnly'
-                ? GRANT_DELIVERY_POLICY.injectOnly
-                : GRANT_DELIVERY_POLICY.standard,
+            deliveryPolicy: GRANT_DELIVERY_POLICY[detail.deliveryPolicy],
             ...(grant.expiresAt ? { expiresAt: grant.expiresAt } : {}),
             ...(grant.queryLimit !== null && grant.queryLimit !== undefined
               ? { remainingUses: grant.queryLimit - (grant.queryCount ?? 0) }

@@ -54,6 +54,7 @@ const CONFIG: Record<AuditEventType, AuditEventConfig> = {
   'grant.revoked': tone('danger', 'remove_circle', 'audit.event.grantRevoked'),
   'grant.consumed': tone('neutral', 'task_alt', 'audit.event.grantConsumed'),
   'grant.expired': tone('neutral', 'timer_off', 'audit.event.grantExpired'),
+  'grant.superseded': tone('neutral', 'swap_horiz', 'audit.event.grantSuperseded'),
   'agent.enrolled': tone('info', 'person_add', 'audit.event.agentEnrolled'),
   'agent.blocked': tone('danger', 'person_off', 'audit.event.agentBlocked'),
   'agent.reactivated': tone('success', 'how_to_reg', 'audit.event.agentReactivated'),
@@ -130,6 +131,7 @@ export const AUDIT_EVENT_CATEGORIES: AuditEventCategory[] = [
       'grant.revoked',
       'grant.consumed',
       'grant.expired',
+      'grant.superseded',
     ],
   },
   {

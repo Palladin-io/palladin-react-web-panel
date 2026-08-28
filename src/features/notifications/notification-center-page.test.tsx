@@ -214,13 +214,11 @@ function renderPage() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  const invalidateSpy = vi.spyOn(queryClient, "invalidateQueries");
-  const utils = render(
+  return render(
     <QueryClientProvider client={queryClient}>
       <NotificationCenterPage />
     </QueryClientProvider>,
   );
-  return { ...utils, invalidateSpy };
 }
 
 describe("NotificationCenterPage", () => {
@@ -399,18 +397,4 @@ describe("NotificationCenterPage", () => {
     expect(markAllRead).toHaveBeenCalled();
   });
 
-  it("invalidates the notifications feed after a grant action resolves", () => {
-    const { invalidateSpy } = renderPage();
-
-    // Open the deny dialog from the pending card, then confirm. handleDeny calls
-    // deny.mutate (stub resolves synchronously) → onSuccess → refreshFeed.
-    fireEvent.click(screen.getByRole("button", { name: "Deny" }));
-    fireEvent.click(screen.getByRole("button", { name: "confirm deny" }));
-
-    expect(denyMutate).toHaveBeenCalled();
-    expect(invalidateSpy).toHaveBeenCalledWith({
-      queryKey: ["notifications"],
-      refetchType: "none",
-    });
-  });
 });

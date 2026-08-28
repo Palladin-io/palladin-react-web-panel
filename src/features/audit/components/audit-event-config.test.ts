@@ -44,6 +44,7 @@ describe('audit-event-config', () => {
     expect(auditEventConfig('org.invitation-role-changed').color).toBe('var(--cv-info)')
     // Neutral — passive / terminal.
     expect(auditEventConfig('grant.expired').color).toBe('var(--cv-neutral)')
+    expect(auditEventConfig('grant.superseded').color).toBe('var(--cv-neutral)')
     // Pending — awaiting human action; the only pending event (peach).
     expect(auditEventConfig('grant.requested').color).toBe('var(--cv-pending)')
   })

@@ -168,7 +168,7 @@ function GrantCard({
       <p className="mt-0.5 truncate text-meta text-[var(--cv-t3)]">
         {grant.agentName ?? t('grants.unknownAgent')} ·{' '}
         {t(
-          grant.mode === 'full' ? 'grants.modeFull' : 'grants.modeGranular',
+          grant.type === 'full' ? 'grants.modeFull' : 'grants.modeGranular',
         )}{' '}
         · {formatGrantDate(grant.createdAt)}
       </p>

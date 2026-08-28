@@ -11,13 +11,14 @@ import { entriesQueryKey } from './use-entries'
 import { VAULTS_QUERY_KEY } from './use-vaults'
 import { useMemberSyncStore } from './sync/member-sync-store'
 
-const { importEntriesMock, updateEntryMock, fullGrantsMock, grantEnvelopeMock, challengesMock, encryptedVaultMock, toMemberSecretMock, ensureWebsiteIconsMock, openVaultKeyMock } = vi.hoisted(() => ({
+const { importEntriesMock, updateEntryMock, fullGrantsMock, activeGrantsMock, grantEnvelopeMock, challengesMock, encryptedVaultMock, toMemberSecretMock, ensureWebsiteIconsMock, openVaultKeyMock } = vi.hoisted(() => ({
   importEntriesMock: vi.fn(async (_vaultId: string, body: { entries: unknown[] }) => ({
     importedCount: body.entries.length,
     entryIds: body.entries.map((_, i) => `e${i}`),
   })),
   updateEntryMock: vi.fn(async () => undefined),
   fullGrantsMock: vi.fn(async () => [] as unknown[]),
+  activeGrantsMock: vi.fn(async () => ({ items: [] as unknown[], nextCursor: null })),
   grantEnvelopeMock: vi.fn(async ({ grantId, entryId }: { grantId: string; entryId: string }) => ({
     grantId, entryId,
   })),
@@ -63,15 +64,16 @@ vi.mock('./api/vault-api', () => ({
   getCanonicalEntry: vi.fn(async () => ({
     id: 'old-1', organizationId: 'org-1', vaultId: 'vault-1', currentRevision: '1',
     currentKeyVersion: 1, memberIndexRevision: '1', agentDiscoveryRevisionHighWatermark: '1',
-    entryKey: { descriptor: { resourceRevision: '1' } }, memberSecret: {},
+    deliveryPolicy: 'injectOnly', entryKey: { descriptor: { resourceRevision: '1' } }, memberSecret: {},
   })),
 }))
 
 vi.mock('../grants', () => ({
   collectActiveFullGrants: fullGrantsMock,
-  getOrgGrants: vi.fn(async () => ({ items: [], nextCursor: null })),
+  getOrgGrants: activeGrantsMock,
   GRANT_STATUS_ACTIVE: 'active',
   GRANT_TYPE_FULL: 'full',
+  GRANT_TYPE_GRANULAR: 'granular',
 }))
 
 vi.mock('./sync/member-sync-api', () => ({
@@ -95,6 +97,7 @@ vi.mock('../../shared/crypto/entry-protocol', () => ({
 }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: grantEnvelopeMock,
+  GRANT_DELIVERY_POLICY: { standard: 0, execOnly: 1, injectOnly: 2 },
   GRANT_DELIVERY_POLICY_NAME: { standard: 'standard' },
   listGrantableFields: vi.fn(() => [{ id: 'credential.username' }]),
 }))
@@ -133,6 +136,8 @@ describe('useImportEntries', () => {
     grantEnvelopeMock.mockClear()
     fullGrantsMock.mockReset()
     fullGrantsMock.mockResolvedValue([])
+    activeGrantsMock.mockReset()
+    activeGrantsMock.mockResolvedValue({ items: [], nextCursor: null })
     challengesMock.mockClear()
     challengesMock.mockImplementation(async (_vaultId: string, count: number) =>
       Array.from({ length: count }, (_, index) => ({ entryId: `entry-${index}`, expiresAt: '2026-07-27T00:00:00Z' })))
@@ -304,6 +309,16 @@ describe('useImportEntries', () => {
   })
 
   it('sends overwrites as individual updates and invalidates list keys', async () => {
+    activeGrantsMock.mockResolvedValue({
+      items: [{
+        id: 'grant-1', type: 'granular', entryId: 'old-1', agentId: 'agent-1',
+        agentPublicKey: 'pk', recipientAgentKeyVersion: 2, methods: 'inject',
+        expiresAt: null, queryLimit: null,
+        entryScopes: [{ entryId: 'old-1', fieldIds: ['credential.username'],
+          grantEnvelopeRevision: '1', grantKeyVersion: 1 }],
+      }],
+      nextCursor: null,
+    })
     const { wrapper, invalidateSpy } = makeWrapper()
     const retryGeneration = useMemberSyncStore.getState().retryGeneration
     const { result } = renderHook(() => useImportEntries(), { wrapper })
@@ -318,6 +333,8 @@ describe('useImportEntries', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(updateEntryMock).toHaveBeenCalledTimes(1)
     expect(updateEntryMock.mock.calls[0][0]).toBe('vault-1')
+    expect(updateEntryMock.mock.calls[0][2].deliveryPolicy).toBe('injectOnly')
+    expect(grantEnvelopeMock).toHaveBeenCalledWith(expect.objectContaining({ deliveryPolicy: 2 }))
     expect(result.current.data).toEqual({ importedCount: 1, updatedCount: 1, failed: [] })
 
     const keys = invalidateSpy.mock.calls.map((c) => c[0]?.queryKey)

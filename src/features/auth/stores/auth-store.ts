@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { parseJwtPayload } from '../../../shared/lib/jwt'
 import { wipe } from '../../../shared/crypto/sodium'
+import { isWaitlistDeveloperBenefitActive } from '../lib/waitlist-developer-benefit'
 
 interface AuthState {
   accessToken: string | null
@@ -17,6 +18,9 @@ interface AuthState {
    * server-authoritative account query resolves.
    */
   emailVerified: boolean
+  /** Active waitlist Developer benefit window. Never persisted. */
+  waitlistDeveloperBenefitStartedAt: string | null
+  waitlistDeveloperBenefitEndsAt: string | null
   permissions: number
 
   /**
@@ -38,11 +42,18 @@ interface AuthState {
     userId: string
     isOnboarded: boolean
     emailVerified?: boolean
+    waitlistDeveloperBenefitStartedAt?: string | null
+    waitlistDeveloperBenefitEndsAt?: string | null
     permissions?: number
   }) => void
   markOnboarded: () => void
   /** Flip to verified after the user consumes their verification link. */
   markEmailVerified: () => void
+  /** Apply an active verified waitlist benefit to this in-memory session. */
+  setWaitlistDeveloperBenefit: (
+    startedAt: string | null | undefined,
+    endsAt: string | null | undefined,
+  ) => void
   unlockVault: (
     masterKey: Uint8Array,
     privateKey: Uint8Array,
@@ -59,6 +70,8 @@ const initialState = {
   userId: null,
   isOnboarded: false,
   emailVerified: false,
+  waitlistDeveloperBenefitStartedAt: null,
+  waitlistDeveloperBenefitEndsAt: null,
   permissions: 0,
   isVaultLocked: true,
   masterKey: null,
@@ -91,6 +104,20 @@ export const useAuthStore = create<AuthState>()(
             claimVerified === true ||
             data.emailVerified === true
 
+          const sameUser = state.userId === data.userId
+          const responseOmittedBenefit =
+            data.waitlistDeveloperBenefitStartedAt === undefined &&
+            data.waitlistDeveloperBenefitEndsAt === undefined
+          const benefit = responseOmittedBenefit && sameUser
+            ? {
+                startedAt: state.waitlistDeveloperBenefitStartedAt,
+                endsAt: state.waitlistDeveloperBenefitEndsAt,
+              }
+            : activeBenefitPeriod(
+                data.waitlistDeveloperBenefitStartedAt,
+                data.waitlistDeveloperBenefitEndsAt,
+              )
+
           return {
             accessToken: data.accessToken,
             refreshToken: data.refreshToken,
@@ -101,6 +128,8 @@ export const useAuthStore = create<AuthState>()(
             // wizard to appear for already-onboarded users.
             isOnboarded: state.isOnboarded || data.isOnboarded,
             emailVerified,
+            waitlistDeveloperBenefitStartedAt: benefit.startedAt,
+            waitlistDeveloperBenefitEndsAt: benefit.endsAt,
             permissions,
             // isVaultLocked is intentionally NOT set here — see lockVault().
           }
@@ -109,6 +138,15 @@ export const useAuthStore = create<AuthState>()(
       markOnboarded: () => set({ isOnboarded: true }),
 
       markEmailVerified: () => set({ emailVerified: true }),
+
+      setWaitlistDeveloperBenefit: (startedAt, endsAt) =>
+        set(() => {
+          const benefit = activeBenefitPeriod(startedAt, endsAt)
+          return {
+            waitlistDeveloperBenefitStartedAt: benefit.startedAt,
+            waitlistDeveloperBenefitEndsAt: benefit.endsAt,
+          }
+        }),
 
       unlockVault: (masterKey, privateKey) =>
         // Store independent copies — callers routinely `wipe()` their local
@@ -163,6 +201,21 @@ export const useAuthStore = create<AuthState>()(
     },
   ),
 )
+
+function activeBenefitPeriod(
+  startedAt: string | null | undefined,
+  endsAt: string | null | undefined,
+): { startedAt: string | null; endsAt: string | null } {
+  if (typeof startedAt !== 'string' || typeof endsAt !== 'string') {
+    return { startedAt: null, endsAt: null }
+  }
+
+  if (!isWaitlistDeveloperBenefitActive(startedAt, endsAt)) {
+    return { startedAt: null, endsAt: null }
+  }
+
+  return { startedAt, endsAt }
+}
 
 export function getIsAuthenticated() {
   // A persisted refresh token counts as authenticated — accessToken is null after a reload.

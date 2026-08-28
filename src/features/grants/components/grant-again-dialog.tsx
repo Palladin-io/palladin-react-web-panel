@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
-import { WarningZone } from '../../../shared/components/warning-zone'
 import { GRANT_TYPE_FULL, GRANT_TYPE_SCRIPT_EXECUTION, type OrgGrant } from '../api/org-grants-api'
 import {
   DEFAULT_GRANT_POLICY_KIND,
@@ -43,10 +42,13 @@ export function GrantAgainDialog({
   const [error, setError] = useState<string | null>(null)
   const [reviewedScriptRevision, setReviewedScriptRevision] = useState<string | null>(null)
 
-  const entryLabel = grant.entryLabel ?? t('grants.approve.fallbackEntry')
+  const isFull = grant.type === GRANT_TYPE_FULL
+  const targetLabel = isFull
+    ? grant.vaultName ?? t('grants.unknownTarget')
+    : grant.entryLabel ?? t('grants.approve.fallbackEntry')
   const agentName = grant.agentName ?? t('grants.approve.fallbackAgent')
   const scriptEntryId = grant.scriptEntryId ?? grant.entryId
-    ?? grant.scriptScopes.find((scope) => scope.isScript)?.entryId
+    ?? grant.scriptScopes?.find((scope) => scope.isScript)?.entryId
   const isScript = grant.type === GRANT_TYPE_SCRIPT_EXECUTION
 
   function handleConfirm() {
@@ -82,15 +84,11 @@ export function GrantAgainDialog({
         <p className="text-ui leading-relaxed text-[var(--cv-t2)]">
           {t('grants.regrant.subtitlePrefix')}{' '}
           <span className="font-semibold text-[var(--cv-t1)]">{agentName}</span>{' '}
-          {t('grants.regrant.subtitleAccessTo')}{' '}
-          <span className="font-semibold text-[var(--cv-t1)]">{entryLabel}</span>.
+          {t(isFull
+            ? 'grants.regrant.subtitleAccessToVault'
+            : 'grants.regrant.subtitleAccessTo')}{' '}
+          <span className="font-semibold text-[var(--cv-t1)]">{targetLabel}</span>.
         </p>
-
-        {grant.type === GRANT_TYPE_FULL && (
-          <WarningZone title={t('grants.create.fullTrustTitle')}>
-            {t('grants.create.fullTrustBody')}
-          </WarningZone>
-        )}
 
         {isScript && scriptEntryId ? (
           <ScriptGrantSummary vaultId={grant.vaultId} scriptEntryId={scriptEntryId}

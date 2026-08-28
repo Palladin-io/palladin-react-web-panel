@@ -4,6 +4,7 @@ import { presentationIconReference } from '../../../shared/crypto/vault-plaintex
 
 export interface MemberVaultListItem {
   id: string
+  isDefault: boolean
   name: string | null
   description: string | null
   icon: string | null
@@ -31,6 +32,7 @@ function safeVaultColor(color: string | null | undefined): string | null {
 export function buildMemberVaultList(vaults: ReadonlyMap<string, DecryptedMemberVault>): MemberVaultListItem[] {
   return Array.from(vaults.values(), (vault) => ({
     id: vault.vaultId,
+    isDefault: vault.structure.isDefault,
     name: vault.metadata?.name ?? null,
     description: vault.metadata?.description ?? null,
     icon: materialIconReference(presentationIconReference(vault.metadata?.icon ?? null)),

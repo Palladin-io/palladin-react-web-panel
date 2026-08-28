@@ -83,6 +83,8 @@ src/
 - Features import from `shared/` — never from other features
 - Export only through `index.ts` barrel file
 - **No dead code:** never ship exported components that have zero importers — remove them or keep them unexported until the dependent feature lands. Unused 300-line components inflate diffs and mislead reviewers.
+- When variants materially differ in authorization, validation, cryptographic material, lifecycle, or transaction semantics, keep separate API functions and feature flows instead of branching one generic operation by a type flag. Share only focused mechanics.
+- When the backend provides an authoritative discriminator such as `GrantType`, require and consume that exact field at the API boundary. Never infer it from nullable fields, payload shape, endpoint, aliases, or current UI behavior.
 
 ### Crypto Layer (`shared/crypto/`)
 - All encryption/decryption logic lives here — nowhere else

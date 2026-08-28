@@ -20,6 +20,7 @@ const STATUS_PRESENTATION: Record<GrantStatus, StatusPresentation> = {
   revoked: { labelKey: 'grants.statusRevoked', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.12)' },
   expired: { labelKey: 'grants.statusExpired', color: '#8A95A6', bg: 'rgba(138,149,166,0.14)' },
   consumed: { labelKey: 'grants.statusConsumed', color: '#8A95A6', bg: 'rgba(138,149,166,0.14)' },
+  superseded: { labelKey: 'grants.statusSuperseded', color: 'var(--cv-neutral)', bg: 'rgb(var(--cv-neutral-rgb) / 0.14)' },
 }
 
 export function grantStatusPresentation(status: GrantStatus): StatusPresentation {
@@ -37,6 +38,7 @@ export function grantStatusPresentation(status: GrantStatus): StatusPresentation
 export function grantActorName(grant: OrgGrant): string | null {
   if (grant.status === 'revoked') return grant.revokedByName ?? null
   if (grant.status === 'denied') return grant.deniedByName ?? null
+  if (grant.status === 'superseded') return null
   return grant.createdByName ?? null
 }
 

@@ -70,7 +70,8 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
       status: 'ready',
       vaults: new Map([['v1', {
         vaultId: 'v1', status: 'ready', entries: new Map(), failureKind: null,
-        metadata: null, structure: {}, appliedThroughSequence: '0',
+        metadata: { name: 'Production Vault' },
+        structure: { entryCount: 3 }, appliedThroughSequence: '0',
       } as never]]),
     })
   })
@@ -84,6 +85,14 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
   it('renders the title, agent picker, and access-type dropdown', () => {
     renderDialog()
     expect(screen.getByText('Grant Access')).toBeInTheDocument()
+    const entryCount = screen.getByText('3')
+    const vaultName = screen.getByText('“Production Vault”')
+    expect(entryCount.tagName).toBe('STRONG')
+    expect(vaultName.tagName).toBe('STRONG')
+    expect(entryCount.parentElement).toHaveClass('text-meta')
+    expect(entryCount.parentElement).toHaveTextContent(
+      /access to all 3 current entries in vault “Production Vault”/i,
+    )
     expect(screen.getByRole('combobox', { name: 'Agent' })).toBeInTheDocument()
     expect(screen.getByLabelText(/Access type/i)).toBeInTheDocument()
   })
@@ -109,7 +118,10 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
 
     await user.click(screen.getByRole('combobox', { name: 'Agent' }))
     await user.click(screen.getByText('Deploy Bot'))
-    expect(screen.getByRole('alert')).toHaveTextContent(/cryptographic access to every current and future entry/i)
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      /cryptographic access to every current and future entry/i,
+    )
+    expect(screen.getByRole('button', { name: /^grant access$/i })).toBeEnabled()
     // Default policy = Time Limited, pre-filled ~1 day ahead — already a valid future expiry.
     await user.click(screen.getByRole('button', { name: /^grant access$/i }))
 
@@ -182,6 +194,8 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     await user.click(screen.getByRole('combobox', { name: 'Agent' }))
     await user.click(screen.getByText('Deploy Bot'))
 
+    expect(screen.getByText(/access to all current and future entries in this vault/i)).toBeInTheDocument()
+    expect(screen.queryByText(/access to a credential/i)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^grant access$/i })).toBeEnabled()
   })
 
