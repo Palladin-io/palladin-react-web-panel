@@ -336,7 +336,7 @@ describe('CreateEntryModal', () => {
     })
   })
 
-  it('submits a CREDIT_CARD entry with runtime-only Agent policy', async () => {
+  it('submits a CREDIT_CARD entry with grant fields disabled', async () => {
     const user = userEvent.setup()
     mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'card-1' }))
 
@@ -371,10 +371,10 @@ describe('CreateEntryModal', () => {
       billingAddress: '1 Main Street',
       fields: [expect.objectContaining({ label: 'Account ID', type: 'text', value: 'account-123' })],
     })
-    expect(input.policy.fields.cardNumber).toBe('onGrantRuntime')
+    expect(input.policy.fields.cardNumber).toBe('never')
     expect(Object.entries(input.policy.fields)).toContainEqual([
       expect.stringMatching(/^custom:/),
-      'onGrantRuntime',
+      'never',
     ])
     expect(input.payload).not.toHaveProperty('securityCode')
     expect(input.payload).not.toHaveProperty('pin')

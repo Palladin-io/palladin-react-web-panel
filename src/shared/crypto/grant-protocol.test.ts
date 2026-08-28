@@ -80,7 +80,9 @@ describe('canonical Grant protocol', () => {
           deliveryPolicy: envelope.descriptor.binding.deliveryPolicy,
           fieldSetCommitment: fromBase64Url(envelope.descriptor.binding.fieldSetCommitment),
         })
-        expect(new TextDecoder().decode(plaintext)).toContain('"credential.password"')
+        expect(new TextDecoder().decode(plaintext)).toBe(
+          '{"entryType":"credential","fields":[{"id":"credential.password","kind":"concealed","mode":"value","value":"secret"}],"schema":"palladin.grant-payload.v1"}',
+        )
         wipe(plaintext)
       } finally {
         wipe(payloadKey)
@@ -123,7 +125,34 @@ describe('canonical Grant protocol', () => {
     }
   })
 
-  it('preserves selected methods with standard delivery for Credit Card payloads', async () => {
+  it('derives structural field IDs from the namespaced payload', async () => {
+    const sodium = await loadSodium()
+    const agent = sodium.crypto_box_keypair()
+    const notesSecret: MemberSecretV1 = {
+      ...secret,
+      content: { ...secret.content, notes: 'private note' },
+      agentFieldAccess: { ...secret.agentFieldAccess, notes: 'onGrantValue' },
+    }
+    try {
+      const envelope = await buildCanonicalGrantEnvelope({
+        organizationId: '00112233-4455-6677-8899-aabbccddeeff',
+        vaultId: '11112222-3333-4444-8555-666677778888',
+        entryId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+        grantId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
+        agentId: 'cccccccc-dddd-4eee-8fff-000000000000',
+        entryRevision: '1', memberKeyGeneration: 1,
+        agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 1,
+        grantEnvelopeRevision: '1', grantKeyVersion: 1,
+        approvedFieldIds: ['notes'], approvedMethods: 1, secret: notesSecret,
+      })
+
+      expect(envelope.fieldIds).toEqual(['credential.notes'])
+    } finally {
+      wipe(agent.privateKey); wipe(agent.publicKey)
+    }
+  })
+
+  it('rejects the unregistered Credit Card preview from GrantPayload v1', async () => {
     const sodium = await loadSodium()
     const agent = sodium.crypto_box_keypair()
     const cardSecret: MemberSecretV1 = {
@@ -142,7 +171,7 @@ describe('canonical Grant protocol', () => {
       },
     }
     try {
-      const envelope = await buildCanonicalGrantEnvelope({
+      await expect(buildCanonicalGrantEnvelope({
         organizationId: '00112233-4455-6677-8899-aabbccddeeff',
         vaultId: '11112222-3333-4444-8555-666677778888',
         entryId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
@@ -151,9 +180,7 @@ describe('canonical Grant protocol', () => {
         memberKeyGeneration: 1, agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 1,
         grantEnvelopeRevision: '1', grantKeyVersion: 1,
         approvedFieldIds: ['creditCard.cardNumber'], approvedMethods: 6, secret: cardSecret,
-      })
-      expect(envelope.descriptor.binding.approvedMethods).toBe(6)
-      expect(envelope.descriptor.binding.deliveryPolicy).toBe(0)
+      })).rejects.toThrow(/not registered/)
     } finally {
       wipe(agent.privateKey); wipe(agent.publicKey)
     }

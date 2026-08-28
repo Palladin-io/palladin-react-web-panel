@@ -7,6 +7,7 @@ import { deriveVaultProjectionKey, type VaultKdfPurpose } from './vault-v2-kdf'
 import { encodeVaultAad, type VaultAadContext, type VaultAadProfile } from './vault-v2-protocol'
 import { canonicalizeVaultJson, verifyVaultSignature, vaultSignatureInput } from './vault-v2-signatures'
 import { loadSodium } from './sodium'
+import { parseGrantPayload } from './vault-plaintext'
 
 const PINNED_PROTOCOL_COMMIT = '856872168ff251e5e9e782e3403c1339586ab190'
 const PINNED_MANIFEST_SHA256 = 'a933b61b8bb1a0f966f51fbe51a9c5baa9c09353e2a9131ba7414a559bc4adaf'
@@ -21,7 +22,13 @@ interface HkdfVector {
   purpose: VaultKdfPurpose; purposeId: number; baseKeyHex: string; resourceKind: 'vault' | 'entry'
   organizationId: string; vaultId: string; entryId: string | null; keyVersion: number; memberKeyGeneration: number; outputHex: string
 }
-interface AeadVector { id: string; aadProfile: VaultAadProfile; plaintextHex: string; decryptionKeyHex: string; envelope: VaultCiphertextEnvelope }
+interface AeadVector {
+  id: string
+  aadProfile: VaultAadProfile
+  plaintextHex: string
+  decryptionKeyHex: string
+  envelope: VaultCiphertextEnvelope
+}
 interface SealedVector {
   id: string; plaintextCanonical: string; recipientPublicKeyHex: string; recipientPrivateKeyHex: string
   envelope: Record<string, unknown> & { sealedVaultKeyPackage?: string; agentWrappedVdk?: string }
@@ -58,6 +65,11 @@ describe('canonical Vault protocol 2 fixtures', () => {
     const manifest = readFileSync(join(fixtureRoot, 'manifest.json'))
     const digest = await crypto.subtle.digest('SHA-256', manifest)
     expect(encodeHex(new Uint8Array(digest))).toBe(PINNED_MANIFEST_SHA256)
+  })
+
+  it('keeps the fixture-local GrantPayload distinct from the production application DTO', () => {
+    const vector = envelopes.aeadVectors.find((candidate) => candidate.id === 'grant-entry')!
+    expect(() => parseGrantPayload(decodeHex(vector.plaintextHex))).toThrow()
   })
 
   it.each(aad.vectors)('encodes $id AAD byte-for-byte', (vector) => {

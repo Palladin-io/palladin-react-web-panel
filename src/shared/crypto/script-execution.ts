@@ -286,7 +286,7 @@ export async function sealScriptExecutionPackage(
       vaultSigningPublicKey,
       VAULT_KEY_KIND.vaultSigningEd25519,
     )
-    projectedEntries = projectReferenceEntries(manifest, entries)
+    projectedEntries = await projectReferenceEntries(manifest, entries)
     const transportScopes = new Map<string, ScriptExecutionPackageTransportScopeV1>()
     for (const scope of scopes) {
       const next = {
@@ -422,10 +422,10 @@ function normalizeReferenceEntries(
   }
 }
 
-function projectReferenceEntries(
+async function projectReferenceEntries(
   manifest: ScriptExecutionManifestV1,
   entries: readonly ScriptExecutionPackageReferenceInput[],
-): { entryId: string; entryRevision: string; encodedGrantPayload: Uint8Array }[] {
+): Promise<{ entryId: string; entryRevision: string; encodedGrantPayload: Uint8Array }[]> {
   const fieldIdsByEntry = new Map<string, Set<string>>()
   for (const reference of manifest.references) {
     const fieldIds = fieldIdsByEntry.get(reference.entryId) ?? new Set<string>()
@@ -437,7 +437,7 @@ function projectReferenceEntries(
     for (const entry of entries) {
       const fieldIds = fieldIdsByEntry.get(entry.entryId)
       if (!fieldIds) throw new Error('Script package referenced Entries are incomplete')
-      const encodedGrantPayload = encodeGrantPayload(projectScriptReferencePayload(
+      const encodedGrantPayload = encodeGrantPayload(await projectScriptReferencePayload(
         parseMemberSecret(entry.encodedMemberSecret),
         [...fieldIds].sort(compareUtf8),
       ))

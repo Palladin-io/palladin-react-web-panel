@@ -10,7 +10,7 @@ import { useAuthStore } from '../auth'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import type { PendingGrant } from './api/pending-grants-api'
-import { normalizeEntryType } from '../../shared/types/entry-type'
+import { ENTRY_TYPE_CREDIT_CARD, normalizeEntryType } from '../../shared/types/entry-type'
 import { normalizeScriptExecutionMetadata } from '../../shared/crypto/script-execution'
 
 export type GrantReviewStage =
@@ -82,6 +82,9 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
           }).catch((error: unknown) => {
             throw new GrantReviewUnavailableError('entrySecret', { cause: error })
           })
+        if (normalizeEntryType(memberSecret.entryType) === ENTRY_TYPE_CREDIT_CARD) {
+          throw new GrantReviewUnavailableError('preflight')
+        }
         const decryptedReason = await openEncryptedReason(reason, vault.vaultPrivateKeys, vaultKey, {
             publicKey: grant.agentSigningPublicKey,
             keyVersion: grant.agentSigningKeyVersion,

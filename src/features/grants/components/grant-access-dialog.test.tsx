@@ -41,11 +41,15 @@ const scriptCrypto = vi.hoisted(() => ({
   wipe: vi.fn(),
 }))
 vi.mock('../../vaults/api/vault-api', () => ({ getVaults: vi.fn(), getCanonicalEntry: scriptCrypto.getEntry }))
+vi.mock('../../vaults/use-vaults', () => ({ useVaults: () => ({ data: { vaults: [] } }) }))
 vi.mock('../../vaults/sync/member-sync-api', () => ({ getEncryptedVault: scriptCrypto.getVault }))
 vi.mock('../../../shared/crypto/vault-protocol', () => ({ openMemberVaultKey: scriptCrypto.openVaultKey }))
 vi.mock('../../../shared/crypto/entry-protocol', () => ({ openMemberSecret: scriptCrypto.openSecret }))
 vi.mock('../../../shared/crypto/sodium', () => ({ wipe: scriptCrypto.wipe }))
-vi.mock('../use-local-entry-search', () => ({ useLocalEntrySearch: () => [] }))
+const localSearch = vi.hoisted(() => ({ entries: [] as Array<{
+  id: string; vaultId: string; vaultName: string; label: string; type: number
+}> }))
+vi.mock('../use-local-entry-search', () => ({ useLocalEntrySearch: () => localSearch.entries }))
 
 const toastError = vi.hoisted(() => vi.fn())
 const toastSuccess = vi.hoisted(() => vi.fn())
@@ -66,6 +70,7 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     scriptCrypto.getEntry.mockReset()
     scriptCrypto.getVault.mockReset()
     scriptCrypto.openSecret.mockReset()
+    localSearch.entries = []
     useMemberSyncStore.setState({
       status: 'ready',
       vaults: new Map([['v1', {
@@ -199,7 +204,7 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     expect(screen.getByRole('button', { name: /^grant access$/i })).toBeEnabled()
   })
 
-  it('blocks a granular grant until its requested Entry projection exists', async () => {
+  it('does not offer a granular grant until its requested Entry projection exists', async () => {
     const user = userEvent.setup()
     render(
       <GrantAccessDialog
@@ -209,10 +214,46 @@ describe('GrantAccessDialog (agent-for-vault)', () => {
     )
 
     await user.click(screen.getByRole('combobox', { name: 'Agent' }))
-    await user.click(screen.getByText('Deploy Bot'))
+    expect(screen.queryByText('Deploy Bot')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /^grant access$/i }))
+    expect(screen.getByText(/choose who or what to grant/i)).toBeInTheDocument()
+    expect(mutateMock).not.toHaveBeenCalled()
+  })
 
-    expect(screen.getByText(/wait for this vault to finish syncing/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^grant access$/i })).toBeDisabled()
+  it('does not offer agents for a direct credit-card grant', async () => {
+    useMemberSyncStore.setState({
+      vaults: new Map([['v1', {
+        vaultId: 'v1', status: 'ready', failureKind: null, metadata: null, structure: {},
+        appliedThroughSequence: '0', entries: new Map([['card', {
+          state: 'active', corrupt: false, payload: { entryType: 'creditCard' },
+        }]]),
+      } as never]]),
+    })
+    const user = userEvent.setup()
+    render(<GrantAccessDialog
+      mode={{ kind: 'agent-for-entry', vaultId: 'v1', entryId: 'card' }}
+      onClose={vi.fn()}
+    />)
+
+    await user.click(screen.getByRole('combobox', { name: 'Agent' }))
+    expect(screen.queryByText('Deploy Bot')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^grant access$/i })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: /^grant access$/i }))
+    expect(mutateMock).not.toHaveBeenCalled()
+  })
+
+  it('excludes credit cards from cross-vault granular targets', async () => {
+    localSearch.entries = [
+      { id: 'card', vaultId: 'v2', vaultName: 'Vault', label: 'Company card', type: 3 },
+      { id: 'credential', vaultId: 'v2', vaultName: 'Vault', label: 'Deploy login', type: 1 },
+    ]
+    const user = userEvent.setup()
+    render(<GrantAccessDialog mode={{ kind: 'target-for-agent', agentId: 'a1' }} onClose={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: /^entry access$/i }))
+    await user.type(screen.getByRole('combobox', { name: 'Entry' }), 'de')
+    expect(screen.getByText('Deploy login')).toBeInTheDocument()
+    expect(screen.queryByText('Company card')).not.toBeInTheDocument()
   })
 
   it('summarizes a direct Script grant and fixes it to one Exec authorization', async () => {

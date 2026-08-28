@@ -23,6 +23,7 @@ import {
   type GrantMethod,
 } from './grant-methods'
 import { GRANTS_QUERY_KEY } from './query-keys'
+import { ENTRY_TYPE_CREDIT_CARD, normalizeEntryType } from '../../shared/types/entry-type'
 
 export class VaultLockedError extends Error {
   constructor() {
@@ -70,6 +71,7 @@ export function useApproveGrant() {
       type,
       policy,
       methods,
+      fieldIds,
       reviewedEntryRevision,
       requestedMethods,
     }: ApproveGrantInput) => {
@@ -131,15 +133,26 @@ export function useApproveGrant() {
         const memberSecret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
         })
+        if (normalizeEntryType(memberSecret.entryType) === ENTRY_TYPE_CREDIT_CARD) {
+          throw new MissingGrantMaterialError()
+        }
         const approvedFieldIds = listGrantableFieldIds(memberSecret)
-        if (approvedFieldIds.length === 0) throw new MissingGrantMaterialError()
+        const reviewedFieldIds = [...fieldIds].sort()
+        const reviewedFieldSet = new Set(reviewedFieldIds)
+        const currentFieldIds = [...approvedFieldIds].sort()
+        if (reviewedFieldIds.length === 0
+          || reviewedFieldSet.size !== reviewedFieldIds.length
+          || reviewedFieldIds.length !== currentFieldIds.length
+          || reviewedFieldIds.some((fieldId, index) => fieldId !== currentFieldIds[index])) {
+          throw new MissingGrantMaterialError()
+        }
         const envelope = await buildCanonicalGrantEnvelope({
           secret: memberSecret,
           agentPublicKey: agent.publicKey,
           organizationId: detail.organizationId, vaultId, grantId, agentId, entryId,
           entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
           memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: agent.recipientKeyVersion,
-          approvedMethods, approvedFieldIds,
+          approvedMethods, approvedFieldIds: currentFieldIds,
           ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
         })
         const body: ApproveGrantBody = {

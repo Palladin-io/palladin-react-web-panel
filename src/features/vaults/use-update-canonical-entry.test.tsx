@@ -3,8 +3,8 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth'
-import { ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from './types'
-import { useUpdateCanonicalEntry } from './use-update-canonical-entry'
+import { ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from './types'
+import { ActiveGrantRefreshRequiredError, useUpdateCanonicalEntry } from './use-update-canonical-entry'
 
 const mocks = vi.hoisted(() => ({
   getGrants: vi.fn(), getVault: vi.fn(),
@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   openDiscoveryKey: vi.fn(async () => new Uint8Array(32).fill(2)),
   createMaterial: vi.fn(async () => ({ entryKey: {}, memberIndex: {}, memberSecret: {}, agentDiscovery: null })),
   toSecret: vi.fn(({ type }: { type: number }) => ({
-    entryType: type === ENTRY_TYPE_SCRIPT ? 'script' : 'key',
+    entryType: type === ENTRY_TYPE_SCRIPT ? 'script' : type === ENTRY_TYPE_CREDIT_CARD ? 'creditCard' : 'key',
     content: { customFields: [] }, agentFieldAccess: { value: 'onGrantValue' },
   })),
   produce: vi.fn(async () => ({ grantId: 'grant', entryId: 'entry' })),
@@ -32,7 +32,10 @@ vi.mock('../../shared/crypto/vault-protocol', () => ({
 }))
 vi.mock('../../shared/crypto/entry-protocol', () => ({ sealCanonicalEntry: mocks.createMaterial }))
 vi.mock('../../shared/crypto/entry-draft', () => ({ toMemberSecret: mocks.toSecret }))
-vi.mock('../../shared/crypto/vault-plaintext', () => ({ projectAgentDiscovery: vi.fn(() => null) }))
+vi.mock('../../shared/crypto/vault-plaintext', () => ({
+  grantPayloadPolicyFieldId: vi.fn((_type: string, fieldId: string) => fieldId),
+  projectAgentDiscovery: vi.fn(() => null),
+}))
 vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: mocks.produce,
   GRANT_DELIVERY_POLICY: { standard: 0, execOnly: 1, injectOnly: 2 },
@@ -89,6 +92,29 @@ describe('useUpdateCanonicalEntry', () => {
     }))
     expect(mocks.update.mock.calls[0][2].deliveryPolicy).toBe('execOnly')
     expect(mocks.update.mock.calls[0][2].grantEnvelopes).toEqual([{ grantId: 'grant', entryId: 'entry' }])
+  })
+
+  it('requires revoking a legacy active granular grant before editing a credit card', async () => {
+    mocks.getGrants.mockResolvedValue({ items: [{
+      id: 'legacy-card-grant', type: 'granular', entryId: 'entry', agentId: 'agent',
+      entryScopes: [{ entryId: 'entry', fieldIds: ['creditCard.cardNumber'] }],
+      scriptScopes: [], methods: 'inject',
+    }], nextCursor: null })
+    const cardInput = {
+      ...input,
+      draft: {
+        ...input.draft,
+        entryType: ENTRY_TYPE_CREDIT_CARD,
+        content: { type: ENTRY_TYPE_CREDIT_CARD, cardholderName: 'Ada', cardNumber: '4242424242424242' },
+      },
+    }
+    const { result } = renderHook(() => useUpdateCanonicalEntry('vault', 'entry'), { wrapper })
+    result.current.mutate(cardInput as never)
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toBeInstanceOf(ActiveGrantRefreshRequiredError)
+    expect(mocks.createMaterial).not.toHaveBeenCalled()
+    expect(mocks.update).not.toHaveBeenCalled()
   })
 
   it('preserves an existing grant mask when an Entry changes to Script', async () => {

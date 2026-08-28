@@ -31,18 +31,15 @@ const RUNTIME_OR_NEVER = ['never', 'onGrantRuntime'] as const
 
 export function allowedAgentFieldAccess(type: EntryType, fieldId: string, customType?: CustomField['type']): readonly AgentFieldAccess[] {
   if (fieldId === ENTRY_FIELD.agentLabel || fieldId === ENTRY_FIELD.description) return DISCOVERY_OR_NEVER
-  if (fieldId === ENTRY_FIELD.notes) return type === 2 || type === ENTRY_TYPE_CREDIT_CARD ? RUNTIME_OR_NEVER : VALUE_OR_NEVER
+  if (type === ENTRY_TYPE_CREDIT_CARD) return ['never']
+  if (fieldId === ENTRY_FIELD.notes) return type === 2 ? RUNTIME_OR_NEVER : VALUE_OR_NEVER
   if (fieldId === ENTRY_FIELD.totp || customType === 'totp') return ['never', 'onGrantDerived']
-  if (fieldId.startsWith('custom:')) return type === 2 || type === ENTRY_TYPE_CREDIT_CARD ? RUNTIME_OR_NEVER : ['never', 'discovery', 'onGrantValue']
+  if (fieldId.startsWith('custom:')) return type === 2 ? RUNTIME_OR_NEVER : ['never', 'discovery', 'onGrantValue']
   if (type === ENTRY_TYPE_KEY && fieldId === ENTRY_FIELD.value) return VALUE_OR_NEVER
   if (type === ENTRY_TYPE_CREDENTIAL) {
     if (fieldId === ENTRY_FIELD.username) return ['never', 'discovery', 'onGrantValue']
     if (fieldId === ENTRY_FIELD.urlDomain) return DISCOVERY_OR_NEVER
     if (fieldId === ENTRY_FIELD.url || fieldId === ENTRY_FIELD.password) return VALUE_OR_NEVER
-  }
-  if (type === ENTRY_TYPE_CREDIT_CARD) {
-    if ([ENTRY_FIELD.cardholderName, ENTRY_FIELD.cardNumber, ENTRY_FIELD.expiryMonth, ENTRY_FIELD.expiryYear,
-      ENTRY_FIELD.billingAddress].includes(fieldId as never)) return RUNTIME_OR_NEVER
   }
   if (type === 2) {
     if (fieldId === ENTRY_FIELD.interpreter) return DISCOVERY_OR_NEVER
@@ -56,17 +53,20 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
     agentLabel: 'discovery', description: type === 2 ? 'discovery' : 'never',
     notes: type === 2 || type === ENTRY_TYPE_CREDIT_CARD ? 'never' : 'onGrantValue',
   } }
-  if (type === ENTRY_TYPE_KEY) policy.fields.value = 'onGrantValue'
+  if (type === ENTRY_TYPE_KEY) Object.assign(policy.fields, {
+    value: 'onGrantValue', url: 'onGrantValue',
+  })
   else if (type === ENTRY_TYPE_CREDENTIAL) Object.assign(policy.fields, {
     username: 'discovery', urlDomain: 'discovery', url: 'onGrantValue', password: 'onGrantValue', totp: 'onGrantDerived',
   })
   else if (type === ENTRY_TYPE_CREDIT_CARD) Object.assign(policy.fields, {
-    cardholderName: 'onGrantRuntime', cardNumber: 'onGrantRuntime', expiryMonth: 'onGrantRuntime',
-    expiryYear: 'onGrantRuntime', billingAddress: 'onGrantRuntime',
+    cardholderName: 'never', cardNumber: 'never', expiryMonth: 'never',
+    expiryYear: 'never', billingAddress: 'never',
   })
   else Object.assign(policy.fields, { interpreter: 'discovery', script: 'onGrantRuntime', refs: 'onGrantRuntime' })
   for (const field of fields) policy.fields[`custom:${field.id}`] = field.type === 'totp'
-    ? 'onGrantDerived' : type === 2 || type === ENTRY_TYPE_CREDIT_CARD ? 'onGrantRuntime' : 'onGrantValue'
+    ? type === ENTRY_TYPE_CREDIT_CARD ? 'never' : 'onGrantDerived'
+    : type === ENTRY_TYPE_CREDIT_CARD ? 'never' : type === 2 ? 'onGrantRuntime' : 'onGrantValue'
   return policy
 }
 
@@ -98,19 +98,27 @@ function customFields(fields: CustomField[] | undefined) {
 function fieldPolicy(
   type: EntryType,
   policy: AgentVisibilityPolicy,
-  fields: CustomField[] | undefined,
+  payload: EntryPlaintext,
 ): Record<string, AgentFieldAccess> {
   const mapped: Record<string, AgentFieldAccess> = {
     memberLabel: 'never', agentLabel: policy.discoverable ? 'discovery' : 'never',
     description: policy.fields.description ?? 'never', icon: 'never', color: 'never',
     entryType: policy.discoverable ? 'discovery' : 'never', notes: policy.fields.notes ?? 'never',
   }
-  for (const [id, access] of Object.entries(policy.fields)) mapped[FIELD_ID[id] ?? id] = access
-  for (const field of fields ?? []) {
+  for (const [id, access] of Object.entries(policy.fields)) {
+    if (type === ENTRY_TYPE_KEY && id === 'url'
+      && (payload.type !== ENTRY_TYPE_KEY || !payload.url)) continue
+    const canonicalId = type === ENTRY_TYPE_KEY && id === 'url' ? 'key.url' : FIELD_ID[id] ?? id
+    mapped[canonicalId] = access
+  }
+  for (const field of payload.fields ?? []) {
     const id = field.id.startsWith('custom:') ? field.id : `custom:${field.id}`
     mapped[id] = policy.fields[id] ?? policy.fields[`custom:${field.id}`] ?? 'never'
   }
-  if (type === ENTRY_TYPE_KEY) mapped['key.value'] ??= 'never'
+  if (type === ENTRY_TYPE_KEY) {
+    mapped['key.value'] ??= 'never'
+    if (payload.type === ENTRY_TYPE_KEY && payload.url) mapped['key.url'] ??= 'never'
+  }
   else if (type === ENTRY_TYPE_CREDENTIAL) {
     for (const id of ['credential.username', 'credential.password', 'credential.url', 'credential.urlDomain', 'credential.totp']) mapped[id] ??= 'never'
   } else if (type === ENTRY_TYPE_CREDIT_CARD) {
@@ -238,7 +246,7 @@ export function toMemberSecret(input: {
     description: input.description?.normalize('NFC') ?? null,
     icon,
     color: input.color?.toUpperCase() ?? null,
-    agentFieldAccess: fieldPolicy(input.type, input.policy, input.payload.fields),
+    agentFieldAccess: fieldPolicy(input.type, input.policy, input.payload),
   }
   if (input.payload.type === ENTRY_TYPE_KEY) return {
     ...common, entryType: 'key', content: {
