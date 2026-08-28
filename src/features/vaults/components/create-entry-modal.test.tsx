@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -210,7 +210,7 @@ describe('CreateEntryModal', () => {
     await user.type(screen.getByLabelText(/^url$/i), 'https://first.example.com')
     await waitFor(() => expect(ensureWebsiteIconsWithinMock).toHaveBeenCalledWith(['first.example.com'], 5_000))
 
-    ensureWebsiteIconsWithinMock.mockResolvedValueOnce(new Map())
+    ensureWebsiteIconsWithinMock.mockResolvedValue(new Map())
     await user.clear(screen.getByLabelText(/^url$/i))
     await user.type(screen.getByLabelText(/^url$/i), 'https://second.example.com')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
@@ -244,10 +244,10 @@ describe('CreateEntryModal', () => {
       screen.getByLabelText(/entry type/i),
       String(ENTRY_TYPE_CREDENTIAL),
     )
-    await user.type(screen.getByLabelText(/^label$/i), 'GitHub')
-    await user.type(screen.getByLabelText(/^username$/i), '  user@example.com ')
-    await user.type(screen.getByLabelText(/^password$/i), 'secret')
-    await user.type(screen.getByLabelText(/^url$/i), 'https://github.com/path')
+    fireEvent.change(screen.getByLabelText(/^label$/i), { target: { value: 'GitHub' } })
+    fireEvent.change(screen.getByLabelText(/^username$/i), { target: { value: '  user@example.com ' } })
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'secret' } })
+    fireEvent.change(screen.getByLabelText(/^url$/i), { target: { value: 'https://github.com/path' } })
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
     expect(mutateMock).toHaveBeenCalledTimes(1)
@@ -314,6 +314,7 @@ describe('CreateEntryModal', () => {
 
     await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_SCRIPT))
     await user.type(screen.getByLabelText(/^label$/i), 'Deploy')
+    await user.type(screen.getByLabelText(/description/i), 'Returns the deployment status')
     await user.type(screen.getByLabelText(/script editor/i), '  echo hi  ')
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
@@ -327,6 +328,11 @@ describe('CreateEntryModal', () => {
       type: ENTRY_TYPE_SCRIPT,
       script: 'echo hi',
       interpreter: 'bash',
+      execution: expect.objectContaining({
+        description: 'Returns the deployment status',
+        parameters: [],
+        returnResultToAgent: true,
+      }),
     })
   })
 

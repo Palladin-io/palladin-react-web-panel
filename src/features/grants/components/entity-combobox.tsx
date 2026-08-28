@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Icon } from '../../../shared/components/icon'
 
 export interface ComboboxOption {
@@ -47,6 +47,11 @@ export function EntityCombobox({
   const inputId = useId()
   const listId = useId()
   const [open, setOpen] = useState(false)
+  const closeTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    if (closeTimeout.current) clearTimeout(closeTimeout.current)
+  }, [])
 
   // Show the selected label as the input value when present and not actively
   // editing (query empty). Otherwise show what the user is typing.
@@ -72,8 +77,17 @@ export function EntityCombobox({
             onQueryChange(e.target.value)
             setOpen(true)
           }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 120)}
+          onFocus={() => {
+            if (closeTimeout.current) clearTimeout(closeTimeout.current)
+            closeTimeout.current = null
+            setOpen(true)
+          }}
+          onBlur={() => {
+            closeTimeout.current = setTimeout(() => {
+              closeTimeout.current = null
+              setOpen(false)
+            }, 120)
+          }}
           placeholder={placeholder}
           disabled={disabled}
           autoComplete="off"

@@ -14,6 +14,7 @@ import {
   normalizeEntryType,
   type EntryType,
 } from '../../shared/types/entry-type'
+import type { ScriptExecutionMetadataV1 } from '../../shared/crypto/script-execution'
 
 export {
   ENTRY_TYPE_CREDENTIAL,
@@ -277,6 +278,8 @@ export type EntryPlaintext =
       /** Script body — plain text, run verbatim by the agent under `interpreter`. */
       script: string
       interpreter: ScriptInterpreter
+      /** Agent-visible execution contract; absent on legacy Scripts and therefore result-withheld. */
+      execution?: ScriptExecutionMetadataV1
       notes?: string
       /** Declared env-var → vault-field mappings injected at exec time. */
       refs?: ScriptRef[]

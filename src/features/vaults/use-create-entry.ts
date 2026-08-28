@@ -9,7 +9,7 @@ import { createEntry, issueEntryCreationChallenge, updateCanonicalEntry } from '
 import { deleteEncryptedAsset } from './assets/encrypted-asset-api'
 import { encryptAndUploadPresentationAsset } from './assets/encrypted-asset-service'
 import { getEncryptedVault } from './sync/member-sync-api'
-import type { EntryPlaintext, EntryType } from './types'
+import { ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_SCRIPT, type EntryPlaintext, type EntryType } from './types'
 import { entriesQueryKey } from './use-entries'
 import { vaultQueryKey } from './use-vault'
 import { VAULTS_QUERY_KEY } from './use-vaults'
@@ -39,6 +39,14 @@ export interface CreateEntryInput {
   type: EntryType
   payload: EntryPlaintext
   policy: AgentVisibilityPolicy
+}
+
+function deliveryPolicyFor(type: EntryType) {
+  return type === ENTRY_TYPE_SCRIPT
+    ? GRANT_DELIVERY_POLICY_NAME.execOnly
+    : type === ENTRY_TYPE_CREDIT_CARD
+      ? GRANT_DELIVERY_POLICY_NAME.injectOnly
+      : GRANT_DELIVERY_POLICY_NAME.standard
 }
 
 export function useCreateEntry() {
@@ -78,7 +86,7 @@ export function useCreateEntry() {
         const created = await createEntry(input.vaultId, {
           entryId: challenge.entryId,
           ...material,
-          deliveryPolicy: GRANT_DELIVERY_POLICY_NAME.standard,
+          deliveryPolicy: deliveryPolicyFor(input.type),
         })
         if (!input.iconFile) return created
 
@@ -122,7 +130,7 @@ export function useCreateEntry() {
             memberSecret: withIcon.memberSecret,
             memberIndex: withIcon.memberIndex,
             agentDiscoveryChanged: false,
-            deliveryPolicy: GRANT_DELIVERY_POLICY_NAME.standard,
+            deliveryPolicy: deliveryPolicyFor(input.type),
             grantEnvelopes: [],
           })
           return { ...created, currentRevision: revision }

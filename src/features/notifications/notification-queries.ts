@@ -6,6 +6,12 @@ import {
 } from '@tanstack/react-query'
 import type { InfiniteData } from '@tanstack/react-query'
 import {
+  adjustPendingGrantNotificationSummary,
+  NOTIFICATIONS_CACHE_ROOT_KEY,
+  NOTIFICATIONS_CACHE_SUMMARY_KEY,
+  omitResolvedPendingGrantNotifications,
+} from '../../shared/lib/pending-grant-notification-reconciliation'
+import {
   getNotifications,
   getNotificationsSummary,
   markAllNotificationsRead,
@@ -23,8 +29,8 @@ import {
 } from './preferences-api'
 
 /** Root key — SignalR/FCM invalidate this prefix so every feed + the badge refresh live. */
-export const NOTIFICATIONS_QUERY_KEY = ['notifications'] as const
-export const NOTIFICATIONS_SUMMARY_QUERY_KEY = ['notifications', 'summary'] as const
+export const NOTIFICATIONS_QUERY_KEY = NOTIFICATIONS_CACHE_ROOT_KEY
+export const NOTIFICATIONS_SUMMARY_QUERY_KEY = NOTIFICATIONS_CACHE_SUMMARY_KEY
 export const NOTIFICATIONS_PREFERENCES_QUERY_KEY = [
   'notifications',
   'preferences',
@@ -71,10 +77,13 @@ function patchFeedItems(
  * by current vault access; we never re-filter for security on the client.
  */
 export function useNotifications(category?: NotificationCategory) {
+  const queryClient = useQueryClient()
   return useInfiniteQuery({
     queryKey: notificationsListQueryKey(category),
-    queryFn: ({ pageParam }) =>
-      getNotifications({ cursor: pageParam, category }),
+    queryFn: async ({ pageParam }) => omitResolvedPendingGrantNotifications(
+      queryClient,
+      await getNotifications({ cursor: pageParam, category }),
+    ),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 15_000,
@@ -83,9 +92,15 @@ export function useNotifications(category?: NotificationCategory) {
 
 /** Drives the nav badge (`unreadCount`) + the To-do header (`pendingActionCount`). */
 export function useNotificationsSummary() {
+  const queryClient = useQueryClient()
   return useQuery({
     queryKey: NOTIFICATIONS_SUMMARY_QUERY_KEY,
-    queryFn: getNotificationsSummary,
+    queryFn: async () => {
+      return adjustPendingGrantNotificationSummary(
+        queryClient,
+        await getNotificationsSummary(),
+      )
+    },
     staleTime: 15_000,
   })
 }

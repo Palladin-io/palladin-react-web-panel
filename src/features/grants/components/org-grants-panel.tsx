@@ -162,8 +162,15 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
     )
   }
 
-  async function handleRegrant(grant: OrgGrant, policy: GrantPolicyBody) {
-    if (!grant.agentId || !grant.type || (grant.type !== GRANT_TYPE_FULL && !grant.entryId)) return
+  async function handleRegrant(
+    grant: OrgGrant,
+    policy: GrantPolicyBody,
+    reviewedScriptRevision?: string,
+  ) {
+    const scopedEntryId = grant.scriptEntryId ?? grant.entryId
+      ?? grant.scriptScopes?.find((scope) => scope.isScript)?.entryId
+    if (!grant.agentId || !grant.type
+      || (grant.type !== GRANT_TYPE_FULL && !scopedEntryId)) return
 
     let agentPublicKey: string | null | undefined
     let recipientAgentKeyVersion: number | null | undefined
@@ -179,12 +186,12 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
       toast.error(t('grants.regrant.error'))
       return
     }
-
     regrant.mutate(
       {
         vaultId: grant.vaultId,
         agentId: grant.agentId,
-        entryId: grant.entryId ?? undefined,
+    ...(scopedEntryId ? { entryId: scopedEntryId } : {}),
+    ...(reviewedScriptRevision ? { reviewedScriptRevision } : {}),
         agentPublicKey,
         recipientAgentKeyVersion,
         agentAccessEpoch,
@@ -329,9 +336,12 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
 
       {regrantTarget && (
         <GrantAgainDialog
+          key={regrantTarget.id}
           grant={regrantTarget}
           isPending={regrantBusy}
-          onConfirm={(policy) => handleRegrant(regrantTarget, policy)}
+          onConfirm={(policy, reviewedScriptRevision) => (
+            handleRegrant(regrantTarget, policy, reviewedScriptRevision)
+          )}
           onCancel={() => setRegrantTarget(null)}
         />
       )}

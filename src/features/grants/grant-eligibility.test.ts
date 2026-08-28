@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   agentsCoveringEntry,
+  agentsCoveringScriptExecution,
   agentsCoveringVault,
   entryCoverageByAgent,
   vaultsCoveredByAgent,
@@ -48,6 +49,18 @@ describe('grant-eligibility', () => {
     expect(set.has('inactive')).toBe(false)
   })
 
+  it('Script coverage requires direct ScriptExecution or FULL with Exec', () => {
+    const set = agentsCoveringScriptExecution([
+      grant({ agentId: 'fullExec', type: 'full', methods: 'Get, Exec' }),
+      grant({ agentId: 'fullWithoutExec', type: 'full', methods: 'Get, Inject' }),
+      grant({ agentId: 'legacyGranular', type: 'granular', entryId: 'script-1', methods: 'Exec' }),
+      grant({ agentId: 'direct', type: 'scriptExecution', scriptScopes: [
+        { entryId: 'script-1', entryRevision: '2', isScript: true },
+      ] }),
+    ], 'script-1')
+    expect([...set].sort()).toEqual(['direct', 'fullExec'])
+  })
+
   it('vaultsCoveredByAgent collects only vaults with an active FULL grant', () => {
     const set = vaultsCoveredByAgent([
       grant({ vaultId: 'vFull', status: 'active', type: 'full' }),
@@ -60,13 +73,16 @@ describe('grant-eligibility', () => {
   })
 
   it('entryCoverageByAgent splits granular entries from full-covered vaults', () => {
-    const { coveredEntryIds, fullCoveredVaultIds } = entryCoverageByAgent([
+    const { coveredEntryIds, fullCoveredVaultIds, fullExecCoveredVaultIds } = entryCoverageByAgent([
       grant({ type: 'granular', entryId: 'e1', vaultId: 'v1' }),
-      grant({ type: 'full', vaultId: 'v2' }),
+      grant({ type: 'full', vaultId: 'v2', methods: 'Get, Inject' }),
+      grant({ type: 'full', vaultId: 'v4', methods: 'Exec' }),
       grant({ type: 'granular', entryId: 'e3', vaultId: 'v3', status: 'revoked' }),
     ])
     expect(coveredEntryIds.has('e1')).toBe(true)
     expect(coveredEntryIds.has('e3')).toBe(false) // inactive
     expect(fullCoveredVaultIds.has('v2')).toBe(true)
+    expect(fullExecCoveredVaultIds.has('v2')).toBe(false)
+    expect(fullExecCoveredVaultIds.has('v4')).toBe(true)
   })
 })

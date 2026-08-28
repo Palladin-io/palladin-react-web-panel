@@ -5,18 +5,21 @@ import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { FeedbackSlot } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
+import { WarningZone } from '../../../shared/components/warning-zone'
 import { AGENT_STATUS_ACTIVE, getAgent, useAgents } from '../../agents'
 import { useVaults } from '../../vaults/use-vaults'
 import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
 import {
   GRANT_TYPE_FULL,
   GRANT_TYPE_GRANULAR,
+  GRANT_TYPE_SCRIPT_EXECUTION,
   type GrantType,
   type OrgGrant,
 } from '../api/org-grants-api'
 import { useLocalEntrySearch } from '../use-local-entry-search'
 import {
   agentsCoveringEntry,
+  agentsCoveringScriptExecution,
   agentsCoveringVault,
   entryCoverageByAgent,
   vaultsCoveredByAgent,
@@ -30,10 +33,12 @@ import {
 } from '../grant-policy'
 import { useCreateGrant } from '../use-create-grant'
 import { useOrgGrants } from '../use-org-grants'
-import { DEFAULT_GRANT_METHODS, type GrantMethod } from '../grant-methods'
+import { DEFAULT_GRANT_METHODS, GRANT_METHOD_EXEC, type GrantMethod } from '../grant-methods'
 import { EntityCombobox, type ComboboxOption } from './entity-combobox'
 import { GrantPolicyFields } from './grant-policy-fields'
 import { GrantMethodsSelect } from './grant-methods-select'
+import { ENTRY_TYPE_SCRIPT } from '../../../shared/types/entry-type'
+import { ScriptGrantSummary } from './script-grant-summary'
 
 /**
  * Where the dialog was opened from — drives which subject the user picks and
@@ -73,6 +78,11 @@ function targetReadiness(
   return {}
 }
 
+function entryGrantType(vaultId: string, entryId: string): GrantType {
+  const entry = useMemberSyncStore.getState().vaults.get(vaultId)?.entries.get(entryId)
+  return entry?.payload?.entryType === 'script' ? GRANT_TYPE_SCRIPT_EXECUTION : GRANT_TYPE_GRANULAR
+}
+
 /**
  * One shared dialog for proactively granting access, reused from three entry
  * points (mode prop). A shared policy segment (Time/Uses/Lifetime) is common to
@@ -96,6 +106,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
   // Methods the grant permits. Default to the privacy-preserving set; `get` is opt-in.
   const [methods, setMethods] = useState<GrantMethod[]>(DEFAULT_GRANT_METHODS)
   const [methodsError, setMethodsError] = useState<string | null>(null)
+  const [reviewedScriptRevision, setReviewedScriptRevision] = useState<string | null>(null)
 
   // Subject selection (resolved on confirm).
   const [subject, setSubject] = useState<ResolvedSubject | null>(null)
@@ -110,7 +121,9 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
       ? mode.vaultId
       : null
   const fullVault = fullVaultId ? syncedVaults.get(fullVaultId) : undefined
-  const effectiveMethods: GrantMethod[] = methods
+  const effectiveMethods: GrantMethod[] = currentSubject?.type === GRANT_TYPE_SCRIPT_EXECUTION
+    ? [GRANT_METHOD_EXEC]
+    : methods
 
   function resetPolicyError() {
     setPolicyError(null)
@@ -122,6 +135,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
       return
     }
     if (currentSubject.constraintsUnavailable) return
+    if (currentSubject.type === GRANT_TYPE_SCRIPT_EXECUTION && !reviewedScriptRevision) return
     const policyInput = { kind, expiresAt, queryLimit }
     const validationError = validateGrantPolicy(policyInput)
     if (validationError) {
@@ -155,6 +169,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         agentAccessEpoch,
         type: currentSubject.type,
         entryId: currentSubject.entryId,
+        reviewedScriptRevision: reviewedScriptRevision ?? undefined,
         policy: grantPolicyToBody(policyInput),
         methods: effectiveMethods,
       },
@@ -179,7 +194,10 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           <Button variant="subtle" size="sm" onClick={onClose} disabled={createGrant.isPending} className="flex-1">
             {t('grants.cancel')}
           </Button>
-          <Button variant="accent" size="sm" onClick={handleConfirm} disabled={createGrant.isPending || currentSubject?.constraintsUnavailable} className="flex-[2]">
+          <Button variant="positive" size="sm" onClick={handleConfirm}
+            disabled={createGrant.isPending || currentSubject?.constraintsUnavailable
+              || (currentSubject?.type === GRANT_TYPE_SCRIPT_EXECUTION && !reviewedScriptRevision)}
+            className="flex-[2]">
             {createGrant.isPending ? t('grants.create.granting') : t('grants.create.confirm')}
           </Button>
         </DialogFooter>
@@ -209,6 +227,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             disabled={createGrant.isPending}
             onSubjectChange={(s) => {
               setSubject(s)
+              setReviewedScriptRevision(null)
               setSubjectError(false)
             }}
           />
@@ -219,6 +238,17 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             {t('grants.create.waitForVaultSync')}
           </FeedbackSlot>
         </div>
+
+        {currentSubject?.type === GRANT_TYPE_FULL && (
+          <WarningZone title={t('grants.create.fullTrustTitle')}>
+            {t('grants.create.fullTrustBody')}
+          </WarningZone>
+        )}
+
+        {currentSubject?.type === GRANT_TYPE_SCRIPT_EXECUTION && currentSubject.entryId ? (
+          <ScriptGrantSummary vaultId={currentSubject.vaultId} scriptEntryId={currentSubject.entryId}
+            onStatusChange={setReviewedScriptRevision} />
+        ) : null}
 
         {/* Shared policy segment */}
         <GrantPolicyFields
@@ -242,7 +272,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           }}
         />
 
-        <GrantMethodsSelect
+        {currentSubject?.type !== GRANT_TYPE_SCRIPT_EXECUTION ? <GrantMethodsSelect
           idPrefix="create-grant"
           value={effectiveMethods}
           disabled={createGrant.isPending}
@@ -251,7 +281,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             setMethods(m)
             setMethodsError(null)
           }}
-        />
+        /> : null}
 
       </div>
     </ModalShell>
@@ -297,7 +327,7 @@ function SubjectSegment({
               ? {
                   vaultId: mode.vaultId,
                   agentId,
-                  type: GRANT_TYPE_GRANULAR,
+                  type: entryGrantType(mode.vaultId, mode.entryId),
                   entryId: mode.entryId,
                   ...targetReadiness(mode.vaultId, mode.entryId),
                 }
@@ -337,8 +367,11 @@ function AgentPicker({
 
   const covered = useMemo(() => {
     const items = vaultGrants.data?.items ?? []
-    return entryId ? agentsCoveringEntry(items, entryId) : agentsCoveringVault(items)
-  }, [vaultGrants.data, entryId])
+    if (!entryId) return agentsCoveringVault(items)
+    return entryGrantType(vaultId, entryId) === GRANT_TYPE_SCRIPT_EXECUTION
+      ? agentsCoveringScriptExecution(items, entryId)
+      : agentsCoveringEntry(items, entryId)
+  }, [vaultGrants.data, entryId, vaultId])
 
   const options = useMemo<ComboboxOption[]>(() => {
     const q = query.trim().toLowerCase()
@@ -522,15 +555,17 @@ function CrossVaultEntryPicker({
       .filter(
         (e) =>
           !coverage.coveredEntryIds.has(e.id) &&
-          !coverage.fullCoveredVaultIds.has(e.vaultId),
+          !(e.type === ENTRY_TYPE_SCRIPT
+            ? coverage.fullExecCoveredVaultIds.has(e.vaultId)
+            : coverage.fullCoveredVaultIds.has(e.vaultId)),
       )
       .map((e) => ({ id: e.id, label: e.label, sublabel: e.vaultName }))
   }, [entries, coverage])
 
   // Track vaultId for the selected entry so we can build the subject.
-  const entryVaultId = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const e of entries) map.set(e.id, e.vaultId)
+  const entryCoordinates = useMemo(() => {
+    const map = new Map<string, { vaultId: string; type: number }>()
+    for (const e of entries) map.set(e.id, { vaultId: e.vaultId, type: e.type })
     return map
   }, [entries])
 
@@ -554,11 +589,14 @@ function CrossVaultEntryPicker({
       }
       disabled={disabled}
       onSelect={(opt) => {
-        const vaultId = entryVaultId.get(opt.id)
-        if (!vaultId) return
+        const coordinates = entryCoordinates.get(opt.id)
+        if (!coordinates) return
+        const { vaultId, type } = coordinates
         setSelectedLabel(opt.label)
         setQuery('')
-        onPick({ vaultId, agentId, type: GRANT_TYPE_GRANULAR, entryId: opt.id,
+        onPick({ vaultId, agentId, type: type === ENTRY_TYPE_SCRIPT
+          ? GRANT_TYPE_SCRIPT_EXECUTION
+          : GRANT_TYPE_GRANULAR, entryId: opt.id,
           ...targetReadiness(vaultId, opt.id) })
       }}
     />

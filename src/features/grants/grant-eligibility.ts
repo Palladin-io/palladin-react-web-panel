@@ -1,4 +1,10 @@
-import { GRANT_STATUS_ACTIVE, GRANT_TYPE_FULL, type OrgGrant } from './api/org-grants-api'
+import {
+  GRANT_STATUS_ACTIVE,
+  GRANT_TYPE_FULL,
+  GRANT_TYPE_SCRIPT_EXECUTION,
+  type OrgGrant,
+} from './api/org-grants-api'
+import { GRANT_METHOD_EXEC, parseGrantMethods } from './grant-methods'
 
 /** Only ACTIVE grants count as existing coverage. */
 function activeGrants(grants: OrgGrant[]): OrgGrant[] {
@@ -27,7 +33,25 @@ export function agentsCoveringEntry(grants: OrgGrant[], entryId: string): Set<st
   const covered = new Set<string>()
   for (const g of activeGrants(grants)) {
     if (!g.agentId) continue
-    if (g.type === GRANT_TYPE_FULL || g.entryId === entryId) covered.add(g.agentId)
+    if (g.type === GRANT_TYPE_FULL || g.entryId === entryId
+      || (g.type === GRANT_TYPE_SCRIPT_EXECUTION
+        && g.scriptScopes.some((scope) => scope.isScript && scope.entryId === entryId))) {
+      covered.add(g.agentId)
+    }
+  }
+  return covered
+}
+
+/** Script execution is covered only by direct ScriptExecution or FULL with Exec. */
+export function agentsCoveringScriptExecution(grants: OrgGrant[], scriptEntryId: string): Set<string> {
+  const covered = new Set<string>()
+  for (const grant of activeGrants(grants)) {
+    if (!grant.agentId) continue
+    const fullExec = grant.type === GRANT_TYPE_FULL
+      && parseGrantMethods(grant.methods).includes(GRANT_METHOD_EXEC)
+    const direct = grant.type === GRANT_TYPE_SCRIPT_EXECUTION
+      && grant.scriptScopes.some((scope) => scope.isScript && scope.entryId === scriptEntryId)
+    if (fullExec || direct) covered.add(grant.agentId)
   }
   return covered
 }
@@ -55,12 +79,23 @@ export function vaultsCoveredByAgent(grants: OrgGrant[]): Set<string> {
 export function entryCoverageByAgent(grants: OrgGrant[]): {
   coveredEntryIds: Set<string>
   fullCoveredVaultIds: Set<string>
+  fullExecCoveredVaultIds: Set<string>
 } {
   const coveredEntryIds = new Set<string>()
   const fullCoveredVaultIds = new Set<string>()
+  const fullExecCoveredVaultIds = new Set<string>()
   for (const g of activeGrants(grants)) {
-    if (g.type === GRANT_TYPE_FULL) fullCoveredVaultIds.add(g.vaultId)
+    if (g.type === GRANT_TYPE_FULL) {
+      fullCoveredVaultIds.add(g.vaultId)
+      if (parseGrantMethods(g.methods).includes(GRANT_METHOD_EXEC)) {
+        fullExecCoveredVaultIds.add(g.vaultId)
+      }
+    }
     else if (g.entryId) coveredEntryIds.add(g.entryId)
+    else if (g.type === GRANT_TYPE_SCRIPT_EXECUTION) {
+      const parent = g.scriptScopes.find((scope) => scope.isScript)
+      if (parent) coveredEntryIds.add(parent.entryId)
+    }
   }
-  return { coveredEntryIds, fullCoveredVaultIds }
+  return { coveredEntryIds, fullCoveredVaultIds, fullExecCoveredVaultIds }
 }

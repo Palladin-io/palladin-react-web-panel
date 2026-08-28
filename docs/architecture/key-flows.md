@@ -83,6 +83,15 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 3. Drop the selected plaintext immediately on lock or tab unmount. Historical ciphertext may remain only in the in-memory query cache and is never copied to persistent client storage.
 4. To restore, decrypt the current head separately and submit the selected historical plaintext as a new draft through the normal update flow. The request remains optimistic against the current revision, creates exactly the next immutable revision and refreshes every active covering GRANULAR grant envelope in the same backend transaction; FULL grants continue through their Vault-key wrapper. It never overwrites an old history row.
 
+## ScriptExecution grant and atomic package refresh
+
+1. Decrypt the selected Script and current same-Vault referenced Entries in browser memory. Validate the required description, typed parameter definitions, unique safe reference environment names and current revisions.
+2. Generate one `grantId`, build one manifest and one complete package. Encrypt the payload with a random XChaCha20-Poly1305 package DEK; seal that DEK to the current Agent X25519 key with wrapper purpose `6`, binding organization/Vault/Script/grant/Agent, access epoch, key version/fingerprint and `packageRevision`.
+3. Submit one `ScriptExecution` grant with `Exec` only. The backend receives opaque ciphertext and structural Entry/revision scopes, never Script source, parameters, env names, selectors or resolved values.
+4. On any Script or referenced Entry update, enumerate active grants once. Build the next Entry revision and replacement complete packages for every affected direct Script grant, preserving each `grantId` and increasing only `packageRevision`. Commit the exact set atomically.
+5. FULL access needs no direct Script grant or stored Script package. The native runtime opens the current Vault material locally and assembles the same execution contract for one request/use.
+6. Wipe package DEKs, VK copies, encoded MemberSecrets and recipient-key copies in `finally`; lock-session changes abort before submission.
+
 ## Planned Vault key rotation
 
 1. After unlock, independently of transient Member-sync polling state, list pending rotations and claim one server lease with a fencing token. The current Vault generation remains usable throughout preparation.
