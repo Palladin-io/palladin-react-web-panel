@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import grantPayloadContract from './fixtures/grant-payload/v1/vectors.json'
 import {
   encodeMemberSecret,
   encodeGrantPayload,
@@ -79,19 +80,14 @@ describe('Vault plaintext v1', () => {
     expect(() => projectGrantPayload(secret, ['credential.username'])).toThrow(/not grantable/)
   })
 
-  it('keeps the production palladin.grant-payload.v1 bytes consumed by decrypt_credential', () => {
-    const payload: GrantPayloadV1 = {
-      schema: 'palladin.grant-payload.v1',
-      entryType: 'credential',
-      fields: [
-        { id: 'credential.password', kind: 'concealed', mode: 'value', value: 'synthetic-secret' },
-        { id: 'credential.urlDomain', kind: 'text', mode: 'value', value: 'example.test' },
-      ],
-    }
+  it('matches the public cross-client GrantPayload contract bytes', () => {
+    const vector = grantPayloadContract.vectors[0]
+    const payload = vector.plaintext as GrantPayloadV1
 
     expect(new TextDecoder().decode(encodeGrantPayload(payload))).toBe(
-      '{"entryType":"credential","fields":[{"id":"credential.password","kind":"concealed","mode":"value","value":"synthetic-secret"},{"id":"credential.urlDomain","kind":"text","mode":"value","value":"example.test"}],"schema":"palladin.grant-payload.v1"}',
+      vector.plaintextCanonical,
     )
+    expect(payload.fields.map(({ id }) => id)).toEqual(vector.fieldIds)
   })
 
   it('round-trips public catalog identity and direct delivery URL', () => {
