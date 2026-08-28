@@ -31,11 +31,20 @@ vi.mock('../vaults/script-execution-package', () => ({
 vi.mock('./api/pending-grants-api', () => ({ approveGrant: mocks.approve }))
 
 import { useApproveGrant } from './use-approve-grant'
+import {
+  NOTIFICATIONS_SUMMARY_QUERY_KEY,
+  notificationsListQueryKey,
+} from '../notifications/notification-queries'
+import type { NotificationsSummary } from '../notifications/notifications-api'
 
-function wrapper({ children }: { children: ReactNode }) {
-  return <QueryClientProvider client={new QueryClient({ defaultOptions: {
+function wrapper(client: QueryClient) {
+  return ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
+}
+
+function queryClient() {
+  return new QueryClient({ defaultOptions: {
     queries: { retry: false }, mutations: { retry: false },
-  } })}>{children}</QueryClientProvider>
+  } })
 }
 
 describe('useApproveGrant', () => {
@@ -66,7 +75,19 @@ describe('useApproveGrant', () => {
   })
 
   it('approves one ScriptExecution package with Exec only', async () => {
-    const { result } = renderHook(() => useApproveGrant(), { wrapper })
+    const client = queryClient()
+    client.setQueryData(notificationsListQueryKey('all'), {
+      pages: [{
+        items: [{ type: 'grant_pending', metadata: { grantId: '33333333-3333-4333-8333-333333333333' } }],
+        nextCursor: null,
+      }],
+      pageParams: [undefined],
+    })
+    client.setQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY, {
+      unreadCount: 1,
+      pendingActionCount: 1,
+    })
+    const { result } = renderHook(() => useApproveGrant(), { wrapper: wrapper(client) })
 
     await result.current.mutateAsync({
       grantId: '33333333-3333-4333-8333-333333333333',
@@ -101,5 +122,9 @@ describe('useApproveGrant', () => {
     expect(mocks.openMemberSecret).not.toHaveBeenCalled()
     expect(mocks.buildEnvelope).not.toHaveBeenCalled()
     expect(mocks.wipe).toHaveBeenCalled()
+    expect(client.getQueryData<{ pages: { items: unknown[] }[] }>(notificationsListQueryKey('all'))
+      ?.pages[0].items).toEqual([])
+    expect(client.getQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY)
+      ?.pendingActionCount).toBe(0)
   })
 })

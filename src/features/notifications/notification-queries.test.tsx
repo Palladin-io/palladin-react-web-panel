@@ -7,9 +7,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const markNotificationRead = vi.hoisted(() => vi.fn())
 const markAllNotificationsRead = vi.hoisted(() => vi.fn())
 const getNotifications = vi.hoisted(() => vi.fn())
+const getNotificationsSummary = vi.hoisted(() => vi.fn())
 vi.mock('./notifications-api', async (orig) => {
   const actual = await orig<typeof import('./notifications-api')>()
-  return { ...actual, getNotifications, markNotificationRead, markAllNotificationsRead }
+  return {
+    ...actual,
+    getNotifications,
+    getNotificationsSummary,
+    markNotificationRead,
+    markAllNotificationsRead,
+  }
 })
 
 import type { NotificationItem, NotificationsSummary } from './notifications-api'
@@ -18,6 +25,7 @@ import {
   notificationsListQueryKey,
   resolvePendingGrantNotification,
   useNotifications,
+  useNotificationsSummary,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
 } from './notification-queries'
@@ -69,6 +77,35 @@ describe('resolvePendingGrantNotification', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.data?.pages.flatMap((page) => page.items).map((item) => item.id))
       .toEqual(['n2'])
+  })
+
+  it('keeps the pending-action summary decremented until the projection catches up', async () => {
+    const client = seededClient()
+    resolvePendingGrantNotification(client, 'grant-1')
+    getNotificationsSummary.mockResolvedValueOnce({ unreadCount: 2, pendingActionCount: 2 })
+    const { result } = renderHook(() => useNotificationsSummary(), { wrapper: wrapper(client) })
+
+    await result.current.refetch()
+    expect(result.current.data?.pendingActionCount).toBe(1)
+
+    getNotificationsSummary.mockResolvedValueOnce({ unreadCount: 2, pendingActionCount: 1 })
+    await result.current.refetch()
+    expect(result.current.data?.pendingActionCount).toBe(1)
+  })
+
+  it('establishes a summary race threshold when the mutation ran before summary loaded', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    resolvePendingGrantNotification(client, 'grant-1')
+    getNotificationsSummary.mockResolvedValueOnce({ unreadCount: 3, pendingActionCount: 3 })
+    const { result } = renderHook(() => useNotificationsSummary(), { wrapper: wrapper(client) })
+
+    await waitFor(() => expect(result.current.data?.pendingActionCount).toBe(2))
+
+    getNotificationsSummary.mockResolvedValueOnce({ unreadCount: 2, pendingActionCount: 2 })
+    await result.current.refetch()
+    expect(result.current.data?.pendingActionCount).toBe(2)
   })
 })
 

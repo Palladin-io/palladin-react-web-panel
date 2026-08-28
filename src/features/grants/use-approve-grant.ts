@@ -19,6 +19,10 @@ import {
   type GrantMethod,
 } from './grant-methods'
 import { GRANTS_QUERY_KEY } from './query-keys'
+import {
+  NOTIFICATIONS_QUERY_KEY,
+  resolvePendingGrantNotification,
+} from '../notifications/notification-queries'
 
 export class VaultLockedError extends Error {
   constructor() {
@@ -153,6 +157,13 @@ export function useApproveGrant() {
         wipe(vaultKey)
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY }),
+    onSuccess: (_data, input) => {
+      resolvePendingGrantNotification(queryClient, input.grantId)
+      void queryClient.invalidateQueries({ queryKey: GRANTS_QUERY_KEY })
+      void queryClient.invalidateQueries({
+        queryKey: NOTIFICATIONS_QUERY_KEY,
+        refetchType: 'none',
+      })
+    },
   })
 }

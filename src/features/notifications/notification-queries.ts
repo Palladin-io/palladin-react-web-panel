@@ -40,6 +40,7 @@ export function notificationsListQueryKey(category?: NotificationCategory) {
 const NOTIFICATIONS_LIST_PREFIX = ['notifications', 'list'] as const
 
 const resolvedGrantTombstones = new WeakMap<QueryClient, Set<string>>()
+const resolvedGrantSummaryThresholds = new WeakMap<QueryClient, Map<string, number | null>>()
 
 type NotificationsInfiniteData = InfiniteData<NotificationsPage, string | undefined>
 
@@ -58,9 +59,9 @@ export function resolvePendingGrantNotification(
   grantId: string,
 ): void {
   const tombstones = resolvedGrantTombstones.get(queryClient) ?? new Set<string>()
+  const alreadyResolved = tombstones.has(grantId)
   tombstones.add(grantId)
   resolvedGrantTombstones.set(queryClient, tombstones)
-  let removed = false
   const entries = queryClient.getQueriesData<NotificationsInfiniteData>({
     queryKey: NOTIFICATIONS_LIST_PREFIX,
   })
@@ -70,18 +71,22 @@ export function resolvePendingGrantNotification(
       ...page,
       items: page.items.filter((item) => {
         const matches = item.type === 'grant_pending' && item.metadata?.grantId === grantId
-        removed ||= matches
         return !matches
       }),
     }))
     queryClient.setQueryData<NotificationsInfiniteData>(key, { ...data, pages })
   }
 
-  if (!removed) return
   const summary = queryClient.getQueryData<NotificationsSummary>(
     NOTIFICATIONS_SUMMARY_QUERY_KEY,
   )
-  if (summary) {
+  if (!alreadyResolved) {
+    const thresholds = resolvedGrantSummaryThresholds.get(queryClient)
+      ?? new Map<string, number | null>()
+    thresholds.set(grantId, summary ? Math.max(1, summary.pendingActionCount) : null)
+    resolvedGrantSummaryThresholds.set(queryClient, thresholds)
+  }
+  if (!alreadyResolved && summary) {
     queryClient.setQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY, {
       ...summary,
       pendingActionCount: Math.max(0, summary.pendingActionCount - 1),
@@ -150,9 +155,26 @@ export function useNotifications(category?: NotificationCategory) {
 
 /** Drives the nav badge (`unreadCount`) + the To-do header (`pendingActionCount`). */
 export function useNotificationsSummary() {
+  const queryClient = useQueryClient()
   return useQuery({
     queryKey: NOTIFICATIONS_SUMMARY_QUERY_KEY,
-    queryFn: getNotificationsSummary,
+    queryFn: async () => {
+      const summary = await getNotificationsSummary()
+      const thresholds = resolvedGrantSummaryThresholds.get(queryClient)
+      if (!thresholds?.size) return summary
+      for (const [grantId, threshold] of thresholds) {
+        if (threshold === null) {
+          if (summary.pendingActionCount === 0) thresholds.delete(grantId)
+          else thresholds.set(grantId, summary.pendingActionCount)
+        } else if (summary.pendingActionCount < threshold) {
+          thresholds.delete(grantId)
+        }
+      }
+      return {
+        ...summary,
+        pendingActionCount: Math.max(0, summary.pendingActionCount - thresholds.size),
+      }
+    },
     staleTime: 15_000,
   })
 }
