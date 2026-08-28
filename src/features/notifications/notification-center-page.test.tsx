@@ -408,6 +408,9 @@ describe("NotificationCenterPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "confirm deny" }));
 
     expect(denyMutate).toHaveBeenCalled();
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["notifications"] });
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: ["notifications"],
+      refetchType: "none",
+    });
   });
 });

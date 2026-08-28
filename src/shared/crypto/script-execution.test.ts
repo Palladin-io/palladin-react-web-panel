@@ -174,7 +174,7 @@ describe('Script execution package', () => {
         encodedGrantPayload: expect.any(String),
       }])
       expect(parseGrantPayload(fromBase64Url(payload.entries[0].encodedGrantPayload))).toMatchObject({
-        fields: [{ id: 'credential.username', mode: 'runtime', value: 'fixture_user' }],
+        fields: [{ id: 'credential.username', mode: 'value', value: 'fixture_user' }],
       })
       expect(payload.binding.authorization).toEqual({ source: 'scriptExecution', grantId })
       expect(context.purpose).toBe(6)

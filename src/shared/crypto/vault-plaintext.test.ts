@@ -61,6 +61,17 @@ describe('Vault plaintext v1', () => {
     })
   })
 
+  it('omits an allowed Discovery field when its value is absent', () => {
+    const withoutUrl = {
+      ...secret,
+      content: { ...secret.content, url: null, urlDomain: null },
+    }
+
+    expect(projectAgentDiscovery(withoutUrl)?.fields).toEqual([
+      { id: 'credential.username', value: 'member@example.com' },
+    ])
+  })
+
   it('builds a sorted least-privilege GrantPayload and rejects Discovery fields', () => {
     expect(projectGrantPayload(secret, ['credential.totp', 'credential.password'])).toEqual({
       schema: 'palladin.grant-payload.v1', entryType: 'credential',

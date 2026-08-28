@@ -128,7 +128,7 @@ const memberIndexSchema = z.object({
   customIndex: z.array(customIndexItem).max(20),
 }).strict()
 
-const projectedField = z.object({ id: normalizedString, value: jsonValue }).strict()
+const projectedField = z.object({ id: normalizedString, value: normalizedString }).strict()
 const agentDiscoverySchema = z.object({
   schema: z.literal('palladin.agent-discovery.v1'),
   entryType: z.enum(['key', 'credential', 'script', 'creditCard']),
@@ -357,7 +357,10 @@ export function projectAgentDiscovery(secret: MemberSecretV1): AgentDiscoveryV1 
   const fields = Object.entries(secret.agentFieldAccess)
     .filter(([id, access]) => access === 'discovery' && id !== 'agentLabel' && id !== 'entryType')
     .sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0)
-    .map(([id]) => ({ id, value: fieldValue(secret, id) }))
+    .flatMap(([id]) => {
+      const value = fieldValue(secret, id)
+      return typeof value === 'string' ? [{ id, value }] : []
+    })
   return agentDiscoverySchema.parse({
     schema: 'palladin.agent-discovery.v1', entryType: secret.entryType, agentLabel: secret.agentLabel,
     capabilities: secret.entryType === 'script'
@@ -391,12 +394,7 @@ function projectPayload(
   if (new Set(sorted).size !== sorted.length) throw new Error('Grant field IDs must be distinct')
   const fields = sorted.map((id) => {
     const access = secret.agentFieldAccess[id]
-    const mode = access === 'onGrantValue' ? 'value'
-      : access === 'onGrantDerived' ? 'derived'
-        : access === 'onGrantRuntime' || (allowDiscoveryRuntime && access === 'discovery') ? 'runtime'
-          : undefined
     const value = fieldValue(secret, id)
-    if (!mode || value === undefined) throw new Error(`Field ${id} is not grantable`)
     const custom = id.startsWith('custom:') ? secret.content.customFields.find((field) => field.id === id) : undefined
     const kind = custom
       ? custom.type
@@ -415,6 +413,15 @@ function projectPayload(
                   : id === 'script.refs'
                     ? 'refs'
                     : 'text'
+    const mode = access === 'onGrantValue' ? 'value'
+      : access === 'onGrantDerived' ? 'derived'
+        : access === 'onGrantRuntime' ? 'runtime'
+          : allowDiscoveryRuntime && access === 'discovery'
+            ? kind === 'totp' ? 'derived'
+              : secret.entryType === 'script' || secret.entryType === 'creditCard' ? 'runtime'
+                : 'value'
+            : undefined
+    if (!mode || value === undefined) throw new Error(`Field ${id} is not grantable`)
     if (!['text', 'multiline', 'concealed', 'url', 'totp', 'script', 'interpreter', 'refs'].includes(kind)) {
       throw new Error(`Unknown field kind for ${id}`)
     }

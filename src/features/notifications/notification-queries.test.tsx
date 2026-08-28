@@ -15,6 +15,7 @@ import type { NotificationItem, NotificationsSummary } from './notifications-api
 import {
   NOTIFICATIONS_SUMMARY_QUERY_KEY,
   notificationsListQueryKey,
+  resolvePendingGrantNotification,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
 } from './notification-queries'
@@ -25,12 +26,33 @@ function makeItem(id: string, readAt: string | null): NotificationItem {
     type: 'grant_pending',
     category: 'actionRequired',
     titleKey: 'k',
-    metadata: {},
+    metadata: { grantId: id === 'n1' ? 'grant-1' : `grant-${id}` },
     occurredAt: '2026-06-17T10:00:00Z',
     readAt,
     actionState: 'pending',
   }
 }
+
+describe('resolvePendingGrantNotification', () => {
+  it('removes the handled action from every feed cache and decrements the pending count once', () => {
+    const client = seededClient()
+    client.setQueryData(notificationsListQueryKey('actionRequired'), {
+      pages: [{ items: [makeItem('n1', null)], nextCursor: null }],
+      pageParams: [undefined],
+    })
+
+    resolvePendingGrantNotification(client, 'grant-1')
+
+    expect(feedItems(client).some((item) => item.id === 'n1')).toBe(false)
+    const actionFeed = client.getQueryData<{ pages: { items: NotificationItem[] }[] }>(
+      notificationsListQueryKey('actionRequired'),
+    )
+    expect(actionFeed?.pages.flatMap((page) => page.items)).toEqual([])
+    expect(
+      client.getQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY)?.pendingActionCount,
+    ).toBe(1)
+  })
+})
 
 function seededClient() {
   const client = new QueryClient({

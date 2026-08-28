@@ -45,6 +45,7 @@ import {
 import type { NotificationItem } from "./notifications-api";
 import {
   NOTIFICATIONS_QUERY_KEY,
+  resolvePendingGrantNotification,
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotifications,
@@ -110,6 +111,17 @@ export function NotificationCenterPage({
   // invalidate ['grants']; this covers the notifications side.
   const refreshFeed = () =>
     queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+
+  const resolveGrantAction = (grantId: string) => {
+    resolvePendingGrantNotification(queryClient, grantId);
+    // Mark the feed stale without an immediate refetch. The Notification
+    // projection collapses pending rows asynchronously after Vault commits, so
+    // an eager refetch can race it and reintroduce the completed action.
+    void queryClient.invalidateQueries({
+      queryKey: NOTIFICATIONS_QUERY_KEY,
+      refetchType: "none",
+    });
+  };
 
   const [segment, setSegment] = useState<Segment>(initialSegment ?? "all");
   const [query, setQuery] = useState("");
@@ -227,7 +239,7 @@ export function NotificationCenterPage({
         onSuccess: () => {
           toast.success(t("grants.deny.success"));
           setDenyTarget(null);
-          refreshFeed();
+          resolveGrantAction(denyTarget.grantId);
         },
         onError: () => toast.error(t("grants.deny.error")),
       },
@@ -261,6 +273,7 @@ export function NotificationCenterPage({
       {
         grantId: approveTarget.id,
         agentId: approveTarget.agentId,
+        type: approveTarget.type,
         vaultId: approveTarget.vaultId,
         entryId: approveTarget.entryId,
         policy,
@@ -273,7 +286,7 @@ export function NotificationCenterPage({
       {
         onSuccess: () => {
           setApproveTarget(null);
-          refreshFeed();
+          resolveGrantAction(approveTarget.id);
         },
         onError: (error) =>
           toast.error(

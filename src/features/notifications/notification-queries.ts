@@ -1,4 +1,5 @@
 import {
+  type QueryClient,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -39,6 +40,48 @@ export function notificationsListQueryKey(category?: NotificationCategory) {
 const NOTIFICATIONS_LIST_PREFIX = ['notifications', 'list'] as const
 
 type NotificationsInfiniteData = InfiniteData<NotificationsPage, string | undefined>
+
+/**
+ * Removes a successfully handled grant request from every cached Inbox feed.
+ *
+ * Grant approval/denial is committed by Vault before Notification's async
+ * consumer collapses the immutable `grant_pending` row. Refetching immediately
+ * can therefore race that projection and briefly restore already handled
+ * actions. Patch the local projection after the authoritative mutation and let
+ * the terminal notification/next refetch reconcile the feed.
+ */
+export function resolvePendingGrantNotification(
+  queryClient: QueryClient,
+  grantId: string,
+): void {
+  let removed = false
+  const entries = queryClient.getQueriesData<NotificationsInfiniteData>({
+    queryKey: NOTIFICATIONS_LIST_PREFIX,
+  })
+  for (const [key, data] of entries) {
+    if (!data) continue
+    const pages = data.pages.map((page) => ({
+      ...page,
+      items: page.items.filter((item) => {
+        const matches = item.type === 'grant_pending' && item.metadata?.grantId === grantId
+        removed ||= matches
+        return !matches
+      }),
+    }))
+    queryClient.setQueryData<NotificationsInfiniteData>(key, { ...data, pages })
+  }
+
+  if (!removed) return
+  const summary = queryClient.getQueryData<NotificationsSummary>(
+    NOTIFICATIONS_SUMMARY_QUERY_KEY,
+  )
+  if (summary) {
+    queryClient.setQueryData<NotificationsSummary>(NOTIFICATIONS_SUMMARY_QUERY_KEY, {
+      ...summary,
+      pendingActionCount: Math.max(0, summary.pendingActionCount - 1),
+    })
+  }
+}
 
 /**
  * Optimistically patch matching feed rows across ALL list caches and capture a

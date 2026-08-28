@@ -74,6 +74,7 @@ export function PendingGrantsPanel({
       {
         grantId: grant.id,
         agentId: grant.agentId,
+        type: grant.type,
         vaultId: grant.vaultId,
         entryId: grant.entryId,
         policy,

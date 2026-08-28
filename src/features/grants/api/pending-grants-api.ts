@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 import type { buildCanonicalGrantEnvelope } from '../../../shared/crypto/grant-protocol'
+import type { buildCompleteScriptExecutionPackage } from '../../vaults/script-execution-package'
 import { encryptedReasonEnvelopeSchema } from '../../vaults/sync/entry-envelope-schema'
 import { canonicalUuidSchema, u32Schema } from '../../vaults/sync/vault-key-material-schema'
 
@@ -13,6 +14,12 @@ const grantEntryScopeSchema = z.object({
   memberKeyGeneration: u32Schema.nullable(),
   recipientAgentKeyVersion: u32Schema.nullable(),
   agentKeyFingerprint: z.string().nullable(),
+}).strict()
+
+const scriptExecutionScopeSchema = z.object({
+  entryId: canonicalUuidSchema,
+  entryRevision: z.string(),
+  isScript: z.boolean(),
 }).strict()
 
 /**
@@ -30,6 +37,7 @@ const pendingGrantSchema = z.object({
   id: canonicalUuidSchema,
   vaultId: canonicalUuidSchema,
   agentId: canonicalUuidSchema.nullable(),
+  agentAccessEpoch: u32Schema.nullable(),
   agentName: z.string().nullable(),
   agentIconKey: z.string().nullable(),
   agentPublicKey: z.string().nullable(),
@@ -37,13 +45,15 @@ const pendingGrantSchema = z.object({
   agentSigningPublicKey: z.string().nullable(),
   agentSigningKeyVersion: u32Schema.nullable(),
   agentSigningKeyFingerprint: z.string().nullable(),
-  type: z.enum(['full', 'granular']),
+  type: z.enum(['full', 'granular', 'scriptExecution']),
   status: z.literal('pending'),
   methods: z.string(),
   entryId: canonicalUuidSchema.nullable(),
   entryLabel: z.string().nullable(),
   urlDomain: z.string().nullable(),
   entryScopes: z.array(grantEntryScopeSchema),
+  scriptScopes: z.array(scriptExecutionScopeSchema),
+  scriptPackageRevision: z.string().nullable(),
   encryptedReason: encryptedReasonEnvelopeSchema,
   expiresAt: z.string().datetime({ offset: true }).nullable(),
   queryLimit: z.number().int().positive().nullable(),
@@ -104,7 +114,8 @@ export async function getPendingGrants(): Promise<PendingGrant[]> {
  * and validated again here before the request is built).
  */
 export interface ApproveGrantBody {
-  grantEntry: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>
+  grantEntry?: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>
+  scriptPackage?: Awaited<ReturnType<typeof buildCompleteScriptExecutionPackage>>
   expiresAt?: string
   queryLimit?: number
   /** Combined-flags string of the methods the agent may use, e.g. "Get, Exec". */
