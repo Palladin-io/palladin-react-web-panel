@@ -1,5 +1,6 @@
 import { queryClient } from '../../../shared/api/query-client'
 import { analytics } from '../../../shared/lib/analytics'
+import { runClientProfileCleanups } from '../../../shared/lib/client-profile-cleanup'
 import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
 import { clearWaitlistDeveloperBenefitAcknowledgement } from '../lib/waitlist-developer-benefit'
 import { useAuthStore } from '../stores/auth-store'
@@ -22,13 +23,15 @@ function runNonBlockingCleanup(cleanup: () => void): void {
   }
 }
 
-export function clearClientSession(): void {
+export function clearClientSession(): Promise<void> {
   clientSessionGeneration += 1
+  const userId = useAuthStore.getState().userId
   useAuthStore.getState().logout()
   runNonBlockingCleanup(() => queryClient.clear())
   runNonBlockingCleanup(() => useMemberSyncStore.getState().clear())
   runNonBlockingCleanup(clearWaitlistDeveloperBenefitAcknowledgement)
   runNonBlockingCleanup(() => analytics.reset())
+  return runClientProfileCleanups(userId)
 }
 
 export async function logoutAndReload(
@@ -36,13 +39,14 @@ export async function logoutAndReload(
   bestEffortBeforeReload?: () => Promise<unknown>,
 ): Promise<void> {
   const cleanup = bestEffortBeforeReload?.()
-  clearClientSession()
+  const profileCleanup = clearClientSession()
 
-  if (cleanup) {
-    await Promise.race([
+  await Promise.all([
+    profileCleanup,
+    cleanup ? Promise.race([
       cleanup.catch(() => undefined),
       new Promise<void>((resolve) => window.setTimeout(resolve, 500)),
-    ])
-  }
+    ]) : Promise.resolve(),
+  ])
   window.location.replace(destination)
 }

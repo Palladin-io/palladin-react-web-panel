@@ -67,7 +67,7 @@ async function unlockWithMasterKey(
       if (privateKey) wipe(privateKey)
     }
   } catch (error) {
-    clearClientSession()
+    await clearClientSession()
     throw error
   }
 }

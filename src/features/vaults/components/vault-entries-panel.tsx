@@ -1,8 +1,6 @@
 import { memo, useCallback, useState, type UIEvent } from 'react'
 import { Link } from '@tanstack/react-router'
-import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '../../auth'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
@@ -13,8 +11,6 @@ import { useMemberSyncStore } from '../sync/member-sync-store'
 import { CreateEntryModal } from './create-entry-modal'
 import { EntryIcon } from './entry-icon'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
-import { getCanonicalEntry } from '../api/vault-api'
-import { canonicalEntryDetailQueryKey } from '../use-entries'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { SearchBar } from '../../../shared/components/search-bar'
 
@@ -35,10 +31,6 @@ export interface VaultEntriesPanelProps {
  */
 export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelProps) {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const cryptoSessionGeneration = useAuthStore(
-    (state) => state.cryptoSessionGeneration,
-  )
   const [createOpen, setCreateOpen] = useState(false)
 
   const hasMemberProjection = useMemberSyncStore((store) => store.vaults.has(vault.id))
@@ -61,18 +53,6 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
       limit: Math.min(entries.items.length, (current.context === search ? current.limit : 50) + 50),
     }))
   }, [entries.items.length, onScroll, search])
-  const prefetchEntry = useCallback((entryId: string) => {
-    void queryClient.prefetchQuery({
-      queryKey: canonicalEntryDetailQueryKey(
-        vault.id,
-        entryId,
-        cryptoSessionGeneration,
-      ),
-      queryFn: () => getCanonicalEntry(vault.id, entryId),
-      staleTime: Infinity,
-    })
-  }, [cryptoSessionGeneration, queryClient, vault.id])
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
@@ -130,7 +110,6 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
                     username={entry.username}
                     urlDomain={entry.urlDomain}
                     isSelected={entry.id === selectedEntryId}
-                    onIntent={prefetchEntry}
                   />
                 ))}
               </div>
@@ -149,7 +128,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
 }
 
 const EntryNavigationRow = memo(function EntryNavigationRow({
-  vaultId, entryId, label, type, icon, username, urlDomain, isSelected, onIntent,
+  vaultId, entryId, label, type, icon, username, urlDomain, isSelected,
 }: {
   vaultId: string
   entryId: string
@@ -159,15 +138,12 @@ const EntryNavigationRow = memo(function EntryNavigationRow({
   username: string | null
   urlDomain: string | null
   isSelected: boolean
-  onIntent: (entryId: string) => void
 }) {
   const meta = [username, urlDomain].filter(Boolean).join(' · ')
   return (
     <Link
       to="/vaults/$vaultId/entries/$entryId"
       params={{ vaultId, entryId }}
-      onPointerEnter={() => onIntent(entryId)}
-      onFocus={() => onIntent(entryId)}
       className={`flex items-center gap-3 px-4 py-2.5 ${HOVERABLE_CARD_CLASSES}${
         isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
       }`}

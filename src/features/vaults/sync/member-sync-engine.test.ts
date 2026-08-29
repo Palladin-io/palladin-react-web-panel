@@ -16,14 +16,30 @@ vi.mock('../../../shared/crypto/entry-protocol', () => ({
   },
 }))
 
-import type { EncryptedVaultSummary, MemberDeltaPage, MemberSnapshotPage, MemberSyncItem } from './member-sync-api'
-import type { ActiveCacheState, CachedItemPage, MemberSyncCache } from './member-sync-cache'
+import {
+  MemberSyncAccessDeniedError,
+  type EncryptedVaultSummary,
+  type MemberDeltaPage,
+  type MemberSnapshotPage,
+  type MemberSyncItem,
+} from './member-sync-api'
+import type {
+  ActiveCacheState,
+  CachedCurrentMemberEntry,
+  CachedItemPage,
+  MemberSyncCache,
+} from './member-sync-cache'
+import { MemberSyncCacheQuotaError } from './member-sync-cache'
 import { MemberSyncEngine, type MemberSyncTransport } from './member-sync-engine'
 import { useMemberSyncStore } from './member-sync-store'
+import validSnapshotFixture from './__fixtures__/cvt-557-valid-snapshot.json'
 
-const userId = '11111111-1111-4111-8111-111111111111'
-const organizationId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+const userId = '44444444-4444-4444-8444-444444444444'
 const vaultId = '22222222-2222-4222-8222-222222222222'
+const authority = {
+  accessContext: validSnapshotFixture.response.accessContext,
+  memberVaultKey: validSnapshotFixture.response.memberVaultKey,
+}
 
 function vault(): EncryptedVaultSummary {
   return {
@@ -33,7 +49,7 @@ function vault(): EncryptedVaultSummary {
     memberKeyGeneration: 4,
     currentKeyEpoch: { vaultKeyVersion: 3 },
     memberVaultMetadata: {},
-    memberVaultKey: { wrappedVaultKey: { descriptor: { scope: { organizationId } } } },
+    memberVaultKey: validSnapshotFixture.response.memberVaultKey,
   } as unknown as EncryptedVaultSummary
 }
 
@@ -43,7 +59,7 @@ function head(index: number, revision = String(index + 1)): MemberSyncItem {
     kind: 'head', entryId, state: 'active', currentRevision: revision,
     updatedAt: '2026-07-26T12:00:00Z',
     memberIndexRevision: revision, currentKeyVersion: 5,
-    memberIndex: { testLabel: `Entry ${index}` }, entryKey: {},
+    memberIndex: { testLabel: `Entry ${index}` }, memberSecret: {}, entryKey: {},
   } as unknown as MemberSyncItem
 }
 
@@ -51,8 +67,28 @@ function tombstone(item: MemberSyncItem): MemberSyncItem {
   return {
     kind: 'tombstone', entryId: item.entryId, state: null, currentRevision: null,
     updatedAt: null,
-    memberIndexRevision: null, currentKeyVersion: null, memberIndex: null, entryKey: null,
+    memberIndexRevision: null, currentKeyVersion: null, memberIndex: null,
+    memberSecret: null, entryKey: null,
   }
+}
+
+function snapshotPage(
+  snapshotBaseSequence: string,
+  items: MemberSyncItem[],
+  nextCursor: string | null = null,
+): MemberSnapshotPage {
+  return { ...authority, snapshotBaseSequence, items, nextCursor } as MemberSnapshotPage
+}
+
+function deltaPage(
+  deltaUpperBound: string,
+  appliedThroughSequence: string,
+  items: MemberSyncItem[] = [],
+  continuationCursor: string | null = null,
+): MemberDeltaPage {
+  return {
+    ...authority, deltaUpperBound, appliedThroughSequence, items, continuationCursor,
+  } as MemberDeltaPage
 }
 
 class RecordingCache implements MemberSyncCache {
@@ -62,6 +98,8 @@ class RecordingCache implements MemberSyncCache {
   activeReads = 0
 
   async getActiveState(): Promise<ActiveCacheState | null> { return this.active }
+  async listActiveStates(): Promise<ActiveCacheState[]> { return this.active ? [this.active] : [] }
+  async readActiveItem(): Promise<CachedCurrentMemberEntry | null> { return null }
   async readActiveItemPage(): Promise<CachedItemPage> {
     this.activeReads += 1
     return { items: [], nextEntryId: null }
@@ -69,8 +107,8 @@ class RecordingCache implements MemberSyncCache {
   async beginSnapshot(_userId: string, _vault: EncryptedVaultSummary, _namespace: string, baseSequence: string): Promise<void> {
     this.events.push(`begin:${baseSequence}`)
   }
-  async applySnapshotPage(_userId: string, _vaultId: string, _namespace: string, items: MemberSyncItem[]): Promise<void> {
-    this.events.push(`snapshot:${items.length}`)
+  async applySnapshotPage(_userId: string, _vaultId: string, _namespace: string, page: MemberSnapshotPage): Promise<void> {
+    this.events.push(`snapshot:${page.items.length}`)
     this.partialProjectionWasVisible ||= useMemberSyncStore.getState().vaults.has(vaultId)
   }
   async applyPendingDeltaPage(_userId: string, _vaultId: string, _namespace: string, expected: string, page: MemberDeltaPage): Promise<void> {
@@ -79,11 +117,23 @@ class RecordingCache implements MemberSyncCache {
   }
   async completeSnapshot(_userId: string, currentVault: EncryptedVaultSummary, namespace: string, sequence: string): Promise<void> {
     this.events.push(`complete:${sequence}`)
-    this.active = { namespace, appliedThroughSequence: sequence, vault: currentVault }
+    this.active = { namespace, appliedThroughSequence: sequence, vault: currentVault, authority }
   }
   async applyActiveDeltaPage(_userId: string, _vault: EncryptedVaultSummary, expected: string, page: MemberDeltaPage): Promise<void> {
     this.events.push(`active-delta:${expected}->${page.appliedThroughSequence}`)
   }
+  async validateAndObserveActiveClock(
+    _userId: string,
+    _vaultId: string,
+    _namespace: string,
+    _expectedAppliedThroughSequence: string,
+    _expectedAuthority: unknown,
+    _currentWallTime: number,
+    candidateMaximumWallTime: number,
+  ): Promise<number> { return candidateMaximumWallTime }
+  async removeActiveGeneration(): Promise<boolean> { this.active = null; this.events.push('remove-active'); return true }
+  async removeVault(): Promise<void> { this.active = null; this.events.push('remove-vault') }
+  async removeUser(): Promise<void> { this.active = null; this.events.push('remove-user') }
   async removeMissingVaults(): Promise<void> { this.events.push('retain') }
 }
 
@@ -100,16 +150,13 @@ describe('Member sync engine', () => {
     const secondPage = Array.from({ length: 8 }, (_, index) => head(index + 12))
     const replacement = head(20, '21')
     const snapshots: Record<string, MemberSnapshotPage> = {
-      first: { snapshotBaseSequence: '18', items: firstPage, nextCursor: 'second' },
-      second: { snapshotBaseSequence: '18', items: secondPage, nextCursor: null },
+      first: snapshotPage('18', firstPage, 'second'),
+      second: snapshotPage('18', secondPage),
     }
     const transport: MemberSyncTransport = {
       listVaults: async () => [vault()],
       snapshot: async (_vaultId, cursor) => snapshots[cursor ?? 'first'],
-      delta: async () => ({
-        deltaUpperBound: '20', appliedThroughSequence: '20', continuationCursor: null,
-        items: [tombstone(firstPage[0]), replacement],
-      }),
+      delta: async () => deltaPage('20', '20', [tombstone(firstPage[0]), replacement]),
     }
     const cache = new RecordingCache()
     const engine = new MemberSyncEngine(cache, transport, async () => {})
@@ -131,8 +178,8 @@ describe('Member sync engine', () => {
     const cache = new RecordingCache()
     const transport: MemberSyncTransport = {
       listVaults: async () => [vault()],
-      snapshot: async () => ({ snapshotBaseSequence: '18', items: [head(1)], nextCursor: null }),
-      delta: async () => ({ deltaUpperBound: '20', appliedThroughSequence: '19', continuationCursor: null, items: [] }),
+      snapshot: async () => snapshotPage('18', [head(1)]),
+      delta: async () => deltaPage('20', '19'),
     }
 
     await new MemberSyncEngine(cache, transport, async () => {}).synchronize(
@@ -166,6 +213,24 @@ describe('Member sync engine', () => {
     })
   })
 
+  it('purges ciphertext and decrypted state immediately on connected access denial', async () => {
+    const cache = new RecordingCache()
+    const transport: MemberSyncTransport = {
+      listVaults: async () => [vault()],
+      snapshot: async () => { throw new MemberSyncAccessDeniedError() },
+      delta: async () => { throw new Error('unexpected delta') },
+    }
+
+    await new MemberSyncEngine(cache, transport, async () => {}).synchronize(
+      userId,
+      new Uint8Array(32),
+      new AbortController().signal,
+    )
+
+    expect(cache.events).toContain('remove-vault')
+    expect(useMemberSyncStore.getState().vaults.has(vaultId)).toBe(false)
+  })
+
   it('fails closed when an underreported account exceeds 10,000 actual projections', async () => {
     const cache = new RecordingCache()
     const underreported = { ...vault(), entryCount: 1 }
@@ -176,23 +241,51 @@ describe('Member sync engine', () => {
         const offset = page * 200
         const remaining = 10_001 - offset
         const count = Math.min(200, remaining)
-        return {
-          snapshotBaseSequence: '18',
-          items: Array.from({ length: count }, (_, index) => head(offset + index)),
-          nextCursor: remaining > 200 ? String(page + 1) : null,
-        }
+        return snapshotPage(
+          '18',
+          Array.from({ length: count }, (_, index) => head(offset + index)),
+          remaining > 200 ? String(page + 1) : null,
+        )
       },
-      delta: async () => ({ deltaUpperBound: '18', appliedThroughSequence: '18', continuationCursor: null, items: [] }),
+      delta: async () => deltaPage('18', '18'),
     }
 
-    await new MemberSyncEngine(cache, transport, async () => {}).synchronize(
+    await expect(new MemberSyncEngine(cache, transport, async () => {}).synchronize(
       userId,
       new Uint8Array(32),
       new AbortController().signal,
-    )
+    )).rejects.toThrow('unlocked entry budget')
 
     expect(cache.active).toBeNull()
     expect(cache.events.some((event) => event.startsWith('complete:'))).toBe(false)
+    expect(cache.events).toContain('remove-user')
+    expect(useMemberSyncStore.getState().status).toBe('error')
+  })
+
+  it('removes every readable generation when the profile ciphertext quota rejects a delta', async () => {
+    class QuotaRejectingCache extends RecordingCache {
+      override async applyActiveDeltaPage(): Promise<void> {
+        throw new MemberSyncCacheQuotaError()
+      }
+    }
+    const currentVault = vault()
+    const cache = new QuotaRejectingCache()
+    cache.active = { namespace: 'active', appliedThroughSequence: '20', vault: currentVault, authority }
+    const transport: MemberSyncTransport = {
+      listVaults: async () => [currentVault],
+      snapshot: async () => { throw new Error('unexpected snapshot') },
+      delta: async () => deltaPage('21', '21', [head(21)]),
+    }
+
+    await expect(new MemberSyncEngine(cache, transport, async () => {}).synchronize(
+      userId,
+      new Uint8Array(32),
+      new AbortController().signal,
+    )).rejects.toThrow('profile byte limit')
+
+    expect(cache.events).toContain('remove-user')
+    expect(cache.active).toBeNull()
+    expect(useMemberSyncStore.getState().vaults.size).toBe(0)
     expect(useMemberSyncStore.getState().status).toBe('error')
   })
 
@@ -211,11 +304,11 @@ describe('Member sync engine', () => {
       appliedThroughSequence: '20', status: 'ready', failureKind: null,
     })
     const cache = new RecordingCache()
-    cache.active = { namespace: 'active', appliedThroughSequence: '20', vault: currentVault }
+    cache.active = { namespace: 'active', appliedThroughSequence: '20', vault: currentVault, authority }
     const transport: MemberSyncTransport = {
       listVaults: async () => [currentVault],
       snapshot: async () => { throw new Error('unexpected snapshot') },
-      delta: async () => ({ deltaUpperBound: '20', appliedThroughSequence: '20', continuationCursor: null, items: [] }),
+      delta: async () => deltaPage('20', '20'),
     }
 
     await new MemberSyncEngine(cache, transport, async () => {}).synchronize(
@@ -233,7 +326,7 @@ describe('Member sync engine', () => {
     const cache = new RecordingCache()
     const transport: MemberSyncTransport = {
       listVaults: async () => [vault()],
-      snapshot: async () => ({ snapshotBaseSequence: '18', items: [head(1)], nextCursor: 'same' }),
+      snapshot: async () => snapshotPage('18', [head(1)], 'same'),
       delta: async () => { throw new Error('unexpected delta') },
     }
 
@@ -267,8 +360,8 @@ describe('Member sync engine', () => {
     const cache = new PausingCache()
     const transport: MemberSyncTransport = {
       listVaults: async () => [vault()],
-      snapshot: async () => ({ snapshotBaseSequence: '18', items: [head(1)], nextCursor: null }),
-      delta: async () => ({ deltaUpperBound: '18', appliedThroughSequence: '18', continuationCursor: null, items: [] }),
+      snapshot: async () => snapshotPage('18', [head(1)]),
+      delta: async () => deltaPage('18', '18'),
     }
     const controller = new AbortController()
     const synchronization = new MemberSyncEngine(cache, transport, async () => {}).synchronize(

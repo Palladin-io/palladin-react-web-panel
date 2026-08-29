@@ -1,5 +1,7 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
+import { parseJwtPayload } from '../../../shared/lib/jwt'
+import { useAuthStore } from '../../auth'
 import {
   canonicalU64Schema as canonicalU64,
   canonicalUuidSchema as canonicalUuid,
@@ -9,11 +11,29 @@ import {
   vaultDiscoveryKeyEnvelopeSchema,
   vaultPrivateKeyEnvelopeSchema,
 } from './vault-key-material-schema'
-import { memberIndexEnvelopeSchema, vaultEntryKeyEnvelopeSchema } from './entry-envelope-schema'
-export { memberIndexEnvelopeSchema, vaultEntryKeyEnvelopeSchema } from './entry-envelope-schema'
+import {
+  memberIndexEnvelopeSchema,
+  memberSecretEnvelopeSchema,
+  vaultEntryKeyEnvelopeSchema,
+} from './entry-envelope-schema'
+export {
+  memberIndexEnvelopeSchema,
+  memberSecretEnvelopeSchema,
+  vaultEntryKeyEnvelopeSchema,
+} from './entry-envelope-schema'
 
 const MAXIMUM_SYNC_RESPONSE_BYTES = 4 * 1024 * 1024
 const syncCursor = z.string().max(2_048)
+const canonicalInstantSchema = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/)
+  .refine((value) => Number.isFinite(Date.parse(value)))
+const offlinePolicySchema = z.enum(['disabled', '1h', '4h', '24h'])
+const offlinePolicyDurations = {
+  disabled: 0,
+  '1h': 60 * 60 * 1_000,
+  '4h': 4 * 60 * 60 * 1_000,
+  '24h': 24 * 60 * 60 * 1_000,
+} as const
 
 const vaultKeyEpochSchema = z.object({
   vaultKeyVersion: u32,
@@ -104,15 +124,22 @@ const headSchema = z.object({
   currentKeyVersion: u32,
   entryKey: vaultEntryKeyEnvelopeSchema,
   memberIndex: memberIndexEnvelopeSchema,
+  memberSecret: memberSecretEnvelopeSchema,
 }).strict().superRefine((item, context) => {
   const index = item.memberIndex.descriptor
+  const secret = item.memberSecret.descriptor
   const entryKey = item.entryKey.descriptor
   if (item.entryId !== index.scope.entryId
+    || item.entryId !== secret.scope.entryId
     || item.entryId !== entryKey.scope.entryId
     || item.memberIndexRevision !== index.resourceRevision
+    || item.currentRevision !== item.memberIndexRevision
+    || item.currentRevision !== secret.resourceRevision
     || item.currentKeyVersion !== entryKey.keyVersion
     || index.keyVersion !== item.currentKeyVersion
-    || index.memberKeyGeneration !== entryKey.memberKeyGeneration) {
+    || secret.keyVersion !== item.currentKeyVersion
+    || index.memberKeyGeneration !== entryKey.memberKeyGeneration
+    || secret.memberKeyGeneration !== entryKey.memberKeyGeneration) {
     context.addIssue({ code: 'custom', message: 'Member sync head binding mismatch' })
   }
 })
@@ -127,6 +154,7 @@ const tombstoneSchema = z.object({
   currentKeyVersion: z.null(),
   entryKey: z.null(),
   memberIndex: z.null(),
+  memberSecret: z.null(),
 }).strict()
 
 export const memberSyncItemSchema = z.discriminatedUnion('kind', [headSchema, tombstoneSchema])
@@ -136,18 +164,92 @@ const listVaultsSchema = z.object({
   total: z.number().int().nonnegative(),
 }).strict()
 
-const snapshotSchema = z.object({
+export const currentMemberEntryAccessContextSchema = z.object({
+  contextVersion: z.literal(1),
+  principalId: canonicalUuid,
+  organizationId: canonicalUuid,
+  organizationMembershipGeneration: canonicalU64,
+  vaultId: canonicalUuid,
+  memberId: canonicalUuid,
+  memberKeyGeneration: u32,
+  vaultKeyVersion: u32,
+  memberRecipientKeyVersion: u32,
+  memberRecipientKeyFingerprint: z.string().min(1),
+  offlinePolicy: offlinePolicySchema,
+  offlinePolicyVersion: u32,
+  issuedAt: canonicalInstantSchema,
+  notAfter: canonicalInstantSchema,
+}).strict().superRefine((access, context) => {
+  if (Date.parse(access.notAfter) - Date.parse(access.issuedAt)
+    !== offlinePolicyDurations[access.offlinePolicy]) {
+    context.addIssue({ code: 'custom', message: 'Member sync offline lease duration mismatch' })
+  }
+})
+
+const currentMemberPageAuthorityShape = {
+  accessContext: currentMemberEntryAccessContextSchema,
+  memberVaultKey: memberVaultKeyEnvelopeSchema,
+} as const
+export type CurrentMemberPageAuthority = {
+  accessContext: z.infer<typeof currentMemberEntryAccessContextSchema>
+  memberVaultKey: z.infer<typeof memberVaultKeyEnvelopeSchema>
+}
+
+function assertPageVaultKeyAuthority(
+  page: CurrentMemberPageAuthority,
+  context: z.RefinementCtx,
+): void {
+  const access = page.accessContext
+  const wrapper = page.memberVaultKey.wrappedVaultKey.descriptor
+  if (wrapper.scope.organizationId !== access.organizationId
+    || wrapper.scope.vaultId !== access.vaultId
+    || wrapper.scope.memberId !== access.memberId
+    || wrapper.wrappedKeyVersion !== access.vaultKeyVersion
+    || wrapper.memberKeyGeneration !== access.memberKeyGeneration
+    || wrapper.recipientKeyVersion !== access.memberRecipientKeyVersion
+    || wrapper.recipientFingerprint !== access.memberRecipientKeyFingerprint) {
+    context.addIssue({ code: 'custom', message: 'Member sync Vault-key authority mismatch' })
+  }
+}
+
+function assertPageItemsMatchAuthority(
+  page: { accessContext: CurrentMemberEntryAccessContext, items: MemberSyncItem[] },
+  context: z.RefinementCtx,
+): void {
+  for (const item of page.items) {
+    if (item.kind === 'tombstone') continue
+    const descriptors = [item.entryKey.descriptor, item.memberIndex.descriptor, item.memberSecret.descriptor]
+    if (descriptors.some((descriptor) => descriptor.scope.organizationId !== page.accessContext.organizationId
+      || descriptor.scope.vaultId !== page.accessContext.vaultId
+      || descriptor.scope.entryId !== item.entryId
+      || descriptor.memberKeyGeneration !== page.accessContext.memberKeyGeneration)
+      || item.entryKey.descriptor.binding.wrappingVaultKeyVersion !== page.accessContext.vaultKeyVersion) {
+      context.addIssue({ code: 'custom', message: 'Member sync item access-context mismatch' })
+      return
+    }
+  }
+}
+
+export const memberSnapshotPageSchema = z.object({
+  ...currentMemberPageAuthorityShape,
   snapshotBaseSequence: canonicalU64,
   items: z.array(memberSyncItemSchema).max(200),
   nextCursor: syncCursor.nullable(),
-}).strict()
+}).strict().superRefine((page, context) => {
+  assertPageVaultKeyAuthority(page, context)
+  assertPageItemsMatchAuthority(page, context)
+})
 
-const deltaSchema = z.object({
+export const memberDeltaPageSchema = z.object({
+  ...currentMemberPageAuthorityShape,
   deltaUpperBound: canonicalU64,
   appliedThroughSequence: canonicalU64,
   items: z.array(memberSyncItemSchema).max(200),
   continuationCursor: syncCursor.nullable(),
-}).strict()
+}).strict().superRefine((page, context) => {
+  assertPageVaultKeyAuthority(page, context)
+  assertPageItemsMatchAuthority(page, context)
+})
 
 const resetSchema = z.object({
   outcome: z.literal('resetRequired'),
@@ -160,13 +262,46 @@ export type EncryptedVaultSummary = z.infer<typeof encryptedVaultSummarySchema>
 export type EncryptedVaultDetail = z.infer<typeof encryptedVaultDetailSchema>
 export type MemberIndexEnvelope = z.infer<typeof memberIndexEnvelopeSchema>
 export type VaultEntryKeyEnvelope = z.infer<typeof vaultEntryKeyEnvelopeSchema>
+export type CurrentMemberEntryAccessContext = z.infer<typeof currentMemberEntryAccessContextSchema>
 export type MemberSyncItem = z.infer<typeof memberSyncItemSchema>
-export type MemberSnapshotPage = z.infer<typeof snapshotSchema>
-export type MemberDeltaPage = z.infer<typeof deltaSchema>
+export type MemberSnapshotPage = z.infer<typeof memberSnapshotPageSchema>
+export type MemberDeltaPage = z.infer<typeof memberDeltaPageSchema>
 
 const syncHeaders = {
   'X-Palladin-Vault-Protocol': '2',
-  'X-Palladin-Sync-Policy': '1',
+  'X-Palladin-Sync-Policy': '2',
+}
+
+function assertAuthenticatedRequestAuthority(access: CurrentMemberEntryAccessContext): void {
+  const token = useAuthStore.getState().accessToken
+  if (!token) throw new Error('Member sync response has no authenticated request authority')
+  const claims = parseJwtPayload(token)
+  const policy = ({ '0': 'disabled', '1': '1h', '2': '4h', '3': '24h' } as const)[String(claims.org_offline_policy) as '0' | '1' | '2' | '3']
+  if (claims.sub !== access.principalId
+    || claims.org_id !== access.organizationId
+    || String(claims.authz_ver) !== access.organizationMembershipGeneration
+    || policy !== access.offlinePolicy
+    || String(claims.org_offline_policy_ver) !== String(access.offlinePolicyVersion)) {
+    throw new Error('Member sync response does not match the authenticated request authority')
+  }
+}
+
+export function assertMemberSyncPageAuthority(
+  page: CurrentMemberPageAuthority,
+  vault: EncryptedVaultSummary,
+  userId: string,
+): void {
+  const access = page.accessContext
+  const organizationId = vault.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId
+  if (access.principalId !== userId
+    || access.memberId !== userId
+    || access.organizationId !== organizationId
+    || access.vaultId !== vault.id
+    || access.memberKeyGeneration !== vault.memberKeyGeneration
+    || access.vaultKeyVersion !== vault.currentKeyEpoch.vaultKeyVersion
+    || JSON.stringify(page.memberVaultKey) !== JSON.stringify(vault.memberVaultKey)) {
+    throw new Error('Member sync page does not match the authoritative Vault summary')
+  }
 }
 
 export async function readBoundedJson(response: Response): Promise<unknown> {
@@ -217,12 +352,26 @@ export class MemberSyncResetRequiredError extends Error {
   }
 }
 
+export class MemberSyncAccessDeniedError extends Error {
+  constructor() {
+    super('Current Member Entry sync access was denied')
+  }
+}
+
+function assertSyncAccess(response: Response): void {
+  if (response.status === 403) throw new MemberSyncAccessDeniedError()
+}
+
 export async function listEncryptedVaults(signal?: AbortSignal): Promise<EncryptedVaultSummary[]> {
   const vaults: EncryptedVaultSummary[] = []
   let offset = 0
   let total: number | undefined
   do {
-    const response = await api.get('api/vaults', { searchParams: { limit: 200, offset }, signal })
+    const response = await api.get('api/vaults', {
+      searchParams: { limit: 200, offset }, signal, throwHttpErrors: false,
+    })
+    assertSyncAccess(response)
+    if (!response.ok) throw new Error(`Vault list request failed with status ${response.status}`)
     const page = listVaultsSchema.parse(await readBoundedJson(response))
     vaults.push(...page.vaults)
     offset += page.vaults.length
@@ -242,13 +391,17 @@ export async function getMemberSnapshotPage(
   cursor: string | null,
   signal?: AbortSignal,
 ): Promise<MemberSnapshotPage> {
-  const response = await api.post(`api/vaults/${vaultId}/sync/snapshot`, {
+  const response = await api.post(`api/vaults/${vaultId}/current-entries/sync/snapshot`, {
     headers: syncHeaders,
     json: { vaultId, cursor, pageSize: 100 },
     signal,
     throwHttpErrors: false,
   })
-  return parseResponse(response, snapshotSchema)
+  assertSyncAccess(response)
+  const page = await parseResponse(response, memberSnapshotPageSchema)
+  if (page.accessContext.vaultId !== vaultId) throw new Error('Member snapshot route scope mismatch')
+  assertAuthenticatedRequestAuthority(page.accessContext)
+  return page
 }
 
 export async function getMemberDeltaPage(
@@ -257,12 +410,16 @@ export async function getMemberDeltaPage(
   continuationCursor: string | null,
   signal?: AbortSignal,
 ): Promise<MemberDeltaPage> {
-  const response = await api.post(`api/vaults/${vaultId}/sync/delta`, {
+  const response = await api.post(`api/vaults/${vaultId}/current-entries/sync/delta`, {
     headers: syncHeaders,
     json: continuationCursor ? { vaultId, continuationCursor, pageSize: 100 } : { vaultId, afterSequence, pageSize: 100 },
     signal,
     throwHttpErrors: false,
   })
+  assertSyncAccess(response)
   if (response.status === 409) throw new MemberSyncResetRequiredError(resetSchema.parse(await readBoundedJson(response)))
-  return parseResponse(response, deltaSchema)
+  const page = await parseResponse(response, memberDeltaPageSchema)
+  if (page.accessContext.vaultId !== vaultId) throw new Error('Member delta route scope mismatch')
+  assertAuthenticatedRequestAuthority(page.accessContext)
+  return page
 }

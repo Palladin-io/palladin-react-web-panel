@@ -54,6 +54,7 @@ interface MemberSyncState {
   begin: () => void
   publishVault: (vault: DecryptedMemberVault) => void
   retainVaults: (vaultIds: ReadonlySet<string>) => void
+  removeVault: (vaultId: string) => void
   reconcileEntry: (vaultId: string, entry: MemberIndexRecord | { entryId: string; tombstone: true }) => void
   resetVault: (vaultId: string) => void
   failVault: (
@@ -96,6 +97,9 @@ export const useMemberSyncStore = create<MemberSyncState>((set) => ({
   }),
   retainVaults: (vaultIds) => set((state) => ({
     vaults: new Map(Array.from(state.vaults).filter(([vaultId]) => vaultIds.has(vaultId))),
+  })),
+  removeVault: (vaultId) => set((state) => ({
+    vaults: new Map(Array.from(state.vaults).filter(([currentVaultId]) => currentVaultId !== vaultId)),
   })),
   reconcileEntry: (vaultId, entry) => set((state) => {
     const vault = state.vaults.get(vaultId)

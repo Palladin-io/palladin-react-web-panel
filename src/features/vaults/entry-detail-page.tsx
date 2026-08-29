@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
-import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
@@ -11,16 +10,13 @@ import { FeedbackSlot, FormInput } from '../../shared/components/form-field'
 import { NotesField } from './components/notes-field'
 import { SecretInput } from '../../shared/components/secret-input'
 import { firstError, required, validUrl } from '../../shared/lib/validation'
-import { wipe } from '../../shared/crypto/sodium'
-import { openMemberSecret } from '../../shared/crypto/entry-protocol'
-import { presentationIconReference, type MemberIndexV1 } from '../../shared/crypto/vault-plaintext'
+import { presentationIconReference } from '../../shared/crypto/vault-plaintext'
 import {
   ENTRY_FIELD,
   fromMemberSecret,
   type AgentVisibilityPolicy,
   type MemberSecretView,
 } from '../../shared/crypto/entry-draft'
-import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { analytics } from '../../shared/lib/analytics'
 import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
@@ -96,8 +92,8 @@ import {
 import { useCanonicalEntryDetail } from './use-entries'
 import { useUpdateCanonicalEntry } from './use-update-canonical-entry'
 import { useVault } from './use-vault'
-import { getEncryptedVault } from './sync/member-sync-api'
-import { useMemberSyncStore } from './sync/member-sync-store'
+import { openCurrentMemberEntrySecret } from './sync/current-member-entry-reader'
+import { useMemberSyncStore, type MemberIndexRecord } from './sync/member-sync-store'
 import { shortenKey } from '../../shared/lib/shorten-key'
 
 export interface EntryDetailPageProps {
@@ -123,29 +119,45 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const vault = useVault(vaultId)
-  const entry = useCanonicalEntryDetail(vaultId, entryId)
-  const memberIndex = useMemberSyncStore((store) => store.vaults.get(vaultId)?.entries.get(entryId)?.payload)
+  const memberEntry = useMemberSyncStore((store) => store.vaults.get(vaultId)?.entries.get(entryId))
   const [activeTab, setActiveTab] = useState<EntryDetailTab>('details')
+  const canonicalNeeded = activeTab === 'agents' || activeTab === 'history'
+  const canonical = useCanonicalEntryDetail(vaultId, entryId, canonicalNeeded)
   const [addAgentOpen, setAddAgentOpen] = useState(false)
   const isWide = useWideScreen()
 
   const handleBack = () => navigate({ to: '/vaults/$vaultId', params: { vaultId } })
   const onDeleted = () => navigate({ to: '/vaults/$vaultId', params: { vaultId } })
 
-  const detailContent = vault.isPending || entry.isPending ? (
+  const loadCanonical = useCallback(async (): Promise<CanonicalEntryDetail> => {
+    const result = await canonical.refetch()
+    if (!result.data) throw new Error('Current Entry detail is unavailable')
+    if (!memberEntry || result.data.currentRevision !== memberEntry.currentRevision
+      || result.data.currentKeyVersion !== memberEntry.currentKeyVersion) {
+      useMemberSyncStore.getState().retry()
+      throw new Error('Current Entry detail changed after Member sync')
+    }
+    return result.data
+  }, [canonical, memberEntry])
+
+  const detailContent = vault.isPending || (!memberEntry && useMemberSyncStore.getState().status === 'syncing') ? (
     <PageSkeleton />
   ) : vault.isError || !vault.data ? (
     <ErrorState message={t('vault.errorLoad')} onRetry={vault.refetch} />
-  ) : entry.isError || !entry.data ? (
+  ) : !memberEntry || memberEntry.corrupt || !memberEntry.payload ? (
     <ErrorState
       message={t('vault.entry.detail.loadError')}
-      onRetry={entry.refetch}
+      onRetry={async () => { useMemberSyncStore.getState().retry() }}
     />
   ) : (
     <>
       <DetailBody
         vault={vault.data}
-        entry={toEntryView(entry.data, memberIndex)}
+        entry={toEntryView(memberEntry)}
+        canonical={canonical.data ?? null}
+        canonicalPending={canonical.isPending}
+        canonicalError={canonical.isError}
+        loadCanonical={loadCanonical}
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onBack={handleBack}
@@ -188,33 +200,33 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
   )
 }
 
-interface CanonicalEntryView extends EntryDetail {
-  canonical: CanonicalEntryDetail
+interface CurrentEntryView extends EntryDetail {
+  currentRevision: string
+  currentKeyVersion: number
 }
 
-function toEntryView(
-  canonical: CanonicalEntryDetail,
-  index: {
-    memberLabel: string
-    entryType: 'key' | 'credential' | 'script' | 'creditCard'
-    icon: MemberIndexV1['icon']
-  } | null | undefined,
-): CanonicalEntryView {
+function toEntryView(record: MemberIndexRecord): CurrentEntryView {
+  const index = record.payload!
   const iconReference = presentationIconReference(index?.icon ?? null)
   const entryType = index?.entryType === 'key'
     ? ENTRY_TYPE_KEY
     : index?.entryType === 'script' ? ENTRY_TYPE_SCRIPT
       : index?.entryType === 'creditCard' ? ENTRY_TYPE_CREDIT_CARD : ENTRY_TYPE_CREDENTIAL
   return {
-    id: canonical.id,
-    label: index?.memberLabel ?? canonical.id,
+    id: record.entryId,
+    label: index.memberLabel,
     type: entryType,
     ...(iconReference ? { icon: iconReference } : {}),
-    createdAt: canonical.createdAt,
-    updatedAt: canonical.updatedAt,
+    ...(index.description ? { description: index.description } : {}),
+    ...(index.color ? { color: index.color } : {}),
+    createdAt: record.updatedAt,
+    updatedAt: record.updatedAt,
     accessCount: 0,
+    username: index.username ?? undefined,
+    urlDomain: index.urlDomain ?? undefined,
     content: { encryptedBlob: '', nonce: '' },
-    canonical,
+    currentRevision: record.currentRevision,
+    currentKeyVersion: record.currentKeyVersion,
   }
 }
 
@@ -229,7 +241,11 @@ function PageSkeleton() {
 
 interface DetailBodyProps {
   vault: Vault
-  entry: CanonicalEntryView
+  entry: CurrentEntryView
+  canonical: CanonicalEntryDetail | null
+  canonicalPending: boolean
+  canonicalError: boolean
+  loadCanonical: () => Promise<CanonicalEntryDetail>
   activeTab: EntryDetailTab
   onTabChange: (next: EntryDetailTab) => void
   /** Omitted in split-view (wide screens) to hide the back arrow. */
@@ -242,6 +258,10 @@ interface DetailBodyProps {
 function DetailBody({
   vault,
   entry,
+  canonical,
+  canonicalPending,
+  canonicalError,
+  loadCanonical,
   activeTab,
   onTabChange,
   onBack,
@@ -315,27 +335,32 @@ function DetailBody({
       />
       {activeTab === 'details' ? (
         <DetailsTab
-          key={`${entry.id}:${entry.canonical.currentRevision}`}
+          key={`${entry.id}:${entry.currentRevision}`}
           vault={vault}
           entry={entry}
+          loadCanonical={loadCanonical}
           onDeleted={onDeleted}
         />
       ) : null}
-      {activeTab === 'agents' ? (
+      {activeTab === 'agents' && canonical ? (
         <EntryAgentsTab
-          key={`${entry.id}:${entry.canonical.currentRevision}`}
+          key={`${entry.id}:${canonical.currentRevision}`}
           vaultId={vault.id}
           entryId={entry.id}
           entryType={entry.type}
           memberLabel={entry.label}
-          detail={entry.canonical}
+          detail={canonical}
         />
       ) : null}
       {activeTab === 'logs' ? (
         <EntryLogsTab vaultId={vault.id} entryId={entry.id} entryName={entry.label} />
       ) : null}
-      {activeTab === 'history' ? (
-        <EntryHistoryTab detail={entry.canonical} />
+      {activeTab === 'history' && canonical ? (
+        <EntryHistoryTab detail={canonical} />
+      ) : null}
+      {(activeTab === 'agents' || activeTab === 'history') && !canonical && canonicalPending ? <PageSkeleton /> : null}
+      {(activeTab === 'agents' || activeTab === 'history') && !canonical && canonicalError ? (
+        <ErrorState message={t('vault.entry.detail.loadError')} onRetry={loadCanonical} />
       ) : null}
     </>
   )
@@ -375,16 +400,13 @@ function EntryDetailTabs({ active, onChange, wide, actions }: EntryDetailTabsPro
 
 interface DetailsTabProps {
   vault: Vault
-  entry: CanonicalEntryView
+  entry: CurrentEntryView
+  loadCanonical: () => Promise<CanonicalEntryDetail>
   onDeleted: () => void
 }
 
-function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
+function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps) {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const cryptoSessionGeneration = useAuthStore(
-    (state) => state.cryptoSessionGeneration,
-  )
   const permissions = useAuthStore((state) => state.permissions)
   const update = useUpdateCanonicalEntry(vault.id, entry.id)
   const remove = useDeleteEntry(vault.id)
@@ -443,11 +465,18 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
   const [returnResultToAgent, setReturnResultToAgent] = useState(false)
   const [scriptImpact, setScriptImpact] = useState<ScriptAccessImpact | null>(null)
   const [pendingScriptSave, setPendingScriptSave] = useState<EntryPlaintext | null>(null)
+  const [mutationDetail, setMutationDetail] = useState<CanonicalEntryDetail | null>(null)
   const [scriptChangeKinds, setScriptChangeKinds] = useState<string[]>([])
 
   // Reveal toggles.
   const [showSecret, setShowSecret] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const mounted = useRef(true)
+
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
   // Opening the detail screen is already an explicit user action. Decrypt the
   // selected Entry immediately in memory; individual secret inputs remain
@@ -459,66 +488,59 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       setDecryptError(t('vault.entry.detail.decryptError'))
       return
     }
+    const sessionGeneration = useAuthStore.getState().cryptoSessionGeneration
     setDecrypting(true)
     try {
-      const encryptedVault = await queryClient.fetchQuery({
-        queryKey: [
-          'vaults',
-          vault.id,
-          'encrypted-detail',
-          cryptoSessionGeneration,
-        ],
-        queryFn: () => getEncryptedVault(vault.id),
-        staleTime: Infinity,
-      })
-      const vaultKey = await openMemberVaultKey(encryptedVault.memberVaultKey, privateKey)
-      try {
-        const secret = fromMemberSecret(await openMemberSecret(
-          entry.canonical.entryKey, entry.canonical.memberSecret, vaultKey, {
-            organizationId: entry.canonical.organizationId, vaultId: vault.id,
-            entryId: entry.id, revision: entry.canonical.currentRevision,
-          },
-        ))
-        if (useAuthStore.getState().privateKey !== privateKey) {
-          throw new Error('Vault lock session changed')
-        }
-        const pt = secret.content
-        setOriginalSecret(secret)
-        setPolicy(secret.agentVisibilityPolicy)
-        setLabel(secret.memberLabel)
-        setDescription(secret.description ?? '')
-        setIcon(secret.iconReference?.startsWith('builtin:')
-          ? secret.iconReference.slice(8)
-          : secret.iconReference)
-        if (pt.type === ENTRY_TYPE_KEY) {
-          setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt)); setSecretValue(pt.value)
-          setUrl(pt.url ?? ''); setNotes(pt.notes ?? '')
-        } else if (pt.type === ENTRY_TYPE_SCRIPT) {
-          setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt)); setScript(pt.script)
-          setInterpreter(pt.interpreter); setRefs(pt.refs ?? []); setNotes(pt.notes ?? '')
-          setDescription(pt.execution?.description ?? secret.description ?? '')
-          setScriptParameters(scriptParameterDrafts(pt.execution?.parameters))
-          setReturnResultToAgent(pt.execution?.returnResultToAgent === true)
-        } else if (pt.type === ENTRY_TYPE_CREDENTIAL) {
-          const { pinned, rest, baseline } = pinCredentialTotp(pt)
-          setOriginalPlaintext(baseline); setCredentialTotp(pinned); setCustomFields(rest)
-          setUsername(pt.username); setPassword(pt.password)
-          setUrl(pt.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : '')); setNotes(pt.notes ?? '')
-        } else if (pt.type === ENTRY_TYPE_CREDIT_CARD) {
-          setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt))
-          setCardholderName(pt.cardholderName); setCardNumber(pt.cardNumber)
-          setExpiryMonth(pt.expiryMonth); setExpiryYear(pt.expiryYear)
-          setBillingAddress(pt.billingAddress ?? ''); setNotes(pt.notes ?? '')
-        }
-      } finally {
-        wipe(vaultKey)
+      const userId = useAuthStore.getState().userId
+      if (!userId) throw new Error('Authenticated Member is unavailable')
+      const secret = fromMemberSecret(await openCurrentMemberEntrySecret({
+        userId,
+        vaultId: vault.id,
+        entryId: entry.id,
+        expectedRevision: entry.currentRevision,
+        expectedKeyVersion: entry.currentKeyVersion,
+        memberPrivateKey: privateKey,
+      }))
+      const currentAuth = useAuthStore.getState()
+      if (currentAuth.privateKey !== privateKey
+        || currentAuth.cryptoSessionGeneration !== sessionGeneration
+        || !mounted.current) {
+        throw new Error('Vault lock session changed')
+      }
+      const pt = secret.content
+      setOriginalSecret(secret)
+      setPolicy(secret.agentVisibilityPolicy)
+      setLabel(secret.memberLabel)
+      setDescription(secret.description ?? '')
+      setIcon(secret.iconReference?.startsWith('builtin:')
+        ? secret.iconReference.slice(8)
+        : secret.iconReference)
+      if (pt.type === ENTRY_TYPE_KEY) {
+        setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt)); setSecretValue(pt.value)
+        setUrl(pt.url ?? ''); setNotes(pt.notes ?? '')
+      } else if (pt.type === ENTRY_TYPE_SCRIPT) {
+        setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt)); setScript(pt.script)
+        setInterpreter(pt.interpreter); setRefs(pt.refs ?? []); setNotes(pt.notes ?? '')
+        setDescription(pt.execution?.description ?? secret.description ?? '')
+        setScriptParameters(scriptParameterDrafts(pt.execution?.parameters))
+        setReturnResultToAgent(pt.execution?.returnResultToAgent === true)
+      } else if (pt.type === ENTRY_TYPE_CREDENTIAL) {
+        const { pinned, rest, baseline } = pinCredentialTotp(pt)
+        setOriginalPlaintext(baseline); setCredentialTotp(pinned); setCustomFields(rest)
+        setUsername(pt.username); setPassword(pt.password)
+        setUrl(pt.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : '')); setNotes(pt.notes ?? '')
+      } else if (pt.type === ENTRY_TYPE_CREDIT_CARD) {
+        setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt))
+        setCardholderName(pt.cardholderName); setCardNumber(pt.cardNumber)
+        setExpiryMonth(pt.expiryMonth); setExpiryYear(pt.expiryYear)
+        setBillingAddress(pt.billingAddress ?? ''); setNotes(pt.notes ?? '')
       }
     } catch {
-      setDecryptError(t('vault.entry.detail.decryptError'))
+      if (mounted.current) setDecryptError(t('vault.entry.detail.decryptError'))
     } finally {
-      setDecrypting(false)
+      if (mounted.current) setDecrypting(false)
     }
-  }, [cryptoSessionGeneration, entry, queryClient, t, vault.id])
+  }, [entry, t, vault.id])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -651,8 +673,8 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
     }
   }
 
-  const submitUpdate = (current: EntryPlaintext) => {
-    if (!originalSecret) return
+  const submitUpdate = (current: EntryPlaintext, detail = mutationDetail) => {
+    if (!originalSecret || !detail) return
     const originalIcon = originalSecret.iconReference
     const iconReference = icon
       ? /^(?:website|public-asset|vault-asset):/.test(icon) ? icon : `builtin:${icon}`
@@ -670,7 +692,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         }
       : basePolicy
     update.mutate({
-      detail: entry.canonical,
+      detail,
       previous: originalSecret,
       draft: {
         memberLabel: label.trim(),
@@ -737,6 +759,14 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
       void handleDecrypt()
       return
     }
+    let detail: CanonicalEntryDetail
+    try {
+      detail = await loadCanonical()
+      setMutationDetail(detail)
+    } catch {
+      toast.error(t('vault.entry.detail.saveError'))
+      return
+    }
     if (originalPlaintext
       && (originalPlaintext.type === ENTRY_TYPE_SCRIPT || current.type === ENTRY_TYPE_SCRIPT)
       && (permissions & PERMISSION_GRANT_MANAGE) !== 0) {
@@ -753,7 +783,7 @@ function DetailsTab({ vault, entry, onDeleted }: DetailsTabProps) {
         return
       }
     }
-    submitUpdate(current)
+    submitUpdate(current, detail)
   }
 
   const handleDelete = () => {

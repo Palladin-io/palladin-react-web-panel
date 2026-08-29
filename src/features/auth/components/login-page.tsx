@@ -77,32 +77,38 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   })
 
   const handleGoogleLogin = () => {
-    clearClientSession()
-    googleLogin()
+    void clearClientSession()
+      .then(() => googleLogin())
+      .catch(() => toast.error(t('auth.errorSignInFailed')))
   }
 
   const handleCredentials = (email: string, password: string) => {
-    clearClientSession()
-    setPasswordError(null)
-    start.mutate(
-      { email, password },
-      {
-        onSuccess: (result) => {
-          if (result.kind === 'totp') {
-            setChallengeToken(result.challengeToken)
-            setTotpError(null)
-            setStep('totp')
-          } else {
-            navigate({ href: redirectTo })
-          }
-        },
-        onError: (error) => setPasswordError(
-          t(error instanceof AuthRateLimitError
-            ? 'auth.errorRateLimited'
-            : 'login.errorInvalid'),
-        ),
-      },
-    )
+    void clearClientSession()
+      .then(() => {
+        setPasswordError(null)
+        start.mutate(
+          { email, password },
+          {
+            onSuccess: (result) => {
+              if (result.kind === 'totp') {
+                setChallengeToken(result.challengeToken)
+                setTotpError(null)
+                setStep('totp')
+              } else {
+                navigate({ href: redirectTo })
+              }
+            },
+            onError: (error) => setPasswordError(
+              t(error instanceof AuthRateLimitError
+                ? 'auth.errorRateLimited'
+                : 'login.errorInvalid'),
+            ),
+          },
+        )
+      })
+      .catch(() => {
+        setPasswordError(t('auth.errorSignInFailed'))
+      })
   }
 
   const handleTotp = (code: string) => {

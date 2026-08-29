@@ -3,15 +3,19 @@ import { openVaultProjection } from '../../../shared/crypto/vault-protocol'
 import type { MemberVaultMetadataV1 } from '../../../shared/crypto/vault-plaintext'
 import { wipe } from '../../../shared/crypto/sodium'
 import {
+  assertMemberSyncPageAuthority,
   getMemberDeltaPage,
   getMemberSnapshotPage,
   listEncryptedVaults,
+  MemberSyncAccessDeniedError,
   MemberSyncResetRequiredError,
   type EncryptedVaultSummary,
+  type CurrentMemberEntryAccessContext,
   type MemberDeltaPage,
+  type MemberSnapshotPage,
   type MemberSyncItem,
 } from './member-sync-api'
-import type { MemberSyncCache } from './member-sync-cache'
+import { MemberSyncCacheQuotaError, type MemberSyncCache } from './member-sync-cache'
 import { memberVaultStructure, useMemberSyncStore, type MemberIndexRecord } from './member-sync-store'
 
 const CACHE_PAGE_ITEMS = 100
@@ -21,6 +25,14 @@ const MAXIMUM_UNLOCKED_MEMBER_ENTRIES = 10_000
 
 interface ProjectionBudget {
   count: number
+}
+
+class MemberSyncGenerationInvalidError extends Error {}
+
+class MemberSyncProjectionLimitError extends Error {}
+
+function isMemberSyncResourceLimitError(error: unknown): boolean {
+  return error instanceof MemberSyncCacheQuotaError || error instanceof MemberSyncProjectionLimitError
 }
 
 class MemberVaultSyncFailure extends Error {
@@ -63,6 +75,48 @@ function isCacheCompatible(cached: EncryptedVaultSummary, current: EncryptedVaul
     && cached.currentKeyEpoch.vaultKeyVersion === current.currentKeyEpoch.vaultKeyVersion
 }
 
+function securityBinding(context: CurrentMemberEntryAccessContext): string {
+  return JSON.stringify({
+    contextVersion: context.contextVersion,
+    principalId: context.principalId,
+    organizationId: context.organizationId,
+    organizationMembershipGeneration: context.organizationMembershipGeneration,
+    vaultId: context.vaultId,
+    memberId: context.memberId,
+    memberKeyGeneration: context.memberKeyGeneration,
+    vaultKeyVersion: context.vaultKeyVersion,
+    memberRecipientKeyVersion: context.memberRecipientKeyVersion,
+    memberRecipientKeyFingerprint: context.memberRecipientKeyFingerprint,
+    offlinePolicy: context.offlinePolicy,
+    offlinePolicyVersion: context.offlinePolicyVersion,
+  })
+}
+
+function assertSamePageSecurityBinding(
+  previous: CurrentMemberEntryAccessContext | null,
+  current: CurrentMemberEntryAccessContext,
+): CurrentMemberEntryAccessContext {
+  if (previous && securityBinding(previous) !== securityBinding(current)) {
+    throw new MemberSyncGenerationInvalidError('Vault Member sync security binding changed')
+  }
+  if (previous && Date.parse(current.notAfter) < Date.parse(previous.notAfter)) {
+    throw new MemberSyncGenerationInvalidError('Vault Member sync lease moved backwards')
+  }
+  return current
+}
+
+function assertPageAuthority(
+  page: MemberSnapshotPage | MemberDeltaPage,
+  vault: EncryptedVaultSummary,
+  userId: string,
+): void {
+  try {
+    assertMemberSyncPageAuthority(page, vault, userId)
+  } catch (error) {
+    throw new MemberSyncGenerationInvalidError('Vault Member sync authority changed', { cause: error })
+  }
+}
+
 function defaultYield(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0))
 }
@@ -96,7 +150,7 @@ export class MemberSyncEngine {
       assertNotAborted(signal)
       const declaredEntries = vaults.reduce((total, vault) => total + vault.entryCount, 0)
       if (!Number.isSafeInteger(declaredEntries) || declaredEntries > MAXIMUM_UNLOCKED_MEMBER_ENTRIES) {
-        throw new Error('Vault Member index exceeds the supported unlocked entry budget')
+        throw new MemberSyncProjectionLimitError('Vault Member index exceeds the supported unlocked entry budget')
       }
       const retainedVaultIds = new Set(vaults.map((vault) => vault.id))
       await this.cache.removeMissingVaults(userId, retainedVaultIds)
@@ -110,6 +164,13 @@ export class MemberSyncEngine {
           await this.synchronizeVault(userId, memberPrivateKey, vault, projectionBudget, signal)
         } catch (error) {
           if (signal.aborted) throw error
+          if (isMemberSyncResourceLimitError(error)) throw error
+          if (error instanceof MemberSyncAccessDeniedError) {
+            await this.invalidateVaultGeneration(userId, vault.id)
+            failures += 1
+            projectionBudget.count = publishedEntryCount()
+            continue
+          }
           failures += 1
           if (error instanceof MemberVaultSyncFailure) {
             useMemberSyncStore.getState().failVault(vault, error.failureKind, error.metadata)
@@ -122,6 +183,22 @@ export class MemberSyncEngine {
       if (failures > 0) useMemberSyncStore.getState().fail()
       else useMemberSyncStore.getState().complete()
     } catch (error) {
+      if (isMemberSyncResourceLimitError(error)) {
+        try {
+          await this.cache.removeUser(userId)
+        } finally {
+          useMemberSyncStore.getState().clear()
+          useMemberSyncStore.getState().fail()
+        }
+      }
+      if (error instanceof MemberSyncAccessDeniedError) {
+        try {
+          await this.cache.removeUser(userId)
+        } finally {
+          useMemberSyncStore.getState().clear()
+          useMemberSyncStore.getState().fail()
+        }
+      }
       if (!signal.aborted) useMemberSyncStore.getState().fail()
       throw error
     }
@@ -154,7 +231,19 @@ export class MemberSyncEngine {
     try {
       assertNotAborted(signal)
       const cached = await this.cache.getActiveState(userId, vault.id)
-      if (!cached || !isCacheCompatible(cached.vault, vault) || compareSequence(cached.appliedThroughSequence, vault.memberSequence) > 0) {
+      let cacheAuthorityMatches = false
+      if (cached) {
+        try {
+          assertMemberSyncPageAuthority(cached.authority, vault, userId)
+          cacheAuthorityMatches = true
+        } catch {
+          cacheAuthorityMatches = false
+        }
+      }
+      const cacheIncompatible = cached && (!cacheAuthorityMatches || !isCacheCompatible(cached.vault, vault)
+        || compareSequence(cached.appliedThroughSequence, vault.memberSequence) > 0)
+      if (!cached || cacheIncompatible) {
+        if (cacheIncompatible) await this.invalidateVaultGeneration(userId, vault.id)
         await this.rebuildSnapshot(userId, vault, vaultKey, metadata, projectionBudget, signal)
         return
       }
@@ -164,21 +253,34 @@ export class MemberSyncEngine {
         entries = new Map(published.entries)
         projectionBudget.count += entries.size
         if (projectionBudget.count > MAXIMUM_UNLOCKED_MEMBER_ENTRIES) {
-          throw new Error('Vault Member index exceeds the supported unlocked entry budget')
+          throw new MemberSyncProjectionLimitError('Vault Member index exceeds the supported unlocked entry budget')
         }
       } else {
         entries = await this.decryptCachedIndex(userId, vault, vaultKey, projectionBudget, signal)
       }
       try {
-        await this.applyActiveDelta(userId, vault, vaultKey, metadata, entries, cached.appliedThroughSequence, projectionBudget, signal)
+        await this.applyActiveDelta(
+          userId,
+          vault,
+          vaultKey,
+          metadata,
+          entries,
+          cached.appliedThroughSequence,
+          cached.authority.accessContext,
+          projectionBudget,
+          signal,
+        )
       } catch (error) {
-        if (!(error instanceof MemberSyncResetRequiredError)) throw error
+        if (!(error instanceof MemberSyncResetRequiredError)
+          && !(error instanceof MemberSyncGenerationInvalidError)) throw error
         projectionBudget.count = budgetBeforeVault
-        useMemberSyncStore.getState().resetVault(vault.id)
+        await this.invalidateVaultGeneration(userId, vault.id)
         await this.rebuildSnapshot(userId, vault, vaultKey, metadata, projectionBudget, signal)
       }
     } catch (error) {
       projectionBudget.count = budgetBeforeVault
+      if (error instanceof MemberSyncAccessDeniedError) throw error
+      if (isMemberSyncResourceLimitError(error)) throw error
       if (error instanceof MemberVaultSyncFailure || signal.aborted) throw error
       throw new MemberVaultSyncFailure('sync', error, metadata)
     } finally {
@@ -219,7 +321,10 @@ export class MemberSyncEngine {
         return
       } catch (error) {
         projectionBudget.count = budgetBeforeAttempt
-        if (!(error instanceof MemberSyncResetRequiredError) || attempt === 1) throw error
+        if (!(error instanceof MemberSyncResetRequiredError)
+          && !(error instanceof MemberSyncGenerationInvalidError)) throw error
+        await this.invalidateVaultGeneration(userId, vault.id)
+        if (attempt === 1) throw error
       }
     }
   }
@@ -237,16 +342,19 @@ export class MemberSyncEngine {
     let cursor: string | null = null
     let baseSequence: string | null = null
     const seenCursors = new Set<string>()
+    let pageAuthority: CurrentMemberEntryAccessContext | null = null
     do {
       assertNotAborted(signal)
       const page = await this.transport.snapshot(vault.id, cursor, signal)
+      assertPageAuthority(page, vault, userId)
+      pageAuthority = assertSamePageSecurityBinding(pageAuthority, page.accessContext)
       if (baseSequence === null) {
         baseSequence = page.snapshotBaseSequence
         await this.cache.beginSnapshot(userId, vault, namespace, baseSequence)
       } else if (page.snapshotBaseSequence !== baseSequence) {
         throw new Error('Vault snapshot boundary changed between pages')
       }
-      await this.cache.applySnapshotPage(userId, vault.id, namespace, page.items, page.nextCursor)
+      await this.cache.applySnapshotPage(userId, vault.id, namespace, page)
       await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
       if (page.nextCursor) {
         if (seenCursors.has(page.nextCursor)) throw new Error('Vault snapshot cursor did not make progress')
@@ -274,9 +382,12 @@ export class MemberSyncEngine {
     let appliedThrough = afterSequence
     let continuation: string | null = null
     let deltaUpperBound: string | null = null
+    let pageAuthority: CurrentMemberEntryAccessContext | null = null
     do {
       assertNotAborted(signal)
       const page = await this.transport.delta(vault.id, continuation ? null : afterSequence, continuation, signal)
+      assertPageAuthority(page, vault, userId)
+      pageAuthority = assertSamePageSecurityBinding(pageAuthority, page.accessContext)
       deltaUpperBound = this.assertDeltaProgress(appliedThrough, deltaUpperBound, page)
       await this.cache.applyPendingDeltaPage(userId, vault.id, namespace, appliedThrough, page)
       await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
@@ -293,15 +404,19 @@ export class MemberSyncEngine {
     metadata: MemberVaultMetadataV1,
     entries: Map<string, MemberIndexRecord>,
     afterSequence: string,
+    expectedAuthority: CurrentMemberEntryAccessContext,
     projectionBudget: ProjectionBudget,
     signal: AbortSignal,
   ): Promise<void> {
     let appliedThrough = afterSequence
     let continuation: string | null = null
     let deltaUpperBound: string | null = null
+    let pageAuthority: CurrentMemberEntryAccessContext | null = expectedAuthority
     do {
       assertNotAborted(signal)
       const page = await this.transport.delta(vault.id, continuation ? null : afterSequence, continuation, signal)
+      assertPageAuthority(page, vault, userId)
+      pageAuthority = assertSamePageSecurityBinding(pageAuthority, page.accessContext)
       deltaUpperBound = this.assertDeltaProgress(appliedThrough, deltaUpperBound, page)
       await this.cache.applyActiveDeltaPage(userId, vault, appliedThrough, page)
       await this.decryptAndApply(page.items, entries, vault, vaultKey, projectionBudget, signal)
@@ -327,6 +442,15 @@ export class MemberSyncEngine {
       throw new Error('Vault delta ended before its stable boundary')
     }
     return page.deltaUpperBound
+  }
+
+  private async invalidateVaultGeneration(userId: string, vaultId: string): Promise<void> {
+    useMemberSyncStore.getState().resetVault(vaultId)
+    try {
+      await this.cache.removeVault(userId, vaultId)
+    } finally {
+      useMemberSyncStore.getState().removeVault(vaultId)
+    }
   }
 
   private async decryptAndApply(
@@ -397,7 +521,7 @@ export class MemberSyncEngine {
       }
       const nextCount = projectionBudget.count + entries.size - sizeBeforeChunk
       if (nextCount > MAXIMUM_UNLOCKED_MEMBER_ENTRIES) {
-        throw new Error('Vault Member index exceeds the supported unlocked entry budget')
+        throw new MemberSyncProjectionLimitError('Vault Member index exceeds the supported unlocked entry budget')
       }
       projectionBudget.count = nextCount
       await this.yieldControl()

@@ -6,6 +6,7 @@ const probe = vi.hoisted(() => ({
   synchronize: vi.fn(async () => {}),
   createDefaultVault: vi.fn(async () => 'created'),
   reconcileDiscovery: vi.fn(async () => {}),
+  purgeInvalidGenerations: vi.fn(async () => null as number | null),
 }))
 
 vi.mock('./member-sync-engine', () => ({
@@ -13,7 +14,10 @@ vi.mock('./member-sync-engine', () => ({
     synchronize = probe.synchronize
   },
 }))
-vi.mock('./member-sync-cache', () => ({ IndexedDbMemberSyncCache: class {} }))
+vi.mock('./member-sync-cache', () => ({ memberSyncCache: {} }))
+vi.mock('./member-sync-lifecycle', () => ({
+  purgeInvalidMemberSyncGenerations: probe.purgeInvalidGenerations,
+}))
 vi.mock('../../../shared/lib/create-default-vault-safe', () => ({
   createDefaultVaultSafe: probe.createDefaultVault,
 }))
@@ -30,6 +34,7 @@ describe('MemberSyncProvider refresh lifecycle', () => {
     probe.synchronize.mockClear()
     probe.createDefaultVault.mockClear()
     probe.reconcileDiscovery.mockClear()
+    probe.purgeInvalidGenerations.mockClear().mockResolvedValue(null)
     useMemberSyncStore.getState().clear()
     vi.useFakeTimers()
   })
@@ -53,6 +58,35 @@ describe('MemberSyncProvider refresh lifecycle', () => {
       await vi.advanceTimersByTimeAsync(60_000)
     })
 
+    expect(probe.synchronize).toHaveBeenCalledTimes(2)
+  })
+
+  it('settles an aborted synchronization before starting its replacement', async () => {
+    let settleFirst!: () => void
+    probe.synchronize.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      settleFirst = resolve
+    }))
+    render(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={new Uint8Array(32)}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+    await act(async () => { await Promise.resolve() })
+    expect(probe.synchronize).toHaveBeenCalledTimes(1)
+
+    act(() => window.dispatchEvent(new Event('online')))
+    await act(async () => { await Promise.resolve() })
+    expect(probe.synchronize).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      settleFirst()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
     expect(probe.synchronize).toHaveBeenCalledTimes(2)
   })
 
@@ -166,6 +200,73 @@ describe('MemberSyncProvider refresh lifecycle', () => {
 
     expect(probe.synchronize).toHaveBeenCalledTimes(2)
     expect(useMemberSyncStore.getState().retryGeneration).toBe(1)
+  })
+
+  it('starts lease cleanup even when the initial synchronization never settles', async () => {
+    probe.synchronize.mockImplementationOnce(() => new Promise<void>(() => {}))
+    const view = render(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={new Uint8Array(32)}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+
+    await act(async () => { await Promise.resolve() })
+
+    expect(probe.purgeInvalidGenerations).toHaveBeenCalledTimes(1)
+    view.unmount()
+  })
+
+  it('purges the active generation at its exact offline lease expiry', async () => {
+    const expiry = Date.now() + 1_000
+    probe.purgeInvalidGenerations
+      .mockResolvedValueOnce(expiry)
+      .mockResolvedValueOnce(expiry)
+      .mockResolvedValueOnce(null)
+    render(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={new Uint8Array(32)}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(probe.purgeInvalidGenerations).toHaveBeenCalledTimes(2)
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_000) })
+
+    expect(probe.purgeInvalidGenerations).toHaveBeenCalledTimes(3)
+  })
+
+  it('rechecks disabled-policy generations immediately when the browser goes offline', async () => {
+    render(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={new Uint8Array(32)}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    probe.purgeInvalidGenerations.mockClear()
+
+    await act(async () => {
+      window.dispatchEvent(new Event('offline'))
+      await Promise.resolve()
+    })
+
+    expect(probe.purgeInvalidGenerations).toHaveBeenCalledWith(
+      '11111111-1111-4111-8111-111111111111',
+      expect.any(Date),
+      expect.anything(),
+      false,
+    )
   })
 
   it('repairs a missing default Vault only after authoritative sync completes', async () => {
