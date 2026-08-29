@@ -21,6 +21,7 @@ import {
   useDenyGrant,
   useGrantApprovalReview,
   useGrantHistoryMetadata,
+  useGrantReasons,
   usePendingGrants,
   type GrantMethod,
   type GrantPolicyBody,
@@ -121,6 +122,7 @@ export function NotificationCenterPage({
   const deny = useDenyGrant();
   const approve = useApproveGrant();
   const pendingGrants = usePendingGrants();
+  const pendingGrantReasons = useGrantReasons(pendingGrants.data ?? []);
   const [approveTarget, setApproveTarget] = useState<PendingGrant | null>(null);
   const approvalReview = useGrantApprovalReview(approveTarget);
   const approveAgent = useApproveAgent();
@@ -184,11 +186,22 @@ export function NotificationCenterPage({
         const metadata = grantId
           ? grantHistoryMetadata.get(grantId)
           : undefined;
-        return metadata
-          ? { ...item, metadata: { ...item.metadata, ...metadata } }
+        const pendingReason =
+          item.type === "grant_pending" && grantId
+            ? pendingGrantReasons.get(grantId)
+            : undefined;
+        return metadata || pendingReason
+          ? {
+              ...item,
+              metadata: {
+                ...item.metadata,
+                ...metadata,
+                ...(pendingReason ? { reason: pendingReason } : {}),
+              },
+            }
           : item;
       }),
-    [grantHistoryMetadata, items],
+    [grantHistoryMetadata, items, pendingGrantReasons],
   );
 
   const { actionItems, historyItems } = useMemo(
@@ -240,11 +253,15 @@ export function NotificationCenterPage({
     // Fetch the canonical pending contract immediately before cryptographic
     // review so signature/scope checks never run against a stale snapshot.
     const refreshed = await pendingGrants.refetch();
+    if (refreshed.isError) {
+      toast.error(t("grants.approve.requestRefreshFailed"));
+      return;
+    }
     const grant = refreshed.data?.find(
       (item) => item.id === context.grantId && item.vaultId === context.vaultId,
     );
     if (!grant) {
-      toast.error(t("grants.approve.reviewUnavailable"));
+      toast.error(t("grants.approve.requestNotPending"));
       return;
     }
     setApproveTarget(grant);

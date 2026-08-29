@@ -1,4 +1,6 @@
-function requireEnv(key: string): string {
+import type { RequiredClientEnvKey } from './required-client-env'
+
+function requireEnv(key: RequiredClientEnvKey): string {
   const val = import.meta.env[key]
   if (!val) throw new Error(`Missing required env var: ${key}`)
   return val

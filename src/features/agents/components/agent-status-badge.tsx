@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import {
   AGENT_STATUS_ACTIVE,
   AGENT_STATUS_DEACTIVATED,
+  AGENT_STATUS_DEACTIVATING,
   AGENT_STATUS_PENDING,
   type AgentStatus,
 } from '../api/agents-api'
@@ -22,6 +23,10 @@ export function AgentStatusBadge({ status }: { status: AgentStatus }) {
     [AGENT_STATUS_DEACTIVATED]: {
       label: t('agents.statusDeactivated'),
       className: 'bg-[rgb(var(--cv-primary-rgb)/0.1)] text-[var(--cv-primary)]',
+    },
+    [AGENT_STATUS_DEACTIVATING]: {
+      label: t('agents.statusDeactivating'),
+      className: 'bg-[rgba(240,192,64,0.12)] text-[#D4820A]',
     },
   }
   const { label, className } = config[status]

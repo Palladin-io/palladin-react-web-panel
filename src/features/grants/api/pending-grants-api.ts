@@ -1,26 +1,25 @@
-import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 import type { buildCanonicalGrantEnvelope } from '../../../shared/crypto/grant-protocol'
+import type { EncryptedReasonContract } from '../../../shared/crypto/reason-protocol'
 import type { buildCompleteScriptExecutionPackage } from '../../vaults/script-execution-package'
 import { encryptedReasonEnvelopeSchema } from '../../vaults/sync/entry-envelope-schema'
-import { canonicalUuidSchema, u32Schema } from '../../vaults/sync/vault-key-material-schema'
 
-const grantEntryScopeSchema = z.object({
-  entryId: canonicalUuidSchema,
-  fieldIds: z.array(z.string()),
-  grantEnvelopeRevision: z.string().nullable(),
-  entryRevision: z.string().nullable(),
-  grantKeyVersion: u32Schema.nullable(),
-  memberKeyGeneration: u32Schema.nullable(),
-  recipientAgentKeyVersion: u32Schema.nullable(),
-  agentKeyFingerprint: z.string().nullable(),
-}).strict()
+export interface GrantEntryScope {
+  entryId: string
+  fieldIds: string[]
+  grantEnvelopeRevision: string | null
+  entryRevision: string | null
+  grantKeyVersion: number | null
+  memberKeyGeneration: number | null
+  recipientAgentKeyVersion: number | null
+  agentKeyFingerprint: string | null
+}
 
-const scriptExecutionScopeSchema = z.object({
-  entryId: canonicalUuidSchema,
-  entryRevision: z.string(),
-  isScript: z.boolean(),
-}).strict()
+export interface ScriptExecutionScope {
+  entryId: string
+  entryRevision: string
+  isScript: boolean
+}
 
 /**
  * A pending grant awaiting the user's approval. Cross-vault — returned by
@@ -33,80 +32,74 @@ const scriptExecutionScopeSchema = z.object({
  * blocked until the backend adds it (see `use-approve-grant.ts`). Modelled as
  * optional so the list still renders without it.
  */
-const pendingGrantSchema = z.object({
-  id: canonicalUuidSchema,
-  vaultId: canonicalUuidSchema,
-  agentId: canonicalUuidSchema.nullable(),
-  agentAccessEpoch: u32Schema.nullable(),
-  agentName: z.string().nullable(),
-  agentIconKey: z.string().nullable(),
-  agentPublicKey: z.string().nullable(),
-  recipientAgentKeyVersion: u32Schema.nullable(),
-  agentSigningPublicKey: z.string().nullable(),
-  agentSigningKeyVersion: u32Schema.nullable(),
-  agentSigningKeyFingerprint: z.string().nullable(),
-  type: z.enum(['full', 'granular', 'scriptExecution']),
-  status: z.literal('pending'),
-  methods: z.string(),
-  entryId: canonicalUuidSchema.nullable(),
-  entryLabel: z.string().nullable(),
-  urlDomain: z.string().nullable(),
-  entryScopes: z.array(grantEntryScopeSchema),
-  scriptScopes: z.array(scriptExecutionScopeSchema),
-  scriptPackageRevision: z.string().nullable(),
-  encryptedReason: encryptedReasonEnvelopeSchema,
-  expiresAt: z.string().datetime({ offset: true }).nullable(),
-  queryLimit: z.number().int().positive().nullable(),
-  queryCount: z.number().int().nonnegative(),
-  expirySource: z.string(),
-  createdAt: z.string().datetime({ offset: true }),
-  createdBy: canonicalUuidSchema.nullable(),
-  createdByName: z.string().nullable(),
-  revokedAt: z.string().datetime({ offset: true }).nullable(),
-  revokedBy: canonicalUuidSchema.nullable(),
-  revokedByName: z.string().nullable(),
-  deniedAt: z.string().datetime({ offset: true }).nullable(),
-  deniedBy: canonicalUuidSchema.nullable(),
-  deniedByName: z.string().nullable(),
-  lastAccessedAt: z.string().datetime({ offset: true }).nullable(),
-  lastAccessIp: z.string().nullable(),
-  lastAccessHostname: z.string().nullable(),
-  canRevoke: z.boolean(),
-  canGrantAgain: z.boolean(),
-  activeCoveringGrantIds: z.array(canonicalUuidSchema).optional().default([]),
-}).strict().superRefine((grant, context) => {
-  const scope = grant.encryptedReason.descriptor.scope
-  if (scope.vaultId !== grant.vaultId || scope.grantOrRequestId !== grant.id
-    || scope.agentId !== grant.agentId || scope.entryId !== grant.entryId) {
-    context.addIssue({ code: 'custom', message: 'Pending grant encrypted reason scope mismatch' })
-  }
-})
+export interface PendingGrant {
+  id: string
+  vaultId: string
+  agentId: string | null
+  agentAccessEpoch: number | null
+  agentName: string | null
+  agentIconKey: string | null
+  agentPublicKey: string | null
+  recipientAgentKeyVersion: number | null
+  agentSigningPublicKey: string | null
+  agentSigningKeyVersion: number | null
+  agentSigningKeyFingerprint: string | null
+  type: 'full' | 'granular' | 'scriptExecution'
+  status: 'pending'
+  methods: string
+  entryId: string | null
+  entryLabel: string | null
+  urlDomain: string | null
+  entryScopes: GrantEntryScope[]
+  scriptScopes: ScriptExecutionScope[]
+  scriptPackageRevision: string | null
+  encryptedReason: EncryptedReasonContract
+  expiresAt: string | null
+  queryLimit: number | null
+  queryCount: number
+  expirySource: string
+  createdAt: string
+  createdBy: string | null
+  createdByName: string | null
+  revokedAt: string | null
+  revokedBy: string | null
+  revokedByName: string | null
+  supersededAt: string | null
+  supersededByGrantId: string | null
+  deniedAt: string | null
+  deniedBy: string | null
+  deniedByName: string | null
+  lastAccessedAt: string | null
+  lastAccessIp: string | null
+  lastAccessHostname: string | null
+  canRevoke: boolean
+  canGrantAgain: boolean
+  activeCoveringGrantIds: string[]
+}
 
-export type PendingGrant = z.infer<typeof pendingGrantSchema>
+interface PendingGrantWire extends Omit<PendingGrant, 'encryptedReason' | 'activeCoveringGrantIds'> {
+  encryptedReason: unknown
+  activeCoveringGrantIds?: string[]
+}
 
-const pendingGrantListSchema = z.object({
-  items: z.array(z.unknown()),
-  nextCursor: z.string().nullable(),
-}).strict()
+interface PendingGrantListResponse {
+  items: PendingGrantWire[]
+  nextCursor: string | null
+}
 
 /**
- * Fetches pending grants. Each item is parsed individually with `safeParse` so
- * a single malformed record is skipped (and logged as a count) rather than
- * collapsing the whole list to an empty render.
+ * Fetches the trusted first-party pending-grant contract without duplicating
+ * backend-owned domain validation in the UI. The encrypted reason remains a
+ * cryptographic boundary: decoding it normalizes wire enums and fails closed
+ * before any signature, scope or wrapper verification is attempted.
  */
 export async function getPendingGrants(): Promise<PendingGrant[]> {
-  const raw = await api.get('api/dashboard/pending-grants').json()
-  const envelope = pendingGrantListSchema.parse(raw)
-
-  const items: PendingGrant[] = []
-  let skipped = 0
-  for (const candidate of envelope.items) {
-    const parsed = pendingGrantSchema.safeParse(candidate)
-    if (parsed.success) items.push(parsed.data)
-    else skipped += 1
-  }
-  if (skipped > 0) console.warn(`[pending-grants] skipped ${skipped} malformed item(s)`)
-  return items
+  const response = await api.get('api/dashboard/pending-grants').json<PendingGrantListResponse>()
+  return response.items.map((grant) => ({
+    ...grant,
+    activeCoveringGrantIds: grant.activeCoveringGrantIds ?? [],
+    encryptedReason: encryptedReasonEnvelopeSchema.parse(grant.encryptedReason),
+  }))
 }
 
 /**

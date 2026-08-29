@@ -104,6 +104,7 @@ vi.mock("../grants", async (importOriginal) => ({
     refetch: pendingRefetch,
   }),
   useGrantApprovalReview: grantApprovalReview,
+  useGrantReasons: () => new Map([["g1", "deploy"]]),
   useDenyGrant: () => ({ mutate: denyMutate, isPending: false }),
   useGrantHistoryMetadata: () => grantHistoryMetadata,
 }));
@@ -254,6 +255,7 @@ describe("NotificationCenterPage", () => {
     // (subtitle interpolates the agent name, so match by substring) + entry row
     expect(screen.getByText(/Deploy Bot/)).toBeInTheDocument();
     expect(screen.getByText("GitHub Token")).toBeInTheDocument();
+    expect(screen.getByText("deploy")).toBeInTheDocument();
 
     // an update (grant_approved) drops into History as an immutable log
     expect(screen.getByText(/Old Bot/)).toBeInTheDocument();

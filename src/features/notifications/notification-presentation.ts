@@ -121,6 +121,8 @@ function agentHostIp(item: NotificationItem): string | undefined {
  * values show the em-dash placeholder so the grid stays uniform.
  */
 function agentPublicKeyShort(item: NotificationItem): string | undefined {
+  const hint = meta(item, 'agentPublicKeyHint')
+  if (hint) return hint
   const pk = meta(item, 'agentPublicKey')
   return pk ? shortenKey(pk, 8, 6) : undefined
 }

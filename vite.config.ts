@@ -5,6 +5,7 @@ import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
+import { assertRequiredClientEnv } from './src/shared/lib/required-client-env'
 
 const publicAssetOriginPlaceholder = '__PALLADIN_PUBLIC_ASSET_ORIGIN__'
 
@@ -36,8 +37,12 @@ function injectPublicAssetCsp(origin: string): Plugin {
   }
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, isPreview, mode }) => {
   const buildEnv = loadEnv(mode, process.cwd(), '')
+  if (command === 'serve' && !isPreview && mode !== 'test') {
+    assertRequiredClientEnv(buildEnv)
+  }
+
   return {
     plugins: [
       TanStackRouterVite(),

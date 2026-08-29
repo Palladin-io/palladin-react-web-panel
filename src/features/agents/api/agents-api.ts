@@ -6,11 +6,13 @@ import { getPublicAssetsByIds } from '../../../shared/api/public-assets-api'
 export const AGENT_STATUS_PENDING = 'pending' as const
 export const AGENT_STATUS_ACTIVE = 'active' as const
 export const AGENT_STATUS_DEACTIVATED = 'deactivated' as const
+export const AGENT_STATUS_DEACTIVATING = 'deactivating' as const
 
 export type AgentStatus =
   | typeof AGENT_STATUS_PENDING
   | typeof AGENT_STATUS_ACTIVE
   | typeof AGENT_STATUS_DEACTIVATED
+  | typeof AGENT_STATUS_DEACTIVATING
 
 /** Agent type — camelCase strings matching backend JsonStringEnumConverter. */
 export const AGENT_TYPE_OPEN_CLAW = 'openClaw' as const
@@ -59,39 +61,36 @@ export const BUILTIN_AGENT_TYPES: string[] = [
   AGENT_TYPE_OTHER,
 ]
 
-/**
- * Zod schema for a single agent — the single source of truth for the
- * `Agent` type. Parsing at the API boundary guards the UI against a
- * backend contract drift (missing fields, wrong status enum, etc.).
- */
-export const agentSchema = z.object({
-  agentId: z.string(),
-  name: z.string().nullable(),
-  status: z.enum(['pending', 'active', 'deactivated']),
-  type: z.string().nullable(),
-  iconKey: z.string().nullable(),
-  iconColor: z.string().nullable(),
-  publicKeyPrefix: z.string(),
-  publicKeySuffix: z.string(),
+/** Version-matched response contract owned by the Palladin backend. */
+export interface Agent {
+  agentId: string
+  name: string | null
+  status: AgentStatus
+  type: string | null
+  iconKey: string | null
+  iconColor: string | null
+  publicKeyPrefix: string
+  publicKeySuffix: string
   // Full base64 X25519 public key — returned by `GET /api/agents/{id}` so the
   // proactive-grant flow can seal a DEK to the agent. Optional until the
   // backend ships it; the list endpoint keeps returning only prefix/suffix.
-  publicKey: z.string().nullable().optional(),
-  recipientKeyVersion: z.number().int().positive().max(0xffffffff),
-  accessEpoch: z.number().int().positive().max(0xffffffff),
-  createdAt: z.string(),
-  enrolledAt: z.string().nullable(),
-  enrolledByName: z.string().nullable(),
-  deactivatedAt: z.string().nullable(),
-  deactivatedByName: z.string().nullable(),
-  reactivatedAt: z.string().nullable(),
-  reactivatedByName: z.string().nullable(),
-  description: z.string().nullable(),
-  lastIp: z.string().nullable(),
-  lastHostname: z.string().nullable(),
-})
+  publicKey?: string | null
+  recipientKeyVersion: number
+  /** Pending agents legitimately use epoch 0; backend owns lifecycle validity. */
+  accessEpoch: number
+  createdAt: string
+  enrolledAt: string | null
+  enrolledByName: string | null
+  deactivatedAt: string | null
+  deactivatedByName: string | null
+  reactivatedAt: string | null
+  reactivatedByName: string | null
+  description: string | null
+  lastIp: string | null
+  lastHostname: string | null
+}
 
-const agentListSchema = z.object({ items: z.array(agentSchema) })
+interface AgentListResponse { items: Agent[] }
 
 const presignIconSchema = z.object({
   assetId: z.string().uuid(),
@@ -105,8 +104,6 @@ const completeIconSchema = z.object({
   publicUrl: z.string().url(),
   revision: z.number().int().positive(),
 })
-
-export type Agent = z.infer<typeof agentSchema>
 
 export interface UpdateAgentInput {
   name?: string
@@ -129,15 +126,13 @@ export async function getAgentTypes(): Promise<string[]> {
 }
 
 export async function getAgents(): Promise<Agent[]> {
-  const raw = await api.get('api/agents').json()
-  const agents = agentListSchema.parse(raw).items
+  const agents = (await api.get('api/agents').json<AgentListResponse>()).items
   await hydrateAgentAssets(agents)
   return agents
 }
 
 export async function getAgent(agentId: string): Promise<Agent> {
-  const raw = await api.get(`api/agents/${agentId}`).json()
-  const agent = agentSchema.parse(raw)
+  const agent = await api.get(`api/agents/${agentId}`).json<Agent>()
   await hydrateAgentAssets([agent])
   return agent
 }

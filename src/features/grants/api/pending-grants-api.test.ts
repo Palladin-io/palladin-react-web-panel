@@ -50,6 +50,8 @@ const samplePending = {
   revokedAt: null,
   revokedBy: null,
   revokedByName: null,
+  supersededAt: null,
+  supersededByGrantId: null,
   deniedAt: null,
   deniedBy: null,
   deniedByName: null,
@@ -131,28 +133,30 @@ describe('pending-grants-api', () => {
     expect(items[0].activeCoveringGrantIds).toEqual([])
   })
 
-  it('isolates an item with unknown sensitive fields at the parse boundary', async () => {
+  it('does not reject a forward-compatible backend field', async () => {
     getJson.mockResolvedValue({
       items: [
         {
           ...samplePending,
-          // A buggy/malicious backend leaking key material must not survive.
-          agentWrappedDek: 'leak',
-          vaultKey: 'leak',
+          futurePresentationField: 'supported-by-newer-backend',
         },
       ],
       nextCursor: null,
     })
-    await expect(getPendingGrants()).resolves.toEqual([])
+    await expect(getPendingGrants()).resolves.toEqual([
+      expect.objectContaining({ id: samplePending.id }),
+    ])
   })
 
-  it('keeps valid pending grants when another item is malformed', async () => {
+  it('fails closed when the encrypted reason contract is invalid', async () => {
     getJson.mockResolvedValue({
-      // One valid + one malformed (missing required `id`/`createdAt`).
-      items: [samplePending, { foo: 'bar' }],
+      items: [{
+        ...samplePending,
+        encryptedReason: { ...samplePending.encryptedReason, agentSignature: '' },
+      }],
       nextCursor: null,
     })
-    await expect(getPendingGrants()).resolves.toEqual([expect.objectContaining({ id: samplePending.id })])
+    await expect(getPendingGrants()).rejects.toThrow()
   })
 
   it('PUTs the approve envelope with an expiresAt policy', async () => {
