@@ -169,7 +169,13 @@ describe('pending-grants-api', () => {
 
   it('ignores a transport-malformed row without hiding valid pending grants', async () => {
     getJson.mockResolvedValue({
-      items: [null, 42, [], samplePending],
+      items: [
+        null,
+        42,
+        [],
+        { ...samplePending, agentName: {} },
+        samplePending,
+      ],
       nextCursor: null,
     })
 

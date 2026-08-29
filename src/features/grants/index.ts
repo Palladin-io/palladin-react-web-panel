@@ -45,6 +45,7 @@ export {
 // embedded panel already runs.
 export { useOrgGrants } from "./use-org-grants";
 export {
+  grantHistoryCoordinateKey,
   useGrantHistoryMetadata,
   type GrantHistoryCoordinate,
   type GrantHistoryMetadata,

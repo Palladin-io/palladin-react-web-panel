@@ -12,6 +12,8 @@ export interface GrantHistoryCoordinate {
   type: "grant_approved" | "grant_denied" | "grant_revoked";
   grantId: string;
   vaultId: string;
+  entryId: string | null;
+  agentId: string | null;
 }
 
 export interface GrantHistoryMetadata {
@@ -20,6 +22,18 @@ export interface GrantHistoryMetadata {
 }
 
 const EMPTY_METADATA: ReadonlyMap<string, GrantHistoryMetadata> = new Map();
+
+export function grantHistoryCoordinateKey(
+  coordinate: GrantHistoryCoordinate,
+): string {
+  return JSON.stringify([
+    coordinate.type,
+    coordinate.grantId,
+    coordinate.vaultId,
+    coordinate.entryId,
+    coordinate.agentId,
+  ]);
+}
 
 /** Resolves grant-history presentation from authoritative client-side sources. */
 export function useGrantHistoryMetadata(
@@ -70,14 +84,23 @@ export function useGrantHistoryMetadata(
       const names = memberQueries[index]?.data;
       if (names) memberNames.set(vaultId, names);
     });
-    const grantsById = new Map(grants.map((grant) => [grant.id, grant]));
+    const grantsByCoordinates = new Map(
+      grants.map((grant) => [grantReasonCoordinateKey(grant), grant]),
+    );
     const resolved = new Map<string, GrantHistoryMetadata>();
     for (const coordinate of coordinates) {
-      const grant = grantsById.get(coordinate.grantId);
-      if (!grant || grant.vaultId !== coordinate.vaultId) continue;
+      const grant = grantsByCoordinates.get(
+        grantReasonCoordinateKey({
+          id: coordinate.grantId,
+          vaultId: coordinate.vaultId,
+          entryId: coordinate.entryId,
+          agentId: coordinate.agentId,
+        }),
+      );
+      if (!grant) continue;
       const actorId = actorIdFor(grant, coordinate.type);
       const reason = reasons.get(grantReasonCoordinateKey(grant));
-      resolved.set(coordinate.grantId, {
+      resolved.set(grantHistoryCoordinateKey(coordinate), {
         ...(reason ? { reason } : {}),
         ...(actorId
           ? {

@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 import type { buildCanonicalGrantEnvelope } from '../../../shared/crypto/grant-protocol'
 import type { EncryptedReasonContract } from '../../../shared/crypto/reason-protocol'
@@ -82,6 +83,73 @@ interface PendingGrantWire extends Omit<PendingGrant, 'encryptedReason' | 'activ
   activeCoveringGrantIds?: string[]
 }
 
+const grantEntryScopeSchema = z.object({
+  entryId: z.string(),
+  fieldIds: z.array(z.string()),
+  grantEnvelopeRevision: z.string().nullable(),
+  entryRevision: z.string().nullable(),
+  grantKeyVersion: z.number().nullable(),
+  memberKeyGeneration: z.number().nullable(),
+  recipientAgentKeyVersion: z.number().nullable(),
+  agentKeyFingerprint: z.string().nullable(),
+}).passthrough()
+
+const scriptExecutionScopeSchema = z.object({
+  entryId: z.string(),
+  entryRevision: z.string(),
+  isScript: z.boolean(),
+}).passthrough()
+
+/**
+ * Transport-shape decoding only. This deliberately checks readable primitive
+ * and collection types without duplicating backend-owned enum, range, lifecycle,
+ * or cross-field rules. Unknown fields remain forward-compatible.
+ */
+const pendingGrantReadableSchema: z.ZodType<PendingGrantWire> = z.object({
+  id: z.string(),
+  vaultId: z.string(),
+  agentId: z.string().nullable(),
+  agentAccessEpoch: z.number().nullable(),
+  agentName: z.string().nullable(),
+  agentIconKey: z.string().nullable(),
+  agentPublicKey: z.string().nullable(),
+  recipientAgentKeyVersion: z.number().nullable(),
+  agentSigningPublicKey: z.string().nullable(),
+  agentSigningKeyVersion: z.number().nullable(),
+  agentSigningKeyFingerprint: z.string().nullable(),
+  type: z.custom<PendingGrant['type']>((value) => typeof value === 'string'),
+  status: z.custom<PendingGrant['status']>((value) => typeof value === 'string'),
+  methods: z.string(),
+  entryId: z.string().nullable(),
+  entryLabel: z.string().nullable(),
+  urlDomain: z.string().nullable(),
+  entryScopes: z.array(grantEntryScopeSchema),
+  scriptScopes: z.array(scriptExecutionScopeSchema),
+  scriptPackageRevision: z.string().nullable(),
+  encryptedReason: z.unknown(),
+  expiresAt: z.string().nullable(),
+  queryLimit: z.number().nullable(),
+  queryCount: z.number(),
+  expirySource: z.string(),
+  createdAt: z.string(),
+  createdBy: z.string().nullable(),
+  createdByName: z.string().nullable(),
+  revokedAt: z.string().nullable(),
+  revokedBy: z.string().nullable(),
+  revokedByName: z.string().nullable(),
+  supersededAt: z.string().nullable(),
+  supersededByGrantId: z.string().nullable(),
+  deniedAt: z.string().nullable(),
+  deniedBy: z.string().nullable(),
+  deniedByName: z.string().nullable(),
+  lastAccessedAt: z.string().nullable(),
+  lastAccessIp: z.string().nullable(),
+  lastAccessHostname: z.string().nullable(),
+  canRevoke: z.boolean(),
+  canGrantAgain: z.boolean(),
+  activeCoveringGrantIds: z.array(z.string()).optional(),
+}).passthrough()
+
 interface PendingGrantListResponse {
   items: unknown
   nextCursor: string | null
@@ -99,8 +167,9 @@ export async function getPendingGrants(): Promise<PendingGrant[]> {
   if (!Array.isArray(response.items)) return []
 
   return response.items.flatMap((candidate) => {
-    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return []
-    const grant = candidate as PendingGrantWire
+    const readableGrant = pendingGrantReadableSchema.safeParse(candidate)
+    if (!readableGrant.success) return []
+    const grant = readableGrant.data
     const encryptedReason = encryptedReasonEnvelopeSchema.safeParse(grant.encryptedReason)
     if (!encryptedReason.success) return []
 

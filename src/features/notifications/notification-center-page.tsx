@@ -14,6 +14,7 @@ import { TypeFilterDropdown } from "../../shared/components/type-filter-dropdown
 import {
   ApproveGrantDialog,
   DenyGrantDialog,
+  grantHistoryCoordinateKey,
   grantReasonCoordinateKey,
   GrantReviewUnavailableError,
   OrgGrantsPanel,
@@ -186,7 +187,13 @@ export function NotificationCenterPage({
         const grantId = item.metadata?.grantId;
         const vaultId = item.metadata?.vaultId;
         return grantId && vaultId
-          ? [{ type: item.type, grantId, vaultId }]
+          ? [{
+              type: item.type,
+              grantId,
+              vaultId,
+              entryId: item.metadata?.entryId ?? null,
+              agentId: item.metadata?.agentId ?? null,
+            }]
           : [];
       }),
     [items],
@@ -197,7 +204,15 @@ export function NotificationCenterPage({
       items.map((item) => {
         const grantId = item.metadata?.grantId;
         const metadata = grantId && isGrantHistoryType(item.type)
-          ? grantHistoryMetadata.get(grantId)
+          ? grantHistoryMetadata.get(
+              grantHistoryCoordinateKey({
+                type: item.type,
+                grantId,
+                vaultId: item.metadata?.vaultId ?? "",
+                entryId: item.metadata?.entryId ?? null,
+                agentId: item.metadata?.agentId ?? null,
+              }),
+            )
           : undefined;
         const pendingReason =
           item.type === "grant_pending" && grantId

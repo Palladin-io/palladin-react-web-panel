@@ -36,7 +36,10 @@ const navigateMock = vi.hoisted(() => vi.fn());
 const grantHistoryMetadata = vi.hoisted(
   () =>
     new Map([
-      ["g2", { reason: "Deploy production", actorName: "Alice Admin" }],
+      [
+        '["grant_approved","g2","v1","e2","a2"]',
+        { reason: "Deploy production", actorName: "Alice Admin" },
+      ],
     ]),
 );
 
@@ -266,7 +269,7 @@ describe("NotificationCenterPage", () => {
 
   it("does not attach an authenticated reason to mismatched notification coordinates", () => {
     const original = items[0];
-    grantHistoryMetadata.set("g1", {
+    grantHistoryMetadata.set('["grant_approved","g1","v1","e1","a1"]', {
       reason: "history reason",
       actorName: "History Actor",
     });
@@ -286,7 +289,27 @@ describe("NotificationCenterPage", () => {
       expect(screen.queryByText("history reason")).not.toBeInTheDocument();
     } finally {
       items[0] = original;
-      grantHistoryMetadata.delete("g1");
+      grantHistoryMetadata.delete('["grant_approved","g1","v1","e1","a1"]');
+    }
+  });
+
+  it("does not attach grant history metadata to another Entry or Agent", () => {
+    const original = items[1];
+    items[1] = {
+      ...original,
+      metadata: {
+        ...original.metadata,
+        entryId: "other-entry",
+        agentId: "other-agent",
+      },
+    };
+
+    try {
+      renderPage();
+      expect(screen.queryByText("Deploy production")).not.toBeInTheDocument();
+      expect(screen.queryByText("Alice Admin")).not.toBeInTheDocument();
+    } finally {
+      items[1] = original;
     }
   });
 
