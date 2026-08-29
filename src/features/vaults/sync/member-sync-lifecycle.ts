@@ -76,14 +76,22 @@ export async function invalidateMemberSyncGeneration(
   cache: MemberSyncCache,
   userId: string,
   vaultId: string,
-): Promise<void> {
+  expected: ActiveCacheState,
+): Promise<boolean> {
   try {
-    await cache.removeVault(userId, vaultId)
-  } finally {
+    const removed = await cache.removeActiveGeneration(userId, vaultId, expected)
+    if (!removed) return false
     forgetClockObservation(userId, vaultId)
     const store = useMemberSyncStore.getState()
     store.removeVault(vaultId)
     store.fail()
+    return true
+  } catch (error) {
+    forgetClockObservation(userId, vaultId)
+    const store = useMemberSyncStore.getState()
+    store.removeVault(vaultId)
+    store.fail()
+    throw error
   }
 }
 
@@ -105,7 +113,7 @@ export async function purgeInvalidMemberSyncGenerations(
       }
     } catch {
       try {
-        await invalidateMemberSyncGeneration(cache, userId, state.vault.id)
+        await invalidateMemberSyncGeneration(cache, userId, state.vault.id, state)
       } catch {
         cleanupFailed = true
       }

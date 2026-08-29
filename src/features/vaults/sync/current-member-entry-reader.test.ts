@@ -47,7 +47,7 @@ function cachedEntry(): CachedCurrentMemberEntry {
 function cacheWith(entry: CachedCurrentMemberEntry | null) {
   return {
     readActiveItem: vi.fn(async () => entry),
-    removeVault: vi.fn(async () => {}),
+    removeActiveGeneration: vi.fn(async () => true),
     validateAndObserveActiveClock: vi.fn(async (
       _userId: string,
       _vaultId: string,
@@ -59,7 +59,7 @@ function cacheWith(entry: CachedCurrentMemberEntry | null) {
     ) => candidateMaximumWallTime),
   } as unknown as MemberSyncCache & {
     readActiveItem: ReturnType<typeof vi.fn>
-    removeVault: ReturnType<typeof vi.fn>
+    removeActiveGeneration: ReturnType<typeof vi.fn>
     validateAndObserveActiveClock: ReturnType<typeof vi.fn>
   }
 }
@@ -93,7 +93,7 @@ describe('current Member Entry reader', () => {
     expect(cryptoMocks.openMemberVaultKey).toHaveBeenCalledTimes(1)
     expect(cryptoMocks.openMemberSecret).toHaveBeenCalledTimes(1)
     expect(cryptoMocks.wipe).toHaveBeenCalledTimes(1)
-    expect(cache.removeVault).not.toHaveBeenCalled()
+    expect(cache.removeActiveGeneration).not.toHaveBeenCalled()
   })
 
   it('rejects an item when its active generation advances before lease validation', async () => {
@@ -102,6 +102,7 @@ describe('current Member Entry reader', () => {
     cache.validateAndObserveActiveClock.mockRejectedValueOnce(
       new Error('Vault active generation changed while validating its lease'),
     )
+    cache.removeActiveGeneration.mockResolvedValueOnce(false)
 
     await expect(openCurrentMemberEntrySecret(input(), cache)).rejects.toThrow('active generation changed')
 
@@ -116,7 +117,8 @@ describe('current Member Entry reader', () => {
       expect.any(Number),
     )
     expect(cryptoMocks.openMemberVaultKey).not.toHaveBeenCalled()
-    expect(cache.removeVault).toHaveBeenCalledWith(userId, vaultId)
+    expect(cache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, entry)
+    expect(useMemberSyncStore.getState().status).toBe('idle')
   })
 
   it('fails closed and purges the generation at the exact lease expiry', async () => {
@@ -126,7 +128,7 @@ describe('current Member Entry reader', () => {
       ...input(), now: new Date('2026-08-30T08:00:00Z'),
     }, cache)).rejects.toThrow('lease is not valid')
 
-    expect(cache.removeVault).toHaveBeenCalledWith(userId, vaultId)
+    expect(cache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, expect.anything())
     expect(cryptoMocks.openMemberVaultKey).not.toHaveBeenCalled()
     expect(useMemberSyncStore.getState().status).toBe('error')
   })
@@ -150,7 +152,7 @@ describe('current Member Entry reader', () => {
     await expect(openCurrentMemberEntrySecret({
       ...input(), connected: false,
     }, disconnectedCache)).rejects.toThrow('lease is not valid')
-    expect(disconnectedCache.removeVault).toHaveBeenCalledWith(userId, vaultId)
+    expect(disconnectedCache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, disconnectedEntry)
   })
 
   it('rejects a process-clock rollback beyond five minutes before opening keys', async () => {
@@ -166,7 +168,7 @@ describe('current Member Entry reader', () => {
       now: new Date('2026-08-29T08:54:59Z'),
       monotonicTime: 2_000,
     }, cache)).rejects.toThrow('clock rollback')
-    expect(cache.removeVault).toHaveBeenCalledWith(userId, vaultId)
+    expect(cache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, expect.anything())
   })
 
   it('purges a structural revision mismatch before opening any key', async () => {
@@ -176,7 +178,7 @@ describe('current Member Entry reader', () => {
       ...input(), expectedRevision: '13',
     }, cache)).rejects.toThrow('structural head')
 
-    expect(cache.removeVault).toHaveBeenCalledWith(userId, vaultId)
+    expect(cache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, expect.anything())
     expect(cryptoMocks.openMemberVaultKey).not.toHaveBeenCalled()
   })
 
@@ -186,13 +188,13 @@ describe('current Member Entry reader', () => {
     foreign.authority.accessContext.vaultId = '99999999-9999-4999-8999-999999999999'
     const foreignCache = cacheWith(foreign)
     await expect(openCurrentMemberEntrySecret(input(), foreignCache)).rejects.toThrow()
-    expect(foreignCache.removeVault).toHaveBeenCalledWith(userId, vaultId)
+    expect(foreignCache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, foreign)
 
     const corrupt = cachedEntry()
     corrupt.item = structuredClone(corrupt.item)
     if (corrupt.item?.kind === 'head') corrupt.item.memberSecret.encodedSuitePayload = ''
     const corruptCache = cacheWith(corrupt)
     await expect(openCurrentMemberEntrySecret(input(), corruptCache)).rejects.toThrow()
-    expect(corruptCache.removeVault).toHaveBeenCalledWith(userId, vaultId)
+    expect(corruptCache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, corrupt)
   })
 })

@@ -164,6 +164,25 @@ describe('encrypted Member sync cache', () => {
     )).rejects.toThrow('active generation changed')
   })
 
+  it('does not delete a newer active generation through a stale cleanup fence', async () => {
+    const subject = cache()
+    const entryId = '33333333-3333-4333-8333-333333333333'
+    await subject.beginSnapshot(userId, vault('1'), 'active', '1')
+    await subject.applySnapshotPage(userId, vaultId, 'active', snapshot('1', [head(entryId, '1')]))
+    await subject.completeSnapshot(userId, vault('1'), 'active', '1')
+    const stale = await subject.readActiveItem(userId, vaultId, entryId)
+    expect(stale).not.toBeNull()
+
+    await subject.applyActiveDeltaPage(userId, vault('2'), '1', delta('2', [head(entryId, '2')]))
+
+    await expect(subject.removeActiveGeneration(userId, vaultId, stale!)).resolves.toBe(false)
+    expect((await subject.getActiveState(userId, vaultId))?.appliedThroughSequence).toBe('2')
+    expect((await subject.readActiveItem(userId, vaultId, entryId))?.item).toMatchObject({
+      kind: 'head',
+      currentRevision: '2',
+    })
+  })
+
   it('persists ciphertext and structural metadata only', async () => {
     const databaseName = `palladin-vault-ciphertext-cache-test-${++databaseSequence}`
     const subject = new IndexedDbMemberSyncCache(databaseName)

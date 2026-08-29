@@ -71,6 +71,7 @@ export interface MemberSyncCache {
     candidateMaximumWallTime: number,
     maximumRollbackMs: number,
   ): Promise<number>
+  removeActiveGeneration(userId: string, vaultId: string, expected: ActiveCacheState): Promise<boolean>
   removeVault(userId: string, vaultId: string): Promise<void>
   removeUser(userId: string): Promise<void>
   removeMissingVaults(userId: string, retainedVaultIds: ReadonlySet<string>): Promise<void>
@@ -176,6 +177,18 @@ function cachedItem(namespace: string, item: MemberSyncItem): CachedMemberItem {
 
 function storedStateBytes(state: CachedVaultState): number {
   return encodedBytes(state) + (state.activeStoredBytes ?? 0) + (state.pendingStoredBytes ?? 0)
+}
+
+function matchesActiveGeneration(
+  state: CachedVaultState | undefined,
+  namespace: string,
+  appliedThroughSequence: string,
+  authority: CachedMemberSyncAuthority,
+): state is CachedVaultState & { activeNamespace: string, activeAuthority: CachedMemberSyncAuthority } {
+  return state?.activeNamespace === namespace
+    && state.activeAppliedThroughSequence === appliedThroughSequence
+    && state.activeAuthority !== null
+    && JSON.stringify(state.activeAuthority) === JSON.stringify(authority)
 }
 
 async function applyItems(store: IDBObjectStore, namespace: string, items: MemberSyncItem[]): Promise<number> {
@@ -513,9 +526,12 @@ export class IndexedDbMemberSyncCache implements MemberSyncCache {
     const done = transactionDone(transaction)
     const store = transaction.objectStore(VAULT_STORE)
     const state = await request(store.get(scopeId(userId, vaultId))) as CachedVaultState | undefined
-    if (!state?.activeAuthority || state.activeNamespace !== namespace
-      || state.activeAppliedThroughSequence !== expectedAppliedThroughSequence
-      || JSON.stringify(state.activeAuthority) !== JSON.stringify(expectedAuthority)) {
+    if (!matchesActiveGeneration(
+      state,
+      namespace,
+      expectedAppliedThroughSequence,
+      expectedAuthority,
+    )) {
       return abortTransaction(transaction, done, new Error('Vault active generation changed while validating its lease'))
     }
     const issuedAt = Date.parse(state.activeAuthority.accessContext.issuedAt)
@@ -527,6 +543,43 @@ export class IndexedDbMemberSyncCache implements MemberSyncCache {
     await request(store.put({ ...state, activeMaximumObservedWallTime: nextMaximum }))
     await done
     return nextMaximum
+  }
+
+  async removeActiveGeneration(
+    userId: string,
+    vaultId: string,
+    expected: ActiveCacheState,
+  ): Promise<boolean> {
+    const database = await this.getDatabase()
+    const transaction = database.transaction([VAULT_STORE, ITEM_STORE], 'readwrite')
+    const done = transactionDone(transaction)
+    const vaultStore = transaction.objectStore(VAULT_STORE)
+    const id = scopeId(userId, vaultId)
+    const state = await request(vaultStore.get(id)) as CachedVaultState | undefined
+    if (!matchesActiveGeneration(
+      state,
+      expected.namespace,
+      expected.appliedThroughSequence,
+      expected.authority,
+    )) {
+      await done
+      return false
+    }
+    await deleteNamespaceFromStore(
+      transaction.objectStore(ITEM_STORE),
+      scopeNamespace(userId, vaultId, state.activeNamespace),
+    )
+    await request(vaultStore.put({
+      ...state,
+      activeNamespace: null,
+      activeAppliedThroughSequence: null,
+      activeVault: null,
+      activeAuthority: null,
+      activeStoredBytes: 0,
+      activeMaximumObservedWallTime: null,
+    } satisfies CachedVaultState))
+    await done
+    return true
   }
 
   async removeVault(userId: string, vaultId: string): Promise<void> {

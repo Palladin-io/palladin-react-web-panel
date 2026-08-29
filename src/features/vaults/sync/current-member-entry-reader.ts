@@ -62,7 +62,7 @@ export async function openCurrentMemberEntrySecret(
       wipe(vaultKey)
     }
   } catch (error) {
-    await invalidateMemberSyncGeneration(cache, input.userId, input.vaultId)
+    await invalidateMemberSyncGeneration(cache, input.userId, input.vaultId, cached)
     throw error
   }
 }

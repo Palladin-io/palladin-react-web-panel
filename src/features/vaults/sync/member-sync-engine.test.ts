@@ -131,6 +131,7 @@ class RecordingCache implements MemberSyncCache {
     _currentWallTime: number,
     candidateMaximumWallTime: number,
   ): Promise<number> { return candidateMaximumWallTime }
+  async removeActiveGeneration(): Promise<boolean> { this.active = null; this.events.push('remove-active'); return true }
   async removeVault(): Promise<void> { this.active = null; this.events.push('remove-vault') }
   async removeUser(): Promise<void> { this.active = null; this.events.push('remove-user') }
   async removeMissingVaults(): Promise<void> { this.events.push('retain') }
