@@ -15,6 +15,7 @@ describe('parseNotificationPayload', () => {
         grantId: subjectId,
         vaultId: '22222233-4455-4677-8899-aabbccddeeff',
         agentName: 'must not be trusted',
+        agentPublicKeyHint: 'must not be trusted',
         entryLabel: 'must not be trusted',
         actionDeepLink: '/evil',
       },

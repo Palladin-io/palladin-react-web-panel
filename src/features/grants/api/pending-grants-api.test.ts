@@ -148,15 +148,23 @@ describe('pending-grants-api', () => {
     ])
   })
 
-  it('fails closed when the encrypted reason contract is invalid', async () => {
+  it('fails closed only for the row whose encrypted reason contract is invalid', async () => {
+    const invalidGrant = {
+      ...samplePending,
+      id: '77777777-7777-4777-8777-777777777777',
+      encryptedReason: { ...samplePending.encryptedReason, agentSignature: '' },
+    }
     getJson.mockResolvedValue({
-      items: [{
-        ...samplePending,
-        encryptedReason: { ...samplePending.encryptedReason, agentSignature: '' },
-      }],
+      items: [
+        invalidGrant,
+        samplePending,
+      ],
       nextCursor: null,
     })
-    await expect(getPendingGrants()).rejects.toThrow()
+
+    await expect(getPendingGrants()).resolves.toEqual([
+      expect.objectContaining({ id: samplePending.id }),
+    ])
   })
 
   it('PUTs the approve envelope with an expiresAt policy', async () => {

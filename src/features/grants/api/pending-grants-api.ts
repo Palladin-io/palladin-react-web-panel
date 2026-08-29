@@ -91,15 +91,21 @@ interface PendingGrantListResponse {
  * Fetches the trusted first-party pending-grant contract without duplicating
  * backend-owned domain validation in the UI. The encrypted reason remains a
  * cryptographic boundary: decoding it normalizes wire enums and fails closed
- * before any signature, scope or wrapper verification is attempted.
+ * per malformed row before any signature, scope or wrapper verification is
+ * attempted. One invalid request must not hide unrelated valid requests.
  */
 export async function getPendingGrants(): Promise<PendingGrant[]> {
   const response = await api.get('api/dashboard/pending-grants').json<PendingGrantListResponse>()
-  return response.items.map((grant) => ({
-    ...grant,
-    activeCoveringGrantIds: grant.activeCoveringGrantIds ?? [],
-    encryptedReason: encryptedReasonEnvelopeSchema.parse(grant.encryptedReason),
-  }))
+  return response.items.flatMap((grant) => {
+    const encryptedReason = encryptedReasonEnvelopeSchema.safeParse(grant.encryptedReason)
+    if (!encryptedReason.success) return []
+
+    return [{
+      ...grant,
+      activeCoveringGrantIds: grant.activeCoveringGrantIds ?? [],
+      encryptedReason: encryptedReason.data,
+    }]
+  })
 }
 
 /**
