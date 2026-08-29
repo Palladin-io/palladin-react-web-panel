@@ -29,6 +29,7 @@ import type {
   CachedItemPage,
   MemberSyncCache,
 } from './member-sync-cache'
+import { MemberSyncCacheQuotaError } from './member-sync-cache'
 import { MemberSyncEngine, type MemberSyncTransport } from './member-sync-engine'
 import { useMemberSyncStore } from './member-sync-store'
 import validSnapshotFixture from './__fixtures__/cvt-557-valid-snapshot.json'
@@ -125,6 +126,8 @@ class RecordingCache implements MemberSyncCache {
     _userId: string,
     _vaultId: string,
     _namespace: string,
+    _expectedAppliedThroughSequence: string,
+    _expectedAuthority: unknown,
     _currentWallTime: number,
     candidateMaximumWallTime: number,
   ): Promise<number> { return candidateMaximumWallTime }
@@ -246,14 +249,42 @@ describe('Member sync engine', () => {
       delta: async () => deltaPage('18', '18'),
     }
 
-    await new MemberSyncEngine(cache, transport, async () => {}).synchronize(
+    await expect(new MemberSyncEngine(cache, transport, async () => {}).synchronize(
       userId,
       new Uint8Array(32),
       new AbortController().signal,
-    )
+    )).rejects.toThrow('unlocked entry budget')
 
     expect(cache.active).toBeNull()
     expect(cache.events.some((event) => event.startsWith('complete:'))).toBe(false)
+    expect(cache.events).toContain('remove-user')
+    expect(useMemberSyncStore.getState().status).toBe('error')
+  })
+
+  it('removes every readable generation when the profile ciphertext quota rejects a delta', async () => {
+    class QuotaRejectingCache extends RecordingCache {
+      override async applyActiveDeltaPage(): Promise<void> {
+        throw new MemberSyncCacheQuotaError()
+      }
+    }
+    const currentVault = vault()
+    const cache = new QuotaRejectingCache()
+    cache.active = { namespace: 'active', appliedThroughSequence: '20', vault: currentVault, authority }
+    const transport: MemberSyncTransport = {
+      listVaults: async () => [currentVault],
+      snapshot: async () => { throw new Error('unexpected snapshot') },
+      delta: async () => deltaPage('21', '21', [head(21)]),
+    }
+
+    await expect(new MemberSyncEngine(cache, transport, async () => {}).synchronize(
+      userId,
+      new Uint8Array(32),
+      new AbortController().signal,
+    )).rejects.toThrow('profile byte limit')
+
+    expect(cache.events).toContain('remove-user')
+    expect(cache.active).toBeNull()
+    expect(useMemberSyncStore.getState().vaults.size).toBe(0)
     expect(useMemberSyncStore.getState().status).toBe('error')
   })
 

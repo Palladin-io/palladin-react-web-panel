@@ -52,12 +52,15 @@ function cacheWith(entry: CachedCurrentMemberEntry | null) {
       _userId: string,
       _vaultId: string,
       _namespace: string,
+      _expectedAppliedThroughSequence: string,
+      _expectedAuthority: unknown,
       _currentWallTime: number,
       candidateMaximumWallTime: number,
     ) => candidateMaximumWallTime),
   } as unknown as MemberSyncCache & {
     readActiveItem: ReturnType<typeof vi.fn>
     removeVault: ReturnType<typeof vi.fn>
+    validateAndObserveActiveClock: ReturnType<typeof vi.fn>
   }
 }
 
@@ -91,6 +94,29 @@ describe('current Member Entry reader', () => {
     expect(cryptoMocks.openMemberSecret).toHaveBeenCalledTimes(1)
     expect(cryptoMocks.wipe).toHaveBeenCalledTimes(1)
     expect(cache.removeVault).not.toHaveBeenCalled()
+  })
+
+  it('rejects an item when its active generation advances before lease validation', async () => {
+    const entry = cachedEntry()
+    const cache = cacheWith(entry)
+    cache.validateAndObserveActiveClock.mockRejectedValueOnce(
+      new Error('Vault active generation changed while validating its lease'),
+    )
+
+    await expect(openCurrentMemberEntrySecret(input(), cache)).rejects.toThrow('active generation changed')
+
+    expect(cache.validateAndObserveActiveClock).toHaveBeenCalledWith(
+      userId,
+      vaultId,
+      entry.namespace,
+      entry.appliedThroughSequence,
+      entry.authority,
+      expect.any(Number),
+      expect.any(Number),
+      expect.any(Number),
+    )
+    expect(cryptoMocks.openMemberVaultKey).not.toHaveBeenCalled()
+    expect(cache.removeVault).toHaveBeenCalledWith(userId, vaultId)
   })
 
   it('fails closed and purges the generation at the exact lease expiry', async () => {

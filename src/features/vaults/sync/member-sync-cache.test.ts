@@ -125,6 +125,45 @@ describe('encrypted Member sync cache', () => {
     expect(persisted.memberIndexRevision).toBe('4')
   })
 
+  it('fences a local item read against a newer active sequence or authority', async () => {
+    const subject = cache()
+    const entryId = '33333333-3333-4333-8333-333333333333'
+    await subject.beginSnapshot(userId, vault('1'), 'active', '1')
+    await subject.applySnapshotPage(userId, vaultId, 'active', snapshot('1', [head(entryId, '1')]))
+    await subject.completeSnapshot(userId, vault('1'), 'active', '1')
+    const beforeDelta = await subject.readActiveItem(userId, vaultId, entryId)
+    expect(beforeDelta).not.toBeNull()
+
+    await subject.applyActiveDeltaPage(userId, vault('2'), '1', delta('2', [head(entryId, '2')]))
+
+    await expect(subject.validateAndObserveActiveClock(
+      userId,
+      vaultId,
+      beforeDelta!.namespace,
+      beforeDelta!.appliedThroughSequence,
+      beforeDelta!.authority,
+      Date.parse(validSnapshotFixture.response.accessContext.issuedAt),
+      Date.parse(validSnapshotFixture.response.accessContext.issuedAt),
+      5 * 60 * 1_000,
+    )).rejects.toThrow('active generation changed')
+
+    const beforeRenewal = await subject.readActiveItem(userId, vaultId, entryId)
+    const renewedPage = structuredClone(delta('2', []))
+    renewedPage.accessContext.notAfter = '2026-08-31T08:00:00Z'
+    await subject.applyActiveDeltaPage(userId, vault('2'), '2', renewedPage)
+
+    await expect(subject.validateAndObserveActiveClock(
+      userId,
+      vaultId,
+      beforeRenewal!.namespace,
+      beforeRenewal!.appliedThroughSequence,
+      beforeRenewal!.authority,
+      Date.parse(validSnapshotFixture.response.accessContext.issuedAt),
+      Date.parse(validSnapshotFixture.response.accessContext.issuedAt),
+      5 * 60 * 1_000,
+    )).rejects.toThrow('active generation changed')
+  })
+
   it('persists ciphertext and structural metadata only', async () => {
     const databaseName = `palladin-vault-ciphertext-cache-test-${++databaseSequence}`
     const subject = new IndexedDbMemberSyncCache(databaseName)

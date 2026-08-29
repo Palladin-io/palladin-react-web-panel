@@ -15,7 +15,7 @@ import {
   type MemberSnapshotPage,
   type MemberSyncItem,
 } from './member-sync-api'
-import type { MemberSyncCache } from './member-sync-cache'
+import { MemberSyncCacheQuotaError, type MemberSyncCache } from './member-sync-cache'
 import { memberVaultStructure, useMemberSyncStore, type MemberIndexRecord } from './member-sync-store'
 
 const CACHE_PAGE_ITEMS = 100
@@ -28,6 +28,12 @@ interface ProjectionBudget {
 }
 
 class MemberSyncGenerationInvalidError extends Error {}
+
+class MemberSyncProjectionLimitError extends Error {}
+
+function isMemberSyncResourceLimitError(error: unknown): boolean {
+  return error instanceof MemberSyncCacheQuotaError || error instanceof MemberSyncProjectionLimitError
+}
 
 class MemberVaultSyncFailure extends Error {
   readonly failureKind: 'metadata' | 'sync'
@@ -144,7 +150,7 @@ export class MemberSyncEngine {
       assertNotAborted(signal)
       const declaredEntries = vaults.reduce((total, vault) => total + vault.entryCount, 0)
       if (!Number.isSafeInteger(declaredEntries) || declaredEntries > MAXIMUM_UNLOCKED_MEMBER_ENTRIES) {
-        throw new Error('Vault Member index exceeds the supported unlocked entry budget')
+        throw new MemberSyncProjectionLimitError('Vault Member index exceeds the supported unlocked entry budget')
       }
       const retainedVaultIds = new Set(vaults.map((vault) => vault.id))
       await this.cache.removeMissingVaults(userId, retainedVaultIds)
@@ -158,6 +164,7 @@ export class MemberSyncEngine {
           await this.synchronizeVault(userId, memberPrivateKey, vault, projectionBudget, signal)
         } catch (error) {
           if (signal.aborted) throw error
+          if (isMemberSyncResourceLimitError(error)) throw error
           if (error instanceof MemberSyncAccessDeniedError) {
             await this.invalidateVaultGeneration(userId, vault.id)
             failures += 1
@@ -176,6 +183,14 @@ export class MemberSyncEngine {
       if (failures > 0) useMemberSyncStore.getState().fail()
       else useMemberSyncStore.getState().complete()
     } catch (error) {
+      if (isMemberSyncResourceLimitError(error)) {
+        try {
+          await this.cache.removeUser(userId)
+        } finally {
+          useMemberSyncStore.getState().clear()
+          useMemberSyncStore.getState().fail()
+        }
+      }
       if (error instanceof MemberSyncAccessDeniedError) {
         try {
           await this.cache.removeUser(userId)
@@ -238,7 +253,7 @@ export class MemberSyncEngine {
         entries = new Map(published.entries)
         projectionBudget.count += entries.size
         if (projectionBudget.count > MAXIMUM_UNLOCKED_MEMBER_ENTRIES) {
-          throw new Error('Vault Member index exceeds the supported unlocked entry budget')
+          throw new MemberSyncProjectionLimitError('Vault Member index exceeds the supported unlocked entry budget')
         }
       } else {
         entries = await this.decryptCachedIndex(userId, vault, vaultKey, projectionBudget, signal)
@@ -265,6 +280,7 @@ export class MemberSyncEngine {
     } catch (error) {
       projectionBudget.count = budgetBeforeVault
       if (error instanceof MemberSyncAccessDeniedError) throw error
+      if (isMemberSyncResourceLimitError(error)) throw error
       if (error instanceof MemberVaultSyncFailure || signal.aborted) throw error
       throw new MemberVaultSyncFailure('sync', error, metadata)
     } finally {
@@ -505,7 +521,7 @@ export class MemberSyncEngine {
       }
       const nextCount = projectionBudget.count + entries.size - sizeBeforeChunk
       if (nextCount > MAXIMUM_UNLOCKED_MEMBER_ENTRIES) {
-        throw new Error('Vault Member index exceeds the supported unlocked entry budget')
+        throw new MemberSyncProjectionLimitError('Vault Member index exceeds the supported unlocked entry budget')
       }
       projectionBudget.count = nextCount
       await this.yieldControl()

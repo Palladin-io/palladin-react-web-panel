@@ -65,6 +65,8 @@ export interface MemberSyncCache {
     userId: string,
     vaultId: string,
     namespace: string,
+    expectedAppliedThroughSequence: string,
+    expectedAuthority: CachedMemberSyncAuthority,
     currentWallTime: number,
     candidateMaximumWallTime: number,
     maximumRollbackMs: number,
@@ -72,6 +74,13 @@ export interface MemberSyncCache {
   removeVault(userId: string, vaultId: string): Promise<void>
   removeUser(userId: string): Promise<void>
   removeMissingVaults(userId: string, retainedVaultIds: ReadonlySet<string>): Promise<void>
+}
+
+export class MemberSyncCacheQuotaError extends Error {
+  constructor() {
+    super('Vault ciphertext cache exceeds the profile byte limit')
+    this.name = 'MemberSyncCacheQuotaError'
+  }
 }
 
 const DATABASE_NAME = 'palladin-vault-ciphertext-cache'
@@ -252,7 +261,7 @@ export class IndexedDbMemberSyncCache implements MemberSyncCache {
     state: CachedVaultState,
   ): Promise<void> {
     if (await this.profileBytesWithReplacement(store, state.userId, state) > this.maximumProfileCacheBytes) {
-      return abortTransaction(transaction, done, new Error('Vault ciphertext cache exceeds the profile byte limit'))
+      return abortTransaction(transaction, done, new MemberSyncCacheQuotaError())
     }
     await request(store.put(state))
   }
@@ -493,6 +502,8 @@ export class IndexedDbMemberSyncCache implements MemberSyncCache {
     userId: string,
     vaultId: string,
     namespace: string,
+    expectedAppliedThroughSequence: string,
+    expectedAuthority: CachedMemberSyncAuthority,
     currentWallTime: number,
     candidateMaximumWallTime: number,
     maximumRollbackMs: number,
@@ -502,8 +513,10 @@ export class IndexedDbMemberSyncCache implements MemberSyncCache {
     const done = transactionDone(transaction)
     const store = transaction.objectStore(VAULT_STORE)
     const state = await request(store.get(scopeId(userId, vaultId))) as CachedVaultState | undefined
-    if (!state?.activeAuthority || state.activeNamespace !== namespace) {
-      return abortTransaction(transaction, done, new Error('Vault active generation changed while validating its clock'))
+    if (!state?.activeAuthority || state.activeNamespace !== namespace
+      || state.activeAppliedThroughSequence !== expectedAppliedThroughSequence
+      || JSON.stringify(state.activeAuthority) !== JSON.stringify(expectedAuthority)) {
+      return abortTransaction(transaction, done, new Error('Vault active generation changed while validating its lease'))
     }
     const issuedAt = Date.parse(state.activeAuthority.accessContext.issuedAt)
     const previousMaximum = state.activeMaximumObservedWallTime ?? issuedAt

@@ -68,6 +68,7 @@ export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey
     }
 
     retrySync.current = synchronize
+    void scheduleLeaseExpiry().catch(() => undefined)
     synchronize()
     window.addEventListener('online', synchronizeWhenOnline)
     window.addEventListener('offline', purgeWhenOffline)

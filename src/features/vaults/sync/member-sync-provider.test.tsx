@@ -173,9 +173,29 @@ describe('MemberSyncProvider refresh lifecycle', () => {
     expect(useMemberSyncStore.getState().retryGeneration).toBe(1)
   })
 
+  it('starts lease cleanup even when the initial synchronization never settles', async () => {
+    probe.synchronize.mockImplementationOnce(() => new Promise<void>(() => {}))
+    const view = render(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={new Uint8Array(32)}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+
+    await act(async () => { await Promise.resolve() })
+
+    expect(probe.purgeInvalidGenerations).toHaveBeenCalledTimes(1)
+    view.unmount()
+  })
+
   it('purges the active generation at its exact offline lease expiry', async () => {
+    const expiry = Date.now() + 1_000
     probe.purgeInvalidGenerations
-      .mockResolvedValueOnce(Date.now() + 1_000)
+      .mockResolvedValueOnce(expiry)
+      .mockResolvedValueOnce(expiry)
       .mockResolvedValueOnce(null)
     render(
       <MemberSyncProvider
@@ -187,11 +207,11 @@ describe('MemberSyncProvider refresh lifecycle', () => {
       </MemberSyncProvider>,
     )
     await act(async () => { await Promise.resolve(); await Promise.resolve() })
-    expect(probe.purgeInvalidGenerations).toHaveBeenCalledTimes(1)
+    expect(probe.purgeInvalidGenerations).toHaveBeenCalledTimes(2)
 
     await act(async () => { await vi.advanceTimersByTimeAsync(1_000) })
 
-    expect(probe.purgeInvalidGenerations).toHaveBeenCalledTimes(2)
+    expect(probe.purgeInvalidGenerations).toHaveBeenCalledTimes(3)
   })
 
   it('rechecks disabled-policy generations immediately when the browser goes offline', async () => {

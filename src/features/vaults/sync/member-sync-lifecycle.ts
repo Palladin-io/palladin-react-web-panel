@@ -58,6 +58,8 @@ export async function assertCurrentMemberLeaseValid(
     userId,
     state.vault.id,
     state.namespace,
+    state.appliedThroughSequence,
+    state.authority,
     currentTime,
     Math.max(currentTime, monotonicWallTime),
     MAXIMUM_CLOCK_ROLLBACK_MS,
