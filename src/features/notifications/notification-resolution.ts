@@ -22,6 +22,9 @@ function resolvedMetadata(
   if (entry && !entry.corrupt && entry.payload?.memberLabel) next.entryLabel = entry.payload.memberLabel
   if (agent?.name) next.agentName = agent.name
   if (agent?.type) next.agentType = agent.type
+  if (agent?.publicKeyPrefix && agent.publicKeySuffix) {
+    next.agentPublicKeyHint = `${agent.publicKeyPrefix}…${agent.publicKeySuffix}`
+  }
   if (agent?.lastHostname) next.host = agent.lastHostname
   if (agent?.lastIp) next.ip = agent.lastIp
   if (agent?.iconKey) next.agentIconKey = agent.iconKey

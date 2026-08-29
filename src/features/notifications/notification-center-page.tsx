@@ -14,6 +14,8 @@ import { TypeFilterDropdown } from "../../shared/components/type-filter-dropdown
 import {
   ApproveGrantDialog,
   DenyGrantDialog,
+  grantHistoryCoordinateKey,
+  grantReasonCoordinateKey,
   GrantReviewUnavailableError,
   OrgGrantsPanel,
   StaleGrantReviewError,
@@ -21,6 +23,7 @@ import {
   useDenyGrant,
   useGrantApprovalReview,
   useGrantHistoryMetadata,
+  useGrantReasons,
   usePendingGrants,
   type GrantMethod,
   type GrantPolicyBody,
@@ -121,6 +124,19 @@ export function NotificationCenterPage({
   const deny = useDenyGrant();
   const approve = useApproveGrant();
   const pendingGrants = usePendingGrants();
+  const pendingGrantReasons = useGrantReasons(pendingGrants.data ?? []);
+  const pendingReasonsByCoordinates = useMemo(() => {
+    const reasons = new Map<string, string>();
+    for (const grant of pendingGrants.data ?? []) {
+      const reason = pendingGrantReasons.get(grantReasonCoordinateKey(grant));
+      if (!reason) continue;
+      reasons.set(
+        grantReasonCoordinateKey(grant),
+        reason,
+      );
+    }
+    return reasons;
+  }, [pendingGrants.data, pendingGrantReasons]);
   const [approveTarget, setApproveTarget] = useState<PendingGrant | null>(null);
   const approvalReview = useGrantApprovalReview(approveTarget);
   const approveAgent = useApproveAgent();
@@ -171,7 +187,13 @@ export function NotificationCenterPage({
         const grantId = item.metadata?.grantId;
         const vaultId = item.metadata?.vaultId;
         return grantId && vaultId
-          ? [{ type: item.type, grantId, vaultId }]
+          ? [{
+              type: item.type,
+              grantId,
+              vaultId,
+              entryId: item.metadata?.entryId ?? null,
+              agentId: item.metadata?.agentId ?? null,
+            }]
           : [];
       }),
     [items],
@@ -181,14 +203,40 @@ export function NotificationCenterPage({
     () =>
       items.map((item) => {
         const grantId = item.metadata?.grantId;
-        const metadata = grantId
-          ? grantHistoryMetadata.get(grantId)
+        const metadata = grantId && isGrantHistoryType(item.type)
+          ? grantHistoryMetadata.get(
+              grantHistoryCoordinateKey({
+                type: item.type,
+                grantId,
+                vaultId: item.metadata?.vaultId ?? "",
+                entryId: item.metadata?.entryId ?? null,
+                agentId: item.metadata?.agentId ?? null,
+              }),
+            )
           : undefined;
-        return metadata
-          ? { ...item, metadata: { ...item.metadata, ...metadata } }
+        const pendingReason =
+          item.type === "grant_pending" && grantId
+            ? pendingReasonsByCoordinates.get(
+                grantReasonCoordinateKey({
+                  id: grantId,
+                  vaultId: item.metadata?.vaultId ?? "",
+                  entryId: item.metadata?.entryId ?? null,
+                  agentId: item.metadata?.agentId ?? null,
+                }),
+              )
+            : undefined;
+        return metadata || pendingReason
+          ? {
+              ...item,
+              metadata: {
+                ...item.metadata,
+                ...metadata,
+                ...(pendingReason ? { reason: pendingReason } : {}),
+              },
+            }
           : item;
       }),
-    [grantHistoryMetadata, items],
+    [grantHistoryMetadata, items, pendingReasonsByCoordinates],
   );
 
   const { actionItems, historyItems } = useMemo(
@@ -240,11 +288,15 @@ export function NotificationCenterPage({
     // Fetch the canonical pending contract immediately before cryptographic
     // review so signature/scope checks never run against a stale snapshot.
     const refreshed = await pendingGrants.refetch();
+    if (refreshed.isError) {
+      toast.error(t("grants.approve.requestRefreshFailed"));
+      return;
+    }
     const grant = refreshed.data?.find(
       (item) => item.id === context.grantId && item.vaultId === context.vaultId,
     );
     if (!grant) {
-      toast.error(t("grants.approve.reviewUnavailable"));
+      toast.error(t("grants.approve.requestNotPending"));
       return;
     }
     setApproveTarget(grant);

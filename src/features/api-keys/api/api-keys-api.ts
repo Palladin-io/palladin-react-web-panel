@@ -1,6 +1,5 @@
-import { z } from 'zod'
 import { api } from '../../../shared/api/client'
-import { type Agent, agentSchema } from '../../agents'
+import type { Agent } from '../../agents'
 
 export type ApiKeyStatus = 'active' | 'revoked'
 
@@ -69,11 +68,6 @@ export async function revokeApiKey(keyId: string): Promise<void> {
   await api.delete(`api/api-keys/${keyId}`)
 }
 
-const apiKeyAgentsPageSchema = z.object({
-  items: z.array(agentSchema),
-  nextCursor: z.string().nullable(),
-})
-
 export interface ApiKeyAgentsPage {
   items: Agent[]
   nextCursor: string | null
@@ -87,10 +81,9 @@ export async function getApiKeyAgents(
   apiKeyId: string,
   cursor?: string,
 ): Promise<ApiKeyAgentsPage> {
-  const raw = await api
+  return api
     .get(`api/api-keys/${apiKeyId}/agents`, {
       searchParams: cursor ? { cursor } : undefined,
     })
-    .json()
-  return apiKeyAgentsPageSchema.parse(raw)
+    .json<ApiKeyAgentsPage>()
 }

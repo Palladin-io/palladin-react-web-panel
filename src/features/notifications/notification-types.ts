@@ -23,7 +23,7 @@ const wireMetadataSchema = z.record(z.string(), z.string())
 const FORBIDDEN_PRESENTATION_KEYS = new Set([
   'account', 'accountName', 'actionDeepLink', 'actorName', 'agentName',
   'domain', 'entryLabel', 'host', 'ip', 'note', 'reason', 'vaultName',
-  'agentIconKey', 'agentPublicKey',
+  'agentIconKey', 'agentPublicKey', 'agentPublicKeyHint',
 ])
 const OPAQUE_ID_KEYS = new Set([
   'agentId', 'entityId', 'entryId', 'grantId', 'requestId', 'vaultId',

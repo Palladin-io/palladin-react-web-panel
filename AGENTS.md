@@ -118,6 +118,16 @@ Pages with a hardcoded dark gradient background (e.g., `/unlock`, `/login`) must
 - 401 responses trigger token refresh or redirect to login
 - Agent endpoints are not used from web panel
 
+### Trusted Palladin API Responses
+
+The backend is authoritative for server-owned domain state and business invariants. Do not use Zod or handwritten runtime checks to restate those invariants on authenticated, version-matched Palladin API responses merely to detect backend drift. A list or display response must not fail because the web client independently decided that a backend-owned lifecycle relationship, status/epoch combination, or similar domain state is invalid.
+
+- Keep response shapes as TypeScript contracts and prove backend compatibility with provider/consumer contract tests, shared fixtures or generated contracts in CI.
+- Runtime transport decoding may establish the shape needed to read JSON, but it must not add client-owned business rules or turn one legitimate item into failure of an unrelated list or screen.
+- The backend remains authoritative for every mutation, authorization decision and server-owned security invariant; frontend checks are UX only.
+- Continue validating forms, user/file input, third-party responses, browser/DOM messages and other untrusted data.
+- Continue independent zero-knowledge verification of signatures, commitments, envelope structure and organization/Vault/principal/grant/key-version/epoch bindings before using keys or plaintext. Such checks must name their independent authority and have focused negative tests.
+
 ### Real-time (SignalR)
 - Single hub connection managed in a provider
 - Used for: pending grant notifications, browser extension bridge events
@@ -129,7 +139,7 @@ Pages with a hardcoded dark gradient background (e.g., `/unlock`, `/login`) must
 ### TypeScript
 - Strict mode, no `any`
 - Use `interface` for object shapes, `type` for unions/intersections
-- Zod schemas as single source of truth for form validation + API response parsing
+- Zod schemas are the single source of truth for form and other untrusted-input validation. Do not use them to duplicate backend-owned business invariants on trusted Palladin API responses; follow **Trusted Palladin API Responses** above.
 
 ### Components
 - Functional components only

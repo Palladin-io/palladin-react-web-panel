@@ -50,6 +50,8 @@ const samplePending = {
   revokedAt: null,
   revokedBy: null,
   revokedByName: null,
+  supersededAt: null,
+  supersededByGrantId: null,
   deniedAt: null,
   deniedBy: null,
   deniedByName: null,
@@ -131,28 +133,55 @@ describe('pending-grants-api', () => {
     expect(items[0].activeCoveringGrantIds).toEqual([])
   })
 
-  it('isolates an item with unknown sensitive fields at the parse boundary', async () => {
+  it('does not reject a forward-compatible backend field', async () => {
     getJson.mockResolvedValue({
       items: [
         {
           ...samplePending,
-          // A buggy/malicious backend leaking key material must not survive.
-          agentWrappedDek: 'leak',
-          vaultKey: 'leak',
+          futurePresentationField: 'supported-by-newer-backend',
         },
       ],
       nextCursor: null,
     })
-    await expect(getPendingGrants()).resolves.toEqual([])
+    await expect(getPendingGrants()).resolves.toEqual([
+      expect.objectContaining({ id: samplePending.id }),
+    ])
   })
 
-  it('keeps valid pending grants when another item is malformed', async () => {
+  it('fails closed only for the row whose encrypted reason contract is invalid', async () => {
+    const invalidGrant = {
+      ...samplePending,
+      id: '77777777-7777-4777-8777-777777777777',
+      encryptedReason: { ...samplePending.encryptedReason, agentSignature: '' },
+    }
     getJson.mockResolvedValue({
-      // One valid + one malformed (missing required `id`/`createdAt`).
-      items: [samplePending, { foo: 'bar' }],
+      items: [
+        invalidGrant,
+        samplePending,
+      ],
       nextCursor: null,
     })
-    await expect(getPendingGrants()).resolves.toEqual([expect.objectContaining({ id: samplePending.id })])
+
+    await expect(getPendingGrants()).resolves.toEqual([
+      expect.objectContaining({ id: samplePending.id }),
+    ])
+  })
+
+  it('ignores a transport-malformed row without hiding valid pending grants', async () => {
+    getJson.mockResolvedValue({
+      items: [
+        null,
+        42,
+        [],
+        { ...samplePending, agentName: {} },
+        samplePending,
+      ],
+      nextCursor: null,
+    })
+
+    await expect(getPendingGrants()).resolves.toEqual([
+      expect.objectContaining({ id: samplePending.id }),
+    ])
   })
 
   it('PUTs the approve envelope with an expiresAt policy', async () => {

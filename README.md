@@ -63,9 +63,14 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Set `VITE_API_URL=http://localhost:5000` in `.env.local`. Other variables in
-`.env.example` enable optional integrations such as Google OAuth, analytics,
-SignalR, and Firebase web push. Vite exposes every `VITE_*` value to the
+Set the required `VITE_API_URL`, `VITE_SIGNALR_HUB_URL`, and
+`VITE_GOOGLE_CLIENT_ID` values in `.env.local`. The Google Web Client ID must
+match `Modules:Identity:Google:ClientId` in the local backend configuration.
+`npm run dev` stops with an actionable error when a required value is missing;
+the browser also renders a configuration error instead of a blank page.
+
+The remaining variables in `.env.example` enable optional integrations such
+as analytics and Firebase web push. Vite exposes every `VITE_*` value to the
 browser, so these variables must contain public client configuration only -
 never service credentials or private keys.
 

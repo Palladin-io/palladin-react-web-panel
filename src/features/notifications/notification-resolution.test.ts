@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Agent } from '../agents'
 import type { DecryptedMemberVault } from '../vaults/sync/member-sync-store'
 import type { NotificationItem } from './notifications-api'
+import { notificationCardPresentation } from './notification-presentation'
 import { notificationDeepLink, resolveNotificationItem } from './notification-resolution'
 
 const vaultId = '11112233-4455-4677-8899-aabbccddeeff'
@@ -63,5 +64,39 @@ describe('notification local resolution', () => {
       vaults: new Map(),
       agents: new Map([[agentId, agent]]),
     }).metadata.actorName).toBe('Patryk R.')
+  })
+
+  it('restores the pending Agent key hint and connection details for the Inbox', () => {
+    const pending = {
+      ...item,
+      type: 'agent_pending',
+      metadata: { agentId, agentType: 'Unknown' },
+    }
+    const agent = {
+      agentId,
+      publicKeyPrefix: 'ABCDEFGH',
+      publicKeySuffix: '12345678',
+      lastHostname: 'Patryks-Mac-Studio.local',
+      lastIp: '127.0.0.1',
+    } as Agent
+
+    const resolved = resolveNotificationItem(pending, {
+      vaults: new Map(),
+      agents: new Map([[agentId, agent]]),
+    })
+
+    expect(resolved.metadata).toEqual(expect.objectContaining({
+      agentPublicKeyHint: 'ABCDEFGH…12345678',
+      host: 'Patryks-Mac-Studio.local',
+      ip: '127.0.0.1',
+      agentType: 'Unknown',
+    }))
+    const rows = notificationCardPresentation(resolved).rows
+    expect(rows[0].value).toEqual({ kind: 'text', text: 'ABCDEFGH…12345678' })
+    expect(rows[2].value).toEqual({ kind: 'text', text: 'Unknown' })
+    expect(rows[3].value).toEqual({
+      kind: 'text',
+      text: 'Patryks-Mac-…io.local · 127.0.0.1',
+    })
   })
 })
