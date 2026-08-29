@@ -83,7 +83,7 @@ interface PendingGrantWire extends Omit<PendingGrant, 'encryptedReason' | 'activ
 }
 
 interface PendingGrantListResponse {
-  items: PendingGrantWire[]
+  items: unknown
   nextCursor: string | null
 }
 
@@ -96,7 +96,11 @@ interface PendingGrantListResponse {
  */
 export async function getPendingGrants(): Promise<PendingGrant[]> {
   const response = await api.get('api/dashboard/pending-grants').json<PendingGrantListResponse>()
-  return response.items.flatMap((grant) => {
+  if (!Array.isArray(response.items)) return []
+
+  return response.items.flatMap((candidate) => {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return []
+    const grant = candidate as PendingGrantWire
     const encryptedReason = encryptedReasonEnvelopeSchema.safeParse(grant.encryptedReason)
     if (!encryptedReason.success) return []
 

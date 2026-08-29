@@ -167,6 +167,17 @@ describe('pending-grants-api', () => {
     ])
   })
 
+  it('ignores a transport-malformed row without hiding valid pending grants', async () => {
+    getJson.mockResolvedValue({
+      items: [null, 42, [], samplePending],
+      nextCursor: null,
+    })
+
+    await expect(getPendingGrants()).resolves.toEqual([
+      expect.objectContaining({ id: samplePending.id }),
+    ])
+  })
+
   it('PUTs the approve envelope with an expiresAt policy', async () => {
     putFn.mockResolvedValue(undefined)
     await approveGrant('v1', 'g1', {
