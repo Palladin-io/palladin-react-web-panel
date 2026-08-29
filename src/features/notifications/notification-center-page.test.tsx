@@ -127,6 +127,7 @@ const items: NotificationItem[] = [
       grantId: "g1",
       vaultId: "v1",
       entryId: "e1",
+      agentId: "a1",
       agentName: "Deploy Bot",
       entryLabel: "GitHub Token",
       vaultName: "Production",
@@ -261,6 +262,26 @@ describe("NotificationCenterPage", () => {
     expect(screen.getByText(/Old Bot/)).toBeInTheDocument();
     expect(screen.getByText("Deploy production")).toBeInTheDocument();
     expect(screen.getByText("Alice Admin")).toBeInTheDocument();
+  });
+
+  it("does not attach an authenticated reason to mismatched notification coordinates", () => {
+    const original = items[0];
+    items[0] = {
+      ...original,
+      metadata: {
+        ...original.metadata,
+        vaultId: "other-vault",
+        entryId: "other-entry",
+        agentId: "other-agent",
+      },
+    };
+
+    try {
+      renderPage();
+      expect(screen.queryByText("deploy")).not.toBeInTheDocument();
+    } finally {
+      items[0] = original;
+    }
   });
 
   it("renders the To-do approve/deny actions for a grant_pending card", () => {

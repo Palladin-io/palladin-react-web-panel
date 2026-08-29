@@ -66,6 +66,15 @@ interface AgentTarget {
   notificationId: string;
 }
 
+function pendingReasonCoordinateKey(
+  grantId: string,
+  vaultId: string,
+  entryId: string | null,
+  agentId: string | null,
+): string {
+  return JSON.stringify([grantId, vaultId, entryId, agentId]);
+}
+
 /**
  * Notification Center / Inbox — replaces the Approvals surface with a
  * persistent feed of action-required + informational notifications.
@@ -123,6 +132,23 @@ export function NotificationCenterPage({
   const approve = useApproveGrant();
   const pendingGrants = usePendingGrants();
   const pendingGrantReasons = useGrantReasons(pendingGrants.data ?? []);
+  const pendingReasonsByCoordinates = useMemo(() => {
+    const reasons = new Map<string, string>();
+    for (const grant of pendingGrants.data ?? []) {
+      const reason = pendingGrantReasons.get(grant.id);
+      if (!reason) continue;
+      reasons.set(
+        pendingReasonCoordinateKey(
+          grant.id,
+          grant.vaultId,
+          grant.entryId,
+          grant.agentId,
+        ),
+        reason,
+      );
+    }
+    return reasons;
+  }, [pendingGrants.data, pendingGrantReasons]);
   const [approveTarget, setApproveTarget] = useState<PendingGrant | null>(null);
   const approvalReview = useGrantApprovalReview(approveTarget);
   const approveAgent = useApproveAgent();
@@ -188,7 +214,14 @@ export function NotificationCenterPage({
           : undefined;
         const pendingReason =
           item.type === "grant_pending" && grantId
-            ? pendingGrantReasons.get(grantId)
+            ? pendingReasonsByCoordinates.get(
+                pendingReasonCoordinateKey(
+                  grantId,
+                  item.metadata?.vaultId ?? "",
+                  item.metadata?.entryId ?? null,
+                  item.metadata?.agentId ?? null,
+                ),
+              )
             : undefined;
         return metadata || pendingReason
           ? {
@@ -201,7 +234,7 @@ export function NotificationCenterPage({
             }
           : item;
       }),
-    [grantHistoryMetadata, items, pendingGrantReasons],
+    [grantHistoryMetadata, items, pendingReasonsByCoordinates],
   );
 
   const { actionItems, historyItems } = useMemo(

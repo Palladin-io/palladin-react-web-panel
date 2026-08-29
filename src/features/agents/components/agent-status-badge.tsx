@@ -26,7 +26,7 @@ export function AgentStatusBadge({ status }: { status: AgentStatus }) {
     },
     [AGENT_STATUS_DEACTIVATING]: {
       label: t('agents.statusDeactivating'),
-      className: 'bg-[rgba(240,192,64,0.12)] text-[#D4820A]',
+      className: 'bg-[rgb(var(--cv-premium-rgb)/0.12)] text-[var(--cv-premium)]',
     },
   }
   const { label, className } = config[status]
