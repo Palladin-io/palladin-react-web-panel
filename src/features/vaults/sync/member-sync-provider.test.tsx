@@ -61,6 +61,35 @@ describe('MemberSyncProvider refresh lifecycle', () => {
     expect(probe.synchronize).toHaveBeenCalledTimes(2)
   })
 
+  it('settles an aborted synchronization before starting its replacement', async () => {
+    let settleFirst!: () => void
+    probe.synchronize.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      settleFirst = resolve
+    }))
+    render(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={new Uint8Array(32)}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+    await act(async () => { await Promise.resolve() })
+    expect(probe.synchronize).toHaveBeenCalledTimes(1)
+
+    act(() => window.dispatchEvent(new Event('online')))
+    await act(async () => { await Promise.resolve() })
+    expect(probe.synchronize).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      settleFirst()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(probe.synchronize).toHaveBeenCalledTimes(2)
+  })
+
   it('removes decrypted vault metadata when the provider locks', async () => {
     useMemberSyncStore.getState().publishVault({
       vaultId: '22222222-2222-4222-8222-222222222222',

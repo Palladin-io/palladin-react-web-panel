@@ -20,6 +20,7 @@ interface MemberSyncProviderProps {
 export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey }: MemberSyncProviderProps) {
   const retryGeneration = useMemberSyncStore((state) => state.retryGeneration)
   const retrySync = useRef<(() => void) | null>(null)
+  const synchronizationQueue = useRef<Promise<void>>(Promise.resolve())
 
   useEffect(() => {
     if (!memberSyncEngine || !enabled || !userId || !memberPrivateKey) {
@@ -28,6 +29,7 @@ export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey
     }
 
     let active: AbortController | null = null
+    let activeCompletion: Promise<void> | null = null
     let leaseTimer: number | null = null
     let leaseScheduleGeneration = 0
     let disposed = false
@@ -48,16 +50,26 @@ export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey
       }, Math.max(0, earliestNotAfter - Date.now()))
     }
     const synchronize = (replaceActive = true) => {
-      if (active && !replaceActive) return
+      if (activeCompletion && !replaceActive) return
+      const previousCompletion = synchronizationQueue.current
       active?.abort()
       const controller = new AbortController()
       active = controller
-      void memberSyncEngine.synchronize(userId, memberPrivateKey, controller.signal)
-        .then(() => scheduleLeaseExpiry())
+      const completion = (async () => {
+        if (previousCompletion) await previousCompletion
+        if (disposed || controller.signal.aborted) return
+        await memberSyncEngine.synchronize(userId, memberPrivateKey, controller.signal)
+        if (disposed || controller.signal.aborted) return
+        await scheduleLeaseExpiry()
+      })()
         .catch(() => {})
         .finally(() => {
-          if (active === controller) active = null
+          if (activeCompletion !== completion) return
+          active = null
+          activeCompletion = null
         })
+      activeCompletion = completion
+      synchronizationQueue.current = completion
     }
     const synchronizeWhenVisible = () => {
       if (document.visibilityState === 'visible') synchronize()
