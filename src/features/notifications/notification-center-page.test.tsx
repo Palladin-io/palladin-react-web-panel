@@ -266,6 +266,10 @@ describe("NotificationCenterPage", () => {
 
   it("does not attach an authenticated reason to mismatched notification coordinates", () => {
     const original = items[0];
+    grantHistoryMetadata.set("g1", {
+      reason: "history reason",
+      actorName: "History Actor",
+    });
     items[0] = {
       ...original,
       metadata: {
@@ -279,8 +283,10 @@ describe("NotificationCenterPage", () => {
     try {
       renderPage();
       expect(screen.queryByText("deploy")).not.toBeInTheDocument();
+      expect(screen.queryByText("history reason")).not.toBeInTheDocument();
     } finally {
       items[0] = original;
+      grantHistoryMetadata.delete("g1");
     }
   });
 

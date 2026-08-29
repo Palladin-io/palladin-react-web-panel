@@ -209,7 +209,7 @@ export function NotificationCenterPage({
     () =>
       items.map((item) => {
         const grantId = item.metadata?.grantId;
-        const metadata = grantId
+        const metadata = grantId && isGrantHistoryType(item.type)
           ? grantHistoryMetadata.get(grantId)
           : undefined;
         const pendingReason =
