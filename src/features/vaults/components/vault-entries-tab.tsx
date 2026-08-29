@@ -74,7 +74,8 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
         // A missing or unauthenticated local projection must not hide an
         // authoritative retained row. Show only a shortened opaque identifier.
         return search ? [] : [{ id: entryId, state: 'deleted', label: shortenKey(entryId), type: 1,
-          icon: null, username: null, urlDomain: null, searchFields: [], currentRevision: '0', corrupt: true }]
+          icon: null, username: null, urlDomain: null, searchFields: [], currentRevision: '0',
+          currentKeyVersion: 0, corrupt: true }]
       }) : []),
   ]
   const renderContext = `${search}\u0000${sort}\u0000${[...effectiveStates].sort().join(',')}`
@@ -209,7 +210,6 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
               <EntryRow
                 key={entry.id}
                 vaultId={vault.id}
-                wrappedVK={vault.wrappedVK}
                 entry={{
                   id: entry.id,
                   label: entry.label,
@@ -220,6 +220,8 @@ export function VaultEntriesTab({ vault }: VaultEntriesTabProps) {
                   createdAt: '',
                   updatedAt: '',
                   accessCount: 0,
+                  currentRevision: entry.currentRevision,
+                  currentKeyVersion: entry.currentKeyVersion,
                 }}
               />
             ) : (

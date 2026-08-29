@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { analytics } from '../../../shared/lib/analytics'
 import { queryClient } from '../../../shared/api/query-client'
 import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
+import { registerClientProfileCleanup } from '../../../shared/lib/client-profile-cleanup'
 import { useAuthStore } from '../stores/auth-store'
 import {
   captureClientSessionGeneration,
@@ -10,6 +11,7 @@ import {
 } from './client-session'
 
 const originalLocation = window.location
+let unregisterProfileCleanup: (() => void) | null = null
 
 describe('client session cleanup', () => {
   beforeEach(() => {
@@ -21,10 +23,30 @@ describe('client session cleanup', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+    unregisterProfileCleanup?.()
+    unregisterProfileCleanup = null
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: originalLocation,
     })
+  })
+
+  it('deletes persistent data for the captured profile after memory is locked', async () => {
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-a',
+      refreshToken: 'refresh-a',
+      userId: 'user-a',
+      isOnboarded: true,
+    })
+    const cleanup = vi.fn(async (userId: string) => {
+      expect(userId).toBe('user-a')
+      expect(useAuthStore.getState().userId).toBeNull()
+    })
+    unregisterProfileCleanup = registerClientProfileCleanup(cleanup)
+
+    await clearClientSession()
+
+    expect(cleanup).toHaveBeenCalledOnce()
   })
 
   it('wipes keys, auth, server cache, mutation cache and decrypted member state', () => {
@@ -97,5 +119,27 @@ describe('client session cleanup', () => {
     expect(cleanup).toHaveBeenCalledOnce()
     expect(useAuthStore.getState().userId).toBeNull()
     expect(replace).toHaveBeenCalledWith('/login?redirect=%2Fvaults')
+  })
+
+  it('does not start a new navigation when persistent profile deletion fails', async () => {
+    const replace = vi.fn()
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...originalLocation, replace },
+    })
+    useAuthStore.getState().setTokens({
+      accessToken: 'access-a',
+      refreshToken: 'refresh-a',
+      userId: 'user-a',
+      isOnboarded: true,
+    })
+    unregisterProfileCleanup = registerClientProfileCleanup(async () => {
+      throw new Error('disk failure')
+    })
+
+    await expect(logoutAndReload()).rejects.toThrow('profile cleanup')
+
+    expect(useAuthStore.getState().userId).toBeNull()
+    expect(replace).not.toHaveBeenCalled()
   })
 })

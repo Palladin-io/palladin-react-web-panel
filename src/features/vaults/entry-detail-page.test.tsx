@@ -7,7 +7,6 @@ import { useAuthStore } from '../auth'
 import { EntryDetailPage } from './entry-detail-page'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, type Vault } from './types'
 import type { CanonicalEntryDetail } from './api/vault-api'
-import { getEncryptedVault } from './sync/member-sync-api'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -26,6 +25,9 @@ const {
   navigateMock,
   toastSuccess,
   toastError,
+  openCurrentEntryMock,
+  canonicalRefetchMock,
+  retrySyncMock,
   state,
 } = vi.hoisted(() => ({
   useVaultMock: vi.fn(),
@@ -35,6 +37,9 @@ const {
   navigateMock: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
+  openCurrentEntryMock: vi.fn(),
+  canonicalRefetchMock: vi.fn(),
+  retrySyncMock: vi.fn(),
   state: {
     updateIsPending: false,
     deleteIsPending: false,
@@ -42,6 +47,7 @@ const {
     decryptShouldThrow: false,
     decryptedIconReference: undefined as string | undefined,
     memberIndex: { memberLabel: 'Stripe API Key', entryType: 'key' as 'key' | 'credential' | 'creditCard', icon: null },
+    memberEntryAvailable: true,
   },
 }))
 
@@ -74,8 +80,10 @@ vi.mock('./use-vault', () => ({
 }))
 
 vi.mock('./use-entries', () => ({
-  useCanonicalEntryDetail: (vaultId: string, entryId: string) =>
-    useEntryDetailMock(vaultId, entryId),
+  useCanonicalEntryDetail: (vaultId: string, entryId: string, enabled: boolean) => ({
+    ...useEntryDetailMock(vaultId, entryId, enabled),
+    refetch: canonicalRefetchMock,
+  }),
   entriesQueryKey: (vaultId: string) => ['vaults', vaultId, 'entries'] as const,
   entryDetailQueryKey: (vaultId: string, entryId: string) =>
     ['vaults', vaultId, 'entries', entryId] as const,
@@ -107,8 +115,10 @@ vi.mock('./use-delete-entry', () => ({
 // Crypto round-trip is exercised by entry-crypto.test.ts. Here we stub the
 // helpers so the component test stays focused on form behaviour and does
 // not depend on libsodium WASM warm-up.
-vi.mock('../../shared/crypto/entry-protocol', () => ({
-  openMemberSecret: vi.fn(async () => {
+vi.mock('./sync/current-member-entry-reader', () => ({
+  openCurrentMemberEntrySecret: openCurrentEntryMock,
+}))
+openCurrentEntryMock.mockImplementation(async () => {
     if (state.decryptShouldThrow) throw new Error('mac')
     if (!state.decryptResult) {
       throw new Error('test setup: decryptResult not configured')
@@ -122,36 +132,40 @@ vi.mock('../../shared/crypto/entry-protocol', () => ({
       ...(state.decryptedIconReference ? { iconReference: state.decryptedIconReference } : {}),
       agentVisibilityPolicy: { discoverable: true, fields: { agentLabel: 'discovery' } },
     }
-  }),
-}))
+})
 vi.mock('../../shared/crypto/entry-draft', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../shared/crypto/entry-draft')>(),
   fromMemberSecret: (value: unknown) => value,
 }))
 
-vi.mock('../../shared/crypto/vault-protocol', () => ({
-  openMemberVaultKey: vi.fn(async () => new Uint8Array(32)),
-}))
-vi.mock('./sync/member-sync-api', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./sync/member-sync-api')>()
-  return {
-    ...actual,
-    getEncryptedVault: vi.fn(async () => ({
-      memberVaultKey: {},
-      currentKeyEpoch: { vaultKeyVersion: 1 },
-      memberKeyGeneration: 1,
-    })),
-  }
-})
 vi.mock('./sync/member-sync-store', () => ({
-  useMemberSyncStore: (selector: (value: unknown) => unknown) => selector({
-    vaults: new Map([['vault-1', { entries: new Map([
-      ['entry-1', { payload: state.memberIndex }],
-      ['entry-2', { payload: state.memberIndex }],
-      ['entry-3', { payload: state.memberIndex }],
-    ]) }]]),
-  }),
+  useMemberSyncStore: Object.assign(
+    (selector: (value: unknown) => unknown) => selector(memberSyncState()),
+    { getState: () => memberSyncState() },
+  ),
 }))
+
+function memberSyncState() {
+  const record = (entryId: string) => ({
+    entryId,
+    state: 'active',
+    updatedAt: '2026-04-25T12:00:00Z',
+    currentRevision: '1',
+    memberIndexRevision: '1',
+    currentKeyVersion: 1,
+    payload: state.memberIndex,
+    corrupt: false,
+  })
+  return {
+    status: 'ready',
+    vaults: new Map([['vault-1', { entries: new Map(state.memberEntryAvailable ? [
+      ['entry-1', record('entry-1')],
+      ['entry-2', record('entry-2')],
+      ['entry-3', record('entry-3')],
+    ] : []) }]]),
+    retry: retrySyncMock,
+  }
+}
 
 vi.mock('../../shared/crypto/sodium', () => ({
   wipe: vi.fn(),
@@ -235,6 +249,7 @@ function wrapper({ children }: { children: ReactNode }) {
 
 function unlockedAuthStore() {
   useAuthStore.setState({
+    userId: '11111111-1111-4111-8111-111111111111',
     privateKey: new Uint8Array(32),
     isVaultLocked: false,
   })
@@ -264,12 +279,15 @@ describe('EntryDetailPage — DetailsTab', () => {
     navigateMock.mockReset()
     toastSuccess.mockReset()
     toastError.mockReset()
-    vi.mocked(getEncryptedVault).mockClear()
+    openCurrentEntryMock.mockClear()
+    canonicalRefetchMock.mockReset().mockResolvedValue({ data: KEY_ENTRY })
+    retrySyncMock.mockReset()
     state.updateIsPending = false
     state.deleteIsPending = false
     state.decryptResult = null
     state.decryptShouldThrow = false
     state.decryptedIconReference = undefined
+    state.memberEntryAvailable = true
     state.memberIndex = { memberLabel: 'Stripe API Key', entryType: 'key', icon: null }
     useAuthStore.setState({ privateKey: null, isVaultLocked: true })
     // Default to wide-screen off so the detail body renders without the
@@ -307,14 +325,13 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0)
   })
 
-  it('renders an error state with retry when the entry fetch fails', () => {
+  it('renders an error state with retry when the local current head is missing', () => {
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
-    const refetch = vi.fn()
+    state.memberEntryAvailable = false
     useEntryDetailMock.mockReturnValue({
       isPending: false,
-      isError: true,
+      isError: false,
       data: undefined,
-      refetch,
     })
 
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
@@ -422,7 +439,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     ).toBeInTheDocument()
   })
 
-  it('does not reuse the encrypted vault envelope across unlock sessions', async () => {
+  it('reopens the local item across unlock sessions without a canonical detail request', async () => {
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
@@ -444,7 +461,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       new Uint8Array([2]),
     )
     const firstSession = renderEntry()
-    await waitFor(() => expect(getEncryptedVault).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(openCurrentEntryMock).toHaveBeenCalledTimes(1))
     firstSession.unmount()
 
     useAuthStore.getState().lockVault()
@@ -454,7 +471,9 @@ describe('EntryDetailPage — DetailsTab', () => {
     )
     renderEntry()
 
-    await waitFor(() => expect(getEncryptedVault).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(openCurrentEntryMock).toHaveBeenCalledTimes(2))
+    expect(useEntryDetailMock).toHaveBeenCalledWith('vault-1', 'entry-1', false)
+    expect(canonicalRefetchMock).not.toHaveBeenCalled()
   })
 
   it('keeps Save disabled until a field actually changes', async () => {

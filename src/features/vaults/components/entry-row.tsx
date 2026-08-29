@@ -1,11 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
 import { fromMemberSecret } from '../../../shared/crypto/entry-draft'
-import { wipe } from '../../../shared/crypto/sodium'
-import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
 import { Icon } from '../../../shared/components/icon'
 import { useAuthStore } from '../../auth'
 import { analytics } from '../../../shared/lib/analytics'
@@ -19,17 +16,14 @@ import {
   type EntryPlaintext,
 } from '../types'
 import { readCustomFields } from '../entry-blob'
-import { getEncryptedVault } from '../sync/member-sync-api'
-import { useCanonicalEntryDetail } from '../use-entries'
+import { openCurrentMemberEntrySecret } from '../sync/current-member-entry-reader'
 import { EntryIcon } from './entry-icon'
 import { CustomFieldsView } from './custom-fields-view'
 import { OtpauthTotp } from './totp-display'
 
 export interface EntryRowProps {
   vaultId: string
-  /** @deprecated Canonical v2 resolves the nested Member VK envelope lazily. */
-  wrappedVK: string | undefined
-  entry: EntryListItem
+  entry: EntryListItem & { currentRevision: string; currentKeyVersion: number }
   /** Highlight this row as the currently viewed entry (split-view left panel). */
   isSelected?: boolean
 }
@@ -37,74 +31,65 @@ export interface EntryRowProps {
 /**
  * Single entry row + lazy reveal panel.
  *
- * The list endpoint never returns the encrypted blob — when the user
- * clicks the visibility action, this row triggers a one-shot fetch of
- * the full entry (`GET /vaults/{id}/entries/{eid}`), unseals VK with
- * the in-memory private key, decrypts the blob, and renders the
- * plaintext fields. Decrypt failures translate into a toast error so
- * the row stays interactive (the user can re-attempt or move on).
+ * Reveal and copy open only this row's complete current item from the
+ * authenticated IndexedDB generation. No per-Entry API request is allowed.
  */
 export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
   const { t } = useTranslation()
 
   const [revealOpen, setRevealOpen] = useState(false)
-  // Whether we need the full (encrypted) entry — driven by BOTH reveal and
-  // copy. Copy must be able to fetch+decrypt WITHOUT opening the reveal panel,
-  // so this is kept separate from `revealOpen`.
-  const [wantDetail, setWantDetail] = useState(false)
   const [plaintext, setPlaintext] = useState<EntryPlaintext | null>(null)
   const [showSecret, setShowSecret] = useState(false)
   const [decryptError, setDecryptError] = useState<string | null>(null)
-  // Tracks a copy action queued before plaintext was available. Without
-  // this flag the user has to click "copy" twice — once to trigger the
-  // decrypt, once more to actually copy. Reset after firing.
-  const [copyAfterDecrypt, setCopyAfterDecrypt] = useState(false)
+  const [decrypting, setDecrypting] = useState(false)
+  const cryptoSessionGeneration = useAuthStore((state) => state.cryptoSessionGeneration)
+  const decryptPromise = useRef<Promise<EntryPlaintext> | null>(null)
+  const mounted = useRef(true)
 
-  // Fetch the detail once the user reveals OR copies — never on mount.
-  const detail = useCanonicalEntryDetail(vaultId, entry.id, wantDetail)
-
-  // Decrypt once the canonical envelopes arrive. Runs for reveal AND copy; the decrypted
-  // plaintext is cached for the row's lifetime (the envelopes are already
-  // cached by the query), so toggling the panel or copying again is instant.
   useEffect(() => {
-    if (!wantDetail || !detail.data || plaintext || decryptError) return
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
-    const privateKey = useAuthStore.getState().privateKey
-    if (!privateKey) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+  const decrypt = (): Promise<EntryPlaintext> => {
+    if (plaintext) return Promise.resolve(plaintext)
+    if (decryptPromise.current) return decryptPromise.current
+    const auth = useAuthStore.getState()
+    if (!auth.userId || !auth.privateKey) {
       setDecryptError(t('vault.entries.decryptVaultLocked'))
-      return
+      return Promise.reject(new Error('Vault is locked'))
     }
-
-    let cancelled = false
-    void (async () => {
-      try {
-        const vault = await getEncryptedVault(vaultId)
-        const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
-        try {
-          const secret = await openMemberSecret(detail.data.entryKey, detail.data.memberSecret, vaultKey, {
-            organizationId: detail.data.organizationId,
-            vaultId,
-            entryId: entry.id,
-            revision: detail.data.currentRevision,
-          })
-          const result = fromMemberSecret(secret).content
-          if (!cancelled) {
-            setPlaintext(result)
-          }
-        } finally {
-          wipe(vaultKey)
-        }
-      } catch {
-        if (!cancelled) {
-          setDecryptError(t('vault.entries.decryptFailed'))
-        }
+    const privateKey = auth.privateKey
+    const sessionGeneration = auth.cryptoSessionGeneration
+    setDecryptError(null)
+    setDecrypting(true)
+    const operation = openCurrentMemberEntrySecret({
+      userId: auth.userId,
+      vaultId,
+      entryId: entry.id,
+      expectedRevision: entry.currentRevision,
+      expectedKeyVersion: entry.currentKeyVersion,
+      memberPrivateKey: privateKey,
+    }).then((secret) => {
+      const current = useAuthStore.getState()
+      if (current.privateKey !== privateKey
+        || current.cryptoSessionGeneration !== sessionGeneration
+        || !mounted.current) {
+        throw new Error('Vault lock session changed')
       }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [wantDetail, detail.data, plaintext, decryptError, t, vaultId, entry.id])
+      const result = fromMemberSecret(secret).content
+      setPlaintext(result)
+      return result
+    }).catch((error: unknown) => {
+      if (mounted.current) setDecryptError(t('vault.entries.decryptFailed'))
+      throw error
+    }).finally(() => {
+      decryptPromise.current = null
+      if (mounted.current) setDecrypting(false)
+    })
+    decryptPromise.current = operation
+    return operation
+  }
 
   // Collapsing the panel only hides the plaintext — it stays decrypted so a
   // subsequent copy (or re-open) doesn't round-trip again.
@@ -113,26 +98,15 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
     if (!revealOpen) setShowSecret(false)
   }, [revealOpen])
 
-  // If the user clicked "copy" before plaintext was ready, fire the copy
-  // exactly once when it arrives.
   useEffect(() => {
-    if (!copyAfterDecrypt || !plaintext) return
-    copySecret(plaintext, entry.type, t)
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCopyAfterDecrypt(false)
-  }, [copyAfterDecrypt, plaintext, entry.type, t])
-
-  // Surface a decrypt failure that happened while a copy was queued (the panel
-  // may be closed, so the inline error wouldn't be visible).
-  useEffect(() => {
-    if (!decryptError || !copyAfterDecrypt) return
-    toast.error(t('vault.entries.copyFailed'))
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setCopyAfterDecrypt(false)
-  }, [decryptError, copyAfterDecrypt, t])
+    setPlaintext(null)
+    setDecryptError(null)
+    setRevealOpen(false)
+  }, [cryptoSessionGeneration])
 
   const meta = [entry.username, entry.urlDomain].filter(Boolean).join(' · ') || formatLastAccessed(entry, t)
-  const isLoadingDetail = revealOpen && detail.isPending
+  const isLoadingDetail = revealOpen && decrypting
 
   return (
     <div className={`flex flex-col ${HOVERABLE_CARD_CLASSES}${isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''}`}>
@@ -166,7 +140,7 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
               const next = !revealOpen
               setRevealOpen(next)
               if (next) {
-                setWantDetail(true)
+                void decrypt().catch(() => undefined)
                 analytics.capture('vault', 'entry-reveal-opened', { type: entry.type })
               }
             }}
@@ -183,15 +157,9 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
                   : t('vault.entry.copyPassword')
             }
             onClick={() => {
-              if (plaintext) {
-                copySecret(plaintext, entry.type, t)
-                return
-              }
-              // Fetch + decrypt and queue the copy so it fires the moment
-              // plaintext lands. Crucially this does NOT open the reveal panel
-              // — copying must never expand the row.
-              setCopyAfterDecrypt(true)
-              setWantDetail(true)
+              void decrypt()
+                .then((secret) => copySecret(secret, entry.type, t))
+                .catch(() => toast.error(t('vault.entries.copyFailed')))
             }}
           />
           {entry.urlDomain ? (

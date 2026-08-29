@@ -8,3 +8,11 @@ ec6b943a466e59f333b6c5434a6caf74e103ca46:src/shared/crypto/grant-envelope.ts:gen
 
 # Historical 21-character synthetic Stripe-shaped value used only by a UI mock.
 640e239d5a33c22db9f88a1601830366b75402b6:src/features/vaults/components/vault-entries-mock.ts:stripe-access-token:51
+
+# Frozen public CVT-557 protocol fixtures contain synthetic test keys and
+# fingerprints. Pin exact finding fingerprints so new fixture findings still fail.
+src/features/vaults/sync/__fixtures__/cvt-557-tombstone-reset.json:generic-api-key:20
+src/features/vaults/sync/__fixtures__/cvt-557-tombstone-reset.json:generic-api-key:55
+src/features/vaults/sync/__fixtures__/cvt-557-valid-snapshot.json:generic-api-key:20
+src/features/vaults/sync/__fixtures__/cvt-557-valid-snapshot.json:generic-api-key:48
+src/features/vaults/sync/__fixtures__/cvt-557-valid-snapshot.json:generic-api-key:250

@@ -105,7 +105,7 @@ export const api = ky.create({
 
         const { refreshToken, setTokens } = useAuthStore.getState()
         if (!refreshToken) {
-          clearClientSession()
+          await clearClientSession()
           window.location.href = buildLoginRedirectHref(window.location.href)
           return response
         }
@@ -126,7 +126,7 @@ export const api = ky.create({
         } catch {
           if (clientSessionGenerationMatches(attempt.generation)
             && useAuthStore.getState().refreshToken === attempt.refreshToken) {
-            clearClientSession()
+            await clearClientSession()
             window.location.href = buildLoginRedirectHref(window.location.href)
           }
           return response

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useAuthStore } from '../../auth'
 
 const apiMock = vi.hoisted(() => ({ post: vi.fn() }))
 vi.mock('../../../shared/api/client', () => ({ api: apiMock }))
@@ -6,13 +7,17 @@ vi.mock('../../../shared/api/client', () => ({ api: apiMock }))
 import {
   encryptedVaultDetailSchema,
   getMemberSnapshotPage,
+  MemberSyncAccessDeniedError,
+  memberDeltaPageSchema,
+  memberSnapshotPageSchema,
   memberSyncItemSchema,
 } from './member-sync-api'
+import validSnapshotFixture from './__fixtures__/cvt-557-valid-snapshot.json'
+import tombstoneResetFixture from './__fixtures__/cvt-557-tombstone-reset.json'
 
 const organizationId = '11111111-1111-4111-8111-111111111111'
 const vaultId = '22222222-2222-4222-8222-222222222222'
 const memberId = '33333333-3333-4333-8333-333333333333'
-
 function scope(extra: Partial<Record<'entryId' | 'grantOrRequestId' | 'agentId' | 'memberId', string>> = {}) {
   return {
     organizationId,
@@ -106,7 +111,49 @@ function encryptedVaultDetail() {
 }
 
 describe('Member sync transport boundary', () => {
-  beforeEach(() => apiMock.post.mockReset())
+  beforeEach(() => {
+    apiMock.post.mockReset()
+    useAuthStore.setState({ accessToken: null })
+  })
+
+  it('uses only the frozen policy-2 route and negotiation headers', async () => {
+    const claims = {
+      sub: validSnapshotFixture.requestAuthority.authenticatedPrincipalId,
+      org_id: validSnapshotFixture.requestAuthority.authenticatedOrganizationId,
+      authz_ver: validSnapshotFixture.requestAuthority.currentOrganizationMembershipGeneration,
+      org_offline_policy: 3,
+      org_offline_policy_ver: 1,
+    }
+    useAuthStore.setState({
+      accessToken: `${btoa('{}')}.${btoa(JSON.stringify(claims))}.fixture`,
+    })
+    apiMock.post.mockResolvedValue(new Response(JSON.stringify(validSnapshotFixture.response), {
+      status: 200,
+    }))
+
+    await expect(getMemberSnapshotPage(vaultId, null)).resolves.toMatchObject({
+      snapshotBaseSequence: '12',
+    })
+
+    expect(apiMock.post).toHaveBeenCalledWith(
+      `api/vaults/${vaultId}/current-entries/sync/snapshot`,
+      expect.objectContaining({
+        headers: {
+          'X-Palladin-Vault-Protocol': '2',
+          'X-Palladin-Sync-Policy': '2',
+        },
+        json: { vaultId, cursor: null, pageSize: 100 },
+      }),
+    )
+  })
+
+  it('classifies connected access denial before accepting ciphertext', async () => {
+    apiMock.post.mockResolvedValue(new Response(null, { status: 403 }))
+
+    await expect(getMemberSnapshotPage(vaultId, null)).rejects.toBeInstanceOf(
+      MemberSyncAccessDeniedError,
+    )
+  })
 
   it('rejects a declared response above the hard byte budget before reading its body', async () => {
     const body = new ReadableStream()
@@ -130,37 +177,38 @@ describe('Member sync transport boundary', () => {
     expect(encryptedVaultDetailSchema.safeParse(detail).success).toBe(false)
   })
 
-  it('rejects an EntryKey whose authenticated generation is inconsistent with MemberIndex', () => {
-    const item = {
-      entryId: '33333333-3333-4333-8333-333333333333', kind: 'head', state: 'active',
-      updatedAt: '2026-07-26T12:00:00Z',
-      currentRevision: '1', memberIndexRevision: '1', currentKeyVersion: 5,
-      entryKey: {
-        organizationId: '11111111-1111-4111-8111-111111111111', vaultId: '22222222-2222-4222-8222-222222222222',
-        entryId: '33333333-3333-4333-8333-333333333333', wrapperRevision: '1', keyVersion: 5,
-        memberKeyGeneration: 4, wrappingKeyVersion: 3, wrappedEntryDekByVk: 'ciphertext',
-        header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 8, resourceRevision: '1', keyVersion: 5, memberKeyGeneration: 4, nonce: 'nonce' },
-      },
-      memberIndex: {
-        organizationId: '11111111-1111-4111-8111-111111111111', vaultId: '22222222-2222-4222-8222-222222222222',
-        entryId: '33333333-3333-4333-8333-333333333333', memberIndexRevision: '1', ciphertext: 'ciphertext',
-        header: { protocolVersion: 2, algorithmSuite: 1, resourceKind: 2, projectionKind: 2, resourceRevision: '1', keyVersion: 5, memberKeyGeneration: 3, nonce: 'nonce' },
-      },
-    }
+  it('accepts the exact frozen CVT-557 complete snapshot and tombstone vectors', () => {
+    expect(memberSnapshotPageSchema.safeParse(validSnapshotFixture.response).success).toBe(true)
+    expect(memberDeltaPageSchema.safeParse(tombstoneResetFixture.tombstoneDelta.response).success).toBe(true)
+  })
+
+  it('rejects an EntryKey whose authenticated generation is inconsistent with MemberSecret', () => {
+    const item = structuredClone(validSnapshotFixture.response.items[0])
+    item.entryKey.descriptor.memberKeyGeneration += 1
 
     expect(memberSyncItemSchema.safeParse(item).success).toBe(false)
+  })
+
+  it('rejects an incomplete head or mismatched MemberSecret revision', () => {
+    const missing = structuredClone(validSnapshotFixture.response.items[0]) as Record<string, unknown>
+    delete missing.memberSecret
+    expect(memberSyncItemSchema.safeParse(missing).success).toBe(false)
+
+    const mismatched = structuredClone(validSnapshotFixture.response.items[0])
+    mismatched.memberSecret.descriptor.resourceRevision = '13'
+    expect(memberSyncItemSchema.safeParse(mismatched).success).toBe(false)
   })
 
   it('requires the structural update timestamp on Member heads and null on tombstones', () => {
     expect(memberSyncItemSchema.safeParse({
       entryId: '33333333-3333-4333-8333-333333333333', kind: 'tombstone', state: null,
       updatedAt: null, currentRevision: null, memberIndexRevision: null,
-      currentKeyVersion: null, entryKey: null, memberIndex: null,
+      currentKeyVersion: null, entryKey: null, memberIndex: null, memberSecret: null,
     }).success).toBe(true)
     expect(memberSyncItemSchema.safeParse({
       entryId: '33333333-3333-4333-8333-333333333333', kind: 'tombstone', state: null,
       currentRevision: null, memberIndexRevision: null,
-      currentKeyVersion: null, entryKey: null, memberIndex: null,
+      currentKeyVersion: null, entryKey: null, memberIndex: null, memberSecret: null,
     }).success).toBe(false)
   })
 })

@@ -179,6 +179,6 @@ export async function logout(refreshToken: string): Promise<void> {
   try {
     await api.post('api/auth/logout', { json: { refreshToken } }).json()
   } finally {
-    clearClientSession()
+    await clearClientSession()
   }
 }

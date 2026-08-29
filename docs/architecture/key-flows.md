@@ -32,13 +32,14 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 
 ## Protocol 2 Member sync
 
-1. After unlock, open the authenticated MemberVaultKey package with the in-memory Member private key.
-2. Decrypt MemberVaultMetadata with an HKDF key derived from VK.
-3. Fetch the bounded Member snapshot. Persist its ciphertext envelopes into a private IndexedDB namespace; do not expose it yet.
-4. For every head, decrypt the authenticated EntryKey wrapper with the current VK to obtain the 32-byte EntryDEK, derive the MemberIndex key from EntryDEK, decrypt MemberIndex, and wipe both keys and plaintext buffers.
-5. Apply the closing delta to the pending namespace. Only then atomically swap it active and publish the normalized in-memory index.
-6. Apply later delta pages and their cursors in one IndexedDB transaction. A retention-floor reset builds another private namespace; tombstones remove entries.
-7. Lock, logout, abort, or provider teardown clears every decrypted projection from Zustand. Persistent storage contains ciphertext and structural cursors only.
+1. After unlock, list the authenticated encrypted Vault summaries and open each exact MemberVaultKey package with the in-memory Member private key. Decrypt MemberVaultMetadata with an HKDF key derived from VK.
+2. Negotiate Vault protocol `2` plus sync policy `2` on the dedicated current-Entry snapshot/delta routes. Every head must contain the complete current `EntryKey + MemberIndex + MemberSecret`; mixed or partial material is rejected.
+3. Validate the response against independent authenticated authority: JWT principal/organization/membership generation/offline policy, route Vault, structural Member, current Member-key and VK versions, recipient version/fingerprint, exact Vault summary wrapper and every current structural Entry head binding.
+4. Commit each bounded page's complete ciphertext items, exact Member Vault-key wrapper, finite access context and cursor into one private IndexedDB namespace transaction; do not expose the namespace yet.
+5. For every head, decrypt only MemberIndex for list/search presentation. Open EntryDEK from the authenticated wrapper, derive the MemberIndex key, authenticate/decrypt, then wipe EntryDEK and plaintext buffers. MemberSecret remains ciphertext.
+6. Apply the closing delta to the pending namespace. Only then atomically swap it active and publish the normalized in-memory index. Later delta pages update complete heads, access context and cursor atomically.
+7. A retention/generation/policy reset deletes the affected active generation before staging a replacement. Tombstones remain terminal inside a generation, so a delayed head cannot revive purged material.
+8. Lock clears all raw keys and decrypted projections but may retain an unexpired ciphertext generation. `disabled` authorizes local use only while the unlocked generation remains connected and successfully synchronized. Persist the maximum observed wall time and combine it with a process-monotonic observation; exact lease expiry, rollback beyond five minutes, access denial, corruption or authority mismatch deletes the affected generation. Logout deletes every active/staging namespace and access context for the profile.
 
 ## Protocol 2 Vault creation
 
@@ -69,12 +70,13 @@ Key terms: **MK** = master key, **VK** = vault key, **EntryDEK** = per-entry dat
 
 ## Protocol 2 Entry detail and update
 
-1. Render list presentation only from the already-decrypted in-memory MemberIndex. Fetch the canonical encrypted Entry head for the detail route, but do not open MemberSecret until the Member explicitly reveals or edits the protected fields.
-2. On reveal, validate the response's organization, Vault, Entry, revision and key-head bindings, open the authenticated EntryDEK wrapper with VK, derive the isolated MemberSecret key and authenticate/decrypt MemberSecret. Wipe VK, EntryDEK, the derived key and serialized plaintext buffers.
-3. Preserve the complete decrypted MemberSecret draft, including Agent Visibility Policy and fields the Details tab does not edit. Build the next projections locally and assign exactly `baseRevision + 1` with operation `Updated`.
-4. Always emit the new immutable MemberSecret. Emit MemberIndex and AgentDiscovery only when their canonical plaintext changed; removing Discovery is represented by `agentDiscoveryChanged: true` with no replacement envelope.
-5. List active GRANULAR grants for this Entry, authenticate each exact frozen scope and current recipient key context, and build a new per-Entry grant envelope against the new Entry revision. FULL grants require no per-Entry refresh. Policy changes may only narrow the previous durable GRANULAR field scope.
-6. Submit the optimistic `baseRevision`, changed ciphertext projections and the complete refreshed GRANULAR envelope set in one backend transaction. A missing GRANULAR grant, stale revision/key context or broadened field scope fails closed and rolls back the whole update.
+1. Render list/detail presentation only from the already-decrypted in-memory MemberIndex. Row intent, Reveal, Copy and TOTP never fetch a canonical Entry detail.
+2. For the selected operation, atomically read the active generation and one Entry from IndexedDB. Validate the independently bound access context, exact lease time, current structural revision/key version and complete head before opening any key.
+3. Open the cached exact MemberVaultKey wrapper with the in-memory Member private key, open EntryDEK from the current EntryKey, derive the isolated MemberSecret key and authenticate/decrypt only the selected MemberSecret in shared crypto code. Wipe VK, EntryDEK, the derived key and serialized plaintext buffers; a replaced unlock session cannot publish its result.
+4. Preserve the complete decrypted MemberSecret draft, including Agent Visibility Policy and fields the Details tab does not edit. When Save begins, fetch the canonical Entry detail through the mutation path and require its revision/key version to equal the selected local structural head before preparing ciphertext.
+5. Build the next projections locally and assign exactly `baseRevision + 1` with operation `Updated`. Always emit the new immutable MemberSecret. Emit MemberIndex and AgentDiscovery only when their canonical plaintext changed; removing Discovery is represented by `agentDiscoveryChanged: true` with no replacement envelope.
+6. List active GRANULAR grants for this Entry, authenticate each exact frozen scope and current recipient key context, and build a new per-Entry grant envelope against the new Entry revision. FULL grants require no per-Entry refresh. Policy changes may only narrow the previous durable GRANULAR field scope.
+7. Submit the optimistic `baseRevision`, changed ciphertext projections and the complete refreshed GRANULAR envelope set in one backend transaction. A missing GRANULAR grant, stale revision/key context or broadened field scope fails closed and rolls back the whole update. The mutation response is not a local cache commit; normal authoritative sync reconciles it.
 
 ## Protocol 2 Entry history and restore
 

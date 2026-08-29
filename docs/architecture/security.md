@@ -67,6 +67,12 @@ so they are covered by the supply-chain review of `package-lock.json` + the CI
   restore a session across reloads without forcing an OAuth round-trip.
 - **Crypto keys (MK / privateKey / VK) — never persisted.** Closing the tab or a
   session timeout destroys them; the vault must be re-unlocked.
+- **Current Entry ciphertext cache — IndexedDB only.** The cache may contain
+  authenticated current MemberIndex/MemberSecret/EntryKey ciphertext, encrypted
+  Member key wrappers, structural heads/cursors and a finite offline-access
+  context. It never contains MK, the Member private key, raw VK/EntryDEK,
+  decrypted MemberIndex, Entry plaintext or a TOTP seed. Lock may retain an
+  unexpired generation; lease expiry, access denial and logout delete it.
 - **Session timeouts:** `useSessionTimeout` (mounted in the authenticated
   layout) locks the vault and drops the access token after 15 min idle or 8 h
   absolute, then routes to `/unlock`.

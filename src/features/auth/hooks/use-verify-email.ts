@@ -76,7 +76,7 @@ export function useVerifyEmail() {
               if (clientSessionGenerationMatches(generation)
                 && currentState.userId === response.userId
                 && currentState.refreshToken === currentRefreshToken) {
-                clearClientSession()
+                await clearClientSession()
               }
             }
           }

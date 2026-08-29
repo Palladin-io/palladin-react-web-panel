@@ -5,8 +5,8 @@ import { acceptOrganizationInvitation } from './api/organization-invitations-api
 export function useAcceptOrganizationInvitation() {
   return useMutation({
     mutationFn: acceptOrganizationInvitation,
-    onSuccess: (session) => {
-      clearClientSession()
+    onSuccess: async (session) => {
+      await clearClientSession()
       const auth = useAuthStore.getState()
       auth.setTokens(session)
       // The session now points at another organization. Wipe the old

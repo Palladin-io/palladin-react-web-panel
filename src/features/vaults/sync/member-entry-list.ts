@@ -22,6 +22,7 @@ export interface MemberEntryListItem {
   urlDomain: string | null
   searchFields: readonly string[]
   currentRevision: string
+  currentKeyVersion: number
   corrupt: boolean
 }
 
@@ -49,6 +50,7 @@ export function buildMemberEntryList(vault: DecryptedMemberVault | undefined): M
     urlDomain: !entry.corrupt ? entry.payload?.urlDomain ?? null : null,
     searchFields: !entry.corrupt && entry.payload ? memberIndexSearchValues(entry.payload) : [],
     currentRevision: entry.currentRevision,
+    currentKeyVersion: entry.currentKeyVersion,
     corrupt: entry.corrupt || entry.payload === null,
   }))
 }

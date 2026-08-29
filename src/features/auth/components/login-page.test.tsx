@@ -49,7 +49,7 @@ describe('LoginPage', () => {
     startMutate.mockReset()
     totpMutate.mockReset()
     navigateMock.mockReset()
-    clearClientSessionMock.mockReset()
+    clearClientSessionMock.mockReset().mockResolvedValue(undefined)
     googleLoginMock.mockReset()
   })
 
