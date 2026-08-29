@@ -19,7 +19,9 @@ vi.mock('../../auth', () => ({
 vi.mock('../../agents', () => ({ getAgent }))
 vi.mock('../use-org-grants', () => ({ useOrgGrants: vi.fn() }))
 vi.mock('../use-grant-reasons', () => ({
-  useGrantReasons: () => new Map([['grant-1', 'Deploy the release']]),
+  useGrantReasons: () => new Map([
+    ['["grant-1","vault-1","entry-1","agent-1"]', 'Deploy the release'],
+  ]),
 }))
 vi.mock('../use-create-grant', () => ({ useCreateGrant: () => createGrantMutation }))
 vi.mock('../use-revoke-org-grant', () => ({

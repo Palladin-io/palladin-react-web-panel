@@ -5,6 +5,7 @@ import { getVaultMembers } from "../vaults/api/vault-members-api";
 import { vaultMembersQueryKey } from "../vaults/use-vault-members";
 import { getOrgGrants, type OrgGrant } from "./api/org-grants-api";
 import { ORG_GRANTS_QUERY_KEY } from "./query-keys";
+import { grantReasonCoordinateKey } from "./grant-reason-coordinate";
 import { useGrantReasons } from "./use-grant-reasons";
 
 export interface GrantHistoryCoordinate {
@@ -75,7 +76,7 @@ export function useGrantHistoryMetadata(
       const grant = grantsById.get(coordinate.grantId);
       if (!grant || grant.vaultId !== coordinate.vaultId) continue;
       const actorId = actorIdFor(grant, coordinate.type);
-      const reason = reasons.get(grant.id);
+      const reason = reasons.get(grantReasonCoordinateKey(grant));
       resolved.set(coordinate.grantId, {
         ...(reason ? { reason } : {}),
         ...(actorId

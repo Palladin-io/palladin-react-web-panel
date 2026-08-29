@@ -26,7 +26,7 @@ vi.mock('../use-grant-approval-review', () => ({
   useGrantApprovalReview: () => ({ data: undefined, isPending: false, isError: false }),
 }))
 vi.mock('../use-grant-reasons', () => ({
-  useGrantReasons: () => new Map([['g1', 'Deploy the release']]),
+  useGrantReasons: () => new Map([['["g1","v1",null,null]', 'Deploy the release']]),
 }))
 vi.mock('../use-deny-grant', () => ({
   useDenyGrant: () => ({ mutate: vi.fn(), isPending: false }),

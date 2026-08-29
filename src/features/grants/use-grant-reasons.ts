@@ -5,13 +5,13 @@ import { wipe } from '../../shared/crypto/sodium'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { useAuthStore } from '../auth'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
+import {
+  grantReasonCoordinateKey,
+  type GrantReasonCoordinate,
+} from './grant-reason-coordinate'
 import { GRANT_REASONS_QUERY_KEY } from './query-keys'
 
-export interface GrantReasonSource {
-  id: string
-  vaultId: string
-  entryId?: string | null
-  agentId?: string | null
+export interface GrantReasonSource extends GrantReasonCoordinate {
   encryptedReason?: EncryptedReasonContract | null
   agentSigningPublicKey?: string | null
   agentSigningKeyVersion?: number | null
@@ -31,7 +31,7 @@ export function useGrantReasons(grants: readonly GrantReasonSource[]) {
   const eligible = useMemo(() => grants.filter(hasReasonMaterial), [grants])
   const reasonCoordinates = useMemo(
     () => eligible.map((grant) => [
-      grant.id,
+      grantReasonCoordinateKey(grant),
       grant.encryptedReason!.descriptor.resourceRevision,
       grant.agentSigningKeyFingerprint,
     ] as const),
@@ -79,7 +79,7 @@ export function useGrantReasons(grants: readonly GrantReasonSource[]) {
                 },
               )
               if (useAuthStore.getState().privateKey !== sessionKey) return
-              resolved.set(grant.id, reason)
+              resolved.set(grantReasonCoordinateKey(grant), reason)
             } catch {
               // Fail closed per grant. Never log the envelope, coordinates, or
               // crypto error because they can contain attacker-controlled data.

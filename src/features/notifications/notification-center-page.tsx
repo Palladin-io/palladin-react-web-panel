@@ -14,6 +14,7 @@ import { TypeFilterDropdown } from "../../shared/components/type-filter-dropdown
 import {
   ApproveGrantDialog,
   DenyGrantDialog,
+  grantReasonCoordinateKey,
   GrantReviewUnavailableError,
   OrgGrantsPanel,
   StaleGrantReviewError,
@@ -64,15 +65,6 @@ interface AgentTarget {
   agentName: string;
   agentType?: string;
   notificationId: string;
-}
-
-function pendingReasonCoordinateKey(
-  grantId: string,
-  vaultId: string,
-  entryId: string | null,
-  agentId: string | null,
-): string {
-  return JSON.stringify([grantId, vaultId, entryId, agentId]);
 }
 
 /**
@@ -135,15 +127,10 @@ export function NotificationCenterPage({
   const pendingReasonsByCoordinates = useMemo(() => {
     const reasons = new Map<string, string>();
     for (const grant of pendingGrants.data ?? []) {
-      const reason = pendingGrantReasons.get(grant.id);
+      const reason = pendingGrantReasons.get(grantReasonCoordinateKey(grant));
       if (!reason) continue;
       reasons.set(
-        pendingReasonCoordinateKey(
-          grant.id,
-          grant.vaultId,
-          grant.entryId,
-          grant.agentId,
-        ),
+        grantReasonCoordinateKey(grant),
         reason,
       );
     }
@@ -215,12 +202,12 @@ export function NotificationCenterPage({
         const pendingReason =
           item.type === "grant_pending" && grantId
             ? pendingReasonsByCoordinates.get(
-                pendingReasonCoordinateKey(
-                  grantId,
-                  item.metadata?.vaultId ?? "",
-                  item.metadata?.entryId ?? null,
-                  item.metadata?.agentId ?? null,
-                ),
+                grantReasonCoordinateKey({
+                  id: grantId,
+                  vaultId: item.metadata?.vaultId ?? "",
+                  entryId: item.metadata?.entryId ?? null,
+                  agentId: item.metadata?.agentId ?? null,
+                }),
               )
             : undefined;
         return metadata || pendingReason

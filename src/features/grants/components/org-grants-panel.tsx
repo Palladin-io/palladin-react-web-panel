@@ -25,6 +25,7 @@ import {
 } from '../org-grant-presentation'
 import type { GrantPolicyBody } from '../grant-policy'
 import { parseGrantMethods } from '../grant-methods'
+import { grantReasonCoordinateKey } from '../grant-reason-coordinate'
 import { useOrgGrants } from '../use-org-grants'
 import { useGrantReasons } from '../use-grant-reasons'
 import { useCreateGrant } from '../use-create-grant'
@@ -286,7 +287,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
             <li key={grant.id}>
               <OrgGrantRow
                 grant={grant}
-                accessReason={reasons.get(grant.id)}
+                accessReason={reasons.get(grantReasonCoordinateKey(grant))}
                 onRevoke={() => setRevokeTarget(grant)}
                 onRegrant={() => setRegrantTarget(grant)}
                 disabled={revoke.isPending || regrantBusy}
@@ -313,7 +314,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
                   <li key={grant.id}>
                     <OrgGrantRow
                       grant={grant}
-                      accessReason={reasons.get(grant.id)}
+                      accessReason={reasons.get(grantReasonCoordinateKey(grant))}
                       onRevoke={() => setRevokeTarget(grant)}
                       onRegrant={() => setRegrantTarget(grant)}
                       disabled={revoke.isPending || regrantBusy}

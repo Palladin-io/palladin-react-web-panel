@@ -104,7 +104,7 @@ vi.mock("../grants", async (importOriginal) => ({
     refetch: pendingRefetch,
   }),
   useGrantApprovalReview: grantApprovalReview,
-  useGrantReasons: () => new Map([["g1", "deploy"]]),
+  useGrantReasons: () => new Map([['["g1","v1","e1","a1"]', "deploy"]]),
   useDenyGrant: () => ({ mutate: denyMutate, isPending: false }),
   useGrantHistoryMetadata: () => grantHistoryMetadata,
 }));

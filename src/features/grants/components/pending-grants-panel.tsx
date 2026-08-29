@@ -8,6 +8,7 @@ import { Icon } from '../../../shared/components/icon'
 import type { PendingGrant } from '../api/pending-grants-api'
 import type { GrantPolicyBody } from '../grant-policy'
 import type { GrantMethod } from '../grant-methods'
+import { grantReasonCoordinateKey } from '../grant-reason-coordinate'
 import { useApproveGrant } from '../use-approve-grant'
 import { StaleGrantReviewError } from '../use-approve-grant'
 import { useGrantApprovalReview } from '../use-grant-approval-review'
@@ -155,7 +156,7 @@ export function PendingGrantsPanel({
             <li key={grant.id} className="w-[22.5rem] shrink-0 snap-start">
               <PendingGrantCard
                 grant={resolveGrant(grant)}
-                reason={reasons.get(grant.id)}
+                reason={reasons.get(grantReasonCoordinateKey(grant))}
                 onApprove={() => setApproveTarget(resolveGrant(grant))}
                 onDeny={() => setDenyTarget(grant)}
                 disabled={approve.isPending || deny.isPending}
@@ -169,7 +170,7 @@ export function PendingGrantsPanel({
             <li key={grant.id}>
               <PendingGrantCard
                 grant={resolveGrant(grant)}
-                reason={reasons.get(grant.id)}
+                reason={reasons.get(grantReasonCoordinateKey(grant))}
                 onApprove={() => setApproveTarget(resolveGrant(grant))}
                 onDeny={() => setDenyTarget(grant)}
                 disabled={approve.isPending || deny.isPending}

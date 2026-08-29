@@ -9,6 +9,7 @@ export type { GrantAccessMode } from "./components/grant-access-dialog";
 // existing zero-knowledge approve/deny/revoke/regrant flows — crypto unchanged.
 export { StaleGrantReviewError, useApproveGrant } from "./use-approve-grant";
 export { useGrantApprovalReview } from "./use-grant-approval-review";
+export { grantReasonCoordinateKey } from "./grant-reason-coordinate";
 export { useGrantReasons } from "./use-grant-reasons";
 export { GrantReviewUnavailableError } from "./use-grant-approval-review";
 export type { GrantReviewStage } from "./use-grant-approval-review";
