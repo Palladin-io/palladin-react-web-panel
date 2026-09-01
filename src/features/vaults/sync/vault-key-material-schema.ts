@@ -29,8 +29,14 @@ const envelopePurposeValues = {
   grantPayload: 10,
 } as const
 
-const envelopePurposeSchema = z.enum(Object.keys(envelopePurposeValues) as [keyof typeof envelopePurposeValues, ...(keyof typeof envelopePurposeValues)[]])
-  .transform((purpose) => envelopePurposeValues[purpose])
+const envelopePurposeNameSchema = z.enum(Object.keys(envelopePurposeValues) as [keyof typeof envelopePurposeValues, ...(keyof typeof envelopePurposeValues)[]])
+const envelopePurposeSchema = z.union([
+  envelopePurposeNameSchema,
+  z.union([
+    z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5),
+    z.literal(6), z.literal(7), z.literal(8), z.literal(9), z.literal(10),
+  ]),
+]).transform((purpose) => typeof purpose === 'number' ? purpose : envelopePurposeValues[purpose])
 
 export function envelopeDescriptorSchema<T extends z.ZodType>(binding: T) {
   return z.object({
@@ -67,10 +73,16 @@ const recipientKeyKindValues = {
   memberX25519: 5,
 } as const
 
-const wrapperPurposeSchema = z.enum(Object.keys(wrapperPurposeValues) as [keyof typeof wrapperPurposeValues, ...(keyof typeof wrapperPurposeValues)[]])
-  .transform((purpose) => wrapperPurposeValues[purpose])
-const recipientKeyKindSchema = z.enum(Object.keys(recipientKeyKindValues) as [keyof typeof recipientKeyKindValues, ...(keyof typeof recipientKeyKindValues)[]])
-  .transform((kind) => recipientKeyKindValues[kind])
+const wrapperPurposeNameSchema = z.enum(Object.keys(wrapperPurposeValues) as [keyof typeof wrapperPurposeValues, ...(keyof typeof wrapperPurposeValues)[]])
+const wrapperPurposeSchema = z.union([
+  wrapperPurposeNameSchema,
+  z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+]).transform((purpose) => typeof purpose === 'number' ? purpose : wrapperPurposeValues[purpose])
+const recipientKeyKindNameSchema = z.enum(Object.keys(recipientKeyKindValues) as [keyof typeof recipientKeyKindValues, ...(keyof typeof recipientKeyKindValues)[]])
+const recipientKeyKindSchema = z.union([
+  recipientKeyKindNameSchema,
+  z.union([z.literal(1), z.literal(4), z.literal(5)]),
+]).transform((kind) => typeof kind === 'number' ? kind : recipientKeyKindValues[kind])
 
 export const x25519WrappedKeySchema = z.object({
   descriptor: z.object({

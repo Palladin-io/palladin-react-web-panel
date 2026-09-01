@@ -95,6 +95,35 @@ export async function invalidateMemberSyncGeneration(
   }
 }
 
+export async function repairMemberSyncGeneration(
+  userId: string,
+  vaultId: string,
+  cache: MemberSyncCache | null = memberSyncCache,
+): Promise<boolean> {
+  if (!cache) return false
+  const active = await cache.getActiveState(userId, vaultId)
+  if (!active) {
+    useMemberSyncStore.getState().retry()
+    return false
+  }
+  try {
+    const removed = await cache.removeActiveGeneration(userId, vaultId, active)
+    const store = useMemberSyncStore.getState()
+    if (removed) {
+      forgetClockObservation(userId, vaultId)
+      store.resetVault(vaultId)
+    }
+    store.retry()
+    return removed
+  } catch (error) {
+    forgetClockObservation(userId, vaultId)
+    const store = useMemberSyncStore.getState()
+    store.removeVault(vaultId)
+    store.fail()
+    throw error
+  }
+}
+
 export async function purgeInvalidMemberSyncGenerations(
   userId: string,
   now = new Date(),

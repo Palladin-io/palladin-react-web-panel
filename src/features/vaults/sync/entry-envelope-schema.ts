@@ -3,9 +3,18 @@ import { envelopeDescriptorSchema, vaultEnvelopeSchema, x25519WrappedKeySchema }
 
 const emptyBindingSchema = z.object({}).strict()
 const vaultKeyBindingSchema = z.object({ wrappingVaultKeyVersion: z.number().int().min(0).max(0xffffffff) }).strict()
+const memberSecretOperationSchema = z.union([
+  z.enum(['created', 'updated', 'archived', 'restored', 'deleted']),
+  z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
+]).transform((operation) => typeof operation === 'number'
+  ? operation
+  : ({ created: 1, updated: 2, archived: 3, restored: 4, deleted: 5 } as const)[operation])
+
 const memberSecretBindingSchema = z.object({
-  operation: z.enum(['created', 'updated', 'archived', 'restored', 'deleted'])
-    .transform((operation) => ({ created: 1, updated: 2, archived: 3, restored: 4, deleted: 5 } as const)[operation]),
+  // API parsing normalizes the wire enum to its canonical numeric AAD value.
+  // Cached items cross the validation boundary again when opened, so accept
+  // that already-normalized representation without weakening the closed set.
+  operation: memberSecretOperationSchema,
 }).strict()
 
 function purposeBoundEnvelope<T extends z.ZodType>(binding: T, expectedPurpose: number) {

@@ -2,13 +2,13 @@ import { z } from 'zod'
 import { api } from '../../shared/api/client'
 
 const remoteSearchResultSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('agent'), id: z.string().uuid(), name: z.string().max(256) }).strict(),
-  z.object({ type: z.literal('member'), id: z.string().uuid(), name: z.string().max(256) }).strict(),
+  z.object({ type: z.literal('agent'), id: z.string().uuid(), name: z.string().max(256) }),
+  z.object({ type: z.literal('member'), id: z.string().uuid(), name: z.string().max(256) }),
 ])
 
 const searchResponseSchema = z.object({
   results: z.array(remoteSearchResultSchema).max(25),
-}).strict()
+})
 
 export type RemoteSearchResult = z.infer<typeof remoteSearchResultSchema>
 

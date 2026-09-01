@@ -8,6 +8,7 @@ import {
   encryptedVaultDetailSchema,
   getMemberSnapshotPage,
   MemberSyncAccessDeniedError,
+  currentMemberEntryAccessContextSchema,
   memberDeltaPageSchema,
   memberSnapshotPageSchema,
   memberSyncItemSchema,
@@ -189,6 +190,13 @@ describe('Member sync transport boundary', () => {
     expect(memberSyncItemSchema.safeParse(item).success).toBe(false)
   })
 
+  it('does not equate the EntryKey wrapper revision with the current Entry revision', () => {
+    const item = structuredClone(validSnapshotFixture.response.items[0])
+    item.entryKey.descriptor.resourceRevision = '4'
+
+    expect(memberSyncItemSchema.safeParse(item).success).toBe(true)
+  })
+
   it('rejects an incomplete head or mismatched MemberSecret revision', () => {
     const missing = structuredClone(validSnapshotFixture.response.items[0]) as Record<string, unknown>
     delete missing.memberSecret
@@ -197,6 +205,40 @@ describe('Member sync transport boundary', () => {
     const mismatched = structuredClone(validSnapshotFixture.response.items[0])
     mismatched.memberSecret.descriptor.resourceRevision = '13'
     expect(memberSyncItemSchema.safeParse(mismatched).success).toBe(false)
+  })
+
+  it('ignores a forward-compatible optional head field', () => {
+    const item = {
+      ...structuredClone(validSnapshotFixture.response.items[0]),
+      futurePresentationHint: 'optional',
+    }
+
+    const parsed = memberSyncItemSchema.parse(item)
+
+    expect(parsed).not.toHaveProperty('futurePresentationHint')
+  })
+
+  it('ignores a forward-compatible optional page field', () => {
+    const page = {
+      ...structuredClone(validSnapshotFixture.response),
+      futurePageHint: 'optional',
+    }
+
+    const parsed = memberSnapshotPageSchema.parse(page)
+
+    expect(parsed).not.toHaveProperty('futurePageHint')
+  })
+
+  it('accepts a shortened offline lease but rejects one exceeding authenticated policy', () => {
+    const access = structuredClone(validSnapshotFixture.response.accessContext)
+    expect(currentMemberEntryAccessContextSchema.safeParse({
+      ...access,
+      notAfter: '2026-08-29T12:00:00Z',
+    }).success).toBe(true)
+    expect(currentMemberEntryAccessContextSchema.safeParse({
+      ...access,
+      notAfter: '2026-08-30T08:00:01Z',
+    }).success).toBe(false)
   })
 
   it('requires the structural update timestamp on Member heads and null on tombstones', () => {

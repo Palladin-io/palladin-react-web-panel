@@ -237,6 +237,34 @@ describe('ensureWebsiteIcons', () => {
     expect(onProgress).toHaveBeenLastCalledWith(1, 1)
   })
 
+  it('does not reject backend-owned status/asset relationships', async () => {
+    const missingAssetHostname = 'ready-without-asset.example.com'
+    const prematureAssetHostname = 'pending-with-asset.example.com'
+    vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
+      const body = await request.clone().json() as { hostnames: string[] }
+      return new Response(JSON.stringify({
+        items: body.hostnames.map((hostname) => ({
+          hostname,
+          status: hostname === missingAssetHostname ? 'ready' : 'pending',
+          futureItemHint: true,
+          asset: hostname === prematureAssetHostname ? {
+            id: '99999999-9999-4999-8999-999999999999',
+            type: 'websiteIcon',
+            name: hostname,
+            url: 'https://assets.palladin.io/published/website-icon/premature.png',
+            revision: 1,
+            futureAssetHint: true,
+          } : null,
+        })),
+        futurePageHint: true,
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    }))
+
+    const result = await ensureWebsiteIcons([missingAssetHostname, prematureAssetHostname])
+
+    expect(result).toEqual(new Map())
+  })
+
   it('revalidates a previously failed icon during a later preparation attempt', async () => {
     const hostname = 'available-after-failure.example.com'
     let calls = 0

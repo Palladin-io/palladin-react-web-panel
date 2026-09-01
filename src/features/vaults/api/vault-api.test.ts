@@ -37,9 +37,11 @@ describe('getRecentlyDeletedEntries', () => {
   }
 
   it('validates the authoritative deadline and sends a bounded page request', async () => {
-    getJson.mockResolvedValueOnce({ items: [item], nextCursor: 'next' })
+    getJson.mockResolvedValueOnce({ items: [{ ...item, futureHint: true }], nextCursor: 'next', futurePageHint: true })
     const page = await getRecentlyDeletedEntries(vaultId, 'cursor')
     expect(page.items[0].retentionExpiresAt).toBe('2026-08-25T00:00:00Z')
+    expect(page.items[0]).not.toHaveProperty('futureHint')
+    expect(page).not.toHaveProperty('futurePageHint')
     expect(getFn).toHaveBeenCalledWith(expect.stringContaining('/recently-deleted'), {
       searchParams: { pageSize: '100', cursor: 'cursor' },
     })
@@ -71,10 +73,13 @@ describe('getEntryHistory', () => {
   })
 
   it('normalizes wire enums and sends the revision cursor', async () => {
-    getJson.mockResolvedValueOnce({ currentRevision: '7', items: [historyItem()], nextBeforeRevision: '7',
-      policy: { maximumVersions: 100, maximumAgeDays: 365 } })
+    getJson.mockResolvedValueOnce({ currentRevision: '7', items: [historyItem({ futureHint: true })], nextBeforeRevision: '7',
+      policy: { maximumVersions: 100, maximumAgeDays: 365, futurePolicyHint: true }, futurePageHint: true })
     const page = await getEntryHistory(vaultId, entryId, '8')
     expect(page.items[0]).toMatchObject({ operation: 2, changedByType: 1 })
+    expect(page.items[0]).not.toHaveProperty('futureHint')
+    expect(page.policy).not.toHaveProperty('futurePolicyHint')
+    expect(page).not.toHaveProperty('futurePageHint')
     expect(getFn).toHaveBeenCalledWith(expect.stringContaining('/history'), {
       searchParams: { pageSize: '20', beforeRevision: '8' },
     })
@@ -107,6 +112,28 @@ describe('getCanonicalEntry', () => {
         { wrappingVaultKeyVersion: 1 }),
     })
     await expect(getCanonicalEntry(vaultId, id)).rejects.toThrow('Entry envelope scope mismatch')
+  })
+
+  it('does not reject a backend-owned Discovery watermark relationship', async () => {
+    const organizationId = '00112233-4455-4677-8899-aabbccddeeff'
+    const vaultId = '11112233-4455-4677-8899-aabbccddeeff'
+    const id = '22222233-4455-4677-8899-aabbccddeeff'
+    getJson.mockResolvedValueOnce({ organizationId, vaultId, id, state: 'active', currentRevision: '2',
+      deliveryPolicy: 'standard', futurePresentationHint: 'optional',
+      memberIndexRevision: '1', agentDiscoveryRevision: '2', agentDiscoveryRevisionHighWatermark: '1', currentKeyVersion: 1,
+      createdAt: '2026-07-26T00:00:00Z', createdBy: organizationId,
+      updatedAt: '2026-07-26T00:00:00Z', updatedBy: organizationId,
+      memberIndex: envelope('memberIndex', organizationId, vaultId, id, '1', 1),
+      memberSecret: envelope('memberSecret', organizationId, vaultId, id, '2', 1, { operation: 'updated' }),
+      agentDiscovery: envelope('agentDiscovery', organizationId, vaultId, id, '2', 1),
+      entryKey: envelope('entryDekByVaultKey', organizationId, vaultId, id, '1', 1,
+        { wrappingVaultKeyVersion: 1 }),
+    })
+
+    const detail = await getCanonicalEntry(vaultId, id)
+
+    expect(detail.agentDiscoveryRevision).toBe('2')
+    expect(detail).not.toHaveProperty('futurePresentationHint')
   })
 })
 
@@ -163,7 +190,7 @@ describe('importEntries', () => {
 
   it('parses a JSON success body', async () => {
     const entryIds = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222']
-    postText.mockResolvedValueOnce(JSON.stringify({ importedCount: 2, entryIds }))
+    postText.mockResolvedValueOnce(JSON.stringify({ importedCount: 2, entryIds, futureHint: true }))
     const res = await importEntries('vault-1', body as never)
     expect(res).toEqual({ importedCount: 2, entryIds })
   })
@@ -183,7 +210,7 @@ describe('restoreCanonicalEntry', () => {
     postJson.mockReset()
   })
 
-  it('accepts only a canonical Active lifecycle response', async () => {
+  it('reads the mutation result without duplicating the backend lifecycle invariant', async () => {
     postJson.mockResolvedValueOnce({ state: 'active', currentRevision: '8' })
     await expect(restoreCanonicalEntry('vault', 'entry', {
       baseRevision: '7', memberSecret: {} as never,
@@ -192,6 +219,6 @@ describe('restoreCanonicalEntry', () => {
     postJson.mockResolvedValueOnce({ state: 'archived', currentRevision: '8' })
     await expect(restoreCanonicalEntry('vault', 'entry', {
       baseRevision: '7', memberSecret: {} as never,
-    })).rejects.toThrow()
+    })).resolves.toEqual({ state: 'archived', currentRevision: '8' })
   })
 })

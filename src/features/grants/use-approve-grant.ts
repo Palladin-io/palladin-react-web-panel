@@ -91,7 +91,7 @@ export function useApproveGrant() {
         getAgent(agentId),
       ])
       if (!agent.publicKey) throw new MissingGrantMaterialError()
-      if (detail.currentRevision !== reviewedEntryRevision || (detail.state !== 'active' && detail.state !== 1)) {
+      if (detail.currentRevision !== reviewedEntryRevision) {
         throw new StaleGrantReviewError()
       }
       const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
@@ -123,7 +123,7 @@ export function useApproveGrant() {
           }
           if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
           const latest = await getCanonicalEntry(vaultId, entryId)
-          if (latest.currentRevision !== reviewedEntryRevision || (latest.state !== 'active' && latest.state !== 1)) {
+          if (latest.currentRevision !== reviewedEntryRevision) {
             throw new StaleGrantReviewError()
           }
           await approveGrant(vaultId, grantId, body)
@@ -162,7 +162,7 @@ export function useApproveGrant() {
         }
         if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
         const latest = await getCanonicalEntry(vaultId, entryId)
-        if (latest.currentRevision !== reviewedEntryRevision || (latest.state !== 'active' && latest.state !== 1)) {
+        if (latest.currentRevision !== reviewedEntryRevision) {
           throw new StaleGrantReviewError()
         }
         await approveGrant(vaultId, grantId, body)

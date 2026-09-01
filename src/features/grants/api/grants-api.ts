@@ -29,7 +29,7 @@ export const GRANT_STATUSES = [
   GRANT_STATUS_SUPERSEDED,
 ] as const
 
-export type GrantStatus = (typeof GRANT_STATUSES)[number]
+export type GrantStatus = string
 
 /**
  * A grant as returned by the management list/detail endpoints.
@@ -47,7 +47,7 @@ const grantSchema = z.object({
   agentName: z.string().nullable(),
   entryId: z.string().nullable(),
   entryLabel: z.string().nullable().optional(),
-  status: z.enum(GRANT_STATUSES),
+  status: z.string(),
   type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]),
   // Combined-flags string of permitted methods, e.g. "get, exec". Optional for
   // pre-methods backends; the detail row is hidden when absent/empty.

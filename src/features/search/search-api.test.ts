@@ -17,12 +17,13 @@ describe('getAdministrativeSearch', () => {
 
   it('sends the ephemeral query only in a POST body with cancellation', async () => {
     postJson.mockResolvedValue({ results: [
-      { type: 'agent', id: agentId, name: 'Deploy Bot' },
+      { type: 'agent', id: agentId, name: 'Deploy Bot', futureHint: true },
       { type: 'member', id: memberId, name: 'Ada' },
-    ] })
+    ], futurePageHint: true })
     const controller = new AbortController()
     const result = await getAdministrativeSearch('private query', controller.signal, 8)
     expect(result).toHaveLength(2)
+    expect(result[0]).toEqual({ type: 'agent', id: agentId, name: 'Deploy Bot' })
     expect(postFn).toHaveBeenCalledWith('api/search', {
       json: { q: 'private query', limit: 8 },
       signal: controller.signal,

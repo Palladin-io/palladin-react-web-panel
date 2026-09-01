@@ -40,10 +40,6 @@ export function useRestoreArchivedEntries(vaultId: string) {
           }
           try {
             const detail = await getCanonicalEntry(vaultId, entryId)
-            if (detail.state !== 'archived' && detail.state !== 'deleted'
-              && detail.state !== 2 && detail.state !== 3) {
-              throw new Error('Only an Archived or Deleted Entry can be restored')
-            }
             const secret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
               organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,
             })

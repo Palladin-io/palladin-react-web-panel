@@ -28,6 +28,7 @@ const {
   openCurrentEntryMock,
   canonicalRefetchMock,
   retrySyncMock,
+  repairSyncMock,
   state,
 } = vi.hoisted(() => ({
   useVaultMock: vi.fn(),
@@ -40,6 +41,7 @@ const {
   openCurrentEntryMock: vi.fn(),
   canonicalRefetchMock: vi.fn(),
   retrySyncMock: vi.fn(),
+  repairSyncMock: vi.fn(async () => true),
   state: {
     updateIsPending: false,
     deleteIsPending: false,
@@ -117,6 +119,9 @@ vi.mock('./use-delete-entry', () => ({
 // not depend on libsodium WASM warm-up.
 vi.mock('./sync/current-member-entry-reader', () => ({
   openCurrentMemberEntrySecret: openCurrentEntryMock,
+}))
+vi.mock('./sync/member-sync-lifecycle', () => ({
+  repairMemberSyncGeneration: repairSyncMock,
 }))
 openCurrentEntryMock.mockImplementation(async () => {
     if (state.decryptShouldThrow) throw new Error('mac')
@@ -282,6 +287,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     openCurrentEntryMock.mockClear()
     canonicalRefetchMock.mockReset().mockResolvedValue({ data: KEY_ENTRY })
     retrySyncMock.mockReset()
+    repairSyncMock.mockClear()
     state.updateIsPending = false
     state.deleteIsPending = false
     state.decryptResult = null
@@ -435,8 +441,23 @@ describe('EntryDetailPage — DetailsTab', () => {
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     expect(
-      await screen.findByText(/could not decrypt entry/i),
+      await screen.findByText(/encrypted data is being refreshed/i),
     ).toBeInTheDocument()
+    expect(screen.queryByText(/vault may be locked/i)).not.toBeInTheDocument()
+    expect(repairSyncMock).toHaveBeenCalledWith(
+      '11111111-1111-4111-8111-111111111111',
+      'vault-1',
+    )
+  })
+
+  it('shows the locked message only when no in-memory Vault key session exists', async () => {
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+
+    expect(await screen.findByText(/vault is locked/i)).toBeInTheDocument()
+    expect(repairSyncMock).not.toHaveBeenCalled()
   })
 
   it('reopens the local item across unlock sessions without a canonical detail request', async () => {

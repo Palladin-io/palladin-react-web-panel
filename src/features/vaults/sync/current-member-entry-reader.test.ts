@@ -18,6 +18,7 @@ vi.mock('../../../shared/crypto/entry-protocol', () => ({
 vi.mock('../../../shared/crypto/sodium', () => ({ wipe: cryptoMocks.wipe }))
 
 import { openCurrentMemberEntrySecret } from './current-member-entry-reader'
+import { memberSyncItemSchema } from './member-sync-api'
 import { useMemberSyncStore } from './member-sync-store'
 
 const userId = validSnapshotFixture.requestAuthority.authenticatedPrincipalId
@@ -40,7 +41,10 @@ function cachedEntry(): CachedCurrentMemberEntry {
       accessContext: validSnapshotFixture.response.accessContext,
       memberVaultKey: validSnapshotFixture.response.memberVaultKey,
     },
-    item: validSnapshotFixture.response.items[0],
+    // The engine validates and normalizes the wire response before writing it
+    // to IndexedDB. Model the same parse-before-cache lifecycle here so the
+    // reader test catches non-idempotent contract transforms.
+    item: memberSyncItemSchema.parse(validSnapshotFixture.response.items[0]),
   } as CachedCurrentMemberEntry
 }
 
@@ -171,18 +175,19 @@ describe('current Member Entry reader', () => {
     expect(cache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, expect.anything())
   })
 
-  it('purges a structural revision mismatch before opening any key', async () => {
+  it('isolates a structural revision mismatch to the selected Entry', async () => {
     const cache = cacheWith(cachedEntry())
 
     await expect(openCurrentMemberEntrySecret({
       ...input(), expectedRevision: '13',
     }, cache)).rejects.toThrow('structural head')
 
-    expect(cache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, expect.anything())
+    expect(cache.removeActiveGeneration).not.toHaveBeenCalled()
     expect(cryptoMocks.openMemberVaultKey).not.toHaveBeenCalled()
+    expect(useMemberSyncStore.getState().status).toBe('idle')
   })
 
-  it('purges a foreign access scope or corrupt ciphertext envelope', async () => {
+  it('purges a foreign access scope but isolates corrupt Entry ciphertext', async () => {
     const foreign = cachedEntry()
     foreign.authority = structuredClone(foreign.authority)
     foreign.authority.accessContext.vaultId = '99999999-9999-4999-8999-999999999999'
@@ -195,6 +200,17 @@ describe('current Member Entry reader', () => {
     if (corrupt.item?.kind === 'head') corrupt.item.memberSecret.encodedSuitePayload = ''
     const corruptCache = cacheWith(corrupt)
     await expect(openCurrentMemberEntrySecret(input(), corruptCache)).rejects.toThrow()
-    expect(corruptCache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, corrupt)
+    expect(corruptCache.removeActiveGeneration).not.toHaveBeenCalled()
+  })
+
+  it('purges a Vault generation when its Member Vault key cannot be opened', async () => {
+    const entry = cachedEntry()
+    const cache = cacheWith(entry)
+    cryptoMocks.openMemberVaultKey.mockRejectedValueOnce(new Error('invalid Member Vault key'))
+
+    await expect(openCurrentMemberEntrySecret(input(), cache)).rejects.toThrow('invalid Member Vault key')
+
+    expect(cache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, entry)
+    expect(cryptoMocks.openMemberSecret).not.toHaveBeenCalled()
   })
 })

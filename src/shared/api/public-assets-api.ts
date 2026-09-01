@@ -12,22 +12,22 @@ export const publicAssetSchema = z.object({
   url: z.string().url().refine((value) => trustedPublicAssetUrl(value) !== null),
   revision: z.number().int().positive(),
   aliases: z.array(z.string().min(1).max(253)).optional(),
-}).strict()
+})
 
-const searchResponseSchema = z.object({ items: z.array(publicAssetSchema) }).strict()
-const websiteIconEnsureStatusSchema = z.enum(['pending', 'ready', 'failed'])
+const searchResponseSchema = z.object({ items: z.array(publicAssetSchema) })
+const websiteIconEnsureStatusSchema = z.string().transform((status): 'pending' | 'ready' | 'failed' =>
+  status === 'pending' || status === 'ready' || status === 'failed' ? status : 'failed')
 const ensureResponseSchema = z.object({
   items: z.array(z.object({
     hostname: z.string().min(1).max(253),
     status: websiteIconEnsureStatusSchema,
     asset: publicAssetSchema.nullable(),
-  }).strict().superRefine(({ status, asset }, ctx) => {
-    if ((status === 'ready') !== (asset !== null)) {
-      ctx.addIssue({ code: 'custom', message: 'Ready website icons must include exactly one published asset' })
-    }
-  })),
-}).strict()
-const byIdsResponseSchema = z.object({ items: z.array(publicAssetSchema) }).strict()
+  }).transform((item) => ({
+    ...item,
+    status: item.status === 'ready' && item.asset === null ? 'failed' as const : item.status,
+  }))),
+})
+const byIdsResponseSchema = z.object({ items: z.array(publicAssetSchema) })
 
 export type PublicAsset = z.infer<typeof publicAssetSchema>
 
@@ -122,10 +122,11 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
           timeout: 20_000,
         }).json<unknown>()
         const items = ensureResponseSchema.parse(response).items
-        const changed = remember(items.flatMap(({ asset }) => asset ? [asset] : []))
+        const changed = remember(items.flatMap(({ status, asset }) =>
+          status === 'ready' && asset ? [asset] : []))
         for (const { hostname, status, asset } of items) {
           websiteAssetStatusCache.set(hostname, status)
-          if (asset) {
+          if (status === 'ready' && asset) {
             websiteAssetCache.set(hostname, asset)
             result.set(hostname, asset)
           }

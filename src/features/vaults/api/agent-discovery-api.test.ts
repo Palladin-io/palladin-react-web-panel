@@ -27,8 +27,9 @@ describe('agent-discovery-api', () => {
 
   it('parses current and pending provisioning state', async () => {
     getJson.mockResolvedValue({
-      items: [item, { ...item, agentId: '223e4567-e89b-42d3-a456-426614174000', status: 'pending', manifestRevision: null }],
+      items: [{ ...item, futureHint: true }, { ...item, agentId: '223e4567-e89b-42d3-a456-426614174000', status: 'pending', manifestRevision: null }],
       nextAfterId: null,
+      futurePageHint: true,
     })
 
     const response = await getAgentDiscoveryProvisioning('vault-1')
@@ -36,6 +37,7 @@ describe('agent-discovery-api', () => {
       { status: 'current', recipientKeyVersion: 3, x25519PublicKey: item.x25519PublicKey },
       { status: 'pending', manifestRevision: null },
     ])
+    expect(response.items[0]).not.toHaveProperty('futureHint')
     expect(api.get).toHaveBeenCalledWith('api/vaults/vault-1/discovery/agents', {
       searchParams: { pageSize: 100 }, signal: undefined,
     })

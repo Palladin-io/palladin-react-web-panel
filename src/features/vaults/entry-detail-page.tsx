@@ -93,6 +93,7 @@ import { useCanonicalEntryDetail } from './use-entries'
 import { useUpdateCanonicalEntry } from './use-update-canonical-entry'
 import { useVault } from './use-vault'
 import { openCurrentMemberEntrySecret } from './sync/current-member-entry-reader'
+import { repairMemberSyncGeneration } from './sync/member-sync-lifecycle'
 import { useMemberSyncStore, type MemberIndexRecord } from './sync/member-sync-store'
 import { shortenKey } from '../../shared/lib/shorten-key'
 
@@ -472,6 +473,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
   const [showSecret, setShowSecret] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const mounted = useRef(true)
+  const repairAttempted = useRef(false)
 
   useEffect(() => {
     mounted.current = true
@@ -485,13 +487,13 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
     setDecryptError(null)
     const privateKey = useAuthStore.getState().privateKey
     if (!privateKey) {
-      setDecryptError(t('vault.entry.detail.decryptError'))
+      setDecryptError(t('vault.entry.detail.decryptLocked'))
       return
     }
     const sessionGeneration = useAuthStore.getState().cryptoSessionGeneration
+    const userId = useAuthStore.getState().userId
     setDecrypting(true)
     try {
-      const userId = useAuthStore.getState().userId
       if (!userId) throw new Error('Authenticated Member is unavailable')
       const secret = fromMemberSecret(await openCurrentMemberEntrySecret({
         userId,
@@ -507,6 +509,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         || !mounted.current) {
         throw new Error('Vault lock session changed')
       }
+      repairAttempted.current = false
       const pt = secret.content
       setOriginalSecret(secret)
       setPolicy(secret.agentVisibilityPolicy)
@@ -536,7 +539,11 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         setBillingAddress(pt.billingAddress ?? ''); setNotes(pt.notes ?? '')
       }
     } catch {
-      if (mounted.current) setDecryptError(t('vault.entry.detail.decryptError'))
+      if (userId && !repairAttempted.current) {
+        repairAttempted.current = true
+        await repairMemberSyncGeneration(userId, vault.id).catch(() => undefined)
+      }
+      if (mounted.current) setDecryptError(t('vault.entry.detail.decryptRepairing'))
     } finally {
       if (mounted.current) setDecrypting(false)
     }
