@@ -492,6 +492,12 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
     }
     const sessionGeneration = useAuthStore.getState().cryptoSessionGeneration
     const userId = useAuthStore.getState().userId
+    const sessionChanged = () => {
+      const currentAuth = useAuthStore.getState()
+      return currentAuth.privateKey !== privateKey
+        || currentAuth.cryptoSessionGeneration !== sessionGeneration
+        || !mounted.current
+    }
     setDecrypting(true)
     try {
       if (!userId) throw new Error('Authenticated Member is unavailable')
@@ -503,12 +509,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         expectedKeyVersion: entry.currentKeyVersion,
         memberPrivateKey: privateKey,
       }))
-      const currentAuth = useAuthStore.getState()
-      if (currentAuth.privateKey !== privateKey
-        || currentAuth.cryptoSessionGeneration !== sessionGeneration
-        || !mounted.current) {
-        throw new Error('Vault lock session changed')
-      }
+      if (sessionChanged()) return
       repairAttempted.current = false
       const pt = secret.content
       setOriginalSecret(secret)
@@ -539,6 +540,10 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         setBillingAddress(pt.billingAddress ?? ''); setNotes(pt.notes ?? '')
       }
     } catch {
+      // Locking the Vault or leaving the page invalidates this in-flight
+      // plaintext operation. It says nothing about the cached ciphertext, so
+      // do not purge an otherwise valid sync generation as corruption.
+      if (sessionChanged()) return
       if (userId && !repairAttempted.current) {
         repairAttempted.current = true
         await repairMemberSyncGeneration(userId, vault.id).catch(() => undefined)

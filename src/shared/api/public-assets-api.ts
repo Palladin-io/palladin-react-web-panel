@@ -15,17 +15,13 @@ export const publicAssetSchema = z.object({
 })
 
 const searchResponseSchema = z.object({ items: z.array(publicAssetSchema) })
-const websiteIconEnsureStatusSchema = z.string().transform((status): 'pending' | 'ready' | 'failed' =>
-  status === 'pending' || status === 'ready' || status === 'failed' ? status : 'failed')
+const websiteIconEnsureStatusSchema = z.string()
 const ensureResponseSchema = z.object({
   items: z.array(z.object({
     hostname: z.string().min(1).max(253),
     status: websiteIconEnsureStatusSchema,
     asset: publicAssetSchema.nullable(),
-  }).transform((item) => ({
-    ...item,
-    status: item.status === 'ready' && item.asset === null ? 'failed' as const : item.status,
-  }))),
+  })),
 })
 const byIdsResponseSchema = z.object({ items: z.array(publicAssetSchema) })
 

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -457,6 +457,34 @@ describe('EntryDetailPage — DetailsTab', () => {
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     expect(await screen.findByText(/vault is locked/i)).toBeInTheDocument()
+    expect(repairSyncMock).not.toHaveBeenCalled()
+  })
+
+  it('does not purge the sync generation when an in-flight decrypt is cancelled by navigation', async () => {
+    unlockedAuthStore()
+    let resolveDecrypt: ((value: unknown) => void) | undefined
+    openCurrentEntryMock.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveDecrypt = resolve
+    }))
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+
+    const view = render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    await waitFor(() => expect(resolveDecrypt).toBeDefined())
+    view.unmount()
+
+    await act(async () => {
+      resolveDecrypt?.({
+        schemaVersion: 1,
+        memberLabel: 'Stripe API Key',
+        agentLabel: 'Stripe API Key',
+        entryType: ENTRY_TYPE_KEY,
+        content: { type: ENTRY_TYPE_KEY, value: 'sk_live_123' },
+        agentVisibilityPolicy: { discoverable: true, fields: { agentLabel: 'discovery' } },
+      })
+      await Promise.resolve()
+    })
+
     expect(repairSyncMock).not.toHaveBeenCalled()
   })
 
