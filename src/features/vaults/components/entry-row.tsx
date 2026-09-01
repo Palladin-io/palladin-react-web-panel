@@ -20,7 +20,6 @@ import {
   isCurrentMemberEntryStructuralHeadMismatchError,
   openCurrentMemberEntrySecret,
 } from '../sync/current-member-entry-reader'
-import { repairMemberSyncGeneration } from '../sync/member-sync-lifecycle'
 import { EntryIcon } from './entry-icon'
 import { CustomFieldsView } from './custom-fields-view'
 import { OtpauthTotp } from './totp-display'
@@ -49,7 +48,6 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
   const cryptoSessionGeneration = useAuthStore((state) => state.cryptoSessionGeneration)
   const decryptPromise = useRef<Promise<EntryPlaintext> | null>(null)
   const mounted = useRef(true)
-  const repairAttempted = useRef(false)
 
   useEffect(() => {
     mounted.current = true
@@ -87,17 +85,10 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
         throw new Error('Vault lock session changed')
       }
       const result = fromMemberSecret(secret).content
-      repairAttempted.current = false
       setPlaintext(result)
       return result
-    }).catch(async (error: unknown) => {
+    }).catch((error: unknown) => {
       const structuralHeadChanged = isCurrentMemberEntryStructuralHeadMismatchError(error)
-      if (!sessionChanged()
-        && !structuralHeadChanged
-        && !repairAttempted.current) {
-        repairAttempted.current = true
-        await repairMemberSyncGeneration(userId, vaultId).catch(() => undefined)
-      }
       if (mounted.current) {
         setDecryptError(t(structuralHeadChanged
           ? 'vault.entries.decryptChanged'
@@ -124,7 +115,6 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
     setPlaintext(null)
     setDecryptError(null)
     setRevealOpen(false)
-    repairAttempted.current = false
   }, [cryptoSessionGeneration])
 
   const meta = [entry.username, entry.urlDomain].filter(Boolean).join(' · ') || formatLastAccessed(entry, t)

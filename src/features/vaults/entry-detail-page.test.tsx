@@ -28,7 +28,6 @@ const {
   openCurrentEntryMock,
   canonicalRefetchMock,
   retrySyncMock,
-  repairSyncMock,
   structuralMismatch,
   state,
 } = vi.hoisted(() => ({
@@ -42,7 +41,6 @@ const {
   openCurrentEntryMock: vi.fn(),
   canonicalRefetchMock: vi.fn(),
   retrySyncMock: vi.fn(),
-  repairSyncMock: vi.fn(async () => true),
   structuralMismatch: new Error('structural head mismatch'),
   state: {
     updateIsPending: false,
@@ -122,9 +120,6 @@ vi.mock('./use-delete-entry', () => ({
 vi.mock('./sync/current-member-entry-reader', () => ({
   openCurrentMemberEntrySecret: openCurrentEntryMock,
   isCurrentMemberEntryStructuralHeadMismatchError: (error: unknown) => error === structuralMismatch,
-}))
-vi.mock('./sync/member-sync-lifecycle', () => ({
-  repairMemberSyncGeneration: repairSyncMock,
 }))
 openCurrentEntryMock.mockImplementation(async () => {
     if (state.decryptShouldThrow) throw new Error('mac')
@@ -290,7 +285,6 @@ describe('EntryDetailPage — DetailsTab', () => {
     openCurrentEntryMock.mockClear()
     canonicalRefetchMock.mockReset().mockResolvedValue({ data: KEY_ENTRY })
     retrySyncMock.mockReset()
-    repairSyncMock.mockClear()
     state.updateIsPending = false
     state.deleteIsPending = false
     state.decryptResult = null
@@ -447,10 +441,6 @@ describe('EntryDetailPage — DetailsTab', () => {
       await screen.findByText(/encrypted data is being refreshed/i),
     ).toBeInTheDocument()
     expect(screen.queryByText(/vault may be locked/i)).not.toBeInTheDocument()
-    expect(repairSyncMock).toHaveBeenCalledWith(
-      '11111111-1111-4111-8111-111111111111',
-      'vault-1',
-    )
   })
 
   it('shows the locked message only when no in-memory Vault key session exists', async () => {
@@ -460,10 +450,9 @@ describe('EntryDetailPage — DetailsTab', () => {
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     expect(await screen.findByText(/vault is locked/i)).toBeInTheDocument()
-    expect(repairSyncMock).not.toHaveBeenCalled()
   })
 
-  it('does not purge the generation when the selected structural head changed', async () => {
+  it('shows a non-corruption message when the selected structural head changed', async () => {
     unlockedAuthStore()
     openCurrentEntryMock.mockRejectedValueOnce(structuralMismatch)
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
@@ -472,10 +461,9 @@ describe('EntryDetailPage — DetailsTab', () => {
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     expect(await screen.findByText(/entry changed while it was opening/i)).toBeInTheDocument()
-    expect(repairSyncMock).not.toHaveBeenCalled()
   })
 
-  it('does not purge the sync generation when an in-flight decrypt is cancelled by navigation', async () => {
+  it('ignores in-flight plaintext when navigation cancels the decrypt', async () => {
     unlockedAuthStore()
     let resolveDecrypt: ((value: unknown) => void) | undefined
     openCurrentEntryMock.mockImplementationOnce(() => new Promise((resolve) => {
@@ -500,7 +488,6 @@ describe('EntryDetailPage — DetailsTab', () => {
       await Promise.resolve()
     })
 
-    expect(repairSyncMock).not.toHaveBeenCalled()
   })
 
   it('reopens the local item across unlock sessions without a canonical detail request', async () => {

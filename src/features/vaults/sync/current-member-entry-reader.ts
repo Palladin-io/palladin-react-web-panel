@@ -12,6 +12,7 @@ import {
 import {
   assertCurrentMemberLeaseValid,
   invalidateMemberSyncGeneration,
+  repairMemberSyncGeneration,
 } from './member-sync-lifecycle'
 
 export interface OpenCurrentMemberEntryInput {
@@ -61,7 +62,14 @@ export async function openCurrentMemberEntrySecret(
     throw error
   }
 
-  const item = memberSyncItemSchema.parse(cached.item)
+  let item: ReturnType<typeof memberSyncItemSchema.parse>
+  try {
+    item = memberSyncItemSchema.parse(cached.item)
+  } catch (error) {
+    await repairMemberSyncGeneration(input.userId, input.vaultId, cached, cache)
+      .catch(() => undefined)
+    throw error
+  }
   if (item.kind !== 'head'
     || item.currentRevision !== input.expectedRevision
     || item.currentKeyVersion !== input.expectedKeyVersion) {
@@ -76,12 +84,18 @@ export async function openCurrentMemberEntrySecret(
     throw error
   }
   try {
-    return await openMemberSecret(item.entryKey, item.memberSecret, vaultKey, {
-      organizationId: cached.authority.accessContext.organizationId,
-      vaultId: input.vaultId,
-      entryId: input.entryId,
-      revision: item.currentRevision,
-    })
+    try {
+      return await openMemberSecret(item.entryKey, item.memberSecret, vaultKey, {
+        organizationId: cached.authority.accessContext.organizationId,
+        vaultId: input.vaultId,
+        entryId: input.entryId,
+        revision: item.currentRevision,
+      })
+    } catch (error) {
+      await repairMemberSyncGeneration(input.userId, input.vaultId, cached, cache)
+        .catch(() => undefined)
+      throw error
+    }
   } finally {
     wipe(vaultKey)
   }

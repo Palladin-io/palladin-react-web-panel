@@ -45,9 +45,8 @@ function publishVault(): void {
   })
 }
 
-function cacheWith(active: ActiveCacheState | null, removed = true): MemberSyncCache {
+function cacheWith(removed = true): MemberSyncCache {
   return {
-    getActiveState: vi.fn(async () => active),
     removeActiveGeneration: vi.fn(async () => removed),
   } as unknown as MemberSyncCache
 }
@@ -60,9 +59,9 @@ describe('Member sync generation repair', () => {
 
   it('rebuilds ciphertext while retaining the decrypted list projection', async () => {
     const active = { namespace: 'active' } as ActiveCacheState
-    const cache = cacheWith(active)
+    const cache = cacheWith()
 
-    await expect(repairMemberSyncGeneration(userId, vaultId, cache)).resolves.toBe(true)
+    await expect(repairMemberSyncGeneration(userId, vaultId, active, cache)).resolves.toBe(true)
 
     expect(cache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, active)
     expect(useMemberSyncStore.getState().vaults.get(vaultId)).toMatchObject({
@@ -73,10 +72,12 @@ describe('Member sync generation repair', () => {
   })
 
   it('still requests a retry when another operation already replaced the generation', async () => {
-    const cache = cacheWith({ namespace: 'old' } as ActiveCacheState, false)
+    const failed = { namespace: 'old' } as ActiveCacheState
+    const cache = cacheWith(false)
 
-    await expect(repairMemberSyncGeneration(userId, vaultId, cache)).resolves.toBe(false)
+    await expect(repairMemberSyncGeneration(userId, vaultId, failed, cache)).resolves.toBe(false)
 
+    expect(cache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, failed)
     expect(useMemberSyncStore.getState().vaults.get(vaultId)?.status).toBe('ready')
     expect(useMemberSyncStore.getState().retryGeneration).toBe(1)
   })

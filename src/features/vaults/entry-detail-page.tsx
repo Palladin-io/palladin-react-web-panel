@@ -96,7 +96,6 @@ import {
   isCurrentMemberEntryStructuralHeadMismatchError,
   openCurrentMemberEntrySecret,
 } from './sync/current-member-entry-reader'
-import { repairMemberSyncGeneration } from './sync/member-sync-lifecycle'
 import { useMemberSyncStore, type MemberIndexRecord } from './sync/member-sync-store'
 import { shortenKey } from '../../shared/lib/shorten-key'
 
@@ -476,7 +475,6 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
   const [showSecret, setShowSecret] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const mounted = useRef(true)
-  const repairAttempted = useRef(false)
 
   useEffect(() => {
     mounted.current = true
@@ -513,7 +511,6 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         memberPrivateKey: privateKey,
       }))
       if (sessionChanged()) return
-      repairAttempted.current = false
       const pt = secret.content
       setOriginalSecret(secret)
       setPolicy(secret.agentVisibilityPolicy)
@@ -548,12 +545,6 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
       // do not purge an otherwise valid sync generation as corruption.
       if (sessionChanged()) return
       const structuralHeadChanged = isCurrentMemberEntryStructuralHeadMismatchError(error)
-      if (userId
-        && !structuralHeadChanged
-        && !repairAttempted.current) {
-        repairAttempted.current = true
-        await repairMemberSyncGeneration(userId, vault.id).catch(() => undefined)
-      }
       if (mounted.current) {
         setDecryptError(t(structuralHeadChanged
           ? 'vault.entry.detail.decryptChanged'

@@ -193,7 +193,7 @@ describe('current Member Entry reader', () => {
     expect(useMemberSyncStore.getState().status).toBe('idle')
   })
 
-  it('purges a foreign access scope but isolates corrupt Entry ciphertext', async () => {
+  it('purges a foreign access scope and repairs the generation containing corrupt Entry ciphertext', async () => {
     const foreign = cachedEntry()
     foreign.authority = structuredClone(foreign.authority)
     foreign.authority.accessContext.vaultId = '99999999-9999-4999-8999-999999999999'
@@ -206,7 +206,18 @@ describe('current Member Entry reader', () => {
     if (corrupt.item?.kind === 'head') corrupt.item.memberSecret.encodedSuitePayload = ''
     const corruptCache = cacheWith(corrupt)
     await expect(openCurrentMemberEntrySecret(input(), corruptCache)).rejects.toThrow()
-    expect(corruptCache.removeActiveGeneration).not.toHaveBeenCalled()
+    expect(corruptCache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, corrupt)
+  })
+
+  it('repairs exactly the generation whose MemberSecret fails authentication', async () => {
+    const failed = cachedEntry()
+    const cache = cacheWith(failed)
+    cryptoMocks.openMemberSecret.mockRejectedValueOnce(new Error('invalid MemberSecret'))
+
+    await expect(openCurrentMemberEntrySecret(input(), cache)).rejects.toThrow('invalid MemberSecret')
+
+    expect(cache.removeActiveGeneration).toHaveBeenCalledWith(userId, vaultId, failed)
+    expect(cryptoMocks.wipe).toHaveBeenCalledTimes(1)
   })
 
   it('purges a Vault generation when its Member Vault key cannot be opened', async () => {
