@@ -17,7 +17,10 @@ vi.mock('../../../shared/crypto/entry-protocol', () => ({
 }))
 vi.mock('../../../shared/crypto/sodium', () => ({ wipe: cryptoMocks.wipe }))
 
-import { openCurrentMemberEntrySecret } from './current-member-entry-reader'
+import {
+  isCurrentMemberEntryStructuralHeadMismatchError,
+  openCurrentMemberEntrySecret,
+} from './current-member-entry-reader'
 import { memberSyncItemSchema } from './member-sync-api'
 import { useMemberSyncStore } from './member-sync-store'
 
@@ -178,10 +181,13 @@ describe('current Member Entry reader', () => {
   it('isolates a structural revision mismatch to the selected Entry', async () => {
     const cache = cacheWith(cachedEntry())
 
-    await expect(openCurrentMemberEntrySecret({
+    const error = await openCurrentMemberEntrySecret({
       ...input(), expectedRevision: '13',
-    }, cache)).rejects.toThrow('structural head')
+    }, cache).catch((caught: unknown) => caught)
 
+    expect(error).toBeInstanceOf(Error)
+    expect((error as Error).message).toContain('structural head')
+    expect(isCurrentMemberEntryStructuralHeadMismatchError(error)).toBe(true)
     expect(cache.removeActiveGeneration).not.toHaveBeenCalled()
     expect(cryptoMocks.openMemberVaultKey).not.toHaveBeenCalled()
     expect(useMemberSyncStore.getState().status).toBe('idle')

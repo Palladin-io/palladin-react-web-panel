@@ -26,6 +26,19 @@ export interface OpenCurrentMemberEntryInput {
   monotonicTime?: number
 }
 
+export class CurrentMemberEntryStructuralHeadMismatchError extends Error {
+  constructor() {
+    super('Current Member Entry does not match the selected structural head')
+    this.name = 'CurrentMemberEntryStructuralHeadMismatchError'
+  }
+}
+
+export function isCurrentMemberEntryStructuralHeadMismatchError(
+  error: unknown,
+): error is CurrentMemberEntryStructuralHeadMismatchError {
+  return error instanceof CurrentMemberEntryStructuralHeadMismatchError
+}
+
 export async function openCurrentMemberEntrySecret(
   input: OpenCurrentMemberEntryInput,
   cache: MemberSyncCache | null = memberSyncCache,
@@ -52,7 +65,7 @@ export async function openCurrentMemberEntrySecret(
   if (item.kind !== 'head'
     || item.currentRevision !== input.expectedRevision
     || item.currentKeyVersion !== input.expectedKeyVersion) {
-    throw new Error('Current Member Entry does not match the selected structural head')
+    throw new CurrentMemberEntryStructuralHeadMismatchError()
   }
 
   let vaultKey: Uint8Array

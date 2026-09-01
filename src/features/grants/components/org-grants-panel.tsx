@@ -585,7 +585,11 @@ type TFn = ReturnType<typeof useTranslation>['t']
 
 /** A grant in a finished state (not active, not awaiting a decision). */
 function isTerminal(status: GrantStatus): boolean {
-  return status !== 'active' && status !== 'pending'
+  return status === 'expired'
+    || status === 'revoked'
+    || status === 'consumed'
+    || status === 'denied'
+    || status === 'superseded'
 }
 
 function accessSummary(grant: OrgGrant, t: TFn): string {

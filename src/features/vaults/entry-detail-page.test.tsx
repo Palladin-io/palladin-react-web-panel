@@ -29,6 +29,7 @@ const {
   canonicalRefetchMock,
   retrySyncMock,
   repairSyncMock,
+  structuralMismatch,
   state,
 } = vi.hoisted(() => ({
   useVaultMock: vi.fn(),
@@ -42,6 +43,7 @@ const {
   canonicalRefetchMock: vi.fn(),
   retrySyncMock: vi.fn(),
   repairSyncMock: vi.fn(async () => true),
+  structuralMismatch: new Error('structural head mismatch'),
   state: {
     updateIsPending: false,
     deleteIsPending: false,
@@ -119,6 +121,7 @@ vi.mock('./use-delete-entry', () => ({
 // not depend on libsodium WASM warm-up.
 vi.mock('./sync/current-member-entry-reader', () => ({
   openCurrentMemberEntrySecret: openCurrentEntryMock,
+  isCurrentMemberEntryStructuralHeadMismatchError: (error: unknown) => error === structuralMismatch,
 }))
 vi.mock('./sync/member-sync-lifecycle', () => ({
   repairMemberSyncGeneration: repairSyncMock,
@@ -457,6 +460,18 @@ describe('EntryDetailPage — DetailsTab', () => {
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     expect(await screen.findByText(/vault is locked/i)).toBeInTheDocument()
+    expect(repairSyncMock).not.toHaveBeenCalled()
+  })
+
+  it('does not purge the generation when the selected structural head changed', async () => {
+    unlockedAuthStore()
+    openCurrentEntryMock.mockRejectedValueOnce(structuralMismatch)
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+
+    expect(await screen.findByText(/entry changed while it was opening/i)).toBeInTheDocument()
     expect(repairSyncMock).not.toHaveBeenCalled()
   })
 

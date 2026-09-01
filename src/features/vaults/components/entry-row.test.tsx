@@ -5,8 +5,16 @@ import { useAuthStore } from '../../auth'
 import { EntryRow } from './entry-row'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, type EntryListItem } from '../types'
 
-const { openCurrentEntryMock, writeTextMock, fetchMock } = vi.hoisted(() => ({
+const {
+  openCurrentEntryMock,
+  repairSyncMock,
+  structuralMismatch,
+  writeTextMock,
+  fetchMock,
+} = vi.hoisted(() => ({
   openCurrentEntryMock: vi.fn(),
+  repairSyncMock: vi.fn(async () => true),
+  structuralMismatch: new Error('structural head mismatch'),
   writeTextMock: vi.fn(async () => {}),
   fetchMock: vi.fn(),
 }))
@@ -18,6 +26,11 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('../sync/current-member-entry-reader', () => ({
   openCurrentMemberEntrySecret: openCurrentEntryMock,
+  isCurrentMemberEntryStructuralHeadMismatchError: (error: unknown) => error === structuralMismatch,
+}))
+
+vi.mock('../sync/member-sync-lifecycle', () => ({
+  repairMemberSyncGeneration: repairSyncMock,
 }))
 
 vi.mock('../../../shared/crypto/entry-draft', () => ({
@@ -46,6 +59,7 @@ const KEY_ENTRY: EntryListItem & { currentRevision: string; currentKeyVersion: n
 describe('EntryRow — copy vs reveal', () => {
   beforeEach(() => {
     openCurrentEntryMock.mockReset()
+    repairSyncMock.mockClear()
     writeTextMock.mockClear()
     fetchMock.mockReset()
     vi.stubGlobal('fetch', fetchMock)
@@ -99,5 +113,30 @@ describe('EntryRow — copy vs reveal', () => {
 
     await waitFor(() => expect(openCurrentEntryMock).toHaveBeenCalledTimes(1))
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('repairs the cached generation when reveal finds corrupt ciphertext', async () => {
+    openCurrentEntryMock.mockRejectedValueOnce(new Error('invalid ciphertext'))
+    const user = userEvent.setup()
+    render(<EntryRow vaultId="vault-1" entry={KEY_ENTRY} />)
+
+    await user.click(screen.getByRole('button', { name: /^reveal$/i }))
+
+    await waitFor(() => expect(repairSyncMock).toHaveBeenCalledWith(
+      '11111111-1111-4111-8111-111111111111',
+      'vault-1',
+    ))
+    expect(await screen.findByText(/could not decrypt entry/i)).toBeInTheDocument()
+  })
+
+  it('does not purge the generation for a selected structural-head mismatch', async () => {
+    openCurrentEntryMock.mockRejectedValueOnce(structuralMismatch)
+    const user = userEvent.setup()
+    render(<EntryRow vaultId="vault-1" entry={KEY_ENTRY} />)
+
+    await user.click(screen.getByRole('button', { name: /^reveal$/i }))
+
+    expect(await screen.findByText(/entry changed while it was opening/i)).toBeInTheDocument()
+    expect(repairSyncMock).not.toHaveBeenCalled()
   })
 })

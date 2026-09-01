@@ -92,7 +92,10 @@ import {
 import { useCanonicalEntryDetail } from './use-entries'
 import { useUpdateCanonicalEntry } from './use-update-canonical-entry'
 import { useVault } from './use-vault'
-import { openCurrentMemberEntrySecret } from './sync/current-member-entry-reader'
+import {
+  isCurrentMemberEntryStructuralHeadMismatchError,
+  openCurrentMemberEntrySecret,
+} from './sync/current-member-entry-reader'
 import { repairMemberSyncGeneration } from './sync/member-sync-lifecycle'
 import { useMemberSyncStore, type MemberIndexRecord } from './sync/member-sync-store'
 import { shortenKey } from '../../shared/lib/shorten-key'
@@ -539,16 +542,23 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         setExpiryMonth(pt.expiryMonth); setExpiryYear(pt.expiryYear)
         setBillingAddress(pt.billingAddress ?? ''); setNotes(pt.notes ?? '')
       }
-    } catch {
+    } catch (error: unknown) {
       // Locking the Vault or leaving the page invalidates this in-flight
       // plaintext operation. It says nothing about the cached ciphertext, so
       // do not purge an otherwise valid sync generation as corruption.
       if (sessionChanged()) return
-      if (userId && !repairAttempted.current) {
+      const structuralHeadChanged = isCurrentMemberEntryStructuralHeadMismatchError(error)
+      if (userId
+        && !structuralHeadChanged
+        && !repairAttempted.current) {
         repairAttempted.current = true
         await repairMemberSyncGeneration(userId, vault.id).catch(() => undefined)
       }
-      if (mounted.current) setDecryptError(t('vault.entry.detail.decryptRepairing'))
+      if (mounted.current) {
+        setDecryptError(t(structuralHeadChanged
+          ? 'vault.entry.detail.decryptChanged'
+          : 'vault.entry.detail.decryptRepairing'))
+      }
     } finally {
       if (mounted.current) setDecrypting(false)
     }
