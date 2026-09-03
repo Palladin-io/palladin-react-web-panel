@@ -1,12 +1,7 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 
-export const vaultMemberStatusSchema = z.enum([
-  'Active',
-  'Pending',
-  'WaitingForRotation',
-  'BlockedLastMember',
-])
+export const vaultMemberStatusSchema = z.string()
 
 export const vaultMemberSchema = z.object({
   memberId: z.string().uuid(),
@@ -14,12 +9,12 @@ export const vaultMemberSchema = z.object({
   addedAt: z.string(),
   deprovisioningStatus: vaultMemberStatusSchema,
   rotationId: z.string().uuid().nullable(),
-}).strict()
+})
 
 const vaultMemberPageSchema = z.object({
   items: z.array(vaultMemberSchema).max(100),
   nextAfterId: z.string().uuid().nullable(),
-}).strict()
+})
 
 export type VaultMember = z.infer<typeof vaultMemberSchema>
 export type VaultMemberPage = z.infer<typeof vaultMemberPageSchema>

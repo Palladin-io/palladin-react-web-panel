@@ -97,7 +97,7 @@ const presignIconSchema = z.object({
   uploadSessionId: z.string().uuid(),
   uploadUrl: z.string().url(),
   maximumBytes: z.number().int().positive(),
-}).strict()
+})
 
 const completeIconSchema = z.object({
   assetId: z.string().uuid(),

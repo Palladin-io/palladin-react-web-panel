@@ -121,6 +121,40 @@ describe('ensureWebsiteIcons', () => {
     }
   })
 
+  it('keeps an unknown acquisition state pollable until the icon becomes ready', async () => {
+    vi.useFakeTimers()
+    try {
+      const hostname = 'future-queue-state.example.com'
+      let calls = 0
+      vi.stubGlobal('fetch', vi.fn(async () => {
+        calls += 1
+        const ready = calls === 2
+        return new Response(JSON.stringify({
+          items: [{
+            hostname,
+            status: ready ? 'ready' : 'processing',
+            asset: ready ? {
+              id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+              type: 'websiteIcon',
+              name: hostname,
+              url: 'https://assets.palladin.io/published/website-icon/future-state.png',
+              revision: 1,
+            } : null,
+          }],
+        }), { status: 200, headers: { 'content-type': 'application/json' } })
+      }))
+
+      const pending = ensureWebsiteIconsWithin([hostname], 2_000)
+      await vi.advanceTimersByTimeAsync(1_000)
+      const result = await pending
+
+      expect(calls).toBe(2)
+      expect(result.get(hostname)?.id).toBe('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('reports ready icon progress during the bounded wait', async () => {
     const hostname = 'progress.example.com'
     const onProgress = vi.fn()
@@ -235,6 +269,34 @@ describe('ensureWebsiteIcons', () => {
     expect(result).toEqual(new Map())
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(onProgress).toHaveBeenLastCalledWith(1, 1)
+  })
+
+  it('does not reject backend-owned status/asset relationships', async () => {
+    const missingAssetHostname = 'ready-without-asset.example.com'
+    const prematureAssetHostname = 'pending-with-asset.example.com'
+    vi.stubGlobal('fetch', vi.fn(async (request: Request) => {
+      const body = await request.clone().json() as { hostnames: string[] }
+      return new Response(JSON.stringify({
+        items: body.hostnames.map((hostname) => ({
+          hostname,
+          status: hostname === missingAssetHostname ? 'ready' : 'pending',
+          futureItemHint: true,
+          asset: hostname === prematureAssetHostname ? {
+            id: '99999999-9999-4999-8999-999999999999',
+            type: 'websiteIcon',
+            name: hostname,
+            url: 'https://assets.palladin.io/published/website-icon/premature.png',
+            revision: 1,
+            futureAssetHint: true,
+          } : null,
+        })),
+        futurePageHint: true,
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    }))
+
+    const result = await ensureWebsiteIcons([missingAssetHostname, prematureAssetHostname])
+
+    expect(result).toEqual(new Map())
   })
 
   it('revalidates a previously failed icon during a later preparation attempt', async () => {

@@ -92,7 +92,10 @@ import {
 import { useCanonicalEntryDetail } from './use-entries'
 import { useUpdateCanonicalEntry } from './use-update-canonical-entry'
 import { useVault } from './use-vault'
-import { openCurrentMemberEntrySecret } from './sync/current-member-entry-reader'
+import {
+  isCurrentMemberEntryStructuralHeadMismatchError,
+  openCurrentMemberEntrySecret,
+} from './sync/current-member-entry-reader'
 import { useMemberSyncStore, type MemberIndexRecord } from './sync/member-sync-store'
 import { shortenKey } from '../../shared/lib/shorten-key'
 
@@ -485,13 +488,19 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
     setDecryptError(null)
     const privateKey = useAuthStore.getState().privateKey
     if (!privateKey) {
-      setDecryptError(t('vault.entry.detail.decryptError'))
+      setDecryptError(t('vault.entry.detail.decryptLocked'))
       return
     }
     const sessionGeneration = useAuthStore.getState().cryptoSessionGeneration
+    const userId = useAuthStore.getState().userId
+    const sessionChanged = () => {
+      const currentAuth = useAuthStore.getState()
+      return currentAuth.privateKey !== privateKey
+        || currentAuth.cryptoSessionGeneration !== sessionGeneration
+        || !mounted.current
+    }
     setDecrypting(true)
     try {
-      const userId = useAuthStore.getState().userId
       if (!userId) throw new Error('Authenticated Member is unavailable')
       const secret = fromMemberSecret(await openCurrentMemberEntrySecret({
         userId,
@@ -501,12 +510,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         expectedKeyVersion: entry.currentKeyVersion,
         memberPrivateKey: privateKey,
       }))
-      const currentAuth = useAuthStore.getState()
-      if (currentAuth.privateKey !== privateKey
-        || currentAuth.cryptoSessionGeneration !== sessionGeneration
-        || !mounted.current) {
-        throw new Error('Vault lock session changed')
-      }
+      if (sessionChanged()) return
       const pt = secret.content
       setOriginalSecret(secret)
       setPolicy(secret.agentVisibilityPolicy)
@@ -535,8 +539,17 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         setExpiryMonth(pt.expiryMonth); setExpiryYear(pt.expiryYear)
         setBillingAddress(pt.billingAddress ?? ''); setNotes(pt.notes ?? '')
       }
-    } catch {
-      if (mounted.current) setDecryptError(t('vault.entry.detail.decryptError'))
+    } catch (error: unknown) {
+      // Locking the Vault or leaving the page invalidates this in-flight
+      // plaintext operation. It says nothing about the cached ciphertext, so
+      // do not purge an otherwise valid sync generation as corruption.
+      if (sessionChanged()) return
+      const structuralHeadChanged = isCurrentMemberEntryStructuralHeadMismatchError(error)
+      if (mounted.current) {
+        setDecryptError(t(structuralHeadChanged
+          ? 'vault.entry.detail.decryptChanged'
+          : 'vault.entry.detail.decryptRepairing'))
+      }
     } finally {
       if (mounted.current) setDecrypting(false)
     }

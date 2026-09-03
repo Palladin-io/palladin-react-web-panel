@@ -113,6 +113,14 @@ describe('org-grants-api', () => {
     expect(page.items).toHaveLength(1)
   })
 
+  it('keeps a forward-compatible backend lifecycle status', async () => {
+    getJson.mockResolvedValue({ items: [{ ...sampleGrant, status: 'suspending' }] })
+
+    const page = await getOrgGrants()
+
+    expect(page.items[0].status).toBe('suspending')
+  })
+
   it('skips a row without the authoritative type discriminator', async () => {
     getJson.mockResolvedValue({ items: [withoutGrantType()] })
 

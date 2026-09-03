@@ -95,6 +95,34 @@ export async function invalidateMemberSyncGeneration(
   }
 }
 
+export async function repairMemberSyncGeneration(
+  userId: string,
+  vaultId: string,
+  expected: ActiveCacheState,
+  cache: MemberSyncCache | null = memberSyncCache,
+): Promise<boolean> {
+  if (!cache) return false
+  try {
+    // Compare-and-delete only the generation whose ciphertext actually
+    // failed. A concurrent sync may already have activated a valid newer
+    // generation, which must never be selected by a fresh lookup here.
+    const removed = await cache.removeActiveGeneration(userId, vaultId, expected)
+    const store = useMemberSyncStore.getState()
+    if (removed) {
+      forgetClockObservation(userId, vaultId)
+      store.resetVault(vaultId)
+    }
+    store.retry()
+    return removed
+  } catch (error) {
+    forgetClockObservation(userId, vaultId)
+    const store = useMemberSyncStore.getState()
+    store.removeVault(vaultId)
+    store.fail()
+    throw error
+  }
+}
+
 export async function purgeInvalidMemberSyncGenerations(
   userId: string,
   now = new Date(),

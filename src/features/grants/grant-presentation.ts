@@ -10,7 +10,7 @@ interface StatusPresentation {
   color: string
 }
 
-const STATUS_PRESENTATION: Record<GrantStatus, StatusPresentation> = {
+const STATUS_PRESENTATION: Partial<Record<GrantStatus, StatusPresentation>> = {
   pending: { labelKey: 'grants.statusPending', color: '#D4820A' },
   active: { labelKey: 'grants.statusActive', color: '#10B981' },
   expired: { labelKey: 'grants.statusExpired', color: '#8A95A6' },
@@ -20,8 +20,13 @@ const STATUS_PRESENTATION: Record<GrantStatus, StatusPresentation> = {
   superseded: { labelKey: 'grants.statusSuperseded', color: 'var(--cv-neutral)' },
 }
 
+const UNKNOWN_STATUS_PRESENTATION: StatusPresentation = {
+  labelKey: 'grants.statusUnknown',
+  color: 'var(--cv-neutral)',
+}
+
 export function grantStatusPresentation(status: GrantStatus): StatusPresentation {
-  return STATUS_PRESENTATION[status]
+  return STATUS_PRESENTATION[status] ?? UNKNOWN_STATUS_PRESENTATION
 }
 
 /** A grant can be revoked only while it is pending or active. */

@@ -35,6 +35,17 @@ const offlinePolicyDurations = {
   '24h': 24 * 60 * 60 * 1_000,
 } as const
 
+function validateOfflineLeaseDuration(
+  access: { issuedAt: string; notAfter: string; offlinePolicy: keyof typeof offlinePolicyDurations },
+  context: z.RefinementCtx,
+): void {
+  const duration = Date.parse(access.notAfter) - Date.parse(access.issuedAt)
+  const maximumDuration = offlinePolicyDurations[access.offlinePolicy]
+  if (duration < 0 || duration > maximumDuration) {
+    context.addIssue({ code: 'custom', message: 'Member sync offline lease exceeds its authenticated policy' })
+  }
+}
+
 const vaultKeyEpochSchema = z.object({
   vaultKeyVersion: u32,
   vdkVersion: u32,
@@ -59,7 +70,7 @@ export const encryptedVaultSummarySchema = z.object({
   memberCount: z.number().int().nonnegative(),
   entryCount: z.number().int().nonnegative(),
   activeGrantCount: z.number().int().nonnegative(),
-}).strict().superRefine((vault, context) => {
+}).superRefine((vault, context) => {
   const metadata = vault.memberVaultMetadata.descriptor
   const memberKey = vault.memberVaultKey.wrappedVaultKey.descriptor
   if (vault.id !== metadata.scope.vaultId || vault.id !== memberKey.scope.vaultId) {
@@ -88,7 +99,7 @@ const vaultPublicKeySchema = z.object({
   keyVersion: u32,
   encodedPublicKey: z.string().min(1),
   fingerprint: z.string().min(1),
-}).strict().superRefine((key, context) => {
+}).superRefine((key, context) => {
   if ((key.keyKind === 1 && key.schemeId !== 'palladin-x25519-v1')
     || (key.keyKind === 2 && key.schemeId !== 'palladin-ed25519-v1')) {
     context.addIssue({ code: 'custom', message: 'Vault public key kind does not match its scheme' })
@@ -125,7 +136,7 @@ const headSchema = z.object({
   entryKey: vaultEntryKeyEnvelopeSchema,
   memberIndex: memberIndexEnvelopeSchema,
   memberSecret: memberSecretEnvelopeSchema,
-}).strict().superRefine((item, context) => {
+}).superRefine((item, context) => {
   const index = item.memberIndex.descriptor
   const secret = item.memberSecret.descriptor
   const entryKey = item.entryKey.descriptor
@@ -155,14 +166,14 @@ const tombstoneSchema = z.object({
   entryKey: z.null(),
   memberIndex: z.null(),
   memberSecret: z.null(),
-}).strict()
+})
 
 export const memberSyncItemSchema = z.discriminatedUnion('kind', [headSchema, tombstoneSchema])
 
 const listVaultsSchema = z.object({
   vaults: z.array(encryptedVaultSummarySchema).max(200),
   total: z.number().int().nonnegative(),
-}).strict()
+})
 
 export const currentMemberEntryAccessContextSchema = z.object({
   contextVersion: z.literal(1),
@@ -179,12 +190,7 @@ export const currentMemberEntryAccessContextSchema = z.object({
   offlinePolicyVersion: u32,
   issuedAt: canonicalInstantSchema,
   notAfter: canonicalInstantSchema,
-}).strict().superRefine((access, context) => {
-  if (Date.parse(access.notAfter) - Date.parse(access.issuedAt)
-    !== offlinePolicyDurations[access.offlinePolicy]) {
-    context.addIssue({ code: 'custom', message: 'Member sync offline lease duration mismatch' })
-  }
-})
+}).strict().superRefine(validateOfflineLeaseDuration)
 
 const currentMemberPageAuthorityShape = {
   accessContext: currentMemberEntryAccessContextSchema,
@@ -235,7 +241,7 @@ export const memberSnapshotPageSchema = z.object({
   snapshotBaseSequence: canonicalU64,
   items: z.array(memberSyncItemSchema).max(200),
   nextCursor: syncCursor.nullable(),
-}).strict().superRefine((page, context) => {
+}).superRefine((page, context) => {
   assertPageVaultKeyAuthority(page, context)
   assertPageItemsMatchAuthority(page, context)
 })
@@ -246,7 +252,7 @@ export const memberDeltaPageSchema = z.object({
   appliedThroughSequence: canonicalU64,
   items: z.array(memberSyncItemSchema).max(200),
   continuationCursor: syncCursor.nullable(),
-}).strict().superRefine((page, context) => {
+}).superRefine((page, context) => {
   assertPageVaultKeyAuthority(page, context)
   assertPageItemsMatchAuthority(page, context)
 })
@@ -256,7 +262,7 @@ const resetSchema = z.object({
   currentSequence: canonicalU64,
   minRetainedSequence: canonicalU64,
   newSnapshotRequired: z.literal(true),
-}).strict()
+})
 
 export type EncryptedVaultSummary = z.infer<typeof encryptedVaultSummarySchema>
 export type EncryptedVaultDetail = z.infer<typeof encryptedVaultDetailSchema>

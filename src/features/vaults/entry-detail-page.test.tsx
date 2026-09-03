@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -28,6 +28,7 @@ const {
   openCurrentEntryMock,
   canonicalRefetchMock,
   retrySyncMock,
+  structuralMismatch,
   state,
 } = vi.hoisted(() => ({
   useVaultMock: vi.fn(),
@@ -40,6 +41,7 @@ const {
   openCurrentEntryMock: vi.fn(),
   canonicalRefetchMock: vi.fn(),
   retrySyncMock: vi.fn(),
+  structuralMismatch: new Error('structural head mismatch'),
   state: {
     updateIsPending: false,
     deleteIsPending: false,
@@ -117,6 +119,7 @@ vi.mock('./use-delete-entry', () => ({
 // not depend on libsodium WASM warm-up.
 vi.mock('./sync/current-member-entry-reader', () => ({
   openCurrentMemberEntrySecret: openCurrentEntryMock,
+  isCurrentMemberEntryStructuralHeadMismatchError: (error: unknown) => error === structuralMismatch,
 }))
 openCurrentEntryMock.mockImplementation(async () => {
     if (state.decryptShouldThrow) throw new Error('mac')
@@ -435,8 +438,56 @@ describe('EntryDetailPage — DetailsTab', () => {
     render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
 
     expect(
-      await screen.findByText(/could not decrypt entry/i),
+      await screen.findByText(/encrypted data is being refreshed/i),
     ).toBeInTheDocument()
+    expect(screen.queryByText(/vault may be locked/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the locked message only when no in-memory Vault key session exists', async () => {
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+
+    expect(await screen.findByText(/vault is locked/i)).toBeInTheDocument()
+  })
+
+  it('shows a non-corruption message when the selected structural head changed', async () => {
+    unlockedAuthStore()
+    openCurrentEntryMock.mockRejectedValueOnce(structuralMismatch)
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+
+    expect(await screen.findByText(/entry changed while it was opening/i)).toBeInTheDocument()
+  })
+
+  it('ignores in-flight plaintext when navigation cancels the decrypt', async () => {
+    unlockedAuthStore()
+    let resolveDecrypt: ((value: unknown) => void) | undefined
+    openCurrentEntryMock.mockImplementationOnce(() => new Promise((resolve) => {
+      resolveDecrypt = resolve
+    }))
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+
+    const view = render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    await waitFor(() => expect(resolveDecrypt).toBeDefined())
+    view.unmount()
+
+    await act(async () => {
+      resolveDecrypt?.({
+        schemaVersion: 1,
+        memberLabel: 'Stripe API Key',
+        agentLabel: 'Stripe API Key',
+        entryType: ENTRY_TYPE_KEY,
+        content: { type: ENTRY_TYPE_KEY, value: 'sk_live_123' },
+        agentVisibilityPolicy: { discoverable: true, fields: { agentLabel: 'discovery' } },
+      })
+      await Promise.resolve()
+    })
+
   })
 
   it('reopens the local item across unlock sessions without a canonical detail request', async () => {

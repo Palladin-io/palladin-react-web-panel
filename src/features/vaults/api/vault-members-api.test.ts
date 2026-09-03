@@ -42,4 +42,18 @@ describe('vault members API', () => {
     await expect(getVaultMembers('vault-1')).rejects.toThrow()
   })
 
+  it('keeps an unknown backend removal status and ignores optional fields', async () => {
+    getJson.mockResolvedValue({
+      items: [{ ...member, deprovisioningStatus: 'AwaitingExternalApproval', futureHint: true }],
+      nextAfterId: null,
+      futurePageHint: true,
+    })
+
+    const result = await getVaultMembers('vault-1')
+
+    expect(result.items[0].deprovisioningStatus).toBe('AwaitingExternalApproval')
+    expect(result.items[0]).not.toHaveProperty('futureHint')
+    expect(result).not.toHaveProperty('futurePageHint')
+  })
+
 })

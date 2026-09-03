@@ -127,6 +127,7 @@ The backend is authoritative for server-owned domain state and business invarian
 - The backend remains authoritative for every mutation, authorization decision and server-owned security invariant; frontend checks are UX only.
 - Continue validating forms, user/file input, third-party responses, browser/DOM messages and other untrusted data.
 - Continue independent zero-knowledge verification of signatures, commitments, envelope structure and organization/Vault/principal/grant/key-version/epoch bindings before using keys or plaintext. Such checks must name their independent authority and have focused negative tests.
+- Before adding or changing runtime response validation, read `docs/architecture/api-response-validation.md` and keep its validator inventory and trust-boundary decision in sync with the implementation.
 
 ### Real-time (SignalR)
 - Single hub connection managed in a provider

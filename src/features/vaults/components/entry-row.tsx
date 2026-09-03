@@ -16,7 +16,10 @@ import {
   type EntryPlaintext,
 } from '../types'
 import { readCustomFields } from '../entry-blob'
-import { openCurrentMemberEntrySecret } from '../sync/current-member-entry-reader'
+import {
+  isCurrentMemberEntryStructuralHeadMismatchError,
+  openCurrentMemberEntrySecret,
+} from '../sync/current-member-entry-reader'
 import { EntryIcon } from './entry-icon'
 import { CustomFieldsView } from './custom-fields-view'
 import { OtpauthTotp } from './totp-display'
@@ -59,29 +62,38 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
       setDecryptError(t('vault.entries.decryptVaultLocked'))
       return Promise.reject(new Error('Vault is locked'))
     }
+    const userId = auth.userId
     const privateKey = auth.privateKey
     const sessionGeneration = auth.cryptoSessionGeneration
+    const sessionChanged = () => {
+      const current = useAuthStore.getState()
+      return current.privateKey !== privateKey
+        || current.cryptoSessionGeneration !== sessionGeneration
+        || !mounted.current
+    }
     setDecryptError(null)
     setDecrypting(true)
     const operation = openCurrentMemberEntrySecret({
-      userId: auth.userId,
+      userId,
       vaultId,
       entryId: entry.id,
       expectedRevision: entry.currentRevision,
       expectedKeyVersion: entry.currentKeyVersion,
       memberPrivateKey: privateKey,
     }).then((secret) => {
-      const current = useAuthStore.getState()
-      if (current.privateKey !== privateKey
-        || current.cryptoSessionGeneration !== sessionGeneration
-        || !mounted.current) {
+      if (sessionChanged()) {
         throw new Error('Vault lock session changed')
       }
       const result = fromMemberSecret(secret).content
       setPlaintext(result)
       return result
     }).catch((error: unknown) => {
-      if (mounted.current) setDecryptError(t('vault.entries.decryptFailed'))
+      const structuralHeadChanged = isCurrentMemberEntryStructuralHeadMismatchError(error)
+      if (mounted.current) {
+        setDecryptError(t(structuralHeadChanged
+          ? 'vault.entries.decryptChanged'
+          : 'vault.entries.decryptFailed'))
+      }
       throw error
     }).finally(() => {
       decryptPromise.current = null
