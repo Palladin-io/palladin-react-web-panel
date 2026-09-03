@@ -28,16 +28,25 @@ function formatDate(iso: string): string {
 /** Compact status pill mirroring the detail panel badge. */
 export function ApiKeyStatusBadge({ status }: { status: ApiKeySummary['status'] }) {
   const { t } = useTranslation()
-  const isActive = status === 'active'
+  const presentation = status === 'active'
+    ? {
+        className: 'bg-[rgb(var(--cv-success-rgb)/0.14)] text-[var(--cv-success)]',
+        label: t('apiKeys.statusActive'),
+      }
+    : status === 'revoked'
+      ? {
+          className: 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]',
+          label: t('apiKeys.statusRevoked'),
+        }
+      : {
+          className: 'bg-[rgb(var(--cv-neutral-rgb)/0.14)] text-[var(--cv-neutral)]',
+          label: t('apiKeys.statusUnknown'),
+        }
   return (
     <span
-      className={`${METADATA_BADGE_CLASSES} ${
-        isActive
-          ? 'bg-[rgb(var(--cv-success-rgb)/0.14)] text-[var(--cv-success)]'
-          : 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
-      }`}
+      className={`${METADATA_BADGE_CLASSES} ${presentation.className}`}
     >
-      {isActive ? t('apiKeys.statusActive') : t('apiKeys.statusRevoked')}
+      {presentation.label}
     </span>
   )
 }

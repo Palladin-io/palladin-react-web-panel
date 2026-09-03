@@ -5,8 +5,14 @@ import { useAuthStore } from '../../auth'
 import { EntryRow } from './entry-row'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY, type EntryListItem } from '../types'
 
-const { openCurrentEntryMock, writeTextMock, fetchMock } = vi.hoisted(() => ({
+const {
+  openCurrentEntryMock,
+  structuralMismatch,
+  writeTextMock,
+  fetchMock,
+} = vi.hoisted(() => ({
   openCurrentEntryMock: vi.fn(),
+  structuralMismatch: new Error('structural head mismatch'),
   writeTextMock: vi.fn(async () => {}),
   fetchMock: vi.fn(),
 }))
@@ -18,6 +24,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('../sync/current-member-entry-reader', () => ({
   openCurrentMemberEntrySecret: openCurrentEntryMock,
+  isCurrentMemberEntryStructuralHeadMismatchError: (error: unknown) => error === structuralMismatch,
 }))
 
 vi.mock('../../../shared/crypto/entry-draft', () => ({
@@ -99,5 +106,25 @@ describe('EntryRow — copy vs reveal', () => {
 
     await waitFor(() => expect(openCurrentEntryMock).toHaveBeenCalledTimes(1))
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('shows a corruption error when reveal cannot open cached ciphertext', async () => {
+    openCurrentEntryMock.mockRejectedValueOnce(new Error('invalid ciphertext'))
+    const user = userEvent.setup()
+    render(<EntryRow vaultId="vault-1" entry={KEY_ENTRY} />)
+
+    await user.click(screen.getByRole('button', { name: /^reveal$/i }))
+
+    expect(await screen.findByText(/could not decrypt entry/i)).toBeInTheDocument()
+  })
+
+  it('does not purge the generation for a selected structural-head mismatch', async () => {
+    openCurrentEntryMock.mockRejectedValueOnce(structuralMismatch)
+    const user = userEvent.setup()
+    render(<EntryRow vaultId="vault-1" entry={KEY_ENTRY} />)
+
+    await user.click(screen.getByRole('button', { name: /^reveal$/i }))
+
+    expect(await screen.findByText(/entry changed while it was opening/i)).toBeInTheDocument()
   })
 })

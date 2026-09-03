@@ -85,6 +85,20 @@ describe('VaultMembersTab', () => {
     expect(screen.queryByText(/A staged removal is in progress/)).not.toBeInTheDocument()
   })
 
+  it('renders an additive member state neutrally without invented rotation guidance', () => {
+    memberHooks.useVaultMembers.mockReturnValue(membersResult({
+      ...activeMember,
+      deprovisioningStatus: 'AwaitingExternalApproval',
+    }))
+
+    render(<VaultMembersTab vaultId="vault-1" memberCount={2} />)
+
+    expect(screen.getByText('Unknown state')).toBeInTheDocument()
+    expect(screen.getByText(/state is not recognized/i)).toBeInTheDocument()
+    expect(screen.queryByText(/request is staged/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeDisabled()
+  })
+
   it('submits staged removal, closes the dialog, and reports only the request', () => {
     render(<VaultMembersTab vaultId="vault-1" memberCount={2} />)
     fireEvent.click(screen.getByRole('button', { name: 'Remove' }))

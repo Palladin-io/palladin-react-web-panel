@@ -13,7 +13,7 @@ interface StatusPresentation {
  * summary counter stay consistent. Active=green, Pending=amber,
  * Denied/Revoked=red, Expired/Consumed=grey.
  */
-const STATUS_PRESENTATION: Record<GrantStatus, StatusPresentation> = {
+const STATUS_PRESENTATION: Partial<Record<GrantStatus, StatusPresentation>> = {
   active: { labelKey: 'grants.statusActive', color: '#10B981', bg: 'rgba(16, 185, 129,0.12)' },
   pending: { labelKey: 'grants.statusPending', color: '#D4820A', bg: 'rgba(240,192,64,0.14)' },
   denied: { labelKey: 'grants.statusDenied', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.12)' },
@@ -23,8 +23,14 @@ const STATUS_PRESENTATION: Record<GrantStatus, StatusPresentation> = {
   superseded: { labelKey: 'grants.statusSuperseded', color: 'var(--cv-neutral)', bg: 'rgb(var(--cv-neutral-rgb) / 0.14)' },
 }
 
+const UNKNOWN_STATUS_PRESENTATION: StatusPresentation = {
+  labelKey: 'grants.statusUnknown',
+  color: 'var(--cv-neutral)',
+  bg: 'rgb(var(--cv-neutral-rgb) / 0.14)',
+}
+
 export function grantStatusPresentation(status: GrantStatus): StatusPresentation {
-  return STATUS_PRESENTATION[status]
+  return STATUS_PRESENTATION[status] ?? UNKNOWN_STATUS_PRESENTATION
 }
 
 // Action availability (canRevoke / canGrantAgain) is computed by the backend

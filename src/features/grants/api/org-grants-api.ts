@@ -28,7 +28,7 @@ export const GRANT_STATUSES = [
   GRANT_STATUS_SUPERSEDED,
 ] as const;
 
-export type GrantStatus = (typeof GRANT_STATUSES)[number];
+export type GrantStatus = string;
 
 export const GRANT_TYPE_FULL = "full" as const;
 export const GRANT_TYPE_GRANULAR = "granular" as const;
@@ -73,7 +73,7 @@ const orgGrantSchema = z.object({
     .optional(),
   agentSigningKeyFingerprint: z.string().nullable().optional(),
   type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR, GRANT_TYPE_SCRIPT_EXECUTION]),
-  status: z.enum(GRANT_STATUSES),
+  status: z.string(),
   // Combined-flags string of permitted methods, e.g. "get, exec". Optional for
   // pre-methods backends; the badge is hidden when absent/empty.
   methods: z.string().nullable().optional(),

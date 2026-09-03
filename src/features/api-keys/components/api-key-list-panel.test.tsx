@@ -70,6 +70,14 @@ describe('ApiKeyListPanel', () => {
     expect(screen.getByText(/^active$/i)).toHaveClass('h-5', 'px-2', 'text-micro', 'font-semibold')
   })
 
+  it('keeps a forward-compatible status visible without presenting it as revoked', () => {
+    keysState.data = [{ ...activeKey, status: 'suspending' }]
+    render(<ApiKeyListPanel />, { wrapper })
+
+    expect(screen.getByText(/unknown status/i)).toBeInTheDocument()
+    expect(screen.queryByText(/^revoked$/i)).not.toBeInTheDocument()
+  })
+
   it('renders an error state when the list fails to load', () => {
     keysState.isError = true
     render(<ApiKeyListPanel />, { wrapper })

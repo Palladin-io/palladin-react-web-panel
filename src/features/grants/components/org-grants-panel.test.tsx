@@ -274,4 +274,22 @@ describe('OrgGrantsPanel footer actions', () => {
     expect(screen.getByText('Grant again unavailable')).toBeInTheDocument()
     expect(screen.getByText('View agent')).toBeInTheDocument()
   })
+
+  it('does not infer terminal guidance from an additive grant state', () => {
+    mockOrgGrants.mockReturnValue({
+      data: {
+        items: [{ ...expiredGrant, status: 'suspending', canGrantAgain: false }],
+        nextCursor: null,
+      },
+      isPending: false,
+      isError: false,
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useOrgGrants>)
+
+    render(<OrgGrantsPanel vaultId="vault-1" />)
+
+    expect(screen.getByText('Unknown status')).toBeInTheDocument()
+    expect(screen.queryByText('Grant again unavailable')).not.toBeInTheDocument()
+    expect(screen.queryByText('Active in a newer grant')).not.toBeInTheDocument()
+  })
 })

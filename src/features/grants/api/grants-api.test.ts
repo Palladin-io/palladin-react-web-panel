@@ -93,6 +93,18 @@ describe('grants-api', () => {
     expect(page.nextCursor).toBeNull()
   })
 
+  it('keeps a forward-compatible backend lifecycle status', async () => {
+    getJson.mockResolvedValue({
+      items: [{ ...sampleGrant, status: 'suspending', futureDisplayHint: true }],
+      nextCursor: null,
+    })
+
+    const page = await getVaultGrants('v1')
+
+    expect(page.items[0].status).toBe('suspending')
+    expect(page.items[0]).not.toHaveProperty('futureDisplayHint')
+  })
+
   it('forwards filters as search params', async () => {
     getJson.mockResolvedValue({ items: [] })
     await getVaultGrants('v1', { status: 'pending', agentId: 'a9', pageSize: 20 })

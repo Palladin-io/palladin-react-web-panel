@@ -41,6 +41,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
   const [deleteOpen, setDeleteOpen] = useState(false)
 
   const isActive = apiKey.status === 'active'
+  const isRevoked = apiKey.status === 'revoked'
 
   const handleConfirmRevoke = () => {
     revoke.mutate(apiKey.apiKeyId, {
@@ -112,7 +113,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
       </div>
 
       {/* Activate zone — shown only for revoked keys when user has write permission */}
-      {!isActive && canWrite ? (
+      {isRevoked && canWrite ? (
         <section
           className="mt-4 rounded-xl border border-[rgb(var(--cv-success-rgb)/0.3)] bg-[rgb(var(--cv-success-rgb)/0.12)] p-4"
         >
@@ -136,7 +137,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
       ) : null}
 
       {/* Danger zone — shown only when user has write permission */}
-      {canWrite ? <section
+      {canWrite && (isActive || isRevoked) ? <section
         className="mt-4 rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
       >
         <h2 className="text-meta font-semibold text-[var(--cv-primary)]">

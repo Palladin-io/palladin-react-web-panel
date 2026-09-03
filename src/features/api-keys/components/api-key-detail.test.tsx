@@ -92,6 +92,15 @@ describe('ApiKeyDetail', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('does not offer lifecycle mutations for a forward-compatible status', () => {
+    render(<ApiKeyDetail apiKey={{ ...activeKey, status: 'suspending' }} />, { wrapper })
+
+    expect(screen.getByText(/unknown status/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^activate$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^revoke$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument()
+  })
+
   it('revokes the key after confirmation and fires analytics', async () => {
     const user = userEvent.setup()
     revokeMutateMock.mockImplementation((_id, options) => {

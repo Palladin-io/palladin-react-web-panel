@@ -126,7 +126,7 @@ const canonicalEntryDetailSchema = z.object({
   organizationId: canonicalUuidSchema,
   vaultId: canonicalUuidSchema,
   id: canonicalUuidSchema,
-  state: z.union([z.enum(['active', 'archived', 'deleted']), z.literal(1), z.literal(2), z.literal(3)]),
+  state: z.union([z.string(), z.number().int()]),
   currentRevision: canonicalU64Schema,
   memberIndexRevision: canonicalU64Schema,
   agentDiscoveryRevision: canonicalU64Schema.nullable(),
@@ -141,7 +141,7 @@ const canonicalEntryDetailSchema = z.object({
   memberSecret: memberSecretEnvelopeSchema,
   agentDiscovery: agentDiscoveryEnvelopeSchema.nullable(),
   entryKey: vaultEntryKeyEnvelopeSchema,
-}).strict().superRefine((entry, context) => {
+}).superRefine((entry, context) => {
   const envelopes = [entry.memberIndex, entry.memberSecret, entry.entryKey, entry.agentDiscovery].filter(Boolean)
   if (envelopes.some((envelope) => envelope!.descriptor.scope.organizationId !== entry.organizationId
     || envelope!.descriptor.scope.vaultId !== entry.vaultId || envelope!.descriptor.scope.entryId !== entry.id)) {
@@ -152,10 +152,6 @@ const canonicalEntryDetailSchema = z.object({
     || entry.currentKeyVersion !== entry.entryKey.descriptor.keyVersion
     || entry.agentDiscoveryRevision !== (entry.agentDiscovery?.descriptor.resourceRevision ?? null)) {
     context.addIssue({ code: 'custom', message: 'Entry projection head mismatch' })
-  }
-  if (entry.agentDiscoveryRevision !== null
-    && BigInt(entry.agentDiscoveryRevision) > BigInt(entry.agentDiscoveryRevisionHighWatermark)) {
-    context.addIssue({ code: 'custom', message: 'Entry Discovery watermark mismatch' })
   }
 })
 
@@ -181,20 +177,20 @@ export interface EntryLifecycleMaterial {
 }
 
 const restoreEntryResponseSchema = z.object({
-  state: z.union([z.literal('active'), z.literal(1)]),
+  state: z.union([z.string(), z.number().int()]),
   currentRevision: canonicalU64Schema,
-}).strict()
+})
 
 const recentlyDeletedEntrySchema = z.object({
   id: canonicalUuidSchema,
-  state: z.union([z.literal('deleted'), z.literal(3)]),
+  state: z.union([z.string(), z.number().int()]),
   currentRevision: canonicalU64Schema,
   updatedAt: z.string().datetime({ offset: true }),
   archivedAt: z.string().datetime({ offset: true }).nullable(),
   deletedAt: z.string().datetime({ offset: true }),
   retentionExpiresAt: z.string().datetime({ offset: true }),
   memberIndex: memberIndexEnvelopeSchema,
-}).strict().superRefine((item, context) => {
+}).superRefine((item, context) => {
   if (item.memberIndex.descriptor.scope.entryId !== item.id) {
     context.addIssue({ code: 'custom', message: 'Recently Deleted Entry scope mismatch' })
   }
@@ -203,7 +199,7 @@ const recentlyDeletedEntrySchema = z.object({
 const recentlyDeletedResponseSchema = z.object({
   items: z.array(recentlyDeletedEntrySchema),
   nextCursor: z.string().nullable(),
-}).strict()
+})
 
 export type RecentlyDeletedEntry = z.infer<typeof recentlyDeletedEntrySchema>
 export type RecentlyDeletedResponse = z.infer<typeof recentlyDeletedResponseSchema>
@@ -226,7 +222,7 @@ const entryHistoryItemSchema = z.object({
   keyVersion: u32Schema,
   entryKey: vaultEntryKeyEnvelopeSchema,
   memberSecret: memberSecretEnvelopeSchema,
-}).strict().superRefine((item, context) => {
+}).superRefine((item, context) => {
   if (item.revision !== item.memberSecret.descriptor.resourceRevision
     || item.operation !== item.memberSecret.descriptor.binding.operation
     || item.keyVersion !== item.entryKey.descriptor.keyVersion
@@ -244,8 +240,8 @@ const entryHistoryResponseSchema = z.object({
   currentRevision: canonicalU64Schema,
   items: z.array(entryHistoryItemSchema).max(20),
   nextBeforeRevision: canonicalU64Schema.nullable(),
-  policy: z.object({ maximumVersions: z.number().int().positive(), maximumAgeDays: z.number().int().positive() }).strict(),
-}).strict()
+  policy: z.object({ maximumVersions: z.number().int().positive(), maximumAgeDays: z.number().int().positive() }),
+})
 
 export type EntryHistoryItem = z.infer<typeof entryHistoryItemSchema>
 export type EntryHistoryResponse = z.infer<typeof entryHistoryResponseSchema>
@@ -303,7 +299,7 @@ export async function restoreCanonicalEntry(
   vaultId: string,
   entryId: string,
   material: EntryLifecycleMaterial,
-): Promise<{ state: 'active' | 1; currentRevision: string }> {
+): Promise<{ state: string | number; currentRevision: string }> {
   const raw = await api.post(`api/vaults/${vaultId}/entries/${entryId}/restore`, { json: material }).json()
   return restoreEntryResponseSchema.parse(raw)
 }
@@ -422,7 +418,7 @@ export async function importEntries(
   return z.object({
     importedCount: z.number().int().nonnegative(),
     entryIds: z.array(canonicalUuidSchema),
-  }).strict().parse(raw)
+  }).parse(raw)
 }
 
 /**

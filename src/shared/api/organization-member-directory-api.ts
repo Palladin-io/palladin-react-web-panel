@@ -9,11 +9,11 @@ export const ORGANIZATION_MEMBER_DIRECTORY_QUERY_KEY = [
 export const organizationMemberDirectoryItemSchema = z.object({
   userId: z.string(),
   displayName: z.string(),
-}).strict()
+})
 
 const organizationMemberDirectoryResponseSchema = z.object({
   items: z.array(organizationMemberDirectoryItemSchema),
-}).strict()
+})
 
 export type OrganizationMemberDirectoryItem = z.infer<
   typeof organizationMemberDirectoryItemSchema

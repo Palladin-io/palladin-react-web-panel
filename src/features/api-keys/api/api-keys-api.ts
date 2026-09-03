@@ -1,7 +1,7 @@
 import { api } from '../../../shared/api/client'
 import type { Agent } from '../../agents'
 
-export type ApiKeyStatus = 'active' | 'revoked'
+export type ApiKeyStatus = string
 
 export interface ApiKeySummary {
   apiKeyId: string
@@ -26,9 +26,10 @@ export interface GeneratedApiKey {
 // Backend may send status as a camelCase string ("active") or as an integer
 // (1 = Active, 2 = Revoked) depending on whether the FastEndpoints serializer
 // has the JsonStringEnumConverter applied. Normalise at the boundary.
-function normalizeStatus(raw: unknown): ApiKeyStatus {
+export function normalizeApiKeyStatus(raw: unknown): ApiKeyStatus {
   if (raw === 'active' || raw === 1) return 'active'
-  return 'revoked'
+  if (raw === 'revoked' || raw === 2) return 'revoked'
+  return typeof raw === 'string' ? raw : 'unknown'
 }
 
 type RawApiKeySummary = Omit<ApiKeySummary, 'status' | 'keySuffix' | 'createdByName'> & {
@@ -46,7 +47,7 @@ export function getApiKeys(): Promise<ApiKeySummary[]> {
         ...item,
         keySuffix: item.keySuffix ?? '',
         createdByName: item.createdByName ?? '',
-        status: normalizeStatus(item.status),
+        status: normalizeApiKeyStatus(item.status),
       })),
     )
 }

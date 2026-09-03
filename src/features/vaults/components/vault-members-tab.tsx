@@ -179,17 +179,27 @@ function StatusBadge({ status }: { status: string }) {
   const { t } = useTranslation()
   const active = status === 'Active'
   const blocked = status === 'BlockedLastMember'
+  const known = isKnownMemberStatus(status)
   return (
     <span className={`rounded-full px-2.5 py-1 text-micro font-semibold ${
       active
         ? 'bg-[rgb(var(--cv-success-rgb)/0.12)] text-[var(--cv-success)]'
         : blocked
           ? 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
-          : 'bg-[rgb(var(--cv-pending-rgb)/0.16)] text-[var(--cv-pending)]'
+          : known
+            ? 'bg-[rgb(var(--cv-pending-rgb)/0.16)] text-[var(--cv-pending)]'
+            : 'bg-[rgb(var(--cv-neutral-rgb)/0.14)] text-[var(--cv-neutral)]'
     }`}>
-      {t(`vault.members.status.${status}`)}
+      {known ? t(`vault.members.status.${status}`) : t('vault.members.status.unknown')}
     </span>
   )
+}
+
+function isKnownMemberStatus(status: string): boolean {
+  return status === 'Active'
+    || status === 'Pending'
+    || status === 'WaitingForRotation'
+    || status === 'BlockedLastMember'
 }
 
 function StatusDetail({
@@ -202,6 +212,7 @@ function StatusDetail({
   processing: boolean
 }) {
   const { t } = useTranslation()
+  if (!isKnownMemberStatus(status)) return t('vault.members.unknownDetail')
   if (status === 'BlockedLastMember') return t('vault.members.blockedDetail')
   if (retryRequired) return t('vault.members.retryRequired')
   if (processing) return t('vault.members.processing')

@@ -16,7 +16,7 @@ const agentDiscoveryProvisioningItemSchema = z.object({
   recipientKeyVersion: z.number().int().positive().max(0xffffffff),
   status: z.enum([DISCOVERY_STATUS_CURRENT, DISCOVERY_STATUS_PENDING]),
   manifestRevision: canonicalU64.nullable(),
-}).strict().transform(({ agentId, agentName, x25519PublicKey, ed25519PublicKey, recipientKeyVersion, status, manifestRevision }) => ({
+}).transform(({ agentId, agentName, x25519PublicKey, ed25519PublicKey, recipientKeyVersion, status, manifestRevision }) => ({
   agentId,
   agentName,
   x25519PublicKey,
@@ -29,7 +29,7 @@ const agentDiscoveryProvisioningItemSchema = z.object({
 const agentDiscoveryProvisioningResponseSchema = z.object({
   items: z.array(agentDiscoveryProvisioningItemSchema).max(1_000),
   nextAfterId: z.string().uuid().nullable(),
-}).strict()
+})
 
 export type AgentDiscoveryProvisioningItem = z.infer<typeof agentDiscoveryProvisioningItemSchema>
 
