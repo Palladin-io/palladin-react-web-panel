@@ -1,4 +1,5 @@
 import type { CustomField, EntryPlaintext, ScriptRef } from '../../features/vaults/types'
+import { defaultCredentialAgentFieldAccess } from '@palladin/crypto'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, type EntryType } from '../types/entry-type'
 import { parseOtpauthUri } from './totp'
 import {
@@ -49,15 +50,21 @@ export function allowedAgentFieldAccess(type: EntryType, fieldId: string, custom
 }
 
 export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomField[] = []): AgentVisibilityPolicy {
+  if (type === ENTRY_TYPE_CREDENTIAL) {
+    const defaults = defaultCredentialAgentFieldAccess(fields)
+    const policy: AgentVisibilityPolicy = { discoverable: true, fields: {} }
+    for (const [id, access] of Object.entries(defaults)) {
+      if (['memberLabel', 'entryType', 'icon', 'color'].includes(id)) continue
+      policy.fields[id.replace(/^credential\./, '')] = access
+    }
+    return policy
+  }
   const policy: AgentVisibilityPolicy = { discoverable: true, fields: {
     agentLabel: 'discovery', description: type === 2 ? 'discovery' : 'never',
     notes: type === 2 || type === ENTRY_TYPE_CREDIT_CARD ? 'never' : 'onGrantValue',
   } }
   if (type === ENTRY_TYPE_KEY) Object.assign(policy.fields, {
     value: 'onGrantValue', url: 'onGrantValue',
-  })
-  else if (type === ENTRY_TYPE_CREDENTIAL) Object.assign(policy.fields, {
-    username: 'discovery', urlDomain: 'discovery', url: 'onGrantValue', password: 'onGrantValue', totp: 'onGrantDerived',
   })
   else if (type === ENTRY_TYPE_CREDIT_CARD) Object.assign(policy.fields, {
     cardholderName: 'never', cardNumber: 'never', expiryMonth: 'never',

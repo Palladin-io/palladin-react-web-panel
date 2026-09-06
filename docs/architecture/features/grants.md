@@ -23,4 +23,13 @@ Two split-view route pages — a per-vault grant master/detail view and an org-w
 - The policy fields hold an unexported select-class constant — a candidate for the shared `FormSelect`.
 
 ## Cross-feature deps
+
+CVT-573 WIP: Grant construction and grantable-field presentation now delegate to
+`@palladin/crypto` 0.6.0's current delivery-bound builder. Plaintext and complete
+ScriptExecution package producers are thin adapters to the shared current
+contract, including exact Discovery references, derived TOTP and Key URL content.
+No local grant or Script package crypto producer remains. Package publication and
+exact registry manifest/lockfile installation are still required before release.
+Local tarball validation is not reproducible registry-release evidence.
+
 The org grants panel, grant-access dialog, and approve/deny dialogs are **exported and consumed by `vaults`** (entry/vault Agents tabs) and **`notifications`** (inline approve/deny). Approval and regrant always resolve the current Agent key metadata before producing envelopes; notification metadata is not trusted as cryptographic context. Changes here ripple into both.

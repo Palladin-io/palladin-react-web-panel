@@ -2,6 +2,7 @@ import { VAULT_XCHACHA20_POLY1305_V1 } from './crypto-suite'
 import { ENVELOPE_PURPOSE } from './envelope'
 import { deriveVaultSubkey } from './hkdf'
 import { randomBytes, wipe } from './sodium'
+import { sealCanonicalCredentialEntry } from '@palladin/crypto'
 import {
   encodeAgentDiscovery, encodeMemberIndex, encodeMemberSecret,
   parseMemberIndex, parseMemberSecret, projectAgentDiscovery, projectMemberIndex,
@@ -82,6 +83,9 @@ export async function sealCanonicalEntry(
   vaultDiscoveryKey: Uint8Array,
   operation: 1 | 2 | 3 | 4 | 5,
 ): Promise<CanonicalEntryEnvelopes> {
+  if (secret.entryType === 'credential') {
+    return sealCanonicalCredentialEntry(coordinates, secret, vaultKey, vaultDiscoveryKey, operation)
+  }
   const entryDek = await randomBytes(32)
   const index = projectMemberIndex(secret)
   const discovery = projectAgentDiscovery(secret)
