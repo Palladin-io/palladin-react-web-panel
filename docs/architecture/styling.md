@@ -65,6 +65,7 @@ than the lighter, blue-grey modal surface.
 | `--cv-auth-secondary` | Secondary auth text and back controls |
 | `--cv-auth-muted` | Auth subtitles, helper links, and legal copy |
 | `--cv-auth-divider` | Auth dividers and inactive progress dots |
+| `--cv-password-strength-{track,medium}` | Theme-aware empty track and medium-score fill for `PasswordStrengthBar` |
 | `--cv-auth-control-{bg,border,hover,shadow}` | Theme-specific secondary auth controls without layout movement; light controls are opaque white |
 | `--cv-auth-tooltip-bg` | Provider-button tooltip surface |
 | `--cv-google` | Google provider badge brand colour |

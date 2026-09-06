@@ -46,6 +46,8 @@ html {
   --cv-auth-secondary: #3D4E66;
   --cv-auth-muted: #69758A;
   --cv-auth-divider: rgba(12, 14, 18, 0.1);
+  --cv-password-strength-track: #D9DEE6;
+  --cv-password-strength-medium: #FFB84F;
   --cv-auth-control-bg: #FFFFFF;
   --cv-auth-control-border: #D9DEE6;
   --cv-auth-control-hover: #F8FAFC;
@@ -124,6 +126,8 @@ html {
   --cv-auth-secondary: #B8C5D4;
   --cv-auth-muted: #6B7A8E;
   --cv-auth-divider: rgba(232, 234, 237, 0.1);
+  --cv-password-strength-track: rgba(232, 234, 237, 0.06);
+  --cv-password-strength-medium: #FFB84F;
   --cv-auth-control-bg: rgba(232, 234, 237, 0.04);
   --cv-auth-control-border: rgba(232, 234, 237, 0.06);
   --cv-auth-control-hover: rgba(232, 234, 237, 0.07);
