@@ -41,9 +41,9 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   // size — without it a bordered button is ~2px taller and footer rows look
   // uneven (e.g. Deny vs Approve in notification cards).
   accent:
-    'bg-[var(--cv-primary)] text-white border border-transparent hover:bg-[var(--cv-primary-hover)] disabled:bg-[rgb(var(--cv-primary-rgb)/0.5)]',
+    'bg-[var(--cv-primary)] text-white border border-transparent shadow-[var(--cv-btn-accent-shadow)] hover:bg-[var(--cv-btn-accent-hover)] hover:shadow-[var(--cv-btn-accent-shadow-hover)] disabled:bg-[rgb(var(--cv-primary-rgb)/0.5)] disabled:shadow-none',
   subtle:
-    'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-btn-subtle-text)] border border-[var(--cv-btn-subtle-border)] hover:bg-[var(--cv-btn-subtle-hover)]',
+    'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-btn-subtle-text)] border border-[var(--cv-btn-subtle-border)] shadow-[var(--cv-btn-subtle-shadow)] hover:bg-[var(--cv-btn-subtle-hover)]',
   outline:
     'bg-transparent text-[var(--cv-btn-outline-text)] border border-[var(--cv-btn-outline-border)] hover:bg-[var(--cv-btn-outline-hover)]',
   ghost:
@@ -51,7 +51,7 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   danger:
     'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)] border border-[rgb(var(--cv-primary-rgb)/0.25)] hover:bg-[rgb(var(--cv-primary-rgb)/0.18)]',
   positive:
-    'bg-[rgba(16,185,129,0.12)] text-[#10B981] border border-[rgba(16,185,129,0.3)] hover:bg-[rgba(16,185,129,0.18)]',
+    'bg-[rgb(var(--cv-success-rgb)/0.12)] text-[var(--cv-success)] border border-[rgb(var(--cv-success-rgb)/0.3)] hover:bg-[rgb(var(--cv-success-rgb)/0.18)]',
   premium:
     'btn-premium bg-transparent font-bold border',
 }
@@ -60,7 +60,7 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
  *  Height comes from the fixed `h-*` in SIZE_CLASS; `items-center` +
  *  `leading-none` keep the label/icon centred within that fixed height. */
 const BASE_CLASS =
-  'inline-flex items-center justify-center leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-60'
+  'inline-flex items-center justify-center leading-none transition-[background-color,border-color,box-shadow,color] duration-150 ease-out focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--cv-primary-rgb)/0.28)] disabled:cursor-not-allowed disabled:opacity-60'
 
 /** Ready-made class string for the `sm` premium button — apply to `<Link>` elements. */
 export const PREMIUM_BUTTON_SM_CLASS =

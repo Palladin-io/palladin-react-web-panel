@@ -54,18 +54,32 @@ describe('LoginPage', () => {
   })
 
   it('renders the wordmark and the email/password fields', () => {
-    render(<LoginPage />)
+    const { container } = render(<LoginPage />)
     expect(screen.getByRole('heading', { name: /palladin/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/master password/i)).toBeInTheDocument()
     expect(screen.queryByLabelText(/account secret/i)).not.toBeInTheDocument()
+    expect(container.firstElementChild).toHaveClass('auth-surface')
+    expect(container.firstElementChild).not.toHaveClass('dark')
+    expect(container.querySelector('.auth-logo-glow')).toBeInTheDocument()
+    expect(screen.getByText(/create an account/i).closest('a')).toHaveClass('auth-glass-button')
   })
 
   it('keeps Google enabled and Apple/X disabled', () => {
     render(<LoginPage />)
-    expect(screen.getByRole('button', { name: /continue with google/i })).toBeEnabled()
-    expect(screen.getByRole('button', { name: /continue with apple/i })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /continue with x/i })).toBeDisabled()
+    const signIn = screen.getByRole('button', { name: /^sign in$/i })
+    const google = screen.getByRole('button', { name: /continue with google/i })
+    const apple = screen.getByRole('button', { name: /continue with apple/i })
+    const x = screen.getByRole('button', { name: /continue with x/i })
+
+    expect(google).toBeEnabled()
+    expect(apple).toBeDisabled()
+    expect(x).toBeDisabled()
+    expect(signIn).toHaveClass('h-control')
+    expect(screen.getByText(/create an account/i).closest('a')).toHaveClass('h-control')
+    expect(google).toHaveClass('h-control')
+    expect(apple).toHaveClass('h-control')
+    expect(x).toHaveClass('h-control')
   })
 
   it('renders the rotating welcome line and terms footer', () => {

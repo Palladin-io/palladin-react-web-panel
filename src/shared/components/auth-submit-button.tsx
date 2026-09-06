@@ -28,7 +28,8 @@ export function AuthSubmitButton({
         'text-ui font-semibold text-white ' +
         'shadow-[0_2px_10px_rgb(var(--cv-primary-rgb)/0.22)] transition-[background-color,box-shadow] ' +
         'hover:bg-[var(--cv-primary-hover)] hover:shadow-[0_2px_14px_rgb(var(--cv-primary-rgb)/0.3)] ' +
-        'disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none' +
+        'disabled:cursor-not-allowed disabled:bg-[var(--cv-auth-primary-disabled-bg)] ' +
+        'disabled:text-[var(--cv-auth-primary-disabled-text)] disabled:shadow-none' +
         (className ? ` ${className}` : '')
       }
     >

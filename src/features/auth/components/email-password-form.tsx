@@ -76,13 +76,12 @@ export function EmailPasswordForm({
       </AuthSubmitButton>
 
       {/* Register is the email path's explicit sign-up (OAuth, below in LoginPage,
-          creates its account implicitly). Ghost button so it reads as a distinct
-          action, not another provider. */}
+          creates its account implicitly). It shares the same quiet surface as
+          the provider actions so secondary auth choices stay visually consistent. */}
       <Link
         to="/register"
-        className="flex w-full items-center justify-center rounded-lg border
-          border-[rgba(232,234,237,0.14)] bg-transparent px-3.5 py-2.5 text-heading-sm
-          font-medium text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.06)]"
+        className="auth-glass-button flex h-control w-full items-center justify-center rounded-lg
+          border px-3.5 text-heading-sm font-medium"
       >
         {t('login.createAccount')}
       </Link>

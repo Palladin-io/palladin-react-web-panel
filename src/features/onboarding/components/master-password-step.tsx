@@ -80,8 +80,8 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
           </FeedbackSlot>
         </div>
 
-        <div className="rounded-lg border border-[rgba(232,234,237,0.06)] bg-[rgba(232,234,237,0.04)] px-3 py-2">
-          <p className="text-meta text-[#E8EAED]">
+        <div className="rounded-lg border border-[var(--cv-auth-control-border)] bg-[var(--cv-auth-control-bg)] px-3 py-2">
+          <p className="text-meta text-[var(--cv-t1)]">
             {t('onboarding.encryptionNote')}
           </p>
         </div>

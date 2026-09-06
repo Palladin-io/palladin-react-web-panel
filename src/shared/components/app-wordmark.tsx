@@ -21,7 +21,7 @@ export function AppWordmark({ size = 'sm', subtitle }: AppWordmarkProps) {
       <div className="flex flex-col items-center gap-2">
         <img src="/logo.png" alt={appName} className="h-16 w-auto" />
         <h1 className="text-display font-extrabold tracking-tight">
-          <span className="text-[#E8EAED]">Palladin</span>
+          <span className="text-[var(--cv-t1)]">Palladin</span>
           <span className="text-[var(--cv-primary)]">.io</span>
         </h1>
       </div>

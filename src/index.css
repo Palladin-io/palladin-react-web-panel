@@ -11,28 +11,59 @@ html {
 
 :root {
   --cv-density-scale: 1.25;
+  --cv-page-bg: radial-gradient(125% 100% at 72% 0%, #FBFCFD 0%, #EEF1F4 48%, #DCE1E8 100%);
   --cv-t1: #0C0E12;
   --cv-t2: #3D4E66;
   --cv-t3: #8A95A6;
-  --cv-card-bg: rgba(255, 255, 255, 0.55);
+  /* Content surfaces stay opaque so their colour never depends on the page gradient. */
+  --cv-card-bg: #FFFFFF;
   --cv-search-bg: var(--cv-card-bg);
-  --cv-card-hover: rgba(255, 255, 255, 0.8);
-  --cv-card-footer: #EDEFF2;
+  --cv-card-hover: #F5F7FA;
+  --cv-card-footer: #F3F5F8;
   --cv-border: rgba(12, 14, 18, 0.1);
   --cv-divider: rgba(12, 14, 18, 0.08);
   --cv-bg-subtle: rgba(12, 14, 18, 0.04);
-  --cv-empty-bg: rgba(255, 255, 255, 0.4);
+  --cv-empty-bg: #F7F9FB;
   --cv-empty-border: rgba(12, 14, 18, 0.12);
-  --cv-modal-bg: #F3F5F8;
+  --cv-modal-bg: #FFFFFF;
   --cv-input-bg: #FFFFFF;
   --cv-input-border: rgba(12, 14, 18, 0.14);
   --cv-input-text: #0C0E12;
   --cv-input-placeholder: #8A95A6;
   --cv-label-text: #5A6478;
-  --cv-btn-subtle-bg: rgba(12, 14, 18, 0.05);
+  /* Auth surfaces share the app-shell gradient. Light provider and secondary
+     actions stay opaque so their colour never changes with the page beneath. */
+  --cv-auth-bg: var(--cv-page-bg);
+  --cv-auth-logo-glow: radial-gradient(
+    ellipse at center,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(255, 255, 255, 0.98) 5%,
+    rgba(255, 255, 255, 0.68) 22%,
+    rgba(255, 255, 255, 0.16) 38%,
+    rgba(255, 255, 255, 0.055) 48%,
+    transparent 62%
+  );
+  --cv-auth-secondary: #3D4E66;
+  --cv-auth-muted: #69758A;
+  --cv-auth-divider: rgba(12, 14, 18, 0.1);
+  --cv-auth-control-bg: #FFFFFF;
+  --cv-auth-control-border: #D9DEE6;
+  --cv-auth-control-hover: #F8FAFC;
+  --cv-auth-control-disabled-bg: #EEF1F4;
+  --cv-auth-control-disabled-border: #E0E4EA;
+  --cv-auth-control-disabled-text: #8A95A6;
+  --cv-auth-control-shadow: 0 1px 4px rgba(35, 45, 61, 0.08);
+  --cv-auth-primary-disabled-bg: #EFA3A3;
+  --cv-auth-primary-disabled-text: #FFFFFF;
+  --cv-auth-tooltip-bg: #FFFFFF;
+  --cv-btn-accent-hover: #E54343;
+  --cv-btn-accent-shadow: 0 3px 12px rgb(var(--cv-primary-rgb) / 0.16);
+  --cv-btn-accent-shadow-hover: 0 3px 12px rgb(var(--cv-primary-rgb) / 0.16);
+  --cv-btn-subtle-shadow: 0 3px 10px rgba(35, 45, 61, 0.06);
+  --cv-btn-subtle-bg: #F8FAFC;
   --cv-btn-subtle-text: #0C0E12;
   --cv-btn-subtle-border: rgba(12, 14, 18, 0.12);
-  --cv-btn-subtle-hover: rgba(12, 14, 18, 0.09);
+  --cv-btn-subtle-hover: #F3F5F8;
   --cv-btn-outline-text: #0C0E12;
   --cv-btn-outline-border: rgba(12, 14, 18, 0.2);
   --cv-btn-outline-hover: rgba(12, 14, 18, 0.04);
@@ -44,6 +75,7 @@ html {
   --cv-primary: #EB4747;
   --cv-primary-hover: #D43E3E;
   --cv-primary-rgb: 235 71 71;
+  --cv-google: #4285F4;
   /* Semantic accents (shared with mobile AppColors) — success = #10B981. */
   --cv-success: #10B981;
   --cv-success-rgb: 16 185 129;
@@ -69,17 +101,18 @@ html {
 }
 
 .dark {
+  --cv-page-bg: linear-gradient(160deg, #15171B 0%, #212429 30%, #1A1D22 60%, #15171B 100%);
   --cv-t1: #E8EAED;
   --cv-t2: #B8C5D4;
   --cv-t3: #8A95A6;
-  --cv-card-bg: rgba(0, 0, 0, 0.22);
+  --cv-card-bg: #15171B;
   --cv-search-bg: var(--cv-card-bg);
-  --cv-card-hover: rgba(0, 0, 0, 0.1);
-  --cv-card-footer: var(--cv-input-bg);
+  --cv-card-hover: #1D2025;
+  --cv-card-footer: #1D2025;
   --cv-border: rgba(232, 234, 237, 0.13);
   --cv-divider: rgba(232, 234, 237, 0.13);
   --cv-bg-subtle: rgba(232, 234, 237, 0.05);
-  --cv-empty-bg: rgba(0, 0, 0, 0.15);
+  --cv-empty-bg: #121418;
   --cv-empty-border: rgba(232, 234, 237, 0.13);
   --cv-modal-bg: #181B22;
   --cv-input-bg: rgba(232, 234, 237, 0.04);
@@ -87,10 +120,28 @@ html {
   --cv-input-text: #E8EAED;
   --cv-input-placeholder: #6B7A8E;
   --cv-label-text: #B8C5D4;
-  --cv-btn-subtle-bg: rgba(232, 234, 237, 0.07);
+  --cv-auth-bg: var(--cv-page-bg);
+  --cv-auth-secondary: #B8C5D4;
+  --cv-auth-muted: #6B7A8E;
+  --cv-auth-divider: rgba(232, 234, 237, 0.1);
+  --cv-auth-control-bg: rgba(232, 234, 237, 0.04);
+  --cv-auth-control-border: rgba(232, 234, 237, 0.06);
+  --cv-auth-control-hover: rgba(232, 234, 237, 0.07);
+  --cv-auth-control-disabled-bg: #1C1F24;
+  --cv-auth-control-disabled-border: #292D34;
+  --cv-auth-control-disabled-text: #5F6977;
+  --cv-auth-control-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  --cv-auth-primary-disabled-bg: #713637;
+  --cv-auth-primary-disabled-text: #A7A9AD;
+  --cv-auth-tooltip-bg: #20242C;
+  --cv-btn-accent-hover: #E54343;
+  --cv-btn-accent-shadow: 0 3px 12px rgb(var(--cv-primary-rgb) / 0.14);
+  --cv-btn-accent-shadow-hover: 0 3px 12px rgb(var(--cv-primary-rgb) / 0.14);
+  --cv-btn-subtle-shadow: 0 3px 10px rgba(0, 0, 0, 0.14);
+  --cv-btn-subtle-bg: #24272E;
   --cv-btn-subtle-text: #E8EAED;
   --cv-btn-subtle-border: rgba(232, 234, 237, 0.15);
-  --cv-btn-subtle-hover: rgba(232, 234, 237, 0.12);
+  --cv-btn-subtle-hover: #292C33;
   --cv-btn-outline-text: #E8EAED;
   --cv-btn-outline-border: rgba(232, 234, 237, 0.22);
   --cv-btn-outline-hover: rgba(232, 234, 237, 0.06);
@@ -102,6 +153,7 @@ html {
   --cv-primary: #EB4747;
   --cv-primary-hover: #D43E3E;
   --cv-primary-rgb: 235 71 71;
+  --cv-google: #4285F4;
   /* Semantic accents (shared with mobile AppColors) — success = #10B981. */
   --cv-success: #10B981;
   --cv-success-rgb: 16 185 129;
@@ -122,6 +174,73 @@ html {
 button,
 [role="button"] {
   cursor: pointer;
+}
+
+/* Full-screen auth routes inherit the persisted theme instead of forcing a
+   nested dark scope. This keeps login, unlock, onboarding, and recovery in
+   sync when the session is locked or cleared. */
+.auth-surface {
+  background: var(--cv-auth-bg);
+  color: var(--cv-t1);
+  /* Matches the landing hero: keep the oversized glow inside the full-screen
+     surface so its off-screen geometry never creates a second page area. */
+  overflow: hidden;
+}
+
+.auth-logo-glow {
+  position: relative;
+  isolation: isolate;
+}
+
+.auth-logo-glow::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  top: 2rem;
+  left: 50%;
+  width: min(1500px, 138vw);
+  height: max(1800px, 220svh);
+  transform: translate(-50%, -50%);
+  background: var(--cv-auth-logo-glow);
+  filter: blur(8px);
+  pointer-events: none;
+}
+
+.dark .auth-logo-glow::before {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .auth-logo-glow::before {
+    width: 180vw;
+    height: max(1600px, 220svh);
+  }
+}
+
+.auth-logo-glow > * {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-glass-button {
+  border-color: var(--cv-auth-control-border);
+  background: var(--cv-auth-control-bg);
+  color: var(--cv-t1);
+  box-shadow: var(--cv-auth-control-shadow);
+  backdrop-filter: blur(20px);
+  transition: background-color 150ms ease-out, border-color 150ms ease-out;
+}
+
+.auth-glass-button:hover:not(:disabled) {
+  background: var(--cv-auth-control-hover);
+}
+
+.auth-glass-button:disabled {
+  border-color: var(--cv-auth-control-disabled-border);
+  background: var(--cv-auth-control-disabled-bg);
+  color: var(--cv-auth-control-disabled-text);
+  box-shadow: none;
+  opacity: 1;
 }
 
 /* Premium button — sweep fill from left to right on hover */

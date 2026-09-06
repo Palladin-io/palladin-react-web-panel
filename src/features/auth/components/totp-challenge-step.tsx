@@ -89,7 +89,7 @@ export function TotpChallengeStep({
             setCode('')
             if (hasError) onFieldChange()
           }}
-          className="text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
+          className="text-[var(--cv-auth-muted)] transition-colors hover:text-[var(--cv-t1)]"
         >
           {useRecoveryCode ? t('totpChallenge.useAuthenticator') : t('totpChallenge.useRecoveryCode')}
         </button>
@@ -97,7 +97,7 @@ export function TotpChallengeStep({
           type="button"
           onClick={onBack}
           disabled={isPending}
-          className="text-[#6B7A8E] transition-colors hover:text-[#E8EAED] disabled:opacity-50"
+          className="text-[var(--cv-auth-muted)] transition-colors hover:text-[var(--cv-t1)] disabled:opacity-50"
         >
           {t('common.back')}
         </button>

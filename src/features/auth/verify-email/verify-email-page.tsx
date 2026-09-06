@@ -83,7 +83,7 @@ function VerifyEmailGate() {
       subtitle={t('verifyEmail.pendingSubtitle')}
     >
       <div className="flex flex-col items-center gap-4">
-        <p className="text-center text-meta text-[#B8C5D4]">
+        <p className="text-center text-meta text-[var(--cv-auth-secondary)]">
           {account.data?.email ? (
             <Trans i18nKey="verifyEmail.pendingBody" values={{ email: account.data.email }} />
           ) : (
@@ -102,7 +102,7 @@ function VerifyEmailGate() {
         <button
           type="button"
           onClick={handleLogout}
-          className="text-ui text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
+          className="text-ui text-[var(--cv-auth-muted)] transition-colors hover:text-[var(--cv-t1)]"
         >
           {t('common.logout')}
         </button>

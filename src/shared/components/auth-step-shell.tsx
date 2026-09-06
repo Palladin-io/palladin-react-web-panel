@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
-import { AUTH_BACKGROUND_GRADIENT } from '../lib/styles'
 
 export interface AuthStepShellProps {
   title: string
@@ -25,14 +24,9 @@ export interface AuthStepShellProps {
 }
 
 /**
- * Shared chrome for the standalone auth surfaces (register wizard, verify-email
- * result). A centred card on the same dark gradient the unlock/onboarding
- * screens use. Kept generic and dependency-free so any auth-adjacent feature
- * can reuse it without importing another feature's shell.
- *
- * `dark` is hardcoded on the root: these pages always render on a dark
- * gradient, so `--cv-*` tokens must resolve to their dark values regardless of
- * the user's app theme (see AGENTS.md "Dark-Mode Forced Pages").
+ * Shared chrome for standalone auth surfaces (register wizard, verify-email
+ * result). It follows the persisted application theme and stays dependency-free
+ * so any auth-adjacent feature can reuse it without importing a feature shell.
  */
 export function AuthStepShell({
   title,
@@ -50,10 +44,7 @@ export function AuthStepShell({
       ? 'items-center justify-center py-8'
       : 'items-start justify-center pt-[max(2rem,calc(50vh-22.5rem))]'
   return (
-    <div
-      className={`dark flex min-h-screen ${placement}`}
-      style={{ background: AUTH_BACKGROUND_GRADIENT }}
-    >
+    <div className={`auth-surface flex min-h-screen ${placement}`}>
       <div className="step-enter w-full max-w-[27.5rem] px-6 py-10">
         {(onBack || progress) && (
           <div className="relative mb-5 flex items-center justify-center">
@@ -63,7 +54,8 @@ export function AuthStepShell({
                 onClick={onBack}
                 aria-label={backLabel}
                 className="absolute left-0 flex h-7 w-7 items-center justify-center rounded-full
-                  text-[#B8C5D4] transition-colors hover:bg-[rgba(232,234,237,0.08)] hover:text-[#E8EAED]"
+                  text-[var(--cv-auth-secondary)] transition-colors hover:bg-[var(--cv-bg-subtle)]
+                  hover:text-[var(--cv-t1)]"
               >
                 <ChevronLeft size={20} />
               </button>
@@ -82,10 +74,10 @@ export function AuthStepShell({
                     className={
                       'h-2 w-2 rounded-full transition-colors ' +
                       (index < progress.current
-                        ? 'bg-[#FFAB87]'
+                        ? 'bg-[var(--cv-pending)]'
                         : index === progress.current
                           ? 'bg-[var(--cv-primary)]'
-                          : 'bg-[rgba(232,234,237,0.08)]')
+                          : 'bg-[var(--cv-auth-divider)]')
                     }
                   />
                 ))}
@@ -98,10 +90,10 @@ export function AuthStepShell({
           {showLogo && (
             <img src="/logo.png" alt={logoAlt} className="mx-auto mb-4 h-16 w-16" />
           )}
-          <h1 className="mb-1 text-auth-title font-bold leading-tight text-[#E8EAED]">
+          <h1 className="mb-1 text-auth-title font-bold leading-tight text-[var(--cv-t1)]">
             {title}
           </h1>
-          <p className="text-heading-sm text-[#6B7A8E]">{subtitle}</p>
+          <p className="text-heading-sm text-[var(--cv-auth-muted)]">{subtitle}</p>
         </div>
 
         {children}

@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { AppWordmark } from './app-wordmark'
 import { Button } from './button'
-import { AUTH_BACKGROUND_GRADIENT } from '../lib/styles'
 
 interface StartupErrorProps {
   missingKeys?: readonly string[]
@@ -12,10 +11,7 @@ export function StartupError({ missingKeys = [] }: StartupErrorProps) {
   const hasConfigurationError = missingKeys.length > 0
 
   return (
-    <main
-      className="dark flex min-h-screen items-center justify-center px-6"
-      style={{ background: AUTH_BACKGROUND_GRADIENT }}
-    >
+    <main className="auth-surface flex min-h-screen items-center justify-center px-6">
       <div className="w-full max-w-[27.5rem] text-center">
         <div className="mb-5 flex justify-center">
           <AppWordmark size="lg" />
