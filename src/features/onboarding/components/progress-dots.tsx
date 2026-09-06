@@ -19,10 +19,10 @@ export function ProgressDots({ current, total }: ProgressDotsProps) {
           className={
             'h-2 w-2 rounded-full transition-colors ' +
             (index < current
-              ? 'bg-[#FFAB87]'
+              ? 'bg-[var(--cv-pending)]'
               : index === current
                 ? 'bg-[var(--cv-primary)]'
-                : 'bg-[rgba(232,234,237,0.08)]')
+                : 'bg-[var(--cv-auth-divider)]')
           }
         />
       ))}

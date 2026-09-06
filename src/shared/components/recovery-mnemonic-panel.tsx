@@ -50,14 +50,14 @@ export function RecoveryMnemonicPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="rounded-lg border border-[rgba(232,234,237,0.06)] bg-[rgba(232,234,237,0.04)] p-3">
-        <ol className="ph-no-capture grid grid-cols-4 gap-2 text-meta text-[#E8EAED]">
+      <div className="rounded-lg border border-[var(--cv-auth-control-border)] bg-[var(--cv-auth-control-bg)] p-3">
+        <ol className="ph-no-capture grid grid-cols-4 gap-2 text-meta text-[var(--cv-t1)]">
           {mnemonic.map((word, index) => (
             <li
               key={index}
-              className="flex items-center gap-1 rounded bg-[rgba(232,234,237,0.04)] px-2 py-1.5"
+              className="flex items-center gap-1 rounded bg-[var(--cv-bg-subtle)] px-2 py-1.5"
             >
-              <span className="text-micro text-[#6B7A8E]">{index + 1}</span>
+              <span className="text-micro text-[var(--cv-auth-muted)]">{index + 1}</span>
               <span className="font-mono">{word}</span>
             </li>
           ))}
@@ -78,9 +78,8 @@ export function RecoveryMnemonicPanel({
         <button
           type="button"
           onClick={handleCopy}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg
-            border border-[rgba(232,234,237,0.1)] bg-transparent px-3 py-2 text-meta
-            font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.04)]"
+          className="auth-glass-button flex flex-1 items-center justify-center gap-1.5 rounded-lg
+            border px-3 py-2 text-meta font-semibold"
         >
           {copied ? <Check size={14} /> : <Copy size={14} />}
           {copied ? t('recoveryPhrase.copied') : t('recoveryPhrase.copyToClipboard')}
@@ -88,9 +87,8 @@ export function RecoveryMnemonicPanel({
         <button
           type="button"
           onClick={handleExport}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg
-            border border-[rgba(232,234,237,0.1)] bg-transparent px-3 py-2 text-meta
-            font-semibold text-[#E8EAED] transition-colors hover:bg-[rgba(232,234,237,0.04)]"
+          className="auth-glass-button flex flex-1 items-center justify-center gap-1.5 rounded-lg
+            border px-3 py-2 text-meta font-semibold"
         >
           <Download size={14} />
           {t('recoveryPhrase.exportAsTxt')}

@@ -109,8 +109,8 @@ When creating a resource that requires a server-assigned ID before a secondary a
 2. After creation succeeds and you have the ID, upload the real asset and PATCH the resource.
 3. Use `blob:` URLs (via `URL.createObjectURL`) for local preview during step 1 — never upload to S3 without an ID.
 
-### Dark-Mode Forced Pages
-Pages with a hardcoded dark gradient background (e.g., `/unlock`, `/login`) must add `class="dark"` to their outermost container div. This ensures CSS variables (`--cv-input-bg`, `--cv-input-text`, etc.) resolve to their dark-mode values regardless of the user's app theme toggle — because these pages always render on a dark background.
+### Theme-Aware Auth Pages
+Full-screen authentication pages (`/login`, `/unlock`, onboarding, recovery and verification) must use the shared `auth-surface` class and `--cv-auth-*` tokens. Never add a nested `class="dark"` or a hardcoded dark gradient to these pages: logout and vault lock preserve the user's persisted theme, so every auth surface must render in that same theme.
 
 ### API Client
 - Base URL from env: `VITE_API_URL`

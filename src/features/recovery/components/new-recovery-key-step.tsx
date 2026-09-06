@@ -26,12 +26,12 @@ export function NewRecoveryKeyStep({ mnemonic, onFinish }: NewRecoveryKeyStepPro
       <div className="flex flex-col gap-3">
         <RecoveryMnemonicPanel mnemonic={mnemonic} />
 
-        <label className="flex cursor-pointer items-center gap-2 text-meta text-[#B8C5D4]">
+        <label className="flex cursor-pointer items-center gap-2 text-meta text-[var(--cv-auth-secondary)]">
           <input
             type="checkbox"
             checked={acknowledged}
             onChange={(e) => setAcknowledged(e.target.checked)}
-            className="h-4 w-4 rounded border-[rgba(232,234,237,0.2)] bg-transparent
+            className="h-4 w-4 rounded border-[var(--cv-input-border)] bg-transparent
               accent-[var(--cv-success)]"
           />
           {t('recovery.savedCheckbox')}
