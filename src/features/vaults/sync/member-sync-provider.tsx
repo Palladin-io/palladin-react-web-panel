@@ -80,7 +80,10 @@ export function MemberSyncProvider({ children, enabled, userId, memberPrivateKey
     }
 
     retrySync.current = synchronize
-    void scheduleLeaseExpiry().catch(() => undefined)
+    const previousCompletion = synchronizationQueue.current
+    // Lease enforcement must not wait on an aborted previous session's network work.
+    const initialLeaseCleanup = scheduleLeaseExpiry().catch(() => undefined)
+    synchronizationQueue.current = Promise.all([previousCompletion, initialLeaseCleanup]).then(() => undefined)
     synchronize()
     window.addEventListener('online', synchronizeWhenOnline)
     window.addEventListener('offline', purgeWhenOffline)
