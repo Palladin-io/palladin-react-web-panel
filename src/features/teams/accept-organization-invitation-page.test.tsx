@@ -50,6 +50,17 @@ describe('AcceptOrganizationInvitationPage', () => {
     expect(mutateMock).not.toHaveBeenCalled()
   })
 
+  it('uses theme-aware auth tokens for the confirmation hint', () => {
+    render(<AcceptOrganizationInvitationPage token="opaque-token" />)
+
+    const hint = screen.getByText(/only continue if you recognize and trust/i)
+    expect(hint).toHaveClass('text-[var(--cv-auth-secondary)]')
+    expect(hint.parentElement).toHaveClass(
+      'border-[var(--cv-auth-control-border)]',
+      'bg-[var(--cv-auth-control-bg)]',
+    )
+  })
+
   it('submits the opaque token only after confirmation', async () => {
     const user = userEvent.setup()
     render(<AcceptOrganizationInvitationPage token="opaque-token" />)

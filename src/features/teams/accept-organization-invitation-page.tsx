@@ -114,9 +114,9 @@ export function AcceptOrganizationInvitationPage({
       )}
     >
       {!errorKey && (
-        <div className="mb-4 flex items-start gap-3 rounded-lg border border-[rgba(232,234,237,0.08)] bg-[rgba(232,234,237,0.04)] px-3 py-3 text-left">
+        <div className="mb-4 flex items-start gap-3 rounded-lg border border-[var(--cv-auth-control-border)] bg-[var(--cv-auth-control-bg)] px-3 py-3 text-left">
           <Icon name="group_add" className="mt-0.5 shrink-0 text-[var(--cv-primary)]" />
-          <p className="text-meta text-[#B8C5D4]">
+          <p className="text-meta text-[var(--cv-auth-secondary)]">
             {t('team.invitationAccept.confirmHint')}
           </p>
         </div>
