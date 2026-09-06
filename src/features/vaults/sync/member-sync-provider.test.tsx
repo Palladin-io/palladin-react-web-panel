@@ -61,6 +61,35 @@ describe('MemberSyncProvider refresh lifecycle', () => {
     expect(probe.synchronize).toHaveBeenCalledTimes(2)
   })
 
+  it('finishes initial lease cleanup before starting synchronization', async () => {
+    let finishCleanup!: () => void
+    probe.purgeInvalidGenerations.mockImplementationOnce(() => new Promise<number | null>((resolve) => {
+      finishCleanup = () => resolve(null)
+    }))
+
+    render(
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={new Uint8Array(32)}
+      >
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+    await act(async () => { await Promise.resolve() })
+
+    expect(probe.purgeInvalidGenerations).toHaveBeenCalledTimes(1)
+    expect(probe.synchronize).not.toHaveBeenCalled()
+
+    await act(async () => {
+      finishCleanup()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(probe.synchronize).toHaveBeenCalledTimes(1)
+  })
+
   it('settles an aborted synchronization before starting its replacement', async () => {
     let settleFirst!: () => void
     probe.synchronize.mockImplementationOnce(() => new Promise<void>((resolve) => {
@@ -218,6 +247,43 @@ describe('MemberSyncProvider refresh lifecycle', () => {
 
     expect(probe.purgeInvalidGenerations).toHaveBeenCalledTimes(1)
     view.unmount()
+  })
+
+  it('cleans up leases after unlocking without waiting for the previous aborted synchronization', async () => {
+    let settlePrevious!: () => void
+    probe.synchronize.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      settlePrevious = resolve
+    }))
+    const unlocked = (
+      <MemberSyncProvider
+        enabled
+        userId="11111111-1111-4111-8111-111111111111"
+        memberPrivateKey={new Uint8Array(32)}
+      >
+        <span>child</span>
+      </MemberSyncProvider>
+    )
+    const view = render(unlocked)
+    await act(async () => { await Promise.resolve() })
+    expect(probe.synchronize).toHaveBeenCalledTimes(1)
+
+    view.rerender(
+      <MemberSyncProvider enabled={false} userId={null} memberPrivateKey={null}>
+        <span>child</span>
+      </MemberSyncProvider>,
+    )
+    probe.purgeInvalidGenerations.mockClear()
+    view.rerender(unlocked)
+    await act(async () => { await Promise.resolve() })
+
+    expect(probe.purgeInvalidGenerations).toHaveBeenCalledTimes(1)
+    expect(probe.synchronize).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      settlePrevious()
+      await Promise.resolve()
+    })
+    expect(probe.synchronize).toHaveBeenCalledTimes(2)
   })
 
   it('purges the active generation at its exact offline lease expiry', async () => {
