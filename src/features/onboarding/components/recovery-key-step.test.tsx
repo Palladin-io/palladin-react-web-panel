@@ -24,6 +24,24 @@ describe('RecoveryKeyStep', () => {
     expect(screen.getByText('24')).toBeInTheDocument()
   })
 
+  it('uses theme-aware auth surfaces for the mnemonic and its actions', () => {
+    render(<RecoveryKeyStep mnemonic={SAMPLE_WORDS} onContinue={vi.fn()} />)
+
+    const firstWord = screen.getByText('alpha')
+    const mnemonicList = firstWord.closest('ol')
+    expect(mnemonicList).toHaveClass('text-[var(--cv-t1)]')
+    expect(mnemonicList?.parentElement).toHaveClass(
+      'border-[var(--cv-auth-control-border)]',
+      'bg-[var(--cv-auth-control-bg)]',
+    )
+    expect(firstWord.closest('li')).toHaveClass('bg-[var(--cv-bg-subtle)]')
+    expect(screen.getByText('1')).toHaveClass('text-[var(--cv-auth-muted)]')
+    expect(screen.getByRole('button', { name: /copy to clipboard/i }))
+      .toHaveClass('auth-glass-button')
+    expect(screen.getByRole('button', { name: /export as .txt/i }))
+      .toHaveClass('auth-glass-button')
+  })
+
   it('copies the mnemonic to the clipboard', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', {

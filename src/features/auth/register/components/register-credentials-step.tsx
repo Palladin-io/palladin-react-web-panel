@@ -133,19 +133,19 @@ export function RegisterCredentialsStep({
           </div>
         )}
 
-        <div className="rounded-lg border border-[rgba(232,234,237,0.06)] bg-[rgba(232,234,237,0.04)] px-3 py-2">
-          <p className="text-meta text-[#E8EAED]">{t('register.encryptionNote')}</p>
+        <div className="rounded-lg border border-[var(--cv-auth-control-border)] bg-[var(--cv-auth-control-bg)] px-3 py-2">
+          <p className="text-meta text-[var(--cv-t1)]">{t('register.encryptionNote')}</p>
         </div>
 
         <AuthSubmitButton disabled={!canSubmit}>
           {t('register.continue')}
         </AuthSubmitButton>
 
-        <p className="mt-1 text-center text-ui text-[#6B7A8E]">
+        <p className="mt-1 text-center text-ui text-[var(--cv-auth-muted)]">
           {t('register.haveAccount')}{' '}
           <Link
             to="/login"
-            className="font-semibold text-[#E8EAED] transition-colors hover:text-white"
+            className="font-semibold text-[var(--cv-t1)] transition-colors hover:text-[var(--cv-primary)]"
           >
             {t('register.signIn')}
           </Link>

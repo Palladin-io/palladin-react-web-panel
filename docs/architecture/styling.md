@@ -6,7 +6,7 @@ The styling guide for the web panel. **Core rule: never hardcode hex/rgba in com
 
 - `@custom-variant dark (&:is(.dark *))` — the Tailwind `dark:` prefix applies when an element is inside a `.dark` ancestor.
 - The `ThemeSync` provider toggles `dark` on `document.documentElement` based on user preference.
-- **Dark-mode forced pages** (`/login`, `/unlock`, onboarding, recovery) put `class="dark"` on their outer div so tokens resolve to dark values regardless of the user's theme toggle — these pages always render on a dark gradient.
+- **Auth surfaces follow the persisted theme.** `/login`, `/unlock`, onboarding, recovery, and verification use `.auth-surface`; never put a nested `class="dark"` on them. This keeps logout and vault lock from visually resetting a light preference.
 - `@theme { --font-sans: "Inter", … }` sets the app font (Inter).
 
 Because every `--cv-*` token has both a `:root` and a `.dark` value, **using the token is what makes a component theme-correct** — you almost never need a `dark:` utility for color. Reach for `dark:` only for the rare structural difference (e.g. a shadow that exists only in dark mode).
@@ -27,14 +27,19 @@ Every token has a light value in `:root` and a dark value in `.dark`. Use the to
 ### Surfaces
 | Token | Role |
 |-------|------|
-| `--cv-card-bg` | Card / list-row surface |
+| `--cv-page-bg` | Shared app-shell and auth background gradient; light uses the approved unlock palette and dark keeps the established anthracite gradient |
+| `--cv-card-bg` | Opaque card, list-row, and sidebar surface; must never use alpha because its colour must not depend on the page gradient |
 | `--cv-search-bg` | Search/filter chrome; aliases the card surface, not the form input surface |
-| `--cv-card-hover` | Card hover lift (used by `HOVERABLE_CARD_CLASSES`) |
-| `--cv-card-footer` | Card footer strip |
+| `--cv-card-hover` | Opaque card hover lift (used by `HOVERABLE_CARD_CLASSES`) |
+| `--cv-card-footer` | Opaque card footer strip |
 | `--cv-modal-bg` | Modal background |
 | `--cv-bg-subtle` | Subtle fill / chip background |
 | `--cv-empty-bg` | Empty-state dashed-box fill |
 | `--cv-list-item-hover` | List-item hover background |
+
+The dark card/sidebar surface is a solid approximation of the original black
+tint over the app gradient. Keep it close to the gradient's darkest stop rather
+than the lighter, blue-grey modal surface.
 
 ### Borders & dividers
 | Token | Role |
@@ -51,12 +56,40 @@ Every token has a light value in `:root` and a dark value in `.dark`. Use the to
 | `--cv-input-text` | Input text |
 | `--cv-input-placeholder` | Placeholder text |
 
+### Auth surfaces
+
+| Token | Role |
+|-------|------|
+| `--cv-auth-bg` | Alias of `--cv-page-bg`, keeping panel and auth backgrounds identical in both themes |
+| `--cv-auth-logo-glow` | Light-only landing hero glow used behind the login and unlock shields |
+| `--cv-auth-secondary` | Secondary auth text and back controls |
+| `--cv-auth-muted` | Auth subtitles, helper links, and legal copy |
+| `--cv-auth-divider` | Auth dividers and inactive progress dots |
+| `--cv-password-strength-{track,medium}` | Theme-aware empty track and medium-score fill for `PasswordStrengthBar` |
+| `--cv-auth-control-{bg,border,hover,shadow}` | Theme-specific secondary auth controls without layout movement; light controls are opaque white |
+| `--cv-auth-tooltip-bg` | Provider-button tooltip surface |
+| `--cv-google` | Google provider badge brand colour |
+
+`.auth-surface` applies the landing-aligned `--cv-auth-bg` and primary text for every full-screen
+auth route. `.auth-glass-button` owns the provider/secondary action treatment.
+Both classes resolve from the root theme set by `ThemeSync`; neither creates a
+nested theme scope.
+
 ### Buttons
 Per-variant tokens consumed by `button.tsx`:
 - Subtle: `--cv-btn-subtle-{bg,text,border,hover}`
 - Outline: `--cv-btn-outline-{text,border,hover}`
 - Ghost: `--cv-btn-ghost-{text,hover}`
+- Accent interaction: `--cv-btn-accent-hover`, `--cv-btn-accent-shadow`, `--cv-btn-accent-shadow-hover`
+- Subtle elevation: `--cv-btn-subtle-shadow`
 - Premium: `--cv-premium` (`#D4820A` light / `#F0C040` dark) + the `.btn-premium` sweep-fill effect.
+
+Buttons use stationary colour and shadow feedback plus a primary-colour focus
+outline. Hover and active states must not translate the control because even a
+one-pixel movement makes dense action rows appear misaligned. Accent and subtle
+buttons use restrained, theme-specific elevation without increasing it on
+hover; outline, ghost, danger, positive, and premium keep their semantic
+treatments without a default shadow.
 
 Accent / danger / positive variants reuse the state tokens below.
 
@@ -85,7 +118,6 @@ Sonner toasts wear the theme surface with a variant color as a left-border + ico
 |--------|-----|
 | `HOVERABLE_CARD_CLASSES` | Shared hover/focus class string for cards and list rows: `rounded-2xl`, `--cv-border`, `--cv-card-bg`, hover → `--cv-card-hover` (background lift, no shadow, no border change), focus-visible → `--cv-t1` border. **Edit here to change hover everywhere.** Never inline `hover:border-*` / `hover:bg-*` / `shadow-*` on card-like elements. |
 | `METADATA_BADGE_CLASSES` | Canonical compact pill geometry (`h-5`, `px-2`, `text-micro`, semibold). Use for owner/type/status badges in list and detail headers; callers add only semantic colours and optional icon. In two-line card identities, place the badge in the first-line flex row beside the primary label — never as a sibling centered against both lines. |
-| `AUTH_BACKGROUND_GRADIENT` | The dark gradient `background` value shared by every full-screen auth surface (login, unlock, onboarding, recovery). One constant so those screens stay identical as the palette evolves. |
 
 Button class exports for `<Link>` elements that must look like footer buttons: `PREMIUM_BUTTON_SM_CLASS`, `POSITIVE_BUTTON_SM_CLASS` (from `button.tsx`).
 
@@ -93,6 +125,9 @@ Button class exports for `<Link>` elements that must look like footer buttons: `
 - `.secret-mask` — masks a `type=text` input with a disc font (used by `SecretInput`) so password managers never offer to save vault credentials. No real `type=password`.
 - `.mi` — Material Symbols Rounded glyph span (1em square, clipped). Prefer the `Icon` component; this class is the underlying convention.
 - `.step-enter` / `@keyframes step-enter` — wizard step entrance animation (fade + translateY).
+- `.auth-surface` — full-screen auth background and foreground that follow the persisted app theme.
+- `.auth-logo-glow` — broad white radial light attached to the login/unlock content wrapper and centred on the shield; it renders behind the complete content stack, is hidden in dark mode, and is not used on other auth routes.
+- `.auth-glass-button` — theme-aware glass treatment for auth provider and secondary actions.
 - `.btn-premium` — premium-button sweep-fill hover.
 - `.tab-strip-scroll` — keeps detail tabs horizontally scrollable without exposing an overlay scrollbar thumb beside the last tab.
 

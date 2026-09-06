@@ -47,7 +47,6 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | Helper | File | Purpose |
 |--------|------|---------|
 | `HOVERABLE_CARD_CLASSES` | `shared/lib/styles.ts` | Single source for card/row hover lift (`--cv-card-hover`). Edit here to change hover everywhere. |
-| `AUTH_BACKGROUND_GRADIENT` | `shared/lib/styles.ts` | Dark gradient bg for auth-surface pages. |
 | `validation` | `shared/lib/validation.ts` | `required`, `validUrl`, `maxLen`, `firstError`. |
 | `password-strength` | `shared/lib/password-strength.ts` | Password score (feeds `PasswordStrengthBar`). |
 | `mnemonic` | `shared/lib/mnemonic.ts` | BIP39 recovery-phrase helpers. |
@@ -73,7 +72,7 @@ These patterns are duplicated 2+ times with no shared component. Extract on next
 5. **Glyphs** — `Icon` (Material Symbols Rounded). Don't hand-write `<span className="material-symbols-*">`.
 6. **Filters** — `TypeFilterDropdown` for multi-select filter chips. Date pickers → `DateTimePicker`, never native `datetime-local`.
 7. **Errors / retries** — `ErrorState` for failed query panels; `ErrorBoundary` at route level.
-8. **Auth surfaces** — `AuthSubmitButton`, `AppWordmark`, `AUTH_BACKGROUND_GRADIENT`, and `class="dark"` on the outer div.
+8. **Auth surfaces** — `AuthSubmitButton`, `AppWordmark`, and the theme-aware `.auth-surface` / `.auth-glass-button` helpers. The landing-derived `.auth-logo-glow` is light-only and reserved for login/unlock. Never force a nested dark scope.
 9. **Colors** — `var(--cv-*)` tokens only. Brand red via `--cv-primary` / `--cv-primary-rgb`. Audit colors via `tone()` in `audit-event-config.ts`.
 10. **Skeletons / empty-states / tab strips / split-view / selects** — see "Controls to extract" above; use or create the shared component, never copy markup.
 11. **Settings master headers** — use `SETTINGS_MASTER_HEADER_CLASSES` inside a panel with 16px top padding. The 40px title row + 16px bottom gap occupies the same 72px band as the Settings rail header, keeping Settings, Team, Permissions and API Keys on one baseline.

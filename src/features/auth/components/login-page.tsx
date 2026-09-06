@@ -36,7 +36,7 @@ function RotatingWelcome() {
 
   return (
     <p
-      className="mb-7 h-4 text-ui text-[#8A95A6] transition-opacity duration-300"
+      className="mb-7 h-4 text-ui text-[var(--cv-auth-muted)] transition-opacity duration-300"
       style={{ opacity: visible ? 1 : 0 }}
     >
       {t(WELCOME_MESSAGE_KEYS[index])}
@@ -133,14 +133,8 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   }
 
   return (
-    <div
-      className="dark flex min-h-screen items-center justify-center"
-      style={{
-        background:
-          'linear-gradient(160deg, #15171B 0%, #212429 30%, #1A1D22 60%, #15171B 100%)',
-      }}
-    >
-      <div className="w-full max-w-[27.5rem] px-6">
+    <div className="auth-surface flex min-h-screen items-center justify-center">
+      <div className="auth-logo-glow w-full max-w-[27.5rem] px-6">
         <div className="text-center">
           <div className="mb-2 flex justify-center">
             <AppWordmark size="lg" />
@@ -167,9 +161,11 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
 
               {/* Divider */}
               <div className="my-5 flex items-center gap-3">
-                <span className="h-px flex-1 bg-[rgba(232,234,237,0.1)]" />
-                <span className="text-micro text-[#6B7A8E]">{t('login.orContinueWith')}</span>
-                <span className="h-px flex-1 bg-[rgba(232,234,237,0.1)]" />
+                <span className="h-px flex-1 bg-[var(--cv-auth-divider)]" />
+                <span className="text-micro text-[var(--cv-auth-muted)]">
+                  {t('login.orContinueWith')}
+                </span>
+                <span className="h-px flex-1 bg-[var(--cv-auth-divider)]" />
               </div>
 
               {/* OAuth buttons */}
@@ -179,13 +175,10 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={oauth.isPending}
-                  className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232,234,237,0.06)]
-                    bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-heading-sm font-medium
-                    text-[#E8EAED] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
-                    transition-colors hover:bg-[rgba(232,234,237,0.08)]
-                    disabled:cursor-not-allowed disabled:opacity-60"
+                  className="auth-glass-button flex h-control w-full items-center gap-3 rounded-lg border
+                    px-3.5 text-heading-sm font-medium disabled:cursor-not-allowed"
                 >
-                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[#4285F4] text-meta font-bold text-white">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-[var(--cv-google)] text-meta font-bold text-white">
                     G
                   </span>
                   <span>
@@ -200,10 +193,8 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
                     disabled
                     onMouseEnter={() => setTooltipTarget('apple')}
                     onMouseLeave={() => setTooltipTarget(null)}
-                    className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232,234,237,0.06)]
-                      bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-heading-sm font-medium
-                      text-[#E8EAED] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
-                      disabled:cursor-not-allowed disabled:opacity-40"
+                    className="auth-glass-button flex h-control w-full items-center gap-3 rounded-lg border
+                      px-3.5 text-heading-sm font-medium disabled:cursor-not-allowed"
                   >
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-meta font-bold text-black">
                       &#63743;
@@ -220,10 +211,8 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
                     disabled
                     onMouseEnter={() => setTooltipTarget('x')}
                     onMouseLeave={() => setTooltipTarget(null)}
-                    className="flex w-full items-center gap-3 rounded-lg border border-[rgba(232,234,237,0.06)]
-                      bg-[rgba(232,234,237,0.04)] px-3.5 py-2.5 text-heading-sm font-medium
-                      text-[#E8EAED] shadow-[0_1px_4px_rgba(0,0,0,0.2)] backdrop-blur-xl
-                      disabled:cursor-not-allowed disabled:opacity-40"
+                    className="auth-glass-button flex h-control w-full items-center gap-3 rounded-lg border
+                      px-3.5 text-heading-sm font-medium disabled:cursor-not-allowed"
                   >
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-white text-meta font-bold text-black">
                       &#120143;
@@ -234,7 +223,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
                 </div>
               </div>
 
-              <p className="mt-5 text-micro text-[#6B7A8E]">
+              <p className="mt-5 text-micro text-[var(--cv-auth-muted)]">
                 <Trans
                   i18nKey="auth.legalFooter"
                   components={{
@@ -243,7 +232,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
                         href="https://palladin.io/terms/"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="underline transition-colors hover:text-[#E8EAED]"
+                        className="underline transition-colors hover:text-[var(--cv-t1)]"
                       />
                     ),
                     privacy: (
@@ -251,7 +240,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
                         href="https://palladin.io/privacy/"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="underline transition-colors hover:text-[#E8EAED]"
+                        className="underline transition-colors hover:text-[var(--cv-t1)]"
                       />
                     ),
                   }}
@@ -271,7 +260,7 @@ function Tooltip() {
     <span
       role="tooltip"
       className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded
-        bg-[#20242C] px-2 py-1 text-micro text-[#6B7A8E] shadow-lg"
+        bg-[var(--cv-auth-tooltip-bg)] px-2 py-1 text-micro text-[var(--cv-auth-muted)] shadow-lg"
     >
       {t('auth.comingSoon')}
     </span>

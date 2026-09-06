@@ -74,19 +74,6 @@ export const Route = createFileRoute('/_authenticated')({
   component: AuthenticatedLayout,
 })
 
-const GRADIENTS = {
-  dark: 'linear-gradient(160deg, #15171B 0%, #212429 30%, #1A1D22 60%, #15171B 100%)',
-  light:
-    'radial-gradient(125% 95% at 72% 0%, #F8FAFC 0%, #E7EAEF 46%, #D6DAE2 100%)',
-}
-
-const SIDEBAR_BG = {
-  // Sidebar contrasts with the content gradient: darker than it in dark mode,
-  // lighter (near-white) than it in light mode — so it reads as a distinct rail.
-  dark: 'rgba(0, 0, 0, 0.25)',
-  light: 'rgba(255, 255, 255, 0.45)',
-}
-
 const SIDEBAR_BORDER = {
   dark: 'rgba(232, 234, 237,0.07)',
   light: 'rgba(12, 14, 18, 0.06)',
@@ -126,7 +113,6 @@ function AuthenticatedLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const standaloneAuthSurface =
     pathname === '/unlock' || pathname === '/invitations/accept'
-  const theme = useThemeStore((s) => s.theme)
   const navigate = useNavigate()
   const accessToken = useAuthStore((state) => state.accessToken)
   const userId = useAuthStore((state) => state.userId)
@@ -195,7 +181,7 @@ function AuthenticatedLayout() {
           <SignalRProvider>
             <div
               className="flex h-screen overflow-hidden"
-              style={{ background: GRADIENTS[theme] }}
+              style={{ background: 'var(--cv-page-bg)' }}
             >
               <AppSidebar currentPath={pathname} />
               <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -363,7 +349,7 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
     <aside
       className="flex h-full w-sidebar flex-shrink-0 flex-col border-r"
       style={{
-        background: SIDEBAR_BG[theme],
+        background: 'var(--cv-card-bg)',
         borderRightColor: borderColor,
       }}
     >

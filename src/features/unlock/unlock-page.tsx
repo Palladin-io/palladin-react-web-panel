@@ -48,8 +48,8 @@ export function UnlockPage({ redirectTo = '/' }: UnlockPageProps) {
 
   if (account.isPending) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-ui text-[#6B7A8E]">{t('common.loading')}</p>
+      <div className="auth-surface flex min-h-screen items-center justify-center">
+        <p className="text-ui text-[var(--cv-auth-muted)]">{t('common.loading')}</p>
       </div>
     )
   }
@@ -91,18 +91,12 @@ function AccountLoadError({
   }
 
   return (
-    <div
-      className="dark flex min-h-screen items-center justify-center"
-      style={{
-        background:
-          'linear-gradient(160deg, #15171B 0%, #212429 30%, #1A1D22 60%, #15171B 100%)',
-      }}
-    >
+    <div className="auth-surface flex min-h-screen items-center justify-center">
       <div className="w-full max-w-[27.5rem] px-6 text-center">
-        <h1 className="mb-2 text-display font-bold leading-tight text-[#E8EAED]">
+        <h1 className="mb-2 text-display font-bold leading-tight text-[var(--cv-t1)]">
           {t('unlock.accountLoadErrorTitle')}
         </h1>
-        <p className="mb-7 text-heading-sm text-[#6B7A8E]">
+        <p className="mb-7 text-heading-sm text-[var(--cv-auth-muted)]">
           {t('unlock.accountLoadErrorDescription')}
         </p>
         <button
@@ -115,7 +109,7 @@ function AccountLoadError({
         </button>
         <button
           type="button"
-          className="mt-3 text-ui text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
+          className="mt-3 text-ui text-[var(--cv-auth-muted)] transition-colors hover:text-[var(--cv-t1)]"
           onClick={handleLogout}
         >
           {t('common.logout')}
@@ -164,24 +158,18 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <div
-      className="dark flex min-h-screen items-center justify-center"
-      style={{
-        background:
-          'linear-gradient(160deg, #15171B 0%, #212429 30%, #1A1D22 60%, #15171B 100%)',
-      }}
-    >
-      <div className="w-full max-w-[27.5rem] px-6">
+    <div className="auth-surface flex min-h-screen items-center justify-center">
+      <div className="auth-logo-glow w-full max-w-[27.5rem] px-6">
         <div className="text-center">
           <img
             src="/logo.png"
             alt={t('auth.appName')}
             className="mx-auto mb-4 h-16 w-16"
           />
-          <h1 className="mb-1 text-display font-bold leading-tight text-[#E8EAED]">
+          <h1 className="mb-1 text-display font-bold leading-tight text-[var(--cv-t1)]">
             {t('unlock.title')}
           </h1>
-          <p className="mb-7 text-heading-sm text-[#6B7A8E]">
+          <p className="mb-7 text-heading-sm text-[var(--cv-auth-muted)]">
             {t('unlock.subtitle')}
           </p>
         </div>
@@ -219,14 +207,14 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
           <div className="mt-3 flex flex-col items-center gap-2 text-ui">
             <Link
               to="/recovery"
-              className="text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
+              className="text-[var(--cv-auth-muted)] transition-colors hover:text-[var(--cv-t1)]"
             >
               {t('unlock.forgotPassword')}
             </Link>
             <button
               type="button"
               onClick={handleLogout}
-              className="text-[#6B7A8E] transition-colors hover:text-[#E8EAED]"
+              className="text-[var(--cv-auth-muted)] transition-colors hover:text-[var(--cv-t1)]"
             >
               {t('common.logout')}
             </button>

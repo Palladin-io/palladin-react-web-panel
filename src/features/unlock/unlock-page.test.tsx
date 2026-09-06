@@ -88,7 +88,7 @@ describe('UnlockPage', () => {
   })
 
   it('renders the heading, subtitle, and forgot-password link', async () => {
-    render(<UnlockPage />, { wrapper })
+    const { container } = render(<UnlockPage />, { wrapper })
     expect(
       await screen.findByRole('heading', { name: /unlock your vault/i }),
     ).toBeInTheDocument()
@@ -98,6 +98,9 @@ describe('UnlockPage', () => {
     expect(
       screen.getByRole('link', { name: /forgot password/i }),
     ).toHaveAttribute('href', '/recovery')
+    expect(container.firstElementChild).toHaveClass('auth-surface')
+    expect(container.firstElementChild).not.toHaveClass('dark')
+    expect(container.querySelector('.auth-logo-glow')).toBeInTheDocument()
   })
 
   it('disables the submit button while the password field is empty', async () => {

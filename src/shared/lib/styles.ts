@@ -1,12 +1,4 @@
 /**
- * CSS `background` value shared by every full-screen auth surface
- * (login, unlock, onboarding, recovery). Kept as a single constant so
- * all those screens stay visually identical when the palette evolves.
- */
-export const AUTH_BACKGROUND_GRADIENT =
-  'linear-gradient(160deg, #15171B 0%, #212429 30%, #1A1D22 60%, #15171B 100%)'
-
-/**
  * Shared interactive element class strings — edit here to update hover/focus
  * effects for VaultCard, EntryRow, and any future interactive list items
  * in one place. Never inline custom hover:border-* on card-like elements.
