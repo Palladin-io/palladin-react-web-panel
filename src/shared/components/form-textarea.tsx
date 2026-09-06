@@ -35,7 +35,7 @@ export function FormTextarea({
     borderClass ?? (hasError ? ERROR_BORDER_CLASS : DEFAULT_BORDER_CLASS)
 
   return (
-    <div>
+    <div className="w-full min-w-0">
       <label
         htmlFor={id}
         className={
@@ -47,7 +47,7 @@ export function FormTextarea({
       </label>
       <textarea
         id={id}
-        className={`w-full resize-none rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2.5
+        className={`subtle-scrollbar w-full resize-none rounded-lg border bg-[var(--cv-input-bg)] px-3 py-2.5
           text-ui text-[var(--cv-input-text)] placeholder:text-[var(--cv-input-placeholder)] focus:outline-none ${resolvedBorder}${monospace ? ' font-mono' : ''}`}
         {...props}
       />

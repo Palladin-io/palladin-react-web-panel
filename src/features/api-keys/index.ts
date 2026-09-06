@@ -4,4 +4,4 @@ export type {
   ApiKeySummary,
   GeneratedApiKey,
 } from './api/api-keys-api'
-export { useApiKeys } from './use-api-keys'
+export { API_KEYS_QUERY_KEY, useApiKeys } from './use-api-keys'

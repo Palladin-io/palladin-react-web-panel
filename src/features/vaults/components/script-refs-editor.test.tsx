@@ -65,7 +65,7 @@ describe('ScriptRefsEditor', () => {
     render(<ExistingReferenceHarness />)
 
     expect(screen.getByRole('combobox', { name: /^entry$/i })).toHaveDisplayValue('QA SQL Host')
-    expect(screen.getAllByText('expand_more')).toHaveLength(2)
+    expect(document.querySelectorAll('[data-icon="expand_more"]')).toHaveLength(2)
   })
 
   it('groups selectable custom fields in the field picker', () => {

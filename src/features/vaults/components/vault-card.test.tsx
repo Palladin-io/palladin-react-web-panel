@@ -42,7 +42,7 @@ describe('VaultCard', () => {
   it('falls back to the default icon when none is set', () => {
     const vault: VaultSummary = { ...baseVault, icon: null }
     const { container } = render(<VaultCard vault={vault} onClick={vi.fn()} />)
-    // Default icon glyph 'shield' shows as the text content of the .mi span.
-    expect(container.querySelector('.mi')?.textContent).toBe('shield')
+    // The default stored icon renders as a bundled SVG.
+    expect(container.querySelector('svg[data-icon="shield"]')).toBeInTheDocument()
   })
 })

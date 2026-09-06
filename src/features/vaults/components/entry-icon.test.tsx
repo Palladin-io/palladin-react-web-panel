@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from '../types'
 import { EntryIcon } from './entry-icon'
@@ -11,7 +11,7 @@ describe('EntryIcon', () => {
   it('rejects a remote icon URL and renders the safe type glyph', () => {
     render(<EntryIcon icon="https://cdn.example.com/favicon.png" type={ENTRY_TYPE_CREDENTIAL} />)
     expect(document.querySelector('img')).toBeNull()
-    expect(screen.getByText('language')).toBeInTheDocument()
+    expect(document.querySelector('svg[data-icon="language"]')).toBeInTheDocument()
   })
 
   it('falls back to the type glyph when a local decrypted image fails to load', () => {
@@ -20,13 +20,13 @@ describe('EntryIcon', () => {
     fireEvent.error(img)
     // Credential default glyph is "language"; the broken image is gone.
     expect(document.querySelector('img')).toBeNull()
-    expect(screen.getByText('language')).toBeInTheDocument()
+    expect(document.querySelector('svg[data-icon="language"]')).toBeInTheDocument()
   })
 
-  it('renders a Material glyph directly for a non-URL icon', () => {
+  it('renders a local SVG directly for a non-URL icon', () => {
     render(<EntryIcon icon="vpn_key" type={ENTRY_TYPE_KEY} />)
     expect(document.querySelector('img')).toBeNull()
-    expect(screen.getByText('vpn_key')).toBeInTheDocument()
+    expect(document.querySelector('svg[data-icon="vpn_key"]')).toBeInTheDocument()
   })
 
   it('renders a URL only when it was resolved from a trusted public asset reference', () => {
@@ -53,7 +53,7 @@ describe('EntryIcon', () => {
     fireEvent.error(document.querySelector('img') as HTMLImageElement)
 
     expect(document.querySelector('img')).toBeNull()
-    expect(screen.getByText('language')).toBeInTheDocument()
+    expect(document.querySelector('svg[data-icon="language"]')).toBeInTheDocument()
   })
 
   it('rejects a catalog reference outside the configured asset namespace', () => {

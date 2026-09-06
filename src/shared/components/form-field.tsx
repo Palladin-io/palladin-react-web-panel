@@ -73,7 +73,7 @@ export function FormInput({
   const hasTrailing = actionCount > 0
   const trailingPadding = actionCount <= 1 ? 'pr-10' : actionCount === 2 ? 'pr-16' : 'pr-[5.375rem]'
   return (
-    <div>
+    <div className="w-full min-w-0">
       {labelSuffix ? (
         <div className="mb-1.5 flex items-center text-meta font-semibold text-[var(--cv-label-text)]">
           <label htmlFor={id} className={labelClassName}>{label}</label>
@@ -87,7 +87,7 @@ export function FormInput({
           {label}
         </label>
       )}
-      <div className="relative">
+      <div className="relative w-full min-w-0">
         <input
           id={id}
           className={`h-control w-full rounded-lg border bg-[var(--cv-input-bg)] pl-3 text-ui
@@ -136,15 +136,18 @@ export interface FieldFeedbackProps {
   visible: boolean
   color: 'red' | 'teal'
   children: ReactNode
+  /** Allow wrapped messages inside the collapsing feedback slot. */
+  autoHeight?: boolean
 }
 
-export function FieldFeedback({ visible, color, children }: FieldFeedbackProps) {
+export function FieldFeedback({ visible, color, children, autoHeight = false }: FieldFeedbackProps) {
   return (
     <p
       role={color === 'red' && visible ? 'alert' : undefined}
-      className={`h-feedback pt-1 pl-2 text-micro font-medium
+      aria-hidden={!visible || undefined}
+      className={`${autoHeight ? '' : 'h-feedback'} pt-1 pl-2 text-micro font-medium
         transition-[opacity,transform] duration-200 ease-out ${
-        color === 'teal' ? 'text-[#10B981]' : 'text-[var(--cv-primary)]'
+        color === 'teal' ? 'text-[var(--cv-success)]' : 'text-[var(--cv-primary)]'
       } ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}
     >
       {children}
@@ -165,7 +168,7 @@ export function FeedbackSlot({ visible, color, children }: FieldFeedbackProps) {
       style={{ gridTemplateRows: visible ? '1fr' : '0fr' }}
     >
       <div className="overflow-hidden">
-        <FieldFeedback visible={visible} color={color}>
+        <FieldFeedback visible={visible} color={color} autoHeight>
           {children}
         </FieldFeedback>
       </div>

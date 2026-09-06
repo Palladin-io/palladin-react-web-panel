@@ -25,7 +25,7 @@ export function FormSelect({
   ...props
 }: FormSelectProps) {
   return (
-    <div>
+    <div className="w-full min-w-0">
       {label ? (
         <label
           htmlFor={id}
@@ -37,7 +37,7 @@ export function FormSelect({
           {label}
         </label>
       ) : null}
-      <div className="relative">
+      <div className="relative w-full min-w-0">
         <select
           id={id}
           className="h-control w-full appearance-none rounded-lg border border-[var(--cv-input-border)]

@@ -117,8 +117,7 @@ const activeAgent = {
   createdAt: '2026-06-01T10:00:00Z',
 }
 
-// The checklist hides only once all three setup steps are done (entry + API key
-// + active agent) — not on `isOnboarded`. Post-onboarding states seed that here.
+// The checklist requires an entry and active Agent, plus mobile setup or skip.
 function completeSetup() {
   state.account = {
     isOnboarded: true,
@@ -137,6 +136,20 @@ function completeSetup() {
 }
 
 describe('DashboardPage', () => {
+  it.each(['pending', 'deactivating', 'deactivated'])('does not count a %s Agent as registered for onboarding', async (status) => {
+    completeSetup()
+    state.agents = { data: [{ ...activeAgent, status }] }
+    render(<DashboardPage />, { wrapper })
+    expect(await screen.findByText('Register an agent')).toBeInTheDocument()
+  })
+
+  it('does not require the API key list to complete onboarding', async () => {
+    completeSetup()
+    state.apiKeys = { data: undefined }
+    render(<DashboardPage />, { wrapper })
+    await screen.findByText('Pending approvals')
+    expect(screen.queryByText('Register an agent')).not.toBeInTheDocument()
+  })
   beforeEach(() => {
     localStorage.clear()
     state.account = { isOnboarded: false, displayName: 'Patryk', userId: 'user-a' }

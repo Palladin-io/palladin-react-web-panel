@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
-import { FormInput } from '../../../shared/components/form-field'
+import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { BUILTIN_AGENT_TYPES, type AgentType } from '../api/agents-api'
 import { AGENT_ICON_MAX_MB, uploadAgentIcon } from '../upload-agent-icon'
 import { useAgentTypes } from '../use-agent-types'
 import { AgentIconPicker, DEFAULT_AGENT_COLOR } from './agent-icon-picker'
 import { AgentTypeCombobox } from './agent-type-combobox'
+import { normalizeAgentMetadata } from '../pairing-metadata'
 
 export interface ApproveAgentDialogProps {
   open: boolean
@@ -50,12 +51,27 @@ export function ApproveAgentDialog({
   const [selectedColor, setSelectedColor] = useState<string>(DEFAULT_AGENT_COLOR)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [nameTouched, setNameTouched] = useState(false)
+  const [typeTouched, setTypeTouched] = useState(false)
 
   if (!open) return null
 
   const typeValues = agentTypes.data ?? BUILTIN_AGENT_TYPES
+  const normalizedName = normalizeAgentMetadata(name, 64)
+  const normalizedType = normalizeAgentMetadata(typeValue, 100)
+  const isNameValid = name.trim().length === 0 || normalizedName !== null
+  const isTypeValid = typeValue.trim().length === 0 || normalizedType !== null
+  const initialNameInvalid = initialName.trim().length > 0
+    && normalizeAgentMetadata(initialName, 64) === null
+  const initialTypeInvalid = initialType.trim().length > 0
+    && normalizeAgentMetadata(initialType, 100) === null
+  const showNameError = !isNameValid
+    && (nameTouched || (initialNameInvalid && name === initialName))
+  const showTypeError = !isTypeValid
+    && (typeTouched || (initialTypeInvalid && typeValue === initialType))
 
   const handleConfirm = async () => {
+    if (!isNameValid || !isTypeValid) return
     let iconKey = selectedIcon
 
     // Completion stores the stable catalog reference on the Agent aggregate.
@@ -77,8 +93,8 @@ export function ApproveAgentDialog({
     }
 
     onConfirm({
-      name: name.trim() || undefined,
-      type: (typeValue.trim() as AgentType) || undefined,
+      name: normalizedName ?? undefined,
+      type: (normalizedType as AgentType) ?? undefined,
       iconKey,
       iconColor: iconKey ? selectedColor : undefined,
     })
@@ -89,13 +105,14 @@ export function ApproveAgentDialog({
       onClose={isPending || isUploading ? undefined : onCancel}
       ariaLabel={t('agents.approveSetup')}
       title={t('agents.approveSetup')}
-      width={420}
+      width={560}
+      trapFocus
       footer={
         <DialogFooter>
           <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending || isUploading} className="flex-1">
             {t('agents.cancel')}
           </Button>
-          <Button variant="positive" size="sm" icon="check_circle" onClick={handleConfirm} disabled={isPending || isUploading} className="flex-[2]">
+          <Button variant="positive" size="sm" icon="check_circle" onClick={handleConfirm} disabled={isPending || isUploading || !isNameValid || !isTypeValid} className="flex-[2]">
             {isProvisioning
               ? t('agents.provisioningDiscovery')
               : isPending || isUploading ? t('agents.approving') : t('agents.approve')}
@@ -109,24 +126,51 @@ export function ApproveAgentDialog({
         </p>
 
         {/* Name */}
-        <FormInput
-          id="approve-agent-name"
-          label={t('agents.agentName')}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={isPending}
-          placeholder={t('agents.agentNamePlaceholder')}
-          maxLength={64}
-        />
+        <div>
+          <FormInput
+            id="approve-agent-name"
+            label={t('agents.agentName')}
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              setNameTouched(false)
+            }}
+            onBlur={() => setNameTouched(true)}
+            disabled={isPending || isUploading}
+            placeholder={t('agents.agentNamePlaceholder')}
+            error={showNameError}
+            aria-invalid={showNameError || undefined}
+            aria-describedby={showNameError ? 'approve-agent-name-feedback' : undefined}
+          />
+          <FeedbackSlot visible={showNameError} color="red">
+            <span id="approve-agent-name-feedback">{t('agents.invalidName')}</span>
+          </FeedbackSlot>
+        </div>
 
         {/* Type — combobox: suggestions from API + free-form input */}
-        <AgentTypeCombobox
-          typeValues={typeValues}
-          inputValue={typeInput}
-          disabled={isPending}
-          onInputChange={(text) => { setTypeInput(text); setTypeValue(text) }}
-          onSelect={(value, label) => { setTypeValue(value); setTypeInput(label) }}
-        />
+        <div>
+          <AgentTypeCombobox
+            typeValues={typeValues}
+            inputValue={typeInput}
+            disabled={isPending || isUploading}
+            error={showTypeError}
+            describedBy={showTypeError ? 'approve-agent-type-feedback' : undefined}
+            onBlur={() => setTypeTouched(true)}
+            onInputChange={(text) => {
+              setTypeInput(text)
+              setTypeValue(text)
+              setTypeTouched(false)
+            }}
+            onSelect={(value, label) => {
+              setTypeValue(value)
+              setTypeInput(label)
+              setTypeTouched(false)
+            }}
+          />
+          <FeedbackSlot visible={showTypeError} color="red">
+            <span id="approve-agent-type-feedback">{t('agents.invalidType')}</span>
+          </FeedbackSlot>
+        </div>
 
         <AgentIconPicker
           value={selectedIcon}

@@ -34,7 +34,7 @@ a blocking finding.
 | `frame-src` | `https://accounts.google.com` | Google sign-in iframe/popup. |
 | `img-src` | `'self' data: blob: {VITE_PUBLIC_ASSET_URL origin}` | Direct catalog icons from the configured and build-validated delivery origin, inline data URIs, and `blob:` local encrypted-icon previews. Arbitrary HTTPS image origins remain blocked. |
 | `style-src` | `'self' 'unsafe-inline' https://fonts.googleapis.com` | Tailwind + our pervasive inline `style={{}}` attributes need `unsafe-inline`; Google Fonts stylesheet. |
-| `font-src` | `'self' https://fonts.gstatic.com` | Google Fonts / Material Symbols. |
+| `font-src` | `'self' https://fonts.gstatic.com` | Inter text font only; icons are bundled SVGs. |
 | `worker-src` | `'self'` | The FCM service worker. |
 | `frame-ancestors` | `'none'` | Clickjacking protection (paired with `X-Frame-Options: DENY`). |
 | `object-src` | `'none'` | No plugins. |
@@ -45,6 +45,17 @@ Companion headers in the same file: `X-Frame-Options: DENY`,
 `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,
 `Strict-Transport-Security` (2-year, `includeSubDomains; preload`),
 `Permissions-Policy` (geolocation/mic/camera off).
+
+## Analytics data minimization
+
+PostHog receives only explicit, value-free UI events. Autocapture, session recording,
+automatic page views/page leaves and client-side feature-flag requests are disabled.
+The SDK does not save campaign or referrer parameters, and `before_send` removes current,
+initial and session-entry URL/host/path/referrer properties (including nested `$set` and
+`$set_once` values) from every manual event. This prevents login redirects and opaque,
+one-time browser-pairing handles from reaching telemetry. Feature code must never attach
+those handles, user-entered metadata, setup descriptors, secrets or credential values as
+custom analytics properties.
 
 ## Subresource Integrity (SRI)
 

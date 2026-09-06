@@ -16,10 +16,10 @@ async function sha256Hex(file: File): Promise<string> {
 
 /**
  * Validates a custom agent icon (type + size), presigns, and PUTs it to S3.
- * Returns the cache-busted public URL on success. Does NOT PATCH the agent —
- * callers decide whether to persist immediately or defer until confirm.
+ * Completion persists the stable public-asset reference on the Agent.
+ * Returns that reference and the cache-busted public URL on success.
  *
- * Shared by `useAgentIconUpload` (edit flow) and `ApproveAgentDialog` (approve flow)
+ * Shared by edit, standard approval and post-activation browser pairing
  * so both stay in lockstep on size/type rules.
  */
 export async function uploadAgentIcon(

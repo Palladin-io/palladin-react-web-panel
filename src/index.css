@@ -249,38 +249,6 @@ button,
   -webkit-text-security: disc;
 }
 
-/*
- * Material Symbols Rounded — used as inline glyph spans (`<span class="mi">name</span>`).
- * Matches the Astro design system convention so vault screens can mirror the
- * design files 1:1. Font-size is set per-call via inline style.
- */
-.mi {
-  font-family: "Material Symbols Rounded";
-  font-weight: normal;
-  font-style: normal;
-  line-height: 1;
-  letter-spacing: normal;
-  text-transform: none;
-  display: inline-flex;
-  /* Reserve a 1em square and clip overflow so that, before the icon font
-     finishes loading, the ligature name ("settings", "search") cannot render
-     as fallback text — which otherwise widths out to the whole word and shifts
-     the sidebar layout until the font swaps in. The glyph is exactly 1em, so
-     the icon stays pixel-identical once loaded. */
-  width: 1em;
-  height: 1em;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  white-space: nowrap;
-  word-wrap: normal;
-  direction: ltr;
-  -webkit-font-feature-settings: "liga";
-  -webkit-font-smoothing: antialiased;
-  font-feature-settings: "liga";
-  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
-}
-
 /* Sonner: align the toast icon with the title (top), not centred across the
    whole toast — our notification toasts have a title + divider + body, so a
    vertically centred icon floats at mid-height. Sonner sets align-items:center

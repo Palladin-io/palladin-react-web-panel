@@ -91,7 +91,7 @@ Button class exports for `<Link>` elements that must look like footer buttons: `
 
 ## Helper CSS classes (`index.css`)
 - `.secret-mask` — masks a `type=text` input with a disc font (used by `SecretInput`) so password managers never offer to save vault credentials. No real `type=password`.
-- `.mi` — Material Symbols Rounded glyph span (1em square, clipped). Prefer the `Icon` component; this class is the underlying convention.
+- `Icon` renders bundled Lucide SVGs through the central `icon-glyphs.ts` mapping. Stored Material-style names remain compatible; unknown names use a local question-mark SVG. SVG dimensions honor `--cv-density-scale`, color inherits `currentColor`, and decorative icons stay hidden from assistive technology. No icon-font CSS or remote font request is required.
 - `.step-enter` / `@keyframes step-enter` — wizard step entrance animation (fade + translateY).
 - `.btn-premium` — premium-button sweep-fill hover.
 - `.tab-strip-scroll` — keeps detail tabs horizontally scrollable without exposing an overlay scrollbar thumb beside the last tab.

@@ -65,6 +65,7 @@ export function AgentIconPicker({
               onClick={() => onChange(selected ? undefined : opt)}
               disabled={disabled}
               aria-pressed={selected}
+              aria-label={t(`vault.iconName.${opt}`, { defaultValue: opt.replace(/_/g, ' ') })}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl
                 transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-40"
               style={{
@@ -174,6 +175,7 @@ export function AgentIconPicker({
 }
 
 interface AgentIconBrowserProps {
+  onFileSelected?: (file: File) => boolean
   currentIcon: string | undefined
   onSelectIcon: (icon: string | undefined) => void
   currentColor: string | undefined
@@ -181,7 +183,8 @@ interface AgentIconBrowserProps {
   onClose: () => void
 }
 
-function AgentIconBrowser({
+export function AgentIconBrowser({
+  onFileSelected,
   currentIcon,
   onSelectIcon,
   currentColor,
@@ -190,6 +193,7 @@ function AgentIconBrowser({
 }: AgentIconBrowserProps) {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
+  const uploadInputRef = useRef<HTMLInputElement>(null)
   const [localIcon, setLocalIcon] = useState<string | undefined>(currentIcon)
   const [localColor, setLocalColor] = useState<string | undefined>(currentColor)
 
@@ -205,6 +209,7 @@ function AgentIconBrowser({
 
   return (
     <ModalShell
+      trapFocus
       onClose={onClose}
       ariaLabel={t('vault.iconBrowserTitle')}
       title={t('vault.iconBrowserTitle')}
@@ -221,6 +226,25 @@ function AgentIconBrowser({
       }
     >
       <div className="flex flex-col gap-3">
+        {onFileSelected && (
+          <>
+            <input
+              ref={uploadInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              aria-label={t('vault.entries.iconUpload')}
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0]
+                event.target.value = ''
+                if (file && onFileSelected(file)) onClose()
+              }}
+            />
+            <Button variant="subtle" size="sm" icon="upload" onClick={() => uploadInputRef.current?.click()}>
+              {t('vault.entries.iconUpload')}
+            </Button>
+          </>
+        )}
         <SearchBar
           value={search}
           onChange={setSearch}

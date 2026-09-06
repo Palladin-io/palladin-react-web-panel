@@ -196,7 +196,7 @@ Every-iteration reuse reference. Reach for the shared component before writing m
 | Empty state | **missing** → `EmptyState` | "No items" dashed box; 13 inline copies — extract |
 | Responsive master/detail | `ResponsiveMasterDetail` | Wide list + detail columns with narrow route-driven drill-in |
 | Tooltip | `Tooltip` | Truncated text; 150ms delay, only when actually clipped |
-| Icon | `Icon` | Material Symbols glyph; never hand-write `<span class="mi">` |
+| Icon | `Icon` | Bundled Lucide SVG through the central legacy-name map; never load remote icon fonts or render ligature spans |
 | Filter dropdown | `TypeFilterDropdown` | Multi-select filter (checkbox listbox + Clear) |
 | Date/time picker | `DateTimePicker` | Date/time selection; never native `datetime-local` |
 | Inline field feedback | `FeedbackSlot` (canonical) / `FieldFeedback` | Inline validation messages; prefer `FeedbackSlot` (animated, self-collapsing). See `forms-and-validation.md` |
