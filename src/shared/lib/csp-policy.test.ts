@@ -9,7 +9,7 @@ describe('production CSP', () => {
     expect(headers).toContain(
       "script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com https://*.gstatic.com",
     )
-    expect(headers).not.toContain("script-src 'self' 'unsafe-eval'")
+    expect(headers).not.toContain("'unsafe-eval'")
   })
 
   it('allows the bundled data URI font', () => {
