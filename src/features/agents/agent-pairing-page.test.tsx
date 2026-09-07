@@ -75,12 +75,15 @@ describe('AgentPairingPage', () => {
       pairingId: 'create-only', displayName: 'Friendly Fox', reservedDisplayName: null,
       type: 'custom/runtime', publicKeyHint: 'public', expiresAt: '2026-09-05T12:00:00Z',
       canCreateApiKey: true, apiKeys: [],
+      hostname: 'pairing-workstation', ip: '192.0.2.10',
     })
     renderPairing('create-only', undefined, false)
     const user = userEvent.setup()
     await user.type(await screen.findByLabelText('New API key name'), 'Automation')
     expect(mocks.claimNew).toHaveBeenCalledExactlyOnceWith('create-only')
     expect(mocks.claim).not.toHaveBeenCalled()
+    expect(screen.getByText('pairing-workstation').tagName).toBe('DD')
+    expect(screen.getByText('192.0.2.10').tagName).toBe('DD')
     expect(screen.getByRole('combobox', { name: 'Logical API key' })).toHaveValue('__create__')
     const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Approve and activate' })
     expect(submit).toHaveAttribute('type', 'submit')

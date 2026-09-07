@@ -114,6 +114,8 @@ export interface AgentPairingApiKeyOption {
 }
 
 export interface AgentPairingClaim {
+  hostname?: string | null
+  ip?: string | null
   pairingId: string
   displayName: string | null
   reservedDisplayName: string | null

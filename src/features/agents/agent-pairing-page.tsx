@@ -253,7 +253,7 @@ export function AgentPairingPage({
         if (canApprove && !actionPending) handleApprove()
       }}>
         <div className="flex min-w-0 flex-col gap-3">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="flex min-w-0 items-start gap-3">
             <button
               ref={iconButtonRef}
               type="button"
@@ -268,15 +268,19 @@ export function AgentPairingPage({
                 <Icon name="edit" size={12} />
               </span>
             </button>
-            <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
+            <div className="flex min-h-12 min-w-0 flex-1 flex-col justify-between gap-1 self-stretch">
               <p className="break-words text-heading font-semibold text-[var(--cv-t1)]">{displayName || t('agents.pairing.displayName')}</p>
-              <dl className="min-w-0 break-words text-meta text-[var(--cv-t2)] sm:text-right">
+              <dl className="min-w-0 self-end break-words text-right text-meta text-[var(--cv-t2)]">
                 <dt className="sr-only">{t('agents.pairing.type')}</dt>
                 <dd className="break-words">{claim.data.type ? typeLabel(claim.data.type, t) : t('agents.pairing.typeAbsent')}</dd>
               </dl>
             </div>
           </div>
           <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-micro text-[var(--cv-t3)]">
+            <dt>{t('agents.pairing.hostname')}</dt>
+            <dd className="break-words text-right">{claim.data.hostname || '—'}</dd>
+            <dt>{t('agents.pairing.ip')}</dt>
+            <dd className="break-words text-right">{claim.data.ip || '—'}</dd>
             <dt>{t('agents.pairing.publicKey')}</dt>
             <dd className="break-words text-right">{claim.data.publicKeyHint}</dd>
             <dt>{t('agents.pairing.expiresLabel')}</dt>

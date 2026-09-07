@@ -1,4 +1,6 @@
 {
+  "agents.pairing.hostname": "Host (deklarowany przez runtime)",
+  "agents.pairing.ip": "IP przy rozpoczęciu parowania",
   "auth.appName": "Palladin",
   "startup.configurationTitle": "Brak konfiguracji aplikacji",
   "startup.configurationDescription": "Palladin nie może się uruchomić, ponieważ brakuje wymaganej konfiguracji aplikacji.",
