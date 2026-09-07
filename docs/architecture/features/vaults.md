@@ -49,14 +49,14 @@ Entry Logs queries structural audit events by the composite opaque Vault and Ent
 
 ## Key patterns
 
-CVT-573 WIP: Credential form defaults, canonical Entry sealing and discovery
+CVT-573: Credential form defaults, canonical Entry sealing and discovery
 projection delegate to the same shared package exports as extension capture.
 The form adapter maps canonical field IDs into the existing web UI vocabulary;
 it does not define a second Credential default policy. Cross-consumer tests cover
 create/update decryptability and independent key-wrapper revisions. Other Entry
 types keep their existing Entry sealer; plaintext parsing/projection and complete
-Script package construction use the shared current-contract adapters. Registry
-publication remains a release gate.
+Script package construction use the shared current-contract adapters. The
+manifest and lockfile pin the published registry version 0.6.0.
 
 - **Zero-knowledge local use:** Reveal, Copy and TOTP atomically read only the selected complete current head from IndexedDB, authenticate its access context and structural revision/key bindings, open VK/EntryDEK/MemberSecret in shared crypto code, and keep plaintext in component memory only.
 - **Strict Vault-detail binding:** the encrypted detail contract accepts the server-owned canonical `metadataRevision` and requires it to equal the authenticated Member Vault Metadata envelope revision before any key material is opened.
