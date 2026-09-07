@@ -45,10 +45,15 @@ jobs:
         run: npm audit --audit-level=high
       - run: npm run lint
       - run: npm run build
+      - name: Verify static-host deployment files
+        run: |
+          set -euo pipefail
+          test -f dist/_headers
+          grep -Fxq '/* /index.html 200' dist/_redirects
       - run: npm test
 
   attest-web-bundle:
-    name: Build and attest release artifact
+    name: Build and attest staging artifact
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: test
     runs-on: ubuntu-latest
@@ -62,6 +67,18 @@ jobs:
       SOURCE_SHA: ${{ github.sha }}
       TEST_RUN_ID: ${{ github.run_id }}
       TEST_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      VITE_API_URL: ${{ vars.STAGING_VITE_API_URL }}
+      VITE_PUBLIC_ASSET_URL: ${{ vars.STAGING_VITE_PUBLIC_ASSET_URL }}
+      VITE_GOOGLE_CLIENT_ID: ${{ vars.STAGING_VITE_GOOGLE_CLIENT_ID }}
+      VITE_SIGNALR_HUB_URL: ${{ vars.STAGING_VITE_SIGNALR_HUB_URL }}
+      VITE_POSTHOG_KEY: ${{ vars.STAGING_VITE_POSTHOG_KEY }}
+      VITE_POSTHOG_HOST: ${{ vars.STAGING_VITE_POSTHOG_HOST }}
+      VITE_FIREBASE_API_KEY: ${{ vars.STAGING_VITE_FIREBASE_API_KEY }}
+      VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.STAGING_VITE_FIREBASE_AUTH_DOMAIN }}
+      VITE_FIREBASE_PROJECT_ID: ${{ vars.STAGING_VITE_FIREBASE_PROJECT_ID }}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.STAGING_VITE_FIREBASE_MESSAGING_SENDER_ID }}
+      VITE_FIREBASE_APP_ID: ${{ vars.STAGING_VITE_FIREBASE_APP_ID }}
+      VITE_FIREBASE_VAPID_KEY: ${{ vars.STAGING_VITE_FIREBASE_VAPID_KEY }}
 
     steps:
       - name: Checkout the tested source
@@ -78,8 +95,33 @@ jobs:
       - name: Build the tested web bundle
         run: |
           set -euo pipefail
+          required=(VITE_API_URL VITE_GOOGLE_CLIENT_ID VITE_SIGNALR_HUB_URL)
+          for key in "${required[@]}"; do
+            if [[ -z "${!key:-}" ]]; then
+              echo "Missing required staging configuration: $key" >&2
+              exit 1
+            fi
+          done
+          if [[ "$VITE_API_URL" != 'https://api.stage.palladin.io' ]]; then
+            echo 'STAGING_VITE_API_URL must target the staging API.' >&2
+            exit 1
+          fi
+          if [[ "$VITE_SIGNALR_HUB_URL" != 'https://api.stage.palladin.io/hubs/notifications' ]]; then
+            echo 'STAGING_VITE_SIGNALR_HUB_URL must target the staging SignalR hub.' >&2
+            exit 1
+          fi
           npm ci
-          npm run build
+          npm run build -- --mode staging
+          if ! rg --text --fixed-strings --quiet 'https://api.stage.palladin.io' dist/assets; then
+            echo 'The staging API URL is absent from the compiled bundle.' >&2
+            exit 1
+          fi
+          if rg --text --fixed-strings --quiet 'http://localhost:5000' dist; then
+            echo 'The compiled staging bundle contains the local API URL.' >&2
+            exit 1
+          fi
+          jq -n --arg sourceSha "$SOURCE_SHA" '{schemaVersion: 1, sourceSha: $sourceSha}' \
+            > dist/deploy-metadata.json
           release="$RUNNER_TEMP/web-release"
           mkdir -p "$release"
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
@@ -139,3 +181,129 @@ jobs:
           path: ${{ runner.temp }}/web-release/*
           if-no-files-found: error
           retention-days: 30
+
+  deploy-staging:
+    name: Deploy staging to Netlify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [test, attest-web-bundle]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: staging
+      url: https://stage.palladin.io
+    env:
+      SOURCE_SHA: ${{ github.sha }}
+      NETLIFY_SITE_ID: ${{ vars.NETLIFY_SITE_ID }}
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+
+    steps:
+      - name: Require Netlify deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in NETLIFY_SITE_ID NETLIFY_AUTH_TOKEN; do
+            if [[ -z "${!key:-}" ]]; then
+              echo "Missing required Netlify configuration: $key" >&2
+              exit 1
+            fi
+          done
+
+      - name: Download the attested staging release
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: web-release-${{ env.SOURCE_SHA }}
+          path: ${{ runner.temp }}/web-release
+
+      - name: Verify and unpack the staging release
+        shell: bash
+        run: |
+          set -euo pipefail
+          release="$RUNNER_TEMP/web-release"
+          (cd "$release" && sha256sum --check --strict SHA256SUMS-web)
+          artifact="$(jq -er '.artifact.name' "$release/release-manifest-web.json")"
+          manifest_sha="$(jq -er '.sourceSha' "$release/release-manifest-web.json")"
+          if [[ "$manifest_sha" != "$SOURCE_SHA" ]]; then
+            echo 'Release manifest source does not match the workflow commit.' >&2
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/web-dist"
+          tar -xzf "$release/$artifact" -C "$RUNNER_TEMP/web-dist"
+          jq -e --arg sourceSha "$SOURCE_SHA" '.sourceSha == $sourceSha' \
+            "$RUNNER_TEMP/web-dist/deploy-metadata.json" >/dev/null
+          test -f "$RUNNER_TEMP/web-dist/index.html"
+          test -f "$RUNNER_TEMP/web-dist/_headers"
+          grep -Fxq '/* /index.html 200' "$RUNNER_TEMP/web-dist/_redirects"
+
+      - name: Publish the verified bundle atomically
+        id: deploy
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/palladin-web-stage.zip"
+          response="$RUNNER_TEMP/netlify-deploy.json"
+          (cd "$RUNNER_TEMP/web-dist" && zip -q -r "$archive" .)
+
+          status_code="$(curl --silent --show-error \
+            --output "$response" \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+            --header 'Content-Type: application/zip' \
+            --data-binary "@$archive" \
+            "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys?title=$SOURCE_SHA")"
+          if [[ "$status_code" -lt 200 || "$status_code" -ge 300 ]]; then
+            echo "Netlify rejected the deploy with HTTP $status_code." >&2
+            exit 1
+          fi
+
+          deploy_id="$(jq -er '.id' "$response")"
+          deploy_url="$(jq -er '.deploy_ssl_url // .ssl_url // .url' "$response")"
+          state="$(jq -er '.state' "$response")"
+          for _ in {1..60}; do
+            case "$state" in
+              ready) break ;;
+              error)
+                echo 'Netlify reported a failed deploy.' >&2
+                exit 1
+                ;;
+            esac
+            sleep 5
+            curl --fail --silent --show-error \
+              --header "Authorization: Bearer $NETLIFY_AUTH_TOKEN" \
+              --output "$response" \
+              "https://api.netlify.com/api/v1/deploys/$deploy_id"
+            state="$(jq -er '.state' "$response")"
+          done
+          if [[ "$state" != 'ready' ]]; then
+            echo 'Timed out waiting for Netlify to publish the deploy.' >&2
+            exit 1
+          fi
+          echo "deploy_url=$deploy_url" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke-test the deployed commit and SPA routing
+        shell: bash
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.deploy_url }}
+        run: |
+          set -euo pipefail
+          verify_metadata() {
+            local base_url="$1"
+            local output="$RUNNER_TEMP/deploy-metadata.json"
+            curl --fail --silent --show-error \
+              --retry 20 --retry-delay 5 --retry-all-errors --retry-max-time 180 \
+              --output "$output" \
+              "$base_url/deploy-metadata.json?source=$SOURCE_SHA"
+            jq -e --arg sourceSha "$SOURCE_SHA" '.sourceSha == $sourceSha' "$output" >/dev/null
+          }
+
+          verify_metadata "$DEPLOY_URL"
+          verify_metadata 'https://stage.palladin.io'
+
+          headers="$RUNNER_TEMP/staging-headers.txt"
+          curl --fail --silent --show-error \
+            --retry 20 --retry-delay 5 --retry-all-errors --retry-max-time 180 \
+            --dump-header "$headers" \
+            --output "$RUNNER_TEMP/staging-login.html" \
+            "https://stage.palladin.io/login?source=$SOURCE_SHA"
+          grep -qi '^content-type:.*text/html' "$headers"
+          grep -qi '^x-content-type-options:.*nosniff' "$headers"
