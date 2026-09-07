@@ -52,11 +52,13 @@ function renderPairing(
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   }),
   canReadApiKeys = true,
+  canWriteApiKeys = true,
 ) {
   const result = render(
     <AgentPairingPage
       pairingId={pairingId}
       canReadApiKeys={canReadApiKeys}
+      canWriteApiKeys={canWriteApiKeys}
       prepareDiscovery={mocks.prepareDiscovery}
       onApproved={mocks.onApproved}
       onClose={mocks.onClose}
@@ -349,6 +351,24 @@ describe('AgentPairingPage', () => {
     expect(mocks.claim).toHaveBeenCalledTimes(1)
   })
 
+  it('reloads the authoritative claim when write-key capability changes', async () => {
+    const claim = {
+      pairingId: 'write-change', displayName: 'Helper', reservedDisplayName: null,
+      type: null, publicKeyHint: 'MCowBQYD…Ed3k=', expiresAt: '2026-09-05T12:25:00Z',
+      canCreateApiKey: false,
+      apiKeys: [{ apiKeyId: 'key-1', name: 'Automation', keyHint: 'pl_••••8Xq2' }],
+    }
+    mocks.claim.mockResolvedValueOnce(claim).mockResolvedValueOnce({ ...claim, canCreateApiKey: true })
+    const { unmount, queryClient } = renderPairing('write-change', undefined, true, false)
+    await screen.findByLabelText('Display name')
+    expect(screen.queryByRole('option', { name: 'Create a new API key' })).not.toBeInTheDocument()
+    unmount()
+
+    renderPairing('write-change', queryClient, true, true)
+    expect(await screen.findByRole('option', { name: 'Create a new API key' })).toBeInTheDocument()
+    expect(mocks.claim).toHaveBeenCalledTimes(2)
+  })
+
   it('falls back to accessible manual entry when friendly suggestions are exhausted', async () => {
     const user = userEvent.setup()
     vi.spyOn(crypto, 'getRandomValues').mockImplementation((array) => {
@@ -512,6 +532,7 @@ describe('AgentPairingPage', () => {
       'agent-pairing',
       'pairing-unmounted-approval',
       true,
+      true,
     ])).toMatchObject({ terminalStatus: 'approved' }))
     renderPairing('pairing-unmounted-approval', first.queryClient)
     expect(await screen.findByText(/already activated the Agent/i)).toBeInTheDocument()
@@ -573,6 +594,7 @@ describe('AgentPairingPage', () => {
     await waitFor(() => expect(first.queryClient.getQueryData([
       'agent-pairing',
       'pairing-unmounted-rejection',
+      true,
       true,
     ])).toMatchObject({ terminalStatus: 'rejected' }))
     renderPairing('pairing-unmounted-rejection', first.queryClient)

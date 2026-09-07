@@ -1,5 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { AgentPairingPage } from '../../features/agents'
 import { useAuthStore } from '../../features/auth'
 import { API_KEYS_QUERY_KEY } from '../../features/api-keys'
@@ -7,6 +8,7 @@ import { reconcileAgentDiscovery } from '../../features/vaults'
 import {
   canPairAgent,
   PERMISSION_READ_API_KEY,
+  PERMISSION_WRITE_API_KEY,
 } from '../../shared/lib/permissions'
 
 export const Route = createFileRoute('/_authenticated/agent-pairing/$pairingId')({
@@ -26,11 +28,18 @@ function AgentPairingRoute() {
   const queryClient = useQueryClient()
   const permissions = useAuthStore((state) => state.permissions)
   const canReadApiKeys = (permissions & PERMISSION_READ_API_KEY) !== 0
+  const canWriteApiKeys = (permissions & PERMISSION_WRITE_API_KEY) !== 0
+  const canPair = canPairAgent(permissions)
+  useEffect(() => {
+    if (!canPair) void navigate({ to: '/vaults', replace: true })
+  }, [canPair, navigate])
+  if (!canPair) return null
   return (
     <AgentPairingPage
       pairingId={pairingId}
-      key={`${pairingId}:${canReadApiKeys}`}
+      key={`${pairingId}:${canReadApiKeys}:${canWriteApiKeys}`}
       canReadApiKeys={canReadApiKeys}
+      canWriteApiKeys={canWriteApiKeys}
       prepareDiscovery={async (signal) => {
         const memberPrivateKey = useAuthStore.getState().privateKey
         if (!memberPrivateKey) return false

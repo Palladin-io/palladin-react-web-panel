@@ -45,6 +45,7 @@ interface AgentPairingView extends AgentPairingClaim {
 export interface AgentPairingPageProps {
   pairingId: string
   canReadApiKeys: boolean
+  canWriteApiKeys: boolean
   prepareDiscovery: (signal: AbortSignal) => Promise<boolean>
   onApproved: (agentId: string) => Promise<void>
   onRejected: () => Promise<void>
@@ -55,6 +56,7 @@ export interface AgentPairingPageProps {
 export function AgentPairingPage({
   pairingId,
   canReadApiKeys,
+  canWriteApiKeys,
   prepareDiscovery,
   onApproved,
   onRejected,
@@ -62,7 +64,7 @@ export function AgentPairingPage({
 }: AgentPairingPageProps) {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
-  const pairingQueryKey = ['agent-pairing', pairingId, canReadApiKeys] as const
+  const pairingQueryKey = ['agent-pairing', pairingId, canReadApiKeys, canWriteApiKeys] as const
   const reconciliationController = useRef(new AbortController())
   useEffect(() => {
     const controller = new AbortController()
