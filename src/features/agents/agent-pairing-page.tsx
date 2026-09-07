@@ -93,6 +93,7 @@ export function AgentPairingPage({
     },
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 30 * 60 * 1000,
     refetchOnMount: false,
     refetchOnReconnect: false,
     refetchOnWindowFocus: false,

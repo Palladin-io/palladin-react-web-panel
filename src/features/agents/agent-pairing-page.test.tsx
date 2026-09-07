@@ -326,6 +326,29 @@ describe('AgentPairingPage', () => {
     expect(mocks.claim).toHaveBeenCalledTimes(1)
   })
 
+  it('retains a successful claim when reopened after the default five-minute cache lifetime', async () => {
+    mocks.claim.mockResolvedValue({
+      pairingId: 'pairing-reopened', displayName: 'Cached Helper', reservedDisplayName: null,
+      type: null, publicKeyHint: 'MCowBQYD…Ed3k=', expiresAt: '2026-09-05T12:25:00Z',
+      canCreateApiKey: false,
+      apiKeys: [{ apiKeyId: 'key-1', name: 'Automation', keyHint: 'pl_••••8Xq2' }],
+    })
+    const { unmount, queryClient } = renderPairing('pairing-reopened')
+    await screen.findByLabelText('Display name')
+
+    vi.useFakeTimers()
+    try {
+      unmount()
+      await vi.advanceTimersByTimeAsync(6 * 60 * 1000)
+    } finally {
+      vi.useRealTimers()
+    }
+
+    renderPairing('pairing-reopened', queryClient)
+    expect(await screen.findByLabelText('Display name')).toHaveValue('Cached Helper')
+    expect(mocks.claim).toHaveBeenCalledTimes(1)
+  })
+
   it('falls back to accessible manual entry when friendly suggestions are exhausted', async () => {
     const user = userEvent.setup()
     vi.spyOn(crypto, 'getRandomValues').mockImplementation((array) => {
