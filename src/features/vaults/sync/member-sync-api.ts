@@ -26,8 +26,7 @@ const MAXIMUM_SYNC_RESPONSE_BYTES = 4 * 1024 * 1024
 const syncCursor = z.string().max(2_048)
 // The backend serializes NodaTime Instant with up to nanosecond precision.
 const canonicalInstantSchema = z.string()
-  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/)
-  .refine((value) => Number.isFinite(Date.parse(value)))
+  .refine((value) => parseCanonicalInstantNanoseconds(value) !== null)
 const offlinePolicySchema = z.enum(['disabled', '1h', '4h', '24h'])
 const offlinePolicyDurations = {
   disabled: 0,
@@ -36,13 +35,23 @@ const offlinePolicyDurations = {
   '24h': 24 * 60 * 60 * 1_000,
 } as const
 
+function parseCanonicalInstantNanoseconds(value: string): bigint | null {
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?Z$/.exec(value)
+  if (!match || !Number.isFinite(Date.parse(value))) return null
+  const milliseconds = Date.parse(`${match[1]}Z`)
+  return BigInt(milliseconds) * 1_000_000n + BigInt((match[2] ?? '').padEnd(9, '0'))
+}
+
 function validateOfflineLeaseDuration(
   access: { issuedAt: string; notAfter: string; offlinePolicy: keyof typeof offlinePolicyDurations },
   context: z.RefinementCtx,
 ): void {
-  const duration = Date.parse(access.notAfter) - Date.parse(access.issuedAt)
-  const maximumDuration = offlinePolicyDurations[access.offlinePolicy]
-  if (duration < 0 || duration > maximumDuration) {
+  const issuedAt = parseCanonicalInstantNanoseconds(access.issuedAt)
+  const notAfter = parseCanonicalInstantNanoseconds(access.notAfter)
+  if (issuedAt === null || notAfter === null) return
+  const duration = notAfter - issuedAt
+  const maximumDuration = BigInt(offlinePolicyDurations[access.offlinePolicy]) * 1_000_000n
+  if (duration < 0n || duration > maximumDuration) {
     context.addIssue({ code: 'custom', message: 'Member sync offline lease exceeds its authenticated policy' })
   }
 }

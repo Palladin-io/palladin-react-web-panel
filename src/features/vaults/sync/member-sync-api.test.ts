@@ -207,14 +207,32 @@ describe('Member sync transport boundary', () => {
   it.each([
     ['2026-09-07T19:00:00.1234567890Z', '2026-09-08T19:00:00.1234567890Z'],
     ['2026-09-07T19:00:00.123456789+00:00', '2026-09-08T19:00:00.123456789+00:00'],
+    ['2026-09-07T24:00:00.123456789Z', '2026-09-08T24:00:00.123456789Z'],
     ['2026-09-07T19:00:00.123456789Z', '2026-09-07T19:00:00.122456789Z'],
     ['2026-09-07T19:00:00.123456789Z', '2026-09-08T19:00:00.124456789Z'],
+    ['2026-09-07T19:00:00.123456789Z', '2026-09-07T19:00:00.123456788Z'],
+    ['2026-09-07T19:00:00.123456789Z', '2026-09-08T19:00:00.123456790Z'],
   ])('rejects invalid high-precision lease timestamps %s / %s', (issuedAt, notAfter) => {
     expect(currentMemberEntryAccessContextSchema.safeParse({
       ...validSnapshotFixture.response.accessContext,
       issuedAt,
       notAfter,
     }).success).toBe(false)
+  })
+
+  it.each([
+    ['disabled', '2026-09-07T19:00:00.123456789Z'],
+    ['1h', '2026-09-07T20:00:00.123456789Z'],
+    ['4h', '2026-09-07T23:00:00.123456789Z'],
+    ['24h', '2026-09-08T19:00:00.123456789Z'],
+    ['24h', '2026-09-08T19:00:00.123456788Z'],
+  ])('accepts the exact or shorter nanosecond lease for %s', (offlinePolicy, notAfter) => {
+    expect(currentMemberEntryAccessContextSchema.safeParse({
+      ...validSnapshotFixture.response.accessContext,
+      offlinePolicy,
+      issuedAt: '2026-09-07T19:00:00.123456789Z',
+      notAfter,
+    }).success).toBe(true)
   })
 
   it('rejects a declared response above the hard byte budget before reading its body', async () => {
