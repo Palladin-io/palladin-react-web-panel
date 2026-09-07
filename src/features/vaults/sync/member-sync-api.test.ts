@@ -6,6 +6,7 @@ vi.mock('../../../shared/api/client', () => ({ api: apiMock }))
 
 import {
   encryptedVaultDetailSchema,
+  getMemberDeltaPage,
   getMemberSnapshotPage,
   MemberSyncAccessDeniedError,
   currentMemberEntryAccessContextSchema,
@@ -154,6 +155,66 @@ describe('Member sync transport boundary', () => {
     await expect(getMemberSnapshotPage(vaultId, null)).rejects.toBeInstanceOf(
       MemberSyncAccessDeniedError,
     )
+  })
+
+  it.each(['1234567', '12345678', '123456789'])(
+    'synchronizes an empty new Vault with backend Instant precision .%s',
+    async (fraction) => {
+      const accessContext = {
+        ...validSnapshotFixture.response.accessContext,
+        offlinePolicy: 'disabled',
+        issuedAt: `2026-09-07T19:00:00.${fraction}Z`,
+        notAfter: `2026-09-07T19:00:00.${fraction}Z`,
+      }
+      const claims = {
+        sub: accessContext.principalId,
+        org_id: accessContext.organizationId,
+        authz_ver: accessContext.organizationMembershipGeneration,
+        org_offline_policy: 0,
+        org_offline_policy_ver: accessContext.offlinePolicyVersion,
+      }
+      useAuthStore.setState({
+        accessToken: `${btoa('{}')}.${btoa(JSON.stringify(claims))}.fixture`,
+      })
+      const snapshot = {
+        ...validSnapshotFixture.response,
+        accessContext,
+        snapshotBaseSequence: '0',
+        items: [],
+        nextCursor: null,
+      }
+      const delta = {
+        accessContext,
+        memberVaultKey: snapshot.memberVaultKey,
+        deltaUpperBound: '0',
+        appliedThroughSequence: '0',
+        items: [],
+        continuationCursor: null,
+      }
+      apiMock.post
+        .mockResolvedValueOnce(new Response(JSON.stringify(snapshot)))
+        .mockResolvedValueOnce(new Response(JSON.stringify(delta)))
+
+      await expect(getMemberSnapshotPage(vaultId, null)).resolves.toMatchObject({
+        accessContext, snapshotBaseSequence: '0', items: [], nextCursor: null,
+      })
+      await expect(getMemberDeltaPage(vaultId, '0', null)).resolves.toMatchObject({
+        accessContext, appliedThroughSequence: '0', items: [], continuationCursor: null,
+      })
+    },
+  )
+
+  it.each([
+    ['2026-09-07T19:00:00.1234567890Z', '2026-09-08T19:00:00.1234567890Z'],
+    ['2026-09-07T19:00:00.123456789+00:00', '2026-09-08T19:00:00.123456789+00:00'],
+    ['2026-09-07T19:00:00.123456789Z', '2026-09-07T19:00:00.122456789Z'],
+    ['2026-09-07T19:00:00.123456789Z', '2026-09-08T19:00:00.124456789Z'],
+  ])('rejects invalid high-precision lease timestamps %s / %s', (issuedAt, notAfter) => {
+    expect(currentMemberEntryAccessContextSchema.safeParse({
+      ...validSnapshotFixture.response.accessContext,
+      issuedAt,
+      notAfter,
+    }).success).toBe(false)
   })
 
   it('rejects a declared response above the hard byte budget before reading its body', async () => {

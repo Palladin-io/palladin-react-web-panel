@@ -24,8 +24,9 @@ export {
 
 const MAXIMUM_SYNC_RESPONSE_BYTES = 4 * 1024 * 1024
 const syncCursor = z.string().max(2_048)
+// The backend serializes NodaTime Instant with up to nanosecond precision.
 const canonicalInstantSchema = z.string()
-  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/)
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/)
   .refine((value) => Number.isFinite(Date.parse(value)))
 const offlinePolicySchema = z.enum(['disabled', '1h', '4h', '24h'])
 const offlinePolicyDurations = {
