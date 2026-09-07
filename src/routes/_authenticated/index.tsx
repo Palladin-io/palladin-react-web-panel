@@ -3,7 +3,7 @@ import { DashboardPage } from '../../features/dashboard'
 import { useState } from 'react'
 import { AddAgentDialog } from '../../features/agents'
 import { useAuthStore } from '../../features/auth'
-import { PERMISSION_AGENT_MANAGE, PERMISSION_READ_API_KEY, PERMISSION_WRITE_API_KEY } from '../../shared/lib/permissions'
+import { canPairAgent, PERMISSION_WRITE_API_KEY } from '../../shared/lib/permissions'
 
 export const Route = createFileRoute('/_authenticated/')({
   component: DashboardRoute,
@@ -12,8 +12,7 @@ export const Route = createFileRoute('/_authenticated/')({
 function DashboardRoute() {
   const [showAddAgent, setShowAddAgent] = useState(false)
   const permissions = useAuthStore((state) => state.permissions)
-  const canPair = (permissions & PERMISSION_AGENT_MANAGE) !== 0
-    && (permissions & PERMISSION_READ_API_KEY) !== 0
+  const canPair = canPairAgent(permissions)
   return (
     <>
       <DashboardPage onRegisterAgent={canPair ? () => setShowAddAgent(true) : undefined} />

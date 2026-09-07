@@ -780,6 +780,7 @@
   "agents.add.profileLabel": "CLI profile: {{profileId}}. Later display-name changes do not rename this profile. If it is already configured, choose a different name; do not overwrite it.",
   "agents.pairing.apiKey": "Logical API key",
   "agents.pairing.selectApiKey": "Select an API key",
+  "agents.pairing.noAvailableApiKey": "No active API key is available, and your role cannot create one. Ask someone with API key management permission to create or activate a key, then reload this page.",
   "agents.pairing.createApiKey": "Create a new API key",
   "agents.pairing.newApiKeyName": "New API key name",
   "agents.pairing.newApiKeyNameRequired": "Enter a name for the new API key.",

@@ -142,6 +142,11 @@ export async function claimAgentPairing(pairingId: string): Promise<AgentPairing
     .json<AgentPairingClaim>()
 }
 
+export async function claimAgentPairingForNewKey(pairingId: string): Promise<AgentPairingClaim> {
+  return api.post(`${agentPairingPath(pairingId)}/claim-for-new-key`, { json: { pairingId } })
+    .json<AgentPairingClaim>()
+}
+
 export async function reserveAgentPairingDisplayName(
   pairingId: string,
   displayName: string,
@@ -153,13 +158,22 @@ export async function reserveAgentPairingDisplayName(
 
 export async function approveAgentPairing(
   pairingId: string,
-  input: { displayName: string; apiKeyId?: string; newApiKeyName?: string; iconKey?: string },
+  input: { displayName: string; apiKeyId: string; iconKey?: string },
 ): Promise<{ agentId: string }> {
   return api
     .post(`${agentPairingPath(pairingId)}/approve`, {
       json: { pairingId, ...input },
     })
     .json<{ agentId: string }>()
+}
+
+export async function approveAgentPairingWithNewKey(
+  pairingId: string,
+  input: { displayName: string; newApiKeyName: string; iconKey?: string },
+): Promise<{ agentId: string }> {
+  return api.post(`${agentPairingPath(pairingId)}/approve-with-new-key`, {
+    json: { pairingId, ...input },
+  }).json<{ agentId: string }>()
 }
 
 export async function rejectAgentPairing(pairingId: string): Promise<void> {

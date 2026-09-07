@@ -13,7 +13,7 @@ vi.mock('../../../shared/api/public-assets-api', () => ({
   getPublicAssetsByIds: vi.fn(),
 }))
 
-import { claimAgentPairing, getAgents } from './agents-api'
+import { approveAgentPairingWithNewKey, claimAgentPairingForNewKey, claimAgentPairing, getAgents } from './agents-api'
 
 const pendingAgent = {
   agentId: '33332233-4455-4677-8899-aabbccddeeff',
@@ -41,6 +41,17 @@ const pendingAgent = {
 }
 
 describe('agents-api', () => {
+  it('uses separate create-only claim and approval contracts', async () => {
+    const pairingId = '67ad9d63-f947-4b6c-8f64-e564d42d620f'
+    await claimAgentPairingForNewKey(pairingId)
+    await approveAgentPairingWithNewKey(pairingId, { displayName: 'Friendly Fox', newApiKeyName: 'Automation' })
+    expect(postFn.mock.calls).toEqual([
+      [`api/agent-pairings/${pairingId}/claim-for-new-key`, { json: { pairingId } }],
+      [`api/agent-pairings/${pairingId}/approve-with-new-key`, { json: { pairingId, displayName: 'Friendly Fox', newApiKeyName: 'Automation' } }],
+    ])
+    expect(getFn).not.toHaveBeenCalled()
+  })
+
   beforeEach(() => {
     getJson.mockReset()
     getFn.mockClear()

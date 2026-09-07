@@ -805,6 +805,7 @@
   "agents.add.profileLabel": "Profil CLI: {{profileId}}. Późniejsza zmiana nazwy wyświetlanej nie zmienia tego profilu. Jeśli jest już skonfigurowany, wybierz inną nazwę; nie nadpisuj go.",
   "agents.pairing.apiKey": "Logiczny klucz API",
   "agents.pairing.selectApiKey": "Wybierz klucz API",
+  "agents.pairing.noAvailableApiKey": "Nie ma aktywnego klucza API, a Twoja rola nie pozwala go utworzyć. Poproś osobę z uprawnieniami do zarządzania kluczami API o utworzenie lub aktywowanie klucza, a następnie odśwież tę stronę.",
   "agents.pairing.createApiKey": "Utwórz nowy klucz API",
   "agents.pairing.newApiKeyName": "Nazwa nowego klucza API",
   "agents.pairing.newApiKeyNameRequired": "Wpisz nazwę nowego klucza API.",

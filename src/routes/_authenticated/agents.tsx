@@ -3,7 +3,7 @@ import { AgentsPage } from '../../features/agents'
 import { useAuthStore } from '../../features/auth'
 import {
   PERMISSION_AGENT_MANAGE,
-  PERMISSION_READ_API_KEY,
+  canPairAgent,
   PERMISSION_WRITE_API_KEY,
 } from '../../shared/lib/permissions'
 
@@ -21,7 +21,7 @@ function AgentsRoute() {
   const permissions = useAuthStore((state) => state.permissions)
   return (
     <AgentsPage
-      canStartPairing={(permissions & PERMISSION_READ_API_KEY) !== 0}
+      canStartPairing={canPairAgent(permissions)}
       canCreateApiKey={(permissions & PERMISSION_WRITE_API_KEY) !== 0}
     />
   )

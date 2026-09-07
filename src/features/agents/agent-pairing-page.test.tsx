@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../shared/lib/i18n'
@@ -8,7 +8,9 @@ import { AgentPairingPage } from './agent-pairing-page'
 const mocks = vi.hoisted(() => ({
   analyticsCapture: vi.fn(),
   approve: vi.fn(),
+  approveNew: vi.fn(),
   claim: vi.fn(),
+  claimNew: vi.fn(),
   onApproved: vi.fn(),
   onClose: vi.fn(),
   onRejected: vi.fn(),
@@ -36,7 +38,9 @@ vi.mock('./api/agents-api', async (importOriginal) => {
   return {
     ...actual,
     approveAgentPairing: mocks.approve,
+    approveAgentPairingWithNewKey: mocks.approveNew,
     claimAgentPairing: mocks.claim,
+    claimAgentPairingForNewKey: mocks.claimNew,
     rejectAgentPairing: mocks.reject,
     reserveAgentPairingDisplayName: mocks.reserve,
   }
@@ -47,10 +51,12 @@ function renderPairing(
   queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   }),
+  canReadApiKeys = true,
 ) {
   const result = render(
     <AgentPairingPage
       pairingId={pairingId}
+      canReadApiKeys={canReadApiKeys}
       prepareDiscovery={mocks.prepareDiscovery}
       onApproved={mocks.onApproved}
       onClose={mocks.onClose}
@@ -64,11 +70,50 @@ function renderPairing(
 }
 
 describe('AgentPairingPage', () => {
+  it('uses only create-key endpoints without ReadApiKey and never loads the existing-key list', async () => {
+    mocks.claimNew.mockResolvedValue({
+      pairingId: 'create-only', displayName: 'Friendly Fox', reservedDisplayName: null,
+      type: 'custom/runtime', publicKeyHint: 'public', expiresAt: '2026-09-05T12:00:00Z',
+      canCreateApiKey: true, apiKeys: [],
+    })
+    renderPairing('create-only', undefined, false)
+    const user = userEvent.setup()
+    await user.type(await screen.findByLabelText('New API key name'), 'Automation')
+    expect(mocks.claimNew).toHaveBeenCalledExactlyOnceWith('create-only')
+    expect(mocks.claim).not.toHaveBeenCalled()
+    expect(screen.getByRole('combobox', { name: 'Logical API key' })).toHaveValue('__create__')
+    const submit = screen.getByRole<HTMLButtonElement>('button', { name: 'Approve and activate' })
+    expect(submit).toHaveAttribute('type', 'submit')
+    expect(submit.form).toHaveAttribute('id', 'agent-pairing-approval')
+    fireEvent.submit(submit.form!)
+    await waitFor(() => expect(mocks.approveNew).toHaveBeenCalledExactlyOnceWith('create-only', {
+      displayName: 'Friendly Fox', newApiKeyName: 'Automation',
+    }))
+    expect(mocks.approve).not.toHaveBeenCalled()
+    await waitFor(() => expect(mocks.onApproved).toHaveBeenCalledWith('agent-1'))
+  })
+
+  it('explains the unavailable-key state and labels the runtime type', async () => {
+    mocks.claim.mockResolvedValue({
+      pairingId: 'no-key', displayName: 'Friendly Fox', reservedDisplayName: null,
+      type: null, publicKeyHint: 'public', expiresAt: '2026-09-05T12:00:00Z',
+      canCreateApiKey: false, apiKeys: [],
+    })
+    renderPairing('no-key')
+    expect(await screen.findByText(/Ask someone with API key management permission/)).toHaveAttribute('role', 'status')
+    expect(screen.getByRole('button', { name: 'Approve and activate' })).toBeDisabled()
+    expect(screen.getByText('Agent type').tagName).toBe('DT')
+    expect(screen.getByText('Not declared').tagName).toBe('DD')
+    expect(mocks.approve).not.toHaveBeenCalled()
+    expect(mocks.approveNew).not.toHaveBeenCalled()
+  })
+
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-05T11:55:00Z'))
     await i18n.changeLanguage('en')
     mocks.approve.mockResolvedValue({ agentId: 'agent-1' })
+    mocks.approveNew.mockResolvedValue({ agentId: 'agent-1' })
     mocks.reject.mockResolvedValue(undefined)
     mocks.reserve.mockResolvedValue(undefined)
     mocks.prepareDiscovery.mockResolvedValue(false)
@@ -229,7 +274,7 @@ describe('AgentPairingPage', () => {
     await user.type(screen.getByLabelText('New API key name'), 'Local Codex')
     await user.click(screen.getByRole('button', { name: 'Approve and activate' }))
 
-    await waitFor(() => expect(mocks.approve).toHaveBeenCalledWith('pairing-2', {
+    await waitFor(() => expect(mocks.approveNew).toHaveBeenCalledWith('pairing-2', {
       displayName: 'Calm Otter',
       newApiKeyName: 'Local Codex',
     }))
@@ -440,6 +485,7 @@ describe('AgentPairingPage', () => {
     await waitFor(() => expect(first.queryClient.getQueryData([
       'agent-pairing',
       'pairing-unmounted-approval',
+      true,
     ])).toMatchObject({ terminalStatus: 'approved' }))
     renderPairing('pairing-unmounted-approval', first.queryClient)
     expect(await screen.findByText(/already activated the Agent/i)).toBeInTheDocument()
@@ -501,6 +547,7 @@ describe('AgentPairingPage', () => {
     await waitFor(() => expect(first.queryClient.getQueryData([
       'agent-pairing',
       'pairing-unmounted-rejection',
+      true,
     ])).toMatchObject({ terminalStatus: 'rejected' }))
     renderPairing('pairing-unmounted-rejection', first.queryClient)
     expect(await screen.findByText(/already been rejected/i)).toBeInTheDocument()

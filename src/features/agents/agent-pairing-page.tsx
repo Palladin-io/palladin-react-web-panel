@@ -13,7 +13,9 @@ import { analytics } from '../../shared/lib/analytics'
 import { firstError, required } from '../../shared/lib/validation'
 import {
   approveAgentPairing,
+  approveAgentPairingWithNewKey,
   claimAgentPairing,
+  claimAgentPairingForNewKey,
   rejectAgentPairing,
   reserveAgentPairingDisplayName,
   type AgentPairingClaim,
@@ -42,6 +44,7 @@ interface AgentPairingView extends AgentPairingClaim {
 
 export interface AgentPairingPageProps {
   pairingId: string
+  canReadApiKeys: boolean
   prepareDiscovery: (signal: AbortSignal) => Promise<boolean>
   onApproved: (agentId: string) => Promise<void>
   onRejected: () => Promise<void>
@@ -51,6 +54,7 @@ export interface AgentPairingPageProps {
 
 export function AgentPairingPage({
   pairingId,
+  canReadApiKeys,
   prepareDiscovery,
   onApproved,
   onRejected,
@@ -58,7 +62,7 @@ export function AgentPairingPage({
 }: AgentPairingPageProps) {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
-  const pairingQueryKey = ['agent-pairing', pairingId] as const
+  const pairingQueryKey = ['agent-pairing', pairingId, canReadApiKeys] as const
   const reconciliationController = useRef(new AbortController())
   useEffect(() => {
     const controller = new AbortController()
@@ -69,7 +73,7 @@ export function AgentPairingPage({
   const claim = useQuery<AgentPairingView>({
     queryKey: pairingQueryKey,
     queryFn: async () => {
-      const data = await claimAgentPairing(pairingId)
+      const data = await (canReadApiKeys ? claimAgentPairing : claimAgentPairingForNewKey)(pairingId)
       const suppliedName = data.reservedDisplayName ?? data.displayName
       if (suppliedName) {
         return { ...data, initialDisplayName: suppliedName, fallbackNameUnavailable: false }
@@ -129,13 +133,13 @@ export function AgentPairingPage({
         if (responseStatus(error) === 409) throw new Error('name-conflict')
         throw error
       }
-      const { agentId } = await approveAgentPairing(pairingId, {
+      const approvalMetadata = {
         displayName: normalizedName,
         ...(!customIcon && iconKey ? { iconKey } : {}),
-        ...(apiKeyChoice === CREATE_API_KEY
-          ? { newApiKeyName: newApiKeyName.trim() }
-          : { apiKeyId: apiKeyChoice }),
-      })
+      }
+      const { agentId } = apiKeyChoice === CREATE_API_KEY
+        ? await approveAgentPairingWithNewKey(pairingId, { ...approvalMetadata, newApiKeyName: newApiKeyName.trim() })
+        : await approveAgentPairing(pairingId, { ...approvalMetadata, apiKeyId: apiKeyChoice })
 
       const signal = reconciliationController.current.signal
       if (signal.aborted) return { agentId, discoveryReady: false, cancelled: true }
@@ -238,13 +242,16 @@ export function AgentPairingPage({
           <Button variant="outline" size="sm" className="min-w-0 flex-1" onClick={handleReject} disabled={actionPending}>
             {t('agents.pairing.reject')}
           </Button>
-          <Button variant="accent" size="sm" className="min-w-0 flex-[2]" onClick={handleApprove} disabled={!canApprove || actionPending}>
+          <Button variant="accent" size="sm" className="min-w-0 flex-[2]" type="submit" form="agent-pairing-approval" disabled={!canApprove || actionPending}>
             {approve.isPending ? t('agents.pairing.approving') : t('agents.pairing.approve')}
           </Button>
         </DialogFooter>
       }
     >
-      <div className="flex w-full min-w-0 flex-col gap-3">
+      <form id="agent-pairing-approval" className="flex w-full min-w-0 flex-col gap-3" onSubmit={(event) => {
+        event.preventDefault()
+        if (canApprove && !actionPending) handleApprove()
+      }}>
         <div className="flex min-w-0 flex-col gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <button
@@ -263,9 +270,10 @@ export function AgentPairingPage({
             </button>
             <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
               <p className="break-words text-heading font-semibold text-[var(--cv-t1)]">{displayName || t('agents.pairing.displayName')}</p>
-              <p className="min-w-0 break-words text-meta text-[var(--cv-t2)] sm:text-right">
-                {claim.data.type ? typeLabel(claim.data.type, t) : t('agents.pairing.typeAbsent')}
-              </p>
+              <dl className="min-w-0 break-words text-meta text-[var(--cv-t2)] sm:text-right">
+                <dt className="sr-only">{t('agents.pairing.type')}</dt>
+                <dd className="break-words">{claim.data.type ? typeLabel(claim.data.type, t) : t('agents.pairing.typeAbsent')}</dd>
+              </dl>
             </div>
           </div>
           <dl className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-micro text-[var(--cv-t3)]">
@@ -369,7 +377,10 @@ export function AgentPairingPage({
           </div>
         ) : null}
 
-      </div>
+        {!claim.data.canCreateApiKey && claim.data.apiKeys.length === 0 && (
+          <p role="status" className="text-meta text-[var(--cv-t2)]">{t('agents.pairing.noAvailableApiKey')}</p>
+        )}
+      </form>
     </PairingShell>
   )
 }
