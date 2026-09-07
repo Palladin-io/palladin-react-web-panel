@@ -29,12 +29,12 @@ a blocking finding.
 | Directive | Value | Reason |
 |-----------|-------|--------|
 | `default-src` | `'self'` | Deny-by-default baseline. |
-| `script-src` | `'self' https://accounts.google.com https://*.gstatic.com` | App bundle + `/init-theme.js` are self; Google Identity script; Firebase compat scripts the SW `importScripts` from gstatic. **No `unsafe-inline`/`unsafe-eval`.** |
+| `script-src` | `'self' 'wasm-unsafe-eval' https://accounts.google.com https://*.gstatic.com` | App bundle + `/init-theme.js` are self; Google Identity script; Firebase compat scripts the SW `importScripts` from gstatic. The narrow `wasm-unsafe-eval` source permits bundled libsodium/hash WASM compilation without enabling general JavaScript `unsafe-eval`; `unsafe-inline` and `unsafe-eval` remain forbidden. |
 | `connect-src` | `'self'` + API hosts + `accounts.google.com` + `*.posthog.com` + `*.googleapis.com` + `www.gstatic.com` + `*.s3.eu-west-1.amazonaws.com` + `wss:` | XHR/fetch to the API, PostHog, FCM registration (`*.googleapis.com`), the SRI `fetch()` of the Firebase scripts (`www.gstatic.com`), the presigned `PUT` icon uploads to S3 (`*.s3.eu-west-1.amazonaws.com` — bucket in `eu-west-1`, name injected server-side so wildcarded; tighten to the exact bucket once known), and SignalR WebSocket (`wss:`). |
 | `frame-src` | `https://accounts.google.com` | Google sign-in iframe/popup. |
 | `img-src` | `'self' data: blob: {VITE_PUBLIC_ASSET_URL origin}` | Direct catalog icons from the configured and build-validated delivery origin, inline data URIs, and `blob:` local encrypted-icon previews. Arbitrary HTTPS image origins remain blocked. |
 | `style-src` | `'self' 'unsafe-inline' https://fonts.googleapis.com` | Tailwind + our pervasive inline `style={{}}` attributes need `unsafe-inline`; Google Fonts stylesheet. |
-| `font-src` | `'self' https://fonts.gstatic.com` | Google Fonts / Material Symbols. |
+| `font-src` | `'self' data: https://fonts.gstatic.com` | Self-hosted fonts, the bundled data-URI compatibility font, and Google Fonts / Material Symbols. |
 | `worker-src` | `'self'` | The FCM service worker. |
 | `frame-ancestors` | `'none'` | Clickjacking protection (paired with `X-Frame-Options: DENY`). |
 | `object-src` | `'none'` | No plugins. |
