@@ -112,11 +112,13 @@ jobs:
           fi
           npm ci
           npm run build -- --mode staging
-          if ! rg --text --fixed-strings --quiet 'https://api.stage.palladin.io' dist/assets; then
+          if ! grep --recursive --binary-files=text --fixed-strings --quiet \
+            'https://api.stage.palladin.io' dist/assets; then
             echo 'The staging API URL is absent from the compiled bundle.' >&2
             exit 1
           fi
-          if rg --text --fixed-strings --quiet 'http://localhost:5000' dist; then
+          if grep --recursive --binary-files=text --fixed-strings --quiet \
+            'http://localhost:5000' dist; then
             echo 'The compiled staging bundle contains the local API URL.' >&2
             exit 1
           fi
