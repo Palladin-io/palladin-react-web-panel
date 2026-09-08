@@ -36,6 +36,7 @@ export { MemberSyncProvider } from './sync/member-sync-provider'
 export { RotationProvider } from './rotation/rotation-provider'
 export { useRotationStore } from './rotation/rotation-store'
 export { searchMemberIndex, useMemberSyncStore } from './sync/member-sync-store'
+export { reconcileAgentDiscovery } from './sync/agent-discovery-reconciler'
 export type { MemberIndexRecord } from './sync/member-sync-store'
 // Promoted for the dashboard "Recently added / modified" widget so a
 // lightweight entry row can reuse the canonical icon/colour presentation

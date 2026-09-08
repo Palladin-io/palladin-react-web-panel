@@ -10,7 +10,6 @@ import {
   PERMISSION_GRANT_MANAGE,
 } from '../../shared/lib/permissions'
 import { useAgents } from '../agents'
-import { useApiKeys } from '../api-keys'
 import { useOrgAuditLogs } from '../audit'
 import { useAuthStore } from '../auth'
 import {
@@ -37,12 +36,11 @@ function readFlag(key: string): boolean {
   return localStorage.getItem(key) === 'true'
 }
 
-export function DashboardPage() {
+export function DashboardPage({ onRegisterAgent }: { onRegisterAgent?: () => void }) {
   const { t } = useTranslation()
 
   const account = useQuery({ queryKey: ACCOUNT_QUERY_KEY, queryFn: getAccount })
   const vaults = useVaults()
-  const apiKeys = useApiKeys()
   const agents = useAgents()
   const pendingGrants = usePendingGrants()
 
@@ -85,24 +83,22 @@ export function DashboardPage() {
   // The default vault is auto-created on account setup, so "entry done"
   // (≥1 entry across all vaults) is the meaningful first step for the user.
   const entryDone = entryCount > 0
-  const apiKeyDone = (apiKeys.data?.length ?? 0) > 0
-  const agentDone = activeAgents.length > 0
+  const agentDone = agents.data?.some((agent) => agent.status === 'active') ?? false
   // `mobileRegistered` is the one step the client can't derive locally — it
   // comes from the server (the user's push devices). Absent on older backends.
   const mobileRegistered =
     account.data?.onboardingSteps?.mobileRegistered ?? false
 
-  // The checklist tracks the setup steps (entry, API key, agent, mobile) — NOT
+  // The checklist tracks the setup steps (entry, agent, mobile) — NOT
   // `account.isOnboarded`, which means account *key* setup (a routing flag,
   // already true for anyone viewing the dashboard). The mobile step is
   // skippable. Wait for the queries to resolve so an onboarded user never
   // flashes the checklist.
   const setupComplete =
-    entryDone && apiKeyDone && agentDone && (mobileRegistered || mobileSkipped)
+    entryDone && agentDone && (mobileRegistered || mobileSkipped)
   const onboardingDataReady =
     account.data != null &&
     vaults.data != null &&
-    apiKeys.data != null &&
     agents.data != null
   const showOnboarding = onboardingDataReady && !setupComplete && !dismissed
 
@@ -166,7 +162,7 @@ export function DashboardPage() {
       {showOnboarding ? (
         <OnboardingChecklist
           entryDone={entryDone}
-          apiKeyDone={apiKeyDone}
+          onRegisterAgent={onRegisterAgent}
           agentDone={agentDone}
           mobileRegistered={mobileRegistered}
           mobileSkipped={mobileSkipped}

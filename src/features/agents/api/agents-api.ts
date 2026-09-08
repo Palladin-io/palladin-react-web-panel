@@ -14,7 +14,7 @@ export type AgentStatus =
   | typeof AGENT_STATUS_DEACTIVATED
   | typeof AGENT_STATUS_DEACTIVATING
 
-/** Agent type — camelCase strings matching backend JsonStringEnumConverter. */
+/** Known Agent types are presentation suggestions; the domain contract remains a string. */
 export const AGENT_TYPE_OPEN_CLAW = 'openClaw' as const
 export const AGENT_TYPE_CLAUDE_CODE = 'claudeCode' as const
 export const AGENT_TYPE_HERMES = 'hermes' as const
@@ -29,20 +29,7 @@ export const AGENT_TYPE_CLINE = 'cline' as const
 export const AGENT_TYPE_ROO = 'roo' as const
 export const AGENT_TYPE_OTHER = 'other' as const
 
-export type AgentType =
-  | typeof AGENT_TYPE_OPEN_CLAW
-  | typeof AGENT_TYPE_CLAUDE_CODE
-  | typeof AGENT_TYPE_HERMES
-  | typeof AGENT_TYPE_CURSOR
-  | typeof AGENT_TYPE_COPILOT
-  | typeof AGENT_TYPE_GEMINI
-  | typeof AGENT_TYPE_CODEX
-  | typeof AGENT_TYPE_KIMI_CODE
-  | typeof AGENT_TYPE_DEVIN
-  | typeof AGENT_TYPE_AIDER
-  | typeof AGENT_TYPE_CLINE
-  | typeof AGENT_TYPE_ROO
-  | typeof AGENT_TYPE_OTHER
+export type AgentType = string
 
 /** Predefined built-in types — used as placeholder data before API responds. */
 export const BUILTIN_AGENT_TYPES: string[] = [
@@ -118,6 +105,81 @@ export interface ApproveAgentInput {
   type?: AgentType
   iconKey?: string
   iconColor?: string
+}
+
+export interface AgentPairingApiKeyOption {
+  apiKeyId: string
+  name: string
+  keyHint: string
+}
+
+export interface AgentPairingClaim {
+  hostname?: string | null
+  ip?: string | null
+  pairingId: string
+  displayName: string | null
+  reservedDisplayName: string | null
+  type: string | null
+  publicKeyHint: string
+  expiresAt: string
+  canCreateApiKey: boolean
+  apiKeys: AgentPairingApiKeyOption[]
+}
+
+// Route params are an independent browser-input boundary. Validate before
+// interpolation so an encoded slash or dot segment can never retarget an
+// authenticated POST to another Palladin endpoint.
+const agentPairingIdSchema = z.string().regex(
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu,
+)
+
+function agentPairingPath(pairingId: string): string {
+  return `api/agent-pairings/${encodeURIComponent(agentPairingIdSchema.parse(pairingId))}`
+}
+
+export async function claimAgentPairing(pairingId: string): Promise<AgentPairingClaim> {
+  const path = agentPairingPath(pairingId)
+  return api
+    .post(`${path}/claim`, { json: { pairingId } })
+    .json<AgentPairingClaim>()
+}
+
+export async function claimAgentPairingForNewKey(pairingId: string): Promise<AgentPairingClaim> {
+  return api.post(`${agentPairingPath(pairingId)}/claim-for-new-key`, { json: { pairingId } })
+    .json<AgentPairingClaim>()
+}
+
+export async function reserveAgentPairingDisplayName(
+  pairingId: string,
+  displayName: string,
+): Promise<void> {
+  await api.post(`${agentPairingPath(pairingId)}/display-name/reserve`, {
+    json: { pairingId, displayName },
+  })
+}
+
+export async function approveAgentPairing(
+  pairingId: string,
+  input: { displayName: string; apiKeyId: string; iconKey?: string },
+): Promise<{ agentId: string }> {
+  return api
+    .post(`${agentPairingPath(pairingId)}/approve`, {
+      json: { pairingId, ...input },
+    })
+    .json<{ agentId: string }>()
+}
+
+export async function approveAgentPairingWithNewKey(
+  pairingId: string,
+  input: { displayName: string; newApiKeyName: string; iconKey?: string },
+): Promise<{ agentId: string }> {
+  return api.post(`${agentPairingPath(pairingId)}/approve-with-new-key`, {
+    json: { pairingId, ...input },
+  }).json<{ agentId: string }>()
+}
+
+export async function rejectAgentPairing(pairingId: string): Promise<void> {
+  await api.post(`${agentPairingPath(pairingId)}/reject`, { json: { pairingId } })
 }
 
 export async function getAgentTypes(): Promise<string[]> {

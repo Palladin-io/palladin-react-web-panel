@@ -11,6 +11,8 @@ export interface AgentsPageProps {
   agentId?: string
   /** App-level composition keeps Agents independent from the Audit feature. */
   renderLogs?: (agentId: string) => ReactNode
+  canStartPairing: boolean
+  canCreateApiKey: boolean
 }
 
 /**
@@ -21,7 +23,12 @@ export interface AgentsPageProps {
  * On narrow screens the list and detail collapse to a single column:
  * `/agents` shows the list, `/agents/$agentId` shows the detail.
  */
-export function AgentsPage({ agentId, renderLogs }: AgentsPageProps) {
+export function AgentsPage({
+  agentId,
+  renderLogs,
+  canStartPairing,
+  canCreateApiKey,
+}: AgentsPageProps) {
   const isWide = useWideScreen()
 
   const detailContent = <AgentDetailContent agentId={agentId} renderLogs={renderLogs} />
@@ -31,7 +38,11 @@ export function AgentsPage({ agentId, renderLogs }: AgentsPageProps) {
       <div className="flex h-full text-[var(--cv-t1)]">
         <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
           <div className="h-full px-4 pt-4">
-            <AgentListPanel selectedAgentId={agentId} />
+            <AgentListPanel
+              selectedAgentId={agentId}
+              canStartPairing={canStartPairing}
+              canCreateApiKey={canCreateApiKey}
+            />
           </div>
         </div>
         <div className="min-w-0 flex-1 overflow-hidden">
@@ -49,7 +60,13 @@ export function AgentsPage({ agentId, renderLogs }: AgentsPageProps) {
   return (
     <div className="h-full overflow-hidden text-[var(--cv-t1)]">
       <div className="h-full px-4 py-4">
-        {agentId ? detailContent : <AgentListPanel selectedAgentId={agentId} />}
+        {agentId ? detailContent : (
+          <AgentListPanel
+            selectedAgentId={agentId}
+            canStartPairing={canStartPairing}
+            canCreateApiKey={canCreateApiKey}
+          />
+        )}
       </div>
     </div>
   )

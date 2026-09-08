@@ -89,32 +89,42 @@ describe('AgentListPanel', () => {
 
   it('renders the empty state when there are no agents', () => {
     agentsState.data = []
-    render(<AgentListPanel />, { wrapper })
+    render(<AgentListPanel canStartPairing canCreateApiKey />, { wrapper })
     expect(screen.getByText(/no agents yet/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /add agent/i })).toBeInTheDocument()
   })
 
   it('renders an agent card with its name and status badge', () => {
     agentsState.data = [activeAgent]
-    render(<AgentListPanel />, { wrapper })
+    render(<AgentListPanel canStartPairing canCreateApiKey />, { wrapper })
     expect(screen.getByText('Deploy Bot')).toBeInTheDocument()
     expect(screen.getByText(/● active/i)).toBeInTheDocument()
   })
 
   it('shows pending badge for a pending agent', () => {
     agentsState.data = [pendingAgent]
-    render(<AgentListPanel />, { wrapper })
+    render(<AgentListPanel canStartPairing canCreateApiKey />, { wrapper })
     expect(screen.getByText(/● pending/i)).toBeInTheDocument()
   })
 
   it('renders an error state when the list fails to load', () => {
     agentsState.isError = true
-    render(<AgentListPanel />, { wrapper })
+    render(<AgentListPanel canStartPairing canCreateApiKey />, { wrapper })
     expect(screen.getByText(/could not load agents/i)).toBeInTheDocument()
   })
 
   it('shows the formatted public key for an agent row', () => {
     agentsState.data = [activeAgent]
-    render(<AgentListPanel />, { wrapper })
+    render(<AgentListPanel canStartPairing canCreateApiKey />, { wrapper })
     expect(screen.getByText('pk7Yq2Lm•••aB3x')).toBeInTheDocument()
+  })
+
+  it('does not offer browser pairing without API-key read permission', () => {
+    agentsState.data = []
+    render(
+      <AgentListPanel canStartPairing={false} canCreateApiKey={false} />,
+      { wrapper },
+    )
+    expect(screen.queryByRole('button', { name: /add agent/i })).not.toBeInTheDocument()
   })
 })

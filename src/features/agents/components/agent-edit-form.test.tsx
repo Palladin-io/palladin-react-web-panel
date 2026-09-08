@@ -141,4 +141,48 @@ describe('AgentEditForm', () => {
       expect.stringMatching(/could not save the agent/i),
     )
   })
+
+  it('accepts a custom type and clears optional type metadata explicitly', async () => {
+    const user = userEvent.setup()
+    render(<AgentEditForm agent={baseAgent} canEdit />, { wrapper })
+
+    const typeInput = screen.getByRole('combobox', { name: /agent type/i })
+    await user.type(typeInput, 'custom-runtime')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    expect(updateMutateMock.mock.calls[0][0].input.type).toBe('custom-runtime')
+
+    updateMutateMock.mockReset()
+    render(<AgentEditForm agent={{ ...baseAgent, type: 'custom-runtime' }} canEdit />, { wrapper })
+    const existingType = screen.getAllByRole('combobox', { name: /agent type/i })[1]
+    await user.clear(existingType)
+    await user.click(screen.getAllByRole('button', { name: /save changes/i })[1])
+    expect(updateMutateMock.mock.calls[0][0].input.type).toBe('')
+  })
+
+  it('rejects unsafe or overlong custom type text with an accessible error', async () => {
+    const user = userEvent.setup()
+    render(<AgentEditForm agent={baseAgent} canEdit />, { wrapper })
+    const typeInput = screen.getByRole('combobox', { name: /agent type/i })
+
+    await user.type(typeInput, 'a'.repeat(101))
+    await user.tab()
+
+    expect(typeInput).toHaveAttribute('aria-invalid', 'true')
+    expect(typeInput).toHaveAccessibleDescription(/up to 100 visible characters/i)
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled()
+  })
+
+  it('reports an unsafe display name accessibly and disables saving', async () => {
+    const user = userEvent.setup()
+    render(<AgentEditForm agent={baseAgent} canEdit />, { wrapper })
+    const nameInput = screen.getByLabelText(/display name/i)
+
+    await user.clear(nameInput)
+    await user.type(nameInput, 'a'.repeat(65))
+    await user.tab()
+
+    expect(nameInput).toHaveAttribute('aria-invalid', 'true')
+    expect(nameInput).toHaveAccessibleDescription(/1–64 visible characters/i)
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled()
+  })
 })

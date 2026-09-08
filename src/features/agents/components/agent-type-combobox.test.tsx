@@ -56,6 +56,25 @@ describe('AgentTypeCombobox', () => {
     expect(onInputChange).toHaveBeenCalledWith('x')
   })
 
+  it('selects known suggestions with the keyboard without restricting custom input', async () => {
+    const user = userEvent.setup()
+    const onSelect = vi.fn()
+    render(
+      <AgentTypeCombobox
+        typeValues={TYPE_VALUES}
+        inputValue=""
+        onInputChange={vi.fn()}
+        onSelect={onSelect}
+      />,
+    )
+    const input = screen.getByRole('combobox')
+
+    await user.click(input)
+    await user.keyboard('{ArrowDown}{Enter}')
+
+    expect(onSelect).toHaveBeenCalledWith('claudeCode', 'Claude Code')
+  })
+
   it('disables the input when disabled', () => {
     render(
       <AgentTypeCombobox

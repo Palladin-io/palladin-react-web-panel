@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
-import { FormInput } from '../../../shared/components/form-field'
+import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { analytics } from '../../../shared/lib/analytics'
 import { firstError, required } from '../../../shared/lib/validation'
@@ -12,6 +12,7 @@ import { useAgentIconUpload } from '../use-agent-icon-upload'
 import { useUpdateAgent } from '../use-update-agent'
 import { AgentIconPicker, DEFAULT_AGENT_COLOR } from './agent-icon-picker'
 import { AgentTypeCombobox, typeLabel } from './agent-type-combobox'
+import { normalizeAgentMetadata } from '../pairing-metadata'
 
 export interface AgentEditFormProps {
   agent: Agent
@@ -39,6 +40,8 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
     agent.iconColor ?? DEFAULT_AGENT_COLOR,
   )
   const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [nameTouched, setNameTouched] = useState(false)
+  const [typeTouched, setTypeTouched] = useState(false)
 
   const resetForm = () => {
     setName(agent.name ?? '')
@@ -48,6 +51,8 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
     setSelectedIcon(agent.iconKey ?? undefined)
     setSelectedColor(agent.iconColor ?? DEFAULT_AGENT_COLOR)
     setPendingFile(null)
+    setNameTouched(false)
+    setTypeTouched(false)
   }
 
   // Reset when navigating to a different agent
@@ -61,7 +66,10 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
   const isPending = update.isPending || iconUpload.isUploading
   const isDisabled = !canEdit || isPending
 
-  const trimmedName = name.trim()
+  const normalizedName = normalizeAgentMetadata(name, 64)
+  const normalizedType = normalizeAgentMetadata(typeValue, 100)
+  const comparableType = normalizedType ?? (typeValue.trim().length === 0 ? '' : typeValue)
+  const trimmedName = normalizedName ?? name.trim()
   const trimmedDescription = description.trim()
   const iconChanged =
     pendingFile !== null ||
@@ -69,11 +77,16 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
     selectedColor !== (agent.iconColor ?? DEFAULT_AGENT_COLOR)
   const isDirty =
     trimmedName !== (agent.name?.trim() ?? '') ||
-    typeValue !== (agent.type ?? '') ||
+    comparableType !== (agent.type ?? '') ||
     trimmedDescription !== (agent.description?.trim() ?? '') ||
     iconChanged
-  const isNameValid = firstError(name, [required(t('validation.required'))]) === null
-  const canSubmit = canEdit && isDirty && isNameValid && !isPending
+  const nameError = firstError(name, [required(t('validation.required'))])
+    ?? (normalizedName === null ? t('agents.invalidName') : null)
+  const isNameValid = nameError === null
+  const isTypeValid = typeValue.trim().length === 0 || normalizedType !== null
+  const showNameError = nameTouched && !isNameValid
+  const showTypeError = typeTouched && !isTypeValid
+  const canSubmit = canEdit && isDirty && isNameValid && isTypeValid && !isPending
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -103,8 +116,8 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
       name: trimmedName,
       description: trimmedDescription,
     }
-    if (typeValue !== (agent.type ?? '')) {
-      input.type = (typeValue as AgentType) || undefined
+    if (comparableType !== (agent.type ?? '')) {
+      input.type = (normalizedType as AgentType) ?? ''
     }
     // Only include icon fields when the picker (preset or browser) changed.
     // The upload hook already PATCH'd iconKey when pendingFile was set.
@@ -135,22 +148,49 @@ export function AgentEditForm({ agent, canEdit }: AgentEditFormProps) {
     <form onSubmit={handleSubmit}>
       <div className="flex gap-5 items-start">
         <div className="flex-1 flex flex-col gap-4 min-w-0">
-          <FormInput
-            id="agent-name"
-            label={t('agents.editName')}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            disabled={isDisabled}
-            maxLength={64}
-          />
+          <div>
+            <FormInput
+              id="agent-name"
+              label={t('agents.editName')}
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value)
+                setNameTouched(false)
+              }}
+              onBlur={() => setNameTouched(true)}
+              disabled={isDisabled}
+              error={showNameError}
+              aria-invalid={showNameError || undefined}
+              aria-describedby={showNameError ? 'agent-name-feedback' : undefined}
+            />
+            <FeedbackSlot visible={showNameError} color="red">
+              <span id="agent-name-feedback">{nameError}</span>
+            </FeedbackSlot>
+          </div>
 
-          <AgentTypeCombobox
-            typeValues={typeValues}
-            inputValue={typeInput}
-            disabled={isDisabled}
-            onInputChange={(text) => { setTypeInput(text); setTypeValue(text) }}
-            onSelect={(value, label) => { setTypeValue(value); setTypeInput(label) }}
-          />
+          <div>
+            <AgentTypeCombobox
+              typeValues={typeValues}
+              inputValue={typeInput}
+              disabled={isDisabled}
+              error={showTypeError}
+              describedBy={showTypeError ? 'agent-type-feedback' : undefined}
+              onBlur={() => setTypeTouched(true)}
+              onInputChange={(text) => {
+                setTypeInput(text)
+                setTypeValue(text)
+                setTypeTouched(false)
+              }}
+              onSelect={(value, label) => {
+                setTypeValue(value)
+                setTypeInput(label)
+                setTypeTouched(false)
+              }}
+            />
+            <FeedbackSlot visible={showTypeError} color="red">
+              <span id="agent-type-feedback">{t('agents.invalidType')}</span>
+            </FeedbackSlot>
+          </div>
 
           <FormTextarea
             id="agent-description"

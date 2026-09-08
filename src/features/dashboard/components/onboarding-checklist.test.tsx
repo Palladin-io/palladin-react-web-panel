@@ -19,7 +19,6 @@ function renderChecklist(overrides: Partial<Parameters<typeof OnboardingChecklis
   render(
     <OnboardingChecklist
       entryDone={false}
-      apiKeyDone={false}
       agentDone={false}
       mobileRegistered={false}
       mobileSkipped={false}
@@ -37,16 +36,16 @@ describe('OnboardingChecklist', () => {
     captureMock.mockReset()
   })
 
-  it('renders all four setup steps', () => {
+  it('renders three setup steps without a separate API key step', () => {
     renderChecklist()
     expect(screen.getByText('Add your first entry or import passwords')).toBeInTheDocument()
-    expect(screen.getByText('Add an API key')).toBeInTheDocument()
+    expect(screen.queryByText('Add an API key')).not.toBeInTheDocument()
     expect(screen.getByText('Register an agent')).toBeInTheDocument()
     expect(screen.getByText('Get the mobile app')).toBeInTheDocument()
   })
 
   it('shows Get the app and Skip on the active mobile step', () => {
-    renderChecklist({ entryDone: true, apiKeyDone: true, agentDone: true })
+    renderChecklist({ entryDone: true, agentDone: true })
     expect(screen.getByRole('button', { name: 'Get the app' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Skip' })).toBeInTheDocument()
   })
@@ -56,5 +55,19 @@ describe('OnboardingChecklist', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Skip setup' }))
     expect(captureMock).toHaveBeenCalledWith('dashboard', 'onboarding-skipped')
     expect(onDismiss).toHaveBeenCalled()
+  })
+
+  it('opens the Agent message without completing the registration step', () => {
+    const onRegisterAgent = vi.fn()
+    renderChecklist({ entryDone: true, onRegisterAgent })
+    fireEvent.click(screen.getByRole('button', { name: 'Register Agent' }))
+    expect(onRegisterAgent).toHaveBeenCalledOnce()
+    expect(screen.getByRole('button', { name: 'Register Agent' })).toBeEnabled()
+    expect(captureMock).toHaveBeenCalledWith('dashboard', 'onboarding-agent-clicked')
+  })
+
+  it('disables registration without the route-provided permission capability', () => {
+    renderChecklist({ entryDone: true })
+    expect(screen.getByRole('button', { name: 'Register Agent' })).toBeDisabled()
   })
 })

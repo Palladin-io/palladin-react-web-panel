@@ -92,4 +92,16 @@ describe('ApproveAgentDialog', () => {
 
     expect(screen.getByRole('button', { name: /configuring discovery/i })).toBeDisabled()
   })
+
+  it('reports unsafe runtime metadata accessibly and disables confirmation', () => {
+    render(
+      <ApproveAgentDialog {...baseProps} initialType={'a'.repeat(101)} />,
+      { wrapper },
+    )
+
+    const type = screen.getByRole('combobox', { name: /agent type/i })
+    expect(type).toHaveAttribute('aria-invalid', 'true')
+    expect(type).toHaveAccessibleDescription(/up to 100 visible characters/i)
+    expect(screen.getByRole('button', { name: /^approve agent$/i })).toBeDisabled()
+  })
 })

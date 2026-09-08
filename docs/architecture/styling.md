@@ -123,7 +123,7 @@ Button class exports for `<Link>` elements that must look like footer buttons: `
 
 ## Helper CSS classes (`index.css`)
 - `.secret-mask` — masks a `type=text` input with a disc font (used by `SecretInput`) so password managers never offer to save vault credentials. No real `type=password`.
-- `.mi` — Material Symbols Rounded glyph span (1em square, clipped). Prefer the `Icon` component; this class is the underlying convention.
+- `Icon` renders bundled Lucide SVGs through the central `icon-glyphs.ts` mapping. Stored Material-style names remain compatible; unknown names use a local question-mark SVG. SVG dimensions honor `--cv-density-scale`, color inherits `currentColor`, and decorative icons stay hidden from assistive technology. No icon-font CSS or remote font request is required.
 - `.step-enter` / `@keyframes step-enter` — wizard step entrance animation (fade + translateY).
 - `.auth-surface` — full-screen auth background and foreground that follow the persisted app theme.
 - `.auth-logo-glow` — broad white radial light attached to the login/unlock content wrapper and centred on the shield; it renders behind the complete content stack, is hidden in dark mode, and is not used on other auth routes.

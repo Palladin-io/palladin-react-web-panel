@@ -85,9 +85,9 @@ const [nameError, setNameError] = useState(false)
 
 ## Inline feedback: `FeedbackSlot` (canonical) vs `FieldFeedback`
 
-Both live in `shared/components/form-field`. **Default to `FeedbackSlot`.**
+Field wrappers and their inner control containers explicitly fill the available width with `w-full min-w-0`. Both feedback components live in `shared/components/form-field`. **Default to `FeedbackSlot`.**
 
-- **`FeedbackSlot`** — animates its *own* height via the CSS grid `0fr → 1fr` rows trick. It occupies **zero height when hidden** and expands to reveal the message when shown, pushing the fields below it down smoothly. Because it reserves its own space only when visible, it never overlaps neighbouring content. This is the canonical inline-feedback control.
+- **`FeedbackSlot`** — animates its *own* height via the CSS grid `0fr → 1fr` rows trick. It occupies **zero height when hidden** and expands to reveal the message when shown, pushing the fields below it down smoothly. Because it reserves its own space only when visible, it never overlaps neighbouring content. Wrapped messages use automatic height and remain fully readable on narrow screens; hidden messages are also hidden from assistive technology. This is the canonical inline-feedback control.
 - **`FieldFeedback`** — a fixed `h-feedback` (20px rendered) row that is always present (opacity-toggled). Use it **only** in a rigid grid/table cell whose row height is already fixed and must not reflow (rare). It has no importers in feature forms today.
 
 **Forbidden pattern — do not reintroduce:** `FieldFeedback` wrapped in a negative-margin compensator (`<div className="-mb-4">…`) to "hide" its reserved height when there's no error. This looks fine with no error but, when the error appears, the message renders *on top of the next field's label* (the `-mb-4` pulls the following field up into the feedback's box). This exact pattern caused a label-overlap regression. If you find a `-mb-4`/`-mb-3` around a feedback row, replace the pair with a plain `FeedbackSlot`.

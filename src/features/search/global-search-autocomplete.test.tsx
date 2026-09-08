@@ -100,8 +100,8 @@ describe('GlobalSearchAutocomplete', () => {
     const { container } = render(<GlobalSearchAutocomplete placeholder="Search…" />)
     typeQuery('git')
 
-    expect(container.querySelector('.mi')?.textContent).toBe('search')
-    expect(Array.from(container.querySelectorAll('.mi')).some((icon) => icon.textContent === 'database')).toBe(true)
+    expect(container.querySelector('svg[data-icon="search"]')).toBeInTheDocument()
+    expect(container.querySelector('svg[data-icon="database"]')).toBeInTheDocument()
     expect(container.querySelector('img[src="https://assets.palladin.io/github.png"]')).toBeInTheDocument()
   })
 
@@ -130,8 +130,7 @@ describe('GlobalSearchAutocomplete', () => {
     const { container } = render(<GlobalSearchAutocomplete placeholder="Search…" />)
     typeQuery('prod')
 
-    const shield = Array.from(container.querySelectorAll('.mi'))
-      .find((icon) => icon.textContent === 'shield')
+    const shield = container.querySelector('svg[data-icon="shield"]')
     expect(shield).toHaveStyle({ color: '#EB4747' })
   })
 

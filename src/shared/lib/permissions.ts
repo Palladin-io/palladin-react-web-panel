@@ -15,3 +15,8 @@ export const PERMISSION_AUDIT_VIEW = 128
 export const PERMISSION_VAULT_MANAGE = 8
 export const PERMISSION_READ_API_KEY = 4096
 export const PERMISSION_WRITE_API_KEY = 8192
+
+export function canPairAgent(permissions: number): boolean {
+  return (permissions & PERMISSION_AGENT_MANAGE) !== 0
+    && (permissions & (PERMISSION_READ_API_KEY | PERMISSION_WRITE_API_KEY)) !== 0
+}

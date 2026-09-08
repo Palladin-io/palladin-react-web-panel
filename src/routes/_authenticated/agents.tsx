@@ -1,7 +1,11 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { AgentsPage } from '../../features/agents'
 import { useAuthStore } from '../../features/auth'
-import { PERMISSION_AGENT_MANAGE } from '../../shared/lib/permissions'
+import {
+  PERMISSION_AGENT_MANAGE,
+  canPairAgent,
+  PERMISSION_WRITE_API_KEY,
+} from '../../shared/lib/permissions'
 
 export const Route = createFileRoute('/_authenticated/agents')({
   beforeLoad: () => {
@@ -14,5 +18,11 @@ export const Route = createFileRoute('/_authenticated/agents')({
 })
 
 function AgentsRoute() {
-  return <AgentsPage />
+  const permissions = useAuthStore((state) => state.permissions)
+  return (
+    <AgentsPage
+      canStartPairing={canPairAgent(permissions)}
+      canCreateApiKey={(permissions & PERMISSION_WRITE_API_KEY) !== 0}
+    />
+  )
 }

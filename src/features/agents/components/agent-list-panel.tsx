@@ -4,15 +4,19 @@ import { ErrorState } from '../../../shared/components/error-state'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { Icon } from '../../../shared/components/icon'
 import { SearchBar } from '../../../shared/components/search-bar'
+import { Button } from '../../../shared/components/button'
 import { AGENT_STATUS_ACTIVE } from '../api/agents-api'
 import { useAgents } from '../use-agents'
 import { AgentCard } from './agent-card'
+import { AddAgentDialog } from './add-agent-dialog'
 
 export { AgentStatusBadge } from './agent-status-badge'
 
 export interface AgentListPanelProps {
   /** Agent currently shown in the right detail panel (split-view). */
   selectedAgentId?: string
+  canStartPairing: boolean
+  canCreateApiKey: boolean
 }
 
 /**
@@ -21,10 +25,15 @@ export interface AgentListPanelProps {
  * row links to `/agents/$agentId`; the currently viewed agent is
  * highlighted with the shared selected-row treatment.
  */
-export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
+export function AgentListPanel({
+  selectedAgentId,
+  canStartPairing,
+  canCreateApiKey,
+}: AgentListPanelProps) {
   const { t } = useTranslation()
   const agents = useAgents()
   const [search, setSearch] = useState('')
+  const [addOpen, setAddOpen] = useState(false)
 
   const list = useMemo(() => agents.data ?? [], [agents.data])
 
@@ -55,6 +64,11 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
             {t('agents.summary', { total: list.length, active: activeCount })}
           </p>
         </div>
+        {canStartPairing ? (
+          <Button variant="accent" size="sm" icon="add" onClick={() => setAddOpen(true)}>
+            {t('agents.add.button')}
+          </Button>
+        ) : null}
       </div>
 
       {agents.isPending ? (
@@ -107,7 +121,11 @@ export function AgentListPanel({ selectedAgentId }: AgentListPanelProps) {
           </ScrollArea>
         </>
       )}
-
+      <AddAgentDialog
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        canCreateApiKey={canCreateApiKey}
+      />
     </div>
   )
 }

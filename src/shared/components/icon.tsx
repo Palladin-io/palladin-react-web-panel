@@ -1,7 +1,9 @@
 import type { CSSProperties } from 'react'
+import { CircleHelp } from 'lucide-react'
+import { ICON_GLYPHS } from './icon-glyphs'
 
 export interface IconProps {
-  /** Material Symbols Rounded glyph name (e.g. `shield`, `arrow_back`). */
+  /** Stable icon name mapped to a bundled Lucide SVG (e.g. `shield`, `arrow_back`). */
   name: string
   /** Design-pixel size before the global comfortable-density scale is applied. */
   size?: number
@@ -13,14 +15,7 @@ export interface IconProps {
   style?: CSSProperties
 }
 
-/**
- * Single inline-glyph component used across the vault screens. Wraps the
- * Material Symbols Rounded webfont so component code reads as
- * `<Icon name="arrow_back" />` instead of leaking the `mi` class string
- * everywhere. Mirrors the Astro design system's `<span class="mi">…`
- * pattern so the React panel stays visually consistent with the
- * prototypes in `../design/astro/`.
- */
+/** Local SVG renderer. Unknown stored names get a visible, font-independent fallback. */
 export function Icon({
   name,
   size = 18,
@@ -29,13 +24,15 @@ export function Icon({
   ariaHidden = true,
   style,
 }: IconProps) {
+  const Glyph = Object.hasOwn(ICON_GLYPHS, name) ? ICON_GLYPHS[name] : CircleHelp
+  const dimension = `calc(${size}px * var(--cv-density-scale, 1))`
   return (
-    <span
+    <Glyph
       aria-hidden={ariaHidden || undefined}
-      className={`mi${className ? ` ${className}` : ''}`}
-      style={{ fontSize: `calc(${size}px * var(--cv-density-scale))`, color, ...style }}
-    >
-      {name}
-    </span>
+      focusable="false"
+      data-icon={name}
+      className={`inline-block shrink-0 align-middle${className ? ` ${className}` : ''}`}
+      style={{ width: dimension, height: dimension, color, ...style }}
+    />
   )
 }
