@@ -173,7 +173,7 @@ describe('TeamMembersPage', () => {
     expect(ownerBadge?.parentElement?.nextElementSibling).toHaveTextContent('alice@example.com')
     expect(screen.getByText(/Joined/).closest('span')).toHaveClass('text-micro')
     expect(screen.getByText('2 roles')).toHaveClass('text-micro')
-    expect(screen.getByText('calendar_today')).toHaveAttribute(
+    expect(document.querySelector('[data-icon="calendar_today"]')).toHaveAttribute(
       'style',
       expect.stringContaining('12px'),
     )
@@ -234,15 +234,11 @@ describe('TeamMembersPage', () => {
     expect(pendingBadge).toHaveClass('text-[var(--cv-info)]')
     expect(pendingBadge?.parentElement).toBe(pendingEmail.parentElement)
     const pendingLink = screen.getByRole('link', { name: /pending@example.com/i })
-    expect(within(pendingLink).getByText('calendar_today')).toHaveAttribute(
-      'style',
-      expect.stringContaining('12px'),
-    )
-    expect(within(pendingLink).getByText('calendar_today')).toHaveClass('shrink-0')
-    expect(within(pendingLink).getByText('schedule')).toHaveAttribute(
-      'style',
-      expect.stringContaining('12px'),
-    )
+    const calendarIcon = pendingLink.querySelector('[data-icon="calendar_today"]')
+    const scheduleIcon = pendingLink.querySelector('[data-icon="schedule"]')
+    expect(calendarIcon).toHaveAttribute('style', expect.stringContaining('12px'))
+    expect(calendarIcon).toHaveClass('shrink-0')
+    expect(scheduleIcon).toHaveAttribute('style', expect.stringContaining('12px'))
     expect(within(pendingLink).getByText('Expires in 3 days')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('!h-6', '!px-2')
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))

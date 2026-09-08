@@ -27,6 +27,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
 import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated/vaults'
+import { Route as AuthenticatedAgentPairingPairingIdRouteImport } from './routes/_authenticated/agent-pairing.$pairingId'
 import { Route as AuthenticatedAgentsAgentIdRouteImport } from './routes/_authenticated/agents_.$agentId'
 import { Route as AuthenticatedApiKeysKeyIdRouteImport } from './routes/_authenticated/api-keys_.$keyId'
 import { Route as AuthenticatedInvitationsAcceptRouteImport } from './routes/_authenticated/invitations.accept'
@@ -137,6 +138,12 @@ const AuthenticatedVaultsRoute = AuthenticatedVaultsRouteImport.update({
   path: '/vaults',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAgentPairingPairingIdRoute =
+  AuthenticatedAgentPairingPairingIdRouteImport.update({
+    id: '/agent-pairing/$pairingId',
+    path: '/agent-pairing/$pairingId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAgentsAgentIdRoute =
   AuthenticatedAgentsAgentIdRouteImport.update({
     id: '/agents_/$agentId',
@@ -276,6 +283,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof AuthenticatedTeamRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
+  '/agent-pairing/$pairingId': typeof AuthenticatedAgentPairingPairingIdRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
   '/invitations/accept': typeof AuthenticatedInvitationsAcceptRoute
@@ -314,6 +322,7 @@ export interface FileRoutesByTo {
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
   '/': typeof AuthenticatedIndexRoute
+  '/agent-pairing/$pairingId': typeof AuthenticatedAgentPairingPairingIdRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
   '/invitations/accept': typeof AuthenticatedInvitationsAcceptRoute
@@ -355,6 +364,7 @@ export interface FileRoutesById {
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
   '/_authenticated/vaults': typeof AuthenticatedVaultsRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/_authenticated/agent-pairing/$pairingId': typeof AuthenticatedAgentPairingPairingIdRoute
   '/_authenticated/agents_/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/_authenticated/api-keys_/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
   '/_authenticated/invitations/accept': typeof AuthenticatedInvitationsAcceptRoute
@@ -396,6 +406,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/unlock'
     | '/vaults'
+    | '/agent-pairing/$pairingId'
     | '/agents/$agentId'
     | '/api-keys/$keyId'
     | '/invitations/accept'
@@ -434,6 +445,7 @@ export interface FileRouteTypes {
     | '/unlock'
     | '/vaults'
     | '/'
+    | '/agent-pairing/$pairingId'
     | '/agents/$agentId'
     | '/api-keys/$keyId'
     | '/invitations/accept'
@@ -474,6 +486,7 @@ export interface FileRouteTypes {
     | '/_authenticated/unlock'
     | '/_authenticated/vaults'
     | '/_authenticated/'
+    | '/_authenticated/agent-pairing/$pairingId'
     | '/_authenticated/agents_/$agentId'
     | '/_authenticated/api-keys_/$keyId'
     | '/_authenticated/invitations/accept'
@@ -631,6 +644,13 @@ declare module '@tanstack/react-router' {
       path: '/vaults'
       fullPath: '/vaults'
       preLoaderRoute: typeof AuthenticatedVaultsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/agent-pairing/$pairingId': {
+      id: '/_authenticated/agent-pairing/$pairingId'
+      path: '/agent-pairing/$pairingId'
+      fullPath: '/agent-pairing/$pairingId'
+      preLoaderRoute: typeof AuthenticatedAgentPairingPairingIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/agents_/$agentId': {
@@ -828,6 +848,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedUnlockRoute: typeof AuthenticatedUnlockRoute
   AuthenticatedVaultsRoute: typeof AuthenticatedVaultsRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
+  AuthenticatedAgentPairingPairingIdRoute: typeof AuthenticatedAgentPairingPairingIdRoute
   AuthenticatedAgentsAgentIdRoute: typeof AuthenticatedAgentsAgentIdRoute
   AuthenticatedApiKeysKeyIdRoute: typeof AuthenticatedApiKeysKeyIdRoute
   AuthenticatedInvitationsAcceptRoute: typeof AuthenticatedInvitationsAcceptRoute
@@ -851,6 +872,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedUnlockRoute: AuthenticatedUnlockRoute,
   AuthenticatedVaultsRoute: AuthenticatedVaultsRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
+  AuthenticatedAgentPairingPairingIdRoute:
+    AuthenticatedAgentPairingPairingIdRoute,
   AuthenticatedAgentsAgentIdRoute: AuthenticatedAgentsAgentIdRoute,
   AuthenticatedApiKeysKeyIdRoute: AuthenticatedApiKeysKeyIdRoute,
   AuthenticatedInvitationsAcceptRoute: AuthenticatedInvitationsAcceptRoute,

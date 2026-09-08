@@ -8,7 +8,7 @@ import { analytics } from '../../../shared/lib/analytics'
 export interface OnboardingChecklistProps {
   /** True once the user has at least one entry in any vault. */
   entryDone: boolean
-  apiKeyDone: boolean
+  onRegisterAgent?: () => void
   agentDone: boolean
   /** True once the user has a mobile push device — hides the mobile step. */
   mobileRegistered: boolean
@@ -22,7 +22,7 @@ export interface OnboardingChecklistProps {
   onDismiss: () => void
 }
 
-type StepKey = 'entry' | 'apiKey' | 'agent' | 'mobile'
+type StepKey = 'entry' | 'agent' | 'mobile'
 
 /**
  * Per-step icon glyph + accent. The accent is an `--cv-onboard-step-*` rgb
@@ -31,7 +31,6 @@ type StepKey = 'entry' | 'apiKey' | 'agent' | 'mobile'
  */
 const STEP_VISUALS: Record<StepKey, { icon: string; accentRgb: string }> = {
   entry: { icon: 'shield', accentRgb: 'var(--cv-onboard-step-vault-rgb)' },
-  apiKey: { icon: 'key', accentRgb: 'var(--cv-onboard-step-apikey-rgb)' },
   agent: { icon: 'smart_toy', accentRgb: 'var(--cv-onboard-step-agent-rgb)' },
   mobile: { icon: 'smartphone', accentRgb: 'var(--cv-onboard-step-mobile-rgb)' },
 }
@@ -45,7 +44,7 @@ function futureOpacity(distance: number): number {
 
 export function OnboardingChecklist({
   entryDone,
-  apiKeyDone,
+  onRegisterAgent,
   agentDone,
   mobileRegistered,
   mobileSkipped,
@@ -66,12 +65,6 @@ export function OnboardingChecklist({
       title: t('dashboard.onboarding.entryTitle'),
       desc: t('dashboard.onboarding.entryDesc'),
       done: entryDone,
-    },
-    {
-      key: 'apiKey',
-      title: t('dashboard.onboarding.apiKeyTitle'),
-      desc: t('dashboard.onboarding.apiKeyDesc'),
-      done: apiKeyDone,
     },
     {
       key: 'agent',
@@ -110,12 +103,9 @@ export function OnboardingChecklist({
     if (key === 'entry') {
       analytics.capture('dashboard', 'onboarding-entry-clicked')
       void navigate({ to: '/vaults' })
-    } else if (key === 'apiKey') {
-      analytics.capture('dashboard', 'onboarding-api-key-clicked')
-      void navigate({ to: '/settings/api-keys' })
     } else if (key === 'agent') {
       analytics.capture('dashboard', 'onboarding-agent-clicked')
-      void navigate({ to: '/agents' })
+      onRegisterAgent?.()
     }
   }
 
@@ -213,6 +203,7 @@ export function OnboardingChecklist({
                       <Button
                         size="sm"
                         onClick={() => handleCtaForStep(step.key)}
+                        disabled={step.key === 'agent' && !onRegisterAgent}
                       >
                         {t(`dashboard.onboarding.cta.${step.key}`)}
                       </Button>

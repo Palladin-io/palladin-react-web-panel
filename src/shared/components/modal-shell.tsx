@@ -1,5 +1,6 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useEffectEvent, useRef, type ReactNode } from 'react'
 import { Icon } from './icon'
+import { useTranslation } from 'react-i18next'
 
 export interface ModalShellProps {
   /** Optional handler — when omitted, the backdrop and Escape key are inert. */
@@ -51,6 +52,8 @@ export function ModalShell({
   width = 480,
   children,
 }: ModalShellProps) {
+  const { t } = useTranslation()
+  const close = useEffectEvent(() => onClose?.())
   const dialogRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -68,11 +71,14 @@ export function ModalShell({
         'select:not([disabled])',
         'textarea:not([disabled])',
         '[tabindex]:not([tabindex="-1"])',
-      ].join(','))).filter((element) => !element.hasAttribute('aria-hidden'))
+      ].join(','))).filter((element) => element.tabIndex >= 0
+        && !element.closest('[hidden], [inert], [aria-hidden="true"]'))
     }
 
     const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose?.()
+      const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]')
+      if (dialogs[dialogs.length - 1] !== dialogRef.current) return
+      if (event.key === 'Escape' && !event.defaultPrevented) close()
       if (!trapFocus || event.key !== 'Tab') return
 
       const dialog = dialogRef.current
@@ -110,7 +116,7 @@ export function ModalShell({
       document.body.style.overflow = previousOverflow
       if (trapFocus && previouslyFocused?.isConnected) previouslyFocused.focus()
     }
-  }, [onClose, trapFocus])
+  }, [trapFocus])
 
   const backdrop = (
     <div aria-hidden onClick={onClose} className="absolute inset-0 h-full w-full bg-black/60" />
@@ -128,11 +134,11 @@ export function ModalShell({
       >
         {backdrop}
         <div
-          className="relative z-10 flex max-h-[86vh] w-full flex-col overflow-hidden rounded-2xl
+          className="relative z-10 flex max-h-[86dvh] w-full min-w-0 flex-col overflow-hidden rounded-2xl
             border border-[var(--cv-border)] bg-[var(--cv-modal-bg)] shadow-xl"
           style={{ maxWidth: `calc(${width}px * var(--cv-density-scale))` }}
         >
-          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--cv-divider)] px-6 py-4">
+          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--cv-divider)] px-4 py-4 sm:px-6">
             <h2 className={`${titleClassName ?? 'text-heading'} font-semibold text-[var(--cv-t1)]`}>
               {title}
             </h2>
@@ -140,20 +146,20 @@ export function ModalShell({
               <button
                 type="button"
                 onClick={onClose}
-                aria-label="Close"
+                aria-label={t('common.close')}
                 className="flex shrink-0 text-[var(--cv-icon-muted)] transition-colors hover:text-[var(--cv-t1)]"
               >
                 <Icon name="close" size={18} />
               </button>
             ) : null}
           </header>
-          <div className="subtle-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-6 py-5">
+          <div className="subtle-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
             {children}
           </div>
           {footer ? (
             <div
               data-testid="modal-footer"
-              className={`shrink-0 border-t border-[var(--cv-divider)] px-6 py-4 ${footerClassName ?? ''}`}
+              className={`shrink-0 border-t border-[var(--cv-divider)] px-4 py-4 sm:px-6 ${footerClassName ?? ''}`}
             >
               {footer}
             </div>

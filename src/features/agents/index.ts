@@ -1,4 +1,6 @@
 export { AgentsPage } from './agents-page'
+export { AgentPairingPage } from './agent-pairing-page'
+export { AddAgentDialog } from './components/add-agent-dialog'
 export type {
   Agent,
   AgentStatus,

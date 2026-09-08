@@ -6,7 +6,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 
 | Component | File | Purpose | Key props / variants |
 |-----------|------|---------|----------------------|
-| `Button` | `shared/components/button.tsx` | Primary interactive button | `variant` (accent / subtle / outline / ghost / danger / positive / premium), `size` (sm / md — **always sm**; sm = `h-action`, 36px high / `text-action`, 14px text), `icon` (Material Symbols glyph). Exports `PREMIUM_BUTTON_SM_CLASS`, `POSITIVE_BUTTON_SM_CLASS` for `<Link>`. |
+| `Button` | `shared/components/button.tsx` | Primary interactive button | `variant` (accent / subtle / outline / ghost / danger / positive / premium), `size` (sm / md — **always sm**; sm = `h-action`, 36px high / `text-action`, 14px text), `icon` (stable local SVG name). Exports `PREMIUM_BUTTON_SM_CLASS`, `POSITIVE_BUTTON_SM_CLASS` for `<Link>`. |
 | `FormInput` | `shared/components/form-field.tsx` | Labelled text input | `label`, `labelSuffix?` (muted adornment, e.g. "· visible to agents"), `labelClassName?` (e.g. `sr-only`), `id`, `borderClass`, `monospace`, `error`, `copyable?`, `trailingAction?` (`{icon,onClick,label,show?}` — e.g. open-URL) + passthrough `InputHTMLAttributes`. |
 | `FieldFeedback` | `shared/components/form-field.tsx` | Fixed-height (`h-feedback`, 20px rendered) field-level error/success row, no layout shift | `visible`, `color` (red / teal), `children`. |
 | `FeedbackSlot` | `shared/components/form-field.tsx` | Animated-height wrapper that slides content in below a field | `visible`, `color`, `children` (grid `0fr→1fr` reveal). |
@@ -23,7 +23,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `ScriptExecHint` | `vaults/components/script-exec-hint.tsx` | Calm `--cv-script` "runs on the agent via exec" annotation under the script editor (not a WarningZone) | none. |
 | `DialogFooter` | `shared/components/dialog-footer.tsx` | Modal footer strip: edge-bleed negative margin, top border, tinted bg | `children` (buttons use `flex-1` / `flex-[2]`). |
 | `ModalShell` | `shared/components/modal-shell.tsx` | Modal scaffold: backdrop, Escape dismiss, body scroll lock, and (with `title`) the canonical header+divider / scroll body / divided footer chrome | `onClose?`, `ariaLabel`, `title?` (ReactNode → renders header + close + divider + scroll body), `footer?` (DialogFooter), `width` (default 480; 560 for forms), `children`. See `docs/architecture/dialogs.md`. |
-| `Icon` | `shared/components/icon.tsx` | Material Symbols Rounded glyph wrapper | `name`, `size` (default 18), `color`, `className`, `ariaHidden`, `style`. |
+| `Icon` | `shared/components/icon.tsx` | Bundled Lucide SVG wrapper with stable legacy names | `name`, `size` (default 18), `color`, `className`, `ariaHidden`, `style`. Unknown names render a local question-mark SVG. |
 | `Tooltip` | `shared/components/tooltip.tsx` | 150ms-delay tooltip portaled to body; shows only when text is truncated | `content`, `children`, `className`, `delayMs`. |
 | `WarningZone` | `shared/components/warning-zone.tsx` | Amber callout for security/irreversible actions | `title` (uppercase heading), `children`. |
 | `ErrorState` | `shared/components/error-state.tsx` | Red-tinted error card with Retry button | `message?`, `onRetry`. |
@@ -51,7 +51,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `password-strength` | `shared/lib/password-strength.ts` | Password score (feeds `PasswordStrengthBar`). |
 | `mnemonic` | `shared/lib/mnemonic.ts` | BIP39 recovery-phrase helpers. |
 | `shorten-key` | `shared/lib/shorten-key.ts` | Prefix+suffix shortening for non-secret IDs/keys. |
-| `analytics` | `shared/lib/analytics.ts` | `capture(module, event)` → auto-prefixes `fe:`. |
+| `analytics` | `shared/lib/analytics.ts` | `capture(module, event)` → auto-prefixes `fe:`; SDK-level URL/referrer fields are stripped and automatic page capture is disabled (see `security.md`). |
 | `download-file` | `shared/lib/download-file.ts` | `downloadTextFile(filename, content, mime?)` — Blob → object-URL → click → revoke. |
 | `permissions` / `jwt` | `shared/lib/permissions.ts`, `shared/lib/jwt.ts` | Permission-bit checks, JWT decode. |
 
@@ -69,7 +69,7 @@ These patterns are duplicated 2+ times with no shared component. Extract on next
 2. **Field feedback** — `FieldFeedback` (fixed height) or `FeedbackSlot` (animated) for inline validation only. API results go to Sonner toasts, never inline.
 3. **Cards / rows hover** — route through `HOVERABLE_CARD_CLASSES`. Never inline `hover:bg-*` / `hover:border-*` / `shadow-*`. (Known offender: `agents/components/agent-card.tsx:39` inlines `hover:bg-[var(--cv-card-hover)]` + `rounded-xl` — align on next touch.)
 4. **Modal footers** — always `DialogFooter` with the 1:2 (`flex-1` / `flex-[2]`) button ratio. Never a hand-rolled `<div className="mt-* flex">`.
-5. **Glyphs** — `Icon` (Material Symbols Rounded). Don't hand-write `<span className="material-symbols-*">`.
+5. **Glyphs** — `Icon` maps existing Material-style names to statically imported Lucide SVGs in `icon-glyphs.ts`. Add new names centrally; never load a remote icon font or render ligature spans.
 6. **Filters** — `TypeFilterDropdown` for multi-select filter chips. Date pickers → `DateTimePicker`, never native `datetime-local`.
 7. **Errors / retries** — `ErrorState` for failed query panels; `ErrorBoundary` at route level.
 8. **Auth surfaces** — `AuthSubmitButton`, `AppWordmark`, and the theme-aware `.auth-surface` / `.auth-glass-button` helpers. The landing-derived `.auth-logo-glow` is light-only and reserved for login/unlock. Never force a nested dark scope.

@@ -31,7 +31,7 @@ describe('AgentIconPicker', () => {
     )
 
     // Preset buttons carry the glyph name as their text content.
-    await user.click(screen.getByText('smart_toy'))
+    await user.click(screen.getByRole('button', { name: 'smart toy' }))
     expect(onChange).toHaveBeenCalledWith('smart_toy')
   })
 
@@ -47,7 +47,7 @@ describe('AgentIconPicker', () => {
       />,
     )
 
-    await user.click(screen.getByText('smart_toy'))
+    await user.click(screen.getByRole('button', { name: 'smart toy' }))
     expect(onChange).toHaveBeenCalledWith(undefined)
   })
 

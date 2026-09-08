@@ -34,11 +34,11 @@ A dialog is: **titled header (with a bottom divider) → internally-scrolling bo
 Owns the backdrop, Escape-to-dismiss, body scroll-lock, and opt-in focus management. Props:
 
 - `ariaLabel` (required), `onClose?`, `width` (default **480**; use **560 for forms**), `children`.
-- `title?` — **pass it to opt into the canonical chrome.** ModalShell then renders the header row (title + close button + `border-b border-[var(--cv-divider)]`), a scrollable body (`max-h-[86vh]`, `overflow-y-auto`, **`overflow-x-hidden`**, `subtle-scrollbar`), and — if `footer` is set — a footer with `border-t`. `title` accepts a `ReactNode` (e.g. an icon + text).
+- `title?` — **pass it to opt into the canonical chrome.** ModalShell then renders the header row (title + close button + `border-b border-[var(--cv-divider)]`), a scrollable body (`max-h-[86dvh]`, `overflow-y-auto`, **`overflow-x-hidden`**, `subtle-scrollbar`), and — if `footer` is set — a footer with `border-t`. `title` accepts a `ReactNode` (e.g. an icon + text).
 - `titleClassName?` — narrow typography hook for the canonical header title; keep the default unless the established surface calls for another design token.
 - `footer?` — the `DialogFooter` element (only used with `title`).
 - `footerClassName?` — narrow surface hook on the canonical footer row; it does not replace `DialogFooter` or its action layout.
-- `trapFocus?` — moves focus to the first focusable control, contains Tab/Shift+Tab, and restores the previously focused element when the dialog closes. Enable it for every new blocking/non-dismissible dialog; never hand-roll focus trapping in a feature component.
+- `trapFocus?` — moves focus to the first focusable control, contains Tab/Shift+Tab, and restores the previously focused element when the dialog closes. Hidden and negative-tab-index controls are skipped; callback changes do not reset focus, and only the topmost modal handles keyboard events. Enable it for every new blocking/non-dismissible dialog; never hand-roll focus trapping in a feature component.
 - Omit `title` for the legacy bare padded box (children own everything). New dialogs should always pass `title`.
 
 ### Form dialogs: submit from the footer

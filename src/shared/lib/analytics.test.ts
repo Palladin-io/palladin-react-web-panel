@@ -27,6 +27,48 @@ describe('analytics', () => {
     vi.clearAllMocks()
   })
 
+  it('removes URL data from the final enriched payload for opaque auth and pairing handles', () => {
+    analytics.init()
+
+    expect(mockPosthog.init).toHaveBeenCalledWith(
+      'phc_test_key',
+      expect.objectContaining({
+        capture_pageview: false,
+        capture_pageleave: false,
+        save_campaign_params: false,
+        save_referrer: false,
+        advanced_disable_feature_flags: true,
+        advanced_disable_feature_flags_on_first_load: true,
+      }),
+    )
+    const config = mockPosthog.init.mock.calls[0][1]
+    const sanitized = config.before_send({
+      uuid: 'event-id',
+      event: 'fe:agents:browser-pairing-approval-submitted',
+      properties: {
+        '$current_url': 'http://127.0.0.1:5173/agent-pairing/opaque-handle',
+        '$pathname': '/agent-pairing/opaque-handle',
+        '$referrer': 'http://127.0.0.1:5173/login?redirect=opaque-handle',
+        '$session_entry_url': 'http://127.0.0.1:5173/agent-pairing/opaque-handle',
+        '$session_entry_pathname': '/agent-pairing/opaque-handle',
+        '$set_once': {
+          '$initial_current_url': 'http://127.0.0.1:5173/agent-pairing/opaque-handle',
+          safeNested: 'value-free',
+        },
+        safe: 'value-free',
+      },
+      $set_once: {
+        '$initial_pathname': '/agent-pairing/opaque-handle',
+        safeTopLevel: 'value-free',
+      },
+    })
+    expect(sanitized.properties).toEqual({
+      '$set_once': { safeNested: 'value-free' },
+      safe: 'value-free',
+    })
+    expect(sanitized.$set_once).toEqual({ safeTopLevel: 'value-free' })
+  })
+
   describe('capture', () => {
     it('calls posthog.capture with fe: prefix', () => {
       analytics.capture('auth', 'login-page-viewed')
