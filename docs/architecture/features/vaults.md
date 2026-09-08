@@ -48,6 +48,16 @@ Recently Deleted uses the cursor-paginated lifecycle endpoint in bounded pages o
 Entry Logs queries structural audit events by the composite opaque Vault and Entry IDs. Structured Agent/event/date filters are applied by the backend before cursor pagination, while free-text search stays local and is never sent as a content query. The fixed Entry label comes from MemberIndex; Agent and Member names come from local structural directories. Deleted or unavailable principals fall back to shortened prefix-and-suffix IDs. Rows reuse the canonical Audit event configuration, preserving the shared semantic color taxonomy and event meanings.
 
 ## Key patterns
+
+CVT-573: Credential form defaults, canonical Entry sealing and discovery
+projection delegate to the same shared package exports as extension capture.
+The form adapter maps canonical field IDs into the existing web UI vocabulary;
+it does not define a second Credential default policy. Cross-consumer tests cover
+create/update decryptability and independent key-wrapper revisions. Other Entry
+types keep their existing Entry sealer; plaintext parsing/projection and complete
+Script package construction use the shared current-contract adapters. The
+manifest and lockfile pin the published registry version 0.6.0.
+
 - **Zero-knowledge local use:** Reveal, Copy and TOTP atomically read only the selected complete current head from IndexedDB, authenticate its access context and structural revision/key bindings, open VK/EntryDEK/MemberSecret in shared crypto code, and keep plaintext in component memory only.
 - **Strict Vault-detail binding:** the encrypted detail contract accepts the server-owned canonical `metadataRevision` and requires it to equal the authenticated Member Vault Metadata envelope revision before any key material is opened.
 - **No read-time detail fetch:** list-row intent no longer prefetches canonical Entry details. Canonical detail queries remain crypto-session-scoped for mutation, Agents and History flows, but current secret use is served only by the authenticated local generation.
