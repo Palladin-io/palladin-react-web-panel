@@ -14,7 +14,7 @@ import {
 } from './agent-presentation'
 
 const COLOR_OPTIONS = [
-  '#EB4747', '#FFAB87', '#60A5FA', '#10B981', '#A78BFA', '#8A95A6',
+  '#E54645', '#FFAB87', '#60A5FA', '#10B981', '#A78BFA', '#8A95A6',
 ] as const
 
 export const DEFAULT_AGENT_COLOR = COLOR_OPTIONS[3]

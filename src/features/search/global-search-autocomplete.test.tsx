@@ -131,7 +131,7 @@ describe('GlobalSearchAutocomplete', () => {
     typeQuery('prod')
 
     const shield = container.querySelector('svg[data-icon="shield"]')
-    expect(shield).toHaveStyle({ color: '#EB4747' })
+    expect(shield).toHaveStyle({ color: '#E54645' })
   })
 
   it('keeps local results visible while the administrative provider is loading or unavailable', () => {

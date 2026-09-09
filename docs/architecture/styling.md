@@ -98,7 +98,7 @@ Each has a solid value and an `-rgb` triplet for alpha tints via `rgb(var(--cv-x
 
 | Token | Value | Role |
 |-------|-------|------|
-| `--cv-primary` / `-hover` / `-rgb` | `#EB4747` / `#D43E3E` / `235 71 71` | Brand red / danger |
+| `--cv-primary` / `-hover` / `-rgb` | `#E54645` / `#D43E3E` / `229 70 69` | Brand red / danger |
 | `--cv-success` / `-rgb` | `#10B981` / `16 185 129` | Success / approved |
 | `--cv-info` / `-rgb` | `#60A5FA` / `96 165 250` | Info |
 | `--cv-pending` / `-rgb` | `#FFAB87` / `255 171 135` | Pending / request access |
@@ -175,7 +175,7 @@ as its surrounding role; only the font family changes.
 ## Adding a new token
 
 1. Add the variable to **both** `:root` and `.dark` in `src/index.css` — never light-only.
-2. If it needs alpha tints, also add an `-rgb` triplet sibling (space-separated, e.g. `235 71 71`) and consume via `rgb(var(--cv-x-rgb) / <alpha>)`.
+2. If it needs alpha tints, also add an `-rgb` triplet sibling (space-separated, e.g. `229 70 69`) and consume via `rgb(var(--cv-x-rgb) / <alpha>)`.
 3. Name by **role, not appearance** (`--cv-empty-border`, not `--cv-grey-12`).
 4. Document it in the matching table above.
 5. Reach for a new token only when an existing one doesn't fit semantically — prefer reuse.
