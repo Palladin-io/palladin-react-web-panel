@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { AppWordmark } from '../../shared/components/app-wordmark'
+import { RotatingWelcome } from '../../shared/components/rotating-welcome'
 import { AuthSubmitButton } from '../../shared/components/auth-submit-button'
 import { FieldFeedback, FormInput } from '../../shared/components/form-field'
 import { analytics } from '../../shared/lib/analytics'
@@ -161,14 +163,11 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
     <div className="auth-surface flex min-h-screen items-center justify-center">
       <div className="auth-logo-glow w-full max-w-[27.5rem] px-6">
         <div className="text-center">
-          <img
-            src="/logo.png"
-            alt={t('auth.appName')}
-            className="mx-auto mb-4 h-16 w-16"
-          />
-          <h1 className="mb-1 text-display font-bold leading-tight text-[var(--cv-t1)]">
-            {t('unlock.title')}
-          </h1>
+          <div className="mb-2 flex justify-center">
+            <AppWordmark size="lg" />
+          </div>
+          <RotatingWelcome className="mb-3" />
+          <h2 className="sr-only">{t('unlock.title')}</h2>
           <p className="mb-7 text-heading-sm text-[var(--cv-auth-muted)]">
             {t('unlock.subtitle')}
           </p>

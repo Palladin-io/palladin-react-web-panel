@@ -4,45 +4,13 @@ import { useNavigate } from '@tanstack/react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppWordmark } from '../../../shared/components/app-wordmark'
+import { RotatingWelcome } from '../../../shared/components/rotating-welcome'
 import { AuthRateLimitError } from '../api/auth-api'
 import { useLogin } from '../hooks/use-login'
 import { usePasswordLogin } from '../hooks/use-password-login'
 import { clearClientSession } from '../session/client-session'
 import { EmailPasswordForm } from './email-password-form'
 import { TotpChallengeStep } from './totp-challenge-step'
-
-const WELCOME_MESSAGE_KEYS = [
-  'auth.welcomeLine1',
-  'auth.welcomeLine2',
-  'auth.welcomeLine3',
-  'auth.welcomeLine4',
-]
-
-function RotatingWelcome() {
-  const { t } = useTranslation()
-  const [index, setIndex] = useState(0)
-  const [visible, setVisible] = useState(true)
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setVisible(false)
-      setTimeout(() => {
-        setIndex((prev) => (prev + 1) % WELCOME_MESSAGE_KEYS.length)
-        setVisible(true)
-      }, 350)
-    }, 3800)
-    return () => clearInterval(id)
-  }, [])
-
-  return (
-    <p
-      className="mb-7 h-4 text-ui text-[var(--cv-auth-muted)] transition-opacity duration-300"
-      style={{ opacity: visible ? 1 : 0 }}
-    >
-      {t(WELCOME_MESSAGE_KEYS[index])}
-    </p>
-  )
-}
 
 interface LoginPageProps {
   redirectTo?: string

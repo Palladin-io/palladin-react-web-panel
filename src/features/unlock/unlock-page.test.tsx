@@ -98,6 +98,8 @@ describe('UnlockPage', () => {
     expect(
       screen.getByRole('link', { name: /forgot password/i }),
     ).toHaveAttribute('href', '/recovery')
+    expect(screen.getByRole('heading', { name: 'Palladin.io' })).toBeInTheDocument()
+    expect(screen.getByText('Zero-knowledge by design.')).toBeInTheDocument()
     expect(container.firstElementChild).toHaveClass('auth-surface')
     expect(container.firstElementChild).not.toHaveClass('dark')
     expect(container.querySelector('.auth-logo-glow')).toBeInTheDocument()
