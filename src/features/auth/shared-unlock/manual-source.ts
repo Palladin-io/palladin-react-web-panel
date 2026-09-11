@@ -59,6 +59,10 @@ export function getSharedUnlockClosingWitness() {
   return getAuthority().closingWitness()
 }
 
+export function getSharedUnlockManualLockCheckpoints() {
+  return getAuthority().manualLockCheckpoints()
+}
+
 export function isManualSharedUnlockPreparing(): boolean {
   return getAuthority().isManualPreparationPending()
 }

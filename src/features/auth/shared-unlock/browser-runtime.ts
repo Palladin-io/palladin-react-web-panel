@@ -15,7 +15,7 @@ import { SharedUnlockApi, SharedUnlockApiError } from './api'
 import { startSharedUnlockBrowserCoordinator } from './browser-coordinator'
 import type { SharedUnlockBrowserRoute } from './browser-channel'
 import { sharedUnlockLinks as links } from './link-runtime'
-import { acceptSharedUnlockPreference, adoptSharedUnlockSource, getSharedUnlockClosingWitness, getSharedUnlockSourceSnapshot, isManualSharedUnlockPreparing, subscribeSharedUnlockSource } from './manual-source'
+import { acceptSharedUnlockPreference, adoptSharedUnlockSource, getSharedUnlockClosingWitness, getSharedUnlockManualLockCheckpoints, getSharedUnlockSourceSnapshot, isManualSharedUnlockPreparing, subscribeSharedUnlockSource } from './manual-source'
 import { beginSharedUnlockSource } from './source'
 import { beginSharedUnlockReceiver } from './receiver'
 
@@ -45,25 +45,26 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
     nonce, subscribe,
     capture: () => {
       const own = useAuthStore.getState(), root = getSharedUnlockClosingWitness()
+      const manualLockCheckpoints = getSharedUnlockManualLockCheckpoints()
       if (!own.userId || !own.accessToken || !own.refreshToken) return null
       const abort = new AbortController()
       const check = () => {
         const current = useAuthStore.getState(), authority = getSharedUnlockClosingWitness()
         if (abort.signal.aborted || current.cryptoSessionGeneration !== own.cryptoSessionGeneration || current.isVaultLocked !== own.isVaultLocked
           || current.userId !== own.userId || current.accessToken !== own.accessToken || current.refreshToken !== own.refreshToken
-          || authority?.authorizationId !== root?.authorizationId || authority?.sourceGeneration !== root?.sourceGeneration) throw new Error('Shared link own root changed')
+          || authority?.authorizationId !== root?.authorizationId || authority?.sourceGeneration !== root?.sourceGeneration
+          || getSharedUnlockManualLockCheckpoints() !== manualLockCheckpoints) throw new Error('Shared link own root changed')
       }
       const unwatch = subscribe(() => { try { check() } catch { abort.abort() } })
       return { session: { apiUrl: route.apiUrl, userId: own.userId, accessToken: own.accessToken, refreshToken: own.refreshToken },
-        sequence: root?.sequence, signal: abort.signal, assertCurrent: check, dispose: () => { unwatch(); abort.abort() } }
+        sequence: root?.sequence, manualLockCheckpoints, signal: abort.signal, assertCurrent: check, dispose: () => { unwatch(); abort.abort() } }
     },
     closeSession: async action => {
       if (action === 'logout') await clearClientSession()
       else if (!useAuthStore.getState().isVaultLocked) {
-        // During fresh own manual authorization, a rootless Identity read
-        // still refers to the previous root. Completion notifies the monitor
-        // to compare against the new root; failure/timeout ends this deferral.
-        if (!getSharedUnlockClosingWitness() && isManualSharedUnlockPreparing()) return
+        // Only defer until the manual attempt captures its authenticated closing
+        // boundary. Once captured, the monitor must apply every newer lock.
+        if (!getSharedUnlockClosingWitness() && getSharedUnlockManualLockCheckpoints() === null && isManualSharedUnlockPreparing()) return
         useAuthStore.getState().lockVault()
       }
     },

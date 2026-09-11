@@ -9,16 +9,17 @@ import { adoptSharedUnlockSource, getSharedUnlockSourceSnapshot, prepareManualSh
 import type { AccountResponse } from '../../../shared/api/account-api'
 import fixtures from './fixtures/session-api-v1.json'
 import { sharedUnlockLinks } from './link-runtime'
+import { env } from '../../../shared/lib/env'
 
 vi.mock('../../../shared/lib/env', () => ({ env: { apiUrl: 'https://api.example.test', sharedUnlockExtensionId: '' } }))
 const apiUrl = 'https://api.example.test', root = fixtures.operations[0].sourceAuthorization
 const scope = { apiUrl, accountId: root.accountId }
 let now = root.unlockedAtMs + 1
 const cleanup: (() => void)[] = []
-function start() {
+function start(webOrigin = 'https://web.test') {
   const abort = new AbortController(), listeners = new Set<(message: SharedUnlockOperationMessage) => void>()
   const sent: SharedUnlockOperationMessage[] = []
-  const route: SharedUnlockBrowserRoute = { apiUrl, webOrigin: 'https://web.test', extensionId: 'a'.repeat(32),
+  const route: SharedUnlockBrowserRoute = { apiUrl, webOrigin, extensionId: 'a'.repeat(32),
     channelId: 'A'.repeat(43), documentBinding: 'own-document', signal: abort.signal,
     close: () => abort.abort(), assertCurrent: () => { if (abort.signal.aborted) throw new Error('retired') },
     verifyCurrent: async () => { route.assertCurrent() }, sendOperation: message => { sent.push(message) },
@@ -34,9 +35,38 @@ beforeEach(() => {
   useAuthStore.setState({ userId: root.accountId, accessToken: 'own-access', refreshToken: 'own-refresh' })
 })
 afterEach(() => {
+  env.sharedUnlockExtensionId = ''
   for (const close of cleanup.splice(0)) close()
   useAuthStore.getState().logout(); localStorage.clear(); sharedUnlockPreferences.clear()
   vi.restoreAllMocks(); vi.unstubAllGlobals()
+})
+
+it('keeps a fresh own manual unlock after sharing returns 429, but applies a later shared lock', async () => {
+  env.sharedUnlockExtensionId = 'a'.repeat(32)
+  const linkId = '22222222-2222-4222-8222-222222222222'
+  await sharedUnlockLinks.adopt({ ...scope, webOrigin: window.location.origin, extensionId: env.sharedUnlockExtensionId }, linkId)
+  let barrier = 3
+  const fetcher = vi.fn<typeof fetch>(async url => {
+    if (String(url).endsWith('/authorizations')) return new Response('{}', { status: 429 })
+    return new Response(JSON.stringify(String(url).endsWith('/session-state')
+      ? { action: 'lock', link: { linkId, revision: barrier, epoch: barrier, state: 'locked', lastInvalidationSequence: barrier, lastLogoutSequence: 0 } }
+      : { sharedUnlockEnabled: true, revision: 1 }))
+  })
+  vi.stubGlobal('fetch', fetcher)
+  useAuthStore.getState().unlockVault(new Uint8Array(32).fill(3), new Uint8Array(32).fill(4))
+  const own = useAuthStore.getState(), proof = new Uint8Array(32).fill(7)
+  await prepareManualSharedUnlock({ userId: root.accountId, kdf: { credentialRevision: 1, privateKeyWrapRevision: 1 } } as AccountResponse, proof)
+  expect(getSharedUnlockSourceSnapshot().authorization).toBeNull()
+  expect(proof).toEqual(new Uint8Array(32))
+  const f = start(window.location.origin)
+  await vi.waitFor(() => expect(fetcher.mock.calls.some(([url]) => String(url).endsWith('/session-state'))).toBe(true))
+  await new Promise(resolve => setTimeout(resolve, 20))
+  expect(useAuthStore.getState()).toMatchObject({ isVaultLocked: false, masterKey: own.masterKey,
+    privateKey: own.privateKey, unlockLimits: own.unlockLimits, cryptoSessionGeneration: own.cryptoSessionGeneration })
+  barrier++
+  f.emit({ attemptId: 'B'.repeat(42) + 'A', payload: { kind: 'link-invalidated' } })
+  await vi.waitFor(() => expect(useAuthStore.getState().isVaultLocked).toBe(true))
+  expect(useAuthStore.getState().masterKey).toBeNull()
 })
 
 it('repairs OFF and ON through the real Web coordinator without Settings, key replacement or renewed authority', async () => {
@@ -167,9 +197,10 @@ it('does not apply a delayed closing read to a newer real Web login', async () =
   expect(useAuthStore.getState()).toMatchObject({ userId: '99999999-9999-4999-8999-999999999999', accessToken: 'next-access' })
 })
 
-it('does not relock a new manual unlock from the previous root while its fresh authorization is pending', async () => {
+it.each([false, true])('acknowledges the prior manual lock but applies a newer lock while authorization is pending=%s', async pending => {
+  env.sharedUnlockExtensionId = 'a'.repeat(32)
   const linkId = '22222222-2222-4222-8222-222222222222'
-  await sharedUnlockLinks.adopt({ ...scope, webOrigin: 'https://web.test', extensionId: 'a'.repeat(32) }, linkId)
+  await sharedUnlockLinks.adopt({ ...scope, webOrigin: window.location.origin, extensionId: env.sharedUnlockExtensionId }, linkId)
   let authorize!: (response: Response) => void
   let barrier = root.sequence - 1
   const link = () => ({ linkId, revision: 3, epoch: 3, state: 'locked', lastInvalidationSequence: barrier, lastLogoutSequence: 0 })
@@ -183,17 +214,23 @@ it('does not relock a new manual unlock from the previous root while its fresh a
   const own = useAuthStore.getState(), proof = new Uint8Array(32).fill(7)
   const preparing = prepareManualSharedUnlock({ userId: root.accountId, kdf: { credentialRevision: 1, privateKeyWrapRevision: 1 } } as AccountResponse, proof)
   await vi.waitFor(() => expect(authorize).toBeTypeOf('function'))
-  const f = start()
+  const f = start(window.location.origin)
   await vi.waitFor(() => expect(fetcher.mock.calls.some(([url]) => String(url).endsWith('/session-state'))).toBe(true))
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(useAuthStore.getState()).toMatchObject({ isVaultLocked: false, masterKey: own.masterKey, cryptoSessionGeneration: own.cryptoSessionGeneration })
-  authorize(new Response(JSON.stringify(root))); await preparing
-  expect(getSharedUnlockSourceSnapshot().authorization?.sequence).toBe(root.sequence)
-  expect(proof).toEqual(new Uint8Array(32))
+  if (!pending) {
+    authorize(new Response(JSON.stringify(root))); await preparing
+    expect(getSharedUnlockSourceSnapshot().authorization?.sequence).toBe(root.sequence)
+  }
   barrier = root.sequence
   f.emit({ attemptId: 'B'.repeat(42) + 'A', payload: { kind: 'link-invalidated' } })
   await vi.waitFor(() => expect(useAuthStore.getState().isVaultLocked).toBe(true))
   expect(useAuthStore.getState().masterKey).toBeNull()
+  expect(proof).toEqual(new Uint8Array(32))
+  if (pending) {
+    authorize(new Response(JSON.stringify(root))); await preparing
+    expect(getSharedUnlockSourceSnapshot().authorization).toBeNull()
+  }
 })
 
 it('applies own logout immediately even while a fresh manual authorization is pending', async () => {

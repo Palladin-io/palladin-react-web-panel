@@ -4,6 +4,7 @@ import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import type { SessionUnlockLimits } from '../lib/session-limits'
 import { SharedUnlockApi, SharedUnlockApiError, type SharedUnlockOwnSession } from './api'
 import type { SharedUnlockAuthorization, SharedUnlockPreference } from './api-types'
+import type { SharedUnlockManualLockCheckpoint } from './manual-lock-checkpoint'
 
 export interface ManualUnlockContext {
   readonly session: SharedUnlockOwnSession
@@ -27,10 +28,10 @@ export class SharedUnlockSourceAuthority {
 
   private readonly api: SharedUnlockApi
   private readonly now: () => number
-  private readonly beforeAuthorize: ((session: SharedUnlockOwnSession, signal: AbortSignal, check: () => void) => Promise<void>) | undefined
+  private readonly beforeAuthorize: ((session: SharedUnlockOwnSession, signal: AbortSignal, check: () => void) => Promise<readonly SharedUnlockManualLockCheckpoint[] | void>) | undefined
   private readonly onAuthorized: ((authorization: SharedUnlockAuthorization, session: SharedUnlockOwnSession) => void | number | Promise<number>) | undefined
   constructor(api: SharedUnlockApi, now: () => number = Date.now,
-    beforeAuthorize?: (session: SharedUnlockOwnSession, signal: AbortSignal, check: () => void) => Promise<void>,
+    beforeAuthorize?: (session: SharedUnlockOwnSession, signal: AbortSignal, check: () => void) => Promise<readonly SharedUnlockManualLockCheckpoint[] | void>,
     onAuthorized?: (authorization: SharedUnlockAuthorization, session: SharedUnlockOwnSession) => void | number | Promise<number>) {
     this.onAuthorized = onAuthorized
     this.api = api
@@ -39,6 +40,11 @@ export class SharedUnlockSourceAuthority {
   }
 
   private closingRoot: { authorizationId: string; sequence: number; sourceGeneration: string } | null = null;
+  private manualLocks: readonly SharedUnlockManualLockCheckpoint[] | null = null;
+  manualLockCheckpoints(): readonly SharedUnlockManualLockCheckpoint[] | null {
+    try { this.checkSession?.(); } catch { this.reset(); }
+    return this.manualLocks;
+  }
   /** A verified own manual unlock is replacing the previous server root.
    * A rootless lock read still describes that previous root until authorize
    * finishes. This bounded state never defers logout or grants peer authority. */
@@ -103,6 +109,7 @@ export class SharedUnlockSourceAuthority {
 
   reset(): void {
     this.closingRoot = null;
+    this.manualLocks = null;
     this.activities.clear();
     this.version += 1
     this.controller?.abort()
@@ -160,8 +167,12 @@ export class SharedUnlockSourceAuthority {
       const generation = encodeBase64Url(bytes)
       wipe(bytes)
       check()
-      await this.beforeAuthorize?.(session, controller.signal, check)
+      const priorLocks = await this.beforeAuthorize?.(session, controller.signal, check)
       check()
+      // This authenticated read is the manual attempt's closing boundary.
+      // A later lock still wins, including while authorization is pending.
+      this.manualLocks = Object.freeze((priorLocks ?? []).map(lock => Object.freeze({ ...lock })))
+      this.checkSession = context.assertCurrent
       const preference = await this.api.readPreference(session, controller.signal)
       check()
       this.state = { preference, authorization: null, sourceGeneration: null }
@@ -184,6 +195,7 @@ export class SharedUnlockSourceAuthority {
       if (persistedDeadline !== undefined) authorization = { ...authorization, idleDeadlineMs: Math.min(authorization.idleDeadlineMs, persistedDeadline) };
       check()
       this.closingRoot = { authorizationId: authorization.authorizationId, sequence: authorization.sequence, sourceGeneration: generation };
+      this.manualLocks = null;
       this.checkSession = context.assertCurrent
       this.state = { preference, authorization, sourceGeneration: generation }
     } catch {
