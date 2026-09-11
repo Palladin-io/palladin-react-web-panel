@@ -31,6 +31,8 @@ export interface SharedUnlockLinkMarker extends SharedUnlockLinkScope {
   readonly pending: readonly SharedUnlockClosingIntent[];
   /** Local revocation latch cleared only by the exact explicit reconnect. */
   readonly disconnectId: string | null;
+  /** Durable own explicit-reconnect delivery hint; never Identity authority. */
+  readonly reconnectRevision?: number | null;
 }
 
 const uint = z.number().int().min(0).max(0xffff_ffff);
@@ -39,7 +41,7 @@ const linkSchema = z.object({ linkId: uuid, revision: uint, epoch: uint,
   state: z.enum(["active", "locked", "revoked"]), lastInvalidationSequence: uint, lastLogoutSequence: uint }).strict();
 const markerSchema = z.object({ version: z.literal(1), apiUrl: z.string().min(1).max(2048),
   webOrigin: z.string().min(1).max(2048), extensionId: z.string().min(1).max(256), accountId: uuid, linkId: uuid,
-  observed: linkSchema.nullable(), disconnectId: uuid.nullable(), pending: z.array(z.object({ id: uuid, action: z.enum(["lock", "logout", "disconnect"]),
+  observed: linkSchema.nullable(), reconnectRevision: uint.nullable().default(null), disconnectId: uuid.nullable(), pending: z.array(z.object({ id: uuid, action: z.enum(["lock", "logout", "disconnect"]),
     expectedRevision: uint, preferenceRevision: uint.nullable() }).strict()).max(2) }).strict();
 
 export class SharedUnlockLinkStorageError extends Error {
@@ -49,6 +51,7 @@ export class SharedUnlockLinkStorageError extends Error {
 /** An origin-wide Web Lock serializes reads and writes across documents. Logout deliberately does not delete these nonsensitive
  * records: deletion could turn an explicit revocation into automatic first use. */
 export class SharedUnlockLinkStore {
+  private readonly reconnectListeners = new Set<(scope: SharedUnlockLinkScope) => void>();
   private tail: Promise<void> = Promise.resolve();
   private readonly pendingWrites = new Map<string, SharedUnlockLinkMarker>();
   private readonly storage: StorageArea;
@@ -57,6 +60,31 @@ export class SharedUnlockLinkStore {
   constructor(storage: StorageArea, newId: () => string = () => crypto.randomUUID(),
     exclusive: <T>(action: () => Promise<T>) => Promise<T> = browserExclusive) {
     this.storage = storage; this.newId = newId; this.exclusive = exclusive;
+  }
+
+  subscribeReconnect(listener: (scope: SharedUnlockLinkScope) => void): () => void {
+    this.reconnectListeners.add(listener);
+    return () => { this.reconnectListeners.delete(listener); };
+  }
+
+  /** An ACK only settles delivery of this exact own invitation. It cannot clear
+   * revocation, change Identity state or install a session. */
+  acknowledgeReconnectDelivery(scope: SharedUnlockLinkScope, linkId: string, revision: number,
+    assertOwnCurrent: () => void): Promise<void> {
+    const selected = { ...scope };
+    return this.serial(async () => {
+      assertOwnCurrent();
+      const marker = await this.require(selected, linkId);
+      assertOwnCurrent();
+      if (marker.disconnectId || marker.reconnectRevision !== revision) return;
+      try {
+        await this.save(selected, { ...marker, reconnectRevision: null });
+        assertOwnCurrent();
+      } catch (error) {
+        try { await this.save(selected, marker); } catch { /* Retry the exact invitation after repair. */ }
+        throw error;
+      }
+    });
   }
 
   read(scope: SharedUnlockLinkScope): Promise<SharedUnlockLinkMarker | null> {
@@ -88,7 +116,7 @@ export class SharedUnlockLinkStore {
     return this.serial(async () => {
       const existing = await this.load(selected);
       if (existing) return existing;
-      const marker: SharedUnlockLinkMarker = { ...selected, version: 1, linkId: this.newId(), observed: null, pending: [], disconnectId: null };
+      const marker: SharedUnlockLinkMarker = { ...selected, version: 1, linkId: this.newId(), observed: null, pending: [], disconnectId: null, reconnectRevision: null };
       await this.save(selected, marker);
       return marker;
     });
@@ -104,7 +132,7 @@ export class SharedUnlockLinkStore {
         if (existing.linkId !== linkId) throw new SharedUnlockLinkStorageError();
         return existing;
       }
-      const marker: SharedUnlockLinkMarker = { ...selected, version: 1, linkId, observed: null, pending: [], disconnectId: null };
+      const marker: SharedUnlockLinkMarker = { ...selected, version: 1, linkId, observed: null, pending: [], disconnectId: null, reconnectRevision: null };
       await this.save(selected, marker);
       return marker;
     });
@@ -116,6 +144,7 @@ export class SharedUnlockLinkStore {
       const marker = await this.require(selected, received.linkId);
       const observed = this.latest(marker.observed, received);
       const updated = { ...marker, observed,
+        reconnectRevision: observed.state === "revoked" ? null : (marker.reconnectRevision ?? null),
         disconnectId: marker.disconnectId ?? (observed.state === "revoked" ? this.newId() : null) };
       await this.save(selected, updated);
       return updated;
@@ -140,7 +169,7 @@ export class SharedUnlockLinkStore {
       const pending = marker.pending.filter(intent => intent !== previous);
       if (action === "disconnect") pending.push(next);
       else pending.unshift(next);
-      const updated = { ...marker, pending, disconnectId: action === "disconnect" ? next.id : marker.disconnectId };
+      const updated = { ...marker, pending, reconnectRevision: action === "disconnect" ? null : (marker.reconnectRevision ?? null), disconnectId: action === "disconnect" ? next.id : marker.disconnectId };
       await this.save(selected, updated);
       return updated;
     });
@@ -156,6 +185,7 @@ export class SharedUnlockLinkStore {
       if (received.linkId !== linkId) throw new SharedUnlockLinkStorageError();
       const observed = this.latest(marker.observed, received);
       const updated = { ...marker, observed,
+        reconnectRevision: observed.state === "revoked" ? null : (marker.reconnectRevision ?? null),
         disconnectId: marker.disconnectId ?? (observed.state === "revoked" ? this.newId() : null),
         pending: marker.pending.filter(intent => intent.id !== intentId) };
       await this.save(selected, updated);
@@ -178,7 +208,7 @@ export class SharedUnlockLinkStore {
   /** Called only for the receipt of an explicit reconnect. A later disconnect
    * or closing action invalidates this receipt; a background read never clears it. */
   acknowledgeReconnect(scope: SharedUnlockLinkScope, linkId: string, disconnectId: string,
-    response: SharedUnlockLink, assertOwnCurrent: () => void = () => {}): Promise<SharedUnlockLinkMarker> {
+    response: SharedUnlockLink, assertOwnCurrent: () => void = () => {}, announce = false): Promise<SharedUnlockLinkMarker> {
     const selected = { ...scope }, received = projectLink(response);
     assertOwnCurrent();
     return this.serial(async () => {
@@ -187,15 +217,19 @@ export class SharedUnlockLinkStore {
       assertOwnCurrent();
       if (received.linkId !== linkId || marker.disconnectId !== disconnectId || marker.pending.length
         || (marker.observed && marker.observed.revision > received.revision)) throw new SharedUnlockLinkStorageError();
-      const updated = { ...marker, observed: this.latest(marker.observed, received), disconnectId: null };
+      const updated = { ...marker, observed: this.latest(marker.observed, received), disconnectId: null,
+        reconnectRevision: announce ? received.revision : (marker.reconnectRevision ?? null) };
       try {
         await this.save(selected, updated);
         assertOwnCurrent();
       } catch (error) {
         // A failed or cancelled clear cannot become a successful reconnect on repair.
-        try { await this.save(selected, { ...updated, disconnectId: marker.disconnectId }); }
+        try { await this.save(selected, { ...updated, disconnectId: marker.disconnectId, reconnectRevision: (marker.reconnectRevision ?? null) }); }
         catch { /* The retained exact denial remains in pendingWrites. */ }
         throw error;
+      }
+      if (announce) for (const listener of this.reconnectListeners) {
+        try { listener({ ...selected }); } catch { /* Durable outbox is retried on route repair. */ }
       }
       return updated;
     });
@@ -248,6 +282,7 @@ export class SharedUnlockLinkStore {
     this.pendingWrites.set(key, marker);
     await this.storage.set({ [key]: { version: 1, apiUrl: scope.apiUrl, webOrigin: scope.webOrigin,
       extensionId: scope.extensionId, accountId: scope.accountId, linkId: marker.linkId,
+      reconnectRevision: marker.reconnectRevision ?? null,
       observed: marker.observed ? projectLink(marker.observed) : null, disconnectId: marker.disconnectId,
       pending: marker.pending.map(intent => ({ id: intent.id, action: intent.action, expectedRevision: intent.expectedRevision,
         preferenceRevision: intent.preferenceRevision })) } });

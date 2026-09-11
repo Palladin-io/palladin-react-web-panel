@@ -542,9 +542,45 @@ Reconnect ends in a locked new backend epoch. Web therefore locks its own keys
 after clearing its latch; a later manual unlock establishes a root newer than
 that barrier. No activation, password proof or account preference is fabricated.
 
-**Still required before merge:** peer acknowledgement of explicit reconnect,
-Extension Settings controls and their two-host composition, verified live trust/
-account-mismatch/unsupported presentation, rootless/restarted handling and full
-native acceptance. This increment implements Web's own local action and storage
-fences; it does not complete one-click cross-client reconnect. Until the peer
-path is connected, its retained revocation can still block a subsequent handoff.
+The own action now records a durable explicit reconnect invitation for the peer
+monitor below. Extension Settings actions, tokenless/restarted handling and full
+native acceptance remain incomplete.
+
+## Explicit reconnect delivery between authenticated peers
+
+The strict private browser vocabulary now has `link-reconnect` and
+`link-reconnect-ack`, carrying only opaque account/link IDs and a reconnect
+revision. An optional nonsensitive `reconnectRevision` on the existing local
+marker records an own successful explicit reconnect that still needs delivery.
+Old version-one markers default to no invitation. New disconnect or observed
+revocation removes the invitation; failed/cancelled clear never publishes it.
+
+`reconnect-monitor` sends that outbox through the verified browser route on own
+lifecycle changes, a local explicit-action notification and fifteen-second
+repair. Matching ACK settles only that exact outbox entry. The peer compares
+account/link with its independently captured own session and local pairing, then
+fetches the link through its own Identity JWT. Only a current non-revoked response,
+an invitation newer than its observed revocation, no pending closing, and the
+exact captured disconnect ID may clear its latch. A peer observation does not
+create another invitation. Late own-session/storage cancellation restores denial.
+
+Work coalesces to one run plus one queued request, at most one start per second,
+with a two-second timer and wall-clock deadline for storage, REST and route
+verification. Incoming invitation and ACK each occupy at most one RAM slot.
+Retries use fresh control nonces, never replay crypto handoffs. Route closure
+disposes leases/subscriptions/timers. No key, token, root age or account preference
+is copied or changed, and a failed preference-save pause remains intact.
+
+Both production route compositions use their own token-only lifecycle capture;
+locked keys with a current own JWT can acknowledge. Tests cover a two-monitor
+pair with distinct JWTs, outbox restart/ACK/no echo, old/new disconnect races,
+account/link mismatch, no own auth, offline/timeout and cancelled storage. Runtime
+composition tests use actual markers and the Web auth store or the worker's own
+session boundary with synthetic Identity responses.
+
+**Remaining release gates:** a restarted/tokenless peer cannot use a hint as
+Identity authority, so this path waits for its own authentication. Rootless
+reconnect/group closing, Extension Settings actions, trust/unlock presentation,
+independent multi-document limits and real Identity/MK/Entry E2E on the entire
+browser/OS/distributed-artifact matrix remain unfinished. This is not full native
+cross-client reconnect acceptance.

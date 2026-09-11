@@ -74,7 +74,7 @@ export async function reconnectSharedUnlockLink(input: SharedUnlockLinkAction): 
     // An explicit retry may finish a local clear after Identity already reconnected.
     const receipt = link.state === 'revoked' ? await wait(api.reconnect(session, input.linkId, link.revision, signal)) : link
     check()
-    await wait(sharedUnlockLinks.acknowledgeReconnect(captured.scope, input.linkId, disconnectId, receipt, check)); check()
+    await wait(sharedUnlockLinks.acknowledgeReconnect(captured.scope, input.linkId, disconnectId, receipt, check, true)); check()
     captured.own.lockVault()
   })
 }

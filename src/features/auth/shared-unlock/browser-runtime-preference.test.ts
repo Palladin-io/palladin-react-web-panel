@@ -7,6 +7,7 @@ import { sharedUnlockPreferences } from './preference-state-runtime'
 import { sharedUnlockPreferenceGate } from './preference-runtime'
 import { adoptSharedUnlockSource, getSharedUnlockSourceSnapshot } from './manual-source'
 import fixtures from './fixtures/session-api-v1.json'
+import { sharedUnlockLinks } from './link-runtime'
 
 vi.mock('../../../shared/lib/env', () => ({ env: { apiUrl: 'https://api.example.test', sharedUnlockExtensionId: '' } }))
 const apiUrl = 'https://api.example.test', root = fixtures.operations[0].sourceAuthorization
@@ -23,7 +24,7 @@ function start() {
     onOperation: listener => { listeners.add(listener); return () => { listeners.delete(listener) } } }
   const runtime = coordinateSharedUnlockBrowser(route)
   cleanup.push(() => { runtime.close(); route.close(); expect(listeners.size).toBe(0) })
-  return { sent, hint: () => { now += 1001; for (const listener of listeners) listener({ attemptId: 'B'.repeat(42) + 'A', payload: { kind: 'preference-invalidated' } }) } }
+  return { sent, emit: (message: SharedUnlockOperationMessage) => { now += 1001; for (const listener of listeners) listener(message) }, hint: () => { now += 1001; for (const listener of listeners) listener({ attemptId: 'B'.repeat(42) + 'A', payload: { kind: 'preference-invalidated' } }) } }
 }
 beforeEach(() => {
   now = root.unlockedAtMs + 1
@@ -85,4 +86,26 @@ it('rejects a delayed own preference after the real auth store changes accounts'
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(observed).not.toHaveBeenCalled(); expect(sharedUnlockPreferences.isDisabled(scope)).toBe(false)
   expect(useAuthStore.getState().accessToken).toBe('next-access')
+})
+
+it('connects explicit peer reconnect to the locked Web own JWT while preserving a failed preference save', async () => {
+  const linkScope = { ...scope, webOrigin: 'https://web.test', extensionId: 'a'.repeat(32) }
+  const linkId = '22222222-2222-4222-8222-222222222222'
+  const revoked = { linkId, revision: 2, epoch: 2, state: 'revoked' as const, lastInvalidationSequence: 2, lastLogoutSequence: 0 }
+  await sharedUnlockLinks.adopt(linkScope, linkId); await sharedUnlockLinks.observe(linkScope, revoked)
+  await sharedUnlockPreferenceGate.pause(scope)
+  const initial = useAuthStore.getState()
+  const fetcher = vi.fn<typeof fetch>(async url => new Response(JSON.stringify(String(url).endsWith('/' + linkId)
+    ? { ...revoked, state: 'locked', revision: 3, epoch: 3, lastInvalidationSequence: 3 }
+    : { sharedUnlockEnabled: true, revision: 1 })))
+  vi.stubGlobal('fetch', fetcher)
+  const f = start(); await vi.waitFor(() => expect(fetcher).toHaveBeenCalled())
+  f.emit({ attemptId: 'B'.repeat(42) + 'A', payload: { kind: 'link-reconnect', accountId: scope.accountId, linkId, reconnectRevision: 3 } })
+  await vi.waitFor(() => expect(f.sent.some(message => message.payload.kind === 'link-reconnect-ack')).toBe(true))
+  expect((await sharedUnlockLinks.read(linkScope))?.disconnectId).toBeNull()
+  expect(await sharedUnlockPreferenceGate.isAllowed(scope)).toBe(false)
+  expect(useAuthStore.getState()).toMatchObject({ userId: initial.userId, accessToken: initial.accessToken,
+    cryptoSessionGeneration: initial.cryptoSessionGeneration, isVaultLocked: true, masterKey: null })
+  expect(fetcher.mock.calls.every(([, init]) => init?.method === 'GET'
+    && new Headers(init.headers).get('authorization') === 'Bearer own-access')).toBe(true)
 })

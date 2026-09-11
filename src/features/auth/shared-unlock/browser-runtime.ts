@@ -1,5 +1,6 @@
 import { sharedUnlockPreferences } from './preference-state-runtime'
-import { startSharedUnlockPreferenceMonitor } from './preference-monitor'
+import { startSharedUnlockPreferenceMonitor, type SharedUnlockPreferenceMonitorClient } from './preference-monitor'
+import { startSharedUnlockReconnectMonitor } from './reconnect-monitor'
 import { sharedUnlockPreferenceGate } from "./preference-runtime"
 import { sharedUnlockExpiry } from './expiry-runtime'
 import { randomBytes, wipe } from '../../../shared/crypto/sodium'
@@ -142,7 +143,7 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
       }
     } finally { coordinator.cancelPending(change.scope.accountId) }
   })
-  const preferenceMonitor = startSharedUnlockPreferenceMonitor(route, {
+  const preferenceClient: SharedUnlockPreferenceMonitorClient = {
     nonce,
     subscribe: changed => {
       const remove = useAuthStore.subscribe((current, previous) => {
@@ -155,18 +156,20 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
       return () => { remove(); window.removeEventListener('focus', changed); window.removeEventListener('online', changed); document.removeEventListener('visibilitychange', visible) }
     },
     capture: () => {
-      const own = useAuthStore.getState()
-      if (!own.userId || !own.accessToken || !own.refreshToken) return null
+      const { userId, accessToken, refreshToken, cryptoSessionGeneration } = useAuthStore.getState()
+      if (!userId || !accessToken || !refreshToken) return null
       const abort = new AbortController()
       const check = () => {
         const current = useAuthStore.getState()
-        if (abort.signal.aborted || current.userId !== own.userId || current.cryptoSessionGeneration !== own.cryptoSessionGeneration
-          || current.accessToken !== own.accessToken || current.refreshToken !== own.refreshToken || env.apiUrl !== route.apiUrl) throw new Error('Own preference session changed')
+        if (abort.signal.aborted || current.userId !== userId || current.cryptoSessionGeneration !== cryptoSessionGeneration
+          || current.accessToken !== accessToken || current.refreshToken !== refreshToken || env.apiUrl !== route.apiUrl) throw new Error('Own preference session changed')
       }
       const unsubscribe = useAuthStore.subscribe(() => { try { check() } catch { abort.abort() } })
-      return { session: { apiUrl: route.apiUrl, userId: own.userId, accessToken: own.accessToken, refreshToken: own.refreshToken },
+      return { session: { apiUrl: route.apiUrl, userId, accessToken, refreshToken },
         signal: abort.signal, assertCurrent: check, dispose: () => { unsubscribe(); abort.abort() } }
     },
-  }, sharedUnlockPreferences, api)
-  return { close: () => { unsubscribeGate(); unsubscribePreferences(); preferenceMonitor.close(); coordinator.close(); monitor.close() } }
+  }
+  const preferenceMonitor = startSharedUnlockPreferenceMonitor(route, preferenceClient, sharedUnlockPreferences, api)
+  const reconnectMonitor = startSharedUnlockReconnectMonitor(route, preferenceClient, links, api, accountId => coordinator.cancelPending(accountId))
+  return { close: () => { unsubscribeGate(); unsubscribePreferences(); preferenceMonitor.close(); reconnectMonitor.close(); coordinator.close(); monitor.close() } }
 }
