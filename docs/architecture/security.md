@@ -107,13 +107,33 @@ scheme on state-changing requests, so it is tracked as a backend task.
 
 The explicitly configured Chromium channel uses browser-native `runtime.connect`
 to the deployment's exact extension ID. It loads no extension resource and opens
-no iframe or HTTP/WebSocket endpoint. The current `connect-src`/`frame-src` remains
-unchanged: an actual built Web/Extension test passed with the Web build's delivered
-CSP headers. This observation applies only to that native Chromium channel; a
-future Firefox or Safari adapter needs its own CSP and browser-boundary assessment.
+no iframe or HTTP/WebSocket endpoint. An actual built Web/Extension test passed
+with the Web build's delivered CSP headers.
+
+Firefox has a separate adapter. `VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID` selects
+the expected Gecko ID and enables `moz-extension:` only in `connect-src` and
+`frame-src`; blank configuration disables both. A content-script message provides
+only a candidate browser origin. Web constructs the fixed `/manifest.json` URL,
+fetches it without credentials/cache/redirects, bounds the read to 64 KiB and two
+seconds, and checks its canonical Gecko ID against deployment configuration.
+The browser's exact iframe `MessageEvent.origin` and `source` bind messages;
+payload IDs and paths cannot establish authority. Every inbound frame and the
+coordinator's sensitive asynchronous boundaries recheck the canonical resource.
+Iframe load/reload, removal, src mutation, `pagehide`, resource loss and Port loss
+retire the route. The extension independently validates its own runtime sender,
+top Web document, bridge document and browser-authored direct-parent binding.
+No keys or plaintext Identity tokens live in the frame. Same-ID package replacement
+remains the accepted compromised-client case, without store/profile attestation.
+
+On 2026-09-11, the actual built Web/Extension channel and bridge-loss reconnect
+passed on Firefox 155.0.1/macOS arm64 with delivered Web CSP. Firefox Identity/MK/Entry
+handoff, minimum-version and full OS/distribution coverage remain release gates.
+Safari still requires a separate adapter and browser-boundary assessment.
 
 The provider retires the Web document on `pagehide`, including BFCache entry,
 and immediately wipes that document's MK/private key/access token through the
 existing local expiry action. Peer Port loss and React effect teardown do not
 expire an independently valid own session. No manual group event is emitted by
-this document cleanup. Completed automatic unlock remains to be wired and tested.
+this document cleanup. Both transports use the common encrypted handoff and own
+Identity/session coordinator. Chromium has limited real Identity/MK/Entry evidence;
+the complete browser/expiry/mismatch matrix and final review remain open.

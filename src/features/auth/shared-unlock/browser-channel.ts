@@ -2,17 +2,21 @@ import { sharedUnlockOperationFrameSchema, sharedUnlockOperationSchema, type Sha
 import { z } from 'zod'
 import { randomBytes, wipe } from '../../../shared/crypto/sodium'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
+import { isSharedUnlockExtensionId } from '../../../shared/lib/shared-unlock-extension-id'
 
 const protocol = 'palladin.shared-unlock.browser.v1'
 const nonceSchema = z.string().regex(/^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$/)
 const readySchema = z.object({
   type: z.literal('ready'), protocol: z.literal(protocol), apiUrl: z.string().min(1).max(2048),
-  webOrigin: z.string().min(1).max(2048), extensionId: z.string().regex(/^[a-p]{32}$/),
+  webOrigin: z.string().min(1).max(2048), extensionId: z.string().refine(isSharedUnlockExtensionId),
   webNonce: nonceSchema, channelId: nonceSchema, documentBinding: z.string().min(1).max(256),
 }).strict()
 
 /** Browser API boundary; tests substitute the actual native Port contract. */
 export interface SharedUnlockNativePort {
+  /** Firefox's own-frame adapter additionally rechecks canonical browser resources. */
+  assertCurrent?(): void
+  verifyCurrent?(): Promise<void>
   postMessage(message: { type: 'hello'; protocol: typeof protocol; apiUrl: string; webNonce: string } | SharedUnlockOperationFrame): void
   disconnect(): void
   onMessage: { addListener(listener: (message: unknown) => void): void; removeListener(listener: (message: unknown) => void): void }
@@ -74,6 +78,7 @@ export function connectSharedUnlockBrowser(options: BrowserChannelOptions) {
     try {
       if (abort.signal.aborted) throw new Error('Shared unlock browser channel closed')
       options.assertDocument()
+      port?.assertCurrent?.()
       if (abort.signal.aborted) throw new Error('Shared unlock browser channel closed')
     } catch (error) { close(); throw error }
   }
@@ -104,7 +109,10 @@ export function connectSharedUnlockBrowser(options: BrowserChannelOptions) {
       routeBinding = { channelId: received.channelId, documentBinding: received.documentBinding }
       resolveReady(Object.freeze({ apiUrl, webOrigin, extensionId, channelId: received.channelId,
         documentBinding: received.documentBinding, signal: abort.signal, assertCurrent, close,
-        verifyCurrent: async () => { assertCurrent() },
+        verifyCurrent: async () => {
+          try { assertCurrent(); await port?.verifyCurrent?.(); assertCurrent() }
+          catch (error) { close(); throw error }
+        },
         sendOperation: (message: SharedUnlockOperationMessage) => {
           assertCurrent()
           const parsed = sharedUnlockOperationSchema.parse(message)
@@ -121,7 +129,7 @@ export function connectSharedUnlockBrowser(options: BrowserChannelOptions) {
   const timeout = setTimeout(close, 5000)
   void (async () => {
     // Configuration is external build input; reject it before any browser call.
-    if (!/^[a-p]{32}$/.test(extensionId) || !validEndpoint(apiUrl, false) || !validEndpoint(webOrigin, true)) { close(); return }
+    if (!isSharedUnlockExtensionId(extensionId) || !validEndpoint(apiUrl, false) || !validEndpoint(webOrigin, true)) { close(); return }
     assertCurrent()
     const bytes = await randomBytes(32)
     try { requestNonce = encodeBase64Url(bytes) } finally { wipe(bytes) }

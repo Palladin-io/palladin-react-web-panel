@@ -7,9 +7,11 @@ import tailwindcss from '@tailwindcss/vite'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import { assertRequiredClientEnv } from './src/shared/lib/required-client-env'
 import { connectionOrigins } from './build/csp-origins'
+import { firefoxSharedUnlockCsp } from './build/firefox-csp'
 
 const publicAssetOriginPlaceholder = '__PALLADIN_PUBLIC_ASSET_ORIGIN__'
 const connectionOriginsPlaceholder = '__PALLADIN_CONNECTION_ORIGINS__'
+const firefoxOriginPlaceholder = '__PALLADIN_FIREFOX_EXTENSION_SCHEME__'
 
 function publicAssetOrigin(value: string | undefined, apiUrl: string | undefined): string {
   const configured = value?.trim() || (apiUrl?.startsWith('http://localhost:')
@@ -24,18 +26,18 @@ function publicAssetOrigin(value: string | undefined, apiUrl: string | undefined
   return url.origin
 }
 
-function injectDeploymentCsp(origin: string, connections: string): Plugin {
+function injectDeploymentCsp(origin: string, connections: string, firefox: string): Plugin {
   return {
     name: 'inject-deployment-csp',
     apply: 'build',
     async writeBundle(options) {
       const headersPath = resolve(options.dir ?? 'dist', '_headers')
       const headers = await readFile(headersPath, 'utf8')
-      if (!headers.includes(publicAssetOriginPlaceholder) || !headers.includes(connectionOriginsPlaceholder)) {
+      if (!headers.includes(publicAssetOriginPlaceholder) || !headers.includes(connectionOriginsPlaceholder) || !headers.includes(firefoxOriginPlaceholder)) {
         throw new Error(`Missing deployment CSP placeholder in ${headersPath}`)
       }
       await writeFile(headersPath, headers.replaceAll(publicAssetOriginPlaceholder, origin)
-        .replaceAll(connectionOriginsPlaceholder, connections), 'utf8')
+        .replaceAll(connectionOriginsPlaceholder, connections).replaceAll(firefoxOriginPlaceholder, firefox), 'utf8')
     },
   }
 }
@@ -54,7 +56,7 @@ export default defineConfig(({ command, isPreview, mode }) => {
       injectDeploymentCsp(publicAssetOrigin(
         buildEnv.VITE_PUBLIC_ASSET_URL,
         buildEnv.VITE_API_URL,
-      ), connectionOrigins(buildEnv.VITE_API_URL, buildEnv.VITE_SIGNALR_HUB_URL)),
+      ), connectionOrigins(buildEnv.VITE_API_URL, buildEnv.VITE_SIGNALR_HUB_URL), firefoxSharedUnlockCsp(buildEnv.VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID)),
     ],
     test: {
       globals: true,

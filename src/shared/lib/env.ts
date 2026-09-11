@@ -1,4 +1,5 @@
 import type { RequiredClientEnvKey } from './required-client-env'
+import { selectSharedUnlockExtension } from './shared-unlock-extension-id'
 
 function requireEnv(key: RequiredClientEnvKey): string {
   const val = import.meta.env[key]
@@ -10,8 +11,12 @@ function optionalEnv(key: string): string {
   return (import.meta.env[key] as string | undefined) ?? ''
 }
 
+const sharedUnlock = selectSharedUnlockExtension(globalThis.navigator?.userAgent ?? '',
+  optionalEnv('VITE_SHARED_UNLOCK_EXTENSION_ID'), optionalEnv('VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID'))
+
 export const env = {
-  sharedUnlockExtensionId: optionalEnv('VITE_SHARED_UNLOCK_EXTENSION_ID'),
+  sharedUnlockExtensionId: sharedUnlock.extensionId,
+  sharedUnlockTransport: sharedUnlock.transport,
   apiUrl: requireEnv('VITE_API_URL'),
   publicAssetUrl: optionalEnv('VITE_PUBLIC_ASSET_URL') || (requireEnv('VITE_API_URL').startsWith('http://localhost:')
     ? 'http://localhost:4566/palladin-local-public-assets'

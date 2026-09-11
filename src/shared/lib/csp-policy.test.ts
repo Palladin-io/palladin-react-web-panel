@@ -2,10 +2,21 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { connectionOrigins } from '../../../build/csp-origins'
+import { firefoxSharedUnlockCsp } from '../../../build/firefox-csp'
 
 const headers = await readFile(resolve('public/_headers'), 'utf8')
 
 describe('production CSP', () => {
+  it('enables Firefox resource fetch and frames only for an explicit valid Gecko ID', () => {
+    expect(firefoxSharedUnlockCsp(undefined)).toBe('')
+    expect(firefoxSharedUnlockCsp('')).toBe('')
+    expect(firefoxSharedUnlockCsp('browser-extension@example.test')).toBe('moz-extension:')
+    expect(() => firefoxSharedUnlockCsp('*')).toThrow()
+    expect(() => firefoxSharedUnlockCsp('a'.repeat(32))).toThrow()
+    const policy = headers.split('\n').find(line => line.trim().startsWith('Content-Security-Policy:'))!
+    expect(policy.match(/__PALLADIN_FIREFOX_EXTENSION_SCHEME__/g)).toHaveLength(2)
+    expect(policy.split(';').find(directive => directive.includes('script-src'))).not.toContain('__PALLADIN_FIREFOX_EXTENSION_SCHEME__')
+  })
   it('binds API and SignalR to configured origins, including exact loopback ports', () => {
     expect(connectionOrigins('http://localhost:55083/api', 'http://localhost:55083/hubs/notifications'))
       .toBe('http://localhost:55083 ws://localhost:55083')
