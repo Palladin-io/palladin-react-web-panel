@@ -154,3 +154,14 @@ expire an independently valid own session. No manual group event is emitted by
 this document cleanup. Both transports use the common encrypted handoff and own
 Identity/session coordinator. Chromium has limited real Identity/MK/Entry evidence;
 the complete browser/expiry/mismatch matrix and final review remain open.
+
+
+A verified manual unlock acknowledges only the prior lock reported by an
+independent authenticated own-session read, after pending local closing intents
+are flushed and before sharing authorization. This RAM-only checkpoint belongs
+to the captured own key generation; it is not an unlock root and never enables
+handoff or activity renewal. If sharing authorization fails (including429),
+rootless repair may ignore only that same link's already acknowledged lock.
+Every higher invalidation, logout, missing/different link and retired own key
+generation remains effective. Persisted link observations and peer hints cannot
+supply this checkpoint. No key, proof or checkpoint is added to durable storage.
