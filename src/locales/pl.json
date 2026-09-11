@@ -26,6 +26,7 @@
   "waitlistBenefit.terms": "Bez karty. Plan nie odnowi się automatycznie.",
   "waitlistBenefit.cta": "Korzystaj z Palladin",
   "unlock.title": "Odblokuj skarbiec",
+  "unlock.sharedUnlockCompleted": "Panel odblokowany przez rozszerzenie Palladin.",
   "unlock.subtitle": "Wprowadź hasło główne, aby uzyskać dostęp do danych.",
   "unlock.passwordLabel": "Hasło główne",
   "unlock.passwordPlaceholder": "Wprowadź hasło główne",

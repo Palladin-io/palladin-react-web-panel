@@ -18,6 +18,9 @@ import { SharedUnlockApi } from './api'
 import { beginSharedUnlockReceiver, type SharedUnlockReceiverRoute } from './receiver'
 import type { SharedUnlockCommit, SharedUnlockOperation } from './api-types'
 import fixtures from './fixtures/session-api-v1.json'
+import { notifySharedUnlockCompleted } from './completion-toast'
+
+vi.mock('./completion-toast', () => ({ notifySharedUnlockCompleted: vi.fn() }))
 
 vi.mock('../../../shared/lib/env', () => ({ env: { apiUrl: 'https://api.example.test' } }))
 const apiUrl = 'https://api.example.test'
@@ -29,6 +32,7 @@ const newSession = { ...oldSession, accessToken: 'receiver-own-access', refreshT
 const cancels: (() => void)[] = []
 beforeAll(async () => { await loadSodium() })
 beforeEach(() => {
+  vi.mocked(notifySharedUnlockCompleted).mockClear()
   vi.spyOn(Date, 'now').mockReturnValue(now)
   useAuthStore.getState().logout()
   useAuthStore.getState().setTokens(oldSession)
@@ -100,6 +104,41 @@ async function setup(options: { confirmLocalLink?: SharedUnlockReceiverRoute["co
 }
 
 describe('Web own receiver transaction with real crypto', () => {
+  it('announces a completed automatic login/unlock once, independently of lost ACK', async () => {
+    useAuthStore.getState().logout()
+    const f = await setup({ pause: 'commit' })
+    const input = { ...f.input, acknowledge: () => { throw new Error('peer closed') } }
+    const pending = f.receiver.receive(input)
+    await vi.waitFor(() => expect(f.events).toContain('commit'))
+    expect(notifySharedUnlockCompleted).not.toHaveBeenCalled()
+    f.pendingResponse.resolve(new Response(JSON.stringify(f.ownCommit)))
+    await pending
+    expect(useAuthStore.getState().isVaultLocked).toBe(false)
+    expect(notifySharedUnlockCompleted).toHaveBeenCalledExactlyOnceWith()
+    f.receiver.cancel()
+    await expect(f.receiver.receive(input)).rejects.toMatchObject({ code: 'conflict' })
+    expect(notifySharedUnlockCompleted).toHaveBeenCalledOnce()
+  })
+
+  it('does not announce when the final own-link check rejects installation', async () => {
+    const f = await setup({ confirmLocalLink: async () => { throw new Error('locked remotely') } })
+    await expect(f.receiver.receive(f.input)).rejects.toThrow('locked remotely')
+    expect(notifySharedUnlockCompleted).not.toHaveBeenCalled()
+  })
+
+  it('does not announce an installation superseded by a local lock during adoption', async () => {
+    const f = await setup({ onInstalled: () => useAuthStore.getState().lockVault() })
+    await f.receiver.receive(f.input)
+    expect(useAuthStore.getState().isVaultLocked).toBe(true)
+    expect(notifySharedUnlockCompleted).not.toHaveBeenCalled()
+  })
+
+  it('does not announce manual unlock or token refresh without a receiver completion', () => {
+    useAuthStore.getState().unlockVault(new Uint8Array(32).fill(1), new Uint8Array(32).fill(2))
+    useAuthStore.getState().setTokens(newSession)
+    expect(notifySharedUnlockCompleted).not.toHaveBeenCalled()
+  })
+
   it("publishes verified inherited authority independently of subsequent peer loss", async () => {
     const adopted = vi.fn<SharedUnlockInstalled>();
     const f = await setup({ onInstalled: adopted });
@@ -209,6 +248,7 @@ describe('Web own receiver transaction with real crypto', () => {
         if (pause === 'commit') await vi.waitFor(() => expect(f.events.filter(e => e === 'logout')).toHaveLength(1))
         else expect(f.events).not.toContain('logout')
         expect(f.ack).not.toHaveBeenCalled()
+        expect(notifySharedUnlockCompleted).not.toHaveBeenCalled()
         expect(useAuthStore.getState()).toMatchObject({ isVaultLocked: true, masterKey: null, privateKey: null })
         expect(useAuthStore.getState().refreshToken).toBe(change === 'logout' ? null : oldSession.refreshToken)
       })

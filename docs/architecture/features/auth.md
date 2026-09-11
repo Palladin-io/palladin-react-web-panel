@@ -8,6 +8,14 @@ The entry point to the app. Two ways in:
 - **OAuth 2.0** via `@react-oauth/google`'s **implicit token flow** (Google primary, Apple/X stubbed). Google returns an `access_token` in the browser, POSTed to `/api/auth/oauth/google` for the app JWT. Implicit-token flow, not auth-code/PKCE — no backend code-exchange endpoint today; if one lands, switch `useGoogleLogin` to `flow: 'auth-code'`. OAuth accounts are always `emailVerified: true`.
 - **Email + password** uses Identity password KDF v1. The browser runs the exact UTF-8 password through the registered Argon2id profile once and domain-separates AuthCredential from MK. AuthCredential is sent to the server; password and MK never are. Unsupported profiles fail closed; there is no legacy fallback.
 
+The shared-unlock receiver additionally supports a verified automatic own-session
+installation. Only its successful completion emits `completion-toast.ts` through
+the existing root Sonner host (PL/EN, polite, no focus change). No state observer,
+remount, manual unlock or wire ACK emits that notification. The transaction's
+single-use receive guard prevents duplicate success; a newer own lock/session
+suppresses a stale notification. Toast errors cannot undo a completed session.
+This does not claim completion of fallback UX or the native acceptance matrix.
+
 Session-token storage: the access token is kept **in memory only** (never persisted); only the refresh token is persisted (localStorage) so a reload can silently restore the session via the ky client's 401→refresh path. Idle + absolute session timeouts (`useSessionTimeout`) wipe the keys and access token on walk-away. Moving the refresh token to an httpOnly cookie is a backend-coordinated follow-up.
 
 ## How it's organized

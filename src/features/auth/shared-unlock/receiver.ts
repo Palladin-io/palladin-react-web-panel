@@ -9,6 +9,7 @@ import { captureManualUnlockFence } from '../session/manual-unlock-attempt'
 import { useAuthStore } from '../stores/auth-store'
 import { SharedUnlockApi, SharedUnlockApiError } from './api'
 import type { SharedUnlockAuthorization, SharedUnlockCommit, SharedUnlockOperation } from './api-types'
+import { notifySharedUnlockCompleted } from './completion-toast'
 
 /** Independently established browser/document + selected account/local-link authority.
  * The browser adapter must invalidate assertCurrent on OFF/revoke/navigation/peer loss.
@@ -171,19 +172,22 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
         completed = true
         // Verified own receiver root remains usable independently of the Port.
         const ownInstalled = useAuthStore.getState();
+        const assertOwnCurrent = () => {
+          const current = useAuthStore.getState();
+          if (current.cryptoSessionGeneration !== installedGeneration || current.userId !== binding.accountId
+            || current.isVaultLocked || current.masterKey !== ownInstalled.masterKey || current.privateKey !== ownInstalled.privateKey
+            || !current.unlockLimits || Date.now() >= sessionDeadline(current.unlockLimits)) throw new SharedUnlockApiError('cancelled');
+        }
         try {
           onInstalled?.({ authorizationId: commit.authorizationId, sequence: commit.authorizationSequence,
             accountId: binding.accountId, organizationId: binding.organizationId,
             credentialRevision: consumed.keyContext.credentialRevision, privateKeyWrapRevision: consumed.keyContext.privateKeyWrapRevision,
             authorizationVersion: commit.context.authorizationVersion, unlockedAtMs: commit.context.unlockedAtMs,
             idleDeadlineMs: commit.context.idleDeadlineMs, absoluteDeadlineMs: commit.context.absoluteDeadlineMs,
-            offlineDeadlineMs: commit.context.offlineDeadlineMs }, binding.webGeneration, () => {
-            const current = useAuthStore.getState();
-            if (current.cryptoSessionGeneration !== installedGeneration || current.userId !== binding.accountId
-              || current.isVaultLocked || current.masterKey !== ownInstalled.masterKey || current.privateKey !== ownInstalled.privateKey
-              || !current.unlockLimits || Date.now() >= sessionDeadline(current.unlockLimits)) throw new SharedUnlockApiError('cancelled');
-          });
+            offlineDeadlineMs: commit.context.offlineDeadlineMs }, binding.webGeneration, assertOwnCurrent);
         } catch { /* Failed sharing adoption does not revoke a completed own session. */ }
+        try { assertOwnCurrent(); notifySharedUnlockCompleted() }
+        catch { /* Presentation failure or a newer local session cannot undo completion. */ }
         // Local installation + final authority check complete the handoff. ACK
         // only stops peer pending UI; losing it cannot revoke a valid session.
         try { input.acknowledge({ operationId: result.operationId,

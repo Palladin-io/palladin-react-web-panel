@@ -26,4 +26,12 @@ a newer attempt. The live authenticated-session boundary now unmounts protected
 content on local/peer lock or logout and routes to unlock/login with the original
 internal destination. A sidebar Lock action retains the own login and records
 manual shared closing; generic lock does not echo it. Restarted/rootless closing
-repair, shared unlock completion UX and native end-to-end acceptance remain open.
+repair, remaining shared unlock fallback UX and native end-to-end acceptance remain open.
+
+The completed automatic Web receiver emits the localized Sonner message
+“Panel unlocked by the Palladin extension.” once, after installing its own verified
+session and checking that it has not been superseded. The existing root Toaster
+announces politely without moving focus. No account/operation identifiers enter
+the message. Manual unlock, state restoration, remount and ACK do not trigger it;
+cancelled or rejected receiver attempts never reach the notification. A lost ACK
+does not suppress a completed own operation or create another notification.

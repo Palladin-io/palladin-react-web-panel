@@ -26,6 +26,7 @@
   "waitlistBenefit.terms": "No card needed. It won't renew automatically.",
   "waitlistBenefit.cta": "Enjoy Palladin",
   "unlock.title": "Unlock Your Vault",
+  "unlock.sharedUnlockCompleted": "Panel unlocked by the Palladin extension.",
   "unlock.subtitle": "Enter your master password to access your credentials.",
   "unlock.passwordLabel": "Master Password",
   "unlock.passwordPlaceholder": "Enter your master password",
