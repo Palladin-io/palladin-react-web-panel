@@ -12,7 +12,8 @@ function optionalEnv(key: string): string {
 }
 
 const sharedUnlock = selectSharedUnlockExtension(globalThis.navigator?.userAgent ?? '',
-  optionalEnv('VITE_SHARED_UNLOCK_EXTENSION_ID'), optionalEnv('VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID'))
+  optionalEnv('VITE_SHARED_UNLOCK_EXTENSION_ID'), optionalEnv('VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID'),
+  optionalEnv('VITE_SHARED_UNLOCK_SAFARI_EXTENSION_ID'))
 
 export const env = {
   sharedUnlockExtensionId: sharedUnlock.extensionId,

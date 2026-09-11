@@ -194,6 +194,25 @@ primitive through the installed private key, with a mocked Identity transport.
 This is not a browser/platform proof or acceptance of the current Member-sync
 Entry flow on distributed artifacts; those E2E gates remain open.
 
+## Safari application channel (implementation increment)
+
+The provider selects Safari's native `browser.runtime.connect` with the exact
+optional `VITE_SHARED_UNLOCK_SAFARI_EXTENSION_ID`. Its template is empty; the
+value is the decoded bundle ID plus parenthesized Team ID. An explicit unsigned
+development ID is supported, but never substituted for a signed identity. User
+agent detection only selects an adapter: it supplies no recipient authority.
+Missing Safari configuration or native API does not fall back to Chromium.
+The existing strict ready/operation checks, independent Identity authority and
+document-owned lifecycle apply unchanged. No Safari iframe, DOM relay, remote
+script or CSP scheme is introduced.
+
+The Extension has a separate Safari sender/current-document adapter and requires
+the browser's normal-profile tab, exact configured Web/API pair, native document
+ID and a bounded independent current-frame lookup. Older Safari without that
+authority fails closed pending its own implementation and native acceptance.
+Unit tests are not proof of Safari Identity/MK/Entry, supported versions or
+distribution; those remain release gates.
+
 ## Chromium application channel (implementation increment)
 
 The app-root `SharedUnlockBrowserProvider` now starts a document-owned channel

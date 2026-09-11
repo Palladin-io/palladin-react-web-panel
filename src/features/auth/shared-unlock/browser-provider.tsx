@@ -10,13 +10,19 @@ import { createFirefoxSharedUnlockRuntime } from './firefox-runtime'
 export function SharedUnlockBrowserProvider() {
   useEffect(() => {
     if (!env.sharedUnlockExtensionId) return
-    const browser = window as Window & { chrome?: { runtime?: SharedUnlockNativeRuntime } }
+    const browser = window as Window & { chrome?: { runtime?: SharedUnlockNativeRuntime }; browser?: { runtime?: SharedUnlockNativeRuntime } }
     const firefox = env.sharedUnlockTransport === 'firefox'
       ? createFirefoxSharedUnlockRuntime(window, document, env.sharedUnlockExtensionId) : undefined
     const lifecycle = startSharedUnlockBrowserLifecycle({
       onReady: coordinateSharedUnlockBrowser,
       extensionId: env.sharedUnlockExtensionId, apiUrl: env.apiUrl, window, document,
-      runtime: () => firefox ?? (typeof browser.chrome?.runtime?.connect === 'function' ? browser.chrome.runtime : undefined),
+      runtime: () => {
+        if (env.sharedUnlockTransport === 'firefox') return firefox
+        // Safari exposes externally_connectable only on its browser namespace.
+        // Missing Safari API must not select another browser's configured route.
+        const native = env.sharedUnlockTransport === 'safari' ? browser.browser?.runtime : browser.chrome?.runtime
+        return typeof native?.connect === 'function' ? native : undefined
+      },
       // pagehide can enter BFCache without destroying JS memory. Retire only this
       // document's keys/access token; peer loss never calls this action.
       retireDocument: () => useAuthStore.getState().expireSession('pagehide'),
