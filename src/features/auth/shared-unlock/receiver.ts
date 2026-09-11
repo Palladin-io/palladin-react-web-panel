@@ -18,6 +18,7 @@ export interface SharedUnlockReceiverRoute {
   readonly binding: Pick<SharedUnlockContext, 'accountId' | 'organizationId' | 'apiOrigin' | 'webOrigin'
     | 'extensionId' | 'documentBinding' | 'webGeneration' | 'extensionGeneration' | 'linkId' | 'linkEpoch' | 'preferenceRevision'>
   assertCurrent(): void
+  assertFreshAuthorization?(sequence: number): Promise<void>
 }
 
 /** Internal completion metadata for inherited authority/UI; not a wire ACK. */
@@ -151,6 +152,7 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
         assertCurrent()
         await receiver.verifyCommit(commit.context)
         assertBinding(commit.context)
+        await wait(route.assertFreshAuthorization?.(commit.authorizationSequence) ?? Promise.resolve())
         assertCurrent()
         installedGeneration = useAuthStore.getState().installSharedUnlock({
           expected: initial, accountId: binding.accountId, session: commit.session, keys, limits: commit.context,

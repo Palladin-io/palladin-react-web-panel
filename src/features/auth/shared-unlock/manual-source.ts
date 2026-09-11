@@ -1,3 +1,4 @@
+import { sharedUnlockExpiry } from './expiry-runtime'
 import type { AccountResponse } from '../../../shared/api/account-api'
 import { wipe } from '../../../shared/crypto/sodium'
 import { env } from '../../../shared/lib/env'
@@ -11,7 +12,8 @@ let authority: SharedUnlockSourceAuthority | null = null
 
 function getAuthority(): SharedUnlockSourceAuthority {
   if (authority) return authority
-  const source = new SharedUnlockSourceAuthority(new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl), Date.now, flushManualSharedUnlockClosings)
+  const source = new SharedUnlockSourceAuthority(new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl), Date.now, flushManualSharedUnlockClosings,
+    (root, session) => sharedUnlockExpiry.remember({ accountId: session.userId, apiUrl: session.apiUrl }, root.sequence))
   authority = source
   useAuthStore.subscribe((current, previous) => {
     if (current.isVaultLocked || current.userId !== previous.userId
@@ -56,5 +58,7 @@ export function acceptSharedUnlockPreference(preference: import('./api-types').S
 }
 export function adoptSharedUnlockSource(authorization: import('./api-types').SharedUnlockAuthorization, generation: string,
   preference: import('./api-types').SharedUnlockPreference, assertOwnCurrent: () => void): void {
+  assertOwnCurrent()
+  sharedUnlockExpiry.remember({ accountId: authorization.accountId, apiUrl: env.apiUrl }, authorization.sequence)
   getAuthority().adopt(authorization, generation, preference, assertOwnCurrent)
 }

@@ -1,3 +1,5 @@
+import { sharedUnlockExpiry } from '../shared-unlock/expiry-runtime'
+import { env } from '../../../shared/lib/env'
 import type { AuthResponse } from '../../../shared/api/types'
 import type { SharedUnlockKeys } from '../../../shared/crypto/shared-unlock-keys'
 import { IDLE_TIMEOUT_MS, sessionDeadline, unlockLimits, type SessionUnlockLimits } from '../lib/session-limits'
@@ -65,7 +67,7 @@ interface AuthState {
   ) => void
   lockVault: () => void
   /** Session timeout: wipes crypto keys AND the access token, so a walked-away tab holds neither. */
-  expireSession: () => void
+  expireSession: (reason?: 'pagehide') => void
   logout: () => void
 }
 
@@ -188,14 +190,16 @@ export const useAuthStore = create<AuthState>()(
 
       lockVault: () =>
         set((state) => {
+          if (state.masterKey && state.userId) sharedUnlockExpiry.retire({ accountId: state.userId, apiUrl: env.apiUrl })
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
           return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true,
             cryptoSessionGeneration: state.cryptoSessionGeneration + 1 }
         }),
 
-      expireSession: () =>
+      expireSession: (reason) =>
         set((state) => {
+          if (reason !== 'pagehide' && state.masterKey && state.userId) sharedUnlockExpiry.retire({ accountId: state.userId, apiUrl: env.apiUrl })
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
           return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true, accessToken: null,

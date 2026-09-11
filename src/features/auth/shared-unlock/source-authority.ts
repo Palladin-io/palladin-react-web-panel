@@ -27,8 +27,11 @@ export class SharedUnlockSourceAuthority {
   private readonly api: SharedUnlockApi
   private readonly now: () => number
   private readonly beforeAuthorize: ((session: SharedUnlockOwnSession, signal: AbortSignal, check: () => void) => Promise<void>) | undefined
+  private readonly onAuthorized: ((authorization: SharedUnlockAuthorization, session: SharedUnlockOwnSession) => void) | undefined
   constructor(api: SharedUnlockApi, now: () => number = Date.now,
-    beforeAuthorize?: (session: SharedUnlockOwnSession, signal: AbortSignal, check: () => void) => Promise<void>) {
+    beforeAuthorize?: (session: SharedUnlockOwnSession, signal: AbortSignal, check: () => void) => Promise<void>,
+    onAuthorized?: (authorization: SharedUnlockAuthorization, session: SharedUnlockOwnSession) => void) {
+    this.onAuthorized = onAuthorized
     this.api = api
     this.now = now
     this.beforeAuthorize = beforeAuthorize
@@ -121,6 +124,8 @@ export class SharedUnlockSourceAuthority {
         idleDeadlineMs: limits.idleDeadlineMs, absoluteDeadlineMs: limits.absoluteDeadlineMs,
         offlineDeadlineMs: limits.offlineDeadlineMs,
       }, controller.signal)
+      check()
+      this.onAuthorized?.(authorization, session)
       check()
       this.checkSession = context.assertCurrent
       this.state = { preference, authorization, sourceGeneration: generation }

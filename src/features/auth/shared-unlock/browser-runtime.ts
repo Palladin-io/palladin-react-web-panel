@@ -1,3 +1,4 @@
+import { sharedUnlockExpiry } from './expiry-runtime'
 import { randomBytes, wipe } from '../../../shared/crypto/sodium'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { env } from '../../../shared/lib/env'
@@ -115,6 +116,7 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
     },
     source: (binding, signal, assertCurrent) => beginSharedUnlockSource({ apiUrl: route.apiUrl, binding, signal, assertCurrent }, api),
     receiver: (binding, signal, assertCurrent) => beginSharedUnlockReceiver({ apiUrl: route.apiUrl, binding,
+      assertFreshAuthorization: sequence => sharedUnlockExpiry.assertFresh(scope(binding.accountId), sequence),
       assertCurrent: () => { if (signal.aborted) throw new Error('Shared unlock attempt cancelled'); assertCurrent() } }, api,
     (authorization, generation, assertOwnCurrent) => adoptSharedUnlockSource(authorization, generation,
       { sharedUnlockEnabled: true, revision: binding.preferenceRevision }, () => {

@@ -16,7 +16,7 @@ export function SharedUnlockBrowserProvider() {
       runtime: () => typeof browser.chrome?.runtime?.connect === 'function' ? browser.chrome.runtime : undefined,
       // pagehide can enter BFCache without destroying JS memory. Retire only this
       // document's keys/access token; peer loss never calls this action.
-      retireDocument: () => useAuthStore.getState().expireSession(),
+      retireDocument: () => useAuthStore.getState().expireSession('pagehide'),
     })
     return () => lifecycle.close()
   }, [])

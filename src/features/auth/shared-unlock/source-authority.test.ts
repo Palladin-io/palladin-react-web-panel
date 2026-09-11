@@ -21,10 +21,12 @@ describe('Web manual source authority', () => {
   for (const preference of fixtures.responses.filter(r => r.type === 'preference')) {
     it(`preserves ${preference.name} and sends only own session plus fresh proof`, async () => {
       const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(response(preference.body)).mockResolvedValueOnce(response(authorization))
-      const source = new SharedUnlockSourceAuthority(new SharedUnlockApi(fetcher, () => apiUrl), () => authorization.unlockedAtMs + 1)
+      const remembered = vi.fn()
+      const source = new SharedUnlockSourceAuthority(new SharedUnlockApi(fetcher, () => apiUrl), () => authorization.unlockedAtMs + 1, undefined, remembered)
       const own = context()
       await source.prepare(own)
       expect(source.snapshot().preference).toEqual(preference.body)
+      expect(remembered).toHaveBeenCalledExactlyOnceWith(authorization, own.session)
       expect(source.snapshot().authorization).toEqual(authorization)
       expect(source.snapshot().sourceGeneration).toMatch(/^[A-Za-z0-9_-]{43}$/)
       const sent = fetcher.mock.calls[1][1]!

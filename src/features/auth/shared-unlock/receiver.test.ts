@@ -1,3 +1,4 @@
+import { SharedUnlockExpiryStore } from './expiry-store';
 import type { SharedUnlockInstalled } from "./receiver";
 import { receiveSharedUnlockBrowserTransfer, type SharedUnlockOperationTransport } from "./browser-transfer";
 import { sharedUnlockOperationSchema, type SharedUnlockOperationMessage } from "./browser-operation-message";
@@ -32,12 +33,13 @@ beforeEach(() => {
 afterEach(() => { for (const cancel of cancels.splice(0)) cancel(); useAuthStore.getState().logout(); vi.restoreAllMocks() })
 const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(r => { resolve = r }); return { promise, resolve } }
 
-async function setup(options: { onInstalled?: SharedUnlockInstalled; pause?: 'consume' | 'commit'; transformConsume?: (op: SharedUnlockOperation) => SharedUnlockOperation;
+async function setup(options: { assertFreshAuthorization?: (sequence: number) => Promise<void>; onInstalled?: SharedUnlockInstalled; pause?: 'consume' | 'commit'; transformConsume?: (op: SharedUnlockOperation) => SharedUnlockOperation;
   transformCommit?: (commit: SharedUnlockCommit) => SharedUnlockCommit; afterInstall?: () => void } = {}) {
   let current = true
   let checkedInstall = false
   const original = baseline.context
   const route: SharedUnlockReceiverRoute = {
+    assertFreshAuthorization: options.assertFreshAuthorization,
     apiUrl, binding: {
       accountId: original.accountId, organizationId: original.organizationId, apiOrigin: apiUrl,
       webOrigin: original.webOrigin, extensionId: original.extensionId, documentBinding: original.documentBinding,
@@ -299,3 +301,26 @@ describe('Web own receiver transaction with real crypto', () => {
     })
   }
 })
+
+it.each([5, 6])('checks own Identity sequence before installing keys (retired through %s)', async retired => {
+  const values: Record<string, unknown> = {};
+  const storage = { get: async () => values, set: async (items: Record<string, unknown>) => { Object.assign(values, items); } };
+  const scope = { apiUrl, accountId: baseline.context.accountId };
+  await new SharedUnlockExpiryStore(storage, action => action()).advance(scope, retired);
+  const restarted = new SharedUnlockExpiryStore(storage, action => action());
+  const f = await setup({ assertFreshAuthorization: sequence => restarted.assertFresh(scope, sequence) });
+  await expect(f.receiver.receive(f.input)).rejects.toThrow('retired locally');
+  expect(useAuthStore.getState().masterKey).toBeNull(); expect(useAuthStore.getState().isVaultLocked).toBe(true);
+  expect(f.events).toEqual(['consume', 'envelope', 'commit', 'logout']);
+  expect(f.ack).not.toHaveBeenCalled();
+});
+it('accepts a fresh manual authorization above the persisted local barrier', async () => {
+  const values: Record<string, unknown> = {};
+  const store = new SharedUnlockExpiryStore({ get: async () => values, set: async items => { Object.assign(values, items); } }, action => action());
+  const scope = { apiUrl, accountId: baseline.context.accountId };
+  await store.advance(scope, 4);
+  const f = await setup({ assertFreshAuthorization: sequence => store.assertFresh(scope, sequence) });
+  await f.receiver.receive(f.input);
+  expect(f.events).toEqual(['consume', 'envelope', 'commit']);
+  expect(f.ack).toHaveBeenCalledOnce();
+});
