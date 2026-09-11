@@ -78,6 +78,21 @@ describe('account privacy choices', () => {
     expect(readLocalAnalyticsActivation('privacy-user')).toEqual({ noticeVersion: 'test-v1', activationRevision: 1 })
   })
 
+  it('does not cache a late consent snapshot under the previous account session', async () => {
+    let complete!: (value: UserConsents) => void
+    mocks.get.mockImplementationOnce(() => new Promise(resolve => { complete = resolve }))
+    mount()
+    await waitFor(() => expect(mocks.get).toHaveBeenCalledOnce())
+    mocks.generation++
+    mocks.auth.userId = 'replacement-user'
+    const oldResponse: UserConsents = { ...state, consents: [{ ...consent(), status: 'granted',
+      revision: 1, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }] }
+    await act(async () => complete(oldResponse))
+    await waitFor(() => expect(client.getQueryState(['account-consents', 'privacy-user', 'en'])?.status).toBe('error'))
+    expect(client.getQueryData(['account-consents', 'privacy-user', 'en'])).toBeUndefined()
+    expect(mocks.authorize).not.toHaveBeenCalled()
+  })
+
   it('immediately stops local analytics after failed withdrawal and retries the identical decision', async () => {
     state.consents[0] = { ...state.consents[0], status: 'granted', revision: 2, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }
     setLocalAnalyticsActivation('privacy-user', { noticeVersion: 'test-v1', activationRevision: 1 })

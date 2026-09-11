@@ -16,7 +16,12 @@ export function useConsents() {
     queryKey: consentQueryKey(userId, locale),
     queryFn: async ({ signal }) => {
       const observedAt = Date.now()
-      return { ...(await getConsents(locale, signal)), observedAt }
+      const generation = captureClientSessionGeneration()
+      const response = await getConsents(locale, signal)
+      if (!clientSessionGenerationMatches(generation) || useAuthStore.getState().userId !== userId) {
+        throw new Error('Stale account session')
+      }
+      return { ...response, observedAt }
     },
     enabled: !!userId && !!(accessToken || refreshToken),
     staleTime: 0,
