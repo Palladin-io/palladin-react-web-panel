@@ -22,4 +22,8 @@ module. If an OAuth-only account enables password login during unlock, it reload
 Identity's current revisions after setup before preparing that authority. Local
 keys remain usable if sharing fails. Client/crypto session generations and the
 current manual attempt reject delayed work after lock/logout/expiry, unmount or
-a newer attempt. Browser transfer and coordinated remote lock remain unfinished.
+a newer attempt. The live authenticated-session boundary now unmounts protected
+content on local/peer lock or logout and routes to unlock/login with the original
+internal destination. A sidebar Lock action retains the own login and records
+manual shared closing; generic lock does not echo it. Restarted/rootless closing
+repair, shared unlock completion UX and native end-to-end acceptance remain open.

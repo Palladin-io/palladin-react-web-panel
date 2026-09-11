@@ -16,3 +16,5 @@ export {
 } from './session/client-session'
 
 export { SharedUnlockBrowserProvider } from './shared-unlock/browser-provider'
+export { AuthenticatedSessionBoundary } from './components/authenticated-session-boundary'
+export { LockSessionButton } from './components/lock-session-button'

@@ -15,10 +15,18 @@ export const sharedUnlockLinks = new SharedUnlockLinkStore({
 })
 
 export async function recordManualSharedUnlockLogout(accountId: string | null): Promise<void> {
+  await recordManualClosing(accountId, 'logout')
+}
+
+export async function recordManualSharedUnlockLock(accountId: string | null): Promise<void> {
+  await recordManualClosing(accountId, 'lock')
+}
+
+async function recordManualClosing(accountId: string | null, action: 'lock' | 'logout'): Promise<void> {
   if (!accountId || !env.sharedUnlockExtensionId) return
-  if (!await sharedUnlockPreferenceGate.isAllowed({ accountId, apiUrl: env.apiUrl })) return
-  await sharedUnlockLinks.recordManualClosing({ accountId, apiUrl: env.apiUrl,
-    webOrigin: window.location.origin, extensionId: env.sharedUnlockExtensionId }, 'logout')
+  const scope = { accountId, apiUrl: env.apiUrl, webOrigin: window.location.origin, extensionId: env.sharedUnlockExtensionId }
+  if (!await sharedUnlockPreferenceGate.isAllowed(scope)) return
+  await sharedUnlockLinks.recordManualClosing(scope, action)
 }
 
 const api = new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl)
@@ -30,6 +38,12 @@ export async function flushManualSharedUnlockClosings(session: SharedUnlockOwnSe
   await flushSharedUnlockClosings(ownScope(session), session, sharedUnlockLinks, api, signal, () => { check(); sharedUnlockPreferenceGate.assertAllowed(ownScope(session)) })
 }
 export async function deliverManualSharedUnlockLogout(session: SharedUnlockOwnSession, check: () => void): Promise<void> {
+  await deliverManualClosing(session, check)
+}
+export async function deliverManualSharedUnlockLock(session: SharedUnlockOwnSession, check: () => void): Promise<void> {
+  await deliverManualClosing(session, check)
+}
+async function deliverManualClosing(session: SharedUnlockOwnSession, check: () => void): Promise<void> {
   if (!env.sharedUnlockExtensionId) return
   if (!await sharedUnlockPreferenceGate.isAllowed({ accountId: session.userId, apiUrl: session.apiUrl })) return
   await deliverSharedUnlockClosings([ownScope(session)], session, sharedUnlockLinks, api, () => { check(); sharedUnlockPreferenceGate.assertAllowed(ownScope(session)) })

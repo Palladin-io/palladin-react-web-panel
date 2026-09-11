@@ -659,6 +659,8 @@
   "common.on": "Wł.",
   "common.off": "Wył.",
   "errors.somethingWentWrong": "Coś poszło nie tak",
+  "auth.lockSession": "Zablokuj",
+  "auth.sharedLockFailed": "Panel jest zablokowany. Nie udało się zakończyć wspólnej blokady.",
   "errors.unexpectedError": "Wystąpił nieoczekiwany błąd. Przeładuj stronę.",
   "nav.home": "Pulpit",
   "nav.vaults": "Skarbce",

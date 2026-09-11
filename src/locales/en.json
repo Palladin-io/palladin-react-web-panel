@@ -637,6 +637,8 @@
   "common.on": "On",
   "common.off": "Off",
   "errors.somethingWentWrong": "Something went wrong",
+  "auth.lockSession": "Lock",
+  "auth.sharedLockFailed": "This panel is locked. The shared lock could not be completed.",
   "errors.unexpectedError": "An unexpected error occurred. Please reload the page.",
   "nav.home": "Home",
   "nav.vaults": "Vaults",

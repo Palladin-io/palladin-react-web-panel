@@ -482,3 +482,33 @@ transport tests cover hints, flooding, timeout, no echo and missing own auth.
 Already-locked/restarted group closing, independent multi-document activity,
 disconnect/reconnect, the remaining unlock surfaces and full native Identity/Entry
 E2E across the supported artifact matrix remain release gates.
+
+## Manual Web lock and live session boundary
+
+The sidebar's localized Lock action calls `lockClientSession`. It wipes own
+MK/private key synchronously and retains its own login, then persists a scoped
+manual lock and delivers it through the existing fresh own preference/link CAS
+path. Only this explicit action emits a manual lock; generic security/peer lock
+does not echo a shared event. A fresh Identity OFF keeps the action local.
+Offline/conflict delivery retains the pending record; failed storage retains
+local key wipe and admission denial and reports that shared lock did not finish.
+No peer-success toast is inferred from a best-effort delivery.
+
+Closing metadata captures API/origin/extension/account before storage waits.
+Delivery is fenced to the original token pair and exact post-lock crypto
+generation; even a same-account unlock with unchanged tokens defeats an old
+pending response. It never wipes a newer session. Existing closing reconciliation
+must settle the pending decision before preparing a later manual sharing root.
+
+`AuthenticatedSessionBoundary` unmounts the authenticated content immediately on
+lock, expiry or logout, before waiting for router navigation. It routes to unlock
+when an own session/refresh lineage remains and to login otherwise, preserving
+the safe internal destination including query and hash. The unlock surface stays
+available while locked. This also handles a lock/logout received through the
+shared-link monitor; a router guard that runs only on navigation was insufficient.
+The boundary does not renew sessions or replace their keys/tokens.
+
+Tests use the real auth store and marker/Identity adapter with synthetic REST,
+and keep navigation pending to prove that plaintext-bearing children unmount.
+Full native lock propagation, restarted/rootless repair, disconnect/reconnect
+and the remaining shared-unlock acceptance matrix remain open.
