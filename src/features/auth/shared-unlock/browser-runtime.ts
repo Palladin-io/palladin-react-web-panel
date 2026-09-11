@@ -3,6 +3,8 @@ import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { env } from '../../../shared/lib/env'
 import { sessionDeadline } from '../lib/session-limits'
 import { useAuthStore } from '../stores/auth-store'
+import { clearClientSession } from '../session/client-session'
+import { startSharedUnlockLinkMonitor } from './link-monitor'
 import { SharedUnlockApi, SharedUnlockApiError } from './api'
 import { startSharedUnlockBrowserCoordinator } from './browser-coordinator'
 import type { SharedUnlockBrowserRoute } from './browser-channel'
@@ -21,9 +23,39 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
     if (marker.pending.length || marker.disconnectId || marker.observed?.state === 'revoked') throw new Error('Shared unlock local link unavailable')
     return marker
   }
-  return startSharedUnlockBrowserCoordinator(route, {
+  const nonce = async () => { const bytes = await randomBytes(32); try { return encodeBase64Url(bytes) } finally { wipe(bytes) } }
+  const subscribe = (changed: () => void) => {
+    const unwatch = useAuthStore.subscribe((own, before) => {
+      if (own.cryptoSessionGeneration !== before.cryptoSessionGeneration || own.userId !== before.userId
+        || own.accessToken !== before.accessToken || own.refreshToken !== before.refreshToken) changed()
+    })
+    const unsubscribe = subscribeSharedUnlockSource(changed)
+    return () => { unwatch(); unsubscribe() }
+  }
+  const monitor = startSharedUnlockLinkMonitor(route, {
+    nonce, subscribe,
+    capture: () => {
+      const own = useAuthStore.getState(), state = getSharedUnlockSourceSnapshot()
+      if (own.isVaultLocked || !own.userId || !own.accessToken || !own.refreshToken || !state.authorization) return null
+      const root = state.authorization, abort = new AbortController()
+      const check = () => {
+        const current = useAuthStore.getState(), authority = getSharedUnlockSourceSnapshot()
+        if (abort.signal.aborted || current.cryptoSessionGeneration !== own.cryptoSessionGeneration || current.isVaultLocked
+          || current.userId !== own.userId || current.accessToken !== own.accessToken || current.refreshToken !== own.refreshToken
+          || authority.authorization?.authorizationId !== root.authorizationId || authority.sourceGeneration !== state.sourceGeneration) throw new Error('Shared link own root changed')
+      }
+      const unwatch = subscribe(() => { try { check() } catch { abort.abort() } })
+      return { session: { apiUrl: route.apiUrl, userId: own.userId, accessToken: own.accessToken, refreshToken: own.refreshToken },
+        sequence: root.sequence, signal: abort.signal, assertCurrent: check, dispose: () => { unwatch(); abort.abort() } }
+    },
+    closeSession: async action => {
+      if (action === 'logout') await clearClientSession()
+      else useAuthStore.getState().lockVault()
+    },
+  }, links, api)
+  const coordinator = startSharedUnlockBrowserCoordinator(route, {
     role: 'web',
-    nonce: async () => { const bytes = await randomBytes(32); try { return encodeBase64Url(bytes) } finally { wipe(bytes) } },
+    nonce,
     readState: async () => {
       const own = useAuthStore.getState()
       if (!own.isVaultLocked && own.unlockLimits && Date.now() >= sessionDeadline(own.unlockLimits)) own.expireSession()
@@ -33,14 +65,7 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
         ? { organizationId: state.authorization.organizationId, generation: state.sourceGeneration } : null
       return { accountId: current.userId, status, source }
     },
-    subscribe: changed => {
-      const unwatch = useAuthStore.subscribe((own, before) => {
-        if (own.cryptoSessionGeneration !== before.cryptoSessionGeneration || own.userId !== before.userId
-          || own.accessToken !== before.accessToken || own.refreshToken !== before.refreshToken) changed()
-      })
-      const unsubscribe = subscribeSharedUnlockSource(changed)
-      return () => { unwatch(); unsubscribe() }
-    },
+    subscribe,
     selectLink: async (accountId, proposed) => {
       if (!proposed) throw new Error('Extension must select the profile link')
       return (await admissible(accountId, proposed)).linkId
@@ -96,4 +121,5 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
         assertOwnCurrent(); if (env.apiUrl !== route.apiUrl) throw new Error('Shared unlock own environment changed')
       })),
   })
+  return { close: () => { coordinator.close(); monitor.close() } }
 }

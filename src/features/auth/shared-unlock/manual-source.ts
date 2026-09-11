@@ -4,13 +4,14 @@ import { env } from '../../../shared/lib/env'
 import { sessionDeadline } from '../lib/session-limits'
 import { useAuthStore } from '../stores/auth-store'
 import { SharedUnlockApi, SharedUnlockApiError } from './api'
+import { flushManualSharedUnlockClosings } from './link-runtime'
 import { SharedUnlockSourceAuthority } from './source-authority'
 
 let authority: SharedUnlockSourceAuthority | null = null
 
 function getAuthority(): SharedUnlockSourceAuthority {
   if (authority) return authority
-  const source = new SharedUnlockSourceAuthority(new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl))
+  const source = new SharedUnlockSourceAuthority(new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl), Date.now, flushManualSharedUnlockClosings)
   authority = source
   useAuthStore.subscribe((current, previous) => {
     if (current.isVaultLocked || current.userId !== previous.userId

@@ -34,6 +34,18 @@ export class SharedUnlockApi {
   readLink(session: SharedUnlockOwnSession, linkId: string, signal: AbortSignal): Promise<SharedUnlockLink> {
     return this.request(session.apiUrl, `/api/account/shared-unlock/links/${encodeURIComponent(linkId)}`, undefined, signal, session)
   }
+  lock(session: SharedUnlockOwnSession, linkId: string, revision: number, preferenceRevision: number, signal: AbortSignal): Promise<SharedUnlockLink> {
+    return this.request(session.apiUrl, `/api/account/shared-unlock/links/${encodeURIComponent(linkId)}/lock`,
+      { expectedRevision: revision, expectedPreferenceRevision: preferenceRevision }, signal, session)
+  }
+  logout(session: SharedUnlockOwnSession, linkId: string, revision: number, preferenceRevision: number, signal: AbortSignal): Promise<SharedUnlockLink> {
+    return this.request(session.apiUrl, `/api/account/shared-unlock/links/${encodeURIComponent(linkId)}/logout`,
+      { expectedRevision: revision, expectedPreferenceRevision: preferenceRevision }, signal, session)
+  }
+  disconnect(session: SharedUnlockOwnSession, linkId: string, revision: number, signal: AbortSignal): Promise<SharedUnlockLink> {
+    return this.request(session.apiUrl, `/api/account/shared-unlock/links/${encodeURIComponent(linkId)}/disconnect`,
+      { expectedRevision: revision }, signal, session)
+  }
   activate(session: SharedUnlockOwnSession, linkId: string, input: SharedUnlockActivationInput, signal: AbortSignal): Promise<SharedUnlockLink> {
     return this.request(session.apiUrl, `/api/account/shared-unlock/links/${encodeURIComponent(linkId)}/activate`, { ...input, refreshToken: session.refreshToken }, signal, session)
   }

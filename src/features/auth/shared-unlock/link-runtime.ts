@@ -1,4 +1,6 @@
 import { env } from '../../../shared/lib/env'
+import { SharedUnlockApi, type SharedUnlockOwnSession } from './api'
+import { deliverSharedUnlockClosings, flushSharedUnlockClosings } from './closing'
 import { SharedUnlockLinkStore } from './link-store'
 
 // Only scoped link IDs, revisions and closing intents. No crypto/session material.
@@ -15,4 +17,16 @@ export async function recordManualSharedUnlockLogout(accountId: string | null): 
   if (!accountId || !env.sharedUnlockExtensionId) return
   await sharedUnlockLinks.recordManualClosing({ accountId, apiUrl: env.apiUrl,
     webOrigin: window.location.origin, extensionId: env.sharedUnlockExtensionId }, 'logout')
+}
+
+const api = new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl)
+const ownScope = (session: SharedUnlockOwnSession) => ({ accountId: session.userId, apiUrl: session.apiUrl,
+  webOrigin: window.location.origin, extensionId: env.sharedUnlockExtensionId })
+export async function flushManualSharedUnlockClosings(session: SharedUnlockOwnSession, signal: AbortSignal, check: () => void): Promise<void> {
+  if (!env.sharedUnlockExtensionId) return
+  await flushSharedUnlockClosings(ownScope(session), session, sharedUnlockLinks, api, signal, check)
+}
+export async function deliverManualSharedUnlockLogout(session: SharedUnlockOwnSession, check: () => void): Promise<void> {
+  if (!env.sharedUnlockExtensionId) return
+  await deliverSharedUnlockClosings([ownScope(session)], session, sharedUnlockLinks, api, check)
 }
