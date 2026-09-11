@@ -32,7 +32,7 @@ Semantic roles map to `--cv-*` tokens (defined in `src/index.css`, consumed via 
 | Success / approved | `--cv-success` | `#10B981` |
 | Pending / request access (`grant.requested`) | `--cv-pending` | `#FFAB87` |
 | Info | `--cv-info` | `#60A5FA` |
-| Danger | `--cv-primary` | `#EB4747` |
+| Danger | `--cv-primary` | `#E54645` |
 | Neutral | `--cv-neutral` | `#8A95A6` |
 
 Rules:

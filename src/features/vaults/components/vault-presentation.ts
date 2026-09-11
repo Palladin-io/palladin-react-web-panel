@@ -22,19 +22,19 @@ export const VAULT_ICON_OPTIONS = [
 ] as const
 
 export const VAULT_ICON_COLORS: Record<string, string> = {
-  shield: '#EB4747',
+  shield: '#E54645',
   folder: '#FFAB87',
   cloud: '#60A5FA',
   code: '#10B981',
   database: '#8A95A6',
   key: '#8A95A6',
-  lock: '#EB4747',
+  lock: '#E54645',
   work: '#FFAB87',
   home: '#A78BFA',
   // Extended — used by the icon browser
   vpn_key: '#10B981',
-  security: '#EB4747',
-  fingerprint: '#EB4747',
+  security: '#E54645',
+  fingerprint: '#E54645',
   password: '#8A95A6',
   enhanced_encryption: '#10B981',
   folder_open: '#FFAB87',
@@ -54,10 +54,10 @@ export const VAULT_ICON_COLORS: Record<string, string> = {
   corporate_fare: '#FFAB87',
   account_balance: '#FFAB87',
   badge: '#A78BFA',
-  admin_panel_settings: '#EB4747',
+  admin_panel_settings: '#E54645',
   person: '#A78BFA',
   people: '#A78BFA',
-  favorite: '#EB4747',
+  favorite: '#E54645',
   star: '#FFAB87',
   credit_card: '#FFAB87',
   wallet: '#10B981',
@@ -100,7 +100,7 @@ export const VAULT_ICON_ALL = [
  * default for new vaults to match the Create Vault modal mockup.
  */
 export const VAULT_COLOR_OPTIONS = [
-  '#EB4747',
+  '#E54645',
   '#FFAB87',
   '#60A5FA',
   '#10B981',
@@ -118,6 +118,7 @@ export const DEFAULT_VAULT_COLOR = VAULT_COLOR_OPTIONS[0]
  * locale files.
  */
 export const VAULT_COLOR_NAME_KEY: Record<string, string> = {
+  '#E54645': 'red',
   '#EB4747': 'red',
   '#FFAB87': 'peach',
   '#60A5FA': 'blue',

@@ -34,7 +34,9 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `DateTimePicker` | `shared/components/datetime-picker.tsx` | Anchored calendar popover replacing native `datetime-local`, portaled to body | `value` (datetime-local string), `min?`, `onChange`, `onClose`, `anchorRef`. Tested. |
 | `PasswordStrengthBar` | `shared/components/password-strength-bar.tsx` | 4-segment strength bar (score 0–4) | `score: PasswordStrength`. |
 | `AuthSubmitButton` | `shared/components/auth-submit-button.tsx` | Full-width hero CTA for auth screens (not the compact `Button`) | `children`, `className` + `ButtonHTMLAttributes`. |
-| `AppWordmark` | `shared/components/app-wordmark.tsx` | Palladin logo + wordmark (login lg, sidebar sm) | `size` (sm / lg), `subtitle?` (sm only). |
+| `RotatingWelcome` | `shared/components/rotating-welcome.tsx` | Localized rotating brand lines shared by login and unlock; clears interval and fade timeout on unmount | `className?` (spacing, defaults to `mb-7`). |
+| `AppWordmark` | `shared/components/app-wordmark.tsx` | Palladin logo + wordmark | `size` (sm / lg / hero), `subtitle?` (sm only). `hero` uses landing-matched auth brand tokens; the compact lg gap remains 16px. |
+| `AuthBrandHeader` | `shared/components/auth-brand-header.tsx` | Landing-matched logo, wordmark and rotating brand lines for login and unlock | Reuses `AppWordmark size="hero"` and `RotatingWelcome`; shared responsive geometry through `--cv-auth-brand-*`. |
 | `RecoveryKeyDisplay` | `shared/components/recovery-key-display.tsx` | Shared recovery mnemonic display and acknowledgement action for account setup flows | `mnemonic`, `continueLabel`, `onContinue`. |
 | `RecoveryKeyConfirmationForm` | `shared/components/recovery-key-confirmation-form.tsx` | Shared three-word recovery-key challenge with inline validation and submit state | `mnemonic`, `onConfirmed`, `isSubmitting`, `error`, `onValidated?`. |
 | `ErrorBoundary` | `shared/components/error-boundary.tsx` | Per-feature route error boundary | standard class-component boundary. |
@@ -72,7 +74,7 @@ These patterns are duplicated 2+ times with no shared component. Extract on next
 5. **Glyphs** — `Icon` maps existing Material-style names to statically imported Lucide SVGs in `icon-glyphs.ts`. Add new names centrally; never load a remote icon font or render ligature spans.
 6. **Filters** — `TypeFilterDropdown` for multi-select filter chips. Date pickers → `DateTimePicker`, never native `datetime-local`.
 7. **Errors / retries** — `ErrorState` for failed query panels; `ErrorBoundary` at route level.
-8. **Auth surfaces** — `AuthSubmitButton`, `AppWordmark`, and the theme-aware `.auth-surface` / `.auth-glass-button` helpers. The landing-derived `.auth-logo-glow` is light-only and reserved for login/unlock. Never force a nested dark scope.
+8. **Auth surfaces** — `AuthSubmitButton`, `AppWordmark`, and the theme-aware `.auth-surface` / `.auth-glass-button` helpers. The shared `.auth-surface` owns a mobile-aligned light bloom or neutral dark grain behind all auth content. Never force a nested dark scope.
 9. **Colors** — `var(--cv-*)` tokens only. Brand red via `--cv-primary` / `--cv-primary-rgb`. Audit colors via `tone()` in `audit-event-config.ts`.
 10. **Skeletons / empty-states / tab strips / split-view / selects** — see "Controls to extract" above; use or create the shared component, never copy markup.
 11. **Settings master headers** — use `SETTINGS_MASTER_HEADER_CLASSES` inside a panel with 16px top padding. The 40px title row + 16px bottom gap occupies the same 72px band as the Settings rail header, keeping Settings, Team, Permissions and API Keys on one baseline.

@@ -60,8 +60,8 @@ than the lighter, blue-grey modal surface.
 
 | Token | Role |
 |-------|------|
-| `--cv-auth-bg` | Alias of `--cv-page-bg`, keeping panel and auth backgrounds identical in both themes |
-| `--cv-auth-logo-glow` | Light-only landing hero glow used behind the login and unlock shields |
+| `--cv-auth-bg` | Mobile-aligned pale-to-gray radial background in light; app-shell gradient in dark |
+| `--cv-auth-logo-glow` | Mobile AuthBrandBackground white bloom at 50%/22%, shared by all auth routes in light |
 | `--cv-auth-secondary` | Secondary auth text and back controls |
 | `--cv-auth-muted` | Auth subtitles, helper links, and legal copy |
 | `--cv-auth-divider` | Auth dividers and inactive progress dots |
@@ -70,10 +70,20 @@ than the lighter, blue-grey modal surface.
 | `--cv-auth-tooltip-bg` | Provider-button tooltip surface |
 | `--cv-google` | Google provider badge brand colour |
 
-`.auth-surface` applies the landing-aligned `--cv-auth-bg` and primary text for every full-screen
-auth route. `.auth-glass-button` owns the provider/secondary action treatment.
+`.auth-surface` applies `--cv-auth-bg` and primary text for every full-screen
+auth route. Its non-interactive screen-level pseudo-element adds the mobile white
+bloom in light or static neutral grain at 18% opacity in dark. The local procedural
+`public/textures/brand-grain.svg` is reused from the Palladin landing (Apache-2.0).
+An eased radial mask and bottom fade prevent hard texture edges. `.auth-glass-button` owns the provider/secondary action treatment.
 Both classes resolve from the root theme set by `ThemeSync`; neither creates a
 nested theme scope.
+
+Login and unlock use `AuthBrandHeader`: the same logo asset and rotating lines
+as the landing hero, with a 112px-wide shield (96px at widths up to 640px),
+32px wordmark (30px narrow), 24px shield-to-wordmark gap, 28px gap before the
+13px tagline, and 32px before the next content. Scoped `--cv-auth-brand-*`
+tokens normalize the panel's comfortable density so these brand proportions
+match the landing; form-control density and other wordmark variants stay intact.
 
 ### Buttons
 Per-variant tokens consumed by `button.tsx`:
@@ -98,7 +108,7 @@ Each has a solid value and an `-rgb` triplet for alpha tints via `rgb(var(--cv-x
 
 | Token | Value | Role |
 |-------|-------|------|
-| `--cv-primary` / `-hover` / `-rgb` | `#EB4747` / `#D43E3E` / `235 71 71` | Brand red / danger |
+| `--cv-primary` / `-hover` / `-rgb` | `#E54645` / `#D43E3E` / `229 70 69` | Brand red / danger |
 | `--cv-success` / `-rgb` | `#10B981` / `16 185 129` | Success / approved |
 | `--cv-info` / `-rgb` | `#60A5FA` / `96 165 250` | Info |
 | `--cv-pending` / `-rgb` | `#FFAB87` / `255 171 135` | Pending / request access |
@@ -126,7 +136,7 @@ Button class exports for `<Link>` elements that must look like footer buttons: `
 - `Icon` renders bundled Lucide SVGs through the central `icon-glyphs.ts` mapping. Stored Material-style names remain compatible; unknown names use a local question-mark SVG. SVG dimensions honor `--cv-density-scale`, color inherits `currentColor`, and decorative icons stay hidden from assistive technology. No icon-font CSS or remote font request is required.
 - `.step-enter` / `@keyframes step-enter` — wizard step entrance animation (fade + translateY).
 - `.auth-surface` — full-screen auth background and foreground that follow the persisted app theme.
-- `.auth-logo-glow` — broad white radial light attached to the login/unlock content wrapper and centred on the shield; it renders behind the complete content stack, is hidden in dark mode, and is not used on other auth routes.
+- `.auth-logo-glow` — legacy login/unlock positioning wrapper; decoration is owned by `.auth-surface::before` so registration and the other auth steps share the same background.
 - `.auth-glass-button` — theme-aware glass treatment for auth provider and secondary actions.
 - `.btn-premium` — premium-button sweep-fill hover.
 - `.tab-strip-scroll` — keeps detail tabs horizontally scrollable without exposing an overlay scrollbar thumb beside the last tab.
@@ -175,7 +185,7 @@ as its surrounding role; only the font family changes.
 ## Adding a new token
 
 1. Add the variable to **both** `:root` and `.dark` in `src/index.css` — never light-only.
-2. If it needs alpha tints, also add an `-rgb` triplet sibling (space-separated, e.g. `235 71 71`) and consume via `rgb(var(--cv-x-rgb) / <alpha>)`.
+2. If it needs alpha tints, also add an `-rgb` triplet sibling (space-separated, e.g. `229 70 69`) and consume via `rgb(var(--cv-x-rgb) / <alpha>)`.
 3. Name by **role, not appearance** (`--cv-empty-border`, not `--cv-grey-12`).
 4. Document it in the matching table above.
 5. Reach for a new token only when an existing one doesn't fit semantically — prefer reuse.

@@ -226,9 +226,9 @@ The brand/primary red lives ONLY in CSS tokens — never hardcode `#FF4F4F`, `rg
 
 | Token | Value | Use |
 |-------|-------|-----|
-| `--cv-primary` | `#EB4747` | Solid color (text, borders, backgrounds) |
+| `--cv-primary` | `#E54645` | Solid color (text, borders, backgrounds) |
 | `--cv-primary-hover` | `#D43E3E` | Hover state |
-| `--cv-primary-rgb` | `235 71 71` | Alpha tints via `rgb(var(--cv-primary-rgb) / 0.12)` |
+| `--cv-primary-rgb` | `229 70 69` | Alpha tints via `rgb(var(--cv-primary-rgb) / 0.12)` |
 
 In Tailwind arbitrary values: `text-[var(--cv-primary)]`, `bg-[rgb(var(--cv-primary-rgb)/0.12)]`.
 In inline JS styles: `'var(--cv-primary)'`, `'rgb(var(--cv-primary-rgb) / 0.12)'`.

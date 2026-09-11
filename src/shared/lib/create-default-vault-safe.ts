@@ -7,7 +7,7 @@ import { issueVaultCreationChallenge } from '../../features/vaults/api/vault-api
 // Defaults mirror those in vault-presentation.ts but are kept here as
 // literals to avoid a cross-feature import.
 const DEFAULT_ICON = 'shield'
-const DEFAULT_COLOR = '#EB4747'
+const DEFAULT_COLOR = '#E54645'
 
 /**
  * Generates a fresh Vault Key, seals it for the user, and creates the
