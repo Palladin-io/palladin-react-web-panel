@@ -11,7 +11,11 @@ export function useLogin(redirectTo = '/') {
     mutationFn: oauthGoogle,
     onSuccess: (data) => {
       setTokens(data)
-      navigate({ href: redirectTo })
+      if (data.isNewUser) {
+        void navigate({ to: '/privacy-choices', search: { redirect: redirectTo } })
+      } else {
+        void navigate({ href: redirectTo })
+      }
     },
   })
 }

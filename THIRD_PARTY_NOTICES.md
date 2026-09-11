@@ -26,7 +26,6 @@ Additional direct runtime licenses:
 |---|---|---|
 | `libsodium-wrappers` | ISC | <https://github.com/jedisct1/libsodium.js> |
 | `lucide-react` | ISC | <https://github.com/lucide-icons/lucide> |
-| `posthog-js` | Apache-2.0 AND MIT | <https://github.com/PostHog/posthog-js> |
 
 Development-only dependencies are also pinned in `package-lock.json`; their
 declared licenses are MIT, Apache-2.0, ISC, or the dual license shown above.

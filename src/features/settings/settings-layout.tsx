@@ -18,6 +18,7 @@ interface SettingsNavigationItem {
     | '/settings/api-keys'
     | '/settings/billing'
     | '/settings/security'
+    | '/settings/privacy'
     | '/settings/data-export'
   requiredPermission?: number
 }
@@ -31,6 +32,7 @@ const ORGANIZATION_ITEMS: SettingsNavigationItem[] = [
 ]
 
 const ACCOUNT_ITEMS: SettingsNavigationItem[] = [
+  { id: 'privacy', labelKey: 'privacy.title', icon: 'shield', to: '/settings/privacy' },
   { id: 'security', labelKey: 'settings.navigation.security', icon: 'security', to: '/settings/security' },
   { id: 'data-export', labelKey: 'settings.navigation.dataExport', icon: 'file_download', to: '/settings/data-export' },
 ]

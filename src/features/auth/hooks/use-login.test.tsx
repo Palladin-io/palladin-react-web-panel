@@ -58,4 +58,12 @@ describe('useLogin', () => {
       href: '/vaults/vault-1/entries/entry-1?tab=logs#history',
     })
   })
+
+  it('offers privacy choices to a newly created OAuth account and preserves its destination', async () => {
+    oauthGoogleMock.mockResolvedValue({ accessToken: 'access', refreshToken: 'refresh', userId: 'new-user', isOnboarded: false, isNewUser: true })
+    const { result } = renderHook(() => useLogin('/agent-pairing/opaque-handle'), { wrapper })
+    act(() => result.current.mutate('google-access-token'))
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/privacy-choices', search: { redirect: '/agent-pairing/opaque-handle' } })
+  })
 })

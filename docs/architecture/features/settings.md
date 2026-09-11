@@ -20,3 +20,6 @@ A route layout owns a responsive section rail. Organization settings (General, T
 
 ## Cross-feature deps
 Reads `useAuthStore` for org context and permissions. Route-level composition hosts Teams, Permissions, API Keys, Billing, Auth Security, and Vault export surfaces without moving their domain logic into Settings.
+
+Account consent and analytics activation use the shared [privacy feature](privacy.md),
+with separate post-registration and Settings → Privacy surfaces.
