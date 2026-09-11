@@ -116,7 +116,7 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
     },
     source: (binding, signal, assertCurrent) => beginSharedUnlockSource({ apiUrl: route.apiUrl, binding, signal, assertCurrent }, api),
     receiver: (binding, signal, assertCurrent) => beginSharedUnlockReceiver({ apiUrl: route.apiUrl, binding,
-      assertFreshAuthorization: sequence => sharedUnlockExpiry.assertFresh(scope(binding.accountId), sequence),
+      assertFreshAuthorization: (sequence, deadlineMs) => sharedUnlockExpiry.checkpoint(scope(binding.accountId), sequence, deadlineMs),
       assertCurrent: () => { if (signal.aborted) throw new Error('Shared unlock attempt cancelled'); assertCurrent() } }, api,
     (authorization, generation, assertOwnCurrent) => adoptSharedUnlockSource(authorization, generation,
       { sharedUnlockEnabled: true, revision: binding.preferenceRevision }, () => {

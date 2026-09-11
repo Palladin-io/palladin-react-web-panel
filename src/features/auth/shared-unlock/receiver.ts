@@ -3,7 +3,7 @@ import { createSharedUnlockReceiverCrypto } from '../../../shared/crypto/shared-
 import { wipe } from '../../../shared/crypto/sodium'
 import type { SharedUnlockKeys } from '../../../shared/crypto/shared-unlock-keys'
 import { env } from '../../../shared/lib/env'
-import { sessionDeadline } from '../lib/session-limits'
+import { sessionDeadline, unlockLimits } from '../lib/session-limits'
 import { captureClientSessionGeneration, clientSessionGenerationMatches } from '../session/client-session'
 import { captureManualUnlockFence } from '../session/manual-unlock-attempt'
 import { useAuthStore } from '../stores/auth-store'
@@ -18,7 +18,7 @@ export interface SharedUnlockReceiverRoute {
   readonly binding: Pick<SharedUnlockContext, 'accountId' | 'organizationId' | 'apiOrigin' | 'webOrigin'
     | 'extensionId' | 'documentBinding' | 'webGeneration' | 'extensionGeneration' | 'linkId' | 'linkEpoch' | 'preferenceRevision'>
   assertCurrent(): void
-  assertFreshAuthorization?(sequence: number): Promise<void>
+  assertFreshAuthorization?(sequence: number, deadlineMs: number): Promise<void | number>
 }
 
 /** Internal completion metadata for inherited authority/UI; not a wire ACK. */
@@ -152,10 +152,12 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
         assertCurrent()
         await receiver.verifyCommit(commit.context)
         assertBinding(commit.context)
-        await wait(route.assertFreshAuthorization?.(commit.authorizationSequence) ?? Promise.resolve())
+        const effective = unlockLimits(Date.now(), commit.context)
+        const persistedDeadline = await wait(route.assertFreshAuthorization?.(commit.authorizationSequence, sessionDeadline(effective)) ?? Promise.resolve())
+        const installedLimits = { ...effective, idleDeadlineMs: Math.min(effective.idleDeadlineMs, persistedDeadline ?? Infinity) }
         assertCurrent()
         installedGeneration = useAuthStore.getState().installSharedUnlock({
-          expected: initial, accountId: binding.accountId, session: commit.session, keys, limits: commit.context,
+          expected: initial, accountId: binding.accountId, session: commit.session, keys, limits: installedLimits,
         })
         assertCurrent()
         const result: SharedUnlockReceived = { operationId: commit.context.operationId,

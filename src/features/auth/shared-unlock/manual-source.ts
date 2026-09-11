@@ -13,7 +13,11 @@ let authority: SharedUnlockSourceAuthority | null = null
 function getAuthority(): SharedUnlockSourceAuthority {
   if (authority) return authority
   const source = new SharedUnlockSourceAuthority(new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl), Date.now, flushManualSharedUnlockClosings,
-    (root, session) => sharedUnlockExpiry.remember({ accountId: session.userId, apiUrl: session.apiUrl }, root.sequence))
+    (root, session) => {
+      const scope = { accountId: session.userId, apiUrl: session.apiUrl }
+      sharedUnlockExpiry.remember(scope, root.sequence)
+      return sharedUnlockExpiry.checkpoint(scope, root.sequence, sessionDeadline(root))
+    })
   authority = source
   useAuthStore.subscribe((current, previous) => {
     if (current.isVaultLocked || current.userId !== previous.userId

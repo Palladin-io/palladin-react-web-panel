@@ -27,10 +27,10 @@ export class SharedUnlockSourceAuthority {
   private readonly api: SharedUnlockApi
   private readonly now: () => number
   private readonly beforeAuthorize: ((session: SharedUnlockOwnSession, signal: AbortSignal, check: () => void) => Promise<void>) | undefined
-  private readonly onAuthorized: ((authorization: SharedUnlockAuthorization, session: SharedUnlockOwnSession) => void) | undefined
+  private readonly onAuthorized: ((authorization: SharedUnlockAuthorization, session: SharedUnlockOwnSession) => void | number | Promise<number>) | undefined
   constructor(api: SharedUnlockApi, now: () => number = Date.now,
     beforeAuthorize?: (session: SharedUnlockOwnSession, signal: AbortSignal, check: () => void) => Promise<void>,
-    onAuthorized?: (authorization: SharedUnlockAuthorization, session: SharedUnlockOwnSession) => void) {
+    onAuthorized?: (authorization: SharedUnlockAuthorization, session: SharedUnlockOwnSession) => void | number | Promise<number>) {
     this.onAuthorized = onAuthorized
     this.api = api
     this.now = now
@@ -116,7 +116,7 @@ export class SharedUnlockSourceAuthority {
       const preference = await this.api.readPreference(session, controller.signal)
       check()
       this.state = { preference, authorization: null, sourceGeneration: null }
-      const authorization = await this.api.authorize(session, {
+      let authorization = await this.api.authorize(session, {
         authCredential: encodeBase64Url(context.authCredential), sourceGeneration: generation,
         expectedPreferenceRevision: preference.revision,
         expectedCredentialRevision: account.kdf.credentialRevision,
@@ -125,7 +125,14 @@ export class SharedUnlockSourceAuthority {
         offlineDeadlineMs: limits.offlineDeadlineMs,
       }, controller.signal)
       check()
-      this.onAuthorized?.(authorization, session)
+      const persistedDeadline = await new Promise<void | number>((resolve, reject) => {
+        const cancelled = () => reject(new SharedUnlockApiError("cancelled"));
+        if (controller.signal.aborted) { cancelled(); return; }
+        controller.signal.addEventListener("abort", cancelled, { once: true });
+        Promise.resolve().then(() => { check(); return this.onAuthorized?.(authorization, session); })
+          .then(resolve, reject).finally(() => controller.signal.removeEventListener("abort", cancelled));
+      });
+      if (persistedDeadline !== undefined) authorization = { ...authorization, idleDeadlineMs: Math.min(authorization.idleDeadlineMs, persistedDeadline) };
       check()
       this.checkSession = context.assertCurrent
       this.state = { preference, authorization, sourceGeneration: generation }
