@@ -346,6 +346,11 @@ fence survives peer closure and rejects a later own lock/session replacement.
 Adoption retains original root sequence, generation and time ceilings, does not
 request a fresh password proof, and cannot overwrite a newer explicit OFF.
 Source-authority subscriptions trigger readiness after late manual preparation.
+When an own authority notification cancels an active source, the coordinator
+advertises a fresh state and negotiates a new attempt even if the account and key
+generation remain unchanged. The cancelled selection is never resumed. A fresh
+read that reports locked, signed out or unavailable authority cannot start a
+handoff; new work still passes the existing Identity, document and key-use fences.
 Updates caused by the receiver's own installation are deferred until completion
 so the coordinator does not cancel its own successful install.
 
