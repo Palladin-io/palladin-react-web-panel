@@ -155,3 +155,34 @@ it('creates and activates the selected link using only the own session and origi
   expect(JSON.parse(String(fetcher.mock.lastCall![1]?.body))).toEqual({ ...activate, refreshToken: own.refreshToken })
   expect(fetcher.mock.lastCall![1]).toMatchObject({ headers: { authorization: 'Bearer own-access' }, credentials: 'omit', cache: 'no-store', redirect: 'error' })
 })
+
+
+it.each([true, false])('writes the account preference %s with its own Identity and exact CAS', async enabled => {
+  const preference = { sharedUnlockEnabled: enabled, revision: 4 }
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(preference)))
+  const api = new SharedUnlockApi(fetcher, () => apiUrl)
+  expect(await api.setPreference(own, enabled, 3, new AbortController().signal)).toEqual(preference)
+  const [url, init] = fetcher.mock.lastCall!
+  expect(url).toBe(apiUrl + '/api/account/shared-unlock')
+  expect(init).toMatchObject({ method: 'PUT', headers: { authorization: 'Bearer own-access' }, credentials: 'omit', redirect: 'error', cache: 'no-store' })
+  expect(JSON.parse(String(init?.body))).toEqual({ sharedUnlockEnabled: enabled, expectedRevision: 3 })
+})
+
+it('requests explicit reconnect without enabling the account preference or activating the link', async () => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}'))
+  const api = new SharedUnlockApi(fetcher, () => apiUrl)
+  await api.reconnect(own, 'link/with?#characters', 7, new AbortController().signal)
+  expect(fetcher).toHaveBeenCalledOnce()
+  const [url, init] = fetcher.mock.lastCall!
+  expect(url).toBe(apiUrl + '/api/account/shared-unlock/links/link%2Fwith%3F%23characters/reconnect')
+  expect(init).toMatchObject({ method: 'POST', headers: { authorization: 'Bearer own-access' }, credentials: 'omit', cache: 'no-store' })
+  expect(JSON.parse(String(init?.body))).toEqual({ expectedRevision: 7 })
+})
+
+it.each(['preference', 'reconnect'] as const)('does not replay conflicting %s with a guessed revision', async action => {
+  const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}', { status: 409 }))
+  const api = new SharedUnlockApi(fetcher, () => apiUrl), signal = new AbortController().signal
+  await expect(action === 'preference' ? api.setPreference(own, false, 3, signal) : api.reconnect(own, 'link', 7, signal))
+    .rejects.toMatchObject({ code: 'conflict' })
+  expect(fetcher).toHaveBeenCalledOnce()
+})

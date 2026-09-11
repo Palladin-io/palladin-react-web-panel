@@ -28,6 +28,16 @@ export class SharedUnlockApi {
     return this.request(session.apiUrl, '/api/account/shared-unlock', undefined, signal, session)
   }
 
+  setPreference(session: SharedUnlockOwnSession, enabled: boolean, revision: number, signal: AbortSignal): Promise<SharedUnlockPreference> {
+    return this.request(session.apiUrl, '/api/account/shared-unlock',
+      { sharedUnlockEnabled: enabled, expectedRevision: revision }, signal, session, undefined, 'PUT')
+  }
+
+  reconnect(session: SharedUnlockOwnSession, linkId: string, revision: number, signal: AbortSignal): Promise<SharedUnlockLink> {
+    return this.request(session.apiUrl, `/api/account/shared-unlock/links/${encodeURIComponent(linkId)}/reconnect`,
+      { expectedRevision: revision }, signal, session)
+  }
+
   createLink(session: SharedUnlockOwnSession, linkId: string, preferenceRevision: number, signal: AbortSignal): Promise<SharedUnlockLink> {
     return this.request(session.apiUrl, '/api/account/shared-unlock/links', { linkId, expectedPreferenceRevision: preferenceRevision }, signal, session)
   }
@@ -86,7 +96,7 @@ export class SharedUnlockApi {
     finally { clearTimeout(timeout) }
   }
 
-  private async request<T>(apiUrl: string, path: string, body: object | undefined, signal: AbortSignal, session?: SharedUnlockOwnSession, onIssued?: (result: T) => void): Promise<T> {
+  private async request<T>(apiUrl: string, path: string, body: object | undefined, signal: AbortSignal, session?: SharedUnlockOwnSession, onIssued?: (result: T) => void, method = body ? 'POST' : 'GET'): Promise<T> {
     const check = () => {
       if (signal.aborted || apiUrl !== this.currentApiUrl()) throw new SharedUnlockApiError('cancelled')
     }
@@ -94,7 +104,7 @@ export class SharedUnlockApi {
     try {
       // No generic 401 refresh/retry: a password proof belongs to this exact own session.
       const response = await this.doFetch(`${apiUrl.replace(/\/$/, '')}${path}`, {
-        method: body ? 'POST' : 'GET',
+        method,
         headers: { accept: 'application/json',
           ...(session ? { authorization: `Bearer ${session.accessToken}` } : {}),
           ...(body ? { 'content-type': 'application/json' } : {}) },
