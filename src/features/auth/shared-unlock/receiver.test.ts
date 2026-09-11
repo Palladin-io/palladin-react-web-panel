@@ -542,3 +542,18 @@ it('cannot publish from a final local-lock callback that resumes after receiver 
   expect(f.ack).not.toHaveBeenCalled()
   expect(useAuthStore.getState().masterKey).toBeNull()
 })
+
+
+it('refuses a real receiver created while the Google popup owns manual admission, then permits a fresh one after cancel', async () => {
+  useAuthStore.getState().logout()
+  const popup = beginManualUnlockAttempt({ blockNewSharedUnlock: true })
+  try {
+    await expect(setup()).rejects.toThrow()
+    expect(useAuthStore.getState().masterKey).toBeNull()
+    expect(useAuthStore.getState().accessToken).toBeNull()
+  } finally { popup.cancel() }
+  const fresh = await setup()
+  await fresh.receiver.receive(fresh.input)
+  expect(useAuthStore.getState().masterKey).toEqual(fresh.masterKey)
+  expect(fresh.ack).toHaveBeenCalledOnce()
+})

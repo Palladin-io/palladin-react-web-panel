@@ -1,11 +1,10 @@
-import { useGoogleLogin } from '@react-oauth/google'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppWordmark } from '../../../shared/components/app-wordmark'
 import { AuthRateLimitError } from '../api/auth-api'
-import { useLogin } from '../hooks/use-login'
+import { useGoogleSignIn } from '../hooks/use-google-sign-in'
 import { usePasswordLogin } from '../hooks/use-password-login'
 import { clearClientSession } from '../session/client-session'
 import { useAuthStore } from '../stores/auth-store'
@@ -52,7 +51,7 @@ interface LoginPageProps {
 export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const oauth = useLogin(redirectTo)
+  const oauth = useGoogleSignIn(redirectTo)
   const { start, submitTotp, cancel } = usePasswordLogin()
   const unlockedSession = useAuthStore((state) => Boolean(state.accessToken) && !state.isVaultLocked)
   const navigated = useRef(false)
@@ -82,22 +81,17 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
     if (oauth.isError) toast.error(t('auth.errorSignInFailed'))
   }, [oauth.isError, t])
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: (response) => {
-      oauth.mutate(response.access_token)
-    },
-    onError: () => {
-      toast.error(t('auth.errorGoogleSignInFailed'))
-    },
-  })
+  useEffect(() => {
+    if (oauth.googleError) toast.error(t('auth.errorGoogleSignInFailed'))
+  }, [oauth.googleError, t])
 
   const handleGoogleLogin = () => {
-    void clearClientSession()
-      .then(() => googleLogin())
-      .catch(() => toast.error(t('auth.errorSignInFailed')))
+    cancel()
+    oauth.start()
   }
 
   const handleCredentials = (email: string, password: string) => {
+    oauth.cancel()
     void clearClientSession()
       .then(() => {
         setPasswordError(null)

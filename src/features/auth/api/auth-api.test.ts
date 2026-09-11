@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth-store'
 import { captureClientSessionGeneration } from '../session/client-session'
 import {
   AuthRateLimitError,
+  revokeUninstalledLoginSession,
   fetchLoginKdf,
   passwordLogin,
   totpLogin,
@@ -67,4 +68,32 @@ describe('auth API rate limiting', () => {
     expect(request.credentials).toBe('omit')
     expect(request.redirect).toBe('error')
   })
+})
+
+
+it.each([204, 401, 500])('revokes only the unused OAuth response without touching the live client on HTTP %s', async status => {
+  useAuthStore.getState().setTokens({ accessToken: 'synthetic-current-access', refreshToken: 'synthetic-current-refresh',
+    userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
+  useAuthStore.getState().unlockVault(new Uint8Array(32).fill(1), new Uint8Array(32).fill(2))
+  const current = useAuthStore.getState(), generation = captureClientSessionGeneration()
+  let sentBody: unknown
+  const fetchMock = vi.fn<typeof fetch>(async request => {
+    sentBody = await (request as Request).clone().json()
+    return new Response(null, { status })
+  })
+  vi.stubGlobal('fetch', fetchMock)
+  try {
+    await revokeUninstalledLoginSession('synthetic-unused-refresh')
+    expect(fetchMock).toHaveBeenCalledOnce()
+    const request = fetchMock.mock.calls[0][0] as Request
+    expect(new URL(request.url).pathname).toBe('/api/auth/logout')
+    expect(sentBody).toEqual({ refreshToken: 'synthetic-unused-refresh' })
+    expect(request.headers.has('Authorization')).toBe(false)
+    expect(request.credentials).toBe('omit')
+    expect(request.redirect).toBe('error')
+    expect(captureClientSessionGeneration()).toBe(generation)
+    expect(useAuthStore.getState().refreshToken).toBe(current.refreshToken)
+    expect(useAuthStore.getState().masterKey).toBe(current.masterKey)
+    expect(useAuthStore.getState().isVaultLocked).toBe(false)
+  } finally { vi.unstubAllGlobals(); useAuthStore.getState().logout() }
 })

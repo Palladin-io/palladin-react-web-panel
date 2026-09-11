@@ -750,3 +750,31 @@ cross-document denials after link confirmation and cancellation while waiting;
 `publication-guards.test.ts` covers lock ordering, queued writers, retained idle
 ceilings, synchronous own pause and failed reads; `login-page.test.tsx` covers
 reactive deep-link navigation and pending manual work.
+
+### Google popup ownership during shared unlock
+
+`useGoogleSignIn` holds a RAM-only manual-admission owner from synchronous client
+clearing through asynchronous profile cleanup, the Google popup and the backend
+exchange. New shared receivers are denied for that whole interval, not only while
+a TanStack mutation is pending. The original client/key generations, a per-request
+Google `state` value and a five-minute wall-clock ceiling fence callbacks. The SDK
+uses the latest callback ref, so a returned token must match the state of its own
+request before an exchange starts. Closing, cancelling, navigating away or a
+newer manual attempt prevents an old result from publishing. A lost callback is
+bounded by a timer; the wall-clock check also applies if timers were suspended.
+
+`useLogin` checks that captured owner after the OAuth response and publishes only
+into a locked, keyless client. The final check, token publication and navigation
+have no intervening await. A response superseded by another session is revoked
+using only its newly issued refresh token over the anonymous login transport,
+without clearing/refreshing the current client or revoking Google account scopes.
+A cleanup from an older attempt cannot release a newer popup's admission barrier.
+The Google button remains pending for the full popup lifetime; explicit password
+login cancels that popup owner before beginning its own flow.
+
+The state/override/response fields and non-OAuth popup errors follow the
+[Google token-client reference](https://developers.google.com/identity/oauth2/web/reference/js-reference).
+Regression tests cover SDK callback correlation, close/unmount/expiry, profile
+cleanup failure, real shared receiver denial, and a late account-B response while
+account A holds keys. They exercise the real client state and synthetic provider
+responses; they do not claim a live Google account authorization test.

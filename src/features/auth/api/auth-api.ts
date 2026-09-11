@@ -24,6 +24,13 @@ export function oauthGoogle(token: string): Promise<AuthResponse> {
   return loginApi.post('api/auth/oauth/google', { json: { token } }).json()
 }
 
+/** Retire only an unused OAuth response; never clear or refresh the live client. */
+export async function revokeUninstalledLoginSession(refreshToken: string): Promise<void> {
+  try {
+    await loginApi.post('api/auth/logout', { json: { refreshToken }, timeout: 2000 })
+  } catch { /* Best effort for a response that was never installed locally. */ }
+}
+
 // ─── Email + password (Variant A: login password IS the master password) ──────
 
 /**

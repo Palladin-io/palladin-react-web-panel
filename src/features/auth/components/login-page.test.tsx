@@ -36,7 +36,8 @@ vi.mock('../hooks/use-password-login', () => ({
   }),
 }))
 
-vi.mock('../session/client-session', () => ({
+vi.mock('../session/client-session', async () => ({
+  ...await vi.importActual('../session/client-session'),
   clearClientSession: clearClientSessionMock,
 }))
 
