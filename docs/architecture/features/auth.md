@@ -161,11 +161,15 @@ token, on the original captured Identity URL. This dedicated best-effort cleanup
 has a separate two-second deadline, no bearer/cookies/redirects/retry and does not
 call the client's global logout or linked group logout. If the response never
 becomes available, the client has no token to revoke; it still installs no keys.
-A failed final route check/ACK rolls back only the newly installed lineage to the
+A failed final route check rolls back only the newly installed lineage to the
 previous locked snapshot; other logins/logout and expiry remain authoritative.
 
-Successful results/ACKs contain only operation/root IDs, sequence and local crypto
-generation. Actual browser routing, inherited-source authority/own activity,
+The internal successful result contains operation/root IDs, sequence and local
+crypto generation. The wire ACK contains only operationId plus the exact Web and
+Extension RAM generations, as required by protocol `session-api.md`. Successful
+installation and the final authority check complete the receiver before ACK is
+sent. ACK loss/port closure therefore preserves the valid own session; there is
+no ACK retry or durable queue, and duplicates cannot install again. Actual browser routing, inherited-source authority/own activity,
 link/preference lifecycle and UX remain to be wired. Tests use real crypto and
 verify both signatures, wrapped member/Vault keys and an encrypted synthetic Entry
 primitive through the installed private key, with a mocked Identity transport.

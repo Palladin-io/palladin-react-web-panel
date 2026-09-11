@@ -30,8 +30,9 @@ afterEach(() => { for (const cancel of cancels.splice(0)) cancel(); useAuthStore
 const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(r => { resolve = r }); return { promise, resolve } }
 
 async function setup(options: { pause?: 'consume' | 'commit'; transformConsume?: (op: SharedUnlockOperation) => SharedUnlockOperation;
-  transformCommit?: (commit: SharedUnlockCommit) => SharedUnlockCommit } = {}) {
+  transformCommit?: (commit: SharedUnlockCommit) => SharedUnlockCommit; afterInstall?: () => void } = {}) {
   let current = true
+  let checkedInstall = false
   const original = baseline.context
   const route: SharedUnlockReceiverRoute = {
     apiUrl, binding: {
@@ -39,7 +40,13 @@ async function setup(options: { pause?: 'consume' | 'commit'; transformConsume?:
       webOrigin: original.webOrigin, extensionId: original.extensionId, documentBinding: original.documentBinding,
       webGeneration: original.webGeneration, extensionGeneration: original.extensionGeneration,
       linkId: original.linkId, linkEpoch: original.linkEpoch, preferenceRevision: original.preferenceRevision,
-    }, assertCurrent: () => { if (!current) throw new Error('route changed') },
+    }, assertCurrent: () => {
+      if (!current) throw new Error('route changed')
+      if (!checkedInstall && !useAuthStore.getState().isVaultLocked) {
+        checkedInstall = true
+        options.afterInstall?.()
+      }
+    },
   }
   const pendingResponse = deferred<Response>()
   const events: string[] = []
@@ -92,7 +99,8 @@ describe('Web own receiver transaction with real crypto', () => {
     vaultKey.fill(0)
     const result = await f.receiver.receive(f.input)
     expect(f.events).toEqual(['consume', 'envelope', 'commit'])
-    expect(f.ack).toHaveBeenCalledExactlyOnceWith(result)
+    expect(f.ack).toHaveBeenCalledExactlyOnceWith({ operationId: result.operationId,
+      webGeneration: f.operation.context.webGeneration, extensionGeneration: f.operation.context.extensionGeneration })
     expect(Object.keys(result).sort()).toEqual(['authorizationId', 'authorizationSequence', 'cryptoSessionGeneration', 'operationId'])
     const installed = useAuthStore.getState()
     expect(installed).toMatchObject({ ...newSession, isVaultLocked: false, unlockLimits: {
@@ -208,11 +216,24 @@ describe('Web own receiver transaction with real crypto', () => {
     expect(f.ack).not.toHaveBeenCalled()
   })
 
+  it('keeps a completed session when the ACK is lost, without retry or cleanup logout', async () => {
+    const f = await setup()
+    const acknowledge = vi.fn(() => { throw new Error('port closed') })
+    const result = await f.receiver.receive({ ...f.input, acknowledge })
+    expect(acknowledge).toHaveBeenCalledExactlyOnceWith({ operationId: result.operationId,
+      webGeneration: f.operation.context.webGeneration, extensionGeneration: f.operation.context.extensionGeneration })
+    expect(useAuthStore.getState()).toMatchObject({ ...newSession, isVaultLocked: false })
+    f.receiver.cancel()
+    expect(useAuthStore.getState().masterKey).toEqual(f.masterKey)
+    expect(f.events).not.toContain('logout')
+    await expect(f.receiver.receive(f.input)).rejects.toMatchObject({ code: 'conflict' })
+    expect(acknowledge).toHaveBeenCalledOnce()
+  })
+
   for (const action of ['throw', 'lock', 'expire', 'logout', 'other-account'] as const) {
-    it(`cleans only its own installed session if final ACK ${action} prevents completion`, async () => {
-      const f = await setup()
-      await expect(f.receiver.receive({ ...f.input, acknowledge: () => {
-        if (action === 'throw') throw new Error('port closed')
+    it(`cleans only its own installed session if final route check ${action} prevents completion`, async () => {
+      const f = await setup({ afterInstall: () => {
+        if (action === 'throw') throw new Error('route changed after installation')
         if (action === 'lock') useAuthStore.getState().lockVault()
         if (action === 'expire') useAuthStore.getState().expireSession()
         if (action === 'logout') useAuthStore.getState().logout()
@@ -220,7 +241,9 @@ describe('Web own receiver transaction with real crypto', () => {
           useAuthStore.getState().logout()
           useAuthStore.getState().setTokens({ ...oldSession, userId: 'other-account', refreshToken: 'other-own-refresh' })
         }
-      } })).rejects.toThrow()
+      } })
+      await expect(f.receiver.receive(f.input)).rejects.toThrow()
+      expect(f.ack).not.toHaveBeenCalled()
       expect(f.events.filter(e => e === 'logout')).toHaveLength(1)
       expect(useAuthStore.getState()).toMatchObject({ isVaultLocked: true, masterKey: null, privateKey: null })
       expect(useAuthStore.getState().refreshToken).toBe(action === 'logout' ? null : action === 'other-account' ? 'other-own-refresh' : oldSession.refreshToken)

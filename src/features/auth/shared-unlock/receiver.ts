@@ -20,12 +20,19 @@ export interface SharedUnlockReceiverRoute {
   assertCurrent(): void
 }
 
-/** Value-free completion metadata only; no token or key may enter a browser ACK. */
+/** Internal completion metadata for inherited authority/UI; not a wire ACK. */
 export interface SharedUnlockReceived {
   readonly operationId: string
   readonly authorizationId: string
   readonly authorizationSequence: number
   readonly cryptoSessionGeneration: number
+}
+
+/** Protocol session-api.md: ACK identifies only operation and exact generations. */
+export interface SharedUnlockAcknowledgement {
+  readonly operationId: string
+  readonly webGeneration: string
+  readonly extensionGeneration: string
 }
 
 export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute,
@@ -115,7 +122,7 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
       verifiedSourcePublicKey: string
       envelope(signal: AbortSignal): Promise<unknown>
       /** Synchronous browser send after the final local/route check; no raw session. */
-      acknowledge(result: SharedUnlockReceived): void
+      acknowledge(result: SharedUnlockAcknowledgement): void
     }): Promise<SharedUnlockReceived> {
       if (started) throw new SharedUnlockApiError('conflict')
       const initial = previous
@@ -150,9 +157,12 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
         const result: SharedUnlockReceived = { operationId: commit.context.operationId,
           authorizationId: commit.authorizationId, authorizationSequence: commit.authorizationSequence,
           cryptoSessionGeneration: installedGeneration }
-        input.acknowledge(result)
-        assertCurrent()
         completed = true
+        // Local installation + final authority check complete the handoff. ACK
+        // only stops peer pending UI; losing it cannot revoke a valid session.
+        try { input.acknowledge({ operationId: result.operationId,
+          webGeneration: binding.webGeneration, extensionGeneration: binding.extensionGeneration }) }
+        catch { /* no retry/deferred ACK queue; independently valid session survives peer close */ }
         return result
       } finally {
         if (keys) { wipe(keys.masterKey); wipe(keys.privateKey); keys = null }
