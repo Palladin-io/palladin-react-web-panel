@@ -1,5 +1,7 @@
 import { HTTPError } from 'ky'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { useAuthStore } from '../stores/auth-store'
+import { captureClientSessionGeneration } from '../session/client-session'
 import {
   AuthRateLimitError,
   fetchLoginKdf,
@@ -10,6 +12,7 @@ import {
 describe('auth API rate limiting', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+    useAuthStore.getState().logout()
   })
 
   it.each([
@@ -40,5 +43,28 @@ describe('auth API rate limiting', () => {
       .rejects.toBeInstanceOf(HTTPError)
     await expect(Promise.reject(new AuthRateLimitError(null)))
       .rejects.toMatchObject({ retryAfterSeconds: null })
+  })
+
+  it.each([false, true])('keeps a rejected TOTP challenge retryable with existing session=%s', async (existingSession) => {
+    useAuthStore.setState({
+      accessToken: existingSession ? 'synthetic-access' : null,
+      refreshToken: existingSession ? 'synthetic-refresh' : null,
+    })
+    const generation = captureClientSessionGeneration()
+    const location = window.location.href
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response(null, { status: 401 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(totpLogin({ challengeToken: 'challenge', code: '000000' }))
+      .rejects.toBeInstanceOf(HTTPError)
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(captureClientSessionGeneration()).toBe(generation)
+    expect(window.location.href).toBe(location)
+    expect(useAuthStore.getState().refreshToken).toBe(existingSession ? 'synthetic-refresh' : null)
+    const request = fetchMock.mock.calls[0][0] as Request
+    expect(request.headers.has('Authorization')).toBe(false)
+    expect(request.credentials).toBe('omit')
+    expect(request.redirect).toBe('error')
   })
 })
