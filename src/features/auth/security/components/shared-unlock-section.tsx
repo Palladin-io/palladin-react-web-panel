@@ -4,6 +4,7 @@ import { ToggleSwitch } from '../../../../shared/components/toggle-switch'
 import { SharedUnlockApiError } from '../../shared-unlock/api'
 import { useAuthStore } from '../../stores/auth-store'
 import { useSharedUnlockPreference } from '../use-shared-unlock-preference'
+import { SharedUnlockLinkSection } from './shared-unlock-link-section'
 
 export function SharedUnlockSection() {
   const accountId = useAuthStore(state => state.userId)
@@ -46,6 +47,7 @@ function SharedUnlockAccountSection() {
           else void preference.refetch()
         }}>{t('security.sharedUnlock.retry')}</Button>}
       </div>
+      <SharedUnlockLinkSection />
     </section>
   )
 }

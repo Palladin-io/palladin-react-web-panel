@@ -512,3 +512,39 @@ Tests use the real auth store and marker/Identity adapter with synthetic REST,
 and keep navigation pending to prove that plaintext-bearing children unmount.
 Full native lock propagation, restarted/rootless repair, disconnect/reconnect
 and the remaining shared-unlock acceptance matrix remain open.
+
+## Local pairing actions — pre-release Web increment
+
+Security now shows the saved local pairing separately from the account preference.
+The marker is not a claim that an extension is installed or currently reachable.
+Missing configuration/marker stays unavailable/missing, without first-use consent.
+Disconnect and Reconnect use localized confirmation dialogs with shared modal,
+footer and button components; identifiers and credentials are not displayed.
+
+Confirmed disconnect captures the exact own account/API/origin/extension scope,
+starts a durable disconnect intent and wipes keys synchronously. It retains the
+own login. Its ten-second bounded delivery reads current own Identity and revokes
+the saved link even when the account preference is OFF; it never writes that
+preference. Missing own JWT or network/CAS failure leaves local revocation pending.
+Backend receipt uses the existing link-invalidation path for reachable active
+peers. It is not proof of already-locked/restarted peer repair.
+
+Explicit reconnect first flushes pending closing, reads its own current link and
+reconnects a revoked link with CAS. An explicit retry may finish the local clear
+from an authenticated already-reconnected link without replaying the mutation.
+Background reads cannot do this. Clearing requires the exact local disconnect
+ID, no newer closing and current own account/token/generation at each storage
+boundary. Failure/cancellation restores that ID; failed restoration retains RAM
+denial rather than queueing a successful clear for repair. Only successful
+storage is evidence of durability. The action captures tokens, not key references.
+
+Reconnect ends in a locked new backend epoch. Web therefore locks its own keys
+after clearing its latch; a later manual unlock establishes a root newer than
+that barrier. No activation, password proof or account preference is fabricated.
+
+**Still required before merge:** peer acknowledgement of explicit reconnect,
+Extension Settings controls and their two-host composition, verified live trust/
+account-mismatch/unsupported presentation, rootless/restarted handling and full
+native acceptance. This increment implements Web's own local action and storage
+fences; it does not complete one-click cross-client reconnect. Until the peer
+path is connected, its retained revocation can still block a subsequent handoff.
