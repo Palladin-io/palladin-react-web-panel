@@ -8,7 +8,12 @@ Quick rules live in `AGENTS.md` under **Security**; the details are here.
 The CSP is delivered as **HTTP response headers** from the `public/_headers`
 template (Cloudflare Pages / Netlify `_headers` format). During a production
 build, Vite replaces the public-asset placeholder with the validated origin of
-`VITE_PUBLIC_ASSET_URL`; the completed file ships in `dist/` but is **not** enforced by Vite
+`VITE_PUBLIC_ASSET_URL` and the connection placeholder with the exact origins of
+`VITE_API_URL` and `VITE_SIGNALR_HUB_URL` (HTTP negotiation plus the corresponding
+WebSocket origin). API origins are not shared implicitly across environments.
+HTTPS is required except for explicit loopback HTTP; credentials, query strings,
+fragments, whitespace and wildcard hosts are rejected. Missing build configuration
+does not grant a default API origin. The completed file ships in `dist/` but is **not** enforced by Vite
 or by a `<meta>` tag — it only takes effect when a host that understands
 `_headers` serves the site.
 
