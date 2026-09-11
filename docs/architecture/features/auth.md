@@ -77,6 +77,15 @@ API environment, key generation and local deadlines. The instance/subscription
 is initialized only when a manual source is actually prepared. No new persistent
 fields or API response business validators are introduced.
 
+While this verified own manual preparation is pending, a rootless Identity
+closing read still refers to the previous authorization. The Web monitor defers
+that lock until preparation finishes, then compares the fresh root against the
+authoritative link barrier. Logout is never deferred. The gate lives only in
+the source-authority instance, ends on cancellation/failure, and checks the
+original ten-second wall-clock deadline even when browser timers are delayed.
+It cannot authorize a peer transfer, extend a session deadline, or suppress a
+lock against an already established own root.
+
 TOTP keeps independent MK/AuthCredential buffers in the existing pending hook
 state for at most five minutes, bound to its exact challenge. Back/cancel,
 unmount, lock, logout, expiry and successful use clear those buffers. Failed TOTP

@@ -59,6 +59,10 @@ export function getSharedUnlockClosingWitness() {
   return getAuthority().closingWitness()
 }
 
+export function isManualSharedUnlockPreparing(): boolean {
+  return getAuthority().isManualPreparationPending()
+}
+
 export function subscribeSharedUnlockSource(listener: () => void): () => void {
   return getAuthority().subscribe(listener)
 }

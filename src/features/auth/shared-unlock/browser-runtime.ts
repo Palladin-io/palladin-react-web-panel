@@ -15,7 +15,7 @@ import { SharedUnlockApi, SharedUnlockApiError } from './api'
 import { startSharedUnlockBrowserCoordinator } from './browser-coordinator'
 import type { SharedUnlockBrowserRoute } from './browser-channel'
 import { sharedUnlockLinks as links } from './link-runtime'
-import { acceptSharedUnlockPreference, adoptSharedUnlockSource, getSharedUnlockClosingWitness, getSharedUnlockSourceSnapshot, subscribeSharedUnlockSource } from './manual-source'
+import { acceptSharedUnlockPreference, adoptSharedUnlockSource, getSharedUnlockClosingWitness, getSharedUnlockSourceSnapshot, isManualSharedUnlockPreparing, subscribeSharedUnlockSource } from './manual-source'
 import { beginSharedUnlockSource } from './source'
 import { beginSharedUnlockReceiver } from './receiver'
 
@@ -59,7 +59,13 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
     },
     closeSession: async action => {
       if (action === 'logout') await clearClientSession()
-      else if (!useAuthStore.getState().isVaultLocked) useAuthStore.getState().lockVault()
+      else if (!useAuthStore.getState().isVaultLocked) {
+        // During fresh own manual authorization, a rootless Identity read
+        // still refers to the previous root. Completion notifies the monitor
+        // to compare against the new root; failure/timeout ends this deferral.
+        if (!getSharedUnlockClosingWitness() && isManualSharedUnlockPreparing()) return
+        useAuthStore.getState().lockVault()
+      }
     },
   }, links, api)
   const coordinator = startSharedUnlockBrowserCoordinator(route, {

@@ -18,6 +18,23 @@ const context = (): ManualUnlockContext => ({
 afterEach(() => vi.useRealTimers())
 
 describe('Web manual source authority', () => {
+  it('bounds manual-preparation lock deferral by wall clock even when timers are suspended', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(authorization.unlockedAtMs + 1)
+    let finish!: (response: Response) => void
+    const fetcher = vi.fn<typeof fetch>(() => new Promise(resolve => { finish = resolve }))
+    const source = new SharedUnlockSourceAuthority(new SharedUnlockApi(fetcher, () => apiUrl))
+    const own = context(), preparing = source.prepare(own)
+    await vi.waitFor(() => expect(finish).toBeTypeOf('function'))
+    expect(source.isManualPreparationPending()).toBe(true)
+    vi.setSystemTime(Date.now() + 10_000)
+    expect(source.isManualPreparationPending()).toBe(false)
+    finish(response({ sharedUnlockEnabled: true, revision: 1 })); await preparing
+    expect(source.isManualPreparationPending()).toBe(false)
+    expect(source.snapshot().authorization).toBeNull()
+    expect(own.authCredential).toEqual(new Uint8Array(32))
+    expect(fetcher).toHaveBeenCalledOnce()
+  })
+
   for (const preference of fixtures.responses.filter(r => r.type === 'preference')) {
     it(`preserves ${preference.name} and sends only own session plus fresh proof`, async () => {
       const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(response(preference.body)).mockResolvedValueOnce(response(authorization))

@@ -17,6 +17,7 @@ export class SharedUnlockSourceAuthority {
   private version = 0
   private controller: AbortController | null = null
   private pendingProof: Uint8Array | null = null
+  private preparationDeadline: number | null = null
   private checkSession: (() => void) | null = null
   private state: {
     preference: SharedUnlockPreference | null
@@ -38,6 +39,13 @@ export class SharedUnlockSourceAuthority {
   }
 
   private closingRoot: { authorizationId: string; sequence: number; sourceGeneration: string } | null = null;
+  /** A verified own manual unlock is replacing the previous server root.
+   * A rootless lock read still describes that previous root until authorize
+   * finishes. This bounded state never defers logout or grants peer authority. */
+  isManualPreparationPending(): boolean {
+    return this.pendingProof !== null && this.controller !== null && !this.controller.signal.aborted
+      && this.preparationDeadline !== null && Date.now() < this.preparationDeadline;
+  }
   /** RAM-only closing witness for this own key generation. Expiry removes sharing
    * authority, but must not disable authenticated lock/logout repair. */
   closingWitness() {
@@ -101,6 +109,7 @@ export class SharedUnlockSourceAuthority {
     this.controller = null
     if (this.pendingProof) wipe(this.pendingProof)
     this.pendingProof = null
+    this.preparationDeadline = null
     this.checkSession = null
     this.state = { preference: null, authorization: null, sourceGeneration: null }
     this.notify();
@@ -136,6 +145,7 @@ export class SharedUnlockSourceAuthority {
     this.controller = controller
     this.pendingProof = context.authCredential
     const deadline = Date.now() + 10_000
+    this.preparationDeadline = deadline
     const timeout = setTimeout(() => { controller.abort(); wipe(context.authCredential) }, 10_000)
     const check = () => {
       if (version !== this.version || controller.signal.aborted || Date.now() >= deadline) throw new SharedUnlockApiError('cancelled')
@@ -183,7 +193,7 @@ export class SharedUnlockSourceAuthority {
       clearTimeout(timeout)
       wipe(context.authCredential)
       if (this.pendingProof === context.authCredential) this.pendingProof = null
-      if (this.controller === controller) this.controller = null
+      if (this.controller === controller) { this.controller = null; this.preparationDeadline = null }
       this.notify();
     }
   }
