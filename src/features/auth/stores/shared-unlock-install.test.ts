@@ -124,6 +124,24 @@ describe('own shared-unlock session publication', () => {
     } finally { unsubscribe() }
   })
 
+  it('locks its owned crypto state if a throwing observer has already replaced tokens', () => {
+    let exposedKey: Uint8Array | null = null
+    let reacted = false
+    const unsubscribe = useAuthStore.subscribe(state => {
+      if (reacted || state.refreshToken !== received.refreshToken || !state.masterKey) return
+      reacted = true
+      exposedKey = state.masterKey
+      state.setTokens({ ...received, refreshToken: 'rotated-during-notification' })
+      throw new Error('observer failed after rotation')
+    })
+    try {
+      expect(() => useAuthStore.getState().installSharedUnlock(pending())).toThrow('observer failed after rotation')
+      expect(exposedKey).toEqual(new Uint8Array(32))
+      expect(useAuthStore.getState()).toMatchObject({ refreshToken: 'rotated-during-notification',
+        masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true })
+    } finally { unsubscribe() }
+  })
+
   for (const action of ['lockVault', 'expireSession', 'logout', 'other-login'] as const) {
     it(`respects ${action} from a synchronous session observer`, () => {
       const input = pending()

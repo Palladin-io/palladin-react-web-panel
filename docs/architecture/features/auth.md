@@ -112,7 +112,9 @@ owned by the caller, which must wipe them in its finally block.
 If synchronous persistence/subscribers fail after publication, allocated key
 copies are wiped and only that new lineage is rolled back to the prior locked
 session. A concurrent logout or other login is preserved; expiry does not regain
-an access token. The action returns its installed generation for the future
+an access token. If an observer has already rotated tokens before throwing,
+those tokens are preserved but any still-owned crypto state is locked and cleared.
+The action returns its installed generation for the future
 coordinator's final route/ACK check.
 
 These are receiver primitives, not an active browser receive flow. The browser

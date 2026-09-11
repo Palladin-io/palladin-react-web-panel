@@ -135,6 +135,11 @@ export const useAuthStore = create<AuthState>()(
                   cryptoSessionGeneration: current.cryptoSessionGeneration + 1,
                   masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true })
               } catch { /* set updates memory before storage/subscriber errors; owned keys are already erased. */ }
+            } else if (current.masterKey === allocated.masterKey || current.privateKey === allocated.privateKey) {
+              // A reentrant observer may rotate tokens before throwing. Keep
+              // that newer token state, but never leave our erased key copies
+              // published as an unlocked crypto session.
+              try { current.lockVault() } catch { /* memory is locked before notification/persistence */ }
             }
           }
           throw error
