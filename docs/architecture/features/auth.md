@@ -29,3 +29,23 @@ Session-token storage: the access token is kept **in memory only** (never persis
 
 ## Cross-feature deps
 `useAuthStore` is consumed by **every** feature for JWT, permissions, and lock state — the one acceptable cross-cutting store. Route guards key off its `isVaultLocked` / `isOnboarded` flags. Registration and onboarding share `shared/lib/create-default-vault-safe` (relocated from onboarding so both entry paths can seed the default vault without a feature→feature import).
+
+
+## Shared-unlock session limits (implementation increment)
+
+The auth store now owns memory-only original unlockedAt, idle, absolute and offline
+ceilings. Manual unlock keeps the existing 15-minute idle/eight-hour absolute
+policy. A caller installing an inherited unlock can supply its verified remaining
+limits; Web additionally caps them by its own policy measured from original
+unlockedAt. An expired result cannot publish keys. Lock, expiry and logout clear
+the limits with the keys; refresh and a layout remount do not reset them.
+
+`useSessionTimeout` reads this state, checks on mount/pageshow/visibility and the
+existing bounded poll, and accepts only browser-trusted local interaction as idle
+activity. Events are coalesced to at most one update per second. Storage restoration
+selects only the existing durable Identity fields; injected keys, access tokens,
+lock flags and limit metadata cannot restore unlocked state.
+
+This increment is preparation for CVT-583. Browser routing, own receiver token
+installation/Identity authority, coordinated lock/logout/preference and full
+platform acceptance are not wired by these changes.

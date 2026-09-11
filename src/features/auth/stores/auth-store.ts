@@ -1,3 +1,4 @@
+import { IDLE_TIMEOUT_MS, sessionDeadline, unlockLimits, type SessionUnlockLimits } from '../lib/session-limits'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { parseJwtPayload } from '../../../shared/lib/jwt'
@@ -35,6 +36,8 @@ interface AuthState {
   privateKey: Uint8Array | null
   /** Non-secret cache namespace changed for every unlocked crypto session. */
   cryptoSessionGeneration: number
+  unlockLimits: SessionUnlockLimits | null
+  recordActivity: (at: number) => void
 
   setTokens: (data: {
     accessToken: string
@@ -57,6 +60,7 @@ interface AuthState {
   unlockVault: (
     masterKey: Uint8Array,
     privateKey: Uint8Array,
+    inheritedLimits?: SessionUnlockLimits,
   ) => void
   lockVault: () => void
   /** Session timeout: wipes crypto keys AND the access token, so a walked-away tab holds neither. */
@@ -77,6 +81,7 @@ const initialState = {
   masterKey: null,
   privateKey: null,
   cryptoSessionGeneration: 0,
+  unlockLimits: null,
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -148,14 +153,16 @@ export const useAuthStore = create<AuthState>()(
           }
         }),
 
-      unlockVault: (masterKey, privateKey) =>
+      unlockVault: (masterKey, privateKey, inheritedLimits) =>
         // Store independent copies — callers routinely `wipe()` their local
         // buffers right after handing them off, which would zero out our
         // references too if we kept them.
         set((state) => {
+          const limits = unlockLimits(Date.now(), inheritedLimits)
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
           return {
+            unlockLimits: limits,
             masterKey: new Uint8Array(masterKey),
             privateKey: new Uint8Array(privateKey),
             isVaultLocked: false,
@@ -163,18 +170,28 @@ export const useAuthStore = create<AuthState>()(
           }
         }),
 
+      recordActivity: (at) => set((state) => {
+        const limits = state.unlockLimits
+        const now = Date.now()
+        if (!Number.isSafeInteger(at) || state.isVaultLocked || !limits || at > now || at < limits.unlockedAtMs
+          || now >= sessionDeadline(limits)) return state
+        return { unlockLimits: { ...limits, idleDeadlineMs: Math.min(
+          Math.max(limits.idleDeadlineMs, at + IDLE_TIMEOUT_MS), limits.absoluteDeadlineMs, limits.offlineDeadlineMs,
+        ) } }
+      }),
+
       lockVault: () =>
         set((state) => {
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
-          return { masterKey: null, privateKey: null, isVaultLocked: true }
+          return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true }
         }),
 
       expireSession: () =>
         set((state) => {
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
-          return { masterKey: null, privateKey: null, isVaultLocked: true, accessToken: null }
+          return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true, accessToken: null }
         }),
 
       logout: () => set((state) => {
@@ -188,6 +205,17 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'palladin-auth',
+      merge: (persisted, current) => {
+        const saved = typeof persisted === 'object' && persisted !== null ? persisted as Partial<AuthState> : {}
+        return {
+          ...current,
+          refreshToken: typeof saved.refreshToken === 'string' ? saved.refreshToken : null,
+          userId: typeof saved.userId === 'string' ? saved.userId : null,
+          isOnboarded: saved.isOnboarded === true,
+          emailVerified: saved.emailVerified === true,
+          permissions: typeof saved.permissions === 'number' ? saved.permissions : 0,
+        }
+      },
       // accessToken and crypto keys are in-memory only; only the refresh token
       // (which alone can't decrypt any vault content) is persisted, pending a
       // backend-coordinated move to an httpOnly cookie. See docs/architecture/security.md.
