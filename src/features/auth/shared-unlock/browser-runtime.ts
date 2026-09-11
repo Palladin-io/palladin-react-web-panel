@@ -6,20 +6,10 @@ import { useAuthStore } from '../stores/auth-store'
 import { SharedUnlockApi, SharedUnlockApiError } from './api'
 import { startSharedUnlockBrowserCoordinator } from './browser-coordinator'
 import type { SharedUnlockBrowserRoute } from './browser-channel'
-import { SharedUnlockLinkStore } from './link-store'
+import { sharedUnlockLinks as links } from './link-runtime'
 import { acceptSharedUnlockPreference, adoptSharedUnlockSource, getSharedUnlockSourceSnapshot, subscribeSharedUnlockSource } from './manual-source'
 import { beginSharedUnlockSource } from './source'
 import { beginSharedUnlockReceiver } from './receiver'
-
-// Only scoped link IDs, revisions and closing intents. No crypto/session material.
-const links = new SharedUnlockLinkStore({
-  get: async keys => {
-    const result: Record<string, unknown> = {}
-    for (const key of keys) { const value = localStorage.getItem(key); if (value !== null) result[key] = JSON.parse(value) }
-    return result
-  },
-  set: async items => { for (const [key, value] of Object.entries(items)) localStorage.setItem(key, JSON.stringify(value)) },
-})
 
 export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
   const api = new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl)

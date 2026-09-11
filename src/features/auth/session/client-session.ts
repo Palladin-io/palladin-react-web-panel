@@ -4,6 +4,7 @@ import { runClientProfileCleanups } from '../../../shared/lib/client-profile-cle
 import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
 import { clearWaitlistDeveloperBenefitAcknowledgement } from '../lib/waitlist-developer-benefit'
 import { useAuthStore } from '../stores/auth-store'
+import { recordManualSharedUnlockLogout } from '../shared-unlock/link-runtime'
 
 let clientSessionGeneration = 0
 
@@ -38,10 +39,13 @@ export async function logoutAndReload(
   destination = '/login',
   bestEffortBeforeReload?: () => Promise<unknown>,
 ): Promise<void> {
-  const cleanup = bestEffortBeforeReload?.()
+  const sharedClosing = recordManualSharedUnlockLogout(useAuthStore.getState().userId)
+  let cleanup: Promise<unknown> | undefined
+  try { cleanup = bestEffortBeforeReload?.() } catch { /* Secondary cleanup cannot prevent local logout. */ }
   const profileCleanup = clearClientSession()
 
   await Promise.all([
+    sharedClosing,
     profileCleanup,
     cleanup ? Promise.race([
       cleanup.catch(() => undefined),
