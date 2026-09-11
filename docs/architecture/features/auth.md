@@ -82,3 +82,43 @@ Shared provider fixtures cover preference and authorization response shapes in
 this adapter. Receiver operations, browser routing, own-activity synchronization,
 link/preference UI and the platform matrix remain in progress; this preparation
 is not yet a complete Web-to-extension handoff.
+
+## Receiver primitives for shared unlock (implementation increment)
+
+The Web dependency is pinned to published `@palladin/crypto` 0.7.0. The local
+`shared/crypto/shared-unlock-keys` helper uses that package to bind Identity's
+key descriptor to the operation digest and independently selected account,
+recover the member private key and compare its derived public key with Identity's
+committed public key. It owns the supplied temporary MK, checks the caller's
+synchronous lifecycle fence around every await and wipes temporary material on
+failure. No crypto is implemented in the auth feature or browser adapter.
+
+The dedicated API adapter now supports receiver consume/commit over its own
+configured Identity connection. Only the receiver's operation signature is sent:
+no bearer, cookies, redirected request, generic refresh or automatic proof retry.
+Returned sessions remain typed first-party contracts; the adapter does not
+restate Identity's domain rules. Shared fixtures cover both operation responses
+and all 32 commit response variants.
+
+`auth-store.installSharedUnlock` atomically publishes the receiver's own token
+response, independent key copies and original remaining limits in one state
+update. Its compare-and-set fence is the previously captured receiver account,
+tokens and crypto generation; a different account, refresh, lock, expiry, logout
+or unlock invalidates that capture. The local policy still clamps inherited
+limits and rejects exact-deadline expiry before any new tokens/keys are exposed.
+Only the existing durable Identity fields are persisted. Input key buffers remain
+owned by the caller, which must wipe them in its finally block.
+
+If synchronous persistence/subscribers fail after publication, allocated key
+copies are wiped and only that new lineage is rolled back to the prior locked
+session. A concurrent logout or other login is preserved; expiry does not regain
+an access token. The action returns its installed generation for the future
+coordinator's final route/ACK check.
+
+These are receiver primitives, not an active browser receive flow. The browser
+coordinator must capture its own route/account/organization/lifecycle authority
+before any proof, verify the peer envelope against independent Identity/browser
+context, fence after crypto/network awaits, handle new-lineage revocation if a
+successful commit cannot be installed, and perform the final route check/ACK.
+That orchestration, linking, shared manual lock/logout and browser acceptance
+remain unfinished. No incoming page message can invoke this action yet.

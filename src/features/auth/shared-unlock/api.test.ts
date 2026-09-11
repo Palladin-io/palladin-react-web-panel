@@ -45,3 +45,28 @@ for (const stage of ['before-fetch', 'after-headers', 'after-json'] as const) {
     expect(fetcher).toHaveBeenCalledTimes(stage === 'before-fetch' ? 0 : 1)
   })
 }
+
+for (const fixture of fixtures.responses.filter(r => r.type === 'operation' || r.type === 'commit')) {
+  it(`receives ${fixture.name} directly from Identity without any peer/own bearer or cookies`, async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(fixture.body)))
+    const api = new SharedUnlockApi(fetcher, () => apiUrl)
+    const action = fixture.type === 'commit' ? 'commit' : 'consume'
+    const result = await api[action](apiUrl, 'operation/with?#characters', 'synthetic-receiver-proof', new AbortController().signal)
+    expect(result).toEqual(fixture.body)
+    expect(fetcher).toHaveBeenCalledOnce()
+    const [url, options] = fetcher.mock.lastCall!
+    expect(url).toBe(`${apiUrl}/api/auth/shared-unlock/operations/operation%2Fwith%3F%23characters/${action}`)
+    expect(options).toMatchObject({ method: 'POST', credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer' })
+    expect(new Headers(options?.headers).has('authorization')).toBe(false)
+    expect(JSON.parse(String(options?.body))).toEqual({ signature: 'synthetic-receiver-proof' })
+  })
+}
+
+for (const status of [401, 403, 404, 409, 429, 503]) {
+  it(`does not retry or refresh a receiver proof after HTTP ${status}`, async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response('{}', { status }))
+    const api = new SharedUnlockApi(fetcher, () => apiUrl)
+    await expect(api.commit(apiUrl, 'operation', 'synthetic-receiver-proof', new AbortController().signal)).rejects.toThrow('Shared unlock request failed')
+    expect(fetcher).toHaveBeenCalledOnce()
+  })
+}

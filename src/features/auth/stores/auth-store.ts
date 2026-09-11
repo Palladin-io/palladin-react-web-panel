@@ -1,3 +1,5 @@
+import type { AuthResponse } from '../../../shared/api/types'
+import type { SharedUnlockKeys } from '../../../shared/crypto/shared-unlock-keys'
 import { IDLE_TIMEOUT_MS, sessionDeadline, unlockLimits, type SessionUnlockLimits } from '../lib/session-limits'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -39,16 +41,15 @@ interface AuthState {
   unlockLimits: SessionUnlockLimits | null
   recordActivity: (at: number) => void
 
-  setTokens: (data: {
-    accessToken: string
-    refreshToken: string
-    userId: string
-    isOnboarded: boolean
-    emailVerified?: boolean
-    waitlistDeveloperBenefitStartedAt?: string | null
-    waitlistDeveloperBenefitEndsAt?: string | null
-    permissions?: number
-  }) => void
+  setTokens: (data: AuthResponse & { permissions?: number }) => void
+  /** Own Identity response + independently verified keys; one synchronous publication. */
+  installSharedUnlock: (input: {
+    expected: { userId: string | null; accessToken: string | null; refreshToken: string | null; cryptoSessionGeneration: number }
+    accountId: string
+    session: AuthResponse
+    keys: SharedUnlockKeys
+    limits: SessionUnlockLimits
+  }) => number
   markOnboarded: () => void
   /** Flip to verified after the user consumes their verification link. */
   markEmailVerified: () => void
@@ -86,59 +87,59 @@ const initialState = {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
 
-      setTokens: (data) =>
-        set((state) => {
-          const jwtPayload = parseJwtPayload(data.accessToken)
-          const rawPerm = jwtPayload['permissions']
-          const permissions =
-            typeof rawPerm === 'number'
-              ? rawPerm
-              : typeof rawPerm === 'string'
-                ? parseInt(rawPerm, 10)
-                : (data.permissions ?? 0)
+      setTokens: (data) => set((state) => tokenState(state, data)),
 
-          // Prefer the JWT `email_verified` claim; fall back to the response
-          // body. Like isOnboarded, this never regresses true→false: a stale
-          // refresh claim must not resurrect the banner for a verified user.
-          const claimVerified = jwtPayload['email_verified']
-          const emailVerified =
-            state.emailVerified ||
-            claimVerified === true ||
-            data.emailVerified === true
-
-          const sameUser = state.userId === data.userId
-          const responseOmittedBenefit =
-            data.waitlistDeveloperBenefitStartedAt === undefined &&
-            data.waitlistDeveloperBenefitEndsAt === undefined
-          const benefit = responseOmittedBenefit && sameUser
-            ? {
-                startedAt: state.waitlistDeveloperBenefitStartedAt,
-                endsAt: state.waitlistDeveloperBenefitEndsAt,
-              }
-            : activeBenefitPeriod(
-                data.waitlistDeveloperBenefitStartedAt,
-                data.waitlistDeveloperBenefitEndsAt,
-              )
-
-          return {
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
-            userId: data.userId,
-            // Never regress isOnboarded from true to false. The JWT claim can
-            // return false during a token refresh (backend omission or stale
-            // claim), which would break the lock-redirect logic and cause the
-            // wizard to appear for already-onboarded users.
-            isOnboarded: state.isOnboarded || data.isOnboarded,
-            emailVerified,
-            waitlistDeveloperBenefitStartedAt: benefit.startedAt,
-            waitlistDeveloperBenefitEndsAt: benefit.endsAt,
-            permissions,
-            // isVaultLocked is intentionally NOT set here — see lockVault().
+      installSharedUnlock: ({ expected, accountId, session, keys, limits }) => {
+        const previous = get()
+        let owned: SharedUnlockKeys | null = null
+        let installedGeneration: number | null = null
+        try {
+          set((state) => {
+            // The captured receiver session is independent of the peer payload.
+            // A new login, refresh, manual unlock, lock or logout wins this race.
+            if (!state.isVaultLocked || state.masterKey || state.privateKey
+              || state.cryptoSessionGeneration !== expected.cryptoSessionGeneration
+              || state.userId !== expected.userId || state.accessToken !== expected.accessToken
+              || state.refreshToken !== expected.refreshToken
+              || (state.userId !== null && state.userId !== accountId)
+              || session.userId !== accountId) throw new Error('Shared unlock installation cancelled')
+            const inherited = unlockLimits(Date.now(), limits)
+            if (keys.masterKey.length !== 32 || keys.privateKey.length !== 32) throw new Error('Invalid shared unlock keys')
+            const tokens = tokenState(state, session)
+            owned = { masterKey: new Uint8Array(keys.masterKey), privateKey: new Uint8Array(keys.privateKey) }
+            installedGeneration = state.cryptoSessionGeneration + 1
+            return { ...tokens, ...owned, unlockLimits: inherited, isVaultLocked: false,
+              cryptoSessionGeneration: installedGeneration }
+          })
+          const current = get()
+          if (current.cryptoSessionGeneration !== installedGeneration || current.isVaultLocked) {
+            throw new Error('Shared unlock installation cancelled')
           }
-        }),
+          return installedGeneration!
+        } catch (error) {
+          if (owned) {
+            const allocated = owned as SharedUnlockKeys
+            wipe(allocated.masterKey)
+            wipe(allocated.privateKey)
+            const current = get()
+            // Persistence or a synchronous subscriber can fail after set() has
+            // published. Roll back only this new lineage; never undo logout or
+            // overwrite another login/unlock. An intervening expiry stays expired.
+            if (current.userId === session.userId && current.refreshToken === session.refreshToken
+              && (current.cryptoSessionGeneration === installedGeneration || current.isVaultLocked)) {
+              try {
+                set({ ...previous, accessToken: current.accessToken === null ? null : previous.accessToken,
+                  cryptoSessionGeneration: current.cryptoSessionGeneration + 1,
+                  masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true })
+              } catch { /* set updates memory before storage/subscriber errors; owned keys are already erased. */ }
+            }
+          }
+          throw error
+        }
+      },
 
       markOnboarded: () => set({ isOnboarded: true }),
 
@@ -251,4 +252,54 @@ export function getIsAuthenticated() {
   // A persisted refresh token counts as authenticated — accessToken is null after a reload.
   const { accessToken, refreshToken } = useAuthStore.getState()
   return accessToken !== null || refreshToken !== null
+}
+
+function tokenState(state: AuthState, data: AuthResponse & { permissions?: number }) {
+  const jwtPayload = parseJwtPayload(data.accessToken)
+  const rawPerm = jwtPayload['permissions']
+  const permissions =
+    typeof rawPerm === 'number'
+      ? rawPerm
+      : typeof rawPerm === 'string'
+        ? parseInt(rawPerm, 10)
+        : (data.permissions ?? 0)
+
+  // Prefer the JWT `email_verified` claim; fall back to the response
+  // body. Like isOnboarded, this never regresses true→false: a stale
+  // refresh claim must not resurrect the banner for a verified user.
+  const claimVerified = jwtPayload['email_verified']
+  const emailVerified =
+    state.emailVerified ||
+    claimVerified === true ||
+    data.emailVerified === true
+
+  const sameUser = state.userId === data.userId
+  const responseOmittedBenefit =
+    data.waitlistDeveloperBenefitStartedAt === undefined &&
+    data.waitlistDeveloperBenefitEndsAt === undefined
+  const benefit = responseOmittedBenefit && sameUser
+    ? {
+        startedAt: state.waitlistDeveloperBenefitStartedAt,
+        endsAt: state.waitlistDeveloperBenefitEndsAt,
+      }
+    : activeBenefitPeriod(
+        data.waitlistDeveloperBenefitStartedAt,
+        data.waitlistDeveloperBenefitEndsAt,
+      )
+
+  return {
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    userId: data.userId,
+    // Never regress isOnboarded from true to false. The JWT claim can
+    // return false during a token refresh (backend omission or stale
+    // claim), which would break the lock-redirect logic and cause the
+    // wizard to appear for already-onboarded users.
+    isOnboarded: state.isOnboarded || data.isOnboarded,
+    emailVerified,
+    waitlistDeveloperBenefitStartedAt: benefit.startedAt,
+    waitlistDeveloperBenefitEndsAt: benefit.endsAt,
+    permissions,
+    // isVaultLocked is intentionally NOT set here — see lockVault().
+  }
 }

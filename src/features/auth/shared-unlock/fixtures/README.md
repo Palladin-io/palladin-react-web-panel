@@ -9,9 +9,9 @@ SHA-256: `c14b1755721cda377321128c23d5ec4bd96885f7e77ffb445cedbfc6e0a9373e`.
 Gitleaks exempts only this exact file from its generic-api-key heuristic, matching
 the existing deterministic-vector policy; other detection rules remain enabled.
 
-The current Web manual-source adapter exercises both preference responses and
-all four authorization response shapes. The remaining operation/commit/link
-variants are retained in the exact shared fixture for the upcoming coordinator;
-they are not yet claimed as Web consumer conformance. Identity remains the
+The current Web adapters exercise both preference responses, all four authorization
+responses, both operation responses and all 32 commit response shapes (40 of 47
+variants). The seven link responses remain for the upcoming coordinator; no link
+consumer conformance or end-to-end browser handoff is claimed by these tests. Identity remains the
 authority for its domain invariants; Web tests enforce contract compatibility
 without adding duplicate runtime response validators.
