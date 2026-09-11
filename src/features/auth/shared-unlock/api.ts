@@ -36,11 +36,27 @@ export class SharedUnlockApi {
     return this.request(apiUrl, `/api/auth/shared-unlock/operations/${encodeURIComponent(operationId)}/consume`, { signature }, signal)
   }
 
-  commit(apiUrl: string, operationId: string, signature: string, signal: AbortSignal): Promise<SharedUnlockCommit> {
-    return this.request(apiUrl, `/api/auth/shared-unlock/operations/${encodeURIComponent(operationId)}/commit`, { signature }, signal)
+  commit(apiUrl: string, operationId: string, signature: string, signal: AbortSignal, onIssued?: (commit: SharedUnlockCommit) => void): Promise<SharedUnlockCommit> {
+    return this.request(apiUrl, `/api/auth/shared-unlock/operations/${encodeURIComponent(operationId)}/commit`, { signature }, signal, undefined, onIssued)
   }
 
-  private async request<T>(apiUrl: string, path: string, body: object | undefined, signal: AbortSignal, session?: SharedUnlockOwnSession): Promise<T> {
+  /** Cleanup only: captured original Identity origin, never current client logout. */
+  async revokeIssuedSession(apiUrl: string, refreshToken: string): Promise<void> {
+    const abort = new AbortController()
+    let finishTimeout!: () => void
+    const elapsed = new Promise<void>(resolve => { finishTimeout = resolve })
+    const timeout = setTimeout(() => { abort.abort(); finishTimeout() }, 2000)
+    try {
+      await Promise.race([this.doFetch(`${apiUrl.replace(/\/$/, '')}/api/auth/logout`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ refreshToken }), signal: abort.signal,
+        redirect: 'error', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer',
+      }), elapsed])
+    } catch { /* best-effort revocation; local key cleanup is unconditional */ }
+    finally { clearTimeout(timeout) }
+  }
+
+  private async request<T>(apiUrl: string, path: string, body: object | undefined, signal: AbortSignal, session?: SharedUnlockOwnSession, onIssued?: (result: T) => void): Promise<T> {
     const check = () => {
       if (signal.aborted || apiUrl !== this.currentApiUrl()) throw new SharedUnlockApiError('cancelled')
     }
@@ -55,12 +71,15 @@ export class SharedUnlockApi {
         ...(body ? { body: JSON.stringify(body) } : {}),
         signal, redirect: 'error', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer',
       })
-      check()
+      // If commit returned a usable body after cancellation, its newly issued
+      // own session must still reach the cleanup observer before rejection.
+      if (!onIssued || !response.ok) check()
       if (!response.ok) {
         throw new SharedUnlockApiError(({ 401: 'unauthorized', 403: 'forbidden', 404: 'not-found', 409: 'conflict',
           429: 'rate-limited', 503: 'unavailable' } as const)[response.status] ?? 'network')
       }
       const result = await response.json() as T
+      onIssued?.(result)
       check()
       return result
     } catch (error) {

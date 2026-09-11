@@ -1,4 +1,5 @@
-import type { SharedUnlockContext, SharedUnlockKeyContext } from '@palladin/crypto'
+import type { SharedUnlockOperationMaterial } from '../../../shared/crypto/shared-unlock-receiver'
+import type { SharedUnlockContext } from '@palladin/crypto'
 import type { AuthResponse } from '../../../shared/api/types'
 
 export interface SharedUnlockPreference {
@@ -32,15 +33,7 @@ export interface SharedUnlockManualInput {
 }
 
 
-export interface SharedUnlockOperation {
-  readonly context: SharedUnlockContext;
-  readonly sourcePublicKey: string;
-  readonly recipientPublicKey: string;
-  readonly recipientProofPublicKey: string;
-  readonly challenge: string;
-  readonly transcriptHash: string;
-  readonly keyContext: SharedUnlockKeyContext;
-}
+export type SharedUnlockOperation = SharedUnlockOperationMaterial
 
 export interface SharedUnlockCommit {
   readonly session: AuthResponse & {

@@ -3,6 +3,12 @@ import { useAuthStore } from '../stores/auth-store'
 
 let latestAttempt = 0
 
+/** A newly started/cancelled manual attempt invalidates an in-flight receiver. */
+export function captureManualUnlockFence(): () => boolean {
+  const captured = latestAttempt
+  return () => captured === latestAttempt
+}
+
 export function beginManualUnlockAttempt() {
   const attempt = ++latestAttempt
   const generation = captureClientSessionGeneration()

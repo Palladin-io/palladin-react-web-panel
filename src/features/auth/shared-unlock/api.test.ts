@@ -70,3 +70,38 @@ for (const status of [401, 403, 404, 409, 429, 503]) {
     expect(fetcher).toHaveBeenCalledOnce()
   })
 }
+
+it('reports an available late commit body for own-lineage cleanup before rejecting cancellation', async () => {
+  const body = fixtures.responses.find(r => r.type === 'commit')!.body
+  let respond!: (response: Response) => void
+  const fetcher = vi.fn<typeof fetch>().mockReturnValue(new Promise(resolve => { respond = resolve }))
+  let currentApiUrl = apiUrl
+  const api = new SharedUnlockApi(fetcher, () => currentApiUrl)
+  const issued = vi.fn()
+  const abort = new AbortController()
+  const pending = api.commit(apiUrl, 'operation', 'synthetic-proof', abort.signal, issued)
+  const rejected = expect(pending).rejects.toMatchObject({ code: 'cancelled' })
+  abort.abort()
+  currentApiUrl = 'https://other.example.test'
+  respond(new Response(JSON.stringify(body)))
+  await rejected
+  expect(issued).toHaveBeenCalledExactlyOnceWith(body)
+})
+
+it('bounds cleanup to two seconds on the original API without changing the current session', async () => {
+  vi.useFakeTimers()
+  try {
+    const fetcher = vi.fn<typeof fetch>().mockReturnValue(new Promise(() => {}))
+    const api = new SharedUnlockApi(fetcher, () => 'https://new-environment.example.test')
+    const pending = api.revokeIssuedSession(apiUrl, 'synthetic-new-own-refresh')
+    await vi.advanceTimersByTimeAsync(2000)
+    await pending
+    const [url, options] = fetcher.mock.lastCall!
+    expect(url).toBe(`${apiUrl}/api/auth/logout`)
+    expect(new Headers(options?.headers).has('authorization')).toBe(false)
+    expect(options).toMatchObject({ credentials: 'omit', redirect: 'error', cache: 'no-store' })
+    expect(options?.signal?.aborted).toBe(true)
+    expect(JSON.parse(String(options?.body))).toEqual({ refreshToken: 'synthetic-new-own-refresh' })
+    expect(fetcher).toHaveBeenCalledOnce()
+  } finally { vi.useRealTimers() }
+})

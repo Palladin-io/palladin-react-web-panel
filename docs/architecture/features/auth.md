@@ -117,10 +117,57 @@ those tokens are preserved but any still-owned crypto state is locked and cleare
 The action returns its installed generation for the future
 coordinator's final route/ACK check.
 
-These are receiver primitives, not an active browser receive flow. The browser
-coordinator must capture its own route/account/organization/lifecycle authority
-before any proof, verify the peer envelope against independent Identity/browser
-context, fence after crypto/network awaits, handle new-lineage revocation if a
-successful commit cannot be installed, and perform the final route check/ACK.
-That orchestration, linking, shared manual lock/logout and browser acceptance
-remain unfinished. No incoming page message can invoke this action yet.
+These primitives are used by the browser-independent receiver transaction below.
+An actual browser adapter must establish independent route/account/organization/
+lifecycle authority before invoking it. Linking, shared manual lock/logout and
+browser acceptance remain unfinished. No incoming page message invokes it yet.
+
+
+## Browser-independent receiver transaction (implementation increment)
+
+`shared-unlock/receiver.ts` now runs consume → open/recover → commit → atomic
+installation → final synchronous route check/ACK. It captures the existing locked
+or signed-out session, client/crypto/manual-attempt generations, API environment
+and a copy of the browser adapter's independently established route/link binding
+before generating public DH/proof offers. The adapter must supply current trusted
+account/org/document/extension/generation/link/epoch/preference authority, never
+build those expected fields from the offer or encrypted envelope being checked.
+It must reject navigation, OFF, revoke, peer loss and changed local scope in its
+synchronous route fence. The transaction cannot authenticate a browser itself.
+
+All signing, transcript hashing, ephemeral DH and envelope/key recovery stay in
+`shared/crypto/shared-unlock-receiver` and the published crypto package. The public
+source key must come from the verified browser channel; recipient DH and proof
+keys are generated locally. The offered transcript is bound before consume is
+signed. Identity's own consume response supplies the descriptor and expected
+crypto context; it must match that proof and the independent route/participants.
+The received envelope is checked against that authority, and the commit transcript
+is checked before any key/token publication. No AuthCredential or source bearer
+is accepted in this flow.
+
+The operation owns a thirty-second local timeout and an abortable wait for browser
+or REST results. Lock/logout/expiry cancel pending work immediately; every later
+crypto/network result also checks the captured session, environment and manual
+attempt. An unused/cancelled receiver disposes offers, signing material, timers
+and subscriptions. Temporary MK/private-key buffers are wiped after every outcome;
+completed handles drop captured old/new session references. Duplicate receive does
+not renew or wipe an already completed session. Peer loss after completion does
+not lock that independently valid session.
+
+Commit observes an available issued response body before rejecting a late result,
+so cancellation/environment changes do not silently discard a usable cleanup token.
+A failed receiver attempts ordinary logout only for its newly issued own refresh
+token, on the original captured Identity URL. This dedicated best-effort cleanup
+has a separate two-second deadline, no bearer/cookies/redirects/retry and does not
+call the client's global logout or linked group logout. If the response never
+becomes available, the client has no token to revoke; it still installs no keys.
+A failed final route check/ACK rolls back only the newly installed lineage to the
+previous locked snapshot; other logins/logout and expiry remain authoritative.
+
+Successful results/ACKs contain only operation/root IDs, sequence and local crypto
+generation. Actual browser routing, inherited-source authority/own activity,
+link/preference lifecycle and UX remain to be wired. Tests use real crypto and
+verify both signatures, wrapped member/Vault keys and an encrypted synthetic Entry
+primitive through the installed private key, with a mocked Identity transport.
+This is not a browser/platform proof or acceptance of the current Member-sync
+Entry flow on distributed artifacts; those E2E gates remain open.
