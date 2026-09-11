@@ -45,3 +45,24 @@ export interface SharedUnlockCommit {
   readonly authorizationSequence: number;
   readonly context: SharedUnlockContext;
 }
+
+export interface SharedUnlockOperationInput {
+  readonly authorizationId: string;
+  readonly linkId: string;
+  readonly linkEpoch: number;
+  readonly expectedPreferenceRevision: number;
+  readonly recipientOrganizationId: string;
+  readonly idleDeadlineMs: number;
+  readonly absoluteDeadlineMs: number;
+  readonly offlineDeadlineMs: number;
+  readonly direction: SharedUnlockContext["direction"];
+  readonly apiOrigin: string;
+  readonly webOrigin: string;
+  readonly extensionId: string;
+  readonly documentBinding: string;
+  readonly webGeneration: string;
+  readonly extensionGeneration: string;
+  readonly sourcePublicKey: string;
+  readonly recipientPublicKey: string;
+  readonly recipientProofPublicKey: string;
+}

@@ -1,4 +1,4 @@
-import type { SharedUnlockAuthorization, SharedUnlockCommit, SharedUnlockManualInput, SharedUnlockOperation, SharedUnlockPreference } from './api-types'
+import type { SharedUnlockAuthorization, SharedUnlockCommit, SharedUnlockManualInput, SharedUnlockOperation, SharedUnlockOperationInput, SharedUnlockPreference } from './api-types'
 
 export interface SharedUnlockOwnSession {
   readonly apiUrl: string
@@ -30,6 +30,11 @@ export class SharedUnlockApi {
 
   authorize(session: SharedUnlockOwnSession, input: SharedUnlockManualInput, signal: AbortSignal): Promise<SharedUnlockAuthorization> {
     return this.request(session.apiUrl, '/api/account/shared-unlock/authorizations', { ...input, refreshToken: session.refreshToken }, signal, session)
+  }
+
+  createOperation(session: SharedUnlockOwnSession, input: SharedUnlockOperationInput, signal: AbortSignal): Promise<SharedUnlockOperation> {
+    return this.request(session.apiUrl, '/api/account/shared-unlock/operations',
+      { ...input, refreshToken: session.refreshToken }, signal, session)
   }
 
   consume(apiUrl: string, operationId: string, signature: string, signal: AbortSignal): Promise<SharedUnlockOperation> {

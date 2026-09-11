@@ -47,3 +47,14 @@ transport, not an authenticated first-party REST response. Recipient identity
 comes from the actual native `runtime.connect(configuredId)` call, not a field in
 the received object. Negative tests cover substitution, extra fields, stale routes,
 expiry of the handshake and document lifecycle. No new REST response validator is added.
+
+The Web source transaction binds the operation's cryptographic scope to its
+independently captured route and current own root/key generation. The crypto
+helper additionally recovers Identity's descriptor with a temporary MK copy and
+compares that private key to the independently held own member key. Focused tests
+reject a self-consistent substituted descriptor/digest and changes in the current
+root's account, organization and key revisions. This is cryptographic key-use
+authority, not another implementation of Identity's response business rules.
+`operation-message.ts` is an outgoing browser-protocol projection: it copies only
+known public fields, silently omitting unrelated REST additions instead of
+validating/rejecting those responses or forwarding them to a peer.

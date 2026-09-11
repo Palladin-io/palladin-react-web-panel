@@ -40,3 +40,9 @@ export async function prepareManualSharedUnlock(account: AccountResponse, authCr
     },
   })
 }
+
+
+/** Current own root and its original RAM generation, never a generation from a Port. */
+export function getSharedUnlockSourceSnapshot() {
+  return getAuthority().snapshot()
+}

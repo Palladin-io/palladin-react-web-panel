@@ -105,3 +105,28 @@ it('bounds cleanup to two seconds on the original API without changing the curre
     expect(fetcher).toHaveBeenCalledOnce()
   } finally { vi.useRealTimers() }
 })
+
+for (const fixture of fixtures.responses.filter(row => row.type === 'operation')) {
+  it(`creates ${fixture.name} using only the source own Identity session`, async () => {
+    const operation = fixture.body as import('./api-types').SharedUnlockOperation
+    const context = operation.context
+    const request: import('./api-types').SharedUnlockOperationInput = {
+      authorizationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', linkId: context.linkId, linkEpoch: context.linkEpoch,
+      expectedPreferenceRevision: context.preferenceRevision, recipientOrganizationId: context.organizationId,
+      idleDeadlineMs: context.idleDeadlineMs, absoluteDeadlineMs: context.absoluteDeadlineMs, offlineDeadlineMs: context.offlineDeadlineMs,
+      direction: context.direction, apiOrigin: context.apiOrigin, webOrigin: context.webOrigin, extensionId: context.extensionId,
+      documentBinding: context.documentBinding, webGeneration: context.webGeneration, extensionGeneration: context.extensionGeneration,
+      sourcePublicKey: operation.sourcePublicKey, recipientPublicKey: operation.recipientPublicKey,
+      recipientProofPublicKey: operation.recipientProofPublicKey,
+    }
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(operation)))
+    const api = new SharedUnlockApi(fetcher, () => apiUrl)
+    const extended = { ...request, refreshToken: 'peer-must-not-choose-this' }
+    expect(await api.createOperation(own, extended, new AbortController().signal)).toEqual(operation)
+    const [url, init] = fetcher.mock.lastCall!
+    expect(url).toBe(apiUrl + '/api/account/shared-unlock/operations')
+    expect(init).toMatchObject({ method: 'POST', credentials: 'omit', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer' })
+    expect(new Headers(init?.headers).get('authorization')).toBe('Bearer own-access')
+    expect(JSON.parse(String(init?.body))).toEqual({ ...request, refreshToken: own.refreshToken })
+  })
+}

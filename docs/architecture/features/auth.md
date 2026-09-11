@@ -216,3 +216,42 @@ nine-check mode; it does not fetch a private Web repository.
 These channels are not yet connected to `receiver.ts` or a source transaction.
 Account/link/preference authority, inherited source/own activity, shared manual
 lock/logout and UI still require implementation. Hello/ready is not feature completion.
+
+## One-shot Web source transaction (implementation increment)
+
+`shared-unlock/source.ts` now captures the independently selected browser/link
+route, own current Identity session, manual/client/crypto generation and original
+source authorization before generating its DH offer. A browser nonce cannot
+replace the own source generation. The route owner must abort on peer loss,
+closing intent, OFF/revoke and document retirement; every async boundary also
+checks current own keys/tokens, account/organization, root identity/key revisions,
+preference revision and original/local deadlines. An unused operation expires
+after thirty seconds; cancellation does not wait for a transport that ignores abort.
+
+`SharedUnlockApi.createOperation` sends only the source's own bearer/refresh
+lineage and captured public request fields, including all three effective local
+ceilings, to its own Identity. The source compares cryptographic context fields
+to its independent route/root. It does not restate server-owned clamping rules.
+An explicit outgoing `operation-message.ts` projection selects only the frozen
+public browser protocol fields, including nested context/descriptor; additional
+Identity response fields are neither rejected nor implicitly forwarded to a peer.
+
+`shared/crypto/shared-unlock-source` uses the published package to verify all
+participant keys/transcript, the Identity key-context commitment, and the MK's
+ability to recover the independently held own member private key. Even a
+self-consistent substituted descriptor with a new matching digest is rejected
+when its recovered key differs from the already unlocked source. Only then does
+it seal one encrypted MK for the verified recipient. Temporary key copies are
+wiped and DH state disposed after success, failure, cancellation or timeout.
+The source's own keys/session remain intact unless a separate local action erased
+them. Completion returns only public operation material and the encrypted envelope;
+no source token or raw key enters that result. The caller must recheck its route
+immediately before actual browser delivery. A retry needs a fresh one-shot offer.
+
+Tests use real DH/encryption, recover the recipient's member/Vault key and decrypt
+a synthetic Entry primitive; Identity is mocked. They reject substituted scope,
+participants, transcript/descriptor and current-root changes, plus pending API
+results after lock/logout/expiry/manual/peer/OFF/revision/refresh/cancel. Source
+and receiver transactions are still not invoked by the hello/ready channels.
+Durable account/link/preference coordination, inherited source/activity and full
+browser handoff acceptance remain open.
