@@ -175,3 +175,44 @@ verify both signatures, wrapped member/Vault keys and an encrypted synthetic Ent
 primitive through the installed private key, with a mocked Identity transport.
 This is not a browser/platform proof or acceptance of the current Member-sync
 Entry flow on distributed artifacts; those E2E gates remain open.
+
+## Chromium application channel (implementation increment)
+
+The app-root `SharedUnlockBrowserProvider` now starts a document-owned channel
+on login, unlock and authenticated routes when the optional public deployment
+value `VITE_SHARED_UNLOCK_EXTENSION_ID` is explicitly set. Its committed template
+is empty. The Web calls the browser's native `runtime.connect` with that exact ID;
+an ID in a ready payload is only a consistency check, never recipient authority.
+The configured own API URL, own Web origin and locally generated request nonce
+must match the strict Zod hello/ready boundary. Extra account/key/token fields,
+wrong protocol, correlation or environment are rejected. No window-message bridge,
+remote extension script or extension iframe is introduced.
+
+Each route exposes an abort signal and synchronous current-document fence.
+Peer disconnect, timeout, malformed/repeated ready, document retirement and effect
+teardown permanently retire its route. Pending crypto/session work must subscribe
+to that signal when the source/receiver coordinator is connected. A failed channel
+never calls logout, expires an own session, updates user activity or changes
+sharing preference. Foreground reconnect backs off from one to thirty seconds;
+background reconnect waits for visibility. A new connection gets a new nonce and
+browser channel/document binding, not a replacement source-authorization generation.
+
+`pagehide` can preserve JS in BFCache: the provider closes the channel and invokes
+the existing local `expireSession` key/access-token wipe immediately. It preserves
+the own account/refresh lineage and makes no group/manual lock/logout request.
+`pageshow` can establish a fresh channel; the old route remains invalid. React
+effect teardown only closes transport, so remount/StrictMode cannot expire an
+otherwise valid own session. Iframes and prerendering cannot open this route.
+
+The Extension harness supports an explicit `--web-source /path/to/web-repository`
+option: it builds both real products with synthetic local public configuration,
+serves the Web build with its actual `_headers`, and observes native Port calls
+without replacing their browser routing. On Chromium 153/macOS arm64, Web bootstrap
+and reload passed alongside the nine extension channel checks. There is no login,
+Identity request or MK transfer in that probe; deployed artifacts and the full
+browser/OS matrix remain unverified. The ordinary extension CI uses its standalone
+nine-check mode; it does not fetch a private Web repository.
+
+These channels are not yet connected to `receiver.ts` or a source transaction.
+Account/link/preference authority, inherited source/own activity, shared manual
+lock/logout and UI still require implementation. Hello/ready is not feature completion.

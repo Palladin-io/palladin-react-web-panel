@@ -11,6 +11,7 @@ function optionalEnv(key: string): string {
 }
 
 export const env = {
+  sharedUnlockExtensionId: optionalEnv('VITE_SHARED_UNLOCK_EXTENSION_ID'),
   apiUrl: requireEnv('VITE_API_URL'),
   publicAssetUrl: optionalEnv('VITE_PUBLIC_ASSET_URL') || (requireEnv('VITE_API_URL').startsWith('http://localhost:')
     ? 'http://localhost:4566/palladin-local-public-assets'

@@ -1,3 +1,4 @@
+import { SharedUnlockBrowserProvider } from '../features/auth'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { useLayoutEffect, type ReactNode } from 'react'
@@ -23,6 +24,7 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <ErrorBoundary>
       <ThemeSync />
+      <SharedUnlockBrowserProvider />
       <GoogleOAuthProvider clientId={env.googleClientId}>
         <QueryClientProvider client={queryClient}>
           {children}

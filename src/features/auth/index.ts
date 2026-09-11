@@ -14,3 +14,5 @@ export {
   clientSessionGenerationMatches,
   logoutAndReload,
 } from './session/client-session'
+
+export { SharedUnlockBrowserProvider } from './shared-unlock/browser-provider'

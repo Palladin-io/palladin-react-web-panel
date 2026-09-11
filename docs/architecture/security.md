@@ -97,3 +97,18 @@ so they are covered by the supply-chain review of `package-lock.json` + the CI
 Move the refresh token into an `httpOnly; Secure; SameSite` cookie so it is not
 readable from JS at all. That requires the API to set/read the cookie and a CSRF
 scheme on state-changing requests, so it is tracked as a backend task.
+
+## Shared-unlock native browser channel (in progress)
+
+The explicitly configured Chromium channel uses browser-native `runtime.connect`
+to the deployment's exact extension ID. It loads no extension resource and opens
+no iframe or HTTP/WebSocket endpoint. The current `connect-src`/`frame-src` remains
+unchanged: an actual built Web/Extension test passed with the Web build's delivered
+CSP headers. This observation applies only to that native Chromium channel; a
+future Firefox or Safari adapter needs its own CSP and browser-boundary assessment.
+
+The provider retires the Web document on `pagehide`, including BFCache entry,
+and immediately wipes that document's MK/private key/access token through the
+existing local expiry action. Peer Port loss and React effect teardown do not
+expire an independently valid own session. No manual group event is emitted by
+this document cleanup. Completed automatic unlock remains to be wired and tested.
