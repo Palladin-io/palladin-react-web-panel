@@ -420,11 +420,37 @@ retires subscriptions/timers and leaves a valid own session intact. Best-effort
 hint delivery is awaited within the sender's existing deadline before Web reload.
 
 **Remaining release gates:** this monitor requires an in-memory installed own
-root. Already-locked/restarted clients, expired own access tokens, local expiry
-barriers and key-use recovery still need completion and focused proofs. A pending
-logout against an already revoked link remains a conflict; it is not erased as
-if disconnect implied logout. Fresh manual authorization cannot revive a server-
-revoked old Identity lineage. Settings/OFF propagation/reconnect UX, own activity,
-canonical browser fixtures and real Identity/Entry E2E on the entire supported
-artifact matrix remain required. The current synthetic Identity tests and paired
-Chromium channel probe do not close those gates.
+root. Already-locked/restarted clients, expired own access tokens and independent
+multi-document activity/expiry still need completion and focused proofs. Backend
+PR #54 supports logout on a revoked link while preserving disconnect and revoking
+old linked refresh lineages; client receipt tests retain the local disconnect.
+Own input now updates only its own Identity idle authority and durable checkpoint,
+with the original absolute/offline ceilings. Full settings/OFF propagation,
+disconnect/reconnect UX, canonical browser fixtures and real Identity/Entry E2E on
+the entire supported artifact matrix remain required. Synthetic Identity tests
+and the paired Chromium channel probe do not close those gates.
+
+
+## Account preference settings (implementation increment)
+
+The Security page reads and writes the single Identity account preference, with
+own-session/account/generation fences, revision CAS and no automatic mutation
+retry. The switch works without an installed extension. GET refreshes while the
+settings surface is open (15 seconds/focus); complete background cross-client
+preference invalidation remains a release gate. The source selection observes
+ON/OFF changes without extending its existing authority or deadlines.
+
+The click handler pauses local source and receiver attempts before scheduling the
+mutation. A nonsensitive, account/API-scoped pause ID survives restart. Failed or
+unconfirmed saves remain paused; only that exact successfully completed own save
+can clear the marker. Both successful OFF and ON settle this pending-write marker,
+so it never becomes a second persistent account preference. Identity remains
+authoritative for the saved choice. A late cancellation restores the denial;
+failed storage repair keeps RAM denial without claiming persistence succeeded.
+
+Origin-wide Web Locks serialize pause metadata. Storage events only invalidate
+known own scopes and trigger fresh reads. Local OFF/disconnect rejection leaves
+the verified browser route available; resuming creates fresh state/attempt IDs.
+Late cancelled receiver work cannot install keys. These operations do not lock a
+completed own session or extend its limits. Disconnect/reconnect controls, complete
+Extension Settings integration and the real browser artifact matrix remain open.

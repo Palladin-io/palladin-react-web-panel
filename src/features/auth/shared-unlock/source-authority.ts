@@ -126,6 +126,7 @@ export class SharedUnlockSourceAuthority {
     if (!current.authorization || current.sourceGeneration !== generation) throw new SharedUnlockApiError('cancelled');
     if (current.preference && preference.revision < current.preference.revision) return;
     this.state = { ...this.state, preference: { sharedUnlockEnabled: preference.sharedUnlockEnabled, revision: preference.revision } };
+    if (current.preference?.sharedUnlockEnabled !== preference.sharedUnlockEnabled) this.notify();
   }
 
   async prepare(context: ManualUnlockContext): Promise<void> {

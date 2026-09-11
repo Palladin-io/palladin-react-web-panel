@@ -1,3 +1,4 @@
+import { sharedUnlockPreferenceGate } from "./preference-runtime"
 import { sharedUnlockExpiry } from './expiry-runtime'
 import { randomBytes, wipe } from '../../../shared/crypto/sodium'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
@@ -18,6 +19,8 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
   const api = new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl)
   const scope = (accountId: string) => ({ accountId, apiUrl: route.apiUrl, webOrigin: route.webOrigin, extensionId: route.extensionId })
   const admissible = async (accountId: string, linkId: string) => {
+    route.assertCurrent()
+    if (!await sharedUnlockPreferenceGate.isAllowed(scope(accountId))) throw new Error("Shared unlock is locally paused")
     route.assertCurrent()
     const marker = await links.adopt(scope(accountId), linkId)
     route.assertCurrent()
@@ -62,7 +65,7 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
       if (!own.isVaultLocked && own.unlockLimits && Date.now() >= sessionDeadline(own.unlockLimits)) own.expireSession()
       const current = useAuthStore.getState(), state = getSharedUnlockSourceSnapshot()
       const status = current.isVaultLocked ? (current.userId ? 'locked' : 'signed-out') : 'unlocked'
-      const source = status === 'unlocked' && state.authorization?.accountId === current.userId && state.sourceGeneration && state.preference?.sharedUnlockEnabled
+      const source = status === 'unlocked' && current.userId && await sharedUnlockPreferenceGate.isAllowed(scope(current.userId)) && state.authorization?.accountId === current.userId && state.sourceGeneration && state.preference?.sharedUnlockEnabled
         ? { organizationId: state.authorization.organizationId, generation: state.sourceGeneration } : null
       return { accountId: current.userId, status, source }
     },
@@ -71,7 +74,8 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
       if (!proposed) throw new Error('Extension must select the profile link')
       return (await admissible(accountId, proposed)).linkId
     },
-    prepareSource: async (accountId, organizationId, linkId, signal, assertCurrent) => {
+    prepareSource: async (accountId, organizationId, linkId, signal, assertAttempt) => {
+      const assertCurrent = () => { assertAttempt(); sharedUnlockPreferenceGate.assertAllowed(scope(accountId)) }
       const own = useAuthStore.getState(), state = getSharedUnlockSourceSnapshot()
       if (!own.accessToken || !own.refreshToken || own.userId !== accountId || own.isVaultLocked
         || state.authorization?.accountId !== accountId || state.authorization.organizationId !== organizationId || !state.sourceGeneration) throw new Error('Shared unlock source unavailable')
@@ -114,14 +118,18 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
       const marker = await admissible(binding.accountId, binding.linkId)
       if (signal.aborted || (marker.observed && binding.linkEpoch < marker.observed.epoch)) throw new Error('Shared unlock receiver selection expired')
     },
-    source: (binding, signal, assertCurrent) => beginSharedUnlockSource({ apiUrl: route.apiUrl, binding, signal, assertCurrent }, api),
+    source: (binding, signal, assertCurrent) => beginSharedUnlockSource({ apiUrl: route.apiUrl, binding, signal,
+      assertCurrent: () => { assertCurrent(); sharedUnlockPreferenceGate.assertAllowed(scope(binding.accountId)) } }, api),
     receiver: (binding, signal, assertCurrent) => beginSharedUnlockReceiver({ apiUrl: route.apiUrl, binding,
       assertFreshAuthorization: (sequence, deadlineMs, hardDeadlineMs) => sharedUnlockExpiry.checkpoint(scope(binding.accountId), sequence, deadlineMs, hardDeadlineMs),
-      assertCurrent: () => { if (signal.aborted) throw new Error('Shared unlock attempt cancelled'); assertCurrent() } }, api,
+      assertCurrent: () => { if (signal.aborted) throw new Error('Shared unlock attempt cancelled'); assertCurrent(); sharedUnlockPreferenceGate.assertAllowed(scope(binding.accountId)) } }, api,
     (authorization, generation, assertOwnCurrent) => adoptSharedUnlockSource(authorization, generation,
       { sharedUnlockEnabled: true, revision: binding.preferenceRevision }, () => {
         assertOwnCurrent(); if (env.apiUrl !== route.apiUrl) throw new Error('Shared unlock own environment changed')
       })),
   })
-  return { close: () => { coordinator.close(); monitor.close() } }
+  const unsubscribeGate = sharedUnlockPreferenceGate.subscribe(changed => {
+    if (changed.apiUrl === route.apiUrl) coordinator.cancelPending(changed.accountId)
+  })
+  return { close: () => { unsubscribeGate(); coordinator.close(); monitor.close() } }
 }

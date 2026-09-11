@@ -1,3 +1,4 @@
+import { sharedUnlockPreferenceGate } from "./preference-runtime"
 import { env } from '../../../shared/lib/env'
 import { SharedUnlockApi, type SharedUnlockOwnSession } from './api'
 import { deliverSharedUnlockClosings, flushSharedUnlockClosings } from './closing'
@@ -15,6 +16,7 @@ export const sharedUnlockLinks = new SharedUnlockLinkStore({
 
 export async function recordManualSharedUnlockLogout(accountId: string | null): Promise<void> {
   if (!accountId || !env.sharedUnlockExtensionId) return
+  if (!await sharedUnlockPreferenceGate.isAllowed({ accountId, apiUrl: env.apiUrl })) return
   await sharedUnlockLinks.recordManualClosing({ accountId, apiUrl: env.apiUrl,
     webOrigin: window.location.origin, extensionId: env.sharedUnlockExtensionId }, 'logout')
 }
@@ -24,9 +26,11 @@ const ownScope = (session: SharedUnlockOwnSession) => ({ accountId: session.user
   webOrigin: window.location.origin, extensionId: env.sharedUnlockExtensionId })
 export async function flushManualSharedUnlockClosings(session: SharedUnlockOwnSession, signal: AbortSignal, check: () => void): Promise<void> {
   if (!env.sharedUnlockExtensionId) return
-  await flushSharedUnlockClosings(ownScope(session), session, sharedUnlockLinks, api, signal, check)
+  if (!await sharedUnlockPreferenceGate.isAllowed({ accountId: session.userId, apiUrl: session.apiUrl })) return
+  await flushSharedUnlockClosings(ownScope(session), session, sharedUnlockLinks, api, signal, () => { check(); sharedUnlockPreferenceGate.assertAllowed(ownScope(session)) })
 }
 export async function deliverManualSharedUnlockLogout(session: SharedUnlockOwnSession, check: () => void): Promise<void> {
   if (!env.sharedUnlockExtensionId) return
-  await deliverSharedUnlockClosings([ownScope(session)], session, sharedUnlockLinks, api, check)
+  if (!await sharedUnlockPreferenceGate.isAllowed({ accountId: session.userId, apiUrl: session.apiUrl })) return
+  await deliverSharedUnlockClosings([ownScope(session)], session, sharedUnlockLinks, api, () => { check(); sharedUnlockPreferenceGate.assertAllowed(ownScope(session)) })
 }
