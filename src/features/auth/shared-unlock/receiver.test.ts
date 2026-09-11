@@ -1,3 +1,4 @@
+import { SharedUnlockPreferenceGate } from './preference-gate'
 import { SharedUnlockReconnectStaging } from './reconnect-staging'
 import { SharedUnlockLinkStore } from './link-store'
 import type { SharedUnlockCoordinatorRoute } from './browser-coordinator'
@@ -40,7 +41,7 @@ beforeEach(() => {
 afterEach(() => { for (const cancel of cancels.splice(0)) cancel(); useAuthStore.getState().logout(); vi.restoreAllMocks() })
 const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(r => { resolve = r }); return { promise, resolve } }
 
-async function setup(options: { confirmLocalLink?: SharedUnlockReceiverRoute["confirmLocalLink"]; assertFreshAuthorization?: SharedUnlockReceiverRoute["assertFreshAuthorization"]; onInstalled?: SharedUnlockInstalled; pause?: 'consume' | 'commit'; transformConsume?: (op: SharedUnlockOperation) => SharedUnlockOperation;
+async function setup(options: { publishWithLocalGuards?: SharedUnlockReceiverRoute["publishWithLocalGuards"]; confirmLocalLink?: SharedUnlockReceiverRoute["confirmLocalLink"]; assertFreshAuthorization?: SharedUnlockReceiverRoute["assertFreshAuthorization"]; onInstalled?: SharedUnlockInstalled; pause?: 'consume' | 'commit'; transformConsume?: (op: SharedUnlockOperation) => SharedUnlockOperation;
   transformCommit?: (commit: SharedUnlockCommit) => SharedUnlockCommit; afterInstall?: () => void } = {}) {
   let current = true
   let checkedInstall = false
@@ -48,6 +49,7 @@ async function setup(options: { confirmLocalLink?: SharedUnlockReceiverRoute["co
   const route: SharedUnlockReceiverRoute = {
     ...(options.confirmLocalLink ? { confirmLocalLink: options.confirmLocalLink } : {}),
     assertFreshAuthorization: options.assertFreshAuthorization,
+    publishWithLocalGuards: options.publishWithLocalGuards ?? (async (_sequence, deadline, _hard, publish) => publish(deadline)),
     apiUrl, binding: {
       accountId: original.accountId, organizationId: original.organizationId, apiOrigin: apiUrl,
       webOrigin: original.webOrigin, extensionId: original.extensionId, documentBinding: original.documentBinding,
@@ -486,4 +488,57 @@ it('a server lock after normal receiver commit prevents key installation even be
     lastInvalidationSequence: f.ownCommit.authorizationSequence + 1 }))); await rejected
   expect(useAuthStore.getState().masterKey).toBeNull(); expect(useAuthStore.getState().accessToken).toBeNull()
   expect(f.ack).not.toHaveBeenCalled(); expect(f.events).toContain('logout')
+})
+
+
+it.each(['OFF', 'disconnect', 'lock', 'logout', 'expiry'] as const)(
+  'never publishes keys after another document durably records %s following own-link confirmation', async denial => {
+    const values: Record<string, unknown> = {};
+    const storage = { get: async () => structuredClone(values), set: async (next: Record<string, unknown>) => { Object.assign(values, structuredClone(next)); } };
+    const scope = { apiUrl, accountId: baseline.context.accountId, webOrigin: baseline.context.webOrigin, extensionId: baseline.context.extensionId };
+    const exclusive = async <T,>(action: () => Promise<T>) => action();
+    const gate = new SharedUnlockPreferenceGate(storage, exclusive), peerGate = new SharedUnlockPreferenceGate(storage, exclusive);
+    const links = new SharedUnlockLinkStore(storage, undefined, exclusive), peerLinks = new SharedUnlockLinkStore(storage, undefined, exclusive);
+    const expiry = new SharedUnlockExpiryStore(storage, exclusive), peerExpiry = new SharedUnlockExpiryStore(storage, exclusive);
+    await gate.isAllowed(scope);
+    await links.adopt(scope, baseline.context.linkId);
+    const install = vi.spyOn(useAuthStore.getState(), 'installSharedUnlock');
+    const f = await setup({
+      confirmLocalLink: async () => {
+        // Separate instances represent a document whose storage event has not
+        // reached this receiver. Its denial is already durable when we resume.
+        if (denial === 'OFF') await peerGate.pause(scope).persisted;
+        else if (denial === 'expiry') await peerExpiry.advance(scope, 5);
+        else await peerLinks.beginClosing(scope, baseline.context.linkId, denial, 0, null);
+      },
+      publishWithLocalGuards: (sequence, deadline, hard, publish) => gate.withAllowed(scope, () =>
+        links.withInstallable(scope, baseline.context.linkId, baseline.context.linkEpoch, sequence, () =>
+          expiry.withCheckpoint(scope, sequence, deadline, hard, publish))),
+    });
+    await expect(f.receiver.receive(f.input)).rejects.toThrow();
+    expect(install).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().masterKey).toBeNull();
+    expect(useAuthStore.getState().isVaultLocked).toBe(true);
+    expect(f.events).toContain('logout');
+    expect(f.ack).not.toHaveBeenCalled();
+    expect(notifySharedUnlockCompleted).not.toHaveBeenCalled();
+  },
+);
+
+it('cannot publish from a final local-lock callback that resumes after receiver cancellation', async () => {
+  const entered = deferred<void>(), release = deferred<void>(), resumed = deferred<void>()
+  const install = vi.spyOn(useAuthStore.getState(), 'installSharedUnlock')
+  const f = await setup({ publishWithLocalGuards: async (_sequence, deadline, _hard, publish) => {
+    entered.resolve(); await release.promise
+    try { publish(deadline) } finally { resumed.resolve() }
+  } })
+  const rejected = expect(f.receiver.receive(f.input)).rejects.toThrow()
+  await entered.promise
+  f.receiver.cancel()
+  await rejected
+  release.resolve(); await resumed.promise
+  expect(install).not.toHaveBeenCalled()
+  expect(f.events.filter(event => event === 'logout')).toHaveLength(1)
+  expect(f.ack).not.toHaveBeenCalled()
+  expect(useAuthStore.getState().masterKey).toBeNull()
 })

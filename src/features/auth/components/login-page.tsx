@@ -1,5 +1,5 @@
 import { useGoogleLogin } from '@react-oauth/google'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -8,6 +8,7 @@ import { AuthRateLimitError } from '../api/auth-api'
 import { useLogin } from '../hooks/use-login'
 import { usePasswordLogin } from '../hooks/use-password-login'
 import { clearClientSession } from '../session/client-session'
+import { useAuthStore } from '../stores/auth-store'
 import { EmailPasswordForm } from './email-password-form'
 import { TotpChallengeStep } from './totp-challenge-step'
 
@@ -53,6 +54,23 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   const navigate = useNavigate()
   const oauth = useLogin(redirectTo)
   const { start, submitTotp, cancel } = usePasswordLogin()
+  const unlockedSession = useAuthStore((state) => Boolean(state.accessToken) && !state.isVaultLocked)
+  const navigated = useRef(false)
+  const manualPending = start.isPending || submitTotp.isPending || oauth.isPending
+
+  useEffect(() => {
+    // Manual login publishes keys before finishing source preparation. Its
+    // success callback owns navigation until that mutation has settled.
+    if (!unlockedSession || manualPending || navigated.current) return
+    navigated.current = true
+    void navigate({ href: redirectTo, replace: true })
+  }, [unlockedSession, manualPending, navigate, redirectTo])
+
+  const finishManualLogin = () => {
+    if (navigated.current) return
+    navigated.current = true
+    void navigate({ href: redirectTo })
+  }
   const [tooltipTarget, setTooltipTarget] = useState<string | null>(null)
 
   const [step, setStep] = useState<'credentials' | 'totp'>('credentials')
@@ -92,7 +110,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
                 setTotpError(null)
                 setStep('totp')
               } else {
-                navigate({ href: redirectTo })
+                finishManualLogin()
               }
             },
             onError: (error) => setPasswordError(
@@ -113,7 +131,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
     submitTotp.mutate(
       { challengeToken, code },
       {
-        onSuccess: () => navigate({ href: redirectTo }),
+        onSuccess: finishManualLogin,
         onError: (error) => setTotpError(
           t(error instanceof AuthRateLimitError
             ? 'auth.errorRateLimited'

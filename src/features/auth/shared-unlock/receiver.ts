@@ -21,6 +21,9 @@ export interface SharedUnlockReceiverRoute {
   assertCurrent(): void
   confirmLocalLink?(session: { apiUrl: string; userId: string; accessToken: string; refreshToken: string },
     authorizationSequence: number, signal: AbortSignal, assertOwnCurrent: () => void): Promise<void>
+  /** Adapter holds local denial locks until this synchronous callback returns. */
+  publishWithLocalGuards(sequence: number, deadlineMs: number, hardDeadlineMs: number,
+    publish: (deadlineMs: number) => void): Promise<void>
   assertFreshAuthorization?(sequence: number, deadlineMs: number, hardDeadlineMs: number): Promise<void | number>
 }
 
@@ -162,14 +165,24 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
         await wait(route.confirmLocalLink?.({ apiUrl, userId: commit.session.userId, accessToken: commit.session.accessToken,
           refreshToken: commit.session.refreshToken }, commit.authorizationSequence, abort.signal, assertCurrent) ?? Promise.resolve())
         assertCurrent()
-        installedGeneration = useAuthStore.getState().installSharedUnlock({
-          expected: initial, accountId: binding.accountId, session: commit.session, keys, limits: installedLimits,
-        })
-        assertCurrent()
+        const receivedKeys = keys
+        await wait(route.publishWithLocalGuards(commit.authorizationSequence, sessionDeadline(installedLimits),
+          Math.min(installedLimits.absoluteDeadlineMs, installedLimits.offlineDeadlineMs), deadlineMs => {
+            // No await from the final durable reads through publication and its
+            // generation checks. A later closing write is a separate operation.
+            assertCurrent()
+            const limits = { ...installedLimits, idleDeadlineMs: Math.min(installedLimits.idleDeadlineMs, deadlineMs) }
+            if (Date.now() >= sessionDeadline(limits)) reject()
+            installedGeneration = useAuthStore.getState().installSharedUnlock({
+              expected: initial, accountId: binding.accountId, session: commit.session, keys: receivedKeys, limits,
+            })
+            assertCurrent()
+            completed = true
+          }))
+        if (installedGeneration === null || !completed) reject()
         const result: SharedUnlockReceived = { operationId: commit.context.operationId,
           authorizationId: commit.authorizationId, authorizationSequence: commit.authorizationSequence,
-          cryptoSessionGeneration: installedGeneration }
-        completed = true
+          cryptoSessionGeneration: installedGeneration! }
         // Verified own receiver root remains usable independently of the Port.
         const ownInstalled = useAuthStore.getState();
         const assertOwnCurrent = () => {

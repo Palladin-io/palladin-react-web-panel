@@ -1,10 +1,12 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { AuthRateLimitError } from '../api/auth-api'
 import { LoginPage } from './login-page'
+import { useAuthStore } from '../stores/auth-store'
 
 // Controllable mock for the password-login handshake.
+const pending = vi.hoisted(() => ({ password: false, totp: false, oauth: false }))
 const startMutate = vi.hoisted(() => vi.fn())
 const totpMutate = vi.hoisted(() => vi.fn())
 const navigateMock = vi.hoisted(() => vi.fn())
@@ -23,14 +25,14 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 vi.mock('../hooks/use-login', () => ({
-  useLogin: () => ({ mutate: vi.fn(), isPending: false, isError: false }),
+  useLogin: () => ({ mutate: vi.fn(), isPending: pending.oauth, isError: false }),
 }))
 
 vi.mock('../hooks/use-password-login', () => ({
   usePasswordLogin: () => ({
     cancel: vi.fn(),
-    start: { mutate: startMutate, isPending: false },
-    submitTotp: { mutate: totpMutate, isPending: false },
+    start: { mutate: startMutate, isPending: pending.password },
+    submitTotp: { mutate: totpMutate, isPending: pending.totp },
   }),
 }))
 
@@ -47,11 +49,49 @@ vi.mock('../hooks/use-identity-kdf-migration', () => ({
 
 describe('LoginPage', () => {
   beforeEach(() => {
+    pending.password = pending.totp = pending.oauth = false
+    useAuthStore.getState().logout()
     startMutate.mockReset()
     totpMutate.mockReset()
     navigateMock.mockReset()
     clearClientSessionMock.mockReset().mockResolvedValue(undefined)
     googleLoginMock.mockReset()
+  })
+
+  it('reacts to an automatic session installation and preserves the validated deep link', async () => {
+    render(<LoginPage redirectTo="/vaults?intent=import#selected" />)
+    expect(navigateMock).not.toHaveBeenCalled()
+    act(() => {
+      useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh',
+        userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
+    })
+    expect(navigateMock).not.toHaveBeenCalled()
+    act(() => { useAuthStore.getState().unlockVault(new Uint8Array(32), new Uint8Array(32)) })
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ href: '/vaults?intent=import#selected', replace: true }))
+    expect(navigateMock).toHaveBeenCalledOnce()
+  })
+
+  it.each(['password', 'totp', 'oauth'] as const)('waits for pending %s work before reacting to installed keys', (kind) => {
+    pending[kind] = true
+    const view = render(<LoginPage redirectTo="/vaults" />)
+    act(() => {
+      useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh',
+        userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
+      useAuthStore.getState().unlockVault(new Uint8Array(32), new Uint8Array(32))
+    })
+    expect(navigateMock).not.toHaveBeenCalled()
+    pending[kind] = false
+    view.rerender(<LoginPage redirectTo="/vaults" />)
+    expect(navigateMock).toHaveBeenCalledExactlyOnceWith({ href: '/vaults', replace: true })
+  })
+
+  it('does not redirect a token-only locked session', () => {
+    render(<LoginPage redirectTo="/vaults" />)
+    act(() => {
+      useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh',
+        userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
+    })
+    expect(navigateMock).not.toHaveBeenCalled()
   })
 
   it('renders the wordmark and the email/password fields', () => {

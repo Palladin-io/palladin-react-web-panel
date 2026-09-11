@@ -60,12 +60,19 @@ export class SharedUnlockExpiryStore {
   /** Called with verified OWN Identity sequence and effective own limits before
    * publishing keys/authority. A new document/worker cannot renew the same root. */
   checkpoint(scope: SharedUnlockExpiryScope, sequence: number, deadlineMs: number, hardDeadlineMs = deadlineMs): Promise<number> {
+    return this.withCheckpoint(scope, sequence, deadlineMs, hardDeadlineMs, deadline => deadline);
+  }
+  /** Synchronous publication runs while the expiry lock is still held. Earlier
+   * locks must be acquired in pause -> links -> expiry order, without network IO. */
+  withCheckpoint<T>(scope: SharedUnlockExpiryScope, sequence: number, deadlineMs: number,
+    hardDeadlineMs: number, publish: (deadlineMs: number) => T): Promise<T> {
     const selected = { ...scope };
     this.queue(selected, { throughSequence: 0, checkpoint: { sequence, deadlineMs: Math.min(deadlineMs, hardDeadlineMs), hardDeadlineMs } });
     return this.serial(async () => {
-      const record = await this.readAndRepair(selected);
+      const read = await this.readAndRepair(selected);
+      const record = this.merge(read, this.pending.get(this.key(selected)));
       this.assertSequence(record, sequence);
-      return record.checkpoint!.deadlineMs;
+      return publish(record.checkpoint!.deadlineMs);
     });
   }
   /** Only real own input with an independently captured live key/session/root

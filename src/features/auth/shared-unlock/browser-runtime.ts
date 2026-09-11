@@ -136,6 +136,12 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
       const localLink = staging.capture(marker, binding, links, api)
       return beginSharedUnlockReceiver({ apiUrl: route.apiUrl, binding,
         confirmLocalLink: localLink.confirm,
+        // One local publication transaction, after the fresh own Identity read.
+        // All writers take their corresponding lock; never perform network IO here.
+        publishWithLocalGuards: (sequence, deadlineMs, hardDeadlineMs, publish) =>
+          sharedUnlockPreferenceGate.withAllowed(scope(binding.accountId), () =>
+            links.withInstallable(scope(binding.accountId), binding.linkId, binding.linkEpoch, sequence, () =>
+              sharedUnlockExpiry.withCheckpoint(scope(binding.accountId), sequence, deadlineMs, hardDeadlineMs, publish))),
         assertFreshAuthorization: (sequence, deadlineMs, hardDeadlineMs) => sharedUnlockExpiry.checkpoint(scope(binding.accountId), sequence, deadlineMs, hardDeadlineMs),
         assertCurrent: () => { if (signal.aborted) throw new Error('Shared unlock attempt cancelled'); assertCurrent(); localLink.assertCurrent(); sharedUnlockPreferenceGate.assertAllowed(scope(binding.accountId)); sharedUnlockPreferences.assertNotDisabled(scope(binding.accountId)) } }, api,
       (authorization, generation, assertOwnCurrent) => adoptSharedUnlockSource(authorization, generation,

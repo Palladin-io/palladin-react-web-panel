@@ -92,6 +92,21 @@ export class SharedUnlockLinkStore {
     return this.serial(() => this.load(selected));
   }
 
+  /** Denial-only check against the independently verified receiver binding and
+   * own authorization sequence. Keep the link lock held until publication. */
+  withInstallable<T>(scope: SharedUnlockLinkScope, linkId: string, linkEpoch: number,
+    authorizationSequence: number, action: () => Promise<T>): Promise<T> {
+    const selected = { ...scope };
+    return this.serial(async () => {
+      const marker = await this.require(selected, linkId), observed = marker.observed;
+      if (marker.pending.length || marker.disconnectId || observed?.state === "revoked"
+        || (observed && (observed.epoch > linkEpoch || observed.lastInvalidationSequence >= authorizationSequence))) {
+        throw new SharedUnlockLinkStorageError();
+      }
+      return action();
+    });
+  }
+
   /** Explicit own UI action, including when the peer is absent. Never allocate
    * a link while closing; missing preference/revision is repaired via Identity. */
   recordManualClosing(scope: SharedUnlockLinkScope, action: "lock" | "logout"): Promise<SharedUnlockLinkMarker | null> {

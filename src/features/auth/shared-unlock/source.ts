@@ -13,7 +13,7 @@ import type { SharedUnlockReceiverRoute } from './receiver'
 
 /** The selected account/link/preference authority is independent of the operation response.
  * The route owner aborts on navigation, peer loss, OFF, closing intent or revocation. */
-export interface SharedUnlockSourceRoute extends SharedUnlockReceiverRoute {
+export interface SharedUnlockSourceRoute extends Pick<SharedUnlockReceiverRoute, 'apiUrl' | 'binding' | 'assertCurrent'> {
   readonly signal: AbortSignal
 }
 

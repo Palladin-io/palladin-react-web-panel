@@ -724,3 +724,29 @@ prove that a normal receiver keeps keys/tokens unpublished while the own GET is
 pending, and rejects a server lock occurring after commit even before the local
 invalidation arrives. This is a pre-install freshness check; it does not establish
 all later resume/key-use behavior or native browser acceptance.
+
+
+### Atomic local receiver publication and reactive login routing
+
+After the fresh own Identity link confirmation, the receiver reacquires local
+origin-wide locks in the fixed order pause → links → expiry. It rereads durable
+denials and the retained deadline while holding those locks through synchronous
+RAM key installation, final generation checks and completion. No network request
+runs under these locks. A peer document's already committed OFF, Disconnect,
+manual closing or retired authorization therefore prevents publication even when
+its storage event has not reached the receiving document. Later closing writes
+serialize after completion; losing the browser channel cannot undo that completed
+own session. Cancellation while waiting still prevents a delayed callback from
+publishing keys and revokes only the newly issued receiver session.
+
+`LoginPage` reacts to an authenticated, unlocked store transition and replaces the
+login route with its previously validated deep link. Token-only locked state does
+not redirect. Pending password/TOTP/OAuth work keeps its own navigation ownership,
+so installing manual keys cannot interrupt awaited source preparation; manual
+success and reactive navigation share a one-navigation fence.
+
+Regression coverage: `receiver.test.ts` exercises real crypto with five durable
+cross-document denials after link confirmation and cancellation while waiting;
+`publication-guards.test.ts` covers lock ordering, queued writers, retained idle
+ceilings, synchronous own pause and failed reads; `login-page.test.tsx` covers
+reactive deep-link navigation and pending manual work.

@@ -40,6 +40,19 @@ export class SharedUnlockPreferenceGate {
       } catch { this.changed(selected, false); throw new Error("Shared unlock preference gate unavailable"); }
     });
   }
+  /** Hold the origin-wide pause lock through the final publication boundary.
+   * The callback must not acquire this gate again or perform network work. */
+  withAllowed<T>(scope: SharedUnlockPreferenceScope, action: () => Promise<T>): Promise<T> {
+    const selected = { apiUrl: scope.apiUrl, accountId: scope.accountId };
+    return this.serial(async () => {
+      try {
+        const pauseId = await this.load(selected);
+        this.changed(selected, !pauseId && !this.pending.has(this.key(selected)));
+      } catch { this.changed(selected, false); throw new Error("Shared unlock preference gate unavailable"); }
+      this.assertAllowed(selected);
+      return action();
+    });
+  }
   /** Cancels observers before any storage wait. A failed write retains RAM denial. */
   pause(scope: SharedUnlockPreferenceScope): { id: string; persisted: Promise<void> } {
     const selected = { apiUrl: scope.apiUrl, accountId: scope.accountId }, key = this.key(selected), id = this.newId();
