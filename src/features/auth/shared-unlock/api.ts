@@ -1,4 +1,4 @@
-import type { SharedUnlockAuthorization, SharedUnlockCommit, SharedUnlockManualInput, SharedUnlockOperation, SharedUnlockOperationInput, SharedUnlockPreference } from './api-types'
+import type { SharedUnlockActivationInput, SharedUnlockLink, SharedUnlockActivityInput, SharedUnlockAuthorization, SharedUnlockCommit, SharedUnlockManualInput, SharedUnlockOperation, SharedUnlockOperationInput, SharedUnlockPreference } from './api-types'
 
 export interface SharedUnlockOwnSession {
   readonly apiUrl: string
@@ -26,6 +26,19 @@ export class SharedUnlockApi {
 
   readPreference(session: SharedUnlockOwnSession, signal: AbortSignal): Promise<SharedUnlockPreference> {
     return this.request(session.apiUrl, '/api/account/shared-unlock', undefined, signal, session)
+  }
+
+  createLink(session: SharedUnlockOwnSession, linkId: string, preferenceRevision: number, signal: AbortSignal): Promise<SharedUnlockLink> {
+    return this.request(session.apiUrl, '/api/account/shared-unlock/links', { linkId, expectedPreferenceRevision: preferenceRevision }, signal, session)
+  }
+  readLink(session: SharedUnlockOwnSession, linkId: string, signal: AbortSignal): Promise<SharedUnlockLink> {
+    return this.request(session.apiUrl, `/api/account/shared-unlock/links/${encodeURIComponent(linkId)}`, undefined, signal, session)
+  }
+  activate(session: SharedUnlockOwnSession, linkId: string, input: SharedUnlockActivationInput, signal: AbortSignal): Promise<SharedUnlockLink> {
+    return this.request(session.apiUrl, `/api/account/shared-unlock/links/${encodeURIComponent(linkId)}/activate`, { ...input, refreshToken: session.refreshToken }, signal, session)
+  }
+  recordActivity(session: SharedUnlockOwnSession, input: SharedUnlockActivityInput, signal: AbortSignal): Promise<SharedUnlockAuthorization> {
+    return this.request(session.apiUrl, '/api/account/shared-unlock/authorizations/activity', { ...input, refreshToken: session.refreshToken }, signal, session)
   }
 
   authorize(session: SharedUnlockOwnSession, input: SharedUnlockManualInput, signal: AbortSignal): Promise<SharedUnlockAuthorization> {

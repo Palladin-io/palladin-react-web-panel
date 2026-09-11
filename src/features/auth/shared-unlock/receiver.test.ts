@@ -1,3 +1,4 @@
+import type { SharedUnlockInstalled } from "./receiver";
 import { receiveSharedUnlockBrowserTransfer, type SharedUnlockOperationTransport } from "./browser-transfer";
 import { sharedUnlockOperationSchema, type SharedUnlockOperationMessage } from "./browser-operation-message";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -31,7 +32,7 @@ beforeEach(() => {
 afterEach(() => { for (const cancel of cancels.splice(0)) cancel(); useAuthStore.getState().logout(); vi.restoreAllMocks() })
 const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(r => { resolve = r }); return { promise, resolve } }
 
-async function setup(options: { pause?: 'consume' | 'commit'; transformConsume?: (op: SharedUnlockOperation) => SharedUnlockOperation;
+async function setup(options: { onInstalled?: SharedUnlockInstalled; pause?: 'consume' | 'commit'; transformConsume?: (op: SharedUnlockOperation) => SharedUnlockOperation;
   transformCommit?: (commit: SharedUnlockCommit) => SharedUnlockCommit; afterInstall?: () => void } = {}) {
   let current = true
   let checkedInstall = false
@@ -71,7 +72,7 @@ async function setup(options: { pause?: 'consume' | 'commit'; transformConsume?:
     return new Response(JSON.stringify(action === 'consume' ? (options.transformConsume?.(operation) ?? operation) : (options.transformCommit?.(ownCommit) ?? ownCommit)))
   })
   const api = new SharedUnlockApi(fetcher, () => apiUrl)
-  const receiver = await beginSharedUnlockReceiver(route, api)
+  const receiver = await beginSharedUnlockReceiver(route, api, options.onInstalled)
   cancels.push(receiver.cancel)
   const masterKey = await randomBytes(32)
   const member = await generateKeyPair()
@@ -93,6 +94,24 @@ async function setup(options: { pause?: 'consume' | 'commit'; transformConsume?:
 }
 
 describe('Web own receiver transaction with real crypto', () => {
+  it("publishes verified inherited authority independently of subsequent peer loss", async () => {
+    const adopted = vi.fn<SharedUnlockInstalled>();
+    const f = await setup({ onInstalled: adopted });
+    await f.receiver.receive(f.input);
+    expect(adopted).toHaveBeenCalledOnce();
+    const [root, generation, ownCurrent] = adopted.mock.calls[0];
+    expect(root).toMatchObject({ authorizationId: f.ownCommit.authorizationId, sequence: f.ownCommit.authorizationSequence,
+      accountId: f.operation.context.accountId, organizationId: f.operation.context.organizationId,
+      credentialRevision: f.operation.keyContext.credentialRevision, privateKeyWrapRevision: f.operation.keyContext.privateKeyWrapRevision,
+      unlockedAtMs: f.operation.context.unlockedAtMs, absoluteDeadlineMs: f.operation.context.absoluteDeadlineMs,
+      offlineDeadlineMs: f.operation.context.offlineDeadlineMs });
+    expect(generation).toBe(f.route.binding.webGeneration);
+    f.invalidate();
+    expect(() => ownCurrent()).not.toThrow();
+    useAuthStore.getState().lockVault();
+    expect(() => ownCurrent()).toThrow();
+  });
+
   it("installs the real receiver transaction from operation frames before sending its ACK", async () => {
     const f = await setup(); const envelope = await f.input.envelope();
     let receive!: (message: SharedUnlockOperationMessage) => void;

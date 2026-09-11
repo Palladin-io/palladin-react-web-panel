@@ -6,6 +6,8 @@ interface LifecycleOptions {
   readonly window: Window
   readonly document: Document
   runtime(): SharedUnlockNativeRuntime | undefined
+  /** Register the document coordinator before receiving operation frames. */
+  onReady?(route: SharedUnlockBrowserRoute): void
   /** Local document retirement, not manual group lock/logout or peer loss. */
   retireDocument(): void
 }
@@ -53,8 +55,10 @@ export function startSharedUnlockBrowserLifecycle(options: LifecycleOptions) {
       if (connection !== pending) { pending.close(); return }
       ready.assertCurrent()
       route = ready
+      options.onReady?.(ready)
       failures = 0
     }).catch(() => {
+      pending.close()
       if (connection === pending) { connection = null; route = null; reconnect() }
     })
   }

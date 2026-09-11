@@ -66,3 +66,26 @@ export interface SharedUnlockOperationInput {
   readonly recipientPublicKey: string;
   readonly recipientProofPublicKey: string;
 }
+
+export interface SharedUnlockLink {
+  readonly linkId: string;
+  readonly revision: number;
+  readonly epoch: number;
+  readonly state: "locked" | "active" | "revoked";
+  readonly lastInvalidationSequence: number;
+  readonly lastLogoutSequence: number;
+}
+
+
+export interface SharedUnlockActivityInput {
+  readonly authorizationId: string;
+  readonly sourceGeneration: string;
+  readonly idleDeadlineMs: number;
+}
+
+export interface SharedUnlockActivationInput {
+  readonly authorizationId: string;
+  readonly sourceGeneration: string;
+  readonly expectedRevision: number;
+  readonly expectedPreferenceRevision: number;
+}

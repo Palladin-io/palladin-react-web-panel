@@ -130,3 +130,28 @@ for (const fixture of fixtures.responses.filter(row => row.type === 'operation')
     expect(JSON.parse(String(init?.body))).toEqual({ ...request, refreshToken: own.refreshToken })
   })
 }
+
+
+for (const fixture of fixtures.responses.filter(r => r.type === 'link')) {
+  it(`decodes provider link ${fixture.name} at the own authenticated endpoint`, async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(fixture.body)))
+    const api = new SharedUnlockApi(fetcher, () => apiUrl)
+    expect(await api.readLink(own, 'link/with?#characters', new AbortController().signal)).toEqual(fixture.body)
+    expect(fetcher.mock.lastCall![0]).toBe(apiUrl + '/api/account/shared-unlock/links/link%2Fwith%3F%23characters')
+    expect(fetcher.mock.lastCall![1]).toMatchObject({ method: 'GET', headers: { authorization: 'Bearer own-access' }, credentials: 'omit', redirect: 'error' })
+  })
+}
+
+it('creates and activates the selected link using only the own session and original generation', async () => {
+  const fixture = fixtures.responses.find(r => r.type === 'link')!.body
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async () => new Response(JSON.stringify(fixture)))
+  const api = new SharedUnlockApi(fetcher, () => apiUrl), signal = new AbortController().signal
+  const root = fixtures.operations[0].sourceAuthorization, context = fixtures.operations[0].operation.context
+  await api.createLink(own, context.linkId, context.preferenceRevision, signal)
+  expect(JSON.parse(String(fetcher.mock.lastCall![1]?.body))).toEqual({ linkId: context.linkId, expectedPreferenceRevision: context.preferenceRevision })
+  const activate = { authorizationId: root.authorizationId, sourceGeneration: context.webGeneration, expectedRevision: 1, expectedPreferenceRevision: context.preferenceRevision }
+  await api.activate(own, context.linkId, { ...activate, ...{ refreshToken: 'untrusted-extra' } }, signal)
+  expect(fetcher.mock.lastCall![0]).toBe(`${apiUrl}/api/account/shared-unlock/links/${context.linkId}/activate`)
+  expect(JSON.parse(String(fetcher.mock.lastCall![1]?.body))).toEqual({ ...activate, refreshToken: own.refreshToken })
+  expect(fetcher.mock.lastCall![1]).toMatchObject({ headers: { authorization: 'Bearer own-access' }, credentials: 'omit', cache: 'no-store', redirect: 'error' })
+})

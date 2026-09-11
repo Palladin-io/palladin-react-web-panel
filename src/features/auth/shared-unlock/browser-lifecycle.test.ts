@@ -1,6 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { startSharedUnlockBrowserLifecycle } from './browser-lifecycle'
-import type { SharedUnlockNativeRuntime } from './browser-channel'
+import type { SharedUnlockBrowserRoute, SharedUnlockNativeRuntime } from './browser-channel'
 vi.mock('../../../shared/crypto/sodium', () => ({ randomBytes: async () => new Uint8Array(32), wipe: (bytes: Uint8Array) => bytes.fill(0) }))
 function event<T extends unknown[]>() {
   const callbacks = new Set<(...args: T) => void>()
@@ -25,6 +25,25 @@ const settle = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers() })
 describe('document-owned shared unlock connection', () => {
+  it('registers the coordinator on the live route and retires it on pagehide', async () => {
+    const f = fixture(), received = vi.fn(), onReady = vi.fn((route: SharedUnlockBrowserRoute) => { route.onOperation(received) })
+    const c = startSharedUnlockBrowserLifecycle({ ...f.options, onReady }); await settle(); f.accept(); await settle()
+    const route = c.currentRoute()!
+    expect(onReady).toHaveBeenCalledExactlyOnceWith(route)
+    f.ports[0].onMessage.emit({ type: 'operation', protocol: 'palladin.shared-unlock.browser.v1', apiUrl: f.options.apiUrl,
+      webNonce: 'A'.repeat(43), channelId: route.channelId, documentBinding: route.documentBinding,
+      attemptId: 'A'.repeat(43), payload: { kind: 'cancel' } })
+    expect(received).toHaveBeenCalledOnce()
+    f.owner.dispatchEvent(new Event('pagehide')); expect(route.signal.aborted).toBe(true); c.close()
+  })
+  it('disconnects a route when coordinator registration fails, then retries without expiring own keys', async () => {
+    const f = fixture(), onReady = vi.fn(() => { throw new Error('coordinator unavailable') })
+    const c = startSharedUnlockBrowserLifecycle({ ...f.options, onReady }); await settle(); f.accept(); await settle()
+    expect(f.ports[0].disconnect).toHaveBeenCalledOnce(); expect(c.currentRoute()).toBeNull()
+    await vi.advanceTimersByTimeAsync(1000); expect(f.ports).toHaveLength(2)
+    expect(f.options.retireDocument).not.toHaveBeenCalled(); c.close()
+  })
+
   it('reconnects after peer loss while leaving own session untouched', async () => {
     const f = fixture(); const c = startSharedUnlockBrowserLifecycle(f.options); await settle(); f.accept(); await settle()
     const old = c.currentRoute()!; f.ports[0].onDisconnect.emit(); expect(old.signal.aborted).toBe(true)

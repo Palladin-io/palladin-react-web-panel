@@ -46,3 +46,14 @@ export async function prepareManualSharedUnlock(account: AccountResponse, authCr
 export function getSharedUnlockSourceSnapshot() {
   return getAuthority().snapshot()
 }
+
+export function subscribeSharedUnlockSource(listener: () => void): () => void {
+  return getAuthority().subscribe(listener)
+}
+export function acceptSharedUnlockPreference(preference: import('./api-types').SharedUnlockPreference, generation: string): void {
+  getAuthority().acceptPreference(preference, generation)
+}
+export function adoptSharedUnlockSource(authorization: import('./api-types').SharedUnlockAuthorization, generation: string,
+  preference: import('./api-types').SharedUnlockPreference, assertOwnCurrent: () => void): void {
+  getAuthority().adopt(authorization, generation, preference, assertOwnCurrent)
+}

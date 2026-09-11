@@ -29,6 +29,7 @@ export interface SharedUnlockBrowserRoute {
   readonly channelId: string
   readonly documentBinding: string
   readonly signal: AbortSignal
+  close(): void
   assertCurrent(): void
   verifyCurrent(): Promise<void>
   sendOperation(message: SharedUnlockOperationMessage): void
@@ -102,7 +103,7 @@ export function connectSharedUnlockBrowser(options: BrowserChannelOptions) {
       clearTimeout(timeout)
       routeBinding = { channelId: received.channelId, documentBinding: received.documentBinding }
       resolveReady(Object.freeze({ apiUrl, webOrigin, extensionId, channelId: received.channelId,
-        documentBinding: received.documentBinding, signal: abort.signal, assertCurrent,
+        documentBinding: received.documentBinding, signal: abort.signal, assertCurrent, close,
         verifyCurrent: async () => { assertCurrent() },
         sendOperation: (message: SharedUnlockOperationMessage) => {
           assertCurrent()
