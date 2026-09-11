@@ -128,6 +128,10 @@ remains the accepted compromised-client case, without store/profile attestation.
 On 2026-09-11, the actual built Web/Extension channel and bridge-loss reconnect
 passed on Firefox 155.0.1/macOS arm64 with delivered Web CSP. Firefox Identity/MK/Entry
 handoff, minimum-version and full OS/distribution coverage remain release gates.
+Mozilla's [compatibility data](https://github.com/mdn/browser-compat-data/blob/main/webextensions/api/webNavigation.json)
+places the required `getAllFrames` document/parent-document IDs at Firefox 153.
+The existing extension floor is 140: versions 140–152 therefore need a separately
+verified compatibility path, and currently fail closed without document authority.
 Safari still requires a separate adapter and browser-boundary assessment.
 
 The provider retires the Web document on `pagehide`, including BFCache entry,
