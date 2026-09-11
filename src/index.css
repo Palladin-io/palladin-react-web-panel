@@ -234,6 +234,55 @@ button,
   position: relative;
 }
 
+/* Brand dimensions match the landing, independently of the panel's 125%
+   control density. Rem units still follow the user's browser font size. */
+.auth-brand-header {
+  --cv-auth-brand-logo-size: calc(7rem / var(--cv-density-scale));
+  --cv-auth-brand-title-size: calc(2rem / var(--cv-density-scale));
+  --cv-auth-brand-logo-gap: calc(1.5rem / var(--cv-density-scale));
+  --cv-auth-brand-tagline-gap: calc(1.75rem / var(--cv-density-scale));
+  --cv-auth-brand-content-gap: calc(2rem / var(--cv-density-scale));
+  margin-bottom: var(--cv-auth-brand-content-gap);
+  text-align: center;
+}
+
+.auth-brand-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cv-auth-brand-logo-gap);
+  margin-bottom: var(--cv-auth-brand-tagline-gap);
+}
+
+.auth-brand-logo {
+  width: var(--cv-auth-brand-logo-size);
+  height: auto;
+}
+
+.auth-brand-wordmark {
+  margin: 0;
+  font-size: var(--cv-auth-brand-title-size);
+  font-weight: 800;
+  line-height: normal;
+  letter-spacing: -0.01em;
+}
+
+.auth-brand-header .auth-brand-tagline {
+  height: auto;
+  min-height: calc(1.125rem / var(--cv-density-scale));
+  margin: 0;
+  font-size: calc(0.8125rem / var(--cv-density-scale));
+  line-height: normal;
+  color: var(--cv-t3);
+}
+
+@media (max-width: 40rem) {
+  .auth-brand-header {
+    --cv-auth-brand-logo-size: calc(6rem / var(--cv-density-scale));
+    --cv-auth-brand-title-size: calc(1.875rem / var(--cv-density-scale));
+  }
+}
+
 .auth-glass-button {
   border-color: var(--cv-auth-control-border);
   background: var(--cv-auth-control-bg);

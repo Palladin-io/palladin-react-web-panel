@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface AppWordmarkProps {
-  /** 'sm' for sidebar header (logo + "Palladin.io" beside it) — 'lg' for login hero (logo 64px, text 28px) */
-  size?: 'sm' | 'lg'
+  /** Sidebar row, compact standalone mark, or landing-matched auth hero. */
+  size?: 'sm' | 'lg' | 'hero'
   /** Optional line rendered under the wordmark text, beside the logo (sm only). */
   subtitle?: ReactNode
 }
@@ -16,11 +16,11 @@ export function AppWordmark({ size = 'sm', subtitle }: AppWordmarkProps) {
   const { t } = useTranslation()
   const appName = t('auth.appName')
 
-  if (size === 'lg') {
+  if (size === 'lg' || size === 'hero') {
     return (
-      <div className="flex flex-col items-center gap-[16px]">
-        <img src="/logo.png" alt={appName} className="h-16 w-auto" />
-        <h1 className="text-display font-extrabold tracking-tight">
+      <div className={size === 'hero' ? 'auth-brand-lockup' : 'flex flex-col items-center gap-[16px]'}>
+        <img src="/logo.png" alt={appName} className={size === 'hero' ? 'auth-brand-logo' : 'h-16 w-auto'} />
+        <h1 className={size === 'hero' ? 'auth-brand-wordmark' : 'text-display font-extrabold tracking-tight'}>
           <span className="text-[var(--cv-t1)]">Palladin</span>
           <span className="text-[var(--cv-primary)]">.io</span>
         </h1>

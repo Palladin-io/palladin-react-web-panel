@@ -78,6 +78,13 @@ An eased radial mask and bottom fade prevent hard texture edges. `.auth-glass-bu
 Both classes resolve from the root theme set by `ThemeSync`; neither creates a
 nested theme scope.
 
+Login and unlock use `AuthBrandHeader`: the same logo asset and rotating lines
+as the landing hero, with a 112px-wide shield (96px at widths up to 640px),
+32px wordmark (30px narrow), 24px shield-to-wordmark gap, 28px gap before the
+13px tagline, and 32px before the next content. Scoped `--cv-auth-brand-*`
+tokens normalize the panel's comfortable density so these brand proportions
+match the landing; form-control density and other wordmark variants stay intact.
+
 ### Buttons
 Per-variant tokens consumed by `button.tsx`:
 - Subtle: `--cv-btn-subtle-{bg,text,border,hover}`
