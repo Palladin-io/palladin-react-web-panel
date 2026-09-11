@@ -1,3 +1,4 @@
+import { SharedUnlockReconnectStaging } from './reconnect-staging'
 import { sharedUnlockPreferences } from './preference-state-runtime'
 import { startSharedUnlockPreferenceMonitor, type SharedUnlockPreferenceMonitorClient } from './preference-monitor'
 import { startSharedUnlockReconnectMonitor } from './reconnect-monitor'
@@ -21,13 +22,14 @@ import { beginSharedUnlockReceiver } from './receiver'
 export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
   const api = new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl)
   const scope = (accountId: string) => ({ accountId, apiUrl: route.apiUrl, webOrigin: route.webOrigin, extensionId: route.extensionId })
-  const admissible = async (accountId: string, linkId: string) => {
+  const staging = new SharedUnlockReconnectStaging(route, accountId => coordinator.cancelPending(accountId))
+  const admissible = async (accountId: string, linkId: string, receiving = false, linkEpoch?: number) => {
     route.assertCurrent()
     if (sharedUnlockPreferences.isDisabled(scope(accountId)) || !await sharedUnlockPreferenceGate.isAllowed(scope(accountId))) throw new Error("Shared unlock is locally paused")
     route.assertCurrent()
     const marker = await links.adopt(scope(accountId), linkId)
     route.assertCurrent()
-    if (marker.pending.length || marker.disconnectId || marker.observed?.state === 'revoked') throw new Error('Shared unlock local link unavailable')
+    if (marker.pending.length || ((marker.disconnectId || marker.observed?.state === 'revoked') && !(receiving && staging.canStage(marker, linkEpoch)))) throw new Error('Shared unlock local link unavailable')
     return marker
   }
   const nonce = async () => { const bytes = await randomBytes(32); try { return encodeBase64Url(bytes) } finally { wipe(bytes) } }
@@ -73,9 +75,9 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
       return { accountId: current.userId, status, source }
     },
     subscribe,
-    selectLink: async (accountId, proposed) => {
+    selectLink: async (accountId, proposed, direction) => {
       if (!proposed) throw new Error('Extension must select the profile link')
-      return (await admissible(accountId, proposed)).linkId
+      return (await admissible(accountId, proposed, direction === 'receiver')).linkId
     },
     prepareSource: async (accountId, organizationId, linkId, signal, assertAttempt) => {
       const assertCurrent = () => { assertAttempt(); sharedUnlockPreferenceGate.assertAllowed(scope(accountId)); sharedUnlockPreferences.assertNotDisabled(scope(accountId)) }
@@ -118,18 +120,23 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
       return { linkEpoch: active.epoch, preferenceRevision: preference.revision }
     },
     checkReceiver: async (binding, signal) => {
-      const marker = await admissible(binding.accountId, binding.linkId)
+      const marker = await admissible(binding.accountId, binding.linkId, true, binding.linkEpoch)
       if (signal.aborted || (marker.observed && binding.linkEpoch < marker.observed.epoch)) throw new Error('Shared unlock receiver selection expired')
     },
     source: (binding, signal, assertCurrent) => beginSharedUnlockSource({ apiUrl: route.apiUrl, binding, signal,
       assertCurrent: () => { assertCurrent(); sharedUnlockPreferenceGate.assertAllowed(scope(binding.accountId)); sharedUnlockPreferences.assertNotDisabled(scope(binding.accountId)) } }, api),
-    receiver: (binding, signal, assertCurrent) => beginSharedUnlockReceiver({ apiUrl: route.apiUrl, binding,
-      assertFreshAuthorization: (sequence, deadlineMs, hardDeadlineMs) => sharedUnlockExpiry.checkpoint(scope(binding.accountId), sequence, deadlineMs, hardDeadlineMs),
-      assertCurrent: () => { if (signal.aborted) throw new Error('Shared unlock attempt cancelled'); assertCurrent(); sharedUnlockPreferenceGate.assertAllowed(scope(binding.accountId)); sharedUnlockPreferences.assertNotDisabled(scope(binding.accountId)) } }, api,
-    (authorization, generation, assertOwnCurrent) => adoptSharedUnlockSource(authorization, generation,
-      { sharedUnlockEnabled: true, revision: binding.preferenceRevision }, () => {
-        assertOwnCurrent(); if (env.apiUrl !== route.apiUrl) throw new Error('Shared unlock own environment changed')
-      })),
+    receiver: async (binding, signal, assertCurrent) => {
+      const marker = await admissible(binding.accountId, binding.linkId, true, binding.linkEpoch); assertCurrent()
+      const localLink = staging.capture(marker, binding, links, api)
+      return beginSharedUnlockReceiver({ apiUrl: route.apiUrl, binding,
+        confirmLocalLink: localLink.confirm,
+        assertFreshAuthorization: (sequence, deadlineMs, hardDeadlineMs) => sharedUnlockExpiry.checkpoint(scope(binding.accountId), sequence, deadlineMs, hardDeadlineMs),
+        assertCurrent: () => { if (signal.aborted) throw new Error('Shared unlock attempt cancelled'); assertCurrent(); localLink.assertCurrent(); sharedUnlockPreferenceGate.assertAllowed(scope(binding.accountId)); sharedUnlockPreferences.assertNotDisabled(scope(binding.accountId)) } }, api,
+      (authorization, generation, assertOwnCurrent) => adoptSharedUnlockSource(authorization, generation,
+        { sharedUnlockEnabled: true, revision: binding.preferenceRevision }, () => {
+          assertOwnCurrent(); if (env.apiUrl !== route.apiUrl) throw new Error('Shared unlock own environment changed')
+        }))
+    },
   })
   const unsubscribeGate = sharedUnlockPreferenceGate.subscribe(changed => {
     if (changed.apiUrl === route.apiUrl) coordinator.cancelPending(changed.accountId)
@@ -170,6 +177,6 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
     },
   }
   const preferenceMonitor = startSharedUnlockPreferenceMonitor(route, preferenceClient, sharedUnlockPreferences, api)
-  const reconnectMonitor = startSharedUnlockReconnectMonitor(route, preferenceClient, links, api, accountId => coordinator.cancelPending(accountId))
+  const reconnectMonitor = startSharedUnlockReconnectMonitor(route, preferenceClient, links, api, accountId => coordinator.cancelPending(accountId), staging)
   return { close: () => { unsubscribeGate(); unsubscribePreferences(); preferenceMonitor.close(); reconnectMonitor.close(); coordinator.close(); monitor.close() } }
 }

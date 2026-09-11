@@ -109,3 +109,26 @@ it('connects explicit peer reconnect to the locked Web own JWT while preserving 
   expect(fetcher.mock.calls.every(([, init]) => init?.method === 'GET'
     && new Headers(init.headers).get('authorization') === 'Bearer own-access')).toBe(true)
 })
+
+it('a rootless Web can select only a staged receiver link after a reconnect hint, keeping the latch and keys untouched', async () => {
+  useAuthStore.setState({ accessToken: null, refreshToken: null })
+  expect(await sharedUnlockPreferenceGate.isAllowed(scope)).toBe(true)
+  const linkScope = { ...scope, webOrigin: 'https://web.test', extensionId: 'a'.repeat(32) }
+  const linkId = '22222222-2222-4222-8222-222222222222'
+  await sharedUnlockLinks.adopt(linkScope, linkId)
+  const marker = await sharedUnlockLinks.observe(linkScope, { linkId, revision: 2, epoch: 2, state: 'revoked', lastInvalidationSequence: 2, lastLogoutSequence: 0 })
+  const fetcher = vi.fn<typeof fetch>(); vi.stubGlobal('fetch', fetcher)
+  const f = start()
+  await vi.waitFor(() => expect(f.sent.some(message => message.payload.kind === 'state')).toBe(true))
+  const first = f.sent.filter(message => message.payload.kind === 'state').at(-1)!.attemptId
+  f.emit({ attemptId: 'B'.repeat(42) + 'A', payload: { kind: 'link-reconnect', accountId: scope.accountId, linkId, reconnectRevision: 3 } })
+  await vi.waitFor(() => expect(f.sent.filter(message => message.payload.kind === 'state').at(-1)!.attemptId).not.toBe(first))
+  const own = f.sent.filter(message => message.payload.kind === 'state').at(-1)!.attemptId, peerId = 'C'.repeat(42) + 'A'
+  f.emit({ attemptId: peerId, payload: { kind: 'state', stateId: peerId, accountId: scope.accountId, status: 'unlocked',
+    generation: 'D'.repeat(42) + 'A', source: { organizationId: root.organizationId } } })
+  f.emit({ attemptId: peerId, payload: { kind: 'link', accountId: scope.accountId, linkId, webStateId: own, extensionStateId: peerId } })
+  await vi.waitFor(() => expect(f.sent.some(message => message.payload.kind === 'link-selected')).toBe(true))
+  expect((await sharedUnlockLinks.read(linkScope))?.disconnectId).toBe(marker.disconnectId)
+  expect(useAuthStore.getState()).toMatchObject({ accessToken: null, masterKey: null, isVaultLocked: true })
+  expect(fetcher).not.toHaveBeenCalled()
+})

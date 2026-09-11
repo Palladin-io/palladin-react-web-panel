@@ -18,6 +18,8 @@ export interface SharedUnlockReceiverRoute {
   readonly binding: Pick<SharedUnlockContext, 'accountId' | 'organizationId' | 'apiOrigin' | 'webOrigin'
     | 'extensionId' | 'documentBinding' | 'webGeneration' | 'extensionGeneration' | 'linkId' | 'linkEpoch' | 'preferenceRevision'>
   assertCurrent(): void
+  confirmLocalLink?(session: { apiUrl: string; userId: string; accessToken: string; refreshToken: string },
+    authorizationSequence: number, signal: AbortSignal, assertOwnCurrent: () => void): Promise<void>
   assertFreshAuthorization?(sequence: number, deadlineMs: number, hardDeadlineMs: number): Promise<void | number>
 }
 
@@ -155,6 +157,9 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
         const effective = unlockLimits(Date.now(), commit.context)
         const persistedDeadline = await wait(route.assertFreshAuthorization?.(commit.authorizationSequence, sessionDeadline(effective), Math.min(effective.absoluteDeadlineMs, effective.offlineDeadlineMs)) ?? Promise.resolve())
         const installedLimits = { ...effective, idleDeadlineMs: Math.min(effective.idleDeadlineMs, persistedDeadline ?? Infinity) }
+        assertCurrent()
+        await wait(route.confirmLocalLink?.({ apiUrl, userId: commit.session.userId, accessToken: commit.session.accessToken,
+          refreshToken: commit.session.refreshToken }, commit.authorizationSequence, abort.signal, assertCurrent) ?? Promise.resolve())
         assertCurrent()
         installedGeneration = useAuthStore.getState().installSharedUnlock({
           expected: initial, accountId: binding.accountId, session: commit.session, keys, limits: installedLimits,
