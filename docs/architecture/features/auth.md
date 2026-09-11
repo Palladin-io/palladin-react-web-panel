@@ -436,8 +436,8 @@ and the paired Chromium channel probe do not close those gates.
 The Security page reads and writes the single Identity account preference, with
 own-session/account/generation fences, revision CAS and no automatic mutation
 retry. The switch works without an installed extension. GET refreshes while the
-settings surface is open (15 seconds/focus); complete background cross-client
-preference invalidation remains a release gate. The source selection observes
+settings surface is open (15 seconds/focus); background cross-client preference
+repair is connected below. The source selection observes
 ON/OFF changes without extending its existing authority or deadlines.
 
 The click handler pauses local source and receiver attempts before scheduling the
@@ -453,4 +453,32 @@ known own scopes and trigger fresh reads. Local OFF/disconnect rejection leaves
 the verified browser route available; resuming creates fresh state/attempt IDs.
 Late cancelled receiver work cannot install keys. These operations do not lock a
 completed own session or extend its limits. Disconnect/reconnect controls, complete
-Extension Settings integration and the real browser artifact matrix remain open.
+trust presentation and the real browser artifact matrix remain open.
+
+## Background account preference repair
+
+Every verified browser route reads its own Identity preference on connection,
+own session/token changes, focus/online/visibility and a fifteen-second interval.
+A successful own settings write sends only a strict `preference-invalidated`
+hint; its recipient reads with its own JWT. The hint contains no preference value,
+account selector or credentials, and observations do not echo it. Reads coalesce
+to one in flight plus one pending refresh, with at most one start per second.
+Reads and outgoing browser verification have two-second timer and wall-clock
+bounds; own account/token/generation, API and document fences reject late results.
+
+Account/API-scoped RAM observations reject older revisions. Observed OFF cancels
+both source and receiver attempts and guards admission/final installation. ON
+wakes only an already valid source and cannot replace keys, renew limits or clear
+a failed-save pause. Own key-generation/account changes clear the observations.
+An own Identity 401 forgets only the rejected session's transient observation;
+network failure retains known OFF. A future receiver still requires fresh
+Identity consume/commit and all local pause/link/expiry barriers. No new token or
+key persistence, refresh flow or backend preference authority is introduced.
+
+The monitor can use an own JWT while keys are locked. Settings invalidate their
+current account query on an own observation. Production Web store/coordinator
+tests verify OFF/ON without key/root/limit replacement and stale-account rejection;
+transport tests cover hints, flooding, timeout, no echo and missing own auth.
+Already-locked/restarted group closing, independent multi-document activity,
+disconnect/reconnect, the remaining unlock surfaces and full native Identity/Entry
+E2E across the supported artifact matrix remain release gates.

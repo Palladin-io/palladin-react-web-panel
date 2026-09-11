@@ -7,6 +7,7 @@ import type { SharedUnlockPreference } from '../shared-unlock/api-types'
 import { acceptSharedUnlockPreference, getSharedUnlockSourceSnapshot } from '../shared-unlock/manual-source'
 import { sharedUnlockPreferenceGate } from '../shared-unlock/preference-runtime'
 import { saveSharedUnlockPreference } from '../shared-unlock/save-preference'
+import { sharedUnlockPreferences } from '../shared-unlock/preference-state-runtime'
 
 const api = new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl)
 
@@ -29,6 +30,7 @@ function captureOwnSession(accountId: string | null, generation: number) {
       if (source.authorization?.accountId === accountId && source.sourceGeneration) {
         acceptSharedUnlockPreference(preference, source.sourceGeneration)
       }
+      sharedUnlockPreferences.observe({ accountId, apiUrl }, preference)
     } }
 }
 
@@ -59,12 +61,20 @@ export function useSharedUnlockPreference() {
       const own = captureOwnSession(accountId, generation)
       try {
         return await saveSharedUnlockPreference({ session: own.session, signal: own.signal,
-          assertCurrent: own.check, accept: own.accept, enabled, revision, pause }, api, sharedUnlockPreferenceGate)
+          assertCurrent: own.check, accept: value => {
+            own.accept(value)
+            sharedUnlockPreferences.saved({ accountId: own.session.userId, apiUrl: own.session.apiUrl })
+          }, enabled, revision, pause }, api, sharedUnlockPreferenceGate)
       } finally { own.dispose() }
     },
     onSettled: () => client.invalidateQueries({ queryKey }),
   })
   useEffect(() => sharedUnlockPreferenceGate.subscribe(scope => {
+    if (scope.accountId === accountId && scope.apiUrl === env.apiUrl) {
+      void client.invalidateQueries({ queryKey: ['account', 'shared-unlock-preference', env.apiUrl, accountId, generation] })
+    }
+  }), [accountId, generation, client])
+  useEffect(() => sharedUnlockPreferences.subscribe(({ scope }) => {
     if (scope.accountId === accountId && scope.apiUrl === env.apiUrl) {
       void client.invalidateQueries({ queryKey: ['account', 'shared-unlock-preference', env.apiUrl, accountId, generation] })
     }
