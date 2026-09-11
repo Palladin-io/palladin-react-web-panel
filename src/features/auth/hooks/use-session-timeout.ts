@@ -1,3 +1,4 @@
+import { recordOwnSharedUnlockActivity } from "../shared-unlock/manual-source"
 import { useEffect } from 'react'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useAuthStore } from '../stores/auth-store'
@@ -43,7 +44,7 @@ export function useSessionTimeout() {
       const now = Date.now()
       if (!event.isTrusted || now - lastRecordedActivity < ACTIVITY_RECORD_INTERVAL_MS) return
       lastRecordedActivity = now
-      useAuthStore.getState().recordActivity(now)
+      recordOwnSharedUnlockActivity(now)
     }
 
     for (const event of ACTIVITY_EVENTS) {

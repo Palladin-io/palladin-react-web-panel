@@ -1,3 +1,4 @@
+import { OwnSharedUnlockActivityRecorder } from "./own-activity"
 import { sharedUnlockExpiry } from './expiry-runtime'
 import type { AccountResponse } from '../../../shared/api/account-api'
 import { wipe } from '../../../shared/crypto/sodium'
@@ -12,11 +13,11 @@ let authority: SharedUnlockSourceAuthority | null = null
 
 function getAuthority(): SharedUnlockSourceAuthority {
   if (authority) return authority
-  const source = new SharedUnlockSourceAuthority(new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl), Date.now, flushManualSharedUnlockClosings,
+  const source = new SharedUnlockSourceAuthority(new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl), () => Date.now(), flushManualSharedUnlockClosings,
     (root, session) => {
       const scope = { accountId: session.userId, apiUrl: session.apiUrl }
       sharedUnlockExpiry.remember(scope, root.sequence)
-      return sharedUnlockExpiry.checkpoint(scope, root.sequence, sessionDeadline(root))
+      return sharedUnlockExpiry.checkpoint(scope, root.sequence, sessionDeadline(root), Math.min(root.absoluteDeadlineMs, root.offlineDeadlineMs))
     })
   authority = source
   useAuthStore.subscribe((current, previous) => {
@@ -54,6 +55,10 @@ export function getSharedUnlockSourceSnapshot() {
   return getAuthority().snapshot()
 }
 
+export function getSharedUnlockClosingWitness() {
+  return getAuthority().closingWitness()
+}
+
 export function subscribeSharedUnlockSource(listener: () => void): () => void {
   return getAuthority().subscribe(listener)
 }
@@ -65,4 +70,39 @@ export function adoptSharedUnlockSource(authorization: import('./api-types').Sha
   assertOwnCurrent()
   sharedUnlockExpiry.remember({ accountId: authorization.accountId, apiUrl: env.apiUrl }, authorization.sequence)
   getAuthority().adopt(authorization, generation, preference, assertOwnCurrent)
+}
+
+const activityRecorder = new OwnSharedUnlockActivityRecorder(
+  new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl), sharedUnlockExpiry)
+
+/** Called only after the document's isTrusted input gate. Capture own live
+ * authority before updating idle; a browser peer has no route to this function. */
+export function recordOwnSharedUnlockActivity(at: number): void {
+  const before = useAuthStore.getState()
+  let authority: ReturnType<SharedUnlockSourceAuthority['captureActivity']> | null = null
+  try {
+    if (!before.isVaultLocked && before.unlockLimits && Date.now() < sessionDeadline(before.unlockLimits)) {
+      authority = getAuthority().captureActivity()
+    }
+  } catch { /* Ordinary local input still works when sharing is unavailable. */ }
+  try { before.recordActivity(at) } catch { authority?.dispose(); return }
+  const own = useAuthStore.getState()
+  if (!authority || !own.unlockLimits || own.unlockLimits === before.unlockLimits
+    || !own.accessToken || !own.refreshToken || !own.userId || own.isVaultLocked) {
+    authority?.dispose(); return
+  }
+  const apiUrl = env.apiUrl, controller = new AbortController()
+  const session = { apiUrl, userId: own.userId, accessToken: own.accessToken, refreshToken: own.refreshToken }
+  const check = () => {
+    const current = useAuthStore.getState()
+    if (controller.signal.aborted || env.apiUrl !== apiUrl || current.cryptoSessionGeneration !== own.cryptoSessionGeneration
+      || current.isVaultLocked || current.userId !== session.userId || current.accessToken !== session.accessToken
+      || current.refreshToken !== session.refreshToken || current.masterKey !== own.masterKey || current.privateKey !== own.privateKey
+      || !current.unlockLimits || Date.now() >= sessionDeadline(current.unlockLimits)) throw new Error('Own activity session changed')
+  }
+  const unsubscribe = useAuthStore.subscribe(() => { try { check() } catch { controller.abort() } })
+  const selected = authority
+  activityRecorder.record({ session, authority: selected, idleDeadlineMs: own.unlockLimits.idleDeadlineMs,
+    signal: controller.signal, assertCurrent: check,
+    dispose: () => { unsubscribe(); controller.abort(); selected.dispose() } })
 }

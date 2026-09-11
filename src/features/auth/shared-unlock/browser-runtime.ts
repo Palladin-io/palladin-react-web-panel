@@ -10,7 +10,7 @@ import { SharedUnlockApi, SharedUnlockApiError } from './api'
 import { startSharedUnlockBrowserCoordinator } from './browser-coordinator'
 import type { SharedUnlockBrowserRoute } from './browser-channel'
 import { sharedUnlockLinks as links } from './link-runtime'
-import { acceptSharedUnlockPreference, adoptSharedUnlockSource, getSharedUnlockSourceSnapshot, subscribeSharedUnlockSource } from './manual-source'
+import { acceptSharedUnlockPreference, adoptSharedUnlockSource, getSharedUnlockClosingWitness, getSharedUnlockSourceSnapshot, subscribeSharedUnlockSource } from './manual-source'
 import { beginSharedUnlockSource } from './source'
 import { beginSharedUnlockReceiver } from './receiver'
 
@@ -36,14 +36,14 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
   const monitor = startSharedUnlockLinkMonitor(route, {
     nonce, subscribe,
     capture: () => {
-      const own = useAuthStore.getState(), state = getSharedUnlockSourceSnapshot()
-      if (own.isVaultLocked || !own.userId || !own.accessToken || !own.refreshToken || !state.authorization) return null
-      const root = state.authorization, abort = new AbortController()
+      const own = useAuthStore.getState(), root = getSharedUnlockClosingWitness()
+      if (own.isVaultLocked || !own.userId || !own.accessToken || !own.refreshToken || !root) return null
+      const abort = new AbortController()
       const check = () => {
-        const current = useAuthStore.getState(), authority = getSharedUnlockSourceSnapshot()
+        const current = useAuthStore.getState(), authority = getSharedUnlockClosingWitness()
         if (abort.signal.aborted || current.cryptoSessionGeneration !== own.cryptoSessionGeneration || current.isVaultLocked
           || current.userId !== own.userId || current.accessToken !== own.accessToken || current.refreshToken !== own.refreshToken
-          || authority.authorization?.authorizationId !== root.authorizationId || authority.sourceGeneration !== state.sourceGeneration) throw new Error('Shared link own root changed')
+          || authority?.authorizationId !== root.authorizationId || authority.sourceGeneration !== root.sourceGeneration) throw new Error('Shared link own root changed')
       }
       const unwatch = subscribe(() => { try { check() } catch { abort.abort() } })
       return { session: { apiUrl: route.apiUrl, userId: own.userId, accessToken: own.accessToken, refreshToken: own.refreshToken },
@@ -116,7 +116,7 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
     },
     source: (binding, signal, assertCurrent) => beginSharedUnlockSource({ apiUrl: route.apiUrl, binding, signal, assertCurrent }, api),
     receiver: (binding, signal, assertCurrent) => beginSharedUnlockReceiver({ apiUrl: route.apiUrl, binding,
-      assertFreshAuthorization: (sequence, deadlineMs) => sharedUnlockExpiry.checkpoint(scope(binding.accountId), sequence, deadlineMs),
+      assertFreshAuthorization: (sequence, deadlineMs, hardDeadlineMs) => sharedUnlockExpiry.checkpoint(scope(binding.accountId), sequence, deadlineMs, hardDeadlineMs),
       assertCurrent: () => { if (signal.aborted) throw new Error('Shared unlock attempt cancelled'); assertCurrent() } }, api,
     (authorization, generation, assertOwnCurrent) => adoptSharedUnlockSource(authorization, generation,
       { sharedUnlockEnabled: true, revision: binding.preferenceRevision }, () => {
