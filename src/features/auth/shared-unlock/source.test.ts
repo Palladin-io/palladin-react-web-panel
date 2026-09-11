@@ -1,6 +1,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSharedUnlockOffer, createSharedUnlockIdentityProofSigner, randomBytes, generateKeyPair, encryptWithKey,
   hashSharedUnlockKeyContext, hashSharedUnlockTranscript, loadSodium, toBase64Url, sealVaultKey, unsealVaultKey,
+  type SharedUnlockEnvelope,
   encryptEntry, decryptEntry, ENTRY_TYPE_KEY } from '@palladin/crypto'
 import { useAuthStore } from '../stores/auth-store'
 import { beginManualUnlockAttempt } from '../session/manual-unlock-attempt'
@@ -25,7 +26,7 @@ beforeEach(() => { vi.spyOn(Date, 'now').mockReturnValue(now); useAuthStore.getS
 afterEach(() => { for (const cleanup of cleanups.splice(0)) cleanup(); useAuthStore.getState().logout(); vi.restoreAllMocks(); vi.useRealTimers() })
 const deferred = <T>() => { let resolve!: (value: T) => void; const promise = new Promise<T>(r => { resolve = r }); return { promise, resolve } }
 
-async function setup(options: { pause?: boolean; transform?: (operation: SharedUnlockOperation) => SharedUnlockOperation | Promise<SharedUnlockOperation> } = {}) {
+async function setup(options: { pause?: boolean; verifyRecipient?: () => Promise<void>; transform?: (operation: SharedUnlockOperation) => SharedUnlockOperation | Promise<SharedUnlockOperation> } = {}) {
   const original = baseline.context
   const masterKey = await randomBytes(32)
   const member = await generateKeyPair()
@@ -66,14 +67,24 @@ async function setup(options: { pause?: boolean; transform?: (operation: SharedU
   })
   const source = await beginSharedUnlockSource(route, new SharedUnlockApi(fetcher, () => apiUrl))
   cleanups.push(source.cancel, () => { recipient.dispose(); signer.dispose(); masterKey.fill(0); member.privateKey.fill(0) })
+  const input = { recipientPublicKey: recipient.publicKey, recipientProofPublicKey: signer.publicKey }
+  const delivered = vi.fn<(packet: { operation: SharedUnlockOperation; envelope: SharedUnlockEnvelope }) => void>()
+  const verifyRecipient = vi.fn(options.verifyRecipient ?? (async () => { route.assertCurrent() }))
+  const run = async () => {
+    const sent = await source.send({ ...input, verifyRecipient, send: delivered })
+    const packet = delivered.mock.lastCall![0]
+    expect(sent).toEqual({ operationId: packet.operation.context.operationId, webGeneration: route.binding.webGeneration,
+      extensionGeneration: route.binding.extensionGeneration })
+    return packet
+  }
   return { source, route, recipient, signer, masterKey, member, fetcher, pending, operation: () => operation,
-    input: { recipientPublicKey: recipient.publicKey, recipientProofPublicKey: signer.publicKey }, routeAbort }
+    input, routeAbort, run, delivered, verifyRecipient }
 }
 
 describe('Web one-shot source transaction with real crypto', () => {
   it('creates an own authorized operation and an envelope that recovers the correct Member/Entry key', async () => {
     const f = await setup(); const before = useAuthStore.getState(); const limits = { ...before.unlockLimits! }
-    const result = await f.source.create(f.input)
+    const result = await f.run()
     expect(Object.keys(result).sort()).toEqual(['envelope', 'operation'])
     expect(JSON.stringify(result)).not.toContain('own-source-')
     const request = JSON.parse(String(f.fetcher.mock.lastCall![1]!.body))
@@ -88,23 +99,23 @@ describe('Web one-shot source transaction with real crypto', () => {
     expect(await decryptEntry(entry, receivedVk)).toEqual({ type: ENTRY_TYPE_KEY, value: 'synthetic-source-test' })
     receivedVk.fill(0); keys.masterKey.fill(0); keys.privateKey.fill(0); receiver.dispose()
     expect(useAuthStore.getState().masterKey).toBe(before.masterKey); expect(useAuthStore.getState().unlockLimits).toEqual(limits)
-    await expect(f.source.create(f.input)).rejects.toMatchObject({ code: 'conflict' })
+    await expect(f.run()).rejects.toMatchObject({ code: 'conflict' })
     f.routeAbort.abort(); expect(useAuthStore.getState().isVaultLocked).toBe(false)
   })
   it.each(['accountId', 'organizationId', 'apiOrigin', 'webOrigin', 'extensionId', 'documentBinding', 'webGeneration',
     'extensionGeneration', 'linkId', 'linkEpoch', 'preferenceRevision', 'authorizationVersion', 'direction'] as const)('rejects substituted crypto scope %s', async field => {
     const f = await setup({ transform: op => ({ ...op, context: { ...op.context, [field]: typeof op.context[field] === 'number' ? Number(op.context[field]) + 1 : 'substituted' } }) })
-    await expect(f.source.create(f.input)).rejects.toThrow(); expect(useAuthStore.getState().isVaultLocked).toBe(false)
+    await expect(f.run()).rejects.toThrow(); expect(useAuthStore.getState().isVaultLocked).toBe(false)
   })
   it.each(['sourcePublicKey', 'recipientPublicKey', 'recipientProofPublicKey', 'transcriptHash'] as const)('rejects substituted participant/transcript %s', async field => {
     const f = await setup({ transform: op => ({ ...op, [field]: toBase64Url(new Uint8Array(32).fill(7)) }) })
-    await expect(f.source.create(f.input)).rejects.toThrow(); expect(useAuthStore.getState().isVaultLocked).toBe(false)
+    await expect(f.run()).rejects.toThrow(); expect(useAuthStore.getState().isVaultLocked).toBe(false)
   })
   it('projects only public protocol fields even when Identity adds unrelated response fields', async () => {
     const f = await setup({ transform: op => ({ ...op, session: { accessToken: 'synthetic-extra-outer' },
       context: { ...op.context, refreshToken: 'synthetic-extra-context' },
       keyContext: { ...op.keyContext, privateKey: 'synthetic-extra-descriptor' } }) })
-    const packet = await f.source.create(f.input)
+    const packet = await f.run()
     expect(JSON.stringify(packet)).not.toContain('synthetic-extra-')
     expect(packet.operation.context).toEqual(packet.envelope.context)
     expect(Object.keys(packet.operation).sort()).toEqual(Object.keys(baseline).sort())
@@ -113,7 +124,7 @@ describe('Web one-shot source transaction with real crypto', () => {
   })
   it('rejects a key descriptor changed outside its committed digest', async () => {
     const f = await setup({ transform: op => ({ ...op, keyContext: { ...op.keyContext, publicKey: toBase64Url(new Uint8Array(32).fill(7)) } }) })
-    await expect(f.source.create(f.input)).rejects.toThrow(); expect(useAuthStore.getState().masterKey).not.toBeNull()
+    await expect(f.run()).rejects.toThrow(); expect(useAuthStore.getState().masterKey).not.toBeNull()
   })
   it('rejects a self-consistent substituted descriptor against the independently held own member key', async () => {
     const other = await generateKeyPair()
@@ -123,16 +134,16 @@ describe('Web one-shot source transaction with real crypto', () => {
       const context = { ...op.context, keyContextDigest: await hashSharedUnlockKeyContext(keyContext) }
       return { ...op, keyContext, context, transcriptHash: await hashSharedUnlockTranscript(context, op.sourcePublicKey, op.recipientPublicKey) }
     } })
-    try { await expect(f.source.create(f.input)).rejects.toThrow('Shared unlock own member key differs') }
+    try { await expect(f.run()).rejects.toThrow('Shared unlock own member key differs') }
     finally { other.privateKey.fill(0) }
     expect(useAuthStore.getState().isVaultLocked).toBe(false)
   })
   it('rejects a different locally held private key even if the descriptor decrypts successfully', async () => {
     const f = await setup(); useAuthStore.getState().privateKey!.fill(8)
-    await expect(f.source.create(f.input)).rejects.toThrow('Shared unlock own member key differs')
+    await expect(f.run()).rejects.toThrow('Shared unlock own member key differs')
   })
   it.each(['lock', 'logout', 'expire', 'manual', 'route', 'off', 'preference', 'root', 'refresh', 'cancel', 'deadline'] as const)('does not release an envelope after %s while Identity is pending', async action => {
-    const f = await setup({ pause: true }); const pending = f.source.create(f.input); const rejected = expect(pending).rejects.toThrow()
+    const f = await setup({ pause: true }); const pending = f.run(); const rejected = expect(pending).rejects.toThrow()
     await vi.waitFor(() => expect(f.operation()).not.toBeNull())
     if (action === 'lock') useAuthStore.getState().lockVault()
     if (action === 'logout') useAuthStore.getState().logout()
@@ -157,15 +168,32 @@ describe('Web one-shot source transaction with real crypto', () => {
     if (reason === 'authorizationVersion' || reason === 'credentialRevision' || reason === 'privateKeyWrapRevision')
       holder.snapshot.authorization = { ...holder.snapshot.authorization!, [reason]: holder.snapshot.authorization![reason] + 1 }
     if (reason === 'expired') vi.mocked(Date.now).mockReturnValue(holder.snapshot.authorization!.idleDeadlineMs)
-    await expect(f.source.create(f.input)).rejects.toThrow()
+    await expect(f.run()).rejects.toThrow()
     expect(f.fetcher).not.toHaveBeenCalled()
+  })
+  it.each(['lock', 'route', 'failure'] as const)('does not send a prepared envelope after %s during final browser verification', async change => {
+    const gate = deferred<void>(); const f = await setup({ verifyRecipient: () => gate.promise })
+    const pending = f.run(); const rejected = expect(pending).rejects.toThrow()
+    await vi.waitFor(() => expect(f.verifyRecipient).toHaveBeenCalledOnce())
+    if (change === 'lock') useAuthStore.getState().lockVault()
+    if (change === 'route') f.routeAbort.abort()
+    if (change === 'failure') holder.snapshot.authorization = null
+    gate.resolve(); await rejected; expect(f.delivered).not.toHaveBeenCalled()
+  })
+  it('does not retry when the browser send throws after accepting the packet', async () => {
+    const f = await setup()
+    f.delivered.mockImplementation(() => { throw new Error('send failed') })
+    await expect(f.run()).rejects.toThrow('send failed')
+    expect(f.delivered).toHaveBeenCalledOnce()
+    await expect(f.run()).rejects.toMatchObject({ code: 'conflict' })
+    expect(f.delivered).toHaveBeenCalledOnce(); expect(useAuthStore.getState().isVaultLocked).toBe(false)
   })
   it('disposes an unused source on its own 30-second deadline', async () => {
     vi.useFakeTimers(); const f = await setup(); await vi.advanceTimersByTimeAsync(30000)
-    await expect(f.source.create(f.input)).rejects.toThrow(); expect(f.fetcher).not.toHaveBeenCalled()
+    await expect(f.run()).rejects.toThrow(); expect(f.fetcher).not.toHaveBeenCalled()
   })
   it('cancels a stalled Identity request promptly without waiting for its ignored abort', async () => {
-    const f = await setup({ pause: true }); const result = f.source.create(f.input); const rejected = expect(result).rejects.toThrow()
+    const f = await setup({ pause: true }); const result = f.run(); const rejected = expect(result).rejects.toThrow()
     await vi.waitFor(() => expect(f.fetcher).toHaveBeenCalledOnce()); f.routeAbort.abort(); await rejected
   })
 })

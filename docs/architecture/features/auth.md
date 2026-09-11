@@ -244,9 +244,13 @@ when its recovered key differs from the already unlocked source. Only then does
 it seal one encrypted MK for the verified recipient. Temporary key copies are
 wiped and DH state disposed after success, failure, cancellation or timeout.
 The source's own keys/session remain intact unless a separate local action erased
-them. Completion returns only public operation material and the encrypted envelope;
-no source token or raw key enters that result. The caller must recheck its route
-immediately before actual browser delivery. A retry needs a fresh one-shot offer.
+them. Before delivery the transaction awaits the browser adapter's fresh recipient
+verification, rechecks its own full authority, then invokes a synchronous send
+callback with only public operation material and the encrypted envelope. No source
+token or raw key enters that packet. The result identifies only operation and
+exact generations; it does not expose a prepared packet for a later unfenced send.
+The source retains its cancellation/timer/session fences through this send. A
+failed or lost send is not retried; a new attempt needs a fresh one-shot offer.
 
 Tests use real DH/encryption, recover the recipient's member/Vault key and decrypt
 a synthetic Entry primitive; Identity is mocked. They reject substituted scope,

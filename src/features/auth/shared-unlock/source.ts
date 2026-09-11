@@ -1,3 +1,4 @@
+import type { SharedUnlockEnvelope } from '@palladin/crypto'
 import { createSharedUnlockSourceCrypto } from '../../../shared/crypto/shared-unlock-source'
 import { env } from '../../../shared/lib/env'
 import { sessionDeadline } from '../lib/session-limits'
@@ -79,11 +80,16 @@ export async function beginSharedUnlockSource(route: SharedUnlockSourceRoute,
   return {
     publicKey: source.publicKey,
     cancel,
-    /** The caller must recheck its current browser route immediately before sending. */
-    async create(input: { readonly recipientPublicKey: string; readonly recipientProofPublicKey: string }) {
+    /** The transaction retains own authority until a fresh browser check and synchronous send. */
+    async send(input: { readonly recipientPublicKey: string; readonly recipientProofPublicKey: string
+      verifyRecipient(): Promise<void>
+      send(packet: { operation: SharedUnlockOperation; envelope: SharedUnlockEnvelope }): void
+    }) {
       if (started) throw new SharedUnlockApiError('conflict')
       started = true
       const recipient = { publicKey: input.recipientPublicKey, proofPublicKey: input.recipientProofPublicKey }
+      const verifyRecipient = input.verifyRecipient
+      const send = input.send
       try {
         assertCurrent()
         const own = initial
@@ -108,7 +114,11 @@ export async function beginSharedUnlockSource(route: SharedUnlockSourceRoute,
         for (const key of Object.keys(binding) as (keyof typeof binding)[]) if (context[key] !== binding[key]) reject()
         const envelope = await source.seal(operation, recipient, own!.masterKey!, own!.privateKey!)
         assertCurrent()
-        return { operation, envelope }
+        await wait(verifyRecipient())
+        assertCurrent()
+        send({ operation, envelope })
+        return { operationId: context.operationId, webGeneration: binding.webGeneration,
+          extensionGeneration: binding.extensionGeneration }
       } finally { cancel() }
     },
   }
