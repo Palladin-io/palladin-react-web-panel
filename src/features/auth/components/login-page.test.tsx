@@ -28,6 +28,7 @@ vi.mock('../hooks/use-login', () => ({
 
 vi.mock('../hooks/use-password-login', () => ({
   usePasswordLogin: () => ({
+    cancel: vi.fn(),
     start: { mutate: startMutate, isPending: false },
     submitTotp: { mutate: totpMutate, isPending: false },
   }),

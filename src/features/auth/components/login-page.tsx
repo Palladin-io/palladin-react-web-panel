@@ -52,12 +52,9 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const oauth = useLogin(redirectTo)
-  const { start, submitTotp } = usePasswordLogin()
+  const { start, submitTotp, cancel } = usePasswordLogin()
   const [tooltipTarget, setTooltipTarget] = useState<string | null>(null)
 
-  // 'credentials' collects email + password; 'totp' handles the second factor.
-  // The password is retained across the TOTP step (in memory only) so the
-  // master key can be derived once the challenge clears.
   const [step, setStep] = useState<'credentials' | 'totp'>('credentials')
   const [challengeToken, setChallengeToken] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
@@ -127,6 +124,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   }
 
   const handleBackToCredentials = () => {
+    cancel()
     setStep('credentials')
     setChallengeToken('')
     setTotpError(null)

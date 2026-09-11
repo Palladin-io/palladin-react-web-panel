@@ -24,7 +24,7 @@ Session-token storage: the access token is kept **in memory only** (never persis
 - **Login/logout cleanup:** a new password or OAuth login first clears the previous auth state, in-memory keys, TanStack query/mutation caches, decrypted member-sync state, and analytics identity. Logout performs the same cleanup centrally and then hard-reloads `/login`, which also terminates pending browser work. Unlocking an existing session does not run this cleanup.
 - **Refresh hand-off:** refresh responses are accepted only by the client-session generation that started them, so a delayed response from the previous account cannot restore its tokens after cleanup. The encrypted IndexedDB Vault cache remains user-scoped while the account is locked, but logout and account switching delete every active and staging namespace for the previous profile before the next session starts.
 - **Verification/session binding:** consuming an e-mail token mutates the current browser session only when the response `userId` matches it. The verified response applies any active benefit window to memory immediately, then a matching session refreshes so the new plan claim and permissions take effect; generation, user and refresh-token fences reject stale refresh responses. A failed refresh is retried once. If both attempts fail, verification still succeeds but that same fenced client session is cleared before navigation, so the next login obtains current authorization claims instead of presenting Premium with stale permissions.
-- **Crypto-session cache namespace:** `cryptoSessionGeneration` is a non-secret, non-persisted counter advanced on every unlock and logout. Queries containing authenticated Vault/Entry ciphertext include it in their cache key so a new in-memory key session never reuses a crypto envelope fetched by an older session. Raw keys are never query-key material.
+- **Crypto-session cache namespace:** `cryptoSessionGeneration` is a non-secret, non-persisted counter advanced on every unlock, lock, expiry and logout. Queries containing authenticated Vault/Entry ciphertext include it in their cache key so a new in-memory key session never reuses a crypto envelope fetched by an older session. Raw keys are never query-key material.
 - **Deep-link return:** when an anonymous user opens an authenticated URL, the guard carries its full internal path, search, and hash through `/login?redirect=…`. Every successful login method returns to that target; the vault-lock guard then carries the same target through `/unlock` when needed. Failed refresh recovery unwraps an existing auth-gate redirect instead of nesting or dropping it. `shared/lib/auth-redirect` rejects external, malformed, and auth-loop targets before navigation.
 
 ## Cross-feature deps
@@ -49,3 +49,36 @@ lock flags and limit metadata cannot restore unlocked state.
 This increment is preparation for CVT-583. Browser routing, own receiver token
 installation/Identity authority, coordinated lock/logout/preference and full
 platform acceptance are not wired by these changes.
+
+## Manual source authority for shared unlock (implementation increment)
+
+Password login (including TOTP) and password unlock prepare an own Identity
+shared-unlock authorization after installing their independently verified local
+keys. Only the fresh AuthCredential and that Web session's JWT/refresh token go
+directly to the configured Identity API; MK/private key never enter the request.
+The dedicated adapter does not follow redirects, attach cookies, retry a proof or
+trigger the generic 401 refresh flow. Account preference is read, never changed:
+explicit OFF stays OFF. An authorization can be prepared while OFF, but this
+alone cannot bind a link or hand off keys. A failed request or required step-up
+leaves the ordinary local unlocked session intact and sharing unavailable.
+
+The source generation and authorization stay in module memory. Preparation is
+bounded by a ten-second abort deadline; lock/expiry/logout/new key session abort
+pending requests and wipe the proof. Late responses also check current account,
+API environment, key generation and local deadlines. The instance/subscription
+is initialized only when a manual source is actually prepared. No new persistent
+fields or API response business validators are introduced.
+
+TOTP keeps independent MK/AuthCredential buffers in the existing pending hook
+state for at most five minutes, bound to its exact challenge. Back/cancel,
+unmount, lock, logout, expiry and successful use clear those buffers. Failed TOTP
+can be retried while the same bounded attempt remains valid. A shared manual
+attempt counter plus client/crypto session generations fence late login/unlock
+results before tokens/keys are published; failure from a superseded attempt does
+not clear the newer session. Crypto generation now also changes on lock/expiry,
+even when the vault was already locked.
+
+Shared provider fixtures cover preference and authorization response shapes in
+this adapter. Receiver operations, browser routing, own-activity synchronization,
+link/preference UI and the platform matrix remain in progress; this preparation
+is not yet a complete Web-to-extension handoff.

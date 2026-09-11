@@ -184,14 +184,16 @@ export const useAuthStore = create<AuthState>()(
         set((state) => {
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
-          return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true }
+          return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true,
+            cryptoSessionGeneration: state.cryptoSessionGeneration + 1 }
         }),
 
       expireSession: () =>
         set((state) => {
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
-          return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true, accessToken: null }
+          return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true, accessToken: null,
+            cryptoSessionGeneration: state.cryptoSessionGeneration + 1 }
         }),
 
       logout: () => set((state) => {

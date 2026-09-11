@@ -6,6 +6,8 @@ export { WaitlistDeveloperBenefitDialog } from './components/waitlist-developer-
 export { isWaitlistDeveloperBenefitActive } from './lib/waitlist-developer-benefit'
 export { useAuthStore, getIsAuthenticated } from './stores/auth-store'
 export { useSessionTimeout } from './hooks/use-session-timeout'
+export { prepareManualSharedUnlock } from './shared-unlock/manual-source'
+export { beginManualUnlockAttempt } from './session/manual-unlock-attempt'
 export {
   captureClientSessionGeneration,
   clearClientSession,

@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
-import { useAuthStore } from '../auth'
+import { useEffect, useRef } from 'react'
+import { beginManualUnlockAttempt, prepareManualSharedUnlock, useAuthStore } from '../auth'
 import {
   assertIdentityKdfProfile,
   deriveIdentityV1,
@@ -23,9 +24,14 @@ export interface UnlockInput {
 }
 
 export function useUnlock() {
+  const activeAttempt = useRef<ReturnType<typeof beginManualUnlockAttempt> | null>(null)
+  useEffect(() => () => activeAttempt.current?.cancel(), [])
   return useMutation({
     mutationFn: async ({ password }: UnlockInput) => {
-      const account = await getAccount()
+      const attempt = beginManualUnlockAttempt()
+      activeAttempt.current = attempt
+      let account = await getAccount()
+      attempt.assertCurrent()
       if (!account.kdf || !account.encryptedPrivateKey) {
         throw new Error('Account setup incomplete')
       }
@@ -52,6 +58,7 @@ export function useUnlock() {
         const identity = await deriveIdentityV1(password, account.userId, salt)
         masterKey = identity.masterKey
         authCredential = identity.authCredential
+        attempt.assertCurrent()
 
         encryptedPrivateKey = decodeBase64Url(account.encryptedPrivateKey, 4096)
         try {
@@ -59,12 +66,14 @@ export function useUnlock() {
         } catch {
           throw new IncorrectMasterPasswordError()
         }
+        attempt.assertCurrent()
 
         if (account.kdf.credentialRevision === 0
           && account.recoverySalt
           && account.encryptedPrivateKeyByRecovery) {
           const publicKey = await derivePublicKey(privateKey)
           try {
+            attempt.assertCurrent()
             await setupAccount({
               securityVersion: account.kdf.securityVersion,
               kdfProfileId: account.kdf.profileId,
@@ -78,11 +87,14 @@ export function useUnlock() {
           } finally {
             wipe(publicKey)
           }
+          account = await getAccount()
         }
+        attempt.assertCurrent()
         useAuthStore.getState().unlockVault(
           masterKey,
           privateKey,
         )
+        await prepareManualSharedUnlock(account, authCredential)
       } finally {
         wipe(salt)
         if (masterKey) wipe(masterKey)

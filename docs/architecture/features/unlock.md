@@ -16,3 +16,10 @@ One theme-aware page with a password field. The unlock hook validates the authen
 
 ## Cross-feature deps
 Reads/writes `useAuthStore` (`isVaultLocked`, key setters). All route guards depend on this flag.
+
+Password unlock also prepares fresh own shared-unlock authority through the auth
+module. If an OAuth-only account enables password login during unlock, it reloads
+Identity's current revisions after setup before preparing that authority. Local
+keys remain usable if sharing fails. Client/crypto session generations and the
+current manual attempt reject delayed work after lock/logout/expiry, unmount or
+a newer attempt. Browser transfer and coordinated remote lock remain unfinished.

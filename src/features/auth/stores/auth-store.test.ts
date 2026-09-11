@@ -165,7 +165,7 @@ describe('auth-store', () => {
     expect(Array.from(state.privateKey!)).toEqual([9, 8, 7, 6])
   })
 
-  it('changes the crypto cache namespace for every unlock and logout', () => {
+  it('changes the crypto cache namespace for every unlock, lock and logout', () => {
     const initialGeneration = useAuthStore.getState().cryptoSessionGeneration
 
     useAuthStore.getState().unlockVault(
@@ -181,7 +181,7 @@ describe('auth-store', () => {
       new Uint8Array([4]),
     )
     expect(useAuthStore.getState().cryptoSessionGeneration).toBe(
-      firstUnlockGeneration + 1,
+      firstUnlockGeneration + 2,
     )
 
     const beforeLogout = useAuthStore.getState().cryptoSessionGeneration

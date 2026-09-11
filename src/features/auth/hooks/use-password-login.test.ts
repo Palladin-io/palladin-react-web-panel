@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, renderHook } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { usePasswordLogin } from './use-password-login'
 
@@ -14,6 +14,9 @@ const getAccount = vi.hoisted(() => vi.fn())
 const setTokens = vi.hoisted(() => vi.fn())
 const unlockVault = vi.hoisted(() => vi.fn())
 const logout = vi.hoisted(() => vi.fn())
+const prepareManualSharedUnlock = vi.hoisted(() => vi.fn())
+
+vi.mock('../shared-unlock/manual-source', () => ({ prepareManualSharedUnlock }))
 
 vi.mock('../api/auth-api', () => ({ fetchLoginKdf, passwordLogin, totpLogin,
   isTotpRequired: (response: { totpRequired?: boolean }) => response.totpRequired === true }))
@@ -22,7 +25,7 @@ vi.mock('../../../shared/crypto/identity-kdf', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../../shared/crypto/identity-kdf')>(), deriveIdentityV1,
 }))
 vi.mock('../../../shared/crypto/sodium', () => ({ decryptWithKey, wipe: vi.fn() }))
-vi.mock('../stores/auth-store', () => ({ useAuthStore: { getState: () => ({
+vi.mock('../stores/auth-store', () => ({ useAuthStore: { subscribe: () => () => {}, getState: () => ({
   setTokens, unlockVault, logout,
 }) } }))
 
@@ -37,6 +40,7 @@ const profile = { accountId, profileId: 'identity-argon2id-password-v1', securit
 const response = { accessToken: 'a', refreshToken: 'r', userId: accountId, isOnboarded: true }
 
 describe('usePasswordLogin password KDF v1', () => {
+  afterEach(() => vi.useRealTimers())
   beforeEach(() => {
     vi.clearAllMocks()
     fetchLoginKdf.mockResolvedValue(profile)
@@ -54,6 +58,67 @@ describe('usePasswordLogin password KDF v1', () => {
     await act(async () => { await result.current.submitTotp.mutateAsync({ challengeToken: 'challenge', code: '123456' }) })
     expect(deriveIdentityV1).toHaveBeenCalledOnce()
     expect(unlockVault).toHaveBeenCalledOnce()
+    expect(prepareManualSharedUnlock).toHaveBeenCalledWith(expect.objectContaining({ userId: accountId }), new Uint8Array(32).fill(3))
+  })
+
+  it('does not send the proof to sharing before the second factor is accepted', async () => {
+    passwordLogin.mockResolvedValue({ totpRequired: true, challengeToken: 'challenge' })
+    totpLogin.mockRejectedValueOnce(new Error('invalid-code'))
+    const { result } = renderHook(() => usePasswordLogin(), { wrapper })
+    await result.current.start.mutateAsync({ email: 'u@example.com', password: 'pw' })
+    expect(prepareManualSharedUnlock).not.toHaveBeenCalled()
+    await expect(result.current.submitTotp.mutateAsync({ challengeToken: 'challenge', code: 'bad' })).rejects.toThrow('invalid-code')
+    expect(prepareManualSharedUnlock).not.toHaveBeenCalled()
+    await result.current.submitTotp.mutateAsync({ challengeToken: 'challenge', code: '123456' })
+    expect(prepareManualSharedUnlock).toHaveBeenCalledOnce()
+  })
+
+  for (const end of ['cancel', 'timeout', 'unmount'] as const) {
+    it(`cannot use a pending TOTP proof after ${end}`, async () => {
+      vi.useFakeTimers()
+      passwordLogin.mockResolvedValue({ totpRequired: true, challengeToken: 'challenge' })
+      const { result, unmount } = renderHook(() => usePasswordLogin(), { wrapper })
+      await result.current.start.mutateAsync({ email: 'u@example.com', password: 'pw' })
+      if (end === 'cancel') result.current.cancel()
+      else if (end === 'unmount') unmount()
+      else await vi.advanceTimersByTimeAsync(5 * 60_000)
+      await expect(result.current.submitTotp.mutateAsync({ challengeToken: 'challenge', code: '123456' })).rejects.toThrow('Missing pending login state')
+      expect(totpLogin).not.toHaveBeenCalled()
+      expect(unlockVault).not.toHaveBeenCalled()
+      expect(prepareManualSharedUnlock).not.toHaveBeenCalled()
+    })
+  }
+
+  it('does not install a successful TOTP response received after cancellation', async () => {
+    let resolve!: (value: typeof response) => void
+    passwordLogin.mockResolvedValue({ totpRequired: true, challengeToken: 'challenge' })
+    totpLogin.mockReturnValueOnce(new Promise(r => { resolve = r }))
+    const { result } = renderHook(() => usePasswordLogin(), { wrapper })
+    await result.current.start.mutateAsync({ email: 'u@example.com', password: 'pw' })
+    const submitting = result.current.submitTotp.mutateAsync({ challengeToken: 'challenge', code: '123456' })
+    const rejected = expect(submitting).rejects.toThrow('Expired pending login state')
+    await vi.waitFor(() => expect(totpLogin).toHaveBeenCalledOnce())
+    result.current.cancel()
+    resolve(response)
+    await rejected
+    expect(setTokens).not.toHaveBeenCalled()
+    expect(unlockVault).not.toHaveBeenCalled()
+  })
+
+  it('does not restore tokens when an older password login finishes after a new attempt', async () => {
+    let resolve!: (value: typeof response) => void
+    passwordLogin.mockReturnValueOnce(new Promise(r => { resolve = r }))
+      .mockResolvedValueOnce(response)
+    const { result } = renderHook(() => usePasswordLogin(), { wrapper })
+    const old = result.current.start.mutateAsync({ email: 'old@example.com', password: 'pw' })
+    const rejected = expect(old).rejects.toThrow('Unlock attempt cancelled')
+    await vi.waitFor(() => expect(passwordLogin).toHaveBeenCalledOnce())
+    await result.current.start.mutateAsync({ email: 'current@example.com', password: 'pw' })
+    resolve(response)
+    await rejected
+    expect(setTokens).toHaveBeenCalledOnce()
+    expect(unlockVault).toHaveBeenCalledOnce()
+    expect(logout).not.toHaveBeenCalled()
   })
 
   it('fails closed when authenticated KDF state is downgraded', async () => {

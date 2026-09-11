@@ -1,0 +1,117 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
+import { SharedUnlockApi } from './api'
+import { SharedUnlockSourceAuthority, type ManualUnlockContext } from './source-authority'
+import fixtures from './fixtures/session-api-v1.json'
+
+const authorization = fixtures.operations[0].sourceAuthorization
+const apiUrl = 'https://api.example.test'
+const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
+const context = (): ManualUnlockContext => ({
+  session: { apiUrl, accessToken: 'own-access', refreshToken: 'own-refresh', userId: authorization.accountId },
+  account: { userId: authorization.accountId, email: 'synthetic@example.test', displayName: 'Synthetic', avatarUrl: null,
+    isOnboarded: true, kdf: { securityVersion: 1, minimumSecurityVersion: 1, profileId: 'identity-argon2id-password-v1',
+      kdfSalt: encodeBase64Url(new Uint8Array(16)), credentialRevision: 3, privateKeyWrapRevision: 5, deviceWrapperMetadata: null } },
+  authCredential: new Uint8Array(32).fill(17), limits: authorization, assertCurrent: () => {},
+})
+
+afterEach(() => vi.useRealTimers())
+
+describe('Web manual source authority', () => {
+  for (const preference of fixtures.responses.filter(r => r.type === 'preference')) {
+    it(`preserves ${preference.name} and sends only own session plus fresh proof`, async () => {
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(response(preference.body)).mockResolvedValueOnce(response(authorization))
+      const source = new SharedUnlockSourceAuthority(new SharedUnlockApi(fetcher, () => apiUrl), () => authorization.unlockedAtMs + 1)
+      const own = context()
+      await source.prepare(own)
+      expect(source.snapshot().preference).toEqual(preference.body)
+      expect(source.snapshot().authorization).toEqual(authorization)
+      expect(source.snapshot().sourceGeneration).toMatch(/^[A-Za-z0-9_-]{43}$/)
+      const sent = fetcher.mock.calls[1][1]!
+      expect(JSON.parse(String(sent.body))).toEqual({
+        authCredential: encodeBase64Url(new Uint8Array(32).fill(17)), refreshToken: 'own-refresh',
+        sourceGeneration: source.snapshot().sourceGeneration,
+        expectedPreferenceRevision: (preference.body as { revision: number }).revision,
+        expectedCredentialRevision: 3, expectedPrivateKeyWrapRevision: 5,
+        idleDeadlineMs: authorization.idleDeadlineMs, absoluteDeadlineMs: authorization.absoluteDeadlineMs,
+        offlineDeadlineMs: authorization.offlineDeadlineMs,
+      })
+      expect(sent).toMatchObject({ headers: { authorization: 'Bearer own-access' }, credentials: 'omit',
+        cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer' })
+      expect(fetcher.mock.calls.map(([, options]) => options?.method)).toEqual(['GET', 'POST'])
+      expect(own.authCredential).toEqual(new Uint8Array(32))
+    })
+  }
+
+  for (const status of [401, 403, 409, 429, 503]) {
+    it(`does not retry or change OFF after Identity ${status}`, async () => {
+      const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(response({ sharedUnlockEnabled: false, revision: 3 }))
+        .mockResolvedValueOnce(response({}, status))
+      const source = new SharedUnlockSourceAuthority(new SharedUnlockApi(fetcher, () => apiUrl))
+      const own = context()
+      await source.prepare(own)
+      expect(source.snapshot()).toEqual({ preference: { sharedUnlockEnabled: false, revision: 3 }, authorization: null, sourceGeneration: null })
+      expect(own.authCredential).toEqual(new Uint8Array(32))
+      expect(fetcher).toHaveBeenCalledTimes(2)
+    })
+  }
+
+  for (const stage of ['preference', 'authorization'] as const) {
+    it(`wipes immediately on cancel and discards a late ${stage} response`, async () => {
+      let resolve!: (r: Response) => void
+      const pending = new Promise<Response>(r => { resolve = r })
+      const fetcher = vi.fn<typeof fetch>()
+      if (stage === 'authorization') fetcher.mockResolvedValueOnce(response({ sharedUnlockEnabled: true, revision: 3 }))
+      fetcher.mockReturnValueOnce(pending)
+      const source = new SharedUnlockSourceAuthority(new SharedUnlockApi(fetcher, () => apiUrl))
+      const own = context()
+      const prepared = source.prepare(own)
+      await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(stage === 'preference' ? 1 : 2))
+      source.reset()
+      expect(own.authCredential).toEqual(new Uint8Array(32))
+      expect(fetcher.mock.lastCall![1]!.signal!.aborted).toBe(true)
+      resolve(response(stage === 'preference' ? { sharedUnlockEnabled: true, revision: 3 } : authorization))
+      await prepared
+      expect(source.snapshot()).toEqual({ preference: null, authorization: null, sourceGeneration: null })
+    })
+  }
+
+  it('does not accept a different account as the source of the proof', async () => {
+    const fetcher = vi.fn<typeof fetch>()
+    const source = new SharedUnlockSourceAuthority(new SharedUnlockApi(fetcher, () => apiUrl))
+    const own = context()
+    await source.prepare({ ...own, session: { ...own.session, userId: 'another-account' } })
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(own.authCredential).toEqual(new Uint8Array(32))
+  })
+
+  it('invalidates expired and locally replaced authority without extending its age', async () => {
+    let now = authorization.unlockedAtMs + 1
+    let current = true
+    const fetcher = vi.fn<typeof fetch>().mockImplementation(async url => String(url).endsWith('authorizations')
+      ? response(authorization) : response({ sharedUnlockEnabled: true, revision: 3 }))
+    const source = new SharedUnlockSourceAuthority(new SharedUnlockApi(fetcher, () => apiUrl), () => now)
+    await source.prepare({ ...context(), assertCurrent: () => { if (!current) throw new Error('replaced') } })
+    current = false
+    expect(source.snapshot().authorization).toBeNull()
+    await source.prepare(context())
+    now = authorization.idleDeadlineMs
+    expect(source.snapshot().authorization).toBeNull()
+  })
+
+  it('wipes the pending proof and aborts the request at ten seconds', async () => {
+    vi.useFakeTimers()
+    let resolve!: (r: Response) => void
+    const fetcher = vi.fn<typeof fetch>().mockReturnValue(new Promise(r => { resolve = r }))
+    const source = new SharedUnlockSourceAuthority(new SharedUnlockApi(fetcher, () => apiUrl))
+    const own = context()
+    const prepared = source.prepare(own)
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledOnce())
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(own.authCredential).toEqual(new Uint8Array(32))
+    expect(fetcher.mock.lastCall![1]!.signal!.aborted).toBe(true)
+    resolve(response({ sharedUnlockEnabled: true, revision: 3 }))
+    await prepared
+    expect(source.snapshot().authorization).toBeNull()
+  })
+})
