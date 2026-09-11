@@ -126,12 +126,25 @@ No keys or plaintext Identity tokens live in the frame. Same-ID package replacem
 remains the accepted compromised-client case, without store/profile attestation.
 
 On 2026-09-11, the actual built Web/Extension channel and bridge-loss reconnect
-passed on Firefox 155.0.1/macOS arm64 with delivered Web CSP. Firefox Identity/MK/Entry
-handoff, minimum-version and full OS/distribution coverage remain release gates.
+passed on Firefox 155.0.1/macOS arm64 with delivered Web CSP. The later native
+Identity harness passed 16 real registration/login/Entry-password/lifecycle checks
+on that version, including Web close/reopen and controlled background restart.
+This remains partial evidence; full OS/distribution coverage is a release gate.
 Mozilla's [compatibility data](https://github.com/mdn/browser-compat-data/blob/main/webextensions/api/webNavigation.json)
 places the required `getAllFrames` document/parent-document IDs at Firefox 153.
-The existing extension floor is 140: versions 140–152 therefore need a separately
-verified compatibility path, and currently fail closed without document authority.
+The existing extension floor is 140. The extension now implements a separate
+140–152 path gated by its browser-owned getBrowserInfo result. It compares a
+private boot marker from the own bridge Port against a fresh browser-addressed
+current-frame response, plus an independently read isolated top-document marker.
+These markers never enter Web messages or public documentBinding. Top pagehide
+invalidates its marker; restoration creates a new one. Navigation, Port loss and
+expired browser reads retire pending/ready routes. Firefox153+ cannot fall back
+to markers when native document authority is missing.
+
+The first real140 run passes Identity login/unlock and Entry list update but
+fails actual password autofill: that existing path independently requires native
+sender.documentId. Full140 Entry-password/lifecycle acceptance and review remain
+open; marker unit tests or MemberIndex display do not replace those proofs.
 Safari still requires a separate adapter and browser-boundary assessment.
 
 The provider retires the Web document on `pagehide`, including BFCache entry,
