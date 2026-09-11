@@ -95,7 +95,7 @@ it('connects explicit peer reconnect to the locked Web own JWT while preserving 
   await sharedUnlockLinks.adopt(linkScope, linkId); await sharedUnlockLinks.observe(linkScope, revoked)
   await sharedUnlockPreferenceGate.pause(scope)
   const initial = useAuthStore.getState()
-  const fetcher = vi.fn<typeof fetch>(async url => new Response(JSON.stringify(String(url).endsWith('/' + linkId)
+  const fetcher = vi.fn<typeof fetch>(async url => new Response(JSON.stringify(String(url).endsWith('/session-state') ? { action: 'none', link: null } : String(url).endsWith('/' + linkId)
     ? { ...revoked, state: 'locked', revision: 3, epoch: 3, lastInvalidationSequence: 3 }
     : { sharedUnlockEnabled: true, revision: 1 })))
   vi.stubGlobal('fetch', fetcher)
@@ -106,8 +106,8 @@ it('connects explicit peer reconnect to the locked Web own JWT while preserving 
   expect(await sharedUnlockPreferenceGate.isAllowed(scope)).toBe(false)
   expect(useAuthStore.getState()).toMatchObject({ userId: initial.userId, accessToken: initial.accessToken,
     cryptoSessionGeneration: initial.cryptoSessionGeneration, isVaultLocked: true, masterKey: null })
-  expect(fetcher.mock.calls.every(([, init]) => init?.method === 'GET'
-    && new Headers(init.headers).get('authorization') === 'Bearer own-access')).toBe(true)
+  expect(fetcher.mock.calls.every(([url, init]) => new Headers(init?.headers).get('authorization') === 'Bearer own-access'
+    && (String(url).endsWith('/session-state') ? init?.method === 'POST' && init.body === JSON.stringify({ linkId, refreshToken: 'own-refresh' }) : init?.method === 'GET'))).toBe(true)
 })
 
 it('a rootless Web can select only a staged receiver link after a reconnect hint, keeping the latch and keys untouched', async () => {
@@ -131,4 +131,37 @@ it('a rootless Web can select only a staged receiver link after a reconnect hint
   expect((await sharedUnlockLinks.read(linkScope))?.disconnectId).toBe(marker.disconnectId)
   expect(useAuthStore.getState()).toMatchObject({ accessToken: null, masterKey: null, isVaultLocked: true })
   expect(fetcher).not.toHaveBeenCalled()
+})
+
+it('uses own Identity to log out an already-locked Web without a RAM unlock root', async () => {
+  const linkId = '22222222-2222-4222-8222-222222222222'
+  await sharedUnlockLinks.adopt({ ...scope, webOrigin: 'https://web.test', extensionId: 'a'.repeat(32) }, linkId)
+  const fetcher = vi.fn<typeof fetch>(async url => new Response(JSON.stringify(String(url).endsWith('/session-state')
+    ? { action: 'logout', link: { linkId, revision: 3, epoch: 3, state: 'locked', lastInvalidationSequence: 3, lastLogoutSequence: 3 } }
+    : { sharedUnlockEnabled: false, revision: 2 })))
+  vi.stubGlobal('fetch', fetcher)
+  expect(useAuthStore.getState().isVaultLocked).toBe(true)
+  expect(getSharedUnlockSourceSnapshot().authorization).toBeNull()
+  const f = start()
+  await vi.waitFor(() => expect(useAuthStore.getState().userId).toBeNull())
+  expect(useAuthStore.getState()).toMatchObject({ accessToken: null, refreshToken: null, masterKey: null, privateKey: null })
+  expect(fetcher).toHaveBeenCalledWith(apiUrl + '/api/account/shared-unlock/session-state', expect.objectContaining({
+    method: 'POST', body: JSON.stringify({ linkId, refreshToken: 'own-refresh' }),
+    headers: expect.objectContaining({ authorization: 'Bearer own-access' }),
+  }))
+  expect(f.sent.some(message => message.payload.kind === 'link-invalidated')).toBe(false)
+})
+
+it('does not apply a delayed closing read to a newer real Web login', async () => {
+  const linkId = '22222222-2222-4222-8222-222222222222'
+  await sharedUnlockLinks.adopt({ ...scope, webOrigin: 'https://web.test', extensionId: 'a'.repeat(32) }, linkId)
+  let finish!: (response: Response) => void
+  const fetcher = vi.fn<typeof fetch>(async url => String(url).endsWith('/session-state')
+    ? new Promise(resolve => { finish = resolve }) : new Response(JSON.stringify({ sharedUnlockEnabled: true, revision: 1 })))
+  vi.stubGlobal('fetch', fetcher); start()
+  await vi.waitFor(() => expect(finish).toBeTypeOf('function'))
+  useAuthStore.setState({ userId: '99999999-9999-4999-8999-999999999999', accessToken: 'next-access', refreshToken: 'next-refresh' })
+  finish(new Response(JSON.stringify({ action: 'logout', link: null })))
+  await new Promise(resolve => setTimeout(resolve, 0))
+  expect(useAuthStore.getState()).toMatchObject({ userId: '99999999-9999-4999-8999-999999999999', accessToken: 'next-access' })
 })

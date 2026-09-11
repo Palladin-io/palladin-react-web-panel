@@ -1,3 +1,4 @@
+import type { SharedUnlockSessionState } from './api-types'
 import type { SharedUnlockActivationInput, SharedUnlockLink, SharedUnlockActivityInput, SharedUnlockAuthorization, SharedUnlockCommit, SharedUnlockManualInput, SharedUnlockOperation, SharedUnlockOperationInput, SharedUnlockPreference } from './api-types'
 
 export interface SharedUnlockOwnSession {
@@ -41,6 +42,11 @@ export class SharedUnlockApi {
   createLink(session: SharedUnlockOwnSession, linkId: string, preferenceRevision: number, signal: AbortSignal): Promise<SharedUnlockLink> {
     return this.request(session.apiUrl, '/api/account/shared-unlock/links', { linkId, expectedPreferenceRevision: preferenceRevision }, signal, session)
   }
+  readSessionState(session: SharedUnlockOwnSession, linkId: string, signal: AbortSignal): Promise<SharedUnlockSessionState> {
+    return this.request(session.apiUrl, '/api/account/shared-unlock/session-state',
+      { linkId, refreshToken: session.refreshToken }, signal, session)
+  }
+
   readLink(session: SharedUnlockOwnSession, linkId: string, signal: AbortSignal): Promise<SharedUnlockLink> {
     return this.request(session.apiUrl, `/api/account/shared-unlock/links/${encodeURIComponent(linkId)}`, undefined, signal, session)
   }

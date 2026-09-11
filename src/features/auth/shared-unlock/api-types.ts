@@ -89,3 +89,5 @@ export interface SharedUnlockActivationInput {
   readonly expectedRevision: number;
   readonly expectedPreferenceRevision: number;
 }
+
+export interface SharedUnlockSessionState { readonly action: 'none' | 'lock' | 'logout'; readonly link: SharedUnlockLink | null }
