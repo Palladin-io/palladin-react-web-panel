@@ -19,6 +19,31 @@ const settle = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers() })
 describe('Web browser-authenticated channel', () => {
+  it('sends and receives operations bound to the established document, then unsubscribes', async () => {
+    const f = fixture(), c = connectSharedUnlockBrowser(f.options); await settle(); f.port.onMessage.emit(f.frame);
+    const route = await c.ready, received = vi.fn(), unsubscribe = route.onOperation(received);
+    const frame = { type: 'operation', protocol: f.frame.protocol, apiUrl: f.frame.apiUrl, webNonce: f.frame.webNonce,
+      channelId: route.channelId, documentBinding: route.documentBinding, attemptId: 'A'.repeat(43), payload: { kind: 'cancel' as const } };
+    f.port.onMessage.emit(frame); expect(received).toHaveBeenCalledExactlyOnceWith({ attemptId: frame.attemptId, payload: frame.payload });
+    route.sendOperation({ attemptId: frame.attemptId, payload: frame.payload }); expect(f.port.postMessage).toHaveBeenLastCalledWith(frame);
+    await route.verifyCurrent(); unsubscribe(); f.port.onMessage.emit(frame); expect(c.signal.aborted).toBe(true);
+    expect(received).toHaveBeenCalledOnce();
+  })
+  it.each(['apiUrl', 'webNonce', 'channelId', 'documentBinding', 'extra'])("rejects substituted operation %s", async field => {
+    const f = fixture(), c = connectSharedUnlockBrowser(f.options); await settle(); f.port.onMessage.emit(f.frame);
+    const route = await c.ready, received = vi.fn(); route.onOperation(received);
+    f.port.onMessage.emit({ type: 'operation', protocol: f.frame.protocol, apiUrl: f.frame.apiUrl, webNonce: f.frame.webNonce,
+      channelId: route.channelId, documentBinding: route.documentBinding, attemptId: 'A'.repeat(43), payload: { kind: 'cancel' },
+      [field]: field === 'channelId' ? 'A'.repeat(43) : 'E'.repeat(43) });
+    expect(received).not.toHaveBeenCalled(); expect(route.signal.aborted).toBe(true);
+  })
+  it('rejects expanded outbound data before contacting the peer', async () => {
+    const f = fixture(), c = connectSharedUnlockBrowser(f.options); await settle(); f.port.onMessage.emit(f.frame);
+    const route = await c.ready;
+    expect(() => route.sendOperation({ attemptId: 'A'.repeat(43), payload: { kind: 'cancel', ...{ accessToken: 'synthetic' } } })).toThrow();
+    expect(f.port.postMessage).toHaveBeenCalledOnce(); c.close();
+  })
+
   it('addresses the independently configured extension and exposes a bounded frozen route', async () => {
     const f = fixture(); const c = connectSharedUnlockBrowser(f.options); await settle()
     expect(f.options.runtime.connect).toHaveBeenCalledWith(f.options.extensionId, { name: f.frame.protocol })

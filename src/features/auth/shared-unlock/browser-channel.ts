@@ -1,3 +1,4 @@
+import { sharedUnlockOperationFrameSchema, sharedUnlockOperationSchema, type SharedUnlockOperationFrame, type SharedUnlockOperationMessage } from './browser-operation-message'
 import { z } from 'zod'
 import { randomBytes, wipe } from '../../../shared/crypto/sodium'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
@@ -12,7 +13,7 @@ const readySchema = z.object({
 
 /** Browser API boundary; tests substitute the actual native Port contract. */
 export interface SharedUnlockNativePort {
-  postMessage(message: { type: 'hello'; protocol: typeof protocol; apiUrl: string; webNonce: string }): void
+  postMessage(message: { type: 'hello'; protocol: typeof protocol; apiUrl: string; webNonce: string } | SharedUnlockOperationFrame): void
   disconnect(): void
   onMessage: { addListener(listener: (message: unknown) => void): void; removeListener(listener: (message: unknown) => void): void }
   onDisconnect: { addListener(listener: () => void): void; removeListener(listener: () => void): void }
@@ -29,6 +30,9 @@ export interface SharedUnlockBrowserRoute {
   readonly documentBinding: string
   readonly signal: AbortSignal
   assertCurrent(): void
+  verifyCurrent(): Promise<void>
+  sendOperation(message: SharedUnlockOperationMessage): void
+  onOperation(listener: (message: SharedUnlockOperationMessage) => void): () => void
 }
 interface BrowserChannelOptions {
   readonly runtime: SharedUnlockNativeRuntime
@@ -40,13 +44,15 @@ interface BrowserChannelOptions {
 }
 
 /** Calls the browser with an independently configured exact ID. A payload ID is never authority.
- * Only hello/ready is supported here; no account/key/token can enter this vocabulary. */
+ * Operation frames remain bound to the established channel and document. */
 export function connectSharedUnlockBrowser(options: BrowserChannelOptions) {
   const { runtime, extensionId, apiUrl, webOrigin } = options
   const abort = new AbortController()
   let port: SharedUnlockNativePort | null = null
   let settled = false
   let requestNonce: string | null = null
+  let routeBinding: { channelId: string; documentBinding: string } | null = null
+  const operationListeners = new Set<(message: SharedUnlockOperationMessage) => void>()
   let resolveReady!: (route: SharedUnlockBrowserRoute) => void
   let rejectReady!: (error: Error) => void
   const ready = new Promise<SharedUnlockBrowserRoute>((resolve, reject) => { resolveReady = resolve; rejectReady = reject })
@@ -58,6 +64,8 @@ export function connectSharedUnlockBrowser(options: BrowserChannelOptions) {
     disconnected?.onMessage.removeListener(message)
     disconnected?.onDisconnect.removeListener(disconnect)
     abort.abort()
+    operationListeners.clear()
+    routeBinding = null
     if (!settled) { settled = true; rejectReady(new Error('Shared unlock browser channel unavailable')) }
     try { disconnected?.disconnect() } catch { /* Browser has already removed this Port. */ }
   }
@@ -72,6 +80,16 @@ export function connectSharedUnlockBrowser(options: BrowserChannelOptions) {
   const message = (raw: unknown) => {
     try {
       assertCurrent()
+      if (settled) {
+        const frame = sharedUnlockOperationFrameSchema.safeParse(raw)
+        if (!frame.success || !routeBinding || frame.data.apiUrl !== apiUrl || frame.data.webNonce !== requestNonce
+          || frame.data.channelId !== routeBinding.channelId || frame.data.documentBinding !== routeBinding.documentBinding
+          || !operationListeners.size) { close(); return }
+        for (const listener of [...operationListeners]) {
+          assertCurrent(); listener({ attemptId: frame.data.attemptId, payload: frame.data.payload })
+        }
+        return
+      }
       const parsed = readySchema.safeParse(raw)
       if (settled || !parsed.success) { close(); return }
       const received = parsed.data
@@ -82,8 +100,21 @@ export function connectSharedUnlockBrowser(options: BrowserChannelOptions) {
       assertCurrent()
       settled = true
       clearTimeout(timeout)
+      routeBinding = { channelId: received.channelId, documentBinding: received.documentBinding }
       resolveReady(Object.freeze({ apiUrl, webOrigin, extensionId, channelId: received.channelId,
-        documentBinding: received.documentBinding, signal: abort.signal, assertCurrent }))
+        documentBinding: received.documentBinding, signal: abort.signal, assertCurrent,
+        verifyCurrent: async () => { assertCurrent() },
+        sendOperation: (message: SharedUnlockOperationMessage) => {
+          assertCurrent()
+          const parsed = sharedUnlockOperationSchema.parse(message)
+          if (!port || !routeBinding || !requestNonce) throw new Error('Shared unlock channel unavailable')
+          port.postMessage({ type: 'operation', protocol, apiUrl, webNonce: requestNonce, ...routeBinding, ...parsed })
+        },
+        onOperation: (listener: (message: SharedUnlockOperationMessage) => void) => {
+          assertCurrent(); operationListeners.add(listener)
+          return () => { operationListeners.delete(listener) }
+        },
+      }))
     } catch { close() }
   }
   const timeout = setTimeout(close, 5000)

@@ -1,3 +1,5 @@
+import { sendSharedUnlockBrowserTransfer, type SharedUnlockOperationTransport } from "./browser-transfer";
+import { sharedUnlockOperationSchema, type SharedUnlockOperationMessage } from "./browser-operation-message";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSharedUnlockOffer, createSharedUnlockIdentityProofSigner, randomBytes, generateKeyPair, encryptWithKey,
   hashSharedUnlockKeyContext, hashSharedUnlockTranscript, loadSodium, toBase64Url, sealVaultKey, unsealVaultKey,
@@ -82,6 +84,39 @@ async function setup(options: { pause?: boolean; verifyRecipient?: () => Promise
 }
 
 describe('Web one-shot source transaction with real crypto', () => {
+  it("delivers the real source transaction through operation frames and decrypts its envelope", async () => {
+    const f = await setup();
+    let receive!: (message: SharedUnlockOperationMessage) => void;
+    let recovered: Promise<void> | null = null;
+    const messages: SharedUnlockOperationMessage[] = [];
+    const transport: SharedUnlockOperationTransport = {
+      signal: f.routeAbort.signal, assertCurrent: f.route.assertCurrent, verifyCurrent: async () => f.route.assertCurrent(),
+      onOperation: listener => { receive = listener; return () => {}; },
+      sendOperation: raw => {
+        const message = sharedUnlockOperationSchema.parse(raw); messages.push(message);
+        if (message.payload.kind === "source-offer") receive({ attemptId: message.attemptId,
+          payload: { kind: "receiver-offer", publicKey: f.input.recipientPublicKey, proofPublicKey: f.input.recipientProofPublicKey } });
+        if (message.payload.kind === "handoff") {
+          const { operation, envelope } = message.payload;
+          recovered = (async () => {
+            const participant = f.recipient.bind(operation.context);
+            try {
+              const mk = await participant.open(envelope, f.source.publicKey);
+              try { expect(mk).toEqual(f.masterKey); } finally { mk.fill(0); }
+            } finally { participant.dispose(); }
+            receive({ attemptId: message.attemptId, payload: { kind: "ack", operationId: operation.context.operationId,
+              webGeneration: operation.context.webGeneration, extensionGeneration: operation.context.extensionGeneration } });
+          })();
+          void recovered.catch(() => f.routeAbort.abort());
+        }
+      },
+    };
+    const result = await sendSharedUnlockBrowserTransfer(transport, "A".repeat(43), async () => f.source);
+    await recovered;
+    expect(result.acknowledged).toBe(true); expect(messages.map(m => m.payload.kind)).toEqual(["source-offer", "handoff"]);
+    expect(JSON.stringify(messages)).not.toContain("own-source-");
+  });
+
   it('creates an own authorized operation and an envelope that recovers the correct Member/Entry key', async () => {
     const f = await setup(); const before = useAuthStore.getState(); const limits = { ...before.unlockLimits! }
     const result = await f.run()
