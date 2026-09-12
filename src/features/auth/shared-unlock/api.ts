@@ -87,14 +87,15 @@ export class SharedUnlockApi {
   }
 
   /** Cleanup only: captured original Identity origin, never current client logout. */
-  async revokeIssuedSession(apiUrl: string, refreshToken: string): Promise<void> {
+  async revokeIssuedSession(apiUrl: string, issuedSession: Pick<SharedUnlockCommit['session'], 'accessToken' | 'refreshToken'>): Promise<void> {
+    const { accessToken, refreshToken } = issuedSession
     const abort = new AbortController()
     let finishTimeout!: () => void
     const elapsed = new Promise<void>(resolve => { finishTimeout = resolve })
     const timeout = setTimeout(() => { abort.abort(); finishTimeout() }, 2000)
     try {
       await Promise.race([this.doFetch(`${apiUrl.replace(/\/$/, '')}/api/auth/logout`, {
-        method: 'POST', headers: { 'content-type': 'application/json' },
+        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ refreshToken }), signal: abort.signal,
         redirect: 'error', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer',
       }), elapsed])

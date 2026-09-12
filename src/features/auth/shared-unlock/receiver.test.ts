@@ -69,7 +69,7 @@ async function setup(options: { publishWithLocalGuards?: SharedUnlockReceiverRou
     const action = String(url).split('/').at(-1)!
     events.push(action)
     expect(init).toMatchObject({ credentials: 'omit', redirect: 'error', cache: 'no-store' })
-    expect(new Headers(init?.headers).has('authorization')).toBe(false)
+    expect(new Headers(init?.headers).get('authorization')).toBe(action === 'logout' ? `Bearer ${newSession.accessToken}` : null)
     if (action === 'logout') {
       expect(JSON.parse(String(init?.body))).toEqual({ refreshToken: newSession.refreshToken })
       return new Response(null, { status: 204 })
@@ -106,6 +106,17 @@ async function setup(options: { publishWithLocalGuards?: SharedUnlockReceiverRou
 }
 
 describe('Web own receiver transaction with real crypto', () => {
+  it('authenticates denied-install cleanup with the issued own session instead of the existing session', async () => {
+    const f = await setup({ assertFreshAuthorization: async () => { throw new Error('local admission denied') } })
+    await expect(f.receiver.receive(f.input)).rejects.toThrow('local admission denied')
+    const calls = f.fetcher.mock.calls.filter(([url]) => String(url).endsWith('/api/auth/logout'))
+    expect(calls).toHaveLength(1)
+    expect(new Headers(calls[0][1]?.headers).get('authorization')).toBe(`Bearer ${newSession.accessToken}`)
+    expect(JSON.parse(String(calls[0][1]?.body))).toEqual({ refreshToken: newSession.refreshToken })
+    expect(useAuthStore.getState().accessToken).toBe(oldSession.accessToken)
+    expect(useAuthStore.getState().refreshToken).toBe(oldSession.refreshToken)
+    expect(useAuthStore.getState().isVaultLocked).toBe(true)
+  })
   it('announces a completed automatic login/unlock once, independently of lost ACK', async () => {
     useAuthStore.getState().logout()
     const f = await setup({ pause: 'commit' })

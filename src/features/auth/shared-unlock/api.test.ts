@@ -93,12 +93,12 @@ it('bounds cleanup to two seconds on the original API without changing the curre
   try {
     const fetcher = vi.fn<typeof fetch>().mockReturnValue(new Promise(() => {}))
     const api = new SharedUnlockApi(fetcher, () => 'https://new-environment.example.test')
-    const pending = api.revokeIssuedSession(apiUrl, 'synthetic-new-own-refresh')
+    const pending = api.revokeIssuedSession(apiUrl, { accessToken: 'synthetic-new-own-access', refreshToken: 'synthetic-new-own-refresh' })
     await vi.advanceTimersByTimeAsync(2000)
     await pending
     const [url, options] = fetcher.mock.lastCall!
     expect(url).toBe(`${apiUrl}/api/auth/logout`)
-    expect(new Headers(options?.headers).has('authorization')).toBe(false)
+    expect(new Headers(options?.headers).get('authorization')).toBe('Bearer synthetic-new-own-access')
     expect(options).toMatchObject({ credentials: 'omit', redirect: 'error', cache: 'no-store' })
     expect(options?.signal?.aborted).toBe(true)
     expect(JSON.parse(String(options?.body))).toEqual({ refreshToken: 'synthetic-new-own-refresh' })

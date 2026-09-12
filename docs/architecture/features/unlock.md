@@ -44,3 +44,9 @@ server's operation limiter. Ordinary activity notifications do not restart a
 completed denied attempt. A new manual source generation may negotiate a fresh
 attempt, still subject to the same own expiry checks. Other receiver failures
 continue to close the channel; this exception grants no keys or session rights.
+
+If Identity issued a receiver session that fails local installation, cleanup
+authenticates `/api/auth/logout` with that issued session's own access token and
+revokes its matching refresh-token lineage. It uses the captured original API,
+never the peer or current session's tokens. Cleanup remains best effort with a
+two-second bound; local key wiping does not depend on the network result.
