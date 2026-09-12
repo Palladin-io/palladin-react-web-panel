@@ -9,8 +9,8 @@ The lock screen — the sole reachable route while `isVaultLocked === true`. Ide
 One theme-aware page with a password field. The unlock hook validates the authenticated KDF state, derives via the registered password-only profile, decrypts the stored private key, and writes independent key copies into Zustand. Unsupported profiles fail closed.
 
 ## Key patterns
-- **Session ceilings:** `unlockVault` records original memory-only unlock deadlines and accepts verified inherited limits capped by Web policy. Expired limits cannot publish keys, and layout remount/refresh does not renew them. The shared-unlock browser coordinator remains in progress.
-- **Non-persisted lock state:** `isVaultLocked` is never persisted; it starts `true` on every load and is only flipped `false` by `unlockVault()`. This is the security-critical routing primitive.
+- **Session ceilings:** `unlockVault` records original memory-only unlock deadlines and accepts verified inherited limits capped by Web policy. Expired limits cannot publish keys, and layout remount/refresh does not renew them.
+- **Non-persisted lock state:** `isVaultLocked` is never persisted; it starts `true` on every load. Manual unlock and the verified shared-unlock installation can flip it to `false`. This is the security-critical routing primitive.
 - **Auth-surface page:** `.auth-surface` follows the persisted app theme; `FormInput`, `FieldFeedback`, `AuthSubmitButton`.
 - **Deep-link return:** the authenticated guard and session timeout forward the requested internal URL through `/unlock?redirect=…`; both normal unlock and onboarding return to it after keys are restored in memory. Unsafe or looping redirect values fall back to `/`.
 
@@ -35,3 +35,11 @@ announces politely without moving focus. No account/operation identifiers enter
 the message. Manual unlock, state restoration, remount and ACK do not trigger it;
 cancelled or rejected receiver attempts never reach the notification. A lost ACK
 does not suppress a completed own operation or create another notification.
+
+A retired own authorization is a local admission denial. The browser coordinator
+cancels that exact handoff while keeping the verified channel, so reconnect does
+not repeatedly consume/commit/revoke the same expired authority and exhaust the
+server's operation limiter. Ordinary activity notifications do not restart a
+completed denied attempt. A new manual source generation may negotiate a fresh
+attempt, still subject to the same own expiry checks. Other receiver failures
+continue to close the channel; this exception grants no keys or session rights.
