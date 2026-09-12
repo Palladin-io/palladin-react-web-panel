@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { AppWordmark } from '../../../shared/components/app-wordmark'
+import { AuthBrandHeader } from '../../../shared/components/auth-brand-header'
 import { AuthRateLimitError } from '../api/auth-api'
 import { useGoogleSignIn } from '../hooks/use-google-sign-in'
 import { usePasswordLogin } from '../hooks/use-password-login'
@@ -10,39 +10,6 @@ import { clearClientSession } from '../session/client-session'
 import { useAuthStore } from '../stores/auth-store'
 import { EmailPasswordForm } from './email-password-form'
 import { TotpChallengeStep } from './totp-challenge-step'
-
-const WELCOME_MESSAGE_KEYS = [
-  'auth.welcomeLine1',
-  'auth.welcomeLine2',
-  'auth.welcomeLine3',
-  'auth.welcomeLine4',
-]
-
-function RotatingWelcome() {
-  const { t } = useTranslation()
-  const [index, setIndex] = useState(0)
-  const [visible, setVisible] = useState(true)
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setVisible(false)
-      setTimeout(() => {
-        setIndex((prev) => (prev + 1) % WELCOME_MESSAGE_KEYS.length)
-        setVisible(true)
-      }, 350)
-    }, 3800)
-    return () => clearInterval(id)
-  }, [])
-
-  return (
-    <p
-      className="mb-7 h-4 text-ui text-[var(--cv-auth-muted)] transition-opacity duration-300"
-      style={{ opacity: visible ? 1 : 0 }}
-    >
-      {t(WELCOME_MESSAGE_KEYS[index])}
-    </p>
-  )
-}
 
 interface LoginPageProps {
   redirectTo?: string
@@ -146,11 +113,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
     <div className="auth-surface flex min-h-screen items-center justify-center">
       <div className="auth-logo-glow w-full max-w-[27.5rem] px-6">
         <div className="text-center">
-          <div className="mb-2 flex justify-center">
-            <AppWordmark size="lg" />
-          </div>
-
-          <RotatingWelcome />
+          <AuthBrandHeader />
 
           {step === 'totp' ? (
             <TotpChallengeStep

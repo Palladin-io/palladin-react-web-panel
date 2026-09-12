@@ -32,7 +32,7 @@ export function VaultIconPicker({
   value,
   onChange,
   onColorChange,
-  selectedColor = '#EB4747',
+  selectedColor = '#E54645',
   disabled = false,
   onFileSelected,
   rowClassName = 'flex flex-wrap gap-2',

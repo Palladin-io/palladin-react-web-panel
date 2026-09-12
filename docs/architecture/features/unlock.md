@@ -11,6 +11,7 @@ One theme-aware page with a password field. The unlock hook validates the authen
 ## Key patterns
 - **Session ceilings:** `unlockVault` records original memory-only unlock deadlines and accepts verified inherited limits capped by Web policy. Expired limits cannot publish keys, and layout remount/refresh does not renew them.
 - **Non-persisted lock state:** `isVaultLocked` is never persisted; it starts `true` on every load. Manual unlock and the verified shared-unlock installation can flip it to `false`. This is the security-critical routing primitive.
+- **Brand header:** shared `AuthBrandHeader` matches the landing hero proportions and spacing, followed by the master-password instruction. The functional unlock title stays available to screen readers.
 - **Auth-surface page:** `.auth-surface` follows the persisted app theme; `FormInput`, `FieldFeedback`, `AuthSubmitButton`.
 - **Deep-link return:** the authenticated guard and session timeout forward the requested internal URL through `/unlock?redirect=…`; both normal unlock and onboarding return to it after keys are restored in memory. Unsafe or looping redirect values fall back to `/`.
 
