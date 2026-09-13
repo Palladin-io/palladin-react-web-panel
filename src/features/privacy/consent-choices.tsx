@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { HTTPError } from 'ky'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
@@ -9,7 +10,7 @@ import { ModalShell } from '../../shared/components/modal-shell'
 import { DialogFooter } from '../../shared/components/dialog-footer'
 import type { ConsentSource, ConsentPurpose, UserConsent, UpdateConsent } from '../../shared/api/consents-api'
 import { analytics } from '../../shared/lib/analytics'
-import { setLocalAnalyticsActivation } from '../../shared/lib/local-analytics-consent'
+import { matchesCurrentAnalyticsActivation, setLocalAnalyticsActivation } from '../../shared/lib/local-analytics-consent'
 import { useChangeConsent, useConsents, useLocalActivation } from './use-consents'
 
 const purposes: ConsentPurpose[] = ['product_analytics', 'email_marketing']
@@ -30,6 +31,7 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
   const [draft, setDraft] = useState<Partial<Record<ConsentPurpose, boolean>>>({})
   const [pending, setPending] = useState<Attempt[]>([])
   const [saving, setSaving] = useState(false)
+  const [decisionError, setDecisionError] = useState<'revisionConflict' | 'saveRejected' | null>(null)
   const rows = purposes.map(purpose => query.data?.consents.find(c => c.purpose === purpose))
   const granted = (consent: UserConsent) => draft[consent.purpose] ?? (consent.status === 'granted')
   const stopHere = () => {
@@ -46,6 +48,8 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
 
   async function persist(attempts: Attempt[]) {
     setSaving(true)
+    setDecisionError(null)
+    if (attempts.some(attempt => attempt.purpose === 'product_analytics' && attempt.decision.granted)) stopHere()
     setPending(attempts)
     let remaining = attempts
     try {
@@ -57,11 +61,20 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
       setDraft({})
       toast.success(t('privacy.saved'))
       onContinue?.()
-    } catch {
-      // Partial saves are visible. Retry only the unconfirmed, idempotent remainder.
+    } catch (error) {
       stopHere()
-      setPending(remaining)
-      toast.error(t('privacy.saveError'))
+      const status = error instanceof HTTPError ? error.response.status : undefined
+      if (status !== undefined && status < 500 && status !== 408 && status !== 429) {
+        // The mutation hook awaited an authoritative refresh; a rejected write needs a new decision.
+        setPending([])
+        setDraft({})
+        const message = status === 409 ? 'revisionConflict' : 'saveRejected'
+        setDecisionError(message)
+        toast.error(t(`privacy.${message}`))
+      } else {
+        setPending(remaining)
+        toast.error(t('privacy.saveError'))
+      }
     } finally { setSaving(false) }
   }
 
@@ -70,7 +83,7 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
     if (acceptAll) { stopHere(); setDraft({ product_analytics: true, email_marketing: true }) }
     // Confirm marketing first: the last confirmed analytics grant activates this
     // installation, including after retry of an unconfirmed partial save.
-    const orderedRows = acceptAll ? [...rows].reverse() : rows
+    const orderedRows = acceptAll || (rows[0] && granted(rows[0])) ? [...rows].reverse() : rows
     const attempts: Attempt[] = []
     for (const consent of orderedRows) {
       if (!consent) continue
@@ -107,7 +120,7 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
     {query.isPending ? <SkeletonBlock height="10rem" /> : query.isError ? <ErrorState message={t('privacy.loadError')} onRetry={() => { void query.refetch() }} /> : purposes.map((purpose, index) => {
       const consent = rows[index]
       const checked = consent ? granted(consent) : false
-      const locallyActive = consent?.status === 'granted' && activation?.noticeVersion === consent.noticeVersion && activation?.activationRevision === consent.activationRevision
+      const locallyActive = matchesCurrentAnalyticsActivation(consent, activation)
       return <section key={purpose} className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
         <div className="flex items-start justify-between gap-4">
           <h3 className="text-heading-sm font-bold">{t(`privacy.${purpose}`)}</h3>
@@ -122,6 +135,7 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
       </section>
     })}
     {unavailable && !query.isPending && !query.isError && <p role="status" className="text-meta text-[var(--cv-t2)]">{t('privacy.noticeUnavailable')}</p>}
+    {!saving && decisionError && <p role="alert" className="text-ui text-[var(--cv-error)]">{t(`privacy.${decisionError}`)}</p>}
     {!saving && pending.length > 0 && <div role="alert"><p className="mb-2 text-ui text-[var(--cv-error)]">{t('privacy.saveError')}</p><Button size="sm" variant="subtle" onClick={() => { void persist(pending) }}>{t('privacy.retry')}</Button></div>}
   </div>
   return <ModalShell title={t('privacy.onboardingTitle')} ariaLabel={t('privacy.onboardingTitle')} trapFocus onClose={saving ? undefined : close} width={480} footer={actions}>{content}</ModalShell>

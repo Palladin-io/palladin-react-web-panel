@@ -1818,6 +1818,8 @@
     "activateHere": "Włącz na tym urządzeniu",
     "saving": "Zapisywanie…",
     "saved": "Zapisano wybór prywatności",
+    "revisionConflict": "Zgody zmieniły się w innym miejscu. Sprawdź aktualne wybory i zapisz ponownie, aby je potwierdzić. Analityka w tej przeglądarce pozostaje wyłączona.",
+    "saveRejected": "Wybór został odrzucony. Sprawdź aktualne wybory przed ponownym zapisem. Analityka w tej przeglądarce pozostaje wyłączona.",
     "saveError": "Nie udało się potwierdzić wyboru. Analityka w tej przeglądarce pozostaje wyłączona. Ponów zapis lub korzystaj dalej z Palladin.",
     "retry": "Ponów zapis",
     "status": {

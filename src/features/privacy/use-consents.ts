@@ -64,12 +64,12 @@ export function useChangeConsent() {
       }
       if (purpose === 'product_analytics' && decision.granted && result.status === 'granted'
         && result.revision === decision.expectedRevision + 1 && result.noticeVersion === decision.noticeVersion) {
-        if (!setLocalAnalyticsActivation(userId, { noticeVersion: result.noticeVersion, activationRevision: result.activationRevision })) {
+        if (!setLocalAnalyticsActivation(userId, { noticeVersion: result.noticeVersion, noticeLocale: decision.locale, activationRevision: result.activationRevision })) {
           throw new Error('Local activation could not be saved')
         }
       }
       return result
     },
-    onError: () => { void queryClient.invalidateQueries({ queryKey: ['account-consents'] }) },
+    onError: async () => { await queryClient.invalidateQueries({ queryKey: ['account-consents'] }) },
   })
 }

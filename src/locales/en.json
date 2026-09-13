@@ -1757,6 +1757,8 @@
     "activateHere": "Enable on this device",
     "saving": "Saving…",
     "saved": "Privacy choice saved",
+    "revisionConflict": "Privacy choices changed elsewhere. Review the current choices and save again to confirm. Analytics in this browser stays off.",
+    "saveRejected": "The choice was rejected. Review the current choices before saving again. Analytics in this browser stays off.",
     "saveError": "The choice could not be confirmed. Analytics in this browser stays off. Retry or continue using Palladin.",
     "retry": "Retry saving",
     "status": {

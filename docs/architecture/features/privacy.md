@@ -8,8 +8,12 @@ purposes can remain off, and continuing does not imply a grant.
 
 `ConsentChoices` renders the server's current PL/EN notice and keeps save failures
 visible. The mutation includes expected revision, request ID, notice version,
-notice language and `web_onboarding`/`web_settings`. An identical failed attempt
-can be retried; a later user decision creates a new request ID. The response is
+notice language and `web_onboarding`/`web_settings`. An ambiguous network/transient
+failure retains the identical request for retry.
+A definitive rejection (including HTTP 409 revision conflict) awaits an authoritative
+refresh, discards pending requests and resets the draft. The form explains that the
+user must review/reconfirm; failed refresh keeps saving disabled until a successful
+read. A new decision uses the current revision and a new request ID. The response is
 not treated as a successful local activation until the account session is still
 current and the preceding cached consent query has been refreshed.
 
@@ -22,7 +26,12 @@ means no collection. Offline/pagehide, logout and account replacement reset the
 transport. Consent changes never lock the Vault or alter business/audit events.
 
 Account consent is separate from local activation. localStorage holds only a
-notice version and `activationRevision` under an account-scoped preference key.
+notice version, notice locale and `activationRevision` under an account-scoped
+preference key.
+The settings status and runtime share `matchesCurrentAnalyticsActivation`: local
+version/locale must match both the account grant and the current notice, and the
+activation epoch must match. Old records without a locale stay off until explicit
+reactivation; changed notices expose Enable on this device.
 A continuous grant keeps its epoch; withdrawal/regrant changes it. Therefore
 several devices can be explicitly active, while old activations cannot resume
 after a later withdrawal. A new browser starts off even if the account is granted.
@@ -131,7 +140,10 @@ Thus a partial failure leaves capture off and the dialog open; retry uses only t
 unconfirmed remainder with the original request IDs. Successful retry activates
 this installation only after both decisions are confirmed. The endpoints remain
 non-atomic; a confirmed account decision is not rolled back or hidden on failure.
-Ordinary Save retains existing draft/withdrawal/per-device behavior. No backend,
+Ordinary Save also confirms marketing before an analytics grant and suspends
+local activation before the batch, so either failure stays off until the whole
+retry completes. Analytics withdrawals still run first. Unrelated marketing saves
+do not activate an inactive installation. No backend,
 canonical notices, marketing pipeline, telemetry scope or release gates changed.
 
 
