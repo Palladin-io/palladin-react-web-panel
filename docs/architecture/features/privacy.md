@@ -91,15 +91,27 @@ both actions keep flex-1 and the same height; Save uses the brand accent variant
 and Essential only uses subtle. The first-entry prompt takes
 precedence over the existing developer-benefit dialog, so modal layers do not stack.
 
-## Compact surface and primary Save (owner feedback, 2026-09-13)
+## Dialog-only startup and settings (owner decision, 2026-09-13)
 
-Startup ModalShell and embedded Settings both use DialogSurface at width 480 design pixels
-(600 CSS pixels at the current 1.25 density), within the approved 560–640 range.
-SettingsSectionPage omits its optional hidden title when the surface owns the
-single Your privacy heading and subtitle. Both reuse the same category cards,
-spacing and divided footer. Red Save commits the current selection, including
-explicit denials for both unknown purposes without touching either toggle.
-It is enabled once the query/notices permit a write, not gated on a dirty form.
-Empty notices remain unavailable. Red does not mean a preselected grant.
-Redundant saved-status lines were removed; toggles show the current/draft choice
-and Settings retains the per-device state and explicit activation control.
+ConsentChoices always renders ModalShell (600 CSS px at the default density),
+including settings edits. The source selects the settings-only device status and
+activation controls; the presence of a completion callback does not select layout.
+The form never appears as an embedded panel on the Settings page.
+
+The /settings/privacy route auto-opens once per mount, over SettingsLayout and the
+existing authenticated shell. Closing by Escape, backdrop or Close leaves a small
+Manage choices launcher and restores focus to it. Save/Essential only close after
+successful completion. An unchanged valid choice can close without a fabricated
+write; unknown off choices still produce explicit denials. Reopening is deliberate;
+query refreshes do not reopen a closed dialog. Browser Back keeps normal routing.
+PrivacyPrompt yields this route completely (including the benefit fallback), and
+the explicit visit marks only the ephemeral first-entry prompt dismissal. It is
+not account consent and cannot enable collection.
+
+Save stays brand primary, Essential only secondary, with equal geometry. Defaults
+remain off for unknown optional purposes. Settings shows the existing server
+choice and per-device state, full notice details and explicit local activation.
+Dismissal stops the local transport/activation without changing the account;
+failed/partial saves stay in the modal with retry. All active notice/release gates
+are unchanged. The local preview now uses the actual SettingsLayout and TanStack
+routes to verify Back/navigation, while still using isolated synthetic API data.

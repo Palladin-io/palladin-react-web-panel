@@ -13,7 +13,7 @@ import { readLocalAnalyticsActivation, setLocalAnalyticsActivation } from '../..
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(), update: vi.fn(), success: vi.fn(), error: vi.fn(), reset: vi.fn(), authorize: vi.fn(), pageview: vi.fn(),
-  auth: { userId: 'privacy-user', accessToken: 'access', refreshToken: 'refresh' }, generation: 0,
+  auth: { userId: 'privacy-user', accessToken: 'access', refreshToken: 'refresh' }, generation: 0, pathname: '/privacy-choices',
 }))
 vi.mock('../auth', () => ({
   useAuthStore: Object.assign((select: (state: typeof mocks.auth) => unknown) => select(mocks.auth), { getState: () => mocks.auth }),
@@ -26,7 +26,7 @@ vi.mock('../../shared/api/consents-api', () => ({
   consentQueryKey: (userId: string, locale: string) => ['account-consents', userId, locale],
 }))
 vi.mock('../../shared/lib/analytics', () => ({ analytics: { reset: mocks.reset, authorize: mocks.authorize, pageview: mocks.pageview } }))
-vi.mock('@tanstack/react-router', () => ({ useRouterState: () => '/privacy-choices' }))
+vi.mock('@tanstack/react-router', () => ({ useRouterState: () => mocks.pathname }))
 vi.mock('sonner', () => ({ toast: { success: mocks.success, error: mocks.error } }))
 
 function consent(purpose: UserConsent['purpose'] = 'product_analytics'): UserConsent {
@@ -48,6 +48,7 @@ describe('account privacy choices', () => {
     dismissedPrivacyAccounts.clear()
     mocks.auth.userId = 'privacy-user'
     mocks.generation = 0
+    mocks.pathname = '/privacy-choices'
     state = { consents: [consent(), consent('email_marketing')], maxAgeSeconds: 60 }
     mocks.get.mockImplementation(async () => structuredClone(state))
     mocks.update.mockReset()
@@ -88,7 +89,8 @@ describe('account privacy choices', () => {
       for (const option of await screen.findAllByRole('switch')) expect(option).toHaveAttribute('aria-checked', 'false')
       const title = locale === 'pl' ? 'Twoja prywatność' : 'Your privacy'
       expect(screen.getAllByRole('heading', { name: title })).toHaveLength(1)
-      expect(screen.queryByRole('dialog') !== null).toBe(startup)
+      expect(screen.getAllByRole('dialog')).toHaveLength(1)
+      for (const control of screen.getAllByRole('switch')) expect(control.closest('[role=dialog]')).not.toBeNull()
       const surface = screen.getByRole('heading', { name: title }).parentElement!.parentElement!
       expect(surface.style.maxWidth).toBe('calc(480px * var(--cv-density-scale))')
       expect(surface).toContainElement(screen.getByTestId('modal-footer'))
@@ -100,10 +102,39 @@ describe('account privacy choices', () => {
       await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(2))
       expect(mocks.update.mock.calls.map(([purpose, d]) => [purpose, d.granted])).toEqual([['product_analytics', false], ['email_marketing', false]])
       if (startup) await waitFor(() => expect(next).toHaveBeenCalledOnce())
-      else expect(next).not.toHaveBeenCalled()
+      else {
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+        expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+        expect(screen.getByRole('button', { name: locale === 'pl' ? 'Zarządzaj zgodami' : 'Manage choices' })).toBeVisible()
+      }
       expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
       view.unmount(); client.clear()
     }
+  })
+
+  it('settings closes by Escape to its focused launcher, reopens by keyboard, and never stacks the startup prompt', async () => {
+    mocks.pathname = '/settings/privacy'
+    client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const view = render(<QueryClientProvider client={client}><PrivacyPrompt fallback={<span>Benefit dialog</span>} /><PrivacySettingsPage /></QueryClientProvider>)
+    await screen.findAllByRole('switch')
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(screen.queryByText('Benefit dialog')).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    const launcher = screen.getByRole('button', { name: 'Manage choices' })
+    expect(launcher).toHaveFocus(); expect(launcher).toHaveAttribute('aria-haspopup', 'dialog')
+    await userEvent.keyboard('{Enter}')
+    expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await act(async () => client.invalidateQueries())
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(mocks.update).not.toHaveBeenCalled()
+    // Leaving the explicit privacy route must not resurrect an unknown first-entry prompt.
+    mocks.pathname = '/settings/security'
+    view.rerender(<QueryClientProvider client={client}><PrivacyPrompt fallback={<span>Settings</span>} /></QueryClientProvider>)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Settings')).toBeVisible()
   })
 
   it('edits locally and saves both explicit decisions, activating only this installation after confirmation', async () => {

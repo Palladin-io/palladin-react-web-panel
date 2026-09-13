@@ -6,7 +6,6 @@ import { ToggleSwitch } from '../../shared/components/toggle-switch'
 import { ErrorState } from '../../shared/components/error-state'
 import { SkeletonBlock } from '../../shared/components/skeleton-block'
 import { ModalShell } from '../../shared/components/modal-shell'
-import { DialogSurface } from '../../shared/components/dialog-surface'
 import { DialogFooter } from '../../shared/components/dialog-footer'
 import type { ConsentSource, ConsentPurpose, UserConsent, UpdateConsent } from '../../shared/api/consents-api'
 import { analytics } from '../../shared/lib/analytics'
@@ -83,7 +82,7 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
         noticeVersion: version, locale, source,
       } })
     }
-    if (attempts.length === 0) { if (essentialOnly) onContinue?.(); return }
+    if (attempts.length === 0) { if (essentialOnly || !unavailable) onContinue?.(); return }
     void persist(attempts)
   }
 
@@ -111,7 +110,7 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
           <ToggleSwitch checked={checked} label={t(`privacy.${purpose}`)} onChange={value => { if (consent) change(consent, value) }} disabled={saving || !consent || (!consent.currentNotice && !checked)} />
         </div>
         <p className="mt-2 text-ui text-[var(--cv-t2)]">{t(`privacy.${purpose}Description`)}</p>
-        {!onContinue && purpose === 'product_analytics' && <div className="mt-3">
+        {source === 'web_settings' && purpose === 'product_analytics' && <div className="mt-3">
           <p role="status" className="text-meta text-[var(--cv-t2)]">{t(locallyActive ? 'privacy.activeHere' : 'privacy.inactiveHere')}</p>
           {consent?.status === 'granted' && checked && !locallyActive && consent.currentNotice && <Button size="sm" variant="subtle" className="mt-2" disabled={saving} onClick={() => save(false, true)}>{t('privacy.activateHere')}</Button>}
         </div>}
@@ -121,6 +120,5 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
     {unavailable && !query.isPending && !query.isError && <p role="status" className="text-meta text-[var(--cv-t2)]">{t('privacy.noticeUnavailable')}</p>}
     {!saving && pending.length > 0 && <div role="alert"><p className="mb-2 text-ui text-[var(--cv-error)]">{t('privacy.saveError')}</p><Button size="sm" variant="subtle" onClick={() => { void persist(pending) }}>{t('privacy.retry')}</Button></div>}
   </div>
-  return onContinue ? <ModalShell title={t('privacy.onboardingTitle')} ariaLabel={t('privacy.onboardingTitle')} trapFocus onClose={saving ? undefined : close} width={480} footer={actions}>{content}</ModalShell>
-    : <DialogSurface title={t('privacy.onboardingTitle')} width={480} footer={actions}>{content}</DialogSurface>
+  return <ModalShell title={t('privacy.onboardingTitle')} ariaLabel={t('privacy.onboardingTitle')} trapFocus onClose={saving ? undefined : close} width={480} footer={actions}>{content}</ModalShell>
 }

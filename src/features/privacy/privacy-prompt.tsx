@@ -1,10 +1,14 @@
 import { useState, type ReactNode } from 'react'
+import { useRouterState } from '@tanstack/react-router'
 import { ConsentChoices } from './consent-choices'
 import { useConsents } from './use-consents'
 import { dismissedPrivacyAccounts, dismissPrivacyPrompt } from './privacy-prompt-state'
 
 export function PrivacyPrompt({ fallback = null }: { fallback?: ReactNode }) {
   const query = useConsents()
+  const pathname = useRouterState({ select: state => state.location.pathname })
+  // The explicit settings route owns its dialog, including before the query resolves.
+  if (pathname === '/settings/privacy') return null
   if (!query.userId || !query.data) return fallback
   return <DiscoveredPrompt key={query.userId} userId={query.userId}
     initiallyNeeded={query.data.consents.some(c => c.status === 'unknown')} fallback={fallback} />

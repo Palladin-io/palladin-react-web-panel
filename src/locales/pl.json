@@ -1806,6 +1806,7 @@
   "permissions.flags.unknown": "Dodatkowe uprawnienie ({{key}})",
   "permissions.flags.unknownDescription": "To uprawnienie jest obsługiwane przez serwer, ale ta wersja panelu nie ma jeszcze jego dedykowanego opisu.",
   "privacy": {
+    "manageChoices": "Zarządzaj zgodami",
     "title": "Prywatność",
     "subtitle": "Opcjonalne zgody są dobrowolne. Możesz je później zmienić w ustawieniach prywatności.",
     "product_analytics": "Analityka produktu",

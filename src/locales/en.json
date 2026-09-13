@@ -1745,6 +1745,7 @@
   "permissions.flags.unknown": "Additional permission ({{key}})",
   "permissions.flags.unknownDescription": "This permission is supported by the server but has no dedicated description in this panel version.",
   "privacy": {
+    "manageChoices": "Manage choices",
     "title": "Privacy",
     "subtitle": "Optional consents are voluntary. You can change them later in Privacy settings.",
     "product_analytics": "Product analytics",
