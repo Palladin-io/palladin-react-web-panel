@@ -63,3 +63,8 @@ All modal actions go in `DialogFooter` (`shared/components/dialog-footer.tsx`), 
 - Single-action footer ("Done" / "Close"): one `size="sm"` button, `flex-1` or `w-full`.
 - Router `<Link>` styled as a footer button: use `PREMIUM_BUTTON_SM_CLASS` / `POSITIVE_BUTTON_SM_CLASS` from `button.tsx`.
 - Field-feedback rhythm: use `FeedbackSlot` (animated, self-collapsing) below a field — **never** the fixed-`h-4` `FieldFeedback` + `-mb-4` wrapper (it overlaps the next label when an error shows). See `forms-and-validation.md`.
+
+`DialogSurface` owns the reusable chrome rendered by titled `ModalShell`. It can
+also be embedded on a page without dialog semantics, backdrop or focus trapping.
+Privacy settings uses it at the same 480 design-pixel width (600 CSS pixels at the default density) as startup, with one
+title/subtitle and the same cards, body padding and divided action footer.

@@ -1,6 +1,5 @@
 import { useEffect, useEffectEvent, useRef, type ReactNode } from 'react'
-import { Icon } from './icon'
-import { useTranslation } from 'react-i18next'
+import { DialogSurface } from './dialog-surface'
 
 export interface ModalShellProps {
   /** Optional handler — when omitted, the backdrop and Escape key are inert. */
@@ -52,7 +51,6 @@ export function ModalShell({
   width = 480,
   children,
 }: ModalShellProps) {
-  const { t } = useTranslation()
   const close = useEffectEvent(() => onClose?.())
   const dialogRef = useRef<HTMLDivElement>(null)
 
@@ -133,38 +131,10 @@ export function ModalShell({
         className="fixed inset-0 z-50 flex items-center justify-center px-4"
       >
         {backdrop}
-        <div
-          className="relative z-10 flex max-h-[86dvh] w-full min-w-0 flex-col overflow-hidden rounded-2xl
-            border border-[var(--cv-border)] bg-[var(--cv-modal-bg)] shadow-xl"
-          style={{ maxWidth: `calc(${width}px * var(--cv-density-scale))` }}
-        >
-          <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--cv-divider)] px-4 py-4 sm:px-6">
-            <h2 className={`${titleClassName ?? 'text-heading'} font-semibold text-[var(--cv-t1)]`}>
-              {title}
-            </h2>
-            {onClose ? (
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label={t('common.close')}
-                className="flex shrink-0 text-[var(--cv-icon-muted)] transition-colors hover:text-[var(--cv-t1)]"
-              >
-                <Icon name="close" size={18} />
-              </button>
-            ) : null}
-          </header>
-          <div className="subtle-scrollbar min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 sm:px-6">
-            {children}
-          </div>
-          {footer ? (
-            <div
-              data-testid="modal-footer"
-              className={`shrink-0 border-t border-[var(--cv-divider)] px-4 py-4 sm:px-6 ${footerClassName ?? ''}`}
-            >
-              {footer}
-            </div>
-          ) : null}
-        </div>
+        <DialogSurface title={title} titleClassName={titleClassName} footer={footer}
+          footerClassName={footerClassName} onClose={onClose} width={width} className="relative z-10 shadow-xl">
+          {children}
+        </DialogSurface>
       </div>
     )
   }

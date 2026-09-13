@@ -6,6 +6,7 @@ import { ToggleSwitch } from '../../shared/components/toggle-switch'
 import { ErrorState } from '../../shared/components/error-state'
 import { SkeletonBlock } from '../../shared/components/skeleton-block'
 import { ModalShell } from '../../shared/components/modal-shell'
+import { DialogSurface } from '../../shared/components/dialog-surface'
 import { DialogFooter } from '../../shared/components/dialog-footer'
 import type { ConsentSource, ConsentPurpose, UserConsent, UpdateConsent } from '../../shared/api/consents-api'
 import { analytics } from '../../shared/lib/analytics'
@@ -89,10 +90,10 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
   const unavailable = rows.some(row => !row?.currentNotice)
   const actions = <DialogFooter>
     <Button size="sm" variant="subtle" className="flex-1" disabled={saving} onClick={() => save(true)}>{t('privacy.essentialOnly')}</Button>
-    <Button size="sm" variant="subtle" className="flex-1" disabled={saving || query.isPending || query.isError || rows.every(row => !row?.currentNotice && row?.status !== 'granted')} onClick={() => save()}>{t(saving ? 'privacy.saving' : 'privacy.saveChoice')}</Button>
+    <Button size="sm" variant="accent" className="flex-1" disabled={saving || query.isPending || query.isError || rows.every(row => !row?.currentNotice && row?.status !== 'granted')} onClick={() => save()}>{t(saving ? 'privacy.saving' : 'privacy.saveChoice')}</Button>
   </DialogFooter>
   const content = <div className="flex flex-col gap-4">
-    {onContinue && <p className="text-ui text-[var(--cv-t2)]">{t('privacy.subtitle')}</p>}
+    <p className="text-ui text-[var(--cv-t2)]">{t('privacy.subtitle')}</p>
     <section className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
       <div className="flex items-start justify-between gap-4">
         <h3 className="text-heading-sm font-bold">{t('privacy.essential')}</h3>
@@ -114,13 +115,12 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
           <p role="status" className="text-meta text-[var(--cv-t2)]">{t(locallyActive ? 'privacy.activeHere' : 'privacy.inactiveHere')}</p>
           {consent?.status === 'granted' && checked && !locallyActive && consent.currentNotice && <Button size="sm" variant="subtle" className="mt-2" disabled={saving} onClick={() => save(false, true)}>{t('privacy.activateHere')}</Button>}
         </div>}
-        {!onContinue && consent && <p className="mt-2 text-meta text-[var(--cv-t3)]">{t(`privacy.status.${consent.status}`)}</p>}
         {consent?.currentNotice && <details className="mt-3 text-meta text-[var(--cv-t2)]"><summary>{t('privacy.details')}</summary><p className="mt-2 whitespace-pre-line">{consent.currentNotice.text}</p></details>}
       </section>
     })}
     {unavailable && !query.isPending && !query.isError && <p role="status" className="text-meta text-[var(--cv-t2)]">{t('privacy.noticeUnavailable')}</p>}
     {!saving && pending.length > 0 && <div role="alert"><p className="mb-2 text-ui text-[var(--cv-error)]">{t('privacy.saveError')}</p><Button size="sm" variant="subtle" onClick={() => { void persist(pending) }}>{t('privacy.retry')}</Button></div>}
   </div>
-  return onContinue ? <ModalShell title={t('privacy.onboardingTitle')} ariaLabel={t('privacy.onboardingTitle')} trapFocus onClose={saving ? undefined : close} width={560} footer={actions}>{content}</ModalShell>
-    : <div className="flex max-w-3xl flex-col gap-4">{content}{actions}</div>
+  return onContinue ? <ModalShell title={t('privacy.onboardingTitle')} ariaLabel={t('privacy.onboardingTitle')} trapFocus onClose={saving ? undefined : close} width={480} footer={actions}>{content}</ModalShell>
+    : <DialogSurface title={t('privacy.onboardingTitle')} width={480} footer={actions}>{content}</DialogSurface>
 }

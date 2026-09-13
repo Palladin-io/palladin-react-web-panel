@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UserConsent, UserConsents } from '../../shared/api/consents-api'
 import { ConsentChoices } from './consent-choices'
+import { PrivacySettingsPage } from './privacy-settings-page'
+import i18n from '../../shared/lib/i18n'
 import { PrivacyPrompt } from './privacy-prompt'
 import { dismissedPrivacyAccounts } from './privacy-prompt-state'
 import { ConsentRuntime } from './consent-runtime'
@@ -34,9 +36,9 @@ function consent(purpose: UserConsent['purpose'] = 'product_analytics'): UserCon
 }
 let state: UserConsents
 let client: QueryClient
-function mount(onContinue?: () => void) {
+function mount(onContinue?: () => void, settingsPage = false) {
   client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  return render(<QueryClientProvider client={client}><ConsentRuntime /><ConsentChoices source={onContinue ? 'web_onboarding' : 'web_settings'} onContinue={onContinue} /></QueryClientProvider>)
+  return render(<QueryClientProvider client={client}><ConsentRuntime />{settingsPage ? <PrivacySettingsPage /> : <ConsentChoices source={onContinue ? 'web_onboarding' : 'web_settings'} onContinue={onContinue} />}</QueryClientProvider>)
 }
 
 describe('account privacy choices', () => {
@@ -50,7 +52,7 @@ describe('account privacy choices', () => {
     mocks.get.mockImplementation(async () => structuredClone(state))
     mocks.update.mockReset()
   })
-  afterEach(() => { cleanup(); client?.clear() })
+  afterEach(async () => { cleanup(); client?.clear(); await i18n.changeLanguage('en') })
 
   function autoSave() {
     mocks.update.mockImplementation(async (purpose, decision) => {
@@ -75,6 +77,33 @@ describe('account privacy choices', () => {
     expect(next).toHaveBeenCalledOnce()
     expect(mocks.update).not.toHaveBeenCalled()
     expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+  })
+
+  it.each(['en', 'pl'] as const)('primary Save is immediately enabled with both off and records explicit denials in startup and settings (%s)', async locale => {
+    await i18n.changeLanguage(locale)
+    for (const startup of [true, false]) {
+      state = { consents: [consent(), consent('email_marketing')], maxAgeSeconds: 60 }
+      mocks.update.mockClear(); autoSave()
+      const next = vi.fn(); const view = mount(startup ? next : undefined, !startup)
+      for (const option of await screen.findAllByRole('switch')) expect(option).toHaveAttribute('aria-checked', 'false')
+      const title = locale === 'pl' ? 'Twoja prywatność' : 'Your privacy'
+      expect(screen.getAllByRole('heading', { name: title })).toHaveLength(1)
+      expect(screen.queryByRole('dialog') !== null).toBe(startup)
+      const surface = screen.getByRole('heading', { name: title }).parentElement!.parentElement!
+      expect(surface.style.maxWidth).toBe('calc(480px * var(--cv-density-scale))')
+      expect(surface).toContainElement(screen.getByTestId('modal-footer'))
+      const save = screen.getByRole('button', { name: locale === 'pl' ? 'Zapisz wybór' : 'Save choice' })
+      const essential = screen.getByRole('button', { name: locale === 'pl' ? 'Tylko niezbędne' : 'Essential only' })
+      expect(save).toBeEnabled(); expect(save).toHaveClass('bg-[var(--cv-primary)]', 'flex-1', 'h-action')
+      expect(essential).toBeEnabled(); expect(essential).toHaveClass('flex-1', 'h-action')
+      await userEvent.click(save)
+      await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(2))
+      expect(mocks.update.mock.calls.map(([purpose, d]) => [purpose, d.granted])).toEqual([['product_analytics', false], ['email_marketing', false]])
+      if (startup) await waitFor(() => expect(next).toHaveBeenCalledOnce())
+      else expect(next).not.toHaveBeenCalled()
+      expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+      view.unmount(); client.clear()
+    }
   })
 
   it('edits locally and saves both explicit decisions, activating only this installation after confirmation', async () => {

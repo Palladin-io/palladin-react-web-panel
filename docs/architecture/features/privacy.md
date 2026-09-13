@@ -87,5 +87,19 @@ as a released preview and never configures an analytics key. Production entrypoi
 active notices, authentication and release configuration are unchanged.
 
 Consent is the explicit exception to the usual confirm/cancel 1:2 footer ratio:
-both actions use the same Button variant and flex-1. The first-entry prompt takes
+both actions keep flex-1 and the same height; Save uses the brand accent variant
+and Essential only uses subtle. The first-entry prompt takes
 precedence over the existing developer-benefit dialog, so modal layers do not stack.
+
+## Compact surface and primary Save (owner feedback, 2026-09-13)
+
+Startup ModalShell and embedded Settings both use DialogSurface at width 480 design pixels
+(600 CSS pixels at the current 1.25 density), within the approved 560–640 range.
+SettingsSectionPage omits its optional hidden title when the surface owns the
+single Your privacy heading and subtitle. Both reuse the same category cards,
+spacing and divided footer. Red Save commits the current selection, including
+explicit denials for both unknown purposes without touching either toggle.
+It is enabled once the query/notices permit a write, not gated on a dirty form.
+Empty notices remain unavailable. Red does not mean a preselected grant.
+Redundant saved-status lines were removed; toggles show the current/draft choice
+and Settings retains the per-device state and explicit activation control.
