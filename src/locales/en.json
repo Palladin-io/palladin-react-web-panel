@@ -1746,14 +1746,14 @@
   "permissions.flags.unknownDescription": "This permission is supported by the server but has no dedicated description in this panel version.",
   "privacy": {
     "title": "Privacy",
-    "subtitle": "These choices are optional. You can change them later in Settings → Privacy.",
+    "subtitle": "Optional consents are voluntary. You can change them later in Privacy settings.",
     "product_analytics": "Product analytics",
     "email_marketing": "Email news and offers",
     "continue": "Continue",
     "loadError": "Privacy choices could not be loaded. Analytics stays off.",
-    "noticeUnavailable": "This option is not available yet.",
+    "noticeUnavailable": "Saving these optional consents is not available yet. You can continue with essential features.",
     "localActivation": "Account consent applies to web and mobile. Analytics also requires activation on each browser or mobile installation. Withdrawing consent disables it across your devices.",
-    "activateHere": "Activate analytics in this browser",
+    "activateHere": "Enable on this device",
     "saving": "Saving…",
     "saved": "Privacy choice saved",
     "saveError": "The choice could not be confirmed. Analytics in this browser stays off. Retry or continue using Palladin.",
@@ -1764,6 +1764,17 @@
       "denied": "Consent declined",
       "withdrawn": "Consent withdrawn"
     },
-    "marketingSaveError": "The choice could not be confirmed. Retry or continue using Palladin."
+    "marketingSaveError": "The choice could not be confirmed. Retry or continue using Palladin.",
+    "onboardingTitle": "Your privacy",
+    "essential": "Essential",
+    "alwaysActive": "Always active",
+    "essentialDescription": "Enable core features and help protect your account.",
+    "product_analyticsDescription": "With your permission, analytics will help us improve the app based on how its features are used. Your vault contents are excluded.",
+    "email_marketingDescription": "Choose whether to receive emails with Palladin news and offers.",
+    "essentialOnly": "Essential only",
+    "saveChoice": "Save choice",
+    "inactiveHere": "Off on this device",
+    "activeHere": "Enabled on this device",
+    "details": "Consent details"
   }
 }

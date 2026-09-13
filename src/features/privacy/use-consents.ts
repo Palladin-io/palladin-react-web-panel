@@ -58,7 +58,7 @@ export function useChangeConsent() {
       }
       // Refresh the old (possibly unknown/denied) query before publishing a local
       // activation. Otherwise the runtime correctly clears it against that old row.
-      await queryClient.invalidateQueries({ queryKey: ['account-consents', userId] })
+      await queryClient.invalidateQueries({ queryKey: ['account-consents', userId] }, { throwOnError: true })
       if (!clientSessionGenerationMatches(generation) || useAuthStore.getState().userId !== userId) {
         throw new Error('Stale account session')
       }

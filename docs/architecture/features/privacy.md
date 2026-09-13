@@ -56,3 +56,36 @@ onboarding and API error states. Browser QA covers PL/EN landing and web
 onboarding at desktop/phone widths plus desktop settings. The existing full-width
 application sidebar does not provide a usable phone layout for settings; the
 native mobile Privacy surface is separately implemented and tested.
+
+
+## Explicit startup choice and settings (CVT-609, 2026-09-13)
+
+The startup presentation is a modal, not the settings page. Web reuses ModalShell
+with focus trapping over the safe pre-verification/key-setup surface; eligible
+first entry can offer it over the authenticated shell. Mobile uses a root-native
+bottom sheet before the existing setup/verification guards. An unknown account
+choice can be offered once per running session; dismissing is only a UI state,
+not a stored denial or permission. The user can continue without optional consent.
+
+Essential is informational and always active, without a switch. Product analytics
+and email news/offers start off when unknown. Switches edit a draft, then equal
+Essential only / Save choice actions commit the two purposes. Full current notices
+remain expandable before deciding; short explanatory labels do not replace the
+backend notice version/text or activate the empty release catalogue.
+
+The two existing endpoints are not atomic. Save processes the decisions in order,
+reports no overall success on partial failure and retains only unconfirmed decisions
+for an identical idempotent retry. Turning analytics off suspends local capture
+before Save. Errors and dismissal fail closed. Saving an unrelated marketing change
+never activates a previously inactive installation. Settings shows a simple local
+on/off status and an explicit Enable on this device action; only the initial
+analytics grant or that activation action enables the current installation.
+
+The debug preview uses real widgets/components and the normal consent data path
+against a local synthetic API. It is visibly labelled TEST FIXTURE. It cannot run
+as a released preview and never configures an analytics key. Production entrypoints,
+active notices, authentication and release configuration are unchanged.
+
+Consent is the explicit exception to the usual confirm/cancel 1:2 footer ratio:
+both actions use the same Button variant and flex-1. The first-entry prompt takes
+precedence over the existing developer-benefit dialog, so modal layers do not stack.

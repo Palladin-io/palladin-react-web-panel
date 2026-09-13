@@ -1,12 +1,15 @@
 import { useNavigate } from '@tanstack/react-router'
-import { useTranslation } from 'react-i18next'
-import { AuthStepShell } from '../../shared/components/auth-step-shell'
+import { AppWordmark } from '../../shared/components/app-wordmark'
+import { useAuthStore } from '../auth'
+import { dismissPrivacyPrompt } from './privacy-prompt-state'
 import { ConsentChoices } from './consent-choices'
 
 export function PrivacyOnboardingPage({ redirectTo = '/' }: { redirectTo?: string }) {
-  const { t } = useTranslation()
   const navigate = useNavigate()
-  return <AuthStepShell title={t('privacy.title')} subtitle={t('privacy.subtitle')}>
-    <ConsentChoices source="web_onboarding" onContinue={() => { void navigate({ href: redirectTo }) }} />
-  </AuthStepShell>
+  const userId = useAuthStore(state => state.userId)
+  // OAuth can reach this step before key setup; never mount the unlocked shell here.
+  return <div className="auth-surface flex min-h-screen items-start justify-center p-8">
+    <div aria-hidden="true"><AppWordmark size="lg" /></div>
+    <ConsentChoices source="web_onboarding" onContinue={() => { dismissPrivacyPrompt(userId); void navigate({ href: redirectTo }) }} />
+  </div>
 }
