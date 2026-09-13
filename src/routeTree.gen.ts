@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as DevToastsRouteImport } from './routes/dev-toasts'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PrivacyChoicesRouteImport } from './routes/privacy-choices'
 import { Route as RecoveryRouteImport } from './routes/recovery'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
@@ -37,6 +38,7 @@ import { Route as AuthenticatedSettingsBillingRouteImport } from './routes/_auth
 import { Route as AuthenticatedSettingsDataExportRouteImport } from './routes/_authenticated/settings.data-export'
 import { Route as AuthenticatedSettingsGeneralRouteImport } from './routes/_authenticated/settings.general'
 import { Route as AuthenticatedSettingsPermissionsRouteImport } from './routes/_authenticated/settings.permissions'
+import { Route as AuthenticatedSettingsPrivacyRouteImport } from './routes/_authenticated/settings.privacy'
 import { Route as AuthenticatedSettingsSecurityRouteImport } from './routes/_authenticated/settings.security'
 import { Route as AuthenticatedSettingsTeamRouteImport } from './routes/_authenticated/settings.team'
 import { Route as AuthenticatedVaultsVaultIdRouteImport } from './routes/_authenticated/vaults_.$vaultId'
@@ -61,6 +63,11 @@ const DevToastsRoute = DevToastsRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyChoicesRoute = PrivacyChoicesRouteImport.update({
+  id: '/privacy-choices',
+  path: '/privacy-choices',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RecoveryRoute = RecoveryRouteImport.update({
@@ -198,6 +205,12 @@ const AuthenticatedSettingsPermissionsRoute =
     path: '/permissions',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSettingsPrivacyRoute =
+  AuthenticatedSettingsPrivacyRouteImport.update({
+    id: '/privacy',
+    path: '/privacy',
+    getParentRoute: () => AuthenticatedSettingsRoute,
+  } as any)
 const AuthenticatedSettingsSecurityRoute =
   AuthenticatedSettingsSecurityRouteImport.update({
     id: '/security',
@@ -269,6 +282,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/dev-toasts': typeof DevToastsRoute
   '/login': typeof LoginRoute
+  '/privacy-choices': typeof PrivacyChoicesRoute
   '/recovery': typeof RecoveryRoute
   '/register': typeof RegisterRoute
   '/verify-email': typeof VerifyEmailRoute
@@ -292,6 +306,7 @@ export interface FileRoutesByFullPath {
   '/settings/data-export': typeof AuthenticatedSettingsDataExportRoute
   '/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/settings/permissions': typeof AuthenticatedSettingsPermissionsRoute
+  '/settings/privacy': typeof AuthenticatedSettingsPrivacyRoute
   '/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/settings/team': typeof AuthenticatedSettingsTeamRoute
   '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
@@ -308,6 +323,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/dev-toasts': typeof DevToastsRoute
   '/login': typeof LoginRoute
+  '/privacy-choices': typeof PrivacyChoicesRoute
   '/recovery': typeof RecoveryRoute
   '/register': typeof RegisterRoute
   '/verify-email': typeof VerifyEmailRoute
@@ -331,6 +347,7 @@ export interface FileRoutesByTo {
   '/settings/data-export': typeof AuthenticatedSettingsDataExportRoute
   '/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/settings/permissions': typeof AuthenticatedSettingsPermissionsRoute
+  '/settings/privacy': typeof AuthenticatedSettingsPrivacyRoute
   '/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/settings/team': typeof AuthenticatedSettingsTeamRoute
   '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
@@ -349,6 +366,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/dev-toasts': typeof DevToastsRoute
   '/login': typeof LoginRoute
+  '/privacy-choices': typeof PrivacyChoicesRoute
   '/recovery': typeof RecoveryRoute
   '/register': typeof RegisterRoute
   '/verify-email': typeof VerifyEmailRoute
@@ -373,6 +391,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/data-export': typeof AuthenticatedSettingsDataExportRoute
   '/_authenticated/settings/general': typeof AuthenticatedSettingsGeneralRoute
   '/_authenticated/settings/permissions': typeof AuthenticatedSettingsPermissionsRoute
+  '/_authenticated/settings/privacy': typeof AuthenticatedSettingsPrivacyRoute
   '/_authenticated/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/_authenticated/settings/team': typeof AuthenticatedSettingsTeamRoute
   '/_authenticated/vaults_/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
@@ -392,6 +411,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dev-toasts'
     | '/login'
+    | '/privacy-choices'
     | '/recovery'
     | '/register'
     | '/verify-email'
@@ -415,6 +435,7 @@ export interface FileRouteTypes {
     | '/settings/data-export'
     | '/settings/general'
     | '/settings/permissions'
+    | '/settings/privacy'
     | '/settings/security'
     | '/settings/team'
     | '/vaults/$vaultId'
@@ -431,6 +452,7 @@ export interface FileRouteTypes {
   to:
     | '/dev-toasts'
     | '/login'
+    | '/privacy-choices'
     | '/recovery'
     | '/register'
     | '/verify-email'
@@ -454,6 +476,7 @@ export interface FileRouteTypes {
     | '/settings/data-export'
     | '/settings/general'
     | '/settings/permissions'
+    | '/settings/privacy'
     | '/settings/security'
     | '/settings/team'
     | '/vaults/$vaultId'
@@ -471,6 +494,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/dev-toasts'
     | '/login'
+    | '/privacy-choices'
     | '/recovery'
     | '/register'
     | '/verify-email'
@@ -495,6 +519,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/data-export'
     | '/_authenticated/settings/general'
     | '/_authenticated/settings/permissions'
+    | '/_authenticated/settings/privacy'
     | '/_authenticated/settings/security'
     | '/_authenticated/settings/team'
     | '/_authenticated/vaults_/$vaultId'
@@ -513,6 +538,7 @@ export interface RootRouteChildren {
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   DevToastsRoute: typeof DevToastsRoute
   LoginRoute: typeof LoginRoute
+  PrivacyChoicesRoute: typeof PrivacyChoicesRoute
   RecoveryRoute: typeof RecoveryRoute
   RegisterRoute: typeof RegisterRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
@@ -539,6 +565,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy-choices': {
+      id: '/privacy-choices'
+      path: '/privacy-choices'
+      fullPath: '/privacy-choices'
+      preLoaderRoute: typeof PrivacyChoicesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/recovery': {
@@ -716,6 +749,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsPermissionsRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/settings/privacy': {
+      id: '/_authenticated/settings/privacy'
+      path: '/privacy'
+      fullPath: '/settings/privacy'
+      preLoaderRoute: typeof AuthenticatedSettingsPrivacyRouteImport
+      parentRoute: typeof AuthenticatedSettingsRoute
+    }
     '/_authenticated/settings/security': {
       id: '/_authenticated/settings/security'
       path: '/security'
@@ -802,6 +842,7 @@ interface AuthenticatedSettingsRouteChildren {
   AuthenticatedSettingsDataExportRoute: typeof AuthenticatedSettingsDataExportRoute
   AuthenticatedSettingsGeneralRoute: typeof AuthenticatedSettingsGeneralRoute
   AuthenticatedSettingsPermissionsRoute: typeof AuthenticatedSettingsPermissionsRoute
+  AuthenticatedSettingsPrivacyRoute: typeof AuthenticatedSettingsPrivacyRoute
   AuthenticatedSettingsSecurityRoute: typeof AuthenticatedSettingsSecurityRoute
   AuthenticatedSettingsTeamRoute: typeof AuthenticatedSettingsTeamRoute
   AuthenticatedSettingsIndexRoute: typeof AuthenticatedSettingsIndexRoute
@@ -817,6 +858,7 @@ const AuthenticatedSettingsRouteChildren: AuthenticatedSettingsRouteChildren = {
   AuthenticatedSettingsDataExportRoute: AuthenticatedSettingsDataExportRoute,
   AuthenticatedSettingsGeneralRoute: AuthenticatedSettingsGeneralRoute,
   AuthenticatedSettingsPermissionsRoute: AuthenticatedSettingsPermissionsRoute,
+  AuthenticatedSettingsPrivacyRoute: AuthenticatedSettingsPrivacyRoute,
   AuthenticatedSettingsSecurityRoute: AuthenticatedSettingsSecurityRoute,
   AuthenticatedSettingsTeamRoute: AuthenticatedSettingsTeamRoute,
   AuthenticatedSettingsIndexRoute: AuthenticatedSettingsIndexRoute,
@@ -895,6 +937,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   DevToastsRoute: DevToastsRoute,
   LoginRoute: LoginRoute,
+  PrivacyChoicesRoute: PrivacyChoicesRoute,
   RecoveryRoute: RecoveryRoute,
   RegisterRoute: RegisterRoute,
   VerifyEmailRoute: VerifyEmailRoute,

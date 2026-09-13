@@ -20,7 +20,7 @@ const loginApi = ky.create({
   },
 })
 
-export function oauthGoogle(token: string): Promise<AuthResponse> {
+export function oauthGoogle(token: string): Promise<AuthResponse & { isNewUser: boolean }> {
   return loginApi.post('api/auth/oauth/google', { json: { token } }).json()
 }
 

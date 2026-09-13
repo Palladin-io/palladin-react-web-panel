@@ -1,105 +1,98 @@
-import posthog, { type CaptureResult } from 'posthog-js'
-import { env } from './env.ts'
+import { env } from './env'
 
-let initialized = false
+const UI_EVENTS = new Set([
+  'vault:password-generated', 'recovery:recovery-started', 'recovery:recovery-failed',
+  'agents:browser-pairing-approval-submitted', 'agents:browser-pairing-rejection-submitted',
+  'search:search-result-selected', 'entry:detail-tab-switched', 'unlock:vault-unlocked', 'unlock:unlock-failed',
+  'onboarding:recovery-key-confirmed', 'billing:upgrade-prompt-shown', 'billing:upgrade-prompt-clicked',
+  'vault:create-wizard-opened', 'vault:create-wizard-failed', 'vault:create-entry-wizard-opened',
+  'vault:create-entry-wizard-failed', 'vault:import-failed', 'vault:entry-reveal-opened',
+  'dashboard:onboarding-mobile-clicked', 'dashboard:onboarding-mobile-skipped',
+  'dashboard:onboarding-entry-clicked', 'dashboard:onboarding-agent-clicked', 'dashboard:onboarding-skipped',
+  'agents:setup-message-copied', 'auth:verification-email-resent',
+])
 
-const LOCATION_PROPERTIES = [
-  '$current_url',
-  '$host',
-  '$pathname',
-  '$referrer',
-  '$referring_domain',
-  '$initial_current_url',
-  '$initial_host',
-  '$initial_pathname',
-  '$initial_referrer',
-  '$initial_referring_domain',
-  '$session_entry_url',
-  '$session_entry_host',
-  '$session_entry_pathname',
-  '$session_entry_referrer',
-  '$session_entry_referring_domain',
-] as const
-
-function withoutLocationProperties(properties: CaptureResult['properties']): CaptureResult['properties'] {
-  const sanitized = { ...properties }
-  for (const property of LOCATION_PROPERTIES) delete sanitized[property]
-  for (const container of ['$set', '$set_once'] as const) {
-    const nested = sanitized[container]
-    if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
-      sanitized[container] = withoutLocationProperties(nested)
-    }
-  }
-  return sanitized
+interface AnalyticsOptions {
+  projectKey: string
+  host: string
+  released: boolean
+  request?: typeof fetch
+  now?: () => number
+  uuid?: () => string
+  online?: () => boolean
 }
 
-export function stripAnalyticsLocation(event: CaptureResult | null): CaptureResult | null {
-  if (event === null) return null
+export function createAnalytics({ projectKey, host, released, request = fetch, now = Date.now,
+  uuid = () => crypto.randomUUID(), online = () => navigator.onLine }: AnalyticsOptions) {
+  let userId: string | null = null
+  let validUntil = 0
+  let sessionId: string | null = null
+  let expiry: ReturnType<typeof setTimeout> | undefined
+  let activationAllowed: (() => boolean) | null = null
+  const pending = new Set<AbortController>()
+  const configured = released && !!projectKey && host.replace(/\/$/, '') === 'https://eu.i.posthog.com'
+
+  function reset() {
+    userId = null
+    validUntil = 0
+    sessionId = null
+    activationAllowed = null
+    clearTimeout(expiry)
+    for (const controller of pending) controller.abort()
+    pending.clear()
+  }
+
+  function enabled() {
+    if (!configured || !userId || now() >= validUntil || !activationAllowed?.() || !online()) {
+      reset()
+      return false
+    }
+    return true
+  }
+
+  function authorize(accountId: string, expiresAt: number, localActivationAllowed: () => boolean) {
+    if (userId !== accountId) reset()
+    userId = accountId
+    validUntil = expiresAt
+    activationAllowed = localActivationAllowed
+    if (!enabled()) return
+    clearTimeout(expiry)
+    expiry = setTimeout(reset, Math.max(0, expiresAt - now()))
+  }
+
+  function send(event: string, properties: Record<string, string | boolean>) {
+    if (!enabled() || pending.size >= 5) return
+    sessionId ??= uuid()
+    const distinctId = userId
+    const session = sessionId
+    const controller = new AbortController()
+    pending.add(controller)
+    const timeout = setTimeout(() => controller.abort(), 5000)
+    void Promise.resolve().then(() => {
+      if (controller.signal.aborted || !enabled() || userId !== distinctId) return
+      return request('https://eu.i.posthog.com/i/v0/e/', {
+        method: 'POST', credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer',
+        signal: controller.signal, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: projectKey, event, distinct_id: distinctId,
+          properties: { ...properties, $session_id: session, $process_person_profile: false, $geoip_disable: true },
+          timestamp: new Date(now()).toISOString(),
+        }),
+      })
+    }).catch(() => undefined).finally(() => { clearTimeout(timeout); pending.delete(controller) })
+  }
+
   return {
-    ...event,
-    properties: withoutLocationProperties(event.properties),
-    ...(event.$set ? { $set: withoutLocationProperties(event.$set) } : {}),
-    ...(event.$set_once ? { $set_once: withoutLocationProperties(event.$set_once) } : {}),
+    authorize, reset,
+    capture(module: string, event: string, _properties?: Record<string, unknown>) {
+      // Existing callers may supply properties. This transport deliberately accepts none.
+      void _properties
+      if (UI_EVENTS.has(`${module}:${event}`)) send(`fe:${module}:${event}`, {})
+    },
+    pageview(routeId: string) { send('$pageview', { route: routeId }) },
+    getSessionId(): string | undefined { return enabled() ? sessionId ?? undefined : undefined },
   }
 }
 
-export const analytics = {
-  init() {
-    if (initialized || !env.posthogKey) {
-      return
-    }
-
-    posthog.init(env.posthogKey, {
-      api_host: env.posthogHost,
-      // ─── Zero-knowledge hardening ──────────────────────────────────────────
-      // This is a password manager: PostHog must NEVER be able to capture the
-      // contents of an input or a revealed secret.
-      //   • autocapture off — no automatic capture of clicks/inputs/text, which
-      //     could otherwise scrape field values or DOM text.
-      //   • session recording off — we never record the screen. The mask config
-      //     below is belt-and-suspenders in case recording is ever toggled on
-      //     from the PostHog UI: every input value and all text is masked.
-      // Secret inputs / revealed values additionally carry `.ph-no-capture`.
-      autocapture: false,
-      // Auth and pairing deep links contain opaque one-time handles in their
-      // path/query. Page navigation is therefore never captured automatically.
-      capture_pageview: false,
-      capture_pageleave: false,
-      // PostHog's feature-flag request does not pass through before_send and
-      // otherwise includes the initial browser URL as person properties.
-      // Palladin does not consume client-side flags, so disable that channel
-      // and prevent the SDK from persisting campaign/referrer URLs.
-      save_campaign_params: false,
-      save_referrer: false,
-      advanced_disable_feature_flags: true,
-      advanced_disable_feature_flags_on_first_load: true,
-      // Manual captures are enriched with the current location by the SDK.
-      // Strip every location/referrer field after enrichment so opaque auth and
-      // pairing handles never leave the browser through telemetry.
-      before_send: stripAnalyticsLocation,
-      disable_session_recording: true,
-      session_recording: {
-        maskAllInputs: true,
-        maskTextSelector: '*',
-      },
-    })
-
-    initialized = true
-  },
-
-  capture(module: string, event: string, properties?: Record<string, unknown>) {
-    posthog.capture(`fe:${module}:${event}`, properties)
-  },
-
-  getSessionId(): string | undefined {
-    return posthog.get_session_id?.()
-  },
-
-  identify(userId: string, properties?: Record<string, unknown>) {
-    posthog.identify(userId, properties)
-  },
-
-  reset() {
-    posthog.reset()
-  },
-}
+export const analytics = createAnalytics({
+  projectKey: env.posthogKey, host: env.posthogHost, released: env.clientAnalyticsReleased,
+})

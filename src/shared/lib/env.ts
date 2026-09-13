@@ -26,6 +26,7 @@ export const env = {
   signalrHubUrl: requireEnv('VITE_SIGNALR_HUB_URL'),
   posthogKey: optionalEnv('VITE_POSTHOG_KEY'),
   posthogHost: optionalEnv('VITE_POSTHOG_HOST'),
+  clientAnalyticsReleased: optionalEnv('VITE_CLIENT_ANALYTICS_RELEASED') === 'true',
 
   // Firebase Cloud Messaging (Web Push). All optional — when any of these are
   // empty, web push is simply disabled (see `isFirebaseConfigured`). The web

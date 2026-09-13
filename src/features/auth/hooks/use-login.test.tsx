@@ -72,4 +72,12 @@ describe('Google exchange ownership', () => {
     expect(revokeMock).toHaveBeenCalledExactlyOnceWith(sessionB.refreshToken)
     expect(request.finish).toHaveBeenCalledOnce()
   })
+
+  it('offers privacy choices to a newly created OAuth account and preserves its destination', async () => {
+    oauthGoogleMock.mockResolvedValue({ accessToken: 'access', refreshToken: 'refresh', userId: 'new-user', isOnboarded: false, isNewUser: true })
+    const { result } = renderHook(() => useLogin('/agent-pairing/opaque-handle'), { wrapper })
+    await act(async () => { await result.current.mutateAsync(input()) })
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/privacy-choices', search: { redirect: '/agent-pairing/opaque-handle' } })
+  })
 })

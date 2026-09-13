@@ -779,3 +779,9 @@ Regression tests cover SDK callback correlation, close/unmount/expiry, profile
 cleanup failure, real shared receiver denial, and a late account-B response while
 account A holds keys. They exercise the real client state and synthetic provider
 responses; they do not claim a live Google account authorization test.
+
+Account consent and analytics activation use the shared [privacy feature](privacy.md),
+with separate post-registration and Settings → Privacy surfaces. Only session-guarded
+routes opt in through `staticData.consentSession`; public auth routes, including
+`/verify-email?token=…`, cannot start consent reads/session restoration. The token
+verification flow retains ownership of its own explicit session refresh.

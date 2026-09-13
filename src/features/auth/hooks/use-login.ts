@@ -1,6 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import type { AuthResponse } from '../../../shared/api/types'
 import { oauthGoogle, revokeUninstalledLoginSession } from '../api/auth-api'
 import { useAuthStore } from '../stores/auth-store'
 
@@ -14,7 +13,7 @@ export function useLogin(redirectTo = '/') {
   const navigate = useNavigate()
   return useMutation({
     mutationFn: async (attempt: OAuthLoginAttempt) => {
-      let issued: AuthResponse | null = null
+      let issued: Awaited<ReturnType<typeof oauthGoogle>> | null = null
       let installed = false
       try {
         attempt.assertCurrent()
@@ -27,7 +26,11 @@ export function useLogin(redirectTo = '/') {
         state.setTokens(issued)
         attempt.assertCurrent()
         installed = true
-        void navigate({ href: redirectTo })
+        if (issued.isNewUser) {
+          void navigate({ to: '/privacy-choices', search: { redirect: redirectTo } })
+        } else {
+          void navigate({ href: redirectTo })
+        }
         return issued
       } finally {
         if (issued && !installed) void revokeUninstalledLoginSession(issued.refreshToken)
