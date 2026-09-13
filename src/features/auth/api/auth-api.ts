@@ -3,7 +3,7 @@ import { api } from '../../../shared/api/client'
 import type { AuthResponse } from '../../../shared/api/types'
 import { clearClientSession } from '../session/client-session'
 
-export function oauthGoogle(token: string): Promise<AuthResponse> {
+export function oauthGoogle(token: string): Promise<AuthResponse & { isNewUser: boolean }> {
   return api.post('api/auth/oauth/google', { json: { token } }).json()
 }
 

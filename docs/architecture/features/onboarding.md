@@ -29,3 +29,6 @@ is added to Dashboard. Opening requires AgentManage and either ReadApiKey or Wri
 while WriteApiKey controls the existing-key prerequisite hint. A write-only user can create
 a new key during approval without reading or selecting existing keys. Key selection/creation happens at approval;
 manual API-key management remains available in settings.
+
+Account consent and analytics activation use the shared [privacy feature](privacy.md),
+with separate post-registration and Settings → Privacy surfaces.

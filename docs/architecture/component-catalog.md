@@ -22,6 +22,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `EntryIconButton` | `vaults/components/entry-icon-button.tsx` | Inline entry-icon button that opens the icon/colour picker in a portaled popover (used next to the Label input) | `icon`, `color`, `type`, `onChange`, `onColorChange`, `onFileSelected`, `disabled?`. |
 | `ScriptExecHint` | `vaults/components/script-exec-hint.tsx` | Calm `--cv-script` "runs on the agent via exec" annotation under the script editor (not a WarningZone) | none. |
 | `DialogFooter` | `shared/components/dialog-footer.tsx` | Modal footer strip: edge-bleed negative margin, top border, tinted bg | `children` (buttons use `flex-1` / `flex-[2]`). |
+| `DialogSurface` | `shared/components/dialog-surface.tsx` | Canonical compact header/body/footer chrome used by ModalShell; modal semantics and backdrop belong to the shell | `title`, `footer?`, `onClose?`, `width` (default 560), `children`. |
 | `ModalShell` | `shared/components/modal-shell.tsx` | Modal scaffold: backdrop, Escape dismiss, body scroll lock, and (with `title`) the canonical header+divider / scroll body / divided footer chrome | `onClose?`, `ariaLabel`, `title?` (ReactNode → renders header + close + divider + scroll body), `footer?` (DialogFooter), `width` (default 480; 560 for forms), `children`. See `docs/architecture/dialogs.md`. |
 | `Icon` | `shared/components/icon.tsx` | Bundled Lucide SVG wrapper with stable legacy names | `name`, `size` (default 18), `color`, `className`, `ariaHidden`, `style`. Unknown names render a local question-mark SVG. |
 | `Tooltip` | `shared/components/tooltip.tsx` | 150ms-delay tooltip portaled to body; shows only when text is truncated | `content`, `children`, `className`, `delayMs`. |
@@ -42,7 +43,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `ErrorBoundary` | `shared/components/error-boundary.tsx` | Per-feature route error boundary | standard class-component boundary. |
 | `ResponsiveMasterDetail` | `shared/components/responsive-master-detail.tsx` | Canonical responsive list/detail layout | `master`, `detail`, `hasSelection`, accessible panel labels; wide dual-column, narrow route-driven drill-in. |
 | `DetailTabBar<T>` | `shared/components/detail-tab-bar.tsx` | Canonical pinned tab strip for detail panels | `tabs`, `active`, `onChange`, `ariaLabel`, `wide?`, `leading?`, `actions?`; uses a stable font weight to prevent tab shifts, hides the narrow-panel overflow thumb, and supports disabled tabs. On narrow route drill-in, pass the back control through `leading` so it shares the fixed-height tab row; never render a navigation-only row above the tabs. |
-| `SettingsSectionPage` | `shared/components/settings-section-page.tsx` | Pinned Settings section header + internally scrolling, left-aligned content | `title`, `subtitle`, `children`. |
+| `SettingsSectionPage` | `shared/components/settings-section-page.tsx` | Internally scrolling, left-aligned Settings content; optional screen-reader header when the child does not own its title | `title?`, `subtitle?`, `children`. |
 
 ## Shared helpers (`shared/lib/`)
 

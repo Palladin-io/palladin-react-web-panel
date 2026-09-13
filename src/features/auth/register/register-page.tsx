@@ -57,7 +57,7 @@ export function RegisterPage() {
         recoveryMnemonic: mnemonic,
       },
       {
-        onSuccess: () => navigate({ to: '/' }),
+        onSuccess: () => navigate({ to: '/privacy-choices' }),
         onError: (err) => {
           // A 409 means the email is already registered — tell the user exactly
           // that (and to sign in) instead of a generic "try again" they'd loop on.

@@ -25,7 +25,9 @@ async function startApplication(applicationRoot: Root): Promise<void> {
     import('./shared/lib/analytics.ts'),
   ])
 
-  analytics.init()
+  analytics.reset()
+  const { clearLegacyAnalytics } = await import('./shared/lib/clear-legacy-analytics.ts')
+  clearLegacyAnalytics()
   applicationRoot.render(
     <StrictMode>
       <App />

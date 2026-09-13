@@ -1,3 +1,4 @@
+import { PrivacyPrompt } from '../features/privacy'
 import {
   createFileRoute,
   Link,
@@ -38,6 +39,7 @@ import {
 import { MemberSyncProvider, RotationProvider } from '../features/vaults'
 
 export const Route = createFileRoute('/_authenticated')({
+  staticData: { consentSession: true },
   beforeLoad: ({ location }) => {
     const { accessToken, refreshToken, isVaultLocked, emailVerified } =
       useAuthStore.getState()
@@ -185,7 +187,7 @@ function AuthenticatedLayout() {
             >
               <AppSidebar currentPath={pathname} />
               <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                <WaitlistDeveloperBenefitDialog />
+                <PrivacyPrompt fallback={<WaitlistDeveloperBenefitDialog />} />
                 <div className="subtle-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
                   <Outlet />
                 </div>
