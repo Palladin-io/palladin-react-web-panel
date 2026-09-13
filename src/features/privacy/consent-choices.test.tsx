@@ -1,7 +1,7 @@
 import { HTTPError } from 'ky'
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { onlineManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { UserConsent, UserConsents } from '../../shared/api/consents-api'
 import { ConsentChoices } from './consent-choices'
@@ -27,7 +27,12 @@ vi.mock('../../shared/api/consents-api', () => ({
   consentQueryKey: (userId: string, locale: string) => ['account-consents', userId, locale],
 }))
 vi.mock('../../shared/lib/analytics', () => ({ analytics: { reset: mocks.reset, authorize: mocks.authorize, pageview: mocks.pageview } }))
-vi.mock('@tanstack/react-router', () => ({ useRouterState: () => mocks.pathname }))
+vi.mock('@tanstack/react-router', () => ({
+  useRouterState: ({ select }: { select: (state: unknown) => unknown }) => select({
+    location: { pathname: mocks.pathname },
+    matches: [{ routeId: mocks.pathname, staticData: { consentSession: true } }],
+  }),
+}))
 vi.mock('sonner', () => ({ toast: { success: mocks.success, error: mocks.error } }))
 
 function consent(purpose: UserConsent['purpose'] = 'product_analytics'): UserConsent {
@@ -54,7 +59,7 @@ describe('account privacy choices', () => {
     mocks.get.mockImplementation(async () => structuredClone(state))
     mocks.update.mockReset()
   })
-  afterEach(async () => { cleanup(); client?.clear(); await i18n.changeLanguage('en') })
+  afterEach(async () => { cleanup(); client?.clear(); onlineManager.setOnline(true); await i18n.changeLanguage('en') })
 
   function autoSave() {
     mocks.update.mockImplementation(async (purpose, decision) => {
@@ -115,6 +120,47 @@ describe('account privacy choices', () => {
       expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
       view.unmount(); client.clear()
     }
+  })
+
+  it.each([
+    ['Save choice', 'Close'], ['Save choice', 'Escape'], ['Save choice', 'backdrop'],
+    ['Accept all', 'Close'], ['Accept all', 'Escape'], ['Accept all', 'backdrop'],
+  ])('offline paused-mutation conditions: %s fails immediately and allows %s without reconnect writes', async (action, dismiss) => {
+    autoSave(); mount(undefined, true)
+    await screen.findAllByRole('switch')
+    act(() => onlineManager.setOnline(false))
+    await userEvent.click(screen.getByRole('button', { name: action }))
+    expect(await screen.findByRole('button', { name: 'Retry saving' })).toBeEnabled()
+    expect(client.getMutationCache().getAll().every(m => m.state.status === 'error' && !m.state.isPaused)).toBe(true)
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(mocks.authorize).not.toHaveBeenCalled()
+    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    if (dismiss === 'Close') await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    else if (dismiss === 'Escape') await userEvent.keyboard('{Escape}')
+    else await userEvent.click(screen.getByRole('dialog').parentElement!.querySelector('[aria-hidden="true"]')!)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await act(async () => { onlineManager.setOnline(true); await client.resumePausedMutations() })
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(mocks.success).not.toHaveBeenCalled()
+    expect(mocks.authorize).not.toHaveBeenCalled()
+    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+  })
+
+  it.each(['Save choice', 'Accept all'])('offline %s retries only explicitly with the original decisions after reconnect', async action => {
+    autoSave(); const next = vi.fn(); mount(next)
+    await screen.findAllByRole('switch')
+    act(() => onlineManager.setOnline(false))
+    await userEvent.click(screen.getByRole('button', { name: action }))
+    await screen.findByRole('button', { name: 'Retry saving' })
+    const original = client.getMutationCache().getAll()[0].state.variables
+    await act(async () => { onlineManager.setOnline(true); await client.resumePausedMutations() })
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(next).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Retry saving' }))
+    await waitFor(() => expect(next).toHaveBeenCalledOnce())
+    expect(mocks.update).toHaveBeenCalledTimes(2)
+    expect(client.getMutationCache().getAll()[1].state.variables).toEqual(original)
+    expect(mocks.update.mock.calls.map(([, decision]) => decision.granted)).toEqual([action === 'Accept all', action === 'Accept all'])
   })
 
   it('settings closes by Escape to its focused launcher, reopens by keyboard, and never stacks the startup prompt', async () => {

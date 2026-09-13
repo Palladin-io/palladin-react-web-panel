@@ -39,6 +39,7 @@ import {
 import { MemberSyncProvider, RotationProvider } from '../features/vaults'
 
 export const Route = createFileRoute('/_authenticated')({
+  staticData: { consentSession: true },
   beforeLoad: ({ location }) => {
     const { accessToken, refreshToken, isVaultLocked, emailVerified } =
       useAuthStore.getState()

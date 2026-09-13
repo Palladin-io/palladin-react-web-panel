@@ -30,7 +30,7 @@ export function Preview() {
     </div><Toaster />
   </QueryClientProvider>
 }
-const rootRoute = createRootRoute({ component: Preview })
+const rootRoute = createRootRoute({ component: Preview, staticData: { consentSession: true } })
 function Startup() {
   const navigate = useNavigate()
   return <ConsentChoices source="web_onboarding" onContinue={() => {

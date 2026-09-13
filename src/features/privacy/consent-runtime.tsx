@@ -17,7 +17,7 @@ export function ConsentRuntime() {
 
   useEffect(() => {
     const userId = consents.userId
-    if (!userId || !accessToken || consents.isError || !locallyActive) {
+    if (!consents.sessionAllowed || !userId || !accessToken || consents.isError || !locallyActive) {
       analytics.reset()
       if (userId && consent && consent.status !== 'granted' && activationRevision) setLocalAnalyticsActivation(userId, null)
       return
@@ -27,11 +27,11 @@ export function ConsentRuntime() {
       return useAuthStore.getState().userId === userId && !!useAuthStore.getState().accessToken
         && matchesCurrentAnalyticsActivation(consent, current)
     })
-  }, [consents.userId, accessToken, consents.isError, consent, locallyActive, activationRevision, deadline])
+  }, [consents.sessionAllowed, consents.userId, accessToken, consents.isError, consent, locallyActive, activationRevision, deadline])
 
   useEffect(() => {
-    analytics.pageview(routeId)
-  }, [routeId, consent?.activationRevision, activation?.activationRevision])
+    if (consents.sessionAllowed) analytics.pageview(routeId)
+  }, [consents.sessionAllowed, routeId, consent?.activationRevision, activation?.activationRevision])
 
   useEffect(() => {
     const suspend = () => analytics.reset()

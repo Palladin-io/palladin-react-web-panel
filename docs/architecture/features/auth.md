@@ -32,4 +32,7 @@ Session-token storage: the access token is kept **in memory only** (never persis
 `useAuthStore` is consumed by **every** feature for JWT, permissions, and lock state — the one acceptable cross-cutting store. Route guards key off its `isVaultLocked` / `isOnboarded` flags. Registration and onboarding share `shared/lib/create-default-vault-safe` (relocated from onboarding so both entry paths can seed the default vault without a feature→feature import).
 
 Account consent and analytics activation use the shared [privacy feature](privacy.md),
-with separate post-registration and Settings → Privacy surfaces.
+with separate post-registration and Settings → Privacy surfaces. Only session-guarded
+routes opt in through `staticData.consentSession`; public auth routes, including
+`/verify-email?token=…`, cannot start consent reads/session restoration. The token
+verification flow retains ownership of its own explicit session refresh.

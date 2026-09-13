@@ -9,6 +9,7 @@ import { RecoveryPage } from '../features/recovery'
  * backend enforces it) so we bounce unauthenticated visitors to /login.
  */
 export const Route = createFileRoute('/recovery')({
+  staticData: { consentSession: true },
   beforeLoad: () => {
     // accessToken is in-memory only (null after reload); a persisted refresh token still counts as authenticated.
     const { accessToken, refreshToken } = useAuthStore.getState()

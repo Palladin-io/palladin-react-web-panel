@@ -9,7 +9,12 @@ purposes can remain off, and continuing does not imply a grant.
 `ConsentChoices` renders the server's current PL/EN notice and keeps save failures
 visible. The mutation includes expected revision, request ID, notice version,
 notice language and `web_onboarding`/`web_settings`. An ambiguous network/transient
-failure retains the identical request for retry.
+failure retains the identical request for retry. Mutations use `networkMode: 'always'`
+and `retry: false`, rejecting known offline saves before the PUT instead of pausing
+in TanStack's reconnect queue. The failure restores Retry and Close/Escape/backdrop
+immediately; reconnect never submits a decision. Explicit retry retains the original
+request IDs and unconfirmed remainder. An offline confirmation cannot activate
+analytics, even if a preceding PUT succeeded.
 A definitive rejection (including HTTP 409 revision conflict) awaits an authoritative
 refresh, discards pending requests and resets the draft. The form explains that the
 user must review/reconfirm; failed refresh keeps saving disabled until a successful
@@ -17,8 +22,15 @@ read. A new decision uses the current revision and a new request ID. The respons
 not treated as a successful local activation until the account session is still
 current and the preceding cached consent query has been refreshed.
 
-`ConsentRuntime` is mounted once at the router root, including onboarding and
-other auth routes. `useConsents` fetches after login, on focus/reconnect and every
+`ConsentRuntime` is mounted once at the router root. Consent reads and runtime
+activation require a matched route with `staticData.consentSession: true`, declared
+only on the session-guarded `_authenticated` layout (including unlock and Settings),
+`/privacy-choices` and `/recovery`. Public routes default off: `/login`, `/register`,
+`/verify-email` both with and without a token, dev and unmatched routes never start
+consent reads or restore a persisted session through optional consent. New public
+routes inherit that default without a pathname denylist. Leaving an eligible route
+cancels consent queries and resets transport; cached grants cannot bypass the gate.
+On eligible routes `useConsents` fetches after login, on focus/reconnect and every
 30 seconds. A snapshot expires according to server `maxAgeSeconds` (60 by default,
 maximum 300); the deadline starts before the read, not after a slow response.
 Unavailable, expired, denied, withdrawn or mismatched notice/activation state
