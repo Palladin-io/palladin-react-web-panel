@@ -1772,7 +1772,7 @@
     "essentialDescription": "Enable core features and help protect your account.",
     "product_analyticsDescription": "With your permission, analytics will help us improve the app based on how its features are used. Your vault contents are excluded.",
     "email_marketingDescription": "Choose whether to receive emails with Palladin news and offers.",
-    "essentialOnly": "Essential only",
+    "acceptAll": "Accept all",
     "saveChoice": "Save choice",
     "inactiveHere": "Off on this device",
     "activeHere": "Enabled on this device",

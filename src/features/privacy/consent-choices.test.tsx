@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -80,7 +80,7 @@ describe('account privacy choices', () => {
     expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
   })
 
-  it.each(['en', 'pl'] as const)('primary Save is immediately enabled with both off and records explicit denials in startup and settings (%s)', async locale => {
+  it.each(['en', 'pl'] as const)('outlined Save is immediately enabled with both off and records explicit denials in startup and settings (%s)', async locale => {
     await i18n.changeLanguage(locale)
     for (const startup of [true, false]) {
       state = { consents: [consent(), consent('email_marketing')], maxAgeSeconds: 60 }
@@ -95,9 +95,10 @@ describe('account privacy choices', () => {
       expect(surface.style.maxWidth).toBe('calc(480px * var(--cv-density-scale))')
       expect(surface).toContainElement(screen.getByTestId('modal-footer'))
       const save = screen.getByRole('button', { name: locale === 'pl' ? 'Zapisz wybór' : 'Save choice' })
-      const essential = screen.getByRole('button', { name: locale === 'pl' ? 'Tylko niezbędne' : 'Essential only' })
-      expect(save).toBeEnabled(); expect(save).toHaveClass('bg-[var(--cv-primary)]', 'flex-1', 'h-action')
-      expect(essential).toBeEnabled(); expect(essential).toHaveClass('flex-1', 'h-action')
+      const accept = screen.getByRole('button', { name: locale === 'pl' ? 'Akceptuj wszystkie' : 'Accept all' })
+      expect(within(screen.getByTestId('modal-footer')).getAllByRole('button')).toHaveLength(2)
+      expect(save).toBeEnabled(); expect(save).toHaveClass('bg-transparent', 'border-[var(--cv-btn-outline-border)]', 'flex-1', 'h-action')
+      expect(accept).toBeEnabled(); expect(accept).toHaveClass('bg-[var(--cv-primary)]', 'flex-1', 'h-action')
       await userEvent.click(save)
       await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(2))
       expect(mocks.update.mock.calls.map(([purpose, d]) => [purpose, d.granted])).toEqual([['product_analytics', false], ['email_marketing', false]])
@@ -148,13 +149,56 @@ describe('account privacy choices', () => {
     expect(readLocalAnalyticsActivation('privacy-user')).toEqual({ noticeVersion: 'test-v1', activationRevision: 1 })
   })
 
-  it('essential-only records refusals for both available purposes', async () => {
-    autoSave(); const next = vi.fn(); mount(next)
-    await screen.findAllByRole('switch')
-    await userEvent.click(screen.getByRole('button', { name: 'Essential only' }))
+  it.each(['en', 'pl'] as const)('Accept all confirms both purposes and activates this installation in both dialogs (%s)', async locale => {
+    await i18n.changeLanguage(locale)
+    for (const settings of [false, true]) {
+      state = { consents: [consent(), consent('email_marketing')], maxAgeSeconds: 60 }
+      mocks.update.mockClear(); autoSave()
+      const next = vi.fn(); const view = mount(settings ? undefined : next, settings)
+      for (const control of await screen.findAllByRole('switch')) expect(control).toHaveAttribute('aria-checked', 'false')
+      await userEvent.click(screen.getByRole('button', { name: locale === 'pl' ? 'Akceptuj wszystkie' : 'Accept all' }))
+      await waitFor(() => expect(readLocalAnalyticsActivation('privacy-user')).toEqual({ noticeVersion: 'test-v1', activationRevision: 1 }))
+      expect(mocks.update.mock.calls.map(([p, d]) => [p, d.granted])).toEqual([['email_marketing', true], ['product_analytics', true]])
+      if (settings) await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      else expect(next).toHaveBeenCalledOnce()
+      view.unmount(); client.clear(); localStorage.clear()
+    }
+  })
+
+  it.each(['product_analytics', 'email_marketing'] as const)('Accept all cannot grant either purpose when %s notice is missing', async purpose => {
+    state.consents = state.consents.map(c => c.purpose === purpose ? { ...c, currentNotice: null } : c)
+    mount(); await screen.findAllByRole('switch')
+    expect(screen.getByRole('button', { name: 'Accept all' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Accept all' }))
+    expect(mocks.update).not.toHaveBeenCalled()
+  })
+
+  it('Accept all partial failure remains open and retry activates only after confirmation, without replaying marketing', async () => {
+    autoSave(); const update = mocks.update.getMockImplementation()!
+    let fail = true
+    mocks.update.mockImplementation((p, d) => p === 'product_analytics' && fail ? Promise.reject(new Error('offline')) : update(p, d))
+    const next = vi.fn(); mount(next); await screen.findAllByRole('switch')
+    await userEvent.click(screen.getByRole('button', { name: 'Accept all' }))
+    await waitFor(() => expect(mocks.error).toHaveBeenCalledOnce())
+    expect(next).not.toHaveBeenCalled(); expect(mocks.success).not.toHaveBeenCalled()
+    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    expect(screen.getByRole('dialog')).toBeVisible()
+    fail = false
+    await userEvent.click(screen.getByRole('button', { name: 'Retry saving' }))
     await waitFor(() => expect(next).toHaveBeenCalledOnce())
-    expect(mocks.update.mock.calls.every(([, d]) => d.granted === false)).toBe(true)
+    expect(mocks.update.mock.calls.map(([p]) => p)).toEqual(['email_marketing', 'product_analytics', 'product_analytics'])
+    expect(mocks.update.mock.calls[2]).toEqual(mocks.update.mock.calls[1])
+    expect(readLocalAnalyticsActivation('privacy-user')).toEqual({ noticeVersion: 'test-v1', activationRevision: 1 })
+  })
+
+  it('Accept all explicitly activates this installation even with existing account grants', async () => {
+    state.consents = state.consents.map(c => ({ ...c, status: 'granted', revision: 1, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }))
+    autoSave(); mount(); await screen.findAllByRole('switch')
+    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Accept all' }))
+    await waitFor(() => expect(mocks.success).toHaveBeenCalledOnce())
     expect(mocks.update).toHaveBeenCalledTimes(2)
+    expect(readLocalAnalyticsActivation('privacy-user')).not.toBeNull()
   })
 
   it('does not fabricate decisions when active notices are empty', async () => {
@@ -162,7 +206,8 @@ describe('account privacy choices', () => {
     const next = vi.fn(); mount(next)
     for (const option of await screen.findAllByRole('switch')) expect(option).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Save choice' })).toBeDisabled()
-    await userEvent.click(screen.getByRole('button', { name: 'Essential only' }))
+    expect(screen.getByRole('button', { name: 'Accept all' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(next).toHaveBeenCalledOnce(); expect(mocks.update).not.toHaveBeenCalled()
   })
 

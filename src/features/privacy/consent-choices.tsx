@@ -65,14 +65,18 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
     } finally { setSaving(false) }
   }
 
-  function save(essentialOnly = false, activateHere = false) {
-    if (essentialOnly) { stopHere(); setDraft({ product_analytics: false, email_marketing: false }) }
+  function save(acceptAll = false, activateHere = false) {
+    if (saving || query.isPending || query.isError || (acceptAll && unavailable)) return
+    if (acceptAll) { stopHere(); setDraft({ product_analytics: true, email_marketing: true }) }
+    // Confirm marketing first: the last confirmed analytics grant activates this
+    // installation, including after retry of an unconfirmed partial save.
+    const orderedRows = acceptAll ? [...rows].reverse() : rows
     const attempts: Attempt[] = []
-    for (const consent of rows) {
+    for (const consent of orderedRows) {
       if (!consent) continue
-      const selected = essentialOnly ? false : granted(consent)
+      const selected = acceptAll || granted(consent)
       const activate = activateHere && consent.purpose === 'product_analytics'
-      if (!activate && selected === (consent.status === 'granted') && consent.status !== 'unknown') continue
+      if (!acceptAll && !activate && selected === (consent.status === 'granted') && consent.status !== 'unknown') continue
       const version = consent.currentNotice?.version ?? consent.noticeVersion
       const locale = consent.currentNotice?.locale ?? consent.noticeLocale
       // An unavailable notice never becomes a fabricated consent or API decision.
@@ -82,14 +86,14 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
         noticeVersion: version, locale, source,
       } })
     }
-    if (attempts.length === 0) { if (essentialOnly || !unavailable) onContinue?.(); return }
+    if (attempts.length === 0) { if (!unavailable) onContinue?.(); return }
     void persist(attempts)
   }
 
   const unavailable = rows.some(row => !row?.currentNotice)
   const actions = <DialogFooter>
-    <Button size="sm" variant="subtle" className="flex-1" disabled={saving} onClick={() => save(true)}>{t('privacy.essentialOnly')}</Button>
-    <Button size="sm" variant="accent" className="flex-1" disabled={saving || query.isPending || query.isError || rows.every(row => !row?.currentNotice && row?.status !== 'granted')} onClick={() => save()}>{t(saving ? 'privacy.saving' : 'privacy.saveChoice')}</Button>
+    <Button size="sm" variant="outline" className="flex-1" disabled={saving || query.isPending || query.isError || rows.every(row => !row?.currentNotice && row?.status !== 'granted')} onClick={() => save()}>{t('privacy.saveChoice')}</Button>
+    <Button size="sm" variant="accent" className="flex-1" disabled={saving || query.isPending || query.isError || unavailable} onClick={() => save(true)}>{t(saving ? 'privacy.saving' : 'privacy.acceptAll')}</Button>
   </DialogFooter>
   const content = <div className="flex flex-col gap-4">
     <p className="text-ui text-[var(--cv-t2)]">{t('privacy.subtitle')}</p>

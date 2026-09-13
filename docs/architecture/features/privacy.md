@@ -69,7 +69,8 @@ not a stored denial or permission. The user can continue without optional consen
 
 Essential is informational and always active, without a switch. Product analytics
 and email news/offers start off when unknown. Switches edit a draft, then equal
-Essential only / Save choice actions commit the two purposes. Full current notices
+outlined Save choice / brand-primary Accept all actions commit decisions.
+Save preserves the switches; Accept all explicitly grants both purposes. Full current notices
 remain expandable before deciding; short explanatory labels do not replace the
 backend notice version/text or activate the empty release catalogue.
 
@@ -79,7 +80,7 @@ for an identical idempotent retry. Turning analytics off suspends local capture
 before Save. Errors and dismissal fail closed. Saving an unrelated marketing change
 never activates a previously inactive installation. Settings shows a simple local
 on/off status and an explicit Enable on this device action; only the initial
-analytics grant or that activation action enables the current installation.
+analytics grant, Accept all, or that activation action enables the current installation.
 
 The debug preview uses real widgets/components and the normal consent data path
 against a local synthetic API. It is visibly labelled TEST FIXTURE. It cannot run
@@ -87,8 +88,8 @@ as a released preview and never configures an analytics key. Production entrypoi
 active notices, authentication and release configuration are unchanged.
 
 Consent is the explicit exception to the usual confirm/cancel 1:2 footer ratio:
-both actions keep flex-1 and the same height; Save uses the brand accent variant
-and Essential only uses subtle. The first-entry prompt takes
+both actions keep flex-1 and the same height; Save uses outline and Accept all
+uses the brand accent variant. The first-entry prompt takes
 precedence over the existing developer-benefit dialog, so modal layers do not stack.
 
 ## Dialog-only startup and settings (owner decision, 2026-09-13)
@@ -100,7 +101,7 @@ The form never appears as an embedded panel on the Settings page.
 
 The /settings/privacy route auto-opens once per mount, over SettingsLayout and the
 existing authenticated shell. Closing by Escape, backdrop or Close leaves a small
-Manage choices launcher and restores focus to it. Save/Essential only close after
+Manage choices launcher and restores focus to it. Save/Accept all close after
 successful completion. An unchanged valid choice can close without a fabricated
 write; unknown off choices still produce explicit denials. Reopening is deliberate;
 query refreshes do not reopen a closed dialog. Browser Back keeps normal routing.
@@ -108,10 +109,27 @@ PrivacyPrompt yields this route completely (including the benefit fallback), and
 the explicit visit marks only the ephemeral first-entry prompt dismissal. It is
 not account consent and cannot enable collection.
 
-Save stays brand primary, Essential only secondary, with equal geometry. Defaults
+Save is outlined secondary, Accept all brand primary, with equal geometry. Defaults
 remain off for unknown optional purposes. Settings shows the existing server
 choice and per-device state, full notice details and explicit local activation.
 Dismissal stops the local transport/activation without changing the account;
 failed/partial saves stay in the modal with retry. All active notice/release gates
 are unchanged. The local preview now uses the actual SettingsLayout and TanStack
 routes to verify Back/navigation, while still using isolated synthetic API data.
+
+## Two-action footer (final owner decision, 2026-09-13)
+
+Startup and settings have exactly two footer actions: Save choice (outlined) and
+Accept all (brand red), with equal width/height. Unknown optional choices still
+start off; untouched Save records two explicit denials when notices are available.
+There is no Essential only footer action. Close/Escape/Back never create consent.
+
+Accept all requires both current notices and forces two affirmative decisions,
+even for existing account grants. It first stops local analytics, confirms marketing,
+then confirms analytics through the existing installation activation mechanism.
+Thus a partial failure leaves capture off and the dialog open; retry uses only the
+unconfirmed remainder with the original request IDs. Successful retry activates
+this installation only after both decisions are confirmed. The endpoints remain
+non-atomic; a confirmed account decision is not rolled back or hidden on failure.
+Ordinary Save retains existing draft/withdrawal/per-device behavior. No backend,
+canonical notices, marketing pipeline, telemetry scope or release gates changed.
