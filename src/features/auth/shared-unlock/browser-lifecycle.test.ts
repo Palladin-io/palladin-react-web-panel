@@ -61,10 +61,13 @@ describe('document-owned shared unlock connection', () => {
     const f = fixture(); const c = startSharedUnlockBrowserLifecycle(f.options); await settle(); f.owner.dispatchEvent(new Event('pagehide'))
     f.accept(); await settle(); expect(c.currentRoute()).toBeNull(); c.close()
   })
-  it('does not retry in background but repairs on visibility without activity', async () => {
+  it('repairs worker loss while Web is hidden without retiring or renewing its own session', async () => {
     const f = fixture(); const c = startSharedUnlockBrowserLifecycle(f.options); await settle(); f.accept(); await settle()
-    Object.assign(f.document, { visibilityState: 'hidden' }); f.ports[0].onDisconnect.emit(); await vi.advanceTimersByTimeAsync(60000); expect(f.ports).toHaveLength(1)
-    Object.assign(f.document, { visibilityState: 'visible' }); f.document.dispatchEvent(new Event('visibilitychange')); await settle(); expect(f.ports).toHaveLength(2)
+    const old = c.currentRoute()!
+    Object.assign(f.document, { visibilityState: 'hidden' }); f.ports[0].onDisconnect.emit()
+    await vi.advanceTimersByTimeAsync(1000); expect(f.ports).toHaveLength(2)
+    f.accept(); await settle(); expect(c.currentRoute()).not.toBeNull()
+    expect(() => old.assertCurrent()).toThrow()
     expect(f.options.retireDocument).not.toHaveBeenCalled(); c.close()
   })
   it('bounds retries for unavailable runtime and recovers if it appears', async () => {

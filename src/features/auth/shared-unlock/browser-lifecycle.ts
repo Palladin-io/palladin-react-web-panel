@@ -35,8 +35,9 @@ export function startSharedUnlockBrowserLifecycle(options: LifecycleOptions) {
   const assertDocument = () => { if (!activeDocument()) throw new Error('Shared unlock document retired') }
   const reconnect = () => {
     if (!activeDocument() || connection || retry !== null) return
-    // Foreground is not user activity. It only admits a new browser connection.
-    if (document.visibilityState === 'hidden') return
+    // A live background tab may supply a fresh handoff after worker loss.
+    // Reconnection is not activity and cannot renew either client's deadlines.
+    // pagehide/prerender retirement remains enforced by activeDocument().
     retry = setTimeout(() => { retry = null; connect() }, Math.min(30000, 1000 * 2 ** Math.min(failures++, 5)))
   }
   const connect = () => {

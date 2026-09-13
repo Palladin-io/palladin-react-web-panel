@@ -50,3 +50,13 @@ authenticates `/api/auth/logout` with that issued session's own access token and
 revokes its matching refresh-token lineage. It uses the captured original API,
 never the peer or current session's tokens. Cleanup remains best effort with a
 two-second bound; local key wiping does not depend on the network result.
+
+
+### Shared handoff after worker loss while Web is hidden
+
+A live Web document reconnects its verified browser channel after worker loss even
+when another tab is selected. The existing bounded retry backoff remains; hidden
+visibility alone does not retire a valid own session. Pagehide/BFCache,
+prerendering, changed origin and teardown still prevent connection and retire the
+old route. Reconnecting neither counts as user activity nor renews an unlock
+limit. The ordinary Identity/crypto/expiry gates still authorize every handoff.
