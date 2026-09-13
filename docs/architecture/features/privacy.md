@@ -133,3 +133,14 @@ this installation only after both decisions are confirmed. The endpoints remain
 non-atomic; a confirmed account decision is not rolled back or hidden on failure.
 Ordinary Save retains existing draft/withdrawal/per-device behavior. No backend,
 canonical notices, marketing pipeline, telemetry scope or release gates changed.
+
+
+## Email marketing copy and draft detail ownership
+
+The category is Email marketing / Marketing e-mailowy. Its short description
+separates optional Palladin news/offers from essential transactional and account
+messages, which do not depend on marketing consent. This does not implement a
+marketing sender. Full PL/EN details come from Identity's versioned catalogue;
+clients do not own or rewrite the notice. Controller identity/contact remain in
+the linked legal documents. Draft review uses the same details only in a marked
+localhost fixture; it does not populate the empty embedded active catalogue.

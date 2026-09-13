@@ -90,6 +90,8 @@ describe('account privacy choices', () => {
       const title = locale === 'pl' ? 'Twoja prywatność' : 'Your privacy'
       expect(screen.getAllByRole('heading', { name: title })).toHaveLength(1)
       expect(screen.getAllByRole('dialog')).toHaveLength(1)
+      expect(screen.getByRole('switch', { name: locale === 'pl' ? 'Marketing e-mailowy' : 'Email marketing' })).toHaveAttribute('aria-checked', 'false')
+      expect(screen.getByText(locale === 'pl' ? 'Wybierz, czy chcesz otrzymywać e-maile z nowościami i ofertami Palladin. Niezbędne wiadomości transakcyjne i dotyczące konta wysyłamy niezależnie od tego wyboru.' : 'Choose whether to receive emails with Palladin news and offers. Essential transactional and account messages are sent regardless of this choice.')).toBeVisible()
       for (const control of screen.getAllByRole('switch')) expect(control.closest('[role=dialog]')).not.toBeNull()
       const surface = screen.getByRole('heading', { name: title }).parentElement!.parentElement!
       expect(surface.style.maxWidth).toBe('calc(480px * var(--cv-density-scale))')
@@ -229,7 +231,7 @@ describe('account privacy choices', () => {
     state.consents[0] = { ...consent(), status: 'granted', revision: 1, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }
     autoSave(); mount()
     expect(await screen.findByText('Off on this device')).toBeVisible()
-    await userEvent.click(screen.getByRole('switch', { name: 'Email news and offers' }))
+    await userEvent.click(screen.getByRole('switch', { name: 'Email marketing' }))
     await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
     await waitFor(() => expect(mocks.success).toHaveBeenCalledOnce())
     expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
