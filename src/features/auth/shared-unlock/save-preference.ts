@@ -1,3 +1,4 @@
+import { combineAbortSignals } from "../../../shared/lib/combine-abort-signals";
 import { SharedUnlockApiError, type SharedUnlockApi, type SharedUnlockOwnSession } from './api'
 import type { SharedUnlockPreference } from './api-types'
 import type { SharedUnlockPreferenceGate } from './preference-gate'
@@ -12,7 +13,7 @@ export async function saveSharedUnlockPreference(input: {
   accept(preference: SharedUnlockPreference): void
 }, api: Pick<SharedUnlockApi, 'setPreference'>, gate: SharedUnlockPreferenceGate): Promise<SharedUnlockPreference> {
   const scope = { accountId: input.session.userId, apiUrl: input.session.apiUrl }
-  const abort = new AbortController(), signal = AbortSignal.any([abort.signal, input.signal])
+  const abort = new AbortController(), signal = combineAbortSignals([abort.signal, input.signal])
   const deadline = Date.now() + 10_000, timer = setTimeout(() => abort.abort(), 10_000)
   const check = () => {
     if (signal.aborted || Date.now() >= deadline) throw new SharedUnlockApiError('cancelled')

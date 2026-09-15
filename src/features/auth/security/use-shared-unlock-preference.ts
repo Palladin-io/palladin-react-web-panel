@@ -1,3 +1,4 @@
+import { combineAbortSignals } from "../../../shared/lib/combine-abort-signals";
 import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { env } from '../../../shared/lib/env'
@@ -48,7 +49,7 @@ export function useSharedUnlockPreference() {
       const own = captureOwnSession(accountId, generation)
       const timeout = AbortSignal.timeout(10_000)
       try {
-        const result = await api.readPreference(own.session, AbortSignal.any([signal, own.signal, timeout]))
+        const result = await api.readPreference(own.session, combineAbortSignals([signal, own.signal, timeout]))
         own.check(); own.accept(result)
         const locallyAllowed = await sharedUnlockPreferenceGate.isAllowed({ accountId: own.session.userId, apiUrl: own.session.apiUrl })
         own.check()
