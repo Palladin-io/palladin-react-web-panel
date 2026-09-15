@@ -558,11 +558,12 @@ and the remaining shared-unlock acceptance matrix remain open.
 
 ## Local pairing actions — pre-release Web increment
 
-Security now shows the saved local pairing separately from the account preference.
-The marker is not a claim that an extension is installed or currently reachable.
-Missing configuration/marker stays unavailable/missing, without first-use consent.
-Disconnect and Reconnect use localized confirmation dialogs with shared modal,
-footer and button components; identifiers and credentials are not displayed.
+Product update, 2026-09-15: Security presents only the account-level Shared unlock
+switch and a short description, with a vertically centered switch and compact
+padding. Local pairing status and Disconnect/Reconnect controls were removed
+from the settings UI at the owner's request. Loading and actionable save errors
+remain visible when needed. The protocol operations described below remain
+implemented and tested independently; they are no longer settings UI actions.
 
 Confirmed disconnect captures the exact own account/API/origin/extension scope,
 starts a durable disconnect intent and wipes keys synchronously. It retains the

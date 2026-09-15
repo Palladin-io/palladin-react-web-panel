@@ -4,7 +4,6 @@ import { ToggleSwitch } from '../../../../shared/components/toggle-switch'
 import { SharedUnlockApiError } from '../../shared-unlock/api'
 import { useAuthStore } from '../../stores/auth-store'
 import { useSharedUnlockPreference } from '../use-shared-unlock-preference'
-import { SharedUnlockLinkSection } from './shared-unlock-link-section'
 
 export function SharedUnlockSection() {
   const accountId = useAuthStore(state => state.userId)
@@ -22,8 +21,8 @@ function SharedUnlockAccountSection() {
   const busy = preference.isPending || save.isPending
 
   return (
-    <section className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5" aria-busy={busy}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4" aria-busy={busy}>
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="text-heading-sm font-bold text-[var(--cv-t1)]">{t('security.sharedUnlock.title')}</h2>
           <p className="mt-1 text-ui text-[var(--cv-t3)]">{t('security.sharedUnlock.description')}</p>
@@ -44,7 +43,6 @@ function SharedUnlockAccountSection() {
           else void preference.refetch()
         }}>{t('security.sharedUnlock.retry')}</Button>}
       </div>}
-      <SharedUnlockLinkSection />
     </section>
   )
 }
