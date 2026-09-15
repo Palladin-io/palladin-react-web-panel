@@ -11,7 +11,7 @@ One theme-aware page with a password field. The unlock hook validates the authen
 ## Key patterns
 - **Non-persisted lock state:** `isVaultLocked` is never persisted; it starts `true` on every load and is only flipped `false` by `unlockVault()`. This is the security-critical routing primitive.
 - **Brand header:** shared `AuthBrandHeader` matches the landing hero proportions and spacing, followed by the master-password instruction. The functional unlock title stays available to screen readers.
-- **Auth-surface page:** `.auth-surface` follows the persisted app theme; `FormInput`, `FieldFeedback`, `AuthSubmitButton`.
+- **Auth-surface page:** `.auth-surface` follows the persisted app theme; `FormInput`, `FeedbackSlot`, `AuthSubmitButton`. An incorrect master password uses expanding inline feedback linked to the field, with separate spacing before the submit button and recovery/logout actions. The message stays mounted while hidden so both expansion and collapse animate without losing the content height. Technical failures use a generic Sonner toast without marking the password invalid.
 - **Deep-link return:** the authenticated guard and session timeout forward the requested internal URL through `/unlock?redirect=…`; both normal unlock and onboarding return to it after keys are restored in memory. Unsafe or looping redirect values fall back to `/`.
 
 ## Cross-feature deps

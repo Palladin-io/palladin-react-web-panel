@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 import { AuthBrandHeader } from '../../shared/components/auth-brand-header'
 import { AuthSubmitButton } from '../../shared/components/auth-submit-button'
-import { FieldFeedback, FormInput } from '../../shared/components/form-field'
+import { FeedbackSlot, FormInput } from '../../shared/components/form-field'
 import { analytics } from '../../shared/lib/analytics'
 import { logoutAndReload, useAuthStore } from '../auth'
 import { clearPushTokenOnLogout } from '../notifications'
@@ -125,7 +126,7 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
   const navigate = useNavigate()
   const unlock = useUnlock()
   const [password, setPassword] = useState('')
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [hasError, setHasError] = useState(false)
 
   // Same logout flow as the app shell: best-effort push-token cleanup, clear
   // session, redirect to login. The only escape hatch from a locked vault when
@@ -135,13 +136,12 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
   }
 
   const isPending = unlock.isPending
-  const hasError = errorMessage !== null
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (isPending || password.length === 0) return
 
-    setErrorMessage(null)
+    setHasError(false)
     unlock.mutate({ password }, {
       onSuccess: () => {
         analytics.capture('unlock', 'vault-unlocked')
@@ -149,11 +149,11 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
       },
       onError: (err) => {
         analytics.capture('unlock', 'unlock-failed')
-        setErrorMessage(
-          err instanceof IncorrectMasterPasswordError
-            ? t('unlock.errorIncorrect')
-            : t('unlock.errorGeneric'),
-        )
+        if (err instanceof IncorrectMasterPasswordError) {
+          setHasError(true)
+        } else {
+          toast.error(t('unlock.errorGeneric'))
+        }
       },
     })
   }
@@ -180,26 +180,28 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value)
-                if (errorMessage) setErrorMessage(null)
+                if (hasError) setHasError(false)
               }}
               placeholder={t('unlock.passwordPlaceholder')}
               disabled={isPending}
+              aria-invalid={hasError}
+              aria-describedby={hasError ? 'unlock-password-error' : undefined}
               borderClass={
                 hasError
                   ? 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
                   : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
               }
             />
-            <FieldFeedback visible={hasError} color="red">
-              {errorMessage}
-            </FieldFeedback>
+            <FeedbackSlot visible={hasError} color="red">
+              <span id="unlock-password-error">{t('unlock.errorIncorrect')}</span>
+            </FeedbackSlot>
           </div>
 
-          <AuthSubmitButton disabled={isPending || password.length === 0}>
+          <AuthSubmitButton className="mt-4" disabled={isPending || password.length === 0}>
             {isPending ? t('unlock.unlocking') : t('unlock.button')}
           </AuthSubmitButton>
 
-          <div className="mt-3 flex flex-col items-center gap-2 text-ui">
+          <div className="mt-6 flex flex-col items-center gap-3 text-ui">
             <Link
               to="/recovery"
               className="text-[var(--cv-auth-muted)] transition-colors hover:text-[var(--cv-t1)]"
