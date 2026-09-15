@@ -31,22 +31,19 @@ function SharedUnlockAccountSection() {
         {current && <ToggleSwitch checked={current.sharedUnlockEnabled} label={t('security.sharedUnlock.title')}
           disabled={busy} onChange={enabled => save.mutate({ enabled, revision: current.revision })} />}
       </div>
-      <p className="mt-3 text-ui text-[var(--cv-t3)]">{t('security.sharedUnlock.behavior')}</p>
-      <p className="mt-3 text-ui text-[var(--cv-t3)]">{t('security.sharedUnlock.offEffect')}</p>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--cv-divider)] pt-4">
+      {(busy || error || paused) && <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-ui text-[var(--cv-t3)]" role={error ? 'alert' : 'status'}>
           {save.isPending ? t('security.sharedUnlock.saving')
             : preference.isPending ? t('security.sharedUnlock.loading')
               : error ? t(conflict ? 'security.sharedUnlock.conflict' : paused ? 'security.sharedUnlock.saveFailed' : 'security.sharedUnlock.loadFailed')
-                : paused ? t('security.sharedUnlock.paused')
-                  : t(current?.sharedUnlockEnabled ? 'security.sharedUnlock.enabled' : 'security.sharedUnlock.disabled')}
+                : t('security.sharedUnlock.paused')}
         </p>
         {(error || paused) && <Button variant="subtle" size="sm" disabled={busy} onClick={() => {
           if (current && save.variables) save.mutate({ enabled: save.variables.enabled, revision: current.revision })
           else if (current && paused) save.mutate({ enabled: current.sharedUnlockEnabled, revision: current.revision })
           else void preference.refetch()
         }}>{t('security.sharedUnlock.retry')}</Button>}
-      </div>
+      </div>}
       <SharedUnlockLinkSection />
     </section>
   )

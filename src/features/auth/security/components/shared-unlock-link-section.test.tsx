@@ -39,7 +39,7 @@ it('confirms a single own-scope disconnect and does not expose internal identifi
 
 it('offers explicit reconnect for a retained local revocation and explains the fresh unlock', async () => {
   state({ disconnected: true }); render(<SharedUnlockLinkSection />)
-  expect(screen.getByText(/Automatic pairing stays disabled/)).toBeInTheDocument()
+  expect(screen.getByText('Browser disconnected.')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
   const dialog = screen.getByRole('dialog')
   expect(within(dialog).getByText(/unlock it again to start a new verified pairing/)).toBeInTheDocument()
