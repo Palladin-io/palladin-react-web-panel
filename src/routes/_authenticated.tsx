@@ -17,6 +17,8 @@ import {
   useSessionTimeout,
   WaitlistDeveloperBenefitDialog,
   isWaitlistDeveloperBenefitActive,
+  AuthenticatedSessionBoundary,
+  LockSessionButton,
 } from '../features/auth'
 import { useAgents, AGENT_STATUS_PENDING } from '../features/agents'
 import { useThemeStore } from '../shared/stores/theme-store'
@@ -112,6 +114,10 @@ const DROPDOWN_BG = {
 }
 
 function AuthenticatedLayout() {
+  return <AuthenticatedSessionBoundary><AuthenticatedContent /></AuthenticatedSessionBoundary>
+}
+
+function AuthenticatedContent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const standaloneAuthSurface =
     pathname === '/unlock' || pathname === '/invitations/accept'
@@ -146,13 +152,6 @@ function AuthenticatedLayout() {
   useEffect(() => {
     if (emailUnverified) navigate({ to: '/verify-email' })
   }, [emailUnverified, navigate])
-
-  // Vault-lock routing is handled by `beforeLoad` (sync, fires on every
-  // navigation). We avoid a mid-session `useEffect` guard here because
-  // no caller currently flips `isVaultLocked` to `true` mid-session
-  // outside `logout()`, which already redirects to `/login`. When a
-  // real `lockVault()` caller lands, prefer `useRouter().invalidate()`
-  // after the lock so `beforeLoad` re-runs.
 
   // Don't render any authenticated surface (shell or unlock) for an unverified
   // account — the redirect above is in flight.
@@ -516,6 +515,8 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
                 />
               </button>
             )}
+
+            <LockSessionButton />
 
             {/* Logout */}
             <button

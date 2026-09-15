@@ -1,13 +1,12 @@
-import { useGoogleLogin } from '@react-oauth/google'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AuthBrandHeader } from '../../../shared/components/auth-brand-header'
 import { AuthRateLimitError } from '../api/auth-api'
-import { useLogin } from '../hooks/use-login'
+import { useGoogleSignIn } from '../hooks/use-google-sign-in'
 import { usePasswordLogin } from '../hooks/use-password-login'
-import { clearClientSession } from '../session/client-session'
+import { useAuthStore } from '../stores/auth-store'
 import { EmailPasswordForm } from './email-password-form'
 import { TotpChallengeStep } from './totp-challenge-step'
 
@@ -18,13 +17,27 @@ interface LoginPageProps {
 export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const oauth = useLogin(redirectTo)
-  const { start, submitTotp } = usePasswordLogin()
+  const oauth = useGoogleSignIn(redirectTo)
+  const { start, submitTotp, cancel, isPending: passwordPending } = usePasswordLogin()
+  const unlockedSession = useAuthStore((state) => Boolean(state.accessToken) && !state.isVaultLocked)
+  const navigated = useRef(false)
+  const manualPending = passwordPending || start.isPending || submitTotp.isPending || oauth.isPending
+
+  useEffect(() => {
+    // Manual login publishes keys before finishing source preparation. Its
+    // success callback owns navigation until that mutation has settled.
+    if (!unlockedSession || manualPending || navigated.current) return
+    navigated.current = true
+    void navigate({ href: redirectTo, replace: true })
+  }, [unlockedSession, manualPending, navigate, redirectTo])
+
+  const finishManualLogin = () => {
+    if (navigated.current) return
+    navigated.current = true
+    void navigate({ href: redirectTo })
+  }
   const [tooltipTarget, setTooltipTarget] = useState<string | null>(null)
 
-  // 'credentials' collects email + password; 'totp' handles the second factor.
-  // The password is retained across the TOTP step (in memory only) so the
-  // master key can be derived once the challenge clears.
   const [step, setStep] = useState<'credentials' | 'totp'>('credentials')
   const [challengeToken, setChallengeToken] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
@@ -34,48 +47,35 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
     if (oauth.isError) toast.error(t('auth.errorSignInFailed'))
   }, [oauth.isError, t])
 
-  const googleLogin = useGoogleLogin({
-    onSuccess: (response) => {
-      oauth.mutate(response.access_token)
-    },
-    onError: () => {
-      toast.error(t('auth.errorGoogleSignInFailed'))
-    },
-  })
+  useEffect(() => {
+    if (oauth.googleError) toast.error(t('auth.errorGoogleSignInFailed'))
+  }, [oauth.googleError, t])
 
   const handleGoogleLogin = () => {
-    void clearClientSession()
-      .then(() => googleLogin())
-      .catch(() => toast.error(t('auth.errorSignInFailed')))
+    cancel()
+    oauth.start()
   }
 
   const handleCredentials = (email: string, password: string) => {
-    void clearClientSession()
-      .then(() => {
-        setPasswordError(null)
-        start.mutate(
-          { email, password },
-          {
-            onSuccess: (result) => {
-              if (result.kind === 'totp') {
-                setChallengeToken(result.challengeToken)
-                setTotpError(null)
-                setStep('totp')
-              } else {
-                navigate({ href: redirectTo })
-              }
-            },
-            onError: (error) => setPasswordError(
-              t(error instanceof AuthRateLimitError
-                ? 'auth.errorRateLimited'
-                : 'login.errorInvalid'),
-            ),
-          },
-        )
-      })
-      .catch(() => {
-        setPasswordError(t('auth.errorSignInFailed'))
-      })
+    oauth.cancel()
+    setPasswordError(null)
+    start.mutate(
+      { email, password },
+      {
+        onSuccess: (result) => {
+          if (result.kind === 'totp') {
+            setChallengeToken(result.challengeToken)
+            setTotpError(null)
+            setStep('totp')
+          } else {
+            finishManualLogin()
+          }
+        },
+        onError: (error) => setPasswordError(
+          t(error instanceof AuthRateLimitError ? 'auth.errorRateLimited' : 'login.errorInvalid'),
+        ),
+      },
+    )
   }
 
   const handleTotp = (code: string) => {
@@ -83,7 +83,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
     submitTotp.mutate(
       { challengeToken, code },
       {
-        onSuccess: () => navigate({ href: redirectTo }),
+        onSuccess: finishManualLogin,
         onError: (error) => setTotpError(
           t(error instanceof AuthRateLimitError
             ? 'auth.errorRateLimited'
@@ -94,6 +94,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   }
 
   const handleBackToCredentials = () => {
+    cancel()
     setStep('credentials')
     setChallengeToken('')
     setTotpError(null)

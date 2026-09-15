@@ -6,6 +6,37 @@ describe('auth-store', () => {
     useAuthStore.getState().logout()
   })
 
+  it('keeps keys, lock state and inherited limits outside storage restoration', async () => {
+    useAuthStore.getState().unlockVault(new Uint8Array([1]), new Uint8Array([2]))
+    const written = JSON.parse(localStorage.getItem('palladin-auth')!).state
+    expect(written).not.toHaveProperty('unlockLimits')
+    useAuthStore.getState().logout()
+    localStorage.setItem('palladin-auth', JSON.stringify({ version: 0, state: {
+      refreshToken: 'synthetic-refresh', userId: 'u', accessToken: 'synthetic-stale-access',
+      isVaultLocked: false, masterKey: [1], privateKey: [2],
+      unlockLimits: { unlockedAtMs: 1, idleDeadlineMs: Number.MAX_SAFE_INTEGER },
+    } }))
+    await useAuthStore.persist.rehydrate()
+    const state = useAuthStore.getState()
+    expect(state.refreshToken).toBe('synthetic-refresh')
+    expect(state.accessToken).toBeNull()
+    expect(state.masterKey).toBeNull()
+    expect(state.privateKey).toBeNull()
+    expect(state.isVaultLocked).toBe(true)
+    expect(state.unlockLimits).toBeNull()
+  })
+
+  it('does not install expired inherited keys or revive idle with late activity', () => {
+    const now = Date.now()
+    expect(() => useAuthStore.getState().unlockVault(new Uint8Array([1]), new Uint8Array([2]), {
+      unlockedAtMs: now - 1000, idleDeadlineMs: now - 1,
+      absoluteDeadlineMs: now + 1000, offlineDeadlineMs: now + 1000,
+    })).toThrow('Unlock session expired')
+    expect(useAuthStore.getState().masterKey).toBeNull()
+    useAuthStore.getState().recordActivity(now)
+    expect(useAuthStore.getState().unlockLimits).toBeNull()
+  })
+
   it('has null initial state', () => {
     const state = useAuthStore.getState()
     expect(state.accessToken).toBeNull()
@@ -134,7 +165,7 @@ describe('auth-store', () => {
     expect(Array.from(state.privateKey!)).toEqual([9, 8, 7, 6])
   })
 
-  it('changes the crypto cache namespace for every unlock and logout', () => {
+  it('changes the crypto cache namespace for every unlock, lock and logout', () => {
     const initialGeneration = useAuthStore.getState().cryptoSessionGeneration
 
     useAuthStore.getState().unlockVault(
@@ -150,7 +181,7 @@ describe('auth-store', () => {
       new Uint8Array([4]),
     )
     expect(useAuthStore.getState().cryptoSessionGeneration).toBe(
-      firstUnlockGeneration + 1,
+      firstUnlockGeneration + 2,
     )
 
     const beforeLogout = useAuthStore.getState().cryptoSessionGeneration

@@ -36,8 +36,20 @@ the Netlify credential:
 - `STAGING_VITE_API_URL=https://api.stage.palladin.io`;
 - `STAGING_VITE_SIGNALR_HUB_URL=https://api.stage.palladin.io/hubs/notifications`;
 - `STAGING_VITE_GOOGLE_CLIENT_ID`;
+- `STAGING_VITE_SHARED_UNLOCK_EXTENSION_ID`,
+  `STAGING_VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID`, and
+  `STAGING_VITE_SHARED_UNLOCK_SAFARI_EXTENSION_ID` for each enabled browser's
+  reviewed staging extension installation;
 - optional `STAGING_VITE_PUBLIC_ASSET_URL`, `STAGING_VITE_POSTHOG_*`, and
   `STAGING_VITE_FIREBASE_*` values.
+
+Shared-unlock IDs are public browser recipient identifiers, not secrets or
+attestation of installed code. The staging artifact job passes them explicitly
+to the corresponding `VITE_SHARED_UNLOCK_*` build values. Templates remain
+empty; an omitted ID leaves that browser's channel disabled. Configure each ID
+only after checking it against the intended installed extension and its exact
+staging Web/API mapping. A successful build with an omitted ID is not shared
+unlock acceptance. Pull-request jobs receive none of these staging values.
 
 The workflow rejects a staging API or SignalR URL that does not match the
 canonical staging host. It also embeds the source commit in

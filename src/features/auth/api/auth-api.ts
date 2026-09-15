@@ -1,10 +1,34 @@
-import { HTTPError } from 'ky'
+import ky, { HTTPError } from 'ky'
 import { api } from '../../../shared/api/client'
+import { getAnalyticsHeaders } from '../../../shared/api/analytics-headers'
+import { env } from '../../../shared/lib/env'
 import type { AuthResponse } from '../../../shared/api/types'
 import { clearClientSession } from '../session/client-session'
 
+// A rejected login proof belongs to the form, not the existing session's 401 recovery.
+const loginApi = ky.create({
+  prefixUrl: env.apiUrl,
+  credentials: 'omit',
+  redirect: 'error',
+  retry: 0,
+  hooks: {
+    beforeRequest: [(request) => {
+      for (const [name, value] of Object.entries(getAnalyticsHeaders())) {
+        request.headers.set(name, value)
+      }
+    }],
+  },
+})
+
 export function oauthGoogle(token: string): Promise<AuthResponse & { isNewUser: boolean }> {
-  return api.post('api/auth/oauth/google', { json: { token } }).json()
+  return loginApi.post('api/auth/oauth/google', { json: { token } }).json()
+}
+
+/** Retire only an unused OAuth response; never clear or refresh the live client. */
+export async function revokeUninstalledLoginSession(refreshToken: string): Promise<void> {
+  try {
+    await loginApi.post('api/auth/logout', { json: { refreshToken }, timeout: 2000 })
+  } catch { /* Best effort for a response that was never installed locally. */ }
 }
 
 // ─── Email + password (Variant A: login password IS the master password) ──────
@@ -79,7 +103,7 @@ export function isTotpRequired(
 }
 
 export function register(payload: RegisterPayload): Promise<AuthResponse> {
-  return api.post('api/auth/register', { json: payload }).json()
+  return loginApi.post('api/auth/register', { json: payload }).json()
 }
 
 /**
@@ -101,7 +125,7 @@ export function fetchLoginKdf(
   profileId: string,
 ): Promise<LoginKdfBootstrap> {
   return mapAuthRateLimit(
-    api.post('api/auth/login/salt', { json: { email, profileId } }).json(),
+    loginApi.post('api/auth/login/salt', { json: { email, profileId } }).json(),
   )
 }
 
@@ -111,7 +135,7 @@ export function passwordLogin(input: {
   kdfProfileId: string
   authCredential: string
 }): Promise<PasswordLoginResponse> {
-  return mapAuthRateLimit(api.post('api/auth/login', { json: input }).json())
+  return mapAuthRateLimit(loginApi.post('api/auth/login', { json: input }).json())
 }
 
 /**
@@ -122,7 +146,7 @@ export function totpLogin(input: {
   challengeToken: string
   code: string
 }): Promise<AuthResponse> {
-  return mapAuthRateLimit(api.post('api/auth/login/totp', { json: input }).json())
+  return mapAuthRateLimit(loginApi.post('api/auth/login/totp', { json: input }).json())
 }
 
 // ─── Email verification ───────────────────────────────────────────────────────

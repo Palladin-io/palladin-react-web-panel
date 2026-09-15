@@ -19,7 +19,7 @@ vi.mock('../stores/auth-store', () => ({
   useAuthStore: Object.assign(
     (selector: (state: { emailVerified: boolean }) => unknown) =>
       selector({ emailVerified: false }),
-    { getState: vi.fn() },
+    { getState: vi.fn(), subscribe: vi.fn(() => () => {}) },
   ),
 }))
 

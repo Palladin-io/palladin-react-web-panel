@@ -13,6 +13,7 @@ separate untrusted or cryptographic boundaries and remain validated.
 | Area | Runtime validator | Decision and boundary |
 |---|---|---|
 | Authentication and identity KDF | `features/auth/api/auth-api.ts`, `features/auth/hooks/use-password-login.ts` | Retain the login/TOTP discriminator and the bootstrap-to-authenticated-account checks. These responses select a distinct authentication flow and are compared with the requested KDF profile plus the authenticated account before local key derivation is accepted, so they are an independent authentication and cryptographic boundary rather than display-state validation. |
+| Shared-unlock Identity adapter | `features/auth/shared-unlock/api.ts`, `source-authority.ts`, `receiver.ts`, `reconnect-staging.ts` | First-party responses remain typed contracts covered by provider fixtures. Crypto verifies descriptor commitments, derived member key and the full offered/consumed/committed transcript against independently selected account/org/link/browser/document/generations. Before publishing keys, every receiver (including normal/tokenless admission without a reconnect hint) uses its own newly committed JWT to read the selected link: current active epoch and invalidation barrier must still admit that committed generation. Independent authority is this fresh own Identity read plus the preselected local scope; the concrete threat is lock/logout/disconnect after commit or a forged/stale browser reconnect hint. Negative tests retain local revocation and revoke the incomplete issued session on mismatched scope/epoch/barrier, missing auth, timeout or cancellation. The Chromium coordinator is connected; full native acceptance and other platform adapters remain release-gated. |
 | Agents | `features/agents/api/agents-api.ts` | Retain readable string lists and icon-upload coordinates. Agent lifecycle responses are TypeScript contracts and are not rejected by a duplicated lifecycle validator. Upload coordinates are consumed by a browser upload operation, so malformed URLs, identifiers or sizes must not reach that operation. |
 | API keys | `features/api-keys/api/api-keys-api.ts` | Keep the supported string/integer transport normalization, preserve unknown string lifecycle values for neutral presentation and expose actions only for known actionable states. An unknown value must never be silently reclassified as revoked or activate a different mutation path. Generated plaintext keys remain a one-time authenticated response handled only by the creation flow. |
 | Audit | `features/audit/api/audit-api.ts` | Retain transport-only, per-row decoding and metadata allow-listing. Unknown event types use neutral presentation and one unreadable row cannot collapse the page. The allow-list prevents server-supplied presentation names or unexpected metadata from becoming UI content. |
@@ -38,3 +39,23 @@ Vault summary, the decrypted structural head, a configured external origin or
 a cryptographically authenticated descriptor. Equality between two ordinary
 server-owned response fields is not an independent check and must be enforced
 by backend tests/contracts instead.
+
+
+The separate browser-message boundary in `features/auth/shared-unlock/browser-channel.ts`
+uses a strict Zod ready schema plus own configured API/origin/extension ID and
+locally generated nonce checks. This validates an independently versioned browser
+transport, not an authenticated first-party REST response. Recipient identity
+comes from the actual native `runtime.connect(configuredId)` call, not a field in
+the received object. Negative tests cover substitution, extra fields, stale routes,
+expiry of the handshake and document lifecycle. No new REST response validator is added.
+
+The Web source transaction binds the operation's cryptographic scope to its
+independently captured route and current own root/key generation. The crypto
+helper additionally recovers Identity's descriptor with a temporary MK copy and
+compares that private key to the independently held own member key. Focused tests
+reject a self-consistent substituted descriptor/digest and changes in the current
+root's account, organization and key revisions. This is cryptographic key-use
+authority, not another implementation of Identity's response business rules.
+`operation-message.ts` is an outgoing browser-protocol projection: it copies only
+known public fields, silently omitting unrelated REST additions instead of
+validating/rejecting those responses or forwarding them to a peer.

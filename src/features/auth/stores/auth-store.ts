@@ -1,3 +1,8 @@
+import { sharedUnlockExpiry } from '../shared-unlock/expiry-runtime'
+import { env } from '../../../shared/lib/env'
+import type { AuthResponse } from '../../../shared/api/types'
+import type { SharedUnlockKeys } from '../../../shared/crypto/shared-unlock-keys'
+import { IDLE_TIMEOUT_MS, sessionDeadline, unlockLimits, type SessionUnlockLimits } from '../lib/session-limits'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { parseJwtPayload } from '../../../shared/lib/jwt'
@@ -35,17 +40,18 @@ interface AuthState {
   privateKey: Uint8Array | null
   /** Non-secret cache namespace changed for every unlocked crypto session. */
   cryptoSessionGeneration: number
+  unlockLimits: SessionUnlockLimits | null
+  recordActivity: (at: number) => void
 
-  setTokens: (data: {
-    accessToken: string
-    refreshToken: string
-    userId: string
-    isOnboarded: boolean
-    emailVerified?: boolean
-    waitlistDeveloperBenefitStartedAt?: string | null
-    waitlistDeveloperBenefitEndsAt?: string | null
-    permissions?: number
-  }) => void
+  setTokens: (data: AuthResponse & { permissions?: number }) => void
+  /** Own Identity response + independently verified keys; one synchronous publication. */
+  installSharedUnlock: (input: {
+    expected: { userId: string | null; accessToken: string | null; refreshToken: string | null; cryptoSessionGeneration: number }
+    accountId: string
+    session: AuthResponse
+    keys: SharedUnlockKeys
+    limits: SessionUnlockLimits
+  }) => number
   markOnboarded: () => void
   /** Flip to verified after the user consumes their verification link. */
   markEmailVerified: () => void
@@ -57,10 +63,11 @@ interface AuthState {
   unlockVault: (
     masterKey: Uint8Array,
     privateKey: Uint8Array,
+    inheritedLimits?: SessionUnlockLimits,
   ) => void
   lockVault: () => void
   /** Session timeout: wipes crypto keys AND the access token, so a walked-away tab holds neither. */
-  expireSession: () => void
+  expireSession: (reason?: 'pagehide') => void
   logout: () => void
 }
 
@@ -77,63 +84,69 @@ const initialState = {
   masterKey: null,
   privateKey: null,
   cryptoSessionGeneration: 0,
+  unlockLimits: null,
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
 
-      setTokens: (data) =>
-        set((state) => {
-          const jwtPayload = parseJwtPayload(data.accessToken)
-          const rawPerm = jwtPayload['permissions']
-          const permissions =
-            typeof rawPerm === 'number'
-              ? rawPerm
-              : typeof rawPerm === 'string'
-                ? parseInt(rawPerm, 10)
-                : (data.permissions ?? 0)
+      setTokens: (data) => set((state) => tokenState(state, data)),
 
-          // Prefer the JWT `email_verified` claim; fall back to the response
-          // body. Like isOnboarded, this never regresses true→false: a stale
-          // refresh claim must not resurrect the banner for a verified user.
-          const claimVerified = jwtPayload['email_verified']
-          const emailVerified =
-            state.emailVerified ||
-            claimVerified === true ||
-            data.emailVerified === true
-
-          const sameUser = state.userId === data.userId
-          const responseOmittedBenefit =
-            data.waitlistDeveloperBenefitStartedAt === undefined &&
-            data.waitlistDeveloperBenefitEndsAt === undefined
-          const benefit = responseOmittedBenefit && sameUser
-            ? {
-                startedAt: state.waitlistDeveloperBenefitStartedAt,
-                endsAt: state.waitlistDeveloperBenefitEndsAt,
-              }
-            : activeBenefitPeriod(
-                data.waitlistDeveloperBenefitStartedAt,
-                data.waitlistDeveloperBenefitEndsAt,
-              )
-
-          return {
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
-            userId: data.userId,
-            // Never regress isOnboarded from true to false. The JWT claim can
-            // return false during a token refresh (backend omission or stale
-            // claim), which would break the lock-redirect logic and cause the
-            // wizard to appear for already-onboarded users.
-            isOnboarded: state.isOnboarded || data.isOnboarded,
-            emailVerified,
-            waitlistDeveloperBenefitStartedAt: benefit.startedAt,
-            waitlistDeveloperBenefitEndsAt: benefit.endsAt,
-            permissions,
-            // isVaultLocked is intentionally NOT set here — see lockVault().
+      installSharedUnlock: ({ expected, accountId, session, keys, limits }) => {
+        const previous = get()
+        let owned: SharedUnlockKeys | null = null
+        let installedGeneration: number | null = null
+        try {
+          set((state) => {
+            // The captured receiver session is independent of the peer payload.
+            // A new login, refresh, manual unlock, lock or logout wins this race.
+            if (!state.isVaultLocked || state.masterKey || state.privateKey
+              || state.cryptoSessionGeneration !== expected.cryptoSessionGeneration
+              || state.userId !== expected.userId || state.accessToken !== expected.accessToken
+              || state.refreshToken !== expected.refreshToken
+              || (state.userId !== null && state.userId !== accountId)
+              || session.userId !== accountId) throw new Error('Shared unlock installation cancelled')
+            const inherited = unlockLimits(Date.now(), limits)
+            if (keys.masterKey.length !== 32 || keys.privateKey.length !== 32) throw new Error('Invalid shared unlock keys')
+            const tokens = tokenState(state, session)
+            owned = { masterKey: new Uint8Array(keys.masterKey), privateKey: new Uint8Array(keys.privateKey) }
+            installedGeneration = state.cryptoSessionGeneration + 1
+            return { ...tokens, ...owned, unlockLimits: inherited, isVaultLocked: false,
+              cryptoSessionGeneration: installedGeneration }
+          })
+          const current = get()
+          if (current.cryptoSessionGeneration !== installedGeneration || current.isVaultLocked) {
+            throw new Error('Shared unlock installation cancelled')
           }
-        }),
+          return installedGeneration!
+        } catch (error) {
+          if (owned) {
+            const allocated = owned as SharedUnlockKeys
+            wipe(allocated.masterKey)
+            wipe(allocated.privateKey)
+            const current = get()
+            // Persistence or a synchronous subscriber can fail after set() has
+            // published. Roll back only this new lineage; never undo logout or
+            // overwrite another login/unlock. An intervening expiry stays expired.
+            if (current.userId === session.userId && current.refreshToken === session.refreshToken
+              && (current.cryptoSessionGeneration === installedGeneration || current.isVaultLocked)) {
+              try {
+                set({ ...previous, accessToken: current.accessToken === null ? null : previous.accessToken,
+                  cryptoSessionGeneration: current.cryptoSessionGeneration + 1,
+                  masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true })
+              } catch { /* set updates memory before storage/subscriber errors; owned keys are already erased. */ }
+            } else if (current.masterKey === allocated.masterKey || current.privateKey === allocated.privateKey) {
+              // A reentrant observer may rotate tokens before throwing. Keep
+              // that newer token state, but never leave our erased key copies
+              // published as an unlocked crypto session.
+              try { current.lockVault() } catch { /* memory is locked before notification/persistence */ }
+            }
+          }
+          throw error
+        }
+      },
 
       markOnboarded: () => set({ isOnboarded: true }),
 
@@ -148,14 +161,16 @@ export const useAuthStore = create<AuthState>()(
           }
         }),
 
-      unlockVault: (masterKey, privateKey) =>
+      unlockVault: (masterKey, privateKey, inheritedLimits) =>
         // Store independent copies — callers routinely `wipe()` their local
         // buffers right after handing them off, which would zero out our
         // references too if we kept them.
         set((state) => {
+          const limits = unlockLimits(Date.now(), inheritedLimits)
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
           return {
+            unlockLimits: limits,
             masterKey: new Uint8Array(masterKey),
             privateKey: new Uint8Array(privateKey),
             isVaultLocked: false,
@@ -163,18 +178,32 @@ export const useAuthStore = create<AuthState>()(
           }
         }),
 
+      recordActivity: (at) => set((state) => {
+        const limits = state.unlockLimits
+        const now = Date.now()
+        if (!Number.isSafeInteger(at) || state.isVaultLocked || !limits || at > now || at < limits.unlockedAtMs
+          || now >= sessionDeadline(limits)) return state
+        return { unlockLimits: { ...limits, idleDeadlineMs: Math.min(
+          Math.max(limits.idleDeadlineMs, at + IDLE_TIMEOUT_MS), limits.absoluteDeadlineMs, limits.offlineDeadlineMs,
+        ) } }
+      }),
+
       lockVault: () =>
         set((state) => {
+          if (state.masterKey && state.userId) sharedUnlockExpiry.retire({ accountId: state.userId, apiUrl: env.apiUrl })
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
-          return { masterKey: null, privateKey: null, isVaultLocked: true }
+          return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true,
+            cryptoSessionGeneration: state.cryptoSessionGeneration + 1 }
         }),
 
-      expireSession: () =>
+      expireSession: (reason) =>
         set((state) => {
+          if (reason !== 'pagehide' && state.masterKey && state.userId) sharedUnlockExpiry.retire({ accountId: state.userId, apiUrl: env.apiUrl })
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
-          return { masterKey: null, privateKey: null, isVaultLocked: true, accessToken: null }
+          return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true, accessToken: null,
+            cryptoSessionGeneration: state.cryptoSessionGeneration + 1 }
         }),
 
       logout: () => set((state) => {
@@ -188,6 +217,17 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'palladin-auth',
+      merge: (persisted, current) => {
+        const saved = typeof persisted === 'object' && persisted !== null ? persisted as Partial<AuthState> : {}
+        return {
+          ...current,
+          refreshToken: typeof saved.refreshToken === 'string' ? saved.refreshToken : null,
+          userId: typeof saved.userId === 'string' ? saved.userId : null,
+          isOnboarded: saved.isOnboarded === true,
+          emailVerified: saved.emailVerified === true,
+          permissions: typeof saved.permissions === 'number' ? saved.permissions : 0,
+        }
+      },
       // accessToken and crypto keys are in-memory only; only the refresh token
       // (which alone can't decrypt any vault content) is persisted, pending a
       // backend-coordinated move to an httpOnly cookie. See docs/architecture/security.md.
@@ -221,4 +261,54 @@ export function getIsAuthenticated() {
   // A persisted refresh token counts as authenticated — accessToken is null after a reload.
   const { accessToken, refreshToken } = useAuthStore.getState()
   return accessToken !== null || refreshToken !== null
+}
+
+function tokenState(state: AuthState, data: AuthResponse & { permissions?: number }) {
+  const jwtPayload = parseJwtPayload(data.accessToken)
+  const rawPerm = jwtPayload['permissions']
+  const permissions =
+    typeof rawPerm === 'number'
+      ? rawPerm
+      : typeof rawPerm === 'string'
+        ? parseInt(rawPerm, 10)
+        : (data.permissions ?? 0)
+
+  // Prefer the JWT `email_verified` claim; fall back to the response
+  // body. Like isOnboarded, this never regresses true→false: a stale
+  // refresh claim must not resurrect the banner for a verified user.
+  const claimVerified = jwtPayload['email_verified']
+  const emailVerified =
+    state.emailVerified ||
+    claimVerified === true ||
+    data.emailVerified === true
+
+  const sameUser = state.userId === data.userId
+  const responseOmittedBenefit =
+    data.waitlistDeveloperBenefitStartedAt === undefined &&
+    data.waitlistDeveloperBenefitEndsAt === undefined
+  const benefit = responseOmittedBenefit && sameUser
+    ? {
+        startedAt: state.waitlistDeveloperBenefitStartedAt,
+        endsAt: state.waitlistDeveloperBenefitEndsAt,
+      }
+    : activeBenefitPeriod(
+        data.waitlistDeveloperBenefitStartedAt,
+        data.waitlistDeveloperBenefitEndsAt,
+      )
+
+  return {
+    accessToken: data.accessToken,
+    refreshToken: data.refreshToken,
+    userId: data.userId,
+    // Never regress isOnboarded from true to false. The JWT claim can
+    // return false during a token refresh (backend omission or stale
+    // claim), which would break the lock-redirect logic and cause the
+    // wizard to appear for already-onboarded users.
+    isOnboarded: state.isOnboarded || data.isOnboarded,
+    emailVerified,
+    waitlistDeveloperBenefitStartedAt: benefit.startedAt,
+    waitlistDeveloperBenefitEndsAt: benefit.endsAt,
+    permissions,
+    // isVaultLocked is intentionally NOT set here — see lockVault().
+  }
 }

@@ -4,6 +4,7 @@ import { createElement, type ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { encodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
 import { useUnlock } from './use-unlock'
+import { useAuthStore } from '../auth/stores/auth-store'
 
 const getAccount = vi.hoisted(() => vi.fn())
 const setupAccount = vi.hoisted(() => vi.fn())
@@ -11,6 +12,7 @@ const deriveIdentityV1 = vi.hoisted(() => vi.fn())
 const decryptWithKey = vi.hoisted(() => vi.fn())
 const derivePublicKey = vi.hoisted(() => vi.fn())
 const unlockVault = vi.hoisted(() => vi.fn())
+const prepareManualSharedUnlock = vi.hoisted(() => vi.fn())
 
 vi.mock('../../shared/api/account-api', () => ({ getAccount, setupAccount }))
 vi.mock('../../shared/crypto/identity-kdf', async (importOriginal) => ({
@@ -22,8 +24,10 @@ vi.mock('../../shared/crypto/sodium', () => ({
   derivePublicKey,
   wipe: vi.fn(),
 }))
-vi.mock('../auth', () => ({
+vi.mock('../auth', async () => ({
+  beginManualUnlockAttempt: (await import('../auth/session/manual-unlock-attempt')).beginManualUnlockAttempt,
   useAuthStore: { getState: () => ({ unlockVault }) },
+  prepareManualSharedUnlock,
 }))
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -75,6 +79,7 @@ describe('useUnlock', () => {
       newAuthCredential: encodeBase64Url(new Uint8Array(32).fill(5)),
     }))
     expect(unlockVault).toHaveBeenCalledOnce()
+    expect(prepareManualSharedUnlock).toHaveBeenCalledOnce()
   })
 
   it('does not rewrite an existing password login method', async () => {
@@ -89,4 +94,21 @@ describe('useUnlock', () => {
     expect(setupAccount).not.toHaveBeenCalled()
     expect(unlockVault).toHaveBeenCalledOnce()
   })
+
+  for (const action of ['lockVault', 'logout', 'expireSession'] as const) {
+    it(`cannot publish keys after ${action} while derivation is pending`, async () => {
+      let resolve!: (value: { authCredential: Uint8Array; masterKey: Uint8Array }) => void
+      deriveIdentityV1.mockReturnValueOnce(new Promise(r => { resolve = r }))
+      const { result } = renderHook(() => useUnlock(), { wrapper })
+      const unlocking = result.current.mutateAsync({ password: 'pw' })
+      const rejected = expect(unlocking).rejects.toThrow('Unlock attempt cancelled')
+      await vi.waitFor(() => expect(deriveIdentityV1).toHaveBeenCalledOnce())
+      useAuthStore.getState()[action]()
+      resolve({ authCredential: new Uint8Array(32).fill(5), masterKey: new Uint8Array(32).fill(6) })
+      await rejected
+      expect(unlockVault).not.toHaveBeenCalled()
+      expect(prepareManualSharedUnlock).not.toHaveBeenCalled()
+      expect(setupAccount).not.toHaveBeenCalled()
+    })
+  }
 })

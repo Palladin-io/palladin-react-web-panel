@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { SettingsSectionPage } from '../../../shared/components/settings-section-page'
 import { ChangeMasterPasswordSection } from './components/change-master-password-section'
 import { TotpSection } from './components/totp-section'
+import { SharedUnlockSection } from './components/shared-unlock-section'
 
 /**
  * Account security screen: master-password change and two-factor
@@ -15,6 +16,7 @@ export function SecurityPage() {
     <SettingsSectionPage title={t('security.title')} subtitle={t('security.subtitle')}>
       {/* TODO(authentication-methods): Add per-method controls for password and linked OAuth providers. Disabling a method must require step-up authentication and the API must reject disabling the last active login method. */}
       <TotpSection />
+      <SharedUnlockSection />
       <ChangeMasterPasswordSection />
     </SettingsSectionPage>
   )

@@ -8,7 +8,12 @@ Quick rules live in `AGENTS.md` under **Security**; the details are here.
 The CSP is delivered as **HTTP response headers** from the `public/_headers`
 template (Cloudflare Pages / Netlify `_headers` format). During a production
 build, Vite replaces the public-asset placeholder with the validated origin of
-`VITE_PUBLIC_ASSET_URL`; the completed file ships in `dist/` but is **not** enforced by Vite
+`VITE_PUBLIC_ASSET_URL` and the connection placeholder with the exact origins of
+`VITE_API_URL` and `VITE_SIGNALR_HUB_URL` (HTTP negotiation plus the corresponding
+WebSocket origin). API origins are not shared implicitly across environments.
+HTTPS is required except for explicit loopback HTTP; credentials, query strings,
+fragments, whitespace and wildcard hosts are rejected. Missing build configuration
+does not grant a default API origin. The completed file ships in `dist/` but is **not** enforced by Vite
 or by a `<meta>` tag — it only takes effect when a host that understands
 `_headers` serves the site.
 
@@ -97,3 +102,66 @@ so they are covered by the supply-chain review of `package-lock.json` + the CI
 Move the refresh token into an `httpOnly; Secure; SameSite` cookie so it is not
 readable from JS at all. That requires the API to set/read the cookie and a CSRF
 scheme on state-changing requests, so it is tracked as a backend task.
+
+## Shared-unlock native browser channel (in progress)
+
+The explicitly configured Chromium channel uses browser-native `runtime.connect`
+to the deployment's exact extension ID. It loads no extension resource and opens
+no iframe or HTTP/WebSocket endpoint. An actual built Web/Extension test passed
+with the Web build's delivered CSP headers.
+
+Firefox has a separate adapter. `VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID` selects
+the expected Gecko ID and enables `moz-extension:` only in `connect-src` and
+`frame-src`; blank configuration disables both. A content-script message provides
+only a candidate browser origin. Web constructs the fixed `/manifest.json` URL,
+fetches it without credentials/cache/redirects, bounds the read to 64 KiB and two
+seconds, and checks its canonical Gecko ID against deployment configuration.
+The browser's exact iframe `MessageEvent.origin` and `source` bind messages;
+payload IDs and paths cannot establish authority. Every inbound frame and the
+coordinator's sensitive asynchronous boundaries recheck the canonical resource.
+Iframe load/reload, removal, src mutation, `pagehide`, resource loss and Port loss
+retire the route. The extension independently validates its own runtime sender,
+top Web document, bridge document and browser-authored direct-parent binding.
+No keys or plaintext Identity tokens live in the frame. Same-ID package replacement
+remains the accepted compromised-client case, without store/profile attestation.
+
+On 2026-09-11, the actual built Web/Extension channel and bridge-loss reconnect
+passed on Firefox 155.0.1/macOS arm64 with delivered Web CSP. The later native
+Identity harness passed 16 real registration/login/Entry-password/lifecycle checks
+on that version, including Web close/reopen and controlled background restart.
+This remains partial evidence; full OS/distribution coverage is a release gate.
+Mozilla's [compatibility data](https://github.com/mdn/browser-compat-data/blob/main/webextensions/api/webNavigation.json)
+places the required `getAllFrames` document/parent-document IDs at Firefox 153.
+The existing extension floor is 140. The extension now implements a separate
+140–152 path gated by its browser-owned getBrowserInfo result. It compares a
+private boot marker from the own bridge Port against a fresh browser-addressed
+current-frame response, plus an independently read isolated top-document marker.
+These markers never enter Web messages or public documentBinding. Top pagehide
+invalidates its marker; restoration creates a new one. Navigation, Port loss and
+expired browser reads retire pending/ready routes. Firefox153+ cannot fall back
+to markers when native document authority is missing.
+
+The first real140 run passes Identity login/unlock and Entry list update but
+fails actual password autofill: that existing path independently requires native
+sender.documentId. Full140 Entry-password/lifecycle acceptance and review remain
+open; marker unit tests or MemberIndex display do not replace those proofs.
+Safari still requires a separate adapter and browser-boundary assessment.
+
+The provider retires the Web document on `pagehide`, including BFCache entry,
+and immediately wipes that document's MK/private key/access token through the
+existing local expiry action. Peer Port loss and React effect teardown do not
+expire an independently valid own session. No manual group event is emitted by
+this document cleanup. Both transports use the common encrypted handoff and own
+Identity/session coordinator. Chromium has limited real Identity/MK/Entry evidence;
+the complete browser/expiry/mismatch matrix and final review remain open.
+
+
+A verified manual unlock acknowledges only the prior lock reported by an
+independent authenticated own-session read, after pending local closing intents
+are flushed and before sharing authorization. This RAM-only checkpoint belongs
+to the captured own key generation; it is not an unlock root and never enables
+handoff or activity renewal. If sharing authorization fails (including429),
+rootless repair may ignore only that same link's already acknowledged lock.
+Every higher invalidation, logout, missing/different link and retired own key
+generation remains effective. Persisted link observations and peer hints cannot
+supply this checkpoint. No key, proof or checkpoint is added to durable storage.

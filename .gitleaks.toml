@@ -7,6 +7,7 @@ useDefault = true
 description = "Deterministic test credentials and public protocol vectors"
 targetRules = ["generic-api-key"]
 paths = [
+  '''^src/features/auth/shared-unlock/fixtures/session-api-v1\.json$''',
   '''^src/features/auth/register/components/register-credentials-step\.test\.tsx$''',
   '''^src/features/auth/security/components/change-master-password-section\.test\.tsx$''',
   '''^src/features/auth/security/components/totp-enrollment-dialog\.test\.tsx$''',

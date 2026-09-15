@@ -1,13 +1,13 @@
+import { recordOwnSharedUnlockActivity } from "../shared-unlock/manual-source"
 import { useEffect } from 'react'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 import { useAuthStore } from '../stores/auth-store'
+import { sessionDeadline } from '../lib/session-limits'
+export { IDLE_TIMEOUT_MS, ABSOLUTE_TIMEOUT_MS } from '../lib/session-limits'
 
-/** Lock after this long with no user interaction. */
-export const IDLE_TIMEOUT_MS = 15 * 60_000 // 15 minutes
-/** Hard cap on a single unlocked session, regardless of activity. */
-export const ABSOLUTE_TIMEOUT_MS = 8 * 60 * 60_000 // 8 hours
-/** How often we check the idle/absolute thresholds. */
+/** Upper bound for clock-drift repair; expiry itself uses the exact deadline. */
 const CHECK_INTERVAL_MS = 30_000 // 30 seconds
+const ACTIVITY_RECORD_INTERVAL_MS = 1_000
 
 const ACTIVITY_EVENTS = [
   'mousemove',
@@ -23,9 +23,9 @@ const ACTIVITY_EVENTS = [
  *
  * While the vault is unlocked, wipes the in-memory crypto keys and access token
  * (`expireSession`) once the user has been idle for `IDLE_TIMEOUT_MS` or the
- * session has lasted `ABSOLUTE_TIMEOUT_MS`, then routes to `/unlock`. Uses a
- * lightweight "record last activity + poll" pattern rather than resetting a
- * timer on every mouse move, so it stays cheap under heavy interaction.
+ * session has lasted `ABSOLUTE_TIMEOUT_MS`, then routes to `/unlock`. Reads the original deadlines from the in-memory auth session, so
+ * remounting never renews them. Only trusted local events advance own idle,
+ * coalesced to at most once per second without adding time on a later retry.
  *
  * No-op while the vault is locked (nothing sensitive is in memory to protect).
  * Mount once, high in the authenticated layout.
@@ -39,31 +39,47 @@ export function useSessionTimeout() {
   useEffect(() => {
     if (isVaultLocked) return
 
-    const unlockedAt = Date.now()
-    let lastActivity = Date.now()
-    const markActivity = () => {
-      lastActivity = Date.now()
+    let lastRecordedActivity = -Infinity
+    let deadlineTimer: number | undefined
+    const markActivity = (event: Event) => {
+      const now = Date.now()
+      if (!event.isTrusted || now - lastRecordedActivity < ACTIVITY_RECORD_INTERVAL_MS) return
+      lastRecordedActivity = now
+      recordOwnSharedUnlockActivity(now)
     }
 
     for (const event of ACTIVITY_EVENTS) {
       window.addEventListener(event, markActivity, { passive: true })
     }
 
-    const interval = window.setInterval(() => {
-      const now = Date.now()
-      const idle = now - lastActivity >= IDLE_TIMEOUT_MS
-      const expired = now - unlockedAt >= ABSOLUTE_TIMEOUT_MS
-      if (idle || expired) {
+    const check = () => {
+      window.clearTimeout(deadlineTimer)
+      deadlineTimer = undefined
+      const state = useAuthStore.getState()
+      if (state.isVaultLocked) return
+      const limits = state.unlockLimits
+      if (!limits || Date.now() < limits.unlockedAtMs || Date.now() >= sessionDeadline(limits)) {
         expireSession()
         void navigate({
           to: '/unlock',
           search: { redirect: router.state.location.href },
         })
+      } else {
+        deadlineTimer = window.setTimeout(check, Math.min(CHECK_INTERVAL_MS, sessionDeadline(limits) - Date.now()))
       }
-    }, CHECK_INTERVAL_MS)
+    }
+    const unsubscribe = useAuthStore.subscribe((state, previous) => {
+      if (state.unlockLimits !== previous.unlockLimits || state.isVaultLocked !== previous.isVaultLocked) check()
+    })
+    check()
+    window.addEventListener('pageshow', check)
+    document.addEventListener('visibilitychange', check)
 
     return () => {
-      window.clearInterval(interval)
+      window.removeEventListener('pageshow', check)
+      document.removeEventListener('visibilitychange', check)
+      unsubscribe()
+      window.clearTimeout(deadlineTimer)
       for (const event of ACTIVITY_EVENTS) {
         window.removeEventListener(event, markActivity)
       }
