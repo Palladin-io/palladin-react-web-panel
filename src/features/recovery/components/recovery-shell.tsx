@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { AppWordmark } from '../../../shared/components/app-wordmark'
 
 export interface RecoveryShellProps {
   title: string
@@ -34,14 +35,12 @@ export function RecoveryShell({ title, subtitle, children, onBack }: RecoveryShe
         )}
 
         <div className="text-center">
-          <img
-            src="/logo.png"
-            alt={t('auth.appName')}
-            className="mx-auto mb-4 h-16 w-16"
-          />
-          <h1 className="mb-1 text-auth-title font-bold leading-tight text-[var(--cv-t1)]">
+          <div className="auth-brand-header">
+            <AppWordmark size="hero" />
+          </div>
+          <h2 className="mb-1 text-auth-title font-bold leading-tight text-[var(--cv-t1)]">
             {title}
-          </h1>
+          </h2>
           <p className="mb-7 text-heading-sm text-[var(--cv-auth-muted)]">{subtitle}</p>
         </div>
 
