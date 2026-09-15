@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { toast } from 'sonner'
 import { UnlockPage } from './unlock-page'
 import { IncorrectMasterPasswordError } from './use-unlock'
 import { getAccount } from '../../shared/api/account-api'
@@ -10,6 +11,8 @@ import { getAccount } from '../../shared/api/account-api'
 const navigateMock = vi.fn()
 const mutateMock = vi.fn()
 let isPending = false
+
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }))
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
@@ -54,6 +57,7 @@ describe('UnlockPage', () => {
   beforeEach(() => {
     navigateMock.mockReset()
     mutateMock.mockReset()
+    vi.mocked(toast.error).mockReset()
     isPending = false
     vi.mocked(getAccount).mockReset()
     vi.mocked(getAccount).mockResolvedValue({
@@ -169,11 +173,14 @@ describe('UnlockPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       /incorrect master password/i,
     )
+    expect(screen.getByLabelText(/master password/i)).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText(/master password/i)).toHaveAccessibleDescription(/incorrect master password/i)
+    expect(toast.error).not.toHaveBeenCalled()
     expect(analytics.capture).toHaveBeenCalledWith('unlock', 'unlock-failed')
     expect(navigateMock).not.toHaveBeenCalledWith({ href: '/' })
   })
 
-  it('falls back to a generic error and fires unlock-failed for unexpected failures', async () => {
+  it('shows a generic toast without marking the password invalid for unexpected failures', async () => {
     const { analytics } = await import('../../shared/lib/analytics')
     const user = userEvent.setup()
     mutateMock.mockImplementation((_password, options) => {
@@ -184,9 +191,9 @@ describe('UnlockPage', () => {
     await user.type(await screen.findByLabelText(/master password/i), 'hunter2')
     await user.click(screen.getByRole('button', { name: /^unlock$/i }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /something went wrong/i,
-    )
+    expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/something went wrong/i))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/master password/i)).toHaveAttribute('aria-invalid', 'false')
     expect(analytics.capture).toHaveBeenCalledWith('unlock', 'unlock-failed')
   })
 
@@ -200,10 +207,14 @@ describe('UnlockPage', () => {
     const input = await screen.findByLabelText(/master password/i)
     await user.type(input, 'wrong')
     await user.click(screen.getByRole('button', { name: /^unlock$/i }))
-    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    const feedback = await screen.findByRole('alert')
 
     await user.type(input, 'x')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(input).toHaveAttribute('aria-invalid', 'false')
+    expect(input).not.toHaveAttribute('aria-describedby')
+    expect(feedback).toHaveAttribute('aria-hidden', 'true')
+    expect(feedback).toHaveTextContent(/incorrect master password/i)
   })
 
   it('renders a disabled unlocking button while the mutation is pending', async () => {
