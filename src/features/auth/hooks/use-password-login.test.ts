@@ -4,6 +4,10 @@ import { createElement, type ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { usePasswordLogin } from './use-password-login'
+import { captureManualUnlockFence } from '../session/manual-unlock-attempt'
+
+const profileCleanup = vi.hoisted(() => vi.fn())
+vi.mock('../../../shared/lib/client-profile-cleanup', () => ({ runClientProfileCleanups: profileCleanup }))
 
 const fetchLoginKdf = vi.hoisted(() => vi.fn())
 const passwordLogin = vi.hoisted(() => vi.fn())
@@ -43,12 +47,73 @@ describe('usePasswordLogin password KDF v1', () => {
   afterEach(() => vi.useRealTimers())
   beforeEach(() => {
     vi.clearAllMocks()
+    profileCleanup.mockResolvedValue(undefined)
     fetchLoginKdf.mockResolvedValue(profile)
     deriveIdentityV1.mockResolvedValue({ authCredential: new Uint8Array(32).fill(3), masterKey: new Uint8Array(32).fill(4) })
     decryptWithKey.mockResolvedValue(new Uint8Array(32).fill(5))
     getAccount.mockResolvedValue({ userId: accountId, encryptedPrivateKey: encodeBase64Url(new Uint8Array(72).fill(6)),
       kdf: { ...profile, minimumSecurityVersion: 1 } })
     totpLogin.mockResolvedValue(response)
+  })
+
+  it('blocks receivers synchronously while profile cleanup is pending, before any KDF request', async () => {
+    let release!: () => void
+    profileCleanup.mockReturnValueOnce(new Promise<void>(resolve => { release = resolve }))
+    passwordLogin.mockResolvedValue(response)
+    const { result } = renderHook(() => usePasswordLogin(), { wrapper })
+    const login = result.current.start.mutateAsync({ email: 'u@example.com', password: 'pw' })
+    try {
+      expect(captureManualUnlockFence()()).toBe(false)
+      await Promise.resolve()
+      expect(fetchLoginKdf).not.toHaveBeenCalled()
+    } finally { release?.(); await login }
+    expect(captureManualUnlockFence()()).toBe(true)
+  })
+
+  it('keeps receiver admission closed between TOTP mutations and after a retryable code failure', async () => {
+    passwordLogin.mockResolvedValue({ totpRequired: true, challengeToken: 'challenge' })
+    totpLogin.mockRejectedValueOnce(new Error('invalid-code'))
+    const { result } = renderHook(() => usePasswordLogin(), { wrapper })
+    await result.current.start.mutateAsync({ email: 'u@example.com', password: 'pw' })
+    expect(captureManualUnlockFence()()).toBe(false)
+    await expect(result.current.submitTotp.mutateAsync({ challengeToken: 'challenge', code: 'bad' })).rejects.toThrow('invalid-code')
+    expect(captureManualUnlockFence()()).toBe(false)
+    await result.current.submitTotp.mutateAsync({ challengeToken: 'challenge', code: '123456' })
+    expect(captureManualUnlockFence()()).toBe(true)
+  })
+
+  it('does not accept a TOTP response beyond the wall-clock ceiling when timers were suspended', async () => {
+    vi.useFakeTimers()
+    passwordLogin.mockResolvedValue({ totpRequired: true, challengeToken: 'challenge' })
+    const { result } = renderHook(() => usePasswordLogin(), { wrapper })
+    await result.current.start.mutateAsync({ email: 'u@example.com', password: 'pw' })
+    vi.setSystemTime(Date.now() + 5 * 60_000)
+    await expect(result.current.submitTotp.mutateAsync({ challengeToken: 'challenge', code: '123456' })).rejects.toThrow()
+    expect(totpLogin).not.toHaveBeenCalled()
+    expect(captureManualUnlockFence()()).toBe(true)
+  })
+
+  it('releases admission after failed profile cleanup without starting credential work', async () => {
+    profileCleanup.mockRejectedValueOnce(new Error('cleanup failed'))
+    const { result } = renderHook(() => usePasswordLogin(), { wrapper })
+    await expect(result.current.start.mutateAsync({ email: 'u@example.com', password: 'pw' })).rejects.toThrow('cleanup failed')
+    expect(fetchLoginKdf).not.toHaveBeenCalled()
+    expect(captureManualUnlockFence()()).toBe(true)
+  })
+
+  it('does not release a newer TOTP owner when an old cancelled cleanup finishes', async () => {
+    let release!: () => void
+    profileCleanup.mockReturnValueOnce(new Promise<void>(resolve => { release = resolve }))
+    passwordLogin.mockResolvedValue({ totpRequired: true, challengeToken: 'challenge' })
+    const { result } = renderHook(() => usePasswordLogin(), { wrapper })
+    const old = result.current.start.mutateAsync({ email: 'old@example.com', password: 'pw' })
+    const rejected = expect(old).rejects.toThrow('Unlock attempt cancelled')
+    await result.current.start.mutateAsync({ email: 'new@example.com', password: 'pw' })
+    release(); await rejected
+    expect(captureManualUnlockFence()()).toBe(false)
+    expect(fetchLoginKdf).toHaveBeenCalledExactlyOnceWith('new@example.com', 'identity-argon2id-password-v1')
+    result.current.cancel()
+    expect(captureManualUnlockFence()()).toBe(true)
   })
 
   it('derives once before TOTP and reuses the in-memory master key', async () => {
@@ -118,7 +183,7 @@ describe('usePasswordLogin password KDF v1', () => {
     await rejected
     expect(setTokens).toHaveBeenCalledOnce()
     expect(unlockVault).toHaveBeenCalledOnce()
-    expect(logout).not.toHaveBeenCalled()
+    expect(logout).toHaveBeenCalledTimes(2)
   })
 
   it('fails closed when authenticated KDF state is downgraded', async () => {
@@ -128,7 +193,7 @@ describe('usePasswordLogin password KDF v1', () => {
     const { result } = renderHook(() => usePasswordLogin(), { wrapper })
     await expect(result.current.start.mutateAsync({ email: 'u@example.com', password: 'pw' }))
       .rejects.toThrow('security-version-downgrade')
-    expect(logout).toHaveBeenCalledOnce()
+    expect(logout).toHaveBeenCalledTimes(2)
   })
 
   it('derives and calls login for an unknown account pseudo-bootstrap', async () => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import {
   assertIdentityKdfProfile,
@@ -87,10 +87,18 @@ export type LoginStartResult =
   | { kind: 'done' }
   | { kind: 'totp'; challengeToken: string }
 
+const MANUAL_LOGIN_DEADLINE_MS = 5 * 60_000
+interface PasswordCredentials { email: string; password: string }
+interface PasswordStart extends PasswordCredentials {
+  attempt: ReturnType<typeof beginManualUnlockAttempt>
+  cleanup: Promise<void>
+}
+
 export function usePasswordLogin() {
   const pendingV2 = useRef<PendingV2Unlock | null>(null)
   const pendingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeAttempt = useRef<ReturnType<typeof beginManualUnlockAttempt> | null>(null)
+  const [manualPending, setManualPending] = useState(false)
 
   const clearPendingV2 = useCallback(() => {
     if (pendingTimeout.current) clearTimeout(pendingTimeout.current)
@@ -101,7 +109,16 @@ export function usePasswordLogin() {
     pendingV2.current = null
   }, [])
 
-  const cancel = useCallback(() => { activeAttempt.current?.cancel(); clearPendingV2() }, [clearPendingV2])
+  const finish = useCallback((attempt: ReturnType<typeof beginManualUnlockAttempt>) => {
+    attempt.cancel()
+    if (activeAttempt.current !== attempt) return
+    activeAttempt.current = null
+    clearPendingV2()
+    setManualPending(false)
+  }, [clearPendingV2])
+  const cancel = useCallback(() => {
+    if (activeAttempt.current) finish(activeAttempt.current)
+  }, [finish])
 
   useEffect(() => {
     const unsubscribe = useAuthStore.subscribe((state, previous) => {
@@ -110,27 +127,45 @@ export function usePasswordLogin() {
     return () => { unsubscribe(); cancel() }
   }, [cancel])
 
+  // The public mutation adapters acquire ownership synchronously on submission,
+  // before TanStack schedules mutationFn or profile cleanup yields. TOTP keeps
+  // this same owner between requests; an older completion cannot release it.
+  const begin = (credentials: PasswordCredentials): PasswordStart => {
+    cancel()
+    const cleanup = clearClientSession()
+    // An offline-paused mutation may await later; retain the original rejection
+    // for it without producing an unhandled cleanup rejection in the meantime.
+    void cleanup.catch(() => {})
+    const guard = beginManualUnlockAttempt({ blockNewSharedUnlock: true })
+    const deadline = Date.now() + MANUAL_LOGIN_DEADLINE_MS
+    const attempt = {
+      ...guard,
+      isCurrent: () => guard.isCurrent() && Date.now() < deadline,
+      assertCurrent: () => {
+        if (!guard.isCurrent() || Date.now() >= deadline) {
+          finish(attempt)
+          throw new Error('Unlock attempt cancelled')
+        }
+      },
+    }
+    activeAttempt.current = attempt
+    pendingTimeout.current = setTimeout(() => finish(attempt), MANUAL_LOGIN_DEADLINE_MS)
+    setManualPending(true)
+    return { ...credentials, attempt, cleanup }
+  }
+
   const start = useMutation({
-    mutationFn: async ({
-      email,
-      password,
-    }: {
-      email: string
-      password: string
-    }): Promise<LoginStartResult> => {
-      clearPendingV2()
-      const attempt = beginManualUnlockAttempt()
-      activeAttempt.current = attempt
-      const bootstrap = await fetchLoginKdf(email, IDENTITY_KDF_PROFILE_ID)
-      attempt.assertCurrent()
-      assertIdentityKdfProfile(bootstrap)
-      const kdfSalt = decodeBase64Url(bootstrap.kdfSalt, 16)
-      const identity = await deriveIdentityV1(
-        password,
-        bootstrap.accountId,
-        kdfSalt,
-      )
+    mutationFn: async ({ email, password, attempt, cleanup }: PasswordStart): Promise<LoginStartResult> => {
+      let kdfSalt: Uint8Array | undefined
+      let identity: Awaited<ReturnType<typeof deriveIdentityV1>> | undefined
       try {
+        await cleanup
+        attempt.assertCurrent()
+        const bootstrap = await fetchLoginKdf(email, IDENTITY_KDF_PROFILE_ID)
+        attempt.assertCurrent()
+        assertIdentityKdfProfile(bootstrap)
+        kdfSalt = decodeBase64Url(bootstrap.kdfSalt, 16)
+        identity = await deriveIdentityV1(password, bootstrap.accountId, kdfSalt)
         attempt.assertCurrent()
         const response = await passwordLogin({
           email,
@@ -147,33 +182,20 @@ export function usePasswordLogin() {
             bootstrap,
             attempt,
           }
-          pendingTimeout.current = setTimeout(cancel, 5 * 60_000)
           return { kind: 'totp', challengeToken: response.challengeToken }
         }
-        await unlockWithMasterKey(
-          response,
-          identity.masterKey,
-          identity.authCredential,
-          attempt,
-          bootstrap,
-        )
+        await unlockWithMasterKey(response, identity.masterKey, identity.authCredential, attempt, bootstrap)
         return { kind: 'done' }
       } finally {
-        wipe(kdfSalt)
-        wipe(identity.authCredential)
-        wipe(identity.masterKey)
+        if (kdfSalt) wipe(kdfSalt)
+        if (identity) { wipe(identity.authCredential); wipe(identity.masterKey) }
+        if (pendingV2.current?.attempt !== attempt) finish(attempt)
       }
     },
   })
 
   const submitTotp = useMutation({
-    mutationFn: async ({
-      challengeToken,
-      code,
-    }: {
-      challengeToken: string
-      code: string
-    }): Promise<void> => {
+    mutationFn: async ({ challengeToken, code }: { challengeToken: string; code: string }): Promise<void> => {
       const pending = pendingV2.current
       if (!pending || pending.challengeToken !== challengeToken) throw new Error('Missing pending login state')
       pending.attempt.assertCurrent()
@@ -181,18 +203,17 @@ export function usePasswordLogin() {
       if (pending !== pendingV2.current) throw new Error('Expired pending login state')
       pending.attempt.assertCurrent()
       try {
-        await unlockWithMasterKey(
-          response,
-          pending.masterKey,
-          pending.authCredential,
-          pending.attempt,
-          pending.bootstrap,
-        )
-      } finally {
-        if (pending === pendingV2.current) clearPendingV2()
-      }
+        await unlockWithMasterKey(response, pending.masterKey, pending.authCredential, pending.attempt, pending.bootstrap)
+      } finally { finish(pending.attempt) }
     },
   })
 
-  return { start, submitTotp, cancel }
+  return {
+    start: {
+      ...start,
+      mutate: (input: PasswordCredentials, options?: Parameters<typeof start.mutate>[1]) => start.mutate(begin(input), options),
+      mutateAsync: (input: PasswordCredentials, options?: Parameters<typeof start.mutateAsync>[1]) => start.mutateAsync(begin(input), options),
+    },
+    submitTotp, cancel, isPending: manualPending,
+  }
 }

@@ -6,7 +6,7 @@ import { LoginPage } from './login-page'
 import { useAuthStore } from '../stores/auth-store'
 
 // Controllable mock for the password-login handshake.
-const pending = vi.hoisted(() => ({ password: false, totp: false, oauth: false }))
+const pending = vi.hoisted(() => ({ password: false, totp: false, oauth: false, manual: false }))
 const startMutate = vi.hoisted(() => vi.fn())
 const totpMutate = vi.hoisted(() => vi.fn())
 const navigateMock = vi.hoisted(() => vi.fn())
@@ -31,6 +31,7 @@ vi.mock('../hooks/use-login', () => ({
 vi.mock('../hooks/use-password-login', () => ({
   usePasswordLogin: () => ({
     cancel: vi.fn(),
+    isPending: pending.manual,
     start: { mutate: startMutate, isPending: pending.password },
     submitTotp: { mutate: totpMutate, isPending: pending.totp },
   }),
@@ -50,7 +51,7 @@ vi.mock('../hooks/use-identity-kdf-migration', () => ({
 
 describe('LoginPage', () => {
   beforeEach(() => {
-    pending.password = pending.totp = pending.oauth = false
+    pending.password = pending.totp = pending.oauth = pending.manual = false
     useAuthStore.getState().logout()
     startMutate.mockReset()
     totpMutate.mockReset()
@@ -72,7 +73,7 @@ describe('LoginPage', () => {
     expect(navigateMock).toHaveBeenCalledOnce()
   })
 
-  it.each(['password', 'totp', 'oauth'] as const)('waits for pending %s work before reacting to installed keys', (kind) => {
+  it.each(['password', 'totp', 'oauth', 'manual'] as const)('waits for pending %s work before reacting to installed keys', (kind) => {
     pending[kind] = true
     const view = render(<LoginPage redirectTo="/vaults" />)
     act(() => {
@@ -138,9 +139,6 @@ describe('LoginPage', () => {
     await user.type(screen.getByLabelText(/master password/i), 'hunter2hunter2')
     await user.click(screen.getByRole('button', { name: /^sign in$/i }))
 
-    expect(clearClientSessionMock).toHaveBeenCalledOnce()
-    expect(clearClientSessionMock.mock.invocationCallOrder[0])
-      .toBeLessThan(startMutate.mock.invocationCallOrder[0])
     expect(startMutate).toHaveBeenCalledTimes(1)
     expect(startMutate.mock.calls[0][0]).toEqual({
       email: 'user@example.com',

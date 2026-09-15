@@ -785,3 +785,26 @@ with separate post-registration and Settings → Privacy surfaces. Only session-
 routes opt in through `staticData.consentSession`; public auth routes, including
 `/verify-email?token=…`, cannot start consent reads/session restoration. The token
 verification flow retains ownership of its own explicit session refresh.
+
+### Password/TOTP admission and exact inherited expiry
+
+Password submission now acquires a blocking manual-admission owner synchronously
+through the hook's mutation adapters, immediately after synchronous client clearing
+and before asynchronous profile cleanup. The same owner remains active during KDF,
+password verification, the idle TOTP input interval, retryable code failures and
+final key/source preparation. Cancellation, unmount, a newer session or attempt,
+success/failure and the five-minute deadline release only that attempt. A wall-clock
+check also rejects TOTP use when timers were suspended. Login routing observes this
+whole-attempt pending state; TanStack request flags alone do not define ownership.
+The five-minute ceiling begins at credential submission and is not renewed by TOTP
+retries. Profile-cleanup failures cannot start credential work.
+
+Session expiry schedules the earlier of the exact current inherited deadline and
+the existing 30-second clock-repair interval. A synchronous auth-store subscription
+reschedules on limit changes, including trusted own activity and a new unlocked
+generation, without extending absolute/offline ceilings. The expiry path wipes MK,
+private key and access token at that deadline; pageshow/visibility checks remain.
+Tests cover sub-poll idle/absolute/offline expiry, key-buffer wipe, earlier replacement
+limits and trusted idle renewal. Browser timer suspension and all later pre-key-use
+paths still require their separately recorded native acceptance; this scheduling
+change does not claim to complete that broader matrix.

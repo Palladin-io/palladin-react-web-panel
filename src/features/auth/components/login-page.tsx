@@ -6,7 +6,6 @@ import { AuthBrandHeader } from '../../../shared/components/auth-brand-header'
 import { AuthRateLimitError } from '../api/auth-api'
 import { useGoogleSignIn } from '../hooks/use-google-sign-in'
 import { usePasswordLogin } from '../hooks/use-password-login'
-import { clearClientSession } from '../session/client-session'
 import { useAuthStore } from '../stores/auth-store'
 import { EmailPasswordForm } from './email-password-form'
 import { TotpChallengeStep } from './totp-challenge-step'
@@ -19,10 +18,10 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const oauth = useGoogleSignIn(redirectTo)
-  const { start, submitTotp, cancel } = usePasswordLogin()
+  const { start, submitTotp, cancel, isPending: passwordPending } = usePasswordLogin()
   const unlockedSession = useAuthStore((state) => Boolean(state.accessToken) && !state.isVaultLocked)
   const navigated = useRef(false)
-  const manualPending = start.isPending || submitTotp.isPending || oauth.isPending
+  const manualPending = passwordPending || start.isPending || submitTotp.isPending || oauth.isPending
 
   useEffect(() => {
     // Manual login publishes keys before finishing source preparation. Its
@@ -59,32 +58,24 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
 
   const handleCredentials = (email: string, password: string) => {
     oauth.cancel()
-    void clearClientSession()
-      .then(() => {
-        setPasswordError(null)
-        start.mutate(
-          { email, password },
-          {
-            onSuccess: (result) => {
-              if (result.kind === 'totp') {
-                setChallengeToken(result.challengeToken)
-                setTotpError(null)
-                setStep('totp')
-              } else {
-                finishManualLogin()
-              }
-            },
-            onError: (error) => setPasswordError(
-              t(error instanceof AuthRateLimitError
-                ? 'auth.errorRateLimited'
-                : 'login.errorInvalid'),
-            ),
-          },
-        )
-      })
-      .catch(() => {
-        setPasswordError(t('auth.errorSignInFailed'))
-      })
+    setPasswordError(null)
+    start.mutate(
+      { email, password },
+      {
+        onSuccess: (result) => {
+          if (result.kind === 'totp') {
+            setChallengeToken(result.challengeToken)
+            setTotpError(null)
+            setStep('totp')
+          } else {
+            finishManualLogin()
+          }
+        },
+        onError: (error) => setPasswordError(
+          t(error instanceof AuthRateLimitError ? 'auth.errorRateLimited' : 'login.errorInvalid'),
+        ),
+      },
+    )
   }
 
   const handleTotp = (code: string) => {

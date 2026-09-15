@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth-store'
 import { sessionDeadline } from '../lib/session-limits'
 export { IDLE_TIMEOUT_MS, ABSOLUTE_TIMEOUT_MS } from '../lib/session-limits'
 
-/** How often we check the idle/absolute thresholds. */
+/** Upper bound for clock-drift repair; expiry itself uses the exact deadline. */
 const CHECK_INTERVAL_MS = 30_000 // 30 seconds
 const ACTIVITY_RECORD_INTERVAL_MS = 1_000
 
@@ -40,6 +40,7 @@ export function useSessionTimeout() {
     if (isVaultLocked) return
 
     let lastRecordedActivity = -Infinity
+    let deadlineTimer: number | undefined
     const markActivity = (event: Event) => {
       const now = Date.now()
       if (!event.isTrusted || now - lastRecordedActivity < ACTIVITY_RECORD_INTERVAL_MS) return
@@ -52,6 +53,8 @@ export function useSessionTimeout() {
     }
 
     const check = () => {
+      window.clearTimeout(deadlineTimer)
+      deadlineTimer = undefined
       const state = useAuthStore.getState()
       if (state.isVaultLocked) return
       const limits = state.unlockLimits
@@ -61,17 +64,22 @@ export function useSessionTimeout() {
           to: '/unlock',
           search: { redirect: router.state.location.href },
         })
+      } else {
+        deadlineTimer = window.setTimeout(check, Math.min(CHECK_INTERVAL_MS, sessionDeadline(limits) - Date.now()))
       }
     }
+    const unsubscribe = useAuthStore.subscribe((state, previous) => {
+      if (state.unlockLimits !== previous.unlockLimits || state.isVaultLocked !== previous.isVaultLocked) check()
+    })
     check()
-    const interval = window.setInterval(check, CHECK_INTERVAL_MS)
     window.addEventListener('pageshow', check)
     document.addEventListener('visibilitychange', check)
 
     return () => {
       window.removeEventListener('pageshow', check)
       document.removeEventListener('visibilitychange', check)
-      window.clearInterval(interval)
+      unsubscribe()
+      window.clearTimeout(deadlineTimer)
       for (const event of ACTIVITY_EVENTS) {
         window.removeEventListener(event, markActivity)
       }
