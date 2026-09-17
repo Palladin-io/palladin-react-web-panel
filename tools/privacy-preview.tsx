@@ -1,16 +1,16 @@
 // Local-only actual-component preview. Never imports approved notices or enables capture.
 import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createRootRoute, createRoute, createRouter, RouterProvider, Outlet, useNavigate } from '@tanstack/react-router'
+import { createMemoryHistory, createRootRoute, createRoute, createRouter, RouterProvider, Outlet, useNavigate } from '@tanstack/react-router'
 import { Toaster } from 'sonner'
 import '../src/index.css'
 import i18n from '../src/shared/lib/i18n'
 import { env } from '../src/shared/lib/env'
-import { useAuthStore } from '../src/features/auth'
+import { useAuthStore, SecurityPage } from '../src/features/auth'
 import { ConsentRuntime, PrivacySettingsPage, PrivacyPrompt } from '../src/features/privacy'
-import { ConsentChoices } from '../src/features/privacy/consent-choices'
 import { SettingsLayout } from '../src/features/settings'
-import { dismissPrivacyPrompt } from '../src/features/privacy/privacy-prompt-state'
+import { AuthStepShell } from '../src/shared/components/auth-step-shell'
+import { Button } from '../src/shared/components/button'
 import { AppWordmark } from '../src/shared/components/app-wordmark'
 
 if (!import.meta.env.DEV || env.clientAnalyticsReleased || env.posthogKey || !env.apiUrl.startsWith('http://127.0.0.1:')) throw new Error('Local telemetry-free preview only')
@@ -22,25 +22,32 @@ useAuthStore.setState({ userId, accessToken: userId, refreshToken: null })
 await fetch(`${env.apiUrl}/reset`, { method: 'POST', headers: { Authorization: `Bearer ${userId}` } })
 const client = new QueryClient()
 export function Preview() {
+  if (params.has('verify')) return <AuthStepShell showBrand align="center"
+    title={i18n.t('verifyEmail.successTitle')} subtitle={i18n.t('verifyEmail.successSubtitle')}>
+    <div className="flex flex-col items-center gap-4"><Button onClick={() => { location.href = '/tools/privacy-preview.html?locale=' + locale }}>{i18n.t('privacy.continue')}</Button></div>
+  </AuthStepShell>
   return <QueryClientProvider client={client}>
     <ConsentRuntime />
     <div className="auth-surface flex h-screen flex-col">
-      <header className="flex items-center justify-between p-4"><AppWordmark size="sm" /><span className="text-meta">TEST FIXTURE · capture off · {locale.toUpperCase()}</span></header>
+      <header className="flex flex-wrap items-center justify-between gap-3 p-4"><AppWordmark size="sm" /><span className="text-meta">TEST FIXTURE · capture off · {locale.toUpperCase()}</span></header>
       <div className="min-h-0 flex-1"><Outlet /></div>
     </div><Toaster />
   </QueryClientProvider>
 }
 const rootRoute = createRootRoute({ component: Preview, staticData: { consentSession: true } })
-function Startup() {
+function PreviewHome() {
   const navigate = useNavigate()
-  return <ConsentChoices source="web_onboarding" onContinue={() => {
-    dismissPrivacyPrompt(userId)
-    void navigate({ to: '/settings/privacy' })
-  }} />
+  return <div className="flex h-full items-center justify-center">
+    <Button size="sm" variant="outline" onClick={() => { void navigate({ to: '/settings/security' }) }}>{i18n.t('settings.title')}</Button>
+  </div>
 }
+function Startup() {
+  return <PrivacyPrompt fallback={<PreviewHome />} />
+}
+
 const startup = createRoute({ getParentRoute: () => rootRoute, path: '/tools/privacy-preview.html', component: Startup })
 const settings = createRoute({ getParentRoute: () => rootRoute, path: '/settings', component: () => <><SettingsLayout /><PrivacyPrompt /></> })
 const privacy = createRoute({ getParentRoute: () => settings, path: '/privacy', component: PrivacySettingsPage })
-const security = createRoute({ getParentRoute: () => settings, path: '/security', component: () => <p className="p-4">TEST FIXTURE · Settings navigation</p> })
-const router = createRouter({ routeTree: rootRoute.addChildren([startup, settings.addChildren([privacy, security])]) })
+const security = createRoute({ getParentRoute: () => settings, path: '/security', component: SecurityPage })
+const router = createRouter({ history: params.has('direct') ? createMemoryHistory({ initialEntries: ['/settings/privacy'] }) : undefined, routeTree: rootRoute.addChildren([startup, settings.addChildren([privacy, security])]) })
 createRoot(document.getElementById('root')!).render(<RouterProvider router={router} />)

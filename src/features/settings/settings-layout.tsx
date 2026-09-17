@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { PrivacySettingsDialog } from '../privacy'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../auth'
@@ -39,6 +41,8 @@ const ACCOUNT_ITEMS: SettingsNavigationItem[] = [
 
 export function SettingsLayout() {
   const { t } = useTranslation()
+  const [privacyOpen, setPrivacyOpen] = useState(false)
+  const openPrivacy = () => setPrivacyOpen(true)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const permissions = useAuthStore((state) => state.permissions)
   const visibleOrganizationItems = ORGANIZATION_ITEMS.filter(
@@ -59,11 +63,13 @@ export function SettingsLayout() {
           <SettingsNavigationGroup
             items={visibleOrganizationItems}
             pathname={pathname}
+            onPrivacyOpen={openPrivacy}
           />
           <SettingsNavigationGroup
             label={t('settings.navigation.account')}
             items={ACCOUNT_ITEMS}
             pathname={pathname}
+            onPrivacyOpen={openPrivacy}
           />
         </nav>
       </aside>
@@ -74,13 +80,14 @@ export function SettingsLayout() {
           aria-label={t('settings.navigation.label')}
         >
           {allItems.map((item) => (
-            <SettingsNavigationLink key={item.id} item={item} active={isActive(pathname, item.to)} compact />
+            <SettingsNavigationLink key={item.id} item={item} active={isActive(pathname, item.to)} onPrivacyOpen={openPrivacy} compact />
           ))}
         </nav>
         <div className="min-h-0 flex-1 overflow-hidden">
           <Outlet />
         </div>
       </div>
+      {privacyOpen && <PrivacySettingsDialog onClose={() => setPrivacyOpen(false)} />}
     </div>
   )
 }
@@ -89,17 +96,19 @@ function SettingsNavigationGroup({
   label,
   items,
   pathname,
+  onPrivacyOpen,
 }: {
   label?: string
   items: SettingsNavigationItem[]
   pathname: string
+  onPrivacyOpen: () => void
 }) {
   return (
     <div className="mb-4">
       {label ? <p className="px-3 py-1.5 text-micro font-semibold text-[var(--cv-t3)]">{label}</p> : null}
       <div className="flex flex-col gap-0.5">
         {items.map((item) => (
-          <SettingsNavigationLink key={item.id} item={item} active={isActive(pathname, item.to)} />
+          <SettingsNavigationLink key={item.id} item={item} active={isActive(pathname, item.to)} onPrivacyOpen={onPrivacyOpen} />
         ))}
       </div>
     </div>
@@ -110,15 +119,24 @@ function SettingsNavigationLink({
   item,
   active,
   compact = false,
+  onPrivacyOpen,
 }: {
   item: SettingsNavigationItem
   active: boolean
   compact?: boolean
+  onPrivacyOpen: () => void
 }) {
   const { t } = useTranslation()
   return (
     <Link
       to={item.to}
+      aria-haspopup={item.id === 'privacy' ? 'dialog' : undefined}
+      onClick={event => {
+        if (item.id === 'privacy' && event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+          event.preventDefault()
+          onPrivacyOpen()
+        }
+      }}
       aria-current={active ? 'page' : undefined}
       className={`flex shrink-0 items-center gap-2 rounded-lg text-ui font-medium transition-colors ${
         compact ? 'px-3 py-2' : 'px-3 py-2.5'

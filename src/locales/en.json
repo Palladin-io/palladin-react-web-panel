@@ -1759,7 +1759,7 @@
   "privacy": {
     "manageChoices": "Manage choices",
     "title": "Privacy",
-    "subtitle": "Optional consents are voluntary. You can change them later in Privacy settings.",
+    "subtitle": "These choices are optional. You can change them at any time.",
     "product_analytics": "Product analytics",
     "email_marketing": "Email marketing",
     "continue": "Continue",
@@ -1784,12 +1784,15 @@
     "essential": "Essential",
     "alwaysActive": "Always active",
     "essentialDescription": "Enable core features and help protect your account.",
-    "product_analyticsDescription": "Optional measurements of how you use app features.",
-    "email_marketingDescription": "Palladin news and offers by email.",
+    "product_analyticsDescription": "Data about how you use app features.",
+    "email_marketingDescription": "Palladin news and offers delivered by email.",
     "acceptAll": "Accept all",
     "saveChoice": "Save choice",
     "inactiveHere": "Off on this device",
     "activeHere": "Enabled on this device",
-    "details": "Consent details"
+    "details": "Consent details",
+    "essentialSummary": "Features needed to run Palladin remain active.",
+    "policyLink": "More in the Privacy Policy",
+    "policyLinkNewTab": "Opens in a new tab"
   }
 }

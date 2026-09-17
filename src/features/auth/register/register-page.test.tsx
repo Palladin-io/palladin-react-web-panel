@@ -84,7 +84,8 @@ async function enterRequestedWords(
   }
 }
 
-it('requires recovery words instead of a checkbox before email registration', async () => {
+it('requires recovery words and resumes normal auth guards after registration', async () => {
+  registerState.mutate.mockImplementation((_input: unknown, options: { onSuccess: () => void }) => options.onSuccess())
   const user = userEvent.setup()
   render(<RegisterPage />)
 
@@ -101,6 +102,7 @@ it('requires recovery words instead of a checkbox before email registration', as
     },
     expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
   )
+  expect(navigateMock).toHaveBeenCalledWith({ to: '/' })
 })
 
 it('shows the registration error on the recovery confirmation step', async () => {

@@ -26,11 +26,7 @@ export function useLogin(redirectTo = '/') {
         state.setTokens(issued)
         attempt.assertCurrent()
         installed = true
-        if (issued.isNewUser) {
-          void navigate({ to: '/privacy-choices', search: { redirect: redirectTo } })
-        } else {
-          void navigate({ href: redirectTo })
-        }
+        void navigate({ href: redirectTo })
         return issued
       } finally {
         if (issued && !installed) void revokeUninstalledLoginSession(issued.refreshToken)

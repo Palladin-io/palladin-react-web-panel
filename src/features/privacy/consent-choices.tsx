@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { HTTPError } from 'ky'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -7,10 +7,12 @@ import { ToggleSwitch } from '../../shared/components/toggle-switch'
 import { ErrorState } from '../../shared/components/error-state'
 import { SkeletonBlock } from '../../shared/components/skeleton-block'
 import { ModalShell } from '../../shared/components/modal-shell'
+import { Icon } from '../../shared/components/icon'
 import { DialogFooter } from '../../shared/components/dialog-footer'
 import type { ConsentSource, ConsentPurpose, UserConsent, UpdateConsent } from '../../shared/api/consents-api'
 import { analytics } from '../../shared/lib/analytics'
 import { matchesCurrentAnalyticsActivation, setLocalAnalyticsActivation } from '../../shared/lib/local-analytics-consent'
+import { PrivacyPolicyLink } from './privacy-policy-link'
 import { useChangeConsent, useConsents, useLocalActivation } from './use-consents'
 
 const purposes: ConsentPurpose[] = ['product_analytics', 'email_marketing']
@@ -99,44 +101,76 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
         noticeVersion: version, locale, source,
       } })
     }
-    if (attempts.length === 0) { if (!unavailable) onContinue?.(); return }
+    if (attempts.length === 0) { onContinue?.(); return }
     void persist(attempts)
   }
 
   const unavailable = rows.some(row => !row?.currentNotice)
+  const noDecisionsAvailable = !saving && !query.isPending && (query.isError || rows.every(row => !row?.currentNotice && row?.status !== 'granted'))
   const actions = <DialogFooter>
+    {noDecisionsAvailable ? <Button size="sm" variant="outline" className="flex-1" onClick={close}>{t('privacy.continue')}</Button> : <>
     <Button size="sm" variant="outline" className="flex-1" disabled={saving || query.isPending || query.isError || rows.every(row => !row?.currentNotice && row?.status !== 'granted')} onClick={() => save()}>{t('privacy.saveChoice')}</Button>
     <Button size="sm" variant="accent" className="flex-1" disabled={saving || query.isPending || query.isError || unavailable} onClick={() => save(true)}>{t(saving ? 'privacy.saving' : 'privacy.acceptAll')}</Button>
+    </>}
   </DialogFooter>
-  const content = <div className="flex flex-col gap-4">
-    <p className="text-ui text-[var(--cv-t2)]">{t('privacy.subtitle')}</p>
-    <section className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
-      <div className="flex items-start justify-between gap-4">
-        <h3 className="text-heading-sm font-bold">{t('privacy.essential')}</h3>
-        <span className="text-meta text-[var(--cv-t2)]">{t('privacy.alwaysActive')}</span>
-      </div>
-      <p className="mt-2 text-ui text-[var(--cv-t2)]">{t('privacy.essentialDescription')}</p>
-    </section>
+  const content = <div>
+    <p className="text-ui leading-relaxed text-[var(--cv-t3)]">{t('privacy.essentialSummary')}</p>
+    <div className="mt-3 flex flex-col gap-3">
     {query.isPending ? <SkeletonBlock height="10rem" /> : query.isError ? <ErrorState message={t('privacy.loadError')} onRetry={() => { void query.refetch() }} /> : purposes.map((purpose, index) => {
       const consent = rows[index]
       const checked = consent ? granted(consent) : false
       const locallyActive = matchesCurrentAnalyticsActivation(consent, activation)
-      return <section key={purpose} className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
-        <div className="flex items-start justify-between gap-4">
-          <h3 className="text-heading-sm font-bold">{t(`privacy.${purpose}`)}</h3>
-          <ToggleSwitch checked={checked} label={t(`privacy.${purpose}`)} onChange={value => { if (consent) change(consent, value) }} disabled={saving || !consent || (!consent.currentNotice && !checked)} />
-        </div>
-        <p className="mt-2 text-ui text-[var(--cv-t2)]">{t(`privacy.${purpose}Description`)}</p>
+      return <ConsentCard key={purpose} purpose={purpose} consent={consent} checked={checked}
+        disabled={saving || !consent || (!consent.currentNotice && !checked)}
+        onChange={value => { if (consent) change(consent, value) }}>
         {source === 'web_settings' && purpose === 'product_analytics' && <div className="mt-3">
           <p role="status" className="text-meta text-[var(--cv-t2)]">{t(locallyActive ? 'privacy.activeHere' : 'privacy.inactiveHere')}</p>
           {consent?.status === 'granted' && checked && !locallyActive && consent.currentNotice && <Button size="sm" variant="subtle" className="mt-2" disabled={saving} onClick={() => save(false, true)}>{t('privacy.activateHere')}</Button>}
         </div>}
-        {consent?.currentNotice && <details className="mt-3 text-meta text-[var(--cv-t2)]"><summary>{t('privacy.details')}</summary><p className="mt-2 whitespace-pre-line">{consent.currentNotice.text}</p></details>}
-      </section>
+      </ConsentCard>
     })}
-    {unavailable && !query.isPending && !query.isError && <p role="status" className="text-meta text-[var(--cv-t2)]">{t('privacy.noticeUnavailable')}</p>}
-    {!saving && decisionError && <p role="alert" className="text-ui text-[var(--cv-error)]">{t(`privacy.${decisionError}`)}</p>}
-    {!saving && pending.length > 0 && <div role="alert"><p className="mb-2 text-ui text-[var(--cv-error)]">{t('privacy.saveError')}</p><Button size="sm" variant="subtle" onClick={() => { void persist(pending) }}>{t('privacy.retry')}</Button></div>}
+    </div>
+    <p className="-mb-2 pt-3 text-micro leading-relaxed text-[var(--cv-t3)]">{t('privacy.subtitle')}</p>
+    {unavailable && !query.isPending && !query.isError && <p role="status" className="mt-4 text-meta text-[var(--cv-t2)]">{t('privacy.noticeUnavailable')}</p>}
+    {!saving && decisionError && <p role="alert" className="text-ui text-[var(--cv-danger)]">{t(`privacy.${decisionError}`)}</p>}
+    {!saving && pending.length > 0 && <div role="alert"><p className="mb-2 text-ui text-[var(--cv-danger)]">{t('privacy.saveError')}</p><Button size="sm" variant="subtle" onClick={() => { void persist(pending) }}>{t('privacy.retry')}</Button></div>}
   </div>
-  return <ModalShell title={t('privacy.onboardingTitle')} ariaLabel={t('privacy.onboardingTitle')} trapFocus onClose={saving ? undefined : close} width={480} footer={actions}>{content}</ModalShell>
+  return <ModalShell title={t('privacy.title')} ariaLabel={t('privacy.title')} trapFocus onClose={saving ? undefined : close} width={440} footer={actions}>{content}</ModalShell>
+}
+
+function ConsentCard({ purpose, consent, checked, disabled, onChange, children }: {
+  purpose: ConsentPurpose
+  consent?: UserConsent
+  checked: boolean
+  disabled: boolean
+  onChange: (checked: boolean) => void
+  children: ReactNode
+}) {
+  const { t } = useTranslation()
+  const [expanded, setExpanded] = useState(false)
+  const detailsId = useId()
+  const title = t(`privacy.${purpose}`)
+  return <section className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
+    <div className="flex items-center justify-between gap-5">
+      <div className="min-w-0">
+        <h3 className="text-ui font-medium text-[var(--cv-t1)]">
+          {consent?.currentNotice ? <button type="button" aria-expanded={expanded} aria-controls={detailsId}
+            onClick={() => setExpanded(value => !value)}
+            className="flex cursor-pointer items-center gap-1.5 rounded text-left focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--cv-primary)]">
+            {title}<Icon name="expand_more" size={14} className={`shrink-0 text-[var(--cv-t3)] transition-transform motion-reduce:transition-none ${expanded ? 'rotate-180' : ''}`} />
+          </button> : title}
+        </h3>
+        <p className="mt-1 text-meta leading-relaxed text-[var(--cv-t3)]">{t(`privacy.${purpose}Description`)}</p>
+      </div>
+      <ToggleSwitch checked={checked} label={title} onChange={onChange} disabled={disabled} />
+    </div>
+    {children}
+    {consent?.currentNotice && <div id={detailsId} aria-hidden={!expanded} inert={!expanded}
+      className={`grid transition-[grid-template-rows] duration-200 motion-reduce:transition-none ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+      <div className="overflow-hidden">
+        <p className="whitespace-pre-line pt-3 text-meta leading-relaxed text-[var(--cv-t3)]">{consent.currentNotice.text}</p>
+        <PrivacyPolicyLink />
+      </div>
+    </div>}
+  </section>
 }
