@@ -32,6 +32,44 @@ describe('normalizePublicHostname', () => {
 })
 
 describe('ensureWebsiteIcons', () => {
+  it('finishes preparation without an untrusted icon and preserves valid sibling icons', async () => {
+    vi.useFakeTimers()
+    try {
+      const hostnames = ['untrusted-icon.example.com', 'trusted-sibling.example.com']
+      const onProgress = vi.fn()
+      const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+        items: hostnames.map((hostname, index) => ({
+          hostname,
+          status: 'ready',
+          asset: {
+            id: index === 0 ? 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb' : 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+            type: 'websiteIcon',
+            name: hostname,
+            url: index === 0
+              ? 'https://untrusted.example.com/published/icon.png'
+              : 'https://assets.palladin.io/published/website-icon/sibling.png',
+            revision: 1,
+          },
+        })),
+      }), { status: 200, headers: { 'content-type': 'application/json' } }))
+      vi.stubGlobal('fetch', fetchMock)
+
+      let result: Map<string, unknown> | undefined
+      const preparation = ensureWebsiteIconsUntilSettled(hostnames, onProgress, () => {
+        if (fetchMock.mock.calls.length > 1) throw new Error('Preparation retried a terminal response')
+      }).then((assets) => { result = assets }, () => undefined)
+      await vi.advanceTimersByTimeAsync(6_000)
+      await preparation
+
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(result?.has(hostnames[0])).toBe(false)
+      expect(result?.has(hostnames[1])).toBe(true)
+      expect(onProgress).toHaveBeenLastCalledWith(2, 2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('reuses a reserved immutable URL instead of ensuring the same hostname twice', async () => {
     const fetchMock = vi.fn(async (request: Request) => {
       const body = await request.clone().json() as { hostnames: string[] }

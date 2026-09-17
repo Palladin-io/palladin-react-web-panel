@@ -20,7 +20,7 @@ const ensureResponseSchema = z.object({
   items: z.array(z.object({
     hostname: z.string().min(1).max(253),
     status: websiteIconEnsureStatusSchema,
-    asset: publicAssetSchema.nullable(),
+    asset: z.unknown(),
   })),
 })
 const byIdsResponseSchema = z.object({ items: z.array(publicAssetSchema) })
@@ -117,7 +117,12 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
           json: { hostnames: batch },
           timeout: 20_000,
         }).json<unknown>()
-        const items = ensureResponseSchema.parse(response).items
+        const items = ensureResponseSchema.parse(response).items.map((item) => {
+          // A rejected network destination must not discard other icons or
+          // keep a backend-terminal hostname in the import polling loop.
+          const asset = publicAssetSchema.safeParse(item.asset)
+          return { ...item, asset: asset.success ? asset.data : null }
+        })
         const changed = remember(items.flatMap(({ status, asset }) =>
           status === 'ready' && asset ? [asset] : []))
         for (const { hostname, status, asset } of items) {
