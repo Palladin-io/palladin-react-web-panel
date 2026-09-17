@@ -98,7 +98,7 @@ jobs:
       - name: Build the tested web bundle
         run: |
           set -euo pipefail
-          required=(VITE_API_URL VITE_GOOGLE_CLIENT_ID VITE_SIGNALR_HUB_URL)
+          required=(VITE_API_URL VITE_PUBLIC_ASSET_URL VITE_GOOGLE_CLIENT_ID VITE_SIGNALR_HUB_URL)
           for key in "${required[@]}"; do
             if [[ -z "${!key:-}" ]]; then
               echo "Missing required staging configuration: $key" >&2
