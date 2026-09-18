@@ -463,6 +463,32 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(screen.queryByText(/vault may be locked/i)).not.toBeInTheDocument()
   })
 
+  it('retries a failed decrypt when sync republishes the same Entry head', async () => {
+    unlockedAuthStore()
+    state.decryptShouldThrow = true
+    state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'repaired-test-secret' }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+    const { rerender } = render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    expect(await screen.findByText(/encrypted data is being refreshed/i)).toBeInTheDocument()
+    expect(openCurrentEntryMock).toHaveBeenCalledTimes(1)
+
+    // A repair publishes another local generation without changing the head.
+    // An unsuccessful refresh retries once, without a render-driven retry loop.
+    await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />))
+    expect(openCurrentEntryMock).toHaveBeenCalledTimes(2)
+    expect(screen.getByText(/encrypted data is being refreshed/i)).toBeInTheDocument()
+
+    state.decryptShouldThrow = false
+    await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />))
+    await waitFor(() => expect(screen.queryByText(/encrypted data is being refreshed/i)).not.toBeInTheDocument())
+    expect(openCurrentEntryMock).toHaveBeenCalledTimes(3)
+    expect(screen.getByLabelText(/^value$/i)).toHaveValue('repaired-test-secret')
+
+    await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />))
+    expect(openCurrentEntryMock).toHaveBeenCalledTimes(3)
+  })
+
   it('shows the locked message only when no in-memory Vault key session exists', async () => {
     useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
     useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
