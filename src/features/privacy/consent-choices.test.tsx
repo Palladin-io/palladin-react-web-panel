@@ -75,16 +75,31 @@ describe('account privacy choices', () => {
     })
   }
 
-  it('starts optional switches off, essential always active; dismissing does not record consent', async () => {
+  it('settings starts optional switches off; dismissing does not record consent', async () => {
     localStorage.setItem('palladin-landing-privacy', JSON.stringify({ allowed: true }))
-    const next = vi.fn(); mount(next)
+    mount(undefined, true)
     for (const option of await screen.findAllByRole('switch')) expect(option).toHaveAttribute('aria-checked', 'false')
     expect(screen.getByText('Features needed to run Palladin remain active.')).toBeVisible()
     expect(screen.getAllByRole('switch')).toHaveLength(2)
     expect(screen.getByRole('dialog', { name: 'Privacy' })).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(next).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(mocks.update).not.toHaveBeenCalled()
+    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+  })
+
+  it('startup has no close action and ignores Escape/backdrop; saving both off completes it', async () => {
+    autoSave()
+    const next = vi.fn(); mount(next)
+    await screen.findAllByRole('switch')
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    await userEvent.click(screen.getByRole('dialog').querySelector('[aria-hidden="true"]')!)
+    expect(next).not.toHaveBeenCalled()
+    expect(mocks.update).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
+    await waitFor(() => expect(next).toHaveBeenCalledOnce())
+    expect(mocks.update.mock.calls.map(([, decision]) => decision.granted)).toEqual([false, false])
     expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
   })
 
@@ -189,6 +204,21 @@ describe('account privacy choices', () => {
     expect(mocks.update).toHaveBeenCalledTimes(2)
     expect(client.getMutationCache().getAll()[1].state.variables).toEqual(original)
     expect(mocks.update.mock.calls.map(([, decision]) => decision.granted)).toEqual([action === 'Accept all', action === 'Accept all'])
+  })
+
+  it('startup can continue after an offline save failure without granting or queuing consent', async () => {
+    autoSave()
+    const next = vi.fn(); mount(next)
+    await screen.findAllByRole('switch')
+    act(() => onlineManager.setOnline(false))
+    await userEvent.click(screen.getByRole('button', { name: 'Accept all' }))
+    await screen.findByRole('button', { name: 'Retry saving' })
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(next).toHaveBeenCalledOnce()
+    expect(mocks.update).not.toHaveBeenCalled()
+    await act(async () => { onlineManager.setOnline(true); await client.resumePausedMutations() })
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
   })
 
   it('a direct privacy link shows Security behind the dialog and closes there without a second startup prompt', async () => {
@@ -435,7 +465,7 @@ describe('account privacy choices', () => {
     expect(mocks.update).not.toHaveBeenCalled()
   })
 
-  it('offers first-entry choices over the shell and remembers only session dismissal', async () => {
+  it('offers first-entry choices and allows Continue after a failed refresh without recording consent', async () => {
     client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}><PrivacyPrompt fallback={<span>Application</span>} /></QueryClientProvider>)
     await screen.findByRole('dialog', { name: 'Privacy' })
@@ -444,7 +474,8 @@ describe('account privacy choices', () => {
     await act(async () => client.invalidateQueries())
     expect(screen.getByRole('dialog', { name: 'Privacy' })).toBeVisible()
     expect(await screen.findByText('Privacy choices could not be loaded. Analytics stays off.')).toBeVisible()
-    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByText('Application')).toBeVisible()
     await act(async () => client.invalidateQueries())

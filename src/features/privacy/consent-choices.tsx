@@ -134,8 +134,9 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
     {unavailable && !query.isPending && !query.isError && <p role="status" className="mt-4 text-meta text-[var(--cv-t2)]">{t('privacy.noticeUnavailable')}</p>}
     {!saving && decisionError && <p role="alert" className="text-ui text-[var(--cv-danger)]">{t(`privacy.${decisionError}`)}</p>}
     {!saving && pending.length > 0 && <div role="alert"><p className="mb-2 text-ui text-[var(--cv-danger)]">{t('privacy.saveError')}</p><Button size="sm" variant="subtle" onClick={() => { void persist(pending) }}>{t('privacy.retry')}</Button></div>}
+    {source === 'web_onboarding' && !saving && !noDecisionsAvailable && (decisionError || pending.length > 0) && <Button size="sm" variant="subtle" className="mt-2" onClick={close}>{t('privacy.continue')}</Button>}
   </div>
-  return <ModalShell title={t('privacy.title')} ariaLabel={t('privacy.title')} trapFocus onClose={saving ? undefined : close} width={440} footer={actions}>{content}</ModalShell>
+  return <ModalShell title={t('privacy.title')} ariaLabel={t('privacy.title')} trapFocus onClose={saving || source === 'web_onboarding' ? undefined : close} width={440} footer={actions}>{content}</ModalShell>
 }
 
 function ConsentCard({ purpose, consent, checked, disabled, onChange, children }: {
