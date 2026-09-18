@@ -351,6 +351,18 @@ describe('account privacy choices', () => {
     await waitFor(() => expect(readLocalAnalyticsActivation('privacy-user')).not.toBeNull())
   })
 
+  it.each([false, true])('device activation never saves an unknown marketing choice (draft selected: %s)', async selectMarketing => {
+    state.consents[0] = { ...consent(), status: 'granted', revision: 1, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }
+    autoSave(); mount()
+    await screen.findByText('Off on this device')
+    if (selectMarketing) await userEvent.click(screen.getByRole('switch', { name: 'Email marketing' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Enable on this device' }))
+    await waitFor(() => expect(mocks.success).toHaveBeenCalledOnce())
+    expect(mocks.update).toHaveBeenCalledExactlyOnceWith('product_analytics', expect.objectContaining({ granted: true }))
+    expect(state.consents[1].status).toBe('unknown')
+    expect(readLocalAnalyticsActivation('privacy-user')).not.toBeNull()
+  })
+
   it.each(['email_marketing', 'product_analytics'] as const)('ordinary Save stays off on %s failure and activates after the identical retry succeeds', async failingPurpose => {
     autoSave(); const save = mocks.update.getMockImplementation()!
     let fail = true
