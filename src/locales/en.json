@@ -528,6 +528,7 @@
   "vault.entries.totp.label": "One-time code",
   "vault.entries.totp.setupLabel": "otpauth:// URI or base32 secret",
   "vault.entries.totp.remaining": "New code in {{seconds}} seconds",
+  "vault.entries.totp.seconds": "{{seconds}} s",
   "vault.entries.totp.apply": "Apply TOTP",
   "vault.entries.totp.setupPlaceholder": "otpauth:// link or base32 secret",
   "vault.entries.totp.uploadQr": "Scan QR",

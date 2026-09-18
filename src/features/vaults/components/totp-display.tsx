@@ -24,6 +24,7 @@ export function TotpDisplay({ params, compact }: TotpDisplayProps) {
   const grouped = code ? groupDigits(code.code) : '••• •••'
   const fraction = code ? code.expiresIn / code.period : 0
   const almostGone = code ? code.expiresIn <= 5 : false
+  const circumference = 2 * Math.PI * 7
 
   return (
     <div className="flex items-center gap-2">
@@ -37,23 +38,25 @@ export function TotpDisplay({ params, compact }: TotpDisplayProps) {
         role="timer"
         aria-live="off"
         aria-label={code ? t('vault.entries.totp.remaining', { seconds: code.expiresIn }) : undefined}
-        className={`flex shrink-0 items-center ${almostGone ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-t3)]'}`}
+        className={`flex shrink-0 items-center gap-1.5 ${almostGone ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-success)]'}`}
       >
         <svg viewBox="0 0 16 16" className="size-4 -rotate-90" fill="none" aria-hidden>
-          <circle cx="8" cy="8" r="7" stroke="var(--cv-divider)" strokeWidth="1.5" />
+          <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.18" strokeWidth="2" />
           <circle
             cx="8"
             cy="8"
             r="7"
             stroke="currentColor"
-            strokeWidth="1.5"
+            strokeWidth="2"
             strokeLinecap="round"
-            pathLength="100"
-            strokeDasharray="100"
-            strokeDashoffset={100 * (1 - fraction)}
+            strokeDasharray={circumference}
+            style={{ strokeDashoffset: circumference * (1 - fraction) }}
             className={fraction < 1 ? 'motion-safe:transition-[stroke-dashoffset] motion-safe:duration-1000 motion-safe:ease-linear' : undefined}
           />
         </svg>
+        <span className="w-[4ch] text-meta tabular-nums" aria-hidden>
+          {code ? t('vault.entries.totp.seconds', { seconds: code.expiresIn }) : '—'}
+        </span>
       </div>
       {code ? <CopyButton value={code.code} label={t('vault.entries.totp.copyCode')} /> : null}
     </div>
