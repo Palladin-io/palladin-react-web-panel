@@ -12,7 +12,7 @@ export interface TotpDisplayProps {
 }
 
 /**
- * Live TOTP code with a compact countdown bar. The 6/8-digit code is generated
+ * Live TOTP code with an icon-sized countdown ring. The 6/8-digit code is generated
  * client-side (see `shared/crypto/totp.ts`), grouped for readability, and
  * auto-rolls at the window boundary. Copy uses the plain clipboard path — the
  * code is inherently short-lived (≤ one period), unlike a stored secret.
@@ -37,14 +37,23 @@ export function TotpDisplay({ params, compact }: TotpDisplayProps) {
         role="timer"
         aria-live="off"
         aria-label={code ? t('vault.entries.totp.remaining', { seconds: code.expiresIn }) : undefined}
-        className={`flex w-[2.5rem] shrink-0 flex-col gap-1 ${almostGone ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-t3)]'}`}
+        className={`flex shrink-0 items-center ${almostGone ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-t3)]'}`}
       >
-        <span className="text-center text-micro tabular-nums" aria-hidden>
-          {code ? t('vault.entries.totp.seconds', { seconds: code.expiresIn }) : '—'}
-        </span>
-        <span className="h-0.5 overflow-hidden rounded-full bg-[var(--cv-divider)]" aria-hidden>
-          <span className="block h-full rounded-full bg-current" style={{ width: `${fraction * 100}%` }} />
-        </span>
+        <svg viewBox="0 0 16 16" className="size-4 -rotate-90" fill="none" aria-hidden>
+          <circle cx="8" cy="8" r="7" stroke="var(--cv-divider)" strokeWidth="1.5" />
+          <circle
+            cx="8"
+            cy="8"
+            r="7"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            pathLength="100"
+            strokeDasharray="100"
+            strokeDashoffset={100 * (1 - fraction)}
+            className={fraction < 1 ? 'motion-safe:transition-[stroke-dashoffset] motion-safe:duration-1000 motion-safe:ease-linear' : undefined}
+          />
+        </svg>
       </div>
       {code ? <CopyButton value={code.code} label={t('vault.entries.totp.copyCode')} /> : null}
     </div>

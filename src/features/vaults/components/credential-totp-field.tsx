@@ -23,7 +23,7 @@ export interface CredentialTotpFieldProps {
  * and how Bitwarden/Proton present authenticator keys — not a generic custom
  * field. Three states: empty (a dashed prompt + "Add 2FA"), setup (paste/scan
  * controls), and configured (a card with issuer/account, a live code + countdown
- * bar, copy, and a ⋯ menu to replace or remove). The shared secret is never
+ * ring, copy, and a ⋯ menu to replace or remove). The shared secret is never
  * shown. Storage is unchanged — the parent pins this into the first `fields[]`
  * TOTP entry.
  */
