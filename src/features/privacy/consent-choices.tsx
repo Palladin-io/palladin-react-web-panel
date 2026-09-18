@@ -97,10 +97,11 @@ function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailur
     const orderedRows = acceptAll || (rows[0] && granted(rows[0])) ? [...rows].reverse() : rows
     const attempts: Attempt[] = []
     for (const consent of orderedRows) {
-      if (!consent) continue
+      if (!consent || (activateHere && consent.purpose !== 'product_analytics')) continue
       const selected = acceptAll || granted(consent)
       const activate = activateHere && consent.purpose === 'product_analytics'
-      if (!acceptAll && !activate && selected === (consent.status === 'granted') && consent.status !== 'unknown') continue
+      if (!acceptAll && !activate && selected === (consent.status === 'granted') && consent.status !== 'unknown'
+        && (!consent.currentNotice || consent.noticeVersion === consent.currentNotice.version)) continue
       const version = consent.currentNotice?.version ?? consent.noticeVersion
       const locale = consent.currentNotice?.locale ?? consent.noticeLocale
       // An unavailable notice never becomes a fabricated consent or API decision.

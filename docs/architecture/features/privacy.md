@@ -13,7 +13,7 @@ An empty catalogue never interrupts entry or records dismissal; a later successf
 read may offer the choices. Once opened, partial saves and failed refreshes retain
 the form and retry state. Dismissal is remembered only for this account session.
 
-`ConsentChoices` renders the server's current PL/EN notice and keeps save failures
+`ConsentChoices` renders the client-owned current PL/EN notice and keeps save failures
 visible. The mutation includes expected revision, request ID, notice version,
 notice language and `web_onboarding`/`web_settings`. An ambiguous network/transient
 failure retains the identical request for retry. Mutations use `networkMode: 'always'`
@@ -72,8 +72,8 @@ the old SDK. CSP permits only the EU `/i/v0/e/` capture path. Public configurati
 uses empty project keys; `VITE_CLIENT_ANALYTICS_RELEASED` defaults to false. A key
 alone never enables collection. Staging and production must use separate projects.
 
-The Identity catalogue remains unavailable until the final legal release review.
-Missing notices disable new grants while known older grants remain withdrawable.
+The client ships its current notices independently of the receipt API. Failed
+receipt reads still prevent writes; known older grants remain withdrawable.
 No marketing sender is implemented. Production collection stays off until the
 approved notices, PL/EN public documents and retention/objection requirements are
 released together.
@@ -88,10 +88,9 @@ native mobile Privacy surface is separately implemented and tested.
 
 ## Explicit startup choice and settings (CVT-609, 2026-09-13)
 
-The startup presentation is a modal, not the settings page. Web reuses ModalShell
-with focus trapping over the safe pre-verification/key-setup surface; eligible
-first entry can offer it over the authenticated shell. Mobile uses a root-native
-bottom sheet before the existing setup/verification guards. An unknown account
+The startup presentation is a modal over the ready authenticated application,
+after setup, verification and unlock. Web uses ModalShell; mobile uses a
+root-native bottom sheet. An unknown account
 choice can be offered once per running session; dismissing is only a UI state,
 not a stored denial or permission. The user can continue without optional consent.
 
@@ -100,7 +99,7 @@ and email news/offers start off when unknown. Switches edit a draft, then equal
 outlined Save choice / brand-primary Accept all actions commit decisions.
 Save preserves the switches; Accept all explicitly grants both purposes. Full current notices
 remain expandable before deciding; short explanatory labels do not replace the
-backend notice version/text or activate the empty release catalogue.
+versioned full notice. The backend registry contains version metadata only.
 
 The two existing endpoints are not atomic. Save processes the decisions in order,
 reports no overall success on partial failure and retains only unconfirmed decisions
@@ -113,7 +112,7 @@ analytics grant, Accept all, or that activation action enables the current insta
 The debug preview uses real widgets/components and the normal consent data path
 against a local synthetic API. It is visibly labelled TEST FIXTURE. It cannot run
 as a released preview and never configures an analytics key. Production entrypoints,
-active notices, authentication and release configuration are unchanged.
+authentication and processing release configuration are unchanged.
 
 Consent is the explicit exception to the usual confirm/cancel 1:2 footer ratio:
 both actions keep flex-1 and the same height; Save uses outline and Accept all
@@ -141,8 +140,7 @@ Save is outlined secondary, Accept all brand primary, with equal geometry. Defau
 remain off for unknown optional purposes. Settings shows the existing server
 choice and per-device state, full notice details and explicit local activation.
 Dismissal stops the local transport/activation without changing the account;
-failed/partial saves stay in the modal with retry. All active notice/release gates
-are unchanged. The local preview now uses the actual SettingsLayout and TanStack
+failed/partial saves stay in the modal with retry. Processing release gates remain separate from receipt storage. The local preview now uses the actual SettingsLayout and TanStack
 routes to verify Back/navigation, while still using isolated synthetic API data.
 
 ## Two-action footer (final owner decision, 2026-09-13)
@@ -180,22 +178,21 @@ do not activate an inactive installation. No backend,
 canonical notices, marketing pipeline, telemetry scope or release gates changed.
 
 
-## Email marketing copy and draft detail ownership
+## Email marketing copy and detail ownership
 
 The category is Email marketing / Marketing e-mailowy. Its one-line description identifies Palladin news/offers by email; the expanded
 three-sentence notice explains that essential transactional, account and security
 messages do not depend on marketing consent. This does not implement a
-marketing sender. Full PL/EN details come from Identity's versioned catalogue;
-clients do not own or rewrite the notice. Controller identity/contact remain in
-the linked legal documents. Draft review uses the same details only in a marked
-localhost fixture; it does not populate the empty embedded active catalogue.
+marketing sender. Full PL/EN details come from the client catalogue, with an immutable version
+and a matching archive in `docs/consent-notices/`. Identity stores the decision receipt. Controller identity/contact remain in
+the linked legal documents. The original draft.3 wording is retained exactly in the first client-owned version.
 
 ## Ready-app entry and compact dialog (owner decision, 2026-09-15)
 
 This entry timing replaces the former post-registration privacy step. The dialog
 uses shared ModalShell/DialogFooter/Button/ToggleSwitch controls, an Essential summary
 above two stacked bordered cards. A heading button with a chevron expands each
-current server notice independently from its switch. Disclosure uses aria-expanded,
+current client notice independently from its switch. Disclosure uses aria-expanded,
 aria-controls and an inert collapsed panel, animated with reduced-motion support.
 The voluntary-choice note follows the cards with symmetric spacing. Full server
 notices remain keyboard-accessible; localized policy links open the published
@@ -204,3 +201,29 @@ closing the UI. In settings, an unavailable catalogue or failed read shows an
 active Continue action instead of a footer containing only disabled save actions.
 A failed read also retains Reload. During writes, dismissal remains blocked until
 the outcome is known; partial/transient failures retain explicit retry.
+
+
+## Client-owned notices and version receipts (2026-09-18)
+
+The client displays its own PL/EN notice and submits the exact displayed
+`noticeVersion`, locale, purpose and choice. Version `2026-09-18T00:00:00Z`
+identifies the first client-owned release and its UTC effective-from instant.
+Identity returns receipt state without `currentNotice`; the data adapter attaches
+the local notice. A legacy response's text cannot override the bundled wording.
+
+`docs/consent-notices/2026-09-18.json` archives the exact four texts and pins the
+linked policies. Tests compare every localized notice with this archive. Never
+edit published text under the same version: add a new archive and matching
+backend metadata entry before releasing a new client notice.
+
+The server records authenticated user, purpose/scope, choice, displayed version,
+locale, source and its own UTC timestamp. It rejects unknown or future versions
+and never infers the displayed version from the acceptance time. An older
+installed client may still submit a known effective older version. Existing
+revision fencing, retries, history and withdrawals remain unchanged.
+
+An explicit Save records an updated displayed version even if its switch value
+has not changed. Enable on this device reconfirms analytics without reconfirming
+an unchanged marketing choice. Reading a receipt or updating the client version
+never constitutes consent. Receipt storage does not enable analytics release
+flags or add a marketing sender.
