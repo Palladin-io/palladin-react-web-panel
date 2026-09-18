@@ -502,4 +502,14 @@ describe('account privacy choices', () => {
     expect(mocks.update).not.toHaveBeenCalled()
   })
 
+  it('records the displayed new version when unchanged choices are explicitly saved', async () => {
+    state.consents = state.consents.map(c => ({ ...c, status: 'granted', revision: 1,
+      activationRevision: 1, noticeVersion: 'older-notice', noticeLocale: 'en' }))
+    autoSave()
+    mount()
+    await screen.findAllByRole('switch')
+    await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
+    await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(2))
+    expect(mocks.update.mock.calls.every(([, decision]) => decision.noticeVersion === 'test-v1')).toBe(true)
+  })
 })

@@ -1,0 +1,65 @@
+{
+  "version": "2026-09-18T00:00:00Z",
+  "effectiveFrom": "2026-09-18T00:00:00Z",
+  "policyVersion": "0.13.0",
+  "notices": [
+    {
+      "purpose": "product_analytics",
+      "scope": "palladin_web_mobile",
+      "locale": "pl",
+      "text": "Za zgodą mierzymy w PostHog EU korzystanie z funkcji Palladin, aby ulepszać aplikację. Nie zbieramy treści sejfu ani formularzy, haseł lub kluczy i nie nagrywamy sesji. Zgodę możesz wycofać w ustawieniach prywatności."
+    },
+    {
+      "purpose": "product_analytics",
+      "scope": "palladin_web_mobile",
+      "locale": "en",
+      "text": "With your consent, we use PostHog EU to measure how Palladin features are used and improve the app. We do not collect vault or form contents, passwords or keys, or record sessions. You can withdraw consent in Privacy settings."
+    },
+    {
+      "purpose": "email_marketing",
+      "scope": "palladin_email_news_and_offers",
+      "locale": "pl",
+      "text": "Za zgodą wyślemy Ci e-maile z nowościami i ofertami Palladin. Niezbędne wiadomości transakcyjne, dotyczące konta i bezpieczeństwa wysyłamy niezależnie od tej zgody. Zgodę możesz wycofać w ustawieniach prywatności."
+    },
+    {
+      "purpose": "email_marketing",
+      "scope": "palladin_email_news_and_offers",
+      "locale": "en",
+      "text": "With your consent, we will send you emails with Palladin news and offers. Essential transactional, account and security messages are sent independently of this consent. You can withdraw consent in Privacy settings."
+    }
+  ],
+  "policyDocuments": {
+    "pl": {
+      "version": "0.13.0",
+      "statusAtArchive": "draft",
+      "effectiveDateAtArchive": null,
+      "requiresCounselReviewAtArchive": true,
+      "canonicalUrl": "https://palladin.io/pl/polityka-prywatnosci#8-analityka-marketing-i-prawa",
+      "sourceRepository": "https://github.com/Palladin-io/palladin",
+      "sourceCommit": "a7c71aaba3b12b43559c3b6385ba33ce1d02c587",
+      "sourcePath": "brain/Legal/Polityka Prywatności.md",
+      "immutableSourceUrl": "https://github.com/Palladin-io/palladin/blob/a7c71aaba3b12b43559c3b6385ba33ce1d02c587/brain/Legal/Polityka%20Prywatno%C5%9Bci.md"
+    },
+    "en": {
+      "version": "0.13.0",
+      "statusAtArchive": "draft",
+      "effectiveDateAtArchive": null,
+      "requiresCounselReviewAtArchive": true,
+      "canonicalUrl": "https://palladin.io/privacy/#8-analytics-marketing-and-rights",
+      "sourceRepository": "https://github.com/Palladin-io/palladin",
+      "sourceCommit": "a7c71aaba3b12b43559c3b6385ba33ce1d02c587",
+      "sourcePath": "brain/Legal/Privacy Policy.md",
+      "immutableSourceUrl": "https://github.com/Palladin-io/palladin/blob/a7c71aaba3b12b43559c3b6385ba33ce1d02c587/brain/Legal/Privacy%20Policy.md"
+    }
+  },
+  "textProvenance": {
+    "sourceRepository": "https://github.com/Palladin-io/palladin-net-backend",
+    "sourceCommit": "8f9dbf199a003ea1ded8f084f40b57338603d3da",
+    "sourcePath": "src/modules/Identity/Palladin.Module.Identity/Infrastructure/Consents/notices.draft.json",
+    "sourceVersions": {
+      "product_analytics": "product-analytics-2026-09-13-draft.3",
+      "email_marketing": "email-marketing-2026-09-13-draft.3"
+    },
+    "note": "Exact source text retained. Archive and receipt versioning do not certify counsel approval or enable optional processing."
+  }
+}

@@ -1854,6 +1854,10 @@
     "details": "Szczegóły zgody",
     "essentialSummary": "Funkcje niezbędne do działania Palladina pozostają aktywne.",
     "policyLink": "Więcej w Polityce prywatności",
-    "policyLinkNewTab": "Otwiera się w nowej karcie"
+    "policyLinkNewTab": "Otwiera się w nowej karcie",
+    "noticeDetails": {
+      "product_analytics": "Za zgodą mierzymy w PostHog EU korzystanie z funkcji Palladin, aby ulepszać aplikację. Nie zbieramy treści sejfu ani formularzy, haseł lub kluczy i nie nagrywamy sesji. Zgodę możesz wycofać w ustawieniach prywatności.",
+      "email_marketing": "Za zgodą wyślemy Ci e-maile z nowościami i ofertami Palladin. Niezbędne wiadomości transakcyjne, dotyczące konta i bezpieczeństwa wysyłamy niezależnie od tej zgody. Zgodę możesz wycofać w ustawieniach prywatności."
+    }
   }
 }
