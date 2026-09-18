@@ -116,12 +116,16 @@ function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailur
 
   const unavailable = rows.some(row => !row?.currentNotice)
   const noDecisionsAvailable = !saving && !query.isPending && (query.isError || rows.every(row => !row?.currentNotice && row?.status !== 'granted'))
-  const actions = <DialogFooter>
+  const actions = <div className="flex flex-col gap-2"><DialogFooter>
     {noDecisionsAvailable ? <Button size="sm" variant="outline" className="flex-1" onClick={close}>{t('privacy.continue')}</Button> : <>
     <Button size="sm" variant="outline" className="flex-1" disabled={saving || query.isPending || query.isError || rows.every(row => !row?.currentNotice && row?.status !== 'granted')} onClick={() => save()}>{t('privacy.saveChoice')}</Button>
     <Button size="sm" variant="accent" className="flex-1" disabled={saving || query.isPending || query.isError || unavailable} onClick={() => save(true)}>{t(saving ? 'privacy.saving' : 'privacy.acceptAll')}</Button>
     </>}
   </DialogFooter>
+    {source === 'web_onboarding' && !saving && !noDecisionsAvailable && canContinueAfterFailure && <DialogFooter>
+      <Button size="sm" variant="subtle" className="flex-1" onClick={close}>{t('privacy.continue')}</Button>
+    </DialogFooter>}
+  </div>
   const content = <div>
     <p className="text-ui leading-relaxed text-[var(--cv-t3)]">{t('privacy.essentialSummary')}</p>
     <div className="mt-3 flex flex-col gap-3">
@@ -143,7 +147,6 @@ function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailur
     {unavailable && !query.isPending && !query.isError && <p role="status" className="mt-4 text-meta text-[var(--cv-t2)]">{t('privacy.noticeUnavailable')}</p>}
     {!saving && decisionError && <p role="alert" className="text-ui text-[var(--cv-danger)]">{t(`privacy.${decisionError}`)}</p>}
     {!saving && pending.length > 0 && <div role="alert"><p className="mb-2 text-ui text-[var(--cv-danger)]">{t('privacy.saveError')}</p><Button size="sm" variant="subtle" onClick={() => { void persist(pending) }}>{t('privacy.retry')}</Button></div>}
-    {source === 'web_onboarding' && !saving && !noDecisionsAvailable && canContinueAfterFailure && <Button size="sm" variant="subtle" className="mt-2" onClick={close}>{t('privacy.continue')}</Button>}
   </div>
   return <ModalShell title={t('privacy.title')} ariaLabel={t('privacy.title')} trapFocus onClose={saving || source === 'web_onboarding' ? undefined : close} width={440} footer={actions}>{content}</ModalShell>
 }

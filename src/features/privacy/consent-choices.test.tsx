@@ -206,14 +206,14 @@ describe('account privacy choices', () => {
     expect(mocks.update.mock.calls.map(([, decision]) => decision.granted)).toEqual([action === 'Accept all', action === 'Accept all'])
   })
 
-  it('startup can continue after an offline save failure without granting or queuing consent', async () => {
+  it('startup keeps Continue in its pinned footer after failure without granting or queuing consent', async () => {
     autoSave()
     const next = vi.fn(); mount(next)
     await screen.findAllByRole('switch')
     act(() => onlineManager.setOnline(false))
     await userEvent.click(screen.getByRole('button', { name: 'Accept all' }))
     await screen.findByRole('button', { name: 'Retry saving' })
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    await userEvent.click(within(screen.getByTestId('modal-footer')).getByRole('button', { name: 'Continue' }))
     expect(next).toHaveBeenCalledOnce()
     expect(mocks.update).not.toHaveBeenCalled()
     await act(async () => { onlineManager.setOnline(true); await client.resumePausedMutations() })
@@ -445,7 +445,7 @@ describe('account privacy choices', () => {
     await waitFor(() => expect(mocks.error).toHaveBeenCalledOnce())
     for (const option of screen.getAllByRole('switch')) expect(option).toHaveAttribute('aria-checked', 'false')
     expect(screen.queryByRole('button', { name: 'Retry saving' })).not.toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    await userEvent.click(within(screen.getByTestId('modal-footer')).getByRole('button', { name: 'Continue' }))
     expect(next).toHaveBeenCalledOnce()
     expect(mocks.update).toHaveBeenCalledOnce()
     expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()

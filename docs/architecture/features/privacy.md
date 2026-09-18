@@ -162,6 +162,9 @@ an available current notice.
 The failure exit is scoped to the account and language outside the notice-keyed
 form, so a refreshed notice version resets draft decisions and retries without
 removing Continue after a rejected save.
+Failure Continue lives in the pinned modal footer, in a full-width secondary row
+below the existing equal Save/Accept actions, so expanded notices cannot scroll
+the escape action out of view.
 
 Accept all requires both current notices and forces two affirmative decisions,
 even for existing account grants. It first stops local analytics, confirms marketing,
