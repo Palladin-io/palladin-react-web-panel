@@ -9,6 +9,7 @@ describe('TotpSetupInputs', () => {
     const onResolved = vi.fn()
     render(<TotpSetupInputs onResolved={onResolved} />)
     await user.type(screen.getByLabelText(/otpauth/i), 'JBSWY3DPEHPK3PXP')
+    await user.tab()
     expect(onResolved).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: /apply totp/i }))
     expect(onResolved).toHaveBeenCalledOnce()

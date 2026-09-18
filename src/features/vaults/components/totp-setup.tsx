@@ -137,36 +137,36 @@ export function TotpSetupInputs({
       ) : (
         <div className="flex justify-end">{scanQrButton}</div>
       )}
-      <FormInput
-        id={inputId}
-        label={t('vault.entries.totp.setupLabel')}
-        labelClassName="sr-only"
-        value={raw}
-        onChange={(e) => {
-          setRaw(e.target.value)
-          setError(false)
-        }}
-        onBlur={() => resolveText(raw)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') {
-            event.preventDefault()
-            resolveText(raw)
-          }
-        }}
-        placeholder={t('vault.entries.totp.setupPlaceholder')}
-        autoComplete="off"
-        disabled={disabled}
-        monospace
-        error={error}
-      />
-      <FeedbackSlot visible={error} color="red">
-        {t('vault.entries.totp.invalidSeed')}
-      </FeedbackSlot>
-      <div className="flex justify-end">
-        <Button size="sm" variant="subtle" icon="check" disabled={disabled || !raw.trim()} onClick={() => resolveText(raw)}>
+      <div className="flex items-center gap-2">
+        <FormInput
+          id={inputId}
+          label={t('vault.entries.totp.setupLabel')}
+          labelClassName="sr-only"
+          value={raw}
+          onChange={(e) => {
+            setRaw(e.target.value)
+            setError(false)
+          }}
+          onBlur={() => setError(!!raw.trim() && !(parseOtpauthUri(raw) ?? totpParamsFromSecret(raw)))}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              resolveText(raw)
+            }
+          }}
+          placeholder={t('vault.entries.totp.setupPlaceholder')}
+          autoComplete="off"
+          disabled={disabled}
+          monospace
+          error={error}
+        />
+        <Button size="sm" variant="subtle" icon="check" className="shrink-0" disabled={disabled || !raw.trim()} onClick={() => resolveText(raw)}>
           {t('vault.entries.totp.apply')}
         </Button>
       </div>
+      <FeedbackSlot visible={error} color="red">
+        {t('vault.entries.totp.invalidSeed')}
+      </FeedbackSlot>
       <input
         ref={fileRef}
         type="file"
