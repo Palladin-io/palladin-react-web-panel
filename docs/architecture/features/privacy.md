@@ -18,8 +18,8 @@ visible. The mutation includes expected revision, request ID, notice version,
 notice language and `web_onboarding`/`web_settings`. An ambiguous network/transient
 failure retains the identical request for retry. Mutations use `networkMode: 'always'`
 and `retry: false`, rejecting known offline saves before the PUT instead of pausing
-in TanStack's reconnect queue. The failure restores Retry and Close/Escape/backdrop
-immediately; reconnect never submits a decision. Explicit retry retains the original
+in TanStack's reconnect queue. The failure restores Retry immediately; settings
+also restores Close/Escape/backdrop. Reconnect never submits a decision. Explicit retry retains the original
 request IDs and unconfirmed remainder. An offline confirmation cannot activate
 analytics, even if a preceding PUT succeeded.
 A definitive rejection (including HTTP 409 revision conflict) awaits an authoritative
@@ -151,6 +151,20 @@ When decisions are available, startup and settings have two footer actions: Save
 Accept all (brand red), with equal width/height. Unknown optional choices still
 start off; untouched Save records two explicit denials when notices are available.
 There is no Essential only footer action. Close/Escape/Back never create consent.
+
+The first-entry dialog has no header Close action and ignores Escape/backdrop
+dismissal. Users finish it by saving their choices (including both off) or accepting
+all. Settings retains normal dismissal. An unavailable catalogue, failed read or
+failed startup save still offers Continue without recording another decision or
+queuing a reconnect write, so this presentation rule cannot trap users behind
+unavailable optional services. Automatic entry remains gated on
+an available current notice.
+The failure exit is scoped to the account and language outside the notice-keyed
+form, so a refreshed notice version resets draft decisions and retries without
+removing Continue after a rejected save.
+Failure Continue lives in the pinned modal footer, in a full-width secondary row
+below the existing equal Save/Accept actions, so expanded notices cannot scroll
+the escape action out of view.
 
 Accept all requires both current notices and forces two affirmative decisions,
 even for existing account grants. It first stops local analytics, confirms marketing,

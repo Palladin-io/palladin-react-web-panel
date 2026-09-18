@@ -20,12 +20,20 @@ interface Attempt { purpose: ConsentPurpose; decision: UpdateConsent }
 
 export function ConsentChoices({ source, onContinue }: { source: ConsentSource; onContinue?: () => void }) {
   const query = useConsents()
+  const scope = [query.userId, query.locale].join(':')
+  const [failedScope, setFailedScope] = useState<string | null>(null)
   // A different account, language or notice starts a new form, never carrying a draft grant.
   const key = [query.userId, query.locale, ...purposes.map(p => query.data?.consents.find(c => c.purpose === p)?.currentNotice?.version)].join(':')
-  return <ConsentForm key={key} source={source} onContinue={onContinue} />
+  return <ConsentForm key={key} source={source} onContinue={onContinue}
+    canContinueAfterFailure={failedScope === scope} onSaveFailure={() => setFailedScope(scope)} />
 }
 
-function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue?: () => void }) {
+function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailure }: {
+  source: ConsentSource
+  onContinue?: () => void
+  canContinueAfterFailure: boolean
+  onSaveFailure: () => void
+}) {
   const query = useConsents()
   const { t } = useTranslation()
   const mutation = useChangeConsent()
@@ -65,6 +73,7 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
       onContinue?.()
     } catch (error) {
       stopHere()
+      onSaveFailure()
       const status = error instanceof HTTPError ? error.response.status : undefined
       if (status !== undefined && status < 500 && status !== 408 && status !== 429) {
         // The mutation hook awaited an authoritative refresh; a rejected write needs a new decision.
@@ -107,12 +116,16 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
 
   const unavailable = rows.some(row => !row?.currentNotice)
   const noDecisionsAvailable = !saving && !query.isPending && (query.isError || rows.every(row => !row?.currentNotice && row?.status !== 'granted'))
-  const actions = <DialogFooter>
+  const actions = <div className="flex flex-col gap-2"><DialogFooter>
     {noDecisionsAvailable ? <Button size="sm" variant="outline" className="flex-1" onClick={close}>{t('privacy.continue')}</Button> : <>
     <Button size="sm" variant="outline" className="flex-1" disabled={saving || query.isPending || query.isError || rows.every(row => !row?.currentNotice && row?.status !== 'granted')} onClick={() => save()}>{t('privacy.saveChoice')}</Button>
     <Button size="sm" variant="accent" className="flex-1" disabled={saving || query.isPending || query.isError || unavailable} onClick={() => save(true)}>{t(saving ? 'privacy.saving' : 'privacy.acceptAll')}</Button>
     </>}
   </DialogFooter>
+    {source === 'web_onboarding' && !saving && !noDecisionsAvailable && canContinueAfterFailure && <DialogFooter>
+      <Button size="sm" variant="subtle" className="flex-1" onClick={close}>{t('privacy.continue')}</Button>
+    </DialogFooter>}
+  </div>
   const content = <div>
     <p className="text-ui leading-relaxed text-[var(--cv-t3)]">{t('privacy.essentialSummary')}</p>
     <div className="mt-3 flex flex-col gap-3">
@@ -135,7 +148,7 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
     {!saving && decisionError && <p role="alert" className="text-ui text-[var(--cv-danger)]">{t(`privacy.${decisionError}`)}</p>}
     {!saving && pending.length > 0 && <div role="alert"><p className="mb-2 text-ui text-[var(--cv-danger)]">{t('privacy.saveError')}</p><Button size="sm" variant="subtle" onClick={() => { void persist(pending) }}>{t('privacy.retry')}</Button></div>}
   </div>
-  return <ModalShell title={t('privacy.title')} ariaLabel={t('privacy.title')} trapFocus onClose={saving ? undefined : close} width={440} footer={actions}>{content}</ModalShell>
+  return <ModalShell title={t('privacy.title')} ariaLabel={t('privacy.title')} trapFocus onClose={saving || source === 'web_onboarding' ? undefined : close} width={440} footer={actions}>{content}</ModalShell>
 }
 
 function ConsentCard({ purpose, consent, checked, disabled, onChange, children }: {
