@@ -12,7 +12,7 @@ export interface TotpDisplayProps {
 }
 
 /**
- * Live TOTP code with an icon-sized countdown ring. The 6/8-digit code is generated
+ * Live TOTP code with a compact seconds countdown. The 6/8-digit code is generated
  * client-side (see `shared/crypto/totp.ts`), grouped for readability, and
  * auto-rolls at the window boundary. Copy uses the plain clipboard path — the
  * code is inherently short-lived (≤ one period), unlike a stored secret.
@@ -22,9 +22,7 @@ export function TotpDisplay({ params, compact }: TotpDisplayProps) {
   const code = useTotp(params)
 
   const grouped = code ? groupDigits(code.code) : '••• •••'
-  const fraction = code ? code.expiresIn / code.period : 0
   const almostGone = code ? code.expiresIn <= 5 : false
-  const circumference = 2 * Math.PI * 7
 
   return (
     <div className="flex items-center gap-2">
@@ -34,31 +32,17 @@ export function TotpDisplay({ params, compact }: TotpDisplayProps) {
       >
         {grouped}
       </span>
+      {code ? <CopyButton value={code.code} label={t('vault.entries.totp.copyCode')} /> : null}
       <div
         role="timer"
         aria-live="off"
         aria-label={code ? t('vault.entries.totp.remaining', { seconds: code.expiresIn }) : undefined}
-        className={`flex shrink-0 items-center gap-1.5 ${almostGone ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-success)]'}`}
+        className={`flex shrink-0 items-center ${almostGone ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-t3)]'}`}
       >
-        <svg viewBox="0 0 16 16" className="size-4 -rotate-90" fill="none" aria-hidden>
-          <circle cx="8" cy="8" r="7" stroke="currentColor" strokeOpacity="0.18" strokeWidth="2" />
-          <circle
-            cx="8"
-            cy="8"
-            r="7"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            style={{ strokeDashoffset: circumference * (1 - fraction) }}
-            className={fraction < 1 ? 'motion-safe:transition-[stroke-dashoffset] motion-safe:duration-1000 motion-safe:ease-linear' : undefined}
-          />
-        </svg>
-        <span className="w-[4ch] text-meta tabular-nums" aria-hidden>
+        <span className="w-[4ch] text-right text-micro tabular-nums" aria-hidden>
           {code ? t('vault.entries.totp.seconds', { seconds: code.expiresIn }) : '—'}
         </span>
       </div>
-      {code ? <CopyButton value={code.code} label={t('vault.entries.totp.copyCode')} /> : null}
     </div>
   )
 }
