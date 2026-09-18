@@ -553,7 +553,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
     } finally {
       if (mounted.current) setDecrypting(false)
     }
-  }, [entry, t, vault.id])
+  }, [entry.id, entry.currentRevision, entry.currentKeyVersion, entry.urlDomain, t, vault.id])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect

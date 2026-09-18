@@ -6,8 +6,34 @@ import { createCapturedCredentialSecret, defaultCredentialAgentFieldAccess,
 import { defaultAgentVisibilityPolicy, toMemberSecret } from './entry-draft'
 import { openMemberSecret, sealCanonicalEntry } from './entry-protocol'
 import { projectAgentDiscovery, projectGrantPayload } from './vault-plaintext'
+import { parseOtpauthUri, totpParamsFromSecret } from './totp'
 
 describe('CVT-573 Credential web / extension package contract', () => {
+  it.each([
+    ['bare secret', totpParamsFromSecret('JBSWY3DPEHPK3PXP')!],
+    ['URI without issuer', parseOtpauthUri('otpauth://totp/alice?secret=JBSWY3DPEHPK3PXP')!],
+  ])('encrypts and reopens TOTP from %s for create and update', async (_label, params) => {
+    const fields = [{ id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', label: '2FA', type: 'totp' as const, value: params }]
+    const secret = toMemberSecret({ label: 'Example', agentLabel: 'Example', type: 1,
+      payload: { type: 1, username: 'alice', password: 'test-password', fields },
+      policy: defaultAgentVisibilityPolicy(1, fields) })
+    const vk = await randomBytes(32)
+    const vdk = await randomBytes(32)
+    try {
+      for (const operation of [1, 2] as const) {
+        const coordinates = { organizationId: '00112233-4455-6677-8899-aabbccddeeff',
+          vaultId: '11112222-3333-4444-8555-666677778888', entryId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
+          revision: String(operation), vaultKeyVersion: 1, vdkVersion: 1, memberKeyGeneration: 1 }
+        const sealed = await sealCanonicalEntry(coordinates, secret, vk, vdk, operation)
+        const opened = await openSharedMemberSecret(sealed.entryKey, sealed.memberSecret, vk, coordinates)
+        expect(opened.content.customFields[0].value).toMatchObject({
+          secret: params.secret, algorithm: params.algorithm, digits: params.digits, period: params.period,
+        })
+        expect(JSON.stringify(projectAgentDiscovery(secret))).not.toContain(params.secret)
+      }
+    } finally { wipe(vk); wipe(vdk) }
+  })
+
   const input = { label: 'Example', username: 'alice', password: 'Literal password!',
     url: 'https://example.test', urlDomain: 'example.test' }
   const extensionSecret = createCapturedCredentialSecret(input)

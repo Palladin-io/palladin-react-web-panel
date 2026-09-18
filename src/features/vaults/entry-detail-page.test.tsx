@@ -263,6 +263,26 @@ function unlockedAuthStore() {
 // ---------------------------------------------------------------------------
 
 describe('EntryDetailPage — DetailsTab', () => {
+  it('preserves unsaved TOTP when sync refreshes the same Entry revision', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'test-password' }
+    state.memberIndex = { memberLabel: 'GitHub', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    const { rerender } = render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
+    await user.click(screen.getByRole('button', { name: /add 2fa/i }))
+    await user.type(screen.getByLabelText(/otpauth|secret/i), 'JBSWY3DPEHPK3PXP')
+    await user.click(screen.getByRole('button', { name: /apply totp/i }))
+    expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
+
+    await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />))
+
+    expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
+    expect(openCurrentEntryMock).toHaveBeenCalledTimes(1)
+  })
+
   it('does not mount history until the History tab is selected', async () => {
     const user = userEvent.setup()
     unlockedAuthStore()
