@@ -160,7 +160,7 @@ export function TotpSetupInputs({
           monospace
           error={error}
         />
-        <Button size="sm" variant="subtle" icon="check" className="shrink-0" disabled={disabled || !raw.trim()} onClick={() => resolveText(raw)}>
+        <Button size="sm" variant="subtle" icon="check" className="h-control! shrink-0" disabled={disabled || !raw.trim()} onClick={() => resolveText(raw)}>
           {t('vault.entries.totp.apply')}
         </Button>
       </div>

@@ -23,7 +23,7 @@ export interface CredentialTotpFieldProps {
  * and how Bitwarden/Proton present authenticator keys — not a generic custom
  * field. Three states: empty (a dashed prompt + "Add 2FA"), setup (paste/scan
  * controls), and configured (a card with issuer/account, a live code + countdown
- * ring, copy, and a ⋯ menu to replace or remove). The shared secret is never
+ * bar, copy, and a ⋯ menu to replace or remove). The shared secret is never
  * shown. Storage is unchanged — the parent pins this into the first `fields[]`
  * TOTP entry.
  */
@@ -45,7 +45,7 @@ export function CredentialTotpField({ value, onChange, disabled }: CredentialTot
           <div className="text-ui text-[var(--cv-t1)]">{t('vault.entries.totp.emptyTitle')}</div>
           <div className="text-meta text-[var(--cv-t3)]">{t('vault.entries.totp.emptySubtitle')}</div>
         </div>
-        <Button variant="accent" size="sm" icon="shield" onClick={() => setSetup(true)} disabled={disabled}>
+        <Button variant="accent" size="sm" icon="add" onClick={() => setSetup(true)} disabled={disabled}>
           {t('vault.entries.totp.addCredential')}
         </Button>
       </div>
@@ -80,9 +80,6 @@ function ConfiguredCard({
   disabled?: boolean
 }) {
   const { t } = useTranslation()
-  const subtitle = [params.account, t('vault.entries.totp.rotates', { seconds: params.period })]
-    .filter(Boolean)
-    .join(' · ')
 
   const copyCode = async () => {
     const { code } = await generateTotp(params)
@@ -98,27 +95,22 @@ function ConfiguredCard({
   ]
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-3 py-2.5">
-      <span
-        className="grid h-[1.875rem] w-[1.875rem] shrink-0 place-items-center rounded-[0.5625rem] text-[var(--cv-success)]"
-        style={{ background: 'rgb(var(--cv-success-rgb) / 0.1)' }}
-        aria-hidden
-      >
-        <Icon name="shield" size={16} />
-      </span>
-      <div className="min-w-0 flex-1">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] px-3 py-2.5">
+      <div className="min-w-0 flex-1 basis-32">
         <div className="truncate text-ui text-[var(--cv-t1)]">
           {params.issuer || t('vault.entries.totp.label')}
         </div>
-        <div className="truncate text-meta text-[var(--cv-t3)]">{subtitle}</div>
+        {params.account && <div className="truncate text-meta text-[var(--cv-t3)]">{params.account}</div>}
       </div>
-      <TotpDisplay params={params} compact tone="success" />
-      <PopoverMenu
-        trigger={<Icon name="more_horiz" size={16} />}
-        items={menu}
-        ariaLabel={t('common.moreActions')}
-        disabled={disabled}
-      />
+      <div className="flex items-center gap-1">
+        <TotpDisplay params={params} compact />
+        <PopoverMenu
+          trigger={<Icon name="more_horiz" size={16} />}
+          items={menu}
+          ariaLabel={t('common.moreActions')}
+          disabled={disabled}
+        />
+      </div>
     </div>
   )
 }

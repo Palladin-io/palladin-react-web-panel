@@ -545,6 +545,8 @@
   "vault.entries.totp.replace": "Zmień sekret",
   "vault.entries.totp.label": "Kod jednorazowy",
   "vault.entries.totp.setupLabel": "URI otpauth:// lub sekret base32",
+  "vault.entries.totp.remaining": "Nowy kod za {{seconds}} sekund",
+  "vault.entries.totp.seconds": "{{seconds}} s",
   "vault.entries.totp.apply": "Zastosuj TOTP",
   "vault.entries.totp.setupPlaceholder": "link otpauth:// lub sekret base32",
   "vault.entries.totp.uploadQr": "Skanuj QR",
