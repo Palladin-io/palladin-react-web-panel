@@ -159,6 +159,9 @@ failed startup save still offers Continue without recording another decision or
 queuing a reconnect write, so this presentation rule cannot trap users behind
 unavailable optional services. Automatic entry remains gated on
 an available current notice.
+The failure exit is scoped to the account and language outside the notice-keyed
+form, so a refreshed notice version resets draft decisions and retries without
+removing Continue after a rejected save.
 
 Accept all requires both current notices and forces two affirmative decisions,
 even for existing account grants. It first stops local analytics, confirms marketing,

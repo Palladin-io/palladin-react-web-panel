@@ -20,12 +20,20 @@ interface Attempt { purpose: ConsentPurpose; decision: UpdateConsent }
 
 export function ConsentChoices({ source, onContinue }: { source: ConsentSource; onContinue?: () => void }) {
   const query = useConsents()
+  const scope = [query.userId, query.locale].join(':')
+  const [failedScope, setFailedScope] = useState<string | null>(null)
   // A different account, language or notice starts a new form, never carrying a draft grant.
   const key = [query.userId, query.locale, ...purposes.map(p => query.data?.consents.find(c => c.purpose === p)?.currentNotice?.version)].join(':')
-  return <ConsentForm key={key} source={source} onContinue={onContinue} />
+  return <ConsentForm key={key} source={source} onContinue={onContinue}
+    canContinueAfterFailure={failedScope === scope} onSaveFailure={() => setFailedScope(scope)} />
 }
 
-function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue?: () => void }) {
+function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailure }: {
+  source: ConsentSource
+  onContinue?: () => void
+  canContinueAfterFailure: boolean
+  onSaveFailure: () => void
+}) {
   const query = useConsents()
   const { t } = useTranslation()
   const mutation = useChangeConsent()
@@ -65,6 +73,7 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
       onContinue?.()
     } catch (error) {
       stopHere()
+      onSaveFailure()
       const status = error instanceof HTTPError ? error.response.status : undefined
       if (status !== undefined && status < 500 && status !== 408 && status !== 429) {
         // The mutation hook awaited an authoritative refresh; a rejected write needs a new decision.
@@ -134,7 +143,7 @@ function ConsentForm({ source, onContinue }: { source: ConsentSource; onContinue
     {unavailable && !query.isPending && !query.isError && <p role="status" className="mt-4 text-meta text-[var(--cv-t2)]">{t('privacy.noticeUnavailable')}</p>}
     {!saving && decisionError && <p role="alert" className="text-ui text-[var(--cv-danger)]">{t(`privacy.${decisionError}`)}</p>}
     {!saving && pending.length > 0 && <div role="alert"><p className="mb-2 text-ui text-[var(--cv-danger)]">{t('privacy.saveError')}</p><Button size="sm" variant="subtle" onClick={() => { void persist(pending) }}>{t('privacy.retry')}</Button></div>}
-    {source === 'web_onboarding' && !saving && !noDecisionsAvailable && (decisionError || pending.length > 0) && <Button size="sm" variant="subtle" className="mt-2" onClick={close}>{t('privacy.continue')}</Button>}
+    {source === 'web_onboarding' && !saving && !noDecisionsAvailable && canContinueAfterFailure && <Button size="sm" variant="subtle" className="mt-2" onClick={close}>{t('privacy.continue')}</Button>}
   </div>
   return <ModalShell title={t('privacy.title')} ariaLabel={t('privacy.title')} trapFocus onClose={saving || source === 'web_onboarding' ? undefined : close} width={440} footer={actions}>{content}</ModalShell>
 }

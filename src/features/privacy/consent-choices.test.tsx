@@ -432,6 +432,25 @@ describe('account privacy choices', () => {
     expect(readLocalAnalyticsActivation('privacy-user')).not.toBeNull()
   })
 
+  it('preserves startup Continue after a rejected save refresh changes notice versions', async () => {
+    mocks.update.mockImplementationOnce(() => {
+      state.consents = state.consents.map(row => ({ ...row,
+        currentNotice: { ...row.currentNotice!, version: 'test-v2' },
+      }))
+      throw new HTTPError(new Response(null, { status: 409 }), new Request('https://api.example.test/consents'), {})
+    })
+    const next = vi.fn(); mount(next)
+    await screen.findAllByRole('switch')
+    await userEvent.click(screen.getByRole('button', { name: 'Accept all' }))
+    await waitFor(() => expect(mocks.error).toHaveBeenCalledOnce())
+    for (const option of screen.getAllByRole('switch')) expect(option).toHaveAttribute('aria-checked', 'false')
+    expect(screen.queryByRole('button', { name: 'Retry saving' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(next).toHaveBeenCalledOnce()
+    expect(mocks.update).toHaveBeenCalledOnce()
+    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+  })
+
   it('does not cache a late snapshot or activate after an account switch', async () => {
     let complete!: (value: UserConsents) => void
     mocks.get.mockImplementationOnce(() => new Promise(resolve => { complete = resolve }))
