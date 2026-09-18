@@ -22,7 +22,7 @@ export function TotpDisplay({ params, compact }: TotpDisplayProps) {
   const code = useTotp(params)
 
   const grouped = code ? groupDigits(code.code) : '••• •••'
-  const almostGone = code ? code.expiresIn <= 5 : false
+  const almostGone = code ? code.expiresIn < 10 : false
 
   return (
     <div className="flex items-center gap-2">
@@ -32,7 +32,6 @@ export function TotpDisplay({ params, compact }: TotpDisplayProps) {
       >
         {grouped}
       </span>
-      {code ? <CopyButton value={code.code} label={t('vault.entries.totp.copyCode')} /> : null}
       <div
         role="timer"
         aria-live="off"
@@ -43,6 +42,7 @@ export function TotpDisplay({ params, compact }: TotpDisplayProps) {
           {code ? t('vault.entries.totp.seconds', { seconds: code.expiresIn }) : '—'}
         </span>
       </div>
+      {code ? <CopyButton value={code.code} label={t('vault.entries.totp.copyCode')} /> : null}
     </div>
   )
 }
