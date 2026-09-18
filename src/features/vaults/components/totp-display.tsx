@@ -38,7 +38,7 @@ export function TotpDisplay({ params, compact }: TotpDisplayProps) {
         aria-label={code ? t('vault.entries.totp.remaining', { seconds: code.expiresIn }) : undefined}
         className={`flex shrink-0 items-center ${almostGone ? 'text-[var(--cv-primary)]' : 'text-[var(--cv-t3)]'}`}
       >
-        <span className="w-[4ch] text-right text-micro tabular-nums" aria-hidden>
+        <span className="w-[4ch] text-center text-micro tabular-nums" aria-hidden>
           {code ? t('vault.entries.totp.seconds', { seconds: code.expiresIn }) : '—'}
         </span>
       </div>
