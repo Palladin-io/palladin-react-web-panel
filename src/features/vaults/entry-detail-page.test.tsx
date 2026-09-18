@@ -263,6 +263,26 @@ function unlockedAuthStore() {
 // ---------------------------------------------------------------------------
 
 describe('EntryDetailPage — DetailsTab', () => {
+  it('preserves unsaved TOTP when sync refreshes the same Entry revision', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'test-password' }
+    state.memberIndex = { memberLabel: 'GitHub', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    const { rerender } = render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
+    await user.click(screen.getByRole('button', { name: /add 2fa/i }))
+    await user.type(screen.getByLabelText(/otpauth|secret/i), 'JBSWY3DPEHPK3PXP')
+    await user.click(screen.getByRole('button', { name: /apply totp/i }))
+    expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
+
+    await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />))
+
+    expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
+    expect(openCurrentEntryMock).toHaveBeenCalledTimes(1)
+  })
+
   it('does not mount history until the History tab is selected', async () => {
     const user = userEvent.setup()
     unlockedAuthStore()
@@ -441,6 +461,32 @@ describe('EntryDetailPage — DetailsTab', () => {
       await screen.findByText(/encrypted data is being refreshed/i),
     ).toBeInTheDocument()
     expect(screen.queryByText(/vault may be locked/i)).not.toBeInTheDocument()
+  })
+
+  it('retries a failed decrypt when sync republishes the same Entry head', async () => {
+    unlockedAuthStore()
+    state.decryptShouldThrow = true
+    state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'repaired-test-secret' }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+    const { rerender } = render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    expect(await screen.findByText(/encrypted data is being refreshed/i)).toBeInTheDocument()
+    expect(openCurrentEntryMock).toHaveBeenCalledTimes(1)
+
+    // A repair publishes another local generation without changing the head.
+    // An unsuccessful refresh retries once, without a render-driven retry loop.
+    await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />))
+    expect(openCurrentEntryMock).toHaveBeenCalledTimes(2)
+    expect(screen.getByText(/encrypted data is being refreshed/i)).toBeInTheDocument()
+
+    state.decryptShouldThrow = false
+    await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />))
+    await waitFor(() => expect(screen.queryByText(/encrypted data is being refreshed/i)).not.toBeInTheDocument())
+    expect(openCurrentEntryMock).toHaveBeenCalledTimes(3)
+    expect(screen.getByLabelText(/^value$/i)).toHaveValue('repaired-test-secret')
+
+    await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />))
+    expect(openCurrentEntryMock).toHaveBeenCalledTimes(3)
   })
 
   it('shows the locked message only when no in-memory Vault key session exists', async () => {

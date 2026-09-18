@@ -1,4 +1,4 @@
-import type { CustomField, EntryPlaintext, ScriptRef } from '../../features/vaults/types'
+import { isTotpField, type CustomField, type EntryPlaintext, type ScriptRef } from '../../features/vaults/types'
 import { defaultCredentialAgentFieldAccess } from '@palladin/crypto'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, type EntryType } from '../types/entry-type'
 import { parseOtpauthUri } from './totp'
@@ -98,7 +98,10 @@ const FIELD_ID: Record<string, string> = {
 function customFields(fields: CustomField[] | undefined) {
   return (fields ?? []).map((field) => ({
     id: field.id.startsWith('custom:') ? field.id : `custom:${field.id}`,
-    label: field.label.normalize('NFC'), type: field.type.normalize('NFC'), value: field.value,
+    label: field.label.normalize('NFC'), type: field.type.normalize('NFC'),
+    value: isTotpField(field)
+      ? Object.fromEntries(Object.entries(field.value).filter(([, value]) => value !== undefined))
+      : field.value,
   }))
 }
 

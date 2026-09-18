@@ -1,8 +1,8 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
-import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 import { parseOtpauthUri, totpParamsFromSecret } from '../../../shared/crypto/totp'
 import type { TotpParams } from '../types'
 import { decodeQrImage } from './decode-qr'
@@ -69,6 +69,7 @@ export function TotpSetupInputs({
   const [raw, setRaw] = useState('')
   const [error, setError] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const inputId = useId()
 
   const resolveText = (text: string): boolean => {
     const trimmed = text.trim()
@@ -136,25 +137,36 @@ export function TotpSetupInputs({
       ) : (
         <div className="flex justify-end">{scanQrButton}</div>
       )}
-      <FormInput
-        id="totp-seed-input"
-        label={t('vault.entries.totp.setupLabel')}
-        labelClassName="sr-only"
-        value={raw}
-        onChange={(e) => {
-          setRaw(e.target.value)
-          setError(false)
-        }}
-        onBlur={() => resolveText(raw)}
-        placeholder={t('vault.entries.totp.setupPlaceholder')}
-        autoComplete="off"
-        disabled={disabled}
-        monospace
-        error={error}
-      />
-      <FieldFeedback visible={error} color="red">
+      <div className="flex items-center gap-2">
+        <FormInput
+          id={inputId}
+          label={t('vault.entries.totp.setupLabel')}
+          labelClassName="sr-only"
+          value={raw}
+          onChange={(e) => {
+            setRaw(e.target.value)
+            setError(false)
+          }}
+          onBlur={() => setError(!!raw.trim() && !(parseOtpauthUri(raw) ?? totpParamsFromSecret(raw)))}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault()
+              resolveText(raw)
+            }
+          }}
+          placeholder={t('vault.entries.totp.setupPlaceholder')}
+          autoComplete="off"
+          disabled={disabled}
+          monospace
+          error={error}
+        />
+        <Button size="sm" variant="subtle" icon="check" className="h-control! shrink-0" disabled={disabled || !raw.trim()} onClick={() => resolveText(raw)}>
+          {t('vault.entries.totp.apply')}
+        </Button>
+      </div>
+      <FeedbackSlot visible={error} color="red">
         {t('vault.entries.totp.invalidSeed')}
-      </FieldFeedback>
+      </FeedbackSlot>
       <input
         ref={fileRef}
         type="file"

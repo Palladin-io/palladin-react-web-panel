@@ -436,6 +436,7 @@ describe('CreateEntryModal', () => {
     await user.type(screen.getByLabelText(/^password$/i), 'secret')
     await user.click(screen.getByRole('button', { name: /add 2fa/i }))
     await user.type(screen.getByLabelText(/otpauth/i), 'JBSWY3DPEHPK3PXP')
+    await user.click(screen.getByRole('button', { name: /apply totp/i }))
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
     const [input] = mutateMock.mock.calls[0]

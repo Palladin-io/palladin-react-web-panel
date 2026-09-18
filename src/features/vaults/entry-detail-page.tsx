@@ -475,6 +475,10 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
   const [showSecret, setShowSecret] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const mounted = useRef(true)
+  const decryptedHead = useRef<string | null>(null)
+  const currentHead = JSON.stringify([
+    vault.id, entry.id, entry.currentRevision, entry.currentKeyVersion, entry.urlDomain,
+  ])
 
   useEffect(() => {
     mounted.current = true
@@ -539,6 +543,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         setExpiryMonth(pt.expiryMonth); setExpiryYear(pt.expiryYear)
         setBillingAddress(pt.billingAddress ?? ''); setNotes(pt.notes ?? '')
       }
+      decryptedHead.current = currentHead
     } catch (error: unknown) {
       // Locking the Vault or leaving the page invalidates this in-flight
       // plaintext operation. It says nothing about the cached ciphertext, so
@@ -553,12 +558,14 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
     } finally {
       if (mounted.current) setDecrypting(false)
     }
-  }, [entry, t, vault.id])
+  }, [entry.id, entry.currentRevision, entry.currentKeyVersion, entry.urlDomain, t, vault.id, currentHead])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // Preserve edits once this head was opened successfully. A new sync item
+    // may repair a failed decrypt without changing its revision or key version.
+    if (decryptedHead.current === currentHead) return
     void handleDecrypt()
-  }, [handleDecrypt])
+  }, [entry, currentHead, handleDecrypt])
 
   const isSaving = update.isPending
   const isRemoving = remove.isPending
