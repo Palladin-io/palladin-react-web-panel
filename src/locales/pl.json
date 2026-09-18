@@ -1820,7 +1820,7 @@
   "privacy": {
     "manageChoices": "Zarządzaj zgodami",
     "title": "Prywatność",
-    "subtitle": "Opcjonalne zgody są dobrowolne. Możesz je później zmienić w ustawieniach prywatności.",
+    "subtitle": "Zgody są dobrowolne. Możesz je zmienić w każdej chwili.",
     "product_analytics": "Analityka produktu",
     "email_marketing": "Marketing e-mailowy",
     "continue": "Kontynuuj",
@@ -1845,12 +1845,15 @@
     "essential": "Niezbędne",
     "alwaysActive": "Zawsze aktywne",
     "essentialDescription": "Zapewniają działanie podstawowych funkcji i ochronę Twojego konta.",
-    "product_analyticsDescription": "Opcjonalne pomiary korzystania z funkcji aplikacji.",
-    "email_marketingDescription": "Nowości i oferty Palladin e-mailem.",
+    "product_analyticsDescription": "Dane o korzystaniu z funkcji aplikacji.",
+    "email_marketingDescription": "Nowości i oferty Palladin na Twój e-mail.",
     "acceptAll": "Akceptuj wszystkie",
     "saveChoice": "Zapisz wybór",
     "inactiveHere": "Wyłączona na tym urządzeniu",
     "activeHere": "Włączona na tym urządzeniu",
-    "details": "Szczegóły zgody"
+    "details": "Szczegóły zgody",
+    "essentialSummary": "Funkcje niezbędne do działania Palladina pozostają aktywne.",
+    "policyLink": "Więcej w Polityce prywatności",
+    "policyLinkNewTab": "Otwiera się w nowej karcie"
   }
 }

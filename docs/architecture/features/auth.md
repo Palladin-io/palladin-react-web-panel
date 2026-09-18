@@ -26,7 +26,7 @@ Session-token storage: the access token is kept **in memory only** (never persis
 - **`security/`** — `SecurityPage` (route `/_authenticated/security`, linked from Settings): change master password (`use-change-master-password` — verify current AuthCredential and rewrap under a fresh-salt MK; recovery phrase untouched) and TOTP 2FA (`use-totp` enroll/confirm/disable; QR via `shared/components/qr-code`, recovery codes shown once).
 
 ## Key patterns
-- **Landing brand proportions:** login uses `AuthBrandHeader`, shared with unlock, for the responsive shield, wordmark and rotating welcome line. Form behavior and density are independent of these brand dimensions.
+- **Landing brand proportions:** login uses `AuthBrandHeader`, shared with unlock, for the responsive shield, wordmark and rotating welcome line. Email-verification gate/result screens use `AuthStepShell showBrand` with the same hero shield and wordmark proportions, without the rotating welcome line. Form behavior and density are independent of these brand dimensions.
 - **Auth-surface conventions:** the persisted app theme flows through `.auth-surface` and `--cv-auth-*` tokens; no auth route creates a nested dark scope. `AppWordmark` / `AuthSubmitButton` / `AuthStepShell` (shared) provide the hero chrome. Master-password fields use `FormInput type="password"` (the browser *should* offer to save the account password), unlike vault secrets which use `SecretInput`.
 - **Crypto isolation:** every derive/wrap/unwrap happens in a feature hook calling `shared/crypto` helpers; MK and private key land in Zustand memory only, are excluded from `persist.partialize`, and owned temporary buffers are wiped in `finally`.
 - **`useAuthStore` (Zustand) is the session source of truth:** JWT, userId, permission bits, `isVaultLocked`, `isOnboarded`, `emailVerified` (never regresses true→false), and the active waitlist Developer start/end window. The benefit window is memory-only and is restored by the next session response, never by persistence. Session mutations write straight to Zustand, not through queries.
@@ -782,7 +782,7 @@ account A holds keys. They exercise the real client state and synthetic provider
 responses; they do not claim a live Google account authorization test.
 
 Account consent and analytics activation use the shared [privacy feature](privacy.md),
-with separate post-registration and Settings → Privacy surfaces. Only session-guarded
+with a first-entry dialog over the ready authenticated application and a Settings → Privacy surface. Only session-guarded
 routes opt in through `staticData.consentSession`; public auth routes, including
 `/verify-email?token=…`, cannot start consent reads/session restoration. The token
 verification flow retains ownership of its own explicit session refresh.

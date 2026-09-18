@@ -14,9 +14,10 @@ import { readLocalAnalyticsActivation, setLocalAnalyticsActivation } from '../..
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(), update: vi.fn(), success: vi.fn(), error: vi.fn(), reset: vi.fn(), authorize: vi.fn(), pageview: vi.fn(),
-  auth: { userId: 'privacy-user', accessToken: 'access', refreshToken: 'refresh' }, generation: 0, pathname: '/privacy-choices',
+  auth: { userId: 'privacy-user', accessToken: 'access', refreshToken: 'refresh' }, navigate: vi.fn(), generation: 0, pathname: '/privacy-choices',
 }))
 vi.mock('../auth', () => ({
+  SecurityPage: () => <h2>Security background</h2>,
   useAuthStore: Object.assign((select: (state: typeof mocks.auth) => unknown) => select(mocks.auth), { getState: () => mocks.auth }),
   captureClientSessionGeneration: () => mocks.generation,
   clientSessionGenerationMatches: (generation: number) => generation === mocks.generation,
@@ -28,6 +29,7 @@ vi.mock('../../shared/api/consents-api', () => ({
 }))
 vi.mock('../../shared/lib/analytics', () => ({ analytics: { reset: mocks.reset, authorize: mocks.authorize, pageview: mocks.pageview } }))
 vi.mock('@tanstack/react-router', () => ({
+  useNavigate: () => mocks.navigate,
   useRouterState: ({ select }: { select: (state: unknown) => unknown }) => select({
     location: { pathname: mocks.pathname },
     matches: [{ routeId: mocks.pathname, staticData: { consentSession: true } }],
@@ -77,13 +79,38 @@ describe('account privacy choices', () => {
     localStorage.setItem('palladin-landing-privacy', JSON.stringify({ allowed: true }))
     const next = vi.fn(); mount(next)
     for (const option of await screen.findAllByRole('switch')) expect(option).toHaveAttribute('aria-checked', 'false')
-    expect(screen.getByText('Always active')).toBeVisible()
+    expect(screen.getByText('Features needed to run Palladin remain active.')).toBeVisible()
     expect(screen.getAllByRole('switch')).toHaveLength(2)
-    expect(screen.getByRole('dialog', { name: 'Your privacy' })).toBeVisible()
+    expect(screen.getByRole('dialog', { name: 'Privacy' })).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(next).toHaveBeenCalledOnce()
     expect(mocks.update).not.toHaveBeenCalled()
     expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+  })
+
+  it.each(['en', 'pl'] as const)('expands server notices independently of draft choices and links to the localized policy (%s)', async locale => {
+    await i18n.changeLanguage(locale)
+    mount(vi.fn())
+    await screen.findAllByRole('switch')
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    const title = locale === 'pl' ? 'Analityka produktu' : 'Product analytics'
+    const toggle = screen.getByRole('switch', { name: title })
+    await userEvent.click(toggle)
+    const disclosure = screen.getByRole('button', { name: title })
+    await userEvent.click(disclosure)
+    expect(disclosure).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Test notice: product_analytics')).toBeVisible()
+    const link = screen.getByRole('link', { name: /Privacy Policy|Polityce prywatności/ })
+    expect(link).toHaveAttribute('href', locale === 'pl'
+      ? 'https://palladin.io/pl/polityka-prywatnosci#8-analityka-marketing-i-prawa'
+      : 'https://palladin.io/privacy/#8-analytics-marketing-and-rights')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    await userEvent.click(disclosure)
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    expect(toggle).toHaveAttribute('aria-checked', 'true')
+    expect(mocks.update).not.toHaveBeenCalled()
   })
 
   it.each(['en', 'pl'] as const)('outlined Save is immediately enabled with both off and records explicit denials in startup and settings (%s)', async locale => {
@@ -93,15 +120,15 @@ describe('account privacy choices', () => {
       mocks.update.mockClear(); autoSave()
       const next = vi.fn(); const view = mount(startup ? next : undefined, !startup)
       for (const option of await screen.findAllByRole('switch')) expect(option).toHaveAttribute('aria-checked', 'false')
-      const title = locale === 'pl' ? 'Twoja prywatność' : 'Your privacy'
+      const title = locale === 'pl' ? 'Prywatność' : 'Privacy'
       expect(screen.getAllByRole('heading', { name: title })).toHaveLength(1)
       expect(screen.getAllByRole('dialog')).toHaveLength(1)
       expect(screen.getByRole('switch', { name: locale === 'pl' ? 'Marketing e-mailowy' : 'Email marketing' })).toHaveAttribute('aria-checked', 'false')
-      expect(screen.getByText(locale === 'pl' ? 'Nowości i oferty Palladin e-mailem.' : 'Palladin news and offers by email.')).toBeVisible()
-      expect(screen.getByText(locale === 'pl' ? 'Opcjonalne pomiary korzystania z funkcji aplikacji.' : 'Optional measurements of how you use app features.')).toBeVisible()
+      expect(screen.getByText(locale === 'pl' ? 'Nowości i oferty Palladin na Twój e-mail.' : 'Palladin news and offers delivered by email.')).toBeVisible()
+      expect(screen.getByText(locale === 'pl' ? 'Dane o korzystaniu z funkcji aplikacji.' : 'Data about how you use app features.')).toBeVisible()
       for (const control of screen.getAllByRole('switch')) expect(control.closest('[role=dialog]')).not.toBeNull()
       const surface = screen.getByRole('heading', { name: title }).parentElement!.parentElement!
-      expect(surface.style.maxWidth).toBe('calc(480px * var(--cv-density-scale))')
+      expect(surface.style.maxWidth).toBe('calc(440px * var(--cv-density-scale))')
       expect(surface).toContainElement(screen.getByTestId('modal-footer'))
       const save = screen.getByRole('button', { name: locale === 'pl' ? 'Zapisz wybór' : 'Save choice' })
       const accept = screen.getByRole('button', { name: locale === 'pl' ? 'Akceptuj wszystkie' : 'Accept all' })
@@ -115,7 +142,8 @@ describe('account privacy choices', () => {
       else {
         await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
         expect(screen.queryByRole('switch')).not.toBeInTheDocument()
-        expect(screen.getByRole('button', { name: locale === 'pl' ? 'Zarządzaj zgodami' : 'Manage choices' })).toBeVisible()
+        expect(screen.getByRole('heading', { name: 'Security background' })).toBeVisible()
+        expect(mocks.navigate).toHaveBeenCalledWith({ to: '/settings/security', replace: true })
       }
       expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
       view.unmount(); client.clear()
@@ -163,25 +191,20 @@ describe('account privacy choices', () => {
     expect(mocks.update.mock.calls.map(([, decision]) => decision.granted)).toEqual([action === 'Accept all', action === 'Accept all'])
   })
 
-  it('settings closes by Escape to its focused launcher, reopens by keyboard, and never stacks the startup prompt', async () => {
+  it('a direct privacy link shows Security behind the dialog and closes there without a second startup prompt', async () => {
     mocks.pathname = '/settings/privacy'
     client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const view = render(<QueryClientProvider client={client}><PrivacyPrompt fallback={<span>Benefit dialog</span>} /><PrivacySettingsPage /></QueryClientProvider>)
     await screen.findAllByRole('switch')
     expect(screen.getAllByRole('dialog')).toHaveLength(1)
+    expect(screen.getByRole('heading', { name: 'Security background' })).toBeVisible()
     expect(screen.queryByText('Benefit dialog')).not.toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
-    const launcher = screen.getByRole('button', { name: 'Manage choices' })
-    expect(launcher).toHaveFocus(); expect(launcher).toHaveAttribute('aria-haspopup', 'dialog')
-    await userEvent.keyboard('{Enter}')
-    expect(screen.getAllByRole('dialog')).toHaveLength(1)
-    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/settings/security', replace: true })
     await act(async () => client.invalidateQueries())
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(mocks.update).not.toHaveBeenCalled()
-    // Leaving the explicit privacy route must not resurrect an unknown first-entry prompt.
     mocks.pathname = '/settings/security'
     view.rerender(<QueryClientProvider client={client}><PrivacyPrompt fallback={<span>Settings</span>} /></QueryClientProvider>)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -255,10 +278,21 @@ describe('account privacy choices', () => {
     state.consents = state.consents.map(c => ({ ...c, currentNotice: null }))
     const next = vi.fn(); mount(next)
     for (const option of await screen.findAllByRole('switch')) expect(option).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Save choice' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Accept all' })).toBeDisabled()
-    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('button', { name: 'Save choice' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Accept all' })).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Continue' }))
     expect(next).toHaveBeenCalledOnce(); expect(mocks.update).not.toHaveBeenCalled()
+  })
+
+  it('closes unchanged existing choices when notices are unavailable without writing consent', async () => {
+    state.consents = state.consents.map(c => ({ ...c, status: 'granted', revision: 1,
+      activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en', currentNotice: null }))
+    const next = vi.fn(); mount(next)
+    await screen.findAllByRole('switch')
+    await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
+    expect(next).toHaveBeenCalledOnce()
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(mocks.authorize).not.toHaveBeenCalled()
   })
 
   it.each([0, 408, 429, 503])('withdrawal stops before Save and ambiguous/transient failure %s retries the identical request', async status => {
@@ -355,7 +389,8 @@ describe('account privacy choices', () => {
     expect(readLocalAnalyticsActivation('privacy-user')).toBeNull(); expect(mocks.authorize).not.toHaveBeenCalled()
     mocks.get.mockImplementation(async () => structuredClone(state))
     if (refreshFails) {
-      expect(screen.getByRole('button', { name: 'Save choice' })).toBeDisabled()
+      expect(screen.queryByRole('button', { name: 'Save choice' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
       await userEvent.click(screen.getByRole('button', { name: 'Reload' }))
       await screen.findAllByRole('switch')
     }
@@ -386,14 +421,28 @@ describe('account privacy choices', () => {
     await waitFor(() => expect(mocks.error).toHaveBeenCalledOnce())
     expect(readLocalAnalyticsActivation('privacy-user')).toBeNull(); expect(mocks.success).not.toHaveBeenCalled()
   })
+  it('waits for actionable notices before offering choices, without recording a dismissal', async () => {
+    state.consents = state.consents.map(c => ({ ...c, currentNotice: null }))
+    client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={client}><PrivacyPrompt fallback={<span>Application</span>} /></QueryClientProvider>)
+    await waitFor(() => expect(client.isFetching()).toBe(0))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('Application')).toBeVisible()
+    expect(dismissedPrivacyAccounts.has('privacy-user')).toBe(false)
+    state.consents = [consent(), consent('email_marketing')]
+    await act(async () => client.invalidateQueries())
+    expect(await screen.findByRole('dialog', { name: 'Privacy' })).toBeVisible()
+    expect(mocks.update).not.toHaveBeenCalled()
+  })
+
   it('offers first-entry choices over the shell and remembers only session dismissal', async () => {
     client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     render(<QueryClientProvider client={client}><PrivacyPrompt fallback={<span>Application</span>} /></QueryClientProvider>)
-    await screen.findByRole('dialog', { name: 'Your privacy' })
+    await screen.findByRole('dialog', { name: 'Privacy' })
     await screen.findAllByRole('switch')
     mocks.get.mockRejectedValue(new Error('offline'))
     await act(async () => client.invalidateQueries())
-    expect(screen.getByRole('dialog', { name: 'Your privacy' })).toBeVisible()
+    expect(screen.getByRole('dialog', { name: 'Privacy' })).toBeVisible()
     expect(await screen.findByText('Privacy choices could not be loaded. Analytics stays off.')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

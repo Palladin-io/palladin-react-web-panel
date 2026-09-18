@@ -26,7 +26,7 @@ describe('consent route boundary', () => {
   it.each([
     ['/login', false], ['/register', false], ['/verify-email', false],
     ['/verify-email?token=synthetic-verification-token', false], ['/dev-toasts', false],
-    ['/not-a-route', false], ['/privacy-choices', true], ['/recovery', true],
+    ['/not-a-route', false], ['/privacy-choices', false], ['/recovery', true],
     ['/unlock', true], ['/', true], ['/settings/privacy', true], ['/vaults/test-vault', true],
   ])('uses the actual router hierarchy for %s (consent session: %s)', (href, allowed) => {
     const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [href] }) })

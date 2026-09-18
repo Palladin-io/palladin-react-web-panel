@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
+import { AppWordmark } from './app-wordmark'
 
 export interface AuthStepShellProps {
   title: string
@@ -13,6 +14,8 @@ export interface AuthStepShellProps {
   progress?: { current: number; total: number }
   /** Render the app logo above the title (used on standalone screens). */
   showLogo?: boolean
+  /** Full auth brand lockup with the login/unlock proportions. */
+  showBrand?: boolean
   /** Alt text for the logo when shown. */
   logoAlt?: string
   /**
@@ -36,6 +39,7 @@ export function AuthStepShell({
   backLabel,
   progress,
   showLogo,
+  showBrand,
   logoAlt,
   align = 'top',
 }: AuthStepShellProps) {
@@ -43,6 +47,7 @@ export function AuthStepShell({
     align === 'center'
       ? 'items-center justify-center py-8'
       : 'items-start justify-center pt-[max(2rem,calc(50vh-22.5rem))]'
+  const Heading = showBrand ? 'h2' : 'h1'
   return (
     <div className={`auth-surface flex min-h-screen ${placement}`}>
       <div className="step-enter w-full max-w-[27.5rem] px-6 py-10">
@@ -86,13 +91,14 @@ export function AuthStepShell({
           </div>
         )}
 
+        {showBrand && <div className="auth-brand-header"><AppWordmark size="hero" /></div>}
         <div className="mb-6 text-center">
           {showLogo && (
             <img src="/logo.png" alt={logoAlt} className="mx-auto mb-4 h-16 w-16" />
           )}
-          <h1 className="mb-1 text-auth-title font-bold leading-tight text-[var(--cv-t1)]">
+          <Heading className="mb-1 text-auth-title font-bold leading-tight text-[var(--cv-t1)]">
             {title}
-          </h1>
+          </Heading>
           <p className="text-heading-sm text-[var(--cv-auth-muted)]">{subtitle}</p>
         </div>
 

@@ -9,14 +9,17 @@ export function PrivacyPrompt({ fallback = null }: { fallback?: ReactNode }) {
   const pathname = useRouterState({ select: state => state.location.pathname })
   // The explicit settings route owns its dialog, including before the query resolves.
   if (pathname === '/settings/privacy') return null
-  if (!query.userId || !query.data) return fallback
+  if (!query.sessionAllowed || !query.userId || !query.data) return fallback
   return <DiscoveredPrompt key={query.userId} userId={query.userId}
-    initiallyNeeded={query.data.consents.some(c => c.status === 'unknown')} fallback={fallback} />
+    initiallyNeeded={!query.isError && query.data.consents.some(c => c.status === 'unknown' && c.currentNotice)} fallback={fallback} />
 }
 
 function DiscoveredPrompt({ userId, initiallyNeeded, fallback }: { userId: string; initiallyNeeded: boolean; fallback: ReactNode }) {
   // Once opened, a failed refresh or a partial save must not dismiss the error/retry UI.
   const [open, setOpen] = useState(() => initiallyNeeded && !dismissedPrivacyAccounts.has(userId))
+  // A catalogue may become available after the first read. Discover it without
+  // discarding an already-open form during partial saves or failed refreshes.
+  if (initiallyNeeded && !open && !dismissedPrivacyAccounts.has(userId)) setOpen(true)
   return open ? <ConsentChoices source="web_onboarding" onContinue={() => {
     dismissPrivacyPrompt(userId)
     setOpen(false)

@@ -65,6 +65,7 @@ All modal actions go in `DialogFooter` (`shared/components/dialog-footer.tsx`), 
 - Field-feedback rhythm: use `FeedbackSlot` (animated, self-collapsing) below a field — **never** the fixed-`h-4` `FieldFeedback` + `-mb-4` wrapper (it overlaps the next label when an error shows). See `forms-and-validation.md`.
 
 `DialogSurface` owns the reusable chrome rendered by titled `ModalShell`.
-Consent startup and settings both use ModalShell at 480 design pixels
-(600 CSS pixels at the default density). Consent is never embedded on a page;
-the settings destination owns only a launcher and the dialog lifetime.
+Consent startup and settings both use ModalShell at 440 design pixels
+(550 CSS pixels at the default density). Consent is never embedded on a page;
+the settings menu opens the dialog over the current section without navigation.
+Direct privacy links use Security as the background and remain there after closing.

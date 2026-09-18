@@ -23,3 +23,8 @@ Reads `useAuthStore` for org context and permissions. Route-level composition ho
 
 Account consent and analytics activation use the shared [privacy feature](privacy.md),
 with separate post-registration and Settings → Privacy surfaces.
+
+Privacy is a dialog action in both the desktop sidebar and compact navigation.
+A regular click preserves the active section and unsaved state. Its link target
+remains `/settings/privacy` for direct/new-tab entry, where Security is the
+background. Closing a direct-link dialog replaces the route with `/settings/security`.

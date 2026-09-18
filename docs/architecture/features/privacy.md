@@ -1,10 +1,17 @@
 # Account privacy and client analytics
 
-Identity owns the current consent and its history. The web client exposes a
-separate `/privacy-choices` step after password registration or an OAuth response
-with `isNewUser: true`, and an Account → Privacy section at `/settings/privacy`.
-The OAuth step preserves the requested deep-link destination. Both optional
-purposes can remain off, and continuing does not imply a grant.
+Identity owns the current consent and its history. `PrivacyPrompt` offers optional
+choices over the authenticated application on its first eligible entry, after
+registration, email verification and key setup/unlock. Registration and new OAuth
+sessions resume normal auth guards and preserve their requested destination.
+The legacy `/privacy-choices` URL only redirects through those guards; it never
+renders a form or starts consent reads. Later edits live at `/settings/privacy`.
+Closing a prompt does not imply a consent decision.
+
+An automatic offer needs at least one unknown purpose with a current notice.
+An empty catalogue never interrupts entry or records dismissal; a later successful
+read may offer the choices. Once opened, partial saves and failed refreshes retain
+the form and retry state. Dismissal is remembered only for this account session.
 
 `ConsentChoices` renders the server's current PL/EN notice and keeps save failures
 visible. The mutation includes expected revision, request ID, notice version,
@@ -25,7 +32,7 @@ current and the preceding cached consent query has been refreshed.
 `ConsentRuntime` is mounted once at the router root. Consent reads and runtime
 activation require a matched route with `staticData.consentSession: true`, declared
 only on the session-guarded `_authenticated` layout (including unlock and Settings),
-`/privacy-choices` and `/recovery`. Public routes default off: `/login`, `/register`,
+`/recovery`. Public routes default off: `/login`, `/register`,
 `/verify-email` both with and without a token, dev and unmatched routes never start
 consent reads or restore a persisted session through optional consent. New public
 routes inherit that default without a pathname denylist. Leaving an eligible route
@@ -115,20 +122,20 @@ precedence over the existing developer-benefit dialog, so modal layers do not st
 
 ## Dialog-only startup and settings (owner decision, 2026-09-13)
 
-ConsentChoices always renders ModalShell (600 CSS px at the default density),
+ConsentChoices always renders ModalShell (550 CSS px at the default density),
 including settings edits. The source selects the settings-only device status and
 activation controls; the presence of a completion callback does not select layout.
 The form never appears as an embedded panel on the Settings page.
 
-The /settings/privacy route auto-opens once per mount, over SettingsLayout and the
-existing authenticated shell. Closing by Escape, backdrop or Close leaves a small
-Manage choices launcher and restores focus to it. Save/Accept all close after
-successful completion. An unchanged valid choice can close without a fabricated
-write; unknown off choices still produce explicit denials. Reopening is deliberate;
-query refreshes do not reopen a closed dialog. Browser Back keeps normal routing.
-PrivacyPrompt yields this route completely (including the benefit fallback), and
-the explicit visit marks only the ephemeral first-entry prompt dismissal. It is
-not account consent and cannot enable collection.
+Settings menu activation opens `PrivacySettingsDialog` above the mounted section,
+without changing its route, selection, scroll position or unsaved input. Close,
+Escape, backdrop and successful Save return to that same section and restore
+focus to the trigger. Ctrl/Meta/middle-click retain the normal link destination.
+Direct entry at `/settings/privacy` renders Security behind the dialog; closing
+replaces the URL with `/settings/security`. No empty Privacy page or launcher is
+left behind. `PrivacyPrompt` yields the explicit privacy route and the settings
+dialog marks the ephemeral account offer handled, preventing a second prompt.
+This presentation state never records consent or enables collection.
 
 Save is outlined secondary, Accept all brand primary, with equal geometry. Defaults
 remain off for unknown optional purposes. Settings shows the existing server
@@ -140,7 +147,7 @@ routes to verify Back/navigation, while still using isolated synthetic API data.
 
 ## Two-action footer (final owner decision, 2026-09-13)
 
-Startup and settings have exactly two footer actions: Save choice (outlined) and
+When decisions are available, startup and settings have two footer actions: Save choice (outlined) and
 Accept all (brand red), with equal width/height. Unknown optional choices still
 start off; untouched Save records two explicit denials when notices are available.
 There is no Essential only footer action. Close/Escape/Back never create consent.
@@ -168,3 +175,18 @@ marketing sender. Full PL/EN details come from Identity's versioned catalogue;
 clients do not own or rewrite the notice. Controller identity/contact remain in
 the linked legal documents. Draft review uses the same details only in a marked
 localhost fixture; it does not populate the empty embedded active catalogue.
+
+## Ready-app entry and compact dialog (owner decision, 2026-09-15)
+
+This entry timing replaces the former post-registration privacy step. The dialog
+uses shared ModalShell/DialogFooter/Button/ToggleSwitch controls, an Essential summary
+above two stacked bordered cards. A heading button with a chevron expands each
+current server notice independently from its switch. Disclosure uses aria-expanded,
+aria-controls and an inert collapsed panel, animated with reduced-motion support.
+The voluntary-choice note follows the cards with symmetric spacing. Full server
+notices remain keyboard-accessible; localized policy links open the published
+analytics/marketing section in a new tab with noopener/noreferrer, retaining the form. No consent is granted by opening or
+closing the UI. In settings, an unavailable catalogue or failed read shows an
+active Continue action instead of a footer containing only disabled save actions.
+A failed read also retains Reload. During writes, dismissal remains blocked until
+the outcome is known; partial/transient failures retain explicit retry.
