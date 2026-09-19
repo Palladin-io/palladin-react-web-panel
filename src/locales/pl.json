@@ -1867,5 +1867,6 @@
   "grants.fields.choose": "Wybierz pola",
   "grants.fields.required": "Wybierz co najmniej jedno pole.",
   "grants.fields.loading": "Wczytywanie dostępnych pól…",
-  "grants.fields.unavailable": "Nie udało się wczytać pól. Otwórz ponownie to okno, aby spróbować jeszcze raz."
+  "grants.fields.unavailable": "Nie udało się wczytać pól. Otwórz ponownie to okno, aby spróbować jeszcze raz.",
+  "vault.entries.totp.agentAccess": "Zezwalaj agentom z grantem na używanie 2FA"
 }

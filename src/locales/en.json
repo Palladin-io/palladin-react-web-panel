@@ -1806,5 +1806,6 @@
   "grants.fields.choose": "Choose fields",
   "grants.fields.required": "Select at least one field.",
   "grants.fields.loading": "Loading available fields…",
-  "grants.fields.unavailable": "Could not load the fields. Reopen this dialog to retry."
+  "grants.fields.unavailable": "Could not load the fields. Reopen this dialog to retry.",
+  "vault.entries.totp.agentAccess": "Allow granted agents to use 2FA"
 }

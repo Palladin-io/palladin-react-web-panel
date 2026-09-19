@@ -1,7 +1,7 @@
 import { isTotpField, type CustomField, type EntryPlaintext, type ScriptRef } from '../../features/vaults/types'
 import { defaultCredentialAgentFieldAccess } from '@palladin/crypto'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, type EntryType } from '../types/entry-type'
-import { parseOtpauthUri } from './totp'
+import { formatOtpauthUri, parseOtpauthUri } from './totp'
 import {
   parsePublicAssetIconReference,
   publicAssetIconReference,
@@ -175,13 +175,22 @@ function legacyCustomFields(secret: MemberSecretV1): CustomField[] {
 }
 
 function totpUri(value: Extract<MemberSecretV1, { entryType: 'credential' }>['content']['totp']): string | undefined {
-  if (!value) return undefined
-  const label = [value.issuer, value.account].filter(Boolean).join(':') || value.account || 'TOTP'
-  const query = new URLSearchParams({
-    secret: value.secret, algorithm: value.algorithm, digits: String(value.digits), period: String(value.period),
-  })
-  if (value.issuer) query.set('issuer', value.issuer)
-  return `otpauth://totp/${encodeURIComponent(label)}?${query.toString()}`
+  return value ? formatOtpauthUri(value) : undefined
+}
+
+/** New TOTP fields inherit the Credential default; existing restrictions remain authoritative. */
+export function withNewCredentialTotpPolicy(
+  previous: CustomField[], next: CustomField[], policy: AgentVisibilityPolicy,
+): AgentVisibilityPolicy {
+  const existing = new Set(previous.map((field) => field.id))
+  const defaults = defaultCredentialAgentFieldAccess(next)
+  const fields = { ...policy.fields }
+  for (const field of next) {
+    if (field.type !== 'totp' || existing.has(field.id)) continue
+    const id = field.id.startsWith('custom:') ? field.id : `custom:${field.id}`
+    fields[id] ??= defaults[id]
+  }
+  return { ...policy, fields }
 }
 
 export function fromMemberSecret(secret: MemberSecretV1): MemberSecretView {
