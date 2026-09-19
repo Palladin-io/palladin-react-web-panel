@@ -1,8 +1,9 @@
 import { useMemo } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { shortenKey } from "../../shared/lib/shorten-key";
-import { getVaultMembers } from "../vaults/api/vault-members-api";
-import { vaultMembersQueryKey } from "../vaults/use-vault-members";
+import { useAuthStore } from "../auth";
+import { organizationIdFromAccessToken } from "../../shared/lib/organization-scope";
+import { useOrganizationMemberDirectory } from "../../shared/hooks/use-organization-member-directory";
 import { getOrgGrants, type OrgGrant } from "./api/org-grants-api";
 import { ORG_GRANTS_QUERY_KEY } from "./query-keys";
 import { grantReasonCoordinateKey } from "./grant-reason-coordinate";
@@ -66,24 +67,16 @@ export function useGrantHistoryMetadata(
     [grantQueries],
   );
   const reasons = useGrantReasons(grants);
-  const memberQueries = useQueries({
-    queries: byVault.map(([vaultId]) => ({
-      queryKey: [
-        ...vaultMembersQueryKey(vaultId),
-        "notification-history",
-      ] as const,
-      queryFn: () => collectMemberNames(vaultId),
-      staleTime: 15_000,
-    })),
-  });
+  const accessToken = useAuthStore((state) => state.accessToken);
+  const actorIds = useMemo(() => [...new Set(grants.flatMap((grant) =>
+    [grant.createdBy, grant.deniedBy, grant.revokedBy].filter((id): id is string => Boolean(id)),
+  ))], [grants]);
+  const members = useOrganizationMemberDirectory(
+    organizationIdFromAccessToken(accessToken), actorIds, coordinates.length > 0,
+  );
 
   return useMemo(() => {
     if (grants.length === 0) return EMPTY_METADATA;
-    const memberNames = new Map<string, ReadonlyMap<string, string>>();
-    byVault.forEach(([vaultId], index) => {
-      const names = memberQueries[index]?.data;
-      if (names) memberNames.set(vaultId, names);
-    });
     const grantsByCoordinates = new Map(
       grants.map((grant) => [grantReasonCoordinateKey(grant), grant]),
     );
@@ -105,14 +98,14 @@ export function useGrantHistoryMetadata(
         ...(actorId
           ? {
               actorName:
-                memberNames.get(coordinate.vaultId)?.get(actorId) ??
+                members.nameById[actorId] ??
                 shortenKey(actorId),
             }
           : {}),
       });
     }
     return resolved;
-  }, [byVault, coordinates, grants, memberQueries, reasons]);
+  }, [coordinates, grants, members.nameById, reasons]);
 }
 
 async function collectWantedGrants(
@@ -129,20 +122,6 @@ async function collectWantedGrants(
     cursor = page.nextCursor ?? undefined;
   } while (cursor);
   return found;
-}
-
-async function collectMemberNames(vaultId: string) {
-  const names = new Map<string, string>();
-  let cursor: string | undefined;
-  do {
-    const page = await getVaultMembers(vaultId, cursor);
-    for (const member of page.items) {
-      const name = member.memberName?.trim();
-      if (name) names.set(member.memberId, name);
-    }
-    cursor = page.nextAfterId ?? undefined;
-  } while (cursor);
-  return names;
 }
 
 function actorIdFor(grant: OrgGrant, type: GrantHistoryCoordinate["type"]) {

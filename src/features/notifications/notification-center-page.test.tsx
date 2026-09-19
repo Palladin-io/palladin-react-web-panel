@@ -382,17 +382,16 @@ describe("NotificationCenterPage", () => {
     ).toBeGreaterThan(0);
   });
 
-  it('opens the vault on its Agents tab and marks read when "View Access" is clicked', () => {
+  it('opens the exact grant detail and marks read when "View Access" is clicked', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: "View Access" }));
 
     expect(markRead).toHaveBeenCalledWith("n2");
-    // Access cards route to the vault's Agents tab (live grant state lives there).
+    // The historical event retains its exact grant, even after expiry.
     expect(navigateMock).toHaveBeenCalledWith({
-      to: "/vaults/$vaultId",
-      params: { vaultId: "v1" },
-      search: { tab: "agents" },
+      to: "/vaults/$vaultId/grants/$grantId",
+      params: { vaultId: "v1", grantId: "g2" },
     });
   });
 

@@ -137,6 +137,24 @@ describe('org-grants-api', () => {
     expect(page.items[0]).not.toHaveProperty('reEncryptedBlob')
   })
 
+  it.each(['active', 'expired', 'consumed', 'revoked', 'denied', 'superseded'])(
+    'retains %s grants when the backend adds scope metadata', async (status) => {
+      const scope = {
+        entryId: 'e1', fieldIds: ['username', 'password'],
+        fieldSelectionMode: 'selected', selectedFieldIds: ['username', 'password'],
+        grantEnvelopeRevision: null, entryRevision: null, grantKeyVersion: null,
+        memberKeyGeneration: null, recipientAgentKeyVersion: null, agentKeyFingerprint: null,
+        futureDisplayMetadata: 'additional backend field',
+      }
+      getJson.mockResolvedValue({ items: [{ ...sampleGrant, status, entryScopes: [scope] }] })
+      const page = await getOrgGrants()
+      expect(page.items).toHaveLength(1)
+      expect(page.items[0].status).toBe(status)
+      expect(page.items[0].entryScopes[0].fieldSelectionMode).toBe('selected')
+      expect(page.items[0].entryScopes[0]).not.toHaveProperty('futureDisplayMetadata')
+    },
+  )
+
   it('POSTs a granular grant to the entry-scoped route', async () => {
     postJson.mockResolvedValue({ id: 'new' })
     const res = await createGranularGrant('v1', 'e1', {

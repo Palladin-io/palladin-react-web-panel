@@ -95,8 +95,7 @@ const orgGrantSchema = z.object({
           memberKeyGeneration: z.number().int().positive().nullable(),
           recipientAgentKeyVersion: z.number().int().positive().nullable(),
           agentKeyFingerprint: z.string().nullable(),
-        })
-        .strict(),
+        }),
     )
     .optional()
     .default([]),
@@ -104,7 +103,7 @@ const orgGrantSchema = z.object({
     entryId: z.string(),
     entryRevision: z.string(),
     isScript: z.boolean(),
-  }).strict()).optional().default([]),
+  })).optional().default([]),
   scriptPackageRevision: z.string().nullable().optional(),
   reason: z.string().nullable().optional(),
   encryptedReason: encryptedReasonEnvelopeSchema.nullable().optional(),
