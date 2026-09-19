@@ -74,6 +74,7 @@ jobs:
       VITE_SHARED_UNLOCK_EXTENSION_ID: ${{ vars.STAGING_VITE_SHARED_UNLOCK_EXTENSION_ID }}
       VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID: ${{ vars.STAGING_VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID }}
       VITE_SHARED_UNLOCK_SAFARI_EXTENSION_ID: ${{ vars.STAGING_VITE_SHARED_UNLOCK_SAFARI_EXTENSION_ID }}
+      VITE_CLIENT_ANALYTICS_RELEASED: ${{ vars.STAGING_VITE_CLIENT_ANALYTICS_RELEASED }}
       VITE_POSTHOG_KEY: ${{ vars.STAGING_VITE_POSTHOG_KEY }}
       VITE_POSTHOG_HOST: ${{ vars.STAGING_VITE_POSTHOG_HOST }}
       VITE_FIREBASE_API_KEY: ${{ vars.STAGING_VITE_FIREBASE_API_KEY }}
@@ -113,6 +114,19 @@ jobs:
             echo 'STAGING_VITE_SIGNALR_HUB_URL must target the staging SignalR hub.' >&2
             exit 1
           fi
+          case "${VITE_CLIENT_ANALYTICS_RELEASED:-false}" in
+            true)
+              if [[ -z "$VITE_POSTHOG_KEY" || "$VITE_POSTHOG_HOST" != 'https://eu.i.posthog.com' ]]; then
+                echo 'Released client analytics requires a project key and the EU capture host.' >&2
+                exit 1
+              fi
+              ;;
+            false|'') ;;
+            *)
+              echo 'STAGING_VITE_CLIENT_ANALYTICS_RELEASED must be true, false, or empty.' >&2
+              exit 1
+              ;;
+          esac
           npm ci
           npm run build -- --mode staging
           if ! grep --recursive --binary-files=text --fixed-strings --quiet \
