@@ -1013,6 +1013,8 @@
   "grants.statusUnknown": "Nieznany status",
   "grants.modeFull": "Cały sejf",
   "grants.modeGranular": "Pojedynczy wpis",
+  "grants.modeScriptExecution": "Wykonanie skryptu",
+  "grants.modeUnknown": "Nieznany typ",
   "grants.detail.mode": "Tryb",
   "grants.detail.agent": "Agent",
   "grants.detail.entry": "Wpis",

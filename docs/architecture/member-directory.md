@@ -5,7 +5,7 @@ The shared organization member directory resolves opaque historical user IDs int
 ## Contract
 
 - `GET /api/organization/member-directory` returns only `{ userId, displayName }` for current and former members of the active organization.
-- `shared/api/organization-member-directory-api.ts` validates the complete response with strict Zod schemas.
+- `shared/api/organization-member-directory-api.ts` consumes the trusted first-party TypeScript contract and projects only `userId` and `displayName`; it does not validate backend-owned presentation metadata at runtime.
 - `useOrganizationMemberDirectory` owns one TanStack Query cache per `org_id`. Its five-minute stale time limits routine refetches, and the authenticated layout preloads it once the organization-scoped session exists.
 - The cache is browser-memory-only. Session cleanup clears the QueryClient on logout, while the shared hook explicitly removes the previous directory query when `org_id` changes, so identities cannot cross tenant or session boundaries.
 - Consumers pass the user IDs visible on the current surface as `requiredUserIds`. After a successful directory load, a missing required ID triggers one full-directory refetch per missing ID for that hook lifetime. This repairs stale caches after a membership change without creating per-row requests or an N+1 lookup path.

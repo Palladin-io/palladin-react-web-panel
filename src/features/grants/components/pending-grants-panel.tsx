@@ -7,6 +7,7 @@ import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import type { PendingGrant } from '../api/pending-grants-api'
+import { isApprovableGrantType } from '../api/org-grants-api'
 import type { GrantPolicyBody } from '../grant-policy'
 import type { GrantMethod } from '../grant-methods'
 import { grantReasonCoordinateKey } from '../grant-reason-coordinate'
@@ -71,7 +72,7 @@ export function PendingGrantsPanel({
   }
 
   function handleApprove(grant: PendingGrant, policy: GrantPolicyBody, methods: GrantMethod[], fieldIds: string[], fieldSelectionMode: GrantFieldSelectionMode) {
-    if (!review.data || !grant.encryptedReason) return
+    if (!review.data || !grant.encryptedReason || !isApprovableGrantType(grant.type)) return
     approve.mutate(
       {
         grantId: grant.id,
@@ -312,7 +313,7 @@ function PendingGrantCard({
           variant="positive"
           size="sm"
           onClick={onApprove}
-          disabled={disabled}
+          disabled={disabled || !isApprovableGrantType(grant.type)}
           className="flex-1"
         >
           {t('grants.approve.action')}

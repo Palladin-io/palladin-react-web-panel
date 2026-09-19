@@ -41,7 +41,7 @@ export interface Grant {
   agentName: string | null
   entryId: string | null
   status: string
-  type: GrantType
+  type: string
   expiresAt: string | null
   queryLimit: number | null
   queryCount: number

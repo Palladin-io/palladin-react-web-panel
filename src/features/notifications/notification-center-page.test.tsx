@@ -18,6 +18,7 @@ const approveMutate = vi.hoisted(() =>
     opts?.onSuccess?.(),
   ),
 );
+const pendingState = vi.hoisted(() => ({ type: "granular" }));
 const pendingRefetch = vi.hoisted(() => vi.fn());
 const grantApprovalReview = vi.hoisted(() =>
   vi.fn((grant: unknown) => ({
@@ -94,6 +95,7 @@ vi.mock("../grants", async (importOriginal) => ({
     data: [
       {
         id: "g1",
+        type: pendingState.type,
         vaultId: "v1",
         agentId: "a1",
         entryId: "e1",
@@ -232,12 +234,14 @@ describe("NotificationCenterPage", () => {
     markAllRead.mockReset();
     denyMutate.mockClear();
     approveMutate.mockClear();
+    pendingState.type = "granular";
     pendingRefetch.mockReset();
     grantApprovalReview.mockClear();
     pendingRefetch.mockResolvedValue({
       data: [
         {
           id: "g1",
+        type: pendingState.type,
           vaultId: "v1",
           agentId: "a1",
           entryId: "e1",
@@ -329,6 +333,23 @@ describe("NotificationCenterPage", () => {
     }
   });
 
+  it("retains unsupported pending grants but disables their approval", () => {
+    pendingState.type = "future";
+    renderPage();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Deny" })).toBeEnabled();
+  });
+
+  it("does not review a newly refetched unsupported request", async () => {
+    pendingRefetch.mockResolvedValue({ data: [{ id: "g1", vaultId: "v1", type: "future" }] });
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(pendingRefetch).toHaveBeenCalledOnce());
+    expect(grantApprovalReview.mock.calls.every(([grant]) => grant === null)).toBe(true);
+    expect(approveMutate).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "confirm approve" })).not.toBeInTheDocument();
+  });
+
   it("renders the To-do approve/deny actions for a grant_pending card", () => {
     renderPage();
 
@@ -359,6 +380,7 @@ describe("NotificationCenterPage", () => {
       expect(approveMutate).toHaveBeenCalledWith(
         {
           grantId: "g1",
+          type: "granular",
           vaultId: "v1",
           agentId: "a1",
           entryId: "e1",

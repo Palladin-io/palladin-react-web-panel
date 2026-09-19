@@ -10,6 +10,7 @@ import { useAuthStore } from '../auth'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import type { PendingGrant } from './api/pending-grants-api'
+import { isApprovableGrantType } from './api/org-grants-api'
 import { ENTRY_TYPE_CREDIT_CARD, normalizeEntryType } from '../../shared/types/entry-type'
 import { normalizeScriptExecutionMetadata } from '../../shared/crypto/script-execution'
 
@@ -42,6 +43,7 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
     gcTime: 0,
     queryFn: async () => {
       if (!grant || !sessionKey || !grant.entryId || !grant.agentId) throw new GrantReviewUnavailableError('preflight')
+      if (!isApprovableGrantType(grant.type)) throw new GrantReviewUnavailableError('preflight')
       const reason = grant.encryptedReason
       if (!reason) throw new GrantReviewUnavailableError('preflight')
       let vault: Awaited<ReturnType<typeof getEncryptedVault>>

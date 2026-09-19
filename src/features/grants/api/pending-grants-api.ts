@@ -45,7 +45,7 @@ export interface PendingGrant {
   agentSigningPublicKey: string | null
   agentSigningKeyVersion: number | null
   agentSigningKeyFingerprint: string | null
-  type: 'full' | 'granular' | 'scriptExecution'
+  type: string
   status: 'pending'
   methods: string
   entryId: string | null

@@ -66,6 +66,17 @@ const granularInput = {
 }
 
 describe('useApproveGrant', () => {
+  it.each(['future', 'full'])('rejects unsupported pending approval type %s before material access', async (type) => {
+    const { result } = renderHook(() => useApproveGrant(), { wrapper: wrapper(queryClient()) })
+    await expect(result.current.mutateAsync({ ...granularInput, type: type as never,
+      methods: [...granularInput.methods] })).rejects.toBeInstanceOf(MissingGrantMaterialError)
+    expect(mocks.getVault).not.toHaveBeenCalled()
+    expect(mocks.getEntry).not.toHaveBeenCalled()
+    expect(mocks.getAgent).not.toHaveBeenCalled()
+    expect(mocks.openVaultKey).not.toHaveBeenCalled()
+    expect(mocks.approve).not.toHaveBeenCalled()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.getVault.mockResolvedValue({

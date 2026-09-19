@@ -10,7 +10,7 @@ import {
   type Grant,
   type GrantStatus,
 } from '../api/grants-api'
-import { grantStatusPresentation } from '../grant-presentation'
+import { grantTypeLabelKey, grantStatusPresentation } from '../grant-presentation'
 import { useVaultGrants } from '../use-vault-grants'
 import { formatGrantDate } from './grant-format'
 
@@ -168,7 +168,7 @@ function GrantCard({
       <p className="mt-0.5 truncate text-meta text-[var(--cv-t3)]">
         {grant.agentName ?? t('grants.unknownAgent')} ·{' '}
         {t(
-          grant.type === 'full' ? 'grants.modeFull' : 'grants.modeGranular',
+          grantTypeLabelKey(grant.type),
         )}{' '}
         · {formatGrantDate(grant.createdAt)}
       </p>

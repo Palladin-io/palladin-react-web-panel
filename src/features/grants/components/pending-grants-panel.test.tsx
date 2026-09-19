@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { PendingGrantsPanel } from './pending-grants-panel'
 
 const grant = {
+  type: 'granular',
   id: 'g1',
   vaultId: 'v1',
   agentName: 'Deploy Bot',
@@ -39,6 +40,15 @@ vi.mock('@tanstack/react-router', async (importOriginal) => {
 })
 
 describe('PendingGrantsPanel — carousel variant', () => {
+  it('keeps unknown requests visible and denyable with approval disabled', () => {
+    grant.type = 'future'
+    try {
+      render(<PendingGrantsPanel />)
+      expect(screen.getByText('Deploy Bot')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Deny' })).toBeEnabled()
+    } finally { grant.type = 'granular' }
+  })
   it('renders the view-all link and reuses the pending grant card', () => {
     render(<PendingGrantsPanel variant="carousel" viewAllTo="/inbox" />)
     // Display names are resolved only from decrypted local MemberSync state;

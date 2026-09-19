@@ -988,6 +988,8 @@
   "grants.statusUnknown": "Unknown status",
   "grants.modeFull": "Full vault",
   "grants.modeGranular": "Single entry",
+  "grants.modeScriptExecution": "Script execution",
+  "grants.modeUnknown": "Unknown type",
   "grants.detail.mode": "Mode",
   "grants.detail.agent": "Agent",
   "grants.detail.entry": "Entry",

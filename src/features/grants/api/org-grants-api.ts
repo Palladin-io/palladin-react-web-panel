@@ -43,6 +43,10 @@ export function isCreatableGrantType(type: string): type is GrantType {
   return type === GRANT_TYPE_FULL || type === GRANT_TYPE_GRANULAR || type === GRANT_TYPE_SCRIPT_EXECUTION
 }
 
+export function isApprovableGrantType(type: string): type is typeof GRANT_TYPE_GRANULAR | typeof GRANT_TYPE_SCRIPT_EXECUTION {
+  return type === GRANT_TYPE_GRANULAR || type === GRANT_TYPE_SCRIPT_EXECUTION
+}
+
 /**
  * Org-wide grant row from `GET /api/grants` (enriched `GrantResponse`). No
  * ciphertext (reEncryptedBlob/nonce/agentWrappedDek) is ever returned —
