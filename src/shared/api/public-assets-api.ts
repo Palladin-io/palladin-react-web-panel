@@ -1,35 +1,33 @@
-import { z } from 'zod'
 import { HTTPError } from 'ky'
 import { api } from './client'
 import { env } from '../lib/env'
 
-export const publicAssetTypeSchema = z.enum(['websiteIcon', 'agentIcon'])
+export interface PublicAsset {
+  id: string
+  type: string
+  name: string
+  url: string
+  revision: number
+  aliases?: string[]
+}
 
-export const publicAssetSchema = z.object({
-  id: z.string().uuid(),
-  type: publicAssetTypeSchema,
-  name: z.string().min(1).max(256),
-  url: z.string().url().refine((value) => trustedPublicAssetUrl(value) !== null),
-  revision: z.number().int().positive(),
-  aliases: z.array(z.string().min(1).max(253)).optional(),
-})
+interface PublicAssetResponse {
+  items: PublicAsset[]
+}
 
-const searchResponseSchema = z.object({ items: z.array(publicAssetSchema) })
-const websiteIconEnsureStatusSchema = z.string()
-const ensureResponseSchema = z.object({
-  items: z.array(z.object({
-    hostname: z.string().min(1).max(253),
-    status: websiteIconEnsureStatusSchema,
-    asset: z.unknown(),
-  })),
-})
-const byIdsResponseSchema = z.object({ items: z.array(publicAssetSchema) })
+interface WebsiteIconEnsureResponse {
+  items: { hostname: string; status: string; asset: PublicAsset | null }[]
+}
 
-export type PublicAsset = z.infer<typeof publicAssetSchema>
+// REST owns catalog metadata. Only the independently configured image origin
+// can authorize rendering; a rejected destination must not discard siblings.
+function renderableAsset(asset: PublicAsset | null): asset is PublicAsset {
+  return asset != null && trustedPublicAssetUrl(asset.url) !== null
+}
 
 const assetCache = new Map<string, PublicAsset>()
 const websiteAssetCache = new Map<string, PublicAsset>()
-const websiteAssetStatusCache = new Map<string, z.infer<typeof websiteIconEnsureStatusSchema>>()
+const websiteAssetStatusCache = new Map<string, string>()
 const cacheListeners = new Set<() => void>()
 let cacheRevision = 0
 const WEBSITE_ICON_POLL_INTERVAL_MS = 1_000
@@ -87,8 +85,8 @@ export function cachedPublicAsset(assetId: string): PublicAsset | undefined {
 export async function searchPublicAssets(query: string): Promise<PublicAsset[]> {
   const response = await api.get('api/public-assets/search', {
     searchParams: { type: 'websiteIcon', q: query, limit: '40' },
-  }).json<unknown>()
-  const items = searchResponseSchema.parse(response).items
+  }).json<PublicAssetResponse>()
+  const items = response.items.filter(renderableAsset)
   if (remember(items)) notifyCacheChanged()
   return items
 }
@@ -116,12 +114,11 @@ export async function ensureWebsiteIcons(hostnames: string[]): Promise<Map<strin
         const response = await api.post('api/public-assets/website-icons/ensure', {
           json: { hostnames: batch },
           timeout: 20_000,
-        }).json<unknown>()
-        const items = ensureResponseSchema.parse(response).items.map((item) => {
+        }).json<WebsiteIconEnsureResponse>()
+        const items = response.items.map((item) => {
           // A rejected network destination must not discard other icons or
           // keep a backend-terminal hostname in the import polling loop.
-          const asset = publicAssetSchema.safeParse(item.asset)
-          return { ...item, asset: asset.success ? asset.data : null }
+          return { ...item, asset: renderableAsset(item.asset) ? item.asset : null }
         })
         const changed = remember(items.flatMap(({ status, asset }) =>
           status === 'ready' && asset ? [asset] : []))
@@ -287,8 +284,8 @@ export async function getPublicAssetsByIds(assetIds: string[]): Promise<PublicAs
   for (let offset = 0; offset < unique.length; offset += 200) {
     const response = await api.post('api/public-assets/by-ids', {
       json: { assetIds: unique.slice(offset, offset + 200) },
-    }).json<unknown>()
-    items.push(...byIdsResponseSchema.parse(response).items)
+    }).json<PublicAssetResponse>()
+    items.push(...response.items.filter(renderableAsset))
   }
   if (remember(items)) notifyCacheChanged()
   return items

@@ -49,6 +49,11 @@ describe('parseNotificationPayload', () => {
     expect(parseNotificationPayload(null)).toBeNull()
   })
 
+  it('keeps future categories so known events still reach cache invalidation', () => {
+    expect(parseNotificationPayload({ subjectId, type: 'grant_approved', category: 'information', occurredAt }))
+      .toMatchObject({ type: 'grant_approved', category: 'information' })
+  })
+
   it('keeps an unknown type forward compatible without trusting extra copy', () => {
     const result = parseNotificationPayload({
       subjectId, type: 'future_type', category: 'update', occurredAt,

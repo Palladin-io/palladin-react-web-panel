@@ -84,7 +84,8 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
     if (item.changedByType === 2) {
       return t('vault.entry.history.actor.2', { name: shortenKey(item.changedById) })
     }
-    return t('vault.entry.history.actor.3')
+    if (item.changedByType === 3) return t('vault.entry.history.actor.3')
+    return shortenKey(item.changedById)
   }
 
   const withVaultKey = async <T,>(run: (vaultKey: Uint8Array) => Promise<T>): Promise<T> => {

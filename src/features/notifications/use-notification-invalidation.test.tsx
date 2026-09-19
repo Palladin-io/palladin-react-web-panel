@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { useNotificationInvalidation } from './use-notification-invalidation'
-import type { NotificationPayload } from './notification-types'
+import { parseNotificationPayload, type NotificationPayload } from './notification-types'
 import {
   adjustPendingGrantNotificationSummary,
   resolvePendingGrantNotification,
@@ -40,6 +40,17 @@ describe('useNotificationInvalidation', () => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['grants'] })
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['notifications'] })
     }
+  })
+
+  it('refreshes grants after decoding an event with a future category', () => {
+    const { invalidate, invalidateSpy } = setup()
+    const event = parseNotificationPayload({
+      subjectId: '11111111-1111-4111-8111-111111111111', type: 'grant_approved',
+      category: 'information', occurredAt: '2026-09-19T12:00:00Z',
+    })
+    expect(event).not.toBeNull()
+    invalidate(event!)
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['grants'] })
   })
 
   it('clears a local summary adjustment only for the matching terminal grant event', () => {

@@ -37,6 +37,17 @@ describe('encrypted presentation asset transport', () => {
     })
   })
 
+  it('accepts additive transport metadata while authenticating the downloaded bytes', async () => {
+    const ciphertext = Uint8Array.of(9, 8, 7)
+    apiMock.get.mockReturnValue({ json: vi.fn().mockResolvedValue({
+      assetId, target: 1, entryId: null, mediaType: 'image/png', ciphertextLength: ciphertext.length,
+      ciphertextSha256: await digest(ciphertext), downloadUrl: 'https://private.example/ciphertext',
+      futurePresentationHint: true,
+    }) })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(ciphertext, { status: 200 })))
+    await expect(downloadEncryptedAsset(vaultId, assetId)).resolves.toMatchObject({ ciphertext })
+  })
+
   it('rejects a substituted download before returning ciphertext to crypto', async () => {
     const ciphertext = Uint8Array.of(9, 8, 7)
     apiMock.get.mockReturnValue({ json: vi.fn().mockResolvedValue({

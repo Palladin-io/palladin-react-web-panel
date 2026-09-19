@@ -185,10 +185,10 @@ const recentlyDeletedEntrySchema = z.object({
   id: canonicalUuidSchema,
   state: z.union([z.string(), z.number().int()]),
   currentRevision: canonicalU64Schema,
-  updatedAt: z.string().datetime({ offset: true }),
-  archivedAt: z.string().datetime({ offset: true }).nullable(),
-  deletedAt: z.string().datetime({ offset: true }),
-  retentionExpiresAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string(),
+  archivedAt: z.string().nullable(),
+  deletedAt: z.string(),
+  retentionExpiresAt: z.string(),
   memberIndex: memberIndexEnvelopeSchema,
 }).superRefine((item, context) => {
   if (item.memberIndex.descriptor.scope.entryId !== item.id) {
@@ -204,19 +204,17 @@ const recentlyDeletedResponseSchema = z.object({
 export type RecentlyDeletedEntry = z.infer<typeof recentlyDeletedEntrySchema>
 export type RecentlyDeletedResponse = z.infer<typeof recentlyDeletedResponseSchema>
 
-const actorTypeSchema = z.union([
-  z.enum(['member', 'agent', 'system']), z.literal(1), z.literal(2), z.literal(3),
-]).transform((actor) => typeof actor === 'number'
-  ? actor
-  : ({ member: 1, agent: 2, system: 3 } as const)[actor])
+function normalizeHistoryActor(actor: string | number): string | number {
+  if (actor === 'member') return 1
+  if (actor === 'agent') return 2
+  if (actor === 'system') return 3
+  return actor
+}
 
 const entryHistoryItemSchema = z.object({
   revision: canonicalU64Schema,
   memberSequence: canonicalU64Schema,
   discoverySequence: canonicalU64Schema.nullable(),
-  changedAt: z.string(),
-  changedByType: actorTypeSchema,
-  changedById: canonicalUuidSchema,
   operation: z.enum(['created', 'updated', 'archived', 'restored', 'deleted']).transform((operation) =>
     ({ created: 1, updated: 2, archived: 3, restored: 4, deleted: 5 } as const)[operation]),
   keyVersion: u32Schema,
@@ -240,11 +238,17 @@ const entryHistoryResponseSchema = z.object({
   currentRevision: canonicalU64Schema,
   items: z.array(entryHistoryItemSchema).max(20),
   nextBeforeRevision: canonicalU64Schema.nullable(),
-  policy: z.object({ maximumVersions: z.number().int().positive(), maximumAgeDays: z.number().int().positive() }),
 })
 
-export type EntryHistoryItem = z.infer<typeof entryHistoryItemSchema>
-export type EntryHistoryResponse = z.infer<typeof entryHistoryResponseSchema>
+export interface EntryHistoryItem extends z.infer<typeof entryHistoryItemSchema> {
+  changedAt: string
+  changedByType: string | number
+  changedById: string
+}
+export interface EntryHistoryResponse extends z.infer<typeof entryHistoryResponseSchema> {
+  items: EntryHistoryItem[]
+  policy: { maximumVersions: number; maximumAgeDays: number }
+}
 
 export async function getEntryHistory(
   vaultId: string,
@@ -255,13 +259,18 @@ export async function getEntryHistory(
   const raw = await api.get(`api/vaults/${vaultId}/entries/${entryId}/history`, {
     searchParams: { pageSize: '20', ...(beforeRevision ? { beforeRevision } : {}) },
     signal,
-  }).json()
+  }).json<EntryHistoryResponse>()
   const page = entryHistoryResponseSchema.parse(raw)
   if (page.items.some((item) => item.entryKey.descriptor.scope.vaultId !== vaultId
     || item.entryKey.descriptor.scope.entryId !== entryId)) {
     throw new Error('Entry history response scope mismatch')
   }
-  return page
+  return { ...page, policy: raw.policy, items: page.items.map((item, index) => ({
+    ...item,
+    changedAt: raw.items[index].changedAt,
+    changedByType: normalizeHistoryActor(raw.items[index].changedByType),
+    changedById: raw.items[index].changedById,
+  })) }
 }
 
 export async function getCanonicalEntry(
@@ -414,11 +423,7 @@ export async function importEntries(
   })
   const text = await response.text()
   if (!text.trim()) return { importedCount: body.entries.length, entryIds: body.entries.map((entry) => entry.entryId) }
-  const raw: unknown = JSON.parse(text)
-  return z.object({
-    importedCount: z.number().int().nonnegative(),
-    entryIds: z.array(canonicalUuidSchema),
-  }).parse(raw)
+  return JSON.parse(text) as ImportEntriesResponse
 }
 
 /**

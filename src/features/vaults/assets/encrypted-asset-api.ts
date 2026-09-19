@@ -12,7 +12,7 @@ const metadataSchema = z.object({
   ciphertextLength: z.number().int().positive().max(6 * 1024 * 1024),
   ciphertextSha256: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
   downloadUrl: z.string().url().optional(),
-}).strict()
+})
 
 export interface EncryptedAssetUpload {
   vaultId: string

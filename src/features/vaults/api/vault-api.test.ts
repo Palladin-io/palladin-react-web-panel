@@ -78,11 +78,19 @@ describe('getEntryHistory', () => {
     const page = await getEntryHistory(vaultId, entryId, '8')
     expect(page.items[0]).toMatchObject({ operation: 2, changedByType: 1 })
     expect(page.items[0]).not.toHaveProperty('futureHint')
-    expect(page.policy).not.toHaveProperty('futurePolicyHint')
+    expect(page.policy).toMatchObject({ maximumVersions: 100, maximumAgeDays: 365 })
     expect(page).not.toHaveProperty('futurePageHint')
     expect(getFn).toHaveBeenCalledWith(expect.stringContaining('/history'), {
       searchParams: { pageSize: '20', beforeRevision: '8' },
     })
+  })
+
+  it('keeps history with a future actor and backend-owned zero retention settings', async () => {
+    getJson.mockResolvedValueOnce({ currentRevision: '7', items: [historyItem({ changedByType: 'service' })],
+      nextBeforeRevision: null, policy: { maximumVersions: 0, maximumAgeDays: 0 } })
+    const page = await getEntryHistory(vaultId, entryId)
+    expect(page.items[0].changedByType).toBe('service')
+    expect(page.policy).toEqual({ maximumVersions: 0, maximumAgeDays: 0 })
   })
 
   it('fails closed when a historical key envelope belongs to another Entry', async () => {
@@ -192,7 +200,7 @@ describe('importEntries', () => {
     const entryIds = ['11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222']
     postText.mockResolvedValueOnce(JSON.stringify({ importedCount: 2, entryIds, futureHint: true }))
     const res = await importEntries('vault-1', body as never)
-    expect(res).toEqual({ importedCount: 2, entryIds })
+    expect(res).toMatchObject({ importedCount: 2, entryIds })
   })
 
   it('preserves an empty-body success after the backend has committed the import', async () => {
