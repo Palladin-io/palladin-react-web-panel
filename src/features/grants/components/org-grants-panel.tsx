@@ -15,6 +15,7 @@ import { AgentAvatar } from '../../agents/components/agent-avatar'
 import {
   GRANT_STATUS_PENDING,
   GRANT_TYPE_FULL,
+  isCreatableGrantType,
   type GrantStatus,
   type OrgGrant,
 } from '../api/org-grants-api'
@@ -170,7 +171,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
   ) {
     const scopedEntryId = grant.scriptEntryId ?? grant.entryId
       ?? grant.scriptScopes?.find((scope) => scope.isScript)?.entryId
-    if (!grant.agentId || !grant.type
+    if (!grant.agentId || !isCreatableGrantType(grant.type)
       || (grant.type !== GRANT_TYPE_FULL && !scopedEntryId)) return
 
     let agentPublicKey: string | null | undefined
@@ -484,7 +485,7 @@ function OrgGrantRow({
               variant="positive"
               size="sm"
               onClick={onRegrant}
-              disabled={disabled}
+              disabled={disabled || !isCreatableGrantType(grant.type)}
               className="flex-1"
             >
               {t('grants.regrant.action')}

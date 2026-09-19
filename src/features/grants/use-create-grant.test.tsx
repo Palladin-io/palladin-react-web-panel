@@ -85,6 +85,18 @@ describe('useCreateGrant', () => {
     })
   })
 
+  it('does not dispatch an unknown grant type to a known crypto flow', async () => {
+    const { result } = renderHook(() => useCreateGrant(), { wrapper })
+    await expect(result.current.mutateAsync({
+      vaultId: 'v1', agentId: 'agent', agentPublicKey: 'public', recipientAgentKeyVersion: 1,
+      agentAccessEpoch: 1, type: 'future' as never, entryId: 'entry', policy: {}, methods: ['inject'],
+    })).rejects.toThrow()
+    expect(mocks.getVault).not.toHaveBeenCalled()
+    expect(mocks.openVaultKey).not.toHaveBeenCalled()
+    expect(mocks.produce).not.toHaveBeenCalled()
+    expect(mocks.create).not.toHaveBeenCalled()
+  })
+
   it('creates one exact-revision GRANULAR envelope', async () => {
     const { result } = renderHook(() => useCreateGrant(), { wrapper })
     await result.current.mutateAsync({

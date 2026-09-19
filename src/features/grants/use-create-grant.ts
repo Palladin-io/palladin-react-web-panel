@@ -16,6 +16,7 @@ import {
   createFullGrant,
   createGranularGrant,
   createScriptExecutionGrant,
+  isCreatableGrantType,
   type CreateFullGrantBody,
   type CreateGranularGrantBody,
   type CreateScriptExecutionGrantBody,
@@ -71,6 +72,7 @@ export function useCreateGrant() {
       policy,
       methods,
     }: CreateGrantInput) => {
+      if (!isCreatableGrantType(type)) throw new MissingGrantMaterialError()
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new VaultLockedError()
       const requestedMethods = grantMethodsMask(methods)

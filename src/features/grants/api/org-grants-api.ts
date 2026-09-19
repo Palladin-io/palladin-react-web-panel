@@ -38,6 +38,11 @@ export const GRANT_TYPE_SCRIPT_EXECUTION = "scriptExecution" as const;
 export type GrantType = typeof GRANT_TYPE_FULL | typeof GRANT_TYPE_GRANULAR
   | typeof GRANT_TYPE_SCRIPT_EXECUTION;
 
+/** Local producer capabilities, not a validator of server-owned history rows. */
+export function isCreatableGrantType(type: string): type is GrantType {
+  return type === GRANT_TYPE_FULL || type === GRANT_TYPE_GRANULAR || type === GRANT_TYPE_SCRIPT_EXECUTION
+}
+
 /**
  * Org-wide grant row from `GET /api/grants` (enriched `GrantResponse`). No
  * ciphertext (reEncryptedBlob/nonce/agentWrappedDek) is ever returned —
@@ -49,7 +54,7 @@ export type GrantType = typeof GRANT_TYPE_FULL | typeof GRANT_TYPE_GRANULAR
 export interface OrgGrant {
   id: string
   vaultId: string
-  type: GrantType
+  type: string
   status: string
   entryScopes: {
     entryId: string

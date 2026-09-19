@@ -85,6 +85,16 @@ describe('OrgGrantsPanel footer actions', () => {
     } as unknown as ReturnType<typeof useOrgGrants>)
   })
 
+  it('keeps a future grant type visible without offering an unsupported regrant flow', () => {
+    mockOrgGrants.mockReturnValue({
+      data: { items: [{ ...expiredGrant, type: 'future' }], nextCursor: null },
+      isPending: false, isError: false, refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useOrgGrants>)
+    render(<OrgGrantsPanel vaultId="vault-1" />)
+    expect(screen.getByText('Deploy token')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Grant again' })).toBeDisabled()
+  })
+
   it('offers regrant on protocol 2 Vault tabs', () => {
     render(<OrgGrantsPanel vaultId="vault-1" />)
 
