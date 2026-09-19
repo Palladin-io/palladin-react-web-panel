@@ -1,37 +1,36 @@
 import { useEffect } from 'react'
 import { useRouterState } from '@tanstack/react-router'
-import { useAuthStore } from '../auth'
+import { useAuthStore, captureClientSessionGeneration, clientSessionGenerationMatches } from '../auth'
 import { analytics } from '../../shared/lib/analytics'
-import { matchesCurrentAnalyticsActivation, readLocalAnalyticsActivation, setLocalAnalyticsActivation } from '../../shared/lib/local-analytics-consent'
-import { useConsents, useLocalActivation } from './use-consents'
+import { isAnalyticsPaused } from '../../shared/lib/analytics-pause'
+import { useConsents, useAnalyticsPaused } from './use-consents'
 
 export function ConsentRuntime() {
   const consents = useConsents()
-  const activation = useLocalActivation(consents.userId)
+  const paused = useAnalyticsPaused(consents.userId)
   const accessToken = useAuthStore(state => state.accessToken)
   const routeId = useRouterState({ select: state => state.matches.at(-1)?.routeId ?? '__root__' })
   const consent = consents.data?.consents.find(value => value.purpose === 'product_analytics')
-  const locallyActive = matchesCurrentAnalyticsActivation(consent, activation)
-  const activationRevision = activation?.activationRevision
+  const granted = consent?.status === 'granted' && !!consent.currentNotice
+    && consent.noticeVersion === consent.currentNotice.version
   const deadline = (consents.data?.observedAt ?? 0) + (consents.data?.maxAgeSeconds ?? 0) * 1000
 
   useEffect(() => {
     const userId = consents.userId
-    if (!consents.sessionAllowed || !userId || !accessToken || consents.isError || !locallyActive) {
+    if (!consents.sessionAllowed || !userId || !accessToken || consents.isError || !granted || paused) {
       analytics.reset()
-      if (userId && consent && consent.status !== 'granted' && activationRevision) setLocalAnalyticsActivation(userId, null)
       return
     }
+    const generation = captureClientSessionGeneration()
     analytics.authorize(userId, deadline, () => {
-      const current = readLocalAnalyticsActivation(userId)
       return useAuthStore.getState().userId === userId && !!useAuthStore.getState().accessToken
-        && matchesCurrentAnalyticsActivation(consent, current)
+        && clientSessionGenerationMatches(generation) && !isAnalyticsPaused(userId)
     })
-  }, [consents.sessionAllowed, consents.userId, accessToken, consents.isError, consent, locallyActive, activationRevision, deadline])
+  }, [consents.sessionAllowed, consents.userId, accessToken, consents.isError, consent, granted, paused, deadline])
 
   useEffect(() => {
     if (consents.sessionAllowed) analytics.pageview(routeId)
-  }, [consents.sessionAllowed, routeId, consent?.activationRevision, activation?.activationRevision])
+  }, [consents.sessionAllowed, routeId, consent?.activationRevision, granted, paused])
 
   useEffect(() => {
     const suspend = () => analytics.reset()

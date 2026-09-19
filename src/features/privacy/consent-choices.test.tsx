@@ -10,7 +10,6 @@ import i18n from '../../shared/lib/i18n'
 import { PrivacyPrompt } from './privacy-prompt'
 import { dismissedPrivacyAccounts } from './privacy-prompt-state'
 import { ConsentRuntime } from './consent-runtime'
-import { readLocalAnalyticsActivation, setLocalAnalyticsActivation } from '../../shared/lib/local-analytics-consent'
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(), update: vi.fn(), success: vi.fn(), error: vi.fn(), reset: vi.fn(), authorize: vi.fn(), pageview: vi.fn(),
@@ -49,6 +48,12 @@ function mount(onContinue?: () => void, settingsPage = false) {
   return render(<QueryClientProvider client={client}><ConsentRuntime />{settingsPage ? <PrivacySettingsPage /> : <ConsentChoices source={onContinue ? 'web_onboarding' : 'web_settings'} onContinue={onContinue} />}</QueryClientProvider>)
 }
 
+function captureAllowed() {
+  const call = mocks.authorize.mock.calls.at(-1)
+  return !!call && (mocks.authorize.mock.invocationCallOrder.at(-1) ?? 0) > (mocks.reset.mock.invocationCallOrder.at(-1) ?? 0)
+    && call[2]() === true
+}
+
 describe('account privacy choices', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -85,7 +90,7 @@ describe('account privacy choices', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(mocks.update).not.toHaveBeenCalled()
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    expect(captureAllowed()).toBe(false)
   })
 
   it('startup has no close action and ignores Escape/backdrop; saving both off completes it', async () => {
@@ -100,7 +105,7 @@ describe('account privacy choices', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
     await waitFor(() => expect(next).toHaveBeenCalledOnce())
     expect(mocks.update.mock.calls.map(([, decision]) => decision.granted)).toEqual([false, false])
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    expect(captureAllowed()).toBe(false)
   })
 
   it.each(['en', 'pl'] as const)('expands server notices independently of draft choices and links to the localized policy (%s)', async locale => {
@@ -160,7 +165,7 @@ describe('account privacy choices', () => {
         expect(screen.getByRole('heading', { name: 'Security background' })).toBeVisible()
         expect(mocks.navigate).toHaveBeenCalledWith({ to: '/settings/security', replace: true })
       }
-      expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+      expect(captureAllowed()).toBe(false)
       view.unmount(); client.clear()
     }
   })
@@ -177,7 +182,7 @@ describe('account privacy choices', () => {
     expect(client.getMutationCache().getAll().every(m => m.state.status === 'error' && !m.state.isPaused)).toBe(true)
     expect(mocks.update).not.toHaveBeenCalled()
     expect(mocks.authorize).not.toHaveBeenCalled()
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    expect(captureAllowed()).toBe(false)
     if (dismiss === 'Close') await userEvent.click(screen.getByRole('button', { name: 'Close' }))
     else if (dismiss === 'Escape') await userEvent.keyboard('{Escape}')
     else await userEvent.click(screen.getByRole('dialog').parentElement!.querySelector('[aria-hidden="true"]')!)
@@ -186,7 +191,7 @@ describe('account privacy choices', () => {
     expect(mocks.update).not.toHaveBeenCalled()
     expect(mocks.success).not.toHaveBeenCalled()
     expect(mocks.authorize).not.toHaveBeenCalled()
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    expect(captureAllowed()).toBe(false)
   })
 
   it.each(['Save choice', 'Accept all'])('offline %s retries only explicitly with the original decisions after reconnect', async action => {
@@ -218,7 +223,7 @@ describe('account privacy choices', () => {
     expect(mocks.update).not.toHaveBeenCalled()
     await act(async () => { onlineManager.setOnline(true); await client.resumePausedMutations() })
     expect(mocks.update).not.toHaveBeenCalled()
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    expect(captureAllowed()).toBe(false)
   })
 
   it('a direct privacy link shows Security behind the dialog and closes there without a second startup prompt', async () => {
@@ -241,18 +246,18 @@ describe('account privacy choices', () => {
     expect(screen.getByText('Settings')).toBeVisible()
   })
 
-  it('edits locally and saves both explicit decisions, activating only this installation after confirmation', async () => {
+  it('edits locally and saves both explicit decisions, authorizing capture after confirmation', async () => {
     autoSave(); const next = vi.fn(); mount(next)
     for (const option of await screen.findAllByRole('switch')) await userEvent.click(option)
     expect(mocks.update).not.toHaveBeenCalled()
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    expect(captureAllowed()).toBe(false)
     await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
     await waitFor(() => expect(next).toHaveBeenCalledOnce())
     expect(mocks.update.mock.calls.map(([p, d]) => [p, d.granted])).toEqual([['email_marketing', true], ['product_analytics', true]])
-    expect(readLocalAnalyticsActivation('privacy-user')).toEqual({ noticeVersion: 'test-v1', noticeLocale: 'en', activationRevision: 1 })
+    expect(captureAllowed()).toBe(true)
   })
 
-  it.each(['en', 'pl'] as const)('Accept all confirms both purposes and activates this installation in both dialogs (%s)', async locale => {
+  it.each(['en', 'pl'] as const)('Accept all confirms both purposes and authorizes account consent in both dialogs (%s)', async locale => {
     await i18n.changeLanguage(locale)
     for (const settings of [false, true]) {
       state = { consents: [consent(), consent('email_marketing')], maxAgeSeconds: 60 }
@@ -260,7 +265,7 @@ describe('account privacy choices', () => {
       const next = vi.fn(); const view = mount(settings ? undefined : next, settings)
       for (const control of await screen.findAllByRole('switch')) expect(control).toHaveAttribute('aria-checked', 'false')
       await userEvent.click(screen.getByRole('button', { name: locale === 'pl' ? 'Akceptuj wszystkie' : 'Accept all' }))
-      await waitFor(() => expect(readLocalAnalyticsActivation('privacy-user')).toEqual({ noticeVersion: 'test-v1', noticeLocale: 'en', activationRevision: 1 }))
+      await waitFor(() => expect(captureAllowed()).toBe(true))
       expect(mocks.update.mock.calls.map(([p, d]) => [p, d.granted])).toEqual([['email_marketing', true], ['product_analytics', true]])
       if (settings) await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
       else expect(next).toHaveBeenCalledOnce()
@@ -284,24 +289,24 @@ describe('account privacy choices', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Accept all' }))
     await waitFor(() => expect(mocks.error).toHaveBeenCalledOnce())
     expect(next).not.toHaveBeenCalled(); expect(mocks.success).not.toHaveBeenCalled()
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    expect(captureAllowed()).toBe(false)
     expect(screen.getByRole('dialog')).toBeVisible()
     fail = false
     await userEvent.click(screen.getByRole('button', { name: 'Retry saving' }))
     await waitFor(() => expect(next).toHaveBeenCalledOnce())
     expect(mocks.update.mock.calls.map(([p]) => p)).toEqual(['email_marketing', 'product_analytics', 'product_analytics'])
     expect(mocks.update.mock.calls[2]).toEqual(mocks.update.mock.calls[1])
-    expect(readLocalAnalyticsActivation('privacy-user')).toEqual({ noticeVersion: 'test-v1', noticeLocale: 'en', activationRevision: 1 })
+    expect(captureAllowed()).toBe(true)
   })
 
-  it('Accept all explicitly activates this installation even with existing account grants', async () => {
+  it('Accept all explicitly authorizes account consent even with existing account grants', async () => {
     state.consents = state.consents.map(c => ({ ...c, status: 'granted', revision: 1, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }))
     autoSave(); mount(); await screen.findAllByRole('switch')
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    await waitFor(() => expect(captureAllowed()).toBe(true))
     await userEvent.click(screen.getByRole('button', { name: 'Accept all' }))
     await waitFor(() => expect(mocks.success).toHaveBeenCalledOnce())
     expect(mocks.update).toHaveBeenCalledTimes(2)
-    expect(readLocalAnalyticsActivation('privacy-user')).not.toBeNull()
+    expect(captureAllowed()).toBe(true)
   })
 
   it('does not fabricate decisions when active notices are empty', async () => {
@@ -327,10 +332,9 @@ describe('account privacy choices', () => {
 
   it.each([0, 408, 429, 503])('withdrawal stops before Save and ambiguous/transient failure %s retries the identical request', async status => {
     state.consents[0] = { ...consent(), status: 'granted', revision: 2, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }
-    setLocalAnalyticsActivation('privacy-user', { noticeVersion: 'test-v1', noticeLocale: 'en', activationRevision: 1 })
     mocks.update.mockRejectedValue(status ? new HTTPError(new Response(null, { status }), new Request('https://api.example.test/consents'), {}) : new Error('offline')); mount()
     await userEvent.click(await screen.findByRole('switch', { name: 'Product analytics' }))
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    expect(captureAllowed()).toBe(false)
     expect(mocks.update).not.toHaveBeenCalled()
     await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
     await waitFor(() => expect(mocks.error).toHaveBeenCalledOnce())
@@ -339,28 +343,33 @@ describe('account privacy choices', () => {
     expect(mocks.success).not.toHaveBeenCalled()
   })
 
-  it('does not activate an existing account grant by saving unrelated marketing changes', async () => {
+  it('automatically applies an existing account grant without storage or an extra action', async () => {
     state.consents[0] = { ...consent(), status: 'granted', revision: 1, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }
     autoSave(); mount()
-    expect(await screen.findByText('Off on this device')).toBeVisible()
+    await screen.findAllByRole('switch')
+    await waitFor(() => expect(captureAllowed()).toBe(true))
+    expect(screen.queryByText('Off on this device')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Enable on this device' })).not.toBeInTheDocument()
+    expect(mocks.update).not.toHaveBeenCalled()
+    expect(localStorage.getItem('palladin-client-analytics:privacy-user')).toBeNull()
     await userEvent.click(screen.getByRole('switch', { name: 'Email marketing' }))
     await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
     await waitFor(() => expect(mocks.success).toHaveBeenCalledOnce())
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
-    await userEvent.click(screen.getByRole('button', { name: 'Enable on this device' }))
-    await waitFor(() => expect(readLocalAnalyticsActivation('privacy-user')).not.toBeNull())
+    expect(mocks.update).toHaveBeenCalledExactlyOnceWith('email_marketing', expect.objectContaining({ granted: true }))
+    expect(captureAllowed()).toBe(true)
   })
 
-  it.each([false, true])('device activation never saves an unknown marketing choice (draft selected: %s)', async selectMarketing => {
+  it('keeps a pending withdrawal paused through polling and restores the saved choice on dismissal', async () => {
     state.consents[0] = { ...consent(), status: 'granted', revision: 1, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }
-    autoSave(); mount()
-    await screen.findByText('Off on this device')
-    if (selectMarketing) await userEvent.click(screen.getByRole('switch', { name: 'Email marketing' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Enable on this device' }))
-    await waitFor(() => expect(mocks.success).toHaveBeenCalledOnce())
-    expect(mocks.update).toHaveBeenCalledExactlyOnceWith('product_analytics', expect.objectContaining({ granted: true }))
-    expect(state.consents[1].status).toBe('unknown')
-    expect(readLocalAnalyticsActivation('privacy-user')).not.toBeNull()
+    mount(undefined, true)
+    await screen.findAllByRole('switch')
+    await waitFor(() => expect(captureAllowed()).toBe(true))
+    await userEvent.click(screen.getByRole('switch', { name: 'Product analytics' }))
+    await act(async () => client.invalidateQueries())
+    expect(captureAllowed()).toBe(false)
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await waitFor(() => expect(captureAllowed()).toBe(true))
+    expect(mocks.update).not.toHaveBeenCalled()
   })
 
   it.each(['email_marketing', 'product_analytics'] as const)('ordinary Save stays off on %s failure and activates after the identical retry succeeds', async failingPurpose => {
@@ -372,7 +381,7 @@ describe('account privacy choices', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
     await waitFor(() => expect(mocks.error).toHaveBeenCalledOnce())
     expect(next).not.toHaveBeenCalled(); expect(mocks.success).not.toHaveBeenCalled()
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    expect(captureAllowed()).toBe(false)
     expect(mocks.authorize).not.toHaveBeenCalled()
     const failedRequest = mocks.update.mock.calls.at(-1)
     const callsBeforeRetry = mocks.update.mock.calls.length
@@ -382,29 +391,25 @@ describe('account privacy choices', () => {
     expect(mocks.update.mock.calls[callsBeforeRetry]).toEqual(failedRequest)
     expect(mocks.update.mock.calls.map(([purpose]) => purpose)).toEqual(failingPurpose === 'email_marketing'
       ? ['email_marketing', 'email_marketing', 'product_analytics'] : ['email_marketing', 'product_analytics', 'product_analytics'])
-    expect(readLocalAnalyticsActivation('privacy-user')).toEqual({ noticeVersion: 'test-v1', noticeLocale: 'en', activationRevision: 1 })
+    expect(captureAllowed()).toBe(true)
     await waitFor(() => expect(mocks.authorize).toHaveBeenCalled())
   })
 
-  it.each([{ version: 'test-v2', locale: 'en' }, { version: 'test-v1', locale: 'pl' }])('requires explicit reactivation after current notice changes to %j', async notice => {
+  it.each([{ version: 'test-v2', locale: 'en', active: false }, { version: 'test-v1', locale: 'pl', active: true }])('uses the accepted version independently of language (%j)', async notice => {
     state.consents[0] = { ...consent(), status: 'granted', revision: 1, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }
-    state.consents[1] = { ...consent('email_marketing'), status: 'denied', revision: 1 }
-    setLocalAnalyticsActivation('privacy-user', { noticeVersion: 'test-v1', noticeLocale: 'en', activationRevision: 1 })
+    state.consents[1] = { ...consent('email_marketing'), status: 'denied', revision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }
     autoSave(); mount()
-    expect(await screen.findByText('Enabled on this device')).toBeVisible()
-    await waitFor(() => expect(mocks.authorize).toHaveBeenCalled())
-    mocks.authorize.mockClear(); mocks.reset.mockClear()
-    state.consents[0].currentNotice = { ...notice, text: 'Updated test notice' }
+    await waitFor(() => expect(captureAllowed()).toBe(true))
+    state.consents[0].currentNotice = { version: notice.version, locale: notice.locale, text: 'Updated test notice' }
     await act(async () => client.invalidateQueries())
-    expect(await screen.findByText('Off on this device')).toBeVisible()
-    expect(mocks.reset).toHaveBeenCalled(); expect(mocks.authorize).not.toHaveBeenCalled()
+    await waitFor(() => expect(captureAllowed()).toBe(notice.active))
     expect(mocks.update).not.toHaveBeenCalled()
-    await userEvent.click(screen.getByRole('button', { name: 'Enable on this device' }))
-    await waitFor(() => expect(mocks.success).toHaveBeenCalledOnce())
-    expect(mocks.update).toHaveBeenCalledExactlyOnceWith('product_analytics', expect.objectContaining({ noticeVersion: notice.version, locale: notice.locale, expectedRevision: 1, granted: true }))
-    expect(await screen.findByText('Enabled on this device')).toBeVisible()
-    expect(readLocalAnalyticsActivation('privacy-user')).toEqual({ noticeVersion: notice.version, noticeLocale: notice.locale, activationRevision: 1 })
-    expect(mocks.authorize).toHaveBeenCalled()
+    if (!notice.active) {
+      await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
+      await waitFor(() => expect(mocks.success).toHaveBeenCalledOnce())
+      expect(mocks.update).toHaveBeenCalledExactlyOnceWith('product_analytics', expect.objectContaining({ noticeVersion: notice.version, locale: notice.locale, expectedRevision: 1, granted: true }))
+      expect(captureAllowed()).toBe(true)
+    }
   })
 
   it.each([false, true])('discards a 409 request and reconfirms on the authoritative revision (refresh fails: %s)', async refreshFails => {
@@ -428,7 +433,7 @@ describe('account privacy choices', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Privacy choices changed elsewhere')
     expect(screen.queryByRole('button', { name: 'Retry saving' })).not.toBeInTheDocument()
     expect(mocks.update).toHaveBeenCalledOnce(); expect(next).not.toHaveBeenCalled()
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull(); expect(mocks.authorize).not.toHaveBeenCalled()
+    expect(captureAllowed()).toBe(false); expect(mocks.authorize).not.toHaveBeenCalled()
     mocks.get.mockImplementation(async () => structuredClone(state))
     if (refreshFails) {
       expect(screen.queryByRole('button', { name: 'Save choice' })).not.toBeInTheDocument()
@@ -441,7 +446,7 @@ describe('account privacy choices', () => {
     await waitFor(() => expect(next).toHaveBeenCalledOnce())
     expect(mocks.update.mock.calls[1][1]).toMatchObject({ expectedRevision: 7, granted: true })
     expect(mocks.update.mock.calls[1][1].requestId).not.toBe(mocks.update.mock.calls[0][1].requestId)
-    expect(readLocalAnalyticsActivation('privacy-user')).not.toBeNull()
+    expect(captureAllowed()).toBe(true)
   })
 
   it('preserves startup Continue after a rejected save refresh changes notice versions', async () => {
@@ -460,7 +465,7 @@ describe('account privacy choices', () => {
     await userEvent.click(within(screen.getByTestId('modal-footer')).getByRole('button', { name: 'Continue' }))
     expect(next).toHaveBeenCalledOnce()
     expect(mocks.update).toHaveBeenCalledOnce()
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull()
+    expect(captureAllowed()).toBe(false)
   })
 
   it('does not cache a late snapshot or activate after an account switch', async () => {
@@ -480,7 +485,7 @@ describe('account privacy choices', () => {
     mocks.get.mockRejectedValue(new Error('offline'))
     await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
     await waitFor(() => expect(mocks.error).toHaveBeenCalledOnce())
-    expect(readLocalAnalyticsActivation('privacy-user')).toBeNull(); expect(mocks.success).not.toHaveBeenCalled()
+    expect(captureAllowed()).toBe(false); expect(mocks.success).not.toHaveBeenCalled()
   })
   it('waits for actionable notices before offering choices, without recording a dismissal', async () => {
     state.consents = state.consents.map(c => ({ ...c, currentNotice: null }))

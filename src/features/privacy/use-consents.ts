@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { onlineManager, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouterState } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore, captureClientSessionGeneration, clientSessionGenerationMatches } from '../auth'
 import { consentQueryKey, getConsents, updateConsent, type ConsentPurpose, type UpdateConsent } from '../../shared/api/consents-api'
 import { analytics } from '../../shared/lib/analytics'
-import { readLocalAnalyticsActivation, setLocalAnalyticsActivation, subscribeLocalAnalyticsConsent } from '../../shared/lib/local-analytics-consent'
+import { isAnalyticsPaused, pauseAnalytics, subscribeAnalyticsPause } from '../../shared/lib/analytics-pause'
 
 export function useConsents() {
   const sessionAllowed = useRouterState({ select: state => state.matches.some(match => match.staticData.consentSession === true) })
@@ -40,10 +40,19 @@ export function useConsents() {
   return { ...query, userId, locale, sessionAllowed }
 }
 
-export function useLocalActivation(userId: string | null) {
-  const [, rerender] = useState(0)
-  useEffect(() => subscribeLocalAnalyticsConsent(() => rerender(value => value + 1)), [])
-  return userId ? readLocalAnalyticsActivation(userId) : null
+// A form can suspend capture while editing/saving, but never stores a second consent.
+export function useAnalyticsPause(userId: string | null) {
+  const release = useRef<(() => void) | null>(null)
+  const resume = () => { release.current?.(); release.current = null }
+  useEffect(() => () => { release.current?.(); release.current = null }, [userId])
+  return {
+    pause: () => { if (userId && !release.current) release.current = pauseAnalytics(userId) },
+    resume,
+  }
+}
+
+export function useAnalyticsPaused(userId: string | null) {
+  return useSyncExternalStore(subscribeAnalyticsPause, () => !!userId && isAnalyticsPaused(userId))
 }
 
 export function useChangeConsent() {
@@ -59,7 +68,6 @@ export function useChangeConsent() {
       if (!userId) throw new Error('Missing account session')
       if (purpose === 'product_analytics') {
         analytics.reset()
-        setLocalAnalyticsActivation(userId, null)
       }
       await queryClient.cancelQueries({ queryKey: ['account-consents', userId] })
       if (!onlineManager.isOnline()) throw new Error('Consent save is offline')
@@ -67,19 +75,12 @@ export function useChangeConsent() {
       if (!clientSessionGenerationMatches(generation) || useAuthStore.getState().userId !== userId) {
         throw new Error('Stale account session')
       }
-      // Refresh the old (possibly unknown/denied) query before publishing a local
-      // activation. Otherwise the runtime correctly clears it against that old row.
+      // Only a fresh authenticated read can authorize capture after a write.
       await queryClient.invalidateQueries({ queryKey: ['account-consents', userId] }, { throwOnError: true })
       if (!clientSessionGenerationMatches(generation) || useAuthStore.getState().userId !== userId) {
         throw new Error('Stale account session')
       }
       if (!onlineManager.isOnline()) throw new Error('Consent confirmation is offline')
-      if (purpose === 'product_analytics' && decision.granted && result.status === 'granted'
-        && result.revision === decision.expectedRevision + 1 && result.noticeVersion === decision.noticeVersion) {
-        if (!setLocalAnalyticsActivation(userId, { noticeVersion: result.noticeVersion, noticeLocale: decision.locale, activationRevision: result.activationRevision })) {
-          throw new Error('Local activation could not be saved')
-        }
-      }
       return result
     },
     onError: async () => { await queryClient.invalidateQueries({ queryKey: ['account-consents'] }) },

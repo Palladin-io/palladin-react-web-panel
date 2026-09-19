@@ -26,7 +26,7 @@ A definitive rejection (including HTTP 409 revision conflict) awaits an authorit
 refresh, discards pending requests and resets the draft. The form explains that the
 user must review/reconfirm; failed refresh keeps saving disabled until a successful
 read. A new decision uses the current revision and a new request ID. The response is
-not treated as a successful local activation until the account session is still
+not treated as confirmed until the account session is still
 current and the preceding cached consent query has been refreshed.
 
 `ConsentRuntime` is mounted once at the router root. Consent reads and runtime
@@ -40,22 +40,23 @@ cancels consent queries and resets transport; cached grants cannot bypass the ga
 On eligible routes `useConsents` fetches after login, on focus/reconnect and every
 30 seconds. A snapshot expires according to server `maxAgeSeconds` (60 by default,
 maximum 300); the deadline starts before the read, not after a slow response.
-Unavailable, expired, denied, withdrawn or mismatched notice/activation state
+Unavailable, expired, denied, withdrawn or mismatched notice version
 means no collection. Offline/pagehide, logout and account replacement reset the
 transport. Consent changes never lock the Vault or alter business/audit events.
 
-Account consent is separate from local activation. localStorage holds only a
-notice version, notice locale and `activationRevision` under an account-scoped
-preference key.
-The settings status and runtime share `matchesCurrentAnalyticsActivation`: local
-version/locale must match both the account grant and the current notice, and the
-activation epoch must match. Old records without a locale stay off until explicit
-reactivation; changed notices expose Enable on this device.
-A continuous grant keeps its epoch; withdrawal/regrant changes it. Therefore
-several devices can be explicitly active, while old activations cannot resume
-after a later withdrawal. A new browser starts off even if the account is granted.
-No anonymous landing preference or visitor ID is imported. Storage failures fail
-closed in the current session; no key material or analytics session is persisted.
+Account analytics consent automatically applies on every signed-in web/mobile
+installation after a fresh authenticated response for the accepted notice version.
+No device activation, browser preference, localStorage entry or mobile cache file
+is required. Old activation records are ignored. Changing language does not revoke
+an accepted version. A different current notice version still requires explicit Save.
+Unknown, denied and withdrawn choices never authorize capture.
+
+A form holds a memory-only suspension while editing a withdrawal or saving a batch.
+Polling cannot override that suspension. Successful completion releases it;
+closing/cancelling the form discards its draft and resumes the saved account choice
+within the normal freshness/lifecycle rules. Closing Privacy never revokes a grant.
+Failed writes remain visible with an explicit retry; no reconnect queues a decision.
+Account replacement and logout invalidate in-flight reads/writes.
 
 The `posthog-js` dependency was removed. `shared/lib/analytics.ts` sends narrowly
 allowlisted UI events directly to the EU capture API, with no SDK initialization,
@@ -78,13 +79,27 @@ No marketing sender is implemented. Production collection stays off until the
 approved notices, PL/EN public documents and retention/objection requirements are
 released together.
 
-Validation includes transport payloads/cancellation, local storage failure,
+Validation includes transport payloads/cancellation, fresh-install account grants,
 account changes, stale retries, integrated runtime/form sequencing, optional
 onboarding and API error states. Browser QA covers PL/EN landing and web
 onboarding at desktop/phone widths plus desktop settings. The existing full-width
 application sidebar does not provide a usable phone layout for settings; the
 native mobile Privacy surface is separately implemented and tested.
 
+
+## Account consent decision — 2026-09-19
+
+This decision supersedes all historical references below to per-installation
+activation, local on/off status and dismissal disabling capture. The UI has only
+the account switches, expandable notice details and Save choice / Accept all.
+Capture still requires the independently configured analytics release flag and
+project key. Removing device activation does not publish or enable that configuration.
+The API receipt contract, archived notice texts, event scope and transport stay unchanged.
+
+## Historical presentation decisions
+
+The dated sections below retain the previous design record. Their per-device
+activation behavior is superseded by the account-consent decision above.
 
 ## Explicit startup choice and settings (CVT-609, 2026-09-13)
 
