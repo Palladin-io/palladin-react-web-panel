@@ -37,7 +37,7 @@ export function useConsents() {
   useEffect(() => {
     if (!sessionAllowed) void queryClient.cancelQueries({ queryKey: ['account-consents'] })
   }, [sessionAllowed, queryClient])
-  return { ...query, userId, locale, sessionAllowed }
+  return { ...query, userId, locale, sessionAllowed, invalidated: queryClient.getQueryState(consentQueryKey(userId, locale))?.isInvalidated ?? true }
 }
 
 // A form can suspend capture while editing/saving, but never stores a second consent.

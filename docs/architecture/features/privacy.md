@@ -37,6 +37,9 @@ only on the session-guarded `_authenticated` layout (including unlock and Settin
 consent reads or restore a persisted session through optional consent. New public
 routes inherit that default without a pathname denylist. Leaving an eligible route
 cancels consent queries and resets transport; cached grants cannot bypass the gate.
+Invalidating a snapshot immediately removes its capture authority. A mutation that
+finishes on a public route cannot reuse the cached grant on return: a completed
+authenticated GET in the current login generation is required.
 On eligible routes `useConsents` fetches after login, on focus/reconnect and every
 30 seconds. A snapshot expires according to server `maxAgeSeconds` (60 by default,
 maximum 300); the deadline starts before the read, not after a slow response.

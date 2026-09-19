@@ -1,4 +1,6 @@
 import { useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { consentQueryKey } from '../../shared/api/consents-api'
 import { useRouterState } from '@tanstack/react-router'
 import { useAuthStore, clientSessionGenerationMatches } from '../auth'
 import { analytics } from '../../shared/lib/analytics'
@@ -7,6 +9,7 @@ import { useConsents, useAnalyticsPaused } from './use-consents'
 
 export function ConsentRuntime() {
   const consents = useConsents()
+  const queryClient = useQueryClient()
   const paused = useAnalyticsPaused(consents.userId)
   const accessToken = useAuthStore(state => state.accessToken)
   const routeId = useRouterState({ select: state => state.matches.at(-1)?.routeId ?? '__root__' })
@@ -18,16 +21,20 @@ export function ConsentRuntime() {
   useEffect(() => {
     const userId = consents.userId
     const generation = consents.data?.generation
-    if (!consents.sessionAllowed || !userId || !accessToken || consents.isError || !granted || paused
+    if (!consents.sessionAllowed || !userId || !accessToken || consents.isError || consents.invalidated || !granted || paused
       || generation === undefined || !clientSessionGenerationMatches(generation)) {
       analytics.reset()
       return
     }
+    const snapshot = consents.data
+    const queryKey = consentQueryKey(userId, consents.locale)
     analytics.authorize(userId, deadline, () => {
-      return useAuthStore.getState().userId === userId && !!useAuthStore.getState().accessToken
+      const current = queryClient.getQueryState(queryKey)
+      return current?.status === 'success' && current.data === snapshot && !current.isInvalidated
+        && useAuthStore.getState().userId === userId && !!useAuthStore.getState().accessToken
         && clientSessionGenerationMatches(generation) && !isAnalyticsPaused(userId)
     })
-  }, [consents.sessionAllowed, consents.userId, accessToken, consents.isError, consent, granted, paused, deadline, consents.data?.generation])
+  }, [consents.sessionAllowed, consents.userId, accessToken, consents.isError, consent, granted, paused, deadline, consents.data, consents.invalidated, consents.locale, queryClient])
 
   useEffect(() => {
     if (consents.sessionAllowed) analytics.pageview(routeId)

@@ -13,7 +13,7 @@ import { ConsentRuntime } from './consent-runtime'
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(), update: vi.fn(), success: vi.fn(), error: vi.fn(), reset: vi.fn(), authorize: vi.fn(), pageview: vi.fn(),
-  auth: { userId: 'privacy-user', accessToken: 'access', refreshToken: 'refresh' }, navigate: vi.fn(), generation: 0, pathname: '/privacy-choices',
+  auth: { userId: 'privacy-user', accessToken: 'access', refreshToken: 'refresh' }, navigate: vi.fn(), generation: 0, sessionAllowed: true, pathname: '/privacy-choices',
 }))
 vi.mock('../auth', () => ({
   SecurityPage: () => <h2>Security background</h2>,
@@ -31,7 +31,7 @@ vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => mocks.navigate,
   useRouterState: ({ select }: { select: (state: unknown) => unknown }) => select({
     location: { pathname: mocks.pathname },
-    matches: [{ routeId: mocks.pathname, staticData: { consentSession: true } }],
+    matches: [{ routeId: mocks.pathname, staticData: { consentSession: mocks.sessionAllowed } }],
   }),
 }))
 vi.mock('sonner', () => ({ toast: { success: mocks.success, error: mocks.error } }))
@@ -61,6 +61,7 @@ describe('account privacy choices', () => {
     dismissedPrivacyAccounts.clear()
     mocks.auth.userId = 'privacy-user'
     mocks.generation = 0
+    mocks.sessionAllowed = true
     mocks.pathname = '/privacy-choices'
     state = { consents: [consent(), consent('email_marketing')], maxAgeSeconds: 60 }
     mocks.get.mockImplementation(async () => structuredClone(state))
@@ -504,6 +505,33 @@ describe('account privacy choices', () => {
     state.consents[0] = { ...consent(), status: 'granted', revision: 1, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }
     mount()
     await waitFor(() => expect(captureAllowed()).toBe(true))
+  })
+
+  it('does not reuse an invalidated grant after a withdrawal finishes on a public route', async () => {
+    state.consents = state.consents.map(c => ({ ...c, status: 'granted', revision: 1, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }))
+    autoSave(); const save = mocks.update.getMockImplementation()!
+    let finishWrite!: () => void
+    mocks.update.mockImplementation((purpose, decision) => new Promise(resolve => {
+      finishWrite = () => { resolve(save(purpose, decision)) }
+    }))
+    const view = mount()
+    await waitFor(() => expect(captureAllowed()).toBe(true))
+    await userEvent.click(screen.getByRole('switch', { name: 'Product analytics' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
+    await waitFor(() => expect(mocks.update).toHaveBeenCalledOnce())
+    mocks.sessionAllowed = false
+    view.rerender(<QueryClientProvider client={client}><ConsentRuntime /></QueryClientProvider>)
+    await act(async () => finishWrite())
+    expect(state.consents[0].status).toBe('denied')
+    expect(client.getQueryState(['account-consents', 'privacy-user', 'en'])?.isInvalidated).toBe(true)
+    let finishRead!: (value: UserConsents) => void
+    mocks.get.mockImplementation(() => new Promise(resolve => { finishRead = resolve }))
+    mocks.sessionAllowed = true
+    view.rerender(<QueryClientProvider client={client}><ConsentRuntime /></QueryClientProvider>)
+    await waitFor(() => expect(finishRead).toBeTypeOf('function'))
+    expect(captureAllowed()).toBe(false)
+    await act(async () => finishRead(structuredClone(state)))
+    expect(captureAllowed()).toBe(false)
   })
 
   it('failed refresh after mutation does not activate or report success', async () => {
