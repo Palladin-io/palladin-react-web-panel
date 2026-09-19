@@ -40,8 +40,19 @@ the Netlify credential:
   `STAGING_VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID`, and
   `STAGING_VITE_SHARED_UNLOCK_SAFARI_EXTENSION_ID` for each enabled browser's
   reviewed staging extension installation;
-- optional `STAGING_VITE_PUBLIC_ASSET_URL`, `STAGING_VITE_POSTHOG_*`, and
+- `STAGING_VITE_CLIENT_ANALYTICS_RELEASED=true` for the approved live panel
+  analytics release, together with `STAGING_VITE_POSTHOG_KEY` for the selected
+  project and `STAGING_VITE_POSTHOG_HOST=https://eu.i.posthog.com`;
+- optional `STAGING_VITE_PUBLIC_ASSET_URL` and
   `STAGING_VITE_FIREBASE_*` values.
+
+Client analytics stays disabled when its release flag is empty or `false`.
+A `true` flag requires both a nonempty project key and the exact EU capture host;
+other flag values fail the artifact build. The owner currently routes the live
+staging panel to the production EU PostHog project (decision 2026-09-19).
+Store its public capture key only in deployment variables, never repository
+defaults. A saved, current account consent is still required at runtime.
+Changing these build variables requires a new artifact deployment.
 
 Shared-unlock IDs are public browser recipient identifiers, not secrets or
 attestation of installed code. The staging artifact job passes them explicitly

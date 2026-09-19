@@ -74,7 +74,17 @@ cancelled on reset. There is no offline queue or retry. API headers retain only
 Bootstrap removes old PostHog local/session storage and cookies without loading
 the old SDK. CSP permits only the EU `/i/v0/e/` capture path. Public configuration
 uses empty project keys; `VITE_CLIENT_ANALYTICS_RELEASED` defaults to false. A key
-alone never enables collection. Staging and production must use separate projects.
+alone never enables collection. The staging release job reads
+`STAGING_VITE_CLIENT_ANALYTICS_RELEASED`, `STAGING_VITE_POSTHOG_KEY`, and
+`STAGING_VITE_POSTHOG_HOST` from deployment variables. Missing release approval
+or project configuration keeps capture disabled.
+
+For the current single live panel deployment, the owner explicitly approved
+routing staging panel events into the production EU PostHog project on
+2026-09-19. This temporary deployment choice supersedes separate-project routing;
+local/fork defaults remain empty and disabled. The approved account consent,
+version/freshness checks, allowlisted event payloads and EU-only endpoint remain
+mandatory. Future environment separation must update deployment variables.
 
 The client ships its current notices independently of the receipt API. Failed
 receipt reads still prevent writes; known older grants remain withdrawable.
