@@ -4,6 +4,17 @@ title = "Palladin web panel Gitleaks configuration"
 useDefault = true
 
 [[allowlists]]
+description = "Public RFC 6238 SHA-1 test vector in TOTP grant regressions"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = [
+  '''^src/shared/crypto/grant-protocol\.test\.ts$''',
+  '''^src/features/vaults/entry-detail-page\.test\.tsx$''',
+]
+regexTarget = "secret"
+regexes = ['''^GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ$''']
+
+[[allowlists]]
 description = "Deterministic test credentials and public protocol vectors"
 targetRules = ["generic-api-key"]
 paths = [

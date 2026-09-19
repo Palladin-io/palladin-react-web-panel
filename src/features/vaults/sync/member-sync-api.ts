@@ -61,11 +61,10 @@ const vaultKeyEpochSchema = z.object({
   vdkVersion: u32,
   agentMessageKeyVersion: u32,
   manifestSigningKeyVersion: u32,
-}).strict()
+})
 
-export const encryptedVaultSummarySchema = z.object({
+const encryptedVaultSummarySchema = z.object({
   id: canonicalUuid,
-  isDefault: z.boolean(),
   protocolVersion: z.literal(2),
   memberSequence: canonicalU64,
   discoverySequence: canonicalU64,
@@ -75,11 +74,6 @@ export const encryptedVaultSummarySchema = z.object({
   memberVaultKey: memberVaultKeyEnvelopeSchema,
   discoveryKey: vaultDiscoveryKeyEnvelopeSchema,
   vaultPrivateKeys: z.array(vaultPrivateKeyEnvelopeSchema).length(2),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  memberCount: z.number().int().nonnegative(),
-  entryCount: z.number().int().nonnegative(),
-  activeGrantCount: z.number().int().nonnegative(),
 }).superRefine((vault, context) => {
   const metadata = vault.memberVaultMetadata.descriptor
   const memberKey = vault.memberVaultKey.wrappedVaultKey.descriptor
@@ -117,9 +111,9 @@ const vaultPublicKeySchema = z.object({
 })
 
 // GET /api/vaults/{id} returns the same encrypted projection as the list plus
-// public verification/routing material. Keep both wire contracts strict: using
-// the list schema for the detail endpoint previously rejected every valid 200.
-export const encryptedVaultDetailSchema = encryptedVaultSummarySchema.safeExtend({
+// public verification/routing material. Validate its cryptographic bindings
+// while accepting additive transport fields from either endpoint.
+const encryptedVaultDetailSchema = encryptedVaultSummarySchema.safeExtend({
   organizationId: canonicalUuid,
   metadataRevision: canonicalU64,
   vaultAgentMessagePublicKey: vaultPublicKeySchema,
@@ -139,7 +133,7 @@ const headSchema = z.object({
   entryId: canonicalUuid,
   kind: z.literal('head'),
   state: entryStateSchema,
-  updatedAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string(),
   currentRevision: canonicalU64,
   memberIndexRevision: canonicalU64,
   currentKeyVersion: u32,
@@ -180,10 +174,7 @@ const tombstoneSchema = z.object({
 
 export const memberSyncItemSchema = z.discriminatedUnion('kind', [headSchema, tombstoneSchema])
 
-const listVaultsSchema = z.object({
-  vaults: z.array(encryptedVaultSummarySchema).max(200),
-  total: z.number().int().nonnegative(),
-})
+const vaultPageCryptoSchema = z.array(encryptedVaultSummarySchema).max(200)
 
 export const currentMemberEntryAccessContextSchema = z.object({
   contextVersion: z.literal(1),
@@ -200,7 +191,7 @@ export const currentMemberEntryAccessContextSchema = z.object({
   offlinePolicyVersion: u32,
   issuedAt: canonicalInstantSchema,
   notAfter: canonicalInstantSchema,
-}).strict().superRefine(validateOfflineLeaseDuration)
+}).superRefine(validateOfflineLeaseDuration)
 
 const currentMemberPageAuthorityShape = {
   accessContext: currentMemberEntryAccessContextSchema,
@@ -274,8 +265,26 @@ const resetSchema = z.object({
   newSnapshotRequired: z.literal(true),
 })
 
-export type EncryptedVaultSummary = z.infer<typeof encryptedVaultSummarySchema>
-export type EncryptedVaultDetail = z.infer<typeof encryptedVaultDetailSchema>
+interface VaultPresentation {
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+  memberCount: number
+  entryCount: number
+  activeGrantCount: number
+}
+export interface EncryptedVaultSummary extends z.infer<typeof encryptedVaultSummarySchema>, VaultPresentation {}
+export interface EncryptedVaultDetail extends z.infer<typeof encryptedVaultDetailSchema>, VaultPresentation {}
+
+function vaultPresentation(vault: VaultPresentation): VaultPresentation {
+  return { isDefault: vault.isDefault, createdAt: vault.createdAt, updatedAt: vault.updatedAt,
+    memberCount: vault.memberCount, entryCount: vault.entryCount, activeGrantCount: vault.activeGrantCount }
+}
+
+export function parseEncryptedVaultDetail(raw: unknown): EncryptedVaultDetail {
+  const encrypted = encryptedVaultDetailSchema.parse(raw)
+  return { ...encrypted, ...vaultPresentation(raw as VaultPresentation) }
+}
 export type MemberIndexEnvelope = z.infer<typeof memberIndexEnvelopeSchema>
 export type VaultEntryKeyEnvelope = z.infer<typeof vaultEntryKeyEnvelopeSchema>
 export type CurrentMemberEntryAccessContext = z.infer<typeof currentMemberEntryAccessContextSchema>
@@ -388,8 +397,9 @@ export async function listEncryptedVaults(signal?: AbortSignal): Promise<Encrypt
     })
     assertSyncAccess(response)
     if (!response.ok) throw new Error(`Vault list request failed with status ${response.status}`)
-    const page = listVaultsSchema.parse(await readBoundedJson(response))
-    vaults.push(...page.vaults)
+    const page = await readBoundedJson(response) as { vaults: EncryptedVaultSummary[]; total: number }
+    const encrypted = vaultPageCryptoSchema.parse(page.vaults)
+    vaults.push(...encrypted.map((vault, index) => ({ ...vault, ...vaultPresentation(page.vaults[index]) })))
     offset += page.vaults.length
     total = page.total
     if (page.vaults.length === 0 && offset < total) throw new Error('Vault list pagination made no progress')
@@ -399,7 +409,8 @@ export async function listEncryptedVaults(signal?: AbortSignal): Promise<Encrypt
 
 export async function getEncryptedVault(vaultId: string, signal?: AbortSignal): Promise<EncryptedVaultDetail> {
   const response = await api.get(`api/vaults/${vaultId}`, { signal, throwHttpErrors: false })
-  return parseResponse(response, encryptedVaultDetailSchema)
+  if (!response.ok) throw new Error(`Vault sync request failed with status ${response.status}`)
+  return parseEncryptedVaultDetail(await readBoundedJson(response))
 }
 
 export async function getMemberSnapshotPage(

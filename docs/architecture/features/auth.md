@@ -104,7 +104,7 @@ is not yet a complete Web-to-extension handoff.
 
 ## Receiver primitives for shared unlock (implementation increment)
 
-The Web dependency is pinned to published `@palladin/crypto` 0.7.0. The local
+The Web dependency is pinned to published `@palladin/crypto` 0.8.0. The local
 `shared/crypto/shared-unlock-keys` helper uses that package to bind Identity's
 key descriptor to the operation digest and independently selected account,
 recover the member private key and compare its derived public key with Identity's

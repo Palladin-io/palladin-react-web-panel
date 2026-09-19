@@ -5,7 +5,7 @@ const apiMock = vi.hoisted(() => ({ post: vi.fn() }))
 vi.mock('../../../shared/api/client', () => ({ api: apiMock }))
 
 import {
-  encryptedVaultDetailSchema,
+  parseEncryptedVaultDetail,
   getMemberDeltaPage,
   getMemberSnapshotPage,
   MemberSyncAccessDeniedError,
@@ -116,6 +116,11 @@ describe('Member sync transport boundary', () => {
   beforeEach(() => {
     apiMock.post.mockReset()
     useAuthStore.setState({ accessToken: null })
+  })
+
+  it('does not let display counters reject valid encrypted Vault material', () => {
+    const detail = { ...encryptedVaultDetail(), memberCount: -1, entryCount: -1, activeGrantCount: -1 }
+    expect(parseEncryptedVaultDetail(detail)).toMatchObject({ memberCount: -1, entryCount: -1, activeGrantCount: -1 })
   })
 
   it('uses only the frozen policy-2 route and negotiation headers', async () => {
@@ -246,7 +251,7 @@ describe('Member sync transport boundary', () => {
   })
 
   it('accepts the detail metadata revision returned by the backend', () => {
-    const result = encryptedVaultDetailSchema.parse(encryptedVaultDetail())
+    const result = parseEncryptedVaultDetail(encryptedVaultDetail())
 
     expect(result.metadataRevision).toBe('12')
   })
@@ -254,7 +259,16 @@ describe('Member sync transport boundary', () => {
   it('rejects a detail whose outer metadata revision does not match its envelope', () => {
     const detail = { ...encryptedVaultDetail(), metadataRevision: '11' }
 
-    expect(encryptedVaultDetailSchema.safeParse(detail).success).toBe(false)
+    expect(() => parseEncryptedVaultDetail(detail)).toThrow()
+  })
+
+  it('ignores additive access-context and epoch hints while retaining crypto authority', () => {
+    expect(currentMemberEntryAccessContextSchema.parse({
+      ...validSnapshotFixture.response.accessContext, futureHint: true,
+    })).not.toHaveProperty('futureHint')
+    const detail = encryptedVaultDetail()
+    expect(parseEncryptedVaultDetail({ ...detail, currentKeyEpoch: { ...detail.currentKeyEpoch, futureHint: true } })
+      .currentKeyEpoch).toEqual(detail.currentKeyEpoch)
   })
 
   it('accepts the exact frozen CVT-557 complete snapshot and tombstone vectors', () => {

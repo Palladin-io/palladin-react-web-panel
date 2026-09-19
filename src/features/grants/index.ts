@@ -35,6 +35,7 @@ export { formatGrantDate, formatRelativeTime } from "./components/grant-format";
 export type { GrantType, OrgGrant } from "./api/org-grants-api";
 export {
   GRANT_TYPE_GRANULAR,
+  isApprovableGrantType,
   GRANT_TYPE_FULL,
   GRANT_TYPE_SCRIPT_EXECUTION,
   GRANT_STATUS_ACTIVE,

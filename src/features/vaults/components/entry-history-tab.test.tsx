@@ -135,6 +135,15 @@ describe('EntryHistoryTab', () => {
     }))
   })
 
+  it('preserves an unknown historical actor without calling it System', () => {
+    mocks.history.mockReturnValue({ data: { pages: [{ items: [{ ...item, changedByType: 'service' }] }] },
+      isPending: false, isError: false, hasNextPage: false, isFetchingNextPage: false,
+      fetchNextPage: vi.fn(), refetch: vi.fn() })
+    render(<EntryHistoryTab detail={detail as never} />)
+    expect(screen.queryByText(/System/)).not.toBeInTheDocument()
+    expect(screen.getByTestId('entry-history-audit-footer')).toHaveTextContent(/33332233.*ddeeff/)
+  })
+
   it('renders the current revision as a compact status badge', () => {
     const currentItem = { ...item, revision: '3', memberSequence: '3' }
     mocks.history.mockReturnValue({ data: { pages: [{ items: [currentItem] }] }, isPending: false, isError: false,

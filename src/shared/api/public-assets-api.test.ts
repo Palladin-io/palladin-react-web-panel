@@ -4,6 +4,8 @@ import {
   ensureWebsiteIconsUntilSettled,
   ensureWebsiteIconsWithin,
   normalizePublicHostname,
+  searchPublicAssets,
+  getPublicAssetsByIds,
 } from './public-assets-api'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -431,5 +433,18 @@ describe('ensureWebsiteIcons', () => {
     expect(sizes).toHaveLength(11)
     expect(sizes.filter((size) => size === 500)).toHaveLength(10)
     expect(sizes).toContain(39)
+  })
+})
+
+
+describe('public asset list isolation', () => {
+  it.each(['search', 'byIds'])('keeps siblings and display metadata when %s contains an untrusted image', async (operation) => {
+    const valid = { id: 'abababab-abab-4bab-8bab-abababababab', type: 'websiteIcon', name: '',
+      revision: 1, aliases: [''], url: 'https://assets.palladin.io/published/icons/one.png' }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ items: [
+      valid, { ...valid, id: 'cdcdcdcd-cdcd-4dcd-8dcd-cdcdcdcdcdcd', url: 'https://evil.example/track.png' },
+    ] }), { status: 200, headers: { 'content-type': 'application/json' } })))
+    const items = operation === 'search' ? await searchPublicAssets('example') : await getPublicAssetsByIds([valid.id])
+    expect(items).toEqual([valid])
   })
 })

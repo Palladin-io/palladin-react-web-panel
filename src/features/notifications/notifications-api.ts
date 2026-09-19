@@ -1,4 +1,3 @@
-import { z } from 'zod'
 import { api } from '../../shared/api/client'
 import { sanitizeNotificationMetadata } from './notification-types'
 
@@ -16,8 +15,7 @@ import { sanitizeNotificationMetadata } from './notification-types'
 
 /**
  * Notification category — drives the To-do vs History split. camelCase to match
- * the backend JSON serializer (camelCase enums); any other casing would make
- * `safeParse` reject every row and yield an empty feed.
+ * the backend JSON serializer (camelCase enums); unknown categories remain visible in History.
  */
 export const NOTIFICATION_CATEGORY = ['actionRequired', 'update'] as const
 export type NotificationCategory = (typeof NOTIFICATION_CATEGORY)[number]
@@ -33,45 +31,30 @@ export type NotificationActionState = (typeof NOTIFICATION_ACTION_STATE)[number]
 
 /**
  * `metadata` is intentionally loose because its structural opaque IDs/facts
- * vary per type. Presentation fields are stripped after parsing even if a stale
+ * vary per type. Presentation fields are omitted even if a stale
  * producer sends them. All values are strings (or absent).
  */
-const metadataSchema = z.record(z.string(), z.string())
 
-const notificationItemSchema = z.object({
-  id: z.string(),
-  // `type` may be a type the client doesn't model yet — keep it a plain string
-  // and narrow at use (forward-compatible with new backend types).
-  type: z.string(),
-  category: z.enum(NOTIFICATION_CATEGORY),
-  // i18n KEY, not localised text — the client renders the copy.
-  titleKey: z.string(),
-  metadata: metadataSchema.nullable().optional().default({}),
-  occurredAt: z.string(),
-  // Absent/`null` when unread.
-  readAt: z.string().nullable().optional(),
-  // Live projection; absent/`null` for non-actionable items.
-  actionState: z.enum(NOTIFICATION_ACTION_STATE).nullable().optional(),
-})
-
-export type NotificationItem = z.infer<typeof notificationItemSchema>
-
-const notificationsPageSchema = z.object({
-  items: z.array(z.unknown()),
-  nextCursor: z.string().nullable().optional(),
-})
+export interface NotificationItem {
+  id: string
+  type: string
+  category: string
+  titleKey: string
+  metadata: Record<string, string> | null
+  occurredAt: string
+  readAt?: string | null
+  actionState?: string | null
+}
 
 export interface NotificationsPage {
   items: NotificationItem[]
   nextCursor: string | null
 }
 
-const notificationsSummarySchema = z.object({
-  unreadCount: z.number().int().nonnegative(),
-  pendingActionCount: z.number().int().nonnegative(),
-})
-
-export type NotificationsSummary = z.infer<typeof notificationsSummarySchema>
+export interface NotificationsSummary {
+  unreadCount: number
+  pendingActionCount: number
+}
 
 export interface GetNotificationsParams {
   cursor?: string
@@ -80,11 +63,7 @@ export interface GetNotificationsParams {
   unreadOnly?: boolean
 }
 
-/**
- * Page of notifications, newest-first. Each item is parsed individually with
- * `safeParse` so one malformed row is skipped (and logged as a count) rather
- * than collapsing the whole feed.
- */
+/** Notifications as returned by the backend; metadata remains value-free. */
 export async function getNotifications(
   params: GetNotificationsParams = {},
 ): Promise<NotificationsPage> {
@@ -93,30 +72,19 @@ export async function getNotifications(
   if (params.category) searchParams.set('category', params.category)
   if (params.unreadOnly) searchParams.set('unreadOnly', 'true')
 
-  const raw = await api.get('api/notifications', { searchParams }).json()
-  const page = notificationsPageSchema.parse(raw)
-
-  const items: NotificationItem[] = []
-  let skipped = 0
-  for (const item of page.items) {
-    const result = notificationItemSchema.safeParse(item)
-    if (result.success) items.push({
-      ...result.data,
-      metadata: sanitizeNotificationMetadata(result.data.metadata),
-    })
-    else skipped += 1
+  const page = await api.get('api/notifications', { searchParams }).json<NotificationsPage>()
+  return {
+    nextCursor: page.nextCursor ?? null,
+    items: page.items.map((item) => ({
+      ...item,
+      metadata: sanitizeNotificationMetadata(item.metadata),
+    })),
   }
-  if (skipped > 0) {
-    // No notification content is logged — only a count, to surface drift.
-    console.warn(`[notifications] skipped ${skipped} malformed item(s)`)
-  }
-  return { items, nextCursor: page.nextCursor ?? null }
 }
 
 /** Badge (`unreadCount`) + To-do header counter (`pendingActionCount`). */
 export async function getNotificationsSummary(): Promise<NotificationsSummary> {
-  const response = await api.get('api/notifications/summary').json()
-  return notificationsSummarySchema.parse(response)
+  return api.get('api/notifications/summary').json<NotificationsSummary>()
 }
 
 /** Mark one notification read — idempotent (204). */

@@ -70,7 +70,7 @@ export function ApproveGrantDialog({
   const [error, setError] = useState<string | null>(null)
 
   // What the agent asked for — used as the default selection and highlighted in the field.
-  const requestedMethods = grantMethodsFromMask(grant.encryptedReason.descriptor.binding.requestedMethods)
+  const requestedMethods = grantMethodsFromMask(grant.encryptedReason?.descriptor.binding.requestedMethods ?? 0)
   const [methods, setMethods] = useState<GrantMethod[]>(requestedMethods)
   const [methodsError, setMethodsError] = useState<string | null>(null)
 

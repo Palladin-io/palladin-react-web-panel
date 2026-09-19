@@ -15,10 +15,12 @@ A segmented inbox (All / To-do / History / Grants) with search and the shared fi
 - **Two complementary channels:** SignalR (in-app, tab open) and FCM-for-Web push (system notification, tab closed).
 - **Generic wire contract:** FCM carries only type/category/opaque subject/time; SignalR and Inbox may additionally carry structural opaque IDs. Server title/body, presentation names and deep links are never trusted or rendered.
 - **Local resolution after unlock:** Vault and Entry presentation comes only from the in-memory Member sync store; Agent presentation comes from the authorized Agent cache. Missing/deleted references use prefix-and-suffix IDs.
-- **Grant history enrichment:** structural notification IDs select authoritative Grant rows; `EncryptedReason` is decrypted only with the unlocked in-memory session key and actor IDs are resolved through the Vault member directory. Notification-supplied plaintext reason/actor names are stripped, never trusted, persisted, or logged.
+- **Grant history enrichment:** structural notification IDs select authoritative Grant rows; `EncryptedReason` is decrypted only with the unlocked in-memory session key and actor IDs are resolved through the organization-scoped current/former member directory. Notification-supplied plaintext reason/actor names are stripped, never trusted, persisted, or logged.
 - **Bounded cross-channel deduplication:** foreground FCM and SignalR occurrences share a bounded two-minute identity window keyed by type, subject and occurrence time.
-- **Authorization-preserving navigation:** internal routes are constructed locally from opaque IDs. Opening a notification still passes through normal route guards and authorized endpoints.
+- **Authorization-preserving navigation:** internal routes are constructed locally from opaque IDs. Grant notifications with a Vault and Grant ID open that exact Grant detail, including expired grants; older notifications without a Grant ID fall back to the Vault Agents tab. Opening a notification still passes through normal route guards and authorized endpoints.
 
 ## Cross-feature deps
 
 Reuses the approve/deny dialogs from `grants` and `agents` for inline actions, and their queries to resolve card context. It pulls from the most other features of any surface.
+
+REST metadata uses typed responses and never skips rows on a client schema failure. Future categories and non-pending action states stay visible in History; only an explicitly pending action-required item belongs to To-do. Metadata sanitization and independent push-message decoding remain in place. Realtime categories are open strings too, so a new category cannot suppress cache invalidation for an existing event type.

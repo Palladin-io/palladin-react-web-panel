@@ -10,6 +10,7 @@ import { useAuthStore } from '../auth'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import type { PendingGrant } from './api/pending-grants-api'
+import { isApprovableGrantType } from './api/org-grants-api'
 import { ENTRY_TYPE_CREDIT_CARD, normalizeEntryType } from '../../shared/types/entry-type'
 import { normalizeScriptExecutionMetadata } from '../../shared/crypto/script-execution'
 
@@ -42,6 +43,9 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
     gcTime: 0,
     queryFn: async () => {
       if (!grant || !sessionKey || !grant.entryId || !grant.agentId) throw new GrantReviewUnavailableError('preflight')
+      if (!isApprovableGrantType(grant.type)) throw new GrantReviewUnavailableError('preflight')
+      const reason = grant.encryptedReason
+      if (!reason) throw new GrantReviewUnavailableError('preflight')
       let vault: Awaited<ReturnType<typeof getEncryptedVault>>
       let detail: Awaited<ReturnType<typeof getCanonicalEntry>>
       try {
@@ -54,7 +58,6 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
       }
       if (useAuthStore.getState().privateKey !== sessionKey) throw new GrantReviewUnavailableError('sessionChanged')
       if (detail.state !== 'active' && detail.state !== 1) throw new GrantReviewUnavailableError('preflight')
-      const reason = grant.encryptedReason
       const reasonScope = reason.descriptor.scope
       if (reasonScope.organizationId !== detail.organizationId || reasonScope.vaultId !== grant.vaultId
         || reasonScope.entryId !== grant.entryId || reasonScope.agentId !== grant.agentId

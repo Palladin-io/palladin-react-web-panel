@@ -5,7 +5,7 @@ import { Button } from '../../../shared/components/button'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_GRANT_MANAGE } from '../../../shared/lib/permissions'
 import type { Grant } from '../api/grants-api'
-import { grantStatusPresentation, isRevocable } from '../grant-presentation'
+import { grantTypeLabelKey, grantStatusPresentation, isRevocable } from '../grant-presentation'
 import { parseGrantMethods } from '../grant-methods'
 import { useRevokeGrant } from '../use-revoke-grant'
 import { formatGrantDate } from './grant-format'
@@ -98,7 +98,7 @@ export function GrantDetail({ grant }: GrantDetailProps) {
       <div className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-4 py-2">
         <DetailRow
           label={t('grants.detail.mode')}
-          value={t(grant.type === 'full' ? 'grants.modeFull' : 'grants.modeGranular')}
+          value={t(grantTypeLabelKey(grant.type))}
         />
         <DetailRow
           label={t('grants.detail.agent')}

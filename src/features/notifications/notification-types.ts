@@ -14,7 +14,6 @@ export const NOTIFICATION_TYPES = [
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
 
-const notificationCategorySchema = z.enum(['actionRequired', 'update'])
 const wireMetadataSchema = z.record(z.string(), z.string())
 
 // Presentation is never trusted from realtime/push input. Canonical Vault
@@ -43,7 +42,7 @@ export function sanitizeNotificationMetadata(
 const notificationPayloadSchema = z.object({
   subjectId: z.string().uuid(),
   type: z.string().min(1),
-  category: notificationCategorySchema,
+  category: z.string(),
   titleKey: z.string().optional(),
   metadata: wireMetadataSchema.optional(),
   occurredAt: z.string().datetime({ offset: true }),

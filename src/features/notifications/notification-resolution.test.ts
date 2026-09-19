@@ -41,7 +41,7 @@ describe('notification local resolution', () => {
     const unresolved = resolveNotificationItem(item, { vaults: new Map(), agents: new Map() })
     expect(unresolved.metadata).not.toHaveProperty('vaultName')
     expect(notificationDeepLink(unresolved)).toEqual({
-      to: '/vaults/$vaultId', params: { vaultId }, search: { tab: 'agents' },
+      to: '/vaults/$vaultId/grants/$grantId', params: { vaultId, grantId: 'grant' },
     })
     expect(notificationDeepLink({ ...item, type: 'future', metadata: {} })).toBeNull()
   })
@@ -97,6 +97,19 @@ describe('notification local resolution', () => {
     expect(rows[3].value).toEqual({
       kind: 'text',
       text: 'Patryks-Mac-…io.local · 127.0.0.1',
+    })
+  })
+})
+
+describe('grant notification destinations', () => {
+  it.each(['grant_approved', 'grant_denied', 'grant_revoked'])('opens the original %s grant', (type) => {
+    expect(notificationDeepLink({ ...item, type })).toEqual({
+      to: '/vaults/$vaultId/grants/$grantId', params: { vaultId, grantId: 'grant' },
+    })
+  })
+  it('falls back to the Vault when an older notification has no grant ID', () => {
+    expect(notificationDeepLink({ ...item, metadata: { vaultId } })).toEqual({
+      to: '/vaults/$vaultId', params: { vaultId }, search: { tab: 'agents' },
     })
   })
 })

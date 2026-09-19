@@ -14,6 +14,7 @@ import { SearchBar } from "../../shared/components/search-bar";
 import { TypeFilterDropdown } from "../../shared/components/type-filter-dropdown";
 import {
   ApproveGrantDialog,
+  isApprovableGrantType,
   DenyGrantDialog,
   grantHistoryCoordinateKey,
   grantReasonCoordinateKey,
@@ -300,6 +301,10 @@ export function NotificationCenterPage({
       toast.error(t("grants.approve.requestNotPending"));
       return;
     }
+    if (!isApprovableGrantType(grant.type)) {
+      toast.error(t("grants.approve.reviewUnavailable"));
+      return;
+    }
     setApproveTarget(grant);
   }
 
@@ -309,7 +314,7 @@ export function NotificationCenterPage({
     fieldIds: string[],
     fieldSelectionMode: GrantFieldSelectionMode,
   ) {
-    if (!approveTarget || !approvalReview.data) return;
+    if (!approveTarget?.encryptedReason || !approvalReview.data || !isApprovableGrantType(approveTarget.type)) return;
     approve.mutate(
       {
         grantId: approveTarget.id,
@@ -502,6 +507,8 @@ export function NotificationCenterPage({
                         <ActionFooter
                           item={item}
                           busy={busy}
+                          grantType={pendingGrants.data?.find((grant) => grant.id === item.metadata?.grantId
+                            && grant.vaultId === item.metadata?.vaultId)?.type}
                           onApprove={openGrantApproval}
                           onDeny={setDenyTarget}
                           onApproveAgent={setAgentApproveTarget}
@@ -657,7 +664,7 @@ function splitByCategory(items: NotificationItem[]) {
   const actionItems: NotificationItem[] = [];
   const historyItems: NotificationItem[] = [];
   for (const item of items) {
-    if (item.category === "actionRequired" && item.actionState !== "resolved") {
+    if (item.category === "actionRequired" && item.actionState === "pending") {
       actionItems.push(item);
     } else {
       historyItems.push(item);
@@ -693,6 +700,7 @@ function filterItems(
 function ActionFooter({
   item,
   busy,
+  grantType,
   onApprove,
   onDeny,
   onApproveAgent,
@@ -701,6 +709,7 @@ function ActionFooter({
 }: {
   item: NotificationItem;
   busy: boolean;
+  grantType?: string;
   onApprove: (ctx: NotificationGrantContext) => void;
   onDeny: (ctx: NotificationGrantContext) => void;
   onApproveAgent: (target: AgentTarget) => void;
@@ -733,7 +742,7 @@ function ActionFooter({
           size="sm"
           icon="check"
           className="flex-1"
-          disabled={busy}
+          disabled={busy || !isApprovableGrantType(grantType ?? "")}
           onClick={() => onApprove(ctx)}
         >
           {t("grants.approve.action")}

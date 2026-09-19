@@ -8,7 +8,7 @@ Shows the people in the active organization with their e-mail address, role coun
 
 ## How it is organized
 
-- `shared/api/organization-members-api.ts` validates `GET /api/organization/members` and the complete role-replacement response with Zod. Team keeps a compatibility re-export while Permissions reuses the same tenant member contract for its `Members (N)` role tab.
+- `shared/api/organization-members-api.ts` consumes `GET /api/organization/members` and the complete role-replacement response as typed contracts without runtime response validation. Team keeps a compatibility re-export while Permissions reuses the same tenant member contract for its `Members (N)` role tab.
 - `use-team-members.ts` owns the TanStack Query. Its cache key uses the shared `ORGANIZATION_MEMBERS_QUERY_KEY` prefix and includes the active `org_id` JWT claim so switching organizations cannot reuse another tenant's member list. The query stays disabled until that claim is available after session refresh.
 - This active-member query is intentionally role/e-mail-heavy and belongs only to team-management surfaces. Audit and Entry History use the lightweight shared current/former member directory described in `../member-directory.md`; do not substitute one cache for the other.
 - `team-members-page.tsx` owns loading, empty, error/retry, selection, and responsive master/detail composition.

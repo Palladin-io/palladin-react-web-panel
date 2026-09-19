@@ -1,23 +1,20 @@
-import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 
-export const organizationSchema = z.object({
-  orgId: z.string(),
-  name: z.string(),
-  memberCount: z.number().int().nonnegative(),
-  seatUsage: z.number().int().nonnegative(),
-  seatLimit: z.number().int().positive(),
-})
-
-export type Organization = z.infer<typeof organizationSchema>
+export interface Organization {
+  orgId: string
+  name: string
+  memberCount: number
+  seatUsage: number
+  seatLimit: number
+}
 
 export interface UpdateOrgInput {
   name: string
 }
 
 export async function getOrganization(): Promise<Organization> {
-  const data = await api.get('api/org').json()
-  return organizationSchema.parse(data)
+  const data = await api.get('api/org').json<Organization>()
+  return data
 }
 
 /**

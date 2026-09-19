@@ -18,6 +18,7 @@ const approveMutate = vi.hoisted(() =>
     opts?.onSuccess?.(),
   ),
 );
+const pendingState = vi.hoisted(() => ({ type: "granular" }));
 const pendingRefetch = vi.hoisted(() => vi.fn());
 const grantApprovalReview = vi.hoisted(() =>
   vi.fn((grant: unknown) => ({
@@ -94,6 +95,7 @@ vi.mock("../grants", async (importOriginal) => ({
     data: [
       {
         id: "g1",
+        type: pendingState.type,
         vaultId: "v1",
         agentId: "a1",
         entryId: "e1",
@@ -232,12 +234,14 @@ describe("NotificationCenterPage", () => {
     markAllRead.mockReset();
     denyMutate.mockClear();
     approveMutate.mockClear();
+    pendingState.type = "granular";
     pendingRefetch.mockReset();
     grantApprovalReview.mockClear();
     pendingRefetch.mockResolvedValue({
       data: [
         {
           id: "g1",
+        type: pendingState.type,
           vaultId: "v1",
           agentId: "a1",
           entryId: "e1",
@@ -265,6 +269,22 @@ describe("NotificationCenterPage", () => {
     expect(screen.getByText(/Old Bot/)).toBeInTheDocument();
     expect(screen.getByText("Deploy production")).toBeInTheDocument();
     expect(screen.getByText("Alice Admin")).toBeInTheDocument();
+  });
+
+  it.each([
+    { category: "actionRequired", actionState: "expired" },
+    { category: "futureCategory", actionState: "pending" },
+  ])("keeps future or non-pending notifications in History without approval actions: %j", (state) => {
+    const original = items[0];
+    items[0] = { ...original, ...state };
+    try {
+      renderPage();
+      expect(screen.getByText(/Deploy Bot/)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Deny" })).not.toBeInTheDocument();
+    } finally {
+      items[0] = original;
+    }
   });
 
   it("does not attach an authenticated reason to mismatched notification coordinates", () => {
@@ -313,6 +333,23 @@ describe("NotificationCenterPage", () => {
     }
   });
 
+  it("retains unsupported pending grants but disables their approval", () => {
+    pendingState.type = "future";
+    renderPage();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Deny" })).toBeEnabled();
+  });
+
+  it("does not review a newly refetched unsupported request", async () => {
+    pendingRefetch.mockResolvedValue({ data: [{ id: "g1", vaultId: "v1", type: "future" }] });
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    await waitFor(() => expect(pendingRefetch).toHaveBeenCalledOnce());
+    expect(grantApprovalReview.mock.calls.every(([grant]) => grant === null)).toBe(true);
+    expect(approveMutate).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "confirm approve" })).not.toBeInTheDocument();
+  });
+
   it("renders the To-do approve/deny actions for a grant_pending card", () => {
     renderPage();
 
@@ -343,6 +380,7 @@ describe("NotificationCenterPage", () => {
       expect(approveMutate).toHaveBeenCalledWith(
         {
           grantId: "g1",
+          type: "granular",
           vaultId: "v1",
           agentId: "a1",
           entryId: "e1",
@@ -382,17 +420,16 @@ describe("NotificationCenterPage", () => {
     ).toBeGreaterThan(0);
   });
 
-  it('opens the vault on its Agents tab and marks read when "View Access" is clicked', () => {
+  it('opens the exact grant detail and marks read when "View Access" is clicked', () => {
     renderPage();
 
     fireEvent.click(screen.getByRole("button", { name: "View Access" }));
 
     expect(markRead).toHaveBeenCalledWith("n2");
-    // Access cards route to the vault's Agents tab (live grant state lives there).
+    // The historical event retains its exact grant, even after expiry.
     expect(navigateMock).toHaveBeenCalledWith({
-      to: "/vaults/$vaultId",
-      params: { vaultId: "v1" },
-      search: { tab: "agents" },
+      to: "/vaults/$vaultId/grants/$grantId",
+      params: { vaultId: "v1", grantId: "g2" },
     });
   });
 

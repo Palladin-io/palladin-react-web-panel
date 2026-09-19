@@ -183,8 +183,7 @@ export async function rejectAgentPairing(pairingId: string): Promise<void> {
 }
 
 export async function getAgentTypes(): Promise<string[]> {
-  const raw = await api.get('api/agents/types').json()
-  return z.array(z.string()).parse(raw)
+  return api.get('api/agents/types').json<string[]>()
 }
 
 export async function getAgents(): Promise<Agent[]> {

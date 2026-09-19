@@ -1,5 +1,6 @@
+import type { EncryptedReasonContract } from '../../../shared/crypto/reason-protocol'
 import type { GrantFieldSelectionMode } from '../../../shared/types/grant-field-selection'
-import { z } from "zod";
+
 import { api } from "../../../shared/api/client";
 import type { buildCanonicalGrantEnvelope } from "../../../shared/crypto/grant-protocol";
 import type { AgentWrappedVaultKeyContract } from "../../../shared/crypto/x25519-wrapper";
@@ -37,6 +38,15 @@ export const GRANT_TYPE_SCRIPT_EXECUTION = "scriptExecution" as const;
 export type GrantType = typeof GRANT_TYPE_FULL | typeof GRANT_TYPE_GRANULAR
   | typeof GRANT_TYPE_SCRIPT_EXECUTION;
 
+/** Local producer capabilities, not a validator of server-owned history rows. */
+export function isCreatableGrantType(type: string): type is GrantType {
+  return type === GRANT_TYPE_FULL || type === GRANT_TYPE_GRANULAR || type === GRANT_TYPE_SCRIPT_EXECUTION
+}
+
+export function isApprovableGrantType(type: string): type is typeof GRANT_TYPE_GRANULAR | typeof GRANT_TYPE_SCRIPT_EXECUTION {
+  return type === GRANT_TYPE_GRANULAR || type === GRANT_TYPE_SCRIPT_EXECUTION
+}
+
 /**
  * Org-wide grant row from `GET /api/grants` (enriched `GrantResponse`). No
  * ciphertext (reEncryptedBlob/nonce/agentWrappedDek) is ever returned —
@@ -44,103 +54,68 @@ export type GrantType = typeof GRANT_TYPE_FULL | typeof GRANT_TYPE_GRANULAR
  * re-granting. Fields the backend may not yet populate are nullable/optional so
  * the UI degrades gracefully.
  */
-const orgGrantSchema = z.object({
-  id: z.string(),
-  vaultId: z.string(),
-  vaultName: z.string().nullable().optional(),
-  agentId: z.string().nullable().optional(),
-  agentAccessEpoch: z.number().int().positive().max(0xffffffff).nullable().optional(),
-  agentName: z.string().nullable().optional(),
-  // Agent's chosen icon — a Material glyph name or an uploaded S3 URL. Lets the
-  // panel render the agent's real avatar instead of a generic robot. Optional
-  // until the backend (GrantResponse) ships it; AgentAvatar falls back to
-  // initials/deterministic colour when absent.
-  agentIconKey: z.string().nullable().optional(),
-  agentPublicKey: z.string().nullable().optional(),
-  recipientAgentKeyVersion: z
-    .number()
-    .int()
-    .positive()
-    .max(0xffffffff)
-    .nullable()
-    .optional(),
-  agentSigningPublicKey: z.string().nullable().optional(),
-  agentSigningKeyVersion: z
-    .number()
-    .int()
-    .positive()
-    .max(0xffffffff)
-    .nullable()
-    .optional(),
-  agentSigningKeyFingerprint: z.string().nullable().optional(),
-  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR, GRANT_TYPE_SCRIPT_EXECUTION]),
-  status: z.string(),
-  // Combined-flags string of permitted methods, e.g. "get, exec". Optional for
-  // pre-methods backends; the badge is hidden when absent/empty.
-  methods: z.string().nullable().optional(),
-  entryId: z.string().nullable().optional(),
-  scriptEntryId: z.string().nullable().optional(),
-  entryLabel: z.string().nullable().optional(),
-  entryScopes: z
-    .array(
-      z
-        .object({
-          entryId: z.string(),
-          fieldIds: z.array(z.string()),
-          fieldSelectionMode: z.string().optional(),
-          selectedFieldIds: z.array(z.string()).nullable().optional(),
-          grantEnvelopeRevision: z.string().nullable(),
-          entryRevision: z.string().nullable(),
-          grantKeyVersion: z.number().int().positive().nullable(),
-          memberKeyGeneration: z.number().int().positive().nullable(),
-          recipientAgentKeyVersion: z.number().int().positive().nullable(),
-          agentKeyFingerprint: z.string().nullable(),
-        })
-        .strict(),
-    )
-    .optional()
-    .default([]),
-  scriptScopes: z.array(z.object({
-    entryId: z.string(),
-    entryRevision: z.string(),
-    isScript: z.boolean(),
-  }).strict()).optional().default([]),
-  scriptPackageRevision: z.string().nullable().optional(),
-  reason: z.string().nullable().optional(),
-  encryptedReason: encryptedReasonEnvelopeSchema.nullable().optional(),
-  expiresAt: z.string().nullable().optional(),
-  queryLimit: z.number().nullable().optional(),
-  queryCount: z.number().nullable().optional(),
-  expirySource: z.string().nullable().optional(),
-  createdAt: z.string(),
-  createdBy: z.string().uuid().nullable().optional(),
-  createdByName: z.string().nullable().optional(),
-  revokedBy: z.string().uuid().nullable().optional(),
-  revokedByName: z.string().nullable().optional(),
-  supersededAt: z.string().nullable().optional(),
-  supersededByGrantId: z.string().uuid().nullable().optional(),
-  deniedBy: z.string().uuid().nullable().optional(),
-  deniedByName: z.string().nullable().optional(),
-  revokeReason: z.string().nullable().optional(),
-  denyReason: z.string().nullable().optional(),
-  lastAccessedAt: z.string().nullable().optional(),
-  lastAccessIp: z.string().nullable().optional(),
-  lastAccessHostname: z.string().nullable().optional(),
-  // Per-grant action availability computed by the backend — the UI renders
-  // actions strictly from these flags, never inferring from status itself.
-  // Optional with a `false` fallback until the backend ships them, so no action
-  // is wrongly shown before the contract lands.
-  canRevoke: z.boolean().optional().default(false),
-  canGrantAgain: z.boolean().optional().default(false),
-  activeCoveringGrantIds: z.array(z.string().uuid()).optional().default([]),
-});
 
-export type OrgGrant = z.infer<typeof orgGrantSchema>;
-
-const orgGrantPageSchema = z.object({
-  items: z.array(z.unknown()),
-  nextCursor: z.string().nullable().optional(),
-});
+export interface OrgGrant {
+  id: string
+  vaultId: string
+  type: string
+  status: string
+  entryScopes: {
+    entryId: string
+    fieldIds: string[]
+    grantEnvelopeRevision: string | null
+    entryRevision: string | null
+    grantKeyVersion: number | null
+    memberKeyGeneration: number | null
+    recipientAgentKeyVersion: number | null
+    agentKeyFingerprint: string | null
+    fieldSelectionMode?: string
+    selectedFieldIds?: string[] | null
+  }[]
+  scriptScopes: {
+    entryId: string
+    entryRevision: string
+    isScript: boolean
+  }[]
+  createdAt: string
+  canRevoke: boolean
+  canGrantAgain: boolean
+  activeCoveringGrantIds: string[]
+  vaultName?: string | null
+  agentId?: string | null
+  agentAccessEpoch?: number | null
+  agentName?: string | null
+  agentIconKey?: string | null
+  agentPublicKey?: string | null
+  recipientAgentKeyVersion?: number | null
+  agentSigningPublicKey?: string | null
+  agentSigningKeyVersion?: number | null
+  agentSigningKeyFingerprint?: string | null
+  methods?: string | null
+  entryId?: string | null
+  scriptEntryId?: string | null
+  entryLabel?: string | null
+  scriptPackageRevision?: string | null
+  reason?: string | null
+  encryptedReason?: EncryptedReasonContract | null
+  expiresAt?: string | null
+  queryLimit?: number | null
+  queryCount?: number | null
+  expirySource?: string | null
+  createdBy?: string | null
+  createdByName?: string | null
+  revokedBy?: string | null
+  revokedByName?: string | null
+  supersededAt?: string | null
+  supersededByGrantId?: string | null
+  deniedBy?: string | null
+  deniedByName?: string | null
+  revokeReason?: string | null
+  denyReason?: string | null
+  lastAccessedAt?: string | null
+  lastAccessIp?: string | null
+  lastAccessHostname?: string | null
+}
 
 export interface GetOrgGrantsParams {
   status?: GrantStatus;
@@ -159,10 +134,7 @@ export interface OrgGrantPage {
   nextCursor: string | null;
 }
 
-/**
- * Org-wide grants list, newest-first. Each item is parsed individually with
- * `safeParse` so one malformed row never collapses the whole list.
- */
+/** Org-wide management rows, newest first, as supplied by the backend. */
 export async function getOrgGrants(
   params: GetOrgGrantsParams = {},
 ): Promise<OrgGrantPage> {
@@ -175,20 +147,25 @@ export async function getOrgGrants(
   if (params.cursor) searchParams.set("cursor", params.cursor);
   if (params.pageSize) searchParams.set("pageSize", String(params.pageSize));
 
-  const raw = await api.get("api/grants", { searchParams }).json();
-  const page = orgGrantPageSchema.parse(raw);
-
-  const items: OrgGrant[] = [];
-  let skipped = 0;
-  for (const item of page.items) {
-    const result = orgGrantSchema.safeParse(item);
-    if (result.success) items.push(result.data);
-    else skipped += 1;
-  }
-  if (skipped > 0) {
-    console.warn(`[org-grants] skipped ${skipped} malformed item(s)`);
-  }
-  return { items, nextCursor: page.nextCursor ?? null };
+  const page = await api.get("api/grants", { searchParams }).json<OrgGrantPage>();
+  return {
+    ...page,
+    nextCursor: page.nextCursor ?? null,
+    items: page.items.map((grant) => {
+      // Crypto decoding cannot decide whether a management row exists. A bad
+      // reason is unavailable; signature/scope verification still precedes use.
+    const reason = encryptedReasonEnvelopeSchema.safeParse(grant.encryptedReason)
+      return {
+        ...grant,
+        entryScopes: grant.entryScopes ?? [],
+        scriptScopes: grant.scriptScopes ?? [],
+        canRevoke: grant.canRevoke ?? false,
+        canGrantAgain: grant.canGrantAgain ?? false,
+        activeCoveringGrantIds: grant.activeCoveringGrantIds ?? [],
+        encryptedReason: reason.success ? reason.data : null,
+    }
+    }),
+  };
 }
 
 /** A vault's active FULL grant, reduced to what a re-wrap needs. */
@@ -237,7 +214,7 @@ export async function createGranularGrant(
 ): Promise<{ id: string }> {
   return api
     .post(`api/vaults/${vaultId}/entries/${entryId}/grants`, { json: body })
-    .json<{ id: string }>();
+  .json<{ id: string }>()
 }
 
 export async function createFullGrant(
@@ -246,7 +223,7 @@ export async function createFullGrant(
 ): Promise<{ id: string }> {
   return api
     .post(`api/vaults/${vaultId}/full-grants`, { json: body })
-    .json<{ id: string }>();
+  .json<{ id: string }>()
 }
 
 export async function createScriptExecutionGrant(
@@ -256,5 +233,5 @@ export async function createScriptExecutionGrant(
 ): Promise<{ id: string }> {
   return api
     .post(`api/vaults/${vaultId}/scripts/${scriptEntryId}/grants`, { json: body })
-    .json<{ id: string }>();
+  .json<{ id: string }>()
 }

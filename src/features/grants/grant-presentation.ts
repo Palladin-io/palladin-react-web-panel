@@ -33,3 +33,11 @@ export function grantStatusPresentation(status: GrantStatus): StatusPresentation
 export function isRevocable(status: GrantStatus): boolean {
   return status === 'pending' || status === 'active'
 }
+
+/** Render an explicit type; never label an unsupported type as GRANULAR. */
+export function grantTypeLabelKey(type: string): string {
+  if (type === "full") return "grants.modeFull"
+  if (type === "granular") return "grants.modeGranular"
+  if (type === "scriptExecution") return "grants.modeScriptExecution"
+  return "grants.modeUnknown"
+}

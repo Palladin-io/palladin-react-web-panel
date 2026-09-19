@@ -148,7 +148,7 @@ describe('pending-grants-api', () => {
     ])
   })
 
-  it('fails closed only for the row whose encrypted reason contract is invalid', async () => {
+  it('retains a request with unavailable reason material alongside valid requests', async () => {
     const invalidGrant = {
       ...samplePending,
       id: '77777777-7777-4777-8777-777777777777',
@@ -163,24 +163,15 @@ describe('pending-grants-api', () => {
     })
 
     await expect(getPendingGrants()).resolves.toEqual([
+      expect.objectContaining({ id: invalidGrant.id, encryptedReason: null }),
       expect.objectContaining({ id: samplePending.id }),
     ])
   })
 
-  it('ignores a transport-malformed row without hiding valid pending grants', async () => {
-    getJson.mockResolvedValue({
-      items: [
-        null,
-        42,
-        [],
-        { ...samplePending, agentName: {} },
-        samplePending,
-      ],
-      nextCursor: null,
-    })
-
+  it('retains backend lifecycle values and optional presentation without row validation', async () => {
+    getJson.mockResolvedValue({ items: [{ ...samplePending, status: 'future', agentName: null, agentAccessEpoch: 0 }], nextCursor: null })
     await expect(getPendingGrants()).resolves.toEqual([
-      expect.objectContaining({ id: samplePending.id }),
+      expect.objectContaining({ id: samplePending.id, status: 'future', agentName: null, agentAccessEpoch: 0 }),
     ])
   })
 

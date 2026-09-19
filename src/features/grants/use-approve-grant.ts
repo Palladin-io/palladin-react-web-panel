@@ -14,7 +14,7 @@ import {
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import { buildCompleteScriptExecutionPackage } from '../vaults/script-execution-package'
-import { GRANT_TYPE_SCRIPT_EXECUTION, type GrantType } from './api/org-grants-api'
+import { GRANT_TYPE_SCRIPT_EXECUTION, isApprovableGrantType, type GrantType } from './api/org-grants-api'
 import { approveGrant, type ApproveGrantBody } from './api/pending-grants-api'
 import type { GrantPolicyBody } from './grant-policy'
 import {
@@ -78,6 +78,7 @@ export function useApproveGrant() {
       reviewedEntryRevision,
       requestedMethods,
     }: ApproveGrantInput) => {
+      if (!isApprovableGrantType(type)) throw new MissingGrantMaterialError()
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new VaultLockedError()
       if (!entryId || !agentId) {

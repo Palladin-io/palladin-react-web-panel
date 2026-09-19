@@ -23,9 +23,21 @@ const secret: MemberSecretV1 = {
 }
 
 describe('canonical Grant protocol', () => {
-  it('binds the selected fields and caller-provided revision/key version', async () => {
+  it.each(['none', 'primary', 'custom'] as const)('binds fields and emits native TOTP source (%s)', async (totpKind) => {
     const sodium = await loadSodium()
     const agent = sodium.crypto_box_keypair()
+    const source = { source: 'totp', secret: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', algorithm: 'SHA1', digits: 8, period: 30 } as const
+    const withTotp = totpKind !== 'none'
+    const totpId = totpKind === 'custom' ? 'custom:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee' : 'credential.totp'
+    const selected = withTotp ? ['credential.password', totpId] : ['credential.password']
+    const totpValue = { secret: source.secret, algorithm: source.algorithm, digits: source.digits, period: source.period, issuer: null, account: null }
+    const inputSecret: MemberSecretV1 = totpKind === 'custom' ? {
+      ...secret, agentFieldAccess: { ...secret.agentFieldAccess, [totpId]: 'onGrantDerived' },
+      content: { ...secret.content, customFields: [{ id: totpId, label: 'Synthetic 2FA', type: 'totp', value: totpValue }] },
+    } : withTotp ? {
+      ...secret, agentFieldAccess: { ...secret.agentFieldAccess, 'credential.totp': 'onGrantDerived' },
+      content: { ...secret.content, totp: { secret: source.secret, algorithm: source.algorithm, digits: source.digits, period: source.period, issuer: null, account: null } },
+    } : secret
     try {
       const envelope = await buildCanonicalGrantEnvelope({
         organizationId: '00112233-4455-6677-8899-aabbccddeeff',
@@ -36,13 +48,13 @@ describe('canonical Grant protocol', () => {
         entryRevision: '7', memberKeyGeneration: 3,
         agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 4,
         grantEnvelopeRevision: '8', grantKeyVersion: 5,
-        approvedFieldIds: ['credential.password'], approvedMethods: 1, secret,
+        approvedFieldIds: selected, approvedMethods: 1, secret: inputSecret,
       })
       expect(envelope.descriptor.resourceRevision).toBe('8')
       expect(envelope.descriptor.keyVersion).toBe(5)
       expect(envelope.wrappedGrantDek.descriptor.resourceRevision).toBe('8')
       expect(envelope.wrappedGrantDek.descriptor.wrappedKeyVersion).toBe(5)
-      expect(envelope.fieldIds).toEqual(['credential.password'])
+      expect(envelope.fieldIds).toEqual(selected)
       const wrapper = envelope.wrappedGrantDek.descriptor
       const grantDek = await openKeyFromX25519Recipient(
         fromBase64Url(envelope.wrappedGrantDek.encodedSealedKeyPackage),
@@ -80,9 +92,13 @@ describe('canonical Grant protocol', () => {
           deliveryPolicy: envelope.descriptor.binding.deliveryPolicy,
           fieldSetCommitment: fromBase64Url(envelope.descriptor.binding.fieldSetCommitment),
         })
-        expect(new TextDecoder().decode(plaintext)).toBe(
-          '{"entryType":"credential","fields":[{"id":"credential.password","kind":"concealed","mode":"value","value":"secret"}],"schema":"palladin.grant-payload.v1"}',
-        )
+        expect(JSON.parse(new TextDecoder().decode(plaintext))).toEqual({
+          entryType: 'credential', schema: 'palladin.grant-payload.v2',
+          fields: [
+            { id: 'credential.password', kind: 'concealed', mode: 'value', value: 'secret' },
+            ...(withTotp ? [{ id: totpId, kind: 'totp', mode: 'derived', value: source }] : []),
+          ],
+        })
         wipe(plaintext)
       } finally {
         wipe(payloadKey)
@@ -152,7 +168,7 @@ describe('canonical Grant protocol', () => {
     }
   })
 
-  it('rejects the unregistered Credit Card preview from GrantPayload v1', async () => {
+  it('rejects the unregistered Credit Card preview from GrantPayload v2', async () => {
     const sodium = await loadSodium()
     const agent = sodium.crypto_box_keypair()
     const cardSecret: MemberSecretV1 = {

@@ -1,6 +1,6 @@
 export {
   GRANT_DELIVERY_POLICY, GRANT_DELIVERY_POLICY_NAME,
-  buildCanonicalGrantEnvelope, listGrantableFields,
+  buildCanonicalGrantEnvelopeV2 as buildCanonicalGrantEnvelope, listGrantableFields,
 } from '@palladin/crypto'
 export type {
   GrantDeliveryPolicy, GrantDeliveryPolicyName, BuildGrantEnvelopeInput, GrantableField,

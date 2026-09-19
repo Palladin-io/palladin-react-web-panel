@@ -1,4 +1,3 @@
-import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 
 /**
@@ -54,31 +53,25 @@ export type AuditActorType = (typeof AUDIT_ACTOR_TYPES)[number]
  * One audit row from `GET /api/vaults/{id}/audit-logs` (`AuditLogListItem`).
  * No secrets, ciphertext or presentation names are accepted here. The canonical
  * audit contract is structural; every display label is resolved from authorized
- * client state after parsing. Zod strips legacy denormalized fields from older
+ * client state after retrieval. The projection omits legacy denormalized fields from older
  * servers so they can never silently become a presentation fallback.
  *
- * `eventType` is parsed loosely (`z.string()`) so a future backend event type
+ * `eventType` is a string so a future backend event type
  * never collapses the whole page; the row component falls back to a neutral
  * presentation for anything outside `AUDIT_EVENT_TYPES`.
  */
-export const auditLogItemSchema = z.object({
-  id: z.string(),
-  eventType: z.string(),
-  actorType: z.enum(AUDIT_ACTOR_TYPES).catch('system'),
-  userId: z.string().nullable().optional(),
-  agentId: z.string().nullable().optional(),
-  vaultId: z.string().nullable().optional(),
-  entryId: z.string().nullable().optional(),
-  metadata: z.record(z.string(), z.string()).default({}),
-  createdAt: z.string(),
-})
 
-export type AuditLogItem = z.infer<typeof auditLogItemSchema>
-
-const auditLogPageSchema = z.object({
-  items: z.array(z.unknown()),
-  nextCursor: z.string().nullable().optional(),
-})
+export interface AuditLogItem {
+  id: string
+  eventType: string
+  actorType: string
+  metadata: Record<string, string>
+  createdAt: string
+  userId?: string | null
+  agentId?: string | null
+  vaultId?: string | null
+  entryId?: string | null
+}
 
 export interface GetVaultAuditLogsParams {
   /** Comma-joined event types — backend `actions` filter (`IN`). */
@@ -124,7 +117,6 @@ export interface AuditLogPage {
   nextCursor: string | null
 }
 
-
 /**
  * The backend binds `from`/`to` to NodaTime `Instant` — a bare `YYYY-MM-DD`
  * from the native date input fails model binding with a 400. The date is
@@ -141,26 +133,18 @@ function dateParamToInstant(value: string, endOfDay: boolean): string {
   return iso.replace(/\.\d{3}Z$/, 'Z')
 }
 
-/** Parse a raw page, dropping malformed rows so one bad item never blanks the list. */
-function parseAuditLogPage(raw: unknown): AuditLogPage {
-  const page = auditLogPageSchema.parse(raw)
-  const items: AuditLogItem[] = []
-  let skipped = 0
-  for (const item of page.items) {
-    const result = auditLogItemSchema.safeParse(item)
-    if (result.success) items.push(result.data)
-    else skipped += 1
+/** Minimal structural projection: names are resolved from authorized client
+ * state. Preserve every row and actor discriminator without inventing System. */
+function projectAuditLogPage(page: AuditLogPage): AuditLogPage {
+  return {
+    nextCursor: page.nextCursor ?? null,
+    items: page.items.map(({ id, eventType, actorType, userId, agentId, vaultId, entryId, metadata, createdAt }) => ({
+      id, eventType, actorType, userId, agentId, vaultId, entryId,
+      metadata: metadata ?? {}, createdAt,
+    })),
   }
-  if (skipped > 0) {
-    console.warn(`[audit-logs] skipped ${skipped} malformed item(s)`)
-  }
-  return { items, nextCursor: page.nextCursor ?? null }
 }
 
-/**
- * Vault-scoped audit log, newest-first. Each item is parsed individually with
- * `safeParse` so one malformed row never collapses the whole list.
- */
 export async function getVaultAuditLogs(
   vaultId: string,
   params: GetVaultAuditLogsParams = {},
@@ -177,8 +161,8 @@ export async function getVaultAuditLogs(
 
   const raw = await api
     .get(`api/vaults/${vaultId}/audit-logs`, { searchParams })
-    .json()
-  return parseAuditLogPage(raw)
+    .json<AuditLogPage>()
+  return projectAuditLogPage(raw)
 }
 
 /**
@@ -199,8 +183,8 @@ export async function getOrgAuditLogs(
   if (params.cursor) searchParams.set('cursor', params.cursor)
   if (params.pageSize) searchParams.set('pageSize', String(params.pageSize))
 
-  const raw = await api.get('api/audit-logs', { searchParams }).json()
-  return parseAuditLogPage(raw)
+  const raw = await api.get('api/audit-logs', { searchParams }).json<AuditLogPage>()
+  return projectAuditLogPage(raw)
 }
 
 export interface AuditExportStatus {

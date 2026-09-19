@@ -1,35 +1,27 @@
-import { z } from 'zod'
 import { api } from './client'
-import { organizationRoleSchema } from './organization-roles-api'
+import type { OrganizationRole } from './organization-roles-api'
 
 /** Prefix shared by every active-organization member directory cache. */
 export const ORGANIZATION_MEMBERS_QUERY_KEY = ['organization', 'members'] as const
 
-export const organizationMemberSchema = z.object({
-  userId: z.string(),
-  displayName: z.string(),
-  email: z.string(),
-  publicKey: z.string().nullable(),
-  roles: z.array(organizationRoleSchema),
-  effectivePermissions: z.number().int(),
-  isOwner: z.boolean(),
-  joinedAt: z.string(),
-  status: z.string().default('Active'),
-})
+export interface OrganizationMember {
+  userId: string
+  displayName: string
+  email: string
+  publicKey: string | null
+  roles: OrganizationRole[]
+  effectivePermissions: number
+  isOwner: boolean
+  joinedAt: string
+  status: string
+}
 
-const organizationMembersResponseSchema = z.object({
-  items: z.array(organizationMemberSchema),
-})
-
-const updateMemberRolesResponseSchema = z.object({
-  userId: z.string(),
-  roles: z.array(organizationRoleSchema),
-  effectivePermissions: z.number().int(),
-  authorizationVersion: z.number().int().nonnegative(),
-})
-
-export type OrganizationMember = z.infer<typeof organizationMemberSchema>
-export type UpdateMemberRolesResponse = z.infer<typeof updateMemberRolesResponseSchema>
+export interface UpdateMemberRolesResponse {
+  userId: string
+  roles: OrganizationRole[]
+  effectivePermissions: number
+  authorizationVersion: number
+}
 
 export interface UpdateMemberRolesInput {
   userId: string
@@ -37,8 +29,8 @@ export interface UpdateMemberRolesInput {
 }
 
 export async function getOrganizationMembers(): Promise<OrganizationMember[]> {
-  const raw = await api.get('api/organization/members').json()
-  return organizationMembersResponseSchema.parse(raw).items
+  const raw = await api.get('api/organization/members').json<{ items: OrganizationMember[] }>()
+  return raw.items
 }
 
 export async function updateOrganizationMemberRoles(
@@ -46,8 +38,8 @@ export async function updateOrganizationMemberRoles(
 ): Promise<UpdateMemberRolesResponse> {
   const raw = await api
     .put(`api/organization/members/${input.userId}/roles`, { json: { roleIds: input.roleIds } })
-    .json()
-  return updateMemberRolesResponseSchema.parse(raw)
+    .json<UpdateMemberRolesResponse>()
+  return raw
 }
 
 /** Starts organization-wide staged removal. A 204 means requested, not completed. */

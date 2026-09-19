@@ -129,6 +129,18 @@ export function totpParamsFromSecret(
   }
 }
 
+/** Serialize TOTP parameters for the client-only Entry adapters. */
+export function formatOtpauthUri(value: Omit<TotpParams, 'issuer' | 'account'> & {
+  issuer?: string | null; account?: string | null
+}): string {
+  const label = [value.issuer, value.account].filter(Boolean).join(':') || 'TOTP'
+  const query = new URLSearchParams({
+    secret: value.secret, algorithm: value.algorithm, digits: String(value.digits), period: String(value.period),
+  })
+  if (value.issuer) query.set('issuer', value.issuer)
+  return `otpauth://totp/${encodeURIComponent(label)}?${query.toString()}`
+}
+
 function counterToBytes(counter: number): Uint8Array {
   const buffer = new Uint8Array(8)
   // 64-bit big-endian counter. JS bit ops are 32-bit, so fill from the low end

@@ -18,24 +18,24 @@ export { vaultDiscoveryKeyEnvelopeSchema as discoveryKeySchema,
   vaultPrivateKeyEnvelopeSchema as privateKeySchema } from '../sync/vault-key-material-schema'
 const epoch = z.object({
   vaultKeyVersion: u32, vdkVersion: u32, agentMessageKeyVersion: u32, manifestSigningKeyVersion: u32,
-}).strict()
+})
 export const rotationSchema = z.object({
   id: uuid, vaultId: uuid, status: z.string(), cause: z.string(), scope: z.array(z.string()),
   baseMemberKeyGeneration: u32, targetMemberKeyGeneration: u32,
   baseKeyEpoch: epoch, targetKeyEpoch: epoch, baseMemberSequence: u64, baseDiscoverySequence: u64,
-  leaseRevision: z.number().int().nonnegative(), leaseOwnerId: uuid.nullable(), leaseExpiresAt: z.string().nullable(),
+  leaseRevision: z.number(), leaseOwnerId: uuid.nullable(), leaseExpiresAt: z.string().nullable(),
   triggeredAt: z.string(), committedAt: z.string().nullable(), lastFailureCode: z.string().nullable(),
-}).strict()
+})
 const claimSchema = z.object({
   organizationId: uuid, rotation: rotationSchema, fencingToken: uuid, currentMemberVaultKey: memberVaultKeySchema,
   currentDiscoveryKey: discoveryKeySchema, currentVaultPrivateKeys: z.array(privateKeySchema).max(2),
   pendingMemberVaultKey: memberVaultKeySchema.nullable(), pendingDiscoveryKey: discoveryKeySchema.nullable(),
   pendingVaultPrivateKeys: z.array(privateKeySchema).max(2), preparedMaterialReset: z.boolean(),
-}).strict()
+})
 const memberSourceSchema = z.object({
-  items: z.array(z.object({ memberId: uuid, recipientKeyVersion: u32, recipientKeyFingerprint: z.string(), x25519PublicKey: z.string() }).strict()).max(100),
+  items: z.array(z.object({ memberId: uuid, recipientKeyVersion: u32, recipientKeyFingerprint: z.string(), x25519PublicKey: z.string() })).max(100),
   nextAfterId: uuid.nullable(),
-}).strict()
+})
 const fullGrantSourceSchema = z.object({
   items: z.array(z.object({
     grantId: uuid,
@@ -44,28 +44,28 @@ const fullGrantSourceSchema = z.object({
     recipientKeyVersion: u32,
     recipientKeyFingerprint: z.string().min(1),
     x25519PublicKey: z.string().min(1),
-  }).strict()).max(100),
+  })).max(100),
   nextAfterId: uuid.nullable(),
-}).strict()
+})
 const entryKeySourceSchema = z.object({
   items: z.array(vaultEntryKeyEnvelopeSchema).max(100), nextAfterId: uuid.nullable(), nextAfterVersion: u32.nullable(),
-}).strict()
+})
 export const agentDiscoverySchema = agentDiscoveryEnvelopeSchema
 const discoverySourceSchema = z.object({
-  items: z.array(z.object({ sourceRevision: u64, envelope: agentDiscoverySchema }).strict()).max(100),
+  items: z.array(z.object({ sourceRevision: u64, envelope: agentDiscoverySchema })).max(100),
   nextAfterId: uuid.nullable(),
-}).strict()
+})
 const agentSourceSchema = z.object({
   items: z.array(z.object({
     agentId: uuid, agentName: z.string().nullable(), x25519PublicKey: z.string(), ed25519PublicKey: z.string(),
     recipientKeyVersion: u32, status: z.string(), manifestRevision: u64.nullable(),
-  }).strict()).max(100),
+  })).max(100),
   nextAfterId: uuid.nullable(),
-}).strict()
+})
 const vaultSummarySchema = z.object({
   id: uuid, memberVaultMetadata: memberVaultMetadataEnvelopeSchema,
 }).passthrough()
-const listVaultsSchema = z.object({ vaults: z.array(vaultSummarySchema), total: z.number().int().nonnegative() }).strict()
+const listVaultsSchema = z.object({ vaults: z.array(vaultSummarySchema), total: z.number() })
 
 export type VaultRotation = z.infer<typeof rotationSchema>
 export type RotationClaim = z.infer<typeof claimSchema>
@@ -93,7 +93,7 @@ export class RotationHttpError extends Error {
 
 export async function listPendingRotations(signal: AbortSignal): Promise<VaultRotation[]> {
   const response = await api.get('api/vault-key-rotations/pending', { signal, throwHttpErrors: false })
-  return (await json(response, z.object({ items: z.array(rotationSchema).max(200) }).strict())).items
+  return (await json(response, z.object({ items: z.array(rotationSchema).max(200) }))).items
 }
 
 export async function claimRotation(vaultId: string, rotationId: string, signal: AbortSignal): Promise<RotationClaim> {
@@ -170,7 +170,8 @@ export async function prepareRotationBatch(vaultId: string, rotationId: string, 
     json: { vaultId, rotationId, fencingToken, memberVaultKeys: [], agentWrappedVaultKeys: [], entryKeys: [], entryDiscoveries: [], agentDiscoveries: [], vaultPrivateKeys: [], ...batch },
     signal, throwHttpErrors: false,
   })
-  return json(response, z.object({ acceptedItems: z.number().int().nonnegative(), totalPreparedItems: z.number().int().nonnegative() }).strict())
+  if (!response.ok) throw new RotationHttpError(response.status)
+  return await readBoundedJson(response) as { acceptedItems: number; totalPreparedItems: number }
 }
 
 export async function commitRotation(vaultId: string, rotationId: string, fencingToken: string, signal: AbortSignal): Promise<Response> {

@@ -33,6 +33,7 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 const grant = {
+  type: 'granular',
   id: '77777777-7777-4777-8777-777777777777',
   vaultId: '22222222-2222-4222-8222-222222222222',
   entryId: '33333333-3333-4333-8333-333333333333',
@@ -55,6 +56,13 @@ const grant = {
 } as PendingGrant
 
 describe('useGrantApprovalReview', () => {
+  it.each(['future', 'full'])('does not start crypto review for unsupported approval type %s', async (type) => {
+    const { result } = renderHook(() => useGrantApprovalReview({ ...grant, type: type as never }), { wrapper })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(mocks.getVault).not.toHaveBeenCalled()
+    expect(mocks.openVaultKey).not.toHaveBeenCalled()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     useAuthStore.setState({ privateKey: new Uint8Array(32).fill(3) })
@@ -72,6 +80,18 @@ describe('useGrantApprovalReview', () => {
       entryKey: {},
       memberSecret: {},
     })
+  })
+
+
+  it('leaves an unreadable reason unavailable and never opens keys for approval', async () => {
+    const { result } = renderHook(() => useGrantApprovalReview({ ...grant, encryptedReason: null }), { wrapper })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toBeInstanceOf(GrantReviewUnavailableError)
+    expect(mocks.getEntry).not.toHaveBeenCalled()
+    expect(mocks.getVault).not.toHaveBeenCalled()
+    expect(mocks.openVaultKey).not.toHaveBeenCalled()
+    expect(mocks.openReason).not.toHaveBeenCalled()
+    expect(mocks.listFields).not.toHaveBeenCalled()
   })
 
   it('keeps a pending credit-card request denyable but unavailable for approval', async () => {

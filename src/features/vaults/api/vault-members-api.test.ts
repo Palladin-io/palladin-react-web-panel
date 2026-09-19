@@ -34,15 +34,15 @@ describe('vault members API', () => {
     })
   })
 
-  it('rejects an unbounded or expanded response contract', async () => {
+  it('retains every server row instead of applying a second page-size limit', async () => {
     getJson.mockResolvedValue({
       items: Array.from({ length: 101 }, () => member),
       nextAfterId: null,
     })
-    await expect(getVaultMembers('vault-1')).rejects.toThrow()
+    expect((await getVaultMembers('vault-1')).items).toHaveLength(101)
   })
 
-  it('keeps an unknown backend removal status and ignores optional fields', async () => {
+  it('keeps an unknown backend removal status and preserves optional fields', async () => {
     getJson.mockResolvedValue({
       items: [{ ...member, deprovisioningStatus: 'AwaitingExternalApproval', futureHint: true }],
       nextAfterId: null,
@@ -52,8 +52,8 @@ describe('vault members API', () => {
     const result = await getVaultMembers('vault-1')
 
     expect(result.items[0].deprovisioningStatus).toBe('AwaitingExternalApproval')
-    expect(result.items[0]).not.toHaveProperty('futureHint')
-    expect(result).not.toHaveProperty('futurePageHint')
+    expect(result.items[0]).toHaveProperty('futureHint', true)
+    expect(result).toHaveProperty('futurePageHint', true)
   })
 
 })

@@ -1,26 +1,11 @@
-import { describe, expect, it } from 'vitest'
-import { organizationMemberSchema } from './team-members-api'
+import { expect, it, vi } from 'vitest'
+const json = vi.hoisted(() => vi.fn())
+vi.mock('../../../shared/api/client', () => ({ api: { get: vi.fn(() => ({ json })) } }))
+import { getOrganizationMembers } from './team-members-api'
 
-describe('organizationMemberSchema', () => {
-  it('accepts multiple custom roles and preserves effective permissions', () => {
-    const member = organizationMemberSchema.parse({
-      userId: 'user-1',
-      displayName: 'Alice Morgan',
-      email: 'alice@example.com',
-      publicKey: null,
-      roles: [
-        { id: 'role-1', name: 'Auditor', permissions: 128, isSystem: false, canAssign: true },
-        { id: 'role-2', name: 'Vault manager', permissions: 8, isSystem: false, canAssign: false },
-      ],
-      effectivePermissions: 136,
-      isOwner: false,
-      joinedAt: '2026-07-12T10:00:00Z',
-    })
+it('preserves the server display contract and its intended projection', async () => {
 
-    expect(member.roles.map((role) => role.name)).toEqual([
-      'Auditor',
-      'Vault manager',
-    ])
-    expect(member.effectivePermissions).toBe(136)
-  })
+  const member = { userId: 'user', displayName: 'Alice', email: 'alice@example.com', publicKey: null, roles: [{ id: 'r1', name: 'Auditor', permissions: 128 }, { id: 'r2', name: 'Manager', permissions: 8 }], effectivePermissions: 136, isOwner: false, joinedAt: '2026-07-12T10:00:00Z', status: 'future' }
+  json.mockResolvedValue({ items: [member] })
+  expect(await getOrganizationMembers()).toEqual([member])
 })

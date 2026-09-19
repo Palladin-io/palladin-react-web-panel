@@ -47,13 +47,17 @@ export function resolveNotificationPayload(
 }
 
 export function notificationDeepLink(item: NotificationItem):
+  | { to: '/vaults/$vaultId/grants/$grantId'; params: { vaultId: string; grantId: string } }
   | { to: '/agents/$agentId'; params: { agentId: string } }
   | { to: '/vaults/$vaultId'; params: { vaultId: string }; search?: { tab: 'agents' } }
   | { to: '/vaults/$vaultId/entries/$entryId'; params: { vaultId: string; entryId: string } }
   | null {
-  const { agentId, vaultId, entryId } = item.metadata ?? {}
+  const { agentId, vaultId, entryId, grantId } = item.metadata ?? {}
   if (item.type.startsWith('agent_') && agentId) {
     return { to: '/agents/$agentId', params: { agentId } }
+  }
+  if (item.type.startsWith('grant_') && vaultId && grantId) {
+    return { to: '/vaults/$vaultId/grants/$grantId', params: { vaultId, grantId } }
   }
   if (item.type.startsWith('grant_') && vaultId) {
     return { to: '/vaults/$vaultId', params: { vaultId }, search: { tab: 'agents' } }
