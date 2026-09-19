@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   openSigningKey: vi.fn(async () => new Uint8Array(64)),
   decrypt: vi.fn(async () => ({ schemaVersion: 1, entryType: 'key' })),
   produce: vi.fn(),
+  fields: vi.fn(() => [{ id: 'value' }]),
   buildFull: vi.fn(),
   buildScriptPackage: vi.fn(),
   wipe: vi.fn(),
@@ -34,12 +35,15 @@ vi.mock('../../shared/crypto/vault-protocol', () => ({
   openVaultDerivedEnvelope: mocks.openSigningKey,
 }))
 vi.mock('../../shared/crypto/entry-protocol', () => ({ openMemberSecret: mocks.decrypt }))
-vi.mock('../../shared/crypto/grant-protocol', () => ({ buildCanonicalGrantEnvelope: mocks.produce }))
+vi.mock('../../shared/crypto/grant-protocol', () => ({ buildCanonicalGrantEnvelope: mocks.produce, listGrantableFields: mocks.fields }))
 vi.mock('../../shared/crypto/x25519-wrapper', () => ({ buildAgentWrappedVaultKey: mocks.buildFull }))
 vi.mock('../vaults/script-execution-package', () => ({
   buildCompleteScriptExecutionPackage: mocks.buildScriptPackage,
 }))
-vi.mock('../../shared/crypto/vault-plaintext', () => ({ listGrantableFieldIds: vi.fn(() => ['value']) }))
+vi.mock('../../shared/crypto/vault-plaintext', async (original) => ({
+  ...await original<typeof import('../../shared/crypto/vault-plaintext')>(),
+  listGrantableFieldIds: vi.fn(() => ['value']),
+}))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
 vi.mock('../auth', () => ({ useAuthStore: { getState: () => ({ privateKey: mocks.privateKey }) } }))
 
@@ -125,6 +129,24 @@ describe('useCreateGrant', () => {
       expect(mocks.create).not.toHaveBeenCalled()
       expect(mocks.produce).not.toHaveBeenCalled()
     }
+  })
+
+  it.each([['value', 'notes'], ['value', 'key.notes']])('retains the currently permitted regrant subset %j', async (...fieldIds) => {
+    const { result } = renderHook(() => useCreateGrant(), { wrapper })
+    await result.current.mutateAsync({ vaultId: 'v1', entryId: 'entry', agentId: 'agent',
+      agentPublicKey: 'public', recipientAgentKeyVersion: 1, agentAccessEpoch: 1, type: 'granular',
+      fieldSelection: { mode: 'selected', fieldIds }, policy: {}, methods: ['inject'] })
+    expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({ approvedFieldIds: ['value'] }))
+    expect(mocks.create).toHaveBeenCalledWith('v1', 'entry', expect.objectContaining({ fieldSelectionMode: 'selected' }))
+  })
+
+  it('normalizes retained payload notes IDs before applying current policy', async () => {
+    mocks.fields.mockReturnValueOnce([{ id: 'notes' }])
+    const { result } = renderHook(() => useCreateGrant(), { wrapper })
+    await result.current.mutateAsync({ vaultId: 'v1', entryId: 'entry', agentId: 'agent',
+      agentPublicKey: 'public', recipientAgentKeyVersion: 1, agentAccessEpoch: 1, type: 'granular',
+      fieldSelection: { mode: 'selected', fieldIds: ['key.notes', 'key.url'] }, policy: {}, methods: ['inject'] })
+    expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({ approvedFieldIds: ['notes'] }))
   })
 
   it('rejects a new granular credit-card grant before sealing', async () => {

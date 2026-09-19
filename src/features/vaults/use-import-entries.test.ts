@@ -99,7 +99,7 @@ vi.mock('../../shared/crypto/grant-protocol', () => ({
   buildCanonicalGrantEnvelope: grantEnvelopeMock,
   GRANT_DELIVERY_POLICY: { standard: 0, execOnly: 1, injectOnly: 2 },
   GRANT_DELIVERY_POLICY_NAME: { standard: 'standard' },
-  listGrantableFields: vi.fn(() => [{ id: 'credential.username' }]),
+  listGrantableFields: vi.fn(() => [{ id: 'credential.username' }, { id: 'credential.password' }]),
 }))
 vi.mock('../../shared/crypto/vault-plaintext', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../shared/crypto/vault-plaintext')>(),
@@ -335,6 +335,44 @@ describe('useImportEntries', () => {
     expect(updateEntryMock.mock.calls[0][0]).toBe('vault-1')
     expect(updateEntryMock.mock.calls[0][2].deliveryPolicy).toBe('injectOnly')
     expect(grantEnvelopeMock).toHaveBeenCalledWith(expect.objectContaining({ deliveryPolicy: 2 }))
+    expect(result.current.data).toEqual({ importedCount: 1, updatedCount: 1, failed: [] })
+
+    const keys = invalidateSpy.mock.calls.map((c) => c[0]?.queryKey)
+    expect(keys).toContainEqual(VAULTS_QUERY_KEY)
+    expect(keys).toContainEqual(entriesQueryKey('vault-1'))
+    expect(useMemberSyncStore.getState().retryGeneration).toBe(retryGeneration + 1)
+  })
+
+  it.each(['all', 'selected', undefined])('overwrites refresh the current owner selection: %s', async (mode) => {
+    activeGrantsMock.mockResolvedValue({
+      items: [{
+        id: 'grant-1', type: 'granular', entryId: 'old-1', agentId: 'agent-1',
+        agentPublicKey: 'pk', recipientAgentKeyVersion: 2, methods: 'inject',
+        expiresAt: null, queryLimit: null,
+        entryScopes: [{ entryId: 'old-1', fieldIds: ['credential.password'], fieldSelectionMode: mode,
+          ...(mode === 'selected' ? { selectedFieldIds: ['credential.username', 'credential.totp'] } : {}),
+          grantEnvelopeRevision: '1', grantKeyVersion: 1 }],
+      }],
+      nextCursor: null,
+    })
+    const { wrapper, invalidateSpy } = makeWrapper()
+    const retryGeneration = useMemberSyncStore.getState().retryGeneration
+    const { result } = renderHook(() => useImportEntries(), { wrapper })
+
+    result.current.mutate({
+      vaultId: 'vault-1',
+      format: 'palladin-json',
+      creates: [{ label: 'Token', type: ENTRY_TYPE_KEY, value: 'sk_1' }],
+      overwrites: [{ entryId: 'old-1', entry: credential('GitHub') }],
+    })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(updateEntryMock).toHaveBeenCalledTimes(1)
+    expect(updateEntryMock.mock.calls[0][0]).toBe('vault-1')
+    expect(updateEntryMock.mock.calls[0][2].deliveryPolicy).toBe('injectOnly')
+    expect(grantEnvelopeMock).toHaveBeenCalledWith(expect.objectContaining({ deliveryPolicy: 2,
+      approvedFieldIds: mode === 'all' ? ['credential.username', 'credential.password'] : mode === 'selected' ? ['credential.username'] : ['credential.password'],
+    }))
     expect(result.current.data).toEqual({ importedCount: 1, updatedCount: 1, failed: [] })
 
     const keys = invalidateSpy.mock.calls.map((c) => c[0]?.queryKey)
