@@ -1,3 +1,4 @@
+import type { GrantFieldSelectionMode } from '../../../shared/types/grant-field-selection'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -69,7 +70,7 @@ export function PendingGrantsPanel({
     }
   }
 
-  function handleApprove(grant: PendingGrant, policy: GrantPolicyBody, methods: GrantMethod[], fieldIds: string[]) {
+  function handleApprove(grant: PendingGrant, policy: GrantPolicyBody, methods: GrantMethod[], fieldIds: string[], fieldSelectionMode: GrantFieldSelectionMode) {
     if (!review.data) return
     approve.mutate(
       {
@@ -81,6 +82,7 @@ export function PendingGrantsPanel({
         policy,
         methods,
         fieldIds,
+        fieldSelectionMode,
         reviewedEntryRevision: review.data.entryRevision,
         requestedMethods: grant.encryptedReason.descriptor.binding.requestedMethods,
       },
@@ -185,7 +187,7 @@ export function PendingGrantsPanel({
           grant={approveTarget}
           review={review.data}
           isPending={approve.isPending}
-          onConfirm={(policy, methods, fieldIds) => handleApprove(approveTarget, policy, methods, fieldIds)}
+          onConfirm={(policy, methods, fieldIds, selectionMode) => handleApprove(approveTarget, policy, methods, fieldIds, selectionMode)}
           onCancel={() => setApproveTarget(null)}
         />
       )}

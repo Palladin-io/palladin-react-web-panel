@@ -1,3 +1,4 @@
+import type { GrantFieldSelectionMode } from '../../../shared/types/grant-field-selection'
 import { z } from "zod";
 import { api } from "../../../shared/api/client";
 import type { buildCanonicalGrantEnvelope } from "../../../shared/crypto/grant-protocol";
@@ -86,6 +87,8 @@ const orgGrantSchema = z.object({
         .object({
           entryId: z.string(),
           fieldIds: z.array(z.string()),
+          fieldSelectionMode: z.string().optional(),
+          selectedFieldIds: z.array(z.string()).nullable().optional(),
           grantEnvelopeRevision: z.string().nullable(),
           entryRevision: z.string().nullable(),
           grantKeyVersion: z.number().int().positive().nullable(),
@@ -215,6 +218,7 @@ interface CreateGrantPolicyBody {
 }
 
 export interface CreateGranularGrantBody extends CreateGrantPolicyBody {
+  fieldSelectionMode?: GrantFieldSelectionMode;
   grantEntry: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>;
 }
 

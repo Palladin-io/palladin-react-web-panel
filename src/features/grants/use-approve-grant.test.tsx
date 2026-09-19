@@ -94,6 +94,18 @@ describe('useApproveGrant', () => {
     mocks.approve.mockResolvedValue(undefined)
   })
 
+  it('does not approve after the Member session changes during the final revision check', async () => {
+    const detail = await mocks.getEntry()
+    mocks.getEntry.mockResolvedValueOnce(detail).mockImplementationOnce(async () => {
+      mocks.privateKey = new Uint8Array(32)
+      return detail
+    })
+    const { result } = renderHook(() => useApproveGrant(), { wrapper: wrapper(queryClient()) })
+    await expect(result.current.mutateAsync({ ...granularInput, methods: [...granularInput.methods] })).rejects.toThrow()
+    expect(mocks.approve).not.toHaveBeenCalled()
+    expect(mocks.wipe).toHaveBeenCalled()
+  })
+
   it('approves the exact reviewed GRANULAR scope using the current producer contract', async () => {
     const client = queryClient()
     const { result } = renderHook(() => useApproveGrant(), { wrapper: wrapper(client) })
@@ -111,11 +123,21 @@ describe('useApproveGrant', () => {
     }))
     expect(mocks.approve).toHaveBeenCalledWith(granularInput.vaultId, granularInput.grantId, {
       grantEntry: { descriptor: { purpose: 'grantPayload' } },
+      fieldSelectionMode: 'all',
       queryLimit: 3,
       methods: 'Get, Inject',
     })
     expect(mocks.getEntry).toHaveBeenCalledTimes(2)
     expect(mocks.wipe).toHaveBeenCalledTimes(1)
+  })
+
+  it('encrypts only the owner-selected fields and records selected intent', async () => {
+    const { result } = renderHook(() => useApproveGrant(), { wrapper: wrapper(queryClient()) })
+    await result.current.mutateAsync({ ...granularInput, methods: [...granularInput.methods],
+      fieldSelectionMode: 'selected', fieldIds: ['credential.password'] })
+    expect(mocks.buildEnvelope).toHaveBeenCalledWith(expect.objectContaining({ approvedFieldIds: ['credential.password'] }))
+    expect(mocks.approve).toHaveBeenCalledWith(granularInput.vaultId, granularInput.grantId,
+      expect.objectContaining({ fieldSelectionMode: 'selected' }))
   })
 
   it('rejects approval of a legacy pending credit-card grant before sealing', async () => {

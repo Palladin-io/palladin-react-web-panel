@@ -1,3 +1,4 @@
+import type { GrantFieldSelectionMode } from '../../shared/types/grant-field-selection'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
 import { getAgent } from '../agents'
@@ -55,6 +56,7 @@ export interface ApproveGrantInput {
   policy: GrantPolicyBody
   methods: GrantMethod[]
   fieldIds: string[]
+  fieldSelectionMode?: GrantFieldSelectionMode
   reviewedEntryRevision: string
   requestedMethods: number
 }
@@ -72,6 +74,7 @@ export function useApproveGrant() {
       policy,
       methods,
       fieldIds,
+      fieldSelectionMode = 'all',
       reviewedEntryRevision,
       requestedMethods,
     }: ApproveGrantInput) => {
@@ -142,8 +145,8 @@ export function useApproveGrant() {
         const currentFieldIds = [...approvedFieldIds].sort()
         if (reviewedFieldIds.length === 0
           || reviewedFieldSet.size !== reviewedFieldIds.length
-          || reviewedFieldIds.length !== currentFieldIds.length
-          || reviewedFieldIds.some((fieldId, index) => fieldId !== currentFieldIds[index])) {
+          || reviewedFieldIds.some((fieldId) => !currentFieldIds.includes(fieldId))
+          || (fieldSelectionMode === 'all' && reviewedFieldIds.length !== currentFieldIds.length)) {
           throw new MissingGrantMaterialError()
         }
         const envelope = await buildCanonicalGrantEnvelope({
@@ -152,11 +155,12 @@ export function useApproveGrant() {
           organizationId: detail.organizationId, vaultId, grantId, agentId, entryId,
           entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
           memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: agent.recipientKeyVersion,
-          approvedMethods, approvedFieldIds: currentFieldIds,
+          approvedMethods, approvedFieldIds: reviewedFieldIds,
           ...policy, ...('queryLimit' in policy ? { remainingUses: policy.queryLimit } : {}),
         })
         const body: ApproveGrantBody = {
           grantEntry: envelope,
+          fieldSelectionMode,
           ...policy,
           methods: serializeGrantMethods(grantMethodsFromMask(approvedMethods)),
         }
@@ -165,6 +169,7 @@ export function useApproveGrant() {
         if (latest.currentRevision !== reviewedEntryRevision) {
           throw new StaleGrantReviewError()
         }
+        if (useAuthStore.getState().privateKey !== privateKey) throw new VaultLockedError()
         await approveGrant(vaultId, grantId, body)
       } finally {
         wipe(vaultKey)

@@ -1,8 +1,9 @@
+import type { GrantFieldSelection } from '../../shared/types/grant-field-selection'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
-import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
-import { listGrantableFieldIds } from '../../shared/crypto/vault-plaintext'
+import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
+import { grantPayloadPolicyFieldId } from '../../shared/crypto/vault-plaintext'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { buildAgentWrappedVaultKey } from '../../shared/crypto/x25519-wrapper'
@@ -43,6 +44,7 @@ export interface CreateGrantInput {
   agentAccessEpoch: number | null | undefined
   type: GrantType
   entryId?: string
+  fieldSelection?: GrantFieldSelection
   reviewedScriptRevision?: string
   policy: GrantPolicyBody
   methods: GrantMethod[]
@@ -65,6 +67,7 @@ export function useCreateGrant() {
       type,
       entryId,
       reviewedScriptRevision,
+      fieldSelection = { mode: 'all' },
       policy,
       methods,
     }: CreateGrantInput) => {
@@ -165,7 +168,12 @@ export function useCreateGrant() {
           throw new MissingGrantMaterialError()
         }
         const approvedMethods = requestedMethods
-        const approvedFieldIds = listGrantableFieldIds(memberSecret)
+        const grantableFieldIds = listGrantableFields(memberSecret).map((field) => field.id)
+        const selectedFieldIds = fieldSelection.mode === 'selected'
+          ? fieldSelection.fieldIds.map((id) => grantPayloadPolicyFieldId(memberSecret.entryType, id)) : []
+        if (new Set(selectedFieldIds).size !== selectedFieldIds.length) throw new MissingGrantMaterialError()
+        const approvedFieldIds = fieldSelection.mode === 'all' ? grantableFieldIds
+          : selectedFieldIds.filter((id) => grantableFieldIds.includes(id))
         if (approvedMethods === 0 || approvedFieldIds.length === 0) {
           throw new MissingGrantMaterialError()
         }
@@ -183,9 +191,11 @@ export function useCreateGrant() {
           grantId,
           agentId,
           grantEntry: envelope,
+          fieldSelectionMode: fieldSelection.mode,
           ...policy,
           methods: serializeGrantMethods(grantMethodsFromMask(approvedMethods)),
         }
+        assertCurrentUnlockSession(privateKey)
         await createGranularGrant(vaultId, granularEntryId, body)
       } finally {
         wipe(vaultKey)

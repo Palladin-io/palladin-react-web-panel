@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Icon } from './icon'
 
@@ -9,6 +10,8 @@ export interface TypeFilterOption {
 
 export interface TypeFilterDropdownProps {
   options: TypeFilterOption[]
+  portal?: boolean
+  disabled?: boolean
   /** Selected values; empty set = no filter. */
   selected: Set<string>
   onChange: (next: Set<string>) => void
@@ -45,19 +48,53 @@ export function TypeFilterDropdown({
   ariaLabel,
   triggerClassName = 'h-full',
   optionPrefix,
+  portal = false,
+  disabled = false,
 }: TypeFilterDropdownProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<CSSProperties>({})
+  function toggleOpen() {
+    if (portal && ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      const width = Math.min(13 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16), window.innerWidth - 16)
+      const below = window.innerHeight - rect.bottom - 12
+      const above = rect.top - 12
+      setPosition({
+        position: 'fixed', width,
+        left: Math.max(8, Math.min(rect.left, window.innerWidth - width - 8)),
+        ...(below >= 160 || below >= above
+          ? { top: rect.bottom + 4, maxHeight: Math.max(40, below) }
+          : { bottom: window.innerHeight - rect.top + 4, maxHeight: Math.max(40, above) }),
+      })
+    }
+    setOpen((current) => !current)
+  }
 
   useEffect(() => {
     if (!open) return
     const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (!ref.current?.contains(e.target as Node) && !menuRef.current?.contains(e.target as Node)) setOpen(false)
     }
+    const onScroll = (event: Event) => {
+      if (portal && (!(event.target instanceof Node) || !menuRef.current?.contains(event.target))) setOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') setOpen(false) }
+    const onResize = () => setOpen(false)
     document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [open])
+    document.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', onResize)
+
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [open, portal])
 
   function toggle(value: string) {
     const next = new Set(selected)
@@ -71,27 +108,10 @@ export function TypeFilterDropdown({
       ? placeholder
       : t('common.filterCount', { label: placeholder, n: selected.size })
 
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        type="button"
-        aria-label={ariaLabel}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className={`flex items-center gap-1.5 rounded-lg border border-[var(--cv-input-border)]
-          bg-[var(--cv-search-bg)] px-3 text-ui text-[var(--cv-t2)]
-          transition-colors hover:border-[var(--cv-t1)] ${triggerClassName}`}
-      >
-        <Icon name="filter_list" size={15} />
-        <span className="whitespace-nowrap">{label}</span>
-        <Icon name={open ? 'expand_less' : 'expand_more'} size={15} />
-      </button>
-
-      {open && (
-        <div
-          className="absolute right-0 z-20 mt-1 w-52 overflow-hidden rounded-lg border
-            border-[var(--cv-border)] bg-[var(--cv-modal-bg)] py-1 shadow-xl"
+  const menu = (
+        <div ref={menuRef} style={portal ? position : undefined}
+          className={`${portal ? 'z-[100] overflow-y-auto subtle-scrollbar' : 'absolute right-0 z-20 mt-1 overflow-hidden'} w-52 rounded-lg border
+            border-[var(--cv-border)] bg-[var(--cv-modal-bg)] py-1 shadow-xl`}
           role="listbox"
           aria-multiselectable
         >
@@ -101,6 +121,7 @@ export function TypeFilterDropdown({
               <button
                 key={option.value}
                 type="button"
+                disabled={disabled}
                 role="option"
                 aria-selected={checked}
                 onClick={() => toggle(option.value)}
@@ -124,6 +145,7 @@ export function TypeFilterDropdown({
           {selected.size > 0 && (
             <button
               type="button"
+              disabled={disabled}
               onClick={() => onChange(new Set())}
               className="mt-1 w-full border-t border-[var(--cv-divider)] px-3 py-1.5
                 text-left text-meta text-[var(--cv-t3)] transition-colors hover:text-[var(--cv-t1)]"
@@ -132,7 +154,28 @@ export function TypeFilterDropdown({
             </button>
           )}
         </div>
-      )}
+  )
+
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={toggleOpen}
+        className={`flex items-center gap-1.5 rounded-lg border border-[var(--cv-input-border)]
+          bg-[var(--cv-search-bg)] px-3 text-ui text-[var(--cv-t2)]
+          transition-colors hover:border-[var(--cv-t1)] ${triggerClassName}`}
+      >
+        <Icon name="filter_list" size={15} />
+        <span className="whitespace-nowrap">{label}</span>
+        <Icon name={open ? 'expand_less' : 'expand_more'} size={15} />
+      </button>
+
+      {open && !disabled && (portal ? createPortal(menu, document.body) : menu)}
     </div>
   )
 }

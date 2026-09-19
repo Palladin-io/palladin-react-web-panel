@@ -150,7 +150,9 @@ export async function updateCanonicalEntryNow(
           || !grant.agentId || !grant.agentPublicKey || !grant.recipientAgentKeyVersion
           || methods.length === 0) throw new ActiveGrantRefreshRequiredError()
         try {
-          const approvedFieldIds = scope.fieldIds
+          const approvedFieldIds = (scope.fieldSelectionMode === 'all'
+            ? [...grantable] : scope.fieldSelectionMode === 'selected'
+                  ? scope.selectedFieldIds ?? scope.fieldIds : scope.fieldIds)
             .map((fieldId) => grantPayloadPolicyFieldId(nextSecret.entryType, fieldId))
             .filter((fieldId) => grantable.has(fieldId))
           if (approvedFieldIds.length === 0) throw new ActiveGrantRefreshRequiredError()

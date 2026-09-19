@@ -1859,5 +1859,13 @@
       "product_analytics": "Za zgodą mierzymy w PostHog EU korzystanie z funkcji Palladin, aby ulepszać aplikację. Nie zbieramy treści sejfu ani formularzy, haseł lub kluczy i nie nagrywamy sesji. Zgodę możesz wycofać w ustawieniach prywatności.",
       "email_marketing": "Za zgodą wyślemy Ci e-maile z nowościami i ofertami Palladin. Niezbędne wiadomości transakcyjne, dotyczące konta i bezpieczeństwa wysyłamy niezależnie od tej zgody. Zgodę możesz wycofać w ustawieniach prywatności."
     }
-  }
+  },
+  "grants.fields.title": "Udostępniane pola",
+  "grants.fields.all": "Wszystkie pola",
+  "grants.fields.selected": "Wybrane pola",
+  "grants.fields.future": "Obejmuje również pola dodane później, z uwzględnieniem ograniczeń wpisu.",
+  "grants.fields.choose": "Wybierz pola",
+  "grants.fields.required": "Wybierz co najmniej jedno pole.",
+  "grants.fields.loading": "Wczytywanie dostępnych pól…",
+  "grants.fields.unavailable": "Nie udało się wczytać pól. Otwórz ponownie to okno, aby spróbować jeszcze raz."
 }

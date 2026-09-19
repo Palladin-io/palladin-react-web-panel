@@ -79,7 +79,7 @@ describe('useUpdateCanonicalEntry', () => {
     mocks.getGrants.mockResolvedValue({ items: [{
       id: 'grant', type: 'granular', entryId: 'entry', agentId: 'agent', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
       methods: 'exec, inject', expiresAt: null, queryLimit: 8, queryCount: 3,
-      entryScopes: [{ entryId: 'entry', fieldIds: ['value'], grantEnvelopeRevision: '9',
+      entryScopes: [{ entryId: 'entry', fieldIds: ['value'], selectedFieldIds: [], grantEnvelopeRevision: '9',
         entryRevision: '1', grantKeyVersion: 5 }],
     }], nextCursor: null })
     const { result } = renderHook(() => useUpdateCanonicalEntry('vault', 'entry'), { wrapper })
@@ -87,6 +87,25 @@ describe('useUpdateCanonicalEntry', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({
       approvedFieldIds: ['value'], entryRevision: '2', grantEnvelopeRevision: '10',
+      grantKeyVersion: 6, memberKeyGeneration: 3, recipientKeyVersion: 4,
+      approvedMethods: 6, deliveryPolicy: 1, remainingUses: 5,
+    }))
+    expect(mocks.update.mock.calls[0][2].deliveryPolicy).toBe('execOnly')
+    expect(mocks.update.mock.calls[0][2].grantEnvelopes).toEqual([{ grantId: 'grant', entryId: 'entry' }])
+  })
+
+  it('includes subsequently added fields for an all-fields grant', async () => {
+    mocks.getGrants.mockResolvedValue({ items: [{
+      id: 'grant', vaultId: 'vault', type: 'granular', entryId: 'entry', agentId: 'agent', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
+      methods: 'exec, inject', expiresAt: null, queryLimit: 8, queryCount: 3,
+      entryScopes: [{ entryId: 'entry', fieldIds: ['value'], fieldSelectionMode: 'all', selectedFieldIds: [], grantEnvelopeRevision: '9',
+        entryRevision: '1', grantKeyVersion: 5 }],
+    }], nextCursor: null })
+    const { result } = renderHook(() => useUpdateCanonicalEntry('vault', 'entry'), { wrapper })
+    result.current.mutate(input as never)
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+    expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({
+      approvedFieldIds: ['value', 'custom:new'], entryRevision: '2', grantEnvelopeRevision: '10',
       grantKeyVersion: 6, memberKeyGeneration: 3, recipientKeyVersion: 4,
       approvedMethods: 6, deliveryPolicy: 1, remainingUses: 5,
     }))
@@ -121,7 +140,7 @@ describe('useUpdateCanonicalEntry', () => {
     mocks.getGrants.mockResolvedValue({ items: [{
       id: 'grant', type: 'granular', entryId: 'entry', agentId: 'agent', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
       methods: 'exec, inject', expiresAt: null, queryLimit: null,
-      entryScopes: [{ entryId: 'entry', fieldIds: ['value'], grantEnvelopeRevision: '9',
+      entryScopes: [{ entryId: 'entry', fieldIds: ['value'], selectedFieldIds: [], grantEnvelopeRevision: '9',
         entryRevision: '1', grantKeyVersion: 5 }],
     }], nextCursor: null })
     const scriptInput = {
