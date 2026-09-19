@@ -50,11 +50,11 @@ export function createAnalytics({ projectKey, host, released, request = fetch, n
     return true
   }
 
-  function authorize(accountId: string, expiresAt: number, localActivationAllowed: () => boolean) {
+  function authorize(accountId: string, expiresAt: number, consentAllowed: () => boolean) {
     if (userId !== accountId) reset()
     userId = accountId
     validUntil = expiresAt
-    activationAllowed = localActivationAllowed
+    activationAllowed = consentAllowed
     if (!enabled()) return
     clearTimeout(expiry)
     expiry = setTimeout(reset, Math.max(0, expiresAt - now()))

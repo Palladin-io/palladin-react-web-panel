@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useState } from 'react'
 import { HTTPError } from 'ky'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -10,10 +10,8 @@ import { ModalShell } from '../../shared/components/modal-shell'
 import { Icon } from '../../shared/components/icon'
 import { DialogFooter } from '../../shared/components/dialog-footer'
 import type { ConsentSource, ConsentPurpose, UserConsent, UpdateConsent } from '../../shared/api/consents-api'
-import { analytics } from '../../shared/lib/analytics'
-import { matchesCurrentAnalyticsActivation, setLocalAnalyticsActivation } from '../../shared/lib/local-analytics-consent'
 import { PrivacyPolicyLink } from './privacy-policy-link'
-import { useChangeConsent, useConsents, useLocalActivation } from './use-consents'
+import { useChangeConsent, useConsents, useAnalyticsPause } from './use-consents'
 
 const purposes: ConsentPurpose[] = ['product_analytics', 'email_marketing']
 interface Attempt { purpose: ConsentPurpose; decision: UpdateConsent }
@@ -37,18 +35,14 @@ function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailur
   const query = useConsents()
   const { t } = useTranslation()
   const mutation = useChangeConsent()
-  const activation = useLocalActivation(query.userId)
+  const { pause: stopHere, resume } = useAnalyticsPause(query.userId)
   const [draft, setDraft] = useState<Partial<Record<ConsentPurpose, boolean>>>({})
   const [pending, setPending] = useState<Attempt[]>([])
   const [saving, setSaving] = useState(false)
   const [decisionError, setDecisionError] = useState<'revisionConflict' | 'saveRejected' | null>(null)
   const rows = purposes.map(purpose => query.data?.consents.find(c => c.purpose === purpose))
   const granted = (consent: UserConsent) => draft[consent.purpose] ?? (consent.status === 'granted')
-  const stopHere = () => {
-    analytics.reset()
-    if (query.userId) setLocalAnalyticsActivation(query.userId, null)
-  }
-  const close = () => { stopHere(); onContinue?.() }
+  const close = () => { resume(); onContinue?.() }
 
   function change(consent: UserConsent, value: boolean) {
     if (consent.purpose === 'product_analytics' && !value) stopHere()
@@ -59,7 +53,7 @@ function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailur
   async function persist(attempts: Attempt[]) {
     setSaving(true)
     setDecisionError(null)
-    if (attempts.some(attempt => attempt.purpose === 'product_analytics' && attempt.decision.granted)) stopHere()
+    stopHere()
     setPending(attempts)
     let remaining = attempts
     try {
@@ -69,10 +63,11 @@ function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailur
         setPending(remaining)
       }
       setDraft({})
+      resume()
       toast.success(t('privacy.saved'))
       onContinue?.()
     } catch (error) {
-      stopHere()
+      // The batch already owns a pause; never reacquire it after form cleanup.
       onSaveFailure()
       const status = error instanceof HTTPError ? error.response.status : undefined
       if (status !== undefined && status < 500 && status !== 408 && status !== 429) {
@@ -89,18 +84,16 @@ function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailur
     } finally { setSaving(false) }
   }
 
-  function save(acceptAll = false, activateHere = false) {
+  function save(acceptAll = false) {
     if (saving || query.isPending || query.isError || (acceptAll && unavailable)) return
     if (acceptAll) { stopHere(); setDraft({ product_analytics: true, email_marketing: true }) }
-    // Confirm marketing first: the last confirmed analytics grant activates this
-    // installation, including after retry of an unconfirmed partial save.
+    // Confirm analytics grants last; keep capture paused through partial saves.
     const orderedRows = acceptAll || (rows[0] && granted(rows[0])) ? [...rows].reverse() : rows
     const attempts: Attempt[] = []
     for (const consent of orderedRows) {
-      if (!consent || (activateHere && consent.purpose !== 'product_analytics')) continue
+      if (!consent) continue
       const selected = acceptAll || granted(consent)
-      const activate = activateHere && consent.purpose === 'product_analytics'
-      if (!acceptAll && !activate && selected === (consent.status === 'granted') && consent.status !== 'unknown'
+      if (!acceptAll && selected === (consent.status === 'granted') && consent.status !== 'unknown'
         && (!consent.currentNotice || consent.noticeVersion === consent.currentNotice.version)) continue
       const version = consent.currentNotice?.version ?? consent.noticeVersion
       const locale = consent.currentNotice?.locale ?? consent.noticeLocale
@@ -111,7 +104,7 @@ function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailur
         noticeVersion: version, locale, source,
       } })
     }
-    if (attempts.length === 0) { onContinue?.(); return }
+    if (attempts.length === 0) { close(); return }
     void persist(attempts)
   }
 
@@ -133,15 +126,9 @@ function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailur
     {query.isPending ? <SkeletonBlock height="10rem" /> : query.isError ? <ErrorState message={t('privacy.loadError')} onRetry={() => { void query.refetch() }} /> : purposes.map((purpose, index) => {
       const consent = rows[index]
       const checked = consent ? granted(consent) : false
-      const locallyActive = matchesCurrentAnalyticsActivation(consent, activation)
       return <ConsentCard key={purpose} purpose={purpose} consent={consent} checked={checked}
         disabled={saving || !consent || (!consent.currentNotice && !checked)}
-        onChange={value => { if (consent) change(consent, value) }}>
-        {source === 'web_settings' && purpose === 'product_analytics' && <div className="mt-3">
-          <p role="status" className="text-meta text-[var(--cv-t2)]">{t(locallyActive ? 'privacy.activeHere' : 'privacy.inactiveHere')}</p>
-          {consent?.status === 'granted' && checked && !locallyActive && consent.currentNotice && <Button size="sm" variant="subtle" className="mt-2" disabled={saving} onClick={() => save(false, true)}>{t('privacy.activateHere')}</Button>}
-        </div>}
-      </ConsentCard>
+        onChange={value => { if (consent) change(consent, value) }} />
     })}
     </div>
     <p className="-mb-2 pt-3 text-micro leading-relaxed text-[var(--cv-t3)]">{t('privacy.subtitle')}</p>
@@ -152,13 +139,12 @@ function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailur
   return <ModalShell title={t('privacy.title')} ariaLabel={t('privacy.title')} trapFocus onClose={saving || source === 'web_onboarding' ? undefined : close} width={440} footer={actions}>{content}</ModalShell>
 }
 
-function ConsentCard({ purpose, consent, checked, disabled, onChange, children }: {
+function ConsentCard({ purpose, consent, checked, disabled, onChange }: {
   purpose: ConsentPurpose
   consent?: UserConsent
   checked: boolean
   disabled: boolean
   onChange: (checked: boolean) => void
-  children: ReactNode
 }) {
   const { t } = useTranslation()
   const [expanded, setExpanded] = useState(false)
@@ -178,7 +164,6 @@ function ConsentCard({ purpose, consent, checked, disabled, onChange, children }
       </div>
       <ToggleSwitch checked={checked} label={title} onChange={onChange} disabled={disabled} />
     </div>
-    {children}
     {consent?.currentNotice && <div id={detailsId} aria-hidden={!expanded} inert={!expanded}
       className={`grid transition-[grid-template-rows] duration-200 motion-reduce:transition-none ${expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
       <div className="overflow-hidden">

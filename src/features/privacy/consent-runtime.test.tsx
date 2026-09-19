@@ -5,7 +5,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { routeTree } from '../../routeTree.gen'
 import { useAuthStore } from '../auth'
 import { analytics } from '../../shared/lib/analytics'
-import { setLocalAnalyticsActivation } from '../../shared/lib/local-analytics-consent'
 
 const originalLocation = window.location
 let client: QueryClient | undefined
@@ -50,8 +49,7 @@ describe('consent route boundary', () => {
     expect(useAuthStore.getState().userId).toBe('stale-persisted-user')
     const authorize = vi.spyOn(analytics, 'authorize')
     const pageview = vi.spyOn(analytics, 'pageview')
-    // Even a previously active installation and cached grant cannot authorize on this route.
-    setLocalAnalyticsActivation('stale-persisted-user', { noticeVersion: 'test-v1', noticeLocale: 'en', activationRevision: 1 })
+    // Even a cached account grant cannot authorize on this route.
     client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
     client.setQueryData(['account-consents', 'stale-persisted-user', 'en'], {
       observedAt: Date.now(), maxAgeSeconds: 60, consents: [{ purpose: 'product_analytics', status: 'granted',
