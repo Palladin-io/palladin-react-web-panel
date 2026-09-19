@@ -1,3 +1,5 @@
+import type { GrantFieldSelection } from '../../../shared/types/grant-field-selection'
+import { EntryGrantFieldSelection } from './entry-grant-field-selection'
 import { useMemo, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -110,12 +112,17 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
   const [reviewedScriptRevision, setReviewedScriptRevision] = useState<string | null>(null)
 
   // Subject selection (resolved on confirm).
+  const [fieldChoice, setFieldChoice] = useState<{ target: string; value: GrantFieldSelection } | null>(null)
   const [subject, setSubject] = useState<ResolvedSubject | null>(null)
   const syncedVaults = useMemberSyncStore((state) => state.vaults)
   const currentSubject = subject && ({
     ...subject,
     ...targetReadiness(subject.vaultId, subject.entryId, syncedVaults),
   })
+  const fieldTarget = currentSubject ? `${currentSubject.vaultId}:${currentSubject.entryId}:${currentSubject.agentId}` : ''
+  const fieldSelection: GrantFieldSelection = fieldChoice?.target === fieldTarget ? fieldChoice.value : { mode: 'all' }
+  const fieldsValid = currentSubject?.type !== GRANT_TYPE_GRANULAR
+    || fieldSelection.mode === 'all' || fieldSelection.fieldIds.length > 0
   const fullVaultId = currentSubject?.type === GRANT_TYPE_FULL
     ? currentSubject.vaultId
     : mode.kind === 'agent-for-vault'
@@ -135,7 +142,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
       setSubjectError(true)
       return
     }
-    if (currentSubject.constraintsUnavailable) return
+    if (currentSubject.constraintsUnavailable || !fieldsValid) return
     if (currentSubject.type === GRANT_TYPE_SCRIPT_EXECUTION && !reviewedScriptRevision) return
     const policyInput = { kind, expiresAt, queryLimit }
     const validationError = validateGrantPolicy(policyInput)
@@ -171,6 +178,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         type: currentSubject.type,
         entryId: currentSubject.entryId,
         reviewedScriptRevision: reviewedScriptRevision ?? undefined,
+        ...(currentSubject.type === GRANT_TYPE_GRANULAR ? { fieldSelection } : {}),
         policy: grantPolicyToBody(policyInput),
         methods: effectiveMethods,
       },
@@ -196,7 +204,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             {t('grants.cancel')}
           </Button>
           <Button variant="positive" size="sm" onClick={handleConfirm}
-            disabled={createGrant.isPending || currentSubject?.constraintsUnavailable
+            disabled={createGrant.isPending || !fieldsValid || currentSubject?.constraintsUnavailable
               || (currentSubject?.type === GRANT_TYPE_SCRIPT_EXECUTION && !reviewedScriptRevision)}
             className="flex-[2]">
             {createGrant.isPending ? t('grants.create.granting') : t('grants.create.confirm')}
@@ -245,6 +253,12 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
             {t('grants.create.fullTrustBody')}
           </WarningZone>
         )}
+
+        {currentSubject?.type === GRANT_TYPE_GRANULAR && currentSubject.entryId ? (
+          <EntryGrantFieldSelection key={fieldTarget} vaultId={currentSubject.vaultId} entryId={currentSubject.entryId}
+            value={fieldSelection} onChange={(value) => setFieldChoice({ target: fieldTarget, value })}
+            disabled={createGrant.isPending} />
+        ) : null}
 
         {currentSubject?.type === GRANT_TYPE_SCRIPT_EXECUTION && currentSubject.entryId ? (
           <ScriptGrantSummary vaultId={currentSubject.vaultId} scriptEntryId={currentSubject.entryId}

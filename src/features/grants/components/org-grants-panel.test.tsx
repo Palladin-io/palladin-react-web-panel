@@ -40,6 +40,7 @@ const expiredGrant = {
   status: 'expired' as const,
   entryId: 'entry-1',
   entryLabel: 'Deploy token',
+  entryScopes: [{ entryId: 'entry-1', fieldIds: ['key.value'], fieldSelectionMode: 'selected', selectedFieldIds: ['key.value'] }],
   reason: null,
   expiresAt: '2026-07-01T00:00:00Z',
   queryLimit: null,
@@ -107,6 +108,7 @@ describe('OrgGrantsPanel footer actions', () => {
     await waitFor(() => expect(createGrantMutation.mutate).toHaveBeenCalledTimes(1))
     expect(getAgent).toHaveBeenCalledWith('agent-1')
     expect(createGrantMutation.mutate.mock.calls[0][0]).toEqual(expect.objectContaining({
+      fieldSelection: { mode: 'selected', fieldIds: ['key.value'] },
       agentPublicKey: 'current-public-key',
       recipientAgentKeyVersion: 7,
       agentAccessEpoch: 3,

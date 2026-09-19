@@ -187,6 +187,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
       toast.error(t('grants.regrant.error'))
       return
     }
+    const previousScope = grant.entryScopes?.find((scope) => scope.entryId === scopedEntryId)
     regrant.mutate(
       {
         vaultId: grant.vaultId,
@@ -197,6 +198,9 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
         recipientAgentKeyVersion,
         agentAccessEpoch,
         type: grant.type,
+        ...(grant.type === 'granular' ? { fieldSelection: previousScope?.fieldSelectionMode === 'all'
+          ? { mode: 'all' as const }
+          : { mode: 'selected' as const, fieldIds: previousScope?.selectedFieldIds ?? previousScope?.fieldIds ?? [] } } : {}),
         policy,
         methods: parseGrantMethods(grant.methods),
       },

@@ -79,6 +79,17 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     expect(onConfirm.mock.calls[0][0]).toHaveProperty('expiresAt')
   })
 
+  it('lets the owner restrict this grant to selected fields', async () => {
+    const user = userEvent.setup()
+    renderDialog()
+    expect(screen.getByLabelText('Shared fields')).toHaveValue('all')
+    await user.selectOptions(screen.getByLabelText('Shared fields'), 'selected')
+    await user.click(screen.getByRole('button', { name: 'Choose fields' }))
+    await user.click(screen.getByRole('option', { name: 'totp' }))
+    await user.click(screen.getByRole('button', { name: /^approve access$/i }))
+    expect(onConfirm).toHaveBeenCalledWith(expect.any(Object), ['exec', 'inject'], ['password'], 'selected')
+  })
+
   it('a quick-duration chip sets the expiry', async () => {
     const user = userEvent.setup()
     renderDialog()
@@ -116,7 +127,7 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
     // Methods default to the privacy-preserving set when the grant requested none.
-    expect(onConfirm).toHaveBeenCalledWith({ queryLimit: 3 }, ['exec', 'inject'], ['password', 'totp'])
+    expect(onConfirm).toHaveBeenCalledWith({ queryLimit: 3 }, ['exec', 'inject'], ['password', 'totp'], 'all')
   })
 
   it('confirms with an empty body when Lifetime is selected (neither field)', async () => {
@@ -125,7 +136,7 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     await user.selectOptions(screen.getByLabelText(/Access type/i), 'lifetime')
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
     expect(onConfirm).toHaveBeenCalledTimes(1)
-    expect(onConfirm).toHaveBeenCalledWith({}, ['exec', 'inject'], ['password', 'totp'])
+    expect(onConfirm).toHaveBeenCalledWith({}, ['exec', 'inject'], ['password', 'totp'], 'all')
   })
 
   it('rejects an invalid usage limit', async () => {
@@ -221,11 +232,11 @@ describe('ApproveGrantDialog — access type dropdown', () => {
     expect(onConfirm.mock.calls[0][1]).toEqual(['inject'])
   })
 
-  it('does not expose field selection and approves every grantable field', async () => {
+  it('defaults to all current and future grantable fields', async () => {
     const user = userEvent.setup()
     renderDialog()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /^approve access$/i }))
-    expect(onConfirm).toHaveBeenCalledWith(expect.any(Object), ['exec', 'inject'], ['password', 'totp'])
+    expect(onConfirm).toHaveBeenCalledWith(expect.any(Object), ['exec', 'inject'], ['password', 'totp'], 'all')
   })
 })

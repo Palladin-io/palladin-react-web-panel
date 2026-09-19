@@ -1,3 +1,5 @@
+import { GrantFieldSelectionFields } from './grant-field-selection'
+import type { GrantFieldSelection, GrantFieldSelectionMode } from '../../../shared/types/grant-field-selection'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
@@ -43,13 +45,13 @@ export interface ApproveGrantDialogProps {
    * Confirm with the resolved policy (time → expiresAt, uses → queryLimit, lifetime → {}) and the
    * final methods the agent may use.
    */
-  onConfirm: (policy: GrantPolicyBody, methods: GrantMethod[], fieldIds: string[]) => void
+  onConfirm: (policy: GrantPolicyBody, methods: GrantMethod[], fieldIds: string[], fieldSelectionMode: GrantFieldSelectionMode) => void
   onCancel: () => void
 }
 
 /**
  * Approval dialog for a pending grant. The user chooses the lifetime and
- * requested methods; the current MVP always grants every grantable Entry field.
+ * requested methods and Entry field selection; all shareable fields is the default.
  * The parent hook performs the zero-knowledge re-encryption.
  */
 export function ApproveGrantDialog({
@@ -63,6 +65,8 @@ export function ApproveGrantDialog({
   const [kind, setKind] = useState<GrantPolicyKind>(DEFAULT_GRANT_POLICY_KIND)
   const [expiresAt, setExpiresAt] = useState('')
   const [queryLimit, setQueryLimit] = useState('')
+  const [fieldSelection, setFieldSelection] = useState<GrantFieldSelection>({ mode: 'all' })
+  const fieldsValid = fieldSelection.mode === 'all' || fieldSelection.fieldIds.length > 0
   const [error, setError] = useState<string | null>(null)
 
   // What the agent asked for — used as the default selection and highlighted in the field.
@@ -85,7 +89,10 @@ export function ApproveGrantDialog({
       setMethodsError('grants.methods.errorNoneSelected')
       return
     }
-    onConfirm(grantPolicyToBody(input), methods, review.fields.map((field) => field.id))
+    if (!fieldsValid) return
+    onConfirm(grantPolicyToBody(input), methods,
+      fieldSelection.mode === 'all' ? review.fields.map((field) => field.id) : fieldSelection.fieldIds,
+      fieldSelection.mode)
   }
 
   return (
@@ -99,7 +106,7 @@ export function ApproveGrantDialog({
           <Button variant="subtle" size="sm" onClick={onCancel} disabled={isPending} className="flex-1">
             {t('grants.cancel')}
           </Button>
-          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={isPending} className="flex-[2]">
+          <Button variant="positive" size="sm" onClick={handleConfirm} disabled={isPending || !fieldsValid} className="flex-[2]">
             {isPending ? t('grants.approve.approving') : t('grants.approve.approve')}
           </Button>
         </DialogFooter>
@@ -141,6 +148,9 @@ export function ApproveGrantDialog({
         {grant.type === GRANT_TYPE_SCRIPT_EXECUTION && review.scriptContract ? (
           <ScriptGrantContractSummary {...review.scriptContract} />
         ) : null}
+
+        {grant.type !== GRANT_TYPE_SCRIPT_EXECUTION ? <GrantFieldSelectionFields
+          fields={review.fields} value={fieldSelection} onChange={setFieldSelection} disabled={isPending} /> : null}
 
         <GrantMethodsSelect
           idPrefix="approve"

@@ -1,3 +1,4 @@
+import type { GrantFieldSelectionMode } from '../../shared/types/grant-field-selection'
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -306,6 +307,7 @@ export function NotificationCenterPage({
     policy: GrantPolicyBody,
     methods: GrantMethod[],
     fieldIds: string[],
+    fieldSelectionMode: GrantFieldSelectionMode,
   ) {
     if (!approveTarget || !approvalReview.data) return;
     approve.mutate(
@@ -318,6 +320,7 @@ export function NotificationCenterPage({
         policy,
         methods,
         fieldIds,
+        fieldSelectionMode,
         reviewedEntryRevision: approvalReview.data.entryRevision,
         requestedMethods:
           approveTarget.encryptedReason.descriptor.binding.requestedMethods,

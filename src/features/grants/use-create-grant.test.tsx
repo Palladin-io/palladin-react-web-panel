@@ -100,6 +100,7 @@ describe('useCreateGrant', () => {
     expect(body.grantEntry).toBeDefined()
     expect(body.agentWrappedVaultKey).toBeUndefined()
     expect(body.methods).toBe('Exec, Inject')
+    expect(body.fieldSelectionMode).toBe('all')
     expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({
       entryRevision: '7',
       memberKeyGeneration: 3,
@@ -108,6 +109,22 @@ describe('useCreateGrant', () => {
       remainingUses: 3,
     }))
     expect(mocks.wipe).toHaveBeenCalled()
+  })
+
+  it.each([['value'], [], ['private-field'], ['value', 'value']])('validates selected scope %j before posting', async (...fieldIds) => {
+    const { result } = renderHook(() => useCreateGrant(), { wrapper })
+    const creating = result.current.mutateAsync({ vaultId: 'v1', entryId: 'entry', agentId: 'agent',
+      agentPublicKey: 'public', recipientAgentKeyVersion: 1, agentAccessEpoch: 1, type: 'granular',
+      fieldSelection: { mode: 'selected', fieldIds }, policy: {}, methods: ['inject'] })
+    if (fieldIds.length === 1 && fieldIds[0] === 'value') {
+      await creating
+      expect(mocks.create).toHaveBeenCalledWith('v1', 'entry', expect.objectContaining({ fieldSelectionMode: 'selected' }))
+      expect(mocks.produce).toHaveBeenCalledWith(expect.objectContaining({ approvedFieldIds: ['value'] }))
+    } else {
+      await expect(creating).rejects.toThrow()
+      expect(mocks.create).not.toHaveBeenCalled()
+      expect(mocks.produce).not.toHaveBeenCalled()
+    }
   })
 
   it('rejects a new granular credit-card grant before sealing', async () => {

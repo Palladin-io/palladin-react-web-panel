@@ -1,3 +1,4 @@
+import type { GrantFieldSelection } from '../../shared/types/grant-field-selection'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
@@ -43,6 +44,7 @@ export interface CreateGrantInput {
   agentAccessEpoch: number | null | undefined
   type: GrantType
   entryId?: string
+  fieldSelection?: GrantFieldSelection
   reviewedScriptRevision?: string
   policy: GrantPolicyBody
   methods: GrantMethod[]
@@ -65,6 +67,7 @@ export function useCreateGrant() {
       type,
       entryId,
       reviewedScriptRevision,
+      fieldSelection = { mode: 'all' },
       policy,
       methods,
     }: CreateGrantInput) => {
@@ -165,7 +168,12 @@ export function useCreateGrant() {
           throw new MissingGrantMaterialError()
         }
         const approvedMethods = requestedMethods
-        const approvedFieldIds = listGrantableFieldIds(memberSecret)
+        const grantableFieldIds = listGrantableFieldIds(memberSecret)
+        const approvedFieldIds = fieldSelection.mode === 'all' ? grantableFieldIds : fieldSelection.fieldIds
+        if (new Set(approvedFieldIds).size !== approvedFieldIds.length
+          || approvedFieldIds.some((fieldId) => !grantableFieldIds.includes(fieldId))) {
+          throw new MissingGrantMaterialError()
+        }
         if (approvedMethods === 0 || approvedFieldIds.length === 0) {
           throw new MissingGrantMaterialError()
         }
@@ -183,9 +191,11 @@ export function useCreateGrant() {
           grantId,
           agentId,
           grantEntry: envelope,
+          fieldSelectionMode: fieldSelection.mode,
           ...policy,
           methods: serializeGrantMethods(grantMethodsFromMask(approvedMethods)),
         }
+        assertCurrentUnlockSession(privateKey)
         await createGranularGrant(vaultId, granularEntryId, body)
       } finally {
         wipe(vaultKey)

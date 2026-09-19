@@ -1,3 +1,4 @@
+import type { GrantFieldSelectionMode } from '../../../shared/types/grant-field-selection'
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 import type { buildCanonicalGrantEnvelope } from '../../../shared/crypto/grant-protocol'
@@ -8,6 +9,8 @@ import { encryptedReasonEnvelopeSchema } from '../../vaults/sync/entry-envelope-
 export interface GrantEntryScope {
   entryId: string
   fieldIds: string[]
+  fieldSelectionMode?: GrantFieldSelectionMode
+  selectedFieldIds?: string[] | null
   grantEnvelopeRevision: string | null
   entryRevision: string | null
   grantKeyVersion: number | null
@@ -187,6 +190,7 @@ export async function getPendingGrants(): Promise<PendingGrant[]> {
  * and validated again here before the request is built).
  */
 export interface ApproveGrantBody {
+  fieldSelectionMode?: GrantFieldSelectionMode
   grantEntry?: Awaited<ReturnType<typeof buildCanonicalGrantEnvelope>>
   scriptPackage?: Awaited<ReturnType<typeof buildCompleteScriptExecutionPackage>>
   expiresAt?: string
