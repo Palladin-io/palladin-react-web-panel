@@ -61,16 +61,11 @@ describe('notifications-api', () => {
     expect(page.nextCursor).toBe('next')
   })
 
-  it('skips a malformed item rather than collapsing the page', async () => {
-    getJson.mockResolvedValue({
-      items: [item, { id: 'bad' /* missing required fields */ }],
-      nextCursor: null,
-    })
-
+  it('preserves a notification with a future category and action state', async () => {
+    getJson.mockResolvedValue({ items: [item, { ...item, id: 'n2', category: 'future', actionState: 'expired' }], nextCursor: null })
     const page = await getNotifications()
-
-    expect(page.items).toHaveLength(1)
-    expect(page.items[0].id).toBe('n1')
+    expect(page.items.map((notification) => notification.id)).toEqual(['n1', 'n2'])
+    expect(page.items[1].actionState).toBe('expired')
     expect(page.nextCursor).toBeNull()
   })
 

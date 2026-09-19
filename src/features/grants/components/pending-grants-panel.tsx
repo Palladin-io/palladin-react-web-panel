@@ -71,7 +71,7 @@ export function PendingGrantsPanel({
   }
 
   function handleApprove(grant: PendingGrant, policy: GrantPolicyBody, methods: GrantMethod[], fieldIds: string[], fieldSelectionMode: GrantFieldSelectionMode) {
-    if (!review.data) return
+    if (!review.data || !grant.encryptedReason) return
     approve.mutate(
       {
         grantId: grant.id,

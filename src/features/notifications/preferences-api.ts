@@ -1,4 +1,3 @@
-import { z } from 'zod'
 import { api } from '../../shared/api/client'
 
 /**
@@ -11,30 +10,26 @@ import { api } from '../../shared/api/client'
  * straight from the response rather than guessing.
  */
 
-const preferenceItemSchema = z.object({
-  type: z.string(),
-  category: z.enum(['actionRequired', 'update']),
-  inboxEnabled: z.boolean(),
-  signalREnabled: z.boolean(),
-  pushEnabled: z.boolean(),
-  mandatory: z.boolean(),
-})
-
-export type PreferenceItem = z.infer<typeof preferenceItemSchema>
+export interface PreferenceItem {
+  type: string
+  category: string
+  inboxEnabled: boolean
+  signalREnabled: boolean
+  pushEnabled: boolean
+  mandatory: boolean
+}
 
 /** The three deliverable channels — column identity for the preferences grid. */
 export const PREFERENCE_CHANNELS = ['inbox', 'realtime', 'push'] as const
 export type PreferenceChannel = (typeof PREFERENCE_CHANNELS)[number]
 
-const preferencesResponseSchema = z.object({
-  items: z.array(preferenceItemSchema),
-})
-
-export type PreferencesResponse = z.infer<typeof preferencesResponseSchema>
+export interface PreferencesResponse {
+  items: PreferenceItem[]
+}
 
 export async function getNotificationPreferences(): Promise<PreferenceItem[]> {
-  const raw = await api.get('api/notifications/preferences').json()
-  return preferencesResponseSchema.parse(raw).items
+  const raw = await api.get('api/notifications/preferences').json<PreferencesResponse>()
+  return raw.items
 }
 
 /** One channel toggle for one type. The server upserts only the deltas. */
@@ -54,6 +49,6 @@ export async function updateNotificationPreferences(
 ): Promise<PreferenceItem[]> {
   const raw = await api
     .put('api/notifications/preferences', { json: { items: updates } })
-    .json()
-  return preferencesResponseSchema.parse(raw).items
+    .json<PreferencesResponse>()
+  return raw.items
 }

@@ -309,7 +309,7 @@ export function NotificationCenterPage({
     fieldIds: string[],
     fieldSelectionMode: GrantFieldSelectionMode,
   ) {
-    if (!approveTarget || !approvalReview.data) return;
+    if (!approveTarget?.encryptedReason || !approvalReview.data) return;
     approve.mutate(
       {
         grantId: approveTarget.id,
@@ -657,7 +657,7 @@ function splitByCategory(items: NotificationItem[]) {
   const actionItems: NotificationItem[] = [];
   const historyItems: NotificationItem[] = [];
   for (const item of items) {
-    if (item.category === "actionRequired" && item.actionState !== "resolved") {
+    if (item.category === "actionRequired" && item.actionState === "pending") {
       actionItems.push(item);
     } else {
       historyItems.push(item);

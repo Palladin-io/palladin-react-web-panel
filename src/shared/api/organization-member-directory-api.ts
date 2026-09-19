@@ -1,4 +1,3 @@
-import { z } from 'zod'
 import { api } from './client'
 
 export const ORGANIZATION_MEMBER_DIRECTORY_QUERY_KEY = [
@@ -6,22 +5,14 @@ export const ORGANIZATION_MEMBER_DIRECTORY_QUERY_KEY = [
   'member-directory',
 ] as const
 
-export const organizationMemberDirectoryItemSchema = z.object({
-  userId: z.string(),
-  displayName: z.string(),
-})
-
-const organizationMemberDirectoryResponseSchema = z.object({
-  items: z.array(organizationMemberDirectoryItemSchema),
-})
-
-export type OrganizationMemberDirectoryItem = z.infer<
-  typeof organizationMemberDirectoryItemSchema
->
+export interface OrganizationMemberDirectoryItem {
+  userId: string
+  displayName: string
+}
 
 export async function getOrganizationMemberDirectory(): Promise<
   OrganizationMemberDirectoryItem[]
 > {
-  const raw = await api.get('api/organization/member-directory').json()
-  return organizationMemberDirectoryResponseSchema.parse(raw).items
+  const raw = await api.get('api/organization/member-directory').json<{ items: OrganizationMemberDirectoryItem[] }>()
+  return raw.items.map(({ userId, displayName }) => ({ userId, displayName }))
 }

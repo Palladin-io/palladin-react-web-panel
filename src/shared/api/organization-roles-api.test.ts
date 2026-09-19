@@ -1,20 +1,11 @@
-import { describe, expect, it } from 'vitest'
-import { assignablePermissionSchema, organizationRoleSchema } from './organization-roles-api'
+import { expect, it, vi } from 'vitest'
+const json = vi.hoisted(() => vi.fn())
+vi.mock('./client', () => ({ api: { get: vi.fn(() => ({ json })) } }))
+import { getOrganizationRoles } from './organization-roles-api'
 
-describe('organization roles contract', () => {
-  it('parses role assignment counts and permission catalog entries', () => {
-    expect(organizationRoleSchema.parse({
-      id: 'role-1',
-      name: 'Auditor',
-      permissions: 128,
-      isSystem: false,
-      canAssign: true,
-      assignedMemberCount: 3,
-    }).assignedMemberCount).toBe(3)
-    expect(assignablePermissionSchema.parse({ key: 'AuditView', value: 128, canAssign: false })).toEqual({
-      key: 'AuditView',
-      value: 128,
-      canAssign: false,
-    })
-  })
+it('preserves the server display contract and its intended projection', async () => {
+
+  const response = { items: [{ id: 'role', name: 'Auditor', permissions: 128, isSystem: false, canAssign: true, assignedMemberCount: 3 }], assignablePermissions: [{ key: 'Future', value: 0, canAssign: false }] }
+  json.mockResolvedValue(response)
+  expect(await getOrganizationRoles()).toEqual(response)
 })

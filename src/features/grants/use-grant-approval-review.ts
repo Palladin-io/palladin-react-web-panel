@@ -42,6 +42,8 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
     gcTime: 0,
     queryFn: async () => {
       if (!grant || !sessionKey || !grant.entryId || !grant.agentId) throw new GrantReviewUnavailableError('preflight')
+      const reason = grant.encryptedReason
+      if (!reason) throw new GrantReviewUnavailableError('preflight')
       let vault: Awaited<ReturnType<typeof getEncryptedVault>>
       let detail: Awaited<ReturnType<typeof getCanonicalEntry>>
       try {
@@ -54,7 +56,6 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
       }
       if (useAuthStore.getState().privateKey !== sessionKey) throw new GrantReviewUnavailableError('sessionChanged')
       if (detail.state !== 'active' && detail.state !== 1) throw new GrantReviewUnavailableError('preflight')
-      const reason = grant.encryptedReason
       const reasonScope = reason.descriptor.scope
       if (reasonScope.organizationId !== detail.organizationId || reasonScope.vaultId !== grant.vaultId
         || reasonScope.entryId !== grant.entryId || reasonScope.agentId !== grant.agentId

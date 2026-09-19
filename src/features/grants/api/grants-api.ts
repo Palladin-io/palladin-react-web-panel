@@ -1,10 +1,5 @@
-import { z } from 'zod'
 import { api } from '../../../shared/api/client'
-import {
-  GRANT_TYPE_FULL,
-  GRANT_TYPE_GRANULAR,
-  type GrantType,
-} from './org-grants-api'
+import type { GrantType } from './org-grants-api'
 
 /**
  * Grant lifecycle status — camelCase strings matching the backend
@@ -36,51 +31,41 @@ export type GrantStatus = string
  *
  * IMPORTANT: this contract carries NO crypto material — no VK, no DEK, no
  * re-encrypted blobs. Those live only on the GrantEntry rows and never reach
- * the management surface. Parsing here is the boundary guard that keeps the
- * UI honest about that.
+ * the management surface. This is the backend projection contract.
  */
-const grantSchema = z.object({
-  grantId: z.string().optional(),
-  id: z.string().optional(),
-  vaultId: z.string(),
-  agentId: z.string().nullable(),
-  agentName: z.string().nullable(),
-  entryId: z.string().nullable(),
-  entryLabel: z.string().nullable().optional(),
-  status: z.string(),
-  type: z.enum([GRANT_TYPE_FULL, GRANT_TYPE_GRANULAR]),
-  // Combined-flags string of permitted methods, e.g. "get, exec". Optional for
-  // pre-methods backends; the detail row is hidden when absent/empty.
-  methods: z.string().nullable().optional(),
-  expiresAt: z.string().nullable(),
-  queryLimit: z.number().nullable(),
-  queryCount: z.number(),
-  createdAt: z.string(),
-  createdByName: z.string().nullable(),
-  revokedAt: z.string().nullable(),
-  revokedByName: z.string().nullable(),
-  supersededAt: z.string().nullable().optional(),
-  supersededByGrantId: z.string().uuid().nullable().optional(),
-  reason: z.string().nullable().optional(),
-  revokeReason: z.string().nullable().optional(),
-}).superRefine((grant, context) => {
-  if (!grant.grantId && !grant.id) {
-    context.addIssue({ code: 'custom', message: 'Grant id is required' })
-  }
-}).transform(({ id, ...grant }) => ({
-  ...grant,
-  grantId: grant.grantId ?? id!,
-}))
 
-export type Grant = z.infer<typeof grantSchema>
+export interface Grant {
+  grantId: string
+  vaultId: string
+  agentId: string | null
+  agentName: string | null
+  entryId: string | null
+  status: string
+  type: GrantType
+  expiresAt: string | null
+  queryLimit: number | null
+  queryCount: number
+  createdAt: string
+  createdByName: string | null
+  revokedAt: string | null
+  revokedByName: string | null
+  entryLabel?: string | null
+  methods?: string | null
+  supersededAt?: string | null
+  supersededByGrantId?: string | null
+  reason?: string | null
+  revokeReason?: string | null
+}
+
+// The wire contract uses `id`; existing UI routes use `grantId`.
+type GrantResponse = Omit<Grant, 'grantId'> & { id: string; grantId?: string }
+function toGrant({ id, ...grant }: GrantResponse): Grant {
+  return { ...grant, grantId: grant.grantId ?? id }
+}
+
 export type { GrantType }
 
-/** Cursor-paginated list envelope — items are parsed per-row below. */
-const grantPageEnvelopeSchema = z.object({
-  items: z.array(z.unknown()),
-  nextCursor: z.string().nullable().optional(),
-})
-
+/** Cursor-paginated management list. */
 export interface GrantPage {
   items: Grant[]
   nextCursor: string | null
@@ -93,11 +78,7 @@ export interface GetVaultGrantsParams {
   pageSize?: number
 }
 
-/**
- * Per-vault grants list. Each item is parsed individually with `safeParse`
- * (mirrors `getOrgGrants`) so a single malformed row never collapses the entire
- * list into an `ErrorState`.
- */
+/** Per-vault management list, using the authoritative backend contract. */
 export async function getVaultGrants(
   vaultId: string,
   params: GetVaultGrantsParams = {},
@@ -108,27 +89,15 @@ export async function getVaultGrants(
   if (params.cursor) searchParams.set('cursor', params.cursor)
   if (params.pageSize) searchParams.set('pageSize', String(params.pageSize))
 
-  const raw = await api
+  const page = await api
     .get(`api/vaults/${vaultId}/grants`, { searchParams })
-    .json()
-  const page = grantPageEnvelopeSchema.parse(raw)
-
-  const items: Grant[] = []
-  let skipped = 0
-  for (const item of page.items) {
-    const result = grantSchema.safeParse(item)
-    if (result.success) items.push(result.data)
-    else skipped += 1
-  }
-  if (skipped > 0) {
-    console.warn(`[vault-grants] skipped ${skipped} malformed item(s)`)
-  }
-  return { items, nextCursor: page.nextCursor ?? null }
+    .json<{ items: GrantResponse[]; nextCursor: string | null }>()
+  return { items: page.items.map(toGrant), nextCursor: page.nextCursor ?? null }
 }
 
 export async function getGrant(vaultId: string, grantId: string): Promise<Grant> {
-  const raw = await api.get(`api/vaults/${vaultId}/grants/${grantId}`).json()
-  return grantSchema.parse(raw)
+  const response = await api.get(`api/vaults/${vaultId}/grants/${grantId}`).json<GrantResponse>()
+  return toGrant(response)
 }
 
 /**

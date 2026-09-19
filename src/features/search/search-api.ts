@@ -1,16 +1,10 @@
-import { z } from 'zod'
 import { api } from '../../shared/api/client'
 
-const remoteSearchResultSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('agent'), id: z.string().uuid(), name: z.string().max(256) }),
-  z.object({ type: z.literal('member'), id: z.string().uuid(), name: z.string().max(256) }),
-])
-
-const searchResponseSchema = z.object({
-  results: z.array(remoteSearchResultSchema).max(25),
-})
-
-export type RemoteSearchResult = z.infer<typeof remoteSearchResultSchema>
+export interface RemoteSearchResult {
+  type: 'agent' | 'member'
+  id: string
+  name: string
+}
 
 /** Ephemeral administrative search. The query is sent in the request body and
  * is never placed in a URL or TanStack Query cache key. */
@@ -22,6 +16,6 @@ export async function getAdministrativeSearch(
   const raw = await api.post('api/search', {
     json: { q: query, limit },
     signal,
-  }).json()
-  return searchResponseSchema.parse(raw).results
+  }).json<{ results: RemoteSearchResult[] }>()
+  return raw.results
 }

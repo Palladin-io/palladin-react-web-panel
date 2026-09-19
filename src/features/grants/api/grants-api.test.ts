@@ -70,27 +70,22 @@ describe('grants-api', () => {
     expect(grant.type).toBe('full')
   })
 
-  it('rejects a grant without the authoritative type discriminator', async () => {
-    getJson.mockResolvedValue(withoutGrantType())
-
-    await expect(getGrant('v1', 'g1')).rejects.toBeDefined()
+  it('uses the authoritative type even when the legacy alias disagrees', async () => {
+    getJson.mockResolvedValue({ ...sampleGrant, type: 'granular', mode: 'full' })
+    expect((await getGrant('v1', 'g1')).type).toBe('granular')
   })
 
-  it('does not infer grant type from the legacy mode alias', async () => {
+  it('does not infer grant type from a legacy alias', async () => {
     getJson.mockResolvedValue({ ...withoutGrantType(), mode: 'full' })
-
-    await expect(getGrant('v1', 'g1')).rejects.toBeDefined()
+    expect((await getGrant('v1', 'g1')).type).toBeUndefined()
   })
 
-  it('skips a single malformed item instead of collapsing the whole list', async () => {
-    getJson.mockResolvedValue({
-      items: [sampleGrant, { foo: 'bar' }],
-      nextCursor: null,
-    })
+  it('retains every server grant including a future type', async () => {
+    getJson.mockResolvedValue({ items: [sampleGrant, { ...sampleGrant, grantId: 'g2', type: 'future' }], nextCursor: 'more' })
     const page = await getVaultGrants('v1')
-    expect(page.items).toHaveLength(1)
-    expect(page.items[0].grantId).toBe('g1')
-    expect(page.nextCursor).toBeNull()
+    expect(page.items.map((item) => item.grantId)).toEqual(['g1', 'g2'])
+    expect(page.items[1].type).toBe('future')
+    expect(page.nextCursor).toBe('more')
   })
 
   it('keeps a forward-compatible backend lifecycle status', async () => {
@@ -102,7 +97,7 @@ describe('grants-api', () => {
     const page = await getVaultGrants('v1')
 
     expect(page.items[0].status).toBe('suspending')
-    expect(page.items[0]).not.toHaveProperty('futureDisplayHint')
+    expect(page.items[0]).toHaveProperty('futureDisplayHint', true)
   })
 
   it('forwards filters as search params', async () => {
@@ -115,21 +110,14 @@ describe('grants-api', () => {
     expect(params.get('pageSize')).toBe('20')
   })
 
-  it('strips unknown (crypto) fields at the parse boundary', async () => {
-    getJson.mockResolvedValue({
-      // A malicious/buggy backend leaking crypto material must not reach the UI.
-      ...sampleGrant,
-      agentWrappedDek: 'should-not-survive',
-      reEncryptedBlob: 'nope',
-    })
-    const grant = await getGrant('v1', 'g1')
-    expect(grant).not.toHaveProperty('agentWrappedDek')
-    expect(grant).not.toHaveProperty('reEncryptedBlob')
+  it('preserves additive management metadata without a runtime schema', async () => {
+    getJson.mockResolvedValue({ ...sampleGrant, futureDisplayHint: 'new field' })
+    expect(await getGrant('v1', 'g1')).toHaveProperty('futureDisplayHint', 'new field')
   })
 
-  it('rejects a malformed grant (missing required field)', async () => {
-    getJson.mockResolvedValue({ grantId: 'g1' })
-    await expect(getGrant('v1', 'g1')).rejects.toBeDefined()
+  it('propagates transport errors instead of pretending the list is empty', async () => {
+    getJson.mockRejectedValue(new Error('unavailable'))
+    await expect(getVaultGrants('v1')).rejects.toThrow('unavailable')
   })
 
   it('sends a trimmed reason on revoke', async () => {

@@ -1,30 +1,21 @@
-import { z } from 'zod'
 import { api } from './client'
 
 export const ORGANIZATION_ROLES_QUERY_KEY = ['organization-roles'] as const
 
-export const organizationRoleSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  permissions: z.number().int(),
-  isSystem: z.boolean(),
-  canAssign: z.boolean(),
-  assignedMemberCount: z.number().int().nonnegative().default(0),
-})
+export interface OrganizationRole {
+  id: string
+  name: string
+  permissions: number
+  isSystem: boolean
+  canAssign: boolean
+  assignedMemberCount: number
+}
 
-export const assignablePermissionSchema = z.object({
-  key: z.string(),
-  value: z.number().int().positive(),
-  canAssign: z.boolean(),
-})
-
-const organizationRolesResponseSchema = z.object({
-  items: z.array(organizationRoleSchema),
-  assignablePermissions: z.array(assignablePermissionSchema),
-})
-
-export type OrganizationRole = z.infer<typeof organizationRoleSchema>
-export type AssignablePermission = z.infer<typeof assignablePermissionSchema>
+export interface AssignablePermission {
+  key: string
+  value: number
+  canAssign: boolean
+}
 
 export interface OrganizationRolesResponse {
   items: OrganizationRole[]
@@ -37,21 +28,21 @@ export interface SaveOrganizationRoleInput {
 }
 
 export async function getOrganizationRoles(): Promise<OrganizationRolesResponse> {
-  const raw = await api.get('api/organization/roles').json()
-  return organizationRolesResponseSchema.parse(raw)
+  const raw = await api.get('api/organization/roles').json<OrganizationRolesResponse>()
+  return raw
 }
 
 export async function createOrganizationRole(input: SaveOrganizationRoleInput): Promise<OrganizationRole> {
-  const raw = await api.post('api/organization/roles', { json: input }).json()
-  return organizationRoleSchema.parse(raw)
+  const raw = await api.post('api/organization/roles', { json: input }).json<OrganizationRole>()
+  return raw
 }
 
 export async function updateOrganizationRole(
   roleId: string,
   input: SaveOrganizationRoleInput,
 ): Promise<OrganizationRole> {
-  const raw = await api.put(`api/organization/roles/${roleId}`, { json: input }).json()
-  return organizationRoleSchema.parse(raw)
+  const raw = await api.put(`api/organization/roles/${roleId}`, { json: input }).json<OrganizationRole>()
+  return raw
 }
 
 export async function deleteOrganizationRole(roleId: string): Promise<void> {

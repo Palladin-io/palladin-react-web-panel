@@ -74,6 +74,18 @@ describe('useGrantApprovalReview', () => {
     })
   })
 
+
+  it('leaves an unreadable reason unavailable and never opens keys for approval', async () => {
+    const { result } = renderHook(() => useGrantApprovalReview({ ...grant, encryptedReason: null }), { wrapper })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect(result.current.error).toBeInstanceOf(GrantReviewUnavailableError)
+    expect(mocks.getEntry).not.toHaveBeenCalled()
+    expect(mocks.getVault).not.toHaveBeenCalled()
+    expect(mocks.openVaultKey).not.toHaveBeenCalled()
+    expect(mocks.openReason).not.toHaveBeenCalled()
+    expect(mocks.listFields).not.toHaveBeenCalled()
+  })
+
   it('keeps a pending credit-card request denyable but unavailable for approval', async () => {
     mocks.openMemberSecret.mockResolvedValue({
       schemaVersion: 1,

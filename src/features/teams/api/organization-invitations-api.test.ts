@@ -6,14 +6,14 @@ const postFn = vi.hoisted(() => vi.fn(() => ({ json: postJson })))
 vi.mock('../../../shared/api/client', () => ({
   api: {
     post: postFn,
+    get: vi.fn(() => ({ json: postJson })),
   },
 }))
 
 import {
   acceptOrganizationInvitation,
-  organizationInvitationSchema,
+  getOrganizationInvitations,
   resendOrganizationInvitation,
-  resendOrganizationInvitationResponseSchema,
 } from './organization-invitations-api'
 
 describe('organization invitation contract', () => {
@@ -22,8 +22,8 @@ describe('organization invitation contract', () => {
     postJson.mockReset()
   })
 
-  it('parses pending invitation metadata without exposing its token', () => {
-    const invitation = organizationInvitationSchema.parse({
+  it('parses pending invitation metadata without exposing its token', async () => {
+    postJson.mockResolvedValue({ items: [{
       id: 'invitation-1',
       email: 'person@example.com',
       roleId: 'role-1',
@@ -33,7 +33,8 @@ describe('organization invitation contract', () => {
       sentAt: '2026-08-20T11:00:00Z',
       expiresAt: '2026-08-23T10:00:00Z',
       resendAvailableAt: '2026-08-20T11:01:00Z',
-    })
+    }] })
+    const [invitation] = await getOrganizationInvitations()
 
     expect(invitation).toEqual({
       id: 'invitation-1',
@@ -49,26 +50,19 @@ describe('organization invitation contract', () => {
     expect(invitation).not.toHaveProperty('token')
   })
 
-  it('rejects an invitation without an initial role', () => {
-    expect(() => organizationInvitationSchema.parse({
-      id: 'invitation-1',
-      email: 'person@example.com',
-      roleId: null,
-      roleName: 'User',
-      invitedByName: 'Alice Morgan',
-      createdAt: '2026-08-20T10:00:00Z',
-      sentAt: '2026-08-20T11:00:00Z',
-      expiresAt: '2026-08-23T10:00:00Z',
-      resendAvailableAt: '2026-08-20T11:01:00Z',
-    })).toThrow()
+  it('keeps historical invitation metadata without revalidating it', async () => {
+    const invitation = { id: 'legacy', email: 'legacy-email', roleId: null, roleName: null, invitedByName: null }
+    postJson.mockResolvedValue({ items: [invitation] })
+    expect(await getOrganizationInvitations()).toEqual([invitation])
   })
 
-  it('parses resend timing without exposing the replacement token', () => {
-    const result = resendOrganizationInvitationResponseSchema.parse({
+  it('parses resend timing without exposing the replacement token', async () => {
+    postJson.mockResolvedValue({
       sentAt: '2026-08-20T11:00:00Z',
       expiresAt: '2026-08-23T11:00:00Z',
       resendAvailableAt: '2026-08-20T11:01:00Z',
     })
+    const result = await resendOrganizationInvitation('invitation-1')
 
     expect(result.resendAvailableAt).toBe('2026-08-20T11:01:00Z')
     expect(result).not.toHaveProperty('token')

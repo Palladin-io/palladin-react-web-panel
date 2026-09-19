@@ -22,3 +22,5 @@ A segmented inbox (All / To-do / History / Grants) with search and the shared fi
 ## Cross-feature deps
 
 Reuses the approve/deny dialogs from `grants` and `agents` for inline actions, and their queries to resolve card context. It pulls from the most other features of any surface.
+
+REST metadata uses typed responses and never skips rows on a client schema failure. Future categories and non-pending action states stay visible in History; only an explicitly pending action-required item belongs to To-do. Metadata sanitization and independent push-message decoding remain in place.

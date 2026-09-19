@@ -1,4 +1,3 @@
-import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 
 /**
@@ -6,18 +5,17 @@ import { api } from '../../../shared/api/client'
  * aggregate (one `GROUP BY` server-side) that backs the dashboard status tiles.
  * Counts only; no secrets, names, or crypto material are ever returned.
  */
-export const grantSummarySchema = z.object({
-  pending: z.number(),
-  active: z.number(),
-  expired: z.number(),
-  revoked: z.number(),
-  consumed: z.number(),
-  denied: z.number(),
-})
 
-export type GrantSummary = z.infer<typeof grantSummarySchema>
+export interface GrantSummary {
+  pending: number
+  active: number
+  expired: number
+  revoked: number
+  consumed: number
+  denied: number
+}
 
 export async function getGrantSummary(): Promise<GrantSummary> {
-  const raw = await api.get('api/grants/summary').json()
-  return grantSummarySchema.parse(raw)
+  const raw = await api.get('api/grants/summary').json<GrantSummary>()
+  return raw
 }

@@ -1,23 +1,17 @@
-import { z } from 'zod'
 import { api } from '../../../shared/api/client'
 
-export const vaultMemberStatusSchema = z.string()
+export interface VaultMember {
+  memberId: string
+  memberName: string | null
+  addedAt: string
+  deprovisioningStatus: string
+  rotationId: string | null
+}
 
-export const vaultMemberSchema = z.object({
-  memberId: z.string().uuid(),
-  memberName: z.string().nullable(),
-  addedAt: z.string(),
-  deprovisioningStatus: vaultMemberStatusSchema,
-  rotationId: z.string().uuid().nullable(),
-})
-
-const vaultMemberPageSchema = z.object({
-  items: z.array(vaultMemberSchema).max(100),
-  nextAfterId: z.string().uuid().nullable(),
-})
-
-export type VaultMember = z.infer<typeof vaultMemberSchema>
-export type VaultMemberPage = z.infer<typeof vaultMemberPageSchema>
+export interface VaultMemberPage {
+  items: VaultMember[]
+  nextAfterId: string | null
+}
 
 export async function getVaultMembers(
   vaultId: string,
@@ -28,6 +22,6 @@ export async function getVaultMembers(
       pageSize: 50,
       ...(afterId ? { afterId } : {}),
     },
-  }).json()
-  return vaultMemberPageSchema.parse(raw)
+  }).json<VaultMemberPage>()
+  return raw
 }

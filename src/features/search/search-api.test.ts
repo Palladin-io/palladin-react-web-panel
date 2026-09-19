@@ -23,7 +23,7 @@ describe('getAdministrativeSearch', () => {
     const controller = new AbortController()
     const result = await getAdministrativeSearch('private query', controller.signal, 8)
     expect(result).toHaveLength(2)
-    expect(result[0]).toEqual({ type: 'agent', id: agentId, name: 'Deploy Bot' })
+    expect(result[0]).toEqual({ type: 'agent', id: agentId, name: 'Deploy Bot', futureHint: true })
     expect(postFn).toHaveBeenCalledWith('api/search', {
       json: { q: 'private query', limit: 8 },
       signal: controller.signal,
@@ -31,8 +31,9 @@ describe('getAdministrativeSearch', () => {
     expect(postFn.mock.calls[0][0]).not.toContain('private query')
   })
 
-  it('rejects Vault or Entry projections from the administrative provider', async () => {
-    postJson.mockResolvedValue({ results: [{ type: 'entry', id: agentId, name: 'Must stay local' }] })
-    await expect(getAdministrativeSearch('entry', new AbortController().signal)).rejects.toThrow()
+  it('does not revalidate server-owned identifier and label constraints', async () => {
+    const row = { type: 'agent', id: 'legacy-id', name: 'A'.repeat(300) }
+    postJson.mockResolvedValue({ results: [row] })
+    await expect(getAdministrativeSearch('agent', new AbortController().signal)).resolves.toEqual([row])
   })
 })

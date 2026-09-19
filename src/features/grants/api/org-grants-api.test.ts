@@ -46,12 +46,6 @@ const sampleGrant = {
   lastAccessHostname: 'ci-runner',
 }
 
-function withoutGrantType() {
-  const grant: Partial<typeof sampleGrant> = { ...sampleGrant }
-  delete grant.type
-  return grant
-}
-
 describe('org-grants-api', () => {
   beforeEach(() => {
     getJson.mockReset()
@@ -107,10 +101,9 @@ describe('org-grants-api', () => {
     expect(params.get('pageSize')).toBe('50')
   })
 
-  it('skips a single malformed row instead of collapsing the list', async () => {
-    getJson.mockResolvedValue({ items: [sampleGrant, { nope: true }] })
-    const page = await getOrgGrants()
-    expect(page.items).toHaveLength(1)
+  it('retains historical grant rows without rechecking epoch ranges', async () => {
+    getJson.mockResolvedValue({ items: [sampleGrant, { ...sampleGrant, id: 'g2', agentAccessEpoch: 0, status: 'expired' }] })
+    expect((await getOrgGrants()).items.map((grant) => grant.id)).toEqual(['g1', 'g2'])
   })
 
   it('keeps a forward-compatible backend lifecycle status', async () => {
@@ -121,20 +114,14 @@ describe('org-grants-api', () => {
     expect(page.items[0].status).toBe('suspending')
   })
 
-  it('skips a row without the authoritative type discriminator', async () => {
-    getJson.mockResolvedValue({ items: [withoutGrantType()] })
-
-    const page = await getOrgGrants()
-    expect(page.items).toEqual([])
+  it('preserves a future grant discriminator without inferring it from payload shape', async () => {
+    getJson.mockResolvedValue({ items: [{ ...sampleGrant, type: 'future' }] })
+    expect((await getOrgGrants()).items[0].type).toBe('future')
   })
 
-  it('strips ciphertext fields at the parse boundary', async () => {
-    getJson.mockResolvedValue({
-      items: [{ ...sampleGrant, agentWrappedDek: 'leak', reEncryptedBlob: 'leak' }],
-    })
-    const page = await getOrgGrants()
-    expect(page.items[0]).not.toHaveProperty('agentWrappedDek')
-    expect(page.items[0]).not.toHaveProperty('reEncryptedBlob')
+  it('propagates a failed request instead of returning an empty history', async () => {
+    getJson.mockRejectedValue(new Error('unavailable'))
+    await expect(getOrgGrants()).rejects.toThrow('unavailable')
   })
 
   it.each(['active', 'expired', 'consumed', 'revoked', 'denied', 'superseded'])(
@@ -151,7 +138,7 @@ describe('org-grants-api', () => {
       expect(page.items).toHaveLength(1)
       expect(page.items[0].status).toBe(status)
       expect(page.items[0].entryScopes[0].fieldSelectionMode).toBe('selected')
-      expect(page.items[0].entryScopes[0]).not.toHaveProperty('futureDisplayMetadata')
+      expect(page.items[0].entryScopes[0]).toEqual(scope)
     },
   )
 

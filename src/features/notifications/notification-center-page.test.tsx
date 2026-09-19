@@ -267,6 +267,22 @@ describe("NotificationCenterPage", () => {
     expect(screen.getByText("Alice Admin")).toBeInTheDocument();
   });
 
+  it.each([
+    { category: "actionRequired", actionState: "expired" },
+    { category: "futureCategory", actionState: "pending" },
+  ])("keeps future or non-pending notifications in History without approval actions: %j", (state) => {
+    const original = items[0];
+    items[0] = { ...original, ...state };
+    try {
+      renderPage();
+      expect(screen.getByText(/Deploy Bot/)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Deny" })).not.toBeInTheDocument();
+    } finally {
+      items[0] = original;
+    }
+  });
+
   it("does not attach an authenticated reason to mismatched notification coordinates", () => {
     const original = items[0];
     grantHistoryMetadata.set('["grant_approved","g1","v1","e1","a1"]', {

@@ -1,18 +1,11 @@
-import { describe, expect, it } from 'vitest'
-import { organizationSchema } from './org-api'
+import { expect, it, vi } from 'vitest'
+const json = vi.hoisted(() => vi.fn())
+vi.mock('../../../shared/api/client', () => ({ api: { get: vi.fn(() => ({ json })) } }))
+import { getOrganization } from './org-api'
 
-describe('organization contract', () => {
-  it('parses member and reserved-seat usage', () => {
-    const organization = organizationSchema.parse({
-      orgId: 'org-1',
-      name: 'Example',
-      memberCount: 2,
-      seatUsage: 4,
-      seatLimit: 5,
-    })
+it('preserves the server display contract and its intended projection', async () => {
 
-    expect(organization.memberCount).toBe(2)
-    expect(organization.seatUsage).toBe(4)
-    expect(organization.seatLimit).toBe(5)
-  })
+  const response = { orgId: 'org', name: 'Example', memberCount: 2, seatUsage: 4, seatLimit: 5 }
+  json.mockResolvedValue(response)
+  expect(await getOrganization()).toEqual(response)
 })
