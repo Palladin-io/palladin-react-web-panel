@@ -6,6 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../auth'
 import { EntryDetailPage } from './entry-detail-page'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, type Vault } from './types'
+import type { CustomField } from './types'
+import { toMemberSecret } from '../../shared/crypto/entry-draft'
+import { listGrantableFields } from '@palladin/crypto'
+import type { AgentFieldAccess } from '../../shared/crypto/entry-draft'
 import type { CanonicalEntryDetail } from './api/vault-api'
 
 // ---------------------------------------------------------------------------
@@ -47,6 +51,7 @@ const {
     deleteIsPending: false,
     decryptResult: null as EntryPlaintextLite | null,
     decryptShouldThrow: false,
+    policyFields: {} as Record<string, AgentFieldAccess>,
     decryptedIconReference: undefined as string | undefined,
     memberIndex: { memberLabel: 'Stripe API Key', entryType: 'key' as 'key' | 'credential' | 'creditCard', icon: null },
     memberEntryAvailable: true,
@@ -63,6 +68,8 @@ type EntryPlaintextLite =
       password: string
       url?: string
       notes?: string
+      fields?: CustomField[]
+      totp?: string
     }
   | {
       type: 3
@@ -133,7 +140,7 @@ openCurrentEntryMock.mockImplementation(async () => {
       entryType: state.decryptResult.type,
       content: state.decryptResult,
       ...(state.decryptedIconReference ? { iconReference: state.decryptedIconReference } : {}),
-      agentVisibilityPolicy: { discoverable: true, fields: { agentLabel: 'discovery' } },
+      agentVisibilityPolicy: { discoverable: true, fields: { agentLabel: 'discovery', ...state.policyFields } },
     }
 })
 vi.mock('../../shared/crypto/entry-draft', async (importOriginal) => ({
@@ -263,6 +270,128 @@ function unlockedAuthStore() {
 // ---------------------------------------------------------------------------
 
 describe('EntryDetailPage — DetailsTab', () => {
+  it('makes newly added TOTP grantable when saving an existing credential', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'fixture-password' }
+    state.memberIndex = { memberLabel: 'AWS fixture', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
+    await user.click(screen.getByRole('button', { name: /add 2fa/i }))
+    await user.type(screen.getByLabelText(/otpauth|secret/i), 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ')
+    await user.click(screen.getByRole('button', { name: /apply totp/i }))
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalled())
+    const draft = updateMutateMock.mock.calls[0][0].draft
+    const fieldId = `custom:${draft.content.fields[0].id}`
+    expect(draft.policy.fields[fieldId]).toBe('onGrantDerived')
+    const secret = toMemberSecret({ label: draft.memberLabel, agentLabel: draft.agentLabel,
+      type: draft.entryType, payload: draft.content, policy: draft.policy })
+    const fields = listGrantableFields(secret).map(({ id }) => id)
+    expect(fields).toContain(fieldId)
+    expect(secret.content.customFields[0]).toMatchObject({ id: fieldId, type: 'totp',
+      value: { secret: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', algorithm: 'SHA1', digits: 6, period: 30 } })
+  })
+
+  it('requires an explicit owner toggle to re-enable existing restricted TOTP without changing its seed', async () => {
+    const user = userEvent.setup()
+    const id = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
+    const field: CustomField = { id, label: '2FA', type: 'totp', value: {
+      secret: 'JBSWY3DPEHPK3PXP', algorithm: 'SHA1', digits: 6, period: 30,
+    } }
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'fixture-password', fields: [field] }
+    state.policyFields = { [`custom:${id}`]: 'never' }
+    state.memberIndex = { memberLabel: 'AWS fixture', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    const toggle = await screen.findByRole('switch', { name: /allow granted agents to use 2fa/i })
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    await user.click(toggle)
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalled())
+    const draft = updateMutateMock.mock.calls[0][0].draft
+    expect(draft.policy.fields[`custom:${id}`]).toBe('onGrantDerived')
+    expect(draft.content.fields).toEqual([field])
+  })
+
+  it.each(['never', 'onGrantDerived'] as const)('preserves native TOTP identity and its %s restriction on ordinary edits', async (access) => {
+    const user = userEvent.setup()
+    const uri = 'otpauth://totp/fixture?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=6&period=30'
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'fixture-password', totp: uri }
+    state.policyFields = { totp: access }
+    state.memberIndex = { memberLabel: 'AWS fixture', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    const toggle = await screen.findByRole('switch', { name: /allow granted agents to use 2fa/i })
+    expect(toggle).toHaveAttribute('aria-checked', String(access === 'onGrantDerived'))
+    await user.type(screen.getByLabelText(/^label$/i), ' renamed')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalled())
+    const draft = updateMutateMock.mock.calls[0][0].draft
+    expect(draft.content.totp).toBe(uri)
+    expect(draft.content.fields ?? []).toHaveLength(0)
+    expect(draft.policy.fields.totp).toBe(access)
+    const secret = toMemberSecret({ label: draft.memberLabel, agentLabel: draft.agentLabel,
+      type: draft.entryType, payload: draft.content, policy: draft.policy })
+    expect(secret.agentFieldAccess['credential.totp']).toBe(access)
+    expect(listGrantableFields(secret).some(({ id }) => id === 'credential.totp')).toBe(access === 'onGrantDerived')
+  })
+
+  it('preserves distinct native and custom TOTP identities when both exist', async () => {
+    const user = userEvent.setup()
+    const id = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
+    const uri = 'otpauth://totp/primary?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&algorithm=SHA1&digits=6&period=30'
+    const field: CustomField = { id, label: 'Additional 2FA', type: 'totp', value: {
+      secret: 'JBSWY3DPEHPK3PXP', algorithm: 'SHA256', digits: 8, period: 60,
+    } }
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'fixture-password',
+      totp: uri, fields: [field] }
+    state.policyFields = { totp: 'never', [`custom:${id}`]: 'onGrantDerived' }
+    state.memberIndex = { memberLabel: 'AWS fixture', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    expect(await screen.findByRole('switch', { name: /allow granted agents to use 2fa/i }))
+      .toHaveAttribute('aria-checked', 'false')
+    await user.type(screen.getByLabelText(/^label$/i), ' renamed')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalled())
+    const draft = updateMutateMock.mock.calls[0][0].draft
+    expect(draft.content.totp).toBe(uri)
+    expect(draft.content.fields).toEqual([field])
+    expect(draft.policy.fields.totp).toBe('never')
+    expect(draft.policy.fields[`custom:${id}`]).toBe('onGrantDerived')
+  })
+
+  it('preserves existing custom TOTP never on an unrelated edit', async () => {
+    const user = userEvent.setup()
+    const id = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
+    const field: CustomField = { id, label: '2FA', type: 'totp', value: {
+      secret: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', algorithm: 'SHA1', digits: 6, period: 30,
+    } }
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'fixture-password', fields: [field] }
+    state.policyFields = { [`custom:${id}`]: 'never' }
+    state.memberIndex = { memberLabel: 'AWS fixture', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await screen.findByRole('switch', { name: /allow granted agents to use 2fa/i })
+    await user.type(screen.getByLabelText(/^label$/i), ' renamed')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalled())
+    const draft = updateMutateMock.mock.calls[0][0].draft
+    expect(draft.policy.fields[`custom:${id}`]).toBe('never')
+    expect(draft.content.fields).toEqual([field])
+  })
+
   it('preserves unsaved TOTP when sync refreshes the same Entry revision', async () => {
     const user = userEvent.setup()
     unlockedAuthStore()
@@ -309,6 +438,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.deleteIsPending = false
     state.decryptResult = null
     state.decryptShouldThrow = false
+    state.policyFields = {}
     state.decryptedIconReference = undefined
     state.memberEntryAvailable = true
     state.memberIndex = { memberLabel: 'Stripe API Key', entryType: 'key', icon: null }
@@ -480,6 +610,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(screen.getByText(/encrypted data is being refreshed/i)).toBeInTheDocument()
 
     state.decryptShouldThrow = false
+    state.policyFields = {}
     await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />))
     await waitFor(() => expect(screen.queryByText(/encrypted data is being refreshed/i)).not.toBeInTheDocument())
     expect(openCurrentEntryMock).toHaveBeenCalledTimes(3)

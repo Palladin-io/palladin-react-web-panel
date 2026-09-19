@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
+import { ToggleSwitch } from '../../../shared/components/toggle-switch'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
 import { copyToClipboard } from '../../../shared/lib/clipboard'
@@ -16,6 +17,7 @@ export interface CredentialTotpFieldProps {
   value: CustomField | null
   onChange: (next: CustomField | null) => void
   disabled?: boolean
+  agentAccess?: { allowed: boolean; onChange: (allowed: boolean) => void }
 }
 
 /**
@@ -24,10 +26,10 @@ export interface CredentialTotpFieldProps {
  * field. Three states: empty (a dashed prompt + "Add 2FA"), setup (paste/scan
  * controls), and configured (a card with issuer/account, a live code + seconds
  * countdown, copy, and a ⋯ menu to replace or remove). The shared secret is never
- * shown. Storage is unchanged — the parent pins this into the first `fields[]`
- * TOTP entry.
+ * shown. The parent preserves the original native/custom TOTP identity and
+ * may expose an explicit grant-access choice.
  */
-export function CredentialTotpField({ value, onChange, disabled }: CredentialTotpFieldProps) {
+export function CredentialTotpField({ value, onChange, disabled, agentAccess }: CredentialTotpFieldProps) {
   const { t } = useTranslation()
   const params = value && typeof value.value === 'object' ? (value.value as TotpParams) : null
   const configured = !!params && params.secret.trim().length > 0
@@ -65,7 +67,16 @@ export function CredentialTotpField({ value, onChange, disabled }: CredentialTot
     )
   }
 
-  return <ConfiguredCard params={params} onReplace={() => setSetup(true)} onRemove={() => onChange(null)} disabled={disabled} />
+  return (
+    <div className="flex flex-col gap-3">
+      <ConfiguredCard params={params} onReplace={() => setSetup(true)} onRemove={() => onChange(null)} disabled={disabled} />
+      {agentAccess && <div className="flex items-center justify-between gap-3 text-ui text-[var(--cv-t2)]">
+        <span>{t('vault.entries.totp.agentAccess')}</span>
+        <ToggleSwitch label={t('vault.entries.totp.agentAccess')} checked={agentAccess.allowed}
+          onChange={agentAccess.onChange} disabled={disabled} />
+      </div>}
+    </div>
+  )
 }
 
 function ConfiguredCard({

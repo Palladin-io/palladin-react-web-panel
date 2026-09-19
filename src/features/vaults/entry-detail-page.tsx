@@ -14,6 +14,7 @@ import { presentationIconReference } from '../../shared/crypto/vault-plaintext'
 import {
   ENTRY_FIELD,
   fromMemberSecret,
+  withNewCredentialTotpPolicy,
   type AgentVisibilityPolicy,
   type MemberSecretView,
 } from '../../shared/crypto/entry-draft'
@@ -49,6 +50,7 @@ import {
   ENTRY_TYPE_SCRIPT,
   SCRIPT_INTERPRETERS,
   type CustomField,
+  type TotpParams,
   type EntryDetail,
   type EntryPlaintext,
   type ScriptInterpreter,
@@ -66,7 +68,7 @@ import {
   splitCredentialTotp,
   validateCustomFields,
 } from './entry-blob'
-import { parseOtpauthUri } from '../../shared/crypto/totp'
+import { formatOtpauthUri, parseOtpauthUri } from '../../shared/crypto/totp'
 import { CustomFieldsEditor } from './components/custom-fields-editor'
 import { CredentialTotpField } from './components/credential-totp-field'
 import { ScriptEditor } from './components/script-editor'
@@ -619,6 +621,11 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
     entry.type === ENTRY_TYPE_CREDENTIAL
       ? mergeCredentialTotp(credentialTotp, customFields)
       : customFields
+  const nativeTotp = originalPlaintext?.type === ENTRY_TYPE_CREDENTIAL
+    && !!originalPlaintext.totp && parseOtpauthUri(originalPlaintext.totp) !== null
+  const totpPolicyId = credentialTotp ? nativeTotp ? ENTRY_FIELD.totp : `custom:${credentialTotp.id}` : null
+  const existingTotp = nativeTotp || originalSecret?.content.fields?.some((field) => field.id === credentialTotp?.id)
+  const totpAccess = totpPolicyId ? policy?.fields[totpPolicyId] ?? (existingTotp ? 'never' : 'onGrantDerived') : 'never'
   const fieldsInvalid = validateCustomFields(mergedFields).hasError
   const scriptContractInvalid = entry.type === ENTRY_TYPE_SCRIPT
     && (!description.trim() || validateScriptParameterDrafts(scriptParameters) !== null
@@ -699,7 +706,10 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
     const iconReference = icon
       ? /^(?:website|public-asset|vault-asset):/.test(icon) ? icon : `builtin:${icon}`
       : originalIcon?.startsWith('builtin:') ? undefined : originalIcon
-    const basePolicy = policy ?? originalSecret.agentVisibilityPolicy
+    const savedPolicy = policy ?? originalSecret.agentVisibilityPolicy
+    const basePolicy = entry.type === ENTRY_TYPE_CREDENTIAL
+      ? withNewCredentialTotpPolicy(originalSecret.content.fields ?? [], current.fields ?? [], savedPolicy)
+      : savedPolicy
     const nextPolicy = entry.type === ENTRY_TYPE_SCRIPT
       ? {
           ...basePolicy,
@@ -1126,6 +1136,12 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                 value={credentialTotp}
                 onChange={setCredentialTotp}
                 disabled={isSaving || decrypting}
+                agentAccess={totpPolicyId && policy ? {
+                  allowed: totpAccess === 'onGrantDerived',
+                  onChange: (allowed) => setPolicy({ ...policy, fields: {
+                    ...policy.fields, [totpPolicyId]: allowed ? 'onGrantDerived' : 'never',
+                  } }),
+                } : undefined}
               />
               </>
             )}
@@ -1374,10 +1390,9 @@ type CredentialPlaintext = Extract<EntryPlaintext, { type: typeof ENTRY_TYPE_CRE
 
 /**
  * Rebuild the entry's plaintext from the current inline-edit form state. For a
- * credential the pinned 2FA field is merged back into `fields[]`; a legacy
- * top-level `totp` URI is preserved only while it hasn't been pinned (malformed
- * seed that couldn't be parsed), so nothing is lost. `v: 2` is stamped only when
- * fields are present, so a plain KEY/CREDENTIAL blob stays v1.
+ * credential the pinned 2FA field retains its original native/custom identity.
+ * An unparseable top-level URI is kept while no replacement field is configured.
+ * `v: 2` is stamped only when fields are present, so a plain KEY/CREDENTIAL blob stays v1.
  */
 function buildCurrentPlaintext(
   original: EntryPlaintext,
@@ -1428,10 +1443,14 @@ function buildCurrentPlaintext(
       ...foldFieldsPart(values.customFields),
     }
   }
-  const fieldsPart = foldFieldsPart(mergeCredentialTotp(values.credentialTotp, values.customFields))
-  // Keep an unparseable legacy totp string only while no 2FA field is pinned.
-  const legacyTotp =
-    !values.credentialTotp && original.type === ENTRY_TYPE_CREDENTIAL ? original.totp : undefined
+  const originalTotp = original.type === ENTRY_TYPE_CREDENTIAL ? original.totp : undefined
+  const nativeTotp = !!originalTotp && parseOtpauthUri(originalTotp) !== null
+  // Keep native TOTP under credential.totp so selected grants keep the same field identity.
+  const fieldsPart = foldFieldsPart(nativeTotp ? values.customFields : mergeCredentialTotp(values.credentialTotp, values.customFields))
+  const legacyTotp = nativeTotp
+    ? values.credentialTotp && typeof values.credentialTotp.value === 'object'
+      ? formatOtpauthUri(values.credentialTotp.value as TotpParams) : undefined
+    : !values.credentialTotp ? originalTotp : undefined
   return {
     type: ENTRY_TYPE_CREDENTIAL,
     username: values.username.trim(),
@@ -1472,10 +1491,9 @@ function foldFieldsPart(fields: CustomField[]): { v?: typeof BLOB_VERSION_V2; fi
 }
 
 /**
- * Pin the dedicated credential 2FA field for editing. If a TOTP field already
- * exists it is used as-is; otherwise a legacy top-level `totp` URI is parsed and
- * migrated into a field object, with the returned `baseline` reflecting that
- * migration so the form doesn't read as dirty on load.
+ * Pin native credential.totp when present; otherwise use the first custom TOTP.
+ * The editable native field retains its credential.totp identity on save.
+ * The baseline normalizes only its URI representation, preserving selected grants.
  */
 function pinCredentialTotp(pt: CredentialPlaintext): {
   pinned: CustomField | null
@@ -1483,9 +1501,6 @@ function pinCredentialTotp(pt: CredentialPlaintext): {
   baseline: EntryPlaintext
 } {
   const fields = readCustomFields(pt)
-  const split = splitCredentialTotp(fields)
-  if (split.pinned) return { pinned: split.pinned, rest: split.rest, baseline: pt }
-
   if (pt.totp) {
     const params = parseOtpauthUri(pt.totp)
     if (params) {
@@ -1497,12 +1512,11 @@ function pinCredentialTotp(pt: CredentialPlaintext): {
       }
       const baseline: EntryPlaintext = {
         ...pt,
-        totp: undefined,
-        v: BLOB_VERSION_V2,
-        fields: mergeCredentialTotp(pinned, fields),
+        totp: formatOtpauthUri(params),
       }
       return { pinned, rest: fields, baseline }
     }
   }
-  return { pinned: null, rest: fields, baseline: pt }
+  const split = splitCredentialTotp(fields)
+  return { pinned: split.pinned, rest: split.rest, baseline: pt }
 }
