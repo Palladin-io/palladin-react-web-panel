@@ -8,7 +8,7 @@ import { EntryDetailPage } from './entry-detail-page'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, type Vault } from './types'
 import type { CustomField } from './types'
 import { toMemberSecret } from '../../shared/crypto/entry-draft'
-import { listGrantableFields } from '@palladin/crypto'
+import { listGrantableFields, projectCanonicalGrantPayloadV2 } from '@palladin/crypto'
 import type { AgentFieldAccess } from '../../shared/crypto/entry-draft'
 import type { CanonicalEntryDetail } from './api/vault-api'
 
@@ -291,6 +291,9 @@ describe('EntryDetailPage — DetailsTab', () => {
       type: draft.entryType, payload: draft.content, policy: draft.policy })
     const fields = listGrantableFields(secret).map(({ id }) => id)
     expect(fields).toContain(fieldId)
+    const payload = await projectCanonicalGrantPayloadV2(secret, fields)
+    expect(payload.fields).toContainEqual(expect.objectContaining({ id: fieldId, kind: 'totp', mode: 'derived',
+      value: expect.objectContaining({ source: 'totp', secret: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ' }) }))
     expect(secret.content.customFields[0]).toMatchObject({ id: fieldId, type: 'totp',
       value: { secret: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', algorithm: 'SHA1', digits: 6, period: 30 } })
   })

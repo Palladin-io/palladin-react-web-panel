@@ -24,12 +24,16 @@ Two split-view route pages — a per-vault grant master/detail view and an org-w
 
 ## Cross-feature deps
 
-CVT-573: Grant construction and grantable-field presentation now delegate to
-`@palladin/crypto` 0.6.0's current delivery-bound builder. Plaintext and complete
+CVT-573: Grant construction and grantable-field presentation delegate to
+`@palladin/crypto` 0.8.0. The shared web adapter uses `buildCanonicalGrantEnvelopeV2`
+for creation, approval and atomic refresh. Its encrypted `palladin.grant-payload.v2`
+contains typed TOTP source parameters for native runtime derivation, including
+both primary and custom TOTP, only when the Entry policy and field selection permit it.
+Plaintext and complete
 ScriptExecution package producers are thin adapters to the shared current
 contract, including exact Discovery references, derived TOTP and Key URL content.
 No local grant or Script package crypto producer remains. The manifest and
-lockfile pin the published registry release 0.6.0; clean installs do not depend
+lockfile pin the published registry release 0.8.0; clean installs do not depend
 on a local tarball or a feature-branch package.
 
 The org grants panel, grant-access dialog, and approve/deny dialogs are **exported and consumed by `vaults`** (entry/vault Agents tabs) and **`notifications`** (inline approve/deny). Approval and regrant always resolve the current Agent key metadata before producing envelopes; notification metadata is not trusted as cryptographic context. Changes here ripple into both.
