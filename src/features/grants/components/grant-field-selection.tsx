@@ -24,7 +24,7 @@ export function GrantFieldSelectionFields({ fields, value, onChange, disabled = 
     {value.mode === 'all'
       ? <p className="text-meta text-[var(--cv-t3)]">{t('grants.fields.future')}</p>
       : <>
-        <TypeFilterDropdown options={fields.map((field) => ({ value: field.id, label: field.label }))}
+        <TypeFilterDropdown portal disabled={disabled} options={fields.map((field) => ({ value: field.id, label: field.label }))}
           selected={new Set(value.fieldIds)} onChange={(next) => onChange({ mode: 'selected', fieldIds: [...next] })}
           placeholder={t('grants.fields.choose')} ariaLabel={t('grants.fields.choose')} triggerClassName="h-control" />
         <FeedbackSlot visible={value.fieldIds.length === 0} color="red">{t('grants.fields.required')}</FeedbackSlot>

@@ -350,7 +350,7 @@ describe('useImportEntries', () => {
         agentPublicKey: 'pk', recipientAgentKeyVersion: 2, methods: 'inject',
         expiresAt: null, queryLimit: null,
         entryScopes: [{ entryId: 'old-1', fieldIds: ['credential.password'], fieldSelectionMode: mode,
-          ...(mode === 'selected' ? { selectedFieldIds: ['credential.username', 'credential.totp'] } : {}),
+          selectedFieldIds: mode === 'selected' ? ['credential.username', 'credential.totp'] : [],
           grantEnvelopeRevision: '1', grantKeyVersion: 1 }],
       }],
       nextCursor: null,

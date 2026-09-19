@@ -350,7 +350,8 @@ export function useImportEntries() {
                 || !grant.agentId || !grant.agentPublicKey || !grant.recipientAgentKeyVersion
                 || methods.length === 0) throw new Error('Active grant refresh context is invalid')
               const approvedFieldIds = (scope.fieldSelectionMode === 'all'
-                ? [...grantable] : scope.selectedFieldIds ?? scope.fieldIds)
+                ? [...grantable] : scope.fieldSelectionMode === 'selected'
+                  ? scope.selectedFieldIds ?? scope.fieldIds : scope.fieldIds)
                 .map((fieldId) => grantPayloadPolicyFieldId(nextSecret.entryType, fieldId))
                 .filter((fieldId) => grantable.has(fieldId))
               if (approvedFieldIds.length === 0) throw new Error('Active grant has no permitted fields')

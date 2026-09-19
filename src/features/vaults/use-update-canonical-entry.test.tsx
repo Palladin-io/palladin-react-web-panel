@@ -79,7 +79,7 @@ describe('useUpdateCanonicalEntry', () => {
     mocks.getGrants.mockResolvedValue({ items: [{
       id: 'grant', type: 'granular', entryId: 'entry', agentId: 'agent', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
       methods: 'exec, inject', expiresAt: null, queryLimit: 8, queryCount: 3,
-      entryScopes: [{ entryId: 'entry', fieldIds: ['value'], grantEnvelopeRevision: '9',
+      entryScopes: [{ entryId: 'entry', fieldIds: ['value'], selectedFieldIds: [], grantEnvelopeRevision: '9',
         entryRevision: '1', grantKeyVersion: 5 }],
     }], nextCursor: null })
     const { result } = renderHook(() => useUpdateCanonicalEntry('vault', 'entry'), { wrapper })
@@ -140,7 +140,7 @@ describe('useUpdateCanonicalEntry', () => {
     mocks.getGrants.mockResolvedValue({ items: [{
       id: 'grant', type: 'granular', entryId: 'entry', agentId: 'agent', agentPublicKey: 'PK', recipientAgentKeyVersion: 4,
       methods: 'exec, inject', expiresAt: null, queryLimit: null,
-      entryScopes: [{ entryId: 'entry', fieldIds: ['value'], grantEnvelopeRevision: '9',
+      entryScopes: [{ entryId: 'entry', fieldIds: ['value'], selectedFieldIds: [], grantEnvelopeRevision: '9',
         entryRevision: '1', grantKeyVersion: 5 }],
     }], nextCursor: null })
     const scriptInput = {

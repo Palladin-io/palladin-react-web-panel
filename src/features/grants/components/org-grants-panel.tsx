@@ -200,7 +200,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
         type: grant.type,
         ...(grant.type === 'granular' ? { fieldSelection: previousScope?.fieldSelectionMode === 'all'
           ? { mode: 'all' as const }
-          : { mode: 'selected' as const, fieldIds: previousScope?.selectedFieldIds ?? previousScope?.fieldIds ?? [] } } : {}),
+          : { mode: 'selected' as const, fieldIds: (previousScope?.fieldSelectionMode === 'selected' ? previousScope.selectedFieldIds : undefined) ?? previousScope?.fieldIds ?? [] } } : {}),
         policy,
         methods: parseGrantMethods(grant.methods),
       },
