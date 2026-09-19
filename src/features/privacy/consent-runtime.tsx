@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useRouterState } from '@tanstack/react-router'
-import { useAuthStore, captureClientSessionGeneration, clientSessionGenerationMatches } from '../auth'
+import { useAuthStore, clientSessionGenerationMatches } from '../auth'
 import { analytics } from '../../shared/lib/analytics'
 import { isAnalyticsPaused } from '../../shared/lib/analytics-pause'
 import { useConsents, useAnalyticsPaused } from './use-consents'
@@ -17,16 +17,17 @@ export function ConsentRuntime() {
 
   useEffect(() => {
     const userId = consents.userId
-    if (!consents.sessionAllowed || !userId || !accessToken || consents.isError || !granted || paused) {
+    const generation = consents.data?.generation
+    if (!consents.sessionAllowed || !userId || !accessToken || consents.isError || !granted || paused
+      || generation === undefined || !clientSessionGenerationMatches(generation)) {
       analytics.reset()
       return
     }
-    const generation = captureClientSessionGeneration()
     analytics.authorize(userId, deadline, () => {
       return useAuthStore.getState().userId === userId && !!useAuthStore.getState().accessToken
         && clientSessionGenerationMatches(generation) && !isAnalyticsPaused(userId)
     })
-  }, [consents.sessionAllowed, consents.userId, accessToken, consents.isError, consent, granted, paused, deadline])
+  }, [consents.sessionAllowed, consents.userId, accessToken, consents.isError, consent, granted, paused, deadline, consents.data?.generation])
 
   useEffect(() => {
     if (consents.sessionAllowed) analytics.pageview(routeId)

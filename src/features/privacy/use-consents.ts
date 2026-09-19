@@ -25,7 +25,7 @@ export function useConsents() {
       if (!clientSessionGenerationMatches(generation) || useAuthStore.getState().userId !== userId) {
         throw new Error('Stale account session')
       }
-      return { ...response, observedAt }
+      return { ...response, observedAt, generation }
     },
     enabled: sessionAllowed && !!userId && !!(accessToken || refreshToken),
     staleTime: 0,

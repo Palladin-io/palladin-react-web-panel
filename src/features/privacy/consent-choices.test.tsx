@@ -479,6 +479,33 @@ describe('account privacy choices', () => {
     expect(mocks.authorize).not.toHaveBeenCalled()
   })
 
+  it('does not reuse a previous login snapshot when the same account starts a new session', async () => {
+    state.consents[0] = { ...consent(), status: 'granted', revision: 1, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }
+    const view = mount()
+    await waitFor(() => expect(captureAllowed()).toBe(true))
+    mocks.generation++
+    mocks.auth.accessToken = 'replacement-access'
+    view.rerender(<QueryClientProvider client={client}><ConsentRuntime /></QueryClientProvider>)
+    await waitFor(() => expect(captureAllowed()).toBe(false))
+    await act(async () => client.invalidateQueries())
+    await waitFor(() => expect(captureAllowed()).toBe(true))
+  })
+
+  it('releases a failed in-flight save when its form is unmounted', async () => {
+    let reject!: (reason: Error) => void
+    mocks.update.mockImplementation(() => new Promise((_, fail) => { reject = fail }))
+    const view = mount()
+    await userEvent.click(await screen.findByRole('switch', { name: 'Product analytics' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Save choice' }))
+    await waitFor(() => expect(mocks.update).toHaveBeenCalledOnce())
+    view.unmount()
+    await act(async () => reject(new Error('late failure')))
+    client.clear()
+    state.consents[0] = { ...consent(), status: 'granted', revision: 1, activationRevision: 1, noticeVersion: 'test-v1', noticeLocale: 'en' }
+    mount()
+    await waitFor(() => expect(captureAllowed()).toBe(true))
+  })
+
   it('failed refresh after mutation does not activate or report success', async () => {
     autoSave(); mount()
     await userEvent.click(await screen.findByRole('switch', { name: 'Product analytics' }))

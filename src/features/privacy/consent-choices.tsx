@@ -67,7 +67,7 @@ function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailur
       toast.success(t('privacy.saved'))
       onContinue?.()
     } catch (error) {
-      stopHere()
+      // The batch already owns a pause; never reacquire it after form cleanup.
       onSaveFailure()
       const status = error instanceof HTTPError ? error.response.status : undefined
       if (status !== undefined && status < 500 && status !== 408 && status !== 429) {
