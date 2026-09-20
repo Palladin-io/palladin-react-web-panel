@@ -34,6 +34,15 @@ separate untrusted or cryptographic boundaries and remain validated.
 
 ## Review rule
 
+Individual Entry sharing (`shared/crypto/entry-share.ts`) validates decrypted
+snapshot JSON and AEAD scope, not backend-owned lifecycle metadata. The requested
+share ID is independent link authority; canonical source coordinates come from
+the explicit delivery contract. Tampering with any AAD field, a self-consistent
+packet for another requested share, extra plaintext properties, malformed byte
+encodings and excessive ciphertext fail before plaintext is returned. Errors
+discard schema diagnostics to avoid exposing secret values. See
+`features/entry-sharing.md`; the HTTP/UI adapters are not implemented yet.
+
 Every retained cross-field check must identify an authority outside the value it
 validates: authenticated request/JWT claims, route coordinates, the current
 Vault summary, the decrypted structural head, a configured external origin or

@@ -76,6 +76,13 @@ manifest and lockfile pin the published registry version 0.8.0.
 - Split-view layout (3 pages) and an inline entry-detail tab strip — both candidates for the shared `SplitView` / `DetailTabBar` (see component-catalog).
 
 ## Cross-feature deps
+
+Individual Entry sharing is being implemented separately from Agent grants.
+Its selected-field projection, snapshot crypto and secret-link bootstrap boundary
+are documented in [entry-sharing.md](entry-sharing.md). Sender/receiver UI and
+save-copy integration remain pending; these primitives alone are not a released
+sharing feature.
+
 - Imports `OrgGrantsPanel` and the grant dialogs from `grants` for the Agents tabs.
 - Exports `useVaults` / `useVault` / `useEntries`, consumed by `audit`.
 
