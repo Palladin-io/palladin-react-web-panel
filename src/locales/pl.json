@@ -1,4 +1,7 @@
 {
+  "sharing.copy.prepareVault": "Utwórz mój sejf osobisty",
+  "sharing.copy.vaultReady": "Twój sejf jest gotowy. Wybierz go, aby zapisać kopię.",
+  "sharing.copy.prepareVaultError": "Nie udało się przygotować lub wczytać sejfu. Ponów próbę tutaj, bez przeładowywania karty. Istniejący sejf osobisty zostanie wykorzystany ponownie.",
   "verifyEmail.sessionError": "Nie udało się potwierdzić sesji konta. Ponów sprawdzenie tutaj, bez przeładowywania karty.",
   "verifyEmail.retrySession": "Ponów sprawdzenie weryfikacji",
   "sharing.receiver.accountNotice": "Zaloguj się lub załóż konto, aby zapisać kopię. Pozostaw tę kartę otwartą; odświeżenie lub wygaśnięcie usuwa tymczasową kopię. Te kroki nie zużywają kolejnego odbioru.",
@@ -17,7 +20,7 @@
   "sharing.copy.vault": "Sejf docelowy",
   "sharing.copy.chooseVault": "Wybierz sejf",
   "sharing.copy.unavailableVault": "Niedostępny sejf {{id}}",
-  "sharing.copy.noVaults": "Brak dostępnych sejfów. Przed zapisaniem kopii utwórz sejf w Palladin.",
+  "sharing.copy.noVaults": "Brak dostępnych sejfów. Utwórz tutaj sejf osobisty, a następnie wybierz go, aby zapisać kopię. Nie zamykaj tej karty.",
   "sharing.copy.vaultError": "Nie udało się wczytać Twoich sejfów. Ponów, dopóki ta sesja udostępnienia jest otwarta.",
   "sharing.copy.label": "Tytuł kopii",
   "sharing.copy.invalidTitle": "Podaj tytuł o długości od 1 do 256 znaków.",

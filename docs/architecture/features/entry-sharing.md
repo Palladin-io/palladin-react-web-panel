@@ -6,8 +6,9 @@ the coordinated feature branch. The web sender form and list now call those
 endpoints. The public guest receiver now opens and decrypts a snapshot through
 the separate recipient API. Already unlocked recipients can explicitly save a
 new copy. Explicit in-document auth continuation now preserves the same receipt.
-New-account Vault readiness, native handoff and device acceptance
-are still pending. This feature is not deployed or accepted end-to-end.
+New accounts can explicitly prepare a destination Vault in the save dialog.
+Native handoff and device acceptance are still pending. This feature is not
+deployed or accepted end-to-end.
 
 ## Snapshot boundary
 
@@ -200,6 +201,18 @@ does not depend on an already mounted Member sync provider: it reads the own
 authenticated Vault list and decrypts names locally. A corrupt Vault stays visible
 as an unavailable shortened identifier and does not hide healthy siblings.
 
+An authoritative empty Vault list exposes an explicit Create my personal vault
+action. It reuses `createDefaultVaultSafe` and canonical client-only Vault crypto;
+rendering the dialog, list errors and already available Vaults never create one.
+The helper fences challenge, crypto and completion against the captured Member,
+organization, unlocked key generation, verification, permission and abort signal.
+Only a conflict from the default-create endpoint means already-exists; a challenge
+conflict is a failure. The caller reloads and locally authenticates the own Vault
+list after creation or reconciliation. It never guesses a destination from the
+new challenge ID or auto-selects/saves an Entry. A lost response can be retried
+here using the existing one-default-per-account contract, without leaving the
+received-copy RAM session. Backend authorization remains authoritative.
+
 `entry-share-copy.ts` validates the untrusted snapshot and recipient form, assigns
 new custom-field IDs and creates a canonical MemberSecret with Discovery disabled
 and no inherited source policies or Script references. Native secret values are
@@ -252,9 +265,10 @@ force reload or cache a credential-bearing HTTP error. Unlock and verification
 redirects preserve the canonical return. A clicked email link in another document
 does not transport the sharing capability; the original tab must remain open.
 
-Registration still creates an unverified account without a default Vault.
-Preparing a usable destination without leaving this RAM flow, actual HTTP/auth
-E2E and native handoff remain required; these changes do not close those gates.
+Registration still creates an unverified account without a default Vault. After
+verification/unlock, the inline preparation above provides the missing destination
+without leaving this RAM flow. Actual HTTP/auth E2E and native handoff remain
+required; local client tests do not close those gates.
 
 ## Verification and remaining work
 
@@ -282,6 +296,12 @@ cancellation. Continuation tests additionally cover explicit auth transfer,
 StrictMode remount, receipt/ACK counts through save, exact clean navigation,
 wrong account/org, async cleanup, expiry and replacement links. Verification-gate
 tests cover pending refresh, focus, retry and late results after lifecycle changes.
+New-account tests cover explicit Vault preparation, existing-default reconciliation,
+lost creation/list responses, unavailable Vaults, concurrent clicks and lifecycle
+cancellation. A combined component test uses the real receive/continuation/save
+hooks and crypto: one guest receipt survives substituted registration/verification,
+fresh Vault creation and an independently decryptable Entry save, with one ACK.
+Only API/auth transport is substituted; it is not browser/server E2E.
 Completion requires real HTTP contracts, browser/native acceptance, Inbox/audit
 presentation and the verified test environment. A synthetic visual fixture is
 only a design aid, never a delivered user test environment.

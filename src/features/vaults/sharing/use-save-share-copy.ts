@@ -8,6 +8,8 @@ import { readEntryShareCopyVaultName, sealEntryShareCopy } from '../../../shared
 import { listEncryptedVaults, getEncryptedVault } from '../sync/member-sync-api'
 import { createEntry, issueEntryCreationChallenge } from '../api/vault-api'
 import { useMemberSyncStore } from '../sync/member-sync-store'
+import { createDefaultVaultSafe } from '../../../shared/lib/create-default-vault-safe'
+import i18n from '../../../shared/lib/i18n'
 
 interface CopyVault { id: string; name: string | null }
 interface CopyOperation {
@@ -21,11 +23,28 @@ interface CopyOperation {
 
 function current(operation: CopyOperation): boolean {
   const auth = useAuthStore.getState()
-  return !operation.controller.signal.aborted && !auth.isVaultLocked && !!auth.userId && !!auth.privateKey
+  return !operation.controller.signal.aborted && !auth.isVaultLocked && auth.emailVerified && !!auth.userId && !!auth.privateKey
     && auth.privateKey === operation.auth.privateKey && auth.userId === operation.auth.userId
     && auth.cryptoSessionGeneration === operation.auth.cryptoSessionGeneration
     && !!operation.organizationId && organizationIdFromAccessToken(auth.accessToken) === operation.organizationId
     && (auth.permissions & PERMISSION_VAULT_MANAGE) !== 0
+}
+
+async function loadVaultChoices(operation: CopyOperation): Promise<CopyVault[] | null> {
+  const encrypted = await listEncryptedVaults(operation.controller.signal)
+  const choices: CopyVault[] = []
+  for (const vault of encrypted) {
+    if (!current(operation)) return null
+    let name: string | null = null
+    try {
+      name = await readEntryShareCopyVaultName({ ...vault, organizationId: operation.organizationId! },
+        { organizationId: operation.organizationId!, memberId: operation.auth.userId!, vaultId: vault.id },
+        operation.auth.privateKey!, operation.controller.signal)
+    } catch { /* A corrupt Vault must not hide unrelated authenticated choices. */ }
+    if (!current(operation)) return null
+    choices.push({ id: vault.id, name })
+  }
+  return current(operation) ? choices : null
 }
 
 export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
@@ -50,24 +69,31 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
     void (async () => {
       try {
         if (!current(operation)) throw new Error()
-        const encrypted = await listEncryptedVaults(operation.controller.signal)
-        const choices: CopyVault[] = []
-        for (const vault of encrypted) {
-          if (!current(operation)) return
-          let name: string | null = null
-          try {
-            name = await readEntryShareCopyVaultName({ ...vault, organizationId: operation.organizationId! },
-              { organizationId: operation.organizationId!, memberId: userId!, vaultId: vault.id }, privateKey!, operation.controller.signal)
-          } catch { /* A corrupt Vault must not hide unrelated authenticated choices. */ }
-          if (!current(operation)) return
-          choices.push({ id: vault.id, name })
-        }
-        if (current(operation)) setVaults(choices)
+        const choices = await loadVaultChoices(operation)
+        if (choices && current(operation)) setVaults(choices)
       } catch { if (!operation.controller.signal.aborted) setLoadError(true) }
       finally { if (!operation.controller.signal.aborted) setLoading(false) }
     })()
     return () => { unsubscribe(); window.removeEventListener('pagehide', invalidate); dispose() }
   }, [attempt])
+
+  async function prepareVault(): Promise<'ready' | 'failed' | 'cancelled'> {
+    const operation = operationRef.current
+    if (!operation || !current(operation) || operation.busy || operation.saved || operation.request
+      || loading || loadError || vaults.length) return 'cancelled'
+    operation.busy = true; setBusy(true)
+    try {
+      const outcome = await createDefaultVaultSafe(operation.auth.privateKey!, i18n.t('vault.defaultName'), operation.controller.signal)
+      if (!current(operation)) return 'cancelled'
+      if (outcome === 'failed') return 'failed'
+      const choices = await loadVaultChoices(operation)
+      if (!choices || !current(operation)) return 'cancelled'
+      setVaults(choices)
+      useMemberSyncStore.getState().retry()
+      return choices.some((vault) => vault.name !== null) ? 'ready' : 'failed'
+    } catch { return current(operation) ? 'failed' : 'cancelled' }
+    finally { operation.busy = false; if (current(operation)) setBusy(false) }
+  }
 
   async function save(vaultId: string, form: EntryShareCopyForm): Promise<'saved' | 'failed' | 'cancelled'> {
     const operation = operationRef.current
@@ -101,5 +127,5 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
   }
 
   function retryLoad() { setVaults([]); setLoading(true); setLoadError(false); setAttempt((value) => value + 1) }
-  return { vaults, loading, loadError, busy, retryPending, saved, save, retryLoad }
+  return { vaults, loading, loadError, busy, retryPending, saved, save, retryLoad, prepareVault }
 }

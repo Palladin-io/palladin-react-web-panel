@@ -3,6 +3,7 @@ import { createVaultProtocolPayload } from '../crypto/create-vault-protocol'
 import { parseJwtPayload } from './jwt'
 import { useAuthStore } from '../../features/auth'
 import { issueVaultCreationChallenge } from '../../features/vaults/api/vault-api'
+import { PERMISSION_VAULT_MANAGE } from './permissions'
 
 // Defaults mirror those in vault-presentation.ts but are kept here as
 // literals to avoid a cross-feature import.
@@ -22,14 +23,24 @@ export type DefaultVaultCreationResult = 'created' | 'already-exists' | 'failed'
 export async function createDefaultVaultSafe(
   privateKey: Uint8Array,
   name: string,
+  signal?: AbortSignal,
 ): Promise<DefaultVaultCreationResult> {
   try {
     const auth = useAuthStore.getState()
     if (!auth.userId || !auth.accessToken) return 'failed'
     const organizationId = parseJwtPayload(auth.accessToken)['org_id']
     if (typeof organizationId !== 'string') return 'failed'
-    const [challenge, account] = await Promise.all([issueVaultCreationChallenge(), getAccount()])
-    if (!account.memberKeyVersion) return 'failed'
+    const current = () => {
+      const state = useAuthStore.getState()
+      return !signal?.aborted && !state.isVaultLocked && state.emailVerified && !!state.accessToken
+        && state.userId === auth.userId && state.privateKey === privateKey
+        && state.cryptoSessionGeneration === auth.cryptoSessionGeneration
+        && parseJwtPayload(state.accessToken)['org_id'] === organizationId
+        && (state.permissions & PERMISSION_VAULT_MANAGE) !== 0
+    }
+    if (!current()) return 'failed'
+    const [challenge, account] = await Promise.all([issueVaultCreationChallenge(signal), getAccount()])
+    if (!current() || !account.memberKeyVersion) return 'failed'
     const payload = await createVaultProtocolPayload({
       organizationId,
       vaultId: challenge.vaultId,
@@ -45,15 +56,17 @@ export async function createDefaultVaultSafe(
         grantMode: 'granular',
       },
     })
-    await createDefaultVault(payload)
-    return 'created'
-  } catch (error) {
-    // The backend uniqueness constraint makes the operation idempotent. An
-    // ambiguous first request followed by 409 therefore counts as success.
-    if (typeof error === 'object' && error !== null && 'response' in error
-      && (error as { response?: { status?: number } }).response?.status === 409) {
-      return 'already-exists'
+    if (!current()) return 'failed'
+    try {
+      await createDefaultVault(payload, signal)
+      return current() ? 'created' : 'failed'
+    } catch (error) {
+      // Only the default-creation uniqueness conflict permits reconciliation.
+      if (current() && typeof error === 'object' && error !== null && 'response' in error
+        && (error as { response?: { status?: number } }).response?.status === 409) return 'already-exists'
+      return 'failed'
     }
+  } catch {
     return 'failed'
   }
 }

@@ -41,8 +41,8 @@ export function getVault(id: string): Promise<Vault> {
   return api.get(`api/vaults/${id}`).json<Vault>()
 }
 
-export function issueVaultCreationChallenge(): Promise<VaultCreationChallengeResponse> {
-  return api.post('api/vaults/creation-challenges').json<VaultCreationChallengeResponse>()
+export function issueVaultCreationChallenge(signal?: AbortSignal): Promise<VaultCreationChallengeResponse> {
+  return api.post('api/vaults/creation-challenges', { signal, retry: 0 }).json<VaultCreationChallengeResponse>()
 }
 
 export async function createVault(payload: CreateVaultPayload): Promise<void> {

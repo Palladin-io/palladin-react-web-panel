@@ -1,4 +1,7 @@
 {
+  "sharing.copy.prepareVault": "Create my personal vault",
+  "sharing.copy.vaultReady": "Your vault is ready. Select it to save the copy.",
+  "sharing.copy.prepareVaultError": "Your vault could not be prepared or loaded. Retry here without reloading this tab. An existing personal vault will be reused.",
   "verifyEmail.sessionError": "We could not confirm your account session. Retry here without reloading this tab.",
   "verifyEmail.retrySession": "Retry verification check",
   "sharing.receiver.accountNotice": "Sign in or create an account to save a copy. Keep this tab open; the temporary copy is cleared on reload or expiry. These steps do not use another receipt.",
@@ -17,7 +20,7 @@
   "sharing.copy.vault": "Destination vault",
   "sharing.copy.chooseVault": "Choose a vault",
   "sharing.copy.unavailableVault": "Unavailable vault {{id}}",
-  "sharing.copy.noVaults": "No available vaults. Create a vault in Palladin before saving a copy.",
+  "sharing.copy.noVaults": "No available vaults. Create your personal vault here, then select it to save this copy. Keep this tab open.",
   "sharing.copy.vaultError": "Could not load your vaults. Retry while this sharing session is open.",
   "sharing.copy.label": "Copy title",
   "sharing.copy.invalidTitle": "Enter a title between 1 and 256 characters.",

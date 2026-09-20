@@ -81,9 +81,14 @@ Individual Entry sharing is being implemented separately from Agent grants.
 Its selected-field projection, snapshot crypto and secret-link bootstrap boundary
 are documented in [entry-sharing.md](entry-sharing.md). The sender's separate
 Sharing tab and creation dialog now call the lifecycle API on the feature branch.
-The guest receiver and explicit save-copy for an already unlocked account are
-also connected. Login/signup continuation, native handoff and cross-client
-acceptance remain pending; this is not a released sharing feature.
+The guest receiver, bounded RAM login/signup continuation and explicit save-copy
+are also connected. A verified/unlocked new account can explicitly prepare its
+personal Vault inside the save dialog, then select it and save the copy without
+another receipt. The shared default-Vault helper checks its captured account,
+organization, key generation, verification and permission before posting and
+after completion; sharing additionally aborts its transport on disposal.
+Native handoff, real auth/HTTP E2E and cross-client acceptance remain pending;
+this is not a released sharing feature.
 
 - Imports `OrgGrantsPanel` and the grant dialogs from `grants` for the Agents tabs.
 - Exports `useVaults` / `useVault` / `useEntries`, consumed by `audit`.

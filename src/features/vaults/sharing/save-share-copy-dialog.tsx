@@ -47,6 +47,11 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
     if (outcome === 'saved') { toast.success(t('sharing.copy.saved')); onSaved() }
     else if (outcome === 'failed') toast.error(t('sharing.copy.error'))
   }
+  async function prepareVault() {
+    const outcome = await saving.prepareVault()
+    if (outcome === 'ready') toast.success(t('sharing.copy.vaultReady'))
+    else if (outcome === 'failed') toast.error(t('sharing.copy.prepareVaultError'))
+  }
 
   return <ModalShell width={560} title={t('sharing.copy.title')} ariaLabel={t('sharing.copy.title')} trapFocus
     onClose={saving.busy ? undefined : onClose} footer={<DialogFooter>
@@ -57,14 +62,19 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
     </DialogFooter>}>
     <form id="save-share-copy" noValidate className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void submit() }}>
       <p className="text-meta text-[var(--cv-t2)]">{t('sharing.copy.notice')}</p>
-      {saving.loading ? <SkeletonBlock height="5rem" /> : saving.loadError ? <ErrorState onRetry={saving.retryLoad} message={t('sharing.copy.vaultError')} /> : <>
+      {saving.loading ? <SkeletonBlock height="5rem" /> : saving.loadError ? <ErrorState onRetry={saving.retryLoad} retryLabel={t('sharing.retry')} message={t('sharing.copy.vaultError')} /> : <>
         <FormSelect id="copy-vault" label={t('sharing.copy.vault')} value={vaultId} disabled={frozen} onChange={(event) => setVaultId(event.target.value)}>
           <option value="">{t('sharing.copy.chooseVault')}</option>
           {saving.vaults.map((vault) => <option key={vault.id} value={vault.id} disabled={vault.name === null}>
             {vault.name ?? t('sharing.copy.unavailableVault', { id: shortenKey(vault.id) })}
           </option>)}
         </FormSelect>
-        {!saving.vaults.length ? <p className="text-meta text-[var(--cv-t2)]">{t('sharing.copy.noVaults')}</p> : null}
+        {!saving.vaults.length ? <>
+          <p className="text-meta text-[var(--cv-t2)]">{t('sharing.copy.noVaults')}</p>
+          <Button type="button" size="sm" variant="subtle" disabled={frozen} onClick={() => { void prepareVault() }}>
+            {t('sharing.copy.prepareVault')}
+          </Button>
+        </> : null}
         <div>
           <FormInput id="copy-title" label={t('sharing.copy.label')} value={title} disabled={frozen} error={invalid.has('title')}
             onChange={(event) => { setTitle(event.target.value); feedback('title', false) }}
