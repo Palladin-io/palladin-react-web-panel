@@ -12,13 +12,21 @@ let pending: PendingEntryShare | null = null
 let expiry: ReturnType<typeof setTimeout> | undefined
 let expiresAt = 0
 let monotonicExpiresAt = 0
+const listeners = new Set<() => void>()
+
+export function subscribePendingEntryShare(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => { listeners.delete(listener) }
+}
 
 export function clearPendingEntryShare(): void {
+  const changed = pending !== null
   if (pending) clearEntryShareLink(pending)
   pending = null
   expiresAt = 0
   monotonicExpiresAt = 0
   clearTimeout(expiry)
+  if (changed) for (const listener of listeners) listener()
 }
 
 export function readPendingEntryShare(shareId: string): Readonly<PendingEntryShare> | null {

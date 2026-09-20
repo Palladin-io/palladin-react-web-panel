@@ -41,7 +41,13 @@ the explicit delivery contract. Tampering with any AAD field, a self-consistent
 packet for another requested share, extra plaintext properties, malformed byte
 encodings and excessive ciphertext fail before plaintext is returned. Errors
 discard schema diagnostics to avoid exposing secret values. See
-`features/entry-sharing.md`; the HTTP/UI adapters are not implemented yet.
+`features/entry-sharing.md`. Sender and guest-recipient HTTP/UI adapters now use
+typed first-party lifecycle metadata, without duplicating backend business
+validators. Recipient transport separately authorizes with its guest bearer and
+does not inherit account JWT/cookies/refresh. Malformed JSON diagnostics are
+discarded without attaching the response, request or decoding exception; this is
+error redaction, not an additional response schema. The requested link ID and
+explicit canonical delivery coordinates remain the authorities for AEAD opening.
 
 Every retained cross-field check must identify an authority outside the value it
 validates: authenticated request/JWT claims, route coordinates, the current

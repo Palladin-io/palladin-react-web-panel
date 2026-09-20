@@ -1,0 +1,125 @@
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { useAuthStore } from '../../auth'
+import i18n from '../../../shared/lib/i18n'
+import { captureEntryShareIngress, clearPendingEntryShare } from '../../../shared/lib/entry-share-ingress'
+import { entryShareFragment } from '../../../shared/crypto/entry-share-link'
+import fixture from '../../../shared/crypto/fixtures/entry-share-v1.json'
+import { EntryShareReceiverPage } from './entry-share-receiver-page'
+
+const api = vi.hoisted(() => ({ open: vi.fn(), otp: vi.fn(), verifyOtp: vi.fn(), secret: vi.fn(), receive: vi.fn(), confirm: vi.fn(), end: vi.fn(), error: vi.fn() }))
+vi.mock('./recipient-api', () => ({ openRecipientSession: api.open, requestRecipientOtp: api.otp,
+  verifyRecipientOtp: api.verifyOtp, verifyRecipientSecret: api.secret, receiveEntryShare: api.receive,
+  confirmRecipientDisplay: api.confirm, endRecipientShare: api.end }))
+vi.mock('sonner', () => ({ toast: { error: api.error } }))
+
+const shareId = fixture.scope.shareId
+const session = { sessionId: '44442233-4455-4677-8899-aabbccddeeff', sessionToken: 's'.repeat(43),
+  recipientMode: 'anyoneWithLink', protection: 'none' }
+
+beforeEach(async () => {
+  vi.resetAllMocks()
+  await i18n.changeLanguage('en')
+  useAuthStore.setState({ userId: null, accessToken: null, isVaultLocked: true, cryptoSessionGeneration: 0 })
+  const fragment = entryShareFragment({ key: Uint8Array.from({ length: 32 }, (_, i) => i), accessToken: new Uint8Array(32).fill(7) })
+  window.history.replaceState(null, '', `/share/${shareId}${fragment}`)
+  captureEntryShareIngress(window)
+  api.open.mockResolvedValue({ ...session, expiresAt: new Date(Date.now() + 900_000).toISOString() })
+  api.receive.mockResolvedValue({ ...fixture.scope, nonce: fixture.nonce, ciphertext: fixture.ciphertext })
+})
+afterEach(() => { cleanup(); clearPendingEntryShare() })
+
+async function open() {
+  render(<EntryShareReceiverPage shareId={shareId} />)
+  await userEvent.click(screen.getByRole('button', { name: 'Continue in browser' }))
+}
+
+describe('Public sharing receiver', () => {
+  it('shows a guest flow without automatically opening a session, sending email or receiving', () => {
+    render(<EntryShareReceiverPage shareId={shareId} />)
+    expect(screen.getByRole('heading', { name: 'Receive a shared entry' })).toBeInTheDocument()
+    expect(screen.getByText('You do not need a Palladin account to receive this copy.')).toBeInTheDocument()
+    expect(api.open).not.toHaveBeenCalled()
+    expect(api.otp).not.toHaveBeenCalled()
+    expect(api.receive).not.toHaveBeenCalled()
+  })
+
+  it('receives on explicit action, masks the copied field and confirms after rendering it', async () => {
+    api.confirm.mockImplementation(async () => {
+      expect(screen.getByLabelText('Password')).toHaveValue('fixture-only')
+    })
+    await open()
+    await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+    expect(await screen.findByRole('heading', { name: 'Test credential' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Password')).toHaveClass('secret-mask')
+    await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce())
+    await userEvent.click(screen.getByRole('button', { name: 'Reveal' }))
+    expect(screen.getByLabelText('Password')).not.toHaveClass('secret-mask')
+    expect(screen.getByRole('button', { name: 'Copy' })).toBeInTheDocument()
+    expect(api.receive).toHaveBeenCalledOnce()
+  })
+
+  it('offers both OTP and optional PIN verification before enabling receipt', async () => {
+    api.open.mockResolvedValue({ ...session, recipientMode: 'namedRecipient', protection: 'pin', expiresAt: new Date(Date.now() + 900_000).toISOString() })
+    await open()
+    expect(screen.getByRole('button', { name: 'Receive entry' })).toBeDisabled()
+    await userEvent.type(screen.getByLabelText('PIN'), '123456')
+    await userEvent.click(screen.getByRole('button', { name: 'Verify additional secret' }))
+    expect(screen.getByText('Additional secret verified for this session.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Receive entry' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Send verification code' }))
+    await userEvent.type(screen.getByLabelText('Email verification code'), '654321')
+    await userEvent.click(screen.getByRole('button', { name: 'Verify email code' }))
+    expect(screen.getByRole('button', { name: 'Receive entry' })).toBeEnabled()
+    expect(api.receive).not.toHaveBeenCalled()
+    expect(api.secret.mock.calls[0][2]).toBe('123456')
+    expect(api.verifyOtp.mock.calls[0][3]).toBe('654321')
+  })
+
+  it('toasts a verification failure and keeps receipt disabled', async () => {
+    api.open.mockResolvedValue({ ...session, protection: 'password', expiresAt: new Date(Date.now() + 900_000).toISOString() })
+    api.secret.mockRejectedValue(new Error('untrusted detail'))
+    await open()
+    await userEvent.type(screen.getByLabelText('Password'), 'test-password')
+    await userEvent.click(screen.getByRole('button', { name: 'Verify additional secret' }))
+    await waitFor(() => expect(api.error).toHaveBeenCalledWith(expect.stringContaining('The request could not be completed.')))
+    expect(screen.getByLabelText('Password')).toHaveValue('')
+    expect(screen.getByRole('button', { name: 'Receive entry' })).toBeDisabled()
+    expect(screen.queryByText('untrusted detail')).not.toBeInTheDocument()
+  })
+
+  it('retains the displayed copy and offers only confirmation retry when ACK fails', async () => {
+    api.confirm.mockRejectedValueOnce(new Error('network'))
+    await open()
+    await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+    const retry = await screen.findByRole('button', { name: 'Retry display confirmation' })
+    expect(screen.getByLabelText('Password')).toHaveValue('fixture-only')
+    await userEvent.click(retry)
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Retry display confirmation' })).not.toBeInTheDocument())
+    expect(api.receive).toHaveBeenCalledOnce()
+    expect(api.confirm).toHaveBeenCalledTimes(2)
+  })
+
+  it('requires confirmation to end the entire link and retains the displayed copy', async () => {
+    await open()
+    await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+    await screen.findByRole('heading', { name: 'Test credential' })
+    await userEvent.click(screen.getByRole('button', { name: 'End sharing link' }))
+    expect(api.end).not.toHaveBeenCalled()
+    expect(screen.getByRole('dialog')).toHaveTextContent('This ends the entire link for everyone')
+    await userEvent.click(screen.getAllByRole('button', { name: 'End sharing link' }).at(-1)!)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(api.end).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('Password')).toHaveValue('fixture-only')
+  })
+
+  it('removes revealed content on account replacement and explains a missing full link', async () => {
+    await open()
+    await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+    await screen.findByRole('heading', { name: 'Test credential' })
+    act(() => useAuthStore.setState({ userId: 'another-account', cryptoSessionGeneration: 1 }))
+    expect(screen.queryByLabelText('Password')).not.toBeInTheDocument()
+    expect(screen.getByText(/Reopen the original full link/)).toBeInTheDocument()
+  })
+})

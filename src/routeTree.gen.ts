@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacyChoicesRouteImport } from './routes/privacy-choices'
 import { Route as RecoveryRouteImport } from './routes/recovery'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ShareRouteImport } from './routes/share'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as AuthenticatedAgentsRouteImport } from './routes/_authenticated/agents'
@@ -28,6 +29,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
 import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated/vaults'
+import { Route as ShareShareIdRouteImport } from './routes/share_.$shareId'
 import { Route as AuthenticatedAgentPairingPairingIdRouteImport } from './routes/_authenticated/agent-pairing.$pairingId'
 import { Route as AuthenticatedAgentsAgentIdRouteImport } from './routes/_authenticated/agents_.$agentId'
 import { Route as AuthenticatedApiKeysKeyIdRouteImport } from './routes/_authenticated/api-keys_.$keyId'
@@ -78,6 +80,11 @@ const RecoveryRoute = RecoveryRouteImport.update({
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShareRoute = ShareRouteImport.update({
+  id: '/share',
+  path: '/share',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
@@ -144,6 +151,11 @@ const AuthenticatedVaultsRoute = AuthenticatedVaultsRouteImport.update({
   id: '/vaults',
   path: '/vaults',
   getParentRoute: () => AuthenticatedRoute,
+} as any)
+const ShareShareIdRoute = ShareShareIdRouteImport.update({
+  id: '/share_/$shareId',
+  path: '/share/$shareId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAgentPairingPairingIdRoute =
   AuthenticatedAgentPairingPairingIdRouteImport.update({
@@ -285,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/privacy-choices': typeof PrivacyChoicesRoute
   '/recovery': typeof RecoveryRoute
   '/register': typeof RegisterRoute
+  '/share': typeof ShareRoute
   '/verify-email': typeof VerifyEmailRoute
   '/agents': typeof AuthenticatedAgentsRoute
   '/api-keys': typeof AuthenticatedApiKeysRoute
@@ -297,6 +310,7 @@ export interface FileRoutesByFullPath {
   '/team': typeof AuthenticatedTeamRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
+  '/share/$shareId': typeof ShareShareIdRoute
   '/agent-pairing/$pairingId': typeof AuthenticatedAgentPairingPairingIdRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
   '/api-keys/$keyId': typeof AuthenticatedApiKeysKeyIdRoute
@@ -326,6 +340,7 @@ export interface FileRoutesByTo {
   '/privacy-choices': typeof PrivacyChoicesRoute
   '/recovery': typeof RecoveryRoute
   '/register': typeof RegisterRoute
+  '/share': typeof ShareRoute
   '/verify-email': typeof VerifyEmailRoute
   '/agents': typeof AuthenticatedAgentsRoute
   '/api-keys': typeof AuthenticatedApiKeysRoute
@@ -337,6 +352,7 @@ export interface FileRoutesByTo {
   '/team': typeof AuthenticatedTeamRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
+  '/share/$shareId': typeof ShareShareIdRoute
   '/': typeof AuthenticatedIndexRoute
   '/agent-pairing/$pairingId': typeof AuthenticatedAgentPairingPairingIdRoute
   '/agents/$agentId': typeof AuthenticatedAgentsAgentIdRoute
@@ -369,6 +385,7 @@ export interface FileRoutesById {
   '/privacy-choices': typeof PrivacyChoicesRoute
   '/recovery': typeof RecoveryRoute
   '/register': typeof RegisterRoute
+  '/share': typeof ShareRoute
   '/verify-email': typeof VerifyEmailRoute
   '/_authenticated/agents': typeof AuthenticatedAgentsRoute
   '/_authenticated/api-keys': typeof AuthenticatedApiKeysRoute
@@ -381,6 +398,7 @@ export interface FileRoutesById {
   '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
   '/_authenticated/vaults': typeof AuthenticatedVaultsRoute
+  '/share_/$shareId': typeof ShareShareIdRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/agent-pairing/$pairingId': typeof AuthenticatedAgentPairingPairingIdRoute
   '/_authenticated/agents_/$agentId': typeof AuthenticatedAgentsAgentIdRoute
@@ -414,6 +432,7 @@ export interface FileRouteTypes {
     | '/privacy-choices'
     | '/recovery'
     | '/register'
+    | '/share'
     | '/verify-email'
     | '/agents'
     | '/api-keys'
@@ -426,6 +445,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/unlock'
     | '/vaults'
+    | '/share/$shareId'
     | '/agent-pairing/$pairingId'
     | '/agents/$agentId'
     | '/api-keys/$keyId'
@@ -455,6 +475,7 @@ export interface FileRouteTypes {
     | '/privacy-choices'
     | '/recovery'
     | '/register'
+    | '/share'
     | '/verify-email'
     | '/agents'
     | '/api-keys'
@@ -466,6 +487,7 @@ export interface FileRouteTypes {
     | '/team'
     | '/unlock'
     | '/vaults'
+    | '/share/$shareId'
     | '/'
     | '/agent-pairing/$pairingId'
     | '/agents/$agentId'
@@ -497,6 +519,7 @@ export interface FileRouteTypes {
     | '/privacy-choices'
     | '/recovery'
     | '/register'
+    | '/share'
     | '/verify-email'
     | '/_authenticated/agents'
     | '/_authenticated/api-keys'
@@ -509,6 +532,7 @@ export interface FileRouteTypes {
     | '/_authenticated/team'
     | '/_authenticated/unlock'
     | '/_authenticated/vaults'
+    | '/share_/$shareId'
     | '/_authenticated/'
     | '/_authenticated/agent-pairing/$pairingId'
     | '/_authenticated/agents_/$agentId'
@@ -541,7 +565,9 @@ export interface RootRouteChildren {
   PrivacyChoicesRoute: typeof PrivacyChoicesRoute
   RecoveryRoute: typeof RecoveryRoute
   RegisterRoute: typeof RegisterRoute
+  ShareRoute: typeof ShareRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
+  ShareShareIdRoute: typeof ShareShareIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -586,6 +612,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/share': {
+      id: '/share'
+      path: '/share'
+      fullPath: '/share'
+      preLoaderRoute: typeof ShareRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/verify-email': {
@@ -678,6 +711,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/vaults'
       preLoaderRoute: typeof AuthenticatedVaultsRouteImport
       parentRoute: typeof AuthenticatedRoute
+    }
+    '/share_/$shareId': {
+      id: '/share_/$shareId'
+      path: '/share/$shareId'
+      fullPath: '/share/$shareId'
+      preLoaderRoute: typeof ShareShareIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/agent-pairing/$pairingId': {
       id: '/_authenticated/agent-pairing/$pairingId'
@@ -940,7 +980,9 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyChoicesRoute: PrivacyChoicesRoute,
   RecoveryRoute: RecoveryRoute,
   RegisterRoute: RegisterRoute,
+  ShareRoute: ShareRoute,
   VerifyEmailRoute: VerifyEmailRoute,
+  ShareShareIdRoute: ShareShareIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

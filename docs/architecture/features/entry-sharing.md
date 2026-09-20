@@ -3,7 +3,8 @@
 The approved scope is the independently encrypted snapshot in CVT-644, not
 shared-Vault membership or an Agent grant. Backend lifecycle endpoints exist on
 the coordinated feature branch. The web sender form and list now call those
-endpoints; guest receiver, save-copy, auth/native handoff and device acceptance
+endpoints. The public guest receiver now opens and decrypts a snapshot through
+the separate recipient API. Save-copy, auth/native handoff and device acceptance
 are still pending. This feature is not deployed or accepted end-to-end.
 
 ## Snapshot boundary
@@ -105,9 +106,13 @@ suspended timer cannot return an already expired capability. Reload cannot recov
 the secret from storage; the receiver UI must tell the user to reopen the original
 link. This local timeout does not change the sender's server-owned link expiry.
 
-Receiver ownership, cancellation on account lock/logout, in-document route
-changes, decoded content lifecycle and limit=1 login/app handoff still require
-integration. Never put these buffers, the full link or plaintext in a query or
+The mounted receiver owns its session and decoded content. Account changes,
+crypto-session changes (including lock/logout), unmount, pagehide and expiry
+abort transport and discard content. StrictMode's cleanup/reattach must not wipe
+the same mounted capability; real unmount disposes it. A late decryption failure
+cannot clear a newer incoming link. In-document link replacement and intentional
+limit=1 login/app handoff still require integration. Never put these buffers,
+the full link or plaintext in a query or
 mutation cache, redirect, local/session storage, IndexedDB, telemetry or errors.
 Crypto validation errors intentionally discard Zod details and secret input.
 
@@ -149,6 +154,44 @@ and aborts pending transport. JavaScript strings are released, not claimed to be
 securely overwritten. Editing the source displays the non-synchronizing-copy
 warning and directs the sender to Sharing for revocation.
 
+## Public guest receiver
+
+`/share/$shareId` is outside the authenticated layout; `/share` explains an invalid
+or missing capability. Merely rendering either route makes no recipient request.
+Continue in browser explicitly opens a session but neither sends OTP nor consumes
+a receipt. Named-recipient email verification and optional password/PIN have
+separate forms and proofs. The server remains authoritative for all gates.
+Unknown future mode/protection values cannot enable a guessed receipt path.
+
+`recipient-api.ts` uses an independent POST-only transport: no account bearer,
+cookies, auth refresh, automatic retry, redirect or referrer. Every body is an
+explicit projection; the decryption key is never submitted. HTTP and JSON-decoding
+errors discard response/request diagnostics. Session and delivery metadata are
+typed first-party contracts, not duplicate runtime business schemas. Delivery's
+explicit coordinates and the independently requested share ID feed the existing
+AEAD verification before content becomes visible.
+
+`use-share-reception.ts` retains the session only in component-owned RAM. An
+ambiguous OTP issuance retries its exact generation before explicit resend can
+advance it. An ambiguous delivery retries the same session, enabling the server's
+idempotent receipt contract without a second opening. A local session deadline
+uses wall and monotonic time and cannot exceed the ingress deadline. Failed or
+cancelled verification never satisfies a gate; late responses cannot publish
+after ownership changes.
+
+Receive entry is explicit and enabled only after the known gates. Fields start
+masked, use shared reveal/copy controls, and render inert text (including Script,
+URLs and TOTP seed URIs). React confirms display only after committing the decoded
+view. Failed confirmation retains the copy and offers a confirmation-only retry;
+it neither repeats delivery nor claims a human read the data. Authorized recipient
+termination requires a confirmation dialog, ends the whole link and wipes local
+link key/bearer buffers, but does not remove an already displayed local copy until
+the session is cleared/expires. No remote recall or external-password change is
+implied.
+
+The current receiver does not yet expose save-to-Vault, account continuation or
+native handoff. These remain required parts of the epic, not removed scope.
+
 ## Verification and remaining work
 
 Focused tests cover projection defaults/explicit opt-in, excluded source data,
@@ -162,7 +205,14 @@ lock/unmount/BFCache cleanup, list/revoke states and late mutation responses.
 API projection tests prove accidental key/plaintext properties are not submitted.
 Mocked HTTP tests do not establish deployed provider/consumer compatibility.
 
-There is still no public receiver route, save-copy or account/native continuation.
+Receiver tests combine the real crypto fixture with mocked public API slices and
+exercise both gates, delivery/OTP/confirmation retries, delayed responses, scope
+substitution, clock rollback/suspended timers, pagehide, actual unmount and
+StrictMode. Page tests prove receipt is explicit, content is masked and the ACK
+is issued after the view exists, with confirmation retry and termination dialog.
+Transport tests prove no account auth or hidden retry and generic HTTP/JSON errors.
+
+There is still no save-copy or account/native continuation.
 Completion requires real HTTP contracts, browser/native acceptance, Inbox/audit
 presentation and the verified test environment. A synthetic visual fixture is
 only a design aid, never a delivered user test environment.
