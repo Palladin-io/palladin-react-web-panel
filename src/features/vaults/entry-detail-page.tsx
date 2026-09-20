@@ -32,6 +32,7 @@ import { EntryIconButton } from './components/entry-icon-button'
 import { EntryAgentsTab } from './components/entry-agents-tab'
 import { EntryLogsTab } from './components/entry-logs-tab'
 import { EntryHistoryTab } from './components/entry-history-tab'
+import { EntrySharingTab } from './sharing/entry-sharing-tab'
 import {
   ENTRY_ICON_COLORS,
   extractDomain,
@@ -106,7 +107,7 @@ export interface EntryDetailPageProps {
   entryId: string
 }
 
-type EntryDetailTab = 'details' | 'agents' | 'history' | 'logs'
+type EntryDetailTab = 'details' | 'agents' | 'history' | 'logs' | 'sharing'
 
 /**
  * Full entry detail screen — opened from the `arrow_forward` action on
@@ -191,16 +192,16 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
             )}
           </div>
         </div>
-        <div className="subtle-scrollbar min-w-0 flex-1 overflow-y-auto [overflow-anchor:none]">
-          <div className="px-4 py-4">{detailContent}</div>
+        <div className={activeTab === 'sharing' ? 'min-w-0 flex-1 overflow-hidden' : 'subtle-scrollbar min-w-0 flex-1 overflow-y-auto [overflow-anchor:none]'}>
+          <div className={activeTab === 'sharing' ? 'h-full min-h-0 px-4 py-4' : 'px-4 py-4'}>{detailContent}</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen text-[var(--cv-t1)]">
-      <div className="px-6 py-8">{detailContent}</div>
+    <div className={activeTab === 'sharing' ? 'h-full min-h-0 overflow-hidden text-[var(--cv-t1)]' : 'min-h-screen text-[var(--cv-t1)]'}>
+      <div className={activeTab === 'sharing' ? 'h-full min-h-0 px-4 py-4' : 'px-6 py-8'}>{detailContent}</div>
     </div>
   )
 }
@@ -323,21 +324,23 @@ function DetailBody({
   )
 
   return (
-    <>
-      {!hideHeader && (
-        <VaultDetailHeader
-          title={entry.label}
-          subtitle={subtitle}
-          onBack={onBack}
-          actions={activeTab === 'agents' ? agentAction : undefined}
+    <div className={activeTab === 'sharing' ? 'flex h-full min-h-0 flex-col' : undefined}>
+      <div className="shrink-0">
+        {!hideHeader && (
+          <VaultDetailHeader
+            title={entry.label}
+            subtitle={subtitle}
+            onBack={onBack}
+            actions={activeTab === 'agents' ? agentAction : undefined}
+          />
+        )}
+        <EntryDetailTabs
+          active={activeTab}
+          onChange={handleTabChange}
+          wide={hideHeader}
+          actions={hideHeader && activeTab === 'agents' ? agentAction : undefined}
         />
-      )}
-      <EntryDetailTabs
-        active={activeTab}
-        onChange={handleTabChange}
-        wide={hideHeader}
-        actions={hideHeader && activeTab === 'agents' ? agentAction : undefined}
-      />
+      </div>
       {activeTab === 'details' ? (
         <DetailsTab
           key={`${entry.id}:${entry.currentRevision}`}
@@ -360,6 +363,10 @@ function DetailBody({
       {activeTab === 'logs' ? (
         <EntryLogsTab vaultId={vault.id} entryId={entry.id} entryName={entry.label} />
       ) : null}
+      {activeTab === 'sharing' ? <EntrySharingTab scope={{
+        organizationId: vault.organizationId, vaultId: vault.id, entryId: entry.id,
+        revision: entry.currentRevision, keyVersion: entry.currentKeyVersion,
+      }} /> : null}
       {activeTab === 'history' && canonical ? (
         <EntryHistoryTab detail={canonical} />
       ) : null}
@@ -367,7 +374,7 @@ function DetailBody({
       {(activeTab === 'agents' || activeTab === 'history') && !canonical && canonicalError ? (
         <ErrorState message={t('vault.entry.detail.loadError')} onRetry={loadCanonical} />
       ) : null}
-    </>
+    </div>
   )
 }
 
@@ -382,6 +389,7 @@ function EntryDetailTabs({ active, onChange, wide, actions }: EntryDetailTabsPro
   const { t } = useTranslation()
   const tabs: { id: EntryDetailTab; label: string }[] = [
     { id: 'details', label: t('vault.entry.detail.detailsTab') },
+    { id: 'sharing', label: t('sharing.tab') },
     { id: 'agents', label: t('vault.entry.detail.agentsTab') },
     { id: 'history', label: t('vault.entry.detail.historyTab') },
     { id: 'logs', label: t('vault.entry.detail.logsTab') },
@@ -1166,6 +1174,9 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
             ) : null}
         </div>
 
+        {hasChanges ? <div className="mt-3"><WarningZone title={t('sharing.editWarningTitle')}>
+          {t('sharing.editWarning')}
+        </WarningZone></div> : null}
         <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
           <Button
             variant="subtle"

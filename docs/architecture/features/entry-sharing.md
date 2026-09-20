@@ -2,8 +2,9 @@
 
 The approved scope is the independently encrypted snapshot in CVT-644, not
 shared-Vault membership or an Agent grant. Backend lifecycle endpoints exist on
-the coordinated feature branch. The web sender/receiver surfaces, save-copy
-flow, auth/native handoff and device acceptance are still pending.
+the coordinated feature branch. The web sender form and list now call those
+endpoints; guest receiver, save-copy, auth/native handoff and device acceptance
+are still pending. This feature is not deployed or accepted end-to-end.
 
 ## Snapshot boundary
 
@@ -110,6 +111,44 @@ integration. Never put these buffers, the full link or plaintext in a query or
 mutation cache, redirect, local/session storage, IndexedDB, telemetry or errors.
 Crypto validation errors intentionally discard Zod details and secret input.
 
+## Sender surfaces and API lifecycle
+
+Entry Detail has a separate Sharing tab. `sharing/entry-sharing-tab.tsx` queries
+only structural link metadata in cursor pages, polls every 30 seconds while
+mounted and discards its Query cache on unmount. Delivery counters/timestamps
+and client confirmation are separate. Unknown server states remain visible with
+a neutral fallback rather than failing the list or guessing a mutation. Revoke
+requires a confirmation explaining that downloaded copies cannot be recalled.
+Account, organization, permission or crypto-session changes close the scoped
+surface; a late revoke response cannot toast or refresh another session.
+
+`CreateEntryShareDialog` uses ModalShell/DialogFooter and shared form controls.
+It decrypts the saved current MemberSecret on demand, masks all field previews,
+requires acknowledgement of the included title/selected fields, and defaults to
+one named email, email OTP, no additional secret, 24-hour expiry, one receipt and
+no Inbox notification. Additional password or at least six ASCII PIN digits is
+optional. Notes/TOTP/custom fields stay off until selected; changing selection
+resets acknowledgement. Script source stays inert. Recipient email is delivery
+metadata, not part of the secret snapshot. Palladin emails only the OTP; the
+sender distributes the full link and any additional secret separately.
+
+Creation calls the authoritative challenge before sealing and compares its
+revision with the selected current head. A mismatch schedules Member sync repair
+and never posts the stale snapshot. Mutations use an explicit allowlisted body;
+the decryption key and plaintext cannot be spread into the request. These are
+typed first-party API contracts, not duplicated runtime business validators.
+
+The creation operation is component-owned RAM, not a TanStack mutation cache.
+An ambiguous create failure retains the exact encrypted request, bearer and key
+for an explicit idempotent retry; controls stay disabled so the retry cannot
+quietly change its recipient or policy. Cancelling loses that local capability;
+the UI warns to revoke any committed link from the list. Successful creation
+shows a masked, copyable link once, then drops the snapshot and temporary key
+buffers. Closing, locking, changing the session or pagehide disposes the operation
+and aborts pending transport. JavaScript strings are released, not claimed to be
+securely overwritten. Editing the source displays the non-synchronizing-copy
+warning and directs the sender to Sharing for revocation.
+
 ## Verification and remaining work
 
 Focused tests cover projection defaults/explicit opt-in, excluded source data,
@@ -117,8 +156,13 @@ all AAD coordinates, independent requested share binding, tampered key/nonce/
 ciphertext, native fixture interoperability, Unicode/whitespace preservation,
 payload limits, canonical link parsing and URL/RAM lifecycle.
 
-This foundation does not yet expose a user-facing Share button or receiver route.
-The eventual modal uses existing ModalShell, form fields and semantic tokens;
-sender list, create flow and recipient surface remain separate components.
-Completion still requires their interactive tests, provider/consumer HTTP
-contracts, browser/native acceptance and the verified test environment.
+Sender tests additionally exercise field review, optional PIN and notification,
+exact-request retry, source revision repair, authenticated organization binding,
+lock/unmount/BFCache cleanup, list/revoke states and late mutation responses.
+API projection tests prove accidental key/plaintext properties are not submitted.
+Mocked HTTP tests do not establish deployed provider/consumer compatibility.
+
+There is still no public receiver route, save-copy or account/native continuation.
+Completion requires real HTTP contracts, browser/native acceptance, Inbox/audit
+presentation and the verified test environment. A synthetic visual fixture is
+only a design aid, never a delivered user test environment.
