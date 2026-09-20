@@ -103,6 +103,22 @@ share path is replaced with `/share`. Failure to scrub the address prevents
 application startup. Other routes, including auth fragments, remain unchanged.
 The capture code sends no request and never consumes a receipt.
 
+Before importing App, `installEntryShareNavigation` also installs capture-phase
+popstate/hashchange listeners for native in-document navigation. Incoming sharing
+fragments and query noise are scrubbed before browser-history subscribers run.
+Raw HashChangeEvent old/new URLs are never forwarded: they can retain secrets
+even after the current address has been cleaned. A delayed hashchange following
+the already handled popstate does not recapture or destroy the new capability.
+The clean replaceState notifies the installed browser history. Unrelated auth
+fragments are untouched. A later scrub failure clears ownership and replaces the
+application with StartupError; a pending bootstrap cannot render over that error.
+
+Successful capture publishes a value-free RAM generation. The receiver subtree
+is keyed by share ID and that generation, so a same-ID replacement disposes the
+old session, proof forms, revealed content and save dialog before starting fresh.
+Neither opening nor receiving the replacement is automatic. The generation is
+not a route parameter and never persists or extends the link lifetime.
+
 Pending buffers are wiped on pagehide (including BFCache entry), explicit disposal
 and a 15-minute in-memory continuation timeout. Read also checks expiry so a
 suspended timer cannot return an already expired capability. Reload cannot recover
@@ -114,8 +130,9 @@ crypto-session changes (including lock/logout), unmount, pagehide and expiry
 abort transport and discard content. StrictMode's cleanup/reattach must not wipe
 the same mounted capability; ordinary unmount disposes it. A late decryption failure
 cannot clear a newer incoming link. Explicit auth continuation transfers ownership
-as described below. In-document link replacement and native handoff still require
-integration. Never put these buffers,
+as described below. In-document link replacement is covered by actual-router
+tests and a native Chrome hash-navigation check with synthetic API data; native
+app handoff remains pending. Never put these buffers,
 the full link or plaintext in a query or
 mutation cache, redirect, local/session storage, IndexedDB, telemetry or errors.
 Crypto validation errors intentionally discard Zod details and secret input.

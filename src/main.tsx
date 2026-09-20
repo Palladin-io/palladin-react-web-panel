@@ -4,7 +4,8 @@ import './index.css'
 import './shared/lib/i18n'
 import { StartupError } from './shared/components/startup-error'
 import { findMissingRequiredClientEnv } from './shared/lib/required-client-env'
-import { captureEntryShareIngress, clearPendingEntryShare } from './shared/lib/entry-share-ingress'
+import { clearPendingEntryShare } from './shared/lib/entry-share-ingress'
+import { installEntryShareNavigation } from './shared/lib/entry-share-navigation'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) throw new Error('Missing application root element')
@@ -13,7 +14,10 @@ const root = createRoot(rootElement)
 const missingEnvironmentKeys = findMissingRequiredClientEnv(import.meta.env)
 let sharingIngressReady = false
 try {
-  captureEntryShareIngress(window)
+  installEntryShareNavigation(window, () => {
+    sharingIngressReady = false
+    renderStartupError()
+  })
   sharingIngressReady = true
 } catch {
   // A failed URL scrub must stop startup before the router or analytics is imported.
@@ -33,9 +37,11 @@ async function startApplication(applicationRoot: Root): Promise<void> {
     import('./App.tsx'),
     import('./shared/lib/analytics.ts'),
   ])
+  if (!sharingIngressReady) return
 
   analytics.reset()
   const { clearLegacyAnalytics } = await import('./shared/lib/clear-legacy-analytics.ts')
+  if (!sharingIngressReady) return
   clearLegacyAnalytics()
   applicationRoot.render(
     <StrictMode>

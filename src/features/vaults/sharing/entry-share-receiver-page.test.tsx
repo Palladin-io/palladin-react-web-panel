@@ -42,6 +42,28 @@ async function open() {
 }
 
 describe('Public sharing receiver', () => {
+  it('restarts a same-ID replacement without retaining a revealed field or issuing another receipt automatically', async () => {
+    await open()
+    await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+    await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce())
+    await userEvent.click(screen.getByRole('button', { name: 'Reveal' }))
+    const previousSignal = api.open.mock.calls[0][2] as AbortSignal
+    act(() => {
+      const replacement = entryShareFragment({ key: Uint8Array.from({ length: 32 }, (_, i) => i), accessToken: new Uint8Array(32).fill(8) })
+      window.history.replaceState(null, '', `/share/${shareId}${replacement}`)
+      captureEntryShareIngress(window)
+    })
+    expect(screen.queryByLabelText('Password')).not.toBeInTheDocument()
+    expect(previousSignal.aborted).toBe(true)
+    await userEvent.click(screen.getByRole('button', { name: 'Continue in browser' }))
+    expect(api.open).toHaveBeenCalledTimes(2)
+    expect(api.open.mock.calls[1][1]).not.toBe(api.open.mock.calls[0][1])
+    expect(api.receive).toHaveBeenCalledOnce()
+    await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+    expect(await screen.findByLabelText('Password')).toHaveClass('secret-mask')
+    await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(2))
+  })
+
   it.each([['Sign in', 'login'], ['Create an account', 'register']])('offers %s before any receipt', async (label, target) => {
     const navigate = vi.fn()
     render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} />)

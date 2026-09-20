@@ -1,13 +1,14 @@
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router'
+import { createBrowserHistory, createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { routeTree } from '../../../routeTree.gen'
 import { useAuthStore } from '../../auth'
 import { captureEntryShareIngress, clearPendingEntryShare, readPendingEntryShare } from '../../../shared/lib/entry-share-ingress'
 import { entryShareFragment } from '../../../shared/crypto/entry-share-link'
 import fixture from '../../../shared/crypto/fixtures/entry-share-v1.json'
+import { installEntryShareNavigation } from '../../../shared/lib/entry-share-navigation'
 
 const api = vi.hoisted(() => ({ open: vi.fn(), receive: vi.fn(), confirm: vi.fn() }))
 vi.mock('./recipient-api', () => ({ openRecipientSession: api.open, receiveEntryShare: api.receive,
@@ -32,6 +33,39 @@ beforeEach(() => {
 afterEach(() => { cleanup(); client.clear(); clearPendingEntryShare(); vi.restoreAllMocks() })
 
 describe('Sharing continuation in the actual application router', () => {
+  it.each([fixture.scope.shareId, '99992233-4455-4677-8899-aabbccddeeff'])('handles an in-document replacement before router observers (%s)', async (nextId) => {
+    const fragment = entryShareFragment({ key: Uint8Array.from({ length: 32 }, (_, i) => i), accessToken: new Uint8Array(32).fill(8) })
+    const nativeReplace = window.history.replaceState.bind(window.history)
+    nativeReplace(null, '', `${sharePath}${fragment}`)
+    const failure = vi.fn()
+    const stop = installEntryShareNavigation(window, failure)
+    const history = createBrowserHistory()
+    const router = createRouter({ routeTree, history })
+    const observed: string[] = []
+    const unsubscribe = router.subscribe('onBeforeNavigate', ({ toLocation }) => observed.push(toLocation.href))
+    try {
+      await router.load()
+      render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>)
+      await userEvent.click(await screen.findByRole('button', { name: 'Continue in browser' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+      await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce())
+      const previousSignal = api.open.mock.calls[0][2] as AbortSignal
+      const nextPath = `/share/${nextId}`
+      await act(async () => {
+        nativeReplace(null, '', `${nextPath}${fragment}`)
+        window.dispatchEvent(new PopStateEvent('popstate'))
+      })
+      expect(await screen.findByRole('button', { name: 'Continue in browser' })).toBeEnabled()
+      expect(screen.queryByLabelText('Password')).not.toBeInTheDocument()
+      expect(previousSignal.aborted).toBe(true)
+      expect(api.receive).toHaveBeenCalledOnce()
+      expect(api.confirm).toHaveBeenCalledOnce()
+      expect(router.state.location.href).toBe(nextPath)
+      expect(observed.every((href) => !href.includes('#') && !href.includes('key=') && !href.includes('access='))).toBe(true)
+      expect(failure).not.toHaveBeenCalled()
+    } finally { cleanup(); unsubscribe(); history.destroy(); stop() }
+  })
+
   it.each(['return', 'register', 'abandon'] as const)('preserves only the explicit auth itinerary: %s', async (next) => {
     const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [sharePath] }) })
     await router.load()

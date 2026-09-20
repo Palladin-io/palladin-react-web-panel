@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from 'react'
+import { useEffect, useEffectEvent, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { AppWordmark } from '../../../shared/components/app-wordmark'
@@ -17,6 +17,7 @@ import { useShareReception } from './use-share-reception'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
 import { SaveShareCopyDialog } from './save-share-copy-dialog'
+import { readEntryShareIngressVersion, subscribePendingEntryShare } from '../../../shared/lib/entry-share-ingress'
 
 interface EntryShareReceiverPageProps {
   shareId: string
@@ -24,7 +25,8 @@ interface EntryShareReceiverPageProps {
 }
 
 export function EntryShareReceiverPage(props: EntryShareReceiverPageProps) {
-  return <ScopedReceiver key={props.shareId} {...props} />
+  const version = useSyncExternalStore(subscribePendingEntryShare, () => readEntryShareIngressVersion(props.shareId))
+  return <ScopedReceiver key={`${props.shareId}:${version}`} {...props} />
 }
 
 function ScopedReceiver({ shareId, onContinueToAccount }: EntryShareReceiverPageProps) {
