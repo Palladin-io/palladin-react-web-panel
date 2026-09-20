@@ -18,18 +18,26 @@ import { useAuthStore } from '../../auth'
 import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
 import { SaveShareCopyDialog } from './save-share-copy-dialog'
 
-export function EntryShareReceiverPage({ shareId }: { shareId: string }) {
-  return <ScopedReceiver key={shareId} shareId={shareId} />
+interface EntryShareReceiverPageProps {
+  shareId: string
+  onContinueToAccount?: (target: 'login' | 'register' | 'unlock' | 'verify-email') => void | Promise<void>
 }
 
-function ScopedReceiver({ shareId }: { shareId: string }) {
+export function EntryShareReceiverPage(props: EntryShareReceiverPageProps) {
+  return <ScopedReceiver key={props.shareId} {...props} />
+}
+
+function ScopedReceiver({ shareId, onContinueToAccount }: EntryShareReceiverPageProps) {
   const { t, i18n } = useTranslation()
   const reception = useShareReception(shareId)
   const [ending, setEnding] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const hasAccount = useAuthStore((auth) => !!auth.accessToken || !!auth.refreshToken)
+  const locked = useAuthStore((auth) => auth.isVaultLocked)
+  const emailVerified = useAuthStore((auth) => auth.emailVerified)
   const canSave = useAuthStore((auth) => !auth.isVaultLocked && !!auth.userId && !!auth.privateKey
-    && !!auth.accessToken && (auth.permissions & PERMISSION_VAULT_MANAGE) !== 0)
+    && !!auth.accessToken && auth.emailVerified && (auth.permissions & PERMISSION_VAULT_MANAGE) !== 0)
   const confirmDisplay = useEffectEvent(() => { void reception.confirmDisplay() })
   useEffect(() => {
     if (reception.snapshot && reception.phase === 'received') confirmDisplay()
@@ -37,6 +45,11 @@ function ScopedReceiver({ shareId }: { shareId: string }) {
 
   async function perform(outcome: Promise<'ok' | 'failed' | 'cancelled'>) {
     if (await outcome === 'failed') toast.error(t('sharing.receiver.requestError'))
+  }
+  async function continueToAccount(target: 'login' | 'register' | 'unlock' | 'verify-email') {
+    if (!onContinueToAccount || !reception.continueToAccount()) return
+    try { await onContinueToAccount(target) }
+    catch { reception.forget(); toast.error(t('sharing.receiver.requestError')) }
   }
   const available = reception.phase !== 'unavailable'
   const ongoing = reception.phase === 'verification' || reception.phase === 'received'
@@ -53,6 +66,18 @@ function ScopedReceiver({ shareId }: { shareId: string }) {
         <h1 className="text-heading font-semibold text-[var(--cv-t1)]">{t('sharing.receiver.title')}</h1>
         {!available ? <p className="text-ui text-[var(--cv-t2)]">{t('sharing.receiver.unavailable')}</p> : <>
           <p className="text-meta text-[var(--cv-t2)]">{t('sharing.receiver.guestNotice')}</p>
+          {onContinueToAccount && (!hasAccount || locked || !emailVerified) ? <>
+            <p className="text-meta text-[var(--cv-t3)]">{t('sharing.receiver.accountNotice')}</p>
+            <div className="flex flex-wrap gap-2">
+              {!hasAccount ? <>
+                <Button size="sm" variant="subtle" disabled={reception.busy} onClick={() => { void continueToAccount('login') }}>{t('sharing.receiver.login')}</Button>
+                <Button size="sm" variant="subtle" disabled={reception.busy} onClick={() => { void continueToAccount('register') }}>{t('sharing.receiver.register')}</Button>
+              </> : <Button size="sm" variant="subtle" disabled={reception.busy}
+                onClick={() => { void continueToAccount(!emailVerified ? 'verify-email' : 'unlock') }}>
+                {t(!emailVerified ? 'sharing.receiver.verifyAccount' : 'sharing.receiver.unlock')}
+              </Button>}
+            </div>
+          </> : null}
           {reception.phase === 'welcome' ? <>
             <p className="text-meta text-[var(--cv-t3)]">{t('sharing.receiver.openNotice')}</p>
             <Button size="sm" variant="accent" disabled={reception.busy} onClick={() => { void perform(reception.open()) }}>

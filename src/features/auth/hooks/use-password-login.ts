@@ -21,6 +21,7 @@ import { useAuthStore } from '../stores/auth-store'
 import { clearClientSession } from '../session/client-session'
 import { prepareManualSharedUnlock } from '../shared-unlock/manual-source'
 import { beginManualUnlockAttempt } from '../session/manual-unlock-attempt'
+import { duringManualLoginCleanup } from '../../../shared/lib/manual-login-cleanup'
 
 interface PendingV2Unlock {
   masterKey: Uint8Array
@@ -132,7 +133,7 @@ export function usePasswordLogin() {
   // this same owner between requests; an older completion cannot release it.
   const begin = (credentials: PasswordCredentials): PasswordStart => {
     cancel()
-    const cleanup = clearClientSession()
+    const cleanup = duringManualLoginCleanup(clearClientSession)
     // An offline-paused mutation may await later; retain the original rejection
     // for it without producing an unhandled cleanup rejection in the meantime.
     void cleanup.catch(() => {})

@@ -5,6 +5,12 @@ import {
   parseAuthRedirect,
 } from './auth-redirect'
 
+it('unwraps verification returns without retaining a verification token or sharing fragment', () => {
+  const sharePath = '/share/00112233-4455-4677-8899-aabbccddeeff'
+  expect(getAuthRedirectFromHref(`/verify-email?token=do-not-forward&redirect=${encodeURIComponent(`${sharePath}#key=do-not-forward`)}`)).toBe(sharePath)
+  expect(parseAuthRedirect('/verify-email?token=do-not-forward')).toBeUndefined()
+})
+
 describe('parseAuthRedirect', () => {
   const sharePath = '/share/00112233-4455-4677-8899-aabbccddeeff'
 

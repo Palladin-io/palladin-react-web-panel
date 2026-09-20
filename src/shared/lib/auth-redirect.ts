@@ -1,7 +1,7 @@
 import { entrySharePath } from '../crypto/entry-share-link'
 
 const INTERNAL_URL_BASE = 'https://palladin.invalid'
-const AUTH_GATE_PATHS = new Set(['/login', '/unlock', '/register'])
+const AUTH_GATE_PATHS = new Set(['/login', '/unlock', '/register', '/verify-email'])
 
 export function parseAuthRedirect(value: unknown): string | undefined {
   if (

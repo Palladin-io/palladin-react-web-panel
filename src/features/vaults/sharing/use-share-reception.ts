@@ -6,46 +6,16 @@ import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { clearPendingEntryShare, readPendingEntryShare, subscribePendingEntryShare } from '../../../shared/lib/entry-share-ingress'
 import {
   confirmRecipientDisplay, endRecipientShare, openRecipientSession, receiveEntryShare,
-  requestRecipientOtp, verifyRecipientOtp, verifyRecipientSecret, type RecipientSession,
+  requestRecipientOtp, verifyRecipientOtp, verifyRecipientSecret,
 } from './recipient-api'
+import { initialReceptionState as initialState, type ReceptionOperation, type ReceptionState } from './reception-state'
+import { holdsReception, readReceptionContinuation, retainReception, takeReceptionContinuation } from './reception-continuation'
 
 type Outcome = 'ok' | 'failed' | 'cancelled'
-interface ReceptionState {
-  phase: 'welcome' | 'verification' | 'received' | 'ended' | 'unavailable'
-  busy: boolean
-  recipientMode: string
-  protection: string
-  otpRequested: boolean
-  otpRetry: boolean
-  emailVerified: boolean
-  secretVerified: boolean
-  snapshot: EntryShareSnapshot | null
-  confirmation: 'pending' | 'confirmed' | 'failed'
-}
-const initialState: ReceptionState = {
-  phase: 'welcome', busy: false, recipientMode: '', protection: '', otpRequested: false,
-  otpRetry: false, emailVerified: false, secretVerified: false, snapshot: null, confirmation: 'pending',
-}
-interface ReceptionOperation {
-  link: NonNullable<ReturnType<typeof readPendingEntryShare>>
-  controller: AbortController
-  session?: RecipientSession
-  busy: boolean
-  otpGeneration: number
-  pendingOtp?: number
-  emailVerified: boolean
-  secretVerified: boolean
-  received: boolean
-  confirmed: boolean
-  ended: boolean
-  wallDeadline: number
-  monotonicDeadline: number
-  timer?: ReturnType<typeof setTimeout>
-}
-
 export function useShareReception(shareId: string) {
-  const [state, setState] = useState<ReceptionState>(initialState)
+  const [state, setState] = useState<ReceptionState>(() => readReceptionContinuation(shareId)?.state ?? initialState)
   const operationRef = useRef<ReceptionOperation | null>(null)
+  const attached = useRef(false)
   const pending = useSyncExternalStore(subscribePendingEntryShare, () => readPendingEntryShare(shareId))
 
   function forget() { clearPendingEntryShare() }
@@ -53,19 +23,23 @@ export function useShareReception(shareId: string) {
   useEffect(() => {
     const link = readPendingEntryShare(shareId)
     if (!link) return
-    const operation: ReceptionOperation = {
+    const restored = takeReceptionContinuation(shareId)
+    const existing = operationRef.current
+    const operation: ReceptionOperation = restored?.operation ?? (existing?.link === link && !existing.controller.signal.aborted ? existing : {
       link, controller: new AbortController(), busy: false, otpGeneration: 0,
       emailVerified: false, secretVerified: false, received: false, confirmed: false, ended: false,
       wallDeadline: Infinity, monotonicDeadline: Infinity,
-    }
+    })
     const { userId, cryptoSessionGeneration } = useAuthStore.getState()
     operationRef.current = operation
+    attached.current = true
     const retire = () => {
       operation.controller.abort(); operation.session = undefined; clearTimeout(operation.timer)
       setState({ ...initialState, phase: 'unavailable' })
     }
     const unsubscribeIngress = subscribePendingEntryShare(retire)
     const unsubscribeAuth = useAuthStore.subscribe((current) => {
+      if (holdsReception(operation)) return
       if (current.userId !== userId || current.cryptoSessionGeneration !== cryptoSessionGeneration) {
         if (readPendingEntryShare(shareId) === link) clearPendingEntryShare()
         retire()
@@ -73,16 +47,19 @@ export function useShareReception(shareId: string) {
     })
     return () => {
       unsubscribeIngress(); unsubscribeAuth()
-      operation.controller.abort(); operation.session = undefined; clearTimeout(operation.timer)
+      attached.current = false
+      if (holdsReception(operation)) return
       // StrictMode reattaches the same route before this microtask; real navigation disposes the capability.
       queueMicrotask(() => {
-        if (operationRef.current === operation && readPendingEntryShare(shareId) === link) clearPendingEntryShare()
+        if (attached.current || holdsReception(operation)) return
+        operation.controller.abort(); operation.session = undefined; clearTimeout(operation.timer)
+        if (readPendingEntryShare(shareId) === link) clearPendingEntryShare()
       })
     }
   }, [shareId])
 
   function current(operation: ReceptionOperation): boolean {
-    if (operationRef.current !== operation || operation.controller.signal.aborted) return false
+    if (!attached.current || operationRef.current !== operation || operation.controller.signal.aborted || holdsReception(operation)) return false
     if (Date.now() >= operation.wallDeadline || performance.now() >= operation.monotonicDeadline) forget()
     return !operation.controller.signal.aborted && readPendingEntryShare(shareId) === operation.link
   }
@@ -196,5 +173,9 @@ export function useShareReception(shareId: string) {
   const canReceive = (state.recipientMode === 'anyoneWithLink' || state.recipientMode === 'namedRecipient' && state.emailVerified)
     && (state.protection === 'none' || ['password', 'pin'].includes(state.protection) && state.secretVerified)
   return { ...state, phase: pending ? state.phase : 'unavailable' as const, snapshot: pending ? state.snapshot : null,
-    canReceive, open, requestOtp, verifyOtp, verifySecret, receive, confirmDisplay, end, forget }
+    canReceive, open, requestOtp, verifyOtp, verifySecret, receive, confirmDisplay, end, forget,
+    continueToAccount: () => {
+      const operation = operationRef.current
+      return !!operation && current(operation) && retainReception(operation, state)
+    } }
 }

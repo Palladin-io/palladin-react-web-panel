@@ -54,3 +54,4 @@ export {
   DEFAULT_VAULT_ICON,
 } from './components/vault-presentation'
 export { useVaultEncryptedAssetUrl } from './assets/use-vault-encrypted-asset-url'
+export { EntryShareContinuationGuard } from './sharing/entry-share-continuation-guard'

@@ -1,4 +1,11 @@
 {
+  "verifyEmail.sessionError": "We could not confirm your account session. Retry here without reloading this tab.",
+  "verifyEmail.retrySession": "Retry verification check",
+  "sharing.receiver.accountNotice": "Sign in or create an account to save a copy. Keep this tab open; the temporary copy is cleared on reload or expiry. These steps do not use another receipt.",
+  "sharing.receiver.login": "Sign in",
+  "sharing.receiver.register": "Create an account",
+  "sharing.receiver.unlock": "Unlock to save a copy",
+  "sharing.receiver.verifyAccount": "Verify your email to save a copy",
   "sharing.editWarningTitle": "Previously shared copies do not update",
   "sharing.editWarning": "Saving will not change copies already shared through a link. You can revoke those links in the Sharing tab. Revocation cannot erase copies already downloaded.",
   "sharing.tab": "Sharing",

@@ -1,4 +1,11 @@
 {
+  "verifyEmail.sessionError": "Nie udało się potwierdzić sesji konta. Ponów sprawdzenie tutaj, bez przeładowywania karty.",
+  "verifyEmail.retrySession": "Ponów sprawdzenie weryfikacji",
+  "sharing.receiver.accountNotice": "Zaloguj się lub załóż konto, aby zapisać kopię. Pozostaw tę kartę otwartą; odświeżenie lub wygaśnięcie usuwa tymczasową kopię. Te kroki nie zużywają kolejnego odbioru.",
+  "sharing.receiver.login": "Zaloguj się",
+  "sharing.receiver.register": "Załóż konto",
+  "sharing.receiver.unlock": "Odblokuj, aby zapisać kopię",
+  "sharing.receiver.verifyAccount": "Zweryfikuj e-mail, aby zapisać kopię",
   "sharing.editWarningTitle": "Udostępnione kopie się nie aktualizują",
   "sharing.editWarning": "Zapis nie zmieni kopii udostępnionych wcześniej linkiem. Możesz odwołać te linki w zakładce Udostępnianie. Odwołanie nie usunie już pobranych kopii.",
   "sharing.tab": "Udostępnianie",

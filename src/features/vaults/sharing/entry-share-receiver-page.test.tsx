@@ -7,6 +7,7 @@ import { captureEntryShareIngress, clearPendingEntryShare } from '../../../share
 import { entryShareFragment } from '../../../shared/crypto/entry-share-link'
 import fixture from '../../../shared/crypto/fixtures/entry-share-v1.json'
 import { EntryShareReceiverPage } from './entry-share-receiver-page'
+import { duringManualLoginCleanup } from '../../../shared/lib/manual-login-cleanup'
 
 const api = vi.hoisted(() => ({ open: vi.fn(), otp: vi.fn(), verifyOtp: vi.fn(), secret: vi.fn(), receive: vi.fn(), confirm: vi.fn(), end: vi.fn(), error: vi.fn(), save: vi.fn(), success: vi.fn() }))
 vi.mock('./recipient-api', () => ({ openRecipientSession: api.open, requestRecipientOtp: api.otp,
@@ -25,7 +26,7 @@ const session = { sessionId: '44442233-4455-4677-8899-aabbccddeeff', sessionToke
 beforeEach(async () => {
   vi.resetAllMocks()
   await i18n.changeLanguage('en')
-  useAuthStore.setState({ userId: null, accessToken: null, privateKey: null, permissions: 0, isVaultLocked: true, cryptoSessionGeneration: 0 })
+  useAuthStore.setState({ userId: null, accessToken: null, refreshToken: null, emailVerified: false, privateKey: null, permissions: 0, isVaultLocked: true, cryptoSessionGeneration: 0 })
   const fragment = entryShareFragment({ key: Uint8Array.from({ length: 32 }, (_, i) => i), accessToken: new Uint8Array(32).fill(7) })
   window.history.replaceState(null, '', `/share/${shareId}${fragment}`)
   captureEntryShareIngress(window)
@@ -41,6 +42,54 @@ async function open() {
 }
 
 describe('Public sharing receiver', () => {
+  it.each([['Sign in', 'login'], ['Create an account', 'register']])('offers %s before any receipt', async (label, target) => {
+    const navigate = vi.fn()
+    render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} />)
+    await userEvent.click(screen.getByRole('button', { name: label }))
+    expect(navigate).toHaveBeenCalledExactlyOnceWith(target)
+    expect(api.open).not.toHaveBeenCalled()
+    expect(api.receive).not.toHaveBeenCalled()
+    expect(window.location.hash).toBe('')
+    expect(window.location.search).toBe('')
+  })
+
+  it('saves an already received guest copy after account continuation without redelivery or another ACK', async () => {
+    const navigate = vi.fn()
+    const page = render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Continue in browser' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+    await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce())
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(navigate).toHaveBeenCalledWith('login')
+    page.unmount()
+    act(() => {
+      duringManualLoginCleanup(() => useAuthStore.getState().logout())
+      useAuthStore.getState().setTokens({ userId: 'recipient', accessToken: 'synthetic-access',
+        refreshToken: 'synthetic-refresh', emailVerified: true, isOnboarded: true, permissions: 8 })
+      useAuthStore.getState().unlockVault(new Uint8Array(32), new Uint8Array(32))
+    })
+    render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
+    await userEvent.selectOptions(screen.getByLabelText('Destination vault'), 'target')
+    await userEvent.click(screen.getAllByRole('button', { name: 'Save to my vault' }).at(-1)!)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(api.save).toHaveBeenCalledWith('target', { title: 'Test credential', additions: {} })
+    expect(api.open).toHaveBeenCalledOnce()
+    expect(api.receive).toHaveBeenCalledOnce()
+    expect(api.confirm).toHaveBeenCalledOnce()
+  })
+
+  it('clears the copy after failed auth navigation without surfacing navigation diagnostics', async () => {
+    render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={async () => { throw new Error('sensitive navigation detail') }} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Continue in browser' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+    await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce())
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    await waitFor(() => expect(screen.queryByLabelText('Password')).not.toBeInTheDocument())
+    expect(api.error).toHaveBeenCalledWith(expect.stringContaining('The request could not be completed.'))
+    expect(api.receive).toHaveBeenCalledOnce()
+  })
+
   it('shows a guest flow without automatically opening a session, sending email or receiving', () => {
     render(<EntryShareReceiverPage shareId={shareId} />)
     expect(screen.getByRole('heading', { name: 'Receive a shared entry' })).toBeInTheDocument()
@@ -130,7 +179,7 @@ describe('Public sharing receiver', () => {
 
   it.each([false, true])('saves an unlocked recipient copy without another receipt (ended=%s)', async (ended) => {
     useAuthStore.setState({ userId: 'recipient', accessToken: 'test-token', privateKey: new Uint8Array(32),
-      isVaultLocked: false, permissions: 8 })
+      isVaultLocked: false, emailVerified: true, permissions: 8 })
     await open()
     await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
     await screen.findByRole('heading', { name: 'Test credential' })

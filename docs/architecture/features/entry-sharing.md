@@ -5,7 +5,8 @@ shared-Vault membership or an Agent grant. Backend lifecycle endpoints exist on
 the coordinated feature branch. The web sender form and list now call those
 endpoints. The public guest receiver now opens and decrypts a snapshot through
 the separate recipient API. Already unlocked recipients can explicitly save a
-new copy. Auth/native handoff and device acceptance
+new copy. Explicit in-document auth continuation now preserves the same receipt.
+New-account Vault readiness, native handoff and device acceptance
 are still pending. This feature is not deployed or accepted end-to-end.
 
 ## Snapshot boundary
@@ -110,9 +111,10 @@ link. This local timeout does not change the sender's server-owned link expiry.
 The mounted receiver owns its session and decoded content. Account changes,
 crypto-session changes (including lock/logout), unmount, pagehide and expiry
 abort transport and discard content. StrictMode's cleanup/reattach must not wipe
-the same mounted capability; real unmount disposes it. A late decryption failure
-cannot clear a newer incoming link. In-document link replacement and intentional
-limit=1 login/app handoff still require integration. Never put these buffers,
+the same mounted capability; ordinary unmount disposes it. A late decryption failure
+cannot clear a newer incoming link. Explicit auth continuation transfers ownership
+as described below. In-document link replacement and native handoff still require
+integration. Never put these buffers,
 the full link or plaintext in a query or
 mutation cache, redirect, local/session storage, IndexedDB, telemetry or errors.
 Crypto validation errors intentionally discard Zod details and secret input.
@@ -192,7 +194,7 @@ implied.
 
 ## Save an already received copy
 
-An authenticated, unlocked recipient with VaultManage can open
+An authenticated, email-verified, unlocked recipient with VaultManage can open
 `SaveShareCopyDialog` and explicitly choose a destination Vault. The public route
 does not depend on an already mounted Member sync provider: it reads the own
 authenticated Vault list and decrypts names locally. A corrupt Vault stays visible
@@ -224,16 +226,35 @@ success from refreshing a replacement session. Saving never calls recipient
 delivery again and remains available after authorized link termination while the
 already decoded local copy still exists.
 
-Account continuation and native handoff remain required parts of the epic, not
-removed scope. The existing session-disposal behavior does not yet implement
-intentional login/signup continuation for a guest who has already received data.
-Auth return routing is now prepared separately: login/registration preserve only
-the canonical sharing path, never a query or fragment. Registration's existing
-login link and the login form's registration link retain that safe destination.
-This is not a continuation capability: no new receiver CTA is exposed until RAM
-ownership through auth and the required email-verification gate are implemented.
-Registration currently creates an unverified account without a default Vault;
-attempting the normal create API at that point would hit the verification gate.
+## Explicit account continuation
+
+Before and after receipt, the guest can choose Sign in or Create an account.
+An existing account can choose email verification or unlock. This explicit action
+transfers the idle operation and snapshot into `reception-continuation.ts`, a
+single module-RAM owner. The auth URL contains only the canonical share path.
+Returning takes the same session, proof state, snapshot and original deadlines;
+neither a new delivery nor an already completed display ACK is sent.
+
+The root router guard retains ownership only along the exact share path or a
+login/register/unlock/verify-email gate with that one clean redirect. Unrelated
+navigation, extra query/fragment material, pagehide, expiry, lock, logout and
+account/organization replacement discard it. The first authenticated principal
+binds an initially anonymous continuation. Password/Google login use a narrowly
+synchronous cleanup marker: only their initial anonymous auth-shell clearing may
+retain it. The marker never survives an await or suppresses an ordinary logout.
+No key, bearer, session or snapshot enters a query/mutation cache or storage.
+
+The verification gate now checks on focus and every 15 seconds while waiting.
+After the account is verified, it refreshes this tab's own claims before marking
+ready and returning, fenced by user, refresh lineage, client/crypto generation
+and query cancellation. Errors expose only a generic request retry; they do not
+force reload or cache a credential-bearing HTTP error. Unlock and verification
+redirects preserve the canonical return. A clicked email link in another document
+does not transport the sharing capability; the original tab must remain open.
+
+Registration still creates an unverified account without a default Vault.
+Preparing a usable destination without leaving this RAM flow, actual HTTP/auth
+E2E and native handoff remain required; these changes do not close those gates.
 
 ## Verification and remaining work
 
@@ -257,7 +278,10 @@ Transport tests prove no account auth or hidden retry and generic HTTP/JSON erro
 
 Save-copy tests cover fresh independent keys, scope/epoch substitution, omitted
 field completion, explicit Vault selection, exact encrypted retry and session
-cancellation. Account/native continuation remains unimplemented.
+cancellation. Continuation tests additionally cover explicit auth transfer,
+StrictMode remount, receipt/ACK counts through save, exact clean navigation,
+wrong account/org, async cleanup, expiry and replacement links. Verification-gate
+tests cover pending refresh, focus, retry and late results after lifecycle changes.
 Completion requires real HTTP contracts, browser/native acceptance, Inbox/audit
 presentation and the verified test environment. A synthetic visual fixture is
 only a design aid, never a delivered user test environment.

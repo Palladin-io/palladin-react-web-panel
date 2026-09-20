@@ -27,7 +27,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `Icon` | `shared/components/icon.tsx` | Bundled Lucide SVG wrapper with stable legacy names | `name`, `size` (default 18), `color`, `className`, `ariaHidden`, `style`. Unknown names render a local question-mark SVG. |
 | `Tooltip` | `shared/components/tooltip.tsx` | 150ms-delay tooltip portaled to body; shows only when text is truncated | `content`, `children`, `className`, `delayMs`. |
 | `WarningZone` | `shared/components/warning-zone.tsx` | Amber callout for security/irreversible actions | `title` (uppercase heading), `children`. |
-| `ErrorState` | `shared/components/error-state.tsx` | Red-tinted error card with Retry button | `message?`, `onRetry`. |
+| `ErrorState` | `shared/components/error-state.tsx` | Red-tinted error card with Retry button | `message?`, `retryLabel?` (defaults to Reload), `onRetry`. Use an explicit retry label when a request retry preserves RAM state. |
 | `EmptyState` | `shared/components/empty-state.tsx` | Canonical dashed empty-list state with optional guidance and action | `title`, `description?`, `action?`, `icon?`, `className?`. |
 | `SkeletonBlock` | `shared/components/skeleton-block.tsx` | Theme-aware loading placeholder | `height?`, `rounded?` (`xl` / `2xl`), `className?`. |
 | `AuditLogList` | `features/audit/components/audit-log-list.tsx` | Canonical Audit Log states, rows and cursor sentinel used on Home and every log scope | `presentation` is required and comes from `useAuditLogPresentation`; never pass resolver functions individually. |
