@@ -40,3 +40,17 @@ Rules:
 - Green is `#10B981` (never `#2EC4B6`).
 - `agent.enrolled` = info / blue.
 - Pending / peach = `grant.requested` (request access).
+
+## Individual Entry sharing (CVT-644, feature branch)
+
+All common log surfaces, Entry filters and the PL/EN legend include eight
+`entry-share.*` events. `created` and `protection-changed` use info;
+`delivered` and `confirmed` use success; `expired` and `ended` use neutral;
+`revoked` and `source-access-removed` use danger. Delivery and client-display
+confirmation stay separate; the latter never claims proof of human reading.
+
+The explicit `externalRecipient` actor renders as External recipient / Odbiorca
+zewnętrzny. It never resolves to the sender, Agent or organization member, even
+if a row carries a legacy user ID. Only explicit user actors enter the directory
+repair and user-filter options. No recipient e-mail/IP/device tracking is added.
+Mobile parity and real browser/server acceptance remain release requirements.

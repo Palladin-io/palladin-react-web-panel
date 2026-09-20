@@ -105,6 +105,7 @@ import { shortenKey } from '../../shared/lib/shorten-key'
 export interface EntryDetailPageProps {
   vaultId: string
   entryId: string
+  initialTab?: EntryDetailTab
 }
 
 type EntryDetailTab = 'details' | 'agents' | 'history' | 'logs' | 'sharing'
@@ -121,12 +122,12 @@ type EntryDetailTab = 'details' | 'agents' | 'history' | 'logs' | 'sharing'
  * visibility doesn't re-decrypt; refreshing or closing the tab wipes it
  * because all crypto state lives in memory only.
  */
-export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
+export function EntryDetailPage({ vaultId, entryId, initialTab = 'details' }: EntryDetailPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const vault = useVault(vaultId)
   const memberEntry = useMemberSyncStore((store) => store.vaults.get(vaultId)?.entries.get(entryId))
-  const [activeTab, setActiveTab] = useState<EntryDetailTab>('details')
+  const [activeTab, setActiveTab] = useState<EntryDetailTab>(initialTab)
   const canonicalNeeded = activeTab === 'agents' || activeTab === 'history'
   const canonical = useCanonicalEntryDetail(vaultId, entryId, canonicalNeeded)
   const [addAgentOpen, setAddAgentOpen] = useState(false)

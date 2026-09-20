@@ -302,6 +302,11 @@ cancellation. A combined component test uses the real receive/continuation/save
 hooks and crypto: one guest receipt survives substituted registration/verification,
 fresh Vault creation and an independently decryptable Entry save, with one ACK.
 Only API/auth transport is substituted; it is not browser/server E2E.
-Completion requires real HTTP contracts, browser/native acceptance, Inbox/audit
-presentation and the verified test environment. A synthetic visual fixture is
+Web Inbox/audit presentation now includes the first-display notification, direct
+source Sharing-tab navigation, eight event types and an explicit external actor.
+Feed/badge repair is foreground-only REST polling, not a new push channel. Tests
+cover localized copy, metadata projection, routing, notification filtering and
+hidden/unmounted polling suppression; see `notifications.md` and `audit.md`.
+Completion requires real HTTP contracts, browser/native acceptance, mobile
+Inbox/audit parity and the verified test environment. A synthetic visual fixture is
 only a design aid, never a delivered user test environment.

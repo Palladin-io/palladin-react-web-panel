@@ -35,7 +35,7 @@ export function AuditLogLegend({
         <div className="flex flex-col gap-4">
           {categories.map((category) => (
             <div key={category.labelKey}>
-              <div className="mb-1.5 text-micro font-bold uppercase tracking-wide text-[var(--cv-t3)]">
+              <div className="mb-1.5 text-micro font-bold text-[var(--cv-t3)]">
                 {t(category.labelKey)}
               </div>
               <LegendRows types={category.types} />
@@ -84,6 +84,14 @@ function LegendRows({ types }: { types: AuditEventType[] }) {
 
 /** event type → camelCase suffix of its description i18n key. */
 const SENTENCE_DESC: Record<AuditEventType, string> = {
+  'entry-share.created': 'entryShareCreated',
+  'entry-share.delivered': 'entryShareDelivered',
+  'entry-share.confirmed': 'entryShareConfirmed',
+  'entry-share.protection-changed': 'entryShareProtectionChanged',
+  'entry-share.expired': 'entryShareExpired',
+  'entry-share.revoked': 'entryShareRevoked',
+  'entry-share.ended': 'entryShareEnded',
+  'entry-share.source-access-removed': 'entryShareSourceAccessRemoved',
   'auth.login-failed': 'loginFailed',
   'credential.accessed': 'credentialAccessed',
   'credential.access-denied': 'credentialAccessDenied',

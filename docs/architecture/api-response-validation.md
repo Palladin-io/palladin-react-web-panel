@@ -34,6 +34,12 @@ separate untrusted or cryptographic boundaries and remain validated.
 
 ## Review rule
 
+Notification metadata includes opaque `shareId` for the Inbox-only Entry receipt.
+It reuses the existing value-free identifier projection: URLs and presentation
+content are omitted without rejecting the REST row. A negative test rejects a
+secret-bearing URL in that slot. This is a content boundary shared with independent
+push decoding, not validation of backend lifecycle state.
+
 Individual Entry sharing (`shared/crypto/entry-share.ts`) validates decrypted
 snapshot JSON and AEAD scope, not backend-owned lifecycle metadata. The requested
 share ID is independent link authority; canonical source coordinates come from

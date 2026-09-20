@@ -26,6 +26,7 @@ import type { NotificationItem } from './notifications-api'
 export type DetailRowValue =
   | { kind: 'text'; text: string }
   | { kind: 'entry'; entry: string; vault: string | null }
+  | { kind: 'message'; key: string }
 
 /** One labelled detail row inside a card. */
 export interface DetailRow {
@@ -143,6 +144,8 @@ function agentRows(item: NotificationItem): DetailRow[] {
 /** Localized type-name i18n key per type — the CARD TITLE (matches mobile). */
 export function notificationTypeNameKey(type: string): string {
   switch (type) {
+    case 'entry_share_received':
+      return 'notifications.type.entryShareReceived'
     case 'grant_pending':
       return 'notifications.type.grantPending'
     case 'agent_pending':
@@ -183,6 +186,17 @@ export function notificationCardPresentation(
   // Every card shows a FIXED 3-row set per type (missing values → em-dash) so
   // the grid stays uniform and never collapses.
   switch (item.type) {
+    case 'entry_share_received':
+      return {
+        header: { kind: 'glyph', glyph: 'check_circle', tone: 'teal' },
+        titleKey,
+        subtitleKey: 'notifications.sub.entryShareReceived',
+        subtitleAgent: null,
+        subtitleAgentFallbackKey: 'audit.externalRecipient',
+        rows: [entryRow(item), idRow(item, 'notifications.card.rowShare', 'shareId'),
+          { labelKey: 'notifications.card.rowConfirmation', value: { kind: 'message', key: 'notifications.card.displayNotReadProof' } }],
+      }
+
     case 'grant_pending':
       return {
         header: { kind: 'agent', agentName, agentId, agentIconKey },

@@ -28,6 +28,14 @@ export const AUDIT_EVENT_TYPES = [
   'entry.created',
   'entry.updated',
   'entry.deleted',
+  'entry-share.created',
+  'entry-share.delivered',
+  'entry-share.confirmed',
+  'entry-share.protection-changed',
+  'entry-share.expired',
+  'entry-share.revoked',
+  'entry-share.ended',
+  'entry-share.source-access-removed',
   'apikey.created',
   'apikey.activated',
   'apikey.revoked',
@@ -46,7 +54,7 @@ export const AUDIT_EVENT_TYPES = [
 export type AuditEventType = (typeof AUDIT_EVENT_TYPES)[number]
 
 /** Who performed the action — backend `AuditActorType` (camelCase JSON). */
-export const AUDIT_ACTOR_TYPES = ['user', 'agent', 'system'] as const
+export const AUDIT_ACTOR_TYPES = ['user', 'agent', 'system', 'externalRecipient'] as const
 export type AuditActorType = (typeof AUDIT_ACTOR_TYPES)[number]
 
 /**
