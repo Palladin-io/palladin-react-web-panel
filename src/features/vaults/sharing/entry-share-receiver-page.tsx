@@ -14,6 +14,9 @@ import { SectionHeader } from '../components/section-header'
 import { sharingFieldLabel } from './sharing-field-label'
 import { RecipientProofForm } from './recipient-proof-form'
 import { useShareReception } from './use-share-reception'
+import { useAuthStore } from '../../auth'
+import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
+import { SaveShareCopyDialog } from './save-share-copy-dialog'
 
 export function EntryShareReceiverPage({ shareId }: { shareId: string }) {
   return <ScopedReceiver key={shareId} shareId={shareId} />
@@ -23,6 +26,10 @@ function ScopedReceiver({ shareId }: { shareId: string }) {
   const { t, i18n } = useTranslation()
   const reception = useShareReception(shareId)
   const [ending, setEnding] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const canSave = useAuthStore((auth) => !auth.isVaultLocked && !!auth.userId && !!auth.privateKey
+    && !!auth.accessToken && (auth.permissions & PERMISSION_VAULT_MANAGE) !== 0)
   const confirmDisplay = useEffectEvent(() => { void reception.confirmDisplay() })
   useEffect(() => {
     if (reception.snapshot && reception.phase === 'received') confirmDisplay()
@@ -80,6 +87,9 @@ function ScopedReceiver({ shareId }: { shareId: string }) {
             <h2 className="break-words text-heading-sm font-semibold text-[var(--cv-t1)]">{reception.snapshot.title}</h2>
             {reception.snapshot.fields.map((field) => <ReceivedField key={field.id} field={field} />)}
             <p className="text-meta text-[var(--cv-t3)]">{t('sharing.receiver.copyNotice')}</p>
+            {canSave ? <Button size="sm" variant="accent" disabled={saved || reception.busy} onClick={() => setSaving(true)}>
+              {t(saved ? 'sharing.copy.saved' : 'sharing.copy.save')}
+            </Button> : null}
             {reception.phase === 'received' ? <>
               <p role="status" className="text-meta text-[var(--cv-t3)]">{t(`sharing.receiver.confirmation.${reception.confirmation}`)}</p>
               {reception.confirmation === 'failed' ? <Button size="sm" variant="subtle" disabled={reception.busy}
@@ -93,6 +103,8 @@ function ScopedReceiver({ shareId }: { shareId: string }) {
         </>}
       </section>
     </div>
+    {saving && canSave && reception.snapshot ? <SaveShareCopyDialog snapshot={reception.snapshot}
+      onClose={() => setSaving(false)} onSaved={() => { setSaved(true); setSaving(false) }} /> : null}
     {ending && ongoing ? <ModalShell title={t('sharing.receiver.end')} ariaLabel={t('sharing.receiver.end')} trapFocus
       onClose={reception.busy ? undefined : () => setEnding(false)} footer={<DialogFooter>
         <Button size="sm" variant="subtle" className="flex-1" disabled={reception.busy} onClick={() => setEnding(false)}>{t('sharing.cancel')}</Button>

@@ -61,7 +61,7 @@ function invalidSnapshot(): Error {
   return new Error('Invalid Entry sharing snapshot')
 }
 
-function parseSnapshot(value: unknown): EntryShareSnapshot {
+export function parseEntryShareSnapshot(value: unknown): EntryShareSnapshot {
   const parsed = snapshotSchema.safeParse(value)
   // Zod diagnostics must not escape this boundary: they may contain secret input.
   if (!parsed.success) throw invalidSnapshot()
@@ -69,7 +69,7 @@ function parseSnapshot(value: unknown): EntryShareSnapshot {
 }
 
 function snapshotBytes(snapshot: EntryShareSnapshot): Uint8Array {
-  const encoded = new TextEncoder().encode(JSON.stringify(parseSnapshot(snapshot)))
+  const encoded = new TextEncoder().encode(JSON.stringify(parseEntryShareSnapshot(snapshot)))
   try { return Uint8Array.from(encoded) }
   finally { wipe(encoded) }
 }
@@ -137,7 +137,7 @@ export async function openEntryShare(
     if (nonce.length !== NONCE_BYTES || ciphertext.length < TAG_BYTES) throw invalidSnapshot()
     const s = await loadSodium()
     plaintext = s.crypto_aead_xchacha20poly1305_ietf_decrypt(null, ciphertext, aad, nonce, key)
-    return parseSnapshot(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext)))
+    return parseEntryShareSnapshot(JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext)))
   } catch {
     throw invalidSnapshot()
   } finally {

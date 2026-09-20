@@ -4,7 +4,8 @@ The approved scope is the independently encrypted snapshot in CVT-644, not
 shared-Vault membership or an Agent grant. Backend lifecycle endpoints exist on
 the coordinated feature branch. The web sender form and list now call those
 endpoints. The public guest receiver now opens and decrypts a snapshot through
-the separate recipient API. Save-copy, auth/native handoff and device acceptance
+the separate recipient API. Already unlocked recipients can explicitly save a
+new copy. Auth/native handoff and device acceptance
 are still pending. This feature is not deployed or accepted end-to-end.
 
 ## Snapshot boundary
@@ -189,8 +190,43 @@ link key/bearer buffers, but does not remove an already displayed local copy unt
 the session is cleared/expires. No remote recall or external-password change is
 implied.
 
-The current receiver does not yet expose save-to-Vault, account continuation or
-native handoff. These remain required parts of the epic, not removed scope.
+## Save an already received copy
+
+An authenticated, unlocked recipient with VaultManage can open
+`SaveShareCopyDialog` and explicitly choose a destination Vault. The public route
+does not depend on an already mounted Member sync provider: it reads the own
+authenticated Vault list and decrypts names locally. A corrupt Vault stays visible
+as an unavailable shortened identifier and does not hide healthy siblings.
+
+`entry-share-copy.ts` validates the untrusted snapshot and recipient form, assigns
+new custom-field IDs and creates a canonical MemberSecret with Discovery disabled
+and no inherited source policies or Script references. Native secret values are
+never silently normalized; values incompatible with canonical storage fail
+without secret-bearing diagnostics. Omitted required card fields or Script
+interpreter must be completed explicitly. Received values cannot be replaced by
+that completion form. The copy title is editable to meet the Entry label limit.
+The notice explains that existing destination-Vault members and FULL Agents can
+access the saved copy despite its disabled Discovery flag.
+
+`entry-share-copy-encryption.ts` binds target envelopes to the captured own JWT
+organization, principal, chosen Vault, server-issued creation Entry ID and current
+Vault key epoch. The canonical sealer creates fresh Entry key material and client
+projections; temporary VK/VDK buffers are wiped. No source Entry or sharing key is
+an input. The normal authenticated creation endpoint receives only ciphertext and
+the new Entry's structural delivery policy.
+
+The save hook owns pending work in component RAM, outside query/mutation caches.
+An ambiguous create response retains exactly the same encrypted body/Entry ID for
+explicit retry, freezing destination and form choices. Closing loses that retry;
+the warning asks the user to check the Vault before starting another save. Lock,
+account/org/permission changes, pagehide and unmount abort work and prevent late
+success from refreshing a replacement session. Saving never calls recipient
+delivery again and remains available after authorized link termination while the
+already decoded local copy still exists.
+
+Account continuation and native handoff remain required parts of the epic, not
+removed scope. The existing session-disposal behavior does not yet implement
+intentional login/signup continuation for a guest who has already received data.
 
 ## Verification and remaining work
 
@@ -212,7 +248,9 @@ StrictMode. Page tests prove receipt is explicit, content is masked and the ACK
 is issued after the view exists, with confirmation retry and termination dialog.
 Transport tests prove no account auth or hidden retry and generic HTTP/JSON errors.
 
-There is still no save-copy or account/native continuation.
+Save-copy tests cover fresh independent keys, scope/epoch substitution, omitted
+field completion, explicit Vault selection, exact encrypted retry and session
+cancellation. Account/native continuation remains unimplemented.
 Completion requires real HTTP contracts, browser/native acceptance, Inbox/audit
 presentation and the verified test environment. A synthetic visual fixture is
 only a design aid, never a delivered user test environment.

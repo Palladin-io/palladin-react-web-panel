@@ -81,8 +81,9 @@ Individual Entry sharing is being implemented separately from Agent grants.
 Its selected-field projection, snapshot crypto and secret-link bootstrap boundary
 are documented in [entry-sharing.md](entry-sharing.md). The sender's separate
 Sharing tab and creation dialog now call the lifecycle API on the feature branch.
-Receiver UI, save-copy and cross-client acceptance remain pending; this is not a
-released sharing feature.
+The guest receiver and explicit save-copy for an already unlocked account are
+also connected. Login/signup continuation, native handoff and cross-client
+acceptance remain pending; this is not a released sharing feature.
 
 - Imports `OrgGrantsPanel` and the grant dialogs from `grants` for the Agents tabs.
 - Exports `useVaults` / `useVault` / `useEntries`, consumed by `audit`.

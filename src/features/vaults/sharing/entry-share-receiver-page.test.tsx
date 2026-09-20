@@ -8,11 +8,15 @@ import { entryShareFragment } from '../../../shared/crypto/entry-share-link'
 import fixture from '../../../shared/crypto/fixtures/entry-share-v1.json'
 import { EntryShareReceiverPage } from './entry-share-receiver-page'
 
-const api = vi.hoisted(() => ({ open: vi.fn(), otp: vi.fn(), verifyOtp: vi.fn(), secret: vi.fn(), receive: vi.fn(), confirm: vi.fn(), end: vi.fn(), error: vi.fn() }))
+const api = vi.hoisted(() => ({ open: vi.fn(), otp: vi.fn(), verifyOtp: vi.fn(), secret: vi.fn(), receive: vi.fn(), confirm: vi.fn(), end: vi.fn(), error: vi.fn(), save: vi.fn(), success: vi.fn() }))
 vi.mock('./recipient-api', () => ({ openRecipientSession: api.open, requestRecipientOtp: api.otp,
   verifyRecipientOtp: api.verifyOtp, verifyRecipientSecret: api.secret, receiveEntryShare: api.receive,
   confirmRecipientDisplay: api.confirm, endRecipientShare: api.end }))
-vi.mock('sonner', () => ({ toast: { error: api.error } }))
+vi.mock('sonner', () => ({ toast: { error: api.error, success: api.success } }))
+vi.mock('./use-save-share-copy', () => ({ useSaveShareCopy: () => ({
+  vaults: [{ id: 'target', name: 'Personal' }], loading: false, loadError: false,
+  busy: false, retryPending: false, saved: false, save: api.save, retryLoad: vi.fn(),
+}) }))
 
 const shareId = fixture.scope.shareId
 const session = { sessionId: '44442233-4455-4677-8899-aabbccddeeff', sessionToken: 's'.repeat(43),
@@ -21,12 +25,13 @@ const session = { sessionId: '44442233-4455-4677-8899-aabbccddeeff', sessionToke
 beforeEach(async () => {
   vi.resetAllMocks()
   await i18n.changeLanguage('en')
-  useAuthStore.setState({ userId: null, accessToken: null, isVaultLocked: true, cryptoSessionGeneration: 0 })
+  useAuthStore.setState({ userId: null, accessToken: null, privateKey: null, permissions: 0, isVaultLocked: true, cryptoSessionGeneration: 0 })
   const fragment = entryShareFragment({ key: Uint8Array.from({ length: 32 }, (_, i) => i), accessToken: new Uint8Array(32).fill(7) })
   window.history.replaceState(null, '', `/share/${shareId}${fragment}`)
   captureEntryShareIngress(window)
   api.open.mockResolvedValue({ ...session, expiresAt: new Date(Date.now() + 900_000).toISOString() })
   api.receive.mockResolvedValue({ ...fixture.scope, nonce: fixture.nonce, ciphertext: fixture.ciphertext })
+  api.save.mockResolvedValue('saved')
 })
 afterEach(() => { cleanup(); clearPendingEntryShare() })
 
@@ -121,5 +126,28 @@ describe('Public sharing receiver', () => {
     act(() => useAuthStore.setState({ userId: 'another-account', cryptoSessionGeneration: 1 }))
     expect(screen.queryByLabelText('Password')).not.toBeInTheDocument()
     expect(screen.getByText(/Reopen the original full link/)).toBeInTheDocument()
+  })
+
+  it.each([false, true])('saves an unlocked recipient copy without another receipt (ended=%s)', async (ended) => {
+    useAuthStore.setState({ userId: 'recipient', accessToken: 'test-token', privateKey: new Uint8Array(32),
+      isVaultLocked: false, permissions: 8 })
+    await open()
+    await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+    await screen.findByRole('heading', { name: 'Test credential' })
+    await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce())
+    if (ended) {
+      await userEvent.click(screen.getByRole('button', { name: 'End sharing link' }))
+      await userEvent.click(screen.getAllByRole('button', { name: 'End sharing link' }).at(-1)!)
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    }
+    await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
+    await userEvent.selectOptions(screen.getByLabelText('Destination vault'), 'target')
+    await userEvent.click(screen.getAllByRole('button', { name: 'Save to my vault' }).at(-1)!)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(api.save).toHaveBeenCalledWith('target', { title: 'Test credential', additions: {} })
+    expect(screen.getByRole('button', { name: 'Copy saved to your vault' })).toBeDisabled()
+    expect(api.open).toHaveBeenCalledOnce()
+    expect(api.receive).toHaveBeenCalledOnce()
+    expect(screen.getByLabelText('Password')).toHaveValue('fixture-only')
   })
 })

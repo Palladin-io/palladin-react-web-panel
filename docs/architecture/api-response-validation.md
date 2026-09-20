@@ -49,6 +49,17 @@ discarded without attaching the response, request or decoding exception; this is
 error redaction, not an additional response schema. The requested link ID and
 explicit canonical delivery coordinates remain the authorities for AEAD opening.
 
+Saving a received copy (`shared/crypto/entry-share-copy-encryption.ts`) compares
+target Vault envelopes against the independently captured authenticated JWT
+organization, current principal, explicitly selected Vault and creation-challenge
+Entry ID. Descriptor key versions/generations are bound to the explicit current
+Vault epoch/member-generation contract before key use. Negative tests cover
+foreign org/Vault/principal, substituted Discovery scope and stale key epochs.
+These are zero-knowledge key-use checks, not duplicate REST lifecycle validators.
+The snapshot/completion-form schemas validate untrusted content, not API metadata.
+A Vault whose local cryptographic verification fails remains an unavailable choice
+without hiding other authenticated Vaults.
+
 Every retained cross-field check must identify an authority outside the value it
 validates: authenticated request/JWT claims, route coordinates, the current
 Vault summary, the decrypted structural head, a configured external origin or
