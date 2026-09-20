@@ -227,6 +227,13 @@ already decoded local copy still exists.
 Account continuation and native handoff remain required parts of the epic, not
 removed scope. The existing session-disposal behavior does not yet implement
 intentional login/signup continuation for a guest who has already received data.
+Auth return routing is now prepared separately: login/registration preserve only
+the canonical sharing path, never a query or fragment. Registration's existing
+login link and the login form's registration link retain that safe destination.
+This is not a continuation capability: no new receiver CTA is exposed until RAM
+ownership through auth and the required email-verification gate are implemented.
+Registration currently creates an unverified account without a default Vault;
+attempting the normal create API at that point would hit the verification gate.
 
 ## Verification and remaining work
 

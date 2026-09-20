@@ -38,8 +38,8 @@ const registerState = vi.hoisted(() => ({
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
-  Link: ({ children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-    <a {...props}>{children}</a>
+  Link: ({ children, to, search, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { to: string; search?: { redirect?: string } }) => (
+    <a {...props} href={to + (search?.redirect ? `?redirect=${encodeURIComponent(search.redirect)}` : '')}>{children}</a>
   ),
 }))
 vi.mock('../hooks/use-register', () => ({ useRegister: () => registerState }))
@@ -120,4 +120,27 @@ it('shows the registration error on the recovery confirmation step', async () =>
   expect(await screen.findByRole('alert')).toHaveTextContent(
     /couldn't create your account/i,
   )
+})
+
+it('returns to a clean sharing route after registration and preserves it when switching to login', async () => {
+  registerState.mutate.mockImplementation((_input: unknown, options: { onSuccess: () => void }) => options.onSuccess())
+  const user = userEvent.setup()
+  const destination = '/share/00112233-4455-4677-8899-aabbccddeeff'
+  render(<RegisterPage redirectTo={`${destination}?access=synthetic#key=synthetic`} />)
+  expect(screen.getByRole('link', { name: /^sign in$/i })).toHaveAttribute('href', `/login?redirect=${encodeURIComponent(destination)}`)
+  const inputs = await reachRecoveryConfirmation(user)
+  await enterRequestedWords(user, inputs)
+  await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
+  expect(navigateMock).toHaveBeenCalledWith({ href: destination })
+})
+
+it('never forwards an external return through registration or its login link', async () => {
+  registerState.mutate.mockImplementation((_input: unknown, options: { onSuccess: () => void }) => options.onSuccess())
+  const user = userEvent.setup()
+  render(<RegisterPage redirectTo="https://attacker.example/" />)
+  expect(screen.getByRole('link', { name: /^sign in$/i })).toHaveAttribute('href', '/login')
+  const inputs = await reachRecoveryConfirmation(user)
+  await enterRequestedWords(user, inputs)
+  await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
+  expect(navigateMock).toHaveBeenCalledWith({ to: '/' })
 })

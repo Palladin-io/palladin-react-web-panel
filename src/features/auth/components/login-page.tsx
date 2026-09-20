@@ -9,6 +9,7 @@ import { usePasswordLogin } from '../hooks/use-password-login'
 import { useAuthStore } from '../stores/auth-store'
 import { EmailPasswordForm } from './email-password-form'
 import { TotpChallengeStep } from './totp-challenge-step'
+import { parseAuthRedirect } from '../../../shared/lib/auth-redirect'
 
 interface LoginPageProps {
   redirectTo?: string
@@ -17,7 +18,8 @@ interface LoginPageProps {
 export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const oauth = useGoogleSignIn(redirectTo)
+  const destination = parseAuthRedirect(redirectTo) ?? '/'
+  const oauth = useGoogleSignIn(destination)
   const { start, submitTotp, cancel, isPending: passwordPending } = usePasswordLogin()
   const unlockedSession = useAuthStore((state) => Boolean(state.accessToken) && !state.isVaultLocked)
   const navigated = useRef(false)
@@ -28,13 +30,13 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
     // success callback owns navigation until that mutation has settled.
     if (!unlockedSession || manualPending || navigated.current) return
     navigated.current = true
-    void navigate({ href: redirectTo, replace: true })
-  }, [unlockedSession, manualPending, navigate, redirectTo])
+    void navigate({ href: destination, replace: true })
+  }, [unlockedSession, manualPending, navigate, destination])
 
   const finishManualLogin = () => {
     if (navigated.current) return
     navigated.current = true
-    void navigate({ href: redirectTo })
+    void navigate({ href: destination })
   }
   const [tooltipTarget, setTooltipTarget] = useState<string | null>(null)
 
@@ -117,6 +119,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
           ) : (
             <>
               <EmailPasswordForm
+                redirectTo={destination}
                 isPending={start.isPending}
                 errorMessage={passwordError}
                 onSubmit={handleCredentials}

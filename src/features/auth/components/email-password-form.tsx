@@ -3,8 +3,10 @@ import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
 import { FieldFeedback, FormInput } from '../../../shared/components/form-field'
+import { parseAuthRedirect } from '../../../shared/lib/auth-redirect'
 
 export interface EmailPasswordFormProps {
+  redirectTo?: string
   isPending: boolean
   errorMessage: string | null
   onSubmit: (email: string, password: string) => void
@@ -17,6 +19,7 @@ export interface EmailPasswordFormProps {
  * machine. On submit the parent runs the salt → authHash → login handshake.
  */
 export function EmailPasswordForm({
+  redirectTo,
   isPending,
   errorMessage,
   onSubmit,
@@ -80,6 +83,7 @@ export function EmailPasswordForm({
           the provider actions so secondary auth choices stay visually consistent. */}
       <Link
         to="/register"
+        search={{ redirect: parseAuthRedirect(redirectTo) }}
         className="auth-glass-button flex h-control w-full items-center justify-center rounded-lg
           border px-3.5 text-heading-sm font-medium"
       >
