@@ -61,14 +61,17 @@ AAD is this exact byte concatenation, with no separators or length prefixes:
 
 | Offset | Bytes | Value |
 | --- | --- | --- |
-| 0 | 18 | ASCII `PLDN-ENTRY-SHARE-v1` |
-| 18 | 16 | Share UUID in RFC/network byte order |
-| 34 | 16 | Organization UUID |
-| 50 | 16 | Vault UUID |
-| 66 | 16 | Entry UUID |
-| 82 | 8 | Source revision, unsigned big-endian u64 |
-| 90 | 8 | Expiry Unix seconds, unsigned big-endian u64 |
-| 98 | 4 | Expiry fractional nanoseconds, unsigned big-endian u32 |
+| 0 | 19 | ASCII `PLDN-ENTRY-SHARE-v1` |
+| 19 | 16 | Share UUID in RFC/network byte order |
+| 35 | 16 | Organization UUID |
+| 51 | 16 | Vault UUID |
+| 67 | 16 | Entry UUID |
+| 83 | 8 | Source revision, unsigned big-endian u64 |
+| 91 | 8 | Expiry Unix seconds, unsigned big-endian u64 |
+| 99 | 4 | Expiry fractional nanoseconds, unsigned big-endian u32 |
+
+Total: 103 bytes. These offsets correct an earlier documentation counting error;
+the implementation and independent fixture have always used this byte layout.
 
 UUID text is canonical lowercase. Revisions use canonical decimal strings, never
 JS numbers. UTC expiry accepts zero to nine fractional digits, preserves all
@@ -87,8 +90,9 @@ canonical delivery fields and rejects scope substitution.
 The fixture `src/shared/crypto/fixtures/entry-share-v1.json` was generated using
 Python `uuid`/`struct` and native system libsodium, separately from the TypeScript
 encoder. It contains only synthetic public test material. Web verifies its exact
-AAD and decrypts its ciphertext. Flutter consumption and real cross-client flow
-are still release gates, not established by this fixture alone.
+AAD and decrypts its ciphertext. Flutter now consumes the byte-identical fixture
+in its native crypto tests; actual cross-client HTTP flow remains a release gate,
+not established by primitive interoperability alone.
 
 ## Link ingress and lifecycle
 
