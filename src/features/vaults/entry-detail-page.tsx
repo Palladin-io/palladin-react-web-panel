@@ -100,10 +100,12 @@ import {
 } from './sync/current-member-entry-reader'
 import { useMemberSyncStore, type MemberIndexRecord } from './sync/member-sync-store'
 import { shortenKey } from '../../shared/lib/shorten-key'
+import { GlobalEntriesPanel } from './global-entries-page'
 
 export interface EntryDetailPageProps {
   vaultId: string
   entryId: string
+  fromEntries?: boolean
 }
 
 type EntryDetailTab = 'details' | 'agents' | 'history' | 'logs'
@@ -120,7 +122,7 @@ type EntryDetailTab = 'details' | 'agents' | 'history' | 'logs'
  * visibility doesn't re-decrypt; refreshing or closing the tab wipes it
  * because all crypto state lives in memory only.
  */
-export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
+export function EntryDetailPage({ vaultId, entryId, fromEntries = false }: EntryDetailPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const vault = useVault(vaultId)
@@ -131,8 +133,8 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
   const [addAgentOpen, setAddAgentOpen] = useState(false)
   const isWide = useWideScreen()
 
-  const handleBack = () => navigate({ to: '/vaults/$vaultId', params: { vaultId } })
-  const onDeleted = () => navigate({ to: '/vaults/$vaultId', params: { vaultId } })
+  const handleBack = () => fromEntries ? navigate({ to: '/entries' }) : navigate({ to: '/vaults/$vaultId', params: { vaultId } })
+  const onDeleted = handleBack
 
   const loadCanonical = useCallback(async (): Promise<CanonicalEntryDetail> => {
     const result = await canonical.refetch()
@@ -183,8 +185,8 @@ export function EntryDetailPage({ vaultId, entryId }: EntryDetailPageProps) {
     return (
       <div className="flex h-full overflow-hidden text-[var(--cv-t1)]">
         <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
-          <div className="h-full px-4 pt-4">
-            {vault.data ? (
+          <div className={fromEntries ? 'h-full' : 'h-full px-4 pt-4'}>
+            {fromEntries ? <GlobalEntriesPanel selectedEntryId={entryId} selectedVaultId={vaultId} /> : vault.data ? (
               <VaultEntriesPanel vault={vault.data} selectedEntryId={entryId} />
             ) : (
               <div className="h-32 animate-pulse rounded-2xl bg-[var(--cv-card-bg)]" />

@@ -9,9 +9,8 @@ import {
   DEFAULT_VAULT_COLOR,
   DEFAULT_VAULT_ICON,
   ENTRY_TYPE_CREDENTIAL,
-  EntryIcon,
+  VaultPresentationIcon,
   normalizeEntryType,
-  useVaultEncryptedAssetUrl,
 } from '../vaults'
 import {
   useGlobalSearch,
@@ -45,22 +44,15 @@ const TYPE_BADGES: Record<SearchResultType, TypeBadge> = {
   entry: { icon: 'key', color: 'var(--cv-t2)', labelKey: 'search.typeBadge.entry' },
 }
 
-const ENCRYPTED_ASSET_REFERENCE =
-  /^vault-asset:([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/
-
 function SearchResultIcon({ item }: { item: SearchResultItem }) {
   const badge = TYPE_BADGES[item.type]
-  const presentationItem = item.type === 'entry' || item.type === 'vault' ? item : null
-  const encryptedAssetId = ENCRYPTED_ASSET_REFERENCE.exec(presentationItem?.icon ?? '')?.[1] ?? null
-  const vaultId = item.type === 'entry' ? item.vaultId : item.type === 'vault' ? item.id : ''
-  const entryId = item.type === 'entry' ? item.id : undefined
-  const encryptedAsset = useVaultEncryptedAssetUrl(vaultId, encryptedAssetId, entryId)
-  const resolvedIcon = encryptedAssetId ? encryptedAsset.url : presentationItem?.icon
 
   if (item.type === 'entry') {
     return (
-      <EntryIcon
-        icon={resolvedIcon}
+      <VaultPresentationIcon
+        vaultId={item.vaultId}
+        entryId={item.id}
+        icon={item.icon}
         type={normalizeEntryType(item.entryType)}
         color={item.color}
       />
@@ -68,8 +60,9 @@ function SearchResultIcon({ item }: { item: SearchResultItem }) {
   }
   if (item.type === 'vault') {
     return (
-      <EntryIcon
-        icon={resolvedIcon ?? DEFAULT_VAULT_ICON}
+      <VaultPresentationIcon
+        vaultId={item.id}
+        icon={item.icon ?? DEFAULT_VAULT_ICON}
         type={ENTRY_TYPE_CREDENTIAL}
         color={item.color ?? DEFAULT_VAULT_COLOR}
       />

@@ -55,6 +55,7 @@ const {
     decryptedIconReference: undefined as string | undefined,
     memberIndex: { memberLabel: 'Stripe API Key', entryType: 'key' as 'key' | 'credential' | 'creditCard', icon: null },
     memberEntryAvailable: true,
+    wideScreen: false,
   },
 }))
 
@@ -82,6 +83,8 @@ type EntryPlaintextLite =
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
 }))
+vi.mock('../../shared/hooks/use-wide-screen', () => ({ useWideScreen: () => state.wideScreen }))
+vi.mock('./global-entries-page', () => ({ GlobalEntriesPanel: () => null }))
 
 vi.mock('./use-vault', () => ({
   useVault: (id: string) => useVaultMock(id),
@@ -270,6 +273,30 @@ function unlockedAuthStore() {
 // ---------------------------------------------------------------------------
 
 describe('EntryDetailPage — DetailsTab', () => {
+  it('drops previous plaintext and reveal state before opening another global Entry', async () => {
+    const user = userEvent.setup()
+    state.wideScreen = true
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'previous-entry-secret' }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+    const view = render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" fromEntries />, { wrapper })
+    await waitFor(() => expect(screen.getByLabelText(/^value$/i)).toHaveValue('previous-entry-secret'))
+    await user.click(screen.getByRole('button', { name: /^reveal$/i }))
+    expect(screen.getByLabelText(/^value$/i)).not.toHaveClass('secret-mask')
+    let rejectOpen!: (error: Error) => void
+    openCurrentEntryMock.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectOpen = reject }))
+    view.rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-2" fromEntries />)
+    expect(screen.getByLabelText(/^value$/i)).toHaveValue('')
+    expect(screen.queryByDisplayValue('previous-entry-secret')).not.toBeInTheDocument()
+    await act(async () => rejectOpen(new Error('test decrypt failure')))
+    expect(screen.queryByDisplayValue('previous-entry-secret')).not.toBeInTheDocument()
+    state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'new-entry-secret' }
+    view.rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-3" fromEntries />)
+    await waitFor(() => expect(screen.getByLabelText(/^value$/i)).toHaveValue('new-entry-secret'))
+    expect(screen.getByLabelText(/^value$/i)).toHaveClass('secret-mask')
+  })
+
   it('makes newly added TOTP grantable when saving an existing credential', async () => {
     const user = userEvent.setup()
     unlockedAuthStore()
@@ -444,6 +471,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.policyFields = {}
     state.decryptedIconReference = undefined
     state.memberEntryAvailable = true
+    state.wideScreen = false
     state.memberIndex = { memberLabel: 'Stripe API Key', entryType: 'key', icon: null }
     useAuthStore.setState({ privateKey: null, isVaultLocked: true })
     // Default to wide-screen off so the detail body renders without the
@@ -841,7 +869,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(labelInput).toHaveValue('Stripe API Key')
   })
 
-  it('opens the delete dialog, confirms, and navigates away on success', async () => {
+  it.each([false, true])('returns to the source list after deletion (global Entries: %s)', async (fromEntries) => {
     const user = userEvent.setup()
     unlockedAuthStore()
     state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'sk_live_123' }
@@ -855,7 +883,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       options.onSuccess()
     })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" fromEntries={fromEntries} />, { wrapper })
 
     await user.click(screen.getByRole('button', { name: /^delete entry$/i }))
     // Confirm dialog has its own Delete Entry button.
@@ -867,7 +895,9 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     expect(deleteMutateMock).toHaveBeenCalledWith('entry-1', expect.any(Object))
     expect(toastSuccess).toHaveBeenCalled()
-    expect(navigateMock).toHaveBeenCalled()
+    expect(navigateMock).toHaveBeenCalledWith(fromEntries
+      ? { to: '/entries' }
+      : { to: '/vaults/$vaultId', params: { vaultId: 'vault-1' } })
   })
 
   it('shows an error toast when the delete mutation fails', async () => {
