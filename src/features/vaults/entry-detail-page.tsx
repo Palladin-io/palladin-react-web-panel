@@ -765,7 +765,13 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
       setLabelError(true)
       return
     }
-    if (fieldsInvalid) return
+    const fields = entry.type === ENTRY_TYPE_CREDENTIAL
+      ? mergeCredentialTotp(totp, customFields)
+      : customFields
+    if (validateCustomFields(fields).hasError) {
+      toast.error(t('vault.entry.detail.saveError'))
+      return
+    }
     if (entry.type === ENTRY_TYPE_SCRIPT && !description.trim()) {
       setDescriptionError(true)
       return
