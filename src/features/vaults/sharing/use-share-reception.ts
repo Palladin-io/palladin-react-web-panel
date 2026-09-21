@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from 'react'
 import { useAuthStore } from '../../auth'
 import { openEntryShare, type EntryShareSnapshot } from '../../../shared/crypto/entry-share'
 import { clearEntryShareLink } from '../../../shared/crypto/entry-share-link'
@@ -12,8 +12,22 @@ import { initialReceptionState as initialState, type ReceptionOperation, type Re
 import { holdsReception, readReceptionContinuation, retainReception, takeReceptionContinuation } from './reception-continuation'
 
 type Outcome = 'ok' | 'failed' | 'cancelled'
+
+function otpRemaining(operation: ReceptionOperation): number {
+  if (operation.emailVerified || operation.ended) return 0
+  return Math.ceil(Math.max(0, Math.min(operation.otpWallReadyAt - Date.now(), operation.otpMonotonicReadyAt - performance.now())) / 1000)
+}
+
+function setOtpCooldown(operation: ReceptionOperation, seconds: number) {
+  operation.otpWallReadyAt = Date.now() + seconds * 1000
+  operation.otpMonotonicReadyAt = performance.now() + seconds * 1000
+}
+
 export function useShareReception(shareId: string) {
-  const [state, setState] = useState<ReceptionState>(() => readReceptionContinuation(shareId)?.state ?? initialState)
+  const [state, setState] = useState<ReceptionState>(() => {
+    const restored = readReceptionContinuation(shareId)
+    return restored ? { ...restored.state, otpRetryAfterSeconds: otpRemaining(restored.operation) } : initialState
+  })
   const operationRef = useRef<ReceptionOperation | null>(null)
   const attached = useRef(false)
   const pending = useSyncExternalStore(subscribePendingEntryShare, () => readPendingEntryShare(shareId))
@@ -27,6 +41,7 @@ export function useShareReception(shareId: string) {
     const existing = operationRef.current
     const operation: ReceptionOperation = restored?.operation ?? (existing?.link === link && !existing.controller.signal.aborted ? existing : {
       link, controller: new AbortController(), busy: false, otpGeneration: 0,
+      otpWallReadyAt: 0, otpMonotonicReadyAt: 0,
       emailVerified: false, secretVerified: false, received: false, confirmed: false, ended: false,
       wallDeadline: Infinity, monotonicDeadline: Infinity,
     })
@@ -58,6 +73,17 @@ export function useShareReception(shareId: string) {
     }
   }, [shareId])
 
+  const refreshOtpCountdown = useEffectEvent(() => {
+    const operation = operationRef.current
+    if (!operation || !current(operation)) return
+    setState((value) => ({ ...value, otpRetryAfterSeconds: otpRemaining(operation) }))
+  })
+  useEffect(() => {
+    if (state.phase !== 'verification' || state.emailVerified || state.otpRetryAfterSeconds <= 0) return
+    const timer = setTimeout(refreshOtpCountdown, 1000)
+    return () => clearTimeout(timer)
+  }, [state.phase, state.emailVerified, state.otpRetryAfterSeconds])
+
   function current(operation: ReceptionOperation): boolean {
     if (!attached.current || operationRef.current !== operation || operation.controller.signal.aborted || holdsReception(operation)) return false
     if (Date.now() >= operation.wallDeadline || performance.now() >= operation.monotonicDeadline) forget()
@@ -88,19 +114,25 @@ export function useShareReception(shareId: string) {
       operation.wallDeadline = Date.now() + lifetime
       operation.monotonicDeadline = performance.now() + lifetime
       operation.timer = setTimeout(forget, Number.isFinite(lifetime) ? lifetime : 0)
-      setState((value) => ({ ...value, phase: 'verification', recipientMode: session.recipientMode, protection: session.protection }))
+      setOtpCooldown(operation, session.otpRetryAfterSeconds ?? 0)
+      setState((value) => ({ ...value, phase: 'verification', recipientMode: session.recipientMode, protection: session.protection,
+        shareExpiresAt: session.shareExpiresAt ?? null, maximumReceipts: session.maximumReceipts ?? null,
+        otpRetryAfterSeconds: otpRemaining(operation) }))
     })
   }
 
   function requestOtp(language: 'pl' | 'en'): Promise<Outcome> {
     return run(async (operation) => {
-      if (!operation.session || operation.ended || operation.emailVerified) return
+      if (!operation.session || operation.session.recipientMode !== 'namedRecipient' || operation.ended || operation.emailVerified) return
+      // Only a new generation waits. An ambiguous issuance retries its exact generation.
+      if (!operation.pendingOtp && otpRemaining(operation) > 0) return
       operation.pendingOtp ??= operation.otpGeneration + 1
       setState((value) => ({ ...value, otpRetry: true }))
-      await requestRecipientOtp(shareId, operation.session, operation.pendingOtp, language, operation.controller.signal)
+      const response = await requestRecipientOtp(shareId, operation.session, operation.pendingOtp, language, operation.controller.signal)
       if (!current(operation)) return
       operation.otpGeneration = operation.pendingOtp; operation.pendingOtp = undefined
-      setState((value) => ({ ...value, otpRequested: true, otpRetry: false }))
+      setOtpCooldown(operation, response.retryAfterSeconds)
+      setState((value) => ({ ...value, otpRequested: true, otpRetry: false, otpRetryAfterSeconds: otpRemaining(operation) }))
     })
   }
 
@@ -110,7 +142,7 @@ export function useShareReception(shareId: string) {
       await verifyRecipientOtp(shareId, operation.session, operation.otpGeneration, code, operation.controller.signal)
       if (!current(operation)) return
       operation.emailVerified = true
-      setState((value) => ({ ...value, emailVerified: true }))
+      setState((value) => ({ ...value, emailVerified: true, otpRetryAfterSeconds: 0 }))
     })
   }
 
@@ -166,7 +198,7 @@ export function useShareReception(shareId: string) {
       if (!current(operation)) return
       operation.ended = true; operation.session = undefined
       clearEntryShareLink(operation.link)
-      setState((value) => ({ ...value, phase: 'ended' }))
+      setState((value) => ({ ...value, phase: 'ended', otpRetryAfterSeconds: 0 }))
     })
   }
 

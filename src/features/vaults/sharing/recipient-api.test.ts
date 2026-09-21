@@ -5,7 +5,8 @@ import { confirmRecipientDisplay, endRecipientShare, openRecipientSession, recei
 
 const shareId = '00112233-4455-4677-8899-aabbccddeeff'
 const session: RecipientSession = { sessionId: '11112233-4455-4677-8899-aabbccddeeff', sessionToken: 's'.repeat(43),
-  expiresAt: '2099-01-01T00:00:00Z', recipientMode: 'namedRecipient', protection: 'pin' }
+  expiresAt: '2099-01-01T00:00:00Z', recipientMode: 'namedRecipient', protection: 'pin',
+  shareExpiresAt: '2099-01-02T00:00:00Z', maximumReceipts: 3, otpRetryAfterSeconds: 39 }
 afterEach(() => { vi.unstubAllGlobals() })
 
 describe('Anonymous sharing transport', () => {
@@ -33,11 +34,12 @@ describe('Anonymous sharing transport', () => {
       const request = input as Request
       paths.push(new URL(request.url).pathname.split('/').at(-1)!)
       bodies.push(await request.json())
-      return paths.at(-1) === 'delivery' ? Response.json({ ciphertext: 'synthetic' }) : new Response(null, { status: 204 })
+      if (paths.at(-1) === 'delivery') return Response.json({ ciphertext: 'synthetic' })
+      return paths.at(-1) === 'otp' ? Response.json({ retryAfterSeconds: 39 }) : new Response(null, { status: 204 })
     }))
     const signal = new AbortController().signal
     const extra = { ...session, key: 'never-send-key', plaintext: 'never-send-plaintext' }
-    await requestRecipientOtp(shareId, extra, 2, 'pl', signal)
+    expect(await requestRecipientOtp(shareId, extra, 2, 'pl', signal)).toEqual({ retryAfterSeconds: 39 })
     await verifyRecipientOtp(shareId, extra, 2, '654321', signal)
     await verifyRecipientSecret(shareId, extra, '123456', signal)
     await receiveEntryShare(shareId, extra, signal)
@@ -66,7 +68,7 @@ describe('Anonymous sharing transport', () => {
     expect(useAuthStore.getState()).toBe(previous)
   })
 
-  it.each(['session', 'delivery'])('discards malformed JSON diagnostics from %s responses', async (operation) => {
+  it.each(['session', 'delivery', 'otp'])('discards malformed JSON diagnostics from %s responses', async (operation) => {
     const fetcher = vi.fn<typeof fetch>(async () => new Response('synthetic-sensitive-response', {
       headers: { 'Content-Type': 'application/json' },
     }))
@@ -74,7 +76,7 @@ describe('Anonymous sharing transport', () => {
     const signal = new AbortController().signal
     const request = operation === 'session'
       ? openRecipientSession(shareId, 'a'.repeat(43), signal)
-      : receiveEntryShare(shareId, session, signal)
+      : operation === 'otp' ? requestRecipientOtp(shareId, session, 1, 'en', signal) : receiveEntryShare(shareId, session, signal)
     await expect(request).rejects.toEqual(new Error('Sharing request unavailable'))
     expect(fetcher).toHaveBeenCalledOnce()
   })

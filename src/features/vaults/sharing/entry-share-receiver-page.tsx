@@ -57,6 +57,8 @@ function ScopedReceiver({ shareId, onContinueToAccount }: EntryShareReceiverPage
   const ongoing = reception.phase === 'verification' || reception.phase === 'received'
   const supported = ['namedRecipient', 'anyoneWithLink'].includes(reception.recipientMode)
     && ['none', 'password', 'pin'].includes(reception.protection)
+  const linkExpiry = reception.shareExpiresAt ? new Date(reception.shareExpiresAt) : null
+  const otpWaiting = !reception.otpRetry && reception.otpRetryAfterSeconds > 0
 
   return <main className="auth-surface min-h-screen px-4 py-4">
     <div className="relative w-full max-w-[36rem]">
@@ -86,15 +88,31 @@ function ScopedReceiver({ shareId, onContinueToAccount }: EntryShareReceiverPage
               {t('sharing.receiver.open')}
             </Button>
           </> : null}
+          {ongoing && (reception.shareExpiresAt || reception.maximumReceipts != null) ? <>
+            <dl className="grid grid-cols-1 gap-3 text-meta sm:grid-cols-2">
+              {reception.shareExpiresAt ? <div className="min-w-0">
+                <dt className="text-[var(--cv-t3)]">{t('sharing.validUntil')}</dt>
+                <dd className="break-words text-[var(--cv-t1)]">{linkExpiry && Number.isFinite(linkExpiry.valueOf())
+                  ? linkExpiry.toLocaleString(i18n.language) : '—'}</dd>
+              </div> : null}
+              {reception.maximumReceipts != null ? <div className="min-w-0">
+                <dt className="text-[var(--cv-t3)]">{t('sharing.receiptLimit')}</dt>
+                <dd className="text-[var(--cv-t1)]">{reception.maximumReceipts}</dd>
+              </div> : null}
+            </dl>
+            {reception.recipientMode === 'anyoneWithLink' && reception.maximumReceipts != null
+              ? <p className="text-meta text-[var(--cv-t3)]">{t('sharing.receiver.sharedLimit')}</p> : null}
+          </> : null}
           {ongoing && !supported ? <p className="text-meta text-[var(--cv-t2)]">{t('sharing.receiver.unsupported')}</p> : null}
           {reception.phase === 'verification' && supported ? <>
             {reception.recipientMode === 'namedRecipient' ? <>
               <SectionHeader>{t('sharing.receiver.emailGate')}</SectionHeader>
               {reception.emailVerified ? <p className="text-meta text-[var(--cv-t2)]">{t('sharing.receiver.emailVerified')}</p> : <>
                 <p className="text-meta text-[var(--cv-t2)]">{t('sharing.receiver.otpNotice')}</p>
-                <Button size="sm" variant="subtle" disabled={reception.busy} onClick={() => {
+                <Button size="sm" variant="subtle" disabled={reception.busy || otpWaiting} onClick={() => {
                   void perform(reception.requestOtp(i18n.language.startsWith('pl') ? 'pl' : 'en'))
-                }}>{t(reception.otpRetry ? 'sharing.receiver.retryOtp' : reception.otpRequested ? 'sharing.receiver.resendOtp' : 'sharing.receiver.sendOtp')}</Button>
+                }}>{otpWaiting ? t('sharing.receiver.otpCountdown', { seconds: reception.otpRetryAfterSeconds })
+                  : t(reception.otpRetry ? 'sharing.receiver.retryOtp' : reception.otpRequested ? 'sharing.receiver.resendOtp' : 'sharing.receiver.sendOtp')}</Button>
                 {reception.otpRequested && !reception.otpRetry ? <RecipientProofForm kind="otp" disabled={reception.busy}
                   onVerify={(code) => perform(reception.verifyOtp(code))} /> : null}
               </>}
@@ -112,6 +130,7 @@ function ScopedReceiver({ shareId, onContinueToAccount }: EntryShareReceiverPage
           {reception.snapshot ? <>
             <EncryptionNotice>{t('sharing.receiver.decrypted')}</EncryptionNotice>
             <h2 className="break-words text-heading-sm font-semibold text-[var(--cv-t1)]">{reception.snapshot.title}</h2>
+            <p className="text-meta text-[var(--cv-t3)]">{t('sharing.receiver.entryType', { type: t(`sharing.type.${reception.snapshot.entryType}`) })}</p>
             {reception.snapshot.fields.map((field) => <ReceivedField key={field.id} field={field} />)}
             <p className="text-meta text-[var(--cv-t3)]">{t('sharing.receiver.copyNotice')}</p>
             {canSave ? <Button size="sm" variant="accent" disabled={saved || reception.busy} onClick={() => setSaving(true)}>

@@ -204,6 +204,24 @@ uses wall and monotonic time and cannot exceed the ingress deadline. Failed or
 cancelled verification never satisfies a gate; late responses cannot publish
 after ownership changes.
 
+The session's optional presentation fields `shareExpiresAt` and `maximumReceipts`
+describe the sender's link policy, not the short `expiresAt` receiver session.
+Missing policy metadata stays absent; it never falls back to the local deadline.
+The public UI explains that anyone-with-link shares one total receipt limit,
+not a remaining-receipt counter. Entry type is shown only from the decrypted
+snapshot, never as public session metadata.
+
+The initial `otpRetryAfterSeconds` and successful OTP POST's HTTP 200
+`retryAfterSeconds` drive a local countdown. The deadline uses wall and monotonic
+time in the same RAM operation, survives explicit account continuation without
+reset and is recomputed when that continuation is taken. The mounted UI timer
+only updates presentation; the server enforces the share-wide cooldown. New
+generations wait, uncertain issuance retries the exact pending generation, and
+the residual returned by that retry does not restart a full minute. Verification
+of an already issued code remains available during the cooldown. No timer sends
+email or opens/receives automatically. Verification, disposal and unmount remove
+the UI timer; late responses cannot publish into a replacement operation.
+
 Receive entry is explicit and enabled only after the known gates. Fields start
 masked, use shared reveal/copy controls, and render inert text (including Script,
 URLs and TOTP seed URIs). React confirms display only after committing the decoded
@@ -310,6 +328,17 @@ substitution, clock rollback/suspended timers, pagehide, actual unmount and
 StrictMode. Page tests prove receipt is explicit, content is masked and the ACK
 is issued after the view exists, with confirmation retry and termination dialog.
 Transport tests prove no account auth or hidden retry and generic HTTP/JSON errors.
+Recipient-policy/countdown tests cover separate/missing metadata, initial
+share-wide cooldown, boundary resend, residual retry, StrictMode account return,
+wall-clock rollback with suspended UI timers, late response disposal and EN/PL
+presentation. On 2026-09-21 the complete web suite passes **2,503 tests / 316 files**,
+with lint, TypeScript and build passing. Synthetic real-component UI was reviewed
+at PL dark 320px/390px (no horizontal overflow) and wide EN light; the temporary
+viewport override was reset. These checks do not replace real API/device E2E.
+The staged-diff Gitleaks 8.30.1 scan passes. The complete staged tree reports
+123 findings in 17 test/vector files, all verified unchanged from the preceding
+HEAD; the full scan is not green and no allowlist was expanded. Classification
+of those existing findings remains a release gate.
 
 Save-copy tests cover fresh independent keys, scope/epoch substitution, omitted
 field completion, explicit Vault selection, exact encrypted retry and session

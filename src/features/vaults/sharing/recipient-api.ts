@@ -8,6 +8,9 @@ export interface RecipientSession {
   expiresAt: string
   recipientMode: string
   protection: string
+  shareExpiresAt?: string | null
+  maximumReceipts?: number | null
+  otpRetryAfterSeconds?: number
 }
 
 const recipientApi = ky.create({
@@ -39,7 +42,8 @@ function sessionPath(shareId: string, session: RecipientSession): string {
 }
 
 export async function requestRecipientOtp(shareId: string, session: RecipientSession, generation: number, language: 'pl' | 'en', signal: AbortSignal) {
-  await post(`${sessionPath(shareId, session)}/otp`, { sessionToken: session.sessionToken, generation, language }, signal)
+  const response = await post(`${sessionPath(shareId, session)}/otp`, { sessionToken: session.sessionToken, generation, language }, signal)
+  return readJson<{ retryAfterSeconds: number }>(response)
 }
 
 export async function verifyRecipientOtp(shareId: string, session: RecipientSession, generation: number, code: string, signal: AbortSignal) {

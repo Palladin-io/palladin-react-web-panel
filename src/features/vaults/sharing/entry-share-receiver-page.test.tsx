@@ -31,6 +31,7 @@ beforeEach(async () => {
   window.history.replaceState(null, '', `/share/${shareId}${fragment}`)
   captureEntryShareIngress(window)
   api.open.mockResolvedValue({ ...session, expiresAt: new Date(Date.now() + 900_000).toISOString() })
+  api.otp.mockResolvedValue({ retryAfterSeconds: 0 })
   api.receive.mockResolvedValue({ ...fixture.scope, nonce: fixture.nonce, ciphertext: fixture.ciphertext })
   api.save.mockResolvedValue('saved')
 })
@@ -42,6 +43,50 @@ async function open() {
 }
 
 describe('Public sharing receiver', () => {
+  it('shows link policy before receipt, but only shows the entry type after decryption', async () => {
+    const expiresAt = new Date(Date.now() + 900_000).toISOString()
+    const shareExpiresAt = new Date(Date.now() + 86_400_000).toISOString()
+    api.open.mockResolvedValue({ ...session, expiresAt, shareExpiresAt, maximumReceipts: 3 })
+    await open()
+    expect(screen.getByText('Link valid until')).toBeInTheDocument()
+    expect(screen.getByText(new Date(shareExpiresAt).toLocaleString('en'))).toBeInTheDocument()
+    expect(screen.queryByText(new Date(expiresAt).toLocaleString('en'))).not.toBeInTheDocument()
+    expect(screen.getByText('Receipt limit')).toBeInTheDocument()
+    expect(screen.getByText('3')).toBeInTheDocument()
+    expect(screen.getByText(/This receipt limit is shared/)).toBeInTheDocument()
+    expect(screen.queryByText('Entry type: Credential')).not.toBeInTheDocument()
+    expect(api.receive).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+    expect(await screen.findByText('Entry type: Credential')).toBeInTheDocument()
+  })
+
+  it('does not mislabel session expiry as link expiry when policy metadata is absent', async () => {
+    await open()
+    expect(screen.queryByText('Link valid until')).not.toBeInTheDocument()
+    expect(screen.queryByText('Receipt limit')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Receive entry' })).toBeEnabled()
+  })
+
+  it('disables initial sending during another session’s cooldown without offering verification for an unsent generation', async () => {
+    api.open.mockResolvedValue({ ...session, recipientMode: 'namedRecipient', expiresAt: new Date(Date.now() + 900_000).toISOString(), otpRetryAfterSeconds: 39 })
+    await open()
+    expect(screen.getByRole('button', { name: 'Request code in 39 s' })).toBeDisabled()
+    expect(screen.queryByLabelText('Email verification code')).not.toBeInTheDocument()
+    expect(api.otp).not.toHaveBeenCalled()
+  })
+
+  it('localizes the countdown in Polish while allowing the already sent code to be verified', async () => {
+    await i18n.changeLanguage('pl')
+    api.open.mockResolvedValue({ ...session, recipientMode: 'namedRecipient', expiresAt: new Date(Date.now() + 900_000).toISOString() })
+    api.otp.mockResolvedValue({ retryAfterSeconds: 60 })
+    render(<EntryShareReceiverPage shareId={shareId} />)
+    await userEvent.click(screen.getByRole('button', { name: i18n.t('sharing.receiver.open') }))
+    await userEvent.click(screen.getByRole('button', { name: 'Wyślij kod weryfikacyjny' }))
+    expect(screen.getByRole('button', { name: 'Poproś o kod za 60 s' })).toBeDisabled()
+    expect(screen.getByLabelText(i18n.t('sharing.receiver.otpCode'))).toBeEnabled()
+    expect(api.otp).toHaveBeenCalledOnce()
+  })
+
   it('restarts a same-ID replacement without retaining a revealed field or issuing another receipt automatically', async () => {
     await open()
     await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
