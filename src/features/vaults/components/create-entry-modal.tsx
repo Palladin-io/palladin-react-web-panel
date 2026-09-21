@@ -143,10 +143,10 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
     [credentialTotp, customFields, type],
   )
   const agentLabel = label
-  const policy = useMemo<AgentVisibilityPolicy>(() => {
-    const defaults = defaultAgentVisibilityPolicy(type, allFields)
+  const buildPolicy = (fields: CustomField[]): AgentVisibilityPolicy => {
+    const defaults = defaultAgentVisibilityPolicy(type, fields)
     const effectiveDiscoverable = type === ENTRY_TYPE_SCRIPT || discoverable
-    const customTypes = new Map(allFields.map((field) => [`custom:${field.id}`, field.type]))
+    const customTypes = new Map(fields.map((field) => [`custom:${field.id}`, field.type]))
     return {
       discoverable: effectiveDiscoverable,
       fields: Object.fromEntries(Object.entries(defaults.fields).map(([fieldId, fallback]) => {
@@ -161,7 +161,8 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
             : access]
       })),
     }
-  }, [allFields, discoverable, policyOverrides, type])
+  }
+  const policy = buildPolicy(allFields)
 
   useEffect(() => {
     analytics.capture('vault', 'create-entry-wizard-opened')
@@ -220,9 +221,11 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
     }
   }
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!canSubmit || fieldsInvalid) return
+  const submitEntry = async (fields = allFields) => {
+    if (!canSubmit || validateCustomFields(fields).hasError) {
+      toast.error(t('vault.entries.errorCreate'))
+      return
+    }
 
     const payload = buildPlaintext({
       type,
@@ -231,7 +234,7 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
       password,
       url,
       notes,
-      fields: allFields,
+      fields,
       script,
       interpreter,
       refs,
@@ -267,7 +270,7 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
         ...(iconFile ? { iconFile } : {}),
         type,
         payload,
-        policy,
+        policy: buildPolicy(fields),
       },
       {
         onSuccess: ({ id: entryId }) => {
@@ -315,7 +318,7 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
         </DialogFooter>
       }
     >
-      <form id="entry-create-form" className="flex flex-col gap-3" onSubmit={handleSubmit}>
+      <form id="entry-create-form" className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void submitEntry() }}>
           <div className="grid grid-cols-2 gap-3">
             <FormInput
               id="entry-vault"
@@ -552,7 +555,9 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
                   ...current, [ENTRY_FIELD.urlDomain]: active ? 'discovery' : 'never',
                 }))} />
               <SectionHeader>{t('vault.entries.totp.section')}</SectionHeader>
-              <CredentialTotpField value={credentialTotp} onChange={setCredentialTotp} disabled={isPending} />
+              <CredentialTotpField value={credentialTotp} onChange={setCredentialTotp}
+                onApply={(field) => { void submitEntry(mergeCredentialTotp(field, customFields)) }}
+                disabled={isPending} />
             </>
           ) : (
             <>

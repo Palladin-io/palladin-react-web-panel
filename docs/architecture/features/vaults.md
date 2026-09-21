@@ -108,3 +108,5 @@ manifest and lockfile pin the published registry version 0.8.0.
 - Exports `useVaults` / `useVault` / `useEntries`, consumed by `audit`.
 
 Trusted API presentation metadata is kept separate from cryptographic decoding: Vault counts/default marker/dates and historical actors/retention policy do not gate ciphertext acceptance. Unknown history actors display their shortened ID. Rotation and encrypted-asset outer responses accept additive fields; canonical crypto descriptor verification, recipient bindings, byte/page budgets and digest checks remain unchanged.
+
+Applying or replacing dedicated Credential TOTP submits the complete current Entry form through the normal encrypted create/update path, without a second Save. Invalid forms and failed writes retain the draft and show an error; only a confirmed mutation reports success. Removing TOTP remains a draft edit requiring Save.

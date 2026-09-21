@@ -309,8 +309,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     await user.click(screen.getByRole('button', { name: /add 2fa/i }))
     await user.type(screen.getByLabelText(/otpauth|secret/i), 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ')
     await user.click(screen.getByRole('button', { name: /apply totp/i }))
-    await user.click(screen.getByRole('button', { name: /save changes/i }))
-    await waitFor(() => expect(updateMutateMock).toHaveBeenCalled())
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
     const draft = updateMutateMock.mock.calls[0][0].draft
     const fieldId = `custom:${draft.content.fields[0].id}`
     expect(draft.policy.fields[fieldId]).toBe('onGrantDerived')
@@ -422,7 +421,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(draft.content.fields).toEqual([field])
   })
 
-  it('preserves unsaved TOTP when sync refreshes the same Entry revision', async () => {
+  it('saves applied TOTP immediately and preserves it during a same-head sync refresh', async () => {
     const user = userEvent.setup()
     unlockedAuthStore()
     state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'test-password' }
@@ -434,9 +433,37 @@ describe('EntryDetailPage — DetailsTab', () => {
     await user.click(screen.getByRole('button', { name: /add 2fa/i }))
     await user.type(screen.getByLabelText(/otpauth|secret/i), 'JBSWY3DPEHPK3PXP')
     await user.click(screen.getByRole('button', { name: /apply totp/i }))
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
+    expect(updateMutateMock.mock.calls[0][0].draft.content.fields[0].value.secret).toBe('JBSWY3DPEHPK3PXP')
     expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
 
     await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />))
+
+    expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
+    expect(openCurrentEntryMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps applied TOTP after a save failure and retries it with Save', async () => {
+    updateMutateMock.mockImplementation((_input, options) => options.onError())
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'test-password' }
+    state.memberIndex = { memberLabel: 'GitHub', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
+    await user.click(screen.getByRole('button', { name: /add 2fa/i }))
+    await user.type(screen.getByLabelText(/otpauth|secret/i), 'JBSWY3DPEHPK3PXP')
+    await user.click(screen.getByRole('button', { name: /apply totp/i }))
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
+    expect(updateMutateMock.mock.calls[0][0].draft.content.fields[0].value.secret).toBe('JBSWY3DPEHPK3PXP')
+    expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
+
+    expect(toastError).toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /^save changes$/i }))
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(2))
+    expect(updateMutateMock.mock.calls[1][0].draft.content.fields[0].value.secret).toBe('JBSWY3DPEHPK3PXP')
 
     expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
     expect(openCurrentEntryMock).toHaveBeenCalledTimes(1)

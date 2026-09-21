@@ -571,7 +571,9 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
     void handleDecrypt()
   }, [entry, currentHead, handleDecrypt])
 
-  const isSaving = update.isPending
+  const saveInFlight = useRef(false)
+  const [preparingSave, setPreparingSave] = useState(false)
+  const isSaving = update.isPending || preparingSave
   const isRemoving = remove.isPending
 
   const defaultColor =
@@ -580,7 +582,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
   // Rebuild the plaintext from the current form state, preserving un-edited
   // well-known fields (e.g. a credential's stored `totp`) that this UI doesn't
   // expose. Used for both change detection and re-encryption on save.
-  const currentPlaintext = useCallback((): EntryPlaintext | null => {
+  const currentPlaintext = useCallback((totp = credentialTotp): EntryPlaintext | null => {
     if (!originalPlaintext) return null
     return buildCurrentPlaintext(originalPlaintext, entry, {
       secretValue,
@@ -595,7 +597,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
       scriptParameters,
       returnResultToAgent,
       customFields,
-      credentialTotp,
+      credentialTotp: totp,
       cardholderName, cardNumber, expiryMonth, expiryYear, billingAddress,
     })
   }, [
@@ -746,7 +748,19 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
     })
   }
 
-  const handleSave = async () => {
+  const handleSave = async (totp = credentialTotp) => {
+    if (saveInFlight.current || update.isPending) return
+    saveInFlight.current = true
+    setPreparingSave(true)
+    try {
+      await saveEntry(totp)
+    } finally {
+      saveInFlight.current = false
+      setPreparingSave(false)
+    }
+  }
+
+  const saveEntry = async (totp: CustomField | null) => {
     if (!label.trim()) {
       setLabelError(true)
       return
@@ -786,7 +800,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
       }
     }
 
-    const current = currentPlaintext()
+    const current = currentPlaintext(totp)
     if (!current || !originalSecret) {
       void handleDecrypt()
       return
@@ -1137,6 +1151,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
               <CredentialTotpField
                 value={credentialTotp}
                 onChange={setCredentialTotp}
+                onApply={(field) => { void handleSave(field) }}
                 disabled={isSaving || decrypting}
                 agentAccess={totpPolicyId && policy ? {
                   allowed: totpAccess === 'onGrantDerived',
@@ -1180,7 +1195,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
           <Button
             variant="accent"
             size="sm"
-            onClick={handleSave}
+            onClick={() => { void handleSave() }}
             disabled={isSaving || !originalSecret || !hasChanges || fieldsInvalid || scriptContractInvalid}
           >
             {isSaving ? t('vault.entry.detail.saving') : t('vault.entry.detail.save')}

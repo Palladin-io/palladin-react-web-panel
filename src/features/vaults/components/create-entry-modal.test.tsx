@@ -453,11 +453,12 @@ describe('CreateEntryModal', () => {
     await user.click(screen.getByRole('button', { name: /add 2fa/i }))
     await user.type(screen.getByLabelText(/otpauth/i), 'JBSWY3DPEHPK3PXP')
     await user.click(screen.getByRole('button', { name: /apply totp/i }))
-    await user.click(screen.getByRole('button', { name: /save entry/i }))
+    await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1))
 
     const [input] = mutateMock.mock.calls[0]
     expect(input.payload.v).toBe(2)
     expect(input.payload.fields).toHaveLength(1)
+    expect(input.policy.fields[`custom:${input.payload.fields[0].id}`]).toBe('onGrantDerived')
     expect(input.payload.fields[0]).toMatchObject({
       label: '2FA',
       type: 'totp',
