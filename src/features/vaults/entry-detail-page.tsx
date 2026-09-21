@@ -761,6 +761,11 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
   }
 
   const saveEntry = async (totp: CustomField | null) => {
+    if ((entry.type === ENTRY_TYPE_CREDENTIAL || entry.type === ENTRY_TYPE_KEY)
+      && firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null) {
+      setUrlError(true)
+      return
+    }
     if (!label.trim()) {
       setLabelError(true)
       return

@@ -222,6 +222,11 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
   }
 
   const submitEntry = async (fields = allFields) => {
+    if ((type === ENTRY_TYPE_CREDENTIAL || type === ENTRY_TYPE_KEY)
+      && firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null) {
+      setUrlError(true)
+      return
+    }
     if (!canSubmit || validateCustomFields(fields).hasError) {
       toast.error(t('vault.entries.errorCreate'))
       return

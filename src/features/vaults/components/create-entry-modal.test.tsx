@@ -466,6 +466,24 @@ describe('CreateEntryModal', () => {
     })
   })
 
+  it('does not save applied TOTP while the credential URL is invalid', async () => {
+    const user = userEvent.setup()
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+    await user.type(screen.getByLabelText(/^label$/i), 'GitHub')
+    await user.type(screen.getByLabelText(/^username$/i), 'octocat')
+    await user.type(screen.getByLabelText(/^password$/i), 'fixture-password')
+    await user.type(screen.getByLabelText(/^url$/i), 'not-a-url')
+    await user.click(screen.getByRole('button', { name: /add 2fa/i }))
+    await user.type(screen.getByLabelText(/otpauth/i), 'JBSWY3DPEHPK3PXP')
+    await user.click(screen.getByRole('button', { name: /apply totp/i }))
+    expect(mutateMock).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
+    await user.clear(screen.getByLabelText(/^url$/i))
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+    await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1))
+    expect(mutateMock.mock.calls[0][0].payload.fields[0].value.secret).toBe('JBSWY3DPEHPK3PXP')
+  })
+
   it('shows an error toast when the mutation fails', async () => {
     const user = userEvent.setup()
     mutateMock.mockImplementation((_input, options) => {
