@@ -18,6 +18,7 @@ import {
 export interface CreateVaultDialogProps {
   open: boolean
   onClose: () => void
+  onCreated?: (vaultId: string) => void
 }
 
 /**
@@ -28,16 +29,18 @@ export interface CreateVaultDialogProps {
 export function CreateVaultDialog({
   open,
   onClose,
+  onCreated,
 }: CreateVaultDialogProps) {
   if (!open) return null
-  return <CreateVaultDialogBody onClose={onClose} />
+  return <CreateVaultDialogBody onClose={onClose} onCreated={onCreated} />
 }
 
 interface CreateVaultDialogBodyProps {
   onClose: () => void
+  onCreated?: (vaultId: string) => void
 }
 
-function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
+function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const create = useCreateVault()
@@ -73,6 +76,7 @@ function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
       {
         onSuccess: ({ vaultId }) => {
           analytics.capture('vault', 'create-wizard-completed')
+          if (onCreated) { onCreated(vaultId); return }
           onClose()
           void navigate({ to: '/vaults/$vaultId', params: { vaultId } })
         },

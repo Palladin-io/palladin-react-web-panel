@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
-import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
+import { HOVERABLE_CARD_CLASSES, SELECTED_NAVIGATION_CARD_CLASSES } from '../../../shared/lib/styles'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_MULTIPLE_VAULTS } from '../types'
 import { CreateVaultDialog } from './create-vault-dialog'
@@ -150,7 +150,7 @@ function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
       onClick={onClick}
       className={`flex w-full cursor-pointer flex-col overflow-hidden text-left ${HOVERABLE_CARD_CLASSES}${
         isSelected
-          ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]'
+          ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}`
           : ''
       }`}
     >

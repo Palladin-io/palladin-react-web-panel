@@ -53,6 +53,34 @@ Entry Logs queries structural audit events by the composite opaque Vault and Ent
 
 ## Key patterns
 
+### Global Entries
+
+Global Entries and the per-Vault split panel share `EntryNavigationRow` and
+`EntryListHeader`: selected appearance, row geometry, icon rendering, title,
+count and Add action are defined once. Vault navigation uses the same
+`SELECTED_NAVIGATION_CARD_CLASSES` token. The global count covers the full
+active index, independent of the search query.
+
+`/entries` is a separate sidebar destination before Vaults. Its active-only list
+joins all accessible in-memory MemberIndex projections with their Vault names.
+Only search is exposed, matching the per-Vault navigation panel; alphabetical
+ordering is fixed and local. Reset Vaults are excluded and a
+corrupt projection remains an anonymous, non-interactive row. Rendering grows
+in windows of 100 without truncating the searchable index.
+
+Entry links retain the canonical Vault/Entry route with `from=entries`. The
+detail's wide master panel and narrow back action preserve the global list
+context. Search and scroll are memory-only and reset with the
+crypto session. Custom icons use `VaultPresentationIcon`, shared with global
+search, and the existing authenticated asset pipeline.
+
+Global creation first shows a searchable Vault chooser, then mounts the
+existing `CreateEntryModal` bound to that Vault. Completion closes the flow
+without navigating away from Entries. With an authoritative empty Vault list,
+the chooser offers the existing Vault creation dialog and returns to selection.
+No backend endpoint, secret-list projection or persistent plaintext cache is
+introduced.
+
 CVT-573: Credential form defaults, canonical Entry sealing and discovery
 projection delegate to the same shared package exports as extension capture.
 The form adapter maps canonical field IDs into the existing web UI vocabulary;

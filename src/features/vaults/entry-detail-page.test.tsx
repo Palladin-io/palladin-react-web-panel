@@ -841,7 +841,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(labelInput).toHaveValue('Stripe API Key')
   })
 
-  it('opens the delete dialog, confirms, and navigates away on success', async () => {
+  it.each([false, true])('returns to the source list after deletion (global Entries: %s)', async (fromEntries) => {
     const user = userEvent.setup()
     unlockedAuthStore()
     state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'sk_live_123' }
@@ -855,7 +855,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       options.onSuccess()
     })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" fromEntries={fromEntries} />, { wrapper })
 
     await user.click(screen.getByRole('button', { name: /^delete entry$/i }))
     // Confirm dialog has its own Delete Entry button.
@@ -867,7 +867,9 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     expect(deleteMutateMock).toHaveBeenCalledWith('entry-1', expect.any(Object))
     expect(toastSuccess).toHaveBeenCalled()
-    expect(navigateMock).toHaveBeenCalled()
+    expect(navigateMock).toHaveBeenCalledWith(fromEntries
+      ? { to: '/entries' }
+      : { to: '/vaults/$vaultId', params: { vaultId: 'vault-1' } })
   })
 
   it('shows an error toast when the delete mutation fails', async () => {

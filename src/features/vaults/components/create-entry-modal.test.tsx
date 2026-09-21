@@ -150,6 +150,22 @@ describe('CreateEntryModal', () => {
     expect(screen.queryByLabelText(/^username$/i)).not.toBeInTheDocument()
   })
 
+  it('delegates global creation completion without navigating to Vault detail', async () => {
+    const user = userEvent.setup()
+    const onCreated = vi.fn()
+    const onClose = vi.fn()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'global-entry' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={onClose} onCreated={onCreated} />, { wrapper })
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
+    await user.type(screen.getByLabelText(/^label$/i), 'Global key')
+    await user.type(screen.getByLabelText(/^value$/i), 'synthetic-value')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+    expect(mutateMock.mock.calls[0][0].vaultId).toBe(VAULT.id)
+    expect(onCreated).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(navigateMock).not.toHaveBeenCalled()
+  })
+
   it('submits a KEY entry with trimmed fields', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()

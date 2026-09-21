@@ -53,3 +53,5 @@ export {
   DEFAULT_VAULT_ICON,
 } from './components/vault-presentation'
 export { useVaultEncryptedAssetUrl } from './assets/use-vault-encrypted-asset-url'
+export { GlobalEntriesPage } from './global-entries-page'
+export { VaultPresentationIcon } from './components/vault-presentation-icon'

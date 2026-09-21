@@ -67,6 +67,7 @@ export interface CreateEntryModalProps {
   open: boolean
   vault: Vault
   onClose: () => void
+  onCreated?: () => void
 }
 
 /**
@@ -74,17 +75,18 @@ export interface CreateEntryModalProps {
  * form starts with clean defaults — same pattern as the create-vault
  * dialog.
  */
-export function CreateEntryModal({ open, vault, onClose }: CreateEntryModalProps) {
+export function CreateEntryModal({ open, vault, onClose, onCreated }: CreateEntryModalProps) {
   if (!open) return null
-  return <CreateEntryModalBody vault={vault} onClose={onClose} />
+  return <CreateEntryModalBody vault={vault} onClose={onClose} onCreated={onCreated} />
 }
 
 interface CreateEntryModalBodyProps {
   vault: Vault
   onClose: () => void
+  onCreated?: () => void
 }
 
-function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
+function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBodyProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const create = useCreateEntry()
@@ -271,6 +273,10 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         onSuccess: ({ id: entryId }) => {
           analytics.capture('vault', 'create-entry-wizard-completed', { type })
           toast.success(t('vault.entries.createSuccess'))
+          if (onCreated) {
+            onCreated()
+            return
+          }
           onClose()
           void navigate({
             to: '/vaults/$vaultId/entries/$entryId',
