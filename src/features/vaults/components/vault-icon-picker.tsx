@@ -74,6 +74,10 @@ export function VaultIconPicker({
           )
         })}
 
+        {isCustomUrl(value) && (
+          <img src={value} alt={t('vault.iconLabel')} className="h-8 w-8 rounded-[0.625rem] object-contain" />
+        )}
+
         {/* Browser-picked icon in the 9th slot when active */}
         {isFromBrowser && (
           <button
@@ -112,6 +116,7 @@ export function VaultIconPicker({
           <input
             ref={fileInputRef}
             type="file"
+            aria-label={t('vault.iconUpload')}
             accept="image/png,image/jpeg,image/webp"
             className="hidden"
             onChange={(e) => {

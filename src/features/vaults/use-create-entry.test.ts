@@ -12,7 +12,7 @@ import { entriesQueryKey } from './use-entries'
 const mocks = vi.hoisted(() => ({
   createEntry: vi.fn(async () => ({ id: 'entry-1', currentRevision: '1' })),
   updateEntry: vi.fn(async () => undefined),
-  uploadIcon: vi.fn(async () => ({ assetId: '33333333-4455-4677-8899-aabbccddeeff', iconReference: 'asset:33333333-4455-4677-8899-aabbccddeeff' })),
+  uploadIcon: vi.fn(async () => ({ assetId: '33333333-4455-4677-8899-aabbccddeeff', iconReference: 'vault-asset:33333333-4455-4677-8899-aabbccddeeff' })),
   deleteIcon: vi.fn(async () => undefined),
   issueChallenge: vi.fn(async () => ({ entryId: '22222233-4455-4677-8899-aabbccddeeff', expiresAt: '2026-08-01T00:00:00Z' })),
   getVault: vi.fn(),

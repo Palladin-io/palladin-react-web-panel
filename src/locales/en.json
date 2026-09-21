@@ -173,6 +173,7 @@
   "vault.backToList": "Back to vaults",
   "vault.backToDetail": "Back to vault",
   "vault.errorLoad": "Could not load vault data. Please reload the page.",
+  "vault.iconUploadFailedAfterCreate": "Vault created, but the icon could not be saved. Upload it again in Vault details.",
   "vault.errorCreate": "Could not create the vault. Please try again.",
   "vault.errorSave": "Could not save changes. Please try again.",
   "vault.errorConflict": "Vault settings changed on another device. Refresh and review the latest version before saving again.",

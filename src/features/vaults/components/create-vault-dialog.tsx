@@ -48,6 +48,12 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
   const [name, setName] = useState(create.pendingInput?.name ?? '')
   const [description, setDescription] = useState(create.pendingInput?.description ?? '')
   const [icon, setIcon] = useState<string>(create.pendingInput?.icon ?? DEFAULT_VAULT_ICON)
+  const [iconFile, setIconFile] = useState<File | undefined>(create.pendingInput?.iconFile)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(() =>
+    create.pendingInput?.iconFile ? URL.createObjectURL(create.pendingInput.iconFile) : null)
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+  }, [previewUrl])
   const [color, setColor] = useState<string>(create.pendingInput?.color ?? DEFAULT_VAULT_COLOR)
 
   // Mount-only side effect: emit analytics for "wizard opened". The form
@@ -72,9 +78,11 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
         description: description.trim() || undefined,
         icon,
         color,
+        ...(iconFile ? { iconFile } : {}),
       },
       {
-        onSuccess: ({ vaultId }) => {
+        onSuccess: ({ vaultId, iconUploadFailed }) => {
+          if (iconUploadFailed) toast.error(t('vault.iconUploadFailedAfterCreate'))
           analytics.capture('vault', 'create-wizard-completed')
           if (onCreated) { onCreated(vaultId); return }
           onClose()
@@ -134,8 +142,9 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
         />
 
         <VaultIconPicker
-          value={icon}
-          onChange={setIcon}
+          value={previewUrl ?? icon}
+          onChange={(next) => { setIcon(next); setIconFile(undefined); setPreviewUrl(null) }}
+          onFileSelected={(file, url) => { setIconFile(file); setPreviewUrl(url) }}
           onColorChange={setColor}
           selectedColor={color}
           disabled={isPending || isRetryLocked}

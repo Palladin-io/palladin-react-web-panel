@@ -51,6 +51,12 @@ describe('decrypted Member vault list', () => {
     expect(Object.keys(item)).not.toContain('ciphertext')
   })
 
+  it('preserves encrypted icons for authenticated rendering on Vault lists', () => {
+    const record = vault('vault-1', 'Custom')
+    record.metadata = { ...record.metadata!, icon: { kind: 'encryptedAsset', assetId: '33332233-4455-4677-8899-aabbccddeeff' } }
+    expect(buildMemberVaultList(new Map([['vault-1', record]]))[0].icon).toBe('vault-asset:33332233-4455-4677-8899-aabbccddeeff')
+  })
+
   it('preserves the server-owned default Vault marker for deep-link routing', () => {
     const personal = vault('vault-personal', 'Personal')
     personal.structure.isDefault = true

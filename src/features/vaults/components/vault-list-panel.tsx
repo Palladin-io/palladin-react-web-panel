@@ -155,7 +155,7 @@ function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
       }`}
     >
       <div className="flex items-center gap-3 px-4 py-2.5">
-        <VaultIconCircle icon={icon} color={accent} size={32} iconSize={16} />
+        <VaultIconCircle vaultId={vault.id} icon={icon} color={accent} size={32} iconSize={16} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">{vault.name}</p>
           <p className="text-meta text-[var(--cv-t3)]">
