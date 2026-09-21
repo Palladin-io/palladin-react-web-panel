@@ -377,8 +377,12 @@ export async function updateEntry(
 export async function deleteEntry(
   vaultId: string,
   entryId: string,
-): Promise<void> {
-  await api.delete(`api/vaults/${vaultId}/entries/${entryId}`)
+  material: Omit<EntryLifecycleMaterial, 'agentDiscovery'> & {
+    memberIndex: CanonicalEntryEnvelopes['memberIndex']
+  },
+): Promise<{ state: string | number; currentRevision: string }> {
+  return api.post(`api/vaults/${vaultId}/entries/${entryId}/delete`, { json: material })
+    .json<{ state: string | number; currentRevision: string }>()
 }
 
 /**

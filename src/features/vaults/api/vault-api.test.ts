@@ -10,7 +10,7 @@ vi.mock('../../../shared/api/client', () => ({
   api: { get: getFn, post: postFn },
 }))
 
-import { getAllEntries, getCanonicalEntry, getEntryHistory, getRecentlyDeletedEntries, importEntries, restoreCanonicalEntry } from './vault-api'
+import { deleteEntry, getAllEntries, getCanonicalEntry, getEntryHistory, getRecentlyDeletedEntries, importEntries, restoreCanonicalEntry } from './vault-api'
 
 const nullableScope = (organizationId: string, vaultId: string, entryId: string) => ({
   organizationId, vaultId, entryId, grantOrRequestId: null, agentId: null, memberId: null,
@@ -228,5 +228,17 @@ describe('restoreCanonicalEntry', () => {
     await expect(restoreCanonicalEntry('vault', 'entry', {
       baseRevision: '7', memberSecret: {} as never,
     })).resolves.toEqual({ state: 'archived', currentRevision: '8' })
+  })
+})
+
+describe('deleteEntry', () => {
+  it('posts an encrypted deleted revision to the recoverable lifecycle endpoint', async () => {
+    const material = { baseRevision: '7', newEntryKey: {} as never,
+      memberSecret: {} as never, memberIndex: {} as never }
+    postJson.mockResolvedValueOnce({ state: 'deleted', currentRevision: '8' })
+    await expect(deleteEntry('vault', 'entry', material)).resolves.toEqual({
+      state: 'deleted', currentRevision: '8',
+    })
+    expect(postFn).toHaveBeenCalledWith('api/vaults/vault/entries/entry/delete', { json: material })
   })
 })
