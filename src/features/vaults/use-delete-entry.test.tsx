@@ -32,7 +32,7 @@ vi.mock('../../shared/crypto/entry-protocol', () => ({
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
 vi.mock('./sync/member-sync-store', () => ({
   useMemberSyncStore: {
-    getState: () => ({ vaults: new Map([['vault', { entries: new Map([['entry', { entryId: 'entry', state: 'active', memberIndexRevision: '3' }]]) }]]), retry: mocks.retry, reconcileEntry: mocks.reconcile }),
+    getState: () => ({ vaults: new Map([['vault', { entries: new Map([['entry', { entryId: 'entry', state: 'active', memberIndexRevision: '3', currentRevision: '7', currentKeyVersion: 2 }]]) }]]), retry: mocks.retry, reconcileEntry: mocks.reconcile }),
   },
 }))
 
@@ -80,12 +80,41 @@ describe('useDeleteEntry', () => {
     expect(mocks.deleteEntry).toHaveBeenCalledWith('vault', 'entry', {
       baseRevision: '7', newEntryKey: { descriptor: { keyVersion: 3 } },
       memberIndex: { descriptor: { resourceRevision: '4' } }, memberSecret: { encrypted: true },
-    })
+    }, expect.any(AbortSignal))
     expect(mocks.reconcile).toHaveBeenCalledWith('vault', expect.objectContaining({
       entryId: 'entry', state: 'deleted', currentRevision: '8', memberIndexRevision: '4',
     }))
     expect(mocks.retry).toHaveBeenCalledOnce()
     expect(mocks.wipe).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects a newer canonical head before decrypting and requests Member sync', async () => {
+    mocks.getEntry.mockResolvedValueOnce({ currentRevision: '8', currentKeyVersion: 2 })
+    const { result } = renderHook(() => useDeleteEntry('vault'), { wrapper })
+    await act(async () => { await expect(result.current.mutateAsync('entry')).rejects.toThrow('changed after Member sync') })
+    expect(mocks.decrypt).not.toHaveBeenCalled()
+    expect(mocks.deleteEntry).not.toHaveBeenCalled()
+    expect(mocks.retry).toHaveBeenCalledOnce()
+  })
+
+  it('aborts the transport when the unlock session changes during the request', async () => {
+    let signal: AbortSignal | undefined
+    mocks.deleteEntry.mockImplementationOnce((_vault, _entry, _material, requestSignal: AbortSignal) => {
+      signal = requestSignal
+      return new Promise((_resolve, reject) => {
+        signal!.addEventListener('abort', () => reject(new Error('aborted')))
+      })
+    })
+    const { result } = renderHook(() => useDeleteEntry('vault'), { wrapper })
+    let mutation: Promise<unknown>
+    act(() => { mutation = result.current.mutateAsync('entry').catch((error: unknown) => error) })
+    await waitFor(() => expect(signal).toBeDefined())
+    await act(async () => {
+      useAuthStore.setState({ privateKey: new Uint8Array(32).fill(9) })
+      await mutation!
+    })
+    expect(signal!.aborted).toBe(true)
+    expect(mocks.reconcile).not.toHaveBeenCalled()
   })
 
   it('does not remove the Entry locally when the server rejects the deletion', async () => {

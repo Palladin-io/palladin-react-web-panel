@@ -239,6 +239,6 @@ describe('deleteEntry', () => {
     await expect(deleteEntry('vault', 'entry', material)).resolves.toEqual({
       state: 'deleted', currentRevision: '8',
     })
-    expect(postFn).toHaveBeenCalledWith('api/vaults/vault/entries/entry/delete', { json: material })
+    expect(postFn).toHaveBeenCalledWith('api/vaults/vault/entries/entry/delete', { json: material, signal: undefined })
   })
 })

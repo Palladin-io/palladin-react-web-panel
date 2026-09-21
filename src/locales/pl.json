@@ -368,7 +368,7 @@
   "vault.entry.detail.deleteSubtitle": "Trwale usuń ten wpis. Aktywne dostępy agentów zostaną natychmiast unieważnione.",
   "vault.entry.detail.deleteButton": "Usuń wpis",
   "vault.entry.detail.deleteConfirmTitle": "Usunąć „{{label}}”?",
-  "vault.entry.detail.deleteConfirmText": "To trwale usunie wpis. Aktywne dostępy agentów do tego wpisu zostaną natychmiast unieważnione.",
+  "vault.entry.detail.deleteConfirmText": "Ten wpis zostanie przeniesiony do Ostatnio usuniętych. Możesz go przywrócić w okresie przechowywania. Aktywne uprawnienia agentów do tego wpisu zostaną natychmiast cofnięte.",
   "vault.entry.detail.deleteSuccess": "Wpis usunięty.",
   "vault.entry.detail.deleteError": "Nie udało się usunąć wpisu. Spróbuj ponownie.",
   "vault.entry.detail.agentsEmpty": "Żaden agent nie ma jeszcze dostępu do tego wpisu.",

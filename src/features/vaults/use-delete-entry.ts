@@ -15,10 +15,16 @@ export function useDeleteEntry(vaultId: string) {
     mutationFn: async (entryId: string) => {
       const privateKey = useAuthStore.getState().privateKey
       if (!privateKey) throw new Error('Vault is locked')
+      const displayed = useMemberSyncStore.getState().vaults.get(vaultId)?.entries.get(entryId)
       const [vault, detail] = await Promise.all([
         getEncryptedVault(vaultId), getCanonicalEntry(vaultId, entryId),
       ])
       if (useAuthStore.getState().privateKey !== privateKey) throw new Error('Vault was locked while deleting Entry')
+      if (!displayed || detail.currentRevision !== displayed.currentRevision
+        || detail.currentKeyVersion !== displayed.currentKeyVersion) {
+        useMemberSyncStore.getState().retry()
+        throw new Error('Current Entry detail changed after Member sync')
+      }
       const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
       let discoveryKey: Uint8Array | undefined
       try {
@@ -37,12 +43,21 @@ export function useDeleteEntry(vaultId: string) {
           memberKeyGeneration: vault.memberKeyGeneration,
         }, secret, vaultKey, discoveryKey, 5)
         if (useAuthStore.getState().privateKey !== privateKey) throw new Error('Vault was locked while deleting Entry')
-        const response = await deleteEntry(vaultId, entryId, {
-          baseRevision: detail.currentRevision,
-          newEntryKey: envelopes.entryKey,
-          memberSecret: envelopes.memberSecret,
-          memberIndex: envelopes.memberIndex,
+        const controller = new AbortController()
+        const unsubscribe = useAuthStore.subscribe((state) => {
+          if (state.privateKey !== privateKey) controller.abort()
         })
+        let response: Awaited<ReturnType<typeof deleteEntry>>
+        try {
+          response = await deleteEntry(vaultId, entryId, {
+            baseRevision: detail.currentRevision,
+            newEntryKey: envelopes.entryKey,
+            memberSecret: envelopes.memberSecret,
+            memberIndex: envelopes.memberIndex,
+          }, controller.signal)
+        } finally {
+          unsubscribe()
+        }
         if (useAuthStore.getState().privateKey === privateKey) {
           const current = useMemberSyncStore.getState().vaults.get(vaultId)?.entries.get(entryId)
           if (current) {
