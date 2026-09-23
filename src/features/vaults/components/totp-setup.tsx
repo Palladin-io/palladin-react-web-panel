@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
@@ -70,8 +70,15 @@ export function TotpSetupInputs({
   const [error, setError] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const inputId = useId()
+  const decodeGeneration = useRef(0)
+
+  useEffect(() => () => {
+    decodeGeneration.current += 1
+  }, [disabled])
 
   const resolveText = (text: string): boolean => {
+    if (disabled) return false
+    decodeGeneration.current += 1
     const trimmed = text.trim()
     if (!trimmed) return false
     const params = parseOtpauthUri(trimmed) ?? totpParamsFromSecret(trimmed)
@@ -86,8 +93,10 @@ export function TotpSetupInputs({
   }
 
   const handleFile = async (file: File | undefined) => {
-    if (!file) return
+    if (!file || disabled) return
+    const generation = ++decodeGeneration.current
     const decoded = await decodeQrImage(file)
+    if (generation !== decodeGeneration.current) return
     if (!decoded || !resolveText(decoded)) setError(true)
   }
 
@@ -124,7 +133,10 @@ export function TotpSetupInputs({
             {scanQrButton}
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                decodeGeneration.current += 1
+                onClose()
+              }}
               disabled={disabled}
               aria-label={t('vault.cancel')}
               className="inline-flex h-6 w-6 items-center justify-center rounded text-[var(--cv-icon-muted)]
@@ -144,6 +156,7 @@ export function TotpSetupInputs({
           labelClassName="sr-only"
           value={raw}
           onChange={(e) => {
+            decodeGeneration.current += 1
             setRaw(e.target.value)
             setError(false)
           }}
