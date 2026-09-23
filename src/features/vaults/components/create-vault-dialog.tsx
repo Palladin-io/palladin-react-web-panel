@@ -49,8 +49,16 @@ function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProp
   const [description, setDescription] = useState(create.pendingInput?.description ?? '')
   const [icon, setIcon] = useState<string>(create.pendingInput?.icon ?? DEFAULT_VAULT_ICON)
   const [iconFile, setIconFile] = useState<File | undefined>(create.pendingInput?.iconFile)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(() =>
-    create.pendingInput?.iconFile ? URL.createObjectURL(create.pendingInput.iconFile) : null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const retryIconFile = create.pendingInput?.iconFile
+  useEffect(() => {
+    if (!retryIconFile) return
+    const url = URL.createObjectURL(retryIconFile)
+    // Synchronize the preview with an externally allocated browser resource.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [retryIconFile])
   useEffect(() => () => {
     if (previewUrl) URL.revokeObjectURL(previewUrl)
   }, [previewUrl])

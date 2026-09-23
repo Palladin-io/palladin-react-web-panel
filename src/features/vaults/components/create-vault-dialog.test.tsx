@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { StrictMode, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -16,7 +16,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 // through the real crypto + HTTP stack.
 const mutateMock = vi.fn()
 let isPending = false
-let pendingInput: { name: string; description?: string; icon?: string; color?: string } | null = null
+let pendingInput: { name: string; description?: string; icon?: string; color?: string; iconFile?: File } | null = null
 
 vi.mock('../use-create-vault', () => ({
   useCreateVault: () => ({
@@ -130,6 +130,18 @@ describe('CreateVaultDialog', () => {
     expect(revoke).toHaveBeenCalledWith('blob:icon-preview')
     preview.mockRestore()
     revoke.mockRestore()
+  })
+
+  it('releases every retry preview allocated under StrictMode', () => {
+    pendingInput = { name: 'Retry', iconFile: new File(['image'], 'icon.png', { type: 'image/png' }) }
+    let next = 0
+    const allocated = vi.spyOn(URL, 'createObjectURL').mockImplementation(() => `blob:retry-${++next}`)
+    const revoked = vi.spyOn(URL, 'revokeObjectURL')
+    const { unmount } = render(<StrictMode><CreateVaultDialog open onClose={vi.fn()} /></StrictMode>, { wrapper })
+    unmount()
+    for (const result of allocated.mock.results) expect(revoked).toHaveBeenCalledWith(result.value)
+    allocated.mockRestore()
+    revoked.mockRestore()
   })
 
   it('reports a failed icon upload but still opens the already-created Vault', async () => {

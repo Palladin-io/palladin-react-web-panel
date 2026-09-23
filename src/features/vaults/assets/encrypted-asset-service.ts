@@ -1,6 +1,7 @@
 import {
   MAXIMUM_ICON_PLAINTEXT_BYTES,
   encryptPresentationAsset,
+  validatePresentationAsset,
   validatePresentationAssetDimensions,
   type EncryptedAssetMediaType,
   type EncryptedAssetScope,
@@ -48,5 +49,11 @@ export async function validatePresentationAssetFile(file: File): Promise<void> {
   if (file.size === 0 || file.size > MAXIMUM_ICON_PLAINTEXT_BYTES) {
     throw new InvalidPresentationAssetError('Icon exceeds size limit')
   }
-  await validatePresentationAssetDimensions(file)
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  try {
+    validatePresentationAsset(bytes, file.type as EncryptedAssetMediaType)
+    await validatePresentationAssetDimensions(file)
+  } finally {
+    bytes.fill(0)
+  }
 }
