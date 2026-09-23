@@ -51,8 +51,8 @@ describe('TotpSetupInputs', () => {
     uploadQr(container)
     await first('JBSWY3DPEHPK3PXP')
     expect(onResolved).not.toHaveBeenCalled()
-    await second('GEZDGNBVGY3TQOJQ')
-    expect(onResolved).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ secret: 'GEZDGNBVGY3TQOJQ' }))
+    await second('AAAAAAAAAAAAAAAA')
+    expect(onResolved).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ secret: 'AAAAAAAAAAAAAAAA' }))
   })
 
   it('does not overwrite newer text input with a pending QR decode', async () => {
@@ -60,11 +60,11 @@ describe('TotpSetupInputs', () => {
     const onResolved = vi.fn()
     const { container } = render(<TotpSetupInputs onResolved={onResolved} />)
     uploadQr(container)
-    fireEvent.change(screen.getByLabelText(/otpauth/i), { target: { value: 'GEZDGNBVGY3TQOJQ' } })
+    fireEvent.change(screen.getByLabelText(/otpauth/i), { target: { value: 'AAAAAAAAAAAAAAAA' } })
     await complete('JBSWY3DPEHPK3PXP')
     expect(onResolved).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: /apply totp/i }))
-    expect(onResolved).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ secret: 'GEZDGNBVGY3TQOJQ' }))
+    expect(onResolved).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ secret: 'AAAAAAAAAAAAAAAA' }))
   })
 
   it('invalidates QR work when setup becomes disabled', async () => {
