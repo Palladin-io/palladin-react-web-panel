@@ -35,9 +35,9 @@ export function useDeleteEntry(vaultId: string) {
         const envelopes = await sealCanonicalEntry({
           organizationId: detail.organizationId, vaultId, entryId,
           revision: (BigInt(detail.currentRevision) + 1n).toString(),
-          entryKeyRevision: (BigInt(detail.entryKey.descriptor.resourceRevision) + 1n).toString(),
+          entryKeyRevision: '1',
           entryKeyVersion: detail.currentKeyVersion + 1,
-          memberIndexRevision: (BigInt(detail.memberIndexRevision) + 1n).toString(),
+          memberIndexRevision: (BigInt(detail.currentRevision) + 1n).toString(),
           vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
           vdkVersion: vault.currentKeyEpoch.vdkVersion,
           memberKeyGeneration: vault.memberKeyGeneration,

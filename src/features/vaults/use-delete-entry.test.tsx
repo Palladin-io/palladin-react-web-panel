@@ -62,7 +62,7 @@ describe('useDeleteEntry', () => {
     mocks.decrypt.mockResolvedValue({ memberLabel: 'preserved secret' })
     mocks.createMaterial.mockResolvedValue({
       entryKey: { descriptor: { keyVersion: 3 } },
-      memberIndex: { descriptor: { resourceRevision: '4' } },
+      memberIndex: { descriptor: { resourceRevision: '8' } },
       memberSecret: { encrypted: true }, agentDiscovery: { mustNotBeSent: true },
     })
     mocks.deleteEntry.mockResolvedValue({ state: 'deleted', currentRevision: '8' })
@@ -75,14 +75,14 @@ describe('useDeleteEntry', () => {
       organizationId: 'org', vaultId: 'vault', entryId: 'entry', revision: '7',
     })
     expect(mocks.createMaterial).toHaveBeenCalledWith(expect.objectContaining({
-      revision: '8', entryKeyRevision: '3', entryKeyVersion: 3, memberIndexRevision: '4',
+      revision: '8', entryKeyRevision: '1', entryKeyVersion: 3, memberIndexRevision: '8',
     }), { memberLabel: 'preserved secret' }, expect.any(Uint8Array), expect.any(Uint8Array), 5)
     expect(mocks.deleteEntry).toHaveBeenCalledWith('vault', 'entry', {
       baseRevision: '7', newEntryKey: { descriptor: { keyVersion: 3 } },
-      memberIndex: { descriptor: { resourceRevision: '4' } }, memberSecret: { encrypted: true },
+      memberIndex: { descriptor: { resourceRevision: '8' } }, memberSecret: { encrypted: true },
     }, expect.any(AbortSignal))
     expect(mocks.reconcile).toHaveBeenCalledWith('vault', expect.objectContaining({
-      entryId: 'entry', state: 'deleted', currentRevision: '8', memberIndexRevision: '4',
+      entryId: 'entry', state: 'deleted', currentRevision: '8', memberIndexRevision: '8',
     }))
     expect(mocks.retry).toHaveBeenCalledOnce()
     expect(mocks.wipe).toHaveBeenCalledTimes(2)
