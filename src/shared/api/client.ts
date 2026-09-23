@@ -119,6 +119,7 @@ export const api = ky.create({
             return response
           }
           setTokens(data)
+          if (request.signal.aborted) return response
 
           // Retry original request with new token
           request.headers.set('Authorization', `Bearer ${data.accessToken}`)

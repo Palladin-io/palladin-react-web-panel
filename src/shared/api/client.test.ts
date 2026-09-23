@@ -151,6 +151,28 @@ describe('api client — 401 with failing refresh', () => {
     expect(window.location.href).toBe('http://localhost:5000/')
   })
 
+  it('does not resend an aborted mutation after token refresh completes', async () => {
+    let resolveRefresh!: (response: Response) => void
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if ((input as Request).url.includes('api/auth/refresh')) {
+        return new Promise<Response>((resolve) => { resolveRefresh = resolve })
+      }
+      return new Response('unauthorized', { status: 401 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+    const request = api.post('api/vaults/vault/entries/entry/delete', {
+      json: { baseRevision: '7' }, signal: controller.signal,
+    }).catch((error: unknown) => error)
+    await vi.waitFor(() => expect(resolveRefresh).toBeTypeOf('function'))
+    controller.abort()
+    resolveRefresh(new Response(JSON.stringify({ accessToken: 'new-access', refreshToken: 'new-refresh',
+      userId: 'user-123', isOnboarded: true }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    await request
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(useAuthStore.getState().refreshToken).toBe('new-refresh')
+  })
+
   it('does not refresh or retry a request started by the previous session', async () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-a',
