@@ -3,7 +3,7 @@ import {
   openVaultProjection,
   sealMemberVaultMetadata,
 } from '../../shared/crypto/vault-protocol'
-import type { MemberVaultMetadataV1 } from '../../shared/crypto/vault-plaintext'
+import { presentationIconReference, type MemberVaultMetadataV1 } from '../../shared/crypto/vault-plaintext'
 import { canonicalizeVaultJson, type CanonicalJson } from '../../shared/crypto/vault-v2-signatures'
 import { wipe } from '../../shared/crypto/sodium'
 import { useAuthStore } from '../auth'
@@ -41,7 +41,7 @@ function equalMetadata(left: EditableVaultMetadata, right: EditableVaultMetadata
 }
 
 function assetId(reference: string | undefined): string | null {
-  const match = /^asset:([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/.exec(reference ?? '')
+  const match = /^vault-asset:([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/.exec(reference ?? '')
   return match?.[1] ?? null
 }
 
@@ -97,8 +97,7 @@ export async function updateEncryptedVaultSettings(input: {
     const currentMetadata: EditableVaultMetadata = {
       name: opened.metadata.name,
       ...(opened.metadata.description ? { description: opened.metadata.description } : {}),
-      ...(opened.metadata.icon?.kind === 'glyph' ? { iconReference: opened.metadata.icon.value }
-        : opened.metadata.icon?.kind === 'encryptedAsset' ? { iconReference: `asset:${opened.metadata.icon.assetId}` } : {}),
+      ...(opened.metadata.icon ? { iconReference: presentationIconReference(opened.metadata.icon) } : {}),
       ...(opened.metadata.color ? { color: opened.metadata.color } : {}),
     }
     if (!equalMetadata(currentMetadata, input.expectedMetadata)) throw new VaultMetadataConflictError()
@@ -126,7 +125,7 @@ export async function updateEncryptedVaultSettings(input: {
       description: nextMetadata.description ?? null,
       icon: assetId(nextMetadata.iconReference)
         ? { kind: 'encryptedAsset', assetId: assetId(nextMetadata.iconReference)! }
-        : nextMetadata.iconReference ? { kind: 'glyph', value: nextMetadata.iconReference } : null,
+        : nextMetadata.iconReference ? { kind: 'glyph', value: nextMetadata.iconReference.replace(/^builtin:/, '') } : null,
       color: nextMetadata.color ?? null, grantMode: opened.metadata.grantMode,
     }
     const envelope = await sealMemberVaultMetadata({

@@ -183,6 +183,7 @@
   "vault.backToList": "Wróć do skarbców",
   "vault.backToDetail": "Wróć do skarbca",
   "vault.errorLoad": "Nie udało się wczytać skarbca. Przeładuj stronę.",
+  "vault.iconUploadFailedAfterCreate": "Skarbiec został utworzony, ale nie udało się zapisać ikony. Wgraj ją ponownie w szczegółach skarbca.",
   "vault.errorCreate": "Nie udało się utworzyć skarbca. Spróbuj ponownie.",
   "vault.errorSave": "Nie udało się zapisać zmian. Spróbuj ponownie.",
   "vault.errorConflict": "Ustawienia skarbca zmieniły się na innym urządzeniu. Odśwież i sprawdź najnowszą wersję przed ponownym zapisem.",

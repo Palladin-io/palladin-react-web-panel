@@ -1,3 +1,5 @@
+import { updateEncryptedVaultSettings } from './vault-settings-service'
+import { validatePresentationAssetFile } from './assets/encrypted-asset-service'
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
@@ -27,13 +29,17 @@ export class VaultLockedError extends Error {
   }
 }
 
+export interface CreateVaultWithIconInput extends CreateVaultInput {
+  iconFile?: File
+}
+
 interface PendingVaultCreationAttempt {
-  input: CreateVaultInput
+  input: CreateVaultWithIconInput
   payload: CreateVaultPayload
 }
 
-// Ciphertext-only state deliberately lives in module memory: it survives a dialog
-// remount, but never enters persistent browser storage and disappears with the tab.
+// Keep ambiguous creation material and its selected file in memory across dialog
+// remounts so a retry reuses the same Vault and icon.
 const pendingAttempts = new Map<string, PendingVaultCreationAttempt>()
 
 function sessionKey(organizationId: string, memberId: string): string {
@@ -49,7 +55,7 @@ function currentSessionKey(): string | null {
 
 export function useCreateVault() {
   const queryClient = useQueryClient()
-  const [pendingInput, setPendingInput] = useState<CreateVaultInput | null>(
+  const [pendingInput, setPendingInput] = useState<CreateVaultWithIconInput | null>(
     () => {
       const key = currentSessionKey()
       return key ? pendingAttempts.get(key)?.input ?? null : null
@@ -57,95 +63,117 @@ export function useCreateVault() {
   )
 
   const mutation = useMutation({
-    mutationFn: async (input: CreateVaultInput) => {
-      // Read the private key inside the mutation (not at hook level) so we
-      // pick up the latest value at click time — `unlockVault` may have
-      // populated it after the hook was first instantiated.
-      const initialAuth = useAuthStore.getState()
-      if (!initialAuth.privateKey) {
-        initialAuth.lockVault()
-        throw new VaultLockedError()
-      }
+    mutationFn: async (input: CreateVaultWithIconInput) => {
+      const createAttempt = async () => {
+        // Read the private key inside the mutation (not at hook level) so we
+        // pick up the latest value at click time — `unlockVault` may have
+        // populated it after the hook was first instantiated.
+        const initialAuth = useAuthStore.getState()
+        if (!initialAuth.privateKey) {
+          initialAuth.lockVault()
+          throw new VaultLockedError()
+        }
 
-      // Let the API client restore an in-memory access token from the refresh
-      // token before we read token-bound organization context. This matters
-      // after reload/HMR: the Vault can be correctly unlocked from cached
-      // account material while accessToken is still waiting for its first
-      // authenticated request.
-      const challenge = await issueVaultCreationChallenge()
-      const auth = useAuthStore.getState()
-      if (!auth.accessToken) throw new Error('Authenticated session was not restored')
-      const organizationId = parseJwtPayload(auth.accessToken)['org_id']
-      if (typeof organizationId !== 'string') throw new Error('Authenticated organization is missing')
-      const account = await getAccount()
-      const memberId = account.userId
-      if (!memberId) throw new Error('Current Member identity is missing')
-      const key = sessionKey(organizationId, memberId)
+        // Let the API client restore an in-memory access token from the refresh
+        // token before we read token-bound organization context. This matters
+        // after reload/HMR: the Vault can be correctly unlocked from cached
+        // account material while accessToken is still waiting for its first
+        // authenticated request.
+        const challenge = await issueVaultCreationChallenge()
+        const auth = useAuthStore.getState()
+        if (!auth.accessToken) throw new Error('Authenticated session was not restored')
+        const organizationId = parseJwtPayload(auth.accessToken)['org_id']
+        if (typeof organizationId !== 'string') throw new Error('Authenticated organization is missing')
+        const account = await getAccount()
+        const memberId = account.userId
+        if (!memberId) throw new Error('Current Member identity is missing')
+        const key = sessionKey(organizationId, memberId)
 
-      let pendingAttempt = pendingAttempts.get(key)
-      if (pendingAttempt && pendingAttempt.payload.vaultId !== challenge.vaultId) {
-        const pendingVaultId = pendingAttempt.payload.vaultId
-        const vaults = await listEncryptedVaults()
-        if (vaults.some((vault) => vault.id === pendingVaultId)) {
+        let pendingAttempt = pendingAttempts.get(key)
+        if (pendingAttempt && pendingAttempt.payload.vaultId !== challenge.vaultId) {
+          const pendingVaultId = pendingAttempt.payload.vaultId
+          const vaults = await listEncryptedVaults()
+          if (vaults.some((vault) => vault.id === pendingVaultId)) {
+            pendingAttempts.delete(key)
+            setPendingInput(null)
+            return { vaultId: pendingVaultId, creationInput: pendingAttempt.input }
+          }
           pendingAttempts.delete(key)
           setPendingInput(null)
-          return { vaultId: pendingVaultId }
+          pendingAttempt = undefined
+        }
+        if (pendingAttempt?.payload.vaultId !== challenge.vaultId) {
+          if (!account.memberKeyVersion) throw new Error('Current Member key version is missing')
+          if (input.iconFile) await validatePresentationAssetFile(input.iconFile)
+          const normalizedInput: CreateVaultWithIconInput = {
+            ...(input.iconFile ? { iconFile: input.iconFile } : {}),
+            name: input.name.normalize('NFC'),
+            ...(input.description ? { description: input.description.normalize('NFC') } : {}),
+            ...(input.icon ? { icon: input.icon.normalize('NFC') } : {}),
+            ...(input.color ? { color: input.color } : {}),
+          }
+          const payload = await createVaultProtocolPayload({
+            organizationId,
+            vaultId: challenge.vaultId,
+            memberId,
+            memberKeyVersion: account.memberKeyVersion,
+            memberPrivateKey: initialAuth.privateKey,
+            metadata: {
+              schema: 'palladin.member-vault-metadata.v1',
+              name: normalizedInput.name,
+              description: normalizedInput.description ?? null,
+              icon: normalizedInput.icon ? { kind: 'glyph', value: normalizedInput.icon } : null,
+              color: input.color ?? null,
+              grantMode: 'granular',
+            },
+          })
+          pendingAttempt = { input: normalizedInput, payload }
+          pendingAttempts.set(key, pendingAttempt)
+          setPendingInput(normalizedInput)
+        }
+
+        const attempt = pendingAttempt.payload
+        try {
+          await createVault(attempt)
+        } catch (error) {
+          try {
+            if ((await listEncryptedVaults()).some((vault) => vault.id === attempt.vaultId)) {
+              pendingAttempts.delete(key)
+              setPendingInput(null)
+              return { vaultId: attempt.vaultId, creationInput: pendingAttempt.input }
+            }
+          } catch {
+            // Preserve the exact ciphertext attempt for an idempotent retry.
+          }
+          if (error instanceof HTTPError && error.response.status < 500
+            && error.response.status !== 408 && error.response.status !== 429) {
+            pendingAttempts.delete(key)
+            setPendingInput(null)
+          }
+          throw error
         }
         pendingAttempts.delete(key)
         setPendingInput(null)
-        pendingAttempt = undefined
+        return { vaultId: attempt.vaultId, creationInput: pendingAttempt.input }
       }
-      if (pendingAttempt?.payload.vaultId !== challenge.vaultId) {
-        if (!account.memberKeyVersion) throw new Error('Current Member key version is missing')
-        const normalizedInput: CreateVaultInput = {
-          name: input.name.normalize('NFC'),
-          ...(input.description ? { description: input.description.normalize('NFC') } : {}),
-          ...(input.icon ? { icon: input.icon.normalize('NFC') } : {}),
-          ...(input.color ? { color: input.color } : {}),
+      const { vaultId, creationInput } = await createAttempt()
+      if (creationInput.iconFile) {
+        const metadata = {
+          name: creationInput.name,
+          ...(creationInput.description ? { description: creationInput.description } : {}),
+          ...(creationInput.icon ? { iconReference: `builtin:${creationInput.icon}` } : {}),
+          ...(creationInput.color ? { color: creationInput.color } : {}),
         }
-        const payload = await createVaultProtocolPayload({
-          organizationId,
-          vaultId: challenge.vaultId,
-          memberId,
-          memberKeyVersion: account.memberKeyVersion,
-          memberPrivateKey: initialAuth.privateKey,
-          metadata: {
-            schema: 'palladin.member-vault-metadata.v1',
-            name: normalizedInput.name,
-            description: normalizedInput.description ?? null,
-            icon: normalizedInput.icon ? { kind: 'glyph', value: normalizedInput.icon } : null,
-            color: input.color ?? null,
-            grantMode: 'granular',
-          },
-        })
-        pendingAttempt = { input: normalizedInput, payload }
-        pendingAttempts.set(key, pendingAttempt)
-        setPendingInput(normalizedInput)
-      }
-
-      const attempt = pendingAttempt.payload
-      try {
-        await createVault(attempt)
-      } catch (error) {
         try {
-          if ((await listEncryptedVaults()).some((vault) => vault.id === attempt.vaultId)) {
-            pendingAttempts.delete(key)
-            setPendingInput(null)
-            return { vaultId: attempt.vaultId }
-          }
+          await updateEncryptedVaultSettings({
+            vaultId, expectedMetadata: metadata, nextMetadata: metadata, iconFile: creationInput.iconFile,
+          })
         } catch {
-          // Preserve the exact ciphertext attempt for an idempotent retry.
+          // Creation already committed. Retrying the whole operation would duplicate the Vault.
+          return { vaultId, iconUploadFailed: true }
         }
-        if (error instanceof HTTPError && error.response.status < 500
-          && error.response.status !== 408 && error.response.status !== 429) {
-          pendingAttempts.delete(key)
-          setPendingInput(null)
-        }
-        throw error
       }
-      pendingAttempts.delete(key)
-      setPendingInput(null)
-      return { vaultId: attempt.vaultId }
+      return { vaultId }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: VAULTS_QUERY_KEY })

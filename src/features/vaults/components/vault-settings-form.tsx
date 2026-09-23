@@ -56,7 +56,7 @@ export function VaultSettingsForm({
   const [name, setName] = useState(baseMetadata.name)
   const [description, setDescription] = useState(baseMetadata.description ?? '')
   const [icon, setIcon] = useState(
-    baseMetadata.iconReference?.startsWith('asset:') ? DEFAULT_VAULT_ICON : baseMetadata.iconReference ?? DEFAULT_VAULT_ICON,
+    baseMetadata.iconReference?.startsWith('vault-asset:') ? DEFAULT_VAULT_ICON : baseMetadata.iconReference?.replace(/^builtin:/, '') ?? DEFAULT_VAULT_ICON,
   )
   const [color, setColor] = useState(baseMetadata.color ?? DEFAULT_VAULT_COLOR)
   const [iconChanged, setIconChanged] = useState(false)
@@ -64,8 +64,8 @@ export function VaultSettingsForm({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [nameError, setNameError] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
-  const baseAssetId = baseMetadata.iconReference?.startsWith('asset:')
-    ? baseMetadata.iconReference.slice('asset:'.length)
+  const baseAssetId = baseMetadata.iconReference?.startsWith('vault-asset:')
+    ? baseMetadata.iconReference.slice('vault-asset:'.length)
     : null
   const encryptedAsset = useVaultEncryptedAssetUrl(vault.id, baseAssetId)
 
@@ -89,8 +89,8 @@ export function VaultSettingsForm({
     const nextMetadata = {
       name: trimmedName,
       ...(trimmedDescription ? { description: trimmedDescription } : {}),
-      ...((iconChanged && !iconFile ? icon : baseMetadata.iconReference)
-        ? { iconReference: iconChanged && !iconFile ? icon : baseMetadata.iconReference }
+      ...((iconChanged && !iconFile ? `builtin:${icon}` : baseMetadata.iconReference)
+        ? { iconReference: iconChanged && !iconFile ? `builtin:${icon}` : baseMetadata.iconReference }
         : {}),
       ...(color ? { color } : {}),
     }
@@ -109,9 +109,9 @@ export function VaultSettingsForm({
         setBaseMetadata(committedMetadata)
         setIconFile(undefined)
         setPreviewUrl(null)
-        setIcon(committedMetadata.iconReference?.startsWith('asset:')
+        setIcon(committedMetadata.iconReference?.startsWith('vault-asset:')
           ? DEFAULT_VAULT_ICON
-          : committedMetadata.iconReference ?? DEFAULT_VAULT_ICON)
+          : committedMetadata.iconReference?.replace(/^builtin:/, '') ?? DEFAULT_VAULT_ICON)
         setIconChanged(false)
         analytics.capture('vault', 'settings-saved')
         onSaved?.()
@@ -213,9 +213,9 @@ export function VaultSettingsForm({
             onClick={() => {
               setName(baseMetadata.name)
               setDescription(baseMetadata.description ?? '')
-              setIcon(baseMetadata.iconReference?.startsWith('asset:')
+              setIcon(baseMetadata.iconReference?.startsWith('vault-asset:')
                 ? DEFAULT_VAULT_ICON
-                : baseMetadata.iconReference ?? DEFAULT_VAULT_ICON)
+                : baseMetadata.iconReference?.replace(/^builtin:/, '') ?? DEFAULT_VAULT_ICON)
               setColor(baseMetadata.color ?? DEFAULT_VAULT_COLOR)
               setIconFile(undefined)
               setPreviewUrl(null)

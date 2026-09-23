@@ -7,12 +7,17 @@ import { useMemberSyncStore } from './sync/member-sync-store'
 import { useCreateVault, VaultLockedError } from './use-create-vault'
 
 const mocks = vi.hoisted(() => ({
+  updateSettings: vi.fn(),
+  validateFile: vi.fn(),
   createVault: vi.fn(),
   issueChallenge: vi.fn(),
   getAccount: vi.fn(),
   listVaults: vi.fn(),
   createMaterial: vi.fn(),
 }))
+
+vi.mock('./vault-settings-service', () => ({ updateEncryptedVaultSettings: mocks.updateSettings }))
+vi.mock('./assets/encrypted-asset-service', () => ({ validatePresentationAssetFile: mocks.validateFile }))
 
 vi.mock('./api/vault-api', () => ({
   createVault: mocks.createVault,
@@ -69,6 +74,8 @@ describe('useCreateVault', () => {
     mocks.listVaults.mockResolvedValue([])
     mocks.createMaterial.mockImplementation(async ({ vaultId }) => material(vaultId))
     mocks.createVault.mockResolvedValue(undefined)
+    mocks.updateSettings.mockReset().mockResolvedValue({})
+    mocks.validateFile.mockReset().mockResolvedValue(undefined)
   })
 
   function unlock() {
@@ -165,19 +172,21 @@ describe('useCreateVault', () => {
 
   it('preserves an ambiguous attempt across remounts and ignores edited retry input', async () => {
     unlock()
+    const iconFile = new File(['image'], 'icon.png', { type: 'image/png' })
     const transient = new TypeError('response lost')
     mocks.createVault.mockRejectedValueOnce(transient).mockResolvedValueOnce(undefined)
     mocks.listVaults.mockRejectedValueOnce(new TypeError('offline'))
     const first = renderHook(() => useCreateVault(), { wrapper: wrapperWith(client) })
 
-    await expect(act(() => first.result.current.mutateAsync({ name: 'Production' })))
+    await expect(act(() => first.result.current.mutateAsync({ name: 'Production', iconFile })))
       .rejects.toBe(transient)
     first.unmount()
 
     const second = renderHook(() => useCreateVault(), { wrapper: wrapperWith(client) })
-    expect(second.result.current.pendingInput).toEqual({ name: 'Production' })
+    expect(second.result.current.pendingInput).toEqual({ name: 'Production', iconFile })
     await act(() => second.result.current.mutateAsync({ name: 'Edited after ambiguity' }))
 
+    expect(mocks.updateSettings).toHaveBeenCalledWith(expect.objectContaining({ iconFile, vaultId: firstVaultId }))
     expect(mocks.createMaterial).toHaveBeenCalledTimes(1)
     expect(mocks.createVault.mock.calls[1][0]).toEqual(mocks.createVault.mock.calls[0][0])
   })
@@ -197,6 +206,38 @@ describe('useCreateVault', () => {
     expect(reconciled).toEqual({ vaultId: firstVaultId })
     expect(mocks.createMaterial).toHaveBeenCalledTimes(1)
     expect(mocks.createVault).toHaveBeenCalledTimes(1)
+  })
+
+  it('uploads only after creation, using the canonical metadata reference', async () => {
+    unlock()
+    const file = new File(['image'], 'icon.png', { type: 'image/png' })
+    const { result } = renderHook(() => useCreateVault(), { wrapper: wrapperWith(client) })
+    await act(() => result.current.mutateAsync({ name: 'Custom', icon: 'shield', iconFile: file }))
+    expect(mocks.createVault.mock.invocationCallOrder[0]).toBeLessThan(mocks.updateSettings.mock.invocationCallOrder[0])
+    expect(mocks.updateSettings).toHaveBeenCalledWith({
+      vaultId: firstVaultId, iconFile: file,
+      expectedMetadata: { name: 'Custom', iconReference: 'builtin:shield' },
+      nextMetadata: { name: 'Custom', iconReference: 'builtin:shield' },
+    })
+    expect(mocks.createMaterial.mock.calls[0][0].metadata.icon).toEqual({ kind: 'glyph', value: 'shield' })
+  })
+
+  it('returns the committed Vault when the secondary upload fails', async () => {
+    unlock()
+    mocks.updateSettings.mockRejectedValue(new Error('upload failed'))
+    const { result } = renderHook(() => useCreateVault(), { wrapper: wrapperWith(client) })
+    const response = await act(() => result.current.mutateAsync({ name: 'Custom', iconFile: new File(['image'], 'icon.png') }))
+    expect(response).toEqual({ vaultId: firstVaultId, iconUploadFailed: true })
+    expect(mocks.createVault).toHaveBeenCalledOnce()
+    expect(result.current.pendingInput).toBeNull()
+  })
+
+  it('rejects an invalid image before creating a Vault', async () => {
+    unlock()
+    mocks.validateFile.mockRejectedValue(new Error('invalid image'))
+    const { result } = renderHook(() => useCreateVault(), { wrapper: wrapperWith(client) })
+    await expect(act(() => result.current.mutateAsync({ name: 'Custom', iconFile: new File(['invalid'], 'icon.svg') }))).rejects.toThrow('invalid image')
+    expect(mocks.createVault).not.toHaveBeenCalled()
   })
 
   it('triggers normal encrypted sync after a successful create', async () => {
