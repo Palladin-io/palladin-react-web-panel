@@ -37,6 +37,7 @@ const NO_CHANGES = {
 
 export function HistoricalEntryForm({ revision, secret, previousSecret }: HistoricalEntryFormProps) {
   const { t } = useTranslation()
+  const [cvvShown, setCvvShown] = useState(false)
   const [mainSecretShown, setMainSecretShown] = useState(false)
   const content = secret.content
   const inputId = (field: string) => `entry-history-${revision}-${field}`
@@ -279,6 +280,12 @@ export function HistoricalEntryForm({ revision, secret, previousSecret }: Histor
             copyable
             {...changedInputProps('cardNumber')}
           />
+          <div className="sm:col-span-2">
+            <SecretInput id={inputId('cvv')} label={t('vault.entries.card.cvv')}
+              value={content.cvv ?? ''} onChange={() => undefined}
+              shown={cvvShown} onToggleShown={() => setCvvShown((shown) => !shown)}
+              readOnly monospace copyable {...changedInputProps('cvv')} />
+          </div>
           <FormInput
             id={inputId('expiry-month')}
             label={t('vault.entries.card.expiryMonth')}

@@ -366,7 +366,12 @@ describe('CreateEntryModal', () => {
     await user.type(screen.getByLabelText(/expiry month/i), '12')
     await user.type(screen.getByLabelText(/expiry year/i), '2030')
     await user.type(screen.getByLabelText(/billing address/i), '1 Main Street')
-    expect(screen.queryByLabelText(/security code|cvv|cvc/i)).not.toBeInTheDocument()
+    const cvv = screen.getByLabelText(/cvv \/ cvc/i)
+    await user.type(cvv, '01')
+    await user.tab()
+    expect(screen.getByRole('button', { name: /save entry/i })).toBeDisabled()
+    await user.type(cvv, '2')
+    expect(cvv).toHaveClass('secret-mask')
     expect(screen.queryByLabelText(/^pin/i)).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /add field/i }))
     await user.click(screen.getByRole('menuitem', { name: /^text/i }))
@@ -385,6 +390,7 @@ describe('CreateEntryModal', () => {
       expiryMonth: '12',
       expiryYear: '2030',
       billingAddress: '1 Main Street',
+      cvv: '012',
       fields: [expect.objectContaining({ label: 'Account ID', type: 'text', value: 'account-123' })],
     })
     expect(input.policy.fields.cardNumber).toBe('never')

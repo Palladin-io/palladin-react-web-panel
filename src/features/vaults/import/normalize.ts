@@ -18,6 +18,7 @@ export interface RawEntry {
   totp?: string
   cardholderName?: string
   cardNumber?: string
+  cvv?: string
   expiryMonth?: string
   expiryYear?: string
   billingAddress?: string
@@ -80,13 +81,15 @@ export function normalizeEntry(raw: RawEntry): ParsedEntry | null {
   if (type === ENTRY_TYPE_CREDIT_CARD) {
     const cardholderName = clean(raw.cardholderName)
     const cardNumber = clean(raw.cardNumber)?.replace(/[ -]/g, '')
+    const cvv = clean(raw.cvv)
+    if (cvv && !/^\d{3,4}$/.test(cvv)) return null
     const expiryMonth = clean(raw.expiryMonth)
     const expiryYear = clean(raw.expiryYear)
     if (!cardholderName || cardholderName.length > 256
       || !cardNumber || !/^\d{12,19}$/.test(cardNumber)
       || !expiryMonth || !/^(0[1-9]|1[0-2])$/.test(expiryMonth)
       || !expiryYear || !/^\d{4}$/.test(expiryYear)) return null
-    return { label, type, cardholderName, cardNumber, expiryMonth, expiryYear,
+    return { label, type, cardholderName, cardNumber, cvv, expiryMonth, expiryYear,
       billingAddress: clean(raw.billingAddress), notes }
   }
 

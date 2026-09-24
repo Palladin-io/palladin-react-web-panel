@@ -22,6 +22,7 @@ export type HistoricalEntryField =
   | 'refs'
   | 'cardholderName'
   | 'cardNumber'
+  | 'cvv'
   | 'expiryMonth'
   | 'expiryYear'
   | 'billingAddress'
@@ -77,6 +78,7 @@ export function compareEntryVersionToPrevious(
     && previous.content.type === ENTRY_TYPE_CREDIT_CARD) {
     changed('cardholderName', version.content.cardholderName, previous.content.cardholderName)
     changed('cardNumber', version.content.cardNumber, previous.content.cardNumber)
+    changed('cvv', version.content.cvv ?? '', previous.content.cvv ?? '')
     changed('expiryMonth', version.content.expiryMonth, previous.content.expiryMonth)
     changed('expiryYear', version.content.expiryYear, previous.content.expiryYear)
     changed('billingAddress', version.content.billingAddress ?? '', previous.content.billingAddress ?? '')
@@ -110,7 +112,7 @@ function markVisibleContentFields(fields: Set<HistoricalEntryField>, secret: Mem
     fields.add('interpreter'); fields.add('script')
     if (secret.content.refs?.length) fields.add('refs')
   } else if (secret.content.type === ENTRY_TYPE_CREDIT_CARD) {
-    fields.add('cardholderName'); fields.add('cardNumber'); fields.add('expiryMonth')
+    fields.add('cardholderName'); fields.add('cardNumber'); fields.add('cvv'); fields.add('expiryMonth')
     fields.add('expiryYear'); fields.add('billingAddress')
   }
 }

@@ -96,6 +96,7 @@ function toExportEntry(
     ...common,
     cardholderName: secret.content.cardholderName,
     cardNumber: secret.content.cardNumber,
+    cvv: secret.content.cvv,
     expiryMonth: secret.content.expiryMonth,
     expiryYear: secret.content.expiryYear,
     billingAddress: secret.content.billingAddress,
@@ -154,6 +155,7 @@ function clearPlaintext(vaults: ExportVault[]) {
       entry.totp = ''
       entry.cardholderName = ''
       entry.cardNumber = ''
+      entry.cvv = ''
       entry.expiryMonth = ''
       entry.expiryYear = ''
       entry.billingAddress = ''

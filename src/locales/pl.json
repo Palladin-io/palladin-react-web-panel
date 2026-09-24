@@ -482,6 +482,8 @@
   "vault.entries.typeScriptOption": "Skrypt — automatyzacja uruchamiana przez agenta",
   "vault.entries.typeCreditCardOption": "Karta płatnicza — dane karty",
   "vault.entries.card.cardholderName": "Imię i nazwisko posiadacza",
+  "vault.entries.card.cvv": "CVV / CVC",
+  "vault.entries.card.invalidCvv": "Wpisz 3 lub 4 cyfry.",
   "vault.entries.card.cardNumber": "Numer karty",
   "vault.entries.card.expiryMonth": "Miesiąc ważności",
   "vault.entries.card.expiryYear": "Rok ważności",
