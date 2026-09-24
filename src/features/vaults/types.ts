@@ -288,6 +288,7 @@ export type EntryPlaintext =
       type: typeof ENTRY_TYPE_CREDIT_CARD
       cardholderName: string
       cardNumber: string
+      cvv?: string
       expiryMonth: string
       expiryYear: string
       billingAddress?: string

@@ -464,6 +464,8 @@
   "vault.entries.typeScriptOption": "Script — agent-run automation",
   "vault.entries.typeCreditCardOption": "Credit card — payment card details",
   "vault.entries.card.cardholderName": "Cardholder name",
+  "vault.entries.card.cvv": "CVV / CVC",
+  "vault.entries.card.invalidCvv": "Enter 3 or 4 digits.",
   "vault.entries.card.cardNumber": "Card number",
   "vault.entries.card.expiryMonth": "Expiry month",
   "vault.entries.card.expiryYear": "Expiry year",

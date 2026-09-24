@@ -132,6 +132,9 @@ function fieldPolicy(
   else if (type === ENTRY_TYPE_CREDENTIAL) {
     for (const id of ['credential.username', 'credential.password', 'credential.url', 'credential.urlDomain', 'credential.totp']) mapped[id] ??= 'never'
   } else if (type === ENTRY_TYPE_CREDIT_CARD) {
+    delete mapped['creditCard.cvv']
+    delete mapped.cvv
+    if (payload.type === ENTRY_TYPE_CREDIT_CARD && payload.cvv) mapped['creditCard.cvv'] = 'never'
     for (const id of ['creditCard.cardholderName', 'creditCard.cardNumber', 'creditCard.expiryMonth',
       'creditCard.expiryYear', 'creditCard.billingAddress']) mapped[id] ??= 'never'
   } else {
@@ -226,7 +229,7 @@ export function fromMemberSecret(secret: MemberSecretV1): MemberSecretView {
   if (secret.entryType === 'creditCard') return {
     ...common, entryType: ENTRY_TYPE_CREDIT_CARD,
     content: { type: ENTRY_TYPE_CREDIT_CARD, cardholderName: secret.content.cardholderName,
-      cardNumber: secret.content.cardNumber, expiryMonth: secret.content.expiryMonth,
+      cardNumber: secret.content.cardNumber, cvv: secret.content.cvv, expiryMonth: secret.content.expiryMonth,
       expiryYear: secret.content.expiryYear, billingAddress: secret.content.billingAddress ?? undefined,
       notes: secret.content.notes ?? undefined, fields },
   }
@@ -286,7 +289,9 @@ export function toMemberSecret(input: {
   if (input.payload.type === ENTRY_TYPE_CREDIT_CARD) return {
     ...common, entryType: 'creditCard', content: {
       cardholderName: input.payload.cardholderName.normalize('NFC'),
-      cardNumber: input.payload.cardNumber, expiryMonth: input.payload.expiryMonth,
+      cardNumber: input.payload.cardNumber,
+      ...(input.payload.cvv ? { cvv: input.payload.cvv } : {}),
+      expiryMonth: input.payload.expiryMonth,
       expiryYear: input.payload.expiryYear,
       billingAddress: input.payload.billingAddress?.normalize('NFC') ?? null,
       notes: input.payload.notes?.normalize('NFC') ?? null, customFields: fields,

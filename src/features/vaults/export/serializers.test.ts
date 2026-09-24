@@ -17,7 +17,7 @@ describe('toPalladinCsv', () => {
       },
     ])
     const [header, row] = csv.split('\r\n')
-    expect(header).toBe('name,url,username,password,note,totp,folder,state,revision,historical,type,cardholderName,cardNumber,expiryMonth,expiryYear,billingAddress')
+    expect(header).toBe('name,url,username,password,note,totp,folder,state,revision,historical,type,cardholderName,cardNumber,cvv,expiryMonth,expiryYear,billingAddress')
     expect(row).toContain('"AWS ""root"""')
     expect(row).toContain('"p,w"')
     expect(row).toContain('"line one\nline two"')
@@ -55,6 +55,7 @@ describe('toPalladinJson round-trip', () => {
             type: ENTRY_TYPE_CREDIT_CARD,
             cardholderName: 'Ada Lovelace',
             cardNumber: '4242424242424242',
+      cvv: '012',
             expiryMonth: '12',
             expiryYear: '2030',
             billingAddress: '1 Main Street',
@@ -84,6 +85,7 @@ describe('toPalladinJson round-trip', () => {
       type: ENTRY_TYPE_CREDIT_CARD,
       cardholderName: 'Ada Lovelace',
       cardNumber: '4242424242424242',
+      cvv: '012',
       expiryMonth: '12',
       expiryYear: '2030',
       billingAddress: '1 Main Street',

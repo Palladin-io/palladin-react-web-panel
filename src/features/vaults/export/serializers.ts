@@ -16,6 +16,7 @@ export interface ExportEntry {
   totp?: string
   cardholderName?: string
   cardNumber?: string
+  cvv?: string
   expiryMonth?: string
   expiryYear?: string
   billingAddress?: string
@@ -32,7 +33,7 @@ export interface ExportVault {
 }
 
 const CSV_HEADERS = ['name', 'url', 'username', 'password', 'note', 'totp', 'folder', 'state', 'revision', 'historical',
-  'type', 'cardholderName', 'cardNumber', 'expiryMonth', 'expiryYear', 'billingAddress']
+  'type', 'cardholderName', 'cardNumber', 'cvv', 'expiryMonth', 'expiryYear', 'billingAddress']
 
 /** Quote a field per RFC 4180 when it contains a delimiter, quote, or newline. */
 function csvField(value: string | undefined): string {
@@ -72,6 +73,7 @@ export function toPalladinCsv(entries: ExportEntry[]): string {
         csvField(String(entry.type)),
         csvField(entry.cardholderName),
         csvField(entry.cardNumber),
+        csvField(entry.cvv),
         csvField(entry.expiryMonth),
         csvField(entry.expiryYear),
         csvField(entry.billingAddress),
@@ -107,6 +109,7 @@ export function toPalladinJson(vaults: ExportVault[]): string {
         totp: entry.totp,
         cardholderName: entry.cardholderName,
         cardNumber: entry.cardNumber,
+        cvv: entry.cvv,
         expiryMonth: entry.expiryMonth,
         expiryYear: entry.expiryYear,
         billingAddress: entry.billingAddress,

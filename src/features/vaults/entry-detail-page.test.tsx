@@ -660,7 +660,7 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     const month = await screen.findByLabelText(/expiry month/i)
     expect(screen.getByLabelText(/cardholder name/i)).toHaveAttribute('maxlength', '256')
-    expect(screen.queryByLabelText(/security code|cvv|cvc/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/cvv \/ cvc/i)).toHaveValue('')
     expect(screen.queryByLabelText(/^pin/i)).not.toBeInTheDocument()
     await user.clear(month)
     await user.type(month, '13')

@@ -216,7 +216,7 @@ const palladin: JsonProfile = {
           url: str(entry.urlDomain) ?? str(entry.url),
           notes: str(entry.notes),
           totp: str(entry.totp),
-          cardholderName: str(entry.cardholderName), cardNumber: str(entry.cardNumber),
+          cardholderName: str(entry.cardholderName), cardNumber: str(entry.cardNumber), cvv: str(entry.cvv),
           expiryMonth: str(entry.expiryMonth), expiryYear: str(entry.expiryYear),
           billingAddress: str(entry.billingAddress),
         })

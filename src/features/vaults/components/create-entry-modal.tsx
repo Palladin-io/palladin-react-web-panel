@@ -112,6 +112,9 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
   const [cardholderName, setCardholderName] = useState('')
   const [cardholderNameError, setCardholderNameError] = useState(false)
   const [cardNumber, setCardNumber] = useState('')
+  const [cvv, setCvv] = useState('')
+  const [cvvShown, setCvvShown] = useState(false)
+  const [cvvError, setCvvError] = useState(false)
   const [cardNumberError, setCardNumberError] = useState(false)
   const [expiryMonth, setExpiryMonth] = useState('')
   const [expiryMonthError, setExpiryMonthError] = useState(false)
@@ -205,10 +208,11 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
     if (type === ENTRY_TYPE_CREDIT_CARD) return cardholderName.trim().length > 0
       && cardholderName.trim().length <= 256
       && /^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
+      && (!cvv.trim() || /^\d{3,4}$/.test(cvv.trim()))
       && /^(0[1-9]|1[0-2])$/.test(expiryMonth) && /^\d{4}$/.test(expiryYear)
     return username.trim().length > 0 && password.trim().length > 0
   }, [isPending, label, type, keyValue, username, password, script, description, scriptParameters,
-    refs, vault.id, cardholderName, cardNumber, expiryMonth, expiryYear])
+    refs, vault.id, cardholderName, cardNumber, cvv, expiryMonth, expiryYear])
 
   const fieldsInvalid = validateCustomFields(allFields).hasError
 
@@ -246,7 +250,7 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
       executionDescription: description,
       scriptParameters,
       returnResultToAgent,
-      cardholderName, cardNumber, expiryMonth, expiryYear, billingAddress,
+      cardholderName, cardNumber, cvv, expiryMonth, expiryYear, billingAddress,
     })
 
     const hostname = !iconTouched && type !== ENTRY_TYPE_SCRIPT ? normalizePublicHostname(url) : null
@@ -491,6 +495,14 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
                   disabled={isPending} monospace error={cardNumberError} />
                 <FeedbackSlot visible={cardNumberError} color="red">{t('vault.entries.card.invalidCardNumber')}</FeedbackSlot>
               </div>
+              <div>
+                <SecretInput id="entry-card-cvv" label={t('vault.entries.card.cvv')} value={cvv}
+                  onChange={(value) => { setCvv(value); setCvvError(false) }}
+                  onBlur={() => setCvvError(!!cvv.trim() && !/^\d{3,4}$/.test(cvv.trim()))}
+                  shown={cvvShown} onToggleShown={() => setCvvShown((value) => !value)}
+                  disabled={isPending} monospace copyable error={cvvError} />
+                <FeedbackSlot visible={cvvError} color="red">{t('vault.entries.card.invalidCvv')}</FeedbackSlot>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <FormInput id="entry-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
@@ -711,6 +723,7 @@ interface BuildPayloadInput {
   returnResultToAgent: boolean
   cardholderName: string
   cardNumber: string
+  cvv: string
   expiryMonth: string
   expiryYear: string
   billingAddress: string
@@ -752,6 +765,7 @@ function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
   if (input.type === ENTRY_TYPE_CREDIT_CARD) return withCustomFields({
     v: BLOB_VERSION_V2, type: ENTRY_TYPE_CREDIT_CARD,
     cardholderName: input.cardholderName.trim(), cardNumber: input.cardNumber.replace(/[ -]/g, ''),
+    ...(input.cvv.trim() ? { cvv: input.cvv.trim() } : {}),
     expiryMonth: input.expiryMonth, expiryYear: input.expiryYear,
     billingAddress: input.billingAddress.trim() || undefined,
     notes: trimmedNotes,

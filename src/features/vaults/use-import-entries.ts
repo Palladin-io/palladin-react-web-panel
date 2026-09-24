@@ -125,6 +125,7 @@ function toPlaintext(entry: ParsedEntry): EntryPlaintext {
   if (entry.type === ENTRY_TYPE_CREDIT_CARD) return {
     type: ENTRY_TYPE_CREDIT_CARD,
     cardholderName: entry.cardholderName ?? '', cardNumber: entry.cardNumber ?? '',
+    ...(entry.cvv ? { cvv: entry.cvv } : {}),
     expiryMonth: entry.expiryMonth ?? '', expiryYear: entry.expiryYear ?? '',
     billingAddress: entry.billingAddress, notes: entry.notes,
   }

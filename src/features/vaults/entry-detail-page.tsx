@@ -446,6 +446,9 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
   const [cardholderName, setCardholderName] = useState('')
   const [cardholderNameError, setCardholderNameError] = useState(false)
   const [cardNumber, setCardNumber] = useState('')
+  const [cvv, setCvv] = useState('')
+  const [cvvShown, setCvvShown] = useState(false)
+  const [cvvError, setCvvError] = useState(false)
   const [cardNumberError, setCardNumberError] = useState(false)
   const [expiryMonth, setExpiryMonth] = useState('')
   const [expiryMonthError, setExpiryMonthError] = useState(false)
@@ -543,7 +546,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         setUrl(pt.url ?? (entry.urlDomain ? `https://${entry.urlDomain}` : '')); setNotes(pt.notes ?? '')
       } else if (pt.type === ENTRY_TYPE_CREDIT_CARD) {
         setOriginalPlaintext(pt); setCustomFields(readCustomFields(pt))
-        setCardholderName(pt.cardholderName); setCardNumber(pt.cardNumber)
+        setCardholderName(pt.cardholderName); setCardNumber(pt.cardNumber); setCvv(pt.cvv ?? ''); setCvvShown(false)
         setExpiryMonth(pt.expiryMonth); setExpiryYear(pt.expiryYear)
         setBillingAddress(pt.billingAddress ?? ''); setNotes(pt.notes ?? '')
       }
@@ -598,7 +601,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
       returnResultToAgent,
       customFields,
       credentialTotp: totp,
-      cardholderName, cardNumber, expiryMonth, expiryYear, billingAddress,
+      cardholderName, cardNumber, cvv, expiryMonth, expiryYear, billingAddress,
     })
   }, [
     originalPlaintext,
@@ -616,7 +619,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
     returnResultToAgent,
     customFields,
     credentialTotp,
-    cardholderName, cardNumber, expiryMonth, expiryYear, billingAddress,
+    cardholderName, cardNumber, cvv, expiryMonth, expiryYear, billingAddress,
   ])
 
   // Merged field set for a credential (pinned 2FA + additional) — the shape
@@ -670,6 +673,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
     setDescriptionError(false)
     setCardholderNameError(false)
     setCardNumberError(false)
+    setCvvError(false)
     setExpiryMonthError(false)
     setExpiryYearError(false)
     if (originalPlaintext) {
@@ -697,7 +701,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         setNotes(originalPlaintext.notes ?? '')
       } else if (originalPlaintext.type === ENTRY_TYPE_CREDIT_CARD) {
         setCustomFields(readCustomFields(originalPlaintext))
-        setCardholderName(originalPlaintext.cardholderName); setCardNumber(originalPlaintext.cardNumber)
+        setCardholderName(originalPlaintext.cardholderName); setCardNumber(originalPlaintext.cardNumber); setCvv(originalPlaintext.cvv ?? ''); setCvvShown(false)
         setExpiryMonth(originalPlaintext.expiryMonth); setExpiryYear(originalPlaintext.expiryYear)
         setBillingAddress(originalPlaintext.billingAddress ?? ''); setNotes(originalPlaintext.notes ?? '')
       }
@@ -807,7 +811,9 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         setCardNumberError(cardNumberInvalid)
         setExpiryMonthError(expiryMonthInvalid)
         setExpiryYearError(expiryYearInvalid)
-        if (cardholderInvalid || cardNumberInvalid || expiryMonthInvalid || expiryYearInvalid) return
+        const cvvInvalid = !!cvv.trim() && !/^\d{3,4}$/.test(cvv.trim())
+        setCvvError(cvvInvalid)
+        if (cardholderInvalid || cardNumberInvalid || cvvInvalid || expiryMonthInvalid || expiryYearInvalid) return
       }
     }
 
@@ -1083,6 +1089,14 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                     shown={showSecret} onToggleShown={() => setShowSecret((v) => !v)}
                     disabled={isSaving || decrypting} copyable error={cardNumberError} />
                   <FeedbackSlot visible={cardNumberError} color="red">{t('vault.entries.card.invalidCardNumber')}</FeedbackSlot>
+                </div>
+                <div className="col-span-2">
+                  <SecretInput id="entry-card-cvv" label={t('vault.entries.card.cvv')} value={cvv}
+                    onChange={(value) => { setCvv(value); setCvvError(false) }}
+                    onBlur={() => setCvvError(!!cvv.trim() && !/^\d{3,4}$/.test(cvv.trim()))}
+                    shown={cvvShown} onToggleShown={() => setCvvShown((value) => !value)}
+                    disabled={isSaving || decrypting} monospace copyable error={cvvError} />
+                  <FeedbackSlot visible={cvvError} color="red">{t('vault.entries.card.invalidCvv')}</FeedbackSlot>
                 </div>
                 <div>
                   <FormInput id="entry-detail-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
@@ -1409,6 +1423,7 @@ interface CurrentFormValues {
   credentialTotp: CustomField | null
   cardholderName: string
   cardNumber: string
+  cvv: string
   expiryMonth: string
   expiryYear: string
   billingAddress: string
@@ -1464,6 +1479,7 @@ function buildCurrentPlaintext(
       type: ENTRY_TYPE_CREDIT_CARD,
       cardholderName: values.cardholderName.trim(),
       cardNumber: values.cardNumber.replace(/[ -]/g, ''),
+      ...(values.cvv.trim() ? { cvv: values.cvv.trim() } : {}),
       expiryMonth: values.expiryMonth,
       expiryYear: values.expiryYear,
       billingAddress: values.billingAddress.trim() || undefined,
