@@ -16,3 +16,8 @@ API/panel pair in the extension, rebuild both and verify automatic unlock from a
 fresh manual extension unlock. Account OFF, explicit disconnect and expired own
 authority must still prevent transfer. Never clear those barriers to repair a
 deployment mismatch.
+
+After merging a staging configuration change, confirm that the push workflow
+builds and deploys the new `main` commit. GitHub Actions skip directives in a
+squash commit message suppress that workflow, leaving the previous Web artifact
+on staging even when the pull-request checks passed.
