@@ -32,6 +32,8 @@ const {
   openCurrentEntryMock,
   canonicalRefetchMock,
   retrySyncMock,
+  repairIconMutateMock,
+  repairIconScopeMock,
   structuralMismatch,
   state,
 } = vi.hoisted(() => ({
@@ -45,6 +47,8 @@ const {
   openCurrentEntryMock: vi.fn(),
   canonicalRefetchMock: vi.fn(),
   retrySyncMock: vi.fn(),
+  repairIconMutateMock: vi.fn(),
+  repairIconScopeMock: vi.fn(),
   structuralMismatch: new Error('structural head mismatch'),
   state: {
     updateIsPending: false,
@@ -55,6 +59,7 @@ const {
     decryptedIconReference: undefined as string | undefined,
     memberIndex: { memberLabel: 'Stripe API Key', entryType: 'key' as 'key' | 'credential' | 'creditCard', icon: null },
     memberEntryAvailable: true,
+    repairIconCandidateCount: 0,
     wideScreen: false,
   },
 }))
@@ -124,6 +129,17 @@ vi.mock('./use-delete-entry', () => ({
   }),
 }))
 
+vi.mock('./use-repair-missing-website-icons', () => ({
+  useRepairMissingWebsiteIcons: (vaultId: string, entryId?: string) => {
+    repairIconScopeMock(vaultId, entryId)
+    return {
+      candidateCount: state.repairIconCandidateCount,
+      isPending: false,
+      mutate: repairIconMutateMock,
+    }
+  },
+}))
+
 // Crypto round-trip is exercised by entry-crypto.test.ts. Here we stub the
 // helpers so the component test stays focused on form behaviour and does
 // not depend on libsodium WASM warm-up.
@@ -185,7 +201,7 @@ vi.mock('../../shared/crypto/sodium', () => ({
 }))
 
 vi.mock('sonner', () => ({
-  toast: { success: toastSuccess, error: toastError },
+  toast: { success: toastSuccess, error: toastError, info: vi.fn() },
 }))
 
 // Heavy sub-components — focus the test on the form contract.
@@ -534,6 +550,8 @@ describe('EntryDetailPage — DetailsTab', () => {
     openCurrentEntryMock.mockClear()
     canonicalRefetchMock.mockReset().mockResolvedValue({ data: KEY_ENTRY })
     retrySyncMock.mockReset()
+    repairIconMutateMock.mockReset()
+    repairIconScopeMock.mockReset()
     state.updateIsPending = false
     state.deleteIsPending = false
     state.decryptResult = null
@@ -541,6 +559,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.policyFields = {}
     state.decryptedIconReference = undefined
     state.memberEntryAvailable = true
+    state.repairIconCandidateCount = 0
     state.wideScreen = false
     state.memberIndex = { memberLabel: 'Stripe API Key', entryType: 'key', icon: null }
     useAuthStore.setState({ privateKey: null, isVaultLocked: true })
@@ -640,6 +659,31 @@ describe('EntryDetailPage — DetailsTab', () => {
     )
     expect(screen.getByLabelText(/^password$/i)).toHaveValue('P@ssw0rd!')
     expect(screen.queryByLabelText(/^value$/i)).not.toBeInTheDocument()
+  })
+
+  it('offers a single-Entry icon repair and blocks it while the form has unsaved edits', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    useAuthStore.setState({ permissions: 8 })
+    state.decryptResult = {
+      type: ENTRY_TYPE_CREDENTIAL,
+      username: 'user', password: 'fixture-password', url: 'https://www.reddit.com/login',
+    }
+    state.memberIndex = { memberLabel: 'Reddit', entryType: 'credential', icon: null }
+    state.repairIconCandidateCount = 1
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+
+    const repairButton = await screen.findByRole('button', { name: /find website icon/i })
+    await waitFor(() => expect(repairButton).toBeEnabled())
+    await user.type(screen.getByLabelText(/^url$/i), '/changed')
+    expect(repairButton).toBeDisabled()
+    expect(repairIconMutateMock).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /discard/i }))
+    await user.click(repairButton)
+    expect(repairIconScopeMock).toHaveBeenCalledWith('vault-1', 'entry-2')
+    expect(repairIconMutateMock).toHaveBeenCalledTimes(1)
   })
 
   it('keeps per-field CREDIT_CARD validation visible until each value is fixed', async () => {

@@ -20,7 +20,7 @@ import {
 } from '../../shared/crypto/entry-draft'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
 import { analytics } from '../../shared/lib/analytics'
-import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
+import { PERMISSION_GRANT_MANAGE, PERMISSION_VAULT_MANAGE } from '../../shared/lib/permissions'
 import { useAuthStore } from '../auth'
 import { useAgentNames } from '../agents'
 import {
@@ -93,6 +93,7 @@ import {
 } from './api/vault-api'
 import { useCanonicalEntryDetail } from './use-entries'
 import { useUpdateCanonicalEntry } from './use-update-canonical-entry'
+import { useRepairMissingWebsiteIcons } from './use-repair-missing-website-icons'
 import { useVault } from './use-vault'
 import {
   isCurrentMemberEntryStructuralHeadMismatchError,
@@ -417,6 +418,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
   const permissions = useAuthStore((state) => state.permissions)
   const update = useUpdateCanonicalEntry(vault.id, entry.id)
   const remove = useDeleteEntry(vault.id)
+  const repairIcon = useRepairMissingWebsiteIcons(vault.id, entry.id)
 
   // Editable metadata — initialise from server values, reset to the
   // current server values on Discard.
@@ -576,7 +578,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
 
   const saveInFlight = useRef(false)
   const [preparingSave, setPreparingSave] = useState(false)
-  const isSaving = update.isPending || preparingSave
+  const isSaving = update.isPending || preparingSave || repairIcon.isPending
   const isRemoving = remove.isPending
 
   const defaultColor =
@@ -659,6 +661,18 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
   }, [label, description, icon, color, defaultColor, entry, originalSecret, policy])
 
   const hasChanges = metadataChanged || contentChanged
+
+  const handleRepairIcon = () => {
+    if (hasChanges || isSaving || !originalSecret || repairIcon.candidateCount !== 1) return
+    repairIcon.mutate({}, {
+      onSuccess: (result) => {
+        if (result.repaired === 1) toast.success(t('vault.entry.detail.repairIconSuccess'))
+        else if (result.failed > 0) toast.error(t('vault.entry.detail.repairIconError'))
+        else toast.info(t('vault.entry.detail.repairIconUnavailable'))
+      },
+      onError: () => toast.error(t('vault.entry.detail.repairIconError')),
+    })
+  }
 
   const handleDiscard = () => {
     setLabel(originalSecret?.memberLabel ?? entry.label)
@@ -977,6 +991,23 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                 <FeedbackSlot visible={urlError} color="red">
                   {t('validation.invalidUrl')}
                 </FeedbackSlot>
+                {entry.type === ENTRY_TYPE_CREDENTIAL
+                  && (permissions & PERMISSION_VAULT_MANAGE) !== 0
+                  && repairIcon.candidateCount === 1
+                  && !originalSecret?.iconReference ? (
+                    <Button
+                      variant="subtle"
+                      size="sm"
+                      icon="image_search"
+                      onClick={handleRepairIcon}
+                      disabled={!originalSecret || hasChanges || isSaving || repairIcon.isPending}
+                      className="mt-2"
+                    >
+                      {repairIcon.isPending
+                        ? t('vault.entry.detail.repairIconPending')
+                        : t('vault.entry.detail.repairIcon')}
+                    </Button>
+                  ) : null}
               </div>
             ) : null}
             {decryptError ? (
