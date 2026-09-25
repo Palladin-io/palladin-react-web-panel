@@ -22,6 +22,7 @@ Per-feature and shared-component reference for the Palladin web panel. These doc
 | [forms-and-validation.md](forms-and-validation.md) | Shared field components, 3-layer validation/notification model, raw-input class, inline-edit pattern. |
 | [styling.md](styling.md) | Full `--cv-*` token set, `styles.ts` helpers, dark-mode mechanics, radius/spacing conventions, adding a token. |
 | [key-flows.md](key-flows.md) | Client-side crypto / zero-knowledge flows (unlock, entry encryption, grant approval). Keep in sync with `shared/crypto/`. |
+| [shared-unlock-deployment.md](shared-unlock-deployment.md) | Matching Web/extension build configuration and staging release checks. |
 | [api-response-validation.md](api-response-validation.md) | Inventory and trust-boundary decisions for runtime validation of authenticated Palladin API responses. |
 | [member-directory.md](member-directory.md) | Shared, organization-scoped current/former member identity cache for Audit and immutable history attribution. |
 
