@@ -13,10 +13,9 @@ const publicAssetOriginPlaceholder = '__PALLADIN_PUBLIC_ASSET_ORIGIN__'
 const connectionOriginsPlaceholder = '__PALLADIN_CONNECTION_ORIGINS__'
 const firefoxOriginPlaceholder = '__PALLADIN_FIREFOX_EXTENSION_SCHEME__'
 
-function publicAssetOrigin(value: string | undefined, apiUrl: string | undefined): string {
-  const configured = value?.trim() || (apiUrl?.startsWith('http://localhost:')
-    ? 'http://localhost:4566/palladin-local-public-assets'
-    : 'https://assets.palladin.io')
+function publicAssetOrigin(value: string | undefined): string {
+  const configured = value?.trim()
+  if (!configured) return ''
   const url = new URL(configured)
   const localHttp = url.protocol === 'http:'
     && (url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '[::1]')
@@ -55,7 +54,6 @@ export default defineConfig(({ command, isPreview, mode }) => {
       tailwindcss(),
       injectDeploymentCsp(publicAssetOrigin(
         buildEnv.VITE_PUBLIC_ASSET_URL,
-        buildEnv.VITE_API_URL,
       ), connectionOrigins(buildEnv.VITE_API_URL, buildEnv.VITE_SIGNALR_HUB_URL), firefoxSharedUnlockCsp(buildEnv.VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID)),
     ],
     test: {
