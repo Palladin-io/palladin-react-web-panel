@@ -70,7 +70,9 @@ match `Modules:Identity:Google:ClientId` in the local backend configuration.
 the browser also renders a configuration error instead of a blank page.
 
 The remaining variables in `.env.example` enable optional integrations such
-as analytics and Firebase web push. Vite exposes every `VITE_*` value to the
+as analytics and Firebase web push. Set `VITE_PUBLIC_ASSET_URL` explicitly to
+your immutable asset namespace to enable catalog icons; an empty value disables
+external catalog images and does not select a Palladin-owned service. Vite exposes every `VITE_*` value to the
 browser, so these variables must contain public client configuration only -
 never service credentials or private keys.
 

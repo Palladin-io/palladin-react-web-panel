@@ -19,9 +19,7 @@ export const env = {
   sharedUnlockExtensionId: sharedUnlock.extensionId,
   sharedUnlockTransport: sharedUnlock.transport,
   apiUrl: requireEnv('VITE_API_URL'),
-  publicAssetUrl: optionalEnv('VITE_PUBLIC_ASSET_URL') || (requireEnv('VITE_API_URL').startsWith('http://localhost:')
-    ? 'http://localhost:4566/palladin-local-public-assets'
-    : 'https://assets.palladin.io'),
+  publicAssetUrl: optionalEnv('VITE_PUBLIC_ASSET_URL').trim(),
   googleClientId: requireEnv('VITE_GOOGLE_CLIENT_ID'),
   signalrHubUrl: requireEnv('VITE_SIGNALR_HUB_URL'),
   posthogKey: optionalEnv('VITE_POSTHOG_KEY'),
