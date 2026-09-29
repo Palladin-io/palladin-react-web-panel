@@ -33,6 +33,7 @@ import { EntryAgentsTab } from './components/entry-agents-tab'
 import { EntryLogsTab } from './components/entry-logs-tab'
 import { EntryHistoryTab } from './components/entry-history-tab'
 import { EntrySharingTab } from './sharing/entry-sharing-tab'
+import { EntryShareAction } from './sharing/entry-share-action'
 import {
   ENTRY_ICON_COLORS,
   extractDomain,
@@ -324,6 +325,14 @@ function DetailBody({
     </div>
   )
 
+  const sharingScope = {
+    organizationId: vault.organizationId, vaultId: vault.id, entryId: entry.id,
+    revision: entry.currentRevision, keyVersion: entry.currentKeyVersion,
+  }
+  const tabAction = activeTab === 'agents' ? agentAction
+    : activeTab === 'sharing' ? <EntryShareAction scope={sharingScope} />
+      : activeTab === 'details' ? <EntryShareAction scope={sharingScope} iconOnly /> : undefined
+
   return (
     <div className={activeTab === 'sharing' ? 'flex h-full min-h-0 flex-col' : undefined}>
       <div className="shrink-0">
@@ -332,14 +341,13 @@ function DetailBody({
             title={entry.label}
             subtitle={subtitle}
             onBack={onBack}
-            actions={activeTab === 'agents' ? agentAction : undefined}
           />
         )}
         <EntryDetailTabs
           active={activeTab}
           onChange={handleTabChange}
           wide={hideHeader}
-          actions={hideHeader && activeTab === 'agents' ? agentAction : undefined}
+          actions={tabAction}
         />
       </div>
       {activeTab === 'details' ? (
@@ -364,10 +372,7 @@ function DetailBody({
       {activeTab === 'logs' ? (
         <EntryLogsTab vaultId={vault.id} entryId={entry.id} entryName={entry.label} />
       ) : null}
-      {activeTab === 'sharing' ? <EntrySharingTab scope={{
-        organizationId: vault.organizationId, vaultId: vault.id, entryId: entry.id,
-        revision: entry.currentRevision, keyVersion: entry.currentKeyVersion,
-      }} /> : null}
+      {activeTab === 'sharing' ? <EntrySharingTab scope={sharingScope} /> : null}
       {activeTab === 'history' && canonical ? (
         <EntryHistoryTab detail={canonical} />
       ) : null}
@@ -1175,9 +1180,6 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
             ) : null}
         </div>
 
-        {hasChanges ? <div className="mt-3"><WarningZone title={t('sharing.editWarningTitle')}>
-          {t('sharing.editWarning')}
-        </WarningZone></div> : null}
         <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
           <Button
             variant="subtle"

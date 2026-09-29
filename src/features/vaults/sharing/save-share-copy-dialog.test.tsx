@@ -76,7 +76,7 @@ describe('Save received copy dialog', () => {
   it('requires an explicit Vault choice and saves only on submit', async () => {
     const onSaved = vi.fn()
     render(<SaveShareCopyDialog snapshot={fixture.snapshot as EntryShareSnapshot} onSaved={onSaved} onClose={vi.fn()} />)
-    expect(screen.getByRole('dialog')).toHaveTextContent('Existing members and full-access agents')
+    expect(screen.getByRole('dialog')).toHaveTextContent('The copy will appear in Agent Discovery')
     expect(screen.getByRole('button', { name: 'Save to my vault' })).toBeDisabled()
     expect(mocks.save).not.toHaveBeenCalled()
     await userEvent.selectOptions(screen.getByLabelText('Destination vault'), 'target')

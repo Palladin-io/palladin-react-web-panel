@@ -12,19 +12,34 @@ deployed or accepted end-to-end.
 
 ## Snapshot boundary
 
-`shared/crypto/entry-share-selection.ts` projects a confirmed list of field IDs
-from an already authenticated current `MemberSecretV1`. It copies only the title,
-Entry type and selected values. It never serializes the source object, original
+`shared/crypto/entry-share-selection.ts` projects the entire supported Entry
+from an already authenticated current `MemberSecretV1`. It copies the title,
+Entry type and all supported values. It never serializes the source object, original
 key material, Agent visibility/grant policy, icon assets, history or Script
 references/execution policy. Script source is inert text; sharing it does not
 authorize execution or resolve referenced Entries.
 
-Credential username/password/URL, Key value/URL and basic card or Script fields
-are initially selected. Description, notes, TOTP, billing address and **all custom
-fields** require explicit selection. This also protects recovery codes without
-guessing their meaning from a localized custom-field label. Unknown custom types
-are reported as unsupported rather than coerced or silently selected. The UI
-must show those fields as unavailable and explain why.
+Description, notes, TOTP, billing address and all custom fields are included;
+there is no field-selection UI. An unsupported field blocks the complete share
+rather than silently producing a partial copy. Source Agent policies and refs
+remain outside the copy contract.
+
+### Owner-approved creation layout checkpoint (2026-09-21)
+
+The form defaults to anyone with the link, no additional protection, 24 hours,
+and a nullable/unlimited receipt budget. Four shared `FormSection` controls start
+collapsed, with the selected value at the right; invalid collapsed sections keep
+visible feedback. The whole-entry note and opt-in first-receipt switch remain.
+The approved form otherwise stays unchanged. The initial equally weighted
+Vault → Entry breadcrumb was rejected. The current web preview instead shows
+the Entry icon/name as primary identity on the left, with the smaller, muted
+Vault icon/name on the right. This balances the empty right side reported by the
+owner without restoring equal visual weight or a frame. The owner approved this
+placement. Section height/opacity and chevrons animate for 200ms in both directions;
+reduced-motion disables the transitions and collapsed controls are inert.
+Vault presentation comes
+from the existing memory-only Member sync hook, without another detail request.
+This checkpoint supersedes older field-selection/default-policy descriptions.
 
 The encrypted JSON schema is `palladin.entry-share.v1`:
 
@@ -120,7 +135,8 @@ application with StartupError; a pending bootstrap cannot render over that error
 Successful capture publishes a value-free RAM generation. The receiver subtree
 is keyed by share ID and that generation, so a same-ID replacement disposes the
 old session, proof forms, revealed content and save dialog before starting fresh.
-Neither opening nor receiving the replacement is automatic. The generation is
+The replacement follows the same automatic open/eligible-receipt flow as a fresh
+link; protected links still require their proofs. The generation is
 not a route parameter and never persists or extends the link lifetime.
 
 Pending buffers are wiped on pagehide (including BFCache entry), explicit disposal
@@ -153,20 +169,31 @@ Account, organization, permission or crypto-session changes close the scoped
 surface; a late revoke response cannot toast or refresh another session.
 
 `CreateEntryShareDialog` uses ModalShell/DialogFooter and shared form controls.
-It decrypts the saved current MemberSecret on demand, masks all field previews,
-requires acknowledgement of the included title/selected fields, and defaults to
-one named email, email OTP, no additional secret, 24-hour expiry, one receipt and
+It decrypts the saved current MemberSecret on demand and shares the whole supported
+Entry, including notes, TOTP and custom fields, with no field selector. Defaults are
+anyone with the link, no additional secret, 24-hour expiry, unlimited receipts and
 no Inbox notification. Additional password or at least six ASCII PIN digits is
-optional. Notes/TOTP/custom fields stay off until selected; changing selection
-resets acknowledgement. Script source stays inert. Recipient email is delivery
+optional. Script source stays inert. Recipient email is delivery
 metadata, not part of the secret snapshot. Palladin emails only the OTP; the
 sender distributes the full link and any additional secret separately.
+
+Password/PIN requires matching confirmation in the sender form. Repeated digit
+patterns and monotonic digit sequences are rejected as input-quality feedback,
+not claimed to provide offline cryptographic protection. No confirmation field
+is sent to the API. Default no-protection creation retains the approved compact
+collapsed layout. Store/domain configuration is described in
+[App Link associations](../app-link-associations.md); it is not enabled without
+approved signing/store configuration.
 
 Creation calls the authoritative challenge before sealing and compares its
 revision with the selected current head. A mismatch schedules Member sync repair
 and never posts the stale snapshot. Mutations use an explicit allowlisted body;
 the decryption key and plaintext cannot be spread into the request. These are
 typed first-party API contracts, not duplicated runtime business validators.
+The challenge POST sends an empty JSON object: FastEndpoints binds the route
+scope but still requires the JSON media type for this request contract. A bare
+bodyless fetch returns 415 in the real API; the sender transport regression
+requires the explicit JSON request.
 
 The creation operation is component-owned RAM, not a TanStack mutation cache.
 An ambiguous create failure retains the exact encrypted request, bearer and key
@@ -179,14 +206,58 @@ and aborts pending transport. JavaScript strings are released, not claimed to be
 securely overwritten. Editing the source displays the non-synchronizing-copy
 warning and directs the sender to Sharing for revocation.
 
+Active links also expose **Change protection**. The component-owned form calls the
+existing owner-authorized protection endpoint to add, replace or remove PIN/password.
+The new secret is masked, never enters Query/mutation caches and is discarded on
+close or pagehide. Requests abort and late responses are ignored after owner/session
+replacement. The backend advances the security version and invalidates older receipt
+sessions; changing protection cannot recall an already downloaded copy.
+
 ## Public guest receiver
 
-`/share/$shareId` is outside the authenticated layout; `/share` explains an invalid
-or missing capability. Merely rendering either route makes no recipient request.
-Continue in browser explicitly opens a session but neither sends OTP nor consumes
-a receipt. Named-recipient email verification and optional password/PIN have
-separate forms and proofs. The server remains authoritative for all gates.
-Unknown future mode/protection values cannot enable a guessed receipt path.
+The owner-approved receiver (2026-09-28) uses a centered horizontal
+`AppWordmark size="sharing"` matching the extension's system-font lockup.
+The scoped `share-reception-card` treatment reuses the landing Founder Program
+gradient, without a brand underline, header divider or action divider. Other panel
+cards and dialogs retain their palettes. The auth background keeps the dark grain
+and uses a centered radial bloom in light mode.
+Entry identity, fields and authoritative link policy share one inner frame.
+Rows use equal minimum heights and left-aligned label/value rhythm; copy and
+reveal remain at the right. Secrets start masked. Notes and Script source open a
+separate focus-managed `ModalShell`. Copy uses the shared clipboard helper and
+opt-in Sonner feedback with no values in the toast. Receiver copies do not schedule
+automatic clipboard clearing; other surfaces retain their defaults.
+Expiry is localized approximate time remaining, refreshed once a minute for
+presentation only. The server's maximum receipt budget is a limit, never a guessed
+remaining counter. The product footer is inside the card, with Discover Palladin
+and an animated arrow at the right; Privacy/Terms remain centered below the card.
+Reduced-motion and mobile hit targets are supported.
+
+Opening a valid capability starts a recipient session once. A basic anyone-with-link
+share without additional protection immediately receives, decrypts and displays
+the copy: no Check link or Show entry interaction is required. Named-recipient
+email and optional PIN/password proofs remain authoritative gates; delivery starts
+only after those gates are satisfied. OTP is never sent automatically.
+Unknown mode/protection values cannot enable a guessed delivery path. Receipt
+limits therefore count eligible page opens, not a subsequent Show action.
+Failures require an explicit retry against the same session; render and effects
+never loop automatic delivery retries. Display confirmation follows actual rendering.
+
+Each stage retains explicit actions without a redundant Close button; the main
+action uses the approved landing-style brand glow. After receipt, guests get
+**Save to Palladin** leading to registration
+(whose Sign in link preserves the return); a locked existing account gets **Unlock
+to save**, and a verified unlocked account gets **Save to my vault**. Neither saving
+nor opening the save dialog is automatic: destination selection remains explicit.
+A live authenticated, verified, unlocked web session can be established by the
+configured shared-unlock bridge for the same API environment. Merely having an
+installed or signed-in extension does not establish that account state.
+
+Guests see the product block in the card footer. Its product link and the muted
+Privacy/Terms footer open new tabs without a referrer, share material or account
+continuation. Proof, received-content and save flows retain the same shared shell.
+`/share/$shareId` remains outside the authenticated layout; `/share` explains an
+invalid or missing capability. A missing capability never opens a recipient session.
 
 `recipient-api.ts` uses an independent POST-only transport: no account bearer,
 cookies, auth refresh, automatic retry, redirect or referrer. Every body is an
@@ -222,15 +293,13 @@ of an already issued code remains available during the cooldown. No timer sends
 email or opens/receives automatically. Verification, disposal and unmount remove
 the UI timer; late responses cannot publish into a replacement operation.
 
-Receive entry is explicit and enabled only after the known gates. Fields start
+Eligible receipt is automatic after the known gates. Fields start
 masked, use shared reveal/copy controls, and render inert text (including Script,
 URLs and TOTP seed URIs). React confirms display only after committing the decoded
 view. Failed confirmation retains the copy and offers a confirmation-only retry;
-it neither repeats delivery nor claims a human read the data. Authorized recipient
-termination requires a confirmation dialog, ends the whole link and wipes local
-link key/bearer buffers, but does not remove an already displayed local copy until
-the session is cleared/expires. No remote recall or external-password change is
-implied.
+it neither repeats delivery nor claims a human read the data. Recipients have no
+terminate-link action: revocation belongs to the authorized sender. No remote
+recall or external-password change is implied.
 
 ## Save an already received copy
 
@@ -253,14 +322,16 @@ here using the existing one-default-per-account contract, without leaving the
 received-copy RAM session. Backend authorization remains authoritative.
 
 `entry-share-copy.ts` validates the untrusted snapshot and recipient form, assigns
-new custom-field IDs and creates a canonical MemberSecret with Discovery disabled
-and no inherited source policies or Script references. Native secret values are
+new custom-field IDs and creates a canonical MemberSecret with the recipient's
+standard default Agent visibility policy (discoverable), without inherited source
+policies or Script references. Discovery does not itself grant secret delivery. Native secret values are
 never silently normalized; values incompatible with canonical storage fail
 without secret-bearing diagnostics. Omitted required card fields or Script
 interpreter must be completed explicitly. Received values cannot be replaced by
 that completion form. The copy title is editable to meet the Entry label limit.
 The notice explains that existing destination-Vault members and FULL Agents can
-access the saved copy despite its disabled Discovery flag.
+access the saved copy under the destination's standard permissions. Discovery is
+enabled by the standard new-Entry policy, not excluded specially for received copies.
 
 `entry-share-copy-encryption.ts` binds target envelopes to the captured own JWT
 organization, principal, chosen Vault, server-issued creation Entry ID and current
@@ -275,13 +346,14 @@ explicit retry, freezing destination and form choices. Closing loses that retry;
 the warning asks the user to check the Vault before starting another save. Lock,
 account/org/permission changes, pagehide and unmount abort work and prevent late
 success from refreshing a replacement session. Saving never calls recipient
-delivery again and remains available after authorized link termination while the
+delivery again and remains available after sender revocation while the
 already decoded local copy still exists.
 
 ## Explicit account continuation
 
-Before and after receipt, the guest can choose Sign in or Create an account.
-An existing account can choose email verification or unlock. This explicit action
+After receipt, the guest can choose Save to Palladin to reach registration and
+its existing Sign in link. An existing account can choose email verification or
+unlock. This explicit action
 transfers the idle operation and snapshot into `reception-continuation.ts`, a
 single module-RAM owner. The auth URL contains only the canonical share path.
 Returning takes the same session, proof state, snapshot and original deadlines;
@@ -311,12 +383,12 @@ required; local client tests do not close those gates.
 
 ## Verification and remaining work
 
-Focused tests cover projection defaults/explicit opt-in, excluded source data,
+Focused tests cover whole-entry projection defaults, excluded source data,
 all AAD coordinates, independent requested share binding, tampered key/nonce/
 ciphertext, native fixture interoperability, Unicode/whitespace preservation,
 payload limits, canonical link parsing and URL/RAM lifecycle.
 
-Sender tests additionally exercise field review, optional PIN and notification,
+Sender tests additionally exercise optional PIN and notification,
 exact-request retry, source revision repair, authenticated organization binding,
 lock/unmount/BFCache cleanup, list/revoke states and late mutation responses.
 API projection tests prove accidental key/plaintext properties are not submitted.
@@ -325,8 +397,9 @@ Mocked HTTP tests do not establish deployed provider/consumer compatibility.
 Receiver tests combine the real crypto fixture with mocked public API slices and
 exercise both gates, delivery/OTP/confirmation retries, delayed responses, scope
 substitution, clock rollback/suspended timers, pagehide, actual unmount and
-StrictMode. Page tests prove receipt is explicit, content is masked and the ACK
-is issued after the view exists, with confirmation retry and termination dialog.
+StrictMode. Page tests prove eligible receipt is automatic, content is masked and
+the ACK is issued after the view exists, with confirmation retry and no recipient
+termination action.
 Transport tests prove no account auth or hidden retry and generic HTTP/JSON errors.
 Recipient-policy/countdown tests cover separate/missing metadata, initial
 share-wide cooldown, boundary resend, residual retry, StrictMode account return,

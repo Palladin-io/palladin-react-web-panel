@@ -1,11 +1,10 @@
 import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from 'react'
 import { useAuthStore } from '../../auth'
 import { openEntryShare, type EntryShareSnapshot } from '../../../shared/crypto/entry-share'
-import { clearEntryShareLink } from '../../../shared/crypto/entry-share-link'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { clearPendingEntryShare, readPendingEntryShare, subscribePendingEntryShare } from '../../../shared/lib/entry-share-ingress'
 import {
-  confirmRecipientDisplay, endRecipientShare, openRecipientSession, receiveEntryShare,
+  confirmRecipientDisplay, verifyRecipientAccount, openRecipientSession, receiveEntryShare,
   requestRecipientOtp, verifyRecipientOtp, verifyRecipientSecret,
 } from './recipient-api'
 import { initialReceptionState as initialState, type ReceptionOperation, type ReceptionState } from './reception-state'
@@ -45,7 +44,7 @@ export function useShareReception(shareId: string) {
       emailVerified: false, secretVerified: false, received: false, confirmed: false, ended: false,
       wallDeadline: Infinity, monotonicDeadline: Infinity,
     })
-    const { userId, cryptoSessionGeneration } = useAuthStore.getState()
+    let { userId, cryptoSessionGeneration } = useAuthStore.getState()
     operationRef.current = operation
     attached.current = true
     const retire = () => {
@@ -53,8 +52,16 @@ export function useShareReception(shareId: string) {
       setState({ ...initialState, phase: 'unavailable' })
     }
     const unsubscribeIngress = subscribePendingEntryShare(retire)
-    const unsubscribeAuth = useAuthStore.subscribe((current) => {
+    const unsubscribeAuth = useAuthStore.subscribe((current, previous) => {
       if (holdsReception(operation)) return
+      // Adopt only the first verified unlock; later account changes or closing still destroy the capability.
+      if (previous.isVaultLocked && !current.isVaultLocked && current.emailVerified
+        && current.accessToken && current.privateKey && current.userId
+        && (userId === null || current.userId === userId)) {
+        userId = current.userId
+        cryptoSessionGeneration = current.cryptoSessionGeneration
+        return
+      }
       if (current.userId !== userId || current.cryptoSessionGeneration !== cryptoSessionGeneration) {
         if (readPendingEntryShare(shareId) === link) clearPendingEntryShare()
         retire()
@@ -156,6 +163,18 @@ export function useShareReception(shareId: string) {
     })
   }
 
+  function verifyAccount(): Promise<Outcome> {
+    return run(async (operation) => {
+      const auth = useAuthStore.getState()
+      if (!operation.session || operation.session.recipientMode !== 'namedRecipient' || operation.emailVerified
+        || !auth.accessToken || !auth.emailVerified || auth.isVaultLocked) return
+      await verifyRecipientAccount(shareId, operation.session, auth.accessToken, operation.controller.signal)
+      if (!current(operation)) return
+      operation.emailVerified = true
+      setState((value) => ({ ...value, emailVerified: true, otpRetryAfterSeconds: 0 }))
+    })
+  }
+
   function gatesReady(operation: ReceptionOperation): boolean {
     const session = operation.session
     return !!session && !operation.ended
@@ -191,21 +210,10 @@ export function useShareReception(shareId: string) {
     })
   }
 
-  function end(): Promise<Outcome> {
-    return run(async (operation) => {
-      if (!gatesReady(operation)) return
-      await endRecipientShare(shareId, operation.session!, operation.controller.signal)
-      if (!current(operation)) return
-      operation.ended = true; operation.session = undefined
-      clearEntryShareLink(operation.link)
-      setState((value) => ({ ...value, phase: 'ended', otpRetryAfterSeconds: 0 }))
-    })
-  }
-
   const canReceive = (state.recipientMode === 'anyoneWithLink' || state.recipientMode === 'namedRecipient' && state.emailVerified)
     && (state.protection === 'none' || ['password', 'pin'].includes(state.protection) && state.secretVerified)
   return { ...state, phase: pending ? state.phase : 'unavailable' as const, snapshot: pending ? state.snapshot : null,
-    canReceive, open, requestOtp, verifyOtp, verifySecret, receive, confirmDisplay, end, forget,
+    canReceive, open, requestOtp, verifyOtp, verifySecret, verifyAccount, receive, confirmDisplay, forget,
     continueToAccount: () => {
       const operation = operationRef.current
       return !!operation && current(operation) && retainReception(operation, state)

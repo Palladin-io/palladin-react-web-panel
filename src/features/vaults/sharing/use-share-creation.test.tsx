@@ -25,11 +25,11 @@ beforeEach(() => {
 })
 
 describe('Entry sharing sender operation', () => {
-  it('posts only the selected encrypted snapshot and exposes the separately held link after success', async () => {
+  it('encrypts the whole entry and exposes the separately held link after success', async () => {
     const onCreated = vi.fn()
     const { result } = renderHook(() => useShareCreation(sharingScope, onCreated))
     await waitFor(() => expect(result.current.source).toBe(sharingSource))
-    await act(async () => { expect(await result.current.submit(form, ['credential.password'])).toBe('created') })
+    await act(async () => { expect(await result.current.submit(form)).toBe('created') })
     const request = mocks.create.mock.calls[0][2]
     const url = new URL(result.current.link!)
     const secrets = parseEntryShareFragment(url.hash)
@@ -43,8 +43,9 @@ describe('Entry sharing sender operation', () => {
       expect(request.notifyOnFirstReceipt).toBe(true)
       const opened = await openEntryShare(request, { ...sharingScope, shareId: sharingId,
         sourceRevision: sharingScope.revision, expiresAt: request.expiresAt }, sharingId, secrets.key)
-      expect(opened.fields.map((field) => field.id)).toEqual(['credential.password'])
-      expect(opened.fields[0].value).toBe('fixture-password')
+      expect(opened.fields.map((field) => field.id)).toEqual(['credential.username', 'credential.password', 'notes'])
+      expect(opened.fields.find((field) => field.id === 'credential.password')?.value).toBe('fixture-password')
+      expect(opened.fields.find((field) => field.id === 'notes')?.value).toBe('private-note')
       expect(onCreated).toHaveBeenCalledOnce()
       expect(result.current.source).toBeNull()
     } finally { clearEntryShareLink(secrets) }
@@ -54,10 +55,10 @@ describe('Entry sharing sender operation', () => {
     mocks.create.mockRejectedValueOnce(new Error('network'))
     const { result } = renderHook(() => useShareCreation(sharingScope, vi.fn()))
     await waitFor(() => expect(result.current.source).not.toBeNull())
-    await act(async () => { expect(await result.current.submit(form, ['credential.password'])).toBe('failed') })
+    await act(async () => { expect(await result.current.submit(form)).toBe('failed') })
     expect(result.current.retryPending).toBe(true)
     const firstRequest = mocks.create.mock.calls[0][2]
-    await act(async () => { expect(await result.current.submit(form, ['credential.password'])).toBe('created') })
+    await act(async () => { expect(await result.current.submit(form)).toBe('created') })
     expect(mocks.challenge).toHaveBeenCalledOnce()
     expect(mocks.create.mock.calls[1][2]).toBe(firstRequest)
     expect(result.current.retryPending).toBe(false)
@@ -67,7 +68,7 @@ describe('Entry sharing sender operation', () => {
     mocks.challenge.mockResolvedValue({ shareId: sharingId, sourceRevision: '5', expiresAt: '2099-01-01T00:00:00Z' })
     const { result } = renderHook(() => useShareCreation(sharingScope, vi.fn()))
     await waitFor(() => expect(result.current.source).not.toBeNull())
-    await act(async () => { expect(await result.current.submit(form, ['credential.password'])).toBe('failed') })
+    await act(async () => { expect(await result.current.submit(form)).toBe('failed') })
     expect(mocks.create).not.toHaveBeenCalled()
     expect(mocks.retrySync).toHaveBeenCalledOnce()
   })
@@ -95,7 +96,7 @@ describe('Entry sharing sender operation', () => {
     const { result } = renderHook(() => useShareCreation(sharingScope, onCreated))
     await waitFor(() => expect(result.current.source).not.toBeNull())
     let outcome!: Promise<unknown>
-    act(() => { outcome = result.current.submit(form, ['credential.password']) })
+    act(() => { outcome = result.current.submit(form) })
     await waitFor(() => expect(mocks.create).toHaveBeenCalledOnce())
     const signal: AbortSignal = mocks.create.mock.calls[0][3]
     act(() => useAuthStore.setState({ isVaultLocked: true, privateKey: null, cryptoSessionGeneration: 8 }))
@@ -112,8 +113,8 @@ describe('Entry sharing sender operation', () => {
     const { result, unmount } = renderHook(() => useShareCreation(sharingScope, vi.fn()))
     await waitFor(() => expect(result.current.source).not.toBeNull())
     let outcome!: Promise<unknown>
-    act(() => { outcome = result.current.submit(form, ['credential.password']) })
-    expect(await result.current.submit(form, ['credential.password'])).toBe('cancelled')
+    act(() => { outcome = result.current.submit(form) })
+    expect(await result.current.submit(form)).toBe('cancelled')
     await waitFor(() => expect(mocks.create).toHaveBeenCalledOnce())
     unmount()
     expect(mocks.create.mock.calls[0][3].aborted).toBe(true)
@@ -124,7 +125,7 @@ describe('Entry sharing sender operation', () => {
   it('clears a generated link on pagehide, including BFCache', async () => {
     const { result } = renderHook(() => useShareCreation(sharingScope, vi.fn()))
     await waitFor(() => expect(result.current.source).not.toBeNull())
-    await act(async () => { await result.current.submit(form, ['credential.password']) })
+    await act(async () => { await result.current.submit(form) })
     act(() => window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true })))
     expect(result.current.link).toBeNull()
   })

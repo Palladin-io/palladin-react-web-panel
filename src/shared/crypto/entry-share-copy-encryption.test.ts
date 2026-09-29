@@ -29,7 +29,7 @@ describe('Received copy encryption in the selected Vault', () => {
     expect(await readEntryShareCopyVaultName(vault, authority, privateKey, signal)).toBe('Destination')
     const first = await sealEntryShareCopy(secret, vault, authority, privateKey, signal)
     const second = await sealEntryShareCopy(secret, vault, authority, privateKey, signal)
-    expect(first.agentDiscovery).toBeNull()
+    expect(first.agentDiscovery).not.toBeNull()
     expect(JSON.stringify(first)).not.toContain('fixture-only')
     const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
     const descriptor = first.entryKey.descriptor

@@ -575,7 +575,6 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(screen.getAllByRole('alert').map((alert) => alert.textContent)).toEqual([
       'Enter a 12–19 digit card number.',
       'Use a month from 01 to 12.',
-      'Previously shared copies do not updateSaving will not change copies already shared through a link. You can revoke those links in the Sharing tab. Revocation cannot erase copies already downloaded.',
     ])
   })
 

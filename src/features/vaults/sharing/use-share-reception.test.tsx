@@ -454,16 +454,16 @@ describe('Guest Entry sharing reception', () => {
     expect(api.receive).not.toHaveBeenCalled()
   })
 
-  it('allows authorized recipient termination without deleting an already decoded local copy', async () => {
+  it('does not expose recipient termination and retains the decoded local copy', async () => {
     const { result } = renderHook(() => useShareReception(shareId))
-    await act(async () => { await result.current.open(); await result.current.receive(); await result.current.end() })
-    expect(result.current.phase).toBe('ended')
+    await act(async () => { await result.current.open(); await result.current.receive() })
+    expect(result.current).not.toHaveProperty('end')
+    expect(result.current.phase).toBe('received')
     expect(result.current.snapshot).toEqual(fixture.snapshot)
-    expect(readPendingEntryShare(shareId)?.key).toEqual(new Uint8Array(32))
-    await act(async () => { await result.current.receive(); await result.current.end(); await result.current.confirmDisplay() })
+    await act(async () => { await result.current.receive(); await result.current.confirmDisplay() })
     expect(api.receive).toHaveBeenCalledOnce()
-    expect(api.end).toHaveBeenCalledOnce()
-    expect(api.confirm).not.toHaveBeenCalled()
+    expect(api.end).not.toHaveBeenCalled()
+    expect(api.confirm).toHaveBeenCalledOnce()
   })
 
   it('wipes ingress ownership on actual unmount', async () => {

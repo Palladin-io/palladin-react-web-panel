@@ -8,6 +8,7 @@ import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import { assertRequiredClientEnv } from './src/shared/lib/required-client-env'
 import { connectionOrigins } from './build/csp-origins'
 import { firefoxSharedUnlockCsp } from './build/firefox-csp'
+import { appLinkAssociationPlugin } from './build/app-link-associations.mjs'
 
 const publicAssetOriginPlaceholder = '__PALLADIN_PUBLIC_ASSET_ORIGIN__'
 const connectionOriginsPlaceholder = '__PALLADIN_CONNECTION_ORIGINS__'
@@ -50,6 +51,7 @@ export default defineConfig(({ command, isPreview, mode }) => {
 
   return {
     plugins: [
+      appLinkAssociationPlugin(buildEnv),
       TanStackRouterVite(),
       react(),
       tailwindcss(),

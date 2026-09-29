@@ -8,11 +8,11 @@ const snapshot = fixture.snapshot as EntryShareSnapshot
 const form = { title: ' My copy ', additions: {} }
 
 describe('Received snapshot to independent Entry', () => {
-  it('copies selected credential fields without introducing Discovery or source policy', () => {
+  it('uses the normal Credential Discovery policy without inheriting source grants', () => {
     const secret = entryShareCopySecret(snapshot, form)
-    expect(secret).toMatchObject({ memberLabel: 'My copy', discoverable: false, agentLabel: null, icon: null,
+    expect(secret).toMatchObject({ memberLabel: 'My copy', discoverable: true, agentLabel: 'My copy', icon: null,
       entryType: 'credential', content: { username: '', password: 'fixture-only', totp: null, customFields: [] } })
-    expect(Object.values(secret.agentFieldAccess).every((access) => access === 'never')).toBe(true)
+    expect(secret.agentFieldAccess).toMatchObject({ agentLabel: 'discovery', 'credential.password': 'onGrantValue', memberLabel: 'never' })
     expect(parseMemberSecret(encodeMemberSecret(secret))).toEqual(secret)
   })
 
@@ -48,7 +48,7 @@ describe('Received snapshot to independent Entry', () => {
       'creditCard.cardholderName': 'Example User', 'creditCard.expiryMonth': '12', 'creditCard.expiryYear': '2030' } })
     expect(secret.entryType).toBe('creditCard')
     expect(secret.content).toMatchObject({ cardNumber: '4111111111111111', expiryMonth: '12', expiryYear: '2030' })
-    expect(Object.values(secret.agentFieldAccess).every((access) => access === 'never')).toBe(true)
+    expect(secret.agentFieldAccess).toMatchObject({ agentLabel: 'discovery', 'creditCard.cardNumber': 'never' })
   })
 
   it('copies inert Script source without references or execution policy', () => {
@@ -59,16 +59,17 @@ describe('Received snapshot to independent Entry', () => {
     const secret = entryShareCopySecret(script, { ...form, additions: { 'script.interpreter': 'sh' } })
     expect(secret.content).toMatchObject({ source: 'echo example', interpreter: 'sh', refs: [] })
     expect(secret.content).not.toHaveProperty('execution')
-    expect(secret.discoverable).toBe(false)
+    expect(secret.discoverable).toBe(true)
   })
 
-  it('saves a partial Key and a valid TOTP as a new non-grantable field', () => {
+  it('uses the normal Key and derived TOTP field policy', () => {
     const key: EntryShareSnapshot = { ...snapshot, entryType: 'key', fields: [
       { id: 'key.url', label: '', type: 'text', value: 'https://example.test' },
       { id: 'custom:otp', label: 'OTP', type: 'totp', value: 'otpauth://totp/Example?secret=JBSWY3DPEHPK3PXP' }] }
     const secret = entryShareCopySecret(key, form)
     expect(secret.content).toMatchObject({ value: '', url: 'https://example.test' })
     expect(secret.content.customFields[0].value).toMatchObject({ secret: 'JBSWY3DPEHPK3PXP', digits: 6 })
-    expect(Object.values(secret.agentFieldAccess).every((access) => access === 'never')).toBe(true)
+    expect(secret.agentFieldAccess[secret.content.customFields[0].id]).toBe('onGrantDerived')
+    expect(secret.agentFieldAccess['key.value']).toBe('onGrantValue')
   })
 })

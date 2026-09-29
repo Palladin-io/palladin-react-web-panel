@@ -63,6 +63,10 @@ export async function confirmRecipientDisplay(shareId: string, session: Recipien
   await post(`${sessionPath(shareId, session)}/confirmation`, { sessionToken: session.sessionToken }, signal)
 }
 
-export async function endRecipientShare(shareId: string, session: RecipientSession, signal: AbortSignal) {
-  await post(`${sessionPath(shareId, session)}/end`, { sessionToken: session.sessionToken }, signal)
+export async function verifyRecipientAccount(shareId: string, session: RecipientSession, accountToken: string, signal: AbortSignal) {
+  try {
+    await recipientApi.post(`${sessionPath(shareId, session)}/verify-account`, {
+      json: { sessionToken: session.sessionToken }, headers: { Authorization: `Bearer ${accountToken}` }, signal,
+    })
+  } catch { throw new Error('Sharing request unavailable') }
 }

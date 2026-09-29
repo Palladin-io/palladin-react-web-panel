@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface AppWordmarkProps {
-  /** Sidebar row, compact standalone mark, or landing-matched auth hero. */
-  size?: 'sm' | 'lg' | 'hero'
+  /** Sidebar row or landing-matched auth hero. */
+  size?: 'sm' | 'lg' | 'hero' | 'dialog' | 'sharing'
   /** Optional line rendered under the wordmark text, beside the logo (sm only). */
   subtitle?: ReactNode
 }
@@ -15,6 +15,19 @@ interface AppWordmarkProps {
 export function AppWordmark({ size = 'sm', subtitle }: AppWordmarkProps) {
   const { t } = useTranslation()
   const appName = t('auth.appName')
+
+  if (size === 'sharing') return <span className="share-brand-lockup">
+    <img src="/logo.png" alt="" />
+    <span>Palladin<span className="text-[var(--cv-primary)]">.io</span></span>
+  </span>
+
+  if (size === 'dialog') return <span className="flex w-full items-center justify-between gap-4">
+    <img src="/logo.png" alt="" className="h-11 w-auto shrink-0 object-contain" />
+    <span className="text-heading font-semibold tracking-tight">
+      <span className="text-[var(--cv-t1)]">Palladin</span>
+      <span className="text-[var(--cv-primary)]">.io</span>
+    </span>
+  </span>
 
   if (size === 'lg' || size === 'hero') {
     return (
@@ -30,7 +43,7 @@ export function AppWordmark({ size = 'sm', subtitle }: AppWordmarkProps) {
 
   return (
     <div className="flex items-center gap-2.5">
-      <img src="/logo.png" alt={appName} className="h-11 w-auto" />
+      <img src="/logo.png" alt={appName} className="h-11 w-auto shrink-0 object-contain" />
       <div className="min-w-0">
         <span
           className="block text-page-title font-extrabold leading-tight"

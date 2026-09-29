@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { parseEntryShareSnapshot, type EntryShareSnapshot } from './entry-share'
-import { toMemberSecret } from './entry-draft'
+import { defaultAgentVisibilityPolicy, toMemberSecret } from './entry-draft'
 import { encodeMemberSecret, type MemberSecretV1 } from './vault-plaintext'
 import { parseOtpauthUri } from './totp'
 import type { CustomField, EntryPlaintext } from '../../features/vaults/types'
@@ -58,8 +58,8 @@ export function entryShareCopySecret(snapshot: EntryShareSnapshot, form: EntrySh
       billingAddress: get('creditCard.billingAddress') }
     else payload = { ...common, type: 2, script: get('script.source') ?? '', refs: [],
       interpreter: z.enum(['bash', 'sh', 'node', 'python']).parse(get('script.interpreter')) }
-    const secret = toMemberSecret({ label: choices.title, agentLabel: '', description: get('description'),
-      type: payload.type, payload, policy: { discoverable: false, fields: {} } })
+    const secret = toMemberSecret({ label: choices.title, agentLabel: choices.title, description: get('description'),
+      type: payload.type, payload, policy: defaultAgentVisibilityPolicy(payload.type, fields) })
     const bytes = encodeMemberSecret(secret)
     bytes.fill(0)
     return secret

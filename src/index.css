@@ -234,6 +234,175 @@ button,
   position: relative;
 }
 
+/* Approved public receiver: Founder Program surface, isolated from panel dialogs. */
+.entry-share-receiver {
+  --cv-share-surface: linear-gradient(145deg, rgb(255 255 255 / .88), rgb(255 255 255 / .8)), #fff;
+  --cv-share-shadow: none;
+  --cv-share-data-bg: #fff;
+  --cv-share-line: #e4e5e8;
+  --cv-auth-bg: radial-gradient(ellipse 100% 100% at 50% 50%, #F8FAFC 0%, #E3E7EC 46%, #C8CDD6 100%);
+  --cv-auth-logo-glow: none;
+  --cv-btn-accent-hover: var(--cv-primary-hover);
+  --cv-btn-accent-shadow: 0 6px 18px rgb(var(--cv-primary-rgb) / .2);
+  --cv-btn-accent-shadow-hover: 0 9px 26px rgb(var(--cv-primary-rgb) / .27);
+}
+
+.dark .entry-share-receiver {
+  --cv-share-surface: linear-gradient(145deg, rgb(38 41 47 / .98), rgb(20 22 26 / .94)), #2b2e33;
+  --cv-share-shadow: 0 30px 75px rgb(0 0 0 / .42), inset 0 1px 0 rgb(255 255 255 / .06);
+  --cv-share-data-bg: transparent;
+  --cv-share-line: var(--cv-border);
+  --cv-auth-bg: var(--cv-page-bg);
+}
+
+.share-reception-card {
+  background: var(--cv-share-surface);
+  border-color: var(--cv-share-line);
+  border-radius: .9rem;
+  box-shadow: var(--cv-share-shadow);
+}
+
+.share-reception-card > header {
+  border: 0;
+  padding: 1.2rem;
+}
+
+.share-brand-lockup {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: .9rem;
+  font-weight: 800;
+  letter-spacing: -.01em;
+}
+
+.share-brand-lockup img {
+  width: auto;
+  height: 1.5rem;
+}
+
+.share-reception-card > .subtle-scrollbar {
+  padding: 0 1.2rem;
+}
+
+.share-reception-card > [data-testid="modal-footer"] {
+  border: 0;
+  padding: 1.2rem 1.2rem 0;
+}
+
+.share-received-data {
+  overflow: hidden;
+  border: 1px solid var(--cv-share-line);
+  border-radius: .6rem;
+  background: var(--cv-share-data-bg);
+}
+
+.share-received-identity,
+.share-received-row {
+  min-height: 3.9rem;
+  padding: .7rem .8rem;
+  border-bottom: 1px solid var(--cv-share-line);
+}
+
+.share-received-identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .6rem;
+}
+
+.share-received-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.share-received-data > :last-child > .share-received-row:last-child,
+.share-received-data > .share-policy > .share-received-row:last-child {
+  border-bottom: 0;
+}
+
+.share-field-label {
+  display: block;
+  color: var(--cv-t3);
+  font-size: .65rem;
+  line-height: 1rem;
+}
+
+.share-field-value {
+  margin-top: .3rem;
+  color: var(--cv-t1);
+  font-size: .7rem;
+}
+
+.share-received-row > .min-w-0 input {
+  height: 1rem;
+  padding: 0;
+  text-align: left;
+  font-size: .7rem;
+}
+
+.share-received-row > .min-w-0 { position: relative; }
+.share-received-row > .min-w-0 > .share-field-label { padding-right: 4.3rem; }
+.share-received-row > .min-w-0 > div { padding-right: 4.3rem; margin-top: .3rem; }
+.share-received-row > .min-w-0 > div > .flex > .flex {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.share-received-row > .min-w-0 button {
+  width: 1.8rem;
+  height: 1.8rem;
+}
+
+.share-product-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .6rem;
+  margin: 1.2rem -1.2rem 0;
+  padding: .7rem 1.2rem;
+  border-top: 1px solid var(--cv-share-line);
+  color: var(--cv-t3);
+  font-size: .6rem;
+}
+
+.share-product-footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  margin-left: auto;
+  color: var(--cv-t1);
+  text-underline-offset: .2rem;
+}
+
+.share-product-footer a:hover,
+.share-product-footer a:focus-visible { text-decoration: underline; }
+.share-product-footer a svg { transition: transform 160ms ease; }
+.share-product-footer a:hover svg { transform: translate(.1rem, -.1rem); }
+
+@media (pointer: coarse) {
+  .share-received-row > .min-w-0 button { width: 2.2rem; height: 2.2rem; }
+  .share-received-row > .min-w-0 > div,
+  .share-received-row > .min-w-0 > .share-field-label { padding-right: 5.1rem; }
+}
+
+@media (max-width: 640px) {
+  .share-reception-card > header { padding: .9rem; }
+  .share-reception-card > .subtle-scrollbar { padding: 0 .9rem; }
+  .share-reception-card > [data-testid="modal-footer"] { padding: .9rem .9rem 0; }
+  .share-product-footer { margin: .9rem -.9rem 0; padding: .7rem .9rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .share-product-footer a svg { transition: none; transform: none !important; }
+}
+
 /* Brand dimensions match the landing, independently of the panel's 125%
    control density. Rem units still follow the user's browser font size. */
 .auth-brand-header {
@@ -252,6 +421,10 @@ button,
   align-items: center;
   gap: var(--cv-auth-brand-logo-gap);
   margin-bottom: var(--cv-auth-brand-tagline-gap);
+}
+
+.auth-brand-header[data-welcome="false"] .auth-brand-lockup {
+  margin-bottom: 0;
 }
 
 .auth-brand-logo {

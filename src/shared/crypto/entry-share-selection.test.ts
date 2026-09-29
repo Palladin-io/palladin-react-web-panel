@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { entryShareFieldChoices, selectEntryShareSnapshot } from './entry-share-selection'
+import { createEntryShareSnapshot } from './entry-share-selection'
 import type { MemberSecretV1 } from './vault-plaintext'
 
 const common = {
@@ -14,39 +14,42 @@ const source: MemberSecretV1 = { ...common, entryType: 'credential', content: {
   customFields: [
     { id: 'custom:recovery', label: 'Recovery codes', type: 'concealed', value: 'Recovery secret' },
     { id: 'custom:otp', label: 'Second TOTP', type: 'totp', value: totp },
-    { id: 'custom:future', label: 'Unsupported field', type: 'future', value: { unknown: true } },
   ],
 } }
 
-describe('Entry sharing field selection', () => {
-  it('defaults only ordinary credential fields, never TOTP, notes or any custom fields', () => {
-    const choices = entryShareFieldChoices(source)
-    expect(choices.fields.filter((field) => field.selectedByDefault).map((field) => field.id))
-      .toEqual(['credential.username', 'credential.password', 'credential.url'])
-    expect(choices.unsupported).toEqual([{ id: 'custom:future', label: 'Unsupported field' }])
-  })
-
-  it('projects only the explicit selection and never source policy or unrelated values', () => {
-    const snapshot = selectEntryShareSnapshot(source, ['credential.password'])
-    expect(snapshot).toEqual({ schema: 'palladin.entry-share.v1', title: 'Private title', entryType: 'credential',
-      fields: [{ id: 'credential.password', label: '', type: 'concealed', value: '  secret\u0301  ' }] })
+describe('Whole Entry sharing', () => {
+  it('includes every content field, preserving secrets without source policies', () => {
+    const snapshot = createEntryShareSnapshot(source)
+    expect(snapshot.title).toBe('Private title')
+    expect(snapshot.fields.map((field) => field.id)).toEqual([
+      'credential.username', 'credential.password', 'credential.url', 'credential.totp',
+      'description', 'notes', 'custom:recovery', 'custom:otp',
+    ])
+    expect(snapshot.fields.find((field) => field.id === 'credential.password')?.value).toBe('  secret\u0301  ')
+    expect(snapshot.fields.find((field) => field.id === 'notes')?.value).toBe('Private notes')
+    expect(snapshot.fields.find((field) => field.id === 'description')?.value).toBe('Private description')
     const json = JSON.stringify(snapshot)
-    for (const excluded of ['agentFieldAccess', 'discoverable', 'Recovery secret', 'Private notes', 'JBSWY3DPEHPK3PXP']) {
+    for (const excluded of ['agentFieldAccess', 'discoverable', 'agentLabel', 'urlDomain']) {
       expect(json).not.toContain(excluded)
     }
   })
 
-  it('includes native TOTP, custom TOTP, recovery fields and notes only when explicitly chosen', () => {
-    const selected = ['credential.totp', 'custom:otp', 'custom:recovery', 'notes']
-    const snapshot = selectEntryShareSnapshot(source, selected)
-    expect(snapshot.fields.map((field) => field.id).sort()).toEqual(selected.sort())
+  it('includes native/custom TOTP and recovery codes without opt-in', () => {
+    const snapshot = createEntryShareSnapshot(source)
     expect(snapshot.fields.find((field) => field.id === 'credential.totp')?.value).toContain('otpauth://totp/')
+    expect(snapshot.fields.find((field) => field.id === 'custom:otp')?.value).toContain('otpauth://totp/')
     expect(snapshot.fields.find((field) => field.id === 'custom:recovery')?.value).toBe('Recovery secret')
   })
 
-  it.each([[], ['unknown'], ['custom:future'], ['credential.password', 'credential.password']])(
-    'rejects empty, unknown, unsupported and duplicate selections', (selected) => {
-      expect(() => selectEntryShareSnapshot(source, selected)).toThrow('Invalid Entry sharing field selection')
+  it.each([
+    { id: 'custom:future', label: 'Unknown', type: 'future', value: { unknown: true } },
+    { id: 'custom:invalid', label: 'Invalid TOTP', type: 'totp', value: {} },
+    { id: 'credential.password', label: 'Duplicate', type: 'text', value: 'duplicate' },
+  ])('rejects the whole entry instead of silently omitting an unsupported or duplicate field', (field) => {
+      const unsupported: MemberSecretV1 = { ...source, content: {
+        ...source.content, customFields: [...source.content.customFields, field],
+      } }
+      expect(() => createEntryShareSnapshot(unsupported)).toThrow('Entry cannot be shared in full')
     },
   )
 
@@ -56,8 +59,8 @@ describe('Entry sharing field selection', () => {
       refs: [{ env: 'TOKEN', vaultId: 'private-vault', entryId: 'private-entry', fieldId: 'key.value' }],
       execution: { contractVersion: 1, description: 'private execution', parameters: [], returnResultToAgent: true },
     } }
-    const snapshot = selectEntryShareSnapshot(script, ['script.source', 'script.interpreter'])
-    expect(snapshot.fields).toHaveLength(2)
+    const snapshot = createEntryShareSnapshot(script)
+    expect(snapshot.fields.map((field) => field.id)).toEqual(['script.source', 'script.interpreter', 'description'])
     for (const excluded of ['private-vault', 'private-entry', 'private execution', 'returnResultToAgent']) {
       expect(JSON.stringify(snapshot)).not.toContain(excluded)
     }
@@ -67,13 +70,13 @@ describe('Entry sharing field selection', () => {
     const key: MemberSecretV1 = { ...common, entryType: 'key', content: {
       value: 'key-secret', url: null, notes: null, customFields: [],
     } }
-    expect(selectEntryShareSnapshot(key, ['key.value']).fields[0].value).toBe('key-secret')
+    expect(createEntryShareSnapshot(key).fields[0].value).toBe('key-secret')
     const card: MemberSecretV1 = { ...common, entryType: 'creditCard', content: {
       cardholderName: 'Test Person', cardNumber: '4111111111111111', expiryMonth: '09', expiryYear: '2030',
       billingAddress: 'Private address', notes: null, customFields: [],
     } }
-    const choices = entryShareFieldChoices(card).fields
-    expect(choices.find((field) => field.id === 'creditCard.billingAddress')?.selectedByDefault).toBe(false)
-    expect(selectEntryShareSnapshot(card, ['creditCard.cardNumber']).fields).toHaveLength(1)
+    const snapshot = createEntryShareSnapshot(card)
+    expect(snapshot.fields.find((field) => field.id === 'creditCard.billingAddress')?.value).toBe('Private address')
+    expect(snapshot.fields).toHaveLength(6)
   })
 })

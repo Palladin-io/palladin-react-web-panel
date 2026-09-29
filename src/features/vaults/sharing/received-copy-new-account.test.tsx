@@ -58,10 +58,9 @@ afterEach(() => { cleanup(); clearPendingEntryShare() })
 it('keeps one guest receipt through registration, explicit fresh Vault creation and independently decryptable Entry save', async () => {
   const navigate = vi.fn()
   const page = render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} />)
-  await userEvent.click(screen.getByRole('button', { name: 'Continue in browser' }))
-  await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+
   await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce())
-  await userEvent.click(screen.getByRole('button', { name: 'Create an account' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Save to Palladin' }))
   expect(navigate).toHaveBeenCalledWith('register')
   page.unmount()
   // Auth transport is substituted; the receive, continuation, save hooks and crypto are real.
@@ -74,7 +73,8 @@ it('keeps one guest receipt through registration, explicit fresh Vault creation 
     useAuthStore.getState().unlockVault(new Uint8Array(32).fill(8), new Uint8Array(32).fill(7))
   })
   render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} />)
-  await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
+  await userEvent.click(await screen.findByRole('button', { name: 'Save to my vault' }))
+  await screen.findByRole('dialog', { name: 'Save a copy to your vault' })
   await screen.findByRole('button', { name: 'Create my personal vault' })
   expect(api.createVault).not.toHaveBeenCalled()
   await userEvent.click(screen.getByRole('button', { name: 'Create my personal vault' }))
@@ -97,8 +97,8 @@ it('keeps one guest receipt through registration, explicit fresh Vault creation 
   try {
     const saved = await openMemberSecret(request.entryKey, request.memberSecret, vaultKey,
       { organizationId, vaultId, entryId, revision: '1' })
-    expect(saved).toMatchObject({ memberLabel: 'Test credential', discoverable: false,
+    expect(saved).toMatchObject({ memberLabel: 'Test credential', discoverable: true,
       content: { password: 'fixture-only' } })
-    expect(request.agentDiscovery).toBeNull()
+    expect(request.agentDiscovery).not.toBeNull()
   } finally { wipe(vaultKey) }
 })

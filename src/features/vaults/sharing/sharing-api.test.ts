@@ -1,13 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createEntryShare, issueShareCreationChallenge, listEntryShares, revokeEntryShare } from './sharing-api'
+import { changeEntryShareProtection, createEntryShare, issueShareCreationChallenge, listEntryShares, revokeEntryShare } from './sharing-api'
 import { sharingId, sharingListItem, sharingScope } from './sharing-test-fixtures'
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), delete: vi.fn() }))
+const mocks = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), delete: vi.fn(), put: vi.fn() }))
 vi.mock('../../../shared/api/client', () => ({ api: mocks }))
 beforeEach(() => vi.resetAllMocks())
 const path = `api/vaults/${sharingScope.vaultId}/entries/${sharingScope.entryId}/sharing`
 
 describe('Entry sharing HTTP contracts', () => {
+  it('changes protection without secret-bearing errors, redirects or retries', async () => {
+    const signal = new AbortController().signal
+    await changeEntryShareProtection(sharingScope.vaultId, sharingScope.entryId, sharingId, 'none', null, signal)
+    expect(mocks.put).toHaveBeenCalledWith(`${path}/${sharingId}/protection`, {
+      signal, cache: 'no-store', retry: 0, redirect: 'error', json: { protection: 'none', protectionSecret: null },
+    })
+    mocks.put.mockRejectedValue(new Error('synthetic-secret-in-transport-error'))
+    await expect(changeEntryShareProtection(sharingScope.vaultId, sharingScope.entryId, sharingId, 'pin', '123456', signal))
+      .rejects.toThrow('Sharing protection unavailable')
+  })
   it('projects create fields explicitly, excluding accidental keys and plaintext', async () => {
     const signal = new AbortController().signal
     const input = {
@@ -38,7 +48,7 @@ describe('Entry sharing HTTP contracts', () => {
     mocks.post.mockReturnValue({ json: async () => ({ shareId: sharingId, sourceRevision: '4', expiresAt: '2026-09-20T12:05:00Z' }) })
     const signal = new AbortController().signal
     await issueShareCreationChallenge(sharingScope.vaultId, sharingScope.entryId, signal)
-    expect(mocks.post).toHaveBeenCalledWith(`${path}/creation-challenge`, expect.objectContaining({ signal, retry: 0 }))
+    expect(mocks.post).toHaveBeenCalledWith(`${path}/creation-challenge`, expect.objectContaining({ signal, retry: 0, json: {} }))
     await revokeEntryShare(sharingScope.vaultId, sharingScope.entryId, sharingId, signal)
     expect(mocks.delete).toHaveBeenCalledWith(`${path}/${sharingId}`, expect.objectContaining({ signal, retry: 0 }))
   })

@@ -165,7 +165,7 @@ describe('Explicit received-copy save lifecycle', () => {
   it('creates a new encrypted entry in the explicitly selected own scope, then refreshes sync', async () => {
     const { result } = await ready()
     await act(async () => { expect(await result.current.save(vaultId, form)).toBe('saved') })
-    expect(api.seal.mock.calls[0][0]).toMatchObject({ memberLabel: 'Recipient copy', discoverable: false,
+    expect(api.seal.mock.calls[0][0]).toMatchObject({ memberLabel: 'Recipient copy', discoverable: true,
       content: { password: 'fixture-only' } })
     expect(api.seal.mock.calls[0][2]).toEqual({ organizationId, memberId, vaultId, entryId })
     expect(api.create).toHaveBeenCalledWith(vaultId, { entryId, ...material, deliveryPolicy: 'standard' }, expect.any(AbortSignal))

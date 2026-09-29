@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../../auth'
-import { confirmRecipientDisplay, endRecipientShare, openRecipientSession, receiveEntryShare, requestRecipientOtp,
+import { confirmRecipientDisplay, verifyRecipientAccount, openRecipientSession, receiveEntryShare, requestRecipientOtp,
   verifyRecipientOtp, verifyRecipientSecret, type RecipientSession } from './recipient-api'
 
 const shareId = '00112233-4455-4677-8899-aabbccddeeff'
@@ -44,8 +44,8 @@ describe('Anonymous sharing transport', () => {
     await verifyRecipientSecret(shareId, extra, '123456', signal)
     await receiveEntryShare(shareId, extra, signal)
     await confirmRecipientDisplay(shareId, extra, signal)
-    await endRecipientShare(shareId, extra, signal)
-    expect(paths).toEqual(['otp', 'verify-otp', 'verify-secret', 'delivery', 'confirmation', 'end'])
+    await verifyRecipientAccount(shareId, extra, 'synthetic-own-jwt', signal)
+    expect(paths).toEqual(['otp', 'verify-otp', 'verify-secret', 'delivery', 'confirmation', 'verify-account'])
     expect(bodies).toEqual([
       { sessionToken: session.sessionToken, generation: 2, language: 'pl' },
       { sessionToken: session.sessionToken, generation: 2, code: '654321' },

@@ -13,7 +13,7 @@ export interface CreateEntryShareInput {
   shareId: string
   sourceRevision: string
   expiresAt: string
-  maximumReceipts: number
+  maximumReceipts: number | null
   recipientMode: ShareRecipientMode
   recipientEmail: string | null
   protection: ShareProtection
@@ -29,7 +29,7 @@ export interface EntryShareListItem {
   status: string
   createdAt: string
   expiresAt: string
-  maximumReceipts: number
+  maximumReceipts: number | null
   deliveryCount: number
   firstDeliveredAt: string | null
   lastDeliveredAt: string | null
@@ -52,7 +52,7 @@ function sharingPath(vaultId: string, entryId: string): string {
 
 export function issueShareCreationChallenge(vaultId: string, entryId: string, signal: AbortSignal) {
   return api.post(`${sharingPath(vaultId, entryId)}/creation-challenge`, {
-    signal, retry: 0, cache: 'no-store', redirect: 'error',
+    signal, retry: 0, cache: 'no-store', redirect: 'error', json: {},
   }).json<ShareCreationChallenge>()
 }
 
@@ -79,4 +79,13 @@ export async function revokeEntryShare(vaultId: string, entryId: string, shareId
   await api.delete(`${sharingPath(vaultId, entryId)}/${encodeURIComponent(shareId)}`, {
     signal, cache: 'no-store', retry: 0, redirect: 'error',
   })
+}
+
+export async function changeEntryShareProtection(vaultId: string, entryId: string, shareId: string,
+  protection: ShareProtection, protectionSecret: string | null, signal: AbortSignal): Promise<void> {
+  try {
+    await api.put(`${sharingPath(vaultId, entryId)}/${encodeURIComponent(shareId)}/protection`, {
+      signal, cache: 'no-store', retry: 0, redirect: 'error', json: { protection, protectionSecret },
+    })
+  } catch { throw new Error('Sharing protection unavailable') }
 }

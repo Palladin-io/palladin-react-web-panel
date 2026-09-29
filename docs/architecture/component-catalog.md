@@ -10,9 +10,10 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `FormInput` | `shared/components/form-field.tsx` | Labelled text input | `label`, `labelSuffix?` (muted adornment, e.g. "· visible to agents"), `labelClassName?` (e.g. `sr-only`), `id`, `borderClass`, `monospace`, `error`, `copyable?`, `trailingAction?` (`{icon,onClick,label,show?}` — e.g. open-URL) + passthrough `InputHTMLAttributes`. |
 | `FieldFeedback` | `shared/components/form-field.tsx` | Fixed-height (`h-feedback`, 20px rendered) field-level error/success row, no layout shift | `visible`, `color` (red / teal), `children`. |
 | `FeedbackSlot` | `shared/components/form-field.tsx` | Animated-height wrapper that slides content in below a field | `visible`, `color`, `children` (grid `0fr→1fr` reveal). |
-| `SecretInput` | `shared/components/secret-input.tsx` | Secret field masked via `.secret-mask` font (never `type=password`) with show/hide toggle; `readOnly` keeps reveal/copy available for immutable history | `id`, `label`, `value`, `onChange`, `shown`, `onToggleShown`, `placeholder`, `disabled`, `readOnly`, `monospace`, `copyable`, `copyLabel`, `error`, `onBlur`. |
+| `SecretInput` | `shared/components/secret-input.tsx` | Secret field masked via `.secret-mask` font (never `type=password`) with show/hide toggle; `readOnly` keeps reveal/copy available for immutable history | `id`, `label`, `value`, `onChange`, `shown`, `onToggleShown`, `placeholder`, `disabled`, `readOnly`, `monospace`, `copyable`, `copyLabel`, `error`, `onBlur`, `appearance` (input default / display; display is read-only and separates actions from value). |
 | `FormTextarea` | `shared/components/form-textarea.tsx` | Labelled textarea matching `FormInput` tokens | `label`, `id`, `labelClassName`, `borderClass`, `hasError`, `monospace`. |
 | `FormSelect` | `shared/components/form-select.tsx` | Native `<select>` styled like `FormInput` with a chevron affordance | `id`, `label?`, `labelClassName?`, `children` (`<option>`s) + passthrough `SelectHTMLAttributes`. |
+| `FormSection` | `shared/components/form-section.tsx` | Initially collapsed form group; current choice at the right, validation feedback visible while collapsed | `label`, `summary`, `error?`, `children`. Used by Entry sharing. |
 | `SearchBar` | `shared/components/search-bar.tsx` | Canonical list/global search field; fixed `h-control`, `text-ui`, card-surface background | `value`, `onChange`, `placeholder?`, `className?`, `inputRef?`, `name?`, `autoFocus?`, `trailing?`. |
 | `EncryptionNotice` | `shared/components/encryption-notice.tsx` | Success-tinted "encrypted on your device" callout (`--cv-success`) | `children` (caller's translated copy). Used by create-entry + import wizard. |
 | `FileDropzone` | `vaults/components/file-dropzone.tsx` | Drag-and-drop + click-to-browse file picker (dashed target, first file only) | `onFile`, `accept?`, `disabled?`, `label`, `hint?`. (Feature-local; promote to `shared/` if a 2nd consumer appears.) |
@@ -22,7 +23,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `EntryIconButton` | `vaults/components/entry-icon-button.tsx` | Inline entry-icon button that opens the icon/colour picker in a portaled popover (used next to the Label input) | `icon`, `color`, `type`, `onChange`, `onColorChange`, `onFileSelected`, `disabled?`. |
 | `ScriptExecHint` | `vaults/components/script-exec-hint.tsx` | Calm `--cv-script` "runs on the agent via exec" annotation under the script editor (not a WarningZone) | none. |
 | `DialogFooter` | `shared/components/dialog-footer.tsx` | Modal footer strip: edge-bleed negative margin, top border, tinted bg | `children` (buttons use `flex-1` / `flex-[2]`). |
-| `DialogSurface` | `shared/components/dialog-surface.tsx` | Canonical compact header/body/footer chrome used by ModalShell; modal semantics and backdrop belong to the shell | `title`, `footer?`, `onClose?`, `width` (default 560), `children`. |
+| `DialogSurface` | `shared/components/dialog-surface.tsx` | Canonical compact header/body/footer chrome used by ModalShell; modal semantics and backdrop belong to the shell | `title?`, `footer?`, `footerClassName?`, `onClose?`, `width` (default 560), `children`, `surface` (modal default / auth / neutral opaque card). |
 | `ModalShell` | `shared/components/modal-shell.tsx` | Modal scaffold: backdrop, Escape dismiss, body scroll lock, and (with `title`) the canonical header+divider / scroll body / divided footer chrome | `onClose?`, `ariaLabel`, `title?` (ReactNode → renders header + close + divider + scroll body), `footer?` (DialogFooter), `width` (default 480; 560 for forms), `children`. See `docs/architecture/dialogs.md`. |
 | `Icon` | `shared/components/icon.tsx` | Bundled Lucide SVG wrapper with stable legacy names | `name`, `size` (default 18), `color`, `className`, `ariaHidden`, `style`. Unknown names render a local question-mark SVG. |
 | `Tooltip` | `shared/components/tooltip.tsx` | 150ms-delay tooltip portaled to body; shows only when text is truncated | `content`, `children`, `className`, `delayMs`. |
@@ -36,8 +37,13 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `PasswordStrengthBar` | `shared/components/password-strength-bar.tsx` | 4-segment strength bar (score 0–4) | `score: PasswordStrength`. |
 | `AuthSubmitButton` | `shared/components/auth-submit-button.tsx` | Full-width hero CTA for auth screens (not the compact `Button`) | `children`, `className` + `ButtonHTMLAttributes`. |
 | `RotatingWelcome` | `shared/components/rotating-welcome.tsx` | Localized rotating brand lines shared by login and unlock; clears interval and fade timeout on unmount | `className?` (spacing, defaults to `mb-7`). |
-| `AppWordmark` | `shared/components/app-wordmark.tsx` | Palladin logo + wordmark | `size` (sm / lg / hero), `subtitle?` (sm only). `hero` uses landing-matched auth brand tokens; the compact lg gap remains 16px. |
-| `AuthBrandHeader` | `shared/components/auth-brand-header.tsx` | Landing-matched logo, wordmark and rotating brand lines for login and unlock | Reuses `AppWordmark size="hero"` and `RotatingWelcome`; shared responsive geometry through `--cv-auth-brand-*`. |
+| `AppWordmark` | `shared/components/app-wordmark.tsx` | Palladin logo + wordmark | `size` (sm / lg / hero / dialog / sharing), `subtitle?` (sm only); `hero` uses landing-matched auth brand tokens; `sharing` is the centered extension-style horizontal public receiver lockup. |
+| `AuthBrandHeader` | `shared/components/auth-brand-header.tsx` | Landing-matched logo, wordmark and optional rotating brand line | `showWelcome?` (default true); reuses `AppWordmark size="hero"` and `RotatingWelcome`. Share reception uses AppWordmark's sharing variant. |
+
+`CopyButton.feedback` opts into value-free Sonner copy success/error feedback.
+`SecretInput.copyFeedback` forwards it; `clearCopiedSecret` defaults to true and
+is explicitly false only for the owner-approved public receiver. Other consumers
+retain their current clipboard lifecycle.
 | `RecoveryKeyDisplay` | `shared/components/recovery-key-display.tsx` | Shared recovery mnemonic display and acknowledgement action for account setup flows | `mnemonic`, `continueLabel`, `onContinue`. |
 | `RecoveryKeyConfirmationForm` | `shared/components/recovery-key-confirmation-form.tsx` | Shared three-word recovery-key challenge with inline validation and submit state | `mnemonic`, `onConfirmed`, `isSubmitting`, `error`, `onValidated?`. |
 | `ErrorBoundary` | `shared/components/error-boundary.tsx` | Per-feature route error boundary | standard class-component boundary. |
@@ -67,6 +73,11 @@ These patterns are duplicated 2+ times with no shared component. Extract on next
 | `InlineEditFooter` | `<InlineEditFooter onCancel onSave saving? disabled? cancelLabel? saveLabel? />` | **3 instances** — `mt-4 flex justify-end gap-2 border-t pt-4` at `agents/components/agent-edit-form.tsx:179`, `vaults/entry-detail-page.tsx:772`, `vaults/components/vault-settings-form.tsx:163` (in-page forms, `justify-end` — not modal `DialogFooter`). |
 
 ## Reuse rules
+
+Detail-tab primary actions belong in `DetailTabBar.actions`, on the same row as
+the tabs (Create sharing link follows Add agent). Never add another toolbar under
+the tab strip. Standalone public share reception is centered like an auth flow;
+the left-aligned rule still applies to authenticated list/split panels.
 
 1. **Fields** — use `FormInput` (text/url/email), `SecretInput` (password show/hide), `FormTextarea` (multi-line). Never inline-style raw `<input>`/`<textarea>`. Raw `<input>` is only for custom composites (combobox, search bar) and must use the canonical class string in `AGENTS.md`.
 2. **Field feedback** — `FieldFeedback` (fixed height) or `FeedbackSlot` (animated) for inline validation only. API results go to Sonner toasts, never inline.

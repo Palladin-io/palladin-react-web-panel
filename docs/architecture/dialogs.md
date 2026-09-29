@@ -65,6 +65,19 @@ All modal actions go in `DialogFooter` (`shared/components/dialog-footer.tsx`), 
 - Field-feedback rhythm: use `FeedbackSlot` (animated, self-collapsing) below a field — **never** the fixed-`h-4` `FieldFeedback` + `-mb-4` wrapper (it overlaps the next label when an error shows). See `forms-and-validation.md`.
 
 `DialogSurface` owns the reusable chrome rendered by titled `ModalShell`.
+Public auth-route surfaces may render `DialogSurface` directly with
+`surface="auth"` for the login/unlock palette and auth dividers, while keeping
+the canonical header, scrollable body and footer.
+The public sharing receiver uses `DialogSurface surface="card"` at 480 design
+pixels (600 CSS pixels at current density) and centered `AppWordmark size="sharing"`.
+Its scoped Founder Program palette, divider-free header/action area and joined
+product footer do not change ordinary modal chrome. Identity and equal-height
+fields share an inner frame. Notes/Script source open a focus-managed ModalShell.
+There is no brand hero or redundant receiver heading/Close action. The primary
+action keeps the approved landing glow. Product and Privacy/Terms links open
+without exposing a referrer. Account
+continuation appears as one save action only after receipt, never as extra
+login/register buttons in the body.
 Consent startup and settings both use ModalShell at 440 design pixels
 (550 CSS pixels at the default density). Consent is never embedded on a page;
 the settings menu opens the dialog over the current section without navigation.

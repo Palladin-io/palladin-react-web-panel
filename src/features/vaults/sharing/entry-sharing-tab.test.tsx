@@ -4,10 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../../auth'
 import { EntrySharingTab } from './entry-sharing-tab'
+import { EntryShareAction } from './entry-share-action'
 import { sharingId, sharingListItem, sharingScope, sharingTestAccessToken } from './sharing-test-fixtures'
 
-const mocks = vi.hoisted(() => ({ list: vi.fn(), revoke: vi.fn(), success: vi.fn(), error: vi.fn() }))
-vi.mock('./sharing-api', () => ({ listEntryShares: mocks.list, revokeEntryShare: mocks.revoke }))
+const mocks = vi.hoisted(() => ({ list: vi.fn(), revoke: vi.fn(), change: vi.fn(), success: vi.fn(), error: vi.fn() }))
+vi.mock('./sharing-api', () => ({ listEntryShares: mocks.list, revokeEntryShare: mocks.revoke, changeEntryShareProtection: mocks.change }))
 vi.mock('./create-entry-share-dialog', () => ({ CreateEntryShareDialog: () => <div role="dialog">Create surface</div> }))
 vi.mock('sonner', () => ({ toast: { success: mocks.success, error: mocks.error } }))
 
@@ -21,14 +22,29 @@ beforeEach(() => {
 
 function mount() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
-  return render(<QueryClientProvider client={client}><EntrySharingTab scope={sharingScope} /></QueryClientProvider>)
+  return render(<QueryClientProvider client={client}><EntryShareAction scope={sharingScope} /><EntrySharingTab scope={sharingScope} /></QueryClientProvider>)
 }
 
 describe('Entry sharing list', () => {
+  it('opens the scoped protection editor and repairs the list after an explicit update', async () => {
+    mount()
+    await screen.findByText('recipient@example.test')
+    await userEvent.click(screen.getByRole('button', { name: 'Change protection' }))
+    expect(screen.getByRole('dialog', { name: 'Change protection' })).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'pin')
+    await userEvent.type(screen.getByLabelText('PIN'), '739284')
+    await userEvent.type(screen.getByLabelText('Confirm password or PIN'), '739284')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(mocks.change).toHaveBeenCalledWith(sharingScope.vaultId, sharingScope.entryId, sharingId, 'pin', '739284', expect.any(AbortSignal)))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(mocks.list).toHaveBeenCalledTimes(2))
+  })
+
   it('shows delivery counters separately from first confirmation and opens the create surface', async () => {
     mount()
     expect(await screen.findByText('recipient@example.test')).toBeInTheDocument()
     expect(screen.getByText('1 / 3')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Receipt details' }))
     expect(screen.getByText('First display confirmation')).toBeInTheDocument()
     expect(screen.getByText('No additional secret')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Create sharing link' }))
@@ -62,7 +78,7 @@ describe('Entry sharing list', () => {
     mocks.list.mockResolvedValue({ items: [{ ...sharingListItem, status: 'future', sourceChanged: true }], nextCursor: null })
     mount()
     expect(await screen.findByText('Unknown')).toBeInTheDocument()
-    expect(screen.getByText('The source entry has changed')).toBeInTheDocument()
+    expect(screen.getByText(/The source entry has changed/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Revoke link' })).not.toBeInTheDocument()
   })
 

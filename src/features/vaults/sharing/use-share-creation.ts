@@ -4,7 +4,7 @@ import { organizationIdFromAccessToken } from '../../../shared/lib/organization-
 import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
 import { prepareEntryShare, type PreparedEntryShare } from '../../../shared/crypto/entry-share'
 import { clearEntryShareLink, entryShareFragment, entrySharePath } from '../../../shared/crypto/entry-share-link'
-import { selectEntryShareSnapshot } from '../../../shared/crypto/entry-share-selection'
+import { createEntryShareSnapshot } from '../../../shared/crypto/entry-share-selection'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import type { MemberSecretV1 } from '../../../shared/crypto/vault-plaintext'
 import { openCurrentMemberEntrySecret } from '../sync/current-member-entry-reader'
@@ -91,7 +91,7 @@ export function useShareCreation(scope: ShareSourceScope, onCreated: () => void)
     }
   }, [organizationId, vaultId, entryId, revision, keyVersion, loadAttempt])
 
-  async function submit(form: SharingForm, selectedIds: readonly string[]): Promise<'created' | 'failed' | 'cancelled'> {
+  async function submit(form: SharingForm): Promise<'created' | 'failed' | 'cancelled'> {
     const operation = operationRef.current
     if (!operation || operation.submitting || !source || !sessionMatches(operation, organizationId)) return 'cancelled'
     operation.submitting = true
@@ -109,7 +109,7 @@ export function useShareCreation(scope: ShareSourceScope, onCreated: () => void)
         const expiresAt = new Date(Date.now() + Number(form.lifetimeHours) * 3_600_000).toISOString()
         const material = await prepareEntryShare({
           organizationId, vaultId, entryId, shareId: challenge.shareId, sourceRevision: revision, expiresAt,
-        }, selectEntryShareSnapshot(source, selectedIds))
+        }, createEntryShareSnapshot(source))
         if (!sessionMatches(operation, organizationId)) {
           clearEntryShareLink(material)
           return 'cancelled'
@@ -117,7 +117,7 @@ export function useShareCreation(scope: ShareSourceScope, onCreated: () => void)
         operation.material = material
         operation.request = {
           shareId: challenge.shareId, sourceRevision: revision, expiresAt,
-          maximumReceipts: Number(form.maximumReceipts), recipientMode: form.recipientMode,
+          maximumReceipts: form.maximumReceipts === '' ? null : Number(form.maximumReceipts), recipientMode: form.recipientMode,
           recipientEmail: form.recipientMode === 'namedRecipient' ? form.recipientEmail.trim() : null,
           protection: form.protection, protectionSecret: form.protection === 'none' ? null : form.protectionSecret,
           nonce: material.nonce, ciphertext: material.ciphertext, accessToken: encodeBase64Url(material.accessToken),

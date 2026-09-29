@@ -46,8 +46,7 @@ describe('Sharing continuation in the actual application router', () => {
     try {
       await router.load()
       render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>)
-      await userEvent.click(await screen.findByRole('button', { name: 'Continue in browser' }))
-      await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+
       await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce())
       const previousSignal = api.open.mock.calls[0][2] as AbortSignal
       const nextPath = `/share/${nextId}`
@@ -55,11 +54,16 @@ describe('Sharing continuation in the actual application router', () => {
         nativeReplace(null, '', `${nextPath}${fragment}`)
         window.dispatchEvent(new PopStateEvent('popstate'))
       })
-      expect(await screen.findByRole('button', { name: 'Continue in browser' })).toBeEnabled()
-      expect(screen.queryByLabelText('Password')).not.toBeInTheDocument()
+      await waitFor(() => expect(api.open).toHaveBeenCalledTimes(2))
       expect(previousSignal.aborted).toBe(true)
-      expect(api.receive).toHaveBeenCalledOnce()
-      expect(api.confirm).toHaveBeenCalledOnce()
+      await waitFor(() => expect(api.receive).toHaveBeenCalledTimes(2))
+      if (nextId === fixture.scope.shareId) await waitFor(() => expect(api.confirm).toHaveBeenCalledTimes(2))
+      else {
+        // The old fixture cannot authenticate a different share ID; no plaintext or ACK may escape.
+        expect(await screen.findByText(/Reopen the original full link/)).toBeInTheDocument()
+        expect(screen.queryByLabelText('Password')).not.toBeInTheDocument()
+        expect(api.confirm).toHaveBeenCalledOnce()
+      }
       expect(router.state.location.href).toBe(nextPath)
       expect(observed.every((href) => !href.includes('#') && !href.includes('key=') && !href.includes('access='))).toBe(true)
       expect(failure).not.toHaveBeenCalled()
@@ -70,17 +74,16 @@ describe('Sharing continuation in the actual application router', () => {
     const router = createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [sharePath] }) })
     await router.load()
     render(<QueryClientProvider client={client}><RouterProvider router={router} /></QueryClientProvider>)
-    await userEvent.click(await screen.findByRole('button', { name: 'Continue in browser' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Receive entry' }))
+
     await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce())
-    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
-    await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
+    await userEvent.click(screen.getByRole('button', { name: 'Save to Palladin' }))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/register'))
     expect(router.state.location.search).toEqual({ redirect: sharePath })
     expect(screen.queryByLabelText('Password')).not.toBeInTheDocument()
     expect(readPendingEntryShare(fixture.scope.shareId)).not.toBeNull()
-    if (next === 'register') {
-      await userEvent.click(screen.getByRole('link', { name: /create.*account/i }))
-      await waitFor(() => expect(router.state.location.pathname).toBe('/register'))
+    if (next !== 'register') {
+      await userEvent.click(screen.getByRole('link', { name: /sign in/i }))
+      await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
       expect(router.state.location.search).toEqual({ redirect: sharePath })
     }
     if (next === 'abandon') {

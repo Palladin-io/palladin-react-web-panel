@@ -98,7 +98,7 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
           </div>
         })}
       </>}
-      {saving.retryPending ? <WarningZone title={t('sharing.copy.retry')}><p>{t('sharing.copy.ambiguous')}</p></WarningZone> : null}
+      {saving.retryPending ? <WarningZone title={t('sharing.copy.retry')}>{t('sharing.copy.ambiguous')}</WarningZone> : null}
     </form>
   </ModalShell>
 }
