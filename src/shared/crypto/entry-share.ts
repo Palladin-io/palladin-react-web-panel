@@ -21,6 +21,7 @@ const nativeFieldTypes: Readonly<Record<string, z.infer<typeof fieldSchema>['typ
   'credential.totp': 'totp', 'key.value': 'concealed', 'key.url': 'text',
   'script.source': 'multiline', 'script.interpreter': 'text',
   'creditCard.cardholderName': 'text', 'creditCard.cardNumber': 'concealed',
+  'creditCard.cvv': 'concealed',
   'creditCard.expiryMonth': 'text', 'creditCard.expiryYear': 'text',
   'creditCard.billingAddress': 'multiline', notes: 'multiline', description: 'multiline',
 }

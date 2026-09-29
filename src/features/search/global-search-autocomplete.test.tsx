@@ -13,8 +13,7 @@ const captureMock = vi.fn()
 vi.mock('../../shared/lib/analytics', () => ({ analytics: { capture: (...args: unknown[]) => captureMock(...args) } }))
 
 const encryptedAssetUrlMock = vi.hoisted(() => vi.fn(() => ({ url: null as string | null, corrupt: false })))
-vi.mock('../vaults', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../vaults')>(),
+vi.mock('../vaults/assets/use-vault-encrypted-asset-url', () => ({
   useVaultEncryptedAssetUrl: (...args: unknown[]) => encryptedAssetUrlMock(...args),
 }))
 

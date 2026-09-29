@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { StrictMode, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -16,7 +16,7 @@ vi.mock('@tanstack/react-router', async (importOriginal) => ({
 // through the real crypto + HTTP stack.
 const mutateMock = vi.fn()
 let isPending = false
-let pendingInput: { name: string; description?: string; icon?: string; color?: string } | null = null
+let pendingInput: { name: string; description?: string; icon?: string; color?: string; iconFile?: File } | null = null
 
 vi.mock('../use-create-vault', () => ({
   useCreateVault: () => ({
@@ -41,9 +41,7 @@ vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }))
 
 // Picker children render real DOM (icons, file inputs) we don't care
 // about here. Stubbing them keeps the test focused on form behaviour.
-vi.mock('./vault-icon-picker', () => ({
-  VaultIconPicker: () => <div data-testid="vault-icon-picker" />,
-}))
+vi.mock('./vault-icon-browser', () => ({ IconColorBrowser: () => null }))
 
 function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({
@@ -115,6 +113,45 @@ describe('CreateVaultDialog', () => {
     render(<CreateVaultDialog open={true} onClose={vi.fn()} />, { wrapper })
 
     expect(screen.queryByText(/previous result is still unknown/i)).not.toBeInTheDocument()
+  })
+
+  it('previews a selected file and submits it separately from the default glyph', async () => {
+    const user = userEvent.setup()
+    const preview = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:icon-preview')
+    const revoke = vi.spyOn(URL, 'revokeObjectURL')
+    const { unmount } = render(<CreateVaultDialog open onClose={vi.fn()} />, { wrapper })
+    const file = new File(['image'], 'icon.png', { type: 'image/png' })
+    await user.upload(screen.getByLabelText(/upload custom icon/i), file)
+    expect(screen.getByRole('img', { name: /^icon$/i })).toHaveAttribute('src', 'blob:icon-preview')
+    await user.type(screen.getByLabelText(/vault name/i), 'Custom')
+    await user.click(screen.getByRole('button', { name: /^create vault$/i }))
+    expect(mutateMock.mock.calls[0][0]).toMatchObject({ icon: 'shield', iconFile: file })
+    unmount()
+    expect(revoke).toHaveBeenCalledWith('blob:icon-preview')
+    preview.mockRestore()
+    revoke.mockRestore()
+  })
+
+  it('releases every retry preview allocated under StrictMode', () => {
+    pendingInput = { name: 'Retry', iconFile: new File(['image'], 'icon.png', { type: 'image/png' }) }
+    let next = 0
+    const allocated = vi.spyOn(URL, 'createObjectURL').mockImplementation(() => `blob:retry-${++next}`)
+    const revoked = vi.spyOn(URL, 'revokeObjectURL')
+    const { unmount } = render(<StrictMode><CreateVaultDialog open onClose={vi.fn()} /></StrictMode>, { wrapper })
+    unmount()
+    for (const result of allocated.mock.results) expect(revoked).toHaveBeenCalledWith(result.value)
+    allocated.mockRestore()
+    revoked.mockRestore()
+  })
+
+  it('reports a failed icon upload but still opens the already-created Vault', async () => {
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ vaultId: 'vault-1', iconUploadFailed: true }))
+    const user = userEvent.setup()
+    render(<CreateVaultDialog open onClose={vi.fn()} />, { wrapper })
+    await user.type(screen.getByLabelText(/vault name/i), 'Custom')
+    await user.click(screen.getByRole('button', { name: /^create vault$/i }))
+    expect(toastError).toHaveBeenCalledWith(expect.stringMatching(/vault created, but the icon/i))
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/vaults/$vaultId', params: { vaultId: 'vault-1' } })
   })
 
   it('closes and navigates directly to the newly created vault', async () => {

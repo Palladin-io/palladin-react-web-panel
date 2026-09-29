@@ -32,6 +32,8 @@ const {
   openCurrentEntryMock,
   canonicalRefetchMock,
   retrySyncMock,
+  repairIconMutateMock,
+  repairIconScopeMock,
   structuralMismatch,
   state,
 } = vi.hoisted(() => ({
@@ -45,6 +47,8 @@ const {
   openCurrentEntryMock: vi.fn(),
   canonicalRefetchMock: vi.fn(),
   retrySyncMock: vi.fn(),
+  repairIconMutateMock: vi.fn(),
+  repairIconScopeMock: vi.fn(),
   structuralMismatch: new Error('structural head mismatch'),
   state: {
     updateIsPending: false,
@@ -55,6 +59,8 @@ const {
     decryptedIconReference: undefined as string | undefined,
     memberIndex: { memberLabel: 'Stripe API Key', entryType: 'key' as 'key' | 'credential' | 'creditCard', icon: null },
     memberEntryAvailable: true,
+    repairIconCandidateCount: 0,
+    wideScreen: false,
   },
 }))
 
@@ -82,6 +88,8 @@ type EntryPlaintextLite =
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
 }))
+vi.mock('../../shared/hooks/use-wide-screen', () => ({ useWideScreen: () => state.wideScreen }))
+vi.mock('./global-entries-page', () => ({ GlobalEntriesPanel: () => null }))
 
 vi.mock('./use-vault', () => ({
   useVault: (id: string) => useVaultMock(id),
@@ -119,6 +127,17 @@ vi.mock('./use-delete-entry', () => ({
       return state.deleteIsPending
     },
   }),
+}))
+
+vi.mock('./use-repair-missing-website-icons', () => ({
+  useRepairMissingWebsiteIcons: (vaultId: string, entryId?: string) => {
+    repairIconScopeMock(vaultId, entryId)
+    return {
+      candidateCount: state.repairIconCandidateCount,
+      isPending: false,
+      mutate: repairIconMutateMock,
+    }
+  },
 }))
 
 // Crypto round-trip is exercised by entry-crypto.test.ts. Here we stub the
@@ -182,7 +201,7 @@ vi.mock('../../shared/crypto/sodium', () => ({
 }))
 
 vi.mock('sonner', () => ({
-  toast: { success: toastSuccess, error: toastError },
+  toast: { success: toastSuccess, error: toastError, info: vi.fn() },
 }))
 
 // Heavy sub-components — focus the test on the form contract.
@@ -270,6 +289,30 @@ function unlockedAuthStore() {
 // ---------------------------------------------------------------------------
 
 describe('EntryDetailPage — DetailsTab', () => {
+  it('drops previous plaintext and reveal state before opening another global Entry', async () => {
+    const user = userEvent.setup()
+    state.wideScreen = true
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'previous-entry-secret' }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: KEY_ENTRY })
+    const view = render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" fromEntries />, { wrapper })
+    await waitFor(() => expect(screen.getByLabelText(/^value$/i)).toHaveValue('previous-entry-secret'))
+    await user.click(screen.getByRole('button', { name: /^reveal$/i }))
+    expect(screen.getByLabelText(/^value$/i)).not.toHaveClass('secret-mask')
+    let rejectOpen!: (error: Error) => void
+    openCurrentEntryMock.mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectOpen = reject }))
+    view.rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-2" fromEntries />)
+    expect(screen.getByLabelText(/^value$/i)).toHaveValue('')
+    expect(screen.queryByDisplayValue('previous-entry-secret')).not.toBeInTheDocument()
+    await act(async () => rejectOpen(new Error('test decrypt failure')))
+    expect(screen.queryByDisplayValue('previous-entry-secret')).not.toBeInTheDocument()
+    state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'new-entry-secret' }
+    view.rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-3" fromEntries />)
+    await waitFor(() => expect(screen.getByLabelText(/^value$/i)).toHaveValue('new-entry-secret'))
+    expect(screen.getByLabelText(/^value$/i)).toHaveClass('secret-mask')
+  })
+
   it('makes newly added TOTP grantable when saving an existing credential', async () => {
     const user = userEvent.setup()
     unlockedAuthStore()
@@ -282,8 +325,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     await user.click(screen.getByRole('button', { name: /add 2fa/i }))
     await user.type(screen.getByLabelText(/otpauth|secret/i), 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ')
     await user.click(screen.getByRole('button', { name: /apply totp/i }))
-    await user.click(screen.getByRole('button', { name: /save changes/i }))
-    await waitFor(() => expect(updateMutateMock).toHaveBeenCalled())
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
     const draft = updateMutateMock.mock.calls[0][0].draft
     const fieldId = `custom:${draft.content.fields[0].id}`
     expect(draft.policy.fields[fieldId]).toBe('onGrantDerived')
@@ -395,7 +437,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(draft.content.fields).toEqual([field])
   })
 
-  it('preserves unsaved TOTP when sync refreshes the same Entry revision', async () => {
+  it('saves applied TOTP immediately and preserves it during a same-head sync refresh', async () => {
     const user = userEvent.setup()
     unlockedAuthStore()
     state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'test-password' }
@@ -407,9 +449,80 @@ describe('EntryDetailPage — DetailsTab', () => {
     await user.click(screen.getByRole('button', { name: /add 2fa/i }))
     await user.type(screen.getByLabelText(/otpauth|secret/i), 'JBSWY3DPEHPK3PXP')
     await user.click(screen.getByRole('button', { name: /apply totp/i }))
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
+    expect(updateMutateMock.mock.calls[0][0].draft.content.fields[0].value.secret).toBe('JBSWY3DPEHPK3PXP')
     expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
 
     await act(async () => rerender(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />))
+
+    expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
+    expect(openCurrentEntryMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not save applied TOTP while the edited URL is invalid', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'fixture-password' }
+    state.memberIndex = { memberLabel: 'GitHub', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
+    await user.clear(screen.getByLabelText(/^url$/i))
+    await user.type(screen.getByLabelText(/^url$/i), 'not-a-url')
+    await user.click(screen.getByRole('button', { name: /add 2fa/i }))
+    await user.type(screen.getByLabelText(/otpauth|secret/i), 'JBSWY3DPEHPK3PXP')
+    await user.click(screen.getByRole('button', { name: /apply totp/i }))
+    expect(updateMutateMock).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
+    await user.clear(screen.getByLabelText(/^url$/i))
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
+    expect(updateMutateMock.mock.calls[0][0].draft.content.fields[0].value.secret).toBe('JBSWY3DPEHPK3PXP')
+  })
+
+  it('validates the newly applied TOTP against existing custom-field labels before saving', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = {
+      type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'test-password',
+      fields: [{ id: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee', label: '2fa', type: 'text', value: 'fixture' }],
+    }
+    state.memberIndex = { memberLabel: 'GitHub', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
+    await user.click(screen.getByRole('button', { name: /add 2fa/i }))
+    await user.type(screen.getByLabelText(/otpauth|secret/i), 'JBSWY3DPEHPK3PXP')
+    await user.click(screen.getByRole('button', { name: /apply totp/i }))
+    await waitFor(() => expect(toastError).toHaveBeenCalled())
+    expect(updateMutateMock).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /^save changes$/i })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
+  })
+
+  it('keeps applied TOTP after a save failure and retries it with Save', async () => {
+    updateMutateMock.mockImplementation((_input, options) => options.onError())
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    state.decryptResult = { type: ENTRY_TYPE_CREDENTIAL, username: 'alice', password: 'test-password' }
+    state.memberIndex = { memberLabel: 'GitHub', entryType: 'credential', icon: null }
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+    await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
+    await user.click(screen.getByRole('button', { name: /add 2fa/i }))
+    await user.type(screen.getByLabelText(/otpauth|secret/i), 'JBSWY3DPEHPK3PXP')
+    await user.click(screen.getByRole('button', { name: /apply totp/i }))
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
+    expect(updateMutateMock.mock.calls[0][0].draft.content.fields[0].value.secret).toBe('JBSWY3DPEHPK3PXP')
+    expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
+
+    expect(toastError).toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /^save changes$/i }))
+    await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(2))
+    expect(updateMutateMock.mock.calls[1][0].draft.content.fields[0].value.secret).toBe('JBSWY3DPEHPK3PXP')
 
     expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
     expect(openCurrentEntryMock).toHaveBeenCalledTimes(1)
@@ -437,6 +550,8 @@ describe('EntryDetailPage — DetailsTab', () => {
     openCurrentEntryMock.mockClear()
     canonicalRefetchMock.mockReset().mockResolvedValue({ data: KEY_ENTRY })
     retrySyncMock.mockReset()
+    repairIconMutateMock.mockReset()
+    repairIconScopeMock.mockReset()
     state.updateIsPending = false
     state.deleteIsPending = false
     state.decryptResult = null
@@ -444,6 +559,8 @@ describe('EntryDetailPage — DetailsTab', () => {
     state.policyFields = {}
     state.decryptedIconReference = undefined
     state.memberEntryAvailable = true
+    state.repairIconCandidateCount = 0
+    state.wideScreen = false
     state.memberIndex = { memberLabel: 'Stripe API Key', entryType: 'key', icon: null }
     useAuthStore.setState({ privateKey: null, isVaultLocked: true })
     // Default to wide-screen off so the detail body renders without the
@@ -544,6 +661,31 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(screen.queryByLabelText(/^value$/i)).not.toBeInTheDocument()
   })
 
+  it('offers a single-Entry icon repair and blocks it while the form has unsaved edits', async () => {
+    const user = userEvent.setup()
+    unlockedAuthStore()
+    useAuthStore.setState({ permissions: 8 })
+    state.decryptResult = {
+      type: ENTRY_TYPE_CREDENTIAL,
+      username: 'user', password: 'fixture-password', url: 'https://www.reddit.com/login',
+    }
+    state.memberIndex = { memberLabel: 'Reddit', entryType: 'credential', icon: null }
+    state.repairIconCandidateCount = 1
+    useVaultMock.mockReturnValue({ isPending: false, isError: false, data: VAULT })
+    useEntryDetailMock.mockReturnValue({ isPending: false, isError: false, data: CREDENTIAL_ENTRY })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-2" />, { wrapper })
+
+    const repairButton = await screen.findByRole('button', { name: /find website icon/i })
+    await waitFor(() => expect(repairButton).toBeEnabled())
+    await user.type(screen.getByLabelText(/^url$/i), '/changed')
+    expect(repairButton).toBeDisabled()
+    expect(repairIconMutateMock).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /discard/i }))
+    await user.click(repairButton)
+    expect(repairIconScopeMock).toHaveBeenCalledWith('vault-1', 'entry-2')
+    expect(repairIconMutateMock).toHaveBeenCalledTimes(1)
+  })
+
   it('keeps per-field CREDIT_CARD validation visible until each value is fixed', async () => {
     const user = userEvent.setup()
     unlockedAuthStore()
@@ -562,7 +704,7 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     const month = await screen.findByLabelText(/expiry month/i)
     expect(screen.getByLabelText(/cardholder name/i)).toHaveAttribute('maxlength', '256')
-    expect(screen.queryByLabelText(/security code|cvv|cvc/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/cvv \/ cvc/i)).toHaveValue('')
     expect(screen.queryByLabelText(/^pin/i)).not.toBeInTheDocument()
     await user.clear(month)
     await user.type(month, '13')
@@ -841,7 +983,7 @@ describe('EntryDetailPage — DetailsTab', () => {
     expect(labelInput).toHaveValue('Stripe API Key')
   })
 
-  it('opens the delete dialog, confirms, and navigates away on success', async () => {
+  it.each([false, true])('returns to the source list after deletion (global Entries: %s)', async (fromEntries) => {
     const user = userEvent.setup()
     unlockedAuthStore()
     state.decryptResult = { type: ENTRY_TYPE_KEY, value: 'sk_live_123' }
@@ -855,7 +997,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       options.onSuccess()
     })
 
-    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" />, { wrapper })
+    render(<EntryDetailPage vaultId="vault-1" entryId="entry-1" fromEntries={fromEntries} />, { wrapper })
 
     await user.click(screen.getByRole('button', { name: /^delete entry$/i }))
     // Confirm dialog has its own Delete Entry button.
@@ -867,7 +1009,9 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     expect(deleteMutateMock).toHaveBeenCalledWith('entry-1', expect.any(Object))
     expect(toastSuccess).toHaveBeenCalled()
-    expect(navigateMock).toHaveBeenCalled()
+    expect(navigateMock).toHaveBeenCalledWith(fromEntries
+      ? { to: '/entries' }
+      : { to: '/vaults/$vaultId', params: { vaultId: 'vault-1' } })
   })
 
   it('shows an error toast when the delete mutation fails', async () => {

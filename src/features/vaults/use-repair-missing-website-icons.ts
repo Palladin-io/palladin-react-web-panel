@@ -43,9 +43,11 @@ export interface RepairMissingWebsiteIconsResult {
 
 function missingWebsiteIconCandidates(
   vault: DecryptedMemberVault | undefined,
+  entryId?: string,
 ): MissingWebsiteIconCandidate[] {
   if (!vault || vault.status !== 'ready') return []
   return [...vault.entries.values()].flatMap((entry) => {
+    if (entryId && entry.entryId !== entryId) return []
     const payload = entry.payload
     if (entry.state !== 'active' || entry.corrupt || !payload
       || payload.entryType !== 'credential' || payload.icon !== null || !payload.urlDomain) return []
@@ -64,21 +66,22 @@ function assertUnlockSession(privateKey: Uint8Array, cryptoSessionGeneration: nu
 
 /**
  * Explicitly repairs canonical public-asset references omitted by an earlier
- * import. Catalog work completes before any Vault key is opened. Each eligible
- * Entry is then decrypted and updated independently through the normal
- * canonical revision/grant-refresh mutation; one bad Entry cannot expose or
- * block the rest of the batch.
+ * import. An optional Entry ID restricts both catalog work and mutations to
+ * that Entry. Catalog work completes before any Vault key is opened. Each
+ * eligible Entry is then decrypted and updated independently through the normal
+ * canonical revision/grant-refresh mutation.
  */
-export function useRepairMissingWebsiteIcons(vaultId: string) {
+export function useRepairMissingWebsiteIcons(vaultId: string, entryId?: string) {
   const queryClient = useQueryClient()
   const vault = useMemberSyncStore((state) => state.vaults.get(vaultId))
-  const candidates = useMemo(() => missingWebsiteIconCandidates(vault), [vault])
+  const candidates = useMemo(() => missingWebsiteIconCandidates(vault, entryId), [vault, entryId])
   const mutation = useMutation({
     mutationFn: async (
       input: RepairMissingWebsiteIconsInput,
     ): Promise<RepairMissingWebsiteIconsResult> => {
       const snapshot = missingWebsiteIconCandidates(
         useMemberSyncStore.getState().vaults.get(vaultId),
+        entryId,
       )
       if (snapshot.length === 0) {
         return { candidates: 0, repaired: 0, skipped: 0, failed: 0 }

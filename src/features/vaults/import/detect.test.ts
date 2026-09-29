@@ -92,6 +92,7 @@ describe('parseText — CSV formats', () => {
       expiryMonth: '12',
       expiryYear: '2030',
     })])
+    expect(result.entries[0]).toHaveProperty('cvv', '123')
     expect(result.entries[0]).not.toHaveProperty('securityCode')
   })
 

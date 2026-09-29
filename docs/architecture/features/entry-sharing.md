@@ -1,5 +1,19 @@
 # Individual Entry sharing — CVT-644 (in progress)
 
+## Current-main integration (2026-09-29)
+
+Whole-card snapshots preserve optional `creditCard.cvv` as a concealed field;
+saved copies keep it exact and at `never` for Agent access. A missing CVV is not
+synthesized, and a concealed-to-text downgrade rejects independently received
+plaintext. Mobile implements the same snapshot field contract; coordinated
+consumer upgrade is required before release.
+
+Entry detail search preserves both `tab=sharing` and `from=entries`, so direct
+Sharing navigation does not discard the global-library back/sidebar context.
+Node-only domain-association tests use `*.node-test.mjs` and run during build;
+Vitest does not collect them as empty browser suites. Current-main deployment
+configuration and extension-bridge fixes are retained, not overwritten.
+
 The approved scope is the independently encrypted snapshot in CVT-644, not
 shared-Vault membership or an Agent grant. Backend lifecycle endpoints exist on
 the coordinated feature branch. The web sender form and list now call those

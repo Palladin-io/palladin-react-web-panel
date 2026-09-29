@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
-import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
+import { HOVERABLE_CARD_CLASSES, SELECTED_NAVIGATION_CARD_CLASSES } from '../../../shared/lib/styles'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_MULTIPLE_VAULTS } from '../types'
 import { CreateVaultDialog } from './create-vault-dialog'
@@ -150,12 +150,12 @@ function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
       onClick={onClick}
       className={`flex w-full cursor-pointer flex-col overflow-hidden text-left ${HOVERABLE_CARD_CLASSES}${
         isSelected
-          ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]'
+          ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}`
           : ''
       }`}
     >
       <div className="flex items-center gap-3 px-4 py-2.5">
-        <VaultIconCircle icon={icon} color={accent} size={32} iconSize={16} />
+        <VaultIconCircle vaultId={vault.id} icon={icon} color={accent} size={32} iconSize={16} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">{vault.name}</p>
           <p className="text-meta text-[var(--cv-t3)]">

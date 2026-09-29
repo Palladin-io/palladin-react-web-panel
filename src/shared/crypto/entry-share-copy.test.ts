@@ -62,6 +62,22 @@ describe('Received snapshot to independent Entry', () => {
     expect(secret.discoverable).toBe(true)
   })
 
+  it('copies concealed CVV exactly without exposing it to Agent Discovery or grants', () => {
+    const card: EntryShareSnapshot = { ...snapshot, entryType: 'creditCard', fields: [
+      { id: 'creditCard.cardholderName', label: '', type: 'text', value: 'Example User' },
+      { id: 'creditCard.cardNumber', label: '', type: 'concealed', value: '4111111111111111' },
+      { id: 'creditCard.expiryMonth', label: '', type: 'text', value: '12' },
+      { id: 'creditCard.expiryYear', label: '', type: 'text', value: '2030' },
+      { id: 'creditCard.cvv', label: '', type: 'concealed', value: '007' },
+    ] }
+    const secret = entryShareCopySecret(card, form)
+    expect(secret.content).toMatchObject({ cvv: '007' })
+    expect(secret.agentFieldAccess['creditCard.cvv']).toBe('never')
+    const downgraded = { ...card, fields: card.fields.map((field) =>
+      field.id === 'creditCard.cvv' ? { ...field, type: 'text' as const } : field) }
+    expect(() => entryShareCopySecret(downgraded, form)).toThrow()
+  })
+
   it('uses the normal Key and derived TOTP field policy', () => {
     const key: EntryShareSnapshot = { ...snapshot, entryType: 'key', fields: [
       { id: 'key.url', label: '', type: 'text', value: 'https://example.test' },

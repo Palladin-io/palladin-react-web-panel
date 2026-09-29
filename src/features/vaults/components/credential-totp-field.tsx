@@ -16,6 +16,7 @@ export interface CredentialTotpFieldProps {
   /** The pinned 2FA field, or null when the credential has no TOTP yet. */
   value: CustomField | null
   onChange: (next: CustomField | null) => void
+  onApply?: (next: CustomField) => void
   disabled?: boolean
   agentAccess?: { allowed: boolean; onChange: (allowed: boolean) => void }
 }
@@ -29,14 +30,16 @@ export interface CredentialTotpFieldProps {
  * shown. The parent preserves the original native/custom TOTP identity and
  * may expose an explicit grant-access choice.
  */
-export function CredentialTotpField({ value, onChange, disabled, agentAccess }: CredentialTotpFieldProps) {
+export function CredentialTotpField({ value, onChange, onApply, disabled, agentAccess }: CredentialTotpFieldProps) {
   const { t } = useTranslation()
   const params = value && typeof value.value === 'object' ? (value.value as TotpParams) : null
   const configured = !!params && params.secret.trim().length > 0
   const [setup, setSetup] = useState(false)
 
   const resolve = (next: TotpParams) => {
-    onChange(value ? { ...value, value: next } : { ...newTotpField(), value: next })
+    const field = value ? { ...value, value: next } : { ...newTotpField(), value: next }
+    onChange(field)
+    onApply?.(field)
     setSetup(false)
   }
 

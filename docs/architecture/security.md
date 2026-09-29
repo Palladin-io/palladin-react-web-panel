@@ -13,7 +13,9 @@ build, Vite replaces the public-asset placeholder with the validated origin of
 WebSocket origin). API origins are not shared implicitly across environments.
 HTTPS is required except for explicit loopback HTTP; credentials, query strings,
 fragments, whitespace and wildcard hosts are rejected. Missing build configuration
-does not grant a default API origin. The completed file ships in `dist/` but is **not** enforced by Vite
+does not grant a default API or public-asset origin. An empty
+`VITE_PUBLIC_ASSET_URL` also rejects catalog image URLs in the browser; the
+local asset service is selected explicitly in `.env.example`. The completed file ships in `dist/` but is **not** enforced by Vite
 or by a `<meta>` tag — it only takes effect when a host that understands
 `_headers` serves the site.
 

@@ -150,6 +150,22 @@ describe('CreateEntryModal', () => {
     expect(screen.queryByLabelText(/^username$/i)).not.toBeInTheDocument()
   })
 
+  it('delegates global creation completion without navigating to Vault detail', async () => {
+    const user = userEvent.setup()
+    const onCreated = vi.fn()
+    const onClose = vi.fn()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'global-entry' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={onClose} onCreated={onCreated} />, { wrapper })
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
+    await user.type(screen.getByLabelText(/^label$/i), 'Global key')
+    await user.type(screen.getByLabelText(/^value$/i), 'synthetic-value')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+    expect(mutateMock.mock.calls[0][0].vaultId).toBe(VAULT.id)
+    expect(onCreated).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(navigateMock).not.toHaveBeenCalled()
+  })
+
   it('submits a KEY entry with trimmed fields', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
@@ -350,7 +366,12 @@ describe('CreateEntryModal', () => {
     await user.type(screen.getByLabelText(/expiry month/i), '12')
     await user.type(screen.getByLabelText(/expiry year/i), '2030')
     await user.type(screen.getByLabelText(/billing address/i), '1 Main Street')
-    expect(screen.queryByLabelText(/security code|cvv|cvc/i)).not.toBeInTheDocument()
+    const cvv = screen.getByLabelText(/cvv \/ cvc/i)
+    await user.type(cvv, '01')
+    await user.tab()
+    expect(screen.getByRole('button', { name: /save entry/i })).toBeDisabled()
+    await user.type(cvv, '2')
+    expect(cvv).toHaveClass('secret-mask')
     expect(screen.queryByLabelText(/^pin/i)).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /add field/i }))
     await user.click(screen.getByRole('menuitem', { name: /^text/i }))
@@ -369,6 +390,7 @@ describe('CreateEntryModal', () => {
       expiryMonth: '12',
       expiryYear: '2030',
       billingAddress: '1 Main Street',
+      cvv: '012',
       fields: [expect.objectContaining({ label: 'Account ID', type: 'text', value: 'account-123' })],
     })
     expect(input.policy.fields.cardNumber).toBe('never')
@@ -437,16 +459,35 @@ describe('CreateEntryModal', () => {
     await user.click(screen.getByRole('button', { name: /add 2fa/i }))
     await user.type(screen.getByLabelText(/otpauth/i), 'JBSWY3DPEHPK3PXP')
     await user.click(screen.getByRole('button', { name: /apply totp/i }))
-    await user.click(screen.getByRole('button', { name: /save entry/i }))
+    await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1))
 
     const [input] = mutateMock.mock.calls[0]
     expect(input.payload.v).toBe(2)
     expect(input.payload.fields).toHaveLength(1)
+    expect(input.policy.fields[`custom:${input.payload.fields[0].id}`]).toBe('onGrantDerived')
     expect(input.payload.fields[0]).toMatchObject({
       label: '2FA',
       type: 'totp',
       value: { secret: 'JBSWY3DPEHPK3PXP', algorithm: 'SHA1', digits: 6, period: 30 },
     })
+  })
+
+  it('does not save applied TOTP while the credential URL is invalid', async () => {
+    const user = userEvent.setup()
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+    await user.type(screen.getByLabelText(/^label$/i), 'GitHub')
+    await user.type(screen.getByLabelText(/^username$/i), 'octocat')
+    await user.type(screen.getByLabelText(/^password$/i), 'fixture-password')
+    await user.type(screen.getByLabelText(/^url$/i), 'not-a-url')
+    await user.click(screen.getByRole('button', { name: /add 2fa/i }))
+    await user.type(screen.getByLabelText(/otpauth/i), 'JBSWY3DPEHPK3PXP')
+    await user.click(screen.getByRole('button', { name: /apply totp/i }))
+    expect(mutateMock).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /add 2fa/i })).not.toBeInTheDocument()
+    await user.clear(screen.getByLabelText(/^url$/i))
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+    await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1))
+    expect(mutateMock.mock.calls[0][0].payload.fields[0].value.secret).toBe('JBSWY3DPEHPK3PXP')
   })
 
   it('shows an error toast when the mutation fails', async () => {

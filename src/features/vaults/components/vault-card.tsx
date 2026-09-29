@@ -35,7 +35,7 @@ export function VaultCard({ vault, onClick, statusLabel }: VaultCardProps) {
     >
       <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-2">
-          <VaultIconCircle icon={icon} color={accent} size={32} iconSize={16} />
+          <VaultIconCircle vaultId={vault.id} icon={icon} color={accent} size={32} iconSize={16} />
           <div className="flex flex-col gap-0.5 text-left">
             <span className="text-heading-sm font-bold text-[var(--cv-t1)]">
               {vault.name}

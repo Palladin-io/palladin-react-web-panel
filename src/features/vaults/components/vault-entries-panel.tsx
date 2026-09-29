@@ -1,16 +1,15 @@
-import { memo, useCallback, useState, type UIEvent } from 'react'
+import { useCallback, useState, type UIEvent } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
-import { type EntryType, type Vault } from '../types'
+import { type Vault } from '../types'
 import { useEntriesListUi, usePersistedEntriesList } from '../use-entries-list-ui'
 import { useMemberEntryList } from '../sync/member-entry-list'
 import { useMemberSyncStore } from '../sync/member-sync-store'
 import { CreateEntryModal } from './create-entry-modal'
-import { EntryIcon } from './entry-icon'
-import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
+import { EntryNavigationRow } from './entry-navigation-row'
+import { EntryListHeader } from './entry-list-header'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { SearchBar } from '../../../shared/components/search-bar'
 
@@ -55,8 +54,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
   }, [entries.items.length, onScroll, search])
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
-        <Link
+      <EntryListHeader title={vault.name} count={vault.entryCount} onAdd={() => setCreateOpen(true)} back={<Link
           to="/vaults/$vaultId"
           params={{ vaultId: vault.id }}
           aria-label={t('vault.backToDetail')}
@@ -65,17 +63,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
             hover:text-[var(--cv-t1)]"
         >
           <Icon name="arrow_back" size={16} />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">{vault.name}</h2>
-          <p className="text-meta text-[var(--cv-t3)]">
-            {t('vault.entries', { count: vault.entryCount })}
-          </p>
-        </div>
-        <Button variant="accent" size="sm" icon="add" onClick={() => setCreateOpen(true)}>
-          {t('vault.detail.addEntry')}
-        </Button>
-      </div>
+        </Link>} />
 
       {entries.vaultStatus === null && (entries.status === 'idle' || entries.status === 'syncing') ? (
         <PanelLoadingSkeleton />
@@ -107,8 +95,7 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
                     label={entry.label}
                     type={entry.type}
                     icon={entry.icon}
-                    username={entry.username}
-                    urlDomain={entry.urlDomain}
+                    subtitle={[entry.username, entry.urlDomain].filter(Boolean).join(' · ')}
                     isSelected={entry.id === selectedEntryId}
                   />
                 ))}
@@ -126,36 +113,6 @@ export function VaultEntriesPanel({ vault, selectedEntryId }: VaultEntriesPanelP
     </div>
   )
 }
-
-const EntryNavigationRow = memo(function EntryNavigationRow({
-  vaultId, entryId, label, type, icon, username, urlDomain, isSelected,
-}: {
-  vaultId: string
-  entryId: string
-  label: string
-  type: EntryType
-  icon: string | null
-  username: string | null
-  urlDomain: string | null
-  isSelected: boolean
-}) {
-  const meta = [username, urlDomain].filter(Boolean).join(' · ')
-  return (
-    <Link
-      to="/vaults/$vaultId/entries/$entryId"
-      params={{ vaultId, entryId }}
-      className={`flex items-center gap-3 px-4 py-2.5 ${HOVERABLE_CARD_CLASSES}${
-        isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
-      }`}
-    >
-      <EntryIcon icon={icon ?? undefined} type={type} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">{label}</p>
-        {meta ? <p className="truncate text-meta text-[var(--cv-t3)]">{meta}</p> : null}
-      </div>
-    </Link>
-  )
-})
 
 function PanelLoadingSkeleton() {
   return (

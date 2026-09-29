@@ -44,20 +44,16 @@ vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }))
 
 // Pickers render irrelevant DOM here; stub them so we keep the test
 // focused on the form's name/description editing + submit behaviour.
-vi.mock('./vault-icon-picker', () => ({
-  VaultIconPicker: ({ onFileSelected }: { onFileSelected: (file: File, url: string) => void }) => (
-    <button type="button" onClick={() => onFileSelected(new File(['png'], 'icon.png', { type: 'image/png' }), 'blob:preview')}>
-      Upload test icon
-    </button>
-  ),
-}))
+vi.mock('./vault-icon-browser', () => ({ IconColorBrowser: () => null }))
+const assetUrl = vi.hoisted(() => vi.fn(() => ({ url: null as string | null, corrupt: false })))
+vi.mock('../assets/use-vault-encrypted-asset-url', () => ({ useVaultEncryptedAssetUrl: assetUrl }))
 
 const baseVault: Vault = {
   id: 'v1',
   organizationId: 'org-1',
   name: 'Production Keys',
   description: 'Critical production secrets',
-  icon: 'shield',
+  icon: 'builtin:shield',
   color: '#EB4747',
   grantMode: GRANT_MODE_GRANULAR,
   createdAt: '2026-04-25T10:00:00Z',
@@ -80,6 +76,7 @@ describe('VaultSettingsForm', () => {
     deleteMutateMock.mockReset()
     toastError.mockReset()
     updateIsPending = false
+    assetUrl.mockReturnValue({ url: null, corrupt: false })
   })
 
   it('renders the existing vault name and description', () => {
@@ -125,13 +122,13 @@ describe('VaultSettingsForm', () => {
       expectedMetadata: {
         name: 'Production Keys',
         description: 'Critical production secrets',
-        iconReference: 'shield',
+        iconReference: 'builtin:shield',
         color: '#EB4747',
       },
       nextMetadata: {
         name: 'Renamed Vault',
         description: 'Critical production secrets',
-        iconReference: 'shield',
+        iconReference: 'builtin:shield',
         color: '#EB4747',
       },
     })
@@ -158,14 +155,29 @@ describe('VaultSettingsForm', () => {
     const user = userEvent.setup()
     updateMutateMock.mockImplementation((input, options) => options.onSuccess({
       ...input.nextMetadata,
-      iconReference: 'asset:22222233-4455-4677-8899-aabbccddeeff',
+      iconReference: 'vault-asset:22222233-4455-4677-8899-aabbccddeeff',
     }))
     render(<VaultSettingsForm vault={baseVault} />, { wrapper })
 
-    await user.click(screen.getByRole('button', { name: 'Upload test icon' }))
+    await user.upload(screen.getByLabelText(/upload custom icon/i), new File(['image'], 'icon.png', { type: 'image/png' }))
+    expect(screen.getByRole('img', { name: /^icon$/i })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     expect(updateMutateMock.mock.calls[0][0].iconFile).toBeInstanceOf(File)
+  })
+
+  it('renders a persisted custom icon and restores it when a selected replacement is cancelled', async () => {
+    const user = userEvent.setup()
+    assetUrl.mockReturnValue({ url: 'blob:existing-icon', corrupt: false })
+    const icon = 'vault-asset:22222233-4455-4677-8899-aabbccddeeff'
+    render(<VaultSettingsForm vault={{ ...baseVault, icon }} />, { wrapper })
+    expect(assetUrl).toHaveBeenCalledWith('v1', '22222233-4455-4677-8899-aabbccddeeff')
+    expect(screen.getByRole('img', { name: /^icon$/i })).toHaveAttribute('src', 'blob:existing-icon')
+    await user.upload(screen.getByLabelText(/upload custom icon/i), new File(['image'], 'icon.png', { type: 'image/png' }))
+    await user.click(screen.getByRole('button', { name: /^cancel$/i }))
+    expect(screen.getByRole('img', { name: /^icon$/i })).toHaveAttribute('src', 'blob:existing-icon')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+    expect(updateMutateMock).not.toHaveBeenCalled()
   })
 
   it('shows an explicit refresh message for a concurrent metadata conflict', async () => {

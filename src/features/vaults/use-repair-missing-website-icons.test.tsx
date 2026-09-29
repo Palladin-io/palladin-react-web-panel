@@ -135,6 +135,33 @@ beforeEach(() => {
 })
 
 describe('useRepairMissingWebsiteIcons', () => {
+  it('limits a detail repair to its selected Entry even when other Entries lack icons', async () => {
+    publish([record('reddit', 'www.reddit.com'), record('other', 'github.com')])
+    const redditSecret = canonicalSecret()
+    redditSecret.content.url = 'https://www.reddit.com/login'
+    mocks.openSecret.mockResolvedValue(redditSecret)
+    mocks.ensureIcons.mockResolvedValue(new Map([['www.reddit.com', {
+      id: '11111111-1111-4111-8111-111111111111', type: 'websiteIcon',
+      name: 'www.reddit.com', revision: 1,
+      url: 'https://assets.palladin.io/published/reddit.png',
+    }]]))
+    const { result } = renderHook(() => useRepairMissingWebsiteIcons(VAULT_ID, 'reddit'), { wrapper })
+
+    let repairResult
+    await act(async () => {
+      repairResult = await result.current.mutateAsync({})
+    })
+
+    expect(result.current.candidateCount).toBe(1)
+    expect(mocks.ensureIcons).toHaveBeenCalledWith(['www.reddit.com'], expect.anything(), expect.anything())
+    expect(mocks.getEntry).toHaveBeenCalledExactlyOnceWith(VAULT_ID, 'reddit')
+    expect(mocks.update).toHaveBeenCalledTimes(1)
+    expect(mocks.update).toHaveBeenCalledWith(VAULT_ID, expect.objectContaining({
+      detail: expect.objectContaining({ id: 'reddit' }),
+    }))
+    expect(repairResult).toEqual({ candidates: 1, repaired: 1, skipped: 0, failed: 0 })
+  })
+
   it('prepares the catalog before opening keys and updates only eligible ready Entries', async () => {
     publish([
       record('github', 'github.com'),

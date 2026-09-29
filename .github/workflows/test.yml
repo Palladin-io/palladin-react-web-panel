@@ -74,6 +74,14 @@ jobs:
       VITE_SHARED_UNLOCK_EXTENSION_ID: ${{ vars.STAGING_VITE_SHARED_UNLOCK_EXTENSION_ID }}
       VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID: ${{ vars.STAGING_VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID }}
       VITE_SHARED_UNLOCK_SAFARI_EXTENSION_ID: ${{ vars.STAGING_VITE_SHARED_UNLOCK_SAFARI_EXTENSION_ID }}
+      # Optional release configuration: all association inputs stay empty until
+      # approved signed app identities are available. Never invent a default.
+      PALLADIN_APP_LINK_ENVIRONMENT: ${{ vars.STAGING_APP_LINK_ENVIRONMENT }}
+      PALLADIN_APP_LINK_APPLE_APP_ID: ${{ vars.STAGING_APP_LINK_APPLE_APP_ID }}
+      PALLADIN_APP_LINK_ANDROID_PACKAGE: ${{ vars.STAGING_APP_LINK_ANDROID_PACKAGE }}
+      PALLADIN_APP_LINK_ANDROID_SHA256: ${{ vars.STAGING_APP_LINK_ANDROID_SHA256 }}
+      VITE_APPLE_APP_STORE_URL: ${{ vars.STAGING_VITE_APPLE_APP_STORE_URL }}
+      VITE_GOOGLE_PLAY_STORE_URL: ${{ vars.STAGING_VITE_GOOGLE_PLAY_STORE_URL }}
       VITE_CLIENT_ANALYTICS_RELEASED: ${{ vars.STAGING_VITE_CLIENT_ANALYTICS_RELEASED }}
       VITE_POSTHOG_KEY: ${{ vars.STAGING_VITE_POSTHOG_KEY }}
       VITE_POSTHOG_HOST: ${{ vars.STAGING_VITE_POSTHOG_HOST }}
@@ -99,13 +107,17 @@ jobs:
       - name: Build the tested web bundle
         run: |
           set -euo pipefail
-          required=(VITE_API_URL VITE_PUBLIC_ASSET_URL VITE_GOOGLE_CLIENT_ID VITE_SIGNALR_HUB_URL)
+          required=(VITE_API_URL VITE_PUBLIC_ASSET_URL VITE_GOOGLE_CLIENT_ID VITE_SIGNALR_HUB_URL VITE_SHARED_UNLOCK_EXTENSION_ID)
           for key in "${required[@]}"; do
             if [[ -z "${!key:-}" ]]; then
               echo "Missing required staging configuration: $key" >&2
               exit 1
             fi
           done
+          if [[ ! "$VITE_SHARED_UNLOCK_EXTENSION_ID" =~ ^[a-p]{32}$ ]]; then
+            echo 'STAGING_VITE_SHARED_UNLOCK_EXTENSION_ID must identify the reviewed Chromium extension.' >&2
+            exit 1
+          fi
           if [[ "$VITE_API_URL" != 'https://api.stage.palladin.io' ]]; then
             echo 'STAGING_VITE_API_URL must target the staging API.' >&2
             exit 1

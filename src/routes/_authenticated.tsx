@@ -120,6 +120,8 @@ function AuthenticatedLayout() {
 function AuthenticatedContent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const href = useRouterState({ select: (s) => s.location.href })
+  const fromEntries = useRouterState({ select: (s) => new URLSearchParams(s.location.searchStr).get('from') === 'entries' })
+  const sidebarPath = fromEntries && /^\/vaults\/[^/]+\/entries\/[^/]+$/.test(pathname) ? '/entries' : pathname
   const standaloneAuthSurface =
     pathname === '/unlock' || pathname === '/invitations/accept'
   const navigate = useNavigate()
@@ -185,7 +187,7 @@ function AuthenticatedContent() {
               className="flex h-screen overflow-hidden"
               style={{ background: 'var(--cv-page-bg)' }}
             >
-              <AppSidebar currentPath={pathname} />
+              <AppSidebar currentPath={sidebarPath} />
               <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                 <PrivacyPrompt fallback={<WaitlistDeveloperBenefitDialog />} />
                 <div className="subtle-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
@@ -221,6 +223,13 @@ const NAV_ITEMS: NavItem[] = [
     // Home is the one route that must not match by prefix (every path starts
     // with '/'), so it lights up only on the dashboard route itself.
     exactMatch: true,
+  },
+  {
+    key: 'entries',
+    labelKey: 'entries.title',
+    icon: 'key',
+    to: '/entries',
+    matchPrefix: '/entries',
   },
   {
     key: 'vaults',

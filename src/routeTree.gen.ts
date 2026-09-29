@@ -23,6 +23,7 @@ import { Route as AuthenticatedApiKeysRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedApprovalsRouteImport } from './routes/_authenticated/approvals'
 import { Route as AuthenticatedAuditRouteImport } from './routes/_authenticated/audit'
 import { Route as AuthenticatedBillingRouteImport } from './routes/_authenticated/billing'
+import { Route as AuthenticatedEntriesRouteImport } from './routes/_authenticated/entries'
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -120,6 +121,11 @@ const AuthenticatedAuditRoute = AuthenticatedAuditRouteImport.update({
 const AuthenticatedBillingRoute = AuthenticatedBillingRouteImport.update({
   id: '/billing',
   path: '/billing',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedEntriesRoute = AuthenticatedEntriesRouteImport.update({
+  id: '/entries',
+  path: '/entries',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedInboxRoute = AuthenticatedInboxRouteImport.update({
@@ -304,6 +310,7 @@ export interface FileRoutesByFullPath {
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/billing': typeof AuthenticatedBillingRoute
+  '/entries': typeof AuthenticatedEntriesRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
@@ -347,6 +354,7 @@ export interface FileRoutesByTo {
   '/approvals': typeof AuthenticatedApprovalsRoute
   '/audit': typeof AuthenticatedAuditRoute
   '/billing': typeof AuthenticatedBillingRoute
+  '/entries': typeof AuthenticatedEntriesRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/team': typeof AuthenticatedTeamRoute
@@ -392,6 +400,7 @@ export interface FileRoutesById {
   '/_authenticated/approvals': typeof AuthenticatedApprovalsRoute
   '/_authenticated/audit': typeof AuthenticatedAuditRoute
   '/_authenticated/billing': typeof AuthenticatedBillingRoute
+  '/_authenticated/entries': typeof AuthenticatedEntriesRoute
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
@@ -439,6 +448,7 @@ export interface FileRouteTypes {
     | '/approvals'
     | '/audit'
     | '/billing'
+    | '/entries'
     | '/inbox'
     | '/security'
     | '/settings'
@@ -482,6 +492,7 @@ export interface FileRouteTypes {
     | '/approvals'
     | '/audit'
     | '/billing'
+    | '/entries'
     | '/inbox'
     | '/security'
     | '/team'
@@ -526,6 +537,7 @@ export interface FileRouteTypes {
     | '/_authenticated/approvals'
     | '/_authenticated/audit'
     | '/_authenticated/billing'
+    | '/_authenticated/entries'
     | '/_authenticated/inbox'
     | '/_authenticated/security'
     | '/_authenticated/settings'
@@ -668,6 +680,13 @@ declare module '@tanstack/react-router' {
       path: '/billing'
       fullPath: '/billing'
       preLoaderRoute: typeof AuthenticatedBillingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/entries': {
+      id: '/_authenticated/entries'
+      path: '/entries'
+      fullPath: '/entries'
+      preLoaderRoute: typeof AuthenticatedEntriesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/inbox': {
@@ -923,6 +942,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedApprovalsRoute: typeof AuthenticatedApprovalsRoute
   AuthenticatedAuditRoute: typeof AuthenticatedAuditRoute
   AuthenticatedBillingRoute: typeof AuthenticatedBillingRoute
+  AuthenticatedEntriesRoute: typeof AuthenticatedEntriesRoute
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
@@ -947,6 +967,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedApprovalsRoute: AuthenticatedApprovalsRoute,
   AuthenticatedAuditRoute: AuthenticatedAuditRoute,
   AuthenticatedBillingRoute: AuthenticatedBillingRoute,
+  AuthenticatedEntriesRoute: AuthenticatedEntriesRoute,
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,

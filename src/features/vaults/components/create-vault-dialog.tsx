@@ -18,6 +18,7 @@ import {
 export interface CreateVaultDialogProps {
   open: boolean
   onClose: () => void
+  onCreated?: (vaultId: string) => void
 }
 
 /**
@@ -28,16 +29,18 @@ export interface CreateVaultDialogProps {
 export function CreateVaultDialog({
   open,
   onClose,
+  onCreated,
 }: CreateVaultDialogProps) {
   if (!open) return null
-  return <CreateVaultDialogBody onClose={onClose} />
+  return <CreateVaultDialogBody onClose={onClose} onCreated={onCreated} />
 }
 
 interface CreateVaultDialogBodyProps {
   onClose: () => void
+  onCreated?: (vaultId: string) => void
 }
 
-function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
+function CreateVaultDialogBody({ onClose, onCreated }: CreateVaultDialogBodyProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const create = useCreateVault()
@@ -45,6 +48,20 @@ function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
   const [name, setName] = useState(create.pendingInput?.name ?? '')
   const [description, setDescription] = useState(create.pendingInput?.description ?? '')
   const [icon, setIcon] = useState<string>(create.pendingInput?.icon ?? DEFAULT_VAULT_ICON)
+  const [iconFile, setIconFile] = useState<File | undefined>(create.pendingInput?.iconFile)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const retryIconFile = create.pendingInput?.iconFile
+  useEffect(() => {
+    if (!retryIconFile) return
+    const url = URL.createObjectURL(retryIconFile)
+    // Synchronize the preview with an externally allocated browser resource.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPreviewUrl(url)
+    return () => URL.revokeObjectURL(url)
+  }, [retryIconFile])
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl)
+  }, [previewUrl])
   const [color, setColor] = useState<string>(create.pendingInput?.color ?? DEFAULT_VAULT_COLOR)
 
   // Mount-only side effect: emit analytics for "wizard opened". The form
@@ -69,10 +86,13 @@ function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
         description: description.trim() || undefined,
         icon,
         color,
+        ...(iconFile ? { iconFile } : {}),
       },
       {
-        onSuccess: ({ vaultId }) => {
+        onSuccess: ({ vaultId, iconUploadFailed }) => {
+          if (iconUploadFailed) toast.error(t('vault.iconUploadFailedAfterCreate'))
           analytics.capture('vault', 'create-wizard-completed')
+          if (onCreated) { onCreated(vaultId); return }
           onClose()
           void navigate({ to: '/vaults/$vaultId', params: { vaultId } })
         },
@@ -130,8 +150,9 @@ function CreateVaultDialogBody({ onClose }: CreateVaultDialogBodyProps) {
         />
 
         <VaultIconPicker
-          value={icon}
-          onChange={setIcon}
+          value={previewUrl ?? icon}
+          onChange={(next) => { setIcon(next); setIconFile(undefined); setPreviewUrl(null) }}
+          onFileSelected={(file, url) => { setIconFile(file); setPreviewUrl(url) }}
           onColorChange={setColor}
           selectedColor={color}
           disabled={isPending || isRetryLocked}

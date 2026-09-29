@@ -1,7 +1,9 @@
+import { useVaultEncryptedAssetUrl } from '../assets/use-vault-encrypted-asset-url'
 import { Icon } from '../../../shared/components/icon'
 import { hexWithAlpha } from './vault-color'
 
 export interface VaultIconCircleProps {
+  vaultId: string
   /** Material Symbols Rounded glyph name. */
   icon: string
   /** Vault accent colour (hex). Used for both glyph and tinted background. */
@@ -19,11 +21,14 @@ export interface VaultIconCircleProps {
  * consistent everywhere a vault is rendered.
  */
 export function VaultIconCircle({
+  vaultId,
   icon,
   color,
   size = 32,
   iconSize,
 }: VaultIconCircleProps) {
+  const assetId = icon.startsWith('vault-asset:') ? icon.slice('vault-asset:'.length) : null
+  const asset = useVaultEncryptedAssetUrl(vaultId, assetId)
   const glyphSize = iconSize ?? Math.round(size * 0.55)
   return (
     <span
@@ -36,7 +41,9 @@ export function VaultIconCircle({
         color,
       }}
     >
-      <Icon name={icon} size={glyphSize} color={color} />
+      {asset.url ? (
+        <img src={asset.url} alt="" className="h-full w-full rounded-full object-contain" />
+      ) : <Icon name={assetId ? 'shield' : icon.replace(/^builtin:/, '')} size={glyphSize} color={color} />}
     </span>
   )
 }

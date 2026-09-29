@@ -29,10 +29,11 @@ vi.mock('./assets/encrypted-asset-service', () => ({ encryptAndUploadPresentatio
 vi.mock('./assets/encrypted-asset-api', () => ({ deleteEncryptedAsset: mocks.deleteAsset }))
 vi.mock('../../shared/api/client', () => ({ api: { put: mocks.put } }))
 
+import { presentationIconReference } from '../../shared/crypto/vault-plaintext'
 import { updateEncryptedVaultSettings, VaultMetadataConflictError } from './vault-settings-service'
 
 const vaultId = '22222233-4455-4677-8899-aabbccddeeff'
-const current = { name: 'Production', description: 'Current', iconReference: 'asset:33332233-4455-4677-8899-aabbccddeeff' }
+const current = { name: 'Production', description: 'Current', iconReference: 'vault-asset:33332233-4455-4677-8899-aabbccddeeff' }
 const next = { name: 'Production 2', description: 'Current' }
 const summary = {
   id: vaultId,
@@ -65,6 +66,19 @@ describe('encrypted Vault settings transaction', () => {
     mocks.deleteAsset.mockResolvedValue(undefined)
   })
 
+  it('accepts the glyph reference produced by the actual read contract', async () => {
+    const icon = { kind: 'glyph' as const, value: 'shield' }
+    mocks.openVaultProjection.mockResolvedValue({
+      vaultKey: new Uint8Array(32).fill(9),
+      metadata: { name: current.name, description: current.description, icon, grantMode: 'granular' },
+    })
+    const metadata = { ...current, iconReference: presentationIconReference(icon)! }
+    await updateEncryptedVaultSettings({ vaultId, expectedMetadata: metadata, nextMetadata: metadata })
+    expect(mocks.encryptMemberVaultMetadata).toHaveBeenCalledWith(
+      expect.anything(), expect.anything(), expect.objectContaining({ icon }), expect.any(Uint8Array),
+    )
+  })
+
   it('fails before upload when the fresh authenticated revision differs from the edited base', async () => {
     await expect(updateEncryptedVaultSettings({
       vaultId,
@@ -79,7 +93,7 @@ describe('encrypted Vault settings transaction', () => {
   it('compensates a newly uploaded asset when the metadata compare-and-swap loses a race', async () => {
     const generatedAssetId = '44442233-4455-4677-8899-aabbccddeeff'
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(generatedAssetId)
-    mocks.upload.mockResolvedValue({ assetId: generatedAssetId, iconReference: `asset:${generatedAssetId}` })
+    mocks.upload.mockResolvedValue({ assetId: generatedAssetId, iconReference: `vault-asset:${generatedAssetId}` })
     mocks.put.mockResolvedValue(new Response(null, { status: 409 }))
 
     await expect(updateEncryptedVaultSettings({
@@ -95,7 +109,7 @@ describe('encrypted Vault settings transaction', () => {
   it('commits only an encrypted envelope, then removes the superseded asset', async () => {
     const generatedAssetId = '44442233-4455-4677-8899-aabbccddeeff'
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(generatedAssetId)
-    mocks.upload.mockResolvedValue({ assetId: generatedAssetId, iconReference: `asset:${generatedAssetId}` })
+    mocks.upload.mockResolvedValue({ assetId: generatedAssetId, iconReference: `vault-asset:${generatedAssetId}` })
 
     const committed = await updateEncryptedVaultSettings({
       vaultId,
@@ -118,13 +132,13 @@ describe('encrypted Vault settings transaction', () => {
       throwHttpErrors: false,
     })
     expect(mocks.deleteAsset).toHaveBeenCalledWith(vaultId, '33332233-4455-4677-8899-aabbccddeeff')
-    expect(committed.iconReference).toBe(`asset:${generatedAssetId}`)
+    expect(committed.iconReference).toBe(`vault-asset:${generatedAssetId}`)
   })
 
   it('keeps the referenced asset when a lost response is reconciled as committed', async () => {
     const generatedAssetId = '44442233-4455-4677-8899-aabbccddeeff'
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(generatedAssetId)
-    mocks.upload.mockResolvedValue({ assetId: generatedAssetId, iconReference: `asset:${generatedAssetId}` })
+    mocks.upload.mockResolvedValue({ assetId: generatedAssetId, iconReference: `vault-asset:${generatedAssetId}` })
     mocks.put.mockRejectedValue(new TypeError('network response lost'))
     mocks.getEncryptedVault
       .mockResolvedValueOnce(summary)
@@ -135,7 +149,7 @@ describe('encrypted Vault settings transaction', () => {
       expectedMetadata: current,
       nextMetadata: next,
       iconFile: new File(['image'], 'icon.png', { type: 'image/png' }),
-    })).resolves.toMatchObject({ iconReference: `asset:${generatedAssetId}` })
+    })).resolves.toMatchObject({ iconReference: `vault-asset:${generatedAssetId}` })
 
     expect(mocks.deleteAsset).not.toHaveBeenCalledWith(vaultId, generatedAssetId)
   })
@@ -143,7 +157,7 @@ describe('encrypted Vault settings transaction', () => {
   it('does not risk deleting a possibly committed asset when reconciliation is unavailable', async () => {
     const generatedAssetId = '44442233-4455-4677-8899-aabbccddeeff'
     vi.spyOn(crypto, 'randomUUID').mockReturnValue(generatedAssetId)
-    mocks.upload.mockResolvedValue({ assetId: generatedAssetId, iconReference: `asset:${generatedAssetId}` })
+    mocks.upload.mockResolvedValue({ assetId: generatedAssetId, iconReference: `vault-asset:${generatedAssetId}` })
     mocks.put.mockRejectedValue(new TypeError('network response lost'))
     mocks.getEncryptedVault.mockResolvedValueOnce(summary).mockRejectedValueOnce(new Error('offline'))
 

@@ -31,6 +31,7 @@ export function entryShareFields(source: MemberSecretV1): {
   } else if (source.entryType === 'creditCard') {
     add('creditCard.cardholderName', source.content.cardholderName, 'text')
     add('creditCard.cardNumber', source.content.cardNumber, 'concealed')
+    add('creditCard.cvv', source.content.cvv, 'concealed')
     add('creditCard.expiryMonth', source.content.expiryMonth, 'text')
     add('creditCard.expiryYear', source.content.expiryYear, 'text')
     add('creditCard.billingAddress', source.content.billingAddress, 'multiline')

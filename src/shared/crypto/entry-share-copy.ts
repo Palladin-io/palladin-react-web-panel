@@ -54,6 +54,7 @@ export function entryShareCopySecret(snapshot: EntryShareSnapshot, form: EntrySh
       value: get('key.value') ?? '', url: get('key.url') }
     else if (source.entryType === 'creditCard') payload = { ...common, type: 3,
       cardholderName: get('creditCard.cardholderName') ?? '', cardNumber: get('creditCard.cardNumber') ?? '',
+      cvv: get('creditCard.cvv'),
       expiryMonth: get('creditCard.expiryMonth') ?? '', expiryYear: get('creditCard.expiryYear') ?? '',
       billingAddress: get('creditCard.billingAddress') }
     else payload = { ...common, type: 2, script: get('script.source') ?? '', refs: [],

@@ -74,9 +74,11 @@ describe('Whole Entry sharing', () => {
     const card: MemberSecretV1 = { ...common, entryType: 'creditCard', content: {
       cardholderName: 'Test Person', cardNumber: '4111111111111111', expiryMonth: '09', expiryYear: '2030',
       billingAddress: 'Private address', notes: null, customFields: [],
+      cvv: '007',
     } }
     const snapshot = createEntryShareSnapshot(card)
     expect(snapshot.fields.find((field) => field.id === 'creditCard.billingAddress')?.value).toBe('Private address')
-    expect(snapshot.fields).toHaveLength(6)
+    expect(snapshot.fields.find((field) => field.id === 'creditCard.cvv')).toMatchObject({ type: 'concealed', value: '007' })
+    expect(snapshot.fields).toHaveLength(7)
   })
 })

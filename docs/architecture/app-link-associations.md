@@ -24,6 +24,13 @@ that the IDs/certificates belong to that environment: deployment review must com
 them independently with the signed native application and its configured domains.
 No private signing material belongs in these variables or repository history.
 
+The existing staging artifact job injects these inputs from GitHub variables
+`STAGING_APP_LINK_ENVIRONMENT`, `STAGING_APP_LINK_APPLE_APP_ID`,
+`STAGING_APP_LINK_ANDROID_PACKAGE` and `STAGING_APP_LINK_ANDROID_SHA256`.
+Store fallback values use `STAGING_VITE_APPLE_APP_STORE_URL` and
+`STAGING_VITE_GOOGLE_PLAY_STORE_URL`. Missing optional values stay empty; the
+build must not select a staging identity merely from its workflow name.
+
 iOS paths are limited to `/share/*` and `/verify-email`. Android uses the standard
 app-links relation; corresponding native intent filters still constrain paths.
 Before release, verify each deployed URL returns 200, JSON, no redirect/HTML fallback,

@@ -10,6 +10,9 @@ export const HOVERABLE_CARD_CLASSES = [
   'focus-visible:outline-none focus-visible:border-[var(--cv-t1)]',
 ].join(' ')
 
+export const SELECTED_NAVIGATION_CARD_CLASSES =
+  '!border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]'
+
 /**
  * Canonical geometry for compact metadata/status pills in list and detail
  * headers. Semantic foreground/background colours remain the caller's job.

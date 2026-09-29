@@ -67,6 +67,7 @@ export interface CreateEntryModalProps {
   open: boolean
   vault: Vault
   onClose: () => void
+  onCreated?: () => void
 }
 
 /**
@@ -74,17 +75,18 @@ export interface CreateEntryModalProps {
  * form starts with clean defaults — same pattern as the create-vault
  * dialog.
  */
-export function CreateEntryModal({ open, vault, onClose }: CreateEntryModalProps) {
+export function CreateEntryModal({ open, vault, onClose, onCreated }: CreateEntryModalProps) {
   if (!open) return null
-  return <CreateEntryModalBody vault={vault} onClose={onClose} />
+  return <CreateEntryModalBody vault={vault} onClose={onClose} onCreated={onCreated} />
 }
 
 interface CreateEntryModalBodyProps {
   vault: Vault
   onClose: () => void
+  onCreated?: () => void
 }
 
-function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
+function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBodyProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const create = useCreateEntry()
@@ -110,6 +112,9 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
   const [cardholderName, setCardholderName] = useState('')
   const [cardholderNameError, setCardholderNameError] = useState(false)
   const [cardNumber, setCardNumber] = useState('')
+  const [cvv, setCvv] = useState('')
+  const [cvvShown, setCvvShown] = useState(false)
+  const [cvvError, setCvvError] = useState(false)
   const [cardNumberError, setCardNumberError] = useState(false)
   const [expiryMonth, setExpiryMonth] = useState('')
   const [expiryMonthError, setExpiryMonthError] = useState(false)
@@ -141,10 +146,10 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     [credentialTotp, customFields, type],
   )
   const agentLabel = label
-  const policy = useMemo<AgentVisibilityPolicy>(() => {
-    const defaults = defaultAgentVisibilityPolicy(type, allFields)
+  const buildPolicy = (fields: CustomField[]): AgentVisibilityPolicy => {
+    const defaults = defaultAgentVisibilityPolicy(type, fields)
     const effectiveDiscoverable = type === ENTRY_TYPE_SCRIPT || discoverable
-    const customTypes = new Map(allFields.map((field) => [`custom:${field.id}`, field.type]))
+    const customTypes = new Map(fields.map((field) => [`custom:${field.id}`, field.type]))
     return {
       discoverable: effectiveDiscoverable,
       fields: Object.fromEntries(Object.entries(defaults.fields).map(([fieldId, fallback]) => {
@@ -159,7 +164,8 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
             : access]
       })),
     }
-  }, [allFields, discoverable, policyOverrides, type])
+  }
+  const policy = buildPolicy(allFields)
 
   useEffect(() => {
     analytics.capture('vault', 'create-entry-wizard-opened')
@@ -202,10 +208,11 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     if (type === ENTRY_TYPE_CREDIT_CARD) return cardholderName.trim().length > 0
       && cardholderName.trim().length <= 256
       && /^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
+      && (!cvv.trim() || /^\d{3,4}$/.test(cvv.trim()))
       && /^(0[1-9]|1[0-2])$/.test(expiryMonth) && /^\d{4}$/.test(expiryYear)
     return username.trim().length > 0 && password.trim().length > 0
   }, [isPending, label, type, keyValue, username, password, script, description, scriptParameters,
-    refs, vault.id, cardholderName, cardNumber, expiryMonth, expiryYear])
+    refs, vault.id, cardholderName, cardNumber, cvv, expiryMonth, expiryYear])
 
   const fieldsInvalid = validateCustomFields(allFields).hasError
 
@@ -218,9 +225,16 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
     }
   }
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!canSubmit || fieldsInvalid) return
+  const submitEntry = async (fields = allFields) => {
+    if ((type === ENTRY_TYPE_CREDENTIAL || type === ENTRY_TYPE_KEY)
+      && firstError(url.trim(), [validUrl(t('validation.invalidUrl'))]) !== null) {
+      setUrlError(true)
+      return
+    }
+    if (!canSubmit || validateCustomFields(fields).hasError) {
+      toast.error(t('vault.entries.errorCreate'))
+      return
+    }
 
     const payload = buildPlaintext({
       type,
@@ -229,14 +243,14 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
       password,
       url,
       notes,
-      fields: allFields,
+      fields,
       script,
       interpreter,
       refs,
       executionDescription: description,
       scriptParameters,
       returnResultToAgent,
-      cardholderName, cardNumber, expiryMonth, expiryYear, billingAddress,
+      cardholderName, cardNumber, cvv, expiryMonth, expiryYear, billingAddress,
     })
 
     const hostname = !iconTouched && type !== ENTRY_TYPE_SCRIPT ? normalizePublicHostname(url) : null
@@ -265,12 +279,16 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         ...(iconFile ? { iconFile } : {}),
         type,
         payload,
-        policy,
+        policy: buildPolicy(fields),
       },
       {
         onSuccess: ({ id: entryId }) => {
           analytics.capture('vault', 'create-entry-wizard-completed', { type })
           toast.success(t('vault.entries.createSuccess'))
+          if (onCreated) {
+            onCreated()
+            return
+          }
           onClose()
           void navigate({
             to: '/vaults/$vaultId/entries/$entryId',
@@ -309,7 +327,7 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
         </DialogFooter>
       }
     >
-      <form id="entry-create-form" className="flex flex-col gap-3" onSubmit={handleSubmit}>
+      <form id="entry-create-form" className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void submitEntry() }}>
           <div className="grid grid-cols-2 gap-3">
             <FormInput
               id="entry-vault"
@@ -477,6 +495,14 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   disabled={isPending} monospace error={cardNumberError} />
                 <FeedbackSlot visible={cardNumberError} color="red">{t('vault.entries.card.invalidCardNumber')}</FeedbackSlot>
               </div>
+              <div>
+                <SecretInput id="entry-card-cvv" label={t('vault.entries.card.cvv')} value={cvv}
+                  onChange={(value) => { setCvv(value); setCvvError(false) }}
+                  onBlur={() => setCvvError(!!cvv.trim() && !/^\d{3,4}$/.test(cvv.trim()))}
+                  shown={cvvShown} onToggleShown={() => setCvvShown((value) => !value)}
+                  disabled={isPending} monospace copyable error={cvvError} />
+                <FeedbackSlot visible={cvvError} color="red">{t('vault.entries.card.invalidCvv')}</FeedbackSlot>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <FormInput id="entry-expiry-month" label={t('vault.entries.card.expiryMonth')} value={expiryMonth}
@@ -546,7 +572,9 @@ function CreateEntryModalBody({ vault, onClose }: CreateEntryModalBodyProps) {
                   ...current, [ENTRY_FIELD.urlDomain]: active ? 'discovery' : 'never',
                 }))} />
               <SectionHeader>{t('vault.entries.totp.section')}</SectionHeader>
-              <CredentialTotpField value={credentialTotp} onChange={setCredentialTotp} disabled={isPending} />
+              <CredentialTotpField value={credentialTotp} onChange={setCredentialTotp}
+                onApply={(field) => { void submitEntry(mergeCredentialTotp(field, customFields)) }}
+                disabled={isPending} />
             </>
           ) : (
             <>
@@ -695,6 +723,7 @@ interface BuildPayloadInput {
   returnResultToAgent: boolean
   cardholderName: string
   cardNumber: string
+  cvv: string
   expiryMonth: string
   expiryYear: string
   billingAddress: string
@@ -736,6 +765,7 @@ function buildPlaintext(input: BuildPayloadInput): EntryPlaintext {
   if (input.type === ENTRY_TYPE_CREDIT_CARD) return withCustomFields({
     v: BLOB_VERSION_V2, type: ENTRY_TYPE_CREDIT_CARD,
     cardholderName: input.cardholderName.trim(), cardNumber: input.cardNumber.replace(/[ -]/g, ''),
+    ...(input.cvv.trim() ? { cvv: input.cvv.trim() } : {}),
     expiryMonth: input.expiryMonth, expiryYear: input.expiryYear,
     billingAddress: input.billingAddress.trim() || undefined,
     notes: trimmedNotes,
