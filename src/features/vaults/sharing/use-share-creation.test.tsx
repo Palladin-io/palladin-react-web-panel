@@ -64,6 +64,29 @@ describe('Entry sharing sender operation', () => {
     expect(result.current.retryPending).toBe(false)
   })
 
+  it('creates independent recipient links and retries only the unconfirmed recipient', async () => {
+    const secondId = '88888888-8888-4888-8888-888888888888'
+    mocks.challenge.mockResolvedValueOnce({ shareId: sharingId, sourceRevision: sharingScope.revision })
+      .mockResolvedValueOnce({ shareId: secondId, sourceRevision: sharingScope.revision })
+    mocks.create.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce(undefined)
+    const { result } = renderHook(() => useShareCreation(sharingScope, vi.fn()))
+    await waitFor(() => expect(result.current.source).not.toBeNull())
+    const recipients = { ...form, recipientMode: 'namedRecipient' as const,
+      recipientEmail: 'first@example.test, second@example.test' }
+    await act(async () => { expect(await result.current.submit(recipients)).toBe('failed') })
+    expect(result.current.links).toHaveLength(1)
+    expect(result.current.links[0].recipientEmail).toBe('first@example.test')
+    expect(result.current.retryPending).toBe(true)
+    const secondRequest = mocks.create.mock.calls[1][2]
+    await act(async () => { expect(await result.current.retry()).toBe('created') })
+    expect(mocks.challenge).toHaveBeenCalledTimes(2)
+    expect(mocks.create).toHaveBeenCalledTimes(3)
+    expect(mocks.create.mock.calls[2][2]).toBe(secondRequest)
+    expect(result.current.links.map((item) => item.recipientEmail))
+      .toEqual(['first@example.test', 'second@example.test'])
+    expect(result.current.links[0].link).not.toBe(result.current.links[1].link)
+  })
+
   it('rejects a changed source revision before encrypting or posting', async () => {
     mocks.challenge.mockResolvedValue({ shareId: sharingId, sourceRevision: '5', expiresAt: '2099-01-01T00:00:00Z' })
     const { result } = renderHook(() => useShareCreation(sharingScope, vi.fn()))

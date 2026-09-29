@@ -13,7 +13,7 @@ beforeEach(() => {
   vi.resetAllMocks()
   mocks.submit.mockResolvedValue('created')
   mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: false, retryPending: false,
-    link: null, submit: mocks.submit, retryLoad: vi.fn() })
+    link: null, links: [], submit: mocks.submit, retry: vi.fn(), retryLoad: vi.fn() })
 })
 
 function mount() {
@@ -23,7 +23,7 @@ async function confirmForm() {
   const user = userEvent.setup()
   await user.click(screen.getByRole('button', { name: /Recipient: Anyone with the link/ }))
   await user.selectOptions(screen.getByLabelText('Who can receive this copy?'), 'namedRecipient')
-  await user.type(screen.getByLabelText('Recipient email'), 'recipient@example.test')
+  await user.type(screen.getByLabelText('Recipient emails (comma-separated)'), 'recipient@example.test')
   return user
 }
 
@@ -83,7 +83,7 @@ describe('Create sharing dialog', () => {
     const user = userEvent.setup()
     await user.click(screen.getByRole('button', { name: /Recipient: Anyone with the link/ }))
     await user.selectOptions(screen.getByLabelText('Who can receive this copy?'), 'anyoneWithLink')
-    expect(screen.queryByLabelText('Recipient email')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Recipient emails (comma-separated)')).not.toBeInTheDocument()
     expect(screen.getByText('Anyone with the link can receive the entry after any additional verification. All recipients share one receipt limit.')).toBeInTheDocument()
     expect(screen.queryByText(/can end the link/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create sharing link' })).toBeEnabled()
@@ -95,13 +95,13 @@ describe('Create sharing dialog', () => {
     const user = await confirmForm()
     await user.click(screen.getByRole('button', { name: 'Create sharing link' }))
     await waitFor(() => expect(mocks.error).toHaveBeenCalledWith('The link could not be confirmed. Retry or close and check the sharing list.'))
-    expect(screen.getByLabelText('Recipient email')).toHaveValue('recipient@example.test')
+    expect(screen.getByLabelText('Recipient emails (comma-separated)')).toHaveValue('recipient@example.test')
   })
 
   it('blocks sharing the entire entry when a custom field is unsupported', async () => {
     mocks.hook.mockReturnValue({ source: { ...sharingSource, content: { ...sharingSource.content,
       customFields: [{ id: 'custom:future', label: 'Future field', type: 'future', value: {} }],
-    } }, loadError: false, busy: false, retryPending: false, link: null, submit: mocks.submit })
+    } }, loadError: false, busy: false, retryPending: false, link: null, links: [], submit: mocks.submit })
     mount()
     await confirmForm()
     expect(screen.getByText(/This entry cannot be shared in full yet/)).toBeInTheDocument()
@@ -111,10 +111,22 @@ describe('Create sharing dialog', () => {
 
   it('locks draft edits while an ambiguous creation is waiting for exact retry', () => {
     mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: false, retryPending: true,
-      link: null, submit: mocks.submit, retryLoad: vi.fn() })
+      link: null, links: [], submit: mocks.submit, retryLoad: vi.fn() })
     mount()
     expect(screen.getByLabelText('Who can receive this copy?')).toBeDisabled()
     expect(screen.getByLabelText('Additional protection')).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Retry the same request' })).toBeEnabled()
+  })
+
+  it('shows each recipient link separately and preserves retry for an incomplete batch', async () => {
+    const retry = vi.fn()
+    mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: false, retryPending: true,
+      links: [{ recipientEmail: 'first@example.test', link: 'https://app.example.test/share/first#key=synthetic' }],
+      retry, submit: mocks.submit })
+    mount()
+    expect(screen.getByLabelText('first@example.test')).toHaveValue('https://app.example.test/share/first#key=synthetic')
+    expect(screen.getByText(/Some links were created/)).toBeVisible()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Retry the same request' }))
+    expect(retry).toHaveBeenCalledOnce()
   })
 })

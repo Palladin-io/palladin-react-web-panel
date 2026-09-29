@@ -108,7 +108,7 @@ manifest and lockfile pin the published registry version 0.8.0.
 ## Cross-feature deps
 
 Individual Entry sharing is being implemented separately from Agent grants.
-Its selected-field projection, snapshot crypto and secret-link bootstrap boundary
+Its whole-Entry projection, snapshot crypto and secret-link bootstrap boundary
 are documented in [entry-sharing.md](entry-sharing.md). The sender's separate
 Sharing tab and creation dialog now call the lifecycle API on the feature branch.
 The guest receiver, bounded RAM login/signup continuation and explicit save-copy

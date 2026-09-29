@@ -1,5 +1,17 @@
 import { z } from 'zod'
 
+export function sharingRecipients(input: string): string[] | null {
+  const parts = input.split(',').map((part) => part.trim())
+  if (parts.length === 0 || parts.length > 20 || parts.some((part) => !z.email().max(320).safeParse(part).success)) return null
+  const seen = new Set<string>()
+  for (const part of parts) {
+    const normalized = part.toLocaleLowerCase('en-US')
+    if (seen.has(normalized)) return null
+    seen.add(normalized)
+  }
+  return parts
+}
+
 // Input-quality feedback, not an offline cryptographic protection or server gate.
 export function obviousSharingPin(value: string): boolean {
   if (!/^[0-9]+$/.test(value)) return false
@@ -19,7 +31,7 @@ export const sharingFormSchema = z.object({
   maximumReceipts: z.union([z.literal(''), z.string().regex(/^[1-9]\d*$/).refine((value) => Number(value) <= 100)]),
   notifyOnFirstReceipt: z.boolean(),
 }).superRefine((value, ctx) => {
-  if (value.recipientMode === 'namedRecipient' && !z.email().max(320).safeParse(value.recipientEmail.trim()).success) {
+  if (value.recipientMode === 'namedRecipient' && !sharingRecipients(value.recipientEmail)) {
     ctx.addIssue({ code: 'custom', path: ['recipientEmail'], message: 'email' })
   }
   if (value.protection === 'password' && (value.protectionSecret.length < 8 || value.protectionSecret.length > 128)) {

@@ -10,7 +10,9 @@ import type { MemberSecretV1 } from '../../../shared/crypto/vault-plaintext'
 import { openCurrentMemberEntrySecret } from '../sync/current-member-entry-reader'
 import { useMemberSyncStore } from '../sync/member-sync-store'
 import { createEntryShare, issueShareCreationChallenge, type CreateEntryShareInput } from './sharing-api'
-import { sharingFormSchema, type SharingForm } from './sharing-form'
+import { sharingFormSchema, sharingRecipients, type SharingForm } from './sharing-form'
+
+export interface CreatedShareLink { recipientEmail: string | null; link: string }
 
 export interface ShareSourceScope {
   organizationId: string
@@ -25,6 +27,9 @@ interface SharingOperation {
   auth: Pick<ReturnType<typeof useAuthStore.getState>, 'userId' | 'privateKey' | 'cryptoSessionGeneration'>
   material?: PreparedEntryShare
   request?: CreateEntryShareInput
+  recipients?: Array<string | null>
+  choices?: SharingForm
+  nextRecipient: number
   submitting: boolean
 }
 
@@ -33,6 +38,8 @@ function dispose(operation: SharingOperation): void {
   if (operation.material) clearEntryShareLink(operation.material)
   operation.material = undefined
   operation.request = undefined
+  operation.recipients = undefined
+  operation.choices = undefined
 }
 
 function sessionMatches(operation: SharingOperation, organizationId: string): boolean {
@@ -51,6 +58,7 @@ export function useShareCreation(scope: ShareSourceScope, onCreated: () => void)
   const [busy, setBusy] = useState(false)
   const [retryPending, setRetryPending] = useState(false)
   const [link, setLink] = useState<string | null>(null)
+  const [links, setLinks] = useState<CreatedShareLink[]>([])
   const [loadAttempt, setLoadAttempt] = useState(0)
   const operationRef = useRef<SharingOperation | null>(null)
   const onCreatedRef = useRef(onCreated)
@@ -60,12 +68,12 @@ export function useShareCreation(scope: ShareSourceScope, onCreated: () => void)
   useEffect(() => {
     const { userId, privateKey, cryptoSessionGeneration } = useAuthStore.getState()
     const operation: SharingOperation = {
-      controller: new AbortController(), auth: { userId, privateKey, cryptoSessionGeneration }, submitting: false,
+      controller: new AbortController(), auth: { userId, privateKey, cryptoSessionGeneration }, submitting: false, nextRecipient: 0,
     }
     operationRef.current = operation
     const invalidate = () => {
       dispose(operation)
-      setSource(null); setLink(null); setLoadError(true); setBusy(false); setRetryPending(false)
+      setSource(null); setLink(null); setLinks([]); setLoadError(true); setBusy(false); setRetryPending(false)
     }
     const unsubscribe = useAuthStore.subscribe(() => {
       if (!sessionMatches(operation, organizationId)) invalidate()
@@ -97,16 +105,24 @@ export function useShareCreation(scope: ShareSourceScope, onCreated: () => void)
     operation.submitting = true
     setBusy(true)
     try {
-      if (!operation.request) {
+      if (!operation.recipients) {
         const parsed = sharingFormSchema.safeParse(form)
         if (!parsed.success) throw new Error('Invalid sharing choices')
+        operation.choices = parsed.data
+        operation.recipients = parsed.data.recipientMode === 'namedRecipient'
+          ? sharingRecipients(parsed.data.recipientEmail) ?? undefined : [null]
+        if (!operation.recipients) throw new Error('Invalid recipients')
+      }
+      while (operation.nextRecipient < operation.recipients.length) {
+      if (!operation.request) {
         const challenge = await issueShareCreationChallenge(vaultId, entryId, operation.controller.signal)
         if (!sessionMatches(operation, organizationId)) return 'cancelled'
         if (challenge.sourceRevision !== revision) {
           useMemberSyncStore.getState().retry()
           throw new Error('Selected Entry revision changed')
         }
-        const expiresAt = new Date(Date.now() + Number(form.lifetimeHours) * 3_600_000).toISOString()
+        const choices = operation.choices!
+        const expiresAt = new Date(Date.now() + Number(choices.lifetimeHours) * 3_600_000).toISOString()
         const material = await prepareEntryShare({
           organizationId, vaultId, entryId, shareId: challenge.shareId, sourceRevision: revision, expiresAt,
         }, createEntryShareSnapshot(source))
@@ -117,25 +133,34 @@ export function useShareCreation(scope: ShareSourceScope, onCreated: () => void)
         operation.material = material
         operation.request = {
           shareId: challenge.shareId, sourceRevision: revision, expiresAt,
-          maximumReceipts: form.maximumReceipts === '' ? null : Number(form.maximumReceipts), recipientMode: form.recipientMode,
-          recipientEmail: form.recipientMode === 'namedRecipient' ? form.recipientEmail.trim() : null,
-          protection: form.protection, protectionSecret: form.protection === 'none' ? null : form.protectionSecret,
+          maximumReceipts: choices.maximumReceipts === '' ? null : Number(choices.maximumReceipts), recipientMode: choices.recipientMode,
+          recipientEmail: operation.recipients[operation.nextRecipient],
+          protection: choices.protection, protectionSecret: choices.protection === 'none' ? null : choices.protectionSecret,
           nonce: material.nonce, ciphertext: material.ciphertext, accessToken: encodeBase64Url(material.accessToken),
-          notifyOnFirstReceipt: form.notifyOnFirstReceipt,
+          notifyOnFirstReceipt: choices.notifyOnFirstReceipt,
         }
       }
       if (!sessionMatches(operation, organizationId)) return 'cancelled'
       await createEntryShare(vaultId, entryId, operation.request, operation.controller.signal)
       if (!sessionMatches(operation, organizationId)) return 'cancelled'
-      setLink(`${window.location.origin}${entrySharePath(operation.request.shareId)}${entryShareFragment(operation.material!)}`)
+      const created: CreatedShareLink = {
+        recipientEmail: operation.request.recipientEmail,
+        link: `${window.location.origin}${entrySharePath(operation.request.shareId)}${entryShareFragment(operation.material!)}`,
+      }
+      setLinks((current) => [...current, created])
+      setLink((current) => current ?? created.link)
       clearEntryShareLink(operation.material!)
       operation.material = undefined; operation.request = undefined
-      setSource(null); setRetryPending(false)
+      operation.nextRecipient++
       onCreatedRef.current()
+      }
+      setSource(null); setRetryPending(false)
+      operation.choices = undefined
+      operation.recipients = undefined
       return 'created'
     } catch {
       if (!sessionMatches(operation, organizationId)) return 'cancelled'
-      setRetryPending(!!operation.request)
+      setRetryPending(!!operation.recipients)
       return 'failed'
     } finally {
       operation.submitting = false
@@ -147,5 +172,10 @@ export function useShareCreation(scope: ShareSourceScope, onCreated: () => void)
     setLoadError(false); setSource(null); setLoadAttempt((value) => value + 1)
   }
 
-  return { source, loadError, busy, retryPending, link, submit, retryLoad }
+  function retry() {
+    const choices = operationRef.current?.choices
+    return choices ? submit(choices) : Promise.resolve('cancelled' as const)
+  }
+
+  return { source, loadError, busy, retryPending, link, links, submit, retry, retryLoad }
 }

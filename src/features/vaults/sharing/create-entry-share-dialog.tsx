@@ -21,7 +21,7 @@ import { EntryIcon } from '../components/entry-icon'
 import { DEFAULT_VAULT_ICON } from '../components/vault-presentation'
 import { useVault } from '../use-vault'
 import { initialSharingForm, sharingFieldInvalid, sharingFormSchema, type SharingForm } from './sharing-form'
-import { useShareCreation, type ShareSourceScope } from './use-share-creation'
+import { useShareCreation, type CreatedShareLink, type ShareSourceScope } from './use-share-creation'
 
 interface CreateEntryShareDialogProps {
   scope: ShareSourceScope
@@ -32,7 +32,8 @@ interface CreateEntryShareDialogProps {
 export function CreateEntryShareDialog({ scope, onClose, onCreated }: CreateEntryShareDialogProps) {
   const { t } = useTranslation()
   const creation = useShareCreation(scope, onCreated)
-  if (creation.link) return <CreatedShareDialog link={creation.link} onClose={onClose} />
+  if (creation.links.length) return <CreatedShareDialog links={creation.links} busy={creation.busy}
+    retryPending={creation.retryPending} onRetry={() => { void creation.retry() }} onClose={onClose} />
   if (creation.source) return <SharingDraftDialog scope={scope} source={creation.source} creation={creation} onClose={onClose} />
   return <ModalShell title={t('sharing.create')} ariaLabel={t('sharing.create')} width={560} trapFocus
     onClose={onClose} footer={<DialogFooter><Button size="sm" variant="subtle" onClick={onClose} className="flex-1">{t('sharing.close')}</Button></DialogFooter>}>
@@ -110,6 +111,7 @@ function SharingDraftDialog({ scope, source, creation, onClose }: {
           disabled={disabled} error={errors.recipientEmail} onChange={(event) => change('recipientEmail', event.target.value)} onBlur={() => blur('recipientEmail')} />
         <FeedbackSlot visible={!!errors.recipientEmail} color="red">{t('sharing.invalidEmail')}</FeedbackSlot>
         <p className="mt-2 text-meta text-[var(--cv-t3)]">{t('sharing.emailNotice')}</p>
+        <p className="mt-2 text-meta text-[var(--cv-t3)]">{t('sharing.multipleEmailNotice')}</p>
       </div> : <p className="text-meta text-[var(--cv-t3)]">{t('sharing.anyoneWarning')}</p>}
       </FormSection>
       <FormSection label={t('sharing.protection')} summary={t(form.protection === 'none' ? 'sharing.noProtection' : `sharing.${form.protection}`)}
@@ -158,18 +160,27 @@ function SharingDraftDialog({ scope, source, creation, onClose }: {
   </ModalShell>
 }
 
-function CreatedShareDialog({ link, onClose }: { link: string; onClose: () => void }) {
+function CreatedShareDialog({ links, busy, retryPending, onRetry, onClose }: {
+  links: CreatedShareLink[]; busy: boolean; retryPending: boolean; onRetry: () => void; onClose: () => void
+}) {
   const { t } = useTranslation()
-  const [shown, setShown] = useState(false)
-  return <ModalShell title={t('sharing.created')} ariaLabel={t('sharing.created')} width={560} trapFocus onClose={onClose}
-    footer={<DialogFooter><Button size="sm" variant="accent" onClick={onClose} className="flex-1">{t('sharing.done')}</Button></DialogFooter>}>
+  const [shown, setShown] = useState<string[]>([])
+  return <ModalShell title={t('sharing.created')} ariaLabel={t('sharing.created')} width={560} trapFocus onClose={busy ? undefined : onClose}
+    footer={<DialogFooter>{retryPending ? <Button size="sm" variant="subtle" onClick={onRetry} disabled={busy} className="flex-1">
+      {t(busy ? 'sharing.creating' : 'sharing.retryCreation')}</Button> : null}
+      <Button size="sm" variant="accent" onClick={onClose} disabled={busy} className="flex-[2]">{t('sharing.done')}</Button></DialogFooter>}>
     <div className="flex flex-col gap-3">
-      <SecretInput id="sharing-created-link" label={t('sharing.link')} value={link} onChange={() => undefined} readOnly
-        shown={shown} onToggleShown={() => setShown(!shown)} copyable copyLabel={t('sharing.copyLink')} />
+      {retryPending ? <p role="status" className="text-meta text-[var(--cv-t2)]">{t('sharing.partialCreation')}</p> : null}
+      {links.map(({ recipientEmail, link }, index) => <div key={link}>
+        <SecretInput id={`sharing-created-link-${index}`} label={recipientEmail ?? t('sharing.link')} value={link}
+          onChange={() => undefined} readOnly shown={shown.includes(link)} onToggleShown={() => setShown((current) => current.includes(link)
+            ? current.filter((value) => value !== link) : [...current, link])} copyable copyLabel={t('sharing.copyLink')}
+          copyFeedback clearCopiedSecret={false} />
+        {typeof navigator.share === 'function' ? <Button size="sm" variant="subtle" onClick={() => {
+          void navigator.share({ url: link }).catch(() => undefined)
+        }}>{t('sharing.shareVia')}</Button> : null}
+      </div>)}
       <p className="text-meta text-[var(--cv-t2)]">{t('sharing.linkOnce')}</p>
-      {typeof navigator.share === 'function' ? <Button size="sm" variant="subtle" onClick={() => {
-        void navigator.share({ url: link }).catch(() => undefined)
-      }}>{t('sharing.shareVia')}</Button> : null}
     </div>
   </ModalShell>
 }

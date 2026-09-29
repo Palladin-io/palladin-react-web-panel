@@ -190,6 +190,12 @@ no Inbox notification. Additional password or at least six ASCII PIN digits is
 optional. Script source stays inert. Recipient email is delivery
 metadata, not part of the secret snapshot. Palladin emails only the OTP; the
 sender distributes the full link and any additional secret separately.
+The named-recipient form accepts 1–20 distinct comma-separated addresses.
+The client creates one independently encrypted link per address, each with its
+own receipt count and revocation. Completed links remain copyable in RAM when a
+later create fails; retry reuses only the pending recipient's exact request and
+never recreates an earlier link. The sender must distribute each link to its
+matching address; Palladin does not mail the link.
 
 Password/PIN requires matching confirmation in the sender form. Repeated digit
 patterns and monotonic digit sequences are rejected as input-quality feedback,
@@ -214,8 +220,9 @@ An ambiguous create failure retains the exact encrypted request, bearer and key
 for an explicit idempotent retry; controls stay disabled so the retry cannot
 quietly change its recipient or policy. Cancelling loses that local capability;
 the UI warns to revoke any committed link from the list. Successful creation
-shows a masked, copyable link once, then drops the snapshot and temporary key
-buffers. Closing, locking, changing the session or pagehide disposes the operation
+shows a masked, copyable link once, with a value-free copy toast and without
+automatically clearing the explicitly copied URL from the clipboard. It then
+drops the snapshot and temporary key buffers. Closing, locking, changing the session or pagehide disposes the operation
 and aborts pending transport. JavaScript strings are released, not claimed to be
 securely overwritten. Editing the source displays the non-synchronizing-copy
 warning and directs the sender to Sharing for revocation.
