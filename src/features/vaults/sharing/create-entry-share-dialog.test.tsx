@@ -84,7 +84,8 @@ describe('Create sharing dialog', () => {
     await user.click(screen.getByRole('button', { name: /Recipient: Anyone with the link/ }))
     await user.selectOptions(screen.getByLabelText('Who can receive this copy?'), 'anyoneWithLink')
     expect(screen.queryByLabelText('Recipient email')).not.toBeInTheDocument()
-    expect(screen.getByText(/All recipients share one receipt limit/)).toBeInTheDocument()
+    expect(screen.getByText('Anyone with the link can receive the entry after any additional verification. All recipients share one receipt limit.')).toBeInTheDocument()
+    expect(screen.queryByText(/can end the link/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create sharing link' })).toBeEnabled()
   })
 

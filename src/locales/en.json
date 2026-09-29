@@ -139,7 +139,7 @@
   "sharing.email": "Recipient email",
   "sharing.invalidEmail": "Enter one valid email address.",
   "sharing.emailNotice": "Send the link yourself. We email the recipient a verification code.",
-  "sharing.anyoneWarning": "Anyone with the link can receive the entry after any additional verification. All recipients share one receipt limit and can end the link.",
+  "sharing.anyoneWarning": "Anyone with the link can receive the entry after any additional verification. All recipients share one receipt limit.",
   "sharing.protection": "Security",
   "sharing.additionalProtection": "Additional protection",
   "sharing.none": "No additional secret",

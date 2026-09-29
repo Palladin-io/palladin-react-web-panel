@@ -139,7 +139,7 @@
   "sharing.email": "E-mail odbiorcy",
   "sharing.invalidEmail": "Podaj jeden prawidłowy adres e-mail.",
   "sharing.emailNotice": "Wyślij link samodzielnie. My wyślemy odbiorcy kod weryfikacyjny e-mailem.",
-  "sharing.anyoneWarning": "Każdy, kto ma link, może odebrać wpis po dodatkowej weryfikacji, jeśli ją ustawisz. Odbiorcy mają wspólny limit i mogą zakończyć link.",
+  "sharing.anyoneWarning": "Każdy, kto ma link, może odebrać wpis po dodatkowej weryfikacji, jeśli ją ustawisz. Odbiorcy mają wspólny limit odbiorów.",
   "sharing.protection": "Zabezpieczenie",
   "sharing.additionalProtection": "Dodatkowa ochrona",
   "sharing.none": "Bez dodatkowego sekretu",
