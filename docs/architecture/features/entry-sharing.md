@@ -352,7 +352,10 @@ Ambiguous writes retry the exact encrypted request and reconcile against the
 authenticated Vault directory. While that Vault creation is uncertain, the
 destination name/mode and dismissal are frozen; the only available action is
 retrying the same request. A definite non-ambiguous client rejection releases
-that pending attempt. The returned Vault ID is rechecked
+that pending attempt. If another tab's default Vault wins the one-default race,
+its server-owned default marker releases the pending request without choosing
+that Vault for the recipient. Frozen-name retries compare NFC-normalized names.
+The returned Vault ID is rechecked
 against the authenticated, locally decrypted Vault directory before the Entry
 copy is encrypted into it. A confirmed save returns the exact new Entry ID and
 navigates to its detail route in the same tab. A failed Vault or Entry write

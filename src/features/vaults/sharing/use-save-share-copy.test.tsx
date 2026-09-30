@@ -28,7 +28,7 @@ beforeEach(() => {
   useMemberSyncStore.getState().clear()
   useAuthStore.setState({ userId: memberId, emailVerified: true, privateKey: new Uint8Array(32).fill(7), cryptoSessionGeneration: 1,
     accessToken: `header.${btoa(JSON.stringify({ sub: memberId, org_id: organizationId }))}.signature`, isVaultLocked: false, permissions: 8 })
-  api.list.mockResolvedValue([{ id: vaultId }])
+  api.list.mockResolvedValue([{ id: vaultId, isDefault: false }])
   api.name.mockResolvedValue('Destination')
   api.get.mockResolvedValue({ id: vaultId, organizationId })
   api.challenge.mockResolvedValue({ entryId })
@@ -58,7 +58,7 @@ describe('Explicit received-copy save lifecycle', () => {
     expect(api.vaultPayload.mock.calls[0][0]).toMatchObject({ organizationId, vaultId, memberId,
       metadata: { name: 'New vault' } })
     expect(api.createDefaultVault).toHaveBeenCalledWith({ vaultId, ciphertext: 'synthetic' }, expect.any(AbortSignal))
-    expect(result.current.vaults).toEqual([{ id: vaultId, name: 'New vault' }])
+    expect(result.current.vaults).toEqual([{ id: vaultId, name: 'New vault', isDefault: false }])
     expect(api.create).not.toHaveBeenCalled()
     await act(async () => { expect(await result.current.save(vaultId, form)).toEqual({ vaultId, entryId }) })
     expect(useMemberSyncStore.getState().retryGeneration).toBe(2)
@@ -103,9 +103,20 @@ describe('Explicit received-copy save lifecycle', () => {
     expect(result.current.pendingVaultName).toBeNull()
   })
 
+  it('releases a pending default Vault when another tab won the one-default race', async () => {
+    const otherDefaultId = '55555555-5555-4555-8555-555555555555'
+    api.list.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: otherDefaultId, isDefault: true }])
+    api.createDefaultVault.mockRejectedValueOnce(new Error('conflicting default'))
+    const { result } = await ready()
+    await act(async () => { expect(await result.current.createNamedVault('New vault')).toBe('failed') })
+    expect(result.current.pendingVaultName).toBeNull()
+    expect(result.current.vaults).toEqual([{ id: otherDefaultId, name: 'Destination', isDefault: true }])
+    expect(api.createDefaultVault).toHaveBeenCalledOnce()
+  })
+
   it('loads names locally and does not create anything before an explicit save', async () => {
     const { result } = await ready()
-    expect(result.current.vaults).toEqual([{ id: vaultId, name: 'Destination' }])
+    expect(result.current.vaults).toEqual([{ id: vaultId, name: 'Destination', isDefault: false }])
     expect(api.name.mock.calls[0][1]).toEqual({ organizationId, memberId, vaultId })
     expect(api.challenge).not.toHaveBeenCalled()
     expect(api.create).not.toHaveBeenCalled()
@@ -187,11 +198,12 @@ describe('Explicit received-copy save lifecycle', () => {
 
   it('keeps healthy Vault choices when a sibling fails local authentication', async () => {
     const corruptId = '55555555-5555-4555-8555-555555555555'
-    api.list.mockResolvedValue([{ id: corruptId }, { id: vaultId }])
+    api.list.mockResolvedValue([{ id: corruptId, isDefault: false }, { id: vaultId, isDefault: false }])
     api.name.mockRejectedValueOnce(new Error('invalid ciphertext'))
     const { result } = await ready()
     expect(result.current.loadError).toBe(false)
-    expect(result.current.vaults).toEqual([{ id: corruptId, name: null }, { id: vaultId, name: 'Destination' }])
+    expect(result.current.vaults).toEqual([{ id: corruptId, name: null, isDefault: false },
+      { id: vaultId, name: 'Destination', isDefault: false }])
     await act(async () => { expect(await result.current.save(corruptId, form)).toBe('failed') })
     expect(api.create).not.toHaveBeenCalled()
     await act(async () => { expect(await result.current.save(vaultId, form)).toEqual({ vaultId, entryId }) })

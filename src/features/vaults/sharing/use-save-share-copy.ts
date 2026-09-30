@@ -13,7 +13,7 @@ import { createVaultProtocolPayload } from '../../../shared/crypto/create-vault-
 import { createDefaultVault, getAccount } from '../../../shared/api/account-api'
 import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from '../../../shared/lib/create-default-vault-safe'
 
-interface CopyVault { id: string; name: string | null }
+interface CopyVault { id: string; name: string | null; isDefault: boolean }
 export interface SavedShareCopy { vaultId: string; entryId: string }
 interface CopyOperation {
   controller: AbortController
@@ -46,7 +46,7 @@ async function loadVaultChoices(operation: CopyOperation): Promise<CopyVault[] |
         operation.auth.privateKey!, operation.controller.signal)
     } catch { /* A corrupt Vault must not hide unrelated authenticated choices. */ }
     if (!current(operation)) return null
-    choices.push({ id: vault.id, name })
+    choices.push({ id: vault.id, name, isDefault: vault.isDefault })
   }
   return current(operation) ? choices : null
 }
@@ -128,6 +128,13 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
       const choices = await loadVaultChoices(operation)
       if (!choices || !current(operation)) return 'cancelled'
       setVaults(choices)
+      if (pending.isDefault && choices.some((vault) => vault.isDefault && vault.id !== pending.payload.vaultId)) {
+        // Another tab won the one-default-per-account race. Its authoritative
+        // marker proves this pending request cannot commit as the default Vault.
+        operation.pendingVault = undefined
+        setPendingVaultName(null)
+        return 'failed'
+      }
       if (!choices.some((vault) => vault.id === pending.payload.vaultId && vault.name === pending.name)) return 'failed'
       operation.pendingVault = undefined
       setPendingVaultName(null)

@@ -44,7 +44,7 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
       ? `${vault.name} (${shortenKey(vault.id)})` : vault.name!,
   }))
   const selectedVaultId = mode === 'existing' ? vaultChoices.find((vault) => vault.label === vaultInput)?.id : undefined
-  const newVaultName = vaultInput.trim()
+  const newVaultName = vaultInput.trim().normalize('NFC')
   const destinationReady = saving.retryPending || (saving.pendingVaultName
     ? valid && newVaultName === saving.pendingVaultName
     : valid && (createdVaultId !== null || !!selectedVaultId

@@ -118,6 +118,17 @@ describe('Save received copy dialog', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Vault creation may have succeeded')
   })
 
+  it('enables exact retry when the frozen name was entered in decomposed Unicode', async () => {
+    const props = { snapshot: fixture.snapshot as EntryShareSnapshot, onSaved: vi.fn(), onClose: vi.fn() }
+    const view = render(<SaveShareCopyDialog {...props} />)
+    await userEvent.click(screen.getByRole('button', { name: 'New vault' }))
+    await userEvent.type(screen.getByLabelText('New vault name'), 'Cafe\u0301')
+    mocks.state.pendingVaultName = 'Café'
+    view.rerender(<SaveShareCopyDialog {...props} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Retry creating this vault' }))
+    expect(mocks.createNamedVault).toHaveBeenCalledWith('Café')
+  })
+
   it('retains the received copy after a failed save without showing raw errors', async () => {
     mocks.save.mockResolvedValue('failed')
     const onSaved = vi.fn()

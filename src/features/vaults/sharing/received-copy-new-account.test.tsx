@@ -47,7 +47,7 @@ beforeEach(async () => {
   api.vaultChallenge.mockResolvedValue({ vaultId })
   api.entryChallenge.mockResolvedValue({ entryId })
   api.account.mockResolvedValue({ userId: memberId, memberKeyVersion: 1 })
-  api.list.mockImplementation(async () => destination ? [destination] : [])
+  api.list.mockImplementation(async () => destination ? [{ ...destination, isDefault: true }] : [])
   api.get.mockImplementation(async () => destination)
   api.createDefaultVault.mockImplementation(async (payload: CreateVaultProtocolPayload) => {
     destination = { ...payload, id: vaultId, organizationId, memberVaultKey: payload.creatorVaultKey, memberKeyGeneration: 1 }
