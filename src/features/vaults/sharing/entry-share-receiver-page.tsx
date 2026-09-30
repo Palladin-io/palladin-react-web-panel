@@ -130,7 +130,9 @@ function ScopedReceiver({ shareId, onContinueToAccount }: EntryShareReceiverPage
             className="text-[var(--cv-t1)] transition-colors hover:text-[var(--cv-primary)] focus-visible:underline">
             {t('sharing.receiver.downloadApp')}
           </a>
-          <p className="mt-2 leading-relaxed">{t(received ? 'sharing.receiver.installAfterReceipt' : 'sharing.receiver.installBeforeReceipt')}</p>
+          <p className="mt-2 leading-relaxed">{t(received
+            ? saved ? 'sharing.receiver.installAfterSave' : 'sharing.receiver.installAfterReceipt'
+            : 'sharing.receiver.installBeforeReceipt')}</p>
         </aside> : null}
         </>}>
         <div className="flex w-full flex-col gap-3">
@@ -180,6 +182,9 @@ function ScopedReceiver({ shareId, onContinueToAccount }: EntryShareReceiverPage
           </> : null}
           {received && canContinueAccount ? <p className="text-meta leading-relaxed text-[var(--cv-t2)]">
             {t('sharing.receiver.keepTabOpen')}
+          </p> : null}
+          {received && saved ? <p role="status" className="text-meta leading-relaxed text-[var(--cv-t2)]">
+            {t('sharing.receiver.syncAfterSave')}
           </p> : null}
         </>}
         </div>

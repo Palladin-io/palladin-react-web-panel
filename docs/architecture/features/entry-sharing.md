@@ -21,7 +21,11 @@ endpoints. The public guest receiver now opens and decrypts a snapshot through
 the separate recipient API. Already unlocked recipients can explicitly save a
 new copy. Explicit in-document auth continuation now preserves the same receipt.
 New accounts can explicitly prepare a destination Vault in the save dialog.
-Native handoff and device acceptance are still pending. This feature is not
+For an already received one-use link, the approved web-to-native path is explicit
+account save in the same browser session followed by normal encrypted Member sync
+after signing in to that account on mobile. Installation alone is not a transfer;
+the consumed link is not reopened. Direct native receipt of an unused link is a
+separate path. Real cross-client/device acceptance is still pending. This feature is not
 deployed or accepted end-to-end.
 
 ## Snapshot boundary
