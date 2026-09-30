@@ -330,6 +330,26 @@ jobs:
           verify_metadata "$DEPLOY_URL"
           verify_metadata 'https://stage.palladin.io'
 
+          verify_association() {
+            local base_url="$1"
+            local name="$2"
+            local output="$RUNNER_TEMP/association-$name"
+            local response_headers="$RUNNER_TEMP/association-$name-headers"
+            local status_code
+            status_code="$(curl --fail --silent --show-error \
+              --retry 20 --retry-delay 5 --retry-all-errors --retry-max-time 180 \
+              --max-redirs 0 --write-out '%{http_code}' \
+              --dump-header "$response_headers" --output "$output" \
+              "$base_url/.well-known/$name?source=$SOURCE_SHA")"
+            [[ "$status_code" == 200 ]]
+            grep -qi '^content-type:.*application/json' "$response_headers"
+            cmp -s "$RUNNER_TEMP/web-dist/.well-known/$name" "$output"
+          }
+          for base_url in "$DEPLOY_URL" 'https://stage.palladin.io'; do
+            verify_association "$base_url" apple-app-site-association
+            verify_association "$base_url" assetlinks.json
+          done
+
           headers="$RUNNER_TEMP/staging-headers.txt"
           curl --fail --silent --show-error \
             --retry 20 --retry-delay 5 --retry-all-errors --retry-max-time 180 \
