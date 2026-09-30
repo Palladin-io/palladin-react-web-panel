@@ -38,6 +38,9 @@ export function appLinkAssociationPlugin(environment) {
     generateBundle() {
       for (const [name, source] of Object.entries(documents)) {
         this.emitFile({ type: 'asset', fileName: `.well-known/${name}`, source });
+        // Netlify ZIP deploys discard dot-directories. Keep a public mirror
+        // for the same-origin internal rewrite without exposing new data.
+        this.emitFile({ type: 'asset', fileName: `well-known/${name}`, source });
       }
     },
     configureServer(server) {

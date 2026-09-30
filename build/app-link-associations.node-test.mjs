@@ -36,11 +36,29 @@ test('partial, malformed, wildcard and unknown-environment configuration fail cl
   ]) assert.throws(() => appLinkAssociations({ ...environment, [key]: value }));
 });
 
-test('build emits both well-known documents directly', () => {
+test('build emits canonical documents and ZIP-safe same-origin mirrors', () => {
   const emitted = [];
   appLinkAssociationPlugin(environment).generateBundle.call({ emitFile: (file) => emitted.push(file) });
   assert.deepEqual(emitted.map((file) => file.fileName), [
-    '.well-known/apple-app-site-association', '.well-known/assetlinks.json',
+    '.well-known/apple-app-site-association', 'well-known/apple-app-site-association',
+    '.well-known/assetlinks.json', 'well-known/assetlinks.json',
+  ]);
+  for (const name of ['apple-app-site-association', 'assetlinks.json']) {
+    assert.equal(
+      emitted.find((file) => file.fileName === `.well-known/${name}`).source,
+      emitted.find((file) => file.fileName === `well-known/${name}`).source,
+    );
+  }
+});
+
+test('Netlify rewrites only exact association URLs before the SPA fallback', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const redirects = (await readFile(new URL('../public/_redirects', import.meta.url), 'utf8'))
+    .split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  assert.deepEqual(redirects.slice(0, 3), [
+    '/.well-known/apple-app-site-association /well-known/apple-app-site-association 200!',
+    '/.well-known/assetlinks.json /well-known/assetlinks.json 200!',
+    '/* /index.html 200',
   ]);
 });
 

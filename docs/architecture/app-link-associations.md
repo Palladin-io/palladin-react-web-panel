@@ -5,6 +5,11 @@ Both the web panel and landing build emit these same-host assets:
 - `/.well-known/apple-app-site-association`
 - `/.well-known/assetlinks.json`
 
+The panel's Netlify ZIP deployment strips dot-directories. Its build also emits
+identical `well-known/` mirrors and the two exact same-origin 200 rewrites before
+the SPA fallback. Deployment smoke checks must compare both public responses
+with the built JSON; a 200/`application/json` header with HTML body is a failure.
+
 The association must be published on the actual host that issues `/share/*` links.
 Publishing it only on a different landing host does not associate panel links.
 Landing associations do not implement a landing receiver route.
