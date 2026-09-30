@@ -94,9 +94,13 @@ describe('Explicit received-copy save lifecycle', () => {
     api.list.mockResolvedValueOnce([]).mockResolvedValueOnce([])
     const { result } = await ready()
     await act(async () => { expect(await result.current.createNamedVault('New vault')).toBe('failed') })
+    expect(result.current.pendingVaultName).toBe('New vault')
+    await act(async () => { expect(await result.current.createNamedVault('Another vault')).toBe('failed') })
+    expect(api.vaultChallenge).toHaveBeenCalledOnce()
     await act(async () => { expect(await result.current.createNamedVault('New vault')).toEqual({ vaultId }) })
     expect(api.createDefaultVault.mock.calls[1][0]).toBe(api.createDefaultVault.mock.calls[0][0])
     expect(api.vaultChallenge).toHaveBeenCalledOnce()
+    expect(result.current.pendingVaultName).toBeNull()
   })
 
   it('loads names locally and does not create anything before an explicit save', async () => {

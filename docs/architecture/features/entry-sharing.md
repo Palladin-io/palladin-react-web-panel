@@ -349,7 +349,10 @@ account/organization/key-generation-scoped operation as the Entry save.
 An authoritative empty account uses the one-default-per-account endpoint with
 the entered name; accounts with Vaults use the regular Vault-create endpoint.
 Ambiguous writes retry the exact encrypted request and reconcile against the
-authenticated Vault directory. The returned Vault ID is rechecked
+authenticated Vault directory. While that Vault creation is uncertain, the
+destination name/mode and dismissal are frozen; the only available action is
+retrying the same request. A definite non-ambiguous client rejection releases
+that pending attempt. The returned Vault ID is rechecked
 against the authenticated, locally decrypted Vault directory before the Entry
 copy is encrypted into it. A confirmed save returns the exact new Entry ID and
 navigates to its detail route in the same tab. A failed Vault or Entry write

@@ -89,6 +89,7 @@
   "sharing.copy.newVaultHint": "A new vault named {{name}} will be created before saving.",
   "sharing.copy.createVaultError": "The vault could not be created or confirmed. Retry here without closing this tab.",
   "sharing.copy.vaultRetry": "Vault creation may have succeeded. Retry the same name here; the original encrypted request will be reconciled.",
+  "sharing.copy.retryVault": "Retry creating this vault",
   "sharing.copy.openSavedError": "The copy was saved, but its detail page could not be opened. Find it in your vault.",
   "sharing.copy.vaultError": "Could not load your vaults. Retry while this sharing session is open.",
   "sharing.copy.label": "Copy title",

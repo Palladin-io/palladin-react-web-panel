@@ -37,17 +37,20 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
   const form = { title, additions }
   const valid = entryShareCopyFormSchema.safeParse(form).success
     && missing.every((id) => entryShareCopyAdditionSchemas[id].safeParse(additions[id] ?? '').success)
-  const mode = saving.vaults.length ? destinationMode : 'new'
-  const frozen = saving.busy || saving.retryPending || saving.saved
+  const mode = saving.pendingVaultName ? 'new' : saving.vaults.length ? destinationMode : 'new'
+  const frozen = saving.busy || saving.retryPending || saving.saved || !!saving.pendingVaultName
   const vaultChoices = saving.vaults.filter((vault) => vault.name !== null).map((vault) => ({
     ...vault, label: saving.vaults.filter((candidate) => candidate.name === vault.name).length > 1
       ? `${vault.name} (${shortenKey(vault.id)})` : vault.name!,
   }))
   const selectedVaultId = mode === 'existing' ? vaultChoices.find((vault) => vault.label === vaultInput)?.id : undefined
   const newVaultName = vaultInput.trim()
-  const canSave = !saving.busy && !saving.saved && !saving.loading && !saving.loadError
-    && (saving.retryPending || valid && (createdVaultId !== null || !!selectedVaultId
+  const destinationReady = saving.retryPending || (saving.pendingVaultName
+    ? valid && newVaultName === saving.pendingVaultName
+    : valid && (createdVaultId !== null || !!selectedVaultId
       || mode === 'new' && newVaultName.length > 0 && newVaultName.length <= 64))
+  const canSave = !saving.busy && !saving.saved && !saving.loading && !saving.loadError
+    && destinationReady
   function feedback(id: string, show: boolean) {
     setInvalid((current) => { const next = new Set(current); if (show) next.add(id); else next.delete(id); return next })
   }
@@ -72,10 +75,10 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
     else if (outcome === 'failed') toast.error(t('sharing.copy.error'))
   }
   return <ModalShell width={560} title={t('sharing.copy.title')} ariaLabel={t('sharing.copy.title')} trapFocus
-    onClose={saving.busy ? undefined : onClose} footer={<DialogFooter>
-      <Button size="sm" variant="subtle" className="flex-1" disabled={saving.busy} onClick={onClose}>{t('sharing.cancel')}</Button>
+    onClose={saving.busy || saving.pendingVaultName ? undefined : onClose} footer={<DialogFooter>
+      <Button size="sm" variant="subtle" className="flex-1" disabled={saving.busy || !!saving.pendingVaultName} onClick={onClose}>{t('sharing.cancel')}</Button>
       <Button size="sm" variant="accent" className="flex-[2]" disabled={!canSave} type="submit" form="save-share-copy">
-        {t(saving.retryPending ? 'sharing.copy.retry' : 'sharing.copy.save')}
+        {t(saving.pendingVaultName ? 'sharing.copy.retryVault' : saving.retryPending ? 'sharing.copy.retry' : 'sharing.copy.save')}
       </Button>
     </DialogFooter>}>
     <form id="save-share-copy" noValidate className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void submit() }}>
@@ -129,6 +132,9 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
         })}
       </>}
       {saving.retryPending ? <WarningZone title={t('sharing.copy.retry')}>{t('sharing.copy.ambiguous')}</WarningZone> : null}
+      {saving.pendingVaultName && !saving.busy ? <WarningZone title={t('sharing.copy.retryVault')}>
+        {t('sharing.copy.vaultRetry')}
+      </WarningZone> : null}
     </form>
   </ModalShell>
 }

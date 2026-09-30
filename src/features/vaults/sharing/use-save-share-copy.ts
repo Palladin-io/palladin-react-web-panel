@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { HTTPError } from 'ky'
 import { useAuthStore } from '../../auth'
 import { organizationIdFromAccessToken } from '../../../shared/lib/organization-scope'
 import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
@@ -56,6 +57,7 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
   const [loadError, setLoadError] = useState(false)
   const [busy, setBusy] = useState(false)
   const [retryPending, setRetryPending] = useState(false)
+  const [pendingVaultName, setPendingVaultName] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [attempt, setAttempt] = useState(0)
   const operationRef = useRef<CopyOperation | null>(null)
@@ -66,7 +68,8 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
       organizationId: organizationIdFromAccessToken(accessToken), busy: false, saved: false }
     operationRef.current = operation
     const dispose = () => { operation.controller.abort(); operation.request = undefined; operation.pendingVault = undefined }
-    const invalidate = () => { dispose(); setVaults([]); setLoadError(true); setLoading(false); setBusy(false); setRetryPending(false) }
+    const invalidate = () => { dispose(); setVaults([]); setLoadError(true); setLoading(false); setBusy(false);
+      setRetryPending(false); setPendingVaultName(null) }
     const unsubscribe = useAuthStore.subscribe(() => { if (!current(operation)) invalidate() })
     window.addEventListener('pagehide', invalidate)
     void (async () => {
@@ -104,19 +107,30 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
         })
         if (!current(operation)) return 'cancelled'
         operation.pendingVault = { name: normalizedName, payload, isDefault: vaults.length === 0 }
+        setPendingVaultName(normalizedName)
       }
       const pending = operation.pendingVault
       try {
         if (pending.isDefault) await createDefaultVault(pending.payload, operation.controller.signal)
         else await createVault(pending.payload, operation.controller.signal)
+      } catch (error) {
+        if (!current(operation)) return 'cancelled'
+        // A definite client rejection cannot have committed this request.
+        // 409 remains ambiguous for a retried default Vault and must reconcile.
+        if (error instanceof HTTPError && error.response.status < 500
+          && ![408, 409, 429].includes(error.response.status)) {
+          operation.pendingVault = undefined
+          setPendingVaultName(null)
+          return 'failed'
+        }
       }
-      catch { if (!current(operation)) return 'cancelled' }
       if (!current(operation)) return 'cancelled'
       const choices = await loadVaultChoices(operation)
       if (!choices || !current(operation)) return 'cancelled'
       setVaults(choices)
       if (!choices.some((vault) => vault.id === pending.payload.vaultId && vault.name === pending.name)) return 'failed'
       operation.pendingVault = undefined
+      setPendingVaultName(null)
       useMemberSyncStore.getState().retry()
       return { vaultId: pending.payload.vaultId }
     } catch { return current(operation) ? 'failed' : 'cancelled' }
@@ -164,5 +178,5 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
   }
 
   function retryLoad() { setVaults([]); setLoading(true); setLoadError(false); setAttempt((value) => value + 1) }
-  return { vaults, loading, loadError, busy, retryPending, saved, save, retryLoad, createNamedVault }
+  return { vaults, loading, loadError, busy, retryPending, pendingVaultName, saved, save, retryLoad, createNamedVault }
 }

@@ -89,6 +89,7 @@
   "sharing.copy.newVaultHint": "Przed zapisem utworzymy nowy sejf o nazwie {{name}}.",
   "sharing.copy.createVaultError": "Nie udało się utworzyć lub potwierdzić sejfu. Spróbuj ponownie bez zamykania tej karty.",
   "sharing.copy.vaultRetry": "Sejf mógł zostać utworzony. Ponów próbę z tą samą nazwą; pierwotne zaszyfrowane żądanie zostanie uzgodnione.",
+  "sharing.copy.retryVault": "Ponów tworzenie tego sejfu",
   "sharing.copy.openSavedError": "Kopia została zapisana, ale nie udało się otworzyć jej szczegółów. Znajdziesz ją w swoim sejfie.",
   "sharing.copy.vaultError": "Nie udało się wczytać Twoich sejfów. Ponów, dopóki ta sesja udostępnienia jest otwarta.",
   "sharing.copy.label": "Tytuł kopii",

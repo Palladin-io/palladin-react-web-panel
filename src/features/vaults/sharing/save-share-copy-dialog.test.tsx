@@ -7,14 +7,14 @@ import fixture from '../../../shared/crypto/fixtures/entry-share-v1.json'
 import { SaveShareCopyDialog } from './save-share-copy-dialog'
 
 const mocks = vi.hoisted(() => ({ save: vi.fn(), createNamedVault: vi.fn(), retryLoad: vi.fn(), success: vi.fn(), error: vi.fn(),
-  state: { loading: false, loadError: false, busy: false, retryPending: false, saved: false,
+  state: { loading: false, loadError: false, busy: false, retryPending: false, pendingVaultName: null as string | null, saved: false,
     vaults: [{ id: 'target', name: 'Personal' }] as { id: string; name: string | null }[] } }))
 vi.mock('./use-save-share-copy', () => ({ useSaveShareCopy: () => ({ ...mocks.state,
   save: mocks.save, retryLoad: mocks.retryLoad, createNamedVault: mocks.createNamedVault }) }))
 vi.mock('sonner', () => ({ toast: { success: mocks.success, error: mocks.error } }))
 beforeEach(async () => {
   vi.resetAllMocks()
-  Object.assign(mocks.state, { loading: false, loadError: false, busy: false, retryPending: false, saved: false,
+  Object.assign(mocks.state, { loading: false, loadError: false, busy: false, retryPending: false, pendingVaultName: null, saved: false,
     vaults: [{ id: 'target', name: 'Personal' }] })
   mocks.save.mockResolvedValue({ vaultId: 'target', entryId: 'saved-entry' })
   mocks.createNamedVault.mockResolvedValue({ vaultId: 'new-vault' })
@@ -101,6 +101,21 @@ describe('Save received copy dialog', () => {
     await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
     await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
     expect(mocks.save).toHaveBeenCalledWith('target', { title: 'Test credential', additions: {} })
+  })
+
+  it('freezes an uncertain Vault create to the exact retry and prevents dismissing the copy', async () => {
+    const props = { snapshot: fixture.snapshot as EntryShareSnapshot, onSaved: vi.fn(), onClose: vi.fn() }
+    const view = render(<SaveShareCopyDialog {...props} />)
+    await userEvent.click(screen.getByRole('button', { name: 'New vault' }))
+    await userEvent.type(screen.getByLabelText('New vault name'), 'New vault')
+    mocks.state.pendingVaultName = 'New vault'
+    view.rerender(<SaveShareCopyDialog {...props} />)
+    expect(screen.getByLabelText('New vault name')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Existing vault' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Retry creating this vault' }))
+    expect(mocks.createNamedVault).toHaveBeenCalledWith('New vault')
+    expect(screen.getByRole('dialog')).toHaveTextContent('Vault creation may have succeeded')
   })
 
   it('retains the received copy after a failed save without showing raw errors', async () => {
