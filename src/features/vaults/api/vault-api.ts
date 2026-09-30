@@ -45,8 +45,8 @@ export function issueVaultCreationChallenge(signal?: AbortSignal): Promise<Vault
   return api.post('api/vaults/creation-challenges', { signal, retry: 0 }).json<VaultCreationChallengeResponse>()
 }
 
-export async function createVault(payload: CreateVaultPayload): Promise<void> {
-  await api.post('api/vaults', { json: payload })
+export async function createVault(payload: CreateVaultPayload, signal?: AbortSignal): Promise<void> {
+  await api.post('api/vaults', { json: payload, signal })
 }
 
 /**

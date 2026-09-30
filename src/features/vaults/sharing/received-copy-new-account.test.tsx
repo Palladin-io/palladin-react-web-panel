@@ -16,14 +16,14 @@ import { EntryShareReceiverPage } from './entry-share-receiver-page'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const api = vi.hoisted(() => ({ open: vi.fn(), receive: vi.fn(), confirm: vi.fn(), list: vi.fn(), get: vi.fn(),
-  vaultChallenge: vi.fn(), entryChallenge: vi.fn(), account: vi.fn(), createVault: vi.fn(), createEntry: vi.fn() }))
+  vaultChallenge: vi.fn(), entryChallenge: vi.fn(), account: vi.fn(), createDefaultVault: vi.fn(), createEntry: vi.fn() }))
 vi.mock('./recipient-api', () => ({ openRecipientSession: api.open, receiveEntryShare: api.receive,
   confirmRecipientDisplay: api.confirm, requestRecipientOtp: vi.fn(), verifyRecipientOtp: vi.fn(),
   verifyRecipientSecret: vi.fn(), endRecipientShare: vi.fn() }))
 vi.mock('../sync/member-sync-api', () => ({ listEncryptedVaults: api.list, getEncryptedVault: api.get }))
 vi.mock('../api/vault-api', () => ({ issueVaultCreationChallenge: api.vaultChallenge,
-  issueEntryCreationChallenge: api.entryChallenge, createEntry: api.createEntry, createVault: api.createVault }))
-vi.mock('../../../shared/api/account-api', () => ({ getAccount: api.account }))
+  issueEntryCreationChallenge: api.entryChallenge, createEntry: api.createEntry, createVault: vi.fn() }))
+vi.mock('../../../shared/api/account-api', () => ({ getAccount: api.account, createDefaultVault: api.createDefaultVault }))
 
 const organizationId = '11111111-1111-4111-8111-111111111111'
 const vaultId = '22222222-2222-4222-8222-222222222222'
@@ -49,7 +49,7 @@ beforeEach(async () => {
   api.account.mockResolvedValue({ userId: memberId, memberKeyVersion: 1 })
   api.list.mockImplementation(async () => destination ? [destination] : [])
   api.get.mockImplementation(async () => destination)
-  api.createVault.mockImplementation(async (payload: CreateVaultProtocolPayload) => {
+  api.createDefaultVault.mockImplementation(async (payload: CreateVaultProtocolPayload) => {
     destination = { ...payload, id: vaultId, organizationId, memberVaultKey: payload.creatorVaultKey, memberKeyGeneration: 1 }
   })
   api.createEntry.mockResolvedValue({ id: entryId, currentRevision: '1' })
@@ -79,11 +79,11 @@ it('keeps one guest receipt through registration, explicit fresh Vault creation 
     onContinueToAccount={navigate} /></QueryClientProvider>)
   await userEvent.click(await screen.findByRole('button', { name: 'Save to my vault' }))
   await screen.findByRole('dialog', { name: 'Save a copy to your vault' })
-  expect(api.createVault).not.toHaveBeenCalled()
-  await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
+  expect(api.createDefaultVault).not.toHaveBeenCalled()
+  await userEvent.type(screen.getByLabelText('New vault name'), 'Personal')
   expect(api.createEntry).not.toHaveBeenCalled()
   await userEvent.click(screen.getAllByRole('button', { name: 'Save to my vault' }).at(-1)!)
-  await waitFor(() => expect(api.createVault).toHaveBeenCalledOnce())
+  await waitFor(() => expect(api.createDefaultVault).toHaveBeenCalledOnce())
   await waitFor(() => expect(api.createEntry).toHaveBeenCalledOnce())
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
   expect(api.createEntry.mock.calls[0][0]).toBe(vaultId)
@@ -93,7 +93,7 @@ it('keeps one guest receipt through registration, explicit fresh Vault creation 
   expect(window.location.hash).toBe('')
   expect(window.location.search).toBe('')
   const request = api.createEntry.mock.calls[0][1]
-  expect(JSON.stringify([api.createVault.mock.calls[0][0], request])).not.toContain('fixture-only')
+  expect(JSON.stringify([api.createDefaultVault.mock.calls[0][0], request])).not.toContain('fixture-only')
   const vaultKey = await openMemberVaultKey(destination!.memberVaultKey, useAuthStore.getState().privateKey!)
   try {
     const saved = await openMemberSecret(request.entryKey, request.memberSecret, vaultKey,

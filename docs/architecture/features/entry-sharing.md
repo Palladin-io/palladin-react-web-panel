@@ -339,11 +339,17 @@ does not depend on an already mounted Member sync provider: it reads the own
 authenticated Vault list and decrypts names locally. A corrupt Vault stays visible
 as an unavailable shortened identifier and does not hide healthy siblings.
 
-The destination control offers existing decrypted Vault names as autocomplete
-choices. Typing a name that is not an exact existing choice creates a new Vault
-only after the recipient presses Save; list errors never create one. Creation
-uses the same canonical client-side encrypted Vault flow and ambiguous-write
-retry as the normal Create Vault dialog. The returned Vault ID is rechecked
+The destination control has explicit existing/new modes. Existing decrypted
+Vault names are offered as autocomplete choices; a non-matching typed string
+cannot silently create a Vault. Unavailable Vaults remain visible as disabled
+shortened identifiers. New mode accepts a name and creates a Vault only after
+the recipient presses Save; list errors never create one. Creation uses the
+canonical client-side encrypted Vault protocol inside the same abortable,
+account/organization/key-generation-scoped operation as the Entry save.
+An authoritative empty account uses the one-default-per-account endpoint with
+the entered name; accounts with Vaults use the regular Vault-create endpoint.
+Ambiguous writes retry the exact encrypted request and reconcile against the
+authenticated Vault directory. The returned Vault ID is rechecked
 against the authenticated, locally decrypted Vault directory before the Entry
 copy is encrypted into it. A confirmed save returns the exact new Entry ID and
 navigates to its detail route in the same tab. A failed Vault or Entry write

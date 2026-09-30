@@ -6,11 +6,14 @@ import { useSaveShareCopy } from './use-save-share-copy'
 import type { EntryShareSnapshot } from '../../../shared/crypto/entry-share'
 import fixture from '../../../shared/crypto/fixtures/entry-share-v1.json'
 
-const api = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), challenge: vi.fn(), create: vi.fn(), name: vi.fn(), seal: vi.fn(), prepareVault: vi.fn() }))
-vi.mock('../../../shared/lib/create-default-vault-safe', () => ({ createDefaultVaultSafe: api.prepareVault }))
+const api = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn(), challenge: vi.fn(), create: vi.fn(), name: vi.fn(), seal: vi.fn(),
+  vaultChallenge: vi.fn(), account: vi.fn(), createVault: vi.fn(), createDefaultVault: vi.fn(), vaultPayload: vi.fn() }))
 vi.mock('../sync/member-sync-api', () => ({ listEncryptedVaults: api.list, getEncryptedVault: api.get }))
-vi.mock('../api/vault-api', () => ({ issueEntryCreationChallenge: api.challenge, createEntry: api.create }))
+vi.mock('../api/vault-api', () => ({ issueEntryCreationChallenge: api.challenge, createEntry: api.create,
+  issueVaultCreationChallenge: api.vaultChallenge, createVault: api.createVault }))
 vi.mock('../../../shared/crypto/entry-share-copy-encryption', () => ({ readEntryShareCopyVaultName: api.name, sealEntryShareCopy: api.seal }))
+vi.mock('../../../shared/crypto/create-vault-protocol', () => ({ createVaultProtocolPayload: api.vaultPayload }))
+vi.mock('../../../shared/api/account-api', () => ({ getAccount: api.account, createDefaultVault: api.createDefaultVault }))
 
 const snapshot = fixture.snapshot as EntryShareSnapshot
 const organizationId = '11111111-1111-4111-8111-111111111111'
@@ -31,7 +34,11 @@ beforeEach(() => {
   api.challenge.mockResolvedValue({ entryId })
   api.seal.mockResolvedValue(material)
   api.create.mockResolvedValue({ id: entryId, currentRevision: '1' })
-  api.prepareVault.mockResolvedValue('created')
+  api.vaultChallenge.mockResolvedValue({ vaultId })
+  api.account.mockResolvedValue({ userId: memberId, memberKeyVersion: 1 })
+  api.vaultPayload.mockResolvedValue({ vaultId, ciphertext: 'synthetic' })
+  api.createVault.mockResolvedValue(undefined)
+  api.createDefaultVault.mockResolvedValue(undefined)
 })
 afterEach(cleanup)
 
@@ -42,117 +49,55 @@ async function ready() {
 }
 
 describe('Explicit received-copy save lifecycle', () => {
-  it.each(['created', 'already-exists'])('prepares an empty account explicitly (%s), then requires a separate save', async (outcome) => {
+  it('creates a named Vault within the scoped operation, then saves only after explicit confirmation', async () => {
     api.list.mockResolvedValueOnce([])
-    api.prepareVault.mockResolvedValue(outcome)
+    api.name.mockResolvedValue('New vault')
     const { result } = await ready()
-    expect(result.current.vaults).toEqual([])
-    expect(api.prepareVault).not.toHaveBeenCalled()
-    await act(async () => { expect(await result.current.prepareVault()).toBe('ready') })
-    expect(api.prepareVault).toHaveBeenCalledWith(useAuthStore.getState().privateKey, expect.any(String), expect.any(AbortSignal))
-    expect(api.list).toHaveBeenCalledTimes(2)
-    expect(result.current.vaults).toEqual([{ id: vaultId, name: 'Destination' }])
+    expect(api.createDefaultVault).not.toHaveBeenCalled()
+    await act(async () => { expect(await result.current.createNamedVault('New vault')).toEqual({ vaultId }) })
+    expect(api.vaultPayload.mock.calls[0][0]).toMatchObject({ organizationId, vaultId, memberId,
+      metadata: { name: 'New vault' } })
+    expect(api.createDefaultVault).toHaveBeenCalledWith({ vaultId, ciphertext: 'synthetic' }, expect.any(AbortSignal))
+    expect(result.current.vaults).toEqual([{ id: vaultId, name: 'New vault' }])
     expect(api.create).not.toHaveBeenCalled()
-    expect(api.challenge).not.toHaveBeenCalled()
     await act(async () => { expect(await result.current.save(vaultId, form)).toEqual({ vaultId, entryId }) })
-    expect(api.create).toHaveBeenCalledOnce()
     expect(useMemberSyncStore.getState().retryGeneration).toBe(2)
   })
 
-  it('reconciles a lost Vault-create response on explicit retry without losing the received copy', async () => {
-    api.list.mockResolvedValueOnce([])
-    api.prepareVault.mockResolvedValueOnce('failed').mockResolvedValueOnce('already-exists')
-    const { result } = await ready()
-    await act(async () => { expect(await result.current.prepareVault()).toBe('failed') })
-    expect(result.current.busy).toBe(false)
-    expect(result.current.loadError).toBe(false)
-    expect(api.list).toHaveBeenCalledOnce()
-    await act(async () => { expect(await result.current.prepareVault()).toBe('ready') })
-    await act(async () => { expect(await result.current.save(vaultId, form)).toEqual({ vaultId, entryId }) })
-    expect(api.seal.mock.calls[0][0].content.password).toBe('fixture-only')
-  })
-
-  it('can retry loading an already created Vault after a failed refresh', async () => {
-    api.list.mockResolvedValueOnce([]).mockRejectedValueOnce(new Error('unavailable'))
-    const { result } = await ready()
-    await act(async () => { expect(await result.current.prepareVault()).toBe('failed') })
-    expect(result.current.busy).toBe(false)
-    api.prepareVault.mockResolvedValue('already-exists')
-    await act(async () => { expect(await result.current.prepareVault()).toBe('ready') })
-    expect(api.list).toHaveBeenCalledTimes(3)
-    expect(api.create).not.toHaveBeenCalled()
-  })
-
-  it.each(['empty', 'corrupt'])('does not report readiness when the refreshed Vault list is %s', async (kind) => {
-    api.list.mockResolvedValueOnce([])
-    if (kind === 'empty') api.list.mockResolvedValue([])
-    else api.name.mockRejectedValue(new Error('invalid ciphertext'))
-    const { result } = await ready()
-    await act(async () => { expect(await result.current.prepareVault()).toBe('failed') })
-    expect(result.current.vaults.every((vault) => vault.name === null)).toBe(true)
-    expect(api.create).not.toHaveBeenCalled()
-  })
-
-  it('never creates a default Vault just because the original Vault-list request failed', async () => {
-    api.list.mockRejectedValueOnce(new Error('unavailable'))
-    const { result } = await ready()
-    await act(async () => { expect(await result.current.prepareVault()).toBe('cancelled') })
-    expect(api.prepareVault).not.toHaveBeenCalled()
-  })
-
-  it('never creates a default Vault while loading or when a destination already exists', async () => {
+  it('does not post a Vault after the session locks during encryption', async () => {
     let finish!: (value: unknown) => void
-    api.list.mockReturnValueOnce(new Promise((resolve) => { finish = resolve }))
-    const { result } = renderHook(() => useSaveShareCopy(snapshot))
-    await act(async () => { expect(await result.current.prepareVault()).toBe('cancelled') })
-    await act(async () => { finish([{ id: vaultId }]) })
-    await waitFor(() => expect(result.current.loading).toBe(false))
-    await act(async () => { expect(await result.current.prepareVault()).toBe('cancelled') })
-    expect(api.prepareVault).not.toHaveBeenCalled()
-  })
-
-  it('allows only one Vault preparation and no Entry save while it is pending', async () => {
-    api.list.mockResolvedValueOnce([])
-    let finish!: (value: string) => void
-    api.prepareVault.mockReturnValueOnce(new Promise((resolve) => { finish = resolve }))
+    api.vaultPayload.mockReturnValue(new Promise((resolve) => { finish = resolve }))
     const { result } = await ready()
     let pending!: Promise<unknown>
-    act(() => { pending = result.current.prepareVault() })
-    expect(result.current.busy).toBe(true)
-    await act(async () => {
-      expect(await result.current.prepareVault()).toBe('cancelled')
-      expect(await result.current.save(vaultId, form)).toBe('cancelled')
-      finish('created')
-      expect(await pending).toBe('ready')
-    })
-    expect(api.prepareVault).toHaveBeenCalledOnce()
-    expect(api.create).not.toHaveBeenCalled()
+    act(() => { pending = result.current.createNamedVault('New vault') })
+    await waitFor(() => expect(api.vaultPayload).toHaveBeenCalledOnce())
+    act(() => useAuthStore.setState({ isVaultLocked: true }))
+    await act(async () => { finish({ vaultId }); expect(await pending).toBe('cancelled') })
+    expect(api.createDefaultVault).not.toHaveBeenCalled()
   })
 
-  it.each(['lock', 'account', 'organization', 'permission', 'verification', 'pagehide', 'unmount'] as const)(
-    'discards late Vault preparation after %s', async (change) => {
-      api.list.mockResolvedValueOnce([])
-      let finish!: (value: string) => void
-      api.prepareVault.mockReturnValueOnce(new Promise((resolve) => { finish = resolve }))
-      const { result, unmount } = await ready()
-      let pending!: Promise<unknown>
-      act(() => { pending = result.current.prepareVault() })
-      act(() => {
-        if (change === 'lock') useAuthStore.setState({ isVaultLocked: true })
-        else if (change === 'account') useAuthStore.setState({ userId: 'another' })
-        else if (change === 'organization') useAuthStore.setState({ accessToken: `h.${btoa(JSON.stringify({ org_id: 'another' }))}.s` })
-        else if (change === 'permission') useAuthStore.setState({ permissions: 0 })
-        else if (change === 'verification') useAuthStore.setState({ emailVerified: false })
-        else if (change === 'pagehide') window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }))
-        else unmount()
-      })
-      await act(async () => { finish('created'); expect(await pending).toBe('cancelled') })
-      expect(api.prepareVault.mock.calls[0][2].aborted).toBe(true)
-      expect(api.list).toHaveBeenCalledOnce()
-      expect(useMemberSyncStore.getState().retryGeneration).toBe(0)
-      expect(api.create).not.toHaveBeenCalled()
-    },
-  )
+  it('aborts an in-flight Vault create on page disposal', async () => {
+    let finish!: (value: unknown) => void
+    api.createVault.mockReturnValue(new Promise((resolve) => { finish = resolve }))
+    const { result, unmount } = await ready()
+    let pending!: Promise<unknown>
+    act(() => { pending = result.current.createNamedVault('New vault') })
+    await waitFor(() => expect(api.createVault).toHaveBeenCalledOnce())
+    unmount()
+    await act(async () => { finish(undefined); expect(await pending).toBe('cancelled') })
+    expect(api.createVault.mock.calls[0][1].aborted).toBe(true)
+  })
+
+  it('reconciles an ambiguous Vault response against the same exact encrypted request', async () => {
+    api.name.mockResolvedValue('New vault')
+    api.createDefaultVault.mockRejectedValueOnce(new Error('lost response'))
+    api.list.mockResolvedValueOnce([]).mockResolvedValueOnce([])
+    const { result } = await ready()
+    await act(async () => { expect(await result.current.createNamedVault('New vault')).toBe('failed') })
+    await act(async () => { expect(await result.current.createNamedVault('New vault')).toEqual({ vaultId }) })
+    expect(api.createDefaultVault.mock.calls[1][0]).toBe(api.createDefaultVault.mock.calls[0][0])
+    expect(api.vaultChallenge).toHaveBeenCalledOnce()
+  })
 
   it('loads names locally and does not create anything before an explicit save', async () => {
     const { result } = await ready()
