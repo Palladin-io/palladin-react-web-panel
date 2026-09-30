@@ -13,6 +13,7 @@ import type { EntryShareCopyVault } from '../../../shared/crypto/entry-share-cop
 import type { CreateVaultProtocolPayload } from '../../../shared/crypto/create-vault-protocol'
 import fixture from '../../../shared/crypto/fixtures/entry-share-v1.json'
 import { EntryShareReceiverPage } from './entry-share-receiver-page'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 const api = vi.hoisted(() => ({ open: vi.fn(), receive: vi.fn(), confirm: vi.fn(), list: vi.fn(), get: vi.fn(),
   vaultChallenge: vi.fn(), entryChallenge: vi.fn(), account: vi.fn(), createVault: vi.fn(), createEntry: vi.fn() }))
@@ -21,8 +22,8 @@ vi.mock('./recipient-api', () => ({ openRecipientSession: api.open, receiveEntry
   verifyRecipientSecret: vi.fn(), endRecipientShare: vi.fn() }))
 vi.mock('../sync/member-sync-api', () => ({ listEncryptedVaults: api.list, getEncryptedVault: api.get }))
 vi.mock('../api/vault-api', () => ({ issueVaultCreationChallenge: api.vaultChallenge,
-  issueEntryCreationChallenge: api.entryChallenge, createEntry: api.createEntry }))
-vi.mock('../../../shared/api/account-api', () => ({ getAccount: api.account, createDefaultVault: api.createVault }))
+  issueEntryCreationChallenge: api.entryChallenge, createEntry: api.createEntry, createVault: api.createVault }))
+vi.mock('../../../shared/api/account-api', () => ({ getAccount: api.account }))
 
 const organizationId = '11111111-1111-4111-8111-111111111111'
 const vaultId = '22222222-2222-4222-8222-222222222222'
@@ -45,7 +46,7 @@ beforeEach(async () => {
     .mockRejectedValue(new Error('One receipt only'))
   api.vaultChallenge.mockResolvedValue({ vaultId })
   api.entryChallenge.mockResolvedValue({ entryId })
-  api.account.mockResolvedValue({ memberKeyVersion: 1 })
+  api.account.mockResolvedValue({ userId: memberId, memberKeyVersion: 1 })
   api.list.mockImplementation(async () => destination ? [destination] : [])
   api.get.mockImplementation(async () => destination)
   api.createVault.mockImplementation(async (payload: CreateVaultProtocolPayload) => {
@@ -57,7 +58,9 @@ afterEach(() => { cleanup(); clearPendingEntryShare() })
 
 it('keeps one guest receipt through registration, explicit fresh Vault creation and independently decryptable Entry save', async () => {
   const navigate = vi.fn()
-  const page = render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} />)
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const page = render(<QueryClientProvider client={queryClient}><EntryShareReceiverPage shareId={shareId}
+    onContinueToAccount={navigate} /></QueryClientProvider>)
 
   await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce())
   await userEvent.click(screen.getByRole('button', { name: 'Save to Palladin' }))
@@ -72,19 +75,17 @@ it('keeps one guest receipt through registration, explicit fresh Vault creation 
     useAuthStore.getState().markEmailVerified()
     useAuthStore.getState().unlockVault(new Uint8Array(32).fill(8), new Uint8Array(32).fill(7))
   })
-  render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} />)
+  render(<QueryClientProvider client={queryClient}><EntryShareReceiverPage shareId={shareId}
+    onContinueToAccount={navigate} /></QueryClientProvider>)
   await userEvent.click(await screen.findByRole('button', { name: 'Save to my vault' }))
   await screen.findByRole('dialog', { name: 'Save a copy to your vault' })
-  await screen.findByRole('button', { name: 'Create my personal vault' })
   expect(api.createVault).not.toHaveBeenCalled()
-  await userEvent.click(screen.getByRole('button', { name: 'Create my personal vault' }))
-  await screen.findByRole('option', { name: 'Personal' })
+  await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
   expect(api.createEntry).not.toHaveBeenCalled()
-  await userEvent.selectOptions(screen.getByLabelText('Destination vault'), vaultId)
   await userEvent.click(screen.getAllByRole('button', { name: 'Save to my vault' }).at(-1)!)
+  await waitFor(() => expect(api.createVault).toHaveBeenCalledOnce())
+  await waitFor(() => expect(api.createEntry).toHaveBeenCalledOnce())
   await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-  expect(api.createVault).toHaveBeenCalledOnce()
-  expect(api.createEntry).toHaveBeenCalledOnce()
   expect(api.createEntry.mock.calls[0][0]).toBe(vaultId)
   expect(api.open).toHaveBeenCalledOnce()
   expect(api.receive).toHaveBeenCalledOnce()

@@ -1253,23 +1253,18 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
             ) : null}
         </div>
 
-        <div className="mt-4 flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
-          <Button
-            variant="subtle"
-            size="sm"
-            onClick={handleDiscard}
-            disabled={isSaving || !hasChanges}
-          >
-            {t('vault.entry.detail.discard')}
-          </Button>
-          <Button
-            variant="accent"
-            size="sm"
-            onClick={() => { void handleSave() }}
-            disabled={isSaving || !originalSecret || !hasChanges || fieldsInvalid || scriptContractInvalid}
-          >
-            {isSaving ? t('vault.entry.detail.saving') : t('vault.entry.detail.save')}
-          </Button>
+        <div className="mt-4 flex items-center justify-between gap-2 border-t border-[var(--cv-divider)] pt-4">
+          <EntryShareAction scope={{ organizationId: vault.organizationId, vaultId: vault.id, entryId: entry.id,
+            revision: entry.currentRevision, keyVersion: entry.currentKeyVersion }} footer />
+          <div className="flex items-center gap-2">
+            <Button variant="subtle" size="sm" onClick={handleDiscard} disabled={isSaving || !hasChanges}>
+              {t('vault.entry.detail.discard')}
+            </Button>
+            <Button variant="accent" size="sm" onClick={() => { void handleSave() }}
+              disabled={isSaving || !originalSecret || !hasChanges || fieldsInvalid || scriptContractInvalid}>
+              {isSaving ? t('vault.entry.detail.saving') : t('vault.entry.detail.save')}
+            </Button>
+          </div>
         </div>
       </div>
 

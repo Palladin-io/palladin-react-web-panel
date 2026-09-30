@@ -28,6 +28,8 @@ export interface SecretInputProps {
   copyLabel?: string
   copyFeedback?: boolean
   clearCopiedSecret?: boolean
+  /** Optional third inline action, beside Copy and Reveal. */
+  trailingAction?: { icon: string; label: string; onClick: () => void }
   /** Read-only presentation separates actions from the value, without inset controls. */
   appearance?: 'input' | 'display'
   /**
@@ -42,10 +44,10 @@ const PADDING_FOR_ACTION_COUNT: Record<number, string> = { 1: ' pr-10', 2: ' pr-
 export function SecretInput({
   id, label, labelClassName, value, onChange, shown, onToggleShown,
   placeholder, disabled, readOnly, monospace, autoComplete = 'off', error, onBlur,
-  borderClass, copyable, copyLabel, copyFeedback, clearCopiedSecret = true, onGenerate, appearance = 'input',
+  borderClass, copyable, copyLabel, copyFeedback, clearCopiedSecret = true, trailingAction, onGenerate, appearance = 'input',
 }: SecretInputProps) {
   const { t } = useTranslation()
-  const actionCount = 1 + (copyable ? 1 : 0) + (onGenerate ? 1 : 0)
+  const actionCount = 1 + (copyable ? 1 : 0) + (onGenerate ? 1 : 0) + (trailingAction ? 1 : 0)
   const display = appearance === 'display' && readOnly
   const paddingRight = display ? '' : PADDING_FOR_ACTION_COUNT[actionCount] ?? ' pr-10'
   return (
@@ -105,6 +107,11 @@ export function SecretInput({
           >
             <Icon name={shown ? 'visibility_off' : 'visibility'} size={16} />
           </button>
+          {trailingAction ? <button type="button" onClick={trailingAction.onClick} aria-label={trailingAction.label}
+            title={trailingAction.label} className="inline-flex h-action w-action items-center justify-center rounded
+              text-[var(--cv-t3)] hover:text-[var(--cv-t1)] transition-colors">
+            <Icon name={trailingAction.icon} size={16} />
+          </button> : null}
         </div>
       </div>
     </div>

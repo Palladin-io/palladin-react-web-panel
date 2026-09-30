@@ -6,69 +6,68 @@ import type { EntryShareSnapshot } from '../../../shared/crypto/entry-share'
 import fixture from '../../../shared/crypto/fixtures/entry-share-v1.json'
 import { SaveShareCopyDialog } from './save-share-copy-dialog'
 
-const mocks = vi.hoisted(() => ({ save: vi.fn(), prepareVault: vi.fn(), retryLoad: vi.fn(), success: vi.fn(), error: vi.fn(),
+const mocks = vi.hoisted(() => ({ save: vi.fn(), prepareVault: vi.fn(), createVault: vi.fn(), retryLoad: vi.fn(), success: vi.fn(), error: vi.fn(),
   state: { loading: false, loadError: false, busy: false, retryPending: false, saved: false,
     vaults: [{ id: 'target', name: 'Personal' }] as { id: string; name: string | null }[] } }))
 vi.mock('./use-save-share-copy', () => ({ useSaveShareCopy: () => ({ ...mocks.state,
   save: mocks.save, retryLoad: mocks.retryLoad, prepareVault: mocks.prepareVault }) }))
+vi.mock('../use-create-vault', () => ({ useCreateVault: () => ({ mutateAsync: mocks.createVault, isPending: false, pendingInput: null }) }))
 vi.mock('sonner', () => ({ toast: { success: mocks.success, error: mocks.error } }))
 beforeEach(async () => {
   vi.resetAllMocks()
   Object.assign(mocks.state, { loading: false, loadError: false, busy: false, retryPending: false, saved: false,
     vaults: [{ id: 'target', name: 'Personal' }] })
-  mocks.save.mockResolvedValue('saved')
+  mocks.save.mockResolvedValue({ vaultId: 'target', entryId: 'saved-entry' })
+  mocks.createVault.mockResolvedValue({ vaultId: 'new-vault' })
   mocks.prepareVault.mockResolvedValue('ready')
   await i18n.changeLanguage('en')
 })
 afterEach(cleanup)
 
 describe('Save received copy dialog', () => {
-  it('offers explicit inline Vault creation without selecting or saving the Entry automatically', async () => {
+  it('creates a typed new Vault before saving the copy and returns the exact new Entry', async () => {
     mocks.state.vaults = []
+    mocks.save.mockResolvedValue({ vaultId: 'new-vault', entryId: 'saved-entry' })
     const onSaved = vi.fn()
     const props = { snapshot: fixture.snapshot as EntryShareSnapshot, onSaved, onClose: vi.fn() }
-    const { rerender } = render(<SaveShareCopyDialog {...props} />)
-    expect(mocks.prepareVault).not.toHaveBeenCalled()
+    render(<SaveShareCopyDialog {...props} />)
+    expect(mocks.createVault).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog')).toHaveTextContent('Keep this tab open')
-    await userEvent.click(screen.getByRole('button', { name: 'Create my personal vault' }))
-    expect(mocks.prepareVault).toHaveBeenCalledOnce()
-    expect(mocks.success).toHaveBeenCalledWith('Your vault is ready. Select it to save the copy.')
-    expect(onSaved).not.toHaveBeenCalled()
-    expect(mocks.save).not.toHaveBeenCalled()
-    mocks.state.vaults = [{ id: 'target', name: 'Personal' }]
-    rerender(<SaveShareCopyDialog {...props} />)
-    expect(screen.queryByRole('button', { name: 'Create my personal vault' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Save to my vault' })).toBeDisabled()
-    await userEvent.selectOptions(screen.getByLabelText('Destination vault'), 'target')
+    await userEvent.type(screen.getByLabelText('Destination vault'), 'New vault')
+    expect(screen.getByText('A new vault named New vault will be created before saving.')).toBeVisible()
     await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
-    expect(onSaved).toHaveBeenCalledOnce()
+    await waitFor(() => expect(mocks.createVault).toHaveBeenCalledWith({ name: 'New vault' }))
+    expect(mocks.save).toHaveBeenCalledWith('new-vault', { title: 'Test credential', additions: {} }, 'new-vault')
+    expect(onSaved).toHaveBeenCalledWith({ vaultId: 'new-vault', entryId: 'saved-entry' })
   })
 
-  it.each(['failed', 'cancelled'])('keeps the dialog and copy on %s Vault preparation', async (outcome) => {
+  it('keeps the dialog and copy when new Vault creation fails', async () => {
     mocks.state.vaults = []
-    mocks.prepareVault.mockResolvedValue(outcome)
+    mocks.createVault.mockRejectedValue(new Error('synthetic failure'))
     const onSaved = vi.fn()
     render(<SaveShareCopyDialog snapshot={fixture.snapshot as EntryShareSnapshot} onSaved={onSaved} onClose={vi.fn()} />)
-    await userEvent.click(screen.getByRole('button', { name: 'Create my personal vault' }))
-    expect(mocks.error).toHaveBeenCalledTimes(outcome === 'failed' ? 1 : 0)
+    await userEvent.type(screen.getByLabelText('Destination vault'), 'New vault')
+    await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
+    expect(mocks.error).toHaveBeenCalledWith('The vault could not be created or confirmed. Retry here without closing this tab.')
     expect(mocks.success).not.toHaveBeenCalled()
     expect(onSaved).not.toHaveBeenCalled()
+    expect(mocks.save).not.toHaveBeenCalled()
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 
   it('does not offer creation on a failed Vault list and labels its non-destructive request retry', async () => {
     mocks.state.vaults = []; mocks.state.loadError = true
     render(<SaveShareCopyDialog snapshot={fixture.snapshot as EntryShareSnapshot} onSaved={vi.fn()} onClose={vi.fn()} />)
-    expect(screen.queryByRole('button', { name: 'Create my personal vault' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Destination vault')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
     expect(mocks.retryLoad).toHaveBeenCalledOnce()
-    expect(mocks.prepareVault).not.toHaveBeenCalled()
+    expect(mocks.createVault).not.toHaveBeenCalled()
   })
 
   it('disables creation, editing and closing while preparing the Vault', () => {
     mocks.state.vaults = []; mocks.state.busy = true
     render(<SaveShareCopyDialog snapshot={fixture.snapshot as EntryShareSnapshot} onSaved={vi.fn()} onClose={vi.fn()} />)
-    expect(screen.getByRole('button', { name: 'Create my personal vault' })).toBeDisabled()
+    expect(screen.getByLabelText('Destination vault')).toBeDisabled()
     expect(screen.getByLabelText('Copy title')).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
   })
@@ -79,18 +78,18 @@ describe('Save received copy dialog', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('The copy will appear in Agent Discovery')
     expect(screen.getByRole('button', { name: 'Save to my vault' })).toBeDisabled()
     expect(mocks.save).not.toHaveBeenCalled()
-    await userEvent.selectOptions(screen.getByLabelText('Destination vault'), 'target')
+    await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
     await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
     expect(mocks.save).toHaveBeenCalledWith('target', { title: 'Test credential', additions: {} })
     expect(mocks.success).toHaveBeenCalledWith('Copy saved to your vault')
-    expect(onSaved).toHaveBeenCalledOnce()
+    expect(onSaved).toHaveBeenCalledWith({ vaultId: 'target', entryId: 'saved-entry' })
   })
 
   it('retains the received copy after a failed save without showing raw errors', async () => {
     mocks.save.mockResolvedValue('failed')
     const onSaved = vi.fn()
     render(<SaveShareCopyDialog snapshot={fixture.snapshot as EntryShareSnapshot} onSaved={onSaved} onClose={vi.fn()} />)
-    await userEvent.selectOptions(screen.getByLabelText('Destination vault'), 'target')
+    await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
     await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
     await waitFor(() => expect(mocks.error).toHaveBeenCalledOnce())
     expect(onSaved).not.toHaveBeenCalled()
@@ -112,7 +111,7 @@ describe('Save received copy dialog', () => {
       { id: 'creditCard.cardNumber', label: '', type: 'concealed', value: '4111111111111111' }] }
     render(<SaveShareCopyDialog snapshot={snapshot} onSaved={vi.fn()} onClose={vi.fn()} />)
     expect(screen.queryByLabelText('Card number')).not.toBeInTheDocument()
-    await userEvent.selectOptions(screen.getByLabelText('Destination vault'), 'target')
+    await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
     expect(screen.getByRole('button', { name: 'Save to my vault' })).toBeDisabled()
     await userEvent.type(screen.getByLabelText('Cardholder'), 'Example User')
     await userEvent.type(screen.getByLabelText('Expiry month'), '12')

@@ -19,6 +19,7 @@ import { useShareReception } from './use-share-reception'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
 import { SaveShareCopyDialog } from './save-share-copy-dialog'
+import type { SavedShareCopy } from './use-save-share-copy'
 import { readEntryShareIngressVersion, subscribePendingEntryShare } from '../../../shared/lib/entry-share-ingress'
 import { mobilePlatform, mobileStoreLink } from '../../../shared/lib/mobile-store-link'
 import { env } from '../../../shared/lib/env'
@@ -26,6 +27,7 @@ import { env } from '../../../shared/lib/env'
 interface EntryShareReceiverPageProps {
   shareId: string
   onContinueToAccount?: (target: 'login' | 'register' | 'unlock' | 'verify-email') => void | Promise<void>
+  onSavedToEntry?: (entry: SavedShareCopy) => void | Promise<void>
 }
 
 export function EntryShareReceiverPage(props: EntryShareReceiverPageProps) {
@@ -33,7 +35,7 @@ export function EntryShareReceiverPage(props: EntryShareReceiverPageProps) {
   return <ScopedReceiver key={`${props.shareId}:${version}`} {...props} />
 }
 
-function ScopedReceiver({ shareId, onContinueToAccount }: EntryShareReceiverPageProps) {
+function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryShareReceiverPageProps) {
   const { t, i18n } = useTranslation()
   const reception = useShareReception(shareId)
   const storeLink = mobileStoreLink(mobilePlatform(navigator.userAgent, navigator.maxTouchPoints),
@@ -198,7 +200,12 @@ function ScopedReceiver({ shareId, onContinueToAccount }: EntryShareReceiverPage
       </footer>
     </div>
     {saving && canSave && reception.snapshot ? <SaveShareCopyDialog snapshot={reception.snapshot}
-      onClose={() => setSaving(false)} onSaved={() => { setSaved(true); setSaving(false) }} /> : null}
+      onClose={() => setSaving(false)} onSaved={(entry) => {
+        setSaved(true); setSaving(false)
+        if (onSavedToEntry) void Promise.resolve(onSavedToEntry(entry)).catch(() => {
+          toast.error(t('sharing.copy.openSavedError'))
+        })
+      }} /> : null}
   </main>
 }
 

@@ -54,7 +54,7 @@ describe('Explicit received-copy save lifecycle', () => {
     expect(result.current.vaults).toEqual([{ id: vaultId, name: 'Destination' }])
     expect(api.create).not.toHaveBeenCalled()
     expect(api.challenge).not.toHaveBeenCalled()
-    await act(async () => { expect(await result.current.save(vaultId, form)).toBe('saved') })
+    await act(async () => { expect(await result.current.save(vaultId, form)).toEqual({ vaultId, entryId }) })
     expect(api.create).toHaveBeenCalledOnce()
     expect(useMemberSyncStore.getState().retryGeneration).toBe(2)
   })
@@ -68,7 +68,7 @@ describe('Explicit received-copy save lifecycle', () => {
     expect(result.current.loadError).toBe(false)
     expect(api.list).toHaveBeenCalledOnce()
     await act(async () => { expect(await result.current.prepareVault()).toBe('ready') })
-    await act(async () => { expect(await result.current.save(vaultId, form)).toBe('saved') })
+    await act(async () => { expect(await result.current.save(vaultId, form)).toEqual({ vaultId, entryId }) })
     expect(api.seal.mock.calls[0][0].content.password).toBe('fixture-only')
   })
 
@@ -164,7 +164,7 @@ describe('Explicit received-copy save lifecycle', () => {
 
   it('creates a new encrypted entry in the explicitly selected own scope, then refreshes sync', async () => {
     const { result } = await ready()
-    await act(async () => { expect(await result.current.save(vaultId, form)).toBe('saved') })
+    await act(async () => { expect(await result.current.save(vaultId, form)).toEqual({ vaultId, entryId }) })
     expect(api.seal.mock.calls[0][0]).toMatchObject({ memberLabel: 'Recipient copy', discoverable: true,
       content: { password: 'fixture-only' } })
     expect(api.seal.mock.calls[0][2]).toEqual({ organizationId, memberId, vaultId, entryId })
@@ -181,7 +181,7 @@ describe('Explicit received-copy save lifecycle', () => {
     await act(async () => { expect(await result.current.save(vaultId, form)).toBe('failed') })
     expect(result.current.retryPending).toBe(true)
     const request = api.create.mock.calls[0][1]
-    await act(async () => { expect(await result.current.save('changed-vault', { title: 'Changed', additions: {} })).toBe('saved') })
+    await act(async () => { expect(await result.current.save('changed-vault', { title: 'Changed', additions: {} })).toEqual({ vaultId, entryId }) })
     expect(api.create.mock.calls[1][0]).toBe(vaultId)
     expect(api.create.mock.calls[1][1]).toBe(request)
     expect(api.challenge).toHaveBeenCalledOnce()
@@ -245,6 +245,6 @@ describe('Explicit received-copy save lifecycle', () => {
     expect(result.current.vaults).toEqual([{ id: corruptId, name: null }, { id: vaultId, name: 'Destination' }])
     await act(async () => { expect(await result.current.save(corruptId, form)).toBe('failed') })
     expect(api.create).not.toHaveBeenCalled()
-    await act(async () => { expect(await result.current.save(vaultId, form)).toBe('saved') })
+    await act(async () => { expect(await result.current.save(vaultId, form)).toEqual({ vaultId, entryId }) })
   })
 })

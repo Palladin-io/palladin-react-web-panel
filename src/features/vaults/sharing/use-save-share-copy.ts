@@ -12,6 +12,7 @@ import { createDefaultVaultSafe } from '../../../shared/lib/create-default-vault
 import i18n from '../../../shared/lib/i18n'
 
 interface CopyVault { id: string; name: string | null }
+export interface SavedShareCopy { vaultId: string; entryId: string }
 interface CopyOperation {
   controller: AbortController
   auth: Pick<ReturnType<typeof useAuthStore.getState>, 'userId' | 'privateKey' | 'cryptoSessionGeneration'>
@@ -95,13 +96,21 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
     finally { operation.busy = false; if (current(operation)) setBusy(false) }
   }
 
-  async function save(vaultId: string, form: EntryShareCopyForm): Promise<'saved' | 'failed' | 'cancelled'> {
+  async function save(vaultId: string, form: EntryShareCopyForm, newlyCreatedVaultId?: string): Promise<SavedShareCopy | 'failed' | 'cancelled'> {
     const operation = operationRef.current
     if (!operation || !current(operation) || operation.busy || operation.saved) return 'cancelled'
     operation.busy = true; setBusy(true)
     try {
       if (!operation.request) {
-        if (!vaults.some((vault) => vault.id === vaultId && vault.name !== null)) throw new Error()
+        // A Vault created from this dialog may not yet be in React's last render.
+        // Confirm its ID against the authenticated, locally decrypted directory.
+        if (!vaults.some((vault) => vault.id === vaultId && vault.name !== null)) {
+          if (newlyCreatedVaultId !== vaultId) throw new Error()
+          const choices = await loadVaultChoices(operation)
+          if (!choices || !current(operation)) return 'cancelled'
+          setVaults(choices)
+          if (!choices.some((vault) => vault.id === vaultId && vault.name !== null)) throw new Error()
+        }
         const secret = entryShareCopySecret(snapshot, form)
         const [vault, challenge] = await Promise.all([getEncryptedVault(vaultId, operation.controller.signal),
           issueEntryCreationChallenge(vaultId, operation.controller.signal)])
@@ -115,10 +124,11 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
       if (!current(operation)) return 'cancelled'
       await createEntry(operation.request.vaultId, operation.request.body, operation.controller.signal)
       if (!current(operation)) return 'cancelled'
+      const savedEntry = { vaultId: operation.request.vaultId, entryId: operation.request.body.entryId }
       operation.saved = true; operation.request = undefined
       setSaved(true); setRetryPending(false)
       useMemberSyncStore.getState().retry()
-      return 'saved'
+      return savedEntry
     } catch {
       if (!current(operation)) return 'cancelled'
       setRetryPending(!!operation.request)

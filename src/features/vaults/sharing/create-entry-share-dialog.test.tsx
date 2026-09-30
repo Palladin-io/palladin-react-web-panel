@@ -129,4 +129,25 @@ describe('Create sharing dialog', () => {
     await userEvent.setup().click(screen.getByRole('button', { name: 'Retry the same request' }))
     expect(retry).toHaveBeenCalledOnce()
   })
+
+  it('places native sharing beside Copy and Reveal, without a separate button row', async () => {
+    const share = vi.fn().mockResolvedValue(undefined)
+    const previous = Object.getOwnPropertyDescriptor(navigator, 'share')
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share })
+    try {
+      const link = 'https://app.example.test/share/first#key=synthetic'
+      mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: false, retryPending: false,
+        links: [{ recipientEmail: null, link }], submit: mocks.submit })
+      mount()
+      const input = screen.getByLabelText('Sharing link')
+      const actions = input.parentElement?.querySelectorAll('button')
+      expect(actions).toHaveLength(3)
+      expect(screen.getByRole('button', { name: 'Share link' })).toBe(actions?.[2])
+      await userEvent.click(screen.getByRole('button', { name: 'Share link' }))
+      expect(share).toHaveBeenCalledWith({ url: link })
+    } finally {
+      if (previous) Object.defineProperty(navigator, 'share', previous)
+      else Reflect.deleteProperty(navigator, 'share')
+    }
+  })
 })
