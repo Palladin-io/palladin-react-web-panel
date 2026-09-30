@@ -5,7 +5,32 @@ import {
   parseAuthRedirect,
 } from './auth-redirect'
 
+it('unwraps verification returns without retaining a verification token or sharing fragment', () => {
+  const sharePath = '/share/00112233-4455-4677-8899-aabbccddeeff'
+  expect(getAuthRedirectFromHref(`/verify-email?token=do-not-forward&redirect=${encodeURIComponent(`${sharePath}#key=do-not-forward`)}`)).toBe(sharePath)
+  expect(parseAuthRedirect('/verify-email?token=do-not-forward')).toBeUndefined()
+})
+
 describe('parseAuthRedirect', () => {
+  const sharePath = '/share/00112233-4455-4677-8899-aabbccddeeff'
+
+  it('retains only the canonical sharing route, never its fragment or query', () => {
+    expect(parseAuthRedirect(`${sharePath}?key=synthetic#v=1&key=synthetic&access=synthetic`)).toBe(sharePath)
+    expect(buildLoginRedirectHref(`https://app.palladin.io${sharePath}#key=synthetic`))
+      .toBe(`/login?redirect=${encodeURIComponent(sharePath)}`)
+  })
+
+  it.each(['/share/not-a-share-id', '/share/secret/extra', '/sh%61re/secret', '/share'])(
+    'scrubs invalid secret-bearing sharing route %s', (path) => {
+    expect(parseAuthRedirect(`${path}?access=synthetic#key=synthetic`)).toBe('/share')
+    },
+  )
+
+  it('unwraps a registration return without copying the link secrets', () => {
+    expect(getAuthRedirectFromHref(`/register?redirect=${encodeURIComponent(`${sharePath}#key=synthetic`)}`)).toBe(sharePath)
+    expect(parseAuthRedirect('/register?redirect=/vaults')).toBeUndefined()
+  })
+
   it('preserves an internal deep link including search and hash', () => {
     expect(
       parseAuthRedirect('/vaults/vault-1/entries/entry-1?tab=logs#history'),

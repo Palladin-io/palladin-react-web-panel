@@ -9,7 +9,7 @@ Vault and entry management: the core of the product. Users browse vaults, drill 
 Three nested levels, each a split-view page with its own tab strip:
 - **Vault list** → list panel + create/settings flows.
 - **Vault detail** — tabs: Entries / Agents / Audit / Members / Settings.
-- **Entry detail** — tabs: Details / Agents / History / Logs.
+- **Entry detail** — tabs: Details / Sharing / Agents / History / Logs.
 
 Protocol 2 list/search and current-use data comes from the frozen sync-policy-2 stream in `sync/`: after unlock, `MemberSyncProvider` opens the Member Vault key, builds an initial snapshot, applies the closing delta, and then follows incremental deltas. Every current head is one indivisible `MemberIndex + MemberSecret + EntryKey` item accompanied by the exact current Member Vault-key wrapper and a finite authenticated offline-access context. IndexedDB stores only those authenticated ciphertext envelopes, structural metadata, access context and sequence cursors. Decrypted Vault metadata and normalized MemberIndex records live in Zustand memory and are cleared immediately on lock/logout. A MemberSecret is decrypted only for the selected Entry operation and is never projected into the list store.
 
@@ -106,6 +106,20 @@ manifest and lockfile pin the published registry version 0.8.0.
 - Split-view layout (3 pages) and an inline entry-detail tab strip — both candidates for the shared `SplitView` / `DetailTabBar` (see component-catalog).
 
 ## Cross-feature deps
+
+Individual Entry sharing is being implemented separately from Agent grants.
+Its whole-Entry projection, snapshot crypto and secret-link bootstrap boundary
+are documented in [entry-sharing.md](entry-sharing.md). The sender's separate
+Sharing tab and creation dialog now call the lifecycle API on the feature branch.
+The guest receiver, bounded RAM login/signup continuation and explicit save-copy
+are also connected. A verified/unlocked new account can explicitly prepare its
+personal Vault inside the save dialog, then select it and save the copy without
+another receipt. The shared default-Vault helper checks its captured account,
+organization, key generation, verification and permission before posting and
+after completion; sharing additionally aborts its transport on disposal.
+Native handoff, real auth/HTTP E2E and cross-client acceptance remain pending;
+this is not a released sharing feature.
+
 - Imports `OrgGrantsPanel` and the grant dialogs from `grants` for the Agents tabs.
 - Exports `useVaults` / `useVault` / `useEntries`, consumed by `audit`.
 

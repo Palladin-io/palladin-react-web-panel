@@ -63,7 +63,7 @@ export const Route = createFileRoute('/_authenticated')({
     // gate, which is server-authoritative and can't be fooled by a stale
     // persisted flag. OAuth accounts are always verified, so they never gate.
     if (accessToken && !emailVerified) {
-      throw redirect({ to: '/verify-email' })
+      throw redirect({ to: '/verify-email', search: { redirect: getAuthRedirectFromHref(location.href) } })
     }
     // Route based on isVaultLocked, not isOnboarded. isVaultLocked is never
     // persisted — it always starts as true and is set to false only by
@@ -119,6 +119,7 @@ function AuthenticatedLayout() {
 
 function AuthenticatedContent() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const href = useRouterState({ select: (s) => s.location.href })
   const fromEntries = useRouterState({ select: (s) => new URLSearchParams(s.location.searchStr).get('from') === 'entries' })
   const sidebarPath = fromEntries && /^\/vaults\/[^/]+\/entries\/[^/]+$/.test(pathname) ? '/entries' : pathname
   const standaloneAuthSurface =
@@ -152,8 +153,8 @@ function AuthenticatedContent() {
     !emailUnverified,
   )
   useEffect(() => {
-    if (emailUnverified) navigate({ to: '/verify-email' })
-  }, [emailUnverified, navigate])
+    if (emailUnverified) navigate({ to: '/verify-email', search: { redirect: getAuthRedirectFromHref(href) } })
+  }, [emailUnverified, navigate, href])
 
   // Don't render any authenticated surface (shell or unlock) for an unverified
   // account — the redirect above is in flight.

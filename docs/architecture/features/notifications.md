@@ -24,3 +24,19 @@ A segmented inbox (All / To-do / History / Grants) with search and the shared fi
 Reuses the approve/deny dialogs from `grants` and `agents` for inline actions, and their queries to resolve card context. It pulls from the most other features of any surface.
 
 REST metadata uses typed responses and never skips rows on a client schema failure. Future categories and non-pending action states stay visible in History; only an explicitly pending action-required item belongs to To-do. Metadata sanitization and independent push-message decoding remain in place. Realtime categories are open strings too, so a new category cannot suppress cache invalidation for an existing event type.
+
+## Individual Entry receipt (CVT-644, feature branch)
+
+`entry_share_received` is an Inbox-only update, created once by the backend after
+the first client display ACK when the sender opted in. It does not add an email,
+push, SignalR or toast channel, and is not proof of human reading. The PL/EN card
+states this limitation explicitly, wraps its header on narrow screens and uses
+the success token. Entry/Vault labels remain locally resolved; `shareId` is an
+opaque prefix-and-suffix hint, never a recipient capability URL. View sharing
+opens the source Entry with `tab=sharing` through normal authenticated guards.
+The type is included in History and the type filter, without approval actions.
+
+Mounted feed and summary observers repair every 30 seconds in the foreground;
+hidden tabs and unmounted observers do not poll. This bounded REST repair covers
+Inbox-only delivery without pretending it is realtime push. The per-share
+checkbox remains authoritative; no global preference switch is introduced.

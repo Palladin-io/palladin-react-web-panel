@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { copySecretToClipboard, copyToClipboard } from '../lib/clipboard'
 import { Icon } from './icon'
+import { toast } from 'sonner'
 
 export interface CopyButtonProps {
   /** Value copied to the clipboard on click. */
@@ -14,6 +15,8 @@ export interface CopyButtonProps {
   className?: string
   /** Copy through the bounded auto-clearing path for secrets. */
   secret?: boolean
+  /** Opt-in feedback for public reception; never includes the copied value. */
+  feedback?: boolean
 }
 
 /**
@@ -22,7 +25,7 @@ export interface CopyButtonProps {
  * Copying a secret to the user's own clipboard is fine; the value is never
  * logged or sent anywhere. Disabled when there is nothing to copy.
  */
-export function CopyButton({ value, label, size = 16, className, secret = false }: CopyButtonProps) {
+export function CopyButton({ value, label, size = 16, className, secret = false, feedback = false }: CopyButtonProps) {
   const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
   const timeoutRef = useRef<number | null>(null)
@@ -36,7 +39,11 @@ export function CopyButton({ value, label, size = 16, className, secret = false 
 
   const handleCopy = async () => {
     const ok = await (secret ? copySecretToClipboard(value) : copyToClipboard(value))
-    if (!ok) return
+    if (!ok) {
+      if (feedback) toast.error(t('vault.entries.copyFailed'))
+      return
+    }
+    if (feedback) toast.success(t('common.copiedToClipboard'), { id: 'clipboard-copy' })
     setCopied(true)
     if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current)
     timeoutRef.current = window.setTimeout(() => setCopied(false), 2000)

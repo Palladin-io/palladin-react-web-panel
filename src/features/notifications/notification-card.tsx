@@ -16,7 +16,7 @@ const GLYPH_TONE: Record<'red' | 'amber' | 'teal' | 'grey', { bg: string; color:
   red: { bg: 'rgb(var(--cv-primary-rgb) / 0.13)', color: 'var(--cv-primary)' },
   // Amber matches the grant "pending/denied" family (org-grant-presentation).
   amber: { bg: 'rgba(240,192,64,0.14)', color: '#D4820A' },
-  teal: { bg: 'rgba(16, 185, 129,0.14)', color: '#10B981' },
+  teal: { bg: 'rgb(var(--cv-success-rgb) / 0.14)', color: 'var(--cv-success)' },
   grey: { bg: 'rgba(138,149,166,0.16)', color: '#8A95A6' },
 }
 
@@ -61,6 +61,7 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
   const title = t(card.titleKey)
   const agent = card.subtitleAgent || t(card.subtitleAgentFallbackKey)
   const subtitle = t(card.subtitleKey, { agent })
+  const headerTextFlow = item.type === 'entry_share_received' ? 'break-words' : 'truncate'
 
   // Mark-read-on-view: when an unread card stays visible for SEEN_DELAY_MS, fire
   // `onSeen(id)` exactly once. Read cards (or no handler) skip the observer; a
@@ -110,10 +111,10 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
       <div className="flex items-start gap-2.5 px-[0.875rem] py-2.5">
         <CardAvatar header={card.header} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
+          <p className={`${headerTextFlow} text-heading-sm font-semibold text-[var(--cv-t1)]`}>
             {title}
           </p>
-          <p className="truncate text-meta text-[var(--cv-t3)]">
+          <p className={`${headerTextFlow} text-meta text-[var(--cv-t3)]`}>
             {subtitle}
           </p>
         </div>
@@ -152,6 +153,8 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
 }
 
 function RowValue({ value }: { value: DetailRowValue }) {
+  const { t } = useTranslation()
+  if (value.kind === 'message') return <span>{t(value.key)}</span>
   if (value.kind === 'entry') {
     return (
       <span className="block truncate">

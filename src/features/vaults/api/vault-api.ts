@@ -41,8 +41,8 @@ export function getVault(id: string): Promise<Vault> {
   return api.get(`api/vaults/${id}`).json<Vault>()
 }
 
-export function issueVaultCreationChallenge(): Promise<VaultCreationChallengeResponse> {
-  return api.post('api/vaults/creation-challenges').json<VaultCreationChallengeResponse>()
+export function issueVaultCreationChallenge(signal?: AbortSignal): Promise<VaultCreationChallengeResponse> {
+  return api.post('api/vaults/creation-challenges', { signal, retry: 0 }).json<VaultCreationChallengeResponse>()
 }
 
 export async function createVault(payload: CreateVaultPayload): Promise<void> {
@@ -335,25 +335,27 @@ export async function destroyCanonicalEntry(vaultId: string, entryId: string): P
 export function createEntry(
   vaultId: string,
   payload: { entryId: string; deliveryPolicy: 'standard' | 'execOnly' | 'injectOnly' } & CanonicalEntryEnvelopes,
+  signal?: AbortSignal,
 ): Promise<{ id: string; currentRevision: string }> {
   return api
-    .post(`api/vaults/${vaultId}/entries`, { json: payload })
+    .post(`api/vaults/${vaultId}/entries`, { json: payload, signal, retry: 0 })
     .json<{ id: string; currentRevision: string }>()
 }
 
 export async function issueEntryCreationChallenges(
   vaultId: string,
   count: number,
+  signal?: AbortSignal,
 ): Promise<{ entryId: string; expiresAt: string }[]> {
   const response = await api.post(`api/vaults/${vaultId}/entries/creation-challenges`, {
-    json: { vaultId, count },
+    json: { vaultId, count }, signal, retry: 0,
   }).json<{ items: { entryId: string; expiresAt: string }[] }>()
   if (response.items.length !== count) throw new Error('Entry creation challenge count mismatch')
   return response.items
 }
 
-export async function issueEntryCreationChallenge(vaultId: string): Promise<{ entryId: string; expiresAt: string }> {
-  const [challenge] = await issueEntryCreationChallenges(vaultId, 1)
+export async function issueEntryCreationChallenge(vaultId: string, signal?: AbortSignal): Promise<{ entryId: string; expiresAt: string }> {
+  const [challenge] = await issueEntryCreationChallenges(vaultId, 1, signal)
   if (!challenge) throw new Error('Entry creation challenge response was empty')
   return challenge
 }

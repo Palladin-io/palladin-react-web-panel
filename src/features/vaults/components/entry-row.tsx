@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { fromMemberSecret } from '../../../shared/crypto/entry-draft'
 import { Icon } from '../../../shared/components/icon'
+import { Button } from '../../../shared/components/button'
 import { useAuthStore } from '../../auth'
 import { analytics } from '../../../shared/lib/analytics'
 import { copySecretToClipboard, copyToClipboard } from '../../../shared/lib/clipboard'
@@ -23,6 +24,8 @@ import {
 import { EntryIcon } from './entry-icon'
 import { CustomFieldsView } from './custom-fields-view'
 import { OtpauthTotp } from './totp-display'
+import { EntryShareAction } from '../sharing/entry-share-action'
+import { organizationIdFromAccessToken } from '../../../shared/lib/organization-scope'
 
 export interface EntryRowProps {
   vaultId: string
@@ -46,6 +49,7 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
   const [decryptError, setDecryptError] = useState<string | null>(null)
   const [decrypting, setDecrypting] = useState(false)
   const cryptoSessionGeneration = useAuthStore((state) => state.cryptoSessionGeneration)
+  const organizationId = useAuthStore((state) => organizationIdFromAccessToken(state.accessToken))
   const decryptPromise = useRef<Promise<EntryPlaintext> | null>(null)
   const mounted = useRef(true)
 
@@ -174,6 +178,8 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
                 .catch(() => toast.error(t('vault.entries.copyFailed')))
             }}
           />
+          {organizationId ? <EntryShareAction iconOnly scope={{ organizationId, vaultId, entryId: entry.id,
+            revision: entry.currentRevision, keyVersion: entry.currentKeyVersion }} /> : null}
           {entry.urlDomain ? (
             <RowAction
               icon="open_in_new"
@@ -206,18 +212,16 @@ interface RowActionProps {
 
 function RowAction({ icon, label, onClick, disabled }: RowActionProps) {
   return (
-    <button
+    <Button size="sm" variant="ghost"
       type="button"
       onClick={onClick}
       disabled={disabled}
       title={label}
       aria-label={label}
-      className="inline-flex h-8 w-8 items-center justify-center rounded-md
-        text-[var(--cv-t3)] transition-colors hover:bg-[var(--cv-btn-ghost-hover)]
-        hover:text-[var(--cv-t1)] disabled:cursor-not-allowed disabled:opacity-40"
+      className="w-action shrink-0 !px-0"
     >
-      <Icon name={icon} size={17} />
-    </button>
+      <Icon name={icon} size={16} />
+    </Button>
   )
 }
 

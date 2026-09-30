@@ -19,8 +19,8 @@ vi.mock('@react-oauth/google', () => ({
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
-  Link: ({ children, ...props }: { children: React.ReactNode }) => (
-    <a {...props}>{children}</a>
+  Link: ({ children, to, search, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { to: string; search?: { redirect?: string } }) => (
+    <a {...props} href={to + (search?.redirect ? `?redirect=${encodeURIComponent(search.redirect)}` : '')}>{children}</a>
   ),
 }))
 
@@ -94,6 +94,19 @@ describe('LoginPage', () => {
         userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
     })
     expect(navigateMock).not.toHaveBeenCalled()
+  })
+
+  it('preserves only the clean sharing return when switching to registration', () => {
+    const destination = '/share/00112233-4455-4677-8899-aabbccddeeff'
+    render(<LoginPage redirectTo={`${destination}#key=synthetic`} />)
+    expect(screen.getByRole('link', { name: /create an account/i }))
+      .toHaveAttribute('href', `/register?redirect=${encodeURIComponent(destination)}`)
+    act(() => {
+      useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh',
+        userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
+      useAuthStore.getState().unlockVault(new Uint8Array(32), new Uint8Array(32))
+    })
+    expect(navigateMock).toHaveBeenCalledWith({ href: destination, replace: true })
   })
 
   it('renders the wordmark and the email/password fields', () => {

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { clearClientSession } from '../session/client-session'
 import { beginManualUnlockAttempt } from '../session/manual-unlock-attempt'
 import { useLogin } from './use-login'
+import { duringManualLoginCleanup } from '../../../shared/lib/manual-login-cleanup'
 
 const POPUP_DEADLINE_MS = 5 * 60_000
 interface PopupAttempt {
@@ -75,7 +76,7 @@ export function useGoogleSignIn(redirectTo: string) {
       const state = crypto.randomUUID()
       // clearClientSession advances/wipes synchronously, then returns only the
       // profile cleanup wait. Capture the barrier before yielding to that wait.
-      const cleanup = clearClientSession()
+      const cleanup = duringManualLoginCleanup(clearClientSession)
       const guard = beginManualUnlockAttempt({ blockNewSharedUnlock: true })
       const attempt: PopupAttempt = { state, guard, deadline: Date.now() + POPUP_DEADLINE_MS, consumed: false,
         timer: setTimeout(() => {

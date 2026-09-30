@@ -60,7 +60,9 @@ export function AuditLogEntry({
   const slots: SentenceSlots = {
     agent,
     actor:
-      item.actorType === 'agent'
+      item.actorType === 'externalRecipient'
+        ? t('audit.externalRecipient')
+        : item.actorType === 'agent'
         ? agent
         : actorName ?? (item.userId ? shortenKey(item.userId) : t('audit.unknownUser')),
     entry,
@@ -261,6 +263,14 @@ function Name({ children }: { children: ReactNode }) {
 
 /** Maps a dotted event type to the camelCase suffix of its sentence i18n key. */
 const SENTENCE_KEY: Record<string, string> = {
+  'entry-share.created': 'entryShareCreated',
+  'entry-share.delivered': 'entryShareDelivered',
+  'entry-share.confirmed': 'entryShareConfirmed',
+  'entry-share.protection-changed': 'entryShareProtectionChanged',
+  'entry-share.expired': 'entryShareExpired',
+  'entry-share.revoked': 'entryShareRevoked',
+  'entry-share.ended': 'entryShareEnded',
+  'entry-share.source-access-removed': 'entryShareSourceAccessRemoved',
   'auth.login-failed': 'loginFailed',
   'credential.accessed': 'credentialAccessed',
   'credential.access-denied': 'credentialAccessDenied',

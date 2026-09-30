@@ -1,5 +1,7 @@
+import { entrySharePath } from '../crypto/entry-share-link'
+
 const INTERNAL_URL_BASE = 'https://palladin.invalid'
-const AUTH_GATE_PATHS = new Set(['/login', '/unlock'])
+const AUTH_GATE_PATHS = new Set(['/login', '/unlock', '/register', '/verify-email'])
 
 export function parseAuthRedirect(value: unknown): string | undefined {
   if (
@@ -18,6 +20,14 @@ export function parseAuthRedirect(value: unknown): string | undefined {
       AUTH_GATE_PATHS.has(target.pathname)
     ) {
       return undefined
+    }
+
+    const decodedPath = decodeURIComponent(target.pathname)
+    if (decodedPath === '/share' || decodedPath.startsWith('/share/')) {
+      try {
+        const path = entrySharePath(target.pathname.slice('/share/'.length))
+        return path === target.pathname ? path : '/share'
+      } catch { return '/share' }
     }
 
     return `${target.pathname}${target.search}${target.hash}`

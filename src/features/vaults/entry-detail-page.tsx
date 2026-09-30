@@ -32,6 +32,8 @@ import { EntryIconButton } from './components/entry-icon-button'
 import { EntryAgentsTab } from './components/entry-agents-tab'
 import { EntryLogsTab } from './components/entry-logs-tab'
 import { EntryHistoryTab } from './components/entry-history-tab'
+import { EntrySharingTab } from './sharing/entry-sharing-tab'
+import { EntryShareAction } from './sharing/entry-share-action'
 import {
   ENTRY_ICON_COLORS,
   extractDomain,
@@ -106,10 +108,11 @@ import { GlobalEntriesPanel } from './global-entries-page'
 export interface EntryDetailPageProps {
   vaultId: string
   entryId: string
+  initialTab?: EntryDetailTab
   fromEntries?: boolean
 }
 
-type EntryDetailTab = 'details' | 'agents' | 'history' | 'logs'
+type EntryDetailTab = 'details' | 'agents' | 'history' | 'logs' | 'sharing'
 
 /**
  * Full entry detail screen — opened from the `arrow_forward` action on
@@ -123,12 +126,12 @@ type EntryDetailTab = 'details' | 'agents' | 'history' | 'logs'
  * visibility doesn't re-decrypt; refreshing or closing the tab wipes it
  * because all crypto state lives in memory only.
  */
-export function EntryDetailPage({ vaultId, entryId, fromEntries = false }: EntryDetailPageProps) {
+export function EntryDetailPage({ vaultId, entryId, initialTab = 'details', fromEntries = false }: EntryDetailPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const vault = useVault(vaultId)
   const memberEntry = useMemberSyncStore((store) => store.vaults.get(vaultId)?.entries.get(entryId))
-  const [activeTab, setActiveTab] = useState<EntryDetailTab>('details')
+  const [activeTab, setActiveTab] = useState<EntryDetailTab>(initialTab)
   const canonicalNeeded = activeTab === 'agents' || activeTab === 'history'
   const canonical = useCanonicalEntryDetail(vaultId, entryId, canonicalNeeded)
   const [addAgentOpen, setAddAgentOpen] = useState(false)
@@ -194,16 +197,16 @@ export function EntryDetailPage({ vaultId, entryId, fromEntries = false }: Entry
             )}
           </div>
         </div>
-        <div className="subtle-scrollbar min-w-0 flex-1 overflow-y-auto [overflow-anchor:none]">
-          <div className="px-4 py-4">{detailContent}</div>
+        <div className={activeTab === 'sharing' ? 'min-w-0 flex-1 overflow-hidden' : 'subtle-scrollbar min-w-0 flex-1 overflow-y-auto [overflow-anchor:none]'}>
+          <div className={activeTab === 'sharing' ? 'h-full min-h-0 px-4 py-4' : 'px-4 py-4'}>{detailContent}</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen text-[var(--cv-t1)]">
-      <div className="px-6 py-8">{detailContent}</div>
+    <div className={activeTab === 'sharing' ? 'h-full min-h-0 overflow-hidden text-[var(--cv-t1)]' : 'min-h-screen text-[var(--cv-t1)]'}>
+      <div className={activeTab === 'sharing' ? 'h-full min-h-0 px-4 py-4' : 'px-6 py-8'}>{detailContent}</div>
     </div>
   )
 }
@@ -325,22 +328,31 @@ function DetailBody({
     </div>
   )
 
+  const sharingScope = {
+    organizationId: vault.organizationId, vaultId: vault.id, entryId: entry.id,
+    revision: entry.currentRevision, keyVersion: entry.currentKeyVersion,
+  }
+  const tabAction = activeTab === 'agents' ? agentAction
+    : activeTab === 'sharing' ? <EntryShareAction scope={sharingScope} />
+      : activeTab === 'details' ? <EntryShareAction scope={sharingScope} iconOnly /> : undefined
+
   return (
-    <>
-      {!hideHeader && (
-        <VaultDetailHeader
-          title={entry.label}
-          subtitle={subtitle}
-          onBack={onBack}
-          actions={activeTab === 'agents' ? agentAction : undefined}
+    <div className={activeTab === 'sharing' ? 'flex h-full min-h-0 flex-col' : undefined}>
+      <div className="shrink-0">
+        {!hideHeader && (
+          <VaultDetailHeader
+            title={entry.label}
+            subtitle={subtitle}
+            onBack={onBack}
+          />
+        )}
+        <EntryDetailTabs
+          active={activeTab}
+          onChange={handleTabChange}
+          wide={hideHeader}
+          actions={tabAction}
         />
-      )}
-      <EntryDetailTabs
-        active={activeTab}
-        onChange={handleTabChange}
-        wide={hideHeader}
-        actions={hideHeader && activeTab === 'agents' ? agentAction : undefined}
-      />
+      </div>
       {activeTab === 'details' ? (
         <DetailsTab
           key={`${entry.id}:${entry.currentRevision}`}
@@ -363,6 +375,7 @@ function DetailBody({
       {activeTab === 'logs' ? (
         <EntryLogsTab vaultId={vault.id} entryId={entry.id} entryName={entry.label} />
       ) : null}
+      {activeTab === 'sharing' ? <EntrySharingTab scope={sharingScope} /> : null}
       {activeTab === 'history' && canonical ? (
         <EntryHistoryTab detail={canonical} />
       ) : null}
@@ -370,7 +383,7 @@ function DetailBody({
       {(activeTab === 'agents' || activeTab === 'history') && !canonical && canonicalError ? (
         <ErrorState message={t('vault.entry.detail.loadError')} onRetry={loadCanonical} />
       ) : null}
-    </>
+    </div>
   )
 }
 
@@ -385,6 +398,7 @@ function EntryDetailTabs({ active, onChange, wide, actions }: EntryDetailTabsPro
   const { t } = useTranslation()
   const tabs: { id: EntryDetailTab; label: string }[] = [
     { id: 'details', label: t('vault.entry.detail.detailsTab') },
+    { id: 'sharing', label: t('sharing.tab') },
     { id: 'agents', label: t('vault.entry.detail.agentsTab') },
     { id: 'history', label: t('vault.entry.detail.historyTab') },
     { id: 'logs', label: t('vault.entry.detail.logsTab') },

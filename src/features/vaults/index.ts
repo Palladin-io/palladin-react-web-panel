@@ -8,6 +8,7 @@ export { ExportDialog } from './components/export-dialog'
 export type { VaultDetailTab } from './components/vault-detail-tabs'
 export { VaultSettingsPage } from './vault-settings-page'
 export { EntryDetailPage } from './entry-detail-page'
+export { EntryShareReceiverPage } from './sharing/entry-share-receiver-page'
 export type {
   CreateVaultInput,
   EntryDetail,
@@ -53,5 +54,6 @@ export {
   DEFAULT_VAULT_ICON,
 } from './components/vault-presentation'
 export { useVaultEncryptedAssetUrl } from './assets/use-vault-encrypted-asset-url'
+export { EntryShareContinuationGuard } from './sharing/entry-share-continuation-guard'
 export { GlobalEntriesPage } from './global-entries-page'
 export { VaultPresentationIcon } from './components/vault-presentation-icon'
