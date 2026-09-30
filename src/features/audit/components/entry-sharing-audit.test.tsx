@@ -27,6 +27,15 @@ it.each(['en', 'pl'])('renders every sharing legend description in %s', async (l
     expect(screen.getByText(i18n.t(descriptionKey))).toBeInTheDocument()
   }
   expect(container.textContent).not.toContain('audit.')
+  if (language === 'en') {
+    expect(container.textContent).toContain('entire supported Entry')
+    expect(container.textContent).not.toContain('selected Entry fields')
+    expect(container.textContent).not.toContain('recipient ended')
+  } else {
+    expect(container.textContent).toContain('całego obsługiwanego wpisu')
+    expect(container.textContent).not.toContain('wybranych pól wpisu')
+    expect(container.textContent).not.toContain('Odbiorca zakończył')
+  }
 })
 
 it.each(events)('presents entry-share.%s in the common taxonomy, legend and Entry filters', (kind, tone) => {
