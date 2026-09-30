@@ -277,6 +277,8 @@ describe('Public sharing receiver', () => {
   })
 
   it('saves an already received guest copy after account continuation without redelivery or another ACK', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('iPhone')
+    Object.defineProperty(env, 'appleAppStoreUrl', { value: 'https://apps.apple.com/app/example/id123456789', configurable: true })
     const navigate = vi.fn()
     const page = render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} />)
     await screen.findByLabelText('Password')
@@ -298,6 +300,8 @@ describe('Public sharing receiver', () => {
     await userEvent.click(screen.getAllByRole('button', { name: 'Save to my vault' }).at(-1)!)
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(screen.getByRole('status')).toHaveTextContent('Saved to your account. Sign in to the mobile app with the same account')
+    expect(screen.getByText(/Sign in to the app with this same Palladin account/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Get the Palladin app' })).toHaveAttribute('href', 'https://apps.apple.com/app/example/id123456789')
     expect(api.save).toHaveBeenCalledWith('target', { title: 'Test credential', additions: {} })
     expect(api.open).toHaveBeenCalledOnce()
     expect(api.receive).toHaveBeenCalledOnce()
