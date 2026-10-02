@@ -42,6 +42,7 @@
   "sharing.receiver.savePrompt": "Chcesz zapisać kopię w swoim sejfie?",
   "sharing.receiver.saveToPalladin": "Zapisz w Palladin",
   "sharing.receiver.saveWithExtension": "Zapisz w rozszerzeniu Palladin",
+  "sharing.receiver.recheckExtension": "Sprawdź rozszerzenie ponownie",
   "sharing.receiver.confirmInExtension": "Potwierdź zapis w rozszerzeniu Palladin. Jeśli się nie otworzyło, kliknij jego ikonę na pasku przeglądarki.",
   "sharing.receiver.extensionUnavailable": "Rozszerzenie nie może przyjąć tej kopii. Możesz ją zapisać przez konto Palladin.",
   "sharing.receiver.aboutPalladin": "Poznaj Palladin",

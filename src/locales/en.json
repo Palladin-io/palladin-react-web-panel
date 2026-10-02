@@ -42,6 +42,7 @@
   "sharing.receiver.savePrompt": "Want to save a copy in your vault?",
   "sharing.receiver.saveToPalladin": "Save to Palladin",
   "sharing.receiver.saveWithExtension": "Save in Palladin extension",
+  "sharing.receiver.recheckExtension": "Check extension again",
   "sharing.receiver.confirmInExtension": "Confirm the save in the Palladin extension. If it did not open, click its icon in your browser toolbar.",
   "sharing.receiver.extensionUnavailable": "The extension could not accept this copy. You can save it through your Palladin account instead.",
   "sharing.receiver.aboutPalladin": "Discover Palladin",

@@ -47,6 +47,7 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
   const [extensionPending, setExtensionPending] = useState(false)
   const [extensionPrepared, setExtensionPrepared] = useState(false)
   const [extensionError, setExtensionError] = useState(false)
+  const extensionRequestInFlight = useRef(false)
   const hasAccount = useAuthStore((auth) => !!auth.accessToken || !!auth.refreshToken)
   const emailVerified = useAuthStore((auth) => auth.emailVerified)
   const canSave = useAuthStore((auth) => !auth.isVaultLocked && !!auth.userId && !!auth.privateKey
@@ -100,13 +101,25 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
     void requestExtensionShareSave('status').then(status => { if (active) setExtensionStatus(status) })
     return () => { active = false }
   }, [received])
+  async function recheckExtension() {
+    if (!received || extensionRequestInFlight.current || extensionPrepared) return
+    extensionRequestInFlight.current = true
+    setExtensionPending(true)
+    const status = await requestExtensionShareSave('status')
+    extensionRequestInFlight.current = false
+    setExtensionPending(false)
+    setExtensionStatus(status)
+    setExtensionError(false)
+  }
   async function saveThroughExtension() {
-    if (!reception.snapshot || extensionPending) return
+    if (!reception.snapshot || extensionRequestInFlight.current || extensionPrepared) return
+    extensionRequestInFlight.current = true
     setExtensionPending(true)
     setExtensionError(false)
     const result = await requestExtensionShareSave('prepare', reception.snapshot)
+    extensionRequestInFlight.current = false
     setExtensionPending(false)
-    if (result === 'pending') { setExtensionPrepared(true); return }
+    if (result === 'pending') { setExtensionStatus('pending'); setExtensionPrepared(true); return }
     setExtensionPrepared(false)
     setExtensionStatus(result)
     setExtensionError(true)
@@ -115,7 +128,7 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
   const canContinueAccount = !!onContinueToAccount && !canSave
   const hasAction = available && ((reception.phase === 'welcome' && !reception.busy)
     || (reception.phase === 'verification' && supported)
-    || (received && (extensionReady || canSave || canContinueAccount)))
+    || (received && !extensionPrepared && (extensionReady || canSave || canContinueAccount)))
   const accountTarget = !hasAccount ? 'register' : !emailVerified ? 'verify-email' : 'unlock'
   const linkPolicy = ongoing && (reception.shareExpiresAt || reception.maximumReceipts != null) ? <dl className="share-policy">
     {reception.shareExpiresAt ? <div className="share-received-row">
@@ -141,9 +154,9 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
             disabled={extensionPending || reception.busy} onClick={() => { void saveThroughExtension() }}>
             {t('sharing.receiver.saveWithExtension')}
           </Button> : null}
-          {received && canSave && !extensionReady ? <Button size="sm" variant="accent" className="min-w-0 flex-1" disabled={saved || reception.busy}
+          {received && canSave && !extensionReady && !extensionPrepared ? <Button size="sm" variant="accent" className="min-w-0 flex-1" disabled={saved || reception.busy}
             onClick={() => setSaving(true)}>{t(saved ? 'sharing.copy.saved' : 'sharing.copy.save')}</Button> : null}
-          {received && canContinueAccount && !extensionReady && !saved ? <Button size="sm" variant="accent" className="min-w-0 flex-1" disabled={reception.busy}
+          {received && canContinueAccount && !extensionReady && !extensionPrepared && !saved ? <Button size="sm" variant="accent" className="min-w-0 flex-1" disabled={reception.busy}
             onClick={() => { void continueToAccount(accountTarget) }}>
             {t(!hasAccount ? 'sharing.receiver.saveToPalladin' : !emailVerified ? 'sharing.receiver.verifyAccount' : 'sharing.receiver.unlock')}
           </Button> : null}
@@ -221,6 +234,10 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
           {received && extensionError ? <p role="alert" className="text-meta leading-relaxed text-[var(--cv-primary)]">
             {t('sharing.receiver.extensionUnavailable')}
           </p> : null}
+          {received && !extensionPrepared && extensionStatus !== 'ready' ? <Button size="sm" variant="subtle"
+            disabled={extensionPending} onClick={() => { void recheckExtension() }}>
+            {t('sharing.receiver.recheckExtension')}
+          </Button> : null}
         </>}
         </div>
       </DialogSurface>

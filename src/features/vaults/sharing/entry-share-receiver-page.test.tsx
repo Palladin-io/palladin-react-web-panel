@@ -62,7 +62,20 @@ describe('Public sharing receiver', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Save in Palladin extension' }))
     expect(extension.request).toHaveBeenCalledWith('prepare', expect.objectContaining({ title: 'Test credential' }))
     expect(screen.getByText(/Confirm the save in the Palladin extension/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save in Palladin extension' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save to Palladin' })).not.toBeInTheDocument()
+    expect(extension.request.mock.calls.filter(([type]) => type === 'prepare')).toHaveLength(1)
+    expect(api.receive).toHaveBeenCalledOnce()
+  })
+  it('rechecks extension state after unlock without consuming the share again', async () => {
+    let unlocked = false
+    extension.request.mockImplementation(async (type: string) => type === 'status'
+      ? unlocked ? 'ready' : 'locked' : 'pending')
+    render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={vi.fn()} />)
+    expect(await screen.findByRole('button', { name: 'Check extension again' })).toBeEnabled()
+    unlocked = true
+    await userEvent.click(screen.getByRole('button', { name: 'Check extension again' }))
+    expect(await screen.findByRole('button', { name: 'Save in Palladin extension' })).toBeEnabled()
     expect(api.receive).toHaveBeenCalledOnce()
   })
   it('keeps automatic receipt on mobile and uses a clean store fallback without claiming app detection', async () => {
