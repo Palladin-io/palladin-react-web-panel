@@ -28,6 +28,8 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
   const saving = useSaveShareCopy(snapshot)
   const [destinationMode, setDestinationMode] = useState<'existing' | 'new'>('existing')
   const [vaultInput, setVaultInput] = useState('')
+  const [selectedVaultId, setSelectedVaultId] = useState('')
+  const [vaultSuggestionsOpen, setVaultSuggestionsOpen] = useState(false)
   const [createdVaultId, setCreatedVaultId] = useState<string | null>(null)
   const [title, setTitle] = useState(snapshot.title)
   const [additions, setAdditions] = useState<Record<string, string>>({})
@@ -43,11 +45,14 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
     ...vault, label: saving.vaults.filter((candidate) => candidate.name === vault.name).length > 1
       ? `${vault.name} (${shortenKey(vault.id)})` : vault.name!,
   }))
-  const selectedVaultId = mode === 'existing' ? vaultChoices.find((vault) => vault.label === vaultInput)?.id : undefined
+  const visibleVaultChoices = vaultChoices.filter((vault) => vault.label.toLocaleLowerCase()
+    .includes(vaultInput.toLocaleLowerCase()))
+  const destinationVaultId = mode === 'existing' && vaultChoices.some((vault) => vault.id === selectedVaultId)
+    ? selectedVaultId : undefined
   const newVaultName = vaultInput.trim().normalize('NFC')
   const destinationReady = saving.retryPending || (saving.pendingVaultName
     ? valid && newVaultName === saving.pendingVaultName
-    : valid && (createdVaultId !== null || !!selectedVaultId
+    : valid && (createdVaultId !== null || !!destinationVaultId
       || mode === 'new' && newVaultName.length > 0 && newVaultName.length <= 64))
   const canSave = !saving.busy && !saving.saved && !saving.loading && !saving.loadError
     && destinationReady
@@ -57,7 +62,7 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
   function add(id: string, value: string) { setAdditions((current) => ({ ...current, [id]: value })); feedback(id, false) }
   async function submit() {
     if (!canSave) return
-    let vaultId = createdVaultId ?? selectedVaultId
+    let vaultId = createdVaultId ?? destinationVaultId
     let newVaultId = createdVaultId
     if (!vaultId && !saving.retryPending) {
       const created = await saving.createNamedVault(newVaultName)
@@ -86,19 +91,33 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
       {saving.loading ? <SkeletonBlock height="5rem" /> : saving.loadError ? <ErrorState onRetry={saving.retryLoad} retryLabel={t('sharing.retry')} message={t('sharing.copy.vaultError')} /> : <>
         {saving.vaults.length ? <div className="flex gap-2" role="group" aria-label={t('sharing.copy.destinationMode')}>
           <Button size="sm" variant={mode === 'existing' ? 'subtle' : 'ghost'} aria-pressed={mode === 'existing'}
-            disabled={frozen} onClick={() => { setDestinationMode('existing'); setVaultInput(''); setCreatedVaultId(null) }}>
+            disabled={frozen} onClick={() => { setDestinationMode('existing'); setVaultInput(''); setSelectedVaultId(''); setCreatedVaultId(null) }}>
             {t('sharing.copy.existingVault')}
           </Button>
           <Button size="sm" variant={mode === 'new' ? 'subtle' : 'ghost'} aria-pressed={mode === 'new'}
-            disabled={frozen} onClick={() => { setDestinationMode('new'); setVaultInput(''); setCreatedVaultId(null) }}>
+            disabled={frozen} onClick={() => { setDestinationMode('new'); setVaultInput(''); setSelectedVaultId(''); setCreatedVaultId(null) }}>
             {t('sharing.copy.newVault')}
           </Button>
         </div> : null}
         {mode === 'existing' ? <>
-          <FormInput id="copy-vault" label={t('sharing.copy.vault')} value={vaultInput} list="copy-vault-options"
-            placeholder={t('sharing.copy.chooseExistingVault')} autoComplete="off" maxLength={80} disabled={frozen}
-            onChange={(event) => setVaultInput(event.target.value)} />
-          <datalist id="copy-vault-options">{vaultChoices.map((vault) => <option key={vault.id} value={vault.label} />)}</datalist>
+          <div className="relative" onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setVaultSuggestionsOpen(false)
+          }}>
+            <FormInput id="copy-vault" label={t('sharing.copy.vault')} value={vaultInput}
+              placeholder={t('sharing.copy.chooseExistingVault')} autoComplete="off" maxLength={80} disabled={frozen}
+              role="combobox" aria-autocomplete="list" aria-expanded={vaultSuggestionsOpen && visibleVaultChoices.length > 0}
+              aria-controls="copy-vault-options" onFocus={() => setVaultSuggestionsOpen(true)}
+              onChange={(event) => { setVaultInput(event.target.value); setSelectedVaultId(''); setVaultSuggestionsOpen(true) }} />
+            {vaultSuggestionsOpen && visibleVaultChoices.length > 0 ? <div id="copy-vault-options" role="listbox"
+              className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] shadow-lg">
+              {visibleVaultChoices.map((vault) => <button key={vault.id} type="button" role="option"
+                aria-selected={vault.id === selectedVaultId} disabled={frozen}
+                className="block w-full px-3 py-2 text-left text-ui text-[var(--cv-input-text)] hover:bg-[var(--cv-surface)]"
+                onClick={() => { setSelectedVaultId(vault.id); setVaultInput(vault.label); setVaultSuggestionsOpen(false) }}>
+                {vault.label}
+              </button>)}
+            </div> : null}
+          </div>
           {saving.vaults.filter((vault) => vault.name === null).map((vault) => <p key={vault.id} aria-disabled="true"
             className="text-meta text-[var(--cv-t3)]">{t('sharing.copy.unavailableVault', { id: shortenKey(vault.id) })}</p>)}
         </> : <>

@@ -77,10 +77,24 @@ describe('Save received copy dialog', () => {
     expect(screen.getByRole('button', { name: 'Save to my vault' })).toBeDisabled()
     expect(mocks.save).not.toHaveBeenCalled()
     await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
+    await userEvent.click(screen.getByRole('option', { name: 'Personal' }))
     await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
     expect(mocks.save).toHaveBeenCalledWith('target', { title: 'Test credential', additions: {} })
     expect(mocks.success).toHaveBeenCalledWith('Copy saved to your vault')
     expect(onSaved).toHaveBeenCalledWith({ vaultId: 'target', entryId: 'saved-entry' })
+  })
+
+  it('saves to the selected Vault ID even when two display labels collide', async () => {
+    mocks.state.vaults = [
+      { id: '12345678-0000-4000-8000-000000abcdef', name: 'Personal' },
+      { id: 'other-personal', name: 'Personal' },
+      { id: 'literal-name', name: 'Personal (12345678…abcdef)' },
+    ]
+    render(<SaveShareCopyDialog snapshot={fixture.snapshot as EntryShareSnapshot} onSaved={vi.fn()} onClose={vi.fn()} />)
+    await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
+    await userEvent.click(screen.getAllByRole('option', { name: 'Personal (12345678…abcdef)' }).at(-1)!)
+    await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
+    expect(mocks.save).toHaveBeenCalledWith('literal-name', { title: 'Test credential', additions: {} })
   })
 
   it('does not turn a near-match into creation and permits deliberate same-name creation', async () => {
@@ -99,6 +113,7 @@ describe('Save received copy dialog', () => {
     render(<SaveShareCopyDialog snapshot={fixture.snapshot as EntryShareSnapshot} onSaved={vi.fn()} onClose={vi.fn()} />)
     expect(screen.getByText(/Unavailable vault/)).toHaveAttribute('aria-disabled', 'true')
     await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
+    await userEvent.click(screen.getByRole('option', { name: 'Personal' }))
     await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
     expect(mocks.save).toHaveBeenCalledWith('target', { title: 'Test credential', additions: {} })
   })
@@ -134,6 +149,7 @@ describe('Save received copy dialog', () => {
     const onSaved = vi.fn()
     render(<SaveShareCopyDialog snapshot={fixture.snapshot as EntryShareSnapshot} onSaved={onSaved} onClose={vi.fn()} />)
     await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
+    await userEvent.click(screen.getByRole('option', { name: 'Personal' }))
     await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
     await waitFor(() => expect(mocks.error).toHaveBeenCalledOnce())
     expect(onSaved).not.toHaveBeenCalled()
@@ -156,6 +172,7 @@ describe('Save received copy dialog', () => {
     render(<SaveShareCopyDialog snapshot={snapshot} onSaved={vi.fn()} onClose={vi.fn()} />)
     expect(screen.queryByLabelText('Card number')).not.toBeInTheDocument()
     await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
+    await userEvent.click(screen.getByRole('option', { name: 'Personal' }))
     expect(screen.getByRole('button', { name: 'Save to my vault' })).toBeDisabled()
     await userEvent.type(screen.getByLabelText('Cardholder'), 'Example User')
     await userEvent.type(screen.getByLabelText('Expiry month'), '12')
