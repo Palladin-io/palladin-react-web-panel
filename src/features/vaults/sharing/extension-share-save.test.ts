@@ -40,6 +40,6 @@ describe('optional extension handoff presentation channel', () => {
     })
     const pending = requestExtensionShareSave('prepare')
     await vi.advanceTimersByTimeAsync(10_001)
-    await expect(pending).resolves.toBe('unavailable')
+    await expect(pending).resolves.toBe('uncertain')
   })
 })

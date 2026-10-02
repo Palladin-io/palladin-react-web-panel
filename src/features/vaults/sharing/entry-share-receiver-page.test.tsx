@@ -67,6 +67,16 @@ describe('Public sharing receiver', () => {
     expect(extension.request.mock.calls.filter(([type]) => type === 'prepare')).toHaveLength(1)
     expect(api.receive).toHaveBeenCalledOnce()
   })
+  it('keeps a timed-out prepare ambiguous instead of enabling a duplicate account save', async () => {
+    extension.request.mockImplementation(async (type: string) => type === 'status' ? 'ready' : 'uncertain')
+    render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={vi.fn()} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Save in Palladin extension' }))
+    expect(screen.getByText(/extension may still be processing this copy/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save to Palladin' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Check extension again' })).not.toBeInTheDocument()
+    expect(extension.request.mock.calls.filter(([type]) => type === 'prepare')).toHaveLength(1)
+    expect(api.receive).toHaveBeenCalledOnce()
+  })
   it('rechecks extension state after unlock without consuming the share again', async () => {
     let unlocked = false
     extension.request.mockImplementation(async (type: string) => type === 'status'

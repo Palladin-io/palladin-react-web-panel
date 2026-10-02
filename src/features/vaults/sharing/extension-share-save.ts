@@ -2,14 +2,15 @@ import type { EntryShareSnapshot } from '../../../shared/crypto/entry-share'
 
 const CHANNEL = 'palladin.entry-share.extension-save.v1'
 export type ExtensionShareStatus = 'unavailable' | 'locked' | 'ready' | 'pending'
+export type ExtensionShareResult = ExtensionShareStatus | 'uncertain'
 const statuses = new Set<ExtensionShareStatus>(['unavailable', 'locked', 'ready', 'pending'])
 
 /** Status is presentation-only. The extension worker authenticates its sender independently. */
-export function requestExtensionShareSave(type: 'status' | 'prepare', snapshot?: EntryShareSnapshot): Promise<ExtensionShareStatus> {
+export function requestExtensionShareSave(type: 'status' | 'prepare', snapshot?: EntryShareSnapshot): Promise<ExtensionShareResult> {
   return new Promise(resolve => {
     const requestId = crypto.randomUUID()
-    const timer = window.setTimeout(() => finish('unavailable'), type === 'status' ? 1_500 : 10_000)
-    function finish(status: ExtensionShareStatus) {
+    const timer = window.setTimeout(() => finish(type === 'status' ? 'unavailable' : 'uncertain'), type === 'status' ? 1_500 : 10_000)
+    function finish(status: ExtensionShareResult) {
       window.clearTimeout(timer)
       window.removeEventListener('message', receive)
       resolve(status)

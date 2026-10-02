@@ -44,6 +44,7 @@
   "sharing.receiver.saveWithExtension": "Save in Palladin extension",
   "sharing.receiver.recheckExtension": "Check extension again",
   "sharing.receiver.confirmInExtension": "Confirm the save in the Palladin extension. If it did not open, click its icon in your browser toolbar.",
+  "sharing.receiver.handoffUncertain": "The extension may still be processing this copy. Open its icon and check the confirmation or your vault before trying another way to save. Keep this tab open.",
   "sharing.receiver.extensionUnavailable": "The extension could not accept this copy. You can save it through your Palladin account instead.",
   "sharing.receiver.aboutPalladin": "Discover Palladin",
   "sharing.receiver.downloadApp": "Get the Palladin app",
