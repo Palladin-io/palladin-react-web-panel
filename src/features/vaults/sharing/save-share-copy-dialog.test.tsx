@@ -92,9 +92,23 @@ describe('Save received copy dialog', () => {
     ]
     render(<SaveShareCopyDialog snapshot={fixture.snapshot as EntryShareSnapshot} onSaved={vi.fn()} onClose={vi.fn()} />)
     await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
-    await userEvent.click(screen.getAllByRole('option', { name: 'Personal (12345678…abcdef)' }).at(-1)!)
+    expect(screen.getAllByRole('option', { name: 'Personal (12345678…abcdef)' })).toHaveLength(1)
+    await userEvent.click(screen.getByRole('option', { name: 'Personal (12345678…abcdef)' }))
     await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
     expect(mocks.save).toHaveBeenCalledWith('literal-name', { title: 'Test credential', additions: {} })
+  })
+
+  it('supports keyboard selection and portals suggestions outside the clipped dialog body', async () => {
+    mocks.state.vaults = [{ id: 'first', name: 'Personal' }, { id: 'second', name: 'Team' }]
+    render(<SaveShareCopyDialog snapshot={fixture.snapshot as EntryShareSnapshot} onSaved={vi.fn()} onClose={vi.fn()} />)
+    const input = screen.getByLabelText('Destination vault')
+    await userEvent.click(input)
+    const menu = screen.getByRole('listbox')
+    expect(menu.parentElement).toBe(document.body)
+    await userEvent.keyboard('{ArrowDown}{Enter}')
+    expect(input).toHaveValue('Team')
+    await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
+    expect(mocks.save).toHaveBeenCalledWith('second', { title: 'Test credential', additions: {} })
   })
 
   it('does not turn a near-match into creation and permits deliberate same-name creation', async () => {

@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -30,6 +31,10 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
   const [vaultInput, setVaultInput] = useState('')
   const [selectedVaultId, setSelectedVaultId] = useState('')
   const [vaultSuggestionsOpen, setVaultSuggestionsOpen] = useState(false)
+  const [activeVaultIndex, setActiveVaultIndex] = useState(0)
+  const [vaultMenuPosition, setVaultMenuPosition] = useState<React.CSSProperties>({})
+  const vaultInputRef = useRef<HTMLDivElement>(null)
+  const vaultMenuRef = useRef<HTMLDivElement>(null)
   const [createdVaultId, setCreatedVaultId] = useState<string | null>(null)
   const [title, setTitle] = useState(snapshot.title)
   const [additions, setAdditions] = useState<Record<string, string>>({})
@@ -41,12 +46,36 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
     && missing.every((id) => entryShareCopyAdditionSchemas[id].safeParse(additions[id] ?? '').success)
   const mode = saving.pendingVaultName ? 'new' : saving.vaults.length ? destinationMode : 'new'
   const frozen = saving.busy || saving.retryPending || saving.saved || !!saving.pendingVaultName
-  const vaultChoices = saving.vaults.filter((vault) => vault.name !== null).map((vault) => ({
-    ...vault, label: saving.vaults.filter((candidate) => candidate.name === vault.name).length > 1
-      ? `${vault.name} (${shortenKey(vault.id)})` : vault.name!,
-  }))
+  const namedVaults = saving.vaults.filter((vault) => vault.name !== null)
+  const usedLabels = new Set<string>()
+  const vaultChoices = namedVaults.map((vault) => {
+    const repeatedName = namedVaults.some((other) => other !== vault && other.name === vault.name)
+    const base = repeatedName ? `${vault.name} (${shortenKey(vault.id)})` : vault.name!
+    let label = base
+    if (namedVaults.some((other) => other !== vault && other.name === base) || usedLabels.has(label)) {
+      label = `${vault.name} (${vault.id})`
+    }
+    let suffix = 2
+    while (usedLabels.has(label)) label = `${vault.name} (${vault.id}) ${suffix++}`
+    usedLabels.add(label)
+    return { ...vault, label }
+  })
   const visibleVaultChoices = vaultChoices.filter((vault) => vault.label.toLocaleLowerCase()
     .includes(vaultInput.toLocaleLowerCase()))
+  useEffect(() => {
+    if (!vaultSuggestionsOpen || !vaultInputRef.current) return
+    const rect = vaultInputRef.current.getBoundingClientRect()
+    const below = window.innerHeight - rect.bottom - 8
+    const above = rect.top - 8
+    setVaultMenuPosition({ position: 'fixed', left: rect.left, width: rect.width,
+      ...(below >= 180 || below >= above
+        ? { top: rect.bottom + 4, maxHeight: Math.max(40, below) }
+        : { bottom: window.innerHeight - rect.top + 4, maxHeight: Math.max(40, above) }) })
+    const close = () => setVaultSuggestionsOpen(false)
+    window.addEventListener('resize', close)
+    window.addEventListener('scroll', close, true)
+    return () => { window.removeEventListener('resize', close); window.removeEventListener('scroll', close, true) }
+  }, [vaultSuggestionsOpen, vaultInput])
   const destinationVaultId = mode === 'existing' && vaultChoices.some((vault) => vault.id === selectedVaultId)
     ? selectedVaultId : undefined
   const newVaultName = vaultInput.trim().normalize('NFC')
@@ -60,6 +89,9 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
     setInvalid((current) => { const next = new Set(current); if (show) next.add(id); else next.delete(id); return next })
   }
   function add(id: string, value: string) { setAdditions((current) => ({ ...current, [id]: value })); feedback(id, false) }
+  function chooseVault(id: string, label: string) {
+    setSelectedVaultId(id); setVaultInput(label); setVaultSuggestionsOpen(false)
+  }
   async function submit() {
     if (!canSave) return
     let vaultId = createdVaultId ?? destinationVaultId
@@ -100,23 +132,40 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
           </Button>
         </div> : null}
         {mode === 'existing' ? <>
-          <div className="relative" onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget)) setVaultSuggestionsOpen(false)
+          <div ref={vaultInputRef} className="relative" onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget) && !vaultMenuRef.current?.contains(event.relatedTarget)) {
+              setVaultSuggestionsOpen(false)
+            }
           }}>
             <FormInput id="copy-vault" label={t('sharing.copy.vault')} value={vaultInput}
               placeholder={t('sharing.copy.chooseExistingVault')} autoComplete="off" maxLength={80} disabled={frozen}
               role="combobox" aria-autocomplete="list" aria-expanded={vaultSuggestionsOpen && visibleVaultChoices.length > 0}
-              aria-controls="copy-vault-options" onFocus={() => setVaultSuggestionsOpen(true)}
-              onChange={(event) => { setVaultInput(event.target.value); setSelectedVaultId(''); setVaultSuggestionsOpen(true) }} />
-            {vaultSuggestionsOpen && visibleVaultChoices.length > 0 ? <div id="copy-vault-options" role="listbox"
-              className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] shadow-lg">
+              aria-controls="copy-vault-options" aria-activedescendant={vaultSuggestionsOpen && visibleVaultChoices[activeVaultIndex]
+                ? `copy-vault-option-${visibleVaultChoices[activeVaultIndex].id}` : undefined}
+              onFocus={() => { setActiveVaultIndex(0); setVaultSuggestionsOpen(true) }}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') { setVaultSuggestionsOpen(false); return }
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                  event.preventDefault(); setVaultSuggestionsOpen(true)
+                  setActiveVaultIndex((index) => Math.max(0, Math.min(visibleVaultChoices.length - 1,
+                    index + (event.key === 'ArrowDown' ? 1 : -1))))
+                } else if (event.key === 'Enter' && vaultSuggestionsOpen && visibleVaultChoices[activeVaultIndex]) {
+                  event.preventDefault()
+                  const vault = visibleVaultChoices[activeVaultIndex]
+                  chooseVault(vault.id, vault.label)
+                }
+              }}
+              onChange={(event) => { setVaultInput(event.target.value); setSelectedVaultId(''); setActiveVaultIndex(0); setVaultSuggestionsOpen(true) }} />
+            {vaultSuggestionsOpen && visibleVaultChoices.length > 0 ? createPortal(<div id="copy-vault-options" role="listbox"
+              ref={vaultMenuRef} style={vaultMenuPosition}
+              className="z-[100] overflow-y-auto rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-modal-bg)] shadow-xl">
               {visibleVaultChoices.map((vault) => <button key={vault.id} type="button" role="option"
-                aria-selected={vault.id === selectedVaultId} disabled={frozen}
-                className="block w-full px-3 py-2 text-left text-ui text-[var(--cv-input-text)] hover:bg-[var(--cv-surface)]"
-                onClick={() => { setSelectedVaultId(vault.id); setVaultInput(vault.label); setVaultSuggestionsOpen(false) }}>
+                id={`copy-vault-option-${vault.id}`} aria-selected={vault.id === selectedVaultId} disabled={frozen}
+                className="block w-full px-3 py-2 text-left text-ui text-[var(--cv-input-text)] hover:bg-[var(--cv-bg-subtle)]"
+                onClick={() => chooseVault(vault.id, vault.label)}>
                 {vault.label}
               </button>)}
-            </div> : null}
+            </div>, document.body) : null}
           </div>
           {saving.vaults.filter((vault) => vault.name === null).map((vault) => <p key={vault.id} aria-disabled="true"
             className="text-meta text-[var(--cv-t3)]">{t('sharing.copy.unavailableVault', { id: shortenKey(vault.id) })}</p>)}
