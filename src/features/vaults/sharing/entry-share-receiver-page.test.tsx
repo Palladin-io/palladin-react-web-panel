@@ -13,6 +13,8 @@ import { prepareEntryShare } from '../../../shared/crypto/entry-share'
 import { env } from '../../../shared/lib/env'
 
 const api = vi.hoisted(() => ({ open: vi.fn(), otp: vi.fn(), verifyOtp: vi.fn(), verifyAccount: vi.fn(), secret: vi.fn(), receive: vi.fn(), confirm: vi.fn(), end: vi.fn(), error: vi.fn(), save: vi.fn(), success: vi.fn() }))
+const extension = vi.hoisted(() => ({ request: vi.fn() }))
+vi.mock('./extension-share-save', () => ({ requestExtensionShareSave: extension.request }))
 vi.mock('./recipient-api', () => ({ openRecipientSession: api.open, requestRecipientOtp: api.otp,
   verifyRecipientOtp: api.verifyOtp, verifyRecipientSecret: api.secret, receiveEntryShare: api.receive,
   confirmRecipientDisplay: api.confirm, verifyRecipientAccount: api.verifyAccount }))
@@ -30,6 +32,7 @@ const originalStoreUrls = { apple: env.appleAppStoreUrl, android: env.googlePlay
 
 beforeEach(async () => {
   vi.resetAllMocks()
+  extension.request.mockResolvedValue('unavailable')
   await i18n.changeLanguage('en')
   useAuthStore.setState({ userId: null, accessToken: null, refreshToken: null, emailVerified: false, privateKey: null, permissions: 0, isVaultLocked: true, cryptoSessionGeneration: 0 })
   const fragment = entryShareFragment({ key: Uint8Array.from({ length: 32 }, (_, i) => i), accessToken: new Uint8Array(32).fill(7) })
@@ -53,6 +56,15 @@ async function open() {
 }
 
 describe('Public sharing receiver', () => {
+  it('offers extension-owned confirmation without reopening an already received link', async () => {
+    extension.request.mockImplementation(async (type: string) => type === 'status' ? 'ready' : 'pending')
+    render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={vi.fn()} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Save in Palladin extension' }))
+    expect(extension.request).toHaveBeenCalledWith('prepare', expect.objectContaining({ title: 'Test credential' }))
+    expect(screen.getByText(/Confirm the save in the Palladin extension/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save to Palladin' })).not.toBeInTheDocument()
+    expect(api.receive).toHaveBeenCalledOnce()
+  })
   it('keeps automatic receipt on mobile and uses a clean store fallback without claiming app detection', async () => {
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('iPhone')
     Object.defineProperty(env, 'appleAppStoreUrl', { value: 'https://apps.apple.com/app/example/id123456789', configurable: true })
