@@ -72,10 +72,18 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
         ? { top: rect.bottom + 4, maxHeight: Math.max(40, below) }
         : { bottom: window.innerHeight - rect.top + 4, maxHeight: Math.max(40, above) }) })
     const close = () => setVaultSuggestionsOpen(false)
+    const closeOnExternalScroll = (event: Event) => {
+      if (!(event.target instanceof Node) || !vaultMenuRef.current?.contains(event.target)) close()
+    }
     window.addEventListener('resize', close)
-    window.addEventListener('scroll', close, true)
-    return () => { window.removeEventListener('resize', close); window.removeEventListener('scroll', close, true) }
+    window.addEventListener('scroll', closeOnExternalScroll, true)
+    return () => { window.removeEventListener('resize', close); window.removeEventListener('scroll', closeOnExternalScroll, true) }
   }, [vaultSuggestionsOpen, vaultInput])
+  useEffect(() => {
+    if (!vaultSuggestionsOpen) return
+    const active = visibleVaultChoices[activeVaultIndex]
+    if (active) document.getElementById(`copy-vault-option-${active.id}`)?.scrollIntoView?.({ block: 'nearest' })
+  }, [activeVaultIndex, vaultSuggestionsOpen, visibleVaultChoices])
   const destinationVaultId = mode === 'existing' && vaultChoices.some((vault) => vault.id === selectedVaultId)
     ? selectedVaultId : undefined
   const newVaultName = vaultInput.trim().normalize('NFC')
@@ -144,7 +152,9 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
                 ? `copy-vault-option-${visibleVaultChoices[activeVaultIndex].id}` : undefined}
               onFocus={() => { setActiveVaultIndex(0); setVaultSuggestionsOpen(true) }}
               onKeyDown={(event) => {
-                if (event.key === 'Escape') { setVaultSuggestionsOpen(false); return }
+                if (event.key === 'Escape' && vaultSuggestionsOpen) {
+                  event.preventDefault(); event.stopPropagation(); setVaultSuggestionsOpen(false); return
+                }
                 if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                   event.preventDefault(); setVaultSuggestionsOpen(true)
                   setActiveVaultIndex((index) => Math.max(0, Math.min(visibleVaultChoices.length - 1,
@@ -159,9 +169,10 @@ export function SaveShareCopyDialog({ snapshot, onClose, onSaved }: SaveShareCop
             {vaultSuggestionsOpen && visibleVaultChoices.length > 0 ? createPortal(<div id="copy-vault-options" role="listbox"
               ref={vaultMenuRef} style={vaultMenuPosition}
               className="z-[100] overflow-y-auto rounded-lg border border-[var(--cv-input-border)] bg-[var(--cv-modal-bg)] shadow-xl">
-              {visibleVaultChoices.map((vault) => <button key={vault.id} type="button" role="option"
+              {visibleVaultChoices.map((vault, index) => <button key={vault.id} type="button" role="option"
                 id={`copy-vault-option-${vault.id}`} aria-selected={vault.id === selectedVaultId} disabled={frozen}
-                className="block w-full px-3 py-2 text-left text-ui text-[var(--cv-input-text)] hover:bg-[var(--cv-bg-subtle)]"
+                data-vault-id={vault.id}
+                className={`block w-full px-3 py-2 text-left text-ui text-[var(--cv-input-text)] hover:bg-[var(--cv-bg-subtle)] ${index === activeVaultIndex ? 'bg-[var(--cv-bg-subtle)]' : ''}`}
                 onClick={() => chooseVault(vault.id, vault.label)}>
                 {vault.label}
               </button>)}

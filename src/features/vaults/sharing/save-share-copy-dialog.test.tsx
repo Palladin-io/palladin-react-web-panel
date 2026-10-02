@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import i18n from '../../../shared/lib/i18n'
@@ -109,6 +109,21 @@ describe('Save received copy dialog', () => {
     expect(input).toHaveValue('Team')
     await userEvent.click(screen.getByRole('button', { name: 'Save to my vault' }))
     expect(mocks.save).toHaveBeenCalledWith('second', { title: 'Test credential', additions: {} })
+  })
+
+  it('keeps the dialog open on suggestion Escape and keeps a scrolling menu available', async () => {
+    const onClose = vi.fn()
+    mocks.state.vaults = [{ id: 'first', name: 'Personal' }, { id: 'second', name: 'Team' }]
+    render(<SaveShareCopyDialog snapshot={fixture.snapshot as EntryShareSnapshot} onSaved={vi.fn()} onClose={onClose} />)
+    await userEvent.click(screen.getByLabelText('Destination vault'))
+    await userEvent.keyboard('{ArrowDown}')
+    expect(screen.getByRole('option', { name: 'Team' })).toHaveClass('bg-[var(--cv-bg-subtle)]')
+    fireEvent.scroll(screen.getByRole('listbox'))
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
   })
 
   it('does not turn a near-match into creation and permits deliberate same-name creation', async () => {
