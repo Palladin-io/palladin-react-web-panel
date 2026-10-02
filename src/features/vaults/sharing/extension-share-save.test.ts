@@ -42,4 +42,14 @@ describe('optional extension handoff presentation channel', () => {
     await vi.advanceTimersByTimeAsync(10_001)
     await expect(pending).resolves.toBe('uncertain')
   })
+  it('uses the original handoff id to reconcile and keeps a lost reply unknown', async () => {
+    vi.useFakeTimers()
+    const post = vi.spyOn(window, 'postMessage').mockImplementation(() => undefined)
+    const handoffId = '11111111-1111-4111-8111-111111111111'
+    const pending = requestExtensionShareSave('reconcile', undefined, handoffId)
+    expect(post).toHaveBeenCalledWith({ channel: 'palladin.entry-share.extension-save.v1',
+      type: 'reconcile', requestId: handoffId }, window.location.origin)
+    await vi.advanceTimersByTimeAsync(10_001)
+    await expect(pending).resolves.toBe('unknown')
+  })
 })

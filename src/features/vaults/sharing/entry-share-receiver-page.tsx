@@ -47,9 +47,11 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
   const [extensionPending, setExtensionPending] = useState(false)
   const [extensionPrepared, setExtensionPrepared] = useState(false)
   const [extensionUncertain, setExtensionUncertain] = useState(false)
+  const [extensionSaved, setExtensionSaved] = useState(false)
   const [extensionError, setExtensionError] = useState(false)
   const extensionRequestInFlight = useRef(false)
   const extensionProbeVersion = useRef(0)
+  const extensionHandoffId = useRef<string | null>(null)
   const hasAccount = useAuthStore((auth) => !!auth.accessToken || !!auth.refreshToken)
   const emailVerified = useAuthStore((auth) => auth.emailVerified)
   const canSave = useAuthStore((auth) => !auth.isVaultLocked && !!auth.userId && !!auth.privateKey
@@ -102,29 +104,33 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
     let active = true
     const version = ++extensionProbeVersion.current
     void requestExtensionShareSave('status').then(status => {
-      if (active && version === extensionProbeVersion.current && status !== 'uncertain') setExtensionStatus(status)
+      if (active && version === extensionProbeVersion.current
+        && (status === 'ready' || status === 'locked' || status === 'unavailable')) setExtensionStatus(status)
     })
     return () => { active = false }
   }, [received])
   async function recheckExtension() {
-    if (!received || saved || extensionRequestInFlight.current || extensionPrepared) return
+    if (!received || saved || extensionSaved || extensionRequestInFlight.current || extensionPrepared) return
     extensionRequestInFlight.current = true
     setExtensionPending(true)
     const version = ++extensionProbeVersion.current
     const status = await requestExtensionShareSave('status')
     extensionRequestInFlight.current = false
     setExtensionPending(false)
-    if (version === extensionProbeVersion.current && status !== 'uncertain') {
+    if (version === extensionProbeVersion.current
+      && (status === 'ready' || status === 'locked' || status === 'unavailable')) {
       setExtensionStatus(status)
       setExtensionError(false)
     }
   }
   async function saveThroughExtension() {
-    if (!reception.snapshot || saved || extensionRequestInFlight.current || extensionPrepared) return
+    if (!reception.snapshot || saved || extensionSaved || extensionRequestInFlight.current || extensionPrepared) return
     extensionRequestInFlight.current = true
     setExtensionPending(true)
     setExtensionError(false)
-    const result = await requestExtensionShareSave('prepare', reception.snapshot)
+    const handoffId = crypto.randomUUID()
+    extensionHandoffId.current = handoffId
+    const result = await requestExtensionShareSave('prepare', reception.snapshot, handoffId)
     extensionRequestInFlight.current = false
     setExtensionPending(false)
     if (result === 'pending' || result === 'uncertain') {
@@ -135,10 +141,36 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
     }
     setExtensionPrepared(false)
     setExtensionUncertain(false)
-    setExtensionStatus(result)
+    extensionHandoffId.current = null
+    setExtensionStatus(result === 'ready' || result === 'locked' || result === 'unavailable'
+      ? result : 'unavailable')
     setExtensionError(true)
   }
-  const extensionReady = received && !saved && extensionStatus === 'ready'
+  async function reconcileExtension() {
+    const handoffId = extensionHandoffId.current
+    if (!handoffId || !extensionPrepared || extensionRequestInFlight.current) return
+    extensionRequestInFlight.current = true
+    setExtensionPending(true)
+    const result = await requestExtensionShareSave('reconcile', undefined, handoffId)
+    extensionRequestInFlight.current = false
+    setExtensionPending(false)
+    if (result === 'cancelled') {
+      extensionHandoffId.current = null
+      setExtensionPrepared(false)
+      setExtensionUncertain(false)
+      setExtensionStatus('unavailable')
+    } else if (result === 'saved') {
+      extensionHandoffId.current = null
+      setExtensionPrepared(false)
+      setExtensionSaved(true)
+      setSaved(true)
+    } else if (result === 'pending') {
+      setExtensionUncertain(false)
+    } else {
+      setExtensionUncertain(true)
+    }
+  }
+  const extensionReady = received && !saved && !extensionSaved && extensionStatus === 'ready'
   const canContinueAccount = !!onContinueToAccount && !canSave
   const hasAction = available && ((reception.phase === 'welcome' && !reception.busy)
     || (reception.phase === 'verification' && supported)
@@ -245,6 +277,8 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
           {received && extensionPrepared ? <p role="status" className="text-meta leading-relaxed text-[var(--cv-t2)]">
             {t(extensionUncertain ? 'sharing.receiver.handoffUncertain' : 'sharing.receiver.confirmInExtension')}
           </p> : null}
+          {received && extensionPrepared ? <Button size="sm" variant="subtle" disabled={extensionPending}
+            onClick={() => { void reconcileExtension() }}>{t('sharing.receiver.checkExtensionSave')}</Button> : null}
           {received && extensionError ? <p role="alert" className="text-meta leading-relaxed text-[var(--cv-primary)]">
             {t('sharing.receiver.extensionUnavailable')}
           </p> : null}
