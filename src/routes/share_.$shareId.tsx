@@ -10,5 +10,7 @@ function RecipientRoute() {
   const navigate = useNavigate()
   return <EntryShareReceiverPage shareId={shareId} onContinueToAccount={async (target) => {
     await navigate({ to: `/${target}`, search: { redirect: `/share/${shareId}` } })
+  }} onSavedToEntry={async ({ vaultId, entryId }) => {
+    await navigate({ to: '/vaults/$vaultId/entries/$entryId', params: { vaultId, entryId } })
   }} />
 }

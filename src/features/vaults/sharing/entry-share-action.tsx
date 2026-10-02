@@ -12,6 +12,7 @@ import type { ShareSourceScope } from './use-share-creation'
 interface EntryShareActionProps {
   scope: ShareSourceScope
   iconOnly?: boolean
+  footer?: boolean
 }
 
 export function EntryShareAction(props: EntryShareActionProps) {
@@ -26,16 +27,16 @@ export function EntryShareAction(props: EntryShareActionProps) {
     {...props} userId={userId} />
 }
 
-function ScopedShareAction({ scope, iconOnly, userId }: EntryShareActionProps & { userId: string }) {
+function ScopedShareAction({ scope, iconOnly, footer, userId }: EntryShareActionProps & { userId: string }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
   const refresh = () => { void queryClient.invalidateQueries({ queryKey: ['entry-sharing', userId, scope.organizationId, scope.vaultId, scope.entryId] }) }
   return <>
-    <Button size="sm" variant={iconOnly ? 'ghost' : 'accent'} icon={iconOnly ? undefined : 'add'}
-      aria-label={t(iconOnly ? 'sharing.shareEntry' : 'sharing.create')} onClick={() => setOpen(true)}
+    <Button size="sm" variant={iconOnly ? 'ghost' : footer ? 'subtle' : 'accent'} icon={iconOnly ? undefined : footer ? 'share' : 'add'}
+      aria-label={t(iconOnly || footer ? 'sharing.shareEntry' : 'sharing.create')} onClick={() => setOpen(true)}
       className={iconOnly ? 'w-action shrink-0 !px-0' : undefined}>
-      {iconOnly ? <Icon name="share" size={16} /> : t('sharing.create')}
+      {iconOnly ? <Icon name="share" size={16} /> : t(footer ? 'sharing.shareEntry' : 'sharing.create')}
     </Button>
     {open ? <CreateEntryShareDialog scope={scope} onCreated={refresh} onClose={() => { setOpen(false); refresh() }} /> : null}
   </>
