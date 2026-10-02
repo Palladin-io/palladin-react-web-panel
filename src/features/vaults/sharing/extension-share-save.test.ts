@@ -29,4 +29,17 @@ describe('optional extension handoff presentation channel', () => {
     await vi.advanceTimersByTimeAsync(1_501)
     await expect(pending).resolves.toBe('unavailable')
   })
+
+  it('does not accept a page-forged saved result as proof of an extension commit', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(window, 'postMessage').mockImplementation((value) => {
+      const request = value as { requestId: string }
+      window.dispatchEvent(new MessageEvent('message', { source: window, origin: window.location.origin,
+        data: { channel: 'palladin.entry-share.extension-save.v1', type: 'response',
+          requestId: request.requestId, status: 'saved' } }))
+    })
+    const pending = requestExtensionShareSave('prepare')
+    await vi.advanceTimersByTimeAsync(10_001)
+    await expect(pending).resolves.toBe('unavailable')
+  })
 })
