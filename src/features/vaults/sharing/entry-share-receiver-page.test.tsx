@@ -78,6 +78,33 @@ describe('Public sharing receiver', () => {
     expect(await screen.findByRole('button', { name: 'Save in Palladin extension' })).toBeEnabled()
     expect(api.receive).toHaveBeenCalledOnce()
   })
+  it('does not let a stale initial probe replace a newer ready result', async () => {
+    let finishInitial: ((status: string) => void) | undefined
+    let probes = 0
+    extension.request.mockImplementation((type: string) => {
+      if (type !== 'status') return Promise.resolve('pending')
+      probes++
+      return probes === 1 ? new Promise<string>(resolve => { finishInitial = resolve }) : Promise.resolve('ready')
+    })
+    render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={vi.fn()} />)
+    expect(await screen.findByRole('button', { name: 'Check extension again' })).toBeEnabled()
+    await userEvent.click(screen.getByRole('button', { name: 'Check extension again' }))
+    expect(await screen.findByRole('button', { name: 'Save in Palladin extension' })).toBeEnabled()
+    await act(async () => { finishInitial?.('locked') })
+    expect(screen.getByRole('button', { name: 'Save in Palladin extension' })).toBeEnabled()
+  })
+  it('does not offer a second extension handoff after a web save', async () => {
+    useAuthStore.setState({ userId: 'recipient', accessToken: 'synthetic-access', emailVerified: true,
+      permissions: 8, isVaultLocked: false, privateKey: new Uint8Array(32) })
+    render(<EntryShareReceiverPage shareId={shareId} />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Save to my vault' }))
+    await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
+    await userEvent.click(screen.getAllByRole('button', { name: 'Save to my vault' }).at(-1)!)
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Check extension again' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save in Palladin extension' })).not.toBeInTheDocument()
+    expect(extension.request.mock.calls.filter(([type]) => type === 'prepare')).toHaveLength(0)
+  })
   it('keeps automatic receipt on mobile and uses a clean store fallback without claiming app detection', async () => {
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('iPhone')
     Object.defineProperty(env, 'appleAppStoreUrl', { value: 'https://apps.apple.com/app/example/id123456789', configurable: true })
