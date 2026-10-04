@@ -60,7 +60,7 @@ describe('Public sharing receiver', () => {
     extension.request.mockImplementation(async (type: string) => type === 'status' ? 'ready' : 'pending')
     render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={vi.fn()} />)
     await userEvent.click(await screen.findByRole('button', { name: 'Save in Palladin extension' }))
-    expect(extension.request).toHaveBeenCalledWith('prepare', expect.objectContaining({ title: 'Test credential' }), expect.any(String))
+    expect(extension.request).toHaveBeenCalledWith('prepare', expect.objectContaining({ title: 'Test credential' }))
     expect(screen.getByText(/Confirm the save in the Palladin extension/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save in Palladin extension' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save to Palladin' })).not.toBeInTheDocument()
@@ -77,36 +77,16 @@ describe('Public sharing receiver', () => {
     expect(extension.request.mock.calls.filter(([type]) => type === 'prepare')).toHaveLength(1)
     expect(api.receive).toHaveBeenCalledOnce()
   })
-  it('offers account fallback only after the extension confirms cancellation of that handoff', async () => {
-    extension.request.mockImplementation(async (type: string) => type === 'status' ? 'ready'
-      : type === 'prepare' ? 'pending' : 'cancelled')
+  it.each(['saved', 'cancelled', 'unavailable'])('does not trust a DOM %s response as a handoff outcome', async (reply) => {
+    extension.request.mockImplementation(async (type: string) => type === 'status' ? 'ready' : reply)
     render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={vi.fn()} />)
     await userEvent.click(await screen.findByRole('button', { name: 'Save in Palladin extension' }))
-    const handoff = extension.request.mock.calls.find(([type]) => type === 'prepare')?.[2]
-    await userEvent.click(screen.getByRole('button', { name: 'Check save status' }))
-    expect(extension.request).toHaveBeenCalledWith('reconcile', undefined, handoff)
-    expect(await screen.findByRole('button', { name: 'Save to Palladin' })).toBeEnabled()
-    expect(extension.request.mock.calls.filter(([type]) => type === 'prepare')).toHaveLength(1)
-    expect(api.receive).toHaveBeenCalledOnce()
-  })
-  it('keeps account fallback blocked when extension confirmation is unknown', async () => {
-    extension.request.mockImplementation(async (type: string) => type === 'status' ? 'ready'
-      : type === 'prepare' ? 'pending' : 'unknown')
-    render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={vi.fn()} />)
-    await userEvent.click(await screen.findByRole('button', { name: 'Save in Palladin extension' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Check save status' }))
-    expect(screen.queryByRole('button', { name: 'Save to Palladin' })).not.toBeInTheDocument()
-    expect(api.receive).toHaveBeenCalledOnce()
-  })
-  it('treats an extension-confirmed save as terminal without handing the copy back', async () => {
-    extension.request.mockImplementation(async (type: string) => type === 'status' ? 'ready'
-      : type === 'prepare' ? 'pending' : 'saved')
-    render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={vi.fn()} />)
-    await userEvent.click(await screen.findByRole('button', { name: 'Save in Palladin extension' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Check save status' }))
+    expect(screen.getByText(/extension may still be processing this copy/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save to Palladin' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Save in Palladin extension' })).not.toBeInTheDocument()
     expect(extension.request.mock.calls.filter(([type]) => type === 'prepare')).toHaveLength(1)
+    expect(extension.request.mock.calls.filter(([type]) => type === 'reconcile')).toHaveLength(0)
+    expect(api.receive).toHaveBeenCalledOnce()
   })
   it('rechecks extension state after unlock without consuming the share again', async () => {
     let unlocked = false

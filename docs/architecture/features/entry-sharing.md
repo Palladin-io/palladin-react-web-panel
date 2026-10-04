@@ -42,7 +42,10 @@ extension-owned confirmation are implemented, but the web receiver integration
 still requires staging acceptance in a real browser. The extension's canonical
 writer preserves `key.url` through the shared crypto contract; unsupported
 snapshot fields still reject the whole save rather than producing a partial
-copy. The ordinary web-account path remains the fallback.
+copy. The ordinary web-account path remains the fallback before a handoff. Once
+the page attempts a handoff, DOM replies cannot authenticate a saved or cancelled
+outcome: only extension-owned UI reports completion, and this page does not
+re-enable another save path that could create a duplicate.
 
 ## Snapshot boundary
 
