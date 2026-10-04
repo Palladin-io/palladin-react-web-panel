@@ -26,7 +26,7 @@
   "audit.sentence.entryShareEnded": "Zakończono starszy link udostępnienia wpisu {{entry}} (uczestnik: {{actor}})",
   "audit.sentence.entryShareSourceAccessRemoved": "Link udostępnienia wpisu {{entry}} utracił dostęp do źródła",
   "notifications.type.entryShareReceived": "Odebrano udostępnioną kopię",
-  "notifications.sub.entryShareReceived": "Aplikacja odbiorcy potwierdziła pierwsze wyświetlenie.",
+  "notifications.sub.entryShareReceived": "Aplikacja odbiorcy wyświetliła kopię. Nie oznacza to, że ktoś ją przeczytał.",
   "notifications.card.rowShare": "Udostępnienie",
   "notifications.card.rowVault": "Sejf",
   "notifications.card.rowReceivedAt": "Odebrano",

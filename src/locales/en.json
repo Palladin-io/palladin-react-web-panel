@@ -26,7 +26,7 @@
   "audit.sentence.entryShareEnded": "A legacy sharing link for {{entry}} was ended (actor: {{actor}})",
   "audit.sentence.entryShareSourceAccessRemoved": "The sharing link for {{entry}} lost access to its source",
   "notifications.type.entryShareReceived": "Shared copy received",
-  "notifications.sub.entryShareReceived": "The recipient’s app confirmed the first display.",
+  "notifications.sub.entryShareReceived": "The recipient’s app displayed the copy. This does not prove someone read it.",
   "notifications.card.rowShare": "Sharing link",
   "notifications.card.rowVault": "Vault",
   "notifications.card.rowReceivedAt": "Received at",
