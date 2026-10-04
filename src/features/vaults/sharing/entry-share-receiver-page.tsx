@@ -23,6 +23,7 @@ import type { SavedShareCopy } from './use-save-share-copy'
 import { readEntryShareIngressVersion, subscribePendingEntryShare } from '../../../shared/lib/entry-share-ingress'
 import { mobilePlatform, mobileStoreLink } from '../../../shared/lib/mobile-store-link'
 import { env } from '../../../shared/lib/env'
+import { requestExtensionShareSave, type ExtensionShareStatus } from './extension-share-save'
 
 interface EntryShareReceiverPageProps {
   shareId: string
@@ -42,6 +43,12 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
     env.appleAppStoreUrl, env.googlePlayStoreUrl)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [extensionStatus, setExtensionStatus] = useState<ExtensionShareStatus>('unavailable')
+  const [extensionPending, setExtensionPending] = useState(false)
+  const [extensionPrepared, setExtensionPrepared] = useState(false)
+  const [extensionUncertain, setExtensionUncertain] = useState(false)
+  const extensionRequestInFlight = useRef(false)
+  const extensionProbeVersion = useRef(0)
   const hasAccount = useAuthStore((auth) => !!auth.accessToken || !!auth.refreshToken)
   const emailVerified = useAuthStore((auth) => auth.emailVerified)
   const canSave = useAuthStore((auth) => !auth.isVaultLocked && !!auth.userId && !!auth.privateKey
@@ -89,10 +96,45 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
   const otpWaiting = !reception.otpRetry && reception.otpRetryAfterSeconds > 0
 
   const received = reception.phase === 'received' && !!reception.snapshot
+  useEffect(() => {
+    if (!received) return
+    let active = true
+    const version = ++extensionProbeVersion.current
+    void requestExtensionShareSave('status').then(status => {
+      if (active && version === extensionProbeVersion.current
+        && (status === 'ready' || status === 'locked' || status === 'unavailable')) setExtensionStatus(status)
+    })
+    return () => { active = false }
+  }, [received])
+  async function recheckExtension() {
+    if (!received || saved || extensionRequestInFlight.current || extensionPrepared) return
+    extensionRequestInFlight.current = true
+    setExtensionPending(true)
+    const version = ++extensionProbeVersion.current
+    const status = await requestExtensionShareSave('status')
+    extensionRequestInFlight.current = false
+    setExtensionPending(false)
+    if (version === extensionProbeVersion.current
+      && (status === 'ready' || status === 'locked' || status === 'unavailable')) {
+      setExtensionStatus(status)
+    }
+  }
+  async function saveThroughExtension() {
+    if (!reception.snapshot || saved || extensionRequestInFlight.current || extensionPrepared) return
+    extensionRequestInFlight.current = true
+    setExtensionPending(true)
+    const result = await requestExtensionShareSave('prepare', reception.snapshot)
+    extensionRequestInFlight.current = false
+    setExtensionPending(false)
+    setExtensionStatus('pending')
+    setExtensionPrepared(true)
+    setExtensionUncertain(result !== 'pending')
+  }
+  const extensionReady = received && !saved && extensionStatus === 'ready'
   const canContinueAccount = !!onContinueToAccount && !canSave
   const hasAction = available && ((reception.phase === 'welcome' && !reception.busy)
     || (reception.phase === 'verification' && supported)
-    || (received && (canSave || canContinueAccount)))
+    || (received && !extensionPrepared && (extensionReady || canSave || canContinueAccount)))
   const accountTarget = !hasAccount ? 'register' : !emailVerified ? 'verify-email' : 'unlock'
   const linkPolicy = ongoing && (reception.shareExpiresAt || reception.maximumReceipts != null) ? <dl className="share-policy">
     {reception.shareExpiresAt ? <div className="share-received-row">
@@ -114,9 +156,13 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
             onClick={() => { void perform(reception.open()) }}>{t('sharing.receiver.open')}</Button> : null}
           {reception.phase === 'verification' && supported ? <Button size="sm" variant="accent" className="min-w-0 flex-1"
             disabled={reception.busy || !reception.canReceive} onClick={() => { void perform(reception.receive()) }}>{t('sharing.receiver.receive')}</Button> : null}
-          {received && canSave ? <Button size="sm" variant="accent" className="min-w-0 flex-1" disabled={saved || reception.busy}
+          {extensionReady ? <Button size="sm" variant="accent" className="min-w-0 flex-1"
+            disabled={extensionPending || reception.busy} onClick={() => { void saveThroughExtension() }}>
+            {t('sharing.receiver.saveWithExtension')}
+          </Button> : null}
+          {received && canSave && !extensionReady && !extensionPrepared ? <Button size="sm" variant="accent" className="min-w-0 flex-1" disabled={saved || reception.busy}
             onClick={() => setSaving(true)}>{t(saved ? 'sharing.copy.saved' : 'sharing.copy.save')}</Button> : null}
-          {received && canContinueAccount ? <Button size="sm" variant="accent" className="min-w-0 flex-1" disabled={reception.busy}
+          {received && canContinueAccount && !extensionReady && !extensionPrepared && !saved ? <Button size="sm" variant="accent" className="min-w-0 flex-1" disabled={reception.busy}
             onClick={() => { void continueToAccount(accountTarget) }}>
             {t(!hasAccount ? 'sharing.receiver.saveToPalladin' : !emailVerified ? 'sharing.receiver.verifyAccount' : 'sharing.receiver.unlock')}
           </Button> : null}
@@ -188,6 +234,13 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
           {received && saved ? <p role="status" className="text-meta leading-relaxed text-[var(--cv-t2)]">
             {t('sharing.receiver.syncAfterSave')}
           </p> : null}
+          {received && extensionPrepared ? <p role="status" className="text-meta leading-relaxed text-[var(--cv-t2)]">
+            {t(extensionUncertain ? 'sharing.receiver.handoffUncertain' : 'sharing.receiver.confirmInExtension')}
+          </p> : null}
+          {received && !saved && !extensionPrepared && extensionStatus !== 'ready' ? <Button size="sm" variant="subtle"
+            disabled={extensionPending} onClick={() => { void recheckExtension() }}>
+            {t('sharing.receiver.recheckExtension')}
+          </Button> : null}
         </>}
         </div>
       </DialogSurface>

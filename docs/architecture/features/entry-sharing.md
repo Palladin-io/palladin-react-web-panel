@@ -25,8 +25,27 @@ For an already received one-use link, the approved web-to-native path is explici
 account save in the same browser session followed by normal encrypted Member sync
 after signing in to that account on mobile. Installation alone is not a transfer;
 the consumed link is not reopened. Direct native receipt of an unused link is a
-separate path. Real cross-client/device acceptance is still pending. This feature is not
-deployed or accepted end-to-end.
+separate path. Real cross-client/device acceptance is still pending.
+
+The owner also approved a distinct browser-extension save path (2026-10-01):
+when the extension is unlocked, **Save to Palladin** may transfer the already
+received snapshot from this tab into extension-worker memory, but saving requires
+an explicit confirmation in extension-owned UI. The page's web session is not
+unlocked by the extension and its keys are never exported to the page. The worker
+must bind the handoff to the browser-authenticated top-frame document, configured
+Palladin web/API environment and its own current unlocked session; recheck all
+bindings at confirmation and commit. The extension must preserve every supported
+snapshot field, including TOTP, notes and custom fields, or reject the entire
+save with a generic error. No second recipient delivery, persistent plaintext
+queue, or page-DOM confirmation is permitted. The extension handoff and its
+extension-owned confirmation are implemented, but the web receiver integration
+still requires staging acceptance in a real browser. The extension's canonical
+writer preserves `key.url` through the shared crypto contract; unsupported
+snapshot fields still reject the whole save rather than producing a partial
+copy. The ordinary web-account path remains the fallback before a handoff. Once
+the page attempts a handoff, DOM replies cannot authenticate a saved or cancelled
+outcome: only extension-owned UI reports completion, and this page does not
+re-enable another save path that could create a duplicate.
 
 ## Snapshot boundary
 
@@ -282,6 +301,9 @@ nor opening the save dialog is automatic: destination selection remains explicit
 A live authenticated, verified, unlocked web session can be established by the
 configured shared-unlock bridge for the same API environment. Merely having an
 installed or signed-in extension does not establish that account state.
+An independently unlocked extension can instead offer the separate confirmed
+extension-save flow above; its presence never makes `canSave` for the web-key
+path true by itself.
 
 Guests see the product block in the card footer. Its product link and the muted
 Privacy/Terms footer open new tabs without a referrer, share material or account
