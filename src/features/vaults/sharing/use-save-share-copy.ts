@@ -110,11 +110,13 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
         setPendingVaultName(normalizedName)
       }
       const pending = operation.pendingVault
+      let regularConflict = false
       try {
         if (pending.isDefault) await createDefaultVault(pending.payload, operation.controller.signal)
         else await createVault(pending.payload, operation.controller.signal)
       } catch (error) {
         if (!current(operation)) return 'cancelled'
+        regularConflict = !pending.isDefault && error instanceof HTTPError && error.response.status === 409
         // A definite client rejection cannot have committed this request.
         // 409 remains ambiguous for a retried default Vault and must reconcile.
         if (error instanceof HTTPError && error.response.status < 500
@@ -135,7 +137,13 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
         setPendingVaultName(null)
         return 'failed'
       }
-      if (!choices.some((vault) => vault.id === pending.payload.vaultId && vault.name === pending.name)) return 'failed'
+      if (!choices.some((vault) => vault.id === pending.payload.vaultId && vault.name === pending.name)) {
+        if (regularConflict && !choices.some((vault) => vault.id === pending.payload.vaultId)) {
+          operation.pendingVault = undefined
+          setPendingVaultName(null)
+        }
+        return 'failed'
+      }
       operation.pendingVault = undefined
       setPendingVaultName(null)
       useMemberSyncStore.getState().retry()

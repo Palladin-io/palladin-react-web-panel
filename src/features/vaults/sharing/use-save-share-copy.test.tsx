@@ -1,5 +1,6 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { HTTPError } from 'ky'
 import { useAuthStore } from '../../auth'
 import { useMemberSyncStore } from '../sync/member-sync-store'
 import { useSaveShareCopy } from './use-save-share-copy'
@@ -112,6 +113,20 @@ describe('Explicit received-copy save lifecycle', () => {
     expect(result.current.pendingVaultName).toBeNull()
     expect(result.current.vaults).toEqual([{ id: otherDefaultId, name: 'Destination', isDefault: true }])
     expect(api.createDefaultVault).toHaveBeenCalledOnce()
+  })
+
+  it('releases a rejected regular Vault create after the directory confirms its ID is absent', async () => {
+    const newVaultId = '66666666-6666-4666-8666-666666666666'
+    api.vaultChallenge.mockResolvedValue({ vaultId: newVaultId })
+    api.vaultPayload.mockResolvedValue({ vaultId: newVaultId, ciphertext: 'synthetic' })
+    api.createVault.mockRejectedValueOnce(new HTTPError(new Response(null, { status: 409 }),
+      new Request('https://api.example.test/vaults'), {}))
+    const { result } = await ready()
+    await act(async () => { expect(await result.current.createNamedVault('New vault')).toBe('failed') })
+    expect(result.current.pendingVaultName).toBeNull()
+    expect(result.current.vaults).toEqual([{ id: vaultId, name: 'Destination', isDefault: false }])
+    await act(async () => { expect(await result.current.createNamedVault('Another vault')).toBe('failed') })
+    expect(api.vaultChallenge).toHaveBeenCalledTimes(2)
   })
 
   it('loads names locally and does not create anything before an explicit save', async () => {
