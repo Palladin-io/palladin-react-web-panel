@@ -11,8 +11,7 @@ Security settings display native-channel status separately from the account
 shared-unlock preference. Connected means a document-bound browser route exists,
 not that an Identity session or MK handoff completed. Missing extension identity,
 connection attempts, unavailable peers and unsupported HTTP browser capabilities
-have separate PL/EN messages. Remote HTTP currently fails closed when Web Crypto
-or Web Locks are absent. Portable crypto, equivalent cross-tab serialization and
+have separate PL/EN messages. Remote HTTP currently fails closed while portable crypto and
 consumer uptake of the coordinated crypto/backend changes remain release gates;
 this increment does not claim full remote HTTP support.
 
@@ -20,7 +19,19 @@ Client-generated UUIDs use `shared/crypto/random-uuid`: native `randomUUID` on
 secure origins, or the browser CSPRNG (`getRandomValues`) with UUID v4 formatting
 when HTTP hides that method. No weak random fallback is allowed. This covers
 registration, shared-link/pause IDs and ordinary client mutations; portable
-hashing/KDF and cross-tab locks are still required for remote HTTP unlock.
+hashing/KDF is still required for remote HTTP unlock.
+
+On origins without Web Locks, shared-unlock storage serializes through IndexedDB
+read/write transactions over three empty stores (pause, links, expiry). Only
+public denial metadata remains in localStorage; no key or session token is put
+in this database. Publication acquires all scopes in one transaction and passes
+an explicit lease to the nested stores. Reads, writes and final RAM publication
+check transaction ownership; a delayed continuation cannot reuse an inactive or
+completed transaction. There is no timeout-based lease or keepalive. Production
+callbacks use only localStorage promises within the transaction event task.
+Native Chromium HTTP tests cover two documents, one link allocation, retained
+expiry, peer OFF/lock/logout/expiry and a suspended stale read. This is storage
+boundary evidence, not yet a complete remote HTTP Identity handoff.
 
 **Path:** `src/features/auth/`
 

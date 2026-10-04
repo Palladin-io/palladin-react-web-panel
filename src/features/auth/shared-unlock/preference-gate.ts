@@ -1,3 +1,4 @@
+import type { StorageExclusive, StorageFence, SharedUnlockStorageLease } from './storage-lock'
 import { randomUuid } from '../../../shared/crypto/random-uuid'
 import { z } from "zod";
 
@@ -9,13 +10,13 @@ const schema = z.object({ version: z.literal(1), apiUrl: z.string().min(1).max(2
  * own settings operation may clear its exact pause; peer messages cannot. */
 export class SharedUnlockPreferenceGate {
   private readonly storage: Storage;
-  private readonly exclusive: <T>(action: () => Promise<T>) => Promise<T>;
+  private readonly exclusive: StorageExclusive;
   private readonly newId: () => string;
   private tail: Promise<void> = Promise.resolve();
   private readonly pending = new Map<string, string>();
   private readonly allowed = new Map<string, boolean>();
   private readonly listeners = new Set<(scope: SharedUnlockPreferenceScope) => void>();
-  constructor(storage: Storage, exclusive: <T>(action: () => Promise<T>) => Promise<T> = action => action(), newId: () => string = () => randomUuid()) {
+  constructor(storage: Storage, exclusive: StorageExclusive = action => action(), newId: () => string = () => randomUuid()) {
     this.storage = storage; this.exclusive = exclusive; this.newId = newId;
   }
   subscribe(listener: (scope: SharedUnlockPreferenceScope) => void): () => void {
@@ -33,9 +34,9 @@ export class SharedUnlockPreferenceGate {
   }
   async isAllowed(scope: SharedUnlockPreferenceScope): Promise<boolean> {
     const selected = { apiUrl: scope.apiUrl, accountId: scope.accountId };
-    return this.serial(async () => {
+    return this.serial(async assertHeld => {
       try {
-        const pauseId = await this.load(selected);
+        const pauseId = await this.load(assertHeld, selected);
         const allowed = !pauseId && !this.pending.has(this.key(selected));
         this.changed(selected, allowed); return allowed;
       } catch { this.changed(selected, false); throw new Error("Shared unlock preference gate unavailable"); }
@@ -43,23 +44,24 @@ export class SharedUnlockPreferenceGate {
   }
   /** Hold the origin-wide pause lock through the final publication boundary.
    * The callback must not acquire this gate again or perform network work. */
-  withAllowed<T>(scope: SharedUnlockPreferenceScope, action: () => Promise<T>): Promise<T> {
+  withAllowed<T>(scope: SharedUnlockPreferenceScope, action: () => Promise<T>, lease?: SharedUnlockStorageLease): Promise<T> {
     const selected = { apiUrl: scope.apiUrl, accountId: scope.accountId };
-    return this.serial(async () => {
+    return this.serial(async assertHeld => {
       try {
-        const pauseId = await this.load(selected);
+        const pauseId = await this.load(assertHeld, selected);
         this.changed(selected, !pauseId && !this.pending.has(this.key(selected)));
       } catch { this.changed(selected, false); throw new Error("Shared unlock preference gate unavailable"); }
       this.assertAllowed(selected);
+      assertHeld();
       return action();
-    });
+    }, lease);
   }
   /** Cancels observers before any storage wait. A failed write retains RAM denial. */
   pause(scope: SharedUnlockPreferenceScope): { id: string; persisted: Promise<void> } {
     const selected = { apiUrl: scope.apiUrl, accountId: scope.accountId }, key = this.key(selected), id = this.newId();
     this.pending.set(key, id); this.changed(selected, false);
-    const persisted = this.serial(async () => {
-      await this.save(selected, id);
+    const persisted = this.serial(async assertHeld => {
+      await this.save(assertHeld, selected, id);
       if (this.pending.get(key) === id) this.pending.delete(key);
     });
     // Owners await this before claiming a saved preference. Denial remains even
@@ -70,13 +72,13 @@ export class SharedUnlockPreferenceGate {
   async complete(scope: SharedUnlockPreferenceScope, pauseId: string, assertOwnCurrent: () => void): Promise<void> {
     const selected = { apiUrl: scope.apiUrl, accountId: scope.accountId }, key = this.key(selected);
     assertOwnCurrent();
-    return this.serial(async () => {
+    return this.serial(async assertHeld => {
       assertOwnCurrent();
-      if (this.pending.has(key) || await this.load(selected) !== pauseId) throw new Error("Shared unlock pause changed");
+      if (this.pending.has(key) || await this.load(assertHeld, selected) !== pauseId) throw new Error("Shared unlock pause changed");
       assertOwnCurrent();
       if (this.pending.has(key)) throw new Error("Shared unlock pause changed");
       try {
-        await this.save(selected, null);
+        await this.save(assertHeld, selected, null);
         assertOwnCurrent();
         if (this.pending.has(key)) throw new Error("Shared unlock pause changed");
       } catch (error) {
@@ -85,7 +87,7 @@ export class SharedUnlockPreferenceGate {
         this.changed(selected, false);
         const retained = this.pending.get(key)!;
         try {
-          await this.save(selected, retained);
+          await this.save(assertHeld, selected, retained);
           if (this.pending.get(key) === retained) this.pending.delete(key);
         } catch { /* Failed repair retains the denial in RAM. */ }
         throw error;
@@ -105,18 +107,23 @@ export class SharedUnlockPreferenceGate {
     this.refreshExternal({ apiUrl, accountId });
   }
   private key(scope: SharedUnlockPreferenceScope): string { return "palladin.shared-unlock.pause.v1:" + JSON.stringify([scope.apiUrl, scope.accountId]); }
-  private async load(scope: SharedUnlockPreferenceScope): Promise<string | null> {
+  private async load(assertHeld: StorageFence, scope: SharedUnlockPreferenceScope): Promise<string | null> {
+    assertHeld();
     const key = this.key(scope), values = await this.storage.get([key]);
+    assertHeld();
     if (!Object.hasOwn(values, key)) return null;
     const parsed = schema.safeParse(values[key]);
     if (!parsed.success || parsed.data.apiUrl !== scope.apiUrl || parsed.data.accountId !== scope.accountId) throw new Error("Invalid local pause");
     return parsed.data.pauseId;
   }
-  private save(scope: SharedUnlockPreferenceScope, pauseId: string | null): Promise<void> {
-    return this.storage.set({ [this.key(scope)]: { version: 1, apiUrl: scope.apiUrl, accountId: scope.accountId, pauseId } });
+  private async save(assertHeld: StorageFence, scope: SharedUnlockPreferenceScope, pauseId: string | null): Promise<void> {
+    assertHeld();
+    await this.storage.set({ [this.key(scope)]: { version: 1, apiUrl: scope.apiUrl, accountId: scope.accountId, pauseId } });
+    assertHeld();
   }
-  private serial<T>(action: () => Promise<T>): Promise<T> {
-    const result = this.tail.then(() => this.exclusive(action));
+  private serial<T>(action: (assertHeld: StorageFence) => Promise<T>, lease?: SharedUnlockStorageLease): Promise<T> {
+    if (lease) return lease.run("pause", action);
+    const result = this.tail.then(() => this.exclusive(assertHeld => action(assertHeld ?? (() => {}))));
     this.tail = result.then(() => {}, () => {}); return result;
   }
 }
