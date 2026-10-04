@@ -11,7 +11,11 @@ build, Vite replaces the public-asset placeholder with the validated origin of
 `VITE_PUBLIC_ASSET_URL` and the connection placeholder with the exact origins of
 `VITE_API_URL` and `VITE_SIGNALR_HUB_URL` (HTTP negotiation plus the corresponding
 WebSocket origin). API origins are not shared implicitly across environments.
-HTTPS is required except for explicit loopback HTTP; credentials, query strings,
+HTTPS is required except for loopback HTTP. Self-hosted builds may explicitly set
+`PALLADIN_ALLOW_INSECURE_HTTP_CONNECTIONS=true` to admit the exact configured
+HTTP API/SignalR origins and matching `ws://` endpoint. It defaults to false,
+does not add wildcard origins, bypass mixed-content/TLS rules or replace the
+separate HTTP consent in extension Settings. Credentials, query strings,
 fragments, whitespace and wildcard hosts are rejected. Missing build configuration
 does not grant a default API or public-asset origin. An empty
 `VITE_PUBLIC_ASSET_URL` also rejects catalog image URLs in the browser; the
