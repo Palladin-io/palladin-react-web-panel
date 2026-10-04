@@ -7,8 +7,8 @@ import { PERMISSION_VAULT_MANAGE } from './permissions'
 
 // Defaults mirror those in vault-presentation.ts but are kept here as
 // literals to avoid a cross-feature import.
-const DEFAULT_ICON = 'shield'
-const DEFAULT_COLOR = '#E54645'
+export const DEFAULT_VAULT_ICON = 'shield'
+export const DEFAULT_VAULT_COLOR = '#E54645'
 
 /**
  * Generates a fresh Vault Key, seals it for the user, and creates the
@@ -51,8 +51,8 @@ export async function createDefaultVaultSafe(
         schema: 'palladin.member-vault-metadata.v1',
         name,
         description: null,
-        icon: { kind: 'glyph', value: DEFAULT_ICON },
-        color: DEFAULT_COLOR,
+        icon: { kind: 'glyph', value: DEFAULT_VAULT_ICON },
+        color: DEFAULT_VAULT_COLOR,
         grantMode: 'granular',
       },
     })

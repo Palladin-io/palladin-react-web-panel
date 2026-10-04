@@ -21,6 +21,7 @@ vi.mock('./use-save-share-copy', () => ({ useSaveShareCopy: () => ({
   vaults: [{ id: 'target', name: 'Personal' }], loading: false, loadError: false,
   busy: false, retryPending: false, saved: false, save: api.save, retryLoad: vi.fn(),
 }) }))
+vi.mock('../use-create-vault', () => ({ useCreateVault: () => ({ mutateAsync: vi.fn(), isPending: false, pendingInput: null }) }))
 
 const shareId = fixture.scope.shareId
 const session = { sessionId: '44442233-4455-4677-8899-aabbccddeeff', sessionToken: 's'.repeat(43),
@@ -37,7 +38,7 @@ beforeEach(async () => {
   api.open.mockResolvedValue({ ...session, expiresAt: new Date(Date.now() + 900_000).toISOString() })
   api.otp.mockResolvedValue({ retryAfterSeconds: 0 })
   api.receive.mockResolvedValue({ ...fixture.scope, nonce: fixture.nonce, ciphertext: fixture.ciphertext })
-  api.save.mockResolvedValue('saved')
+  api.save.mockResolvedValue({ vaultId: 'target', entryId: 'saved-entry' })
 })
 afterEach(() => {
   cleanup(); clearPendingEntryShare(); vi.restoreAllMocks()
@@ -280,6 +281,7 @@ describe('Public sharing receiver', () => {
     vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('iPhone')
     Object.defineProperty(env, 'appleAppStoreUrl', { value: 'https://apps.apple.com/app/example/id123456789', configurable: true })
     const navigate = vi.fn()
+    const openSaved = vi.fn()
     const page = render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} />)
     await screen.findByLabelText('Password')
     await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce())
@@ -293,16 +295,18 @@ describe('Public sharing receiver', () => {
         refreshToken: 'synthetic-refresh', emailVerified: true, isOnboarded: true, permissions: 8 })
       useAuthStore.getState().unlockVault(new Uint8Array(32), new Uint8Array(32))
     })
-    render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} />)
+    render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} onSavedToEntry={openSaved} />)
     await userEvent.click(await screen.findByRole('button', { name: 'Save to my vault' }))
     expect(await screen.findByRole('dialog', { name: 'Save a copy to your vault' })).toBeInTheDocument()
-    await userEvent.selectOptions(screen.getByLabelText('Destination vault'), 'target')
+    await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
+    await userEvent.click(screen.getByRole('option', { name: 'Personal' }))
     await userEvent.click(screen.getAllByRole('button', { name: 'Save to my vault' }).at(-1)!)
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(screen.getByRole('status')).toHaveTextContent('Saved to your account. Sign in to the mobile app with the same account')
     expect(screen.getByText(/Sign in to the app with this same Palladin account/)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Get the Palladin app' })).toHaveAttribute('href', 'https://apps.apple.com/app/example/id123456789')
     expect(api.save).toHaveBeenCalledWith('target', { title: 'Test credential', additions: {} })
+    expect(openSaved).toHaveBeenCalledWith({ vaultId: 'target', entryId: 'saved-entry' })
     expect(api.open).toHaveBeenCalledOnce()
     expect(api.receive).toHaveBeenCalledOnce()
     expect(api.confirm).toHaveBeenCalledOnce()
@@ -417,7 +421,8 @@ describe('Public sharing receiver', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Save to my vault' }))
     await screen.findByRole('dialog', { name: 'Save a copy to your vault' })
     await waitFor(() => expect(api.confirm).toHaveBeenCalledOnce())
-    await userEvent.selectOptions(screen.getByLabelText('Destination vault'), 'target')
+    await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
+    await userEvent.click(screen.getByRole('option', { name: 'Personal' }))
     await userEvent.click(screen.getAllByRole('button', { name: 'Save to my vault' }).at(-1)!)
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(api.save).toHaveBeenCalledWith('target', { title: 'Test credential', additions: {} })

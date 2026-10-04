@@ -112,11 +112,11 @@ Its whole-Entry projection, snapshot crypto and secret-link bootstrap boundary
 are documented in [entry-sharing.md](entry-sharing.md). The sender's separate
 Sharing tab and creation dialog now call the lifecycle API on the feature branch.
 The guest receiver, bounded RAM login/signup continuation and explicit save-copy
-are also connected. A verified/unlocked new account can explicitly prepare its
-personal Vault inside the save dialog, then select it and save the copy without
-another receipt. The shared default-Vault helper checks its captured account,
-organization, key generation, verification and permission before posting and
-after completion; sharing additionally aborts its transport on disposal.
+are also connected. A verified/unlocked account selects an existing destination
+Vault or types a new name in the save dialog; creation is explicit on Save and
+uses the normal encrypted Create Vault flow. After the copy is confirmed, the
+public route opens that exact Entry in the same tab. Sharing aborts its transport
+on disposal.
 Native handoff, real auth/HTTP E2E and cross-client acceptance remain pending;
 this is not a released sharing feature.
 

@@ -175,10 +175,10 @@ function CreatedShareDialog({ links, busy, retryPending, onRetry, onClose }: {
         <SecretInput id={`sharing-created-link-${index}`} label={recipientEmail ?? t('sharing.link')} value={link}
           onChange={() => undefined} readOnly shown={shown.includes(link)} onToggleShown={() => setShown((current) => current.includes(link)
             ? current.filter((value) => value !== link) : [...current, link])} copyable copyLabel={t('sharing.copyLink')}
-          copyFeedback clearCopiedSecret={false} />
-        {typeof navigator.share === 'function' ? <Button size="sm" variant="subtle" onClick={() => {
-          void navigator.share({ url: link }).catch(() => undefined)
-        }}>{t('sharing.shareVia')}</Button> : null}
+          copyFeedback clearCopiedSecret={false}
+          trailingAction={typeof navigator.share === 'function' ? { icon: 'share', label: t('sharing.shareVia'), onClick: () => {
+            void navigator.share({ url: link }).catch(() => undefined)
+          } } : undefined} />
       </div>)}
       <p className="text-meta text-[var(--cv-t2)]">{t('sharing.linkOnce')}</p>
     </div>

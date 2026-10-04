@@ -183,6 +183,8 @@ mounted and discards its Query cache on unmount. Delivery counters/timestamps
 and client confirmation are separate. Unknown server states remain visible with
 a neutral fallback rather than failing the list or guessing a mutation. Revoke
 requires a confirmation explaining that downloaded copies cannot be recalled.
+The sender list keeps each link in a compact, bounded-width card; receipt detail
+expands inside that card, while protection and revocation remain explicit actions.
 Account, organization, permission or crypto-session changes close the scoped
 surface; a late revoke response cannot toast or refresh another session.
 
@@ -200,6 +202,9 @@ own receipt count and revocation. Completed links remain copyable in RAM when a
 later create fails; retry reuses only the pending recipient's exact request and
 never recreates an earlier link. The sender must distribute each link to its
 matching address; Palladin does not mail the link.
+The one-time result presents Copy, Reveal and native Share as inline icon actions
+on the same link field; native Share is offered only when the browser supports it.
+The Entry edit footer also exposes Share to the left of Discard and Save Changes.
 
 Password/PIN requires matching confirmation in the sender form. Repeated digit
 patterns and monotonic digit sequences are rejected as input-quality feedback,
@@ -334,17 +339,28 @@ does not depend on an already mounted Member sync provider: it reads the own
 authenticated Vault list and decrypts names locally. A corrupt Vault stays visible
 as an unavailable shortened identifier and does not hide healthy siblings.
 
-An authoritative empty Vault list exposes an explicit Create my personal vault
-action. It reuses `createDefaultVaultSafe` and canonical client-only Vault crypto;
-rendering the dialog, list errors and already available Vaults never create one.
-The helper fences challenge, crypto and completion against the captured Member,
-organization, unlocked key generation, verification, permission and abort signal.
-Only a conflict from the default-create endpoint means already-exists; a challenge
-conflict is a failure. The caller reloads and locally authenticates the own Vault
-list after creation or reconciliation. It never guesses a destination from the
-new challenge ID or auto-selects/saves an Entry. A lost response can be retried
-here using the existing one-default-per-account contract, without leaving the
-received-copy RAM session. Backend authorization remains authoritative.
+The destination control has explicit existing/new modes. Existing decrypted
+Vault names are offered as autocomplete choices; a non-matching typed string
+cannot silently create a Vault. Unavailable Vaults remain visible as disabled
+shortened identifiers. New mode accepts a name and creates a Vault only after
+the recipient presses Save; list errors never create one. Creation uses the
+canonical client-side encrypted Vault protocol inside the same abortable,
+account/organization/key-generation-scoped operation as the Entry save.
+An authoritative empty account uses the one-default-per-account endpoint with
+the entered name; accounts with Vaults use the regular Vault-create endpoint.
+Ambiguous writes retry the exact encrypted request and reconcile against the
+authenticated Vault directory. While that Vault creation is uncertain, the
+destination name/mode and dismissal are frozen; the only available action is
+retrying the same request. A definite non-ambiguous client rejection releases
+that pending attempt. If another tab's default Vault wins the one-default race,
+its server-owned default marker releases the pending request without choosing
+that Vault for the recipient. Frozen-name retries compare NFC-normalized names.
+The returned Vault ID is rechecked
+against the authenticated, locally decrypted Vault directory before the Entry
+copy is encrypted into it. A confirmed save returns the exact new Entry ID and
+navigates to its detail route in the same tab. A failed Vault or Entry write
+keeps the already received copy in RAM for a bounded retry; it never spends a
+second receipt. Backend authorization remains authoritative.
 
 `entry-share-copy.ts` validates the untrusted snapshot and recipient form, assigns
 new custom-field IDs and creates a canonical MemberSecret with the recipient's
