@@ -39,7 +39,9 @@ export interface SecretInputProps {
   onGenerate?: (password: string) => void
 }
 
-const PADDING_FOR_ACTION_COUNT: Record<number, string> = { 1: ' pr-10', 2: ' pr-16', 3: ' pr-[5.375rem]' }
+const PADDING_FOR_ACTION_COUNT: Record<number, string> = {
+  1: ' pr-10', 2: ' pr-16', 3: ' pr-[6.5rem]',
+}
 
 export function SecretInput({
   id, label, labelClassName, value, onChange, shown, onToggleShown,

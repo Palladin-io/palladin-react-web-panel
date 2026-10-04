@@ -19,14 +19,16 @@ const item: NotificationItem = { id: shareId, type: 'entry_share_received', cate
 beforeEach(async () => { vi.clearAllMocks(); await i18n.changeLanguage('en') })
 afterEach(cleanup)
 
-it('renders an informational first-display confirmation without Agent identity or read-proof claims', () => {
+it('shows four useful receipt facts without an artificial confirmation row', () => {
   const resolved = resolveNotificationItem(item, { vaults: new Map(), agents: new Map() })
   expect(isKnownNotificationType(item.type)).toBe(true)
   expect(notificationCardPresentation(resolved).header.kind).toBe('glyph')
   render(<NotificationCard item={resolved} />)
   expect(screen.getByRole('article', { name: 'Shared copy received' })).toBeInTheDocument()
   expect(screen.getByText('The recipient’s app confirmed the first display.')).toBeInTheDocument()
-  expect(screen.getByText('This is not proof that a person read the contents.')).toBeInTheDocument()
+  expect(screen.getByText('Vault')).toBeInTheDocument()
+  expect(screen.getByText('Received at')).toBeInTheDocument()
+  expect(screen.queryByText('Confirmation')).not.toBeInTheDocument()
   expect(screen.queryByText('must-not-render')).not.toBeInTheDocument()
   expect(screen.queryByText(/Unknown agent|An agent/)).not.toBeInTheDocument()
   expect(screen.getByText('33332233…ddeeff')).toBeInTheDocument()
@@ -50,5 +52,6 @@ it('localizes the receipt and its limitations in Polish', async () => {
   await i18n.changeLanguage('pl')
   render(<NotificationCard item={item} />)
   expect(screen.getByRole('article', { name: 'Odebrano udostępnioną kopię' })).toBeInTheDocument()
-  expect(screen.getByText('Nie jest to dowód przeczytania treści przez człowieka.')).toBeInTheDocument()
+  expect(screen.getByText('Sejf')).toBeInTheDocument()
+  expect(screen.queryByText('Potwierdzenie')).not.toBeInTheDocument()
 })
