@@ -23,7 +23,7 @@
     "@microsoft/signalr": "^10.0.11",
     "@noble/hashes": "2.4.0",
     "@palladin/crypto": "0.12.0",
-    "@react-oauth/google": "^0.13.4",
+    "@react-oauth/google": "^0.13.5",
     "@scure/bip39": "^2.0.1",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-router": "^1.170.18",
