@@ -15,7 +15,9 @@ HTTPS is required except for loopback HTTP. Self-hosted builds may explicitly se
 `PALLADIN_ALLOW_INSECURE_HTTP_CONNECTIONS=true` to admit the exact configured
 HTTP API/SignalR origins and matching `ws://` endpoint. It defaults to false,
 does not add wildcard origins, bypass mixed-content/TLS rules or replace the
-separate HTTP consent in extension Settings. Credentials, query strings,
+separate HTTP consent in extension Settings. SHA-256 for encrypted
+presentation assets and agent-icon checksums uses the portable shared crypto
+helper, including on HTTP pages without SubtleCrypto. Credentials, query strings,
 fragments, whitespace and wildcard hosts are rejected. Missing build configuration
 does not grant a default API or public-asset origin. An empty
 `VITE_PUBLIC_ASSET_URL` also rejects catalog image URLs in the browser; the
