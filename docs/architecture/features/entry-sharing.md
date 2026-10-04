@@ -25,8 +25,7 @@ For an already received one-use link, the approved web-to-native path is explici
 account save in the same browser session followed by normal encrypted Member sync
 after signing in to that account on mobile. Installation alone is not a transfer;
 the consumed link is not reopened. Direct native receipt of an unused link is a
-separate path. Real cross-client/device acceptance is still pending. This feature is not
-deployed or accepted end-to-end.
+separate path. Real cross-client/device acceptance is still pending.
 
 The owner also approved a distinct browser-extension save path (2026-10-01):
 when the extension is unlocked, **Save to Palladin** may transfer the already
@@ -38,11 +37,12 @@ Palladin web/API environment and its own current unlocked session; recheck all
 bindings at confirmation and commit. The extension must preserve every supported
 snapshot field, including TOTP, notes and custom fields, or reject the entire
 save with a generic error. No second recipient delivery, persistent plaintext
-queue, or page-DOM confirmation is permitted. The draft web/extension branches
-now carry this handoff and an extension-owned confirmation, but the integration
-is not merged or accepted in a real browser. The extension's current canonical
-writer does not persist `key.url`, so that snapshot is refused wholesale rather
-than saved incompletely. The ordinary web-account path remains the fallback.
+queue, or page-DOM confirmation is permitted. The extension handoff and its
+extension-owned confirmation are implemented, but the web receiver integration
+still requires staging acceptance in a real browser. The extension's canonical
+writer preserves `key.url` through the shared crypto contract; unsupported
+snapshot fields still reject the whole save rather than producing a partial
+copy. The ordinary web-account path remains the fallback.
 
 ## Snapshot boundary
 
