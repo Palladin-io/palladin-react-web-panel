@@ -143,11 +143,12 @@ export function connectSharedUnlockBrowser(options: BrowserChannelOptions) {
   return { ready, signal: abort.signal, close }
 }
 
+// HTTP admission belongs to the independently configured extension pair and its explicit consent.
 function validEndpoint(value: string, originOnly: boolean): boolean {
   try {
     const url = new URL(value)
     return value.length <= 2048 && !url.username && !url.password && !url.search && !url.hash
-      && (url.protocol === 'https:' || (url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)))
+      && (url.protocol === 'https:' || url.protocol === 'http:')
       && (!originOnly || url.origin === value)
   } catch { return false }
 }

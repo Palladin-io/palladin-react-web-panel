@@ -1,5 +1,21 @@
 # Feature: auth
 
+## Dynamic extension connections (2026-10-04, rollout in progress)
+
+The extension owns the user-approved API/panel pair. This panel retains an
+independently configured extension distribution ID; it never learns its trusted
+peer ID from page messages. The browser channel accepts HTTP/HTTPS URL syntax,
+while the extension must enforce the exact pair and explicit HTTP consent.
+
+Security settings display native-channel status separately from the account
+shared-unlock preference. Connected means a document-bound browser route exists,
+not that an Identity session or MK handoff completed. Missing extension identity,
+connection attempts, unavailable peers and unsupported HTTP browser capabilities
+have separate PL/EN messages. Remote HTTP currently fails closed when Web Crypto
+or Web Locks are absent. Portable crypto, equivalent cross-tab serialization and
+consumer uptake of the coordinated crypto/backend changes remain release gates;
+this increment does not claim full remote HTTP support.
+
 **Path:** `src/features/auth/`
 
 ## What it does

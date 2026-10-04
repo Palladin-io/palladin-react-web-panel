@@ -1,3 +1,4 @@
+import type { SharedUnlockBrowserStatus } from './browser-status'
 import { connectSharedUnlockBrowser, type SharedUnlockBrowserRoute, type SharedUnlockNativeRuntime } from './browser-channel'
 
 interface LifecycleOptions {
@@ -10,6 +11,7 @@ interface LifecycleOptions {
   onReady?(route: SharedUnlockBrowserRoute): void
   /** Local document retirement, not manual group lock/logout or peer loss. */
   retireDocument(): void
+  onStatus?(status: SharedUnlockBrowserStatus): void
 }
 
 /** Document-owned channel, with bounded reconnect delays and no activity/Identity side effects. */
@@ -42,14 +44,16 @@ export function startSharedUnlockBrowserLifecycle(options: LifecycleOptions) {
   }
   const connect = () => {
     if (!activeDocument() || connection || !extensionId) return
+    options.onStatus?.('connecting')
     const runtime = options.runtime()
-    if (!runtime) { reconnect(); return }
+    if (!runtime) { options.onStatus?.('unavailable'); reconnect(); return }
     const pending = connectSharedUnlockBrowser({ runtime, extensionId, apiUrl, webOrigin, assertDocument })
     connection = pending
     pending.signal.addEventListener('abort', () => {
       if (connection !== pending) return
       connection = null
       route = null
+      options.onStatus?.('unavailable')
       reconnect()
     }, { once: true })
     void pending.ready.then(ready => {
@@ -57,8 +61,10 @@ export function startSharedUnlockBrowserLifecycle(options: LifecycleOptions) {
       ready.assertCurrent()
       route = ready
       options.onReady?.(ready)
+      options.onStatus?.('connected')
       failures = 0
     }).catch(() => {
+      if (connection === pending) options.onStatus?.('unavailable')
       pending.close()
       if (connection === pending) { connection = null; route = null; reconnect() }
     })

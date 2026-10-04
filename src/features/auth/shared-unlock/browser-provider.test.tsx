@@ -13,6 +13,11 @@ describe('application shared unlock provider', () => {
     config.sharedUnlockExtensionId = ''; render(<SharedUnlockBrowserProvider />)
     expect(startSharedUnlockBrowserLifecycle).not.toHaveBeenCalled()
   })
+  it('does not start a handoff in a remote HTTP context without required platform crypto and locks', () => {
+    vi.stubGlobal('isSecureContext', false)
+    render(<SharedUnlockBrowserProvider />)
+    expect(startSharedUnlockBrowserLifecycle).not.toHaveBeenCalled()
+  })
   it('uses the Safari browser namespace and never falls back to chrome', () => {
     config.sharedUnlockTransport = 'safari'; config.sharedUnlockExtensionId = 'com.example.Extension (ABCDEFGHIJ)'
     const safari = { connect: vi.fn() }, chromium = { connect: vi.fn() }

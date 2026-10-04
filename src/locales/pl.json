@@ -2121,5 +2121,10 @@
   "grants.fields.required": "Wybierz co najmniej jedno pole.",
   "grants.fields.loading": "Wczytywanie dostępnych pól…",
   "grants.fields.unavailable": "Nie udało się wczytać pól. Otwórz ponownie to okno, aby spróbować jeszcze raz.",
-  "vault.entries.totp.agentAccess": "Zezwalaj agentom z grantem na używanie 2FA"
+  "vault.entries.totp.agentAccess": "Zezwalaj agentom z grantem na używanie 2FA",
+  "security.sharedUnlock.browser.not-configured": "Nie skonfigurowano tożsamości rozszerzenia dla tego panelu.",
+  "security.sharedUnlock.browser.connecting": "Łączenie z rozszerzeniem…",
+  "security.sharedUnlock.browser.connected": "Połączono z rozszerzeniem.",
+  "security.sharedUnlock.browser.unavailable": "Rozszerzenie niedostępne. Sprawdź instalację oraz ustawienia API i panelu w rozszerzeniu.",
+  "security.sharedUnlock.browser.unsupported": "Panel wymaga kryptografii przeglądarki i blokad między kartami niedostępnych przez zdalne HTTP. Zgoda na HTTP nie włącza tych możliwości przeglądarki."
 }

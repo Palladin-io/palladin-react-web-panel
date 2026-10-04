@@ -1,3 +1,4 @@
+import { setSharedUnlockBrowserStatus } from './browser-status'
 import { coordinateSharedUnlockBrowser } from './browser-runtime'
 import { useEffect } from 'react'
 import { env } from '../../../shared/lib/env'
@@ -9,12 +10,16 @@ import { createFirefoxSharedUnlockRuntime } from './firefox-runtime'
 /** Mounted once at app root, including login/unlock routes. No permission prompt. */
 export function SharedUnlockBrowserProvider() {
   useEffect(() => {
-    if (!env.sharedUnlockExtensionId) return
+    if (!env.sharedUnlockExtensionId) { setSharedUnlockBrowserStatus('not-configured'); return }
+    if (window.isSecureContext === false && (!window.crypto.subtle || !navigator.locks)) {
+      setSharedUnlockBrowserStatus('unsupported'); return
+    }
     const browser = window as Window & { chrome?: { runtime?: SharedUnlockNativeRuntime }; browser?: { runtime?: SharedUnlockNativeRuntime } }
     const firefox = env.sharedUnlockTransport === 'firefox'
       ? createFirefoxSharedUnlockRuntime(window, document, env.sharedUnlockExtensionId) : undefined
     const lifecycle = startSharedUnlockBrowserLifecycle({
       onReady: coordinateSharedUnlockBrowser,
+      onStatus: setSharedUnlockBrowserStatus,
       extensionId: env.sharedUnlockExtensionId, apiUrl: env.apiUrl, window, document,
       runtime: () => {
         if (env.sharedUnlockTransport === 'firefox') return firefox
