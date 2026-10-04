@@ -38,6 +38,9 @@ verification, login, both handoff directions, Entry decryption, worker restart
 and manual lock/logout with SubtleCrypto and Web Locks absent. Its API remained
 loopback and used the existing native host permission; staging, optional-host
 permission prompts and the remaining platform matrix are separate gates.
+A further 24-check native run passed real 15-minute independent idle, denial
+after reload, zero steady retries, cleanup of rejected sessions and fresh
+manual recovery, with the existing extension session still usable.
 
 The client pins `@palladin/crypto` 0.12.0. Until that registry release is published,
 local validation uses the exact candidate tarball seeded into npm cache and
