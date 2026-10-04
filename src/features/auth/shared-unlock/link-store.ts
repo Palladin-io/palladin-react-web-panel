@@ -1,3 +1,4 @@
+import { randomUuid } from '../../../shared/crypto/random-uuid'
 import { z } from "zod";
 /** Nonsensitive bytes only; production operations hold an origin-wide Web Lock. */
 export interface StorageArea {
@@ -57,7 +58,7 @@ export class SharedUnlockLinkStore {
   private readonly storage: StorageArea;
   private readonly newId: () => string;
   private readonly exclusive: <T>(action: () => Promise<T>) => Promise<T>;
-  constructor(storage: StorageArea, newId: () => string = () => crypto.randomUUID(),
+  constructor(storage: StorageArea, newId: () => string = () => randomUuid(),
     exclusive: <T>(action: () => Promise<T>) => Promise<T> = browserExclusive) {
     this.storage = storage; this.newId = newId; this.exclusive = exclusive;
   }

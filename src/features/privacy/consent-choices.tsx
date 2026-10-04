@@ -1,3 +1,4 @@
+import { randomUuid } from '../../shared/crypto/random-uuid'
 import { useId, useState } from 'react'
 import { HTTPError } from 'ky'
 import { useTranslation } from 'react-i18next'
@@ -100,7 +101,7 @@ function ConsentForm({ source, onContinue, canContinueAfterFailure, onSaveFailur
       // An unavailable notice never becomes a fabricated consent or API decision.
       if (!version || !locale || (selected && !consent.currentNotice)) continue
       attempts.push({ purpose: consent.purpose, decision: {
-        granted: selected, expectedRevision: consent.revision, requestId: crypto.randomUUID(),
+        granted: selected, expectedRevision: consent.revision, requestId: randomUuid(),
         noticeVersion: version, locale, source,
       } })
     }

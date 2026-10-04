@@ -16,6 +16,12 @@ or Web Locks are absent. Portable crypto, equivalent cross-tab serialization and
 consumer uptake of the coordinated crypto/backend changes remain release gates;
 this increment does not claim full remote HTTP support.
 
+Client-generated UUIDs use `shared/crypto/random-uuid`: native `randomUUID` on
+secure origins, or the browser CSPRNG (`getRandomValues`) with UUID v4 formatting
+when HTTP hides that method. No weak random fallback is allowed. This covers
+registration, shared-link/pause IDs and ordinary client mutations; portable
+hashing/KDF and cross-tab locks are still required for remote HTTP unlock.
+
 **Path:** `src/features/auth/`
 
 ## What it does

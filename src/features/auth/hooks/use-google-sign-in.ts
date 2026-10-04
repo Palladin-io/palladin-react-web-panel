@@ -1,3 +1,4 @@
+import { randomUuid } from '../../../shared/crypto/random-uuid'
 import { useGoogleLogin } from '@react-oauth/google'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { clearClientSession } from '../session/client-session'
@@ -73,7 +74,7 @@ export function useGoogleSignIn(redirectTo: string) {
     setGoogleError(false)
     setPopupPending(true)
     try {
-      const state = crypto.randomUUID()
+      const state = randomUuid()
       // clearClientSession advances/wipes synchronously, then returns only the
       // profile cleanup wait. Capture the barrier before yielding to that wait.
       const cleanup = duringManualLoginCleanup(clearClientSession)

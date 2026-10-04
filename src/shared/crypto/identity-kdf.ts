@@ -1,3 +1,4 @@
+import { randomUuid } from './random-uuid'
 import { argon2id } from 'hash-wasm'
 import { decodeBase64Url, encodeUtf8 } from './vault-v2-bytes'
 import { wipe } from './sodium'
@@ -56,7 +57,7 @@ export function assertIdentityKdfProfile(metadata: IdentityKdfMetadata): void {
 }
 
 export function generateIdentityAccountId(): string {
-  return crypto.randomUUID()
+  return randomUuid()
 }
 
 export async function deriveIdentityOutputsFromRoot(

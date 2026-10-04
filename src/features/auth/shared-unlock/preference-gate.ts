@@ -1,3 +1,4 @@
+import { randomUuid } from '../../../shared/crypto/random-uuid'
 import { z } from "zod";
 
 export interface SharedUnlockPreferenceScope { readonly apiUrl: string; readonly accountId: string }
@@ -14,7 +15,7 @@ export class SharedUnlockPreferenceGate {
   private readonly pending = new Map<string, string>();
   private readonly allowed = new Map<string, boolean>();
   private readonly listeners = new Set<(scope: SharedUnlockPreferenceScope) => void>();
-  constructor(storage: Storage, exclusive: <T>(action: () => Promise<T>) => Promise<T> = action => action(), newId: () => string = () => crypto.randomUUID()) {
+  constructor(storage: Storage, exclusive: <T>(action: () => Promise<T>) => Promise<T> = action => action(), newId: () => string = () => randomUuid()) {
     this.storage = storage; this.exclusive = exclusive; this.newId = newId;
   }
   subscribe(listener: (scope: SharedUnlockPreferenceScope) => void): () => void {

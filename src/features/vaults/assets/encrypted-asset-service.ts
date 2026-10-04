@@ -1,3 +1,4 @@
+import { randomUuid } from '../../../shared/crypto/random-uuid'
 import {
   MAXIMUM_ICON_PLAINTEXT_BYTES,
   encryptPresentationAsset,
@@ -24,7 +25,7 @@ export async function encryptAndUploadPresentationAsset(input: {
 }): Promise<{ assetId: string; iconReference: string }> {
   await validatePresentationAssetFile(input.file)
   const mediaType = input.file.type as EncryptedAssetMediaType
-  const assetId = input.scope.assetId ?? crypto.randomUUID()
+  const assetId = input.scope.assetId ?? randomUuid()
   const plaintext = new Uint8Array(await input.file.arrayBuffer())
   try {
     const encrypted = await encryptPresentationAsset(plaintext, mediaType, { ...input.scope, assetId }, input.baseKey)
