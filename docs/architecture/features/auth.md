@@ -42,10 +42,12 @@ A further 24-check native run passed real 15-minute independent idle, denial
 after reload, zero steady retries, cleanup of rejected sessions and fresh
 manual recovery, with the existing extension session still usable.
 
-The client pins `@palladin/crypto` 0.12.0. Until that registry release is published,
-local validation uses the exact candidate tarball seeded into npm cache and
-`npm ci --offline`; the lockfile contains only its intended registry URL and
-integrity. Verify the published package integrity before release CI.
+The client pins published `@palladin/crypto` 0.12.0. The signed release workflow
+completed with npm provenance; the lockfile integrity matches the registry and
+`npm ci --prefer-online` passed. HIBP's required SHA-1 range lookup uses
+`@noble/hashes` through `shared/crypto/digest.ts`, including on HTTP panels
+without SubtleCrypto. Only the five-character digest prefix leaves the client;
+SHA-1 is not used for encryption or key derivation.
 
 **Path:** `src/features/auth/`
 

@@ -1,3 +1,5 @@
+import { hibpSha1Hex } from '../crypto/digest'
+
 /**
  * Have I Been Pwned — Pwned Passwords range check via k-anonymity.
  *
@@ -20,15 +22,6 @@ export interface PwnedResult {
   count: number
 }
 
-async function sha1Hex(value: string): Promise<string> {
-  const bytes = new TextEncoder().encode(value)
-  const digest = await crypto.subtle.digest('SHA-1', bytes)
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-    .toUpperCase()
-}
-
 /**
  * Look up a password against HIBP. Returns `null` when the lookup could not be
  * completed (offline, aborted, HIBP down) so callers can distinguish "unknown"
@@ -41,7 +34,7 @@ export async function checkPasswordPwned(
   if (!password) return { pwned: false, count: 0 }
 
   try {
-    const hash = await sha1Hex(password)
+    const hash = hibpSha1Hex(password)
     const prefix = hash.slice(0, 5)
     const suffix = hash.slice(5)
 
