@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -83,8 +83,22 @@ function ScopedEntrySharingTab({ scope, generation }: { scope: ShareSourceScope;
       {shares.isPending ? <SkeletonBlock className="h-32" /> : shares.isError && !shares.data ?
         <ErrorState message={t('sharing.listError')} onRetry={() => { void shares.refetch() }} /> :
         items.length === 0 ? <EmptyState title={t('sharing.empty')} description={t('sharing.emptyDescription')} /> :
-          <div className="flex w-full max-w-[780px] flex-col gap-3">{items.map((item) => <ShareRow key={item.shareId} item={item} onRevoke={() => setRevoking(item)}
-            onChangeProtection={() => setEditingProtection(item)} />)}</div>}
+          <div className="w-full overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
+            <table className="w-full table-fixed border-collapse text-left text-meta">
+              <thead className="hidden border-b border-[var(--cv-divider)] bg-[var(--cv-bg-subtle)] text-[var(--cv-t3)] md:table-header-group">
+                <tr>
+                  <th scope="col" className="w-[27%] px-4 py-3 font-medium">{t('sharing.recipient')}</th>
+                  <th scope="col" className="w-[12%] px-3 py-3 font-medium">{t('sharing.statusLabel')}</th>
+                  <th scope="col" className="w-[17%] px-3 py-3 font-medium">{t('sharing.validUntil')}</th>
+                  <th scope="col" className="w-[13%] px-3 py-3 font-medium">{t('sharing.receipts')}</th>
+                  <th scope="col" className="w-[12%] px-3 py-3 font-medium">{t('sharing.additionalProtection')}</th>
+                  <th scope="col" className="w-[19%] px-3 py-3 text-right font-medium">{t('sharing.actions')}</th>
+                </tr>
+              </thead>
+              <tbody>{items.map((item) => <ShareRow key={item.shareId} item={item} onRevoke={() => setRevoking(item)}
+                onChangeProtection={() => setEditingProtection(item)} />)}</tbody>
+            </table>
+          </div>}
       <div ref={sentinel} />
       {shares.isFetchingNextPage ? <SkeletonBlock className="mt-3 h-12" /> : null}
       {shares.isFetchNextPageError ? <Button size="sm" variant="subtle" onClick={() => { void shares.fetchNextPage() }}>{t('sharing.retry')}</Button> : null}
@@ -106,6 +120,11 @@ function ShareRow({ item, onRevoke, onChangeProtection }: { item: EntryShareList
   const { t, i18n } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const knownStatus = ['active', 'revoked', 'expired', 'suspended', 'locked', 'consumed'].includes(item.status)
+  const statusTone = item.status === 'active'
+    ? 'bg-[rgb(var(--cv-success-rgb)/0.12)] text-[var(--cv-success)]'
+    : item.status === 'revoked' || item.status === 'locked'
+      ? 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
+      : 'bg-[var(--cv-bg-subtle)] text-[var(--cv-t2)]'
   const protection = ['none', 'password', 'pin'].includes(item.protection) ? t(`sharing.${item.protection}`) : t('sharing.unknown')
   const date = (value: string | null) => {
     if (!value) return '—'
@@ -113,34 +132,45 @@ function ShareRow({ item, onRevoke, onChangeProtection }: { item: EntryShareList
     return Number.isFinite(parsed.valueOf()) ? parsed.toLocaleString(i18n.language) : '—'
   }
   const detail = (label: string, value: string) => <div className="min-w-0"><dt className="text-[var(--cv-t3)]">{label}</dt><dd className="mt-0.5 break-words text-[var(--cv-t1)]">{value}</dd></div>
-  return <article className="overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
-    <div className="px-5 pb-4 pt-5">
-      <div className="flex min-w-0 flex-wrap items-center gap-2">
-        <Icon name="share" size={17} className="shrink-0 text-[var(--cv-t2)]" />
-        <h3 className="min-w-0 break-words text-ui font-semibold text-[var(--cv-t1)]">{item.recipientMode === 'namedRecipient' ? item.recipientEmail ?? shortenKey(item.shareId) :
-          item.recipientMode === 'anyoneWithLink' ? t('sharing.anyoneWithLink') : shortenKey(item.shareId)}</h3>
-        <span className={`${METADATA_BADGE_CLASSES} bg-[var(--cv-bg-subtle)] text-[var(--cv-t2)]`}>
-          {t(knownStatus ? `sharing.status.${item.status}` : 'sharing.unknown')}
+  const cell = (label: string, content: ReactNode, className = '') => <td className={`block px-4 py-1.5 md:table-cell md:px-3 md:py-3 ${className}`}>
+    <span className="mr-2 text-micro text-[var(--cv-t3)] md:hidden">{label}</span>{content}
+  </td>
+  return <>
+    <tr className="block border-b border-[var(--cv-divider)] py-2 align-middle last:border-b-0 md:table-row md:py-0">
+      <td className="block min-w-0 px-4 py-1.5 md:table-cell md:py-3">
+        <span className="block truncate font-semibold text-[var(--cv-t1)]" title={item.recipientEmail ?? undefined}>
+          {item.recipientMode === 'namedRecipient' ? item.recipientEmail ?? shortenKey(item.shareId) :
+            item.recipientMode === 'anyoneWithLink' ? t('sharing.anyoneWithLink') : shortenKey(item.shareId)}
         </span>
-      </div>
-      <dl className="mt-4 grid grid-cols-1 gap-x-5 gap-y-3 text-meta sm:grid-cols-[1.2fr_1fr_1fr]">
-        {detail(t('sharing.validUntil'), date(item.expiresAt))}
-        {detail(t('sharing.receipts'), `${item.deliveryCount} / ${item.maximumReceipts ?? t('sharing.unlimited')}`)}
-        {detail(t('sharing.additionalProtection'), protection)}
-      </dl>
-      {expanded ? <dl className="mt-4 grid grid-cols-1 gap-x-5 gap-y-3 border-t border-[var(--cv-divider)] pt-4 text-meta sm:grid-cols-3">
-        {detail(t('sharing.firstDelivery'), date(item.firstDeliveredAt))}
-        {detail(t('sharing.lastDelivery'), date(item.lastDeliveredAt))}
-        {detail(t('sharing.firstConfirmation'), date(item.firstConfirmedAt))}
-      </dl> : null}
-      {item.sourceChanged ? <p className="mt-4 text-meta text-[var(--cv-t2)]">{t('sharing.sourceChangedTitle')}. {t('sharing.sourceChanged')}</p> : null}
-    </div>
-    <div className="flex flex-wrap items-center gap-2 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
-      <Button size="sm" variant="ghost" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{t('sharing.receiptDetails')}</Button>
-      {item.status === 'active' && ['none', 'password', 'pin'].includes(item.protection) ?
-        <Button size="sm" variant="ghost" onClick={onChangeProtection}>{t('sharing.changeProtection')}</Button> : null}
-      {['active', 'locked', 'suspended', 'consumed'].includes(item.status) ?
-        <Button size="sm" variant="danger" className="sm:ml-auto" onClick={onRevoke}>{t('sharing.revoke')}</Button> : null}
-    </div>
-  </article>
+        {item.sourceChanged ? <span className="text-micro text-[var(--cv-t3)]">{t('sharing.sourceChangedTitle')}. {t('sharing.sourceChanged')}</span> : null}
+      </td>
+      {cell(t('sharing.statusLabel'), <span className={`${METADATA_BADGE_CLASSES} ${statusTone}`}>
+        {t(knownStatus ? `sharing.status.${item.status}` : 'sharing.unknown')}
+      </span>)}
+      {cell(t('sharing.validUntil'), date(item.expiresAt), 'text-[var(--cv-t2)]')}
+      {cell(t('sharing.receipts'), `${item.deliveryCount} / ${item.maximumReceipts ?? t('sharing.unlimited')}`, 'font-medium text-[var(--cv-t1)]')}
+      {cell(t('sharing.additionalProtection'), protection, 'text-[var(--cv-t2)]')}
+      <td className="block px-3 py-1.5 md:table-cell md:py-3">
+        <div className="flex flex-wrap items-center gap-1 md:justify-end">
+          <Button size="sm" variant="ghost" className="w-action shrink-0 !px-0" aria-expanded={expanded} aria-label={t('sharing.receiptDetails')}
+            onClick={() => setExpanded(!expanded)}><Icon name={expanded ? 'expand_less' : 'expand_more'} size={17} /></Button>
+          {item.status === 'active' && ['none', 'password', 'pin'].includes(item.protection) ?
+            <Button size="sm" variant="ghost" className="w-action shrink-0 !px-0" aria-label={t('sharing.changeProtection')} onClick={onChangeProtection}>
+              <Icon name="shield" size={16} /></Button> : null}
+          {['active', 'locked', 'suspended', 'consumed'].includes(item.status) ?
+            <Button size="sm" variant="danger" className="w-action shrink-0 !px-0" aria-label={t('sharing.revoke')} onClick={onRevoke}>
+              <Icon name="block" size={16} /></Button> : null}
+        </div>
+      </td>
+    </tr>
+    {expanded ? <tr className="block border-b border-[var(--cv-divider)] bg-[var(--cv-bg-subtle)] md:table-row">
+      <td colSpan={6} className="block px-4 py-3 md:table-cell">
+        <dl className="grid grid-cols-1 gap-3 text-meta sm:grid-cols-3">
+          {detail(t('sharing.firstDelivery'), date(item.firstDeliveredAt))}
+          {detail(t('sharing.lastDelivery'), date(item.lastDeliveredAt))}
+          {detail(t('sharing.firstConfirmation'), date(item.firstConfirmedAt))}
+        </dl>
+      </td>
+    </tr> : null}
+  </>
 }

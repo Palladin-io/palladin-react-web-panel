@@ -99,13 +99,24 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
   useEffect(() => {
     if (!received) return
     let active = true
-    const version = ++extensionProbeVersion.current
-    void requestExtensionShareSave('status').then(status => {
-      if (active && version === extensionProbeVersion.current
-        && (status === 'ready' || status === 'locked' || status === 'unavailable')) setExtensionStatus(status)
-    })
-    return () => { active = false }
-  }, [received])
+    const probe = () => {
+      if (extensionRequestInFlight.current || extensionPrepared) return
+      const version = ++extensionProbeVersion.current
+      void requestExtensionShareSave('status').then(status => {
+        if (active && version === extensionProbeVersion.current
+          && (status === 'ready' || status === 'locked' || status === 'unavailable')) setExtensionStatus(status)
+      })
+    }
+    const onVisible = () => { if (document.visibilityState === 'visible') probe() }
+    probe()
+    window.addEventListener('focus', probe)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      active = false
+      window.removeEventListener('focus', probe)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [received, extensionPrepared])
   async function recheckExtension() {
     if (!received || saved || extensionRequestInFlight.current || extensionPrepared) return
     extensionRequestInFlight.current = true

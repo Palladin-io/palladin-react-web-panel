@@ -43,6 +43,9 @@ describe('Entry sharing list', () => {
   it('shows delivery counters separately from first confirmation and opens the create surface', async () => {
     mount()
     expect(await screen.findByText('recipient@example.test')).toBeInTheDocument()
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Recipient' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Status' })).toBeInTheDocument()
     expect(screen.getByText('1 / 3')).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Receipt details' }))
     expect(screen.getByText('First display confirmation')).toBeInTheDocument()

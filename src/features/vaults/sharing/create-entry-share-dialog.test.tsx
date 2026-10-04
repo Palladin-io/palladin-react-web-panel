@@ -130,6 +130,48 @@ describe('Create sharing dialog', () => {
     expect(retry).toHaveBeenCalledOnce()
   })
 
+  it('copies a single newly created link once without revealing it', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    try {
+      const link = 'https://app.example.test/share/11111111-1111-4111-8111-111111111111#key=synthetic'
+      mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: false, retryPending: false,
+        links: [{ recipientEmail: null, link }], submit: mocks.submit })
+      const view = mount()
+      await waitFor(() => expect(writeText).toHaveBeenCalledOnce())
+      expect(writeText).toHaveBeenCalledWith(link)
+      expect(mocks.success).toHaveBeenCalledWith('Sharing link copied to clipboard')
+      view.rerender(<CreateEntryShareDialog scope={sharingScope} onClose={vi.fn()} onCreated={vi.fn()} />)
+      expect(writeText).toHaveBeenCalledTimes(1)
+      expect(screen.getByLabelText('Sharing link')).toHaveClass('secret-mask')
+    } finally {
+      if (previous) Object.defineProperty(navigator, 'clipboard', previous)
+      else Reflect.deleteProperty(navigator, 'clipboard')
+    }
+  })
+
+  it('does not auto-copy the first recipient of an unfinished multi-recipient batch', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    try {
+      const first = { recipientEmail: 'first@example.test', link: 'https://app.example.test/share/first#key=synthetic' }
+      const second = { recipientEmail: 'second@example.test', link: 'https://app.example.test/share/second#key=synthetic' }
+      mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: true, retryPending: false,
+        links: [first], submit: mocks.submit })
+      const view = mount()
+      expect(writeText).not.toHaveBeenCalled()
+      mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: false, retryPending: false,
+        links: [first, second], submit: mocks.submit })
+      view.rerender(<CreateEntryShareDialog scope={sharingScope} onClose={vi.fn()} onCreated={vi.fn()} />)
+      expect(writeText).not.toHaveBeenCalled()
+    } finally {
+      if (previous) Object.defineProperty(navigator, 'clipboard', previous)
+      else Reflect.deleteProperty(navigator, 'clipboard')
+    }
+  })
+
   it('places native sharing beside Copy and Reveal, without a separate button row', async () => {
     const share = vi.fn().mockResolvedValue(undefined)
     const previous = Object.getOwnPropertyDescriptor(navigator, 'share')
@@ -140,6 +182,7 @@ describe('Create sharing dialog', () => {
         links: [{ recipientEmail: null, link }], submit: mocks.submit })
       mount()
       const input = screen.getByLabelText('Sharing link')
+      expect(input).toHaveClass('pr-[6.5rem]')
       const actions = input.parentElement?.querySelectorAll('button')
       expect(actions).toHaveLength(3)
       expect(screen.getByRole('button', { name: 'Share link' })).toBe(actions?.[2])

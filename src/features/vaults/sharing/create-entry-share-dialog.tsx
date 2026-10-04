@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
@@ -17,6 +17,7 @@ import { Icon } from '../../../shared/components/icon'
 import { Tooltip } from '../../../shared/components/tooltip'
 import { shortenKey } from '../../../shared/lib/shorten-key'
 import { fromMemberSecret } from '../../../shared/crypto/entry-draft'
+import { copyToClipboard } from '../../../shared/lib/clipboard'
 import { EntryIcon } from '../components/entry-icon'
 import { DEFAULT_VAULT_ICON } from '../components/vault-presentation'
 import { useVault } from '../use-vault'
@@ -165,6 +166,15 @@ function CreatedShareDialog({ links, busy, retryPending, onRetry, onClose }: {
 }) {
   const { t } = useTranslation()
   const [shown, setShown] = useState<string[]>([])
+  const copiedLink = useRef<string | null>(null)
+  useEffect(() => {
+    if (busy || retryPending || links.length !== 1 || copiedLink.current === links[0].link) return
+    copiedLink.current = links[0].link
+    void copyToClipboard(links[0].link).then((copied) => {
+      if (copied) toast.success(t('sharing.linkCopied'))
+      else toast.error(t('sharing.copyLinkManually'))
+    })
+  }, [busy, links, retryPending, t])
   return <ModalShell title={t('sharing.created')} ariaLabel={t('sharing.created')} width={560} trapFocus onClose={busy ? undefined : onClose}
     footer={<DialogFooter>{retryPending ? <Button size="sm" variant="subtle" onClick={onRetry} disabled={busy} className="flex-1">
       {t(busy ? 'sharing.creating' : 'sharing.retryCreation')}</Button> : null}

@@ -17,6 +17,21 @@ describe('optional extension handoff presentation channel', () => {
     await expect(requestExtensionShareSave('status')).resolves.toBe('ready')
   })
 
+  it('waits for a waking extension worker instead of reporting it missing after 1.5 seconds', async () => {
+    vi.useFakeTimers()
+    vi.spyOn(window, 'postMessage').mockImplementation((value) => {
+      const request = value as { requestId: string }
+      setTimeout(() => window.dispatchEvent(new MessageEvent('message', {
+        source: window, origin: window.location.origin,
+        data: { channel: 'palladin.entry-share.extension-save.v1', type: 'response',
+          requestId: request.requestId, status: 'ready' },
+      })), 2_000)
+    })
+    const pending = requestExtensionShareSave('status')
+    await vi.advanceTimersByTimeAsync(2_001)
+    await expect(pending).resolves.toBe('ready')
+  })
+
   it('ignores an unrelated origin and fails closed on timeout', async () => {
     vi.useFakeTimers()
     vi.spyOn(window, 'postMessage').mockImplementation((value) => {
@@ -26,7 +41,7 @@ describe('optional extension handoff presentation channel', () => {
           requestId: request.requestId, status: 'ready' } }))
     })
     const pending = requestExtensionShareSave('status')
-    await vi.advanceTimersByTimeAsync(1_501)
+    await vi.advanceTimersByTimeAsync(10_001)
     await expect(pending).resolves.toBe('unavailable')
   })
 

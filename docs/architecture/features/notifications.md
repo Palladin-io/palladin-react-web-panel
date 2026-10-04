@@ -31,7 +31,8 @@ REST metadata uses typed responses and never skips rows on a client schema failu
 the first client display ACK when the sender opted in. It does not add an email,
 push, SignalR or toast channel, and is not proof of human reading. The PL/EN card
 states this limitation explicitly, wraps its header on narrow screens and uses
-the success token. Entry/Vault labels remain locally resolved; `shareId` is an
+the success token. The read-proof caveat lives in the short subtitle rather than
+an artificial detail row. Entry/Vault labels remain locally resolved; `shareId` is an
 opaque prefix-and-suffix hint, never a recipient capability URL. View sharing
 opens the source Entry with `tab=sharing` through normal authenticated guards.
 The type is included in History and the type filter, without approval actions.
