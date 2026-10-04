@@ -11,15 +11,17 @@ Security settings display native-channel status separately from the account
 shared-unlock preference. Connected means a document-bound browser route exists,
 not that an Identity session or MK handoff completed. Missing extension identity,
 connection attempts, unavailable peers and unsupported HTTP browser capabilities
-have separate PL/EN messages. Remote HTTP currently fails closed while portable crypto and
-consumer uptake of the coordinated crypto/backend changes remain release gates;
-this increment does not claim full remote HTTP support.
+have separate PL/EN messages. The candidate HTTP path uses portable SHA-256/HKDF and IndexedDB publication
+locks. HTTP transcript origins come from the independently verified configured
+browser route, never the received operation. Release requires the coordinated
+backend change and the published crypto package; a local candidate test does
+not establish production deployment.
 
 Client-generated UUIDs use `shared/crypto/random-uuid`: native `randomUUID` on
 secure origins, or the browser CSPRNG (`getRandomValues`) with UUID v4 formatting
 when HTTP hides that method. No weak random fallback is allowed. This covers
 registration, shared-link/pause IDs and ordinary client mutations; portable
-hashing/KDF is still required for remote HTTP unlock.
+hashing/KDF comes from the bundled crypto package.
 
 On origins without Web Locks, shared-unlock storage serializes through IndexedDB
 read/write transactions over three empty stores (pause, links, expiry). Only
@@ -31,7 +33,16 @@ completed transaction. There is no timeout-based lease or keepalive. Production
 callbacks use only localStorage promises within the transaction event task.
 Native Chromium HTTP tests cover two documents, one link allocation, retained
 expiry, peer OFF/lock/logout/expiry and a suspended stale read. This is storage
-boundary evidence, not yet a complete remote HTTP Identity handoff.
+boundary evidence. A separate real HTTP panel run passed registration,
+verification, login, both handoff directions, Entry decryption, worker restart
+and manual lock/logout with SubtleCrypto and Web Locks absent. Its API remained
+loopback and used the existing native host permission; staging, optional-host
+permission prompts and the remaining platform matrix are separate gates.
+
+The client pins `@palladin/crypto` 0.12.0. Until that registry release is published,
+local validation uses the exact candidate tarball seeded into npm cache and
+`npm ci --offline`; the lockfile contains only its intended registry URL and
+integrity. Verify the published package integrity before release CI.
 
 **Path:** `src/features/auth/`
 

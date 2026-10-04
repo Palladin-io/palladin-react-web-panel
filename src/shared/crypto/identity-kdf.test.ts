@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+afterEach(() => vi.unstubAllGlobals())
 import { decodeBase64Url, encodeBase64Url } from './vault-v2-bytes'
 import {
   assertIdentityKdfProfile,
@@ -19,7 +21,8 @@ const vector = {
 }
 
 describe('Identity password KDF v1', () => {
-  it('matches the frozen backend vector byte-for-byte', async () => {
+  it.each(['secure', 'http'])('matches the frozen backend vector byte-for-byte on %s', async transport => {
+    if (transport === 'http') vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
     const salt = decodeBase64Url(vector.kdfSalt, 16)
     const result = await deriveIdentityV1(vector.password, vector.accountId, salt)
     try {

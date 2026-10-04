@@ -117,7 +117,7 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
   })
   try {
     assertCurrent()
-    cryptoReceiver = await createSharedUnlockReceiverCrypto(assertCurrent)
+    cryptoReceiver = await createSharedUnlockReceiverCrypto(assertCurrent, { allowHttpOrigins: [new URL(apiUrl).origin, binding.webOrigin] })
     assertCurrent()
   } catch (error) { cancel(); clearTimeout(timeout); unsubscribe(); throw error }
   const receiver = cryptoReceiver

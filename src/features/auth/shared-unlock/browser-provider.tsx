@@ -11,7 +11,7 @@ import { createFirefoxSharedUnlockRuntime } from './firefox-runtime'
 export function SharedUnlockBrowserProvider() {
   useEffect(() => {
     if (!env.sharedUnlockExtensionId) { setSharedUnlockBrowserStatus('not-configured'); return }
-    if (window.isSecureContext === false && (!window.crypto.subtle || !navigator.locks)) {
+    if (typeof window.crypto?.getRandomValues !== 'function' || (!navigator.locks && !window.indexedDB)) {
       setSharedUnlockBrowserStatus('unsupported'); return
     }
     const browser = window as Window & { chrome?: { runtime?: SharedUnlockNativeRuntime }; browser?: { runtime?: SharedUnlockNativeRuntime } }

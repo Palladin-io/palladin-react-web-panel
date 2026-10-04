@@ -1,3 +1,4 @@
+import { IDBFactory } from 'fake-indexeddb'
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SharedUnlockBrowserProvider } from './browser-provider'
@@ -6,17 +7,24 @@ import { useAuthStore } from '../stores/auth-store'
 const config = vi.hoisted(() => ({ sharedUnlockExtensionId: 'a'.repeat(32), sharedUnlockTransport: 'chromium', apiUrl: 'https://api.example.test' }))
 vi.mock('../../../shared/lib/env', () => ({ env: config }))
 vi.mock('./browser-lifecycle', () => ({ startSharedUnlockBrowserLifecycle: vi.fn(() => ({ close: vi.fn(), currentRoute: () => null })) }))
-beforeEach(() => { vi.clearAllMocks(); config.sharedUnlockExtensionId = 'a'.repeat(32); config.sharedUnlockTransport = 'chromium'; useAuthStore.getState().logout() })
+beforeEach(() => { vi.stubGlobal('indexedDB', new IDBFactory()); vi.clearAllMocks(); config.sharedUnlockExtensionId = 'a'.repeat(32); config.sharedUnlockTransport = 'chromium'; useAuthStore.getState().logout() })
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 describe('application shared unlock provider', () => {
   it('does not start any channel without explicit deployment configuration', () => {
     config.sharedUnlockExtensionId = ''; render(<SharedUnlockBrowserProvider />)
     expect(startSharedUnlockBrowserLifecycle).not.toHaveBeenCalled()
   })
-  it('does not start a handoff in a remote HTTP context without required platform crypto and locks', () => {
+  it('does not start a handoff without a cross-tab storage boundary', () => {
     vi.stubGlobal('isSecureContext', false)
+    vi.stubGlobal('indexedDB', undefined)
     render(<SharedUnlockBrowserProvider />)
     expect(startSharedUnlockBrowserLifecycle).not.toHaveBeenCalled()
+  })
+  it('starts the browser route on HTTP with CSPRNG and IndexedDB but without SubtleCrypto', () => {
+    vi.stubGlobal('isSecureContext', false)
+    vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
+    render(<SharedUnlockBrowserProvider />)
+    expect(startSharedUnlockBrowserLifecycle).toHaveBeenCalledOnce()
   })
   it('uses the Safari browser namespace and never falls back to chrome', () => {
     config.sharedUnlockTransport = 'safari'; config.sharedUnlockExtensionId = 'com.example.Extension (ABCDEFGHIJ)'

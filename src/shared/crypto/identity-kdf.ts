@@ -1,3 +1,4 @@
+import { deriveHkdfSha256 } from '@palladin/crypto'
 import { randomUuid } from './random-uuid'
 import { argon2id } from 'hash-wasm'
 import { decodeBase64Url, encodeUtf8 } from './vault-v2-bytes'
@@ -41,8 +42,7 @@ function accountIdBytes(accountId: string): Uint8Array {
 }
 
 async function hkdfSha256(root: Uint8Array, salt: Uint8Array, info: Uint8Array): Promise<Uint8Array> {
-  const cryptoKey = await crypto.subtle.importKey('raw', new Uint8Array(root), 'HKDF', false, ['deriveBits'])
-  return new Uint8Array(await crypto.subtle.deriveBits({ name: 'HKDF', hash: 'SHA-256', salt: new Uint8Array(salt), info: new Uint8Array(info) }, cryptoKey, 256))
+  return deriveHkdfSha256(root, salt, info)
 }
 
 export function assertIdentityKdfProfile(metadata: IdentityKdfMetadata): void {
