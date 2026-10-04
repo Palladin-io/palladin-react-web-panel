@@ -167,7 +167,7 @@ function CreatedShareDialog({ links, busy, retryPending, onRetry, onClose }: {
   const [shown, setShown] = useState<string[]>([])
   const copiedLink = useRef<string | null>(null)
   useEffect(() => {
-    if (links.length !== 1 || copiedLink.current === links[0].link) return
+    if (busy || retryPending || links.length !== 1 || copiedLink.current === links[0].link) return
     copiedLink.current = links[0].link
     if (!navigator.clipboard?.writeText) {
       toast.error(t('sharing.copyLinkManually'))
@@ -178,7 +178,7 @@ function CreatedShareDialog({ links, busy, retryPending, onRetry, onClose }: {
     }).catch(() => {
       toast.error(t('sharing.copyLinkManually'))
     })
-  }, [links, t])
+  }, [busy, links, retryPending, t])
   return <ModalShell title={t('sharing.created')} ariaLabel={t('sharing.created')} width={560} trapFocus onClose={busy ? undefined : onClose}
     footer={<DialogFooter>{retryPending ? <Button size="sm" variant="subtle" onClick={onRetry} disabled={busy} className="flex-1">
       {t(busy ? 'sharing.creating' : 'sharing.retryCreation')}</Button> : null}
