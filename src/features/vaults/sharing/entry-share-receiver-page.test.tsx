@@ -140,6 +140,7 @@ describe('Public sharing receiver', () => {
     render(<EntryShareReceiverPage shareId={shareId} />)
     await userEvent.click(await screen.findByRole('button', { name: 'Save to my vault' }))
     await userEvent.type(screen.getByLabelText('Destination vault'), 'Personal')
+    await userEvent.click(screen.getByRole('option', { name: 'Personal' }))
     await userEvent.click(screen.getAllByRole('button', { name: 'Save to my vault' }).at(-1)!)
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'Check extension again' })).not.toBeInTheDocument()
