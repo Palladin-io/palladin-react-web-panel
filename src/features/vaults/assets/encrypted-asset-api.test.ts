@@ -22,6 +22,8 @@ describe('encrypted presentation asset transport', () => {
 
   it('uploads only opaque ciphertext with its digest and structural scope', async () => {
     const ciphertext = Uint8Array.of(1, 2, 3, 4)
+    const expectedDigest = await digest(ciphertext)
+    vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
     await uploadEncryptedAsset({ vaultId, assetId, target: 1, mediaType: 'image/png', ciphertext })
 
     expect(apiMock.post).toHaveBeenCalledWith(`api/vaults/${vaultId}/assets`, {
@@ -32,7 +34,7 @@ describe('encrypted presentation asset transport', () => {
         entryId: null,
         mediaType: 'image/png',
         ciphertext: 'AQIDBA',
-        ciphertextSha256: await digest(ciphertext),
+        ciphertextSha256: expectedDigest,
       },
     })
   })
@@ -44,6 +46,7 @@ describe('encrypted presentation asset transport', () => {
       ciphertextSha256: await digest(ciphertext), downloadUrl: 'https://private.example/ciphertext',
       futurePresentationHint: true,
     }) })
+    vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(ciphertext, { status: 200 })))
     await expect(downloadEncryptedAsset(vaultId, assetId)).resolves.toMatchObject({ ciphertext })
   })

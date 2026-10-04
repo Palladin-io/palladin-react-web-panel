@@ -56,7 +56,7 @@ export default defineConfig(({ command, isPreview, mode }) => {
       tailwindcss(),
       injectDeploymentCsp(publicAssetOrigin(
         buildEnv.VITE_PUBLIC_ASSET_URL,
-      ), connectionOrigins(buildEnv.VITE_API_URL, buildEnv.VITE_SIGNALR_HUB_URL), firefoxSharedUnlockCsp(buildEnv.VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID)),
+      ), connectionOrigins(buildEnv.VITE_API_URL, buildEnv.VITE_SIGNALR_HUB_URL, buildEnv.PALLADIN_ALLOW_INSECURE_HTTP_CONNECTIONS === 'true'), firefoxSharedUnlockCsp(buildEnv.VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID)),
     ],
     test: {
       globals: true,

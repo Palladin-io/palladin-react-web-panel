@@ -1,3 +1,4 @@
+import { randomUuid } from '../../../shared/crypto/random-uuid'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -42,7 +43,7 @@ export function ScriptParametersEditor({
   }
 
   const addParameter = () => {
-    const id = crypto.randomUUID()
+    const id = randomUuid()
     onChange([...parameters, {
       id,
       name: '',

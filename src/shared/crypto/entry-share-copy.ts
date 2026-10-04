@@ -1,3 +1,4 @@
+import { randomUuid } from './random-uuid'
 import { z } from 'zod'
 import { parseEntryShareSnapshot, type EntryShareSnapshot } from './entry-share'
 import { defaultAgentVisibilityPolicy, toMemberSecret } from './entry-draft'
@@ -43,7 +44,7 @@ export function entryShareCopySecret(snapshot: EntryShareSnapshot, form: EntrySh
     const fields: CustomField[] = source.fields.filter((field) => field.id.startsWith('custom:')).map((field) => {
       const value = field.type === 'totp' ? parseOtpauthUri(field.value) : field.value
       if (value === null) throw new Error()
-      return { id: crypto.randomUUID(), label: field.label, type: field.type, value }
+      return { id: randomUuid(), label: field.label, type: field.type, value }
     })
     const common = { fields, notes: get('notes') }
     let payload: EntryPlaintext

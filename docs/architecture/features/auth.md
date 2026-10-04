@@ -1,5 +1,54 @@
 # Feature: auth
 
+## Dynamic extension connections (2026-10-04, rollout in progress)
+
+The extension owns the user-approved API/panel pair. This panel retains an
+independently configured extension distribution ID; it never learns its trusted
+peer ID from page messages. The browser channel accepts HTTP/HTTPS URL syntax,
+while the extension must enforce the exact pair and explicit HTTP consent.
+
+Security settings display native-channel status separately from the account
+shared-unlock preference. Connected means a document-bound browser route exists,
+not that an Identity session or MK handoff completed. Missing extension identity,
+connection attempts, unavailable peers and unsupported HTTP browser capabilities
+have separate PL/EN messages. The candidate HTTP path uses portable SHA-256/HKDF and IndexedDB publication
+locks. HTTP transcript origins come from the independently verified configured
+browser route, never the received operation. Release requires the coordinated
+backend change and the published crypto package; a local candidate test does
+not establish production deployment.
+
+Client-generated UUIDs use `shared/crypto/random-uuid`: native `randomUUID` on
+secure origins, or the browser CSPRNG (`getRandomValues`) with UUID v4 formatting
+when HTTP hides that method. No weak random fallback is allowed. This covers
+registration, shared-link/pause IDs and ordinary client mutations; portable
+hashing/KDF comes from the bundled crypto package.
+
+On origins without Web Locks, shared-unlock storage serializes through IndexedDB
+read/write transactions over three empty stores (pause, links, expiry). Only
+public denial metadata remains in localStorage; no key or session token is put
+in this database. Publication acquires all scopes in one transaction and passes
+an explicit lease to the nested stores. Reads, writes and final RAM publication
+check transaction ownership; a delayed continuation cannot reuse an inactive or
+completed transaction. There is no timeout-based lease or keepalive. Production
+callbacks use only localStorage promises within the transaction event task.
+Native Chromium HTTP tests cover two documents, one link allocation, retained
+expiry, peer OFF/lock/logout/expiry and a suspended stale read. This is storage
+boundary evidence. A separate real HTTP panel run passed registration,
+verification, login, both handoff directions, Entry decryption, worker restart
+and manual lock/logout with SubtleCrypto and Web Locks absent. Its API remained
+loopback and used the existing native host permission; staging, optional-host
+permission prompts and the remaining platform matrix are separate gates.
+A further 24-check native run passed real 15-minute independent idle, denial
+after reload, zero steady retries, cleanup of rejected sessions and fresh
+manual recovery, with the existing extension session still usable.
+
+The client pins published `@palladin/crypto` 0.12.0. The signed release workflow
+completed with npm provenance; the lockfile integrity matches the registry and
+`npm ci --prefer-online` passed. HIBP's required SHA-1 range lookup uses
+`@noble/hashes` through `shared/crypto/digest.ts`, including on HTTP panels
+without SubtleCrypto. Only the five-character digest prefix leaves the client;
+SHA-1 is not used for encryption or key derivation.
+
 **Path:** `src/features/auth/`
 
 ## What it does

@@ -1,3 +1,4 @@
+import { randomUuid } from '../crypto/random-uuid'
 import { env } from './env'
 
 const UI_EVENTS = new Set([
@@ -23,7 +24,7 @@ interface AnalyticsOptions {
 }
 
 export function createAnalytics({ projectKey, host, released, request = fetch, now = Date.now,
-  uuid = () => crypto.randomUUID(), online = () => navigator.onLine }: AnalyticsOptions) {
+  uuid = () => randomUuid(), online = () => navigator.onLine }: AnalyticsOptions) {
   let userId: string | null = null
   let validUntil = 0
   let sessionId: string | null = null

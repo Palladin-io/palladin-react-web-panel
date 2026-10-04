@@ -1,3 +1,4 @@
+import { randomUuid } from '../../../shared/crypto/random-uuid'
 import type { EntryShareSnapshot } from '../../../shared/crypto/entry-share'
 
 const CHANNEL = 'palladin.entry-share.extension-save.v1'
@@ -11,7 +12,7 @@ const statuses: Record<'status' | 'prepare', ReadonlySet<ExtensionShareResult>> 
 /** Status is presentation-only. The extension worker authenticates its sender independently. */
 export function requestExtensionShareSave(type: 'status' | 'prepare', snapshot?: EntryShareSnapshot): Promise<ExtensionShareResult> {
   return new Promise(resolve => {
-    const requestId = crypto.randomUUID()
+    const requestId = randomUuid()
     const timer = window.setTimeout(() => finish(type === 'status' ? 'unavailable' : 'uncertain'), 10_000)
     function finish(status: ExtensionShareResult) {
       window.clearTimeout(timer)

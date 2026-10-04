@@ -1,3 +1,4 @@
+import { sha256Digest } from '@palladin/crypto'
 import { z } from 'zod'
 import { concatBytes, decodeBase64Url, encodeBase64Url, encodeU16, encodeUtf8 } from './vault-v2-bytes'
 import { decryptVaultEnvelope, encryptVaultEnvelope, openVaultProtocolPackage, type VaultCiphertextEnvelope } from './vault-v2-envelope'
@@ -107,7 +108,7 @@ function decodeCanonicalJson(bytes: Uint8Array): unknown {
 
 async function memberKeyFingerprint(publicKey: Uint8Array): Promise<string> {
   const input = concatBytes(encodeUtf8('PLDNV2FP'), encodeU16(VAULT_PROTOCOL_VERSION), encodeU16(5), publicKey)
-  return encodeBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(input).buffer)))
+  return encodeBase64Url(sha256Digest(input))
 }
 
 function assertMemberVaultKeyBindings(envelope: MemberVaultKeyEnvelope, expected: MemberVaultKeyExpectation): void {

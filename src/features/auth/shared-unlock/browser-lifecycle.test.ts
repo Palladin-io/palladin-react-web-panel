@@ -25,6 +25,18 @@ const settle = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers() })
 describe('document-owned shared unlock connection', () => {
+  it('reports route readiness and does not publish a retired attempt failure after teardown', async () => {
+    const f = fixture(), onStatus = vi.fn()
+    const c = startSharedUnlockBrowserLifecycle({ ...f.options, onStatus })
+    expect(onStatus).toHaveBeenLastCalledWith('connecting')
+    await settle(); f.accept(); await settle()
+    expect(onStatus).toHaveBeenLastCalledWith('connected')
+    f.ports[0].onDisconnect.emit()
+    expect(onStatus).toHaveBeenLastCalledWith('unavailable')
+    await vi.advanceTimersByTimeAsync(1000)
+    c.close(); onStatus.mockClear(); await settle()
+    expect(onStatus).not.toHaveBeenCalled()
+  })
   it('registers the coordinator on the live route and retires it on pagehide', async () => {
     const f = fixture(), received = vi.fn(), onReady = vi.fn((route: SharedUnlockBrowserRoute) => { route.onOperation(received) })
     const c = startSharedUnlockBrowserLifecycle({ ...f.options, onReady }); await settle(); f.accept(); await settle()

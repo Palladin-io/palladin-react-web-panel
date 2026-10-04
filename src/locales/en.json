@@ -2064,5 +2064,10 @@
   "grants.fields.required": "Select at least one field.",
   "grants.fields.loading": "Loading available fields…",
   "grants.fields.unavailable": "Could not load the fields. Reopen this dialog to retry.",
-  "vault.entries.totp.agentAccess": "Allow granted agents to use 2FA"
+  "vault.entries.totp.agentAccess": "Allow granted agents to use 2FA",
+  "security.sharedUnlock.browser.not-configured": "No extension identity is configured for this panel.",
+  "security.sharedUnlock.browser.connecting": "Connecting to the extension…",
+  "security.sharedUnlock.browser.connected": "Connected to the extension.",
+  "security.sharedUnlock.browser.unavailable": "Extension unavailable. Check the installed extension and its API and panel settings.",
+  "security.sharedUnlock.browser.unsupported": "This panel needs browser cryptography and cross-tab locking unavailable over remote HTTP. HTTP consent does not enable those browser capabilities."
 }

@@ -82,6 +82,39 @@ beforeEach(() => { vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "Da
 afterEach(() => { expect(vi.getTimerCount()).toBe(0); vi.useRealTimers(); });
 
 describe("automatic browser account/link selection", () => {
+  it("bounds retirement retries when trusted source activity overlaps initial preparation", async () => {
+    const f = pair("extension"), source = f.extension, recipient = f.web;
+    const normalSource = vi.mocked(source.client.source).getMockImplementation()!;
+    const normalReceiver = vi.mocked(recipient.client.receiver).getMockImplementation()!;
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    vi.mocked(source.client.source).mockImplementationOnce(async (...args) => ({
+      ...await normalSource(...args), send: async () => { await pending; args[2](); throw new Error("stale preparation"); },
+    }));
+    vi.mocked(recipient.client.receiver).mockImplementation(async (...args) => ({
+      ...await normalReceiver(...args), receive: async () => { throw new SharedUnlockAuthorizationRetiredError(); },
+    }));
+    const preferences = new SharedUnlockPreferenceState(), close = f.start();
+    const scope = { apiUrl: operation.context.apiOrigin, accountId };
+    const unwatch = preferences.subscribe(() => close.web.cancelPending(accountId));
+    try {
+      await settle(); expect(source.client.source).toHaveBeenCalledOnce();
+      // A real own activity renewal invalidates an in-flight source snapshot.
+      for (const changed of source.watchers) changed();
+      release(); await settle();
+      expect(source.client.source).toHaveBeenCalledTimes(2);
+      preferences.observe(scope, { sharedUnlockEnabled: true, revision: operation.context.preferenceRevision });
+      await settle(); expect(source.client.source).toHaveBeenCalledTimes(3);
+      for (let index = 0; index < 10; index++) {
+        for (const changed of source.watchers) changed();
+        preferences.observe(scope, { sharedUnlockEnabled: true, revision: operation.context.preferenceRevision });
+        await vi.advanceTimersByTimeAsync(5000); await settle();
+      }
+      expect(source.client.source).toHaveBeenCalledTimes(3);
+      expect(recipient.client.received).not.toHaveBeenCalled();
+      expect(recipient.route.signal.aborted).toBe(false);
+    } finally { release(); unwatch(); close(); }
+  });
   it.each(["web", "extension"] as const)("bounds %s retirement retries across initial authenticated preference observation", async role => {
     const f = pair(role === "web" ? "extension" : "web"), recipient = f[role];
     const source = f[role === "web" ? "extension" : "web"];
