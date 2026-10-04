@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { CLIPBOARD_CLEAR_MS, copySecretToClipboard } from './clipboard'
+import { CLIPBOARD_CLEAR_MS, copySecretToClipboard, copyToClipboard } from './clipboard'
 
 describe('copySecretToClipboard', () => {
   let writeText: ReturnType<typeof vi.fn>
@@ -41,6 +41,15 @@ describe('copySecretToClipboard', () => {
     writeText.mockClear()
     await vi.advanceTimersByTimeAsync(CLIPBOARD_CLEAR_MS)
 
+    expect(writeText).not.toHaveBeenCalledWith('')
+  })
+
+  it('does not clear a newly copied sharing link when an older secret timer expires', async () => {
+    readText.mockRejectedValue(new Error('read blocked'))
+    await copySecretToClipboard('old-secret', 10_000)
+    await copyToClipboard('https://example.test/share/fake#synthetic')
+    writeText.mockClear()
+    await vi.advanceTimersByTimeAsync(10_000)
     expect(writeText).not.toHaveBeenCalledWith('')
   })
 

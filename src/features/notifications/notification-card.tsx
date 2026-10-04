@@ -153,8 +153,11 @@ export function NotificationCard({ item, footer, onSeen }: NotificationCardProps
 }
 
 function RowValue({ value }: { value: DetailRowValue }) {
-  const { t } = useTranslation()
-  if (value.kind === 'message') return <span>{t(value.key)}</span>
+  const { i18n } = useTranslation()
+  if (value.kind === 'date') {
+    const date = new Date(value.iso)
+    return <span>{Number.isNaN(date.valueOf()) ? '—' : date.toLocaleString(i18n.language)}</span>
+  }
   if (value.kind === 'entry') {
     return (
       <span className="block truncate">

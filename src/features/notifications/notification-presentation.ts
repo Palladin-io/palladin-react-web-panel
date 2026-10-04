@@ -26,7 +26,7 @@ import type { NotificationItem } from './notifications-api'
 export type DetailRowValue =
   | { kind: 'text'; text: string }
   | { kind: 'entry'; entry: string; vault: string | null }
-  | { kind: 'message'; key: string }
+  | { kind: 'date'; iso: string }
 
 /** One labelled detail row inside a card. */
 export interface DetailRow {
@@ -193,8 +193,14 @@ export function notificationCardPresentation(
         subtitleKey: 'notifications.sub.entryShareReceived',
         subtitleAgent: null,
         subtitleAgentFallbackKey: 'audit.externalRecipient',
-        rows: [entryRow(item), idRow(item, 'notifications.card.rowShare', 'shareId'),
-          { labelKey: 'notifications.card.rowConfirmation', value: { kind: 'message', key: 'notifications.card.displayNotReadProof' } }],
+        rows: [
+          textRow('notifications.card.rowEntry', meta(item, 'entryLabel')
+            ?? (meta(item, 'entryId') ? shortenKey(meta(item, 'entryId')!) : undefined)),
+          textRow('notifications.card.rowVault', meta(item, 'vaultName')
+            ?? (meta(item, 'vaultId') ? shortenKey(meta(item, 'vaultId')!) : undefined)),
+          idRow(item, 'notifications.card.rowShare', 'shareId'),
+          { labelKey: 'notifications.card.rowReceivedAt', value: { kind: 'date', iso: item.occurredAt } },
+        ],
       }
 
     case 'grant_pending':

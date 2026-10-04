@@ -13,8 +13,7 @@ const statuses: Record<'status' | 'prepare', ReadonlySet<ExtensionShareResult>> 
 export function requestExtensionShareSave(type: 'status' | 'prepare', snapshot?: EntryShareSnapshot): Promise<ExtensionShareResult> {
   return new Promise(resolve => {
     const requestId = randomUuid()
-    const timer = window.setTimeout(() => finish(type === 'status' ? 'unavailable' : 'uncertain'),
-      type === 'status' ? 1_500 : 10_000)
+    const timer = window.setTimeout(() => finish(type === 'status' ? 'unavailable' : 'uncertain'), 10_000)
     function finish(status: ExtensionShareResult) {
       window.clearTimeout(timer)
       window.removeEventListener('message', receive)
