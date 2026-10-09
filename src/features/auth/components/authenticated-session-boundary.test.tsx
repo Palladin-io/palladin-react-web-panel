@@ -12,7 +12,7 @@ vi.mock('@tanstack/react-router', () => ({
 beforeEach(() => {
   f.navigate.mockReset().mockImplementation(() => new Promise(() => {}))
   f.location = { pathname: '/vaults/one', href: '/vaults/one?tab=entries#secret' }
-  useAuthStore.setState({ userId: 'own-account', accessToken: 'own-access', refreshToken: 'own-refresh' })
+  useAuthStore.setState({ userId: 'own-account', accessToken: 'own-access', sessionId: 'own-refresh' })
   useAuthStore.getState().unlockVault(new Uint8Array([1]), new Uint8Array([2]))
 })
 afterEach(() => { useAuthStore.getState().logout() })
@@ -34,7 +34,7 @@ it('keeps the unlock surface available for its own persisted refresh lineage wit
   f.location = { pathname: '/unlock', href: '/unlock?redirect=%2Fvaults%2Fone' }
   render(<AuthenticatedSessionBoundary><div>own unlock form</div></AuthenticatedSessionBoundary>)
   expect(screen.getByText('own unlock form')).toBeInTheDocument(); expect(f.navigate).not.toHaveBeenCalled()
-  expect(useAuthStore.getState()).toMatchObject({ masterKey: null, accessToken: null, refreshToken: 'own-refresh', isVaultLocked: true })
+  expect(useAuthStore.getState()).toMatchObject({ masterKey: null, accessToken: null, sessionId: 'own-refresh', isVaultLocked: true })
 })
 
 it('preserves the original internal destination when logout happens on the unlock screen', () => {

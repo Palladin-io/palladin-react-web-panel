@@ -7,7 +7,7 @@ import type { SharedUnlockPreferenceScope } from './preference-gate'
 export interface SharedUnlockPreferenceMonitorClient {
   nonce(): Promise<string>
   subscribe(changed: () => void): () => void
-  capture(): { session: { apiUrl: string; userId: string; accessToken: string; refreshToken: string }; signal: AbortSignal;
+  capture(): { session: { apiUrl: string; userId: string; accessToken: string; sessionId: string }; signal: AbortSignal;
     assertCurrent(): void; dispose(): void } | null
 }
 

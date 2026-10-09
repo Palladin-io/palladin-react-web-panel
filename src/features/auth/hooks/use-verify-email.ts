@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
 import { ACCOUNT_QUERY_KEY } from '../../../shared/api/account-api'
-import { refreshToken as refreshAuthSession, verifyEmail } from '../api/auth-api'
+import { refreshSession as refreshAuthSession, verifyEmail } from '../api/auth-api'
 import { getIsAuthenticated, useAuthStore } from '../stores/auth-store'
 import {
   captureClientSessionGeneration,
@@ -57,14 +57,14 @@ export function useVerifyEmail() {
           // checks prevent a late response from restoring a logged-out or
           // switched session.
           const generation = captureClientSessionGeneration()
-          const currentRefreshToken = authState.refreshToken
-          if (currentRefreshToken) {
+          const currentSessionId = authState.sessionId
+          if (currentSessionId) {
             try {
-              const refreshed = await refreshVerifiedSession(currentRefreshToken)
+              const refreshed = await refreshVerifiedSession(currentSessionId)
               const currentState = useAuthStore.getState()
               if (clientSessionGenerationMatches(generation)
                 && currentState.userId === response.userId
-                && currentState.refreshToken === currentRefreshToken) {
+                && currentState.sessionId === currentSessionId) {
                 currentState.setTokens(refreshed)
               }
             } catch {
@@ -75,7 +75,7 @@ export function useVerifyEmail() {
               const currentState = useAuthStore.getState()
               if (clientSessionGenerationMatches(generation)
                 && currentState.userId === response.userId
-                && currentState.refreshToken === currentRefreshToken) {
+                && currentState.sessionId === currentSessionId) {
                 await clearClientSession()
               }
             }
@@ -91,10 +91,10 @@ export function useVerifyEmail() {
   })
 }
 
-async function refreshVerifiedSession(refreshToken: string) {
+async function refreshVerifiedSession(sessionId: string) {
   try {
-    return await refreshAuthSession(refreshToken)
+    return await refreshAuthSession(sessionId)
   } catch {
-    return refreshAuthSession(refreshToken)
+    return refreshAuthSession(sessionId)
   }
 }

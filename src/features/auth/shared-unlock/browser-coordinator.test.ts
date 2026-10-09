@@ -3,7 +3,7 @@ import { startSharedUnlockBrowserCoordinator, type SharedUnlockCoordinatorClient
 import { sharedUnlockOperationSchema, type SharedUnlockOperationMessage } from "./browser-operation-message";
 import type { SharedUnlockOperation } from "./api-types";
 import type { SharedUnlockEnvelope } from "@palladin/crypto";
-import fixtures from "./fixtures/session-api-v1.json";
+import fixtures from "./fixtures/browser-session-api";
 import { SharedUnlockAuthorizationRetiredError } from "./expiry-store";
 import { SharedUnlockPreferenceState } from "./preference-state";
 

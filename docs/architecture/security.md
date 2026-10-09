@@ -85,10 +85,12 @@ so they are covered by the supply-chain review of `package-lock.json` + the CI
 
 ## Token storage
 
-- **Access token — in memory only.** Never persisted. On reload it is `null` and
-  the ky client silently re-mints it from the refresh token on the first 401.
-- **Refresh token — persisted** (localStorage, `palladin-auth`). Needed to
-  restore a session across reloads without forcing an OAuth round-trip.
+- **Access token — in memory only.** Never persisted. Startup obtains it from the cookie-only browser refresh endpoint before routing;
+  subsequent 401 recovery is bound to the expected logical session.
+- **Refresh token — HttpOnly cookie only.** Identity sets
+  `__Host-palladin-refresh; Secure; HttpOnly; SameSite=Strict; Path=/`, without
+  Domain. Web never receives it in ordinary JSON or persists it in JS storage.
+  The logical `sessionId` is memory-only and is not a credential.
 - **Crypto keys (MK / privateKey / VK) — never persisted.** Closing the tab or a
   session timeout destroys them; the vault must be re-unlocked.
 - **Current Entry ciphertext cache — IndexedDB only.** The cache may contain
@@ -105,11 +107,78 @@ so they are covered by the supply-chain review of `package-lock.json` + the CI
   logger emits lifecycle-only diagnostics and defensively redacts query-token
   values and JWT-shaped strings before writing to the development console.
 
-### Follow-up (backend-coordinated, out of scope here)
+### Browser session boundary
 
-Move the refresh token into an `httpOnly; Secure; SameSite` cookie so it is not
-readable from JS at all. That requires the API to set/read the cookie and a CSRF
-scheme on state-changing requests, so it is tracked as a backend task.
+Web session issuers, refresh, logout and refresh-bound Shared Unlock operations
+use `/api/browser/`. Each request needs the exact configured `Origin` and
+`X-Palladin-Browser: 1`; the API rejects missing/null/foreign origins before
+binding credentials or mutating cookies. Credentialed CORS uses that same exact
+allowlist. The dedicated client includes cookies, rejects redirects and never
+retries login/Shared Unlock proofs. Bearer-authenticated resource APIs do not
+accept cookies as authentication. Native/mobile/extension JSON endpoints remain
+unchanged and never fall back to cookie credentials.
+
+Startup removes the legacy `palladin-auth` envelope before networking. Its old
+refresh token may be exchanged once through `auth/migrate`, which forces rotation
+and revokes the old value. An existing cookie wins with 409 followed by refresh;
+failed migration never restores the legacy credential. Access tokens, keys and
+unlock limits cannot hydrate from storage. A network outage keeps the vault locked.
+
+Cookie writes serialize across same-origin tabs with Web Locks. Session changes
+are signalled using only a logical ID, kind and nonce in localStorage. These are
+revalidation/denial hints, never credentials. Logout records a durable denial,
+revokes the captured cookie lineage without needing a live JWT and expires the
+cookie. A failed network logout cannot silently restore on reload. A newer
+explicit login supersedes that denial. Refresh and receiver commit reject a
+cookie that differs from the caller's expected session.
+
+Each resumed tab revalidates; protected content and Shared Unlock publication are
+blocked during the check. Same-session refresh preserves original unlock limits.
+An account/org or ordinary session replacement wipes old keys and profile caches.
+A same-account, same-org Shared Unlock adoption preserves already-held keys and
+deadlines after authoritative refresh, while retiring the old sharing source.
+This avoids repeated handoff between tabs sharing one cookie.
+
+Abandoned login/receiver cleanup uses `auth/discard` with the issued access token's
+signed `browser_session_id`, never an exposed refresh token or arbitrary ID.
+It revokes only that lineage and emits no Set-Cookie: even a matching-cookie
+response could otherwise arrive after a newer login. Local key wiping is
+unconditional. HttpOnly prevents direct refresh-token reads; it does not make
+same-origin script execution harmless.
+
+### HTTPS development and deployment
+
+Deploy the compatible backend before the web cutover. Keep the API and panel
+same-site under HTTPS for Strict cookies, including self-hosted installations.
+Plain HTTP panel session login/Shared Unlock is no longer supported; the existing
+HTTP browser-channel primitives alone do not establish a working cookie session.
+Do not relax Secure or SameSite to retain the old HTTP setup.
+
+One local setup is a trusted HTTPS reverse proxy in front of Vite and the API:
+
+```caddyfile
+https://localhost:5443 {
+    tls internal
+    handle /api/* {
+        reverse_proxy 127.0.0.1:5000
+    }
+    handle /hubs/* {
+        reverse_proxy 127.0.0.1:5000
+    }
+    handle {
+        reverse_proxy 127.0.0.1:5173
+    }
+}
+```
+
+Trust the local CA in the development browser. Configure ignored `.env.local`
+with `VITE_API_URL=https://localhost:5443` and
+`VITE_SIGNALR_HUB_URL=https://localhost:5443/hubs/notifications`; configure the
+API's exact `Networking:AllowedOrigins` entry as `https://localhost:5443`.
+Keep real OAuth identifiers in ignored environment configuration. See Caddy's
+[internal TLS](https://caddyserver.com/docs/caddyfile/directives/tls) and
+[reverse proxy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy)
+documentation for local trust and proxy setup.
 
 ## Shared-unlock native browser channel (in progress)
 

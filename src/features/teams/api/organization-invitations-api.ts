@@ -1,3 +1,5 @@
+import { browserSessionPost } from '../../../shared/api/browser-session-transport'
+import { useAuthStore } from '../../auth/stores/auth-store'
 import { api } from '../../../shared/api/client'
 import type { AuthResponse } from '../../../shared/api/types'
 
@@ -37,9 +39,10 @@ export async function inviteOrganizationMember(input: {
 }
 
 export async function acceptOrganizationInvitation(token: string): Promise<AuthResponse> {
-  return api.post('api/organization/invitations/accept', {
+  return browserSessionPost('organization/invitations/accept', {
+    headers: { Authorization: `Bearer ${useAuthStore.getState().accessToken}` },
     json: { token },
-  }).json<AuthResponse>()
+  })
 }
 
 export async function getOrganizationInvitations(): Promise<OrganizationInvitation[]> {

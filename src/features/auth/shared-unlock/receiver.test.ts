@@ -18,7 +18,7 @@ import { beginManualUnlockAttempt } from '../session/manual-unlock-attempt'
 import { SharedUnlockApi } from './api'
 import { beginSharedUnlockReceiver, type SharedUnlockReceiverRoute } from './receiver'
 import type { SharedUnlockCommit, SharedUnlockOperation } from './api-types'
-import fixtures from './fixtures/session-api-v1.json'
+import fixtures from './fixtures/browser-session-api'
 import { notifySharedUnlockCompleted } from './completion-toast'
 
 vi.mock('./completion-toast', () => ({ notifySharedUnlockCompleted: vi.fn() }))
@@ -27,8 +27,8 @@ vi.mock('../../../shared/lib/env', () => ({ env: { apiUrl: 'https://api.example.
 const apiUrl = 'https://api.example.test'
 const baseline = fixtures.responses.find(r => r.type === 'operation' && r.body.context?.direction === 'extension-to-web')!.body as SharedUnlockOperation
 const now = baseline.context.issuedAtMs
-const oldSession = { accessToken: 'old-own-access', refreshToken: 'old-own-refresh', userId: baseline.context.accountId, isOnboarded: true }
-const newSession = { ...oldSession, accessToken: 'receiver-own-access', refreshToken: 'receiver-own-refresh', emailVerified: false,
+const oldSession = { accessToken: 'old-own-access', sessionId: 'old-own-refresh', userId: baseline.context.accountId, isOnboarded: true }
+const newSession = { ...oldSession, accessToken: 'receiver-own-access', sessionId: 'receiver-own-refresh', emailVerified: false,
   waitlistDeveloperBenefitStartedAt: null, waitlistDeveloperBenefitEndsAt: null }
 const cancels: (() => void)[] = []
 beforeAll(async () => { await loadSodium() })
@@ -66,12 +66,13 @@ async function setup(options: { publishWithLocalGuards?: SharedUnlockReceiverRou
   const pendingResponse = deferred<Response>()
   const events: string[] = []
   const fetcher = vi.fn<typeof fetch>(async (url, init) => {
-    const action = String(url).split('/').at(-1)!
+    const tail = String(url).split('/').at(-1)!
+    const action = tail === 'discard' ? 'logout' : tail
     events.push(action)
-    expect(init).toMatchObject({ credentials: 'omit', redirect: 'error', cache: 'no-store' })
+    expect(init).toMatchObject({ credentials: action === 'commit' ? 'include' : 'omit', redirect: 'error', cache: 'no-store' })
     expect(new Headers(init?.headers).get('authorization')).toBe(action === 'logout' ? `Bearer ${newSession.accessToken}` : null)
     if (action === 'logout') {
-      expect(JSON.parse(String(init?.body))).toEqual({ refreshToken: newSession.refreshToken })
+      expect(init?.body).toBeUndefined()
       return new Response(null, { status: 204 })
     }
     const purpose = action as 'consume' | 'commit'
@@ -109,12 +110,12 @@ describe('Web own receiver transaction with real crypto', () => {
   it('authenticates denied-install cleanup with the issued own session instead of the existing session', async () => {
     const f = await setup({ assertFreshAuthorization: async () => { throw new Error('local admission denied') } })
     await expect(f.receiver.receive(f.input)).rejects.toThrow('local admission denied')
-    const calls = f.fetcher.mock.calls.filter(([url]) => String(url).endsWith('/api/auth/logout'))
+    const calls = f.fetcher.mock.calls.filter(([url]) => String(url).endsWith('/api/browser/auth/discard'))
     expect(calls).toHaveLength(1)
     expect(new Headers(calls[0][1]?.headers).get('authorization')).toBe(`Bearer ${newSession.accessToken}`)
-    expect(JSON.parse(String(calls[0][1]?.body))).toEqual({ refreshToken: newSession.refreshToken })
+    expect(calls[0][1]?.body).toBeUndefined()
     expect(useAuthStore.getState().accessToken).toBe(oldSession.accessToken)
-    expect(useAuthStore.getState().refreshToken).toBe(oldSession.refreshToken)
+    expect(useAuthStore.getState().sessionId).toBe(oldSession.sessionId)
     expect(useAuthStore.getState().isVaultLocked).toBe(true)
   })
   it('announces a completed automatic login/unlock once, independently of lost ACK', async () => {
@@ -263,7 +264,7 @@ describe('Web own receiver transaction with real crypto', () => {
         expect(f.ack).not.toHaveBeenCalled()
         expect(notifySharedUnlockCompleted).not.toHaveBeenCalled()
         expect(useAuthStore.getState()).toMatchObject({ isVaultLocked: true, masterKey: null, privateKey: null })
-        expect(useAuthStore.getState().refreshToken).toBe(change === 'logout' ? null : oldSession.refreshToken)
+        expect(useAuthStore.getState().sessionId).toBe(change === 'logout' ? null : oldSession.sessionId)
       })
     }
   }
@@ -346,14 +347,14 @@ describe('Web own receiver transaction with real crypto', () => {
         if (action === 'logout') useAuthStore.getState().logout()
         if (action === 'other-account') {
           useAuthStore.getState().logout()
-          useAuthStore.getState().setTokens({ ...oldSession, userId: 'other-account', refreshToken: 'other-own-refresh' })
+          useAuthStore.getState().setTokens({ ...oldSession, userId: 'other-account', sessionId: 'other-own-refresh' })
         }
       } })
       await expect(f.receiver.receive(f.input)).rejects.toThrow()
       expect(f.ack).not.toHaveBeenCalled()
       expect(f.events.filter(e => e === 'logout')).toHaveLength(1)
       expect(useAuthStore.getState()).toMatchObject({ isVaultLocked: true, masterKey: null, privateKey: null })
-      expect(useAuthStore.getState().refreshToken).toBe(action === 'logout' ? null : action === 'other-account' ? 'other-own-refresh' : oldSession.refreshToken)
+      expect(useAuthStore.getState().sessionId).toBe(action === 'logout' ? null : action === 'other-account' ? 'other-own-refresh' : oldSession.sessionId)
       if (action === 'expire') expect(useAuthStore.getState().accessToken).toBeNull()
     })
   }

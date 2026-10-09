@@ -11,7 +11,7 @@ afterEach(() => { vi.unstubAllGlobals() })
 
 describe('Anonymous sharing transport', () => {
   it('opens without account bearer, cookies, redirects, referrer or automatic retry', async () => {
-    useAuthStore.setState({ accessToken: 'synthetic-account-access', refreshToken: 'synthetic-refresh' })
+    useAuthStore.setState({ accessToken: 'synthetic-account-access', sessionId: 'synthetic-refresh' })
     let request!: Request
     let body: unknown
     const fetcher = vi.fn<typeof fetch>(async (input) => { request = input as Request; body = await request.clone().json(); return Response.json(session) })

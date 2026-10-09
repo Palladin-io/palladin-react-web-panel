@@ -18,3 +18,17 @@ Object.defineProperty(globalThis, 'localStorage', {
   configurable: true,
   value: testLocalStorage,
 })
+
+// jsdom has no Web Locks; model exclusive origin-wide serialization for session tests.
+if (!navigator.locks) {
+  const queues = new Map<string, Promise<unknown>>()
+  Object.defineProperty(navigator, 'locks', { configurable: true, value: {
+    request(name: string, optionsOrCallback: unknown, callback?: (lock: object) => unknown) {
+      const run = (callback ?? optionsOrCallback) as (lock: object) => unknown
+      const result = (queues.get(name) ?? Promise.resolve()).catch(() => undefined)
+        .then(() => run({ name, mode: 'exclusive' }))
+      queues.set(name, result)
+      return result
+    },
+  } })
+}

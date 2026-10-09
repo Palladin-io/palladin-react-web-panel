@@ -15,3 +15,9 @@ variants). The seven link responses remain for the upcoming coordinator; no link
 consumer conformance or end-to-end browser handoff is claimed by these tests. Identity remains the
 authority for its domain invariants; Web tests enforce contract compatibility
 without adding duplicate runtime response validators.
+
+`browser-session-api.ts` is a test-only adapter for browser commit responses: it
+removes the native `refreshToken` field and supplies a synthetic logical
+`sessionId`. The original JSON remains unchanged to preserve native consumer
+contract evidence. Browser transport tests separately assert cookie credentials,
+CSRF headers and no raw refresh token in ordinary requests or responses.

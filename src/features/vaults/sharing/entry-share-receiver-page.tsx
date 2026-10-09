@@ -49,7 +49,7 @@ function ScopedReceiver({ shareId, onContinueToAccount, onSavedToEntry }: EntryS
   const [extensionUncertain, setExtensionUncertain] = useState(false)
   const extensionRequestInFlight = useRef(false)
   const extensionProbeVersion = useRef(0)
-  const hasAccount = useAuthStore((auth) => !!auth.accessToken || !!auth.refreshToken)
+  const hasAccount = useAuthStore((auth) => !!auth.accessToken || !!auth.sessionId)
   const emailVerified = useAuthStore((auth) => auth.emailVerified)
   const canSave = useAuthStore((auth) => !auth.isVaultLocked && !!auth.userId && !!auth.privateKey
     && !!auth.accessToken && auth.emailVerified && (auth.permissions & PERMISSION_VAULT_MANAGE) !== 0)

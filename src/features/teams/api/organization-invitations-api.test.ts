@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const browserPost = vi.hoisted(() => vi.fn())
+vi.mock('../../../shared/api/browser-session-transport', () => ({ browserSessionPost: browserPost }))
 const postJson = vi.hoisted(() => vi.fn())
 const postFn = vi.hoisted(() => vi.fn(() => ({ json: postJson })))
 
@@ -86,17 +88,17 @@ describe('organization invitation contract', () => {
   it('accepts an invitation with the opaque token and returns the joined session', async () => {
     const session = {
       accessToken: 'access-token',
-      refreshToken: 'refresh-token',
+      sessionId: 'refresh-token',
       userId: 'user-1',
       isOnboarded: true,
       emailVerified: true,
     }
-    postJson.mockResolvedValue(session)
+    browserPost.mockResolvedValue(session)
 
     await expect(acceptOrganizationInvitation('opaque-invitation-token')).resolves.toEqual(session)
-    expect(postFn).toHaveBeenCalledWith(
-      'api/organization/invitations/accept',
-      { json: { token: 'opaque-invitation-token' } },
+    expect(browserPost).toHaveBeenCalledWith(
+      'organization/invitations/accept',
+      expect.objectContaining({ json: { token: 'opaque-invitation-token' } }),
     )
   })
 })

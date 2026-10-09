@@ -26,7 +26,7 @@ function setup(accessToken = 'own-access', prepare?: (own: { userId: string; api
     capture: () => {
       if (!own.present) return null
       const generation = own.generation, abort = new AbortController()
-      return { session: { userId: own.userId, apiUrl: own.apiUrl, accessToken, refreshToken: 'own-refresh' }, signal: abort.signal,
+      return { session: { userId: own.userId, apiUrl: own.apiUrl, accessToken, sessionId: 'own-refresh' }, signal: abort.signal,
         assertCurrent: () => { if (!own.present || generation !== own.generation) throw new Error('own session changed') },
         dispose: () => { disposed(); abort.abort() } }
     },

@@ -23,7 +23,7 @@ import {
 function startUnlockedSession() {
   useAuthStore.getState().setTokens({
     accessToken: 'access-1',
-    refreshToken: 'refresh-1',
+    sessionId: 'refresh-1',
     userId: 'u',
     isOnboarded: true,
   })
@@ -72,7 +72,7 @@ describe('useSessionTimeout', () => {
     const state = useAuthStore.getState()
     expect(state.isVaultLocked).toBe(true)
     expect(state.accessToken).toBeNull()
-    expect(state.refreshToken).toBe('refresh-1')
+    expect(state.sessionId).toBe('refresh-1')
     expect(navigateMock).toHaveBeenCalledWith({
       to: '/unlock',
       search: {

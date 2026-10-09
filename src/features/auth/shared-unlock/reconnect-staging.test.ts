@@ -9,7 +9,7 @@ const linkId = '22222222-2222-4222-8222-222222222222'
 const revoked = { linkId, revision: 2, epoch: 2, state: 'revoked' as const, lastInvalidationSequence: 2, lastLogoutSequence: 0 }
 const active = { ...revoked, state: 'active' as const, revision: 4, epoch: 4, lastInvalidationSequence: 3 }
 const notice = { accountId: scope.accountId, linkId, reconnectRevision: 3 }
-const own = { apiUrl: scope.apiUrl, userId: scope.accountId, accessToken: 'new-own-committed-access', refreshToken: 'new-own-committed-refresh' }
+const own = { apiUrl: scope.apiUrl, userId: scope.accountId, accessToken: 'new-own-committed-access', sessionId: 'new-own-committed-refresh' }
 const binding: SharedUnlockSelectedBinding = { ...scope, apiOrigin: scope.apiUrl, linkId, linkEpoch: 4, preferenceRevision: 1,
   organizationId: '33333333-3333-4333-8333-333333333333', documentBinding: 'own-document', webGeneration: 'A'.repeat(43), extensionGeneration: 'B'.repeat(42) + 'A' }
 async function setup() {

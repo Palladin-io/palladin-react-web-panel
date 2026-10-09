@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ACCOUNT_QUERY_KEY, getAccount, type AccountResponse } from '../../../shared/api/account-api'
-import { refreshToken } from '../api/auth-api'
+import { refreshSession } from '../api/auth-api'
 import { captureClientSessionGeneration, clientSessionGenerationMatches } from '../session/client-session'
 import { useAuthStore } from '../stores/auth-store'
 
@@ -19,21 +19,21 @@ export function useVerificationGate() {
     refetchInterval: (query) => query.state.data?.ready ? false : 15_000,
     queryFn: async ({ signal }) => {
       const generation = captureClientSessionGeneration()
-      const { userId: capturedUserId, refreshToken: capturedRefreshToken,
+      const { userId: capturedUserId, sessionId: capturedSessionId,
         cryptoSessionGeneration: capturedCryptoGeneration } = useAuthStore.getState()
       const current = () => {
         const auth = useAuthStore.getState()
         return !signal.aborted && clientSessionGenerationMatches(generation)
           && auth.userId === capturedUserId && auth.cryptoSessionGeneration === capturedCryptoGeneration
-          && auth.refreshToken === capturedRefreshToken
+          && auth.sessionId === capturedSessionId
       }
       try {
         const account = await getAccount()
         if (!current()) throw new Error('Verification session changed')
         if (account.emailVerified !== true) return { account, ready: false }
-        if (!capturedRefreshToken) throw new Error('Verification session unavailable')
+        if (!capturedSessionId) throw new Error('Verification session unavailable')
         // A verification in another tab changes server claims, not this tab's JWT.
-        const session = await refreshToken(capturedRefreshToken)
+        const session = await refreshSession(capturedSessionId)
         if (!current()) throw new Error('Verification session changed')
         useAuthStore.getState().setTokens(session)
         useAuthStore.getState().markEmailVerified()

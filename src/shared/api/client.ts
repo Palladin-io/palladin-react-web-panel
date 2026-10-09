@@ -1,4 +1,5 @@
-import ky from 'ky'
+import ky, { HTTPError } from 'ky'
+import { refreshBrowserSession } from '../../features/auth/session/browser-session'
 import { env } from '../lib/env'
 import { buildLoginRedirectHref } from '../lib/auth-redirect'
 import { useAuthStore } from '../../features/auth/stores/auth-store'
@@ -12,28 +13,23 @@ import type { AuthResponse } from './types'
 
 interface RefreshAttempt {
   generation: number
-  refreshToken: string
+  sessionId: string
   promise: Promise<AuthResponse>
 }
 
 let refreshAttempt: RefreshAttempt | null = null
 const requestSessionGenerations = new WeakMap<object, number>()
 
-function getRefreshAttempt(generation: number, refreshToken: string): RefreshAttempt {
+function getRefreshAttempt(generation: number, sessionId: string): RefreshAttempt {
   if (refreshAttempt
     && refreshAttempt.generation === generation
-    && refreshAttempt.refreshToken === refreshToken) {
+    && refreshAttempt.sessionId === sessionId) {
     return refreshAttempt
   }
   const attempt: RefreshAttempt = {
     generation,
-    refreshToken,
-    promise: ky
-      .post('api/auth/refresh', {
-        prefixUrl: env.apiUrl,
-        json: { refreshToken },
-      })
-      .json<AuthResponse>(),
+    sessionId,
+    promise: refreshBrowserSession(sessionId),
   }
   refreshAttempt = attempt
   void attempt.promise.finally(() => {
@@ -103,19 +99,19 @@ export const api = ky.create({
 
         if (response.status !== 401) return response
 
-        const { refreshToken, setTokens } = useAuthStore.getState()
-        if (!refreshToken) {
+        const { sessionId, setTokens } = useAuthStore.getState()
+        if (!sessionId) {
           await clearClientSession()
           window.location.href = buildLoginRedirectHref(window.location.href)
           return response
         }
 
-        const attempt = getRefreshAttempt(generation, refreshToken)
+        const attempt = getRefreshAttempt(generation, sessionId)
 
         try {
           const data = await attempt.promise
           if (!clientSessionGenerationMatches(attempt.generation)
-            || useAuthStore.getState().refreshToken !== attempt.refreshToken) {
+            || useAuthStore.getState().sessionId !== attempt.sessionId) {
             return response
           }
           setTokens(data)
@@ -124,11 +120,15 @@ export const api = ky.create({
           // Retry original request with new token
           request.headers.set('Authorization', `Bearer ${data.accessToken}`)
           return ky(request)
-        } catch {
+        } catch (error) {
           if (clientSessionGenerationMatches(attempt.generation)
-            && useAuthStore.getState().refreshToken === attempt.refreshToken) {
-            await clearClientSession()
-            window.location.href = buildLoginRedirectHref(window.location.href)
+            && useAuthStore.getState().sessionId === attempt.sessionId) {
+            if (error instanceof HTTPError && [401, 409].includes(error.response.status)) {
+              await clearClientSession()
+              window.location.href = buildLoginRedirectHref(window.location.href)
+            } else {
+              useAuthStore.getState().expireSession()
+            }
           }
           return response
         }

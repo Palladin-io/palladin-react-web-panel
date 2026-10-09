@@ -11,6 +11,7 @@ vi.mock('../../../shared/lib/client-profile-cleanup', () => ({ runClientProfileC
 
 const fetchLoginKdf = vi.hoisted(() => vi.fn())
 const passwordLogin = vi.hoisted(() => vi.fn())
+const revokeUninstalledLoginSession = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 const totpLogin = vi.hoisted(() => vi.fn())
 const deriveIdentityV1 = vi.hoisted(() => vi.fn())
 const decryptWithKey = vi.hoisted(() => vi.fn())
@@ -22,7 +23,7 @@ const prepareManualSharedUnlock = vi.hoisted(() => vi.fn())
 
 vi.mock('../shared-unlock/manual-source', () => ({ prepareManualSharedUnlock }))
 
-vi.mock('../api/auth-api', () => ({ fetchLoginKdf, passwordLogin, totpLogin,
+vi.mock('../api/auth-api', () => ({ fetchLoginKdf, passwordLogin, totpLogin, revokeUninstalledLoginSession,
   isTotpRequired: (response: { totpRequired?: boolean }) => response.totpRequired === true }))
 vi.mock('../../../shared/api/account-api', () => ({ getAccount }))
 vi.mock('../../../shared/crypto/identity-kdf', async (importOriginal) => ({
@@ -41,7 +42,7 @@ const accountId = '00112233-4455-4677-8899-aabbccddeeff'
 const kdfSalt = encodeBase64Url(new Uint8Array(16).fill(1))
 const profile = { accountId, profileId: 'identity-argon2id-password-v1', securityVersion: 1,
   kdfSalt, memoryKiB: 32_768, iterations: 2, parallelism: 1 }
-const response = { accessToken: 'a', refreshToken: 'r', userId: accountId, isOnboarded: true }
+const response = { accessToken: 'a', sessionId: 'r', userId: accountId, isOnboarded: true }
 
 describe('usePasswordLogin password KDF v1', () => {
   afterEach(() => vi.useRealTimers())
@@ -167,6 +168,7 @@ describe('usePasswordLogin password KDF v1', () => {
     resolve(response)
     await rejected
     expect(setTokens).not.toHaveBeenCalled()
+    expect(revokeUninstalledLoginSession).toHaveBeenCalledWith(response.accessToken)
     expect(unlockVault).not.toHaveBeenCalled()
   })
 

@@ -4,17 +4,17 @@ import { deliverManualSharedUnlockLock, recordManualSharedUnlockLock } from '../
 
 export async function lockClientSession(): Promise<void> {
   const own = useAuthStore.getState(), apiUrl = env.apiUrl
-  const { userId, accessToken, refreshToken } = own
+  const { userId, accessToken, sessionId } = own
   const generation = own.cryptoSessionGeneration + 1
   const closing = recordManualSharedUnlockLock(userId)
   try { own.lockVault() }
   catch (error) { await closing; throw error }
   await closing
-  if (!userId || !accessToken || !refreshToken) return
-  await deliverManualSharedUnlockLock({ userId, accessToken, refreshToken, apiUrl }, () => {
+  if (!userId || !accessToken || !sessionId) return
+  await deliverManualSharedUnlockLock({ userId, accessToken, sessionId, apiUrl }, () => {
     const current = useAuthStore.getState()
     if (!current.isVaultLocked || current.cryptoSessionGeneration !== generation || current.userId !== userId
-      || current.accessToken !== accessToken || current.refreshToken !== refreshToken || env.apiUrl !== apiUrl) {
+      || current.accessToken !== accessToken || current.sessionId !== sessionId || env.apiUrl !== apiUrl) {
       throw new Error('Shared lock own session changed')
     }
   })

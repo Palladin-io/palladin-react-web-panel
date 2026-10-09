@@ -11,8 +11,8 @@ export const Route = createFileRoute('/register')({
   beforeLoad: ({ search }) => {
     // A persisted refresh token counts as a live (restorable) session even
     // when the in-memory access token is null after a reload.
-    const { accessToken, refreshToken } = useAuthStore.getState()
-    if (accessToken || refreshToken) {
+    const { accessToken, sessionId } = useAuthStore.getState()
+    if (accessToken || sessionId) {
       throw redirect({ href: search.redirect ?? '/' })
     }
   },

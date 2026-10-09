@@ -46,10 +46,10 @@ export async function beginSharedUnlockSource(route: SharedUnlockSourceRoute,
     route.assertCurrent()
     const own = useAuthStore.getState()
     const current = getSharedUnlockSourceSnapshot()
-    if (!initial || !root || own.isVaultLocked || !own.masterKey || !own.privateKey || !own.accessToken || !own.refreshToken
+    if (!initial || !root || own.isVaultLocked || !own.masterKey || !own.privateKey || !own.accessToken || !own.sessionId
       || own.userId !== binding.accountId || root.accountId !== binding.accountId || root.organizationId !== binding.organizationId
       || own.cryptoSessionGeneration !== initial.cryptoSessionGeneration || own.masterKey !== initial.masterKey || own.privateKey !== initial.privateKey
-      || own.accessToken !== initial.accessToken || own.refreshToken !== initial.refreshToken
+      || own.accessToken !== initial.accessToken || own.sessionId !== initial.sessionId
       || !own.unlockLimits || Date.now() >= sessionDeadline(own.unlockLimits)
       || current.authorization?.authorizationId !== root.authorizationId || current.authorization.sequence !== root.sequence
       || current.authorization.accountId !== root.accountId || current.authorization.organizationId !== root.organizationId
@@ -64,7 +64,7 @@ export async function beginSharedUnlockSource(route: SharedUnlockSourceRoute,
   const timeout = setTimeout(cancel, 30000)
   const unsubscribe = useAuthStore.subscribe((current, previous) => {
     if (current.cryptoSessionGeneration !== previous.cryptoSessionGeneration || current.userId !== previous.userId
-      || current.accessToken !== previous.accessToken || current.refreshToken !== previous.refreshToken) cancel()
+      || current.accessToken !== previous.accessToken || current.sessionId !== previous.sessionId) cancel()
   })
   route.signal.addEventListener('abort', cancel, { once: true })
   release = () => { clearTimeout(timeout); unsubscribe(); route.signal.removeEventListener('abort', cancel) }
@@ -93,11 +93,11 @@ export async function beginSharedUnlockSource(route: SharedUnlockSourceRoute,
       try {
         assertCurrent()
         const own = initial
-        if (!own?.masterKey || !own.privateKey || !own.accessToken || !own.refreshToken || !own.userId || !own.unlockLimits || !root) reject()
+        if (!own?.masterKey || !own.privateKey || !own.accessToken || !own.sessionId || !own.userId || !own.unlockLimits || !root) reject()
         // Capture effective local limits at creation, never reconstruct a longer inherited ceiling.
         const currentLimits = useAuthStore.getState().unlockLimits!
         const operation: SharedUnlockOperation = sharedUnlockOperationMessage(await wait(api.createOperation({ apiUrl,
-          accessToken: own!.accessToken!, refreshToken: own!.refreshToken!, userId: own!.userId! }, {
+          accessToken: own!.accessToken!, sessionId: own!.sessionId!, userId: own!.userId! }, {
           authorizationId: root!.authorizationId, linkId: binding.linkId, linkEpoch: binding.linkEpoch,
           expectedPreferenceRevision: binding.preferenceRevision, recipientOrganizationId: binding.organizationId,
           idleDeadlineMs: currentLimits.idleDeadlineMs, absoluteDeadlineMs: currentLimits.absoluteDeadlineMs,

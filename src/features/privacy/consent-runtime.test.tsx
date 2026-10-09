@@ -42,7 +42,7 @@ describe('consent route boundary', () => {
     Object.defineProperty(window, 'location', { configurable: true, writable: true, value: { href } })
     useAuthStore.getState().logout()
     localStorage.setItem('palladin-auth', JSON.stringify({ version: 0, state: {
-      userId: 'stale-persisted-user', refreshToken: `synthetic-${reason}-refresh`, isOnboarded: true, emailVerified: false,
+      userId: 'stale-persisted-user', sessionId: `synthetic-${reason}-refresh`, isOnboarded: true, emailVerified: false,
     } }))
     await useAuthStore.persist.rehydrate()
     expect(useAuthStore.getState().accessToken).toBeNull()
@@ -83,7 +83,7 @@ describe('consent route boundary', () => {
     expect(await fetch.mock.calls[0][0].clone().json()).toEqual({ token: 'synthetic-verification-token' })
     expect(window.location.href).toBe(href)
     expect(router.state.location.href).toBe('/verify-email?token=synthetic-verification-token')
-    expect(useAuthStore.getState().refreshToken).toBe(`synthetic-${reason}-refresh`)
+    expect(useAuthStore.getState().sessionId).toBeNull()
     expect(authorize).not.toHaveBeenCalled()
     expect(pageview).not.toHaveBeenCalled()
     await act(async () => finishVerification(new Response(JSON.stringify({ userId: 'verification-link-owner' }), { status: 200 })))

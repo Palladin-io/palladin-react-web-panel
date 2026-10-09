@@ -12,18 +12,32 @@ describe('auth-store', () => {
     expect(written).not.toHaveProperty('unlockLimits')
     useAuthStore.getState().logout()
     localStorage.setItem('palladin-auth', JSON.stringify({ version: 0, state: {
-      refreshToken: 'synthetic-refresh', userId: 'u', accessToken: 'synthetic-stale-access',
+      sessionId: 'synthetic-refresh', userId: 'u', accessToken: 'synthetic-stale-access',
       isVaultLocked: false, masterKey: [1], privateKey: [2],
       unlockLimits: { unlockedAtMs: 1, idleDeadlineMs: Number.MAX_SAFE_INTEGER },
     } }))
     await useAuthStore.persist.rehydrate()
     const state = useAuthStore.getState()
-    expect(state.refreshToken).toBe('synthetic-refresh')
+    expect(state.sessionId).toBeNull()
     expect(state.accessToken).toBeNull()
     expect(state.masterKey).toBeNull()
     expect(state.privateKey).toBeNull()
     expect(state.isVaultLocked).toBe(true)
     expect(state.unlockLimits).toBeNull()
+  })
+
+  it('never persists a supplied refresh token or trusts persisted session identity', async () => {
+    const responseWithExtraField = { accessToken: 'synthetic-access', sessionId: 'synthetic-session',
+      refreshToken: 'synthetic-secret', userId: 'u', isOnboarded: true }
+    useAuthStore.getState().setTokens(responseWithExtraField)
+    expect(localStorage.getItem('palladin-auth')).not.toContain('synthetic-secret')
+    useAuthStore.getState().logout()
+    localStorage.setItem('palladin-auth', JSON.stringify({ state: {
+      refreshToken: 'legacy-secret', sessionId: 'forged-session', userId: 'u', accessToken: 'forged-access',
+    }, version: 0 }))
+    await useAuthStore.persist.rehydrate()
+    expect(getIsAuthenticated()).toBe(false)
+    expect(useAuthStore.getState().accessToken).toBeNull()
   })
 
   it('does not install expired inherited keys or revive idle with late activity', () => {
@@ -40,7 +54,7 @@ describe('auth-store', () => {
   it('has null initial state', () => {
     const state = useAuthStore.getState()
     expect(state.accessToken).toBeNull()
-    expect(state.refreshToken).toBeNull()
+    expect(state.sessionId).toBeNull()
     expect(state.userId).toBeNull()
     expect(state.isOnboarded).toBe(false)
     expect(state.waitlistDeveloperBenefitStartedAt).toBeNull()
@@ -58,7 +72,7 @@ describe('auth-store', () => {
   it('setTokens sets all values and becomes authenticated', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
       permissions: 7,
@@ -66,7 +80,7 @@ describe('auth-store', () => {
 
     const state = useAuthStore.getState()
     expect(state.accessToken).toBe('access-123')
-    expect(state.refreshToken).toBe('refresh-456')
+    expect(state.sessionId).toBe('refresh-456')
     expect(state.userId).toBe('user-789')
     expect(state.isOnboarded).toBe(true)
     expect(state.permissions).toBe(7)
@@ -76,7 +90,7 @@ describe('auth-store', () => {
   it('setTokens defaults permissions to 0 when omitted', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       userId: 'user-789',
       isOnboarded: false,
     })
@@ -87,7 +101,7 @@ describe('auth-store', () => {
   it('logout clears all values and becomes unauthenticated', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
       permissions: 7,
@@ -100,7 +114,7 @@ describe('auth-store', () => {
 
     const state = useAuthStore.getState()
     expect(state.accessToken).toBeNull()
-    expect(state.refreshToken).toBeNull()
+    expect(state.sessionId).toBeNull()
     expect(state.userId).toBeNull()
     expect(state.isOnboarded).toBe(false)
     expect(state.permissions).toBe(0)
@@ -113,7 +127,7 @@ describe('auth-store', () => {
   it('setTokens does not regress isOnboarded from true to false', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
     })
@@ -122,7 +136,7 @@ describe('auth-store', () => {
     // Simulate a token refresh where backend returns isOnboarded: false (stale JWT claim).
     useAuthStore.getState().setTokens({
       accessToken: 'access-new',
-      refreshToken: 'refresh-new',
+      sessionId: 'refresh-new',
       userId: 'user-789',
       isOnboarded: false,
     })
@@ -141,7 +155,7 @@ describe('auth-store', () => {
 
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
     })
@@ -194,7 +208,7 @@ describe('auth-store', () => {
   it('lockVault clears the keys but keeps the session', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
     })
@@ -219,7 +233,7 @@ describe('auth-store', () => {
   it('expireSession wipes keys + access token but keeps the refresh token', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
     })
@@ -240,7 +254,7 @@ describe('auth-store', () => {
     // Access token dropped from memory, refresh token retained so the session
     // is still silently restorable.
     expect(state.accessToken).toBeNull()
-    expect(state.refreshToken).toBe('refresh-456')
+    expect(state.sessionId).toBe('refresh-456')
     expect(getIsAuthenticated()).toBe(true)
   })
 
@@ -260,7 +274,7 @@ describe('auth-store', () => {
   it('setTokens reflects emailVerified from the response body', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
       emailVerified: false,
@@ -271,7 +285,7 @@ describe('auth-store', () => {
   it('does not regress emailVerified from true to false on a stale refresh', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
       emailVerified: true,
@@ -281,7 +295,7 @@ describe('auth-store', () => {
     // A later refresh omits / regresses the flag — the banner must not resurrect.
     useAuthStore.getState().setTokens({
       accessToken: 'access-new',
-      refreshToken: 'refresh-new',
+      sessionId: 'refresh-new',
       userId: 'user-789',
       isOnboarded: true,
       emailVerified: false,
@@ -299,7 +313,7 @@ describe('auth-store', () => {
     localStorage.clear()
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
       waitlistDeveloperBenefitStartedAt: '2026-08-25T12:00:00Z',
@@ -320,7 +334,7 @@ describe('auth-store', () => {
   it('drops an expired or incomplete waitlist Developer period', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
       waitlistDeveloperBenefitStartedAt: '2020-08-25T12:00:00Z',
@@ -334,7 +348,7 @@ describe('auth-store', () => {
   it('can apply the verified active benefit without replacing session tokens', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       userId: 'user-789',
       isOnboarded: true,
     })
@@ -346,7 +360,7 @@ describe('auth-store', () => {
 
     expect(useAuthStore.getState()).toMatchObject({
       accessToken: 'access-123',
-      refreshToken: 'refresh-456',
+      sessionId: 'refresh-456',
       waitlistDeveloperBenefitStartedAt: '2026-08-25T12:00:00Z',
       waitlistDeveloperBenefitEndsAt: '2099-09-25T12:00:00Z',
     })
