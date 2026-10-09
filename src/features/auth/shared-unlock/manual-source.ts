@@ -21,7 +21,7 @@ function getAuthority(): SharedUnlockSourceAuthority {
     })
   authority = source
   useAuthStore.subscribe((current, previous) => {
-    if (current.isVaultLocked || current.userId !== previous.userId
+    if (current.isVaultLocked || current.userId !== previous.userId || current.sessionId !== previous.sessionId
       || current.cryptoSessionGeneration !== previous.cryptoSessionGeneration) source.reset()
   })
   return source
@@ -29,17 +29,17 @@ function getAuthority(): SharedUnlockSourceAuthority {
 
 export async function prepareManualSharedUnlock(account: AccountResponse, authCredential: Uint8Array): Promise<void> {
   const installed = useAuthStore.getState()
-  const { accessToken, refreshToken, userId, unlockLimits } = installed
-  if (!accessToken || !refreshToken || !userId || installed.isVaultLocked || !unlockLimits) {
+  const { accessToken, sessionId, userId, unlockLimits } = installed
+  if (!accessToken || !sessionId || !userId || installed.isVaultLocked || !unlockLimits) {
     wipe(authCredential)
     return
   }
   const apiUrl = env.apiUrl
   await getAuthority().prepare({
-    session: { accessToken, refreshToken, userId, apiUrl }, account, authCredential, limits: unlockLimits,
+    session: { accessToken, sessionId, userId, apiUrl }, account, authCredential, limits: unlockLimits,
     assertCurrent: () => {
       const current = useAuthStore.getState()
-      if (current.isVaultLocked || current.userId !== userId || env.apiUrl !== apiUrl
+      if (current.isVaultLocked || current.userId !== userId || current.sessionId !== sessionId || env.apiUrl !== apiUrl
         || current.cryptoSessionGeneration !== installed.cryptoSessionGeneration
         || current.masterKey !== installed.masterKey || current.privateKey !== installed.privateKey
         || !current.unlockLimits || Date.now() >= sessionDeadline(current.unlockLimits)) {
@@ -96,16 +96,16 @@ export function recordOwnSharedUnlockActivity(at: number): void {
   try { before.recordActivity(at) } catch { authority?.dispose(); return }
   const own = useAuthStore.getState()
   if (!authority || !own.unlockLimits || own.unlockLimits === before.unlockLimits
-    || !own.accessToken || !own.refreshToken || !own.userId || own.isVaultLocked) {
+    || !own.accessToken || !own.sessionId || !own.userId || own.isVaultLocked) {
     authority?.dispose(); return
   }
   const apiUrl = env.apiUrl, controller = new AbortController()
-  const session = { apiUrl, userId: own.userId, accessToken: own.accessToken, refreshToken: own.refreshToken }
+  const session = { apiUrl, userId: own.userId, accessToken: own.accessToken, sessionId: own.sessionId }
   const check = () => {
     const current = useAuthStore.getState()
     if (controller.signal.aborted || env.apiUrl !== apiUrl || current.cryptoSessionGeneration !== own.cryptoSessionGeneration
       || current.isVaultLocked || current.userId !== session.userId || current.accessToken !== session.accessToken
-      || current.refreshToken !== session.refreshToken || current.masterKey !== own.masterKey || current.privateKey !== own.privateKey
+      || current.sessionId !== session.sessionId || current.masterKey !== own.masterKey || current.privateKey !== own.privateKey
       || !current.unlockLimits || Date.now() >= sessionDeadline(current.unlockLimits)) throw new Error('Own activity session changed')
   }
   const unsubscribe = useAuthStore.subscribe(() => { try { check() } catch { controller.abort() } })

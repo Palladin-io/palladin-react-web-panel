@@ -17,6 +17,7 @@ describe('application shared unlock provider', () => {
   it('does not start a handoff without a cross-tab storage boundary', () => {
     vi.stubGlobal('isSecureContext', false)
     vi.stubGlobal('indexedDB', undefined)
+    vi.stubGlobal('navigator', {})
     render(<SharedUnlockBrowserProvider />)
     expect(startSharedUnlockBrowserLifecycle).not.toHaveBeenCalled()
   })
@@ -38,7 +39,7 @@ describe('application shared unlock provider', () => {
     expect(chromium.connect).not.toHaveBeenCalled()
   })
   it('wires own document retirement to immediate key/access-token wipe, preserving own refresh/account', () => {
-    useAuthStore.setState({ accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh', userId: 'synthetic-user' })
+    useAuthStore.setState({ accessToken: 'synthetic-access', sessionId: 'synthetic-refresh', userId: 'synthetic-user' })
     useAuthStore.getState().unlockVault(new Uint8Array(32).fill(7), new Uint8Array(32).fill(9))
     const previous = useAuthStore.getState(); render(<SharedUnlockBrowserProvider />)
     const options = vi.mocked(startSharedUnlockBrowserLifecycle).mock.calls[0][0]
@@ -47,7 +48,7 @@ describe('application shared unlock provider', () => {
     const current = useAuthStore.getState()
     expect(current.masterKey).toBeNull(); expect(current.privateKey).toBeNull(); expect(current.accessToken).toBeNull()
     expect(current.isVaultLocked).toBe(true); expect(current.cryptoSessionGeneration).toBeGreaterThan(previous.cryptoSessionGeneration)
-    expect(current.refreshToken).toBe('synthetic-refresh'); expect(current.userId).toBe('synthetic-user')
+    expect(current.sessionId).toBe('synthetic-refresh'); expect(current.userId).toBe('synthetic-user')
     expect(previous.masterKey?.every(value => value === 0)).toBe(true); expect(previous.privateKey?.every(value => value === 0)).toBe(true)
   })
   it('effect unmount closes the transport without expiring the own session', () => {

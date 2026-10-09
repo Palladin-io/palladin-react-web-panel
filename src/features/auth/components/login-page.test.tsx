@@ -64,7 +64,7 @@ describe('LoginPage', () => {
     render(<LoginPage redirectTo="/vaults?intent=import#selected" />)
     expect(navigateMock).not.toHaveBeenCalled()
     act(() => {
-      useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh',
+      useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', sessionId: 'synthetic-refresh',
         userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
     })
     expect(navigateMock).not.toHaveBeenCalled()
@@ -77,7 +77,7 @@ describe('LoginPage', () => {
     pending[kind] = true
     const view = render(<LoginPage redirectTo="/vaults" />)
     act(() => {
-      useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh',
+      useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', sessionId: 'synthetic-refresh',
         userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
       useAuthStore.getState().unlockVault(new Uint8Array(32), new Uint8Array(32))
     })
@@ -90,7 +90,7 @@ describe('LoginPage', () => {
   it('does not redirect a token-only locked session', () => {
     render(<LoginPage redirectTo="/vaults" />)
     act(() => {
-      useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh',
+      useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', sessionId: 'synthetic-refresh',
         userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
     })
     expect(navigateMock).not.toHaveBeenCalled()
@@ -102,7 +102,7 @@ describe('LoginPage', () => {
     expect(screen.getByRole('link', { name: /create an account/i }))
       .toHaveAttribute('href', `/register?redirect=${encodeURIComponent(destination)}`)
     act(() => {
-      useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh',
+      useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', sessionId: 'synthetic-refresh',
         userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
       useAuthStore.getState().unlockVault(new Uint8Array(32), new Uint8Array(32))
     })

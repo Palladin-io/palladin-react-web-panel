@@ -12,7 +12,7 @@ export function useConsents() {
   const queryClient = useQueryClient()
   const userId = useAuthStore(state => state.userId)
   const accessToken = useAuthStore(state => state.accessToken)
-  const refreshToken = useAuthStore(state => state.refreshToken)
+  const sessionId = useAuthStore(state => state.sessionId)
   const { i18n } = useTranslation()
   const locale = i18n.language.startsWith('pl') ? 'pl' : 'en'
   const query = useQuery({
@@ -27,7 +27,7 @@ export function useConsents() {
       }
       return { ...response, observedAt, generation }
     },
-    enabled: sessionAllowed && !!userId && !!(accessToken || refreshToken),
+    enabled: sessionAllowed && !!userId && !!(accessToken || sessionId),
     staleTime: 0,
     refetchInterval: 30_000,
     refetchOnWindowFocus: 'always',

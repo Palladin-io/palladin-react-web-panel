@@ -69,7 +69,7 @@ vi.mock('../auth', () => ({
   },
 }))
 
-vi.mock('../../shared/lib/env', () => ({ env: { signalrHubUrl: 'http://x/hub' } }))
+vi.mock('../../shared/lib/env', () => ({ env: { signalrHubUrl: 'http://x/hub', apiUrl: 'https://api.example.test' } }))
 vi.mock('./use-notification-invalidation', () => ({
   useNotificationInvalidation: () => vi.fn(),
 }))

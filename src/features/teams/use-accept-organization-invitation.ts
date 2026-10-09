@@ -1,18 +1,28 @@
 import { useMutation } from '@tanstack/react-query'
-import { clearClientSession, useAuthStore } from '../auth'
+import { captureClientSessionGeneration, clientSessionGenerationMatches, clearClientSession,
+  revokeUninstalledLoginSession, useAuthStore } from '../auth'
 import { acceptOrganizationInvitation } from './api/organization-invitations-api'
 
 export function useAcceptOrganizationInvitation() {
   return useMutation({
-    mutationFn: acceptOrganizationInvitation,
-    onSuccess: async (session) => {
-      await clearClientSession()
-      const auth = useAuthStore.getState()
-      auth.setTokens(session)
-      // The session now points at another organization. Wipe the old
-      // organization's in-memory keys before any of its decrypted state can be
-      // rendered under the new JWT; the user unlocks again on the success CTA.
-      auth.lockVault()
+    mutationFn: async (token: string) => {
+      const generation = captureClientSessionGeneration()
+      const session = await acceptOrganizationInvitation(token)
+      let installed = false
+      try {
+        if (!clientSessionGenerationMatches(generation)) throw new Error('Invitation session changed')
+        const cleanup = clearClientSession()
+        const clearedGeneration = captureClientSessionGeneration()
+        await cleanup
+        if (!clientSessionGenerationMatches(clearedGeneration)) throw new Error('Invitation session changed')
+        const auth = useAuthStore.getState()
+        auth.setTokens(session)
+        auth.lockVault()
+        installed = true
+        return session
+      } finally {
+        if (!installed) await revokeUninstalledLoginSession(session.accessToken)
+      }
     },
   })
 }

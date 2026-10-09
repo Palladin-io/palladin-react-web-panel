@@ -13,7 +13,7 @@ import { ConsentRuntime } from './consent-runtime'
 
 const mocks = vi.hoisted(() => ({
   get: vi.fn(), update: vi.fn(), success: vi.fn(), error: vi.fn(), reset: vi.fn(), authorize: vi.fn(), pageview: vi.fn(),
-  auth: { userId: 'privacy-user', accessToken: 'access', refreshToken: 'refresh' }, navigate: vi.fn(), generation: 0, sessionAllowed: true, pathname: '/privacy-choices',
+  auth: { userId: 'privacy-user', accessToken: 'access', sessionId: 'refresh' }, navigate: vi.fn(), generation: 0, sessionAllowed: true, pathname: '/privacy-choices',
 }))
 vi.mock('../auth', () => ({
   SecurityPage: () => <h2>Security background</h2>,

@@ -1,6 +1,6 @@
 import type { SharedUnlockManualLockCheckpoint } from './manual-lock-checkpoint';
 import { SharedUnlockSourceAuthority } from "./source-authority";
-import fixtures from "./fixtures/session-api-v1.json";
+import fixtures from "./fixtures/browser-session-api";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { startSharedUnlockLinkMonitor } from "./link-monitor";
 import { SharedUnlockApi } from "./api";
@@ -34,7 +34,7 @@ async function setup(authority?: SharedUnlockSourceAuthority, rootless = false) 
       const witness = authority?.closingWitness();
       if (authority && !witness) return null;
       const generation = state.generation, abort = new AbortController();
-      return { session: { apiUrl: scope.apiUrl, userId: accountId, accessToken: "own-access", refreshToken: "own-refresh" },
+      return { session: { apiUrl: scope.apiUrl, userId: accountId, accessToken: "own-access", sessionId: "own-refresh" },
         manualLockCheckpoints: state.manualLockCheckpoints, sequence: rootless ? undefined : witness?.sequence ?? state.sequence, signal: abort.signal, dispose: () => { disposed(); abort.abort(); },
         assertCurrent: () => { if ((authority && authority.closingWitness()?.authorizationId !== witness?.authorizationId) || !state.authenticated || (!rootless && !state.unlocked) || state.generation !== generation) throw new Error("own changed"); } };
     }, closeSession,
@@ -119,9 +119,9 @@ describe("own Identity session repair without a local root", () => {
   it("logs out an already-locked own session using only its own authenticated POST", async () => {
     const f = await setup(undefined, true); f.state.action = "logout"; await tick();
     expect(f.closeSession).toHaveBeenCalledExactlyOnceWith("logout");
-    expect(f.fetcher).toHaveBeenCalledExactlyOnceWith("https://api.test/api/account/shared-unlock/session-state", expect.objectContaining({
+    expect(f.fetcher).toHaveBeenCalledExactlyOnceWith("https://api.test/api/browser/account/shared-unlock/session-state", expect.objectContaining({
       method: "POST", headers: expect.objectContaining({ authorization: "Bearer own-access" }),
-      body: JSON.stringify({ linkId, refreshToken: "own-refresh" }),
+      body: JSON.stringify({ linkId, expectedSessionId: "own-refresh" }),
     }));
     expect(f.route.sendOperation).not.toHaveBeenCalled(); f.close();
   });

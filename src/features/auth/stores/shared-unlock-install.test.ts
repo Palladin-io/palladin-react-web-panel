@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from './auth-store'
 
 const now = 1800000000000
-const prior = { accessToken: 'old-own-access', refreshToken: 'old-own-refresh', userId: 'account-a', isOnboarded: true }
-const received = { ...prior, accessToken: 'new-own-access', refreshToken: 'new-own-refresh' }
+const prior = { accessToken: 'old-own-access', sessionId: 'old-own-refresh', userId: 'account-a', isOnboarded: true }
+const received = { ...prior, accessToken: 'new-own-access', sessionId: 'new-own-refresh' }
 const limits = { unlockedAtMs: now - 100000, idleDeadlineMs: now + 20000,
   absoluteDeadlineMs: now + 40000, offlineDeadlineMs: now + 30000 }
 const pending = () => ({
@@ -24,7 +24,7 @@ describe('own shared-unlock session publication', () => {
     const input = pending()
     const observed: boolean[] = []
     const unsubscribe = useAuthStore.subscribe(state => {
-      if (state.refreshToken === received.refreshToken) observed.push(!state.isVaultLocked && state.masterKey?.[0] === 11 && state.privateKey?.[0] === 22)
+      if (state.sessionId === received.sessionId) observed.push(!state.isVaultLocked && state.masterKey?.[0] === 11 && state.privateKey?.[0] === 22)
     })
     try {
       const generation = useAuthStore.getState().installSharedUnlock(input)
@@ -34,8 +34,8 @@ describe('own shared-unlock session publication', () => {
       expect(useAuthStore.getState().masterKey?.[0]).toBe(11)
       expect(useAuthStore.getState().privateKey?.[0]).toBe(22)
       expect(Object.keys(JSON.parse(localStorage.getItem('palladin-auth')!).state).sort()).toEqual(
-        ['emailVerified', 'isOnboarded', 'permissions', 'refreshToken', 'userId'])
-      expect(JSON.parse(localStorage.getItem('palladin-auth')!).state.refreshToken).toBe(received.refreshToken)
+        ['emailVerified', 'isOnboarded', 'permissions', 'userId'])
+      expect(JSON.parse(localStorage.getItem('palladin-auth')!).state).not.toHaveProperty('sessionId')
     } finally { unsubscribe() }
   })
 
@@ -55,7 +55,7 @@ describe('own shared-unlock session publication', () => {
       if (change === 'expire') store.expireSession()
       if (change === 'logout') store.logout()
       if (change === 'account') store.setTokens({ ...prior, userId: 'account-b' })
-      if (change === 'refresh') store.setTokens({ ...prior, refreshToken: 'rotated-own-refresh' })
+      if (change === 'refresh') store.setTokens({ ...prior, sessionId: 'rotated-own-refresh' })
       if (change === 'unlock') store.unlockVault(new Uint8Array(32).fill(3), new Uint8Array(32).fill(4))
       const current = useAuthStore.getState()
       expect(() => current.installSharedUnlock(input)).toThrow('cancelled')
@@ -98,14 +98,14 @@ describe('own shared-unlock session publication', () => {
     const unsubscribe = useAuthStore.subscribe(state => { if (state.masterKey) exposedKey = state.masterKey })
     const realSet = localStorage.setItem
     const writes = vi.spyOn(localStorage, 'setItem').mockImplementation(function (this: Storage, key, value) {
-      if (value.includes(received.refreshToken)) throw new Error('storage unavailable')
+      if (key === 'palladin-auth' && useAuthStore.getState().sessionId === received.sessionId) throw new Error('storage unavailable')
       return realSet.call(this, key, value)
     })
     try {
       expect(() => useAuthStore.getState().installSharedUnlock(input)).toThrow('storage unavailable')
       expect(exposedKey).toEqual(new Uint8Array(32))
       expect(useAuthStore.getState()).toMatchObject({ ...prior, isVaultLocked: true, masterKey: null, privateKey: null, unlockLimits: null })
-      expect(JSON.parse(localStorage.getItem('palladin-auth')!).state.refreshToken).toBe(prior.refreshToken)
+      expect(JSON.parse(localStorage.getItem('palladin-auth')!).state).not.toHaveProperty('sessionId')
       expect(writes).toHaveBeenCalledTimes(2)
     } finally { unsubscribe() }
   })
@@ -128,16 +128,16 @@ describe('own shared-unlock session publication', () => {
     let exposedKey: Uint8Array | null = null
     let reacted = false
     const unsubscribe = useAuthStore.subscribe(state => {
-      if (reacted || state.refreshToken !== received.refreshToken || !state.masterKey) return
+      if (reacted || state.sessionId !== received.sessionId || !state.masterKey) return
       reacted = true
       exposedKey = state.masterKey
-      state.setTokens({ ...received, refreshToken: 'rotated-during-notification' })
+      state.setTokens({ ...received, sessionId: 'rotated-during-notification' })
       throw new Error('observer failed after rotation')
     })
     try {
       expect(() => useAuthStore.getState().installSharedUnlock(pending())).toThrow('observer failed after rotation')
       expect(exposedKey).toEqual(new Uint8Array(32))
-      expect(useAuthStore.getState()).toMatchObject({ refreshToken: 'rotated-during-notification',
+      expect(useAuthStore.getState()).toMatchObject({ sessionId: 'rotated-during-notification',
         masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true })
     } finally { unsubscribe() }
   })
@@ -148,11 +148,11 @@ describe('own shared-unlock session publication', () => {
       let reacted = false
       let exposedKey: Uint8Array | null = null
       const unsubscribe = useAuthStore.subscribe(state => {
-        if (reacted || state.refreshToken !== received.refreshToken) return
+        if (reacted || state.sessionId !== received.sessionId) return
         reacted = true; exposedKey = state.masterKey
         if (action === 'other-login') {
           state.logout()
-          useAuthStore.getState().setTokens({ ...prior, userId: 'account-b', refreshToken: 'other-own-refresh' })
+          useAuthStore.getState().setTokens({ ...prior, userId: 'account-b', sessionId: 'other-own-refresh' })
         } else state[action]()
       })
       try {
@@ -160,7 +160,7 @@ describe('own shared-unlock session publication', () => {
         expect(exposedKey).toEqual(new Uint8Array(32))
         const current = useAuthStore.getState()
         expect(current).toMatchObject({ isVaultLocked: true, masterKey: null, privateKey: null })
-        expect(current.refreshToken).toBe(action === 'logout' ? null : action === 'other-login' ? 'other-own-refresh' : prior.refreshToken)
+        expect(current.sessionId).toBe(action === 'logout' ? null : action === 'other-login' ? 'other-own-refresh' : prior.sessionId)
         if (action === 'expireSession') expect(current.accessToken).toBeNull()
       } finally { unsubscribe() }
     })

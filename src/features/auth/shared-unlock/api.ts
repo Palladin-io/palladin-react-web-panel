@@ -1,10 +1,11 @@
+import { browserSessionHeaders, withBrowserSessionLock } from '../../../shared/api/browser-session-transport'
 import type { SharedUnlockSessionState } from './api-types'
 import type { SharedUnlockActivationInput, SharedUnlockLink, SharedUnlockActivityInput, SharedUnlockAuthorization, SharedUnlockCommit, SharedUnlockManualInput, SharedUnlockOperation, SharedUnlockOperationInput, SharedUnlockPreference } from './api-types'
 
 export interface SharedUnlockOwnSession {
   readonly apiUrl: string
   readonly accessToken: string
-  readonly refreshToken: string
+  readonly sessionId: string
   readonly userId: string
 }
 
@@ -43,8 +44,8 @@ export class SharedUnlockApi {
     return this.request(session.apiUrl, '/api/account/shared-unlock/links', { linkId, expectedPreferenceRevision: preferenceRevision }, signal, session)
   }
   readSessionState(session: SharedUnlockOwnSession, linkId: string, signal: AbortSignal): Promise<SharedUnlockSessionState> {
-    return this.request(session.apiUrl, '/api/account/shared-unlock/session-state',
-      { linkId, refreshToken: session.refreshToken }, signal, session)
+    return this.request(session.apiUrl, '/api/browser/account/shared-unlock/session-state',
+      { linkId, expectedSessionId: session.sessionId }, signal, session)
   }
 
   readLink(session: SharedUnlockOwnSession, linkId: string, signal: AbortSignal): Promise<SharedUnlockLink> {
@@ -63,40 +64,40 @@ export class SharedUnlockApi {
       { expectedRevision: revision }, signal, session)
   }
   activate(session: SharedUnlockOwnSession, linkId: string, input: SharedUnlockActivationInput, signal: AbortSignal): Promise<SharedUnlockLink> {
-    return this.request(session.apiUrl, `/api/account/shared-unlock/links/${encodeURIComponent(linkId)}/activate`, { ...input, refreshToken: session.refreshToken }, signal, session)
+    return this.request(session.apiUrl, `/api/browser/account/shared-unlock/links/${encodeURIComponent(linkId)}/activate`, { ...input, expectedSessionId: session.sessionId }, signal, session)
   }
   recordActivity(session: SharedUnlockOwnSession, input: SharedUnlockActivityInput, signal: AbortSignal): Promise<SharedUnlockAuthorization> {
-    return this.request(session.apiUrl, '/api/account/shared-unlock/authorizations/activity', { ...input, refreshToken: session.refreshToken }, signal, session)
+    return this.request(session.apiUrl, '/api/browser/account/shared-unlock/authorizations/activity', { ...input, expectedSessionId: session.sessionId }, signal, session)
   }
 
   authorize(session: SharedUnlockOwnSession, input: SharedUnlockManualInput, signal: AbortSignal): Promise<SharedUnlockAuthorization> {
-    return this.request(session.apiUrl, '/api/account/shared-unlock/authorizations', { ...input, refreshToken: session.refreshToken }, signal, session)
+    return this.request(session.apiUrl, '/api/browser/account/shared-unlock/authorizations', { ...input, expectedSessionId: session.sessionId }, signal, session)
   }
 
   createOperation(session: SharedUnlockOwnSession, input: SharedUnlockOperationInput, signal: AbortSignal): Promise<SharedUnlockOperation> {
-    return this.request(session.apiUrl, '/api/account/shared-unlock/operations',
-      { ...input, refreshToken: session.refreshToken }, signal, session)
+    return this.request(session.apiUrl, '/api/browser/account/shared-unlock/operations',
+      { ...input, expectedSessionId: session.sessionId }, signal, session)
   }
 
   consume(apiUrl: string, operationId: string, signature: string, signal: AbortSignal): Promise<SharedUnlockOperation> {
     return this.request(apiUrl, `/api/auth/shared-unlock/operations/${encodeURIComponent(operationId)}/consume`, { signature }, signal)
   }
 
-  commit(apiUrl: string, operationId: string, signature: string, signal: AbortSignal, onIssued?: (commit: SharedUnlockCommit) => void): Promise<SharedUnlockCommit> {
-    return this.request(apiUrl, `/api/auth/shared-unlock/operations/${encodeURIComponent(operationId)}/commit`, { signature }, signal, undefined, onIssued)
+  commit(apiUrl: string, operationId: string, signature: string, signal: AbortSignal, onIssued?: (commit: SharedUnlockCommit) => void, expectedSessionId: string | null = null): Promise<SharedUnlockCommit> {
+    return this.request(apiUrl, `/api/browser/auth/shared-unlock/operations/${encodeURIComponent(operationId)}/commit`, { signature, expectedSessionId }, signal, undefined, onIssued)
   }
 
   /** Cleanup only: captured original Identity origin, never current client logout. */
-  async revokeIssuedSession(apiUrl: string, issuedSession: Pick<SharedUnlockCommit['session'], 'accessToken' | 'refreshToken'>): Promise<void> {
-    const { accessToken, refreshToken } = issuedSession
+  async revokeIssuedSession(apiUrl: string, issuedSession: Pick<SharedUnlockCommit['session'], 'accessToken'>): Promise<void> {
+    const { accessToken } = issuedSession
     const abort = new AbortController()
     let finishTimeout!: () => void
     const elapsed = new Promise<void>(resolve => { finishTimeout = resolve })
     const timeout = setTimeout(() => { abort.abort(); finishTimeout() }, 2000)
     try {
-      await Promise.race([this.doFetch(`${apiUrl.replace(/\/$/, '')}/api/auth/logout`, {
-        method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ refreshToken }), signal: abort.signal,
+      await Promise.race([this.doFetch(`${apiUrl.replace(/\/$/, '')}/api/browser/auth/discard`, {
+        method: 'POST', headers: { ...browserSessionHeaders, 'content-type': 'application/json', authorization: `Bearer ${accessToken}` },
+        signal: abort.signal,
         redirect: 'error', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer',
       }), elapsed])
     } catch { /* best-effort revocation; local key cleanup is unconditional */ }
@@ -108,15 +109,19 @@ export class SharedUnlockApi {
       if (signal.aborted || apiUrl !== this.currentApiUrl()) throw new SharedUnlockApiError('cancelled')
     }
     check()
+    const execute = async () => {
+    check()
     try {
       // No generic 401 refresh/retry: a password proof belongs to this exact own session.
       const response = await this.doFetch(`${apiUrl.replace(/\/$/, '')}${path}`, {
         method,
         headers: { accept: 'application/json',
+          ...(path.startsWith('/api/browser/') ? browserSessionHeaders : {}),
           ...(session ? { authorization: `Bearer ${session.accessToken}` } : {}),
           ...(body ? { 'content-type': 'application/json' } : {}) },
         ...(body ? { body: JSON.stringify(body) } : {}),
-        signal, redirect: 'error', cache: 'no-store', credentials: 'omit', referrerPolicy: 'no-referrer',
+        signal: onIssued ? undefined : signal, redirect: 'error', cache: 'no-store',
+        credentials: path.startsWith('/api/browser/') ? 'include' : 'omit', referrerPolicy: 'no-referrer',
       })
       // If commit returned a usable body after cancellation, its newly issued
       // own session must still reach the cleanup observer before rejection.
@@ -134,5 +139,7 @@ export class SharedUnlockApi {
       if (error instanceof SharedUnlockApiError) throw error
       throw new SharedUnlockApiError('network')
     }
+    }
+    return path.endsWith('/commit') ? withBrowserSessionLock(apiUrl, execute) : execute()
   }
 }

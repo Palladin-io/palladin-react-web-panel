@@ -11,6 +11,7 @@ import { decryptWithKey, wipe } from '../../../shared/crypto/sodium'
 import { getAccount, type AccountResponse } from '../../../shared/api/account-api'
 import type { AuthResponse } from '../../../shared/api/types'
 import {
+  revokeUninstalledLoginSession,
   fetchLoginKdf,
   isTotpRequired,
   passwordLogin,
@@ -157,6 +158,8 @@ export function usePasswordLogin() {
 
   const start = useMutation({
     mutationFn: async ({ email, password, attempt, cleanup }: PasswordStart): Promise<LoginStartResult> => {
+      let issued: AuthResponse | undefined
+      let installed = false
       let kdfSalt: Uint8Array | undefined
       let identity: Awaited<ReturnType<typeof deriveIdentityV1>> | undefined
       try {
@@ -174,6 +177,7 @@ export function usePasswordLogin() {
           kdfProfileId: IDENTITY_KDF_PROFILE_ID,
           authCredential: encodeBase64Url(identity.authCredential),
         })
+        if (!isTotpRequired(response)) issued = response
         attempt.assertCurrent()
         if (isTotpRequired(response)) {
           pendingV2.current = {
@@ -186,11 +190,13 @@ export function usePasswordLogin() {
           return { kind: 'totp', challengeToken: response.challengeToken }
         }
         await unlockWithMasterKey(response, identity.masterKey, identity.authCredential, attempt, bootstrap)
+        installed = true
         return { kind: 'done' }
       } finally {
         if (kdfSalt) wipe(kdfSalt)
         if (identity) { wipe(identity.authCredential); wipe(identity.masterKey) }
         if (pendingV2.current?.attempt !== attempt) finish(attempt)
+        if (issued && !installed) await revokeUninstalledLoginSession(issued.accessToken)
       }
     },
   })
@@ -201,11 +207,16 @@ export function usePasswordLogin() {
       if (!pending || pending.challengeToken !== challengeToken) throw new Error('Missing pending login state')
       pending.attempt.assertCurrent()
       const response = await totpLogin({ challengeToken, code: code.trim() })
-      if (pending !== pendingV2.current) throw new Error('Expired pending login state')
-      pending.attempt.assertCurrent()
+      let installed = false
       try {
+        if (pending !== pendingV2.current) throw new Error('Expired pending login state')
+        pending.attempt.assertCurrent()
         await unlockWithMasterKey(response, pending.masterKey, pending.authCredential, pending.attempt, pending.bootstrap)
-      } finally { finish(pending.attempt) }
+        installed = true
+      } finally {
+        finish(pending.attempt)
+        if (!installed) await revokeUninstalledLoginSession(response.accessToken)
+      }
     },
   })
 

@@ -33,6 +33,9 @@ function renderStartupError(missingKeys: readonly string[] = []) {
 }
 
 async function startApplication(applicationRoot: Root): Promise<void> {
+  const { bootstrapBrowserSession, installBrowserSessionLifecycle } = await import('./features/auth/session/browser-session')
+  await bootstrapBrowserSession()
+  installBrowserSessionLifecycle()
   const [{ default: App }, { analytics }] = await Promise.all([
     import('./App.tsx'),
     import('./shared/lib/analytics.ts'),

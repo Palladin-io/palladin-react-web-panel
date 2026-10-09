@@ -90,7 +90,7 @@ describe('whole Google popup attempt', () => {
     await act(async () => { result.current.start() })
     act(() => {
       beginManualUnlockAttempt()
-      useAuthStore.getState().setTokens({ accessToken: 'synthetic-a', refreshToken: 'synthetic-r',
+      useAuthStore.getState().setTokens({ accessToken: 'synthetic-a', sessionId: 'synthetic-r',
         userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
       useAuthStore.getState().unlockVault(new Uint8Array(32).fill(1), new Uint8Array(32).fill(2))
       success()

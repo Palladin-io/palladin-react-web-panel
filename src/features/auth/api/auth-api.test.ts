@@ -49,7 +49,7 @@ describe('auth API rate limiting', () => {
   it.each([false, true])('keeps a rejected TOTP challenge retryable with existing session=%s', async (existingSession) => {
     useAuthStore.setState({
       accessToken: existingSession ? 'synthetic-access' : null,
-      refreshToken: existingSession ? 'synthetic-refresh' : null,
+      sessionId: existingSession ? 'synthetic-refresh' : null,
     })
     const generation = captureClientSessionGeneration()
     const location = window.location.href
@@ -62,37 +62,37 @@ describe('auth API rate limiting', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(captureClientSessionGeneration()).toBe(generation)
     expect(window.location.href).toBe(location)
-    expect(useAuthStore.getState().refreshToken).toBe(existingSession ? 'synthetic-refresh' : null)
+    expect(useAuthStore.getState().sessionId).toBe(existingSession ? 'synthetic-refresh' : null)
     const request = fetchMock.mock.calls[0][0] as Request
     expect(request.headers.has('Authorization')).toBe(false)
-    expect(request.credentials).toBe('omit')
+    expect(request.credentials).toBe('include')
     expect(request.redirect).toBe('error')
   })
 })
 
 
 it.each([204, 401, 500])('revokes only the unused OAuth response without touching the live client on HTTP %s', async status => {
-  useAuthStore.getState().setTokens({ accessToken: 'synthetic-current-access', refreshToken: 'synthetic-current-refresh',
+  useAuthStore.getState().setTokens({ accessToken: 'synthetic-current-access', sessionId: 'synthetic-current-refresh',
     userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
   useAuthStore.getState().unlockVault(new Uint8Array(32).fill(1), new Uint8Array(32).fill(2))
   const current = useAuthStore.getState(), generation = captureClientSessionGeneration()
   let sentBody: unknown
   const fetchMock = vi.fn<typeof fetch>(async request => {
-    sentBody = await (request as Request).clone().json()
+    sentBody = await (request as Request).clone().text()
     return new Response(null, { status })
   })
   vi.stubGlobal('fetch', fetchMock)
   try {
-    await revokeUninstalledLoginSession('synthetic-unused-refresh')
+    await revokeUninstalledLoginSession('synthetic-unused-access')
     expect(fetchMock).toHaveBeenCalledOnce()
     const request = fetchMock.mock.calls[0][0] as Request
-    expect(new URL(request.url).pathname).toBe('/api/auth/logout')
-    expect(sentBody).toEqual({ refreshToken: 'synthetic-unused-refresh' })
-    expect(request.headers.has('Authorization')).toBe(false)
+    expect(new URL(request.url).pathname).toBe('/api/browser/auth/discard')
+    expect(sentBody).toBe('')
+    expect(request.headers.get('Authorization')).toBe('Bearer synthetic-unused-access')
     expect(request.credentials).toBe('omit')
     expect(request.redirect).toBe('error')
     expect(captureClientSessionGeneration()).toBe(generation)
-    expect(useAuthStore.getState().refreshToken).toBe(current.refreshToken)
+    expect(useAuthStore.getState().sessionId).toBe(current.sessionId)
     expect(useAuthStore.getState().masterKey).toBe(current.masterKey)
     expect(useAuthStore.getState().isVaultLocked).toBe(false)
   } finally { vi.unstubAllGlobals(); useAuthStore.getState().logout() }

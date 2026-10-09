@@ -29,7 +29,7 @@ export function useLogin(redirectTo = '/') {
         void navigate({ href: redirectTo })
         return issued
       } finally {
-        if (issued && !installed) void revokeUninstalledLoginSession(issued.refreshToken)
+        if (issued && !installed) void revokeUninstalledLoginSession(issued.accessToken)
         attempt.finish()
       }
     },

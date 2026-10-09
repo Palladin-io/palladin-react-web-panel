@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../stores/auth-store'
 import { sharedUnlockExpiry } from './expiry-runtime'
 import { adoptSharedUnlockSource, getSharedUnlockSourceSnapshot, recordOwnSharedUnlockActivity } from './manual-source'
-import fixtures from './fixtures/session-api-v1.json'
+import fixtures from './fixtures/browser-session-api'
 vi.mock('../../../shared/lib/env', () => ({ env: { apiUrl: 'https://api.example.test', sharedUnlockExtensionId: '' } }))
 const apiUrl = 'https://api.example.test'
 afterEach(() => { useAuthStore.getState().logout(); localStorage.clear(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
@@ -11,7 +11,7 @@ it('connects actual Web activity to its own Identity root without replacing keys
   vi.spyOn(Date, 'now').mockImplementation(() => now)
   vi.stubGlobal('navigator', { locks: { request: async (_name: string, action: () => Promise<unknown>) => action() } })
   const root = { ...fixtures.operations[0].sourceAuthorization, idleDeadlineMs: now + 1000, absoluteDeadlineMs: now + 10000, offlineDeadlineMs: now + 8000 }
-  useAuthStore.setState({ userId: root.accountId, accessToken: 'own-access', refreshToken: 'own-refresh' })
+  useAuthStore.setState({ userId: root.accountId, accessToken: 'own-access', sessionId: 'own-refresh' })
   useAuthStore.getState().unlockVault(new Uint8Array(32).fill(3), new Uint8Array(32).fill(4), root)
   const initial = useAuthStore.getState()
   adoptSharedUnlockSource(root, 'A'.repeat(43), { sharedUnlockEnabled: true, revision: 1 }, () => {
@@ -19,9 +19,9 @@ it('connects actual Web activity to its own Identity root without replacing keys
   })
   await sharedUnlockExpiry.checkpoint({ apiUrl, accountId: root.accountId }, root.sequence, root.idleDeadlineMs, root.offlineDeadlineMs)
   const fetcher = vi.fn<typeof fetch>(async (url, init) => {
-    expect(String(url)).toBe(apiUrl + '/api/account/shared-unlock/authorizations/activity')
+    expect(String(url)).toBe(apiUrl + '/api/browser/account/shared-unlock/authorizations/activity')
     expect(new Headers(init?.headers).get('authorization')).toBe('Bearer own-access')
-    const input = JSON.parse(String(init?.body)); expect(input.refreshToken).toBe('own-refresh')
+    const input = JSON.parse(String(init?.body)); expect(input.expectedSessionId).toBe('own-refresh')
     return new Response(JSON.stringify({ ...root, idleDeadlineMs: input.idleDeadlineMs }))
   })
   vi.stubGlobal('fetch', fetcher)
@@ -41,7 +41,7 @@ it('does not apply a delayed activity reply after the real Web session is locked
   vi.spyOn(Date, 'now').mockImplementation(() => now)
   vi.stubGlobal('navigator', { locks: { request: async (_name: string, action: () => Promise<unknown>) => action() } })
   const root = { ...fixtures.operations[0].sourceAuthorization, unlockedAtMs: now, idleDeadlineMs: now + 1000, absoluteDeadlineMs: now + 10000, offlineDeadlineMs: now + 8000 }
-  useAuthStore.setState({ userId: root.accountId, accessToken: 'own-access', refreshToken: 'own-refresh' })
+  useAuthStore.setState({ userId: root.accountId, accessToken: 'own-access', sessionId: 'own-refresh' })
   useAuthStore.getState().unlockVault(new Uint8Array(32).fill(3), new Uint8Array(32).fill(4), root)
   const initial = useAuthStore.getState()
   adoptSharedUnlockSource(root, 'C'.repeat(43), { sharedUnlockEnabled: true, revision: 1 }, () => {

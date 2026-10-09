@@ -4,7 +4,7 @@ import type { SharedUnlockExpiryStore } from "./expiry-store";
 import type { SharedUnlockSourceAuthority } from "./source-authority";
 
 export interface OwnSharedUnlockActivity {
-  readonly session: { apiUrl: string; userId: string; accessToken: string; refreshToken: string };
+  readonly session: { apiUrl: string; userId: string; accessToken: string; sessionId: string };
   readonly authority: ReturnType<SharedUnlockSourceAuthority["captureActivity"]>;
   readonly idleDeadlineMs: number;
   readonly signal: AbortSignal;

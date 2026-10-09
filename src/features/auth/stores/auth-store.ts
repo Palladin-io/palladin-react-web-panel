@@ -1,3 +1,4 @@
+import { publishBrowserSessionNotice } from '../session/browser-session-notice'
 import { sharedUnlockExpiry } from '../shared-unlock/expiry-runtime'
 import { env } from '../../../shared/lib/env'
 import type { AuthResponse } from '../../../shared/api/types'
@@ -10,8 +11,9 @@ import { wipe } from '../../../shared/crypto/sodium'
 import { isWaitlistDeveloperBenefitActive } from '../lib/waitlist-developer-benefit'
 
 interface AuthState {
+  sessionRevalidating: boolean
   accessToken: string | null
-  refreshToken: string | null
+  sessionId: string | null
   userId: string | null
   isOnboarded: boolean
   /**
@@ -43,10 +45,10 @@ interface AuthState {
   unlockLimits: SessionUnlockLimits | null
   recordActivity: (at: number) => void
 
-  setTokens: (data: AuthResponse & { permissions?: number }) => void
+  setTokens: (data: AuthResponse & { permissions?: number }, restored?: boolean) => void
   /** Own Identity response + independently verified keys; one synchronous publication. */
   installSharedUnlock: (input: {
-    expected: { userId: string | null; accessToken: string | null; refreshToken: string | null; cryptoSessionGeneration: number }
+    expected: { userId: string | null; accessToken: string | null; sessionId: string | null; cryptoSessionGeneration: number }
     accountId: string
     session: AuthResponse
     keys: SharedUnlockKeys
@@ -72,8 +74,9 @@ interface AuthState {
 }
 
 const initialState = {
+  sessionRevalidating: false,
   accessToken: null,
-  refreshToken: null,
+  sessionId: null,
   userId: null,
   isOnboarded: false,
   emailVerified: false,
@@ -92,7 +95,13 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       ...initialState,
 
-      setTokens: (data) => set((state) => tokenState(state, data)),
+      setTokens: (data, restored = false) => {
+        const previousSession = get().sessionId
+        set((state) => tokenState(state, data))
+        if (!restored && previousSession !== data.sessionId && get().sessionId === data.sessionId) {
+          publishBrowserSessionNotice('replace', data.sessionId)
+        }
+      },
 
       installSharedUnlock: ({ expected, accountId, session, keys, limits }) => {
         const previous = get()
@@ -105,7 +114,7 @@ export const useAuthStore = create<AuthState>()(
             if (!state.isVaultLocked || state.masterKey || state.privateKey
               || state.cryptoSessionGeneration !== expected.cryptoSessionGeneration
               || state.userId !== expected.userId || state.accessToken !== expected.accessToken
-              || state.refreshToken !== expected.refreshToken
+              || state.sessionId !== expected.sessionId
               || (state.userId !== null && state.userId !== accountId)
               || session.userId !== accountId) throw new Error('Shared unlock installation cancelled')
             const inherited = unlockLimits(Date.now(), limits)
@@ -120,6 +129,7 @@ export const useAuthStore = create<AuthState>()(
           if (current.cryptoSessionGeneration !== installedGeneration || current.isVaultLocked) {
             throw new Error('Shared unlock installation cancelled')
           }
+          publishBrowserSessionNotice('shared', session.sessionId)
           return installedGeneration!
         } catch (error) {
           if (owned) {
@@ -130,7 +140,7 @@ export const useAuthStore = create<AuthState>()(
             // Persistence or a synchronous subscriber can fail after set() has
             // published. Roll back only this new lineage; never undo logout or
             // overwrite another login/unlock. An intervening expiry stays expired.
-            if (current.userId === session.userId && current.refreshToken === session.refreshToken
+            if (current.userId === session.userId && current.sessionId === session.sessionId
               && (current.cryptoSessionGeneration === installedGeneration || current.isVaultLocked)) {
               try {
                 set({ ...previous, accessToken: current.accessToken === null ? null : previous.accessToken,
@@ -221,18 +231,14 @@ export const useAuthStore = create<AuthState>()(
         const saved = typeof persisted === 'object' && persisted !== null ? persisted as Partial<AuthState> : {}
         return {
           ...current,
-          refreshToken: typeof saved.refreshToken === 'string' ? saved.refreshToken : null,
           userId: typeof saved.userId === 'string' ? saved.userId : null,
           isOnboarded: saved.isOnboarded === true,
           emailVerified: saved.emailVerified === true,
           permissions: typeof saved.permissions === 'number' ? saved.permissions : 0,
         }
       },
-      // accessToken and crypto keys are in-memory only; only the refresh token
-      // (which alone can't decrypt any vault content) is persisted, pending a
-      // backend-coordinated move to an httpOnly cookie. See docs/architecture/security.md.
+      // Only non-secret presentation hints persist; session authority stays in memory.
       partialize: (state) => ({
-        refreshToken: state.refreshToken,
         userId: state.userId,
         isOnboarded: state.isOnboarded,
         emailVerified: state.emailVerified,
@@ -258,9 +264,9 @@ function activeBenefitPeriod(
 }
 
 export function getIsAuthenticated() {
-  // A persisted refresh token counts as authenticated — accessToken is null after a reload.
-  const { accessToken, refreshToken } = useAuthStore.getState()
-  return accessToken !== null || refreshToken !== null
+  // Memory state is populated only by a successful browser-session bootstrap.
+  const { accessToken, sessionId } = useAuthStore.getState()
+  return accessToken !== null || sessionId !== null
 }
 
 function tokenState(state: AuthState, data: AuthResponse & { permissions?: number }) {
@@ -278,7 +284,7 @@ function tokenState(state: AuthState, data: AuthResponse & { permissions?: numbe
   // refresh claim must not resurrect the banner for a verified user.
   const claimVerified = jwtPayload['email_verified']
   const emailVerified =
-    state.emailVerified ||
+    (state.userId === data.userId && state.emailVerified) ||
     claimVerified === true ||
     data.emailVerified === true
 
@@ -298,13 +304,13 @@ function tokenState(state: AuthState, data: AuthResponse & { permissions?: numbe
 
   return {
     accessToken: data.accessToken,
-    refreshToken: data.refreshToken,
+    sessionId: data.sessionId,
     userId: data.userId,
     // Never regress isOnboarded from true to false. The JWT claim can
     // return false during a token refresh (backend omission or stale
     // claim), which would break the lock-redirect logic and cause the
     // wizard to appear for already-onboarded users.
-    isOnboarded: state.isOnboarded || data.isOnboarded,
+    isOnboarded: (sameUser && state.isOnboarded) || data.isOnboarded,
     emailVerified,
     waitlistDeveloperBenefitStartedAt: benefit.startedAt,
     waitlistDeveloperBenefitEndsAt: benefit.endsAt,

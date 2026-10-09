@@ -5,7 +5,7 @@ import { SharedUnlockLinkStore } from "./link-store";
 import type { SharedUnlockLink } from "./api-types";
 
 const scope = { accountId: "11111111-1111-4111-8111-111111111111", apiUrl: "https://api.test", webOrigin: "https://web.test", extensionId: "a".repeat(32) };
-const session = { userId: scope.accountId, apiUrl: scope.apiUrl, accessToken: "own-access", refreshToken: "own-refresh" };
+const session = { userId: scope.accountId, apiUrl: scope.apiUrl, accessToken: "own-access", sessionId: "own-refresh" };
 const linkId = "22222222-2222-4222-8222-222222222222";
 const initial: SharedUnlockLink = { linkId, revision: 7, epoch: 4, state: "active", lastInvalidationSequence: 2, lastLogoutSequence: 0 };
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
