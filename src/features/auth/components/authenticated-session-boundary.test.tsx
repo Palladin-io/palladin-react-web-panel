@@ -81,8 +81,12 @@ it.each(['idleDeadlineMs', 'absoluteDeadlineMs', 'offlineDeadlineMs'] as const)(
     expect(useAuthStore.getState().sessionRevalidating).toBe(true)
     act(() => { vi.advanceTimersByTime(1234) })
     const expired = useAuthStore.getState()
+    const expiredDisplay = document.body.style.display
+    const expiredInert = document.body.inert
     resolve({ accessToken: 'late-access', sessionId: 'own-refresh', userId: 'own-account', isOnboarded: true })
     await act(async () => { await pending })
+    expect(expiredDisplay).not.toBe('none')
+    expect(expiredInert).not.toBe(true)
     expect(expired).toMatchObject({ masterKey: null, privateKey: null, accessToken: null, isVaultLocked: true })
     expect([...masterKey!, ...privateKey!]).toEqual([0, 0])
     expect(screen.queryByText('protected draft')).not.toBeInTheDocument()

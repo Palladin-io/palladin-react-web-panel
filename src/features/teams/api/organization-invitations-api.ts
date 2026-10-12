@@ -1,3 +1,6 @@
+import { HTTPError } from 'ky'
+import { refreshBrowserSession } from '../../auth/session/browser-session'
+import { captureClientSessionGeneration, clientSessionGenerationMatches } from '../../auth/session/client-session'
 import { browserSessionPost } from '../../../shared/api/browser-session-transport'
 import { useAuthStore } from '../../auth/stores/auth-store'
 import { api } from '../../../shared/api/client'
@@ -39,10 +42,20 @@ export async function inviteOrganizationMember(input: {
 }
 
 export async function acceptOrganizationInvitation(token: string): Promise<AuthResponse> {
-  return browserSessionPost('organization/invitations/accept', {
+  const generation = captureClientSessionGeneration()
+  const { sessionId } = useAuthStore.getState()
+  const accept = () => browserSessionPost<AuthResponse>('organization/invitations/accept', {
     headers: { Authorization: `Bearer ${useAuthStore.getState().accessToken}` },
     json: { token },
   })
+  try { return await accept() }
+  catch (error) {
+    if (!(error instanceof HTTPError) || error.response.status !== 401 || !sessionId) throw error
+    const session = await refreshBrowserSession(sessionId)
+    if (!clientSessionGenerationMatches(generation) || useAuthStore.getState().sessionId !== sessionId) throw error
+    useAuthStore.getState().setTokens(session)
+    return accept()
+  }
 }
 
 export async function getOrganizationInvitations(): Promise<OrganizationInvitation[]> {

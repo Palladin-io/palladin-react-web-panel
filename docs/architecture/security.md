@@ -133,7 +133,9 @@ explicit login supersedes that denial. Refresh and receiver commit reject a
 cookie that differs from the caller's expected session.
 
 Each resumed tab revalidates; protected content and Shared Unlock publication are
-blocked during the check. Same-session refresh preserves original unlock limits.
+blocked during the check while keys remain unlocked. Expiry still wipes keys and
+reveals the Unlock surface even if the cookie request is stalled. Same-session
+refresh preserves original unlock limits.
 An account/org or ordinary session replacement wipes old keys and profile caches.
 A same-account, same-org Shared Unlock adoption preserves already-held keys and
 deadlines after authoritative refresh, while retiring the old sharing source.

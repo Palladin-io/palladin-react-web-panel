@@ -21,7 +21,7 @@ export function AuthenticatedSessionBoundary({ children }: { children: ReactNode
   }, [blocked, location.pathname, location.href, navigate, authenticated])
 
   useLayoutEffect(() => {
-    if (!checking) return
+    if (!checking || locked || !authenticated) return
     // Portals render outside this subtree. Hide the whole document without
     // unmounting drafts or the key-expiry owner during an authoritative read.
     const body = document.body
@@ -30,7 +30,7 @@ export function AuthenticatedSessionBoundary({ children }: { children: ReactNode
     body.style.display = 'none'
     body.inert = true
     return () => { body.style.display = display; body.inert = inert }
-  }, [checking])
+  }, [checking, locked, authenticated])
 
   // Actual lock/logout still destroys plaintext-bearing component state.
   return blocked ? null : children

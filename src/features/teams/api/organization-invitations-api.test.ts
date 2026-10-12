@@ -1,3 +1,6 @@
+import { HTTPError } from 'ky'
+import { useAuthStore } from '../../auth/stores/auth-store'
+import { clearClientSession } from '../../auth/session/client-session'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const browserPost = vi.hoisted(() => vi.fn())
@@ -18,12 +21,14 @@ import {
   resendOrganizationInvitation,
 } from './organization-invitations-api'
 
-describe('organization invitation contract', () => {
-  beforeEach(() => {
-    postFn.mockClear()
-    postJson.mockReset()
-  })
+beforeEach(() => {
+  browserPost.mockReset()
+  useAuthStore.setState({ accessToken: 'expired-access', sessionId: 'own-session' })
+  postFn.mockClear()
+  postJson.mockReset()
+})
 
+describe('organization invitation contract', () => {
   it('parses pending invitation metadata without exposing its token', async () => {
     postJson.mockResolvedValue({ items: [{
       id: 'invitation-1',
@@ -101,4 +106,44 @@ describe('organization invitation contract', () => {
       expect.objectContaining({ json: { token: 'opaque-invitation-token' } }),
     )
   })
+})
+
+function rejected(status: number) {
+  return new HTTPError(new Response('{}', { status }), new Request('https://api.example.test'), {} as never)
+}
+
+it('refreshes an expired bearer once before retrying invitation acceptance', async () => {
+  const renewed = { accessToken: 'renewed-access', sessionId: 'own-session' }
+  const joined = { accessToken: 'joined-access', sessionId: 'joined-session' }
+  browserPost.mockRejectedValueOnce(rejected(401)).mockResolvedValueOnce(renewed).mockResolvedValueOnce(joined)
+  await expect(acceptOrganizationInvitation('invitation')).resolves.toEqual(joined)
+  expect(browserPost.mock.calls.map(call => call[0])).toEqual([
+    'organization/invitations/accept', 'auth/refresh', 'organization/invitations/accept',
+  ])
+  expect(browserPost.mock.calls[1]![1]).toEqual({ json: { expectedSessionId: 'own-session' } })
+  expect(browserPost.mock.calls[2]![1].headers.Authorization).toBe('Bearer renewed-access')
+})
+
+it.each([403, 409, 503])('does not retry invitation failure %s', async status => {
+  browserPost.mockRejectedValueOnce(rejected(status))
+  await expect(acceptOrganizationInvitation('invitation')).rejects.toThrow()
+  expect(browserPost).toHaveBeenCalledOnce()
+})
+
+it('does not repeat an invitation after logout while refreshing its bearer', async () => {
+  browserPost.mockRejectedValueOnce(rejected(401)).mockImplementationOnce(async () => {
+    await clearClientSession()
+    return { accessToken: 'late-access', sessionId: 'own-session' }
+  })
+  await expect(acceptOrganizationInvitation('invitation')).rejects.toThrow()
+  expect(browserPost).toHaveBeenCalledTimes(2)
+  expect(useAuthStore.getState().accessToken).toBeNull()
+})
+
+it('stops after one unauthorized invitation retry', async () => {
+  browserPost.mockRejectedValueOnce(rejected(401))
+    .mockResolvedValueOnce({ accessToken: 'renewed-access', sessionId: 'own-session' })
+    .mockRejectedValueOnce(rejected(401))
+  await expect(acceptOrganizationInvitation('invitation')).rejects.toThrow()
+  expect(browserPost).toHaveBeenCalledTimes(3)
 })
