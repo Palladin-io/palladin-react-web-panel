@@ -56,8 +56,10 @@ async function startApplication(applicationRoot: Root): Promise<void> {
 if (!sharingIngressReady || missingEnvironmentKeys.length > 0) {
   renderStartupError(missingEnvironmentKeys)
 } else {
+  // Keep a hung cookie write alive, but bound the blank startup presentation.
+  const startupTimeout = window.setTimeout(() => renderStartupError(), 10_000)
   void startApplication(root).catch(() => {
     console.error('Palladin application bootstrap failed')
     renderStartupError()
-  })
+  }).finally(() => window.clearTimeout(startupTimeout))
 }

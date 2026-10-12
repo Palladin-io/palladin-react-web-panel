@@ -66,9 +66,8 @@ describe('LoginPage', () => {
     act(() => {
       useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', sessionId: 'synthetic-refresh',
         userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
+      useAuthStore.getState().unlockVault(new Uint8Array(32), new Uint8Array(32))
     })
-    expect(navigateMock).not.toHaveBeenCalled()
-    act(() => { useAuthStore.getState().unlockVault(new Uint8Array(32), new Uint8Array(32)) })
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ href: '/vaults?intent=import#selected', replace: true }))
     expect(navigateMock).toHaveBeenCalledOnce()
   })
@@ -87,13 +86,21 @@ describe('LoginPage', () => {
     expect(navigateMock).toHaveBeenCalledExactlyOnceWith({ href: '/vaults', replace: true })
   })
 
-  it('does not redirect a token-only locked session', () => {
+  it('redirects an asynchronously restored locked session through Unlock', () => {
     render(<LoginPage redirectTo="/vaults" />)
     act(() => {
       useAuthStore.getState().setTokens({ accessToken: 'synthetic-access', sessionId: 'synthetic-refresh',
         userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true })
     })
+    expect(navigateMock).toHaveBeenCalledExactlyOnceWith({ to: '/unlock', search: { redirect: '/vaults' }, replace: true })
+  })
+
+  it('waits for authoritative revalidation before redirecting a restored session', () => {
+    render(<LoginPage redirectTo="/vaults" />)
+    act(() => { useAuthStore.setState({ sessionRevalidating: true, sessionId: 'restored-session', accessToken: 'restored-access' }) })
     expect(navigateMock).not.toHaveBeenCalled()
+    act(() => { useAuthStore.setState({ sessionRevalidating: false }) })
+    expect(navigateMock).toHaveBeenCalledExactlyOnceWith({ to: '/unlock', search: { redirect: '/vaults' }, replace: true })
   })
 
   it('preserves only the clean sharing return when switching to registration', () => {

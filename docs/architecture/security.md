@@ -123,6 +123,11 @@ refresh token may be exchanged once through `auth/migrate`, which forces rotatio
 and revokes the old value. An existing cookie wins with 409 followed by refresh;
 failed migration never restores the legacy credential. Access tokens, keys and
 unlock limits cannot hydrate from storage. A network outage keeps the vault locked.
+If startup restoration stalls, the existing startup error/reload surface appears
+after ten seconds without aborting the cookie operation. A later successful
+response may finish startup into a locked session. Guest login/register screens
+react to peer-restored sessions after revalidation and preserve the destination
+through Unlock; active manual authentication owns its navigation.
 
 Cookie writes serialize across same-origin tabs with Web Locks. Session changes
 are signalled using only a logical ID, kind and nonce in localStorage. These are
