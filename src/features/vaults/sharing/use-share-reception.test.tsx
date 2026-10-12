@@ -26,7 +26,7 @@ function capture() {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  useAuthStore.setState({ userId: null, accessToken: null, refreshToken: null, privateKey: null, isVaultLocked: true, cryptoSessionGeneration: 0 })
+  useAuthStore.setState({ userId: null, accessToken: null, sessionId: null, privateKey: null, isVaultLocked: true, cryptoSessionGeneration: 0 })
   capture()
   api.open.mockResolvedValue({ ...session, expiresAt: new Date(Date.now() + 900_000).toISOString() })
   api.otp.mockResolvedValue({ retryAfterSeconds: 0 })
@@ -225,7 +225,7 @@ describe('Guest Entry sharing reception', () => {
     await act(async () => {
       guardReceptionContinuation(`/login?redirect=${encodeURIComponent(`/share/${shareId}`)}`)
       duringManualLoginCleanup(() => useAuthStore.getState().logout())
-      useAuthStore.getState().setTokens({ userId: 'recipient', accessToken: 'test-access', refreshToken: 'test-refresh', isOnboarded: true })
+      useAuthStore.getState().setTokens({ userId: 'recipient', accessToken: 'test-access', sessionId: 'test-refresh', isOnboarded: true })
       useAuthStore.getState().unlockVault(new Uint8Array(32), new Uint8Array(32))
     })
     const returned = renderHook(() => useShareReception(shareId), strict
@@ -244,7 +244,7 @@ describe('Guest Entry sharing reception', () => {
     original.unmount()
     act(() => {
       guardReceptionContinuation(`/register?redirect=${encodeURIComponent(`/share/${shareId}`)}`)
-      useAuthStore.getState().setTokens({ userId: 'new-recipient', accessToken: 'test-access', refreshToken: 'test-refresh', isOnboarded: true })
+      useAuthStore.getState().setTokens({ userId: 'new-recipient', accessToken: 'test-access', sessionId: 'test-refresh', isOnboarded: true })
       useAuthStore.getState().unlockVault(new Uint8Array(32), new Uint8Array(32))
     })
     const returned = renderHook(() => useShareReception(shareId))

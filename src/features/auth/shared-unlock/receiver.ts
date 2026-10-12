@@ -19,7 +19,7 @@ export interface SharedUnlockReceiverRoute {
   readonly binding: Pick<SharedUnlockContext, 'accountId' | 'organizationId' | 'apiOrigin' | 'webOrigin'
     | 'extensionId' | 'documentBinding' | 'webGeneration' | 'extensionGeneration' | 'linkId' | 'linkEpoch' | 'preferenceRevision'>
   assertCurrent(): void
-  confirmLocalLink?(session: { apiUrl: string; userId: string; accessToken: string; refreshToken: string },
+  confirmLocalLink?(session: { apiUrl: string; userId: string; accessToken: string; sessionId: string },
     authorizationSequence: number, signal: AbortSignal, assertOwnCurrent: () => void): Promise<void>
   /** Adapter holds local denial locks until this synchronous callback returns. */
   publishWithLocalGuards(sequence: number, deadlineMs: number, hardDeadlineMs: number,
@@ -74,7 +74,7 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
       if (!current.isVaultLocked || current.masterKey || current.privateKey
         || current.cryptoSessionGeneration !== initial.cryptoSessionGeneration
         || current.userId !== initial.userId || current.accessToken !== initial.accessToken
-        || current.refreshToken !== initial.refreshToken
+        || current.sessionId !== initial.sessionId
         || (current.userId !== null && current.userId !== binding.accountId)) reject()
     } else if (current.cryptoSessionGeneration !== installedGeneration || current.isVaultLocked
       || current.userId !== binding.accountId || !current.unlockLimits
@@ -154,7 +154,7 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
         const commit = await wait(api.commit(apiUrl, consumed.context.operationId, receiver.commitProof(), abort.signal, response => {
           issued = response
           if (closed) void revoke().then(() => { if (issued === response) issued = null })
-        }))
+        }, initial.sessionId))
         assertCurrent()
         await receiver.verifyCommit(commit.context)
         assertBinding(commit.context)
@@ -163,7 +163,7 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
         const installedLimits = { ...effective, idleDeadlineMs: Math.min(effective.idleDeadlineMs, persistedDeadline ?? Infinity) }
         assertCurrent()
         await wait(route.confirmLocalLink?.({ apiUrl, userId: commit.session.userId, accessToken: commit.session.accessToken,
-          refreshToken: commit.session.refreshToken }, commit.authorizationSequence, abort.signal, assertCurrent) ?? Promise.resolve())
+          sessionId: commit.session.sessionId }, commit.authorizationSequence, abort.signal, assertCurrent) ?? Promise.resolve())
         assertCurrent()
         const receivedKeys = keys
         await wait(route.publishWithLocalGuards(commit.authorizationSequence, sessionDeadline(installedLimits),
@@ -222,7 +222,7 @@ export async function beginSharedUnlockReceiver(route: SharedUnlockReceiverRoute
               useAuthStore.setState(current => {
                 if (!clientSessionGenerationMatches(clientGeneration)
                   || (current.cryptoSessionGeneration !== installedGeneration && !current.isVaultLocked)
-                  || current.refreshToken !== ownIssued.session.refreshToken
+                  || current.sessionId !== ownIssued.session.sessionId
                   || current.userId !== binding.accountId) return current
                 if (current.masterKey) wipe(current.masterKey)
                 if (current.privateKey) wipe(current.privateKey)

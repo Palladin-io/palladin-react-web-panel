@@ -14,13 +14,13 @@ const api = new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl)
 
 function captureOwnSession(accountId: string | null, generation: number) {
   const own = useAuthStore.getState(), apiUrl = env.apiUrl, abort = new AbortController()
-  if (!accountId || own.userId !== accountId || !own.accessToken || !own.refreshToken
+  if (!accountId || own.userId !== accountId || !own.accessToken || !own.sessionId
     || own.cryptoSessionGeneration !== generation) throw new SharedUnlockApiError('unauthorized')
-  const session = { userId: accountId, apiUrl, accessToken: own.accessToken, refreshToken: own.refreshToken }
+  const session = { userId: accountId, apiUrl, accessToken: own.accessToken, sessionId: own.sessionId }
   const check = () => {
     const current = useAuthStore.getState()
     if (abort.signal.aborted || current.userId !== accountId || current.cryptoSessionGeneration !== generation
-      || current.accessToken !== session.accessToken || current.refreshToken !== session.refreshToken
+      || current.accessToken !== session.accessToken || current.sessionId !== session.sessionId
       || env.apiUrl !== apiUrl) throw new SharedUnlockApiError('cancelled')
   }
   const unsubscribe = useAuthStore.subscribe(() => { try { check() } catch { abort.abort() } })

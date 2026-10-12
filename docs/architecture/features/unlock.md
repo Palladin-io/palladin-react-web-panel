@@ -46,8 +46,10 @@ attempt, still subject to the same own expiry checks. Other receiver failures
 continue to close the channel; this exception grants no keys or session rights.
 
 If Identity issued a receiver session that fails local installation, cleanup
-authenticates `/api/auth/logout` with that issued session's own access token and
-revokes its matching refresh-token lineage. It uses the captured original API,
+authenticates `/api/browser/auth/discard` with that issued session's own access
+token and signed browser-session claim and revokes only that lineage. The call
+omits cookies and the response never writes or deletes a cookie, so late cleanup
+cannot erase a newer login. It uses the captured original API,
 never the peer or current session's tokens. Cleanup remains best effort with a
 two-second bound; local key wiping does not depend on the network result.
 

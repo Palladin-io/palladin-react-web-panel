@@ -1,6 +1,6 @@
 export interface AuthResponse {
   accessToken: string
-  refreshToken: string
+  sessionId: string
   userId: string
   isOnboarded: boolean
   /**

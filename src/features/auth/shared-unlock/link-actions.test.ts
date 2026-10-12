@@ -18,7 +18,7 @@ async function disconnected() {
 beforeEach(async () => {
   localStorage.clear()
   vi.stubGlobal('navigator', { locks: { request: async (_name: string, action: () => Promise<unknown>) => action() } })
-  useAuthStore.setState({ userId: accountId, accessToken: 'own-access', refreshToken: 'own-refresh' })
+  useAuthStore.setState({ userId: accountId, accessToken: 'own-access', sessionId: 'own-refresh' })
   useAuthStore.getState().unlockVault(new Uint8Array([1, 2]), new Uint8Array([3, 4]))
   await sharedUnlockLinks.adopt(scope, linkId); await sharedUnlockLinks.observe(scope, active)
 })
@@ -39,7 +39,7 @@ it('locks locally before waits and revokes the own profile through own Identity 
   expect(fetcher.mock.calls[2][1]).toMatchObject({ headers: { authorization: 'Bearer own-access' } })
   expect((await sharedUnlockLinks.read(scope))?.disconnectId).not.toBeNull()
   expect((await sharedUnlockLinks.read(scope))?.pending).toEqual([])
-  expect(useAuthStore.getState().refreshToken).toBe('own-refresh')
+  expect(useAuthStore.getState().sessionId).toBe('own-refresh')
 })
 
 it('persists local revocation and keeps its own login on network failure', async () => {
@@ -47,7 +47,7 @@ it('persists local revocation and keeps its own login on network failure', async
   await expect(disconnectSharedUnlockLink(input())).rejects.toThrow()
   expect((await sharedUnlockLinks.read(scope))?.pending).toMatchObject([{ action: 'disconnect' }])
   expect((await sharedUnlockLinks.read(scope))?.disconnectId).not.toBeNull()
-  expect(useAuthStore.getState()).toMatchObject({ isVaultLocked: true, refreshToken: 'own-refresh' })
+  expect(useAuthStore.getState()).toMatchObject({ isVaultLocked: true, sessionId: 'own-refresh' })
 })
 
 it('revokes locally without an own JWT and does not invent backend authority', async () => {
@@ -66,7 +66,7 @@ it('explicitly reconnects through own CAS, clears only its latch and locks for a
   expect(fetcher.mock.calls[1][0]).toBe(scope.apiUrl + '/api/account/shared-unlock/links/' + linkId + '/reconnect')
   expect(JSON.parse(String(fetcher.mock.calls[1][1]?.body))).toEqual({ expectedRevision: 3 })
   expect((await sharedUnlockLinks.read(scope))?.disconnectId).toBeNull()
-  expect(useAuthStore.getState()).toMatchObject({ masterKey: null, refreshToken: 'own-refresh', isVaultLocked: true })
+  expect(useAuthStore.getState()).toMatchObject({ masterKey: null, sessionId: 'own-refresh', isVaultLocked: true })
   expect(fetcher.mock.calls.some(([url]) => String(url).endsWith('/activate') || String(url).endsWith('/authorizations'))).toBe(false)
 })
 

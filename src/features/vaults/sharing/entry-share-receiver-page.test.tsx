@@ -34,7 +34,7 @@ beforeEach(async () => {
   vi.resetAllMocks()
   extension.request.mockResolvedValue('unavailable')
   await i18n.changeLanguage('en')
-  useAuthStore.setState({ userId: null, accessToken: null, refreshToken: null, emailVerified: false, privateKey: null, permissions: 0, isVaultLocked: true, cryptoSessionGeneration: 0 })
+  useAuthStore.setState({ userId: null, accessToken: null, sessionId: null, emailVerified: false, privateKey: null, permissions: 0, isVaultLocked: true, cryptoSessionGeneration: 0 })
   const fragment = entryShareFragment({ key: Uint8Array.from({ length: 32 }, (_, i) => i), accessToken: new Uint8Array(32).fill(7) })
   window.history.replaceState(null, '', `/share/${shareId}${fragment}`)
   captureEntryShareIngress(window)
@@ -221,7 +221,7 @@ describe('Public sharing receiver', () => {
   })
 
   it('does not ask a locked web account to unlock before opening the shared entry', async () => {
-    useAuthStore.setState({ userId: 'recipient', refreshToken: 'synthetic-refresh', emailVerified: true,
+    useAuthStore.setState({ userId: 'recipient', sessionId: 'synthetic-refresh', emailVerified: true,
       isVaultLocked: true, privateKey: null })
     render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={vi.fn()} />)
     expect(screen.queryByText('Want to save a copy in your vault?')).not.toBeInTheDocument()
@@ -366,7 +366,7 @@ describe('Public sharing receiver', () => {
     act(() => {
       duringManualLoginCleanup(() => useAuthStore.getState().logout())
       useAuthStore.getState().setTokens({ userId: 'recipient', accessToken: 'synthetic-access',
-        refreshToken: 'synthetic-refresh', emailVerified: true, isOnboarded: true, permissions: 8 })
+        sessionId: 'synthetic-refresh', emailVerified: true, isOnboarded: true, permissions: 8 })
       useAuthStore.getState().unlockVault(new Uint8Array(32), new Uint8Array(32))
     })
     render(<EntryShareReceiverPage shareId={shareId} onContinueToAccount={navigate} onSavedToEntry={openSaved} />)

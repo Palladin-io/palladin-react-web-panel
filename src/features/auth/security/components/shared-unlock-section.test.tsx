@@ -16,7 +16,7 @@ let client: QueryClient
 beforeEach(() => {
   localStorage.clear(); accountId = crypto.randomUUID(); preference = { sharedUnlockEnabled: true, revision: 1 }; failSave = false
   Object.defineProperty(navigator, 'locks', { configurable: true, value: { request: async (_name: string, action: () => Promise<unknown>) => action() } })
-  useAuthStore.setState({ userId: accountId, accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh', cryptoSessionGeneration: 7 })
+  useAuthStore.setState({ userId: accountId, accessToken: 'synthetic-access', sessionId: 'synthetic-refresh', cryptoSessionGeneration: 7 })
   fetcher.mockReset().mockImplementation(async (_url, options) => {
     if (options?.method === 'PUT') {
       if (failSave) return new Response('{}', { status: 503 })

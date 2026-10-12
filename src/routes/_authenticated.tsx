@@ -43,13 +43,13 @@ import { MemberSyncProvider, RotationProvider } from '../features/vaults'
 export const Route = createFileRoute('/_authenticated')({
   staticData: { consentSession: true },
   beforeLoad: ({ location }) => {
-    const { accessToken, refreshToken, isVaultLocked, emailVerified } =
+    const { accessToken, sessionId, isVaultLocked, emailVerified } =
       useAuthStore.getState()
     // A refresh token (persisted) is enough to be "logged in" — the access
     // token is in-memory only and is null right after a reload/timeout, then
     // silently restored by the ky client on the first API call. Only redirect
     // to /login when there is no session to restore at all.
-    if (!accessToken && !refreshToken) {
+    if (!accessToken && !sessionId) {
       throw redirect({
         to: '/login',
         search: { redirect: getAuthRedirectFromHref(location.href) },

@@ -1,3 +1,5 @@
+import { publishBrowserSessionNotice } from './browser-session-notice'
+import { logoutBrowserSession } from './browser-session'
 import { queryClient } from '../../../shared/api/query-client'
 import { analytics } from '../../../shared/lib/analytics'
 import { runClientProfileCleanups } from '../../../shared/lib/client-profile-cleanup'
@@ -40,23 +42,29 @@ export async function logoutAndReload(
   destination = '/login',
   bestEffortBeforeReload?: () => Promise<unknown>,
 ): Promise<void> {
-  const { userId, accessToken, refreshToken } = useAuthStore.getState()
+  const { userId, accessToken, sessionId } = useAuthStore.getState()
   const apiUrl = env.apiUrl
   const sharedClosing = recordManualSharedUnlockLogout(userId)
   let cleanup: Promise<unknown> | undefined
   try { cleanup = bestEffortBeforeReload?.() } catch { /* Secondary cleanup cannot prevent local logout. */ }
   const profileCleanup = clearClientSession()
+  if (sessionId) publishBrowserSessionNotice('logout', sessionId)
   const generation = captureClientSessionGeneration()
   const delivery = sharedClosing.then(async () => {
-    if (!userId || !accessToken || !refreshToken) return
-    await deliverManualSharedUnlockLogout({ userId, accessToken, refreshToken, apiUrl }, () => {
+    if (!userId || !accessToken || !sessionId) return
+    await deliverManualSharedUnlockLogout({ userId, accessToken, sessionId, apiUrl }, () => {
       if (!clientSessionGenerationMatches(generation) || env.apiUrl !== apiUrl || useAuthStore.getState().userId !== null) {
         throw new Error('Shared logout session changed')
       }
     })
   })
 
+  const cookieLogout = delivery.catch(() => undefined).then(async () => {
+    if (sessionId) await logoutBrowserSession(sessionId)
+  })
+  // Network failure leaves the UI logged out; do not silently reload into a live cookie.
   await Promise.all([
+    cookieLogout,
     delivery,
     sharedClosing,
     profileCleanup,

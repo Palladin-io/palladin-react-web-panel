@@ -9,7 +9,7 @@ const result = (body: unknown, status = 200) => new Response(JSON.stringify(body
 
 beforeEach(() => {
   useAuthStore.getState().logout()
-  useAuthStore.getState().setTokens({ accessToken: 'own-access', refreshToken: 'own-refresh', userId: account.userId, isOnboarded: true })
+  useAuthStore.getState().setTokens({ accessToken: 'own-access', sessionId: 'own-refresh', userId: account.userId, isOnboarded: true })
   useAuthStore.getState().unlockVault(new Uint8Array(32).fill(3), new Uint8Array(32).fill(4))
 })
 afterEach(() => { useAuthStore.getState().logout(); vi.unstubAllGlobals() })
@@ -41,7 +41,7 @@ it('keeps the own unlocked session and keys after a sharing step-up failure', as
   await prepareManualSharedUnlock(account, proof)
   expect(proof).toEqual(new Uint8Array(32))
   expect(useAuthStore.getState()).toMatchObject({ isVaultLocked: false, masterKey: before.masterKey,
-    privateKey: before.privateKey, unlockLimits: before.unlockLimits, accessToken: 'own-access', refreshToken: 'own-refresh' })
+    privateKey: before.privateKey, unlockLimits: before.unlockLimits, accessToken: 'own-access', sessionId: 'own-refresh' })
   const stored = JSON.parse(localStorage.getItem('palladin-auth')!).state
-  expect(Object.keys(stored).sort()).toEqual(['emailVerified', 'isOnboarded', 'permissions', 'refreshToken', 'userId'])
+  expect(Object.keys(stored).sort()).toEqual(['emailVerified', 'isOnboarded', 'permissions', 'userId'])
 })

@@ -3,7 +3,7 @@ import { receiveSharedUnlockBrowserTransfer, sendSharedUnlockBrowserTransfer, ty
 import { sharedUnlockOperationSchema, type SharedUnlockOperationMessage } from "./browser-operation-message";
 import type { SharedUnlockOperation } from "./api-types";
 import type { SharedUnlockEnvelope } from "@palladin/crypto";
-import fixtures from "./fixtures/session-api-v1.json";
+import fixtures from "./fixtures/browser-session-api";
 
 const attemptId = "A".repeat(43);
 const operation = fixtures.responses.find(r => r.type === "operation")!.body as SharedUnlockOperation;
@@ -59,7 +59,7 @@ describe("browser transfer orchestration (transport/transaction seams)", () => {
     { kind: "source-offer", publicKey: "A".repeat(42) + "B" },
     { kind: "receiver-offer", publicKey: "A".repeat(43), proofPublicKey: "A".repeat(43), accessToken: "synthetic" },
     { kind: "ack", ...ack, authorizationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" },
-    { kind: "handoff", ...packet, operation: { ...operation, context: { ...operation.context, refreshToken: "synthetic" } } },
+    { kind: "handoff", ...packet, operation: { ...operation, context: { ...operation.context, sessionId: "synthetic" } } },
     { kind: "handoff", ...packet, operation: { ...operation, keyContext: { ...operation.keyContext, privateKey: "synthetic" } } },
     { kind: "handoff", ...packet, envelope: { ...packet.envelope, ciphertext: "A".repeat(65) } },
     { kind: "handoff", ...packet, operation: { ...operation, keyContext: { ...operation.keyContext, encryptedPrivateKey: "A".repeat(5463) } } },

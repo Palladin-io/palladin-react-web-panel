@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { useAuthStore } from '../stores/auth-store'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { RegisterPage } from './register-page'
@@ -54,6 +55,7 @@ vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
 }))
 beforeEach(() => {
+  useAuthStore.getState().logout()
   navigateMock.mockReset()
   registerState.mutate.mockReset()
   registerState.isPending = false
@@ -143,4 +145,16 @@ it('never forwards an external return through registration or its login link', a
   await enterRequestedWords(user, inputs)
   await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
   expect(navigateMock).toHaveBeenCalledWith({ to: '/' })
+})
+
+it('routes a restored peer session to Unlock while preserving its destination', () => {
+  render(<RegisterPage redirectTo="/vaults" />)
+  act(() => { useAuthStore.setState({ accessToken: 'restored-access', sessionId: 'restored-session' }) })
+  expect(navigateMock).toHaveBeenCalledExactlyOnceWith({ to: '/unlock', search: { redirect: '/vaults' }, replace: true })
+})
+it('leaves navigation owned by an active registration', () => {
+  registerState.isPending = true
+  render(<RegisterPage />)
+  act(() => { useAuthStore.setState({ accessToken: 'registration-access', sessionId: 'registration-session' }) })
+  expect(navigateMock).not.toHaveBeenCalled()
 })

@@ -4,7 +4,7 @@ import type { SharedUnlockApi } from './api'
 import type { SharedUnlockLinkMarker, SharedUnlockLinkScope, SharedUnlockLinkStore } from './link-store'
 
 export interface SharedUnlockReconnectNotice { readonly accountId: string; readonly linkId: string; readonly reconnectRevision: number }
-interface OwnSession { readonly apiUrl: string; readonly userId: string; readonly accessToken: string; readonly refreshToken: string }
+interface OwnSession { readonly apiUrl: string; readonly userId: string; readonly accessToken: string; readonly sessionId: string }
 
 /** A route-bound hint permits only a pending receiver proof exchange. The local
  * revocation remains until that receiver's own Identity confirms the exact link. */

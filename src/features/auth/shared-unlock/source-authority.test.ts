@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { SharedUnlockApi } from './api'
 import { SharedUnlockSourceAuthority, type ManualUnlockContext } from './source-authority'
-import fixtures from './fixtures/session-api-v1.json'
+import fixtures from './fixtures/browser-session-api'
 
 const authorization = fixtures.operations[0].sourceAuthorization
 const apiUrl = 'https://api.example.test'
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
 const context = (): ManualUnlockContext => ({
-  session: { apiUrl, accessToken: 'own-access', refreshToken: 'own-refresh', userId: authorization.accountId },
+  session: { apiUrl, accessToken: 'own-access', sessionId: 'own-refresh', userId: authorization.accountId },
   account: { userId: authorization.accountId, email: 'synthetic@example.test', displayName: 'Synthetic', avatarUrl: null,
     isOnboarded: true, kdf: { securityVersion: 1, minimumSecurityVersion: 1, profileId: 'identity-argon2id-password-v1',
       kdfSalt: encodeBase64Url(new Uint8Array(16)), credentialRevision: 3, privateKeyWrapRevision: 5, deviceWrapperMetadata: null } },
@@ -48,14 +48,14 @@ describe('Web manual source authority', () => {
       expect(source.snapshot().sourceGeneration).toMatch(/^[A-Za-z0-9_-]{43}$/)
       const sent = fetcher.mock.calls[1][1]!
       expect(JSON.parse(String(sent.body))).toEqual({
-        authCredential: encodeBase64Url(new Uint8Array(32).fill(17)), refreshToken: 'own-refresh',
+        authCredential: encodeBase64Url(new Uint8Array(32).fill(17)), expectedSessionId: 'own-refresh',
         sourceGeneration: source.snapshot().sourceGeneration,
         expectedPreferenceRevision: (preference.body as { revision: number }).revision,
         expectedCredentialRevision: 3, expectedPrivateKeyWrapRevision: 5,
         idleDeadlineMs: authorization.idleDeadlineMs, absoluteDeadlineMs: authorization.absoluteDeadlineMs,
         offlineDeadlineMs: authorization.offlineDeadlineMs,
       })
-      expect(sent).toMatchObject({ headers: { authorization: 'Bearer own-access' }, credentials: 'omit',
+      expect(sent).toMatchObject({ headers: { authorization: 'Bearer own-access' }, credentials: 'include',
         cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer' })
       expect(fetcher.mock.calls.map(([, options]) => options?.method)).toEqual(['GET', 'POST'])
       expect(own.authCredential).toEqual(new Uint8Array(32))

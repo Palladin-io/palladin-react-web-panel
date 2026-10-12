@@ -6,7 +6,7 @@ import { readManualLockCheckpoint } from './manual-lock-checkpoint'
 const scope = { accountId: '11111111-1111-4111-8111-111111111111', apiUrl: 'https://api.test',
   webOrigin: 'https://web.test', extensionId: 'a'.repeat(32) }
 const linkId = '22222222-2222-4222-8222-222222222222'
-const session = { apiUrl: scope.apiUrl, userId: scope.accountId, accessToken: 'own-access', refreshToken: 'own-refresh' }
+const session = { apiUrl: scope.apiUrl, userId: scope.accountId, accessToken: 'own-access', sessionId: 'own-refresh' }
 const link = { linkId, revision: 3, epoch: 3, state: 'locked' as const, lastInvalidationSequence: 3, lastLogoutSequence: 0 }
 async function setup() {
   let values: Record<string, unknown> = {}
@@ -25,8 +25,8 @@ it.each(['none', 'lock', 'logout'] as const)('takes only an authenticated prior 
   const result = await readManualLockCheckpoint(scope, session, store, new SharedUnlockApi(fetcher, () => scope.apiUrl),
     new AbortController().signal, () => {})
   expect(result).toEqual(action === 'lock' ? [{ linkId, lastInvalidationSequence: 3 }] : [])
-  expect(fetcher).toHaveBeenCalledExactlyOnceWith(scope.apiUrl + '/api/account/shared-unlock/session-state', expect.objectContaining({
-    method: 'POST', body: JSON.stringify({ linkId, refreshToken: 'own-refresh' }),
+  expect(fetcher).toHaveBeenCalledExactlyOnceWith(scope.apiUrl + '/api/browser/account/shared-unlock/session-state', expect.objectContaining({
+    method: 'POST', body: JSON.stringify({ linkId, expectedSessionId: 'own-refresh' }),
     headers: expect.objectContaining({ authorization: 'Bearer own-access' }),
   }))
   expect(set).not.toHaveBeenCalled()

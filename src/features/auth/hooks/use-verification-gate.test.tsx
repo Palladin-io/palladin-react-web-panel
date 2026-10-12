@@ -8,17 +8,17 @@ import { ACCOUNT_QUERY_KEY } from '../../../shared/api/account-api'
 
 const api = vi.hoisted(() => ({ account: vi.fn(), refresh: vi.fn() }))
 vi.mock('../../../shared/api/account-api', () => ({ ACCOUNT_QUERY_KEY: ['account'], getAccount: api.account }))
-vi.mock('../api/auth-api', () => ({ refreshToken: api.refresh }))
+vi.mock('../api/auth-api', () => ({ refreshSession: api.refresh }))
 let client: QueryClient
 const verifiedAccount = { userId: 'recipient', email: 'synthetic@example.test', emailVerified: true }
-const freshSession = { userId: 'recipient', accessToken: 'fresh-access', refreshToken: 'fresh-refresh', isOnboarded: true, emailVerified: true }
+const freshSession = { userId: 'recipient', accessToken: 'fresh-access', sessionId: 'fresh-refresh', isOnboarded: true, emailVerified: true }
 function wrapper({ children }: { children: ReactNode }) { return <QueryClientProvider client={client}>{children}</QueryClientProvider> }
 
 beforeEach(() => {
   vi.resetAllMocks()
   client = new QueryClient({ defaultOptions: { queries: { retryDelay: 0 } } })
   useAuthStore.getState().logout()
-  useAuthStore.getState().setTokens({ userId: 'recipient', accessToken: 'old-access', refreshToken: 'old-refresh', isOnboarded: true, emailVerified: false })
+  useAuthStore.getState().setTokens({ userId: 'recipient', accessToken: 'old-access', sessionId: 'old-refresh', isOnboarded: true, emailVerified: false })
   api.account.mockResolvedValue(verifiedAccount)
   api.refresh.mockResolvedValue(freshSession)
 })
@@ -77,7 +77,7 @@ describe('Verified account continuation gate', () => {
       if (reason === 'logout') useAuthStore.getState().logout()
       else if (reason === 'account') useAuthStore.setState({ userId: 'replacement', accessToken: 'replacement-access' })
       else if (reason === 'lock') useAuthStore.getState().lockVault()
-      else if (reason === 'refresh') useAuthStore.setState({ refreshToken: 'replacement-refresh' })
+      else if (reason === 'refresh') useAuthStore.setState({ sessionId: 'replacement-refresh' })
     })
     if (reason === 'unmount') hook.unmount()
     const expected = useAuthStore.getState()

@@ -7,7 +7,7 @@ import { sharedUnlockPreferences } from './preference-state-runtime'
 import { sharedUnlockPreferenceGate } from './preference-runtime'
 import { adoptSharedUnlockSource, getSharedUnlockSourceSnapshot, prepareManualSharedUnlock } from './manual-source'
 import type { AccountResponse } from '../../../shared/api/account-api'
-import fixtures from './fixtures/session-api-v1.json'
+import fixtures from './fixtures/browser-session-api'
 import { sharedUnlockLinks } from './link-runtime'
 import { env } from '../../../shared/lib/env'
 
@@ -32,7 +32,7 @@ beforeEach(() => {
   now = root.unlockedAtMs + 1
   vi.spyOn(Date, 'now').mockImplementation(() => now)
   vi.stubGlobal('navigator', { locks: { request: async (_name: string, action: () => Promise<unknown>) => action() } })
-  useAuthStore.setState({ userId: root.accountId, accessToken: 'own-access', refreshToken: 'own-refresh' })
+  useAuthStore.setState({ userId: root.accountId, accessToken: 'own-access', sessionId: 'own-refresh' })
 })
 afterEach(() => {
   env.sharedUnlockExtensionId = ''
@@ -80,7 +80,7 @@ it('repairs OFF and ON through the real Web coordinator without Settings, key re
   const fetcher = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(preference)))
   vi.stubGlobal('fetch', fetcher)
   const f = start()
-  const lastState = () => f.sent.filter(message => message.payload.kind === 'state').at(-1)?.payload
+  const lastState = () => f.sent.filter(message => message.payload?.kind === 'state').at(-1)?.payload
   await vi.waitFor(() => expect(lastState()).toMatchObject({ status: 'unlocked', source: null }))
   expect(sharedUnlockPreferences.isDisabled(scope)).toBe(true)
   preference = { sharedUnlockEnabled: true, revision: 3 }; f.hint()
@@ -91,7 +91,7 @@ it('repairs OFF and ON through the real Web coordinator without Settings, key re
   expect(authority.authorization).toEqual(before.authorization); expect(authority.sourceGeneration).toBe(before.sourceGeneration)
   expect(fetcher.mock.calls.every(([url, init]) => url === apiUrl + '/api/account/shared-unlock'
     && init?.method === 'GET' && new Headers(init.headers).get('authorization') === 'Bearer own-access')).toBe(true)
-  expect(f.sent.some(message => message.payload.kind === 'preference-invalidated')).toBe(false)
+  expect(f.sent.some(message => message.payload?.kind === 'preference-invalidated')).toBe(false)
 })
 
 it('uses a locked own JWT and does not clear the failed-save pause when the account becomes ON', async () => {
@@ -112,7 +112,7 @@ it('rejects a delayed own preference after the real auth store changes accounts'
   vi.stubGlobal('fetch', fetcher)
   const observed = vi.fn(), unsubscribe = sharedUnlockPreferences.subscribe(observed); cleanup.push(unsubscribe)
   start(); await vi.waitFor(() => expect(fetcher).toHaveBeenCalledOnce())
-  useAuthStore.setState({ userId: '22222222-2222-4222-8222-222222222222', accessToken: 'next-access', refreshToken: 'next-refresh' })
+  useAuthStore.setState({ userId: '22222222-2222-4222-8222-222222222222', accessToken: 'next-access', sessionId: 'next-refresh' })
   finish(new Response(JSON.stringify({ sharedUnlockEnabled: false, revision: 99 })))
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(observed).not.toHaveBeenCalled(); expect(sharedUnlockPreferences.isDisabled(scope)).toBe(false)
@@ -132,17 +132,17 @@ it('connects explicit peer reconnect to the locked Web own JWT while preserving 
   vi.stubGlobal('fetch', fetcher)
   const f = start(); await vi.waitFor(() => expect(fetcher).toHaveBeenCalled())
   f.emit({ attemptId: 'B'.repeat(42) + 'A', payload: { kind: 'link-reconnect', accountId: scope.accountId, linkId, reconnectRevision: 3 } })
-  await vi.waitFor(() => expect(f.sent.some(message => message.payload.kind === 'link-reconnect-ack')).toBe(true))
+  await vi.waitFor(() => expect(f.sent.some(message => message.payload?.kind === 'link-reconnect-ack')).toBe(true))
   expect((await sharedUnlockLinks.read(linkScope))?.disconnectId).toBeNull()
   expect(await sharedUnlockPreferenceGate.isAllowed(scope)).toBe(false)
   expect(useAuthStore.getState()).toMatchObject({ userId: initial.userId, accessToken: initial.accessToken,
     cryptoSessionGeneration: initial.cryptoSessionGeneration, isVaultLocked: true, masterKey: null })
   expect(fetcher.mock.calls.every(([url, init]) => new Headers(init?.headers).get('authorization') === 'Bearer own-access'
-    && (String(url).endsWith('/session-state') ? init?.method === 'POST' && init.body === JSON.stringify({ linkId, refreshToken: 'own-refresh' }) : init?.method === 'GET'))).toBe(true)
+    && (String(url).endsWith('/session-state') ? init?.method === 'POST' && init.body === JSON.stringify({ linkId, expectedSessionId: 'own-refresh' }) : init?.method === 'GET'))).toBe(true)
 })
 
 it('a rootless Web can select only a staged receiver link after a reconnect hint, keeping the latch and keys untouched', async () => {
-  useAuthStore.setState({ accessToken: null, refreshToken: null })
+  useAuthStore.setState({ accessToken: null, sessionId: null })
   expect(await sharedUnlockPreferenceGate.isAllowed(scope)).toBe(true)
   const linkScope = { ...scope, webOrigin: 'https://web.test', extensionId: 'a'.repeat(32) }
   const linkId = '22222222-2222-4222-8222-222222222222'
@@ -150,15 +150,15 @@ it('a rootless Web can select only a staged receiver link after a reconnect hint
   const marker = await sharedUnlockLinks.observe(linkScope, { linkId, revision: 2, epoch: 2, state: 'revoked', lastInvalidationSequence: 2, lastLogoutSequence: 0 })
   const fetcher = vi.fn<typeof fetch>(); vi.stubGlobal('fetch', fetcher)
   const f = start()
-  await vi.waitFor(() => expect(f.sent.some(message => message.payload.kind === 'state')).toBe(true))
-  const first = f.sent.filter(message => message.payload.kind === 'state').at(-1)!.attemptId
+  await vi.waitFor(() => expect(f.sent.some(message => message.payload?.kind === 'state')).toBe(true))
+  const first = f.sent.filter(message => message.payload?.kind === 'state').at(-1)!.attemptId
   f.emit({ attemptId: 'B'.repeat(42) + 'A', payload: { kind: 'link-reconnect', accountId: scope.accountId, linkId, reconnectRevision: 3 } })
-  await vi.waitFor(() => expect(f.sent.filter(message => message.payload.kind === 'state').at(-1)!.attemptId).not.toBe(first))
-  const own = f.sent.filter(message => message.payload.kind === 'state').at(-1)!.attemptId, peerId = 'C'.repeat(42) + 'A'
+  await vi.waitFor(() => expect(f.sent.filter(message => message.payload?.kind === 'state').at(-1)!.attemptId).not.toBe(first))
+  const own = f.sent.filter(message => message.payload?.kind === 'state').at(-1)!.attemptId, peerId = 'C'.repeat(42) + 'A'
   f.emit({ attemptId: peerId, payload: { kind: 'state', stateId: peerId, accountId: scope.accountId, status: 'unlocked',
     generation: 'D'.repeat(42) + 'A', source: { organizationId: root.organizationId } } })
   f.emit({ attemptId: peerId, payload: { kind: 'link', accountId: scope.accountId, linkId, webStateId: own, extensionStateId: peerId } })
-  await vi.waitFor(() => expect(f.sent.some(message => message.payload.kind === 'link-selected')).toBe(true))
+  await vi.waitFor(() => expect(f.sent.some(message => message.payload?.kind === 'link-selected')).toBe(true))
   expect((await sharedUnlockLinks.read(linkScope))?.disconnectId).toBe(marker.disconnectId)
   expect(useAuthStore.getState()).toMatchObject({ accessToken: null, masterKey: null, isVaultLocked: true })
   expect(fetcher).not.toHaveBeenCalled()
@@ -175,12 +175,12 @@ it('uses own Identity to log out an already-locked Web without a RAM unlock root
   expect(getSharedUnlockSourceSnapshot().authorization).toBeNull()
   const f = start()
   await vi.waitFor(() => expect(useAuthStore.getState().userId).toBeNull())
-  expect(useAuthStore.getState()).toMatchObject({ accessToken: null, refreshToken: null, masterKey: null, privateKey: null })
-  expect(fetcher).toHaveBeenCalledWith(apiUrl + '/api/account/shared-unlock/session-state', expect.objectContaining({
-    method: 'POST', body: JSON.stringify({ linkId, refreshToken: 'own-refresh' }),
+  expect(useAuthStore.getState()).toMatchObject({ accessToken: null, sessionId: null, masterKey: null, privateKey: null })
+  expect(fetcher).toHaveBeenCalledWith(apiUrl + '/api/browser/account/shared-unlock/session-state', expect.objectContaining({
+    method: 'POST', body: JSON.stringify({ linkId, expectedSessionId: 'own-refresh' }),
     headers: expect.objectContaining({ authorization: 'Bearer own-access' }),
   }))
-  expect(f.sent.some(message => message.payload.kind === 'link-invalidated')).toBe(false)
+  expect(f.sent.some(message => message.payload?.kind === 'link-invalidated')).toBe(false)
 })
 
 it('does not apply a delayed closing read to a newer real Web login', async () => {
@@ -191,7 +191,7 @@ it('does not apply a delayed closing read to a newer real Web login', async () =
     ? new Promise(resolve => { finish = resolve }) : new Response(JSON.stringify({ sharedUnlockEnabled: true, revision: 1 })))
   vi.stubGlobal('fetch', fetcher); start()
   await vi.waitFor(() => expect(finish).toBeTypeOf('function'))
-  useAuthStore.setState({ userId: '99999999-9999-4999-8999-999999999999', accessToken: 'next-access', refreshToken: 'next-refresh' })
+  useAuthStore.setState({ userId: '99999999-9999-4999-8999-999999999999', accessToken: 'next-access', sessionId: 'next-refresh' })
   finish(new Response(JSON.stringify({ action: 'logout', link: null })))
   await new Promise(resolve => setTimeout(resolve, 0))
   expect(useAuthStore.getState()).toMatchObject({ userId: '99999999-9999-4999-8999-999999999999', accessToken: 'next-access' })
@@ -248,7 +248,7 @@ it('applies own logout immediately even while a fresh manual authorization is pe
   await vi.waitFor(() => expect(authorize).toBeTypeOf('function'))
   start()
   await vi.waitFor(() => expect(useAuthStore.getState().userId).toBeNull())
-  expect(useAuthStore.getState()).toMatchObject({ masterKey: null, privateKey: null, accessToken: null, refreshToken: null })
+  expect(useAuthStore.getState()).toMatchObject({ masterKey: null, privateKey: null, accessToken: null, sessionId: null })
   expect(proof).toEqual(new Uint8Array(32))
   authorize(new Response(JSON.stringify(root))); await preparing
   expect(getSharedUnlockSourceSnapshot().authorization).toBeNull()

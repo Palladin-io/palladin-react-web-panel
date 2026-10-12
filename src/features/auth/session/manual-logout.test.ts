@@ -17,14 +17,17 @@ const linkId = '22222222-2222-4222-8222-222222222222'
 let replace: ReturnType<typeof vi.fn>
 
 beforeEach(async () => {
-  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline synthetic transport')))
+  vi.stubGlobal('fetch', vi.fn(async request => {
+    if (request instanceof Request && request.url.endsWith('/api/browser/auth/logout')) return new Response(null, { status: 204 })
+    throw new Error('offline synthetic transport')
+  }))
   localStorage.clear()
   Object.defineProperty(navigator, 'locks', { configurable: true, value: {
     request: async (_name: string, action: () => Promise<unknown>) => action(),
   } })
   replace = vi.fn()
   Object.defineProperty(window, 'location', { configurable: true, value: { origin: originalLocation.origin, replace } })
-  useAuthStore.getState().setTokens({ accessToken: 'own-access', refreshToken: 'own-refresh', userId: accountId, isOnboarded: true })
+  useAuthStore.getState().setTokens({ accessToken: 'own-access', sessionId: 'own-refresh', userId: accountId, isOnboarded: true })
   useAuthStore.getState().unlockVault(new Uint8Array([1, 2]), new Uint8Array([3, 4]))
   await sharedUnlockLinks.adopt(scope, linkId)
 })
@@ -78,6 +81,7 @@ it('delivers the actual manual Web logout with its captured own session before r
   const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(JSON.stringify({ sharedUnlockEnabled: true, revision: 4 })))
     .mockResolvedValueOnce(new Response(JSON.stringify(link)))
     .mockResolvedValueOnce(new Response(JSON.stringify({ ...link, revision: 8, epoch: 4, state: 'locked', lastInvalidationSequence: 9, lastLogoutSequence: 9 })))
+    .mockResolvedValueOnce(new Response(null, { status: 204 }))
   vi.stubGlobal('fetch', fetcher)
   await logoutAndReload()
   expect(fetcher.mock.calls[2][0]).toBe(`${env.apiUrl}/api/account/shared-unlock/links/${linkId}/logout`)
@@ -91,8 +95,23 @@ it('delivers the actual manual Web logout with its captured own session before r
 it('does not reload over a newer login while old shared logout delivery is pending', async () => {
   let finish!: () => void
   const old = logoutAndReload('/login', () => new Promise<void>(resolve => { finish = resolve }))
-  useAuthStore.getState().setTokens({ userId: '33333333-3333-4333-8333-333333333333', accessToken: 'new-own-access', refreshToken: 'new-own-refresh', isOnboarded: true })
+  useAuthStore.getState().setTokens({ userId: '33333333-3333-4333-8333-333333333333', accessToken: 'new-own-access', sessionId: 'new-own-refresh', isOnboarded: true })
   finish(); await old
   expect(replace).not.toHaveBeenCalled()
   expect(useAuthStore.getState().userId).toBe('33333333-3333-4333-8333-333333333333')
+})
+
+it('revokes the browser cookie session even without an extension link', async () => {
+  await sharedUnlockLinks.repair(scope)
+  let sent: unknown
+  const fetcher = vi.fn<typeof fetch>().mockImplementation(async request => {
+    if (request instanceof Request) sent = await request.clone().json()
+    return new Response(null, { status: 204 })
+  })
+  vi.stubGlobal('fetch', fetcher)
+  await logoutAndReload()
+  const request = fetcher.mock.calls.map(([request]) => request).find(request => request instanceof Request && request.url.endsWith('/api/browser/auth/logout')) as Request | undefined
+  expect(request).toBeDefined()
+  expect(request!.credentials).toBe('include')
+  expect(sent).toEqual({ expectedSessionId: 'own-refresh' })
 })

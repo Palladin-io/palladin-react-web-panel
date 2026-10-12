@@ -21,17 +21,20 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   const destination = parseAuthRedirect(redirectTo) ?? '/'
   const oauth = useGoogleSignIn(destination)
   const { start, submitTotp, cancel, isPending: passwordPending } = usePasswordLogin()
-  const unlockedSession = useAuthStore((state) => Boolean(state.accessToken) && !state.isVaultLocked)
+  const authenticated = useAuthStore(state => Boolean(state.accessToken || state.sessionId))
+  const locked = useAuthStore(state => state.isVaultLocked)
+  const checking = useAuthStore(state => state.sessionRevalidating)
   const navigated = useRef(false)
   const manualPending = passwordPending || start.isPending || submitTotp.isPending || oauth.isPending
 
   useEffect(() => {
     // Manual login publishes keys before finishing source preparation. Its
     // success callback owns navigation until that mutation has settled.
-    if (!unlockedSession || manualPending || navigated.current) return
+    if (!authenticated || checking || manualPending || navigated.current) return
     navigated.current = true
-    void navigate({ href: destination, replace: true })
-  }, [unlockedSession, manualPending, navigate, destination])
+    if (locked) void navigate({ to: '/unlock', search: { redirect: destination }, replace: true })
+    else void navigate({ href: destination, replace: true })
+  }, [authenticated, locked, checking, manualPending, navigate, destination])
 
   const finishManualLogin = () => {
     if (navigated.current) return

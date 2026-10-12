@@ -1,3 +1,6 @@
+import { useEffect, useRef } from 'react'
+import { beginManualUnlockAttempt } from '../session/manual-unlock-attempt'
+import type { AuthResponse } from '../../../shared/api/types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   deriveKey,
@@ -20,7 +23,7 @@ import {
 import { ACCOUNT_QUERY_KEY } from '../../../shared/api/account-api'
 import i18n from '../../../shared/lib/i18n'
 import { joinMnemonic } from '../../../shared/lib/mnemonic'
-import { register } from '../api/auth-api'
+import { register, revokeUninstalledLoginSession } from '../api/auth-api'
 import { useAuthStore } from '../stores/auth-store'
 
 export interface RegisterInput {
@@ -40,6 +43,8 @@ export interface RegisterInput {
  */
 export function useRegister() {
   const queryClient = useQueryClient()
+  const activeAttempt = useRef<ReturnType<typeof beginManualUnlockAttempt> | null>(null)
+  useEffect(() => () => { activeAttempt.current?.cancel() }, [])
 
   return useMutation({
     mutationFn: async ({
@@ -47,6 +52,11 @@ export function useRegister() {
       masterPassword,
       recoveryMnemonic,
     }: RegisterInput) => {
+      activeAttempt.current?.cancel()
+      const attempt = beginManualUnlockAttempt({ blockNewSharedUnlock: true })
+      activeAttempt.current = attempt
+      let issued: AuthResponse | null = null
+      let installed = false
       const accountId = generateIdentityAccountId()
       let kdfSalt: Uint8Array | null = null
       let recoverySalt: Uint8Array | null = null
@@ -74,6 +84,7 @@ export function useRegister() {
           recoveryKey,
         )
 
+        attempt.assertCurrent()
         const response = await register({
           accountId,
           email,
@@ -91,12 +102,15 @@ export function useRegister() {
           encryptedPrivateKeyByRecovery: encodeBase64Url(encryptedPrivateKeyByRecovery),
         })
 
+        issued = response
+        attempt.assertCurrent()
         // Establish the session, then land the user already unlocked (we hold
         // MK + private key). Pass copies — the `finally` wipes the originals.
         useAuthStore.getState().setTokens(response)
         useAuthStore
           .getState()
           .unlockVault(identity.masterKey, keyPair.privateKey)
+        installed = true
       } finally {
         if (identity) {
           wipe(identity.masterKey)
@@ -108,6 +122,8 @@ export function useRegister() {
         if (recoverySalt) wipe(recoverySalt)
         if (encryptedPrivateKey) wipe(encryptedPrivateKey)
         if (encryptedPrivateKeyByRecovery) wipe(encryptedPrivateKeyByRecovery)
+        attempt.cancel()
+        if (issued && !installed) await revokeUninstalledLoginSession(issued.accessToken)
       }
 
       // No default vault here. CreateDefaultVault sits behind the email-verified

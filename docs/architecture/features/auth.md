@@ -1,5 +1,13 @@
 # Feature: auth
 
+Current browser-session contract (CVT-198): refresh credentials are HttpOnly and
+all own-session Shared Unlock calls use cookie-bound browser routes. The dated
+implementation notes below retain earlier rollout evidence; their HTTP fallback
+and pre-cookie transport descriptions are historical. Current deployment
+requirements are in [security](../security.md) and
+[Shared Unlock deployment](../shared-unlock-deployment.md).
+
+
 ## Dynamic extension connections (2026-10-04, rollout in progress)
 
 The extension owns the user-approved API/panel pair. This panel retains an
@@ -54,7 +62,7 @@ SHA-1 is not used for encryption or key derivation.
 ## What it does
 The entry point to the app. Two ways in:
 
-- **OAuth 2.0** via `@react-oauth/google`'s **implicit token flow** (Google primary, Apple/X stubbed). Google returns an `access_token` in the browser, POSTed to `/api/auth/oauth/google` for the app JWT. Implicit-token flow, not auth-code/PKCE — no backend code-exchange endpoint today; if one lands, switch `useGoogleLogin` to `flow: 'auth-code'`. OAuth accounts are always `emailVerified: true`.
+- **OAuth 2.0** via `@react-oauth/google`'s **implicit token flow** (Google primary, Apple/X stubbed). Google returns an `access_token` in the browser, POSTed to `/api/browser/auth/oauth/google` for the app JWT. Implicit-token flow, not auth-code/PKCE — no backend code-exchange endpoint today; if one lands, switch `useGoogleLogin` to `flow: 'auth-code'`. OAuth accounts are always `emailVerified: true`.
 - **Email + password** uses Identity password KDF v1. The browser runs the exact UTF-8 password through the registered Argon2id profile once and domain-separates AuthCredential from MK. AuthCredential is sent to the server; password and MK never are. Unsupported profiles fail closed; there is no legacy fallback.
 
 The shared-unlock receiver additionally supports a verified automatic own-session
@@ -65,7 +73,7 @@ single-use receive guard prevents duplicate success; a newer own lock/session
 suppresses a stale notification. Toast errors cannot undo a completed session.
 This does not claim completion of fallback UX or the native acceptance matrix.
 
-Session-token storage: the access token is kept **in memory only** (never persisted); only the refresh token is persisted (localStorage) so a reload can silently restore the session via the ky client's 401→refresh path. Idle + absolute session timeouts (`useSessionTimeout`) wipe the keys and access token on walk-away. Moving the refresh token to an httpOnly cookie is a backend-coordinated follow-up.
+Session-token storage: access tokens, logical session IDs and keys are memory-only. The refresh token is held exclusively in the API's `__Host-palladin-refresh` HttpOnly/Secure/SameSite=Strict cookie. Startup restores a locked session through the browser refresh endpoint before routing; persisted hints never authenticate. Legacy localStorage tokens are removed before their one-time rotating exchange. See [Token storage](../security.md) for CSRF, multi-tab reconciliation, migration and HTTPS deployment requirements.
 
 ## How it's organized
 - **`components/login-page`** — step machine (`credentials` → optional `totp`). The v1 handshake validates the bootstrap, derives once before TOTP, and verifies the authenticated account KDF state before unlock.
@@ -114,10 +122,11 @@ platform acceptance are not wired by these changes.
 
 Password login (including TOTP) and password unlock prepare an own Identity
 shared-unlock authorization after installing their independently verified local
-keys. Only the fresh AuthCredential and that Web session's JWT/refresh token go
-directly to the configured Identity API; MK/private key never enter the request.
-The dedicated adapter does not follow redirects, attach cookies, retry a proof or
-trigger the generic 401 refresh flow. Account preference is read, never changed:
+keys. The fresh AuthCredential, JWT and expected logical session ID go directly
+to the browser Identity endpoint; the HttpOnly cookie independently identifies the
+refresh session. MK/private key never enter the request. The adapter includes
+credentials and the CSRF header, never follows redirects, retries a proof or
+triggers the generic 401 refresh flow. Account preference is read, never changed:
 explicit OFF stays OFF. An authorization can be prepared while OFF, but this
 alone cannot bind a link or hand off keys. A failed request or required step-up
 leaves the ordinary local unlocked session intact and sharing unavailable.
@@ -731,14 +740,14 @@ independent multi-document limits remain separate unfinished requirements.
 
 The browser link monitor now also captures an own token-only session while keys
 are locked. With a live RAM closing witness it retains the existing own GET-link
-comparison. Without that witness it uses `POST /api/account/shared-unlock/session-state`
-with the exact own refresh token and locally selected link ID; Identity resolves
+comparison. Without that witness it uses `POST /api/browser/account/shared-unlock/session-state`
+with the expected session ID, HttpOnly cookie and locally selected link ID; Identity resolves
 that logical session and returns `none`, `lock` or `logout` with nullable link
 metadata. Client code does not infer a replacement sequence from durable account
 checkpoints or peer frames. This path requires the coordinated Identity API change
 in backend PR55.
 
-Replies remain tied to the own account, token pair, generation, document and
+Replies remain tied to the own account, access token, session ID, generation, document and
 route. The existing 2-second timer/wall-clock, 1 start/second coalescing and
 15-second repair bound apply. A late reply cannot close a replacement session.
 Logout clears an already-locked own login; a lock response does not repeatedly
@@ -818,7 +827,8 @@ bounded by a timer; the wall-clock check also applies if timers were suspended.
 `useLogin` checks that captured owner after the OAuth response and publishes only
 into a locked, keyless client. The final check, token publication and navigation
 have no intervening await. A response superseded by another session is revoked
-using only its newly issued refresh token over the anonymous login transport,
+through `/api/browser/auth/discard` using its newly issued JWT with a signed
+`browser_session_id` claim, without cookies or any `Set-Cookie` response,
 without clearing/refreshing the current client or revoking Google account scopes.
 A cleanup from an older attempt cannot release a newer popup's admission barrier.
 The Google button remains pending for the full popup lifetime; explicit password

@@ -35,7 +35,7 @@ let destination: EntryShareCopyVault | undefined
 beforeEach(async () => {
   vi.resetAllMocks(); destination = undefined
   await i18n.changeLanguage('en')
-  useAuthStore.setState({ userId: null, accessToken: null, refreshToken: null, emailVerified: false,
+  useAuthStore.setState({ userId: null, accessToken: null, sessionId: null, emailVerified: false,
     privateKey: null, permissions: 0, isVaultLocked: true, cryptoSessionGeneration: 0 })
   const fragment = entryShareFragment({ key: Uint8Array.from({ length: 32 }, (_, i) => i), accessToken: new Uint8Array(32).fill(7) })
   window.history.replaceState(null, '', `/share/${shareId}${fragment}`)
@@ -71,7 +71,7 @@ it('keeps one guest receipt through registration, explicit fresh Vault creation 
     duringManualLoginCleanup(() => useAuthStore.getState().logout())
     useAuthStore.getState().setTokens({ userId: memberId,
       accessToken: `h.${btoa(JSON.stringify({ sub: memberId, org_id: organizationId }))}.s`,
-      refreshToken: 'synthetic-refresh', emailVerified: false, isOnboarded: true, permissions: 8 })
+      sessionId: 'synthetic-refresh', emailVerified: false, isOnboarded: true, permissions: 8 })
     useAuthStore.getState().markEmailVerified()
     useAuthStore.getState().unlockVault(new Uint8Array(32).fill(8), new Uint8Array(32).fill(7))
   })

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useAuthStore } from '../stores/auth-store'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { HTTPError } from 'ky'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -33,6 +34,17 @@ export function RegisterPage({ redirectTo }: RegisterPageProps) {
   const navigate = useNavigate()
   const register = useRegister()
   const destination = parseAuthRedirect(redirectTo)
+  const authenticated = useAuthStore(state => Boolean(state.accessToken || state.sessionId))
+  const locked = useAuthStore(state => state.isVaultLocked)
+  const checking = useAuthStore(state => state.sessionRevalidating)
+  const navigated = useRef(false)
+
+  useEffect(() => {
+    if (!authenticated || checking || register.isPending || navigated.current) return
+    navigated.current = true
+    if (locked) void navigate({ to: '/unlock', search: { redirect: destination ?? '/' }, replace: true })
+    else void navigate({ href: destination ?? '/', replace: true })
+  }, [authenticated, locked, checking, register.isPending, navigate, destination])
 
   const [step, setStep] = useState<Step>('credentials')
   const [credentials, setCredentials] = useState<RegisterCredentialsValues | null>(null)
@@ -61,7 +73,11 @@ export function RegisterPage({ redirectTo }: RegisterPageProps) {
         recoveryMnemonic: mnemonic,
       },
       {
-        onSuccess: () => destination ? navigate({ href: destination }) : navigate({ to: '/' }),
+        onSuccess: () => {
+          if (navigated.current) return
+          navigated.current = true
+          return destination ? navigate({ href: destination }) : navigate({ to: '/' })
+        },
         onError: (err) => {
           // A 409 means the email is already registered — tell the user exactly
           // that (and to sign in) instead of a generic "try again" they'd loop on.

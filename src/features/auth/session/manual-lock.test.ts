@@ -13,7 +13,7 @@ beforeEach(async () => {
   localStorage.clear()
   vi.stubGlobal('navigator', { locks: { request: async (_name: string, action: () => Promise<unknown>) => action() } })
   vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(new Error('offline synthetic transport')))
-  useAuthStore.setState({ userId: accountId, accessToken: 'own-access', refreshToken: 'own-refresh' })
+  useAuthStore.setState({ userId: accountId, accessToken: 'own-access', sessionId: 'own-refresh' })
   useAuthStore.getState().unlockVault(new Uint8Array([1, 2]), new Uint8Array([3, 4]))
   await sharedUnlockLinks.adopt(scope, linkId)
 })
@@ -25,7 +25,7 @@ afterEach(async () => {
 it('wipes local keys synchronously, preserves its own login and persists offline lock for later repair', async () => {
   const own = useAuthStore.getState(), locking = lockClientSession()
   expect([...own.masterKey!]).toEqual([0, 0]); expect([...own.privateKey!]).toEqual([0, 0])
-  expect(useAuthStore.getState()).toMatchObject({ isVaultLocked: true, userId: accountId, accessToken: 'own-access', refreshToken: 'own-refresh' })
+  expect(useAuthStore.getState()).toMatchObject({ isVaultLocked: true, userId: accountId, accessToken: 'own-access', sessionId: 'own-refresh' })
   await locking
   expect((await sharedUnlockLinks.read(scope))!.pending).toMatchObject([{ action: 'lock' }])
 })
@@ -40,7 +40,7 @@ it('sends the actual lock with own JWT and fresh preference/link CAS, without sh
   expect(fetcher.mock.calls[2][1]).toMatchObject({ headers: { authorization: 'Bearer own-access' }, credentials: 'omit', redirect: 'error' })
   expect(JSON.parse(String(fetcher.mock.calls[2][1]?.body))).toEqual({ expectedRevision: 7, expectedPreferenceRevision: 4 })
   expect((await sharedUnlockLinks.read(scope))!.pending).toEqual([])
-  expect(useAuthStore.getState().refreshToken).toBe('own-refresh')
+  expect(useAuthStore.getState().sessionId).toBe('own-refresh')
 })
 
 it('keeps lock local when fresh own Identity says OFF', async () => {
@@ -58,7 +58,7 @@ it('preserves local lock and admission denial when the closing cannot be saved',
     set(key, value)
   })
   await expect(lockClientSession()).rejects.toThrow('disk')
-  expect(useAuthStore.getState()).toMatchObject({ masterKey: null, isVaultLocked: true, refreshToken: 'own-refresh' })
+  expect(useAuthStore.getState()).toMatchObject({ masterKey: null, isVaultLocked: true, sessionId: 'own-refresh' })
   await expect(sharedUnlockLinks.read(scope)).rejects.toThrow()
 })
 
@@ -68,7 +68,7 @@ it.each([accountId, '33333333-3333-4333-8333-333333333333'])('does not complete 
   vi.stubGlobal('fetch', fetcher)
   const locking = lockClientSession()
   await vi.waitFor(() => expect(fetcher).toHaveBeenCalledOnce())
-  useAuthStore.setState({ userId: nextAccount, accessToken: 'own-access', refreshToken: 'own-refresh' })
+  useAuthStore.setState({ userId: nextAccount, accessToken: 'own-access', sessionId: 'own-refresh' })
   useAuthStore.getState().unlockVault(new Uint8Array([5]), new Uint8Array([6]))
   const next = useAuthStore.getState()
   finish(reply({ sharedUnlockEnabled: true, revision: 4 })); await locking

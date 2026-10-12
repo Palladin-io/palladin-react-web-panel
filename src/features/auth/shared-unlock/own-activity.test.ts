@@ -3,7 +3,7 @@ import { SharedUnlockApi } from "./api";
 import { SharedUnlockSourceAuthority } from "./source-authority";
 import { SharedUnlockExpiryStore } from "./expiry-store";
 import { OwnSharedUnlockActivityRecorder } from "./own-activity";
-import fixtures from "./fixtures/session-api-v1.json";
+import fixtures from "./fixtures/browser-session-api";
 
 const apiUrl = "https://api.example.test";
 const base = fixtures.operations[0].sourceAuthorization;
@@ -16,11 +16,11 @@ async function harness(pause = false) {
   const pending = new Promise<Response>(resolve => { release = resolve; });
   const bodies: Record<string, unknown>[] = [];
   const fetcher = vi.fn<typeof fetch>(async (url, init) => {
-    expect(String(url)).toBe(apiUrl + '/api/account/shared-unlock/authorizations/activity');
+    expect(String(url)).toBe(apiUrl + '/api/browser/account/shared-unlock/authorizations/activity');
     expect(new Headers(init?.headers).get('authorization')).toBe('Bearer own-access');
     const body = JSON.parse(String(init?.body)); bodies.push(body);
-    expect(body).toMatchObject({ refreshToken: 'own-refresh', authorizationId: root.authorizationId, sourceGeneration: 'A'.repeat(43) });
-    expect(Object.keys(body).sort()).toEqual(['authorizationId', 'idleDeadlineMs', 'refreshToken', 'sourceGeneration']);
+    expect(body).toMatchObject({ expectedSessionId: 'own-refresh', authorizationId: root.authorizationId, sourceGeneration: 'A'.repeat(43) });
+    expect(Object.keys(body).sort()).toEqual(['authorizationId', 'expectedSessionId', 'idleDeadlineMs', 'sourceGeneration']);
     return pause && bodies.length === 1 ? pending : new Response(JSON.stringify({ ...root, idleDeadlineMs: body.idleDeadlineMs }));
   });
   const api = new SharedUnlockApi(fetcher, () => apiUrl), authority = new SharedUnlockSourceAuthority(api);
@@ -36,7 +36,7 @@ async function harness(pause = false) {
     const controller = new AbortController(), lease = authority.captureActivity();
     const dispose = vi.fn(() => { lease.dispose(); controller.abort(); });
     cleanups.push(() => { controller.abort(); lease.dispose(); });
-    recorder.record({ session: { apiUrl, userId: root.accountId, accessToken: 'own-access', refreshToken: 'own-refresh' },
+    recorder.record({ session: { apiUrl, userId: root.accountId, accessToken: 'own-access', sessionId: 'own-refresh' },
       authority: lease, idleDeadlineMs, signal: controller.signal,
       assertCurrent: () => { check(); if (Date.now() >= Math.min(idleDeadlineMs, root.offlineDeadlineMs)) throw new Error('own keys expired'); }, dispose });
     return { controller, dispose };

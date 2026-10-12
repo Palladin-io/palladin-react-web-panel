@@ -5,7 +5,7 @@ export interface SharedUnlockClosingSession {
   readonly apiUrl: string;
   readonly userId: string;
   readonly accessToken: string;
-  readonly refreshToken: string;
+  readonly sessionId: string;
 }
 export interface SharedUnlockLinkChange { readonly accountId: string; readonly linkId: string; readonly apiUrl: string }
 const listeners = new Set<(change: SharedUnlockLinkChange) => void | Promise<void>>();
