@@ -124,7 +124,9 @@ and revokes the old value. An existing cookie wins with 409 followed by refresh;
 failed migration never restores the legacy credential. Access tokens, keys and
 unlock limits cannot hydrate from storage. A network outage keeps the vault locked.
 If startup restoration stalls, the existing startup error/reload surface appears
-after ten seconds without aborting the cookie operation. A later successful
+after ten seconds without aborting the cookie operation or clearing a captured
+Entry-share capability. Its existing in-memory expiry remains unchanged; terminal
+startup failure still wipes it. A later successful
 response may finish startup into a locked session. Guest login/register screens
 react to peer-restored sessions after revalidation and preserve the destination
 through Unlock; active manual authentication owns its navigation.

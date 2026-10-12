@@ -16,15 +16,19 @@ let sharingIngressReady = false
 try {
   installEntryShareNavigation(window, () => {
     sharingIngressReady = false
-    renderStartupError()
+    failStartup()
   })
   sharingIngressReady = true
 } catch {
   // A failed URL scrub must stop startup before the router or analytics is imported.
 }
 
-function renderStartupError(missingKeys: readonly string[] = []) {
+function failStartup(missingKeys: readonly string[] = []) {
   clearPendingEntryShare()
+  renderStartupError(missingKeys)
+}
+
+function renderStartupError(missingKeys: readonly string[] = []) {
   root.render(
     <StrictMode>
       <StartupError missingKeys={missingKeys} />
@@ -54,12 +58,12 @@ async function startApplication(applicationRoot: Root): Promise<void> {
 }
 
 if (!sharingIngressReady || missingEnvironmentKeys.length > 0) {
-  renderStartupError(missingEnvironmentKeys)
+  failStartup(missingEnvironmentKeys)
 } else {
   // Keep a hung cookie write alive, but bound the blank startup presentation.
   const startupTimeout = window.setTimeout(() => renderStartupError(), 10_000)
   void startApplication(root).catch(() => {
     console.error('Palladin application bootstrap failed')
-    renderStartupError()
+    failStartup()
   }).finally(() => window.clearTimeout(startupTimeout))
 }
