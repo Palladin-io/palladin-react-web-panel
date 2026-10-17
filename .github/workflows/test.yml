@@ -20,9 +20,11 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        id: checkout
         with:
           persist-credentials: false
       - name: Scan the current tree with Gitleaks 8.30.1
+        id: scan_the_current_tree_with_gitleaks_8_30_1
         shell: bash
         run: |
           set -euo pipefail
@@ -37,20 +39,62 @@ jobs:
           test "$("$RUNNER_TEMP/gitleaks" version)" = "8.30.1"
           "$RUNNER_TEMP/gitleaks" dir . --no-banner --redact
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        id: setup_node
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
+      - name: npm ci
+        id: npm_ci
+        run: npm ci
       - name: Audit dependencies
+        id: audit_dependencies
         run: npm audit --audit-level=high
-      - run: npm run lint
-      - run: npm run build
+      - name: npm run lint
+        id: npm_run_lint
+        run: npm run lint
+      - name: npm run build
+        id: npm_run_build
+        run: npm run build
       - name: Verify static-host deployment files
+        id: verify_static_host_deployment_files
         run: |
           set -euo pipefail
           test -f dist/_headers
           grep -Fxq '/* /index.html 200' dist/_redirects
-      - run: npm test
+      - name: npm test
+        id: npm_test
+        run: npm test
+
+      - name: Publish CI check summary
+        if: always()
+        shell: bash
+        env:
+          CHECKOUT: ${{ steps.checkout.outcome }}
+          SCAN_THE_CURRENT_TREE_WITH_GITLEAKS_8_30_1: ${{ steps.scan_the_current_tree_with_gitleaks_8_30_1.outcome }}
+          SETUP_NODE: ${{ steps.setup_node.outcome }}
+          NPM_CI: ${{ steps.npm_ci.outcome }}
+          AUDIT_DEPENDENCIES: ${{ steps.audit_dependencies.outcome }}
+          NPM_RUN_LINT: ${{ steps.npm_run_lint.outcome }}
+          NPM_RUN_BUILD: ${{ steps.npm_run_build.outcome }}
+          VERIFY_STATIC_HOST_DEPLOYMENT_FILES: ${{ steps.verify_static_host_deployment_files.outcome }}
+          NPM_TEST: ${{ steps.npm_test.outcome }}
+        run: |
+          {
+            printf '## CI checks\n\nPlatform: Linux (ubuntu-latest)\n\n'
+            printf '| Check | Result |\n| --- | --- |\n'
+            printf '| %s | %s |\n' 'Checkout' "${CHECKOUT:-not run}"
+            printf '| %s | %s |\n' 'Scan the current tree with Gitleaks 8.30.1' "${SCAN_THE_CURRENT_TREE_WITH_GITLEAKS_8_30_1:-not run}"
+            printf '| %s | %s |\n' 'Set up Node.js' "${SETUP_NODE:-not run}"
+            printf '| %s | %s |\n' 'npm ci' "${NPM_CI:-not run}"
+            printf '| %s | %s |\n' 'Audit dependencies' "${AUDIT_DEPENDENCIES:-not run}"
+            printf '| %s | %s |\n' 'npm run lint' "${NPM_RUN_LINT:-not run}"
+            printf '| %s | %s |\n' 'npm run build' "${NPM_RUN_BUILD:-not run}"
+            printf '| %s | %s |\n' 'Verify static-host deployment files' "${VERIFY_STATIC_HOST_DEPLOYMENT_FILES:-not run}"
+            printf '| %s | %s |\n' 'npm test' "${NPM_TEST:-not run}"
+            printf '\n[Open workflow logs](%s/%s/actions/runs/%s/attempts/%s)\n' \
+              "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
+            printf '\nFailure details stay in the failing check log; this report contains only check outcomes.\n'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   attest-web-bundle:
     name: Build and attest staging artifact
