@@ -1,9 +1,9 @@
 import { expect, it, vi } from 'vitest'
 import { SharedUnlockApi } from './api'
-import fixtures from './fixtures/session-api-v1.json'
+import fixtures from './fixtures/browser-session-api'
 
 const apiUrl = 'https://api.example.test'
-const own = { apiUrl, userId: 'account', accessToken: 'own-access', refreshToken: 'own-refresh' }
+const own = { apiUrl, userId: 'account', accessToken: 'own-access', sessionId: 'own-refresh' }
 const input = { authCredential: 'synthetic-proof', sourceGeneration: 'generation', expectedPreferenceRevision: 3,
   expectedCredentialRevision: 3, expectedPrivateKeyWrapRevision: 5,
   idleDeadlineMs: 1800000100000, absoluteDeadlineMs: 1800000200000, offlineDeadlineMs: 1800000300000 }
@@ -12,9 +12,9 @@ for (const fixture of fixtures.responses.filter(r => r.type === 'authorization')
   it(`decodes provider ${fixture.name} without restating Identity invariants`, async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(fixture.body)))
     const api = new SharedUnlockApi(fetcher, () => apiUrl)
-    const result = await api.authorize(own, { ...input, refreshToken: 'untrusted-input' } as typeof input, new AbortController().signal)
+    const result = await api.authorize(own, { ...input, expectedSessionId: 'untrusted-input' } as typeof input, new AbortController().signal)
     expect(result).toEqual(fixture.body)
-    expect(JSON.parse(String(fetcher.mock.lastCall![1]!.body)).refreshToken).toBe('own-refresh')
+    expect(JSON.parse(String(fetcher.mock.lastCall![1]!.body)).expectedSessionId).toBe('own-refresh')
   })
 }
 
@@ -55,10 +55,10 @@ for (const fixture of fixtures.responses.filter(r => r.type === 'operation' || r
     expect(result).toEqual(fixture.body)
     expect(fetcher).toHaveBeenCalledOnce()
     const [url, options] = fetcher.mock.lastCall!
-    expect(url).toBe(`${apiUrl}/api/auth/shared-unlock/operations/operation%2Fwith%3F%23characters/${action}`)
-    expect(options).toMatchObject({ method: 'POST', credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer' })
+    expect(url).toBe(`${apiUrl}/api/${action === 'commit' ? 'browser/' : ''}auth/shared-unlock/operations/operation%2Fwith%3F%23characters/${action}`)
+    expect(options).toMatchObject({ method: 'POST', credentials: action === 'commit' ? 'include' : 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer' })
     expect(new Headers(options?.headers).has('authorization')).toBe(false)
-    expect(JSON.parse(String(options?.body))).toEqual({ signature: 'synthetic-receiver-proof' })
+    expect(JSON.parse(String(options?.body))).toEqual({ signature: 'synthetic-receiver-proof', ...(action === 'commit' ? { expectedSessionId: null } : {}) })
   })
 }
 
@@ -81,6 +81,7 @@ it('reports an available late commit body for own-lineage cleanup before rejecti
   const abort = new AbortController()
   const pending = api.commit(apiUrl, 'operation', 'synthetic-proof', abort.signal, issued)
   const rejected = expect(pending).rejects.toMatchObject({ code: 'cancelled' })
+  await vi.waitFor(() => expect(fetcher).toHaveBeenCalledOnce())
   abort.abort()
   currentApiUrl = 'https://other.example.test'
   respond(new Response(JSON.stringify(body)))
@@ -93,15 +94,15 @@ it('bounds cleanup to two seconds on the original API without changing the curre
   try {
     const fetcher = vi.fn<typeof fetch>().mockReturnValue(new Promise(() => {}))
     const api = new SharedUnlockApi(fetcher, () => 'https://new-environment.example.test')
-    const pending = api.revokeIssuedSession(apiUrl, { accessToken: 'synthetic-new-own-access', refreshToken: 'synthetic-new-own-refresh' })
+    const pending = api.revokeIssuedSession(apiUrl, { accessToken: 'synthetic-new-own-access', sessionId: 'synthetic-new-own-refresh' })
     await vi.advanceTimersByTimeAsync(2000)
     await pending
     const [url, options] = fetcher.mock.lastCall!
-    expect(url).toBe(`${apiUrl}/api/auth/logout`)
+    expect(url).toBe(`${apiUrl}/api/browser/auth/discard`)
     expect(new Headers(options?.headers).get('authorization')).toBe('Bearer synthetic-new-own-access')
     expect(options).toMatchObject({ credentials: 'omit', redirect: 'error', cache: 'no-store' })
     expect(options?.signal?.aborted).toBe(true)
-    expect(JSON.parse(String(options?.body))).toEqual({ refreshToken: 'synthetic-new-own-refresh' })
+    expect(options?.body).toBeUndefined()
     expect(fetcher).toHaveBeenCalledOnce()
   } finally { vi.useRealTimers() }
 })
@@ -121,13 +122,13 @@ for (const fixture of fixtures.responses.filter(row => row.type === 'operation')
     }
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(operation)))
     const api = new SharedUnlockApi(fetcher, () => apiUrl)
-    const extended = { ...request, refreshToken: 'peer-must-not-choose-this' }
+    const extended = { ...request, expectedSessionId: 'peer-must-not-choose-this' }
     expect(await api.createOperation(own, extended, new AbortController().signal)).toEqual(operation)
     const [url, init] = fetcher.mock.lastCall!
-    expect(url).toBe(apiUrl + '/api/account/shared-unlock/operations')
-    expect(init).toMatchObject({ method: 'POST', credentials: 'omit', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer' })
+    expect(url).toBe(apiUrl + '/api/browser/account/shared-unlock/operations')
+    expect(init).toMatchObject({ method: 'POST', credentials: 'include', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer' })
     expect(new Headers(init?.headers).get('authorization')).toBe('Bearer own-access')
-    expect(JSON.parse(String(init?.body))).toEqual({ ...request, refreshToken: own.refreshToken })
+    expect(JSON.parse(String(init?.body))).toEqual({ ...request, expectedSessionId: own.sessionId })
   })
 }
 
@@ -150,10 +151,10 @@ it('creates and activates the selected link using only the own session and origi
   await api.createLink(own, context.linkId, context.preferenceRevision, signal)
   expect(JSON.parse(String(fetcher.mock.lastCall![1]?.body))).toEqual({ linkId: context.linkId, expectedPreferenceRevision: context.preferenceRevision })
   const activate = { authorizationId: root.authorizationId, sourceGeneration: context.webGeneration, expectedRevision: 1, expectedPreferenceRevision: context.preferenceRevision }
-  await api.activate(own, context.linkId, { ...activate, ...{ refreshToken: 'untrusted-extra' } }, signal)
-  expect(fetcher.mock.lastCall![0]).toBe(`${apiUrl}/api/account/shared-unlock/links/${context.linkId}/activate`)
-  expect(JSON.parse(String(fetcher.mock.lastCall![1]?.body))).toEqual({ ...activate, refreshToken: own.refreshToken })
-  expect(fetcher.mock.lastCall![1]).toMatchObject({ headers: { authorization: 'Bearer own-access' }, credentials: 'omit', cache: 'no-store', redirect: 'error' })
+  await api.activate(own, context.linkId, { ...activate, ...{ expectedSessionId: 'untrusted-extra' } }, signal)
+  expect(fetcher.mock.lastCall![0]).toBe(`${apiUrl}/api/browser/account/shared-unlock/links/${context.linkId}/activate`)
+  expect(JSON.parse(String(fetcher.mock.lastCall![1]?.body))).toEqual({ ...activate, expectedSessionId: own.sessionId })
+  expect(fetcher.mock.lastCall![1]).toMatchObject({ headers: { authorization: 'Bearer own-access' }, credentials: 'include', cache: 'no-store', redirect: 'error' })
 })
 
 

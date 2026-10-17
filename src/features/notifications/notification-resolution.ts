@@ -50,9 +50,14 @@ export function notificationDeepLink(item: NotificationItem):
   | { to: '/vaults/$vaultId/grants/$grantId'; params: { vaultId: string; grantId: string } }
   | { to: '/agents/$agentId'; params: { agentId: string } }
   | { to: '/vaults/$vaultId'; params: { vaultId: string }; search?: { tab: 'agents' } }
-  | { to: '/vaults/$vaultId/entries/$entryId'; params: { vaultId: string; entryId: string } }
+  | { to: '/vaults/$vaultId/entries/$entryId'; params: { vaultId: string; entryId: string }; search?: { tab: 'sharing' } }
   | null {
   const { agentId, vaultId, entryId, grantId } = item.metadata ?? {}
+  if (item.type === 'entry_share_received') {
+    return vaultId && entryId
+      ? { to: '/vaults/$vaultId/entries/$entryId', params: { vaultId, entryId }, search: { tab: 'sharing' } }
+      : null
+  }
   if (item.type.startsWith('agent_') && agentId) {
     return { to: '/agents/$agentId', params: { agentId } }
   }

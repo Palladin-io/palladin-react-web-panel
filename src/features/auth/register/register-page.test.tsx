@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { useAuthStore } from '../stores/auth-store'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, it, vi } from 'vitest'
 import { RegisterPage } from './register-page'
@@ -38,8 +39,8 @@ const registerState = vi.hoisted(() => ({
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
-  Link: ({ children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-    <a {...props}>{children}</a>
+  Link: ({ children, to, search, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement> & { to: string; search?: { redirect?: string } }) => (
+    <a {...props} href={to + (search?.redirect ? `?redirect=${encodeURIComponent(search.redirect)}` : '')}>{children}</a>
   ),
 }))
 vi.mock('../hooks/use-register', () => ({ useRegister: () => registerState }))
@@ -54,6 +55,7 @@ vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
 }))
 beforeEach(() => {
+  useAuthStore.getState().logout()
   navigateMock.mockReset()
   registerState.mutate.mockReset()
   registerState.isPending = false
@@ -120,4 +122,39 @@ it('shows the registration error on the recovery confirmation step', async () =>
   expect(await screen.findByRole('alert')).toHaveTextContent(
     /couldn't create your account/i,
   )
+})
+
+it('returns to a clean sharing route after registration and preserves it when switching to login', async () => {
+  registerState.mutate.mockImplementation((_input: unknown, options: { onSuccess: () => void }) => options.onSuccess())
+  const user = userEvent.setup()
+  const destination = '/share/00112233-4455-4677-8899-aabbccddeeff'
+  render(<RegisterPage redirectTo={`${destination}?access=synthetic#key=synthetic`} />)
+  expect(screen.getByRole('link', { name: /^sign in$/i })).toHaveAttribute('href', `/login?redirect=${encodeURIComponent(destination)}`)
+  const inputs = await reachRecoveryConfirmation(user)
+  await enterRequestedWords(user, inputs)
+  await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
+  expect(navigateMock).toHaveBeenCalledWith({ href: destination })
+})
+
+it('never forwards an external return through registration or its login link', async () => {
+  registerState.mutate.mockImplementation((_input: unknown, options: { onSuccess: () => void }) => options.onSuccess())
+  const user = userEvent.setup()
+  render(<RegisterPage redirectTo="https://attacker.example/" />)
+  expect(screen.getByRole('link', { name: /^sign in$/i })).toHaveAttribute('href', '/login')
+  const inputs = await reachRecoveryConfirmation(user)
+  await enterRequestedWords(user, inputs)
+  await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
+  expect(navigateMock).toHaveBeenCalledWith({ to: '/' })
+})
+
+it('routes a restored peer session to Unlock while preserving its destination', () => {
+  render(<RegisterPage redirectTo="/vaults" />)
+  act(() => { useAuthStore.setState({ accessToken: 'restored-access', sessionId: 'restored-session' }) })
+  expect(navigateMock).toHaveBeenCalledExactlyOnceWith({ to: '/unlock', search: { redirect: '/vaults' }, replace: true })
+})
+it('leaves navigation owned by an active registration', () => {
+  registerState.isPending = true
+  render(<RegisterPage />)
+  act(() => { useAuthStore.setState({ accessToken: 'registration-access', sessionId: 'registration-session' }) })
+  expect(navigateMock).not.toHaveBeenCalled()
 })

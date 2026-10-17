@@ -16,9 +16,9 @@ function wrapper({ children }: { children: ReactNode }) {
   const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } })
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>
 }
-const sessionA = { accessToken: 'synthetic-access-a', refreshToken: 'synthetic-refresh-a',
+const sessionA = { accessToken: 'synthetic-access-a', sessionId: 'synthetic-refresh-a',
   userId: '11111111-1111-4111-8111-111111111111', isOnboarded: true }
-const sessionB = { accessToken: 'synthetic-access-b', refreshToken: 'synthetic-refresh-b',
+const sessionB = { accessToken: 'synthetic-access-b', sessionId: 'synthetic-refresh-b',
   userId: '22222222-2222-4222-8222-222222222222', isOnboarded: true }
 const input = () => {
   const attempt = beginManualUnlockAttempt({ blockNewSharedUnlock: true })
@@ -69,12 +69,12 @@ describe('Google exchange ownership', () => {
     expect(useAuthStore.getState().masterKey).toBe(ownKeys)
     expect(ownKeys).toEqual(new Uint8Array(32).fill(1))
     expect(navigateMock).not.toHaveBeenCalled()
-    expect(revokeMock).toHaveBeenCalledExactlyOnceWith(sessionB.refreshToken)
+    expect(revokeMock).toHaveBeenCalledExactlyOnceWith(sessionB.accessToken)
     expect(request.finish).toHaveBeenCalledOnce()
   })
 
   it('resumes normal auth guards for a new OAuth account and preserves its destination', async () => {
-    oauthGoogleMock.mockResolvedValue({ accessToken: 'access', refreshToken: 'refresh', userId: 'new-user', isOnboarded: false, isNewUser: true })
+    oauthGoogleMock.mockResolvedValue({ accessToken: 'access', sessionId: 'refresh', userId: 'new-user', isOnboarded: false, isNewUser: true })
     const { result } = renderHook(() => useLogin('/agent-pairing/opaque-handle'), { wrapper })
     await act(async () => { await result.current.mutateAsync(input()) })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))

@@ -26,6 +26,12 @@ export interface SecretInputProps {
   copyable?: boolean
   /** Accessible label for the copy button (e.g. "Copy password"). */
   copyLabel?: string
+  copyFeedback?: boolean
+  clearCopiedSecret?: boolean
+  /** Optional third inline action, beside Copy and Reveal. */
+  trailingAction?: { icon: string; label: string; onClick: () => void }
+  /** Read-only presentation separates actions from the value, without inset controls. */
+  appearance?: 'input' | 'display'
   /**
    * Render a password-generator affordance. Receives the generated value — the
    * caller both stores it and reveals the field so the user sees what they got.
@@ -33,16 +39,19 @@ export interface SecretInputProps {
   onGenerate?: (password: string) => void
 }
 
-const PADDING_FOR_ACTION_COUNT: Record<number, string> = { 1: ' pr-10', 2: ' pr-16', 3: ' pr-[5.375rem]' }
+const PADDING_FOR_ACTION_COUNT: Record<number, string> = {
+  1: ' pr-10', 2: ' pr-16', 3: ' pr-[6.5rem]',
+}
 
 export function SecretInput({
   id, label, labelClassName, value, onChange, shown, onToggleShown,
   placeholder, disabled, readOnly, monospace, autoComplete = 'off', error, onBlur,
-  borderClass, copyable, copyLabel, onGenerate,
+  borderClass, copyable, copyLabel, copyFeedback, clearCopiedSecret = true, trailingAction, onGenerate, appearance = 'input',
 }: SecretInputProps) {
   const { t } = useTranslation()
-  const actionCount = 1 + (copyable ? 1 : 0) + (onGenerate ? 1 : 0)
-  const paddingRight = PADDING_FOR_ACTION_COUNT[actionCount] ?? ' pr-10'
+  const actionCount = 1 + (copyable ? 1 : 0) + (onGenerate ? 1 : 0) + (trailingAction ? 1 : 0)
+  const display = appearance === 'display' && readOnly
+  const paddingRight = display ? '' : PADDING_FOR_ACTION_COUNT[actionCount] ?? ' pr-10'
   return (
     <div>
       <label
@@ -51,7 +60,7 @@ export function SecretInput({
       >
         {label}
       </label>
-      <div className="relative">
+      <div className={display ? 'flex min-w-0 items-center gap-2' : 'relative'}>
         {/* Never `type=password`: a real password field in a form makes the
             browser's password manager offer to save the vault secret. We mask a
             plain text field via `.secret-mask` (a disc-glyph font that masks in
@@ -77,20 +86,20 @@ export function SecretInput({
           // `ph-no-capture`: never let PostHog autocapture or a session
           // recording read this secret value (defense in depth over the
           // masking configured in analytics.init).
-          className={`ph-no-capture h-control w-full rounded-lg border bg-[var(--cv-input-bg)]
-            pl-3 text-ui text-[var(--cv-input-text)]
+          className={`ph-no-capture h-control w-full min-w-0 rounded-lg border
+            ${display ? 'bg-transparent px-0 text-right border-transparent focus-visible:border-[var(--cv-input-border)]' : 'bg-[var(--cv-input-bg)] pl-3'} text-ui text-[var(--cv-input-text)]
             placeholder:text-[var(--cv-input-placeholder)]
             focus:outline-none transition-colors duration-200 disabled:opacity-60${monospace ? ' font-mono' : ''}
             ${paddingRight}
             ${!shown && value ? ' secret-mask' : ''}
-            ${borderClass ?? (error
+            ${display ? '' : borderClass ?? (error
               ? 'border-[var(--cv-primary)] focus:border-[var(--cv-primary)]'
               : 'border-[var(--cv-input-border)] focus:border-[var(--cv-t1)]'
             )}`}
         />
-        <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
+        <div className={display ? 'flex shrink-0 items-center gap-0.5' : 'absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5'}>
           {onGenerate ? <PasswordGeneratorPopover onUse={onGenerate} disabled={disabled} /> : null}
-          {copyable ? <CopyButton value={value} label={copyLabel} secret /> : null}
+          {copyable ? <CopyButton value={value} label={copyLabel} secret={clearCopiedSecret} feedback={copyFeedback} /> : null}
           <button
             type="button"
             onClick={onToggleShown}
@@ -100,6 +109,11 @@ export function SecretInput({
           >
             <Icon name={shown ? 'visibility_off' : 'visibility'} size={16} />
           </button>
+          {trailingAction ? <button type="button" onClick={trailingAction.onClick} aria-label={trailingAction.label}
+            title={trailingAction.label} className="inline-flex h-action w-action items-center justify-center rounded
+              text-[var(--cv-t3)] hover:text-[var(--cv-t1)] transition-colors">
+            <Icon name={trailingAction.icon} size={16} />
+          </button> : null}
         </div>
       </div>
     </div>

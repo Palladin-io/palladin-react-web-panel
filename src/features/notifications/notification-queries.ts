@@ -87,6 +87,8 @@ export function useNotifications(category?: NotificationCategory) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 15_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   })
 }
 
@@ -102,6 +104,8 @@ export function useNotificationsSummary() {
       )
     },
     staleTime: 15_000,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   })
 }
 

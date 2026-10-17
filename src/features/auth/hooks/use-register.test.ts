@@ -9,11 +9,12 @@ import { decryptWithKey, loadSodium } from '../../../shared/crypto/sodium'
 import type { RegisterPayload } from '../api/auth-api'
 import { useRegister } from './use-register'
 
+const revokeMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 const registerMock = vi.hoisted(() => vi.fn())
 const setTokensMock = vi.hoisted(() => vi.fn())
 const unlockVaultMock = vi.hoisted(() => vi.fn())
 
-vi.mock('../api/auth-api', () => ({ register: registerMock }))
+vi.mock('../api/auth-api', () => ({ register: registerMock, revokeUninstalledLoginSession: revokeMock }))
 vi.mock('../../../shared/lib/create-default-vault-safe', () => ({
   createDefaultVaultSafe: vi.fn().mockResolvedValue(undefined),
 }))
@@ -39,7 +40,7 @@ describe('useRegister', () => {
   beforeEach(() => {
     registerMock.mockReset().mockResolvedValue({
       accessToken: 'a',
-      refreshToken: 'r',
+      sessionId: 'r',
       userId: 'u',
       isOnboarded: true,
       emailVerified: false,
@@ -117,4 +118,19 @@ describe('useRegister', () => {
     )
     expect(Array.from(viaRecovery)).toEqual(Array.from(privateKey))
   })
+  it('revokes a late registration session after the form unmounts without publishing keys', async () => {
+    let respond!: (value: object) => void
+    registerMock.mockImplementation(() => new Promise(resolve => { respond = resolve }))
+    const { result, unmount } = renderHook(() => useRegister(), { wrapper })
+    const pending = result.current.mutateAsync({ email: 'user@example.com', masterPassword: PASSWORD, recoveryMnemonic: MNEMONIC })
+    const rejected = expect(pending).rejects.toThrow('cancelled')
+    await vi.waitFor(() => expect(registerMock).toHaveBeenCalledOnce())
+    unmount()
+    respond({ accessToken: 'issued-access', sessionId: 'issued-session', userId: 'u', isOnboarded: true })
+    await rejected
+    expect(setTokensMock).not.toHaveBeenCalled()
+    expect(unlockVaultMock).not.toHaveBeenCalled()
+    expect(revokeMock).toHaveBeenCalledWith('issued-access')
+  })
+
 })

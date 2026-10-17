@@ -23,6 +23,10 @@ const resendState = vi.hoisted(() => ({
 const getAccountMock = vi.hoisted(() => vi.fn())
 const logoutAndReloadMock = vi.hoisted(() => vi.fn())
 const clearPushTokenOnLogoutMock = vi.hoisted(() => vi.fn())
+const gateState = vi.hoisted(() => ({
+  data: { account: { email: 'user@example.com', emailVerified: false }, ready: false },
+  isError: false, refetch: vi.fn(),
+}))
 
 vi.mock('@tanstack/react-router', () => ({
   useNavigate: () => navigateMock,
@@ -38,6 +42,7 @@ vi.mock('../stores/auth-store', () => ({
 }))
 vi.mock('../session/client-session', () => ({ logoutAndReload: logoutAndReloadMock }))
 vi.mock('../hooks/use-verify-email', () => ({ useVerifyEmail: () => verifyState }))
+vi.mock('../hooks/use-verification-gate', () => ({ useVerificationGate: () => gateState }))
 vi.mock('../hooks/use-resend-verification', () => ({ useResendVerification: () => resendState }))
 vi.mock('../../notifications', () => ({
   clearPushTokenOnLogout: clearPushTokenOnLogoutMock,
@@ -68,6 +73,9 @@ beforeEach(() => {
   logoutAndReloadMock.mockReset()
   clearPushTokenOnLogoutMock.mockReset()
   getAccountMock.mockReset().mockResolvedValue({ email: 'user@example.com', emailVerified: false })
+  gateState.data = { account: { email: 'user@example.com', emailVerified: false }, ready: false }
+  gateState.isError = false
+  gateState.refetch.mockReset()
 })
 
 describe('VerifyEmailPage — token result flow', () => {
@@ -155,15 +163,33 @@ describe('VerifyEmailPage — hard gate (signed in, no token)', () => {
     )
   })
 
-  it('syncs the store before leaving when the account is already verified (no redirect loop)', async () => {
-    // Stale-store scenario: the persisted flag says unverified (that's how the
-    // user landed here), but the server reports verified. The gate must clear
-    // the store flag so beforeLoad doesn't bounce them straight back.
+  it('leaves only after the gate has refreshed the verified session', async () => {
     authState.authenticated = true
-    getAccountMock.mockResolvedValue({ email: 'user@example.com', emailVerified: true })
+    gateState.data = { account: { email: 'user@example.com', emailVerified: true }, ready: true }
     renderPage(<VerifyEmailPage token={undefined} />)
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ to: '/' }))
+  })
 
-    await waitFor(() => expect(markVerifiedMock).toHaveBeenCalledOnce())
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/' })
+  it('does not leave on account verification alone while the session refresh is pending', () => {
+    authState.authenticated = true
+    gateState.data.account.emailVerified = true
+    renderPage(<VerifyEmailPage />)
+    expect(navigateMock).not.toHaveBeenCalled()
+  })
+
+  it('returns to the canonical share without carrying a secret-bearing fragment', async () => {
+    authState.authenticated = true
+    gateState.data.ready = true
+    renderPage(<VerifyEmailPage redirectTo="/share/00112233-4455-4677-8899-aabbccddeeff#key=never-forward" />)
+    await waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ href: '/share/00112233-4455-4677-8899-aabbccddeeff' }))
+  })
+
+  it('offers a retry on a failed account or session read', async () => {
+    authState.authenticated = true
+    gateState.isError = true
+    renderPage(<VerifyEmailPage />)
+    await userEvent.click(screen.getByRole('button', { name: /retry/i }))
+    expect(gateState.refetch).toHaveBeenCalledOnce()
+    expect(navigateMock).not.toHaveBeenCalled()
   })
 })

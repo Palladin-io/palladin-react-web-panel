@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useAuthStore } from '../stores/auth-store'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { HTTPError } from 'ky'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { generateRecoveryMnemonic } from '../../../shared/lib/mnemonic'
 import { useRegister } from '../hooks/use-register'
+import { parseAuthRedirect } from '../../../shared/lib/auth-redirect'
 import {
   RegisterCredentialsStep,
   type RegisterCredentialsValues,
@@ -25,10 +27,24 @@ type Step = 'credentials' | 'recovery' | 'confirm'
  * private key), so we land the user on the dashboard where the verify-email
  * banner nudges them to confirm their address.
  */
-export function RegisterPage() {
+interface RegisterPageProps { redirectTo?: string }
+
+export function RegisterPage({ redirectTo }: RegisterPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const register = useRegister()
+  const destination = parseAuthRedirect(redirectTo)
+  const authenticated = useAuthStore(state => Boolean(state.accessToken || state.sessionId))
+  const locked = useAuthStore(state => state.isVaultLocked)
+  const checking = useAuthStore(state => state.sessionRevalidating)
+  const navigated = useRef(false)
+
+  useEffect(() => {
+    if (!authenticated || checking || register.isPending || navigated.current) return
+    navigated.current = true
+    if (locked) void navigate({ to: '/unlock', search: { redirect: destination ?? '/' }, replace: true })
+    else void navigate({ href: destination ?? '/', replace: true })
+  }, [authenticated, locked, checking, register.isPending, navigate, destination])
 
   const [step, setStep] = useState<Step>('credentials')
   const [credentials, setCredentials] = useState<RegisterCredentialsValues | null>(null)
@@ -57,7 +73,11 @@ export function RegisterPage() {
         recoveryMnemonic: mnemonic,
       },
       {
-        onSuccess: () => navigate({ to: '/' }),
+        onSuccess: () => {
+          if (navigated.current) return
+          navigated.current = true
+          return destination ? navigate({ href: destination }) : navigate({ to: '/' })
+        },
         onError: (err) => {
           // A 409 means the email is already registered — tell the user exactly
           // that (and to sign in) instead of a generic "try again" they'd loop on.
@@ -71,6 +91,7 @@ export function RegisterPage() {
   if (step === 'credentials') {
     return (
       <RegisterCredentialsStep
+        redirectTo={destination}
         initialEmail={credentials?.email}
         initialPassword={credentials?.password}
         onContinue={handleCredentials}

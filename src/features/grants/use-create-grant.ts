@@ -1,3 +1,4 @@
+import { randomUuid } from '../../shared/crypto/random-uuid'
 import type { GrantFieldSelection } from '../../shared/types/grant-field-selection'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../auth'
@@ -77,7 +78,7 @@ export function useCreateGrant() {
       if (!privateKey) throw new VaultLockedError()
       const requestedMethods = grantMethodsMask(methods)
       if (requestedMethods === 0) throw new MissingGrantMaterialError()
-      const grantId = crypto.randomUUID()
+      const grantId = randomUuid()
 
       if (!agentPublicKey || !recipientAgentKeyVersion || !agentAccessEpoch
         || (type !== GRANT_TYPE_FULL && !entryId)) {

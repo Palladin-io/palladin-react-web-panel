@@ -1,3 +1,4 @@
+vi.mock('./browser-session', () => ({ logoutBrowserSession: vi.fn().mockResolvedValue(undefined) }))
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { analytics } from '../../../shared/lib/analytics'
 import { queryClient } from '../../../shared/api/query-client'
@@ -34,7 +35,7 @@ describe('client session cleanup', () => {
   it('deletes persistent data for the captured profile after memory is locked', async () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-a',
-      refreshToken: 'refresh-a',
+      sessionId: 'refresh-a',
       userId: 'user-a',
       isOnboarded: true,
     })
@@ -52,7 +53,7 @@ describe('client session cleanup', () => {
   it('wipes keys, auth, server cache, mutation cache and decrypted member state', () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-a',
-      refreshToken: 'refresh-a',
+      sessionId: 'refresh-a',
       userId: 'user-a',
       isOnboarded: true,
     })
@@ -81,7 +82,7 @@ describe('client session cleanup', () => {
     expect(Array.from(privateKey)).toEqual([0, 0])
     expect(useAuthStore.getState()).toMatchObject({
       accessToken: null,
-      refreshToken: null,
+      sessionId: null,
       userId: null,
       isVaultLocked: true,
     })
@@ -106,7 +107,7 @@ describe('client session cleanup', () => {
     })
     useAuthStore.getState().setTokens({
       accessToken: 'access-a',
-      refreshToken: 'refresh-a',
+      sessionId: 'refresh-a',
       userId: 'user-a',
       isOnboarded: true,
     })
@@ -129,7 +130,7 @@ describe('client session cleanup', () => {
     })
     useAuthStore.getState().setTokens({
       accessToken: 'access-a',
-      refreshToken: 'refresh-a',
+      sessionId: 'refresh-a',
       userId: 'user-a',
       isOnboarded: true,
     })

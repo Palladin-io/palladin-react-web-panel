@@ -810,6 +810,8 @@ function ActionFooter({
  */
 function viewLabelKey(item: NotificationItem): string {
   switch (item.type) {
+    case "entry_share_received":
+      return "notifications.center.viewSharing";
     case "agent_pending":
     case "agent_approved":
       return "notifications.center.viewAgent";
@@ -858,6 +860,7 @@ function ViewFooter({
 
 /** Notification types offered in the filter dropdown (matches the taxonomy). */
 const FILTERABLE_TYPES = [
+  "entry_share_received",
   "agent_pending",
   "grant_pending",
   "credential_stale",

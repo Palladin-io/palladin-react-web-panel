@@ -34,6 +34,38 @@ separate untrusted or cryptographic boundaries and remain validated.
 
 ## Review rule
 
+Notification metadata includes opaque `shareId` for the Inbox-only Entry receipt.
+It reuses the existing value-free identifier projection: URLs and presentation
+content are omitted without rejecting the REST row. A negative test rejects a
+secret-bearing URL in that slot. This is a content boundary shared with independent
+push decoding, not validation of backend lifecycle state.
+
+Individual Entry sharing (`shared/crypto/entry-share.ts`) validates decrypted
+snapshot JSON and AEAD scope, not backend-owned lifecycle metadata. The requested
+share ID is independent link authority; canonical source coordinates come from
+the explicit delivery contract. Tampering with any AAD field, a self-consistent
+packet for another requested share, extra plaintext properties, malformed byte
+encodings and excessive ciphertext fail before plaintext is returned. Errors
+discard schema diagnostics to avoid exposing secret values. See
+`features/entry-sharing.md`. Sender and guest-recipient HTTP/UI adapters now use
+typed first-party lifecycle metadata, without duplicating backend business
+validators. Recipient transport separately authorizes with its guest bearer and
+does not inherit account JWT/cookies/refresh. Malformed JSON diagnostics are
+discarded without attaching the response, request or decoding exception; this is
+error redaction, not an additional response schema. The requested link ID and
+explicit canonical delivery coordinates remain the authorities for AEAD opening.
+
+Saving a received copy (`shared/crypto/entry-share-copy-encryption.ts`) compares
+target Vault envelopes against the independently captured authenticated JWT
+organization, current principal, explicitly selected Vault and creation-challenge
+Entry ID. Descriptor key versions/generations are bound to the explicit current
+Vault epoch/member-generation contract before key use. Negative tests cover
+foreign org/Vault/principal, substituted Discovery scope and stale key epochs.
+These are zero-knowledge key-use checks, not duplicate REST lifecycle validators.
+The snapshot/completion-form schemas validate untrusted content, not API metadata.
+A Vault whose local cryptographic verification fails remains an unavailable choice
+without hiding other authenticated Vaults.
+
 Every retained cross-field check must identify an authority outside the value it
 validates: authenticated request/JWT claims, route coordinates, the current
 Vault summary, the decrypted structural head, a configured external origin or

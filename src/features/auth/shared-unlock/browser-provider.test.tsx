@@ -1,3 +1,4 @@
+import { IDBFactory } from 'fake-indexeddb'
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SharedUnlockBrowserProvider } from './browser-provider'
@@ -6,12 +7,25 @@ import { useAuthStore } from '../stores/auth-store'
 const config = vi.hoisted(() => ({ sharedUnlockExtensionId: 'a'.repeat(32), sharedUnlockTransport: 'chromium', apiUrl: 'https://api.example.test' }))
 vi.mock('../../../shared/lib/env', () => ({ env: config }))
 vi.mock('./browser-lifecycle', () => ({ startSharedUnlockBrowserLifecycle: vi.fn(() => ({ close: vi.fn(), currentRoute: () => null })) }))
-beforeEach(() => { vi.clearAllMocks(); config.sharedUnlockExtensionId = 'a'.repeat(32); config.sharedUnlockTransport = 'chromium'; useAuthStore.getState().logout() })
+beforeEach(() => { vi.stubGlobal('indexedDB', new IDBFactory()); vi.clearAllMocks(); config.sharedUnlockExtensionId = 'a'.repeat(32); config.sharedUnlockTransport = 'chromium'; useAuthStore.getState().logout() })
 afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 describe('application shared unlock provider', () => {
   it('does not start any channel without explicit deployment configuration', () => {
     config.sharedUnlockExtensionId = ''; render(<SharedUnlockBrowserProvider />)
     expect(startSharedUnlockBrowserLifecycle).not.toHaveBeenCalled()
+  })
+  it('does not start a handoff without a cross-tab storage boundary', () => {
+    vi.stubGlobal('isSecureContext', false)
+    vi.stubGlobal('indexedDB', undefined)
+    vi.stubGlobal('navigator', {})
+    render(<SharedUnlockBrowserProvider />)
+    expect(startSharedUnlockBrowserLifecycle).not.toHaveBeenCalled()
+  })
+  it('starts the browser route on HTTP with CSPRNG and IndexedDB but without SubtleCrypto', () => {
+    vi.stubGlobal('isSecureContext', false)
+    vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
+    render(<SharedUnlockBrowserProvider />)
+    expect(startSharedUnlockBrowserLifecycle).toHaveBeenCalledOnce()
   })
   it('uses the Safari browser namespace and never falls back to chrome', () => {
     config.sharedUnlockTransport = 'safari'; config.sharedUnlockExtensionId = 'com.example.Extension (ABCDEFGHIJ)'
@@ -25,7 +39,7 @@ describe('application shared unlock provider', () => {
     expect(chromium.connect).not.toHaveBeenCalled()
   })
   it('wires own document retirement to immediate key/access-token wipe, preserving own refresh/account', () => {
-    useAuthStore.setState({ accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh', userId: 'synthetic-user' })
+    useAuthStore.setState({ accessToken: 'synthetic-access', sessionId: 'synthetic-refresh', userId: 'synthetic-user' })
     useAuthStore.getState().unlockVault(new Uint8Array(32).fill(7), new Uint8Array(32).fill(9))
     const previous = useAuthStore.getState(); render(<SharedUnlockBrowserProvider />)
     const options = vi.mocked(startSharedUnlockBrowserLifecycle).mock.calls[0][0]
@@ -34,7 +48,7 @@ describe('application shared unlock provider', () => {
     const current = useAuthStore.getState()
     expect(current.masterKey).toBeNull(); expect(current.privateKey).toBeNull(); expect(current.accessToken).toBeNull()
     expect(current.isVaultLocked).toBe(true); expect(current.cryptoSessionGeneration).toBeGreaterThan(previous.cryptoSessionGeneration)
-    expect(current.refreshToken).toBe('synthetic-refresh'); expect(current.userId).toBe('synthetic-user')
+    expect(current.sessionId).toBe('synthetic-refresh'); expect(current.userId).toBe('synthetic-user')
     expect(previous.masterKey?.every(value => value === 0)).toBe(true); expect(previous.privateKey?.every(value => value === 0)).toBe(true)
   })
   it('effect unmount closes the transport without expiring the own session', () => {

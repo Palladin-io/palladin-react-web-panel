@@ -35,11 +35,11 @@ describe('api client — 401 with failing refresh', () => {
     vi.restoreAllMocks()
     stubLocation()
     // Post-reload state: accessToken is in-memory only, so it is null after a
-    // reload, while the persisted refreshToken survives. This is exactly the
+    // reload, while the persisted sessionId survives. This is exactly the
     // state where the old `accessToken !== null` guard stranded the user.
     useAuthStore.setState({
       accessToken: null,
-      refreshToken: 'refresh-token-abc',
+      sessionId: 'refresh-token-abc',
       userId: 'user-123',
       isOnboarded: true,
       permissions: 42,
@@ -69,14 +69,14 @@ describe('api client — 401 with failing refresh', () => {
     // Refresh was actually attempted (proves the refresh path was taken).
     const refreshCalled = fetchMock.mock.calls.some(([input]) => {
       const url = typeof input === 'string' ? input : (input as Request).url
-      return url.includes('api/auth/refresh')
+      return url.includes('api/browser/auth/refresh')
     })
     expect(refreshCalled).toBe(true)
 
     // logout() ran → store reset to initial (both tokens cleared).
     const state = useAuthStore.getState()
     expect(state.accessToken).toBeNull()
-    expect(state.refreshToken).toBeNull()
+    expect(state.sessionId).toBeNull()
     expect(state.userId).toBeNull()
     expect(state.isOnboarded).toBe(false)
     expect(state.permissions).toBe(0)
@@ -110,7 +110,7 @@ describe('api client — 401 with failing refresh', () => {
     let resolveRefresh!: (response: Response) => void
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = input instanceof Request ? input.url : input.toString()
-      if (url.includes('api/auth/refresh')) {
+      if (url.includes('api/browser/auth/refresh')) {
         return new Promise<Response>((resolve) => {
           resolveRefresh = resolve
         })
@@ -128,13 +128,13 @@ describe('api client — 401 with failing refresh', () => {
     clearClientSession()
     useAuthStore.getState().setTokens({
       accessToken: 'access-b',
-      refreshToken: 'refresh-b',
+      sessionId: 'refresh-b',
       userId: 'user-b',
       isOnboarded: true,
     })
     resolveRefresh(new Response(JSON.stringify({
       accessToken: 'late-access-a',
-      refreshToken: 'late-refresh-a',
+      sessionId: 'late-refresh-a',
       userId: 'user-a',
       isOnboarded: true,
     }), {
@@ -145,7 +145,7 @@ describe('api client — 401 with failing refresh', () => {
     await expect(request).rejects.toBeInstanceOf(HTTPError)
     expect(useAuthStore.getState()).toMatchObject({
       accessToken: 'access-b',
-      refreshToken: 'refresh-b',
+      sessionId: 'refresh-b',
       userId: 'user-b',
     })
     expect(window.location.href).toBe('http://localhost:5000/')
@@ -154,7 +154,7 @@ describe('api client — 401 with failing refresh', () => {
   it('does not resend an aborted mutation after token refresh completes', async () => {
     let resolveRefresh!: (response: Response) => void
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      if ((input as Request).url.includes('api/auth/refresh')) {
+      if ((input as Request).url.includes('api/browser/auth/refresh')) {
         return new Promise<Response>((resolve) => { resolveRefresh = resolve })
       }
       return new Response('unauthorized', { status: 401 })
@@ -166,17 +166,17 @@ describe('api client — 401 with failing refresh', () => {
     }).catch((error: unknown) => error)
     await vi.waitFor(() => expect(resolveRefresh).toBeTypeOf('function'))
     controller.abort()
-    resolveRefresh(new Response(JSON.stringify({ accessToken: 'new-access', refreshToken: 'new-refresh',
+    resolveRefresh(new Response(JSON.stringify({ accessToken: 'new-access', sessionId: 'new-refresh',
       userId: 'user-123', isOnboarded: true }), { status: 200, headers: { 'content-type': 'application/json' } }))
     await request
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(useAuthStore.getState().refreshToken).toBe('new-refresh')
+    expect(useAuthStore.getState().sessionId).toBe('new-refresh')
   })
 
   it('does not refresh or retry a request started by the previous session', async () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-a',
-      refreshToken: 'refresh-a',
+      sessionId: 'refresh-a',
       userId: 'user-a',
       isOnboarded: true,
     })
@@ -192,7 +192,7 @@ describe('api client — 401 with failing refresh', () => {
     clearClientSession()
     useAuthStore.getState().setTokens({
       accessToken: 'access-b',
-      refreshToken: 'refresh-b',
+      sessionId: 'refresh-b',
       userId: 'user-b',
       isOnboarded: true,
     })
@@ -205,7 +205,7 @@ describe('api client — 401 with failing refresh', () => {
     expect(fetchMock).toHaveBeenCalledOnce()
     expect(useAuthStore.getState()).toMatchObject({
       accessToken: 'access-b',
-      refreshToken: 'refresh-b',
+      sessionId: 'refresh-b',
       userId: 'user-b',
     })
     expect(window.location.href).toBe('http://localhost:5000/')
@@ -214,7 +214,7 @@ describe('api client — 401 with failing refresh', () => {
   it('does not send an automatic retry after the session changes', async () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-a',
-      refreshToken: 'refresh-a',
+      sessionId: 'refresh-a',
       userId: 'user-a',
       isOnboarded: true,
     })
@@ -222,7 +222,7 @@ describe('api client — 401 with failing refresh', () => {
       clearClientSession()
       useAuthStore.getState().setTokens({
         accessToken: 'access-b',
-        refreshToken: 'refresh-b',
+        sessionId: 'refresh-b',
         userId: 'user-b',
         isOnboarded: true,
       })
@@ -239,7 +239,7 @@ describe('api client — 401 with failing refresh', () => {
     expect(fetchMock).toHaveBeenCalledOnce()
     expect(useAuthStore.getState()).toMatchObject({
       accessToken: 'access-b',
-      refreshToken: 'refresh-b',
+      sessionId: 'refresh-b',
       userId: 'user-b',
     })
     expect(window.location.href).toBe('http://localhost:5000/')
@@ -248,7 +248,7 @@ describe('api client — 401 with failing refresh', () => {
   it('does not redirect for an old 403 parsed after the session changes', async () => {
     useAuthStore.getState().setTokens({
       accessToken: 'access-a',
-      refreshToken: 'refresh-a',
+      sessionId: 'refresh-a',
       userId: 'user-a',
       isOnboarded: true,
     })
@@ -282,7 +282,7 @@ describe('api client — 401 with failing refresh', () => {
     clearClientSession()
     useAuthStore.getState().setTokens({
       accessToken: 'access-b',
-      refreshToken: 'refresh-b',
+      sessionId: 'refresh-b',
       userId: 'user-b',
       isOnboarded: true,
     })
@@ -291,7 +291,7 @@ describe('api client — 401 with failing refresh', () => {
     await expect(request).rejects.toBeInstanceOf(HTTPError)
     expect(useAuthStore.getState()).toMatchObject({
       accessToken: 'access-b',
-      refreshToken: 'refresh-b',
+      sessionId: 'refresh-b',
       userId: 'user-b',
     })
     expect(window.location.href).toBe('http://localhost:5000/')
@@ -304,7 +304,7 @@ describe('api client — 403 email-verification backstop', () => {
     stubLocation()
     useAuthStore.setState({
       accessToken: 'access-token-abc',
-      refreshToken: 'refresh-token-abc',
+      sessionId: 'refresh-token-abc',
       userId: 'user-123',
       isOnboarded: true,
       emailVerified: false,

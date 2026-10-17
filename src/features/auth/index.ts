@@ -1,3 +1,4 @@
+export { revokeUninstalledLoginSession } from './api/auth-api'
 export { LoginPage } from './components/login-page'
 export { RegisterPage } from './register/register-page'
 export { VerifyEmailPage } from './verify-email/verify-email-page'

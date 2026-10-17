@@ -1,3 +1,4 @@
+import { sha256Digest } from '@palladin/crypto'
 import { concatBytes, decodeBase64Url, encodeBase64Url, encodeU16, encodeUtf8 } from './vault-v2-bytes'
 import { decryptVaultEnvelope, encryptVaultEnvelope, sealVaultProtocolPackage } from './vault-v2-envelope'
 import { deriveVaultProjectionKey } from './vault-v2-kdf'
@@ -43,7 +44,7 @@ function jsonBytes(value: CanonicalJson): Uint8Array { return encodeUtf8(canonic
 export async function vaultKeyFingerprint(publicKey: Uint8Array, keyKind: 1 | 2 | 3 | 4 | 5): Promise<string> {
   if (publicKey.length !== 32) throw new Error('Vault public key must be 32 bytes')
   const input = concatBytes(encodeUtf8('PLDNV2FP'), encodeU16(2), encodeU16(keyKind), publicKey)
-  const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(input).buffer)
+  const digest = sha256Digest(input)
   return encodeBase64Url(new Uint8Array(digest))
 }
 
@@ -202,7 +203,7 @@ export async function createAgentDiscoveryMaterial(agent: { agentId: string; x25
     } as const
     const wrapped = await sealKeyToX25519Recipient(keys.vdk, agentX, wrapperContext)
     const digestInput = concatBytes(encodeUtf8('PLDNV2DG:AGENT-WRAPPED-VDK:'), encodeU16(2), wrapped)
-    const wrappedDigest = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(digestInput).buffer))
+    const wrappedDigest = sha256Digest(digestInput)
     const manifestRevision = (BigInt(agent.manifestRevision ?? '0') + 1n).toString()
     const unsigned = {
       protocolVersion: VAULT_PROTOCOL_VERSION,

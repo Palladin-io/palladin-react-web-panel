@@ -9,7 +9,7 @@ Vault and entry management: the core of the product. Users browse vaults, drill 
 Three nested levels, each a split-view page with its own tab strip:
 - **Vault list** → list panel + create/settings flows.
 - **Vault detail** — tabs: Entries / Agents / Audit / Members / Settings.
-- **Entry detail** — tabs: Details / Agents / History / Logs.
+- **Entry detail** — tabs: Details / Sharing / Agents / History / Logs.
 
 Protocol 2 list/search and current-use data comes from the frozen sync-policy-2 stream in `sync/`: after unlock, `MemberSyncProvider` opens the Member Vault key, builds an initial snapshot, applies the closing delta, and then follows incremental deltas. Every current head is one indivisible `MemberIndex + MemberSecret + EntryKey` item accompanied by the exact current Member Vault-key wrapper and a finite authenticated offline-access context. IndexedDB stores only those authenticated ciphertext envelopes, structural metadata, access context and sequence cursors. Decrypted Vault metadata and normalized MemberIndex records live in Zustand memory and are cleared immediately on lock/logout. A MemberSecret is decrypted only for the selected Entry operation and is never projected into the list store.
 
@@ -52,6 +52,8 @@ Entry Detail deletion posts to the recoverable `/entries/{entryId}/delete` lifec
 Recently Deleted uses the cursor-paginated lifecycle endpoint in bounded pages of 100 and resolves labels only from the authenticated in-memory MemberIndex. The server supplies each retention deadline; the browser never duplicates the retention policy. A missing or corrupt local projection falls back to a shortened opaque Entry ID. Restore uses the same sequential authenticated revision flow as Archive. Permanent purge requires a dedicated confirmation and reconciles the local tombstone only after the idempotent, transactional server endpoint succeeds.
 
 Entry Logs queries structural audit events by the composite opaque Vault and Entry IDs. Structured Agent/event/date filters are applied by the backend before cursor pagination, while free-text search stays local and is never sent as a content query. The fixed Entry label comes from MemberIndex; Agent and Member names come from local structural directories. Deleted or unavailable principals fall back to shortened prefix-and-suffix IDs. Rows reuse the canonical Audit event configuration, preserving the shared semantic color taxonomy and event meanings.
+
+Entry Sharing lists each link as a compact, responsive table row with recipient, status, expiry, receipts and protection visible without expansion. Expanded rows hold delivery and display timestamps. A single newly created link is copied to the clipboard on opening the result dialog when the browser permits it; the copy action remains available and a failed automatic copy is reported. Multiple recipient links are never ambiguously auto-copied. On the public receiver, extension availability is presentation-only: its status probe allows the worker's full response window and rechecks after the user returns to the tab. The extension-owned confirmation remains the sole authority for saving a received copy.
 
 ## Key patterns
 
@@ -106,6 +108,20 @@ manifest and lockfile pin the published registry version 0.8.0.
 - Split-view layout (3 pages) and an inline entry-detail tab strip — both candidates for the shared `SplitView` / `DetailTabBar` (see component-catalog).
 
 ## Cross-feature deps
+
+Individual Entry sharing is being implemented separately from Agent grants.
+Its whole-Entry projection, snapshot crypto and secret-link bootstrap boundary
+are documented in [entry-sharing.md](entry-sharing.md). The sender's separate
+Sharing tab and creation dialog now call the lifecycle API on the feature branch.
+The guest receiver, bounded RAM login/signup continuation and explicit save-copy
+are also connected. A verified/unlocked account selects an existing destination
+Vault or types a new name in the save dialog; creation is explicit on Save and
+uses the normal encrypted Create Vault flow. After the copy is confirmed, the
+public route opens that exact Entry in the same tab. Sharing aborts its transport
+on disposal.
+Native handoff, real auth/HTTP E2E and cross-client acceptance remain pending;
+this is not a released sharing feature.
+
 - Imports `OrgGrantsPanel` and the grant dialogs from `grants` for the Agents tabs.
 - Exports `useVaults` / `useVault` / `useEntries`, consumed by `audit`.
 

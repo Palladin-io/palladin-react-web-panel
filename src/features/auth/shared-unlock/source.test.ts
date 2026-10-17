@@ -11,7 +11,7 @@ import { SharedUnlockApi } from './api'
 import { beginSharedUnlockSource, type SharedUnlockSourceRoute } from './source'
 import { recoverSharedUnlockKeys } from '../../../shared/crypto/shared-unlock-keys'
 import type { SharedUnlockAuthorization, SharedUnlockOperation, SharedUnlockOperationInput, SharedUnlockPreference } from './api-types'
-import fixtures from './fixtures/session-api-v1.json'
+import fixtures from './fixtures/browser-session-api'
 
 const holder = vi.hoisted(() => ({ snapshot: { authorization: null as SharedUnlockAuthorization | null,
   preference: null as SharedUnlockPreference | null, sourceGeneration: null as string | null } }))
@@ -32,7 +32,7 @@ async function setup(options: { pause?: boolean; verifyRecipient?: () => Promise
   const original = baseline.context
   const masterKey = await randomBytes(32)
   const member = await generateKeyPair()
-  useAuthStore.getState().setTokens({ accessToken: 'own-source-access', refreshToken: 'own-source-refresh', userId: original.accountId, isOnboarded: true })
+  useAuthStore.getState().setTokens({ accessToken: 'own-source-access', sessionId: 'own-source-refresh', userId: original.accountId, isOnboarded: true })
   useAuthStore.getState().unlockVault(masterKey, member.privateKey, original)
   holder.snapshot = { preference: { sharedUnlockEnabled: true, revision: original.preferenceRevision }, sourceGeneration: original.webGeneration,
     authorization: { authorizationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', sequence: 5,
@@ -53,11 +53,11 @@ async function setup(options: { pause?: boolean; verifyRecipient?: () => Promise
   const pending = deferred<Response>()
   let operation: SharedUnlockOperation | null = null
   const fetcher = vi.fn<typeof fetch>(async (url, init) => {
-    expect(url).toBe(apiUrl + '/api/account/shared-unlock/operations')
-    expect(init).toMatchObject({ method: 'POST', credentials: 'omit', redirect: 'error', cache: 'no-store' })
+    expect(url).toBe(apiUrl + '/api/browser/account/shared-unlock/operations')
+    expect(init).toMatchObject({ method: 'POST', credentials: 'include', redirect: 'error', cache: 'no-store' })
     expect(new Headers(init?.headers).get('authorization')).toBe('Bearer own-source-access')
-    const input = JSON.parse(String(init?.body)) as SharedUnlockOperationInput & { refreshToken: string }
-    expect(input.refreshToken).toBe('own-source-refresh')
+    const input = JSON.parse(String(init?.body)) as SharedUnlockOperationInput & { expectedSessionId: string }
+    expect(input.expectedSessionId).toBe('own-source-refresh')
     expect(input.authorizationId).toBe(holder.snapshot.authorization?.authorizationId)
     const context = { ...original, ...route.binding, keyContextDigest: await hashSharedUnlockKeyContext(keyContext),
       idleDeadlineMs: input.idleDeadlineMs, absoluteDeadlineMs: input.absoluteDeadlineMs, offlineDeadlineMs: input.offlineDeadlineMs }
@@ -148,7 +148,7 @@ describe('Web one-shot source transaction with real crypto', () => {
   })
   it('projects only public protocol fields even when Identity adds unrelated response fields', async () => {
     const f = await setup({ transform: op => ({ ...op, session: { accessToken: 'synthetic-extra-outer' },
-      context: { ...op.context, refreshToken: 'synthetic-extra-context' },
+      context: { ...op.context, sessionId: 'synthetic-extra-context' },
       keyContext: { ...op.keyContext, privateKey: 'synthetic-extra-descriptor' } }) })
     const packet = await f.run()
     expect(JSON.stringify(packet)).not.toContain('synthetic-extra-')
@@ -188,7 +188,7 @@ describe('Web one-shot source transaction with real crypto', () => {
     if (action === 'off') holder.snapshot.preference = { ...holder.snapshot.preference!, sharedUnlockEnabled: false }
     if (action === 'preference') holder.snapshot.preference = { ...holder.snapshot.preference!, revision: holder.snapshot.preference!.revision + 1 }
     if (action === 'root') holder.snapshot.authorization = null
-    if (action === 'refresh') useAuthStore.setState({ refreshToken: 'new-own-refresh' })
+    if (action === 'refresh') useAuthStore.setState({ sessionId: 'new-own-refresh' })
     if (action === 'cancel') f.source.cancel()
     if (action === 'deadline') vi.mocked(Date.now).mockReturnValue(holder.snapshot.authorization!.idleDeadlineMs)
     f.pending.resolve(new Response(JSON.stringify(f.operation()))); await rejected

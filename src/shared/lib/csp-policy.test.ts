@@ -26,6 +26,15 @@ describe('production CSP', () => {
     expect(headers).not.toContain('https://api.palladin.io')
     expect(headers).not.toContain('https://api.stage.palladin.io')
   })
+  it('admits only the configured remote HTTP origins after explicit build approval', () => {
+    expect(() => connectionOrigins('http://api.example.test:8080/api', 'http://realtime.example.test:8081/hub')).toThrow()
+    expect(connectionOrigins('http://api.example.test:8080/api', 'http://realtime.example.test:8081/hub', true))
+      .toBe('http://api.example.test:8080 http://realtime.example.test:8081 ws://realtime.example.test:8081')
+    for (const value of ['http://user:password@example.test', 'http://*.example.test', 'http://example.test?token=x',
+      'http://example.test#fragment', 'http://example.test\n', 'file:///api']) {
+      expect(() => connectionOrigins(value, value, true)).toThrow()
+    }
+  })
   it('does not grant any API origin when deployment configuration is absent', () => {
     expect(connectionOrigins()).toBe('')
   })

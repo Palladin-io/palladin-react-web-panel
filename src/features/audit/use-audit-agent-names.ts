@@ -35,7 +35,7 @@ export function useAuditAgentNames(
   const agents = useAgentNames(enabled)
   const accessToken = useAuthStore((state) => state.accessToken)
   const memberIds = useMemo(
-    () => items.flatMap((item) => item.userId ? [item.userId] : []),
+    () => items.flatMap((item) => item.actorType === 'user' && item.userId ? [item.userId] : []),
     [items],
   )
   const members = useOrganizationMemberDirectory(
@@ -75,7 +75,7 @@ export function useAuditAgentNames(
   const userOptions = useMemo(() => {
     const ids = new Set<string>()
     for (const item of items) {
-      if (item.userId) ids.add(item.userId)
+      if (item.actorType === 'user' && item.userId) ids.add(item.userId)
     }
     return [...ids].map((value) => ({
       value,
@@ -84,6 +84,7 @@ export function useAuditAgentNames(
   }, [items, memberNameById])
 
   const resolveActorName = useCallback((item: AuditLogItem) => {
+    if (item.actorType === 'externalRecipient') return t('audit.externalRecipient')
     if (item.actorType === 'system') return t('audit.systemActor')
     if (item.actorType === 'agent') {
       return item.agentId ? agentNameById[item.agentId] ?? shortenKey(item.agentId) : undefined

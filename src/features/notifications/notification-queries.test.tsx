@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
+import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // --- mocks ---
@@ -29,6 +29,39 @@ import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
 } from './notification-queries'
+
+describe('Inbox-only receipt refresh', () => {
+  it('repairs feed and badge in the foreground without polling hidden or unmounted observers', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const receipt: NotificationItem = { id: 'share', type: 'entry_share_received', category: 'update',
+      titleKey: 'ignored', metadata: {}, occurredAt: '2026-09-20T12:00:00Z' }
+    getNotifications.mockReset().mockResolvedValue({ items: [], nextCursor: null })
+    getNotificationsSummary.mockReset().mockResolvedValue({ unreadCount: 0, pendingActionCount: 0 })
+    vi.useFakeTimers(); focusManager.setFocused(true)
+    const hook = renderHook(() => ({ feed: useNotifications(), badge: useNotificationsSummary() }), { wrapper: wrapper(client) })
+    try {
+      await act(async () => { await vi.advanceTimersByTimeAsync(10) })
+      expect(getNotifications).toHaveBeenCalledOnce()
+      getNotifications.mockResolvedValue({ items: [receipt], nextCursor: null })
+      getNotificationsSummary.mockResolvedValue({ unreadCount: 1, pendingActionCount: 0 })
+      await act(async () => { await vi.advanceTimersByTimeAsync(30_010) })
+      expect(hook.result.current.feed.data?.pages[0].items).toEqual([receipt])
+      expect(hook.result.current.badge.data?.unreadCount).toBe(1)
+      expect(hook.result.current.badge.data?.pendingActionCount).toBe(0)
+      focusManager.setFocused(false)
+      const calls = getNotifications.mock.calls.length
+      const summaries = getNotificationsSummary.mock.calls.length
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+      expect(getNotifications).toHaveBeenCalledTimes(calls)
+      expect(getNotificationsSummary).toHaveBeenCalledTimes(summaries)
+      hook.unmount()
+      focusManager.setFocused(true)
+      await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+      expect(getNotifications).toHaveBeenCalledTimes(calls)
+      expect(getNotificationsSummary).toHaveBeenCalledTimes(summaries)
+    } finally { hook.unmount(); client.clear(); focusManager.setFocused(undefined); vi.useRealTimers() }
+  })
+})
 
 function makeItem(id: string, readAt: string | null): NotificationItem {
   return {

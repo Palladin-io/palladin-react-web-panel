@@ -18,11 +18,11 @@ function capture(input: SharedUnlockLinkAction) {
     throw new SharedUnlockApiError('cancelled')
   }
   const scope = { accountId: input.accountId, apiUrl: env.apiUrl, webOrigin: window.location.origin, extensionId: env.sharedUnlockExtensionId }
-  return { own: { accessToken: own.accessToken, refreshToken: own.refreshToken, lockVault: own.lockVault }, scope }
+  return { own: { accessToken: own.accessToken, sessionId: own.sessionId, lockVault: own.lockVault }, scope }
 }
 
 async function bounded(input: SharedUnlockLinkAction, captured: ReturnType<typeof capture>,
-  action: (context: { session: { userId: string; apiUrl: string; accessToken: string; refreshToken: string };
+  action: (context: { session: { userId: string; apiUrl: string; accessToken: string; sessionId: string };
     signal: AbortSignal; check(): void; wait<T>(work: Promise<T>): Promise<T> }) => Promise<void>,
   beforeAuthentication?: Promise<unknown>): Promise<void> {
   const abort = new AbortController(), deadline = Date.now() + 10_000
@@ -31,7 +31,7 @@ async function bounded(input: SharedUnlockLinkAction, captured: ReturnType<typeo
     const current = useAuthStore.getState()
     if (abort.signal.aborted || Date.now() >= deadline || current.userId !== input.accountId
       || current.cryptoSessionGeneration !== input.generation || current.accessToken !== own.accessToken
-      || current.refreshToken !== own.refreshToken || env.apiUrl !== scope.apiUrl
+      || current.sessionId !== own.sessionId || env.apiUrl !== scope.apiUrl
       || env.sharedUnlockExtensionId !== scope.extensionId || window.location.origin !== scope.webOrigin) throw new SharedUnlockApiError('cancelled')
   }
   const wait = <T>(work: Promise<T>): Promise<T> => new Promise((resolve, reject) => {
@@ -44,8 +44,8 @@ async function bounded(input: SharedUnlockLinkAction, captured: ReturnType<typeo
   try {
     check()
     if (beforeAuthentication) { await wait(beforeAuthentication); check() }
-    if (!own.accessToken || !own.refreshToken) throw new SharedUnlockApiError('unauthorized')
-    await action({ session: { userId: input.accountId, apiUrl: scope.apiUrl, accessToken: own.accessToken, refreshToken: own.refreshToken },
+    if (!own.accessToken || !own.sessionId) throw new SharedUnlockApiError('unauthorized')
+    await action({ session: { userId: input.accountId, apiUrl: scope.apiUrl, accessToken: own.accessToken, sessionId: own.sessionId },
       signal: abort.signal, check, wait })
   } finally { unsubscribe(); clearTimeout(timer); abort.abort() }
 }

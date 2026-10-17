@@ -1,3 +1,5 @@
+import { browserSessionPost, browserSessionHeaders } from '../../../shared/api/browser-session-transport'
+import { refreshBrowserSession, logoutBrowserSession } from '../session/browser-session'
 import ky, { HTTPError } from 'ky'
 import { api } from '../../../shared/api/client'
 import { getAnalyticsHeaders } from '../../../shared/api/analytics-headers'
@@ -21,13 +23,13 @@ const loginApi = ky.create({
 })
 
 export function oauthGoogle(token: string): Promise<AuthResponse & { isNewUser: boolean }> {
-  return loginApi.post('api/auth/oauth/google', { json: { token } }).json()
+  return browserSessionPost('auth/oauth/google', { json: { token } })
 }
 
 /** Retire only an unused OAuth response; never clear or refresh the live client. */
-export async function revokeUninstalledLoginSession(refreshToken: string): Promise<void> {
+export async function revokeUninstalledLoginSession(accessToken: string): Promise<void> {
   try {
-    await loginApi.post('api/auth/logout', { json: { refreshToken }, timeout: 2000 })
+    await loginApi.post('api/browser/auth/discard', { headers: { ...browserSessionHeaders, Authorization: `Bearer ${accessToken}` }, timeout: 2000 })
   } catch { /* Best effort for a response that was never installed locally. */ }
 }
 
@@ -103,7 +105,7 @@ export function isTotpRequired(
 }
 
 export function register(payload: RegisterPayload): Promise<AuthResponse> {
-  return loginApi.post('api/auth/register', { json: payload }).json()
+  return browserSessionPost('auth/register', { json: payload })
 }
 
 /**
@@ -135,7 +137,7 @@ export function passwordLogin(input: {
   kdfProfileId: string
   authCredential: string
 }): Promise<PasswordLoginResponse> {
-  return mapAuthRateLimit(loginApi.post('api/auth/login', { json: input }).json())
+  return mapAuthRateLimit(browserSessionPost('auth/login', { json: input }))
 }
 
 /**
@@ -146,7 +148,7 @@ export function totpLogin(input: {
   challengeToken: string
   code: string
 }): Promise<AuthResponse> {
-  return mapAuthRateLimit(loginApi.post('api/auth/login/totp', { json: input }).json())
+  return mapAuthRateLimit(browserSessionPost('auth/login/totp', { json: input }))
 }
 
 // ─── Email verification ───────────────────────────────────────────────────────
@@ -193,16 +195,11 @@ export function disableTotp(code: string): Promise<void> {
   return api.post('api/auth/totp/disable', { json: { code } }).json<void>()
 }
 
-export function refreshToken(refreshToken: string): Promise<AuthResponse> {
-  return api
-    .post('api/auth/refresh', { json: { refreshToken } })
-    .json()
+export function refreshSession(expectedSessionId?: string): Promise<AuthResponse> {
+  return refreshBrowserSession(expectedSessionId)
 }
 
-export async function logout(refreshToken: string): Promise<void> {
-  try {
-    await api.post('api/auth/logout', { json: { refreshToken } }).json()
-  } finally {
-    await clearClientSession()
-  }
+export async function logout(expectedSessionId: string): Promise<void> {
+  try { await logoutBrowserSession(expectedSessionId) }
+  finally { await clearClientSession() }
 }

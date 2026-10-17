@@ -1,3 +1,4 @@
+import { sha256Hex } from '../../shared/crypto/digest'
 import { completeAgentIconUpload, presignAgentIcon } from './api/agents-api'
 
 export const AGENT_ICON_ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
@@ -8,11 +9,6 @@ export const AGENT_ICON_MAX_MB = AGENT_ICON_MAX_BYTES / (1024 * 1024)
 export type UploadAgentIconResult =
   | { ok: true; iconReference: string; iconUrl: string }
   | { ok: false; reason: 'invalid-type' | 'too-large' | 'failed' }
-
-async function sha256Hex(file: File): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer())
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
-}
 
 /**
  * Validates a custom agent icon (type + size), presigns, and PUTs it to S3.
@@ -34,7 +30,7 @@ export async function uploadAgentIcon(
   }
 
   try {
-    const sha256 = await sha256Hex(file)
+    const sha256 = sha256Hex(new Uint8Array(await file.arrayBuffer()))
     const { uploadUrl, uploadSessionId, maximumBytes } = await presignAgentIcon(agentId, {
       mediaType: file.type,
       byteLength: file.size,

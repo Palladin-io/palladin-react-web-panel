@@ -33,7 +33,7 @@ async function setup(accessToken = 'own-access') {
       capture: () => {
         if (!own.present) return null
         const generation = own.generation, lease = new AbortController()
-        return { session: { apiUrl: own.apiUrl, userId: own.accountId, accessToken, refreshToken: 'own-refresh' }, signal: lease.signal,
+        return { session: { apiUrl: own.apiUrl, userId: own.accountId, accessToken, sessionId: 'own-refresh' }, signal: lease.signal,
           assertCurrent: () => { if (!own.present || own.generation !== generation) throw new Error('own session changed') },
           dispose: () => { disposed(); lease.abort() } }
       },

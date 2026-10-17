@@ -12,8 +12,8 @@ export const Route = createFileRoute('/recovery')({
   staticData: { consentSession: true },
   beforeLoad: () => {
     // accessToken is in-memory only (null after reload); a persisted refresh token still counts as authenticated.
-    const { accessToken, refreshToken } = useAuthStore.getState()
-    if (!accessToken && !refreshToken) {
+    const { accessToken, sessionId } = useAuthStore.getState()
+    if (!accessToken && !sessionId) {
       throw redirect({ to: '/login' })
     }
   },

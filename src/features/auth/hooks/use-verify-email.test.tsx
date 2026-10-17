@@ -13,12 +13,12 @@ const clearClientSessionMock = vi.hoisted(() => vi.fn())
 const authState = vi.hoisted(() => ({
   authenticated: true,
   userId: 'current-user',
-  refreshToken: 'current-refresh',
+  sessionId: 'current-refresh',
 }))
 
 vi.mock('../api/auth-api', () => ({
   verifyEmail: verifyEmailMock,
-  refreshToken: refreshAuthSessionMock,
+  refreshSession: refreshAuthSessionMock,
 }))
 
 vi.mock('../stores/auth-store', () => ({
@@ -26,7 +26,7 @@ vi.mock('../stores/auth-store', () => ({
   useAuthStore: {
     getState: () => ({
       userId: authState.userId,
-      refreshToken: authState.refreshToken,
+      sessionId: authState.sessionId,
       markEmailVerified: markEmailVerifiedMock,
       setWaitlistDeveloperBenefit: setWaitlistDeveloperBenefitMock,
       setTokens: setTokensMock,
@@ -59,7 +59,7 @@ describe('useVerifyEmail', () => {
     clearClientSessionMock.mockReset()
     authState.authenticated = true
     authState.userId = 'current-user'
-    authState.refreshToken = 'current-refresh'
+    authState.sessionId = 'current-refresh'
   })
 
   it('refreshes the matching session so the benefit plan applies immediately', async () => {
@@ -71,7 +71,7 @@ describe('useVerifyEmail', () => {
     })
     const refreshed = {
       accessToken: 'new-access',
-      refreshToken: 'new-refresh',
+      sessionId: 'new-refresh',
       userId: 'current-user',
       isOnboarded: true,
       emailVerified: true,
@@ -122,7 +122,7 @@ describe('useVerifyEmail', () => {
     })
     const refreshed = {
       accessToken: 'new-access',
-      refreshToken: 'new-refresh',
+      sessionId: 'new-refresh',
       userId: 'current-user',
       isOnboarded: true,
       emailVerified: true,

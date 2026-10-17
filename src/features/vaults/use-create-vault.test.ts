@@ -123,7 +123,7 @@ describe('useCreateVault', () => {
   it('creates after the first API request restores a missing in-memory access token', async () => {
     useAuthStore.setState({
       accessToken: null,
-      refreshToken: 'persisted-refresh-token',
+      sessionId: 'persisted-refresh-token',
       userId: memberId,
       privateKey: new Uint8Array(32).fill(9),
       isVaultLocked: false,

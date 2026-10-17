@@ -1,20 +1,22 @@
 import { useEffect } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
 import { Trans, useTranslation } from 'react-i18next'
 import { Loader2, XCircle } from 'lucide-react'
 import { AuthStepShell } from '../../../shared/components/auth-step-shell'
 import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
-import { ACCOUNT_QUERY_KEY, getAccount } from '../../../shared/api/account-api'
+import { ErrorState } from '../../../shared/components/error-state'
 import { clearPushTokenOnLogout } from '../../notifications'
 import { getIsAuthenticated, useAuthStore } from '../stores/auth-store'
 import { logoutAndReload } from '../session/client-session'
 import { useResendVerification } from '../hooks/use-resend-verification'
 import { useVerifyEmail } from '../hooks/use-verify-email'
+import { useVerificationGate } from '../hooks/use-verification-gate'
+import { parseAuthRedirect } from '../../../shared/lib/auth-redirect'
 
 export interface VerifyEmailPageProps {
   /** The verification token from the `?token=` query param. */
   token?: string
+  redirectTo?: string
 }
 
 /**
@@ -28,39 +30,29 @@ export interface VerifyEmailPageProps {
  *    nothing else until it verifies: "we emailed you a link", a throttled
  *    resend, and logout.
  */
-export function VerifyEmailPage({ token }: VerifyEmailPageProps) {
+export function VerifyEmailPage({ token, redirectTo }: VerifyEmailPageProps) {
   const authenticated = getIsAuthenticated()
 
   if (!token && authenticated) {
-    return <VerifyEmailGate />
+    return <VerifyEmailGate redirectTo={parseAuthRedirect(redirectTo)} />
   }
-  return <VerifyEmailResult token={token} authenticated={authenticated} />
+  return <VerifyEmailResult token={token} authenticated={authenticated} redirectTo={parseAuthRedirect(redirectTo)} />
 }
 
 /** Hard-gate landing: the signed-in but unverified account can only wait, resend, or log out. */
-function VerifyEmailGate() {
+function VerifyEmailGate({ redirectTo }: { redirectTo?: string }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const account = useQuery({
-    queryKey: ACCOUNT_QUERY_KEY,
-    queryFn: getAccount,
-    staleTime: 5 * 60 * 1000,
-  })
+  const verification = useVerificationGate()
+  const account = verification.data?.account
   const { resend, isPending, isSuccess, cooldown } = useResendVerification()
 
-  // If the account turns out to be verified after all (e.g. verified in another
-  // tab), sync the persisted store BEFORE leaving. Skipping this deadlocks the
-  // user: the router's `beforeLoad` fast path reads the (stale `false`) store,
-  // redirects back here, the query still says verified, we navigate away again —
-  // an infinite loop whose deps never change, stranding a verified account on
-  // the gate. `markEmailVerified()` clears the stale flag so `beforeLoad` lets
-  // them through.
   useEffect(() => {
-    if (account.data?.emailVerified === true) {
-      useAuthStore.getState().markEmailVerified()
-      navigate({ to: '/' })
+    if (verification.data?.ready) {
+      if (redirectTo) void navigate({ href: redirectTo })
+      else void navigate({ to: '/' })
     }
-  }, [account.data?.emailVerified, navigate])
+  }, [verification.data?.ready, navigate, redirectTo])
 
   const handleLogout = () => {
     void logoutAndReload('/login', clearPushTokenOnLogout)
@@ -83,12 +75,15 @@ function VerifyEmailGate() {
     >
       <div className="flex flex-col items-center gap-4">
         <p className="text-center text-meta text-[var(--cv-auth-secondary)]">
-          {account.data?.email ? (
-            <Trans i18nKey="verifyEmail.pendingBody" values={{ email: account.data.email }} />
+          {account?.email ? (
+            <Trans i18nKey="verifyEmail.pendingBody" values={{ email: account.email }} />
           ) : (
             <Trans i18nKey="verifyEmail.pendingBodyNoEmail" />
           )}
         </p>
+
+        {verification.isError ? <ErrorState message={t('verifyEmail.sessionError')} retryLabel={t('verifyEmail.retrySession')}
+          onRetry={() => { void verification.refetch() }} /> : null}
 
         <AuthSubmitButton
           type="button"
@@ -113,10 +108,11 @@ function VerifyEmailGate() {
 interface VerifyEmailResultProps {
   token?: string
   authenticated: boolean
+  redirectTo?: string
 }
 
 /** Result screen for a clicked `?token=` verification link. */
-function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
+function VerifyEmailResult({ token, authenticated, redirectTo }: VerifyEmailResultProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const verify = useVerifyEmail()
@@ -145,18 +141,20 @@ function VerifyEmailResult({ token, authenticated }: VerifyEmailResultProps) {
   useEffect(() => {
     if (outcome !== 'verified') return
     const id = window.setTimeout(
-      () => navigate({ to: authenticated ? '/' : '/login' }),
+      () => authenticated && redirectTo
+        ? navigate({ href: redirectTo })
+        : navigate({ to: authenticated ? '/' : '/login', ...(redirectTo ? { search: { redirect: redirectTo } } : {}) }),
       1500,
     )
     return () => window.clearTimeout(id)
-  }, [outcome, authenticated, navigate])
+  }, [outcome, authenticated, navigate, redirectTo])
 
   const forwardAction = authenticated ? (
-    <AuthSubmitButton type="button" onClick={() => navigate({ to: '/' })}>
+    <AuthSubmitButton type="button" onClick={() => redirectTo ? navigate({ href: redirectTo }) : navigate({ to: '/' })}>
       {t('verifyEmail.goToApp')}
     </AuthSubmitButton>
   ) : (
-    <Link to="/login" className="w-full">
+    <Link to="/login" search={redirectTo ? { redirect: redirectTo } : {}} className="w-full">
       <AuthSubmitButton type="button" className="w-full">
         {t('verifyEmail.goToLogin')}
       </AuthSubmitButton>

@@ -1,0 +1,196 @@
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { CreateEntryShareDialog } from './create-entry-share-dialog'
+import { sharingScope, sharingSource } from './sharing-test-fixtures'
+
+const mocks = vi.hoisted(() => ({ hook: vi.fn(), submit: vi.fn(), success: vi.fn(), error: vi.fn() }))
+vi.mock('./use-share-creation', () => ({ useShareCreation: mocks.hook }))
+vi.mock('../use-vault', () => ({ useVault: () => ({ data: { name: 'Personal vault', icon: 'shield', color: null } }) }))
+vi.mock('sonner', () => ({ toast: { success: mocks.success, error: mocks.error } }))
+
+beforeEach(() => {
+  vi.resetAllMocks()
+  mocks.submit.mockResolvedValue('created')
+  mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: false, retryPending: false,
+    link: null, links: [], submit: mocks.submit, retry: vi.fn(), retryLoad: vi.fn() })
+})
+
+function mount() {
+  return render(<CreateEntryShareDialog scope={sharingScope} onClose={vi.fn()} onCreated={vi.fn()} />)
+}
+async function confirmForm() {
+  const user = userEvent.setup()
+  await user.click(screen.getByRole('button', { name: /Recipient: Anyone with the link/ }))
+  await user.selectOptions(screen.getByLabelText('Who can receive this copy?'), 'namedRecipient')
+  await user.type(screen.getByLabelText('Recipient emails (comma-separated)'), 'recipient@example.test')
+  return user
+}
+
+describe('Create sharing dialog', () => {
+  it('renders safe defaults without field selection or confirmation controls', () => {
+    mount()
+    expect(screen.getByText('Personal vault')).toBeVisible()
+    expect(screen.getByText('Example login')).toBeVisible()
+    expect(screen.queryByRole('textbox', { name: 'Entry' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Who can receive this copy?')).toHaveValue('anyoneWithLink')
+    expect(screen.getByLabelText('Additional protection')).toHaveValue('none')
+    expect(screen.getByLabelText('Link lifetime')).toHaveValue('24')
+    expect(screen.getByLabelText('Receipt limit')).toHaveValue('')
+    expect(screen.getByLabelText('Receipt limit')).not.toBeVisible()
+    expect(screen.getAllByRole('button', { expanded: false })).toHaveLength(4)
+    expect(screen.getAllByRole('switch')).toHaveLength(1)
+    expect(screen.getByText(/Shares the entire entry/)).toBeInTheDocument()
+    expect(screen.queryByText('Choose the fields to share')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create sharing link' })).toBeEnabled()
+  })
+
+  it('submits whole-entry sharing with opt-in first receipt and no field IDs', async () => {
+    mount()
+    const user = await confirmForm()
+    await user.click(screen.getByRole('switch', { name: 'Notify me of the first receipt' }))
+    await user.click(screen.getByRole('button', { name: 'Create sharing link' }))
+    await waitFor(() => expect(mocks.submit).toHaveBeenCalledWith(expect.objectContaining({
+      recipientMode: 'namedRecipient', recipientEmail: 'recipient@example.test', protection: 'none', notifyOnFirstReceipt: true,
+    })))
+    expect(mocks.submit.mock.calls[0]).toHaveLength(1)
+    expect(mocks.success).toHaveBeenCalledWith('Sharing link created')
+  })
+
+  it('requires confirmation of the optional PIN and rejects obvious sequences', async () => {
+    mount()
+    const user = await confirmForm()
+    await user.click(screen.getByRole('button', { name: /Security: None/ }))
+    await user.selectOptions(screen.getByLabelText('Additional protection'), 'pin')
+    await user.type(screen.getByLabelText('PIN', { selector: 'input' }), '123')
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Create sharing link' })).toBeDisabled()
+    await user.type(screen.getByLabelText('PIN', { selector: 'input' }), '456')
+    await user.type(screen.getByLabelText('Confirm password or PIN'), '123456')
+    expect(screen.getByRole('button', { name: 'Create sharing link' })).toBeDisabled()
+    await user.clear(screen.getByLabelText('PIN', { selector: 'input' }))
+    await user.type(screen.getByLabelText('PIN', { selector: 'input' }), '739284')
+    expect(screen.getByRole('button', { name: 'Create sharing link' })).toBeDisabled()
+    await user.clear(screen.getByLabelText('Confirm password or PIN'))
+    await user.type(screen.getByLabelText('Confirm password or PIN'), '739284')
+    await user.click(screen.getByRole('button', { name: 'Create sharing link' }))
+    expect(mocks.submit).toHaveBeenCalledWith(expect.objectContaining({ protection: 'pin', protectionSecret: '739284' }))
+    expect(mocks.submit.mock.calls[0][0]).not.toHaveProperty('confirmation')
+  })
+
+  it('warns about shared access/limit in anyone-with-link mode and requires no email', async () => {
+    mount()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /Recipient: Anyone with the link/ }))
+    await user.selectOptions(screen.getByLabelText('Who can receive this copy?'), 'anyoneWithLink')
+    expect(screen.queryByLabelText('Recipient emails (comma-separated)')).not.toBeInTheDocument()
+    expect(screen.getByText('Anyone with the link can receive the entry after any additional verification. All recipients share one receipt limit.')).toBeInTheDocument()
+    expect(screen.queryByText(/can end the link/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create sharing link' })).toBeEnabled()
+  })
+
+  it('surfaces API failures through the standard toast without leaking an error object', async () => {
+    mocks.submit.mockResolvedValue('failed')
+    mount()
+    const user = await confirmForm()
+    await user.click(screen.getByRole('button', { name: 'Create sharing link' }))
+    await waitFor(() => expect(mocks.error).toHaveBeenCalledWith('The link could not be confirmed. Retry or close and check the sharing list.'))
+    expect(screen.getByLabelText('Recipient emails (comma-separated)')).toHaveValue('recipient@example.test')
+  })
+
+  it('blocks sharing the entire entry when a custom field is unsupported', async () => {
+    mocks.hook.mockReturnValue({ source: { ...sharingSource, content: { ...sharingSource.content,
+      customFields: [{ id: 'custom:future', label: 'Future field', type: 'future', value: {} }],
+    } }, loadError: false, busy: false, retryPending: false, link: null, links: [], submit: mocks.submit })
+    mount()
+    await confirmForm()
+    expect(screen.getByText(/This entry cannot be shared in full yet/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create sharing link' })).toBeDisabled()
+    expect(mocks.submit).not.toHaveBeenCalled()
+  })
+
+  it('locks draft edits while an ambiguous creation is waiting for exact retry', () => {
+    mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: false, retryPending: true,
+      link: null, links: [], submit: mocks.submit, retryLoad: vi.fn() })
+    mount()
+    expect(screen.getByLabelText('Who can receive this copy?')).toBeDisabled()
+    expect(screen.getByLabelText('Additional protection')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Retry the same request' })).toBeEnabled()
+  })
+
+  it('shows each recipient link separately and preserves retry for an incomplete batch', async () => {
+    const retry = vi.fn()
+    mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: false, retryPending: true,
+      links: [{ recipientEmail: 'first@example.test', link: 'https://app.example.test/share/first#key=synthetic' }],
+      retry, submit: mocks.submit })
+    mount()
+    expect(screen.getByLabelText('first@example.test')).toHaveValue('https://app.example.test/share/first#key=synthetic')
+    expect(screen.getByText(/Some links were created/)).toBeVisible()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Retry the same request' }))
+    expect(retry).toHaveBeenCalledOnce()
+  })
+
+  it('copies a single newly created link once without revealing it', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    try {
+      const link = 'https://app.example.test/share/11111111-1111-4111-8111-111111111111#key=synthetic'
+      mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: false, retryPending: false,
+        links: [{ recipientEmail: null, link }], submit: mocks.submit })
+      const view = mount()
+      await waitFor(() => expect(writeText).toHaveBeenCalledOnce())
+      expect(writeText).toHaveBeenCalledWith(link)
+      expect(mocks.success).toHaveBeenCalledWith('Sharing link copied to clipboard')
+      view.rerender(<CreateEntryShareDialog scope={sharingScope} onClose={vi.fn()} onCreated={vi.fn()} />)
+      expect(writeText).toHaveBeenCalledTimes(1)
+      expect(screen.getByLabelText('Sharing link')).toHaveClass('secret-mask')
+    } finally {
+      if (previous) Object.defineProperty(navigator, 'clipboard', previous)
+      else Reflect.deleteProperty(navigator, 'clipboard')
+    }
+  })
+
+  it('does not auto-copy the first recipient of an unfinished multi-recipient batch', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    try {
+      const first = { recipientEmail: 'first@example.test', link: 'https://app.example.test/share/first#key=synthetic' }
+      const second = { recipientEmail: 'second@example.test', link: 'https://app.example.test/share/second#key=synthetic' }
+      mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: true, retryPending: false,
+        links: [first], submit: mocks.submit })
+      const view = mount()
+      expect(writeText).not.toHaveBeenCalled()
+      mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: false, retryPending: false,
+        links: [first, second], submit: mocks.submit })
+      view.rerender(<CreateEntryShareDialog scope={sharingScope} onClose={vi.fn()} onCreated={vi.fn()} />)
+      expect(writeText).not.toHaveBeenCalled()
+    } finally {
+      if (previous) Object.defineProperty(navigator, 'clipboard', previous)
+      else Reflect.deleteProperty(navigator, 'clipboard')
+    }
+  })
+
+  it('places native sharing beside Copy and Reveal, without a separate button row', async () => {
+    const share = vi.fn().mockResolvedValue(undefined)
+    const previous = Object.getOwnPropertyDescriptor(navigator, 'share')
+    Object.defineProperty(navigator, 'share', { configurable: true, value: share })
+    try {
+      const link = 'https://app.example.test/share/first#key=synthetic'
+      mocks.hook.mockReturnValue({ source: sharingSource, loadError: false, busy: false, retryPending: false,
+        links: [{ recipientEmail: null, link }], submit: mocks.submit })
+      mount()
+      const input = screen.getByLabelText('Sharing link')
+      expect(input).toHaveClass('pr-[6.5rem]')
+      const actions = input.parentElement?.querySelectorAll('button')
+      expect(actions).toHaveLength(3)
+      expect(screen.getByRole('button', { name: 'Share link' })).toBe(actions?.[2])
+      await userEvent.click(screen.getByRole('button', { name: 'Share link' }))
+      expect(share).toHaveBeenCalledWith({ url: link })
+    } finally {
+      if (previous) Object.defineProperty(navigator, 'share', previous)
+      else Reflect.deleteProperty(navigator, 'share')
+    }
+  })
+})

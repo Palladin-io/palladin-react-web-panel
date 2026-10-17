@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+afterEach(() => vi.unstubAllGlobals())
 import { decodeHex } from './vault-v2-bytes'
 import {
   decryptMemberIndex,
@@ -11,7 +13,8 @@ import {
 } from './vault-v2-member-sync'
 
 describe('Member Vault metadata writes', () => {
-  it('round-trips a new authenticated revision under an isolated VK-derived key', async () => {
+  it.each(['secure', 'http'])('round-trips authenticated Vault metadata on %s', async transport => {
+    if (transport === 'http') vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) })
     const vaultKey = new Uint8Array(32).fill(7)
     const scope = {
       organizationId: '00112233-4455-4677-8899-aabbccddeeff',

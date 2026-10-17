@@ -33,7 +33,8 @@ export function showNotificationToast(
   // toast. None pop their own toast (the inbox + badge still update). Also
   // avoids an empty toast — none had a case, so they fell through to the empty
   // wire copy.
-  if (type === 'agent_resolved' || type === 'agent_approved' || type === 'agent_deactivated') return
+  if (type === 'agent_resolved' || type === 'agent_approved' || type === 'agent_deactivated'
+    || type === 'entry_share_received') return
 
   // The "Open" action is a small icon button in the toast's top-right corner
   // (rendered as real toast content). Styling in index.css (`cv-toast-*`).

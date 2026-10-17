@@ -66,6 +66,14 @@ const CONFIG: Record<AuditEventType, AuditEventConfig> = {
   'entry.created': tone('info', 'note_add', 'audit.event.entryCreated'),
   'entry.updated': tone('info', 'edit_note', 'audit.event.entryUpdated'),
   'entry.deleted': tone('danger', 'delete', 'audit.event.entryDeleted'),
+  'entry-share.created': tone('info', 'link', 'audit.event.entryShareCreated'),
+  'entry-share.delivered': tone('success', 'file_download', 'audit.event.entryShareDelivered'),
+  'entry-share.confirmed': tone('success', 'check_circle', 'audit.event.entryShareConfirmed'),
+  'entry-share.protection-changed': tone('info', 'lock', 'audit.event.entryShareProtectionChanged'),
+  'entry-share.expired': tone('neutral', 'timer_off', 'audit.event.entryShareExpired'),
+  'entry-share.revoked': tone('danger', 'remove_circle', 'audit.event.entryShareRevoked'),
+  'entry-share.ended': tone('neutral', 'task_alt', 'audit.event.entryShareEnded'),
+  'entry-share.source-access-removed': tone('danger', 'key_off', 'audit.event.entryShareSourceAccessRemoved'),
   'apikey.created': tone('info', 'vpn_key', 'audit.event.apikeyCreated'),
   'apikey.activated': tone('success', 'key', 'audit.event.apikeyActivated'),
   'apikey.revoked': tone('danger', 'key_off', 'audit.event.apikeyRevoked'),
@@ -96,6 +104,14 @@ export const ENTRY_RELEVANT_EVENT_TYPES: AuditEventType[] = [
   'entry.created',
   'entry.updated',
   'entry.deleted',
+  'entry-share.created',
+  'entry-share.delivered',
+  'entry-share.confirmed',
+  'entry-share.protection-changed',
+  'entry-share.expired',
+  'entry-share.revoked',
+  'entry-share.ended',
+  'entry-share.source-access-removed',
   'credential.accessed',
   'credential.access-denied',
   'grant.created',
@@ -117,6 +133,12 @@ export interface AuditEventCategory {
  * test) so a newly added event can never silently fall out of the legend.
  */
 export const AUDIT_EVENT_CATEGORIES: AuditEventCategory[] = [
+  {
+    labelKey: 'audit.legend.category.entrySharing',
+    types: ['entry-share.created', 'entry-share.delivered', 'entry-share.confirmed',
+      'entry-share.protection-changed', 'entry-share.expired', 'entry-share.revoked',
+      'entry-share.ended', 'entry-share.source-access-removed'],
+  },
   {
     labelKey: 'audit.legend.category.credentialAccess',
     types: ['credential.accessed', 'credential.access-denied'],

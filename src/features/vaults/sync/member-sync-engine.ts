@@ -1,3 +1,4 @@
+import { randomUuid } from '../../../shared/crypto/random-uuid'
 import { openMemberIndex } from '../../../shared/crypto/entry-protocol'
 import { openVaultProjection } from '../../../shared/crypto/vault-protocol'
 import type { MemberVaultMetadataV1 } from '../../../shared/crypto/vault-plaintext'
@@ -338,7 +339,7 @@ export class MemberSyncEngine {
     signal: AbortSignal,
   ): Promise<void> {
     const entries = new Map<string, MemberIndexRecord>()
-    const namespace = crypto.randomUUID()
+    const namespace = randomUuid()
     let cursor: string | null = null
     let baseSequence: string | null = null
     const seenCursors = new Set<string>()

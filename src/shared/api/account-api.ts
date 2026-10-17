@@ -157,6 +157,6 @@ export type DefaultVaultPayload = Awaited<ReturnType<typeof import('../crypto/cr
  * The backend returns 201 on first call and 409 when one already exists.
  * Callers must handle 409 as a success (idempotent).
  */
-export async function createDefaultVault(payload: DefaultVaultPayload): Promise<void> {
-  await api.post('api/account/default-vault', { json: payload })
+export async function createDefaultVault(payload: DefaultVaultPayload, signal?: AbortSignal): Promise<void> {
+  await api.post('api/account/default-vault', { json: payload, signal, retry: 0 })
 }

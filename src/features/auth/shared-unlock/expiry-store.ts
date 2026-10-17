@@ -1,3 +1,4 @@
+import { withSharedUnlockStorageLock, type StorageExclusive, type StorageFence, type SharedUnlockStorageLease } from './storage-lock'
 import { z } from "zod";
 
 /** Local denial of a previously retired own authorization. It cannot be repaired
@@ -45,23 +46,20 @@ export class SharedUnlockExpiryStore {
   private tail: Promise<void> = Promise.resolve();
   private readonly pending = new Map<string, RecordState>();
   private readonly storage: ExpiryStorage;
-  private readonly exclusive: <T>(action: () => Promise<T>) => Promise<T>;
+  private readonly exclusive: StorageExclusive;
   private readonly now: () => number;
-  constructor(storage: ExpiryStorage, exclusive: <T>(action: () => Promise<T>) => Promise<T> = action => {
-    if (!globalThis.navigator?.locks) return Promise.reject(new Error("Shared unlock storage lock unavailable"));
-    return navigator.locks.request("palladin.shared-unlock.expiry.v1", action).then(value => value);
-  },
+  constructor(storage: ExpiryStorage, exclusive: StorageExclusive = action => withSharedUnlockStorageLock("expiry", action),
     now: () => number = () => Date.now()) {
     this.storage = storage; this.exclusive = exclusive; this.now = now;
   }
   advance(scope: SharedUnlockExpiryScope, sequence: number): Promise<void> {
     const selected = { ...scope };
     this.queue(selected, { throughSequence: sequence, checkpoint: null });
-    return this.serial(async () => { await this.readAndRepair(selected); });
+    return this.serial(async assertHeld => { await this.readAndRepair(assertHeld, selected); });
   }
   assertFresh(scope: SharedUnlockExpiryScope, sequence: number): Promise<void> {
     const selected = { ...scope };
-    return this.serial(async () => { this.assertSequence(await this.readAndRepair(selected), sequence); });
+    return this.serial(async assertHeld => { this.assertSequence(await this.readAndRepair(assertHeld, selected), sequence); });
   }
   /** Called with verified OWN Identity sequence and effective own limits before
    * publishing keys/authority. A new document/worker cannot renew the same root. */
@@ -71,24 +69,25 @@ export class SharedUnlockExpiryStore {
   /** Synchronous publication runs while the expiry lock is still held. Earlier
    * locks must be acquired in pause -> links -> expiry order, without network IO. */
   withCheckpoint<T>(scope: SharedUnlockExpiryScope, sequence: number, deadlineMs: number,
-    hardDeadlineMs: number, publish: (deadlineMs: number) => T): Promise<T> {
+    hardDeadlineMs: number, publish: (deadlineMs: number) => T, lease?: SharedUnlockStorageLease): Promise<T> {
     const selected = { ...scope };
     this.queue(selected, { throughSequence: 0, checkpoint: { sequence, deadlineMs: Math.min(deadlineMs, hardDeadlineMs), hardDeadlineMs } });
-    return this.serial(async () => {
-      const read = await this.readAndRepair(selected);
+    return this.serial(async assertHeld => {
+      const read = await this.readAndRepair(assertHeld, selected);
       const record = this.merge(read, this.pending.get(this.key(selected)));
       this.assertSequence(record, sequence);
+      assertHeld();
       return publish(record.checkpoint!.deadlineMs);
-    });
+    }, lease);
   }
   /** Only real own input with an independently captured live key/session/root
    * may call this. Handoff/checkpoint, peer messages and restart never renew. */
   renewOwn(scope: SharedUnlockExpiryScope, sequence: number, deadlineMs: number, assertOwnCurrent: () => void): Promise<void> {
     const selected = { ...scope };
     assertOwnCurrent();
-    return this.serial(async () => {
+    return this.serial(async assertHeld => {
       assertOwnCurrent();
-      const record = await this.readAndRepair(selected);
+      const record = await this.readAndRepair(assertHeld, selected);
       assertOwnCurrent();
       this.assertSequence(record, sequence);
       const checkpoint = record.checkpoint;
@@ -97,7 +96,9 @@ export class SharedUnlockExpiryStore {
       // A renewal is never placed in the failed-write repair queue: only a
       // successful write by this still-live owner may relax an idle denial.
       if (next.deadlineMs > checkpoint.deadlineMs) {
+        assertHeld();
         await this.storage.set({ [this.key(selected)]: { version: 3, apiUrl: selected.apiUrl, accountId: selected.accountId, ...record, checkpoint: next } });
+        assertHeld();
         assertOwnCurrent();
         const latest = this.merge({ ...record, checkpoint: next }, this.pending.get(this.key(selected)));
         this.assertSequence(latest, sequence);
@@ -123,8 +124,10 @@ export class SharedUnlockExpiryStore {
     const key = this.key(scope);
     this.pending.set(key, this.merge(next, this.pending.get(key)));
   }
-  private async readAndRepair(scope: SharedUnlockExpiryScope): Promise<RecordState> {
+  private async readAndRepair(assertHeld: StorageFence, scope: SharedUnlockExpiryScope): Promise<RecordState> {
+    assertHeld();
     const key = this.key(scope), values = await this.storage.get([key]);
+    assertHeld();
     let previous: RecordState = { throughSequence: 0, checkpoint: null };
     if (Object.hasOwn(values, key)) {
       const parsed = schema.safeParse(values[key]);
@@ -135,14 +138,17 @@ export class SharedUnlockExpiryStore {
     }
     const pending = this.pending.get(key), record = this.merge(previous, pending);
     if (pending || previous.throughSequence !== record.throughSequence) {
+      assertHeld();
       await this.storage.set({ [key]: { version: 3, apiUrl: scope.apiUrl, accountId: scope.accountId, ...record } });
+      assertHeld();
       if (this.pending.get(key) === pending) this.pending.delete(key);
     }
     // A later synchronous retirement and time passing during storage still fence admission.
     return this.merge(record, this.pending.get(key));
   }
-  private serial<T>(action: () => Promise<T>): Promise<T> {
-    const result = this.tail.then(() => this.exclusive(action));
+  private serial<T>(action: (assertHeld: StorageFence) => Promise<T>, lease?: SharedUnlockStorageLease): Promise<T> {
+    if (lease) return lease.run("expiry", action);
+    const result = this.tail.then(() => this.exclusive(assertHeld => action(assertHeld ?? (() => {}))));
     this.tail = result.then(() => {}, () => {}); return result;
   }
 }

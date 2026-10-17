@@ -8,6 +8,7 @@ import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import { assertRequiredClientEnv } from './src/shared/lib/required-client-env'
 import { connectionOrigins } from './build/csp-origins'
 import { firefoxSharedUnlockCsp } from './build/firefox-csp'
+import { appLinkAssociationPlugin } from './build/app-link-associations.mjs'
 
 const publicAssetOriginPlaceholder = '__PALLADIN_PUBLIC_ASSET_ORIGIN__'
 const connectionOriginsPlaceholder = '__PALLADIN_CONNECTION_ORIGINS__'
@@ -49,12 +50,13 @@ export default defineConfig(({ command, isPreview, mode }) => {
 
   return {
     plugins: [
+      appLinkAssociationPlugin(buildEnv),
       TanStackRouterVite(),
       react(),
       tailwindcss(),
       injectDeploymentCsp(publicAssetOrigin(
         buildEnv.VITE_PUBLIC_ASSET_URL,
-      ), connectionOrigins(buildEnv.VITE_API_URL, buildEnv.VITE_SIGNALR_HUB_URL), firefoxSharedUnlockCsp(buildEnv.VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID)),
+      ), connectionOrigins(buildEnv.VITE_API_URL, buildEnv.VITE_SIGNALR_HUB_URL, buildEnv.PALLADIN_ALLOW_INSECURE_HTTP_CONNECTIONS === 'true'), firefoxSharedUnlockCsp(buildEnv.VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID)),
     ],
     test: {
       globals: true,

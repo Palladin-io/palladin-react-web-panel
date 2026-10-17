@@ -1,3 +1,4 @@
+import { useSharedUnlockBrowserStatus } from '../../shared-unlock/browser-status'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../../shared/components/button'
 import { ToggleSwitch } from '../../../../shared/components/toggle-switch'
@@ -14,6 +15,7 @@ export function SharedUnlockSection() {
 function SharedUnlockAccountSection() {
   const { t } = useTranslation()
   const { preference, save } = useSharedUnlockPreference()
+  const browserStatus = useSharedUnlockBrowserStatus()
   const current = preference.data
   const error = save.error ?? preference.error
   const conflict = error instanceof SharedUnlockApiError && error.code === 'conflict'
@@ -30,6 +32,7 @@ function SharedUnlockAccountSection() {
         {current && <ToggleSwitch checked={current.sharedUnlockEnabled} label={t('security.sharedUnlock.title')}
           disabled={busy} onChange={enabled => save.mutate({ enabled, revision: current.revision })} />}
       </div>
+      <p className="mt-3 text-ui text-[var(--cv-t3)]" role="status">{t(`security.sharedUnlock.browser.${browserStatus}`)}</p>
       {(busy || error || paused) && <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-ui text-[var(--cv-t3)]" role={error ? 'alert' : 'status'}>
           {save.isPending ? t('security.sharedUnlock.saving')

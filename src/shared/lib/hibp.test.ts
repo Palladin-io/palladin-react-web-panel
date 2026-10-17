@@ -1,16 +1,12 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { webcrypto } from 'node:crypto'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { checkPasswordPwned } from './hibp'
 
-// Ensure Web Crypto (SHA-1 via subtle) is available under jsdom.
-beforeAll(() => {
-  if (!globalThis.crypto?.subtle) {
-    Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true })
-  }
-})
+// Exercise the HTTP-panel boundary in every range-check scenario.
+beforeEach(() => vi.stubGlobal('crypto', { getRandomValues: crypto.getRandomValues.bind(crypto) }))
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 // SHA-1("password") = 5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8

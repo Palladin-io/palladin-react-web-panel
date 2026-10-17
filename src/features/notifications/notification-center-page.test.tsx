@@ -229,6 +229,20 @@ function renderPage() {
 }
 
 describe("NotificationCenterPage", () => {
+  it("shows the receipt as history and opens its source Sharing tab without approval actions", () => {
+    const original = items[0];
+    items[0] = { ...original, type: "entry_share_received", category: "update", actionState: null,
+      metadata: { shareId: "33332233-4455-4677-8899-aabbccddeeff", vaultId: "v1", entryId: "e1" } };
+    try {
+      renderPage();
+      expect(screen.getByText("Shared copy received")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "View sharing" }));
+      expect(navigateMock).toHaveBeenCalledWith({ to: "/vaults/$vaultId/entries/$entryId",
+        params: { vaultId: "v1", entryId: "e1" }, search: { tab: "sharing" } });
+    } finally { items[0] = original; }
+  });
+
   beforeEach(() => {
     markRead.mockReset();
     markAllRead.mockReset();

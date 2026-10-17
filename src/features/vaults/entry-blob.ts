@@ -1,3 +1,4 @@
+import { randomUuid } from '../../shared/crypto/random-uuid'
 import {
   BLOB_VERSION_V2,
   type CustomField,
@@ -18,7 +19,7 @@ import {
 
 /** Fresh client-side id for a new custom field. */
 export function newFieldId(): string {
-  return crypto.randomUUID()
+  return randomUuid()
 }
 
 /** Default label stored for the dedicated credential 2FA field. */

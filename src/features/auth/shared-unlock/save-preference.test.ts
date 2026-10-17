@@ -3,7 +3,7 @@ import { SharedUnlockApiError } from './api'
 import { SharedUnlockPreferenceGate } from './preference-gate'
 import { saveSharedUnlockPreference } from './save-preference'
 
-const session = { apiUrl: 'https://api.test', userId: '11111111-1111-4111-8111-111111111111', accessToken: 'synthetic-access', refreshToken: 'synthetic-refresh' }
+const session = { apiUrl: 'https://api.test', userId: '11111111-1111-4111-8111-111111111111', accessToken: 'synthetic-access', sessionId: 'synthetic-refresh' }
 const scope = { apiUrl: session.apiUrl, accountId: session.userId }
 function setup() {
   const values: Record<string, unknown> = {}

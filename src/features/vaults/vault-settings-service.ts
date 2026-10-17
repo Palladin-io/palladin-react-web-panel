@@ -1,3 +1,4 @@
+import { randomUuid } from '../../shared/crypto/random-uuid'
 import { parseJwtPayload } from '../../shared/lib/jwt'
 import {
   openVaultProjection,
@@ -104,7 +105,7 @@ export async function updateEncryptedVaultSettings(input: {
 
     let nextMetadata = input.nextMetadata
     if (input.iconFile) {
-      uploadedAssetId = crypto.randomUUID()
+      uploadedAssetId = randomUuid()
       const uploaded = await encryptAndUploadPresentationAsset({
         file: input.iconFile,
         scope: {

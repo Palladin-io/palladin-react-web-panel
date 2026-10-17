@@ -1,11 +1,68 @@
 # Feature: auth
 
+Current browser-session contract (CVT-198): refresh credentials are HttpOnly and
+all own-session Shared Unlock calls use cookie-bound browser routes. The dated
+implementation notes below retain earlier rollout evidence; their HTTP fallback
+and pre-cookie transport descriptions are historical. Current deployment
+requirements are in [security](../security.md) and
+[Shared Unlock deployment](../shared-unlock-deployment.md).
+
+
+## Dynamic extension connections (2026-10-04, rollout in progress)
+
+The extension owns the user-approved API/panel pair. This panel retains an
+independently configured extension distribution ID; it never learns its trusted
+peer ID from page messages. The browser channel accepts HTTP/HTTPS URL syntax,
+while the extension must enforce the exact pair and explicit HTTP consent.
+
+Security settings display native-channel status separately from the account
+shared-unlock preference. Connected means a document-bound browser route exists,
+not that an Identity session or MK handoff completed. Missing extension identity,
+connection attempts, unavailable peers and unsupported HTTP browser capabilities
+have separate PL/EN messages. The candidate HTTP path uses portable SHA-256/HKDF and IndexedDB publication
+locks. HTTP transcript origins come from the independently verified configured
+browser route, never the received operation. Release requires the coordinated
+backend change and the published crypto package; a local candidate test does
+not establish production deployment.
+
+Client-generated UUIDs use `shared/crypto/random-uuid`: native `randomUUID` on
+secure origins, or the browser CSPRNG (`getRandomValues`) with UUID v4 formatting
+when HTTP hides that method. No weak random fallback is allowed. This covers
+registration, shared-link/pause IDs and ordinary client mutations; portable
+hashing/KDF comes from the bundled crypto package.
+
+On origins without Web Locks, shared-unlock storage serializes through IndexedDB
+read/write transactions over three empty stores (pause, links, expiry). Only
+public denial metadata remains in localStorage; no key or session token is put
+in this database. Publication acquires all scopes in one transaction and passes
+an explicit lease to the nested stores. Reads, writes and final RAM publication
+check transaction ownership; a delayed continuation cannot reuse an inactive or
+completed transaction. There is no timeout-based lease or keepalive. Production
+callbacks use only localStorage promises within the transaction event task.
+Native Chromium HTTP tests cover two documents, one link allocation, retained
+expiry, peer OFF/lock/logout/expiry and a suspended stale read. This is storage
+boundary evidence. A separate real HTTP panel run passed registration,
+verification, login, both handoff directions, Entry decryption, worker restart
+and manual lock/logout with SubtleCrypto and Web Locks absent. Its API remained
+loopback and used the existing native host permission; staging, optional-host
+permission prompts and the remaining platform matrix are separate gates.
+A further 24-check native run passed real 15-minute independent idle, denial
+after reload, zero steady retries, cleanup of rejected sessions and fresh
+manual recovery, with the existing extension session still usable.
+
+The client pins published `@palladin/crypto` 0.12.0. The signed release workflow
+completed with npm provenance; the lockfile integrity matches the registry and
+`npm ci --prefer-online` passed. HIBP's required SHA-1 range lookup uses
+`@noble/hashes` through `shared/crypto/digest.ts`, including on HTTP panels
+without SubtleCrypto. Only the five-character digest prefix leaves the client;
+SHA-1 is not used for encryption or key derivation.
+
 **Path:** `src/features/auth/`
 
 ## What it does
 The entry point to the app. Two ways in:
 
-- **OAuth 2.0** via `@react-oauth/google`'s **implicit token flow** (Google primary, Apple/X stubbed). Google returns an `access_token` in the browser, POSTed to `/api/auth/oauth/google` for the app JWT. Implicit-token flow, not auth-code/PKCE — no backend code-exchange endpoint today; if one lands, switch `useGoogleLogin` to `flow: 'auth-code'`. OAuth accounts are always `emailVerified: true`.
+- **OAuth 2.0** via `@react-oauth/google`'s **implicit token flow** (Google primary, Apple/X stubbed). Google returns an `access_token` in the browser, POSTed to `/api/browser/auth/oauth/google` for the app JWT. Implicit-token flow, not auth-code/PKCE — no backend code-exchange endpoint today; if one lands, switch `useGoogleLogin` to `flow: 'auth-code'`. OAuth accounts are always `emailVerified: true`.
 - **Email + password** uses Identity password KDF v1. The browser runs the exact UTF-8 password through the registered Argon2id profile once and domain-separates AuthCredential from MK. AuthCredential is sent to the server; password and MK never are. Unsupported profiles fail closed; there is no legacy fallback.
 
 The shared-unlock receiver additionally supports a verified automatic own-session
@@ -16,7 +73,7 @@ single-use receive guard prevents duplicate success; a newer own lock/session
 suppresses a stale notification. Toast errors cannot undo a completed session.
 This does not claim completion of fallback UX or the native acceptance matrix.
 
-Session-token storage: the access token is kept **in memory only** (never persisted); only the refresh token is persisted (localStorage) so a reload can silently restore the session via the ky client's 401→refresh path. Idle + absolute session timeouts (`useSessionTimeout`) wipe the keys and access token on walk-away. Moving the refresh token to an httpOnly cookie is a backend-coordinated follow-up.
+Session-token storage: access tokens, logical session IDs and keys are memory-only. The refresh token is held exclusively in the API's `__Host-palladin-refresh` HttpOnly/Secure/SameSite=Strict cookie. Startup restores a locked session through the browser refresh endpoint before routing; persisted hints never authenticate. Legacy localStorage tokens are removed before their one-time rotating exchange. See [Token storage](../security.md) for CSRF, multi-tab reconciliation, migration and HTTPS deployment requirements.
 
 ## How it's organized
 - **`components/login-page`** — step machine (`credentials` → optional `totp`). The v1 handshake validates the bootstrap, derives once before TOTP, and verifies the authenticated account KDF state before unlock.
@@ -35,7 +92,8 @@ Session-token storage: the access token is kept **in memory only** (never persis
 - **Refresh hand-off:** refresh responses are accepted only by the client-session generation that started them, so a delayed response from the previous account cannot restore its tokens after cleanup. The encrypted IndexedDB Vault cache remains user-scoped while the account is locked, but logout and account switching delete every active and staging namespace for the previous profile before the next session starts.
 - **Verification/session binding:** consuming an e-mail token mutates the current browser session only when the response `userId` matches it. The verified response applies any active benefit window to memory immediately, then a matching session refreshes so the new plan claim and permissions take effect; generation, user and refresh-token fences reject stale refresh responses. A failed refresh is retried once. If both attempts fail, verification still succeeds but that same fenced client session is cleared before navigation, so the next login obtains current authorization claims instead of presenting Premium with stale permissions.
 - **Crypto-session cache namespace:** `cryptoSessionGeneration` is a non-secret, non-persisted counter advanced on every unlock, lock, expiry and logout. Queries containing authenticated Vault/Entry ciphertext include it in their cache key so a new in-memory key session never reuses a crypto envelope fetched by an older session. Raw keys are never query-key material.
-- **Deep-link return:** when an anonymous user opens an authenticated URL, the guard carries its full internal path, search, and hash through `/login?redirect=…`. Every successful login method returns to that target; the vault-lock guard then carries the same target through `/unlock` when needed. Failed refresh recovery unwraps an existing auth-gate redirect instead of nesting or dropping it. `shared/lib/auth-redirect` rejects external, malformed, and auth-loop targets before navigation.
+- **Deep-link return:** ordinary authenticated destinations retain their internal path, search and hash through login/unlock. Individual Entry sharing is an explicit exception: `shared/lib/auth-redirect` retains only a canonical `/share/{id}` path, removes every query/fragment, and reduces malformed sharing routes to `/share`. No sharing key/bearer may enter an auth redirect. Registration accepts the same validated return; login ↔ registration links and successful registration preserve it. Failed refresh recovery unwraps login/unlock/register/verify-email gates instead of nesting them. External, malformed and auth-loop destinations are rejected. Explicit sharing continuation retains its guest session/snapshot in bounded RAM across these SPA routes; ordinary navigation/lock/logout still disposes it. See `entry-sharing.md` for lifecycle and remaining new-account/native gates.
+- **Verification in another tab:** the no-token verification gate checks the account on focus and every 15 seconds while waiting, then refreshes its own current session before returning. Publication is fenced by client/crypto generation, user, refresh lineage and query cancellation. A failed refresh leaves the gate retryable without a document reload; request/token diagnostics are discarded before reaching Query's error cache. The gate and authenticated redirects retain a validated return destination. This does not transfer a sharing capability between documents or create a missing destination Vault.
 
 ## Cross-feature deps
 `useAuthStore` is consumed by **every** feature for JWT, permissions, and lock state — the one acceptable cross-cutting store. Route guards key off its `isVaultLocked` / `isOnboarded` flags. Registration and onboarding share `shared/lib/create-default-vault-safe` (relocated from onboarding so both entry paths can seed the default vault without a feature→feature import).
@@ -64,10 +122,11 @@ platform acceptance are not wired by these changes.
 
 Password login (including TOTP) and password unlock prepare an own Identity
 shared-unlock authorization after installing their independently verified local
-keys. Only the fresh AuthCredential and that Web session's JWT/refresh token go
-directly to the configured Identity API; MK/private key never enter the request.
-The dedicated adapter does not follow redirects, attach cookies, retry a proof or
-trigger the generic 401 refresh flow. Account preference is read, never changed:
+keys. The fresh AuthCredential, JWT and expected logical session ID go directly
+to the browser Identity endpoint; the HttpOnly cookie independently identifies the
+refresh session. MK/private key never enter the request. The adapter includes
+credentials and the CSRF header, never follows redirects, retries a proof or
+triggers the generic 401 refresh flow. Account preference is read, never changed:
 explicit OFF stays OFF. An authorization can be prepared while OFF, but this
 alone cannot bind a link or hand off keys. A failed request or required step-up
 leaves the ordinary local unlocked session intact and sharing unavailable.
@@ -681,14 +740,14 @@ independent multi-document limits remain separate unfinished requirements.
 
 The browser link monitor now also captures an own token-only session while keys
 are locked. With a live RAM closing witness it retains the existing own GET-link
-comparison. Without that witness it uses `POST /api/account/shared-unlock/session-state`
-with the exact own refresh token and locally selected link ID; Identity resolves
+comparison. Without that witness it uses `POST /api/browser/account/shared-unlock/session-state`
+with the expected session ID, HttpOnly cookie and locally selected link ID; Identity resolves
 that logical session and returns `none`, `lock` or `logout` with nullable link
 metadata. Client code does not infer a replacement sequence from durable account
 checkpoints or peer frames. This path requires the coordinated Identity API change
 in backend PR55.
 
-Replies remain tied to the own account, token pair, generation, document and
+Replies remain tied to the own account, access token, session ID, generation, document and
 route. The existing 2-second timer/wall-clock, 1 start/second coalescing and
 15-second repair bound apply. A late reply cannot close a replacement session.
 Logout clears an already-locked own login; a lock response does not repeatedly
@@ -768,7 +827,8 @@ bounded by a timer; the wall-clock check also applies if timers were suspended.
 `useLogin` checks that captured owner after the OAuth response and publishes only
 into a locked, keyless client. The final check, token publication and navigation
 have no intervening await. A response superseded by another session is revoked
-using only its newly issued refresh token over the anonymous login transport,
+through `/api/browser/auth/discard` using its newly issued JWT with a signed
+`browser_session_id` claim, without cookies or any `Set-Cookie` response,
 without clearing/refreshing the current client or revoking Google account scopes.
 A cleanup from an older attempt cannot release a newer popup's admission barrier.
 The Google button remains pending for the full popup lifetime; explicit password

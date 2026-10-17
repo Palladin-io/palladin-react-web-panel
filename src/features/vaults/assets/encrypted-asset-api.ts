@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { sha256Base64Url } from '../../../shared/crypto/digest'
 import { api } from '../../../shared/api/client'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import type { EncryptedAssetMediaType, EncryptedAssetTarget } from '../../../shared/crypto/vault-v2-assets'
@@ -23,12 +24,8 @@ export interface EncryptedAssetUpload {
   ciphertext: Uint8Array
 }
 
-async function sha256(bytes: Uint8Array): Promise<string> {
-  return encodeBase64Url(new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(bytes).buffer)))
-}
-
 export async function uploadEncryptedAsset(input: EncryptedAssetUpload): Promise<void> {
-  const ciphertextSha256 = await sha256(input.ciphertext)
+  const ciphertextSha256 = sha256Base64Url(input.ciphertext)
   await api.post(`api/vaults/${input.vaultId}/assets`, {
     json: {
       vaultId: input.vaultId,
@@ -81,7 +78,7 @@ export async function downloadEncryptedAsset(vaultId: string, assetId: string, s
   if (url.protocol !== 'https:' && url.hostname !== 'localhost') throw new Error('Encrypted asset download URL must use HTTPS')
   const response = await fetch(url, { signal, credentials: 'omit', referrerPolicy: 'no-referrer' })
   const ciphertext = await readBoundedCiphertext(response, metadata.ciphertextLength)
-  if (await sha256(ciphertext) !== metadata.ciphertextSha256) throw new Error('Encrypted asset digest mismatch')
+  if (sha256Base64Url(ciphertext) !== metadata.ciphertextSha256) throw new Error('Encrypted asset digest mismatch')
   return {
     ciphertext,
     mediaType: metadata.mediaType,

@@ -1,3 +1,4 @@
+import { randomUuid } from '../../shared/crypto/random-uuid'
 import type { ScriptParameterDefinition } from '../../shared/crypto/script-execution'
 
 export type ScriptParameterType = ScriptParameterDefinition['type']
@@ -83,7 +84,7 @@ export function scriptParameterDrafts(
   definitions: readonly ScriptParameterDefinition[] | undefined,
 ): ScriptParameterDraft[] {
   return (definitions ?? []).map((definition) => ({
-    id: crypto.randomUUID(),
+    id: randomUuid(),
     name: definition.name,
     description: definition.description,
     type: definition.type,

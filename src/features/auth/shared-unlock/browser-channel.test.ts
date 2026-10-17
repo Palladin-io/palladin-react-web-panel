@@ -53,6 +53,12 @@ describe('Web browser-authenticated channel', () => {
     await vi.advanceTimersByTimeAsync(6000); expect(c.signal.aborted).toBe(false)
     c.close(); expect(() => route.assertCurrent()).toThrow()
   })
+  it('routes an explicit HTTP pair through the independently selected extension, which owns HTTP consent', async () => {
+    const f = fixture(); f.options.apiUrl = 'http://192.0.2.10:5000'; f.options.webOrigin = 'http://192.0.2.10:5173';
+    const c = connectSharedUnlockBrowser(f.options); await settle();
+    f.port.onMessage.emit({ ...f.frame, apiUrl: f.options.apiUrl, webOrigin: f.options.webOrigin });
+    const route = await c.ready; expect(route.apiUrl).toBe(f.options.apiUrl); c.close();
+  })
   it.each([
     { type: 'offer' }, { protocol: 'other' }, { apiUrl: 'https://other.example.test' }, { webOrigin: 'https://other.example.test' },
     { extensionId: 'b'.repeat(32) }, { extensionId: 'z'.repeat(32) }, { webNonce: 'E'.repeat(43) }, { webNonce: 'A'.repeat(42) + 'B' },
@@ -67,7 +73,7 @@ describe('Web browser-authenticated channel', () => {
     const f = fixture(); const c = connectSharedUnlockBrowser(f.options); const result = c.ready.catch(error => error)
     await settle(); f.port.onMessage.emit(raw); expect(await result).toBeInstanceOf(Error)
   })
-  it.each([{ extensionId: '' }, { extensionId: '*' }, { apiUrl: 'http://remote.example.test' },
+  it.each([{ extensionId: '' }, { extensionId: '*' }, { apiUrl: 'ftp://remote.example.test' },
     { apiUrl: 'https://name@api.example.test' }, { apiUrl: 'https://api.example.test?q=1' },
     { webOrigin: 'https://app.example.test/path' }, { webOrigin: 'null' },
   ])('rejects unsafe configuration before contacting a browser %#', async patch => {

@@ -50,4 +50,19 @@ describe('SecretInput — copyable', () => {
     )
     expect(screen.queryByRole('button', { name: /copy/i })).not.toBeInTheDocument()
   })
+
+  it('separates display actions from a masked read-only value and copies without revealing', async () => {
+    const reveal = vi.fn()
+    render(<SecretInput id="display-secret" label="Password" value="synthetic-only"
+      onChange={noop} shown={false} onToggleShown={reveal} readOnly copyable appearance="display" />)
+    const input = screen.getByLabelText('Password')
+    expect(input).toHaveClass('secret-mask', 'bg-transparent', 'px-0')
+    expect(input).not.toHaveClass('pr-16')
+    expect(input.parentElement).toHaveClass('flex', 'gap-2')
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    await waitFor(() => expect(writeTextMock).toHaveBeenCalledWith('synthetic-only'))
+    expect(reveal).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Reveal' }))
+    expect(reveal).toHaveBeenCalledOnce()
+  })
 })

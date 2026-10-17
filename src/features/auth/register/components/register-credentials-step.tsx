@@ -7,6 +7,7 @@ import { FeedbackSlot, FormInput } from '../../../../shared/components/form-fiel
 import { PasswordStrengthBar } from '../../../../shared/components/password-strength-bar'
 import { WarningZone } from '../../../../shared/components/warning-zone'
 import { checkPasswordPwned } from '../../../../shared/lib/hibp'
+import { parseAuthRedirect } from '../../../../shared/lib/auth-redirect'
 import {
   evaluatePasswordStrength,
   isPasswordAcceptable,
@@ -18,6 +19,7 @@ export interface RegisterCredentialsValues {
 }
 
 export interface RegisterCredentialsStepProps {
+  redirectTo?: string
   initialEmail?: string
   initialPassword?: string
   onContinue: (values: RegisterCredentialsValues) => void
@@ -26,6 +28,7 @@ export interface RegisterCredentialsStepProps {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export function RegisterCredentialsStep({
+  redirectTo,
   initialEmail,
   initialPassword,
   onContinue,
@@ -145,6 +148,7 @@ export function RegisterCredentialsStep({
           {t('register.haveAccount')}{' '}
           <Link
             to="/login"
+            search={{ redirect: parseAuthRedirect(redirectTo) }}
             className="font-semibold text-[var(--cv-t1)] transition-colors hover:text-[var(--cv-primary)]"
           >
             {t('register.signIn')}

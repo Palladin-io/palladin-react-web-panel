@@ -85,6 +85,15 @@ as the landing hero, with a 112px-wide shield (96px at widths up to 640px),
 tokens normalize the panel's comfortable density so these brand proportions
 match the landing; form-control density and other wordmark variants stay intact.
 
+Public Entry reception uses centered `AppWordmark size="sharing"`, matching the
+extension's system-font wordmark without changing the auth hero. The scoped
+`--cv-share-{surface,shadow,data-bg,line}` tokens reproduce the approved landing
+Founder Program gradient in dark and white card in light. The card has one framed
+data stack, uniform 3.9rem minimum rows, and a joined product footer. Receiver-only
+branding/type dimensions normalize comfortable density to match the approved
+600 CSS-pixel preview. Other card/modal tokens remain unchanged. The scoped
+accent shadow increases on hover; reduced-motion disables arrow movement.
+
 ### Buttons
 Per-variant tokens consumed by `button.tsx`:
 - Subtle: `--cv-btn-subtle-{bg,text,border,hover}`

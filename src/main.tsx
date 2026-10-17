@@ -4,12 +4,29 @@ import './index.css'
 import './shared/lib/i18n'
 import { StartupError } from './shared/components/startup-error'
 import { findMissingRequiredClientEnv } from './shared/lib/required-client-env'
+import { clearPendingEntryShare } from './shared/lib/entry-share-ingress'
+import { installEntryShareNavigation } from './shared/lib/entry-share-navigation'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) throw new Error('Missing application root element')
 
 const root = createRoot(rootElement)
 const missingEnvironmentKeys = findMissingRequiredClientEnv(import.meta.env)
+let sharingIngressReady = false
+try {
+  installEntryShareNavigation(window, () => {
+    sharingIngressReady = false
+    failStartup()
+  })
+  sharingIngressReady = true
+} catch {
+  // A failed URL scrub must stop startup before the router or analytics is imported.
+}
+
+function failStartup(missingKeys: readonly string[] = []) {
+  clearPendingEntryShare()
+  renderStartupError(missingKeys)
+}
 
 function renderStartupError(missingKeys: readonly string[] = []) {
   root.render(
@@ -20,13 +37,18 @@ function renderStartupError(missingKeys: readonly string[] = []) {
 }
 
 async function startApplication(applicationRoot: Root): Promise<void> {
+  const { bootstrapBrowserSession, installBrowserSessionLifecycle } = await import('./features/auth/session/browser-session')
+  await bootstrapBrowserSession()
+  installBrowserSessionLifecycle()
   const [{ default: App }, { analytics }] = await Promise.all([
     import('./App.tsx'),
     import('./shared/lib/analytics.ts'),
   ])
+  if (!sharingIngressReady) return
 
   analytics.reset()
   const { clearLegacyAnalytics } = await import('./shared/lib/clear-legacy-analytics.ts')
+  if (!sharingIngressReady) return
   clearLegacyAnalytics()
   applicationRoot.render(
     <StrictMode>
@@ -35,11 +57,13 @@ async function startApplication(applicationRoot: Root): Promise<void> {
   )
 }
 
-if (missingEnvironmentKeys.length > 0) {
-  renderStartupError(missingEnvironmentKeys)
+if (!sharingIngressReady || missingEnvironmentKeys.length > 0) {
+  failStartup(missingEnvironmentKeys)
 } else {
+  // Keep a hung cookie write alive, but bound the blank startup presentation.
+  const startupTimeout = window.setTimeout(() => renderStartupError(), 10_000)
   void startApplication(root).catch(() => {
     console.error('Palladin application bootstrap failed')
-    renderStartupError()
-  })
+    failStartup()
+  }).finally(() => window.clearTimeout(startupTimeout))
 }
