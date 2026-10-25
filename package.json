@@ -44,11 +44,14 @@
     "react-i18next": "^17.0.4",
     "sonner": "^2.0.7",
     "tldts": "^7.4.9",
-    "zod": "^4.3.6",
+    "zod": "^4.6.6",
     "zustand": "^5.0.11"
   },
   "overrides": {
-    "@grpc/grpc-js": "1.14.5"
+    "@grpc/grpc-js": "1.14.5",
+    "@palladin/crypto": {
+      "zod": "$zod"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -73,7 +76,7 @@
     "tailwindcss": "^4.2.1",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
-    "vite": "^7.3.6",
-    "vitest": "^4.1.9"
+    "vite": "^7.3.7",
+    "vitest": "^4.1.12"
   }
 }

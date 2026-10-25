@@ -97,7 +97,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   attest-web-bundle:
-    name: Build and attest staging artifact
+    name: Build and attest preproduction artifact
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: test
     runs-on: ubuntu-latest
@@ -162,12 +162,12 @@ jobs:
             echo 'STAGING_VITE_SHARED_UNLOCK_EXTENSION_ID must identify the reviewed Chromium extension.' >&2
             exit 1
           fi
-          if [[ "$VITE_API_URL" != 'https://api.stage.palladin.io' ]]; then
-            echo 'STAGING_VITE_API_URL must target the staging API.' >&2
+          if [[ "$VITE_API_URL" != 'https://api.palladin.io' ]]; then
+            echo 'STAGING_VITE_API_URL must target the preproduction API.' >&2
             exit 1
           fi
-          if [[ "$VITE_SIGNALR_HUB_URL" != 'https://api.stage.palladin.io/hubs/notifications' ]]; then
-            echo 'STAGING_VITE_SIGNALR_HUB_URL must target the staging SignalR hub.' >&2
+          if [[ "$VITE_SIGNALR_HUB_URL" != 'https://api.palladin.io/hubs/notifications' ]]; then
+            echo 'STAGING_VITE_SIGNALR_HUB_URL must target the preproduction SignalR hub.' >&2
             exit 1
           fi
           case "${VITE_CLIENT_ANALYTICS_RELEASED:-false}" in
@@ -186,8 +186,8 @@ jobs:
           npm ci
           npm run build -- --mode staging
           if ! grep --recursive --binary-files=text --fixed-strings --quiet \
-            'https://api.stage.palladin.io' dist/assets; then
-            echo 'The staging API URL is absent from the compiled bundle.' >&2
+            'https://api.palladin.io' dist/assets; then
+            echo 'The preproduction API URL is absent from the compiled bundle.' >&2
             exit 1
           fi
           if grep --recursive --binary-files=text --fixed-strings --quiet \
@@ -258,14 +258,14 @@ jobs:
           retention-days: 30
 
   deploy-staging:
-    name: Deploy staging to Netlify
+    name: Deploy preproduction to Netlify
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [test, attest-web-bundle]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment:
       name: staging
-      url: https://stage.palladin.io
+      url: https://panel.palladin.io
     env:
       SOURCE_SHA: ${{ github.sha }}
       NETLIFY_SITE_ID: ${{ vars.NETLIFY_SITE_ID }}
@@ -372,7 +372,7 @@ jobs:
           }
 
           verify_metadata "$DEPLOY_URL"
-          verify_metadata 'https://stage.palladin.io'
+          verify_metadata 'https://panel.palladin.io'
 
           verify_association() {
             local base_url="$1"
@@ -389,7 +389,7 @@ jobs:
             grep -qi '^content-type:.*application/json' "$response_headers"
             cmp -s "$RUNNER_TEMP/web-dist/.well-known/$name" "$output"
           }
-          for base_url in "$DEPLOY_URL" 'https://stage.palladin.io'; do
+          for base_url in "$DEPLOY_URL" 'https://panel.palladin.io'; do
             verify_association "$base_url" apple-app-site-association
             verify_association "$base_url" assetlinks.json
           done
@@ -399,6 +399,6 @@ jobs:
             --retry 20 --retry-delay 5 --retry-all-errors --retry-max-time 180 \
             --dump-header "$headers" \
             --output "$RUNNER_TEMP/staging-login.html" \
-            "https://stage.palladin.io/login?source=$SOURCE_SHA"
+            "https://panel.palladin.io/login?source=$SOURCE_SHA"
           grep -qi '^content-type:.*text/html' "$headers"
           grep -qi '^x-content-type-options:.*nosniff' "$headers"
