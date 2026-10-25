@@ -33,7 +33,7 @@ by this change.
 Before merging, configure the new Netlify domain and TLS, update the API/SignalR
 variables below, and permit the new exact panel origin in backend CORS and the
 configured OAuth provider. Update backend email and pairing URLs, and verify
-Firebase authorized domains and each enabled extension's Web/API mapping.
+Firebase Web Push origin restrictions and each enabled extension's Web/API mapping.
 Keep the previous domains available until login, encrypted data access, pairing
 and notifications have been verified. Rollback restores the previous deployment
 and URL configuration without resetting any database.
