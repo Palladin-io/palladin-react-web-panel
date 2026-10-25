@@ -99,7 +99,7 @@ Per-variant tokens consumed by `button.tsx`:
 - Subtle: `--cv-btn-subtle-{bg,text,border,hover}`
 - Outline: `--cv-btn-outline-{text,border,hover}`
 - Ghost: `--cv-btn-ghost-{text,hover}`
-- Accent interaction: `--cv-btn-accent-hover`, `--cv-btn-accent-shadow`, `--cv-btn-accent-shadow-hover`
+- Accent interaction: `--cv-btn-accent-bg`, `--cv-btn-accent-hover`, `--cv-btn-accent-shadow`, `--cv-btn-accent-shadow-hover`
 - Subtle elevation: `--cv-btn-subtle-shadow`
 - Premium: `--cv-premium` (`#D4820A` light / `#F0C040` dark) + the `.btn-premium` sweep-fill effect.
 
@@ -137,7 +137,7 @@ Sonner toasts wear the theme surface with a variant color as a left-border + ico
 |--------|-----|
 | `HOVERABLE_CARD_CLASSES` | Shared hover/focus class string for cards and list rows: `rounded-2xl`, `--cv-border`, `--cv-card-bg`, hover → `--cv-card-hover` (background lift, no shadow, no border change), focus-visible → `--cv-t1` border. **Edit here to change hover everywhere.** Never inline `hover:border-*` / `hover:bg-*` / `shadow-*` on card-like elements. |
 | `METADATA_BADGE_CLASSES` | Canonical compact pill geometry (`h-5`, `px-2`, `text-micro`, semibold). Use for owner/type/status badges in list and detail headers; callers add only semantic colours and optional icon. In two-line card identities, place the badge in the first-line flex row beside the primary label — never as a sibling centered against both lines. |
-| `SELECTED_NAVIGATION_CARD_CLASSES` | Shared selected Vault/Entry navigation card: primary-text border and subtle button background, without a brand-coloured ring. |
+| `SELECTED_NAVIGATION_CARD_CLASSES` | Shared selected navigation card: primary-text border/text, preserving the ordinary card surface without a selected fill. Used by Vaults, Entries, Grants, API Keys, team members, invitations and roles. |
 
 Button class exports for `<Link>` elements that must look like footer buttons: `PREMIUM_BUTTON_SM_CLASS`, `POSITIVE_BUTTON_SM_CLASS` (from `button.tsx`).
 
@@ -181,11 +181,11 @@ numeric icon/avatar sizes that cannot inherit rem sizing.
 Use semantic utilities instead of arbitrary `text-[Npx]` values. Inputs are
 44px high (`h-control`), default buttons are 36px high (`h-action`) with
 14px `text-action` labels, the sidebar
-is 250px wide (`w-sidebar`), and no informational text renders below 12px.
+is 250px wide in the authenticated shell (`w-sidebar`), and no informational text renders below 12px.
 Never add CSS `zoom` or `transform: scale()` to simulate density.
 
 All list/search surfaces use the shared `SearchBar`: `h-control`, `text-ui`, a
-16-design-pixel search icon, and `--cv-search-bg` (the same surface as cards).
+16-design-pixel search icon, and `--cv-search-bg` (opaque white in light mode; translucent input surface in dark mode).
 Form fields deliberately remain on `--cv-input-bg` so editable data stands out.
 
 When in doubt, choose the token by semantic role rather than copying a nearby
@@ -203,3 +203,65 @@ as its surrounding role; only the font family changes.
 ## Design reference
 
 An Astro prototype exists under `../design/` but is **outdated** and is **NOT a binding reference** — the product style has since changed significantly. Use it only as loose inspiration. When in doubt about visual design (spacing, shape, a new component's look), **ask the user** rather than copying the prototype. There is no "match the prototype 1:1" rule and no blocking-deviation list.
+
+## Authenticated panel brand layer
+
+`src/app/panel-theme.css` preserves the established component palette, spacing,
+radii and 250px sidebar. The brand header and navbar are both 76px high, with a
+continuous bottom divider. This leaves about 16px above and below the 44px search.
+The welcome line replaces the navbar section label. Sidebar account controls
+remain unchanged; auth/unlock keep their own styling.
+
+The landing texture forms a diagonal band from the top-right to the bottom-left,
+with softly feathered sides. Light mode uses a wider band, 128px tiles, multiply
+blending and .22 opacity. Dark uses 180px tiles, normal blending and .11 layer opacity with a broader
+mask capped at .72; its flat, softened center avoids a bright diagonal ridge.
+Light has a broader near-full-strength center with extended feathering.
+The user's Figma mono-noise reference informed the light treatment; this is a
+visual approximation, not an exact reproduction. Texture stays behind opaque
+cards in the shell stacking context so inline dialogs still cover the navbar.
+
+The dashboard starts directly with its content; its duplicate greeting/date are
+removed. The brand shield is 44px, its wordmark 22px (`--cv-panel-wordmark-size`),
+and sidebar navigation has 12px top spacing. The lockup is centered within the
+sidebar header with a 17px shield-to-wordmark gap. Detail tabs and Inbox segments share `TAB_BUTTON_CLASSES`: a rounded,
+primary-text-colored (`--cv-t1`: dark in light, light in dark) outline and text without fill, underline or full-row divider. Primary buttons retain the red accent.
+
+`useWideScreen` switches at 1280 CSS pixels, independently of control density.
+Master columns retain `clamp(18.75rem,22vw,25rem)` geometry (375–500px at the
+current density), including at 1512/1521px. Navbar search grows to
+`clamp(16rem,44vw,34rem)` while retaining shrinking on narrow screens.
+Sidebar-only glyphs use dashboard, lock, event log and settings sliders with
+1.75 stroke; other glyph mappings are unchanged.
+
+Authenticated panel actions use a scoped 40px height; inputs, selects and all
+search fields use the established 44px control height. Auth surfaces retain their
+original sizing. Light panel inputs use a 65% white translucent fill; dark panel
+inputs use a 6% neutral translucent fill. Disabled subtle buttons preserve their
+surface and border, with muted text and no hover lift, matching secondary actions.
+
+Inbox reserves a stable scrollbar gutter on its outer content scroller so
+switching between long Grants and empty To-do lists does not shift the header.
+
+The header shield is offset 4px left independently of its wordmark. A separate
+sidebar grain halo is limited to a softly feathered 84px × 38px ellipse radius
+around the shield (.20 multiply in light, .12 normal in dark), over the opaque
+card surface. Navigation and the rest of the sidebar have no texture.
+It is non-interactive and stays below sidebar children without creating a
+stacking context that traps overlays. Sidebar selection follows the neutral tab
+treatment: primary text and a 1px inset outline, without fill. The inset outline
+preserves existing item geometry.
+Vault Members omits the duplicate visible title and introductory description;
+the section retains its accessible label and contextual removal-status notices.
+
+Panel primary buttons use `--cv-btn-accent-bg: var(--cv-primary-hover)`
+(#D43E3E, matching the extension hover shade), darkened another10% on hover,
+with a reduced glow. The shared button defaults to the original brand fill
+outside the authenticated shell; semantic red, icons and auth colors stay intact.
+
+`SELECTED_NAVIGATION_LINK_CLASSES` supplies the same neutral text/inset outline
+to sidebar and Settings navigation links, without changing their geometry or fill.
+
+Main sidebar spacing matches the vertical Settings rail: navigation px-2/pb-2,
+row gap-0.5 and link px-3/py-2, retaining the12px top breathing room. The Vault
+nav glyph uses the bundled LockKeyhole for clarity at20px rendered size.

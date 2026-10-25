@@ -1,5 +1,6 @@
 import { OwnSharedUnlockActivityRecorder } from "./own-activity"
 import { sharedUnlockExpiry } from './expiry-runtime'
+import { sharedUnlockPreferences } from './preference-state-runtime'
 import type { AccountResponse } from '../../../shared/api/account-api'
 import { wipe } from '../../../shared/crypto/sodium'
 import { env } from '../../../shared/lib/env'
@@ -83,22 +84,16 @@ export function adoptSharedUnlockSource(authorization: import('./api-types').Sha
 const activityRecorder = new OwnSharedUnlockActivityRecorder(
   new SharedUnlockApi((...args) => fetch(...args), () => env.apiUrl), sharedUnlockExpiry)
 
-/** Called only after the document's isTrusted input gate. Capture own live
- * authority before updating idle; a browser peer has no route to this function. */
-export function recordOwnSharedUnlockActivity(at: number): void {
-  const before = useAuthStore.getState()
-  let authority: ReturnType<SharedUnlockSourceAuthority['captureActivity']> | null = null
-  try {
-    if (!before.isVaultLocked && before.unlockLimits && Date.now() < sessionDeadline(before.unlockLimits)) {
-      authority = getAuthority().captureActivity()
-    }
-  } catch { /* Ordinary local input still works when sharing is unavailable. */ }
-  try { before.recordActivity(at) } catch { authority?.dispose(); return }
+/** Synchronize an already-recorded trusted local input, never a peer event. */
+export function syncOwnSharedUnlockActivity(): void {
   const own = useAuthStore.getState()
-  if (!authority || !own.unlockLimits || own.unlockLimits === before.unlockLimits
-    || !own.accessToken || !own.sessionId || !own.userId || own.isVaultLocked) {
-    authority?.dispose(); return
-  }
+  if (!own.unlockLimits || !own.accessToken || !own.sessionId || !own.userId || own.isVaultLocked
+    || Date.now() >= sessionDeadline(own.unlockLimits)) return
+  const source = getAuthority()
+  const scope = { apiUrl: env.apiUrl, accountId: own.userId }
+  if (source.snapshot().preference?.sharedUnlockEnabled !== true || sharedUnlockPreferences.isDisabled(scope)) return
+  let authority: ReturnType<SharedUnlockSourceAuthority['captureActivity']>
+  try { authority = source.captureActivity() } catch { return }
   const apiUrl = env.apiUrl, controller = new AbortController()
   const session = { apiUrl, userId: own.userId, accessToken: own.accessToken, sessionId: own.sessionId }
   const check = () => {
@@ -106,11 +101,15 @@ export function recordOwnSharedUnlockActivity(at: number): void {
     if (controller.signal.aborted || env.apiUrl !== apiUrl || current.cryptoSessionGeneration !== own.cryptoSessionGeneration
       || current.isVaultLocked || current.userId !== session.userId || current.accessToken !== session.accessToken
       || current.sessionId !== session.sessionId || current.masterKey !== own.masterKey || current.privateKey !== own.privateKey
-      || !current.unlockLimits || Date.now() >= sessionDeadline(current.unlockLimits)) throw new Error('Own activity session changed')
+      || !current.unlockLimits || Date.now() >= sessionDeadline(current.unlockLimits)
+      || source.snapshot().preference?.sharedUnlockEnabled !== true
+      || sharedUnlockPreferences.isDisabled(scope)) throw new Error('Own activity session changed')
   }
   const unsubscribe = useAuthStore.subscribe(() => { try { check() } catch { controller.abort() } })
+  const unsubscribeSource = source.subscribe(() => { try { check() } catch { controller.abort() } })
+  const unsubscribePreference = sharedUnlockPreferences.subscribe(() => { try { check() } catch { controller.abort() } })
   const selected = authority
   activityRecorder.record({ session, authority: selected, idleDeadlineMs: own.unlockLimits.idleDeadlineMs,
     signal: controller.signal, assertCurrent: check,
-    dispose: () => { unsubscribe(); controller.abort(); selected.dispose() } })
+    dispose: () => { unsubscribe(); unsubscribeSource(); unsubscribePreference(); controller.abort(); selected.dispose() } })
 }

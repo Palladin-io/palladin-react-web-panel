@@ -15,7 +15,7 @@ import {
   PERMISSION_ADD_USER,
   PERMISSION_ORGANIZATION_MANAGEMENT,
 } from '../../shared/lib/permissions'
-import { HOVERABLE_CARD_CLASSES, SETTINGS_MASTER_HEADER_CLASSES } from '../../shared/lib/styles'
+import { SELECTED_NAVIGATION_CARD_CLASSES, HOVERABLE_CARD_CLASSES, SETTINGS_MASTER_HEADER_CLASSES } from '../../shared/lib/styles'
 import type { OrganizationInvitation } from './api/organization-invitations-api'
 import type { OrganizationMember } from './api/team-members-api'
 import { CancelInvitationDialog } from './components/cancel-invitation-dialog'
@@ -201,7 +201,7 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
                           params={{ memberId: entry.member.userId }}
                           className={`block overflow-hidden ${HOVERABLE_CARD_CLASSES}${
                             entry.member.userId === memberId
-                              ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]'
+                              ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}`
                               : ''
                           }`}
                         >

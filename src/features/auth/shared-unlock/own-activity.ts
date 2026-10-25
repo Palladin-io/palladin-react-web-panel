@@ -3,6 +3,8 @@ import type { SharedUnlockAuthorization } from "./api-types";
 import type { SharedUnlockExpiryStore } from "./expiry-store";
 import type { SharedUnlockSourceAuthority } from "./source-authority";
 
+const ACTIVITY_SYNC_INTERVAL_MS = 30_000;
+
 export interface OwnSharedUnlockActivity {
   readonly session: { apiUrl: string; userId: string; accessToken: string; sessionId: string };
   readonly authority: ReturnType<SharedUnlockSourceAuthority["captureActivity"]>;
@@ -36,7 +38,7 @@ export class OwnSharedUnlockActivityRecorder {
   private async run(): Promise<void> {
     const activity = this.queued;
     if (!activity) return;
-    this.queued = null; this.running = true; this.nextStart = Date.now() + 1_000;
+    this.queued = null; this.running = true; this.nextStart = Date.now() + ACTIVITY_SYNC_INTERVAL_MS;
     const abort = new AbortController(), until = Date.now() + 2_000;
     const cancel = () => abort.abort();
     activity.signal.addEventListener("abort", cancel, { once: true });

@@ -7,6 +7,7 @@ import { ScrollArea } from '../../../shared/components/scroll-area'
 import { Icon } from '../../../shared/components/icon'
 import {
   HOVERABLE_CARD_CLASSES,
+  SELECTED_NAVIGATION_CARD_CLASSES,
   METADATA_BADGE_CLASSES,
   SETTINGS_MASTER_HEADER_CLASSES,
 } from '../../../shared/lib/styles'
@@ -133,7 +134,7 @@ function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
       to="/settings/api-keys/$keyId"
       params={{ keyId: apiKey.apiKeyId }}
       className={`flex flex-col overflow-hidden ${HOVERABLE_CARD_CLASSES}${
-        isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
+        isSelected ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}` : ''
       }`}
     >
       <div className="flex flex-col gap-1 px-4 py-3">

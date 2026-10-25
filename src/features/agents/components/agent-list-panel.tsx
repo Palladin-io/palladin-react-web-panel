@@ -65,9 +65,7 @@ export function AgentListPanel({
           </p>
         </div>
         {canStartPairing ? (
-          <Button variant="accent" size="sm" icon="add" onClick={() => setAddOpen(true)}>
-            {t('agents.add.button')}
-          </Button>
+          <Button variant="accent" size="sm" icon="add" className="w-action !px-0" onClick={() => setAddOpen(true)} aria-label={t('agents.add.button')} title={t('agents.add.button')} />
         ) : null}
       </div>
 

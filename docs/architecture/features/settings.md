@@ -8,6 +8,10 @@ Organization and account settings under one route hierarchy.
 ## How it's organized
 A route layout owns a responsive section rail. Organization settings (General, Team, Permissions, API Keys, Billing) start directly below the compact Settings header; the Account label separates Security and Data export. Child features render through the route `Outlet`; list/detail sections use `ResponsiveMasterDetail`, so wide screens show Settings rail + list + detail while narrower screens drill into the selected resource route.
 
+At widths below 1536px, section navigation becomes a horizontal strip. This
+leaves room for the shared 1280px list/detail split on laptop screens instead
+of squeezing four vertical columns together.
+
 ## Key patterns
 - Canonical routes live under `/settings/*`; `/settings` redirects to `/settings/general`.
 - Legacy `/team`, `/api-keys`, `/api-keys/:keyId`, `/billing`, and `/security` routes redirect to their canonical Settings locations.
@@ -28,3 +32,6 @@ Privacy is a dialog action in both the desktop sidebar and compact navigation.
 A regular click preserves the active section and unsaved state. Its link target
 remains `/settings/privacy` for direct/new-tab entry, where Security is the
 background. Closing a direct-link dialog replaces the route with `/settings/security`.
+
+Both horizontal and vertical section navigation use the shared neutral selected
+link outline/text; list cards reuse the selected-navigation-card classes.

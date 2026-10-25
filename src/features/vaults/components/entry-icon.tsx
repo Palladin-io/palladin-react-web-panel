@@ -1,3 +1,4 @@
+import { ENTITY_ICON_FRAME_CLASSES, ENTITY_ICON_IMAGE_CLASSES } from '../../../shared/lib/styles'
 import { useState } from 'react'
 import { Icon } from '../../../shared/components/icon'
 import type { EntryType } from '../types'
@@ -16,12 +17,12 @@ export interface EntryIconProps {
   type: EntryType
   /** Explicit colour override (entry.color); otherwise derived from glyph/type. */
   color?: string | null
-  /** Container classes — defaults to the 32px circular badge used in lists. */
+  /** Container classes — defaults to the 32px outlined badge used in lists. */
   className?: string
 }
 
 /**
- * Circular entry avatar. Renders a favicon/blob URL as an `<img>` and falls back
+ * Outlined entry avatar. Renders a favicon/blob URL as an `<img>` and falls back
  * to the entry type's Material glyph if the URL fails to load (e.g. a cached
  * favicon 404s) — never a broken image. Shared by the entries list, the entry
  * detail panel, and the dashboard "recent" cards so favicon handling stays in
@@ -47,16 +48,16 @@ export function EntryIcon({ icon, type, color, className }: EntryIconProps) {
       aria-hidden
       className={
         className ??
-        'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full'
+        `${ENTITY_ICON_FRAME_CLASSES} h-8 w-8`
       }
-      style={{ backgroundColor: hexWithAlpha(glyphColor, 0.12), color: glyphColor }}
+      style={{ backgroundColor: isUrl ? 'transparent' : hexWithAlpha(glyphColor, 0.12), color: glyphColor }}
     >
       {isUrl && !failed ? (
         <img
           src={value}
           alt=""
           onError={() => setFailedValue(value)}
-          className="h-5 w-5 rounded-full object-cover"
+          className={ENTITY_ICON_IMAGE_CLASSES}
         />
       ) : (
         <Icon

@@ -45,7 +45,7 @@ export function AgentCard({ agent, isSelected }: AgentCardProps) {
         params={{ agentId: agent.agentId }}
         className="flex items-center gap-[0.625rem] px-[0.875rem] py-3"
       >
-        <AgentAvatar agent={agent} size={36} />
+        <AgentAvatar agent={agent} size={32} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <p className="min-w-0 flex-1 truncate text-heading-sm font-semibold text-[var(--cv-t1)]">

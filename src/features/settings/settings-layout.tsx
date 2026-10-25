@@ -1,3 +1,4 @@
+import { SELECTED_NAVIGATION_LINK_CLASSES } from '../../shared/lib/styles'
 import { useState } from 'react'
 import { PrivacySettingsDialog } from '../privacy'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
@@ -52,7 +53,7 @@ export function SettingsLayout() {
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden text-[var(--cv-t1)]">
-      <aside className="hidden w-[14rem] shrink-0 flex-col border-r border-[var(--cv-border)] lg:flex">
+      <aside className="hidden w-[14rem] shrink-0 flex-col border-r border-[var(--cv-border)] 2xl:flex">
         <div className="flex h-[4.5rem] shrink-0 items-center px-4 pt-1">
           <div className="min-w-0">
             <h2 className="truncate text-heading font-bold">{t('settings.title')}</h2>
@@ -76,11 +77,11 @@ export function SettingsLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <nav
-          className="subtle-scrollbar flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--cv-border)] px-3 py-2 lg:hidden"
+          className="subtle-scrollbar flex shrink-0 gap-1 overflow-x-auto border-b border-[var(--cv-border)] px-3 py-2 2xl:hidden"
           aria-label={t('settings.navigation.label')}
         >
           {allItems.map((item) => (
-            <SettingsNavigationLink key={item.id} item={item} active={isActive(pathname, item.to)} onPrivacyOpen={openPrivacy} compact />
+            <SettingsNavigationLink key={item.id} item={item} active={isActive(pathname, item.to)} onPrivacyOpen={openPrivacy} />
           ))}
         </nav>
         <div className="min-h-0 flex-1 overflow-hidden">
@@ -118,12 +119,10 @@ function SettingsNavigationGroup({
 function SettingsNavigationLink({
   item,
   active,
-  compact = false,
   onPrivacyOpen,
 }: {
   item: SettingsNavigationItem
   active: boolean
-  compact?: boolean
   onPrivacyOpen: () => void
 }) {
   const { t } = useTranslation()
@@ -138,11 +137,9 @@ function SettingsNavigationLink({
         }
       }}
       aria-current={active ? 'page' : undefined}
-      className={`flex shrink-0 items-center gap-2 rounded-lg text-ui font-medium transition-colors ${
-        compact ? 'px-3 py-2' : 'px-3 py-2.5'
-      } ${
+      className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-ui font-medium transition-colors ${
         active
-          ? 'bg-[rgb(var(--cv-primary-rgb)/0.1)] text-[var(--cv-primary)]'
+          ? SELECTED_NAVIGATION_LINK_CLASSES
           : 'text-[var(--cv-t2)] hover:bg-[var(--cv-list-item-hover)] hover:text-[var(--cv-t1)]'
       }`}
     >

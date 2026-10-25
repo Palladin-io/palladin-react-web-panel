@@ -8,7 +8,7 @@ import { Button } from '../../../shared/components/button'
 import { useAuthStore } from '../../auth'
 import { analytics } from '../../../shared/lib/analytics'
 import { copySecretToClipboard, copyToClipboard } from '../../../shared/lib/clipboard'
-import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
+import { SELECTED_NAVIGATION_CARD_CLASSES, HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import {
   ENTRY_TYPE_CREDENTIAL,
   ENTRY_TYPE_KEY,
@@ -125,7 +125,7 @@ export function EntryRow({ vaultId, entry, isSelected }: EntryRowProps) {
   const isLoadingDetail = revealOpen && decrypting
 
   return (
-    <div className={`flex flex-col ${HOVERABLE_CARD_CLASSES}${isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''}`}>
+    <div className={`flex flex-col ${HOVERABLE_CARD_CLASSES}${isSelected ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}` : ''}`}>
       <div className="flex items-center gap-3 px-4 py-2.5">
         {/* The title/icon area navigates — use a real <Link> so it is
             focusable and keyboard-operable. The action buttons live in a

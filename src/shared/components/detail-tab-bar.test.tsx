@@ -42,7 +42,7 @@ describe('DetailTabBar', () => {
 
     const back = screen.getByRole('button', { name: 'Back' })
     const row = back.parentElement?.parentElement
-    expect(row).toHaveClass('h-10', 'items-end', 'border-b')
+    expect(row).toHaveClass('h-10', 'items-center')
     expect(row).toContainElement(screen.getByRole('tablist', { name: 'Role sections' }))
   })
 })
