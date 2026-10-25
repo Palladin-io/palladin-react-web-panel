@@ -1308,21 +1308,20 @@ function DangerZone({
   const { t } = useTranslation()
   return (
     <section
-      className="rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
+      className="rounded-xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] p-4"
     >
-      <h2 className="text-meta font-semibold text-[var(--cv-primary)]">
-        {t('vault.entry.detail.dangerZoneTitle')}
-      </h2>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-ui font-semibold text-[var(--cv-t1)]">
-            {t('vault.entry.detail.deleteTitle')}
-          </div>
-          <p className="mt-1 text-meta text-[var(--cv-t3)]">
+          <h2 className="flex flex-wrap items-center gap-2 text-ui font-semibold">
+            <span className="text-[var(--cv-primary)]">{t('vault.entry.detail.dangerZoneTitle')}</span>
+            <span aria-hidden="true" className="text-[var(--cv-t3)]">|</span>
+            <span className="text-[var(--cv-t1)]">{t('vault.entry.detail.deleteTitle')}</span>
+          </h2>
+          <p className="mt-3 text-meta text-[var(--cv-t3)]">
             {t('vault.entry.detail.deleteSubtitle')}
           </p>
         </div>
-        <Button variant="danger" size="sm" onClick={onDelete} disabled={disabled}>
+        <Button variant="accent" size="sm" onClick={onDelete} disabled={disabled}>
           {t('vault.entry.detail.deleteButton')}
         </Button>
       </div>

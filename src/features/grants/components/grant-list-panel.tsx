@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ErrorState } from '../../../shared/components/error-state'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { Icon } from '../../../shared/components/icon'
-import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
+import { SELECTED_NAVIGATION_CARD_CLASSES, HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
 import {
   GRANT_STATUSES,
   type Grant,
@@ -151,7 +151,7 @@ function GrantCard({
       to="/vaults/$vaultId/grants/$grantId"
       params={{ vaultId, grantId: grant.grantId }}
       className={`block overflow-hidden px-[0.875rem] py-3 ${HOVERABLE_CARD_CLASSES}${
-        isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
+        isSelected ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}` : ''
       }`}
     >
       <div className="flex items-center gap-2">

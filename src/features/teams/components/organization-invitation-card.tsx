@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
-import { HOVERABLE_CARD_CLASSES, METADATA_BADGE_CLASSES } from '../../../shared/lib/styles'
+import { SELECTED_NAVIGATION_CARD_CLASSES, HOVERABLE_CARD_CLASSES, METADATA_BADGE_CLASSES } from '../../../shared/lib/styles'
 import type { OrganizationInvitation } from '../api/organization-invitations-api'
 
 export function OrganizationInvitationCard({
@@ -22,7 +22,7 @@ export function OrganizationInvitationCard({
         to="/settings/team/invitations/$invitationId"
         params={{ invitationId: invitation.id }}
         className={`block overflow-hidden ${HOVERABLE_CARD_CLASSES}${
-          isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
+          isSelected ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}` : ''
         }`}
       >
         <div className="flex min-w-0 items-center gap-3 px-4 py-3">

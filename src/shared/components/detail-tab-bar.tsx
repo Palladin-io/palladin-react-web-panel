@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { TAB_BUTTON_CLASSES } from '../lib/styles'
 
 export interface DetailTab<T extends string> {
   id: T
@@ -36,13 +37,7 @@ export function DetailTabBar<T extends string>({
         aria-selected={selected}
         disabled={tab.disabled}
         onClick={() => onChange(tab.id)}
-        className={`-mb-px shrink-0 whitespace-nowrap border-b-2 px-3.5 py-2 text-ui font-semibold transition-colors ${
-          tab.disabled
-            ? 'cursor-not-allowed border-transparent text-[var(--cv-t3)] opacity-40'
-            : selected
-              ? 'border-[var(--cv-primary)] text-[var(--cv-primary)]'
-              : 'border-transparent text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
-        }`}
+        className={TAB_BUTTON_CLASSES}
       >
         {tab.label}
       </button>
@@ -52,7 +47,7 @@ export function DetailTabBar<T extends string>({
   if (!wide && !leading && !actions) {
     return (
       <div
-        className="tab-strip-scroll mb-3 flex shrink-0 overflow-x-auto border-b border-[var(--cv-divider)]"
+        className="tab-strip-scroll mb-3 flex shrink-0 gap-1 overflow-x-auto"
         role="tablist"
         aria-label={ariaLabel}
       >
@@ -62,12 +57,12 @@ export function DetailTabBar<T extends string>({
   }
 
   return (
-    <div className="mb-4 flex h-10 shrink-0 items-end border-b border-[var(--cv-divider)]">
+    <div className="mb-4 flex h-10 shrink-0 items-center">
       {leading ? (
         <div className="mr-1 flex shrink-0 self-center items-center">{leading}</div>
       ) : null}
       <div
-        className="tab-strip-scroll flex min-w-0 flex-1 overflow-x-auto"
+        className="tab-strip-scroll flex min-w-0 flex-1 gap-1 overflow-x-auto"
         role="tablist"
         aria-label={ariaLabel}
       >

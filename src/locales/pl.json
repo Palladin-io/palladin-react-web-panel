@@ -1,4 +1,5 @@
 {
+  "nav.welcomeNamed": "Witaj ponownie, {{name}}",
   "audit.legend.desc.entryShareCreated": "Nadawca utworzył niezależnie zaszyfrowaną kopię całego obsługiwanego wpisu, w tym notatek, 2FA i pól własnych.",
   "audit.legend.desc.entryShareDelivered": "Serwer wydał zaszyfrowaną paczkę po autoryzacji. Zużywa to odbiór z limitu, ale nie potwierdza wyświetlenia.",
   "audit.legend.desc.entryShareConfirmed": "Aplikacja odbiorcy potwierdziła lokalne wyświetlenie. To osobne zdarzenie od wydania paczki, nie dowód przeczytania przez człowieka.",
@@ -512,7 +513,6 @@
   "vault.detail.manageGrants": "Zarządzaj dostępami",
   "vault.detail.membersComingSoon": "Członkowie wkrótce.",
   "vault.members.title": "Członkowie Vault",
-  "vault.members.description": "Dostęp pozostaje aktywny, dopóki wszystkie wymagane rotacje kluczy nie zostaną zatwierdzone.",
   "vault.members.listLabel": "Członkowie Vault",
   "vault.members.empty": "Nie znaleziono członków.",
   "vault.members.loadError": "Nie udało się wczytać członków Vault.",

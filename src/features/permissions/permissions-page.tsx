@@ -10,6 +10,7 @@ import { ScrollArea } from '../../shared/components/scroll-area'
 import { SkeletonBlock } from '../../shared/components/skeleton-block'
 import {
   HOVERABLE_CARD_CLASSES,
+  SELECTED_NAVIGATION_CARD_CLASSES,
   METADATA_BADGE_CLASSES,
   SETTINGS_MASTER_HEADER_CLASSES,
 } from '../../shared/lib/styles'
@@ -73,7 +74,7 @@ export function PermissionsPage({ roleId }: { roleId?: string }) {
                         to="/settings/permissions/$roleId"
                         params={{ roleId: role.id }}
                         className={`flex items-center gap-3 px-4 py-3 ${HOVERABLE_CARD_CLASSES}${
-                          role.id === roleId ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
+                          role.id === roleId ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}` : ''
                         }`}
                       >
                         <span className={`flex size-9 shrink-0 items-center justify-center rounded-full ${

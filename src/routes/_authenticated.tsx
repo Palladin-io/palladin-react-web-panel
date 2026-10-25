@@ -1,3 +1,5 @@
+import { SELECTED_NAVIGATION_LINK_CLASSES } from '../shared/lib/styles'
+import { AppNavbar } from '../app/app-navbar'
 import { PrivacyPrompt } from '../features/privacy'
 import {
   createFileRoute,
@@ -93,11 +95,6 @@ const NAV_HOVER_BG = {
   light: 'rgba(12, 14, 18, 0.04)',
 }
 
-const NAV_ACTIVE_BG = {
-  dark: 'rgb(var(--cv-primary-rgb) / 0.12)',
-  light: 'rgb(var(--cv-primary-rgb) / 0.08)',
-}
-
 const TEXT_PRIMARY = {
   dark: '#E8EAED',
   light: '#0C0E12',
@@ -184,13 +181,15 @@ function AuthenticatedContent() {
         >
           <SignalRProvider>
             <div
-              className="flex h-screen overflow-hidden"
+              className="app-shell flex h-dvh overflow-hidden"
+              data-palladin-ignore="true"
               style={{ background: 'var(--cv-page-bg)' }}
             >
               <AppSidebar currentPath={sidebarPath} />
               <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                <AppNavbar displayName={account.data?.displayName || account.data?.email} />
                 <PrivacyPrompt fallback={<WaitlistDeveloperBenefitDialog />} />
-                <div className="subtle-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+                <div className="app-content subtle-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
                   <Outlet />
                 </div>
               </main>
@@ -218,7 +217,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     key: 'home',
     labelKey: 'nav.home',
-    icon: 'home',
+    icon: 'dashboard',
     to: '/',
     // Home is the one route that must not match by prefix (every path starts
     // with '/'), so it lights up only on the dashboard route itself.
@@ -234,7 +233,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     key: 'vaults',
     labelKey: 'nav.vaults',
-    icon: 'shield',
+    icon: 'vault',
     to: '/vaults',
     matchPrefix: '/vaults',
   },
@@ -256,7 +255,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     key: 'audit',
     labelKey: 'nav.auditLog',
-    icon: 'history',
+    icon: 'event_log',
     to: '/audit',
     matchPrefix: '/audit',
     requirePermission: PERMISSION_AUDIT_VIEW,
@@ -264,7 +263,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     key: 'settings',
     labelKey: 'nav.settings',
-    icon: 'settings',
+    icon: 'settings_suggest',
     to: '/settings',
     matchPrefix: '/settings',
   },
@@ -358,34 +357,16 @@ function AppSidebar({ currentPath }: AppSidebarProps) {
 
   return (
     <aside
-      className="flex h-full w-sidebar flex-shrink-0 flex-col border-r"
+      className="app-sidebar flex h-full w-sidebar flex-shrink-0 flex-col border-r"
       style={{
         background: 'var(--cv-card-bg)',
         borderRightColor: borderColor,
       }}
     >
-      {/* Logo header — logo + wordmark + rotating welcome, divider mirrors the profile's */}
-      <div
-        className="border-b px-5 py-5"
-        style={{ borderBottomColor: borderColor }}
-      >
-        <AppWordmark
-          size="sm"
-          subtitle={
-            <p
-              className="mt-1 truncate text-micro font-medium"
-              style={{ color: mutedColor }}
-            >
-              {displayName || email
-                ? `Welcome back, ${(displayName || email).split(' ')[0]}`
-                : 'Welcome back'}
-            </p>
-          }
-        />
-      </div>
+      <div className="app-brand-header"><AppWordmark size="sm" /></div>
 
       {/* Nav */}
-      <nav className="mt-1 flex flex-col">
+      <nav className="mt-1 flex flex-col gap-0.5 px-2 pb-2">
         {visibleNavItems.map((item) => (
           <SidebarLink
             key={item.key}
@@ -611,7 +592,7 @@ function SidebarLink({
   const hoverTextColor = theme === 'dark' ? '#E8EAED' : '#0C0E12'
 
   const baseClassName =
-    'mx-2.5 my-0.5 flex items-center gap-2 rounded-lg px-4 py-1.5 text-ui font-medium transition-colors'
+    'flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-ui font-medium transition-colors'
 
   if (item.disabled || !item.to) {
     return (
@@ -631,16 +612,15 @@ function SidebarLink({
     )
   }
 
-  const activeBg = NAV_ACTIVE_BG[theme]
   const hoverBg = NAV_HOVER_BG[theme]
 
   return (
     <Link
       to={item.to}
-      className={baseClassName}
+      className={`${baseClassName} ${isActive ? SELECTED_NAVIGATION_LINK_CLASSES : ''}`}
       style={{
-        color: isActive ? 'var(--cv-primary)' : hovered ? hoverTextColor : textColor,
-        background: isActive ? activeBg : hovered ? hoverBg : 'transparent',
+        color: isActive ? 'var(--cv-t1)' : hovered ? hoverTextColor : textColor,
+        background: isActive ? 'transparent' : hovered ? hoverBg : 'transparent',
         textDecoration: 'none',
       }}
       onMouseEnter={() => setHovered(true)}

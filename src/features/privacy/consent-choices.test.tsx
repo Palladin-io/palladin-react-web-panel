@@ -155,7 +155,7 @@ describe('account privacy choices', () => {
       const accept = screen.getByRole('button', { name: locale === 'pl' ? 'Akceptuj wszystkie' : 'Accept all' })
       expect(within(screen.getByTestId('modal-footer')).getAllByRole('button')).toHaveLength(2)
       expect(save).toBeEnabled(); expect(save).toHaveClass('bg-transparent', 'border-[var(--cv-btn-outline-border)]', 'flex-1', 'h-action')
-      expect(accept).toBeEnabled(); expect(accept).toHaveClass('bg-[var(--cv-primary)]', 'flex-1', 'h-action')
+      expect(accept).toBeEnabled(); expect(accept).toHaveClass('bg-[var(--cv-btn-accent-bg)]', 'flex-1', 'h-action')
       await userEvent.click(save)
       await waitFor(() => expect(mocks.update).toHaveBeenCalledTimes(2))
       expect(mocks.update.mock.calls.map(([purpose, d]) => [purpose, d.granted])).toEqual([['product_analytics', false], ['email_marketing', false]])

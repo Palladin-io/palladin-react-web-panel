@@ -1,0 +1,85 @@
+/* Preserve the established component palette, density and radii. */
+.app-shell {
+  --spacing-action: 2rem;
+  --cv-input-bg: rgb(255 255 255 / .65);
+  --cv-panel-wordmark-size: 1.1rem;
+  --cv-search-bg: var(--cv-card-bg);
+  --cv-btn-accent-bg: var(--cv-primary-hover);
+  --cv-btn-accent-hover: color-mix(in srgb, var(--cv-primary-hover) 90%, black);
+  --cv-btn-accent-shadow: 0 2px 10px rgb(var(--cv-primary-rgb) / .16);
+  --cv-btn-accent-shadow-hover: 0 3px 12px rgb(var(--cv-primary-rgb) / .2);
+  position: relative;
+  isolation: isolate;
+}
+
+.app-sidebar, .app-navbar, .app-content { position: relative; }
+.app-sidebar { border-right-width: 1px; }
+.app-sidebar > nav { margin-top: .6rem; }
+
+/* A diagonal texture band, feathered toward both sides.
+   Keep it below content without trapping inline modal overlays. */
+.app-shell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: url('/textures/brand-grain.svg') repeat;
+  opacity: .22;
+  mix-blend-mode: multiply;
+  background-size: 128px 128px;
+  mask-image: linear-gradient(to bottom right, transparent 0%, rgb(0 0 0 / .1) 10%, rgb(0 0 0 / .35) 23%, rgb(0 0 0 / .62) 36%, rgb(0 0 0 / .72) 45%, rgb(0 0 0 / .72) 55%, rgb(0 0 0 / .62) 64%, rgb(0 0 0 / .35) 77%, rgb(0 0 0 / .1) 90%, transparent 100%);
+}
+.dark .app-shell::before { opacity: .11; mix-blend-mode: normal; background-size: 180px 180px; }
+
+.app-brand-header, .app-navbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--cv-border);
+  padding: 0 1.25rem;
+}
+.app-brand-header { height: 3.8rem; justify-content: center; }
+.app-brand-header > div { gap: .85rem; }
+.app-brand-header img { height: 2.2rem; position: relative; left: -.2rem; }
+.app-brand-header .text-page-title { font-size: var(--cv-panel-wordmark-size); }
+.app-navbar { height: 3.8rem; gap: 1rem; z-index: 20; }
+.app-navbar-search { margin-left: auto; width: clamp(16rem, 44vw, 34rem); min-width: 0; }
+
+@media (max-width: 900px) {
+  .app-navbar { padding-inline: .8rem; gap: .6rem; }
+  .app-navbar-search { width: auto; flex: 1; }
+}
+
+.app-sidebar nav svg { stroke-width: 1.75; }
+
+:root:not(.dark) .app-shell::before {
+  mask-image: linear-gradient(to bottom right, rgb(0 0 0 / .08) 0%, rgb(0 0 0 / .25) 10%, rgb(0 0 0 / .6) 24%, rgb(0 0 0 / .92) 38%, #000 45%, #000 55%, rgb(0 0 0 / .92) 62%, rgb(0 0 0 / .6) 76%, rgb(0 0 0 / .25) 90%, rgb(0 0 0 / .08) 100%);
+}
+
+.dark .app-shell {
+  --cv-input-bg: rgb(232 234 237 / .06);
+  --cv-search-bg: var(--cv-input-bg);
+}
+
+/* Reserve the same content width for empty and scrollable Inbox segments. */
+.app-content:has(> .notification-center) { scrollbar-gutter: stable; }
+
+/* Keep the brand texture local to the shield, below sidebar content. */
+.app-sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: url('/textures/brand-grain.svg') repeat;
+  background-size: 128px 128px;
+  opacity: .2;
+  mix-blend-mode: multiply;
+  mask-image: radial-gradient(ellipse 4.2rem 1.9rem at 2.8rem 1.9rem, rgb(0 0 0 / .8) 0%, rgb(0 0 0 / .65) 22%, rgb(0 0 0 / .3) 48%, rgb(0 0 0 / .06) 72%, transparent 100%);
+}
+.app-sidebar > * { position: relative; }
+.dark .app-sidebar::before {
+  background-size: 180px 180px;
+  opacity: .12;
+  mix-blend-mode: normal;
+}

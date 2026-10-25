@@ -1,4 +1,5 @@
 {
+  "nav.welcomeNamed": "Welcome back, {{name}}",
   "audit.legend.desc.entryShareCreated": "The sender created an independently encrypted copy of the entire supported Entry, including notes, 2FA and custom fields.",
   "audit.legend.desc.entryShareDelivered": "The server released the encrypted package after authorization. This consumes a receipt, but does not confirm display.",
   "audit.legend.desc.entryShareConfirmed": "The recipient’s app confirmed local display. This is separate from delivery and is not proof of human reading.",
@@ -500,7 +501,6 @@
   "vault.detail.manageGrants": "Manage grants",
   "vault.detail.membersComingSoon": "Members coming soon.",
   "vault.members.title": "Vault members",
-  "vault.members.description": "Access stays effective until every required key rotation commits.",
   "vault.members.listLabel": "Vault members",
   "vault.members.empty": "No members found.",
   "vault.members.loadError": "Vault members could not be loaded.",

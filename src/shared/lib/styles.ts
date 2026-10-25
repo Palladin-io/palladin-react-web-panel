@@ -11,7 +11,7 @@ export const HOVERABLE_CARD_CLASSES = [
 ].join(' ')
 
 export const SELECTED_NAVIGATION_CARD_CLASSES =
-  '!border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]'
+  '!border-[var(--cv-t1)] text-[var(--cv-t1)]'
 
 /**
  * Canonical geometry for compact metadata/status pills in list and detail
@@ -27,3 +27,16 @@ export const METADATA_BADGE_CLASSES =
  */
 export const SETTINGS_MASTER_HEADER_CLASSES =
   'mb-4 flex h-10 shrink-0 items-center gap-2'
+
+/** Shared frame and image inset for Entry, Agent and Vault identities. */
+export const ENTITY_ICON_FRAME_CLASSES =
+  'inline-flex shrink-0 items-center justify-center rounded-lg border border-[var(--cv-border)]'
+
+export const ENTITY_ICON_IMAGE_CLASSES = 'h-[62.5%] w-[62.5%] object-contain'
+
+/** Shared selected-tab treatment for detail panels and the Inbox segments. */
+export const TAB_BUTTON_CLASSES =
+  'inline-flex h-action shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-transparent px-3 text-ui font-semibold transition-colors text-[var(--cv-t3)] hover:text-[var(--cv-t1)] aria-selected:border-[var(--cv-t1)] aria-selected:text-[var(--cv-t1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--cv-primary)] disabled:cursor-not-allowed disabled:opacity-40'
+
+export const SELECTED_NAVIGATION_LINK_CLASSES =
+  'text-[var(--cv-t1)] shadow-[inset_0_0_0_1px_var(--cv-t1)]'

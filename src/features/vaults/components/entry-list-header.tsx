@@ -18,6 +18,6 @@ export function EntryListHeader({ title, count, onAdd, back, headingLevel: Headi
       <Heading className="truncate text-heading font-bold text-[var(--cv-t1)]">{title}</Heading>
       <p className="text-meta text-[var(--cv-t3)]">{t('vault.entries', { count })}</p>
     </div>
-    <Button variant="accent" size="sm" icon="add" onClick={onAdd}>{t('vault.detail.addEntry')}</Button>
+    <Button variant="accent" size="sm" icon="add" className="w-action !px-0" onClick={onAdd} aria-label={t('vault.detail.addEntry')} title={t('vault.detail.addEntry')} />
   </div>
 }
