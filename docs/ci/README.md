@@ -14,7 +14,7 @@ The workflow needs only read access to repository contents. It does not receive
 repository secrets, check out private repositories, or use
 `pull_request_target`.
 
-## Staging release and deployment
+## Preproduction release and deployment
 
 After a successful push to `main`, the same `Test` workflow rebuilds the tested
 source revision with staging configuration, creates a deterministic web bundle
@@ -22,6 +22,21 @@ and SPDX SBOM, records their SHA-256 digests, and publishes GitHub artifact
 attestations. A separate least-privilege job then downloads that exact artifact,
 verifies the checksums and source revision, and deploys the prebuilt directory
 atomically to Netlify. It never rebuilds after the CI gates have passed.
+
+The existing environment is promoted in place to `panel.palladin.io` with
+`api.palladin.io`; its data and Netlify site are preserved. The GitHub environment
+name, `STAGING_*` variable names and Vite staging mode remain unchanged during
+this domain-only cutover. They refer to this preproduction deployment, not a
+second staging installation. A separate staging environment is not provisioned
+by this change.
+
+Before merging, configure the new Netlify domain and TLS, update the API/SignalR
+variables below, and permit the new exact panel origin in backend CORS and the
+configured OAuth provider. Update backend email and pairing URLs, and verify
+Firebase authorized domains and each enabled extension's Web/API mapping.
+Keep the previous domains available until login, encrypted data access, pairing
+and notifications have been verified. Rollback restores the previous deployment
+and URL configuration without resetting any database.
 
 The deploy job uses the protected GitHub `staging` environment. Configure it
 with:
@@ -33,8 +48,8 @@ The browser-visible build configuration is kept in repository variables so the
 artifact can be built by the attestation job without granting that job access to
 the Netlify credential:
 
-- `STAGING_VITE_API_URL=https://api.stage.palladin.io`;
-- `STAGING_VITE_SIGNALR_HUB_URL=https://api.stage.palladin.io/hubs/notifications`;
+- `STAGING_VITE_API_URL=https://api.palladin.io`;
+- `STAGING_VITE_SIGNALR_HUB_URL=https://api.palladin.io/hubs/notifications`;
 - `STAGING_VITE_GOOGLE_CLIENT_ID`;
 - `STAGING_VITE_SHARED_UNLOCK_EXTENSION_ID`,
   `STAGING_VITE_SHARED_UNLOCK_FIREFOX_EXTENSION_ID`, and
@@ -63,9 +78,9 @@ staging Web/API mapping. A successful build with an omitted ID is not shared
 unlock acceptance. Pull-request jobs receive none of these staging values.
 
 The workflow rejects a staging API or SignalR URL that does not match the
-canonical staging host. It also embeds the source commit in
+canonical preproduction host. It also embeds the source commit in
 `deploy-metadata.json`; post-deploy smoke tests compare that value on both the
-Netlify deploy URL and `https://stage.palladin.io`, then verify that a direct
+Netlify deploy URL and `https://panel.palladin.io`, then verify that a direct
 request to `/login` is rewritten to the SPA and receives the security headers.
 The workflow-level concurrency policy cancels stale runs so an older commit
 cannot replace a newer deployment.
