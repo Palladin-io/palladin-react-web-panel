@@ -1,0 +1,149 @@
+/* Auth remains independent; these surfaces follow the extension workspace. */
+:root:has(.app-shell) {
+  --spacing-action: 2rem;
+  --radius-xl: .6rem;
+  --radius-2xl: .6rem;
+  --cv-panel-base: #FFFFFF;
+  --cv-card-bg: #FFFFFF;
+  --cv-page-bg: var(--cv-panel-base);
+  --cv-t3: #5A6478;
+  --cv-panel-detail-bg: linear-gradient(150deg, color-mix(in srgb, var(--cv-t3) 5%, var(--cv-card-bg)), var(--cv-card-bg));
+  --cv-panel-header-bg: linear-gradient(110deg, color-mix(in srgb, var(--cv-t3) 4%, var(--cv-card-bg)), var(--cv-card-bg));
+  --cv-panel-card-shadow: 0 .25rem .9rem rgb(35 45 61 / .06);
+  --cv-panel-grain-opacity: .018;
+  --cv-canvas-grain-cover: 92%;
+  --cv-input-bg: #FFFFFF;
+  --cv-search-bg: var(--cv-input-bg);
+  --cv-card-footer: color-mix(in srgb, var(--cv-t3) 3%, var(--cv-card-bg));
+  --cv-card-hover: color-mix(in srgb, var(--cv-t3) 6%, var(--cv-card-bg));
+  --cv-btn-subtle-bg: var(--cv-card-bg);
+  --cv-btn-subtle-shadow: none;
+  --cv-btn-subtle-hover: var(--cv-card-hover);
+  --cv-panel-wordmark-size: 1.1rem;
+  --cv-btn-accent-bg: var(--cv-primary-hover);
+  --cv-btn-accent-hover: color-mix(in srgb, var(--cv-primary-hover) 90%, black);
+  --cv-btn-accent-shadow: 0 2px 8px rgb(var(--cv-primary-rgb) / .12);
+  --cv-btn-accent-shadow-hover: 0 2px 10px rgb(var(--cv-primary-rgb) / .16);
+}
+
+:root.dark:has(.app-shell) {
+  --cv-panel-base: #15171B;
+  --cv-card-bg: #191C20;
+  --cv-t3: #B8C5D4;
+  --cv-border: rgb(232 234 237 / .10);
+  --cv-divider: rgb(232 234 237 / .09);
+  --cv-input-bg: rgb(232 234 237 / .04);
+  --cv-panel-card-shadow: 0 .3rem 1rem rgb(0 0 0 / .12);
+  --cv-panel-grain-opacity: .055;
+  --cv-canvas-grain-cover: 93%;
+}
+
+.app-shell, .app-sidebar, .app-navbar, .app-content { position: relative; }
+.app-content {
+  background-image:
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--cv-card-bg) 99%, transparent) 0%,
+      color-mix(in srgb, var(--cv-card-bg) var(--cv-canvas-grain-cover), transparent) 35%,
+      color-mix(in srgb, var(--cv-card-bg) var(--cv-canvas-grain-cover), transparent) 65%,
+      color-mix(in srgb, var(--cv-card-bg) 99%, transparent) 100%),
+    url('/textures/brand-grain.svg'),
+    var(--cv-panel-detail-bg);
+  background-size: auto, 9rem 9rem, auto;
+}
+.app-master-panel { background: var(--cv-panel-base); }
+.app-sidebar { border-right-width: 1px; }
+.app-sidebar > nav { margin-top: .6rem; }
+.app-sidebar nav svg { stroke-width: 1.75; }
+
+.app-brand-header, .app-navbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--cv-border);
+  padding: 0 1.25rem;
+  position: relative;
+  background: var(--cv-panel-header-bg);
+}
+
+/* Texture is contained by the header; it never overlays data or controls. */
+.app-navbar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: url('/textures/brand-grain.svg') repeat;
+  background-size: 9rem;
+  opacity: var(--cv-panel-grain-opacity);
+  mask-image: radial-gradient(ellipse at 50% 0%, #000, transparent 90%);
+}
+.app-brand-header > *, .app-navbar > * { position: relative; }
+.app-brand-header { height: 3.8rem; justify-content: center; }
+.app-brand-header > div { gap: .85rem; }
+.app-brand-header img { height: 2.2rem; position: relative; left: -.2rem; }
+.app-brand-header .text-page-title { font-size: var(--cv-panel-wordmark-size); }
+.app-navbar { height: 3.8rem; gap: 1rem; z-index: 20; }
+.app-navbar-search { margin-left: auto; width: clamp(16rem, 44vw, 34rem); min-width: 0; }
+
+@media (max-width: 900px) {
+  .app-navbar { padding-inline: .8rem; gap: .6rem; }
+  .app-navbar-search { width: auto; flex: 1; }
+}
+
+.app-content:has(> .notification-center) { scrollbar-gutter: stable; }
+
+/* Wide list/detail routes give the list its own full-height navigation rail. */
+.app-shell > main:has(> .app-content > .app-split-view) > .app-navbar {
+  position: absolute;
+  inset: 0 0 auto clamp(18.75rem, 22vw, 25rem);
+}
+.app-shell > main:has(> .app-content > .app-split-view) .app-navbar-welcome {
+  display: none;
+}
+.app-content > .app-split-view > .app-detail-panel {
+  margin-top: 3.8rem;
+  height: calc(100% - 3.8rem);
+}
+
+@media (min-width: 1280px) {
+  .app-shell > main:has(> .app-content > .app-settings-layout) > .app-navbar {
+    position: absolute;
+    inset: 0 0 auto 14rem;
+  }
+  .app-shell > main:has(> .app-content > .app-settings-layout) .app-navbar-welcome {
+    display: none;
+  }
+  .app-settings-layout > .app-settings-detail {
+    margin-top: 3.8rem;
+    height: calc(100% - 3.8rem);
+  }
+}
+
+/* The list title shares the 76px header band; search starts 20px below it. */
+.app-content .app-split-view > .app-master-panel .app-master-header {
+  height: 3.8rem;
+  margin: -1rem -1rem 1rem;
+  padding-inline: 1rem;
+  border-bottom: 1px solid var(--cv-border);
+}
+@media (min-width: 1280px) {
+  .app-settings-layout > .app-master-panel > .app-settings-header {
+    height: 3.8rem;
+    padding-top: 0;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--cv-border);
+  }
+}
+
+@media (min-width: 1280px) {
+  .app-shell > main:has(.app-settings-layout .app-split-view) > .app-navbar {
+    left: calc(14rem + clamp(18.75rem, 22vw, 25rem));
+  }
+  .app-settings-layout:has(.app-split-view) > .app-settings-detail {
+    margin-top: 0;
+    height: 100%;
+  }
+  .app-settings-layout .app-split-view > .app-detail-panel {
+    margin-top: 3.8rem;
+    height: calc(100% - 3.8rem);
+  }
+}

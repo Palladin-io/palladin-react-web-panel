@@ -1,3 +1,4 @@
+import { TAB_BUTTON_CLASSES } from "../../shared/lib/styles";
 import type { GrantFieldSelectionMode } from '../../shared/types/grant-field-selection'
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -414,7 +415,7 @@ export function NotificationCenterPage({
   }
 
   return (
-    <div className="min-h-full px-4 py-4 text-[var(--cv-t1)]">
+    <div className="notification-center min-h-full px-4 py-4 text-[var(--cv-t1)]">
       {/* Header row — app-standard `h-10` (same as Agents/Vaults/org-grants) so
           the search below sits at the same height across every list screen.
           Title/subtitle on the left; segment tabs + actions inline on the right. */}
@@ -893,7 +894,7 @@ function SegmentTabs({
     { key: "grants", label: t("notifications.center.segGrants") },
   ];
   return (
-    <div className="mr-1 flex items-center" role="tablist">
+    <div className="mr-1 flex items-center gap-1" role="tablist">
       {options.map((option) => {
         const isActive = segment === option.key;
         return (
@@ -903,11 +904,7 @@ function SegmentTabs({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(option.key)}
-            className={`flex items-center gap-1.5 border-b-2 px-2.5 py-1 text-ui font-semibold transition-colors ${
-              isActive
-                ? "border-[var(--cv-primary)] text-[var(--cv-primary)]"
-                : "border-transparent text-[var(--cv-t3)] hover:text-[var(--cv-t1)]"
-            }`}
+            className={TAB_BUTTON_CLASSES}
           >
             {option.label}
             {option.count ? (

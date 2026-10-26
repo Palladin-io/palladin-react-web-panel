@@ -171,11 +171,9 @@ describe('TeamMembersPage', () => {
     expect(ownerBadge).toHaveClass('h-5', 'px-2', 'text-micro', 'font-semibold')
     expect(ownerBadge?.parentElement).toBe(ownerName.parentElement)
     expect(ownerBadge?.parentElement?.nextElementSibling).toHaveTextContent('alice@example.com')
-    expect(screen.getByText(/Joined/).closest('span')).toHaveClass('text-micro')
-    expect(screen.getByText('2 roles')).toHaveClass('text-micro')
-    expect(document.querySelector('[data-icon="calendar_today"]')).toHaveAttribute(
-      'style',
-      expect.stringContaining('12px'),
+    expect(screen.getByRole('link', { name: /Alice Morgan/ })).toHaveAttribute(
+      'href',
+      `/settings/team/${owner.userId}`,
     )
   })
 

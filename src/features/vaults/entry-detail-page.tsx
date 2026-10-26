@@ -1,8 +1,10 @@
+import { DETAIL_SURFACE_CLASSES } from '../../shared/lib/styles'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../shared/components/button'
+import { AddButton } from '../../shared/components/add-button'
 import { DetailTabBar } from '../../shared/components/detail-tab-bar'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
@@ -187,8 +189,8 @@ export function EntryDetailPage({ vaultId, entryId, initialTab = 'details', from
 
   if (isWide) {
     return (
-      <div className="flex h-full overflow-hidden text-[var(--cv-t1)]">
-        <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+      <div className="app-split-view flex h-full overflow-hidden text-[var(--cv-t1)]">
+        <div className="app-master-panel w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
           <div className={fromEntries ? 'h-full' : 'h-full px-4 pt-4'}>
             {fromEntries ? <GlobalEntriesPanel selectedEntryId={entryId} selectedVaultId={vaultId} /> : vault.data ? (
               <VaultEntriesPanel vault={vault.data} selectedEntryId={entryId} />
@@ -197,7 +199,7 @@ export function EntryDetailPage({ vaultId, entryId, initialTab = 'details', from
             )}
           </div>
         </div>
-        <div className={activeTab === 'sharing' ? 'min-w-0 flex-1 overflow-hidden' : 'subtle-scrollbar min-w-0 flex-1 overflow-y-auto [overflow-anchor:none]'}>
+        <div className={activeTab === 'sharing' ? 'app-detail-panel min-w-0 flex-1 overflow-hidden' : 'app-detail-panel subtle-scrollbar min-w-0 flex-1 overflow-y-auto [overflow-anchor:none]'}>
           <div className={activeTab === 'sharing' ? 'h-full min-h-0 px-4 py-4' : 'px-4 py-4'}>{detailContent}</div>
         </div>
       </div>
@@ -322,9 +324,7 @@ function DetailBody({
       <span className="text-meta text-[var(--cv-t3)]">
         {t('vault.entry.detail.agentsWithAccess', { count: agentCount })}
       </span>
-      <Button variant="accent" size="sm" icon="add" onClick={onAddAgent}>
-        {t('vault.detail.addAgent')}
-      </Button>
+      <AddButton onClick={onAddAgent} label={t('vault.detail.addAgent')} />
     </div>
   )
 
@@ -894,8 +894,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
   return (
     <>
       <div
-        className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5
-          dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+        className={`${DETAIL_SURFACE_CLASSES} p-4`}
       >
         <div className="flex flex-col gap-3">
             <div>
@@ -1308,21 +1307,20 @@ function DangerZone({
   const { t } = useTranslation()
   return (
     <section
-      className="rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
+      className="rounded-xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] p-4"
     >
-      <h2 className="text-meta font-semibold text-[var(--cv-primary)]">
-        {t('vault.entry.detail.dangerZoneTitle')}
-      </h2>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-ui font-semibold text-[var(--cv-t1)]">
-            {t('vault.entry.detail.deleteTitle')}
-          </div>
-          <p className="mt-1 text-meta text-[var(--cv-t3)]">
+          <h2 className="flex flex-wrap items-center gap-2 text-ui font-semibold">
+            <span className="text-[var(--cv-primary)]">{t('vault.entry.detail.dangerZoneTitle')}</span>
+            <span aria-hidden="true" className="text-[var(--cv-t3)]">|</span>
+            <span className="text-[var(--cv-t1)]">{t('vault.entry.detail.deleteTitle')}</span>
+          </h2>
+          <p className="mt-3 text-meta text-[var(--cv-t3)]">
             {t('vault.entry.detail.deleteSubtitle')}
           </p>
         </div>
-        <Button variant="danger" size="sm" onClick={onDelete} disabled={disabled}>
+        <Button variant="accent" size="sm" onClick={onDelete} disabled={disabled}>
           {t('vault.entry.detail.deleteButton')}
         </Button>
       </div>

@@ -166,3 +166,11 @@ useEffect(() => {
 ```
 
 The inline-edit save/discard row is currently hand-rolled in three places (`agent-edit-form`, `entry-detail-page`, `vault-settings-form`) — it is a candidate for an `InlineEditFooter` shared component (see `component-catalog.md`). It uses `justify-end` (not the modal `DialogFooter` 1:2 ratio) because these are in-page forms, not modals.
+
+### Management surfaces and Palladin autofill
+
+The unlocked `.app-shell` is marked `data-palladin-ignore="true"`. Compatible
+extension builds treat that marker on any composed ancestor as a deny-only
+autofill opt-out, including inline launcher removal. Auth/unlock remain outside
+the shell. This is not a security authority or a replacement for input masking;
+older extension builds require an update to honor the marker.

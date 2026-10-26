@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
-import { HOVERABLE_CARD_CLASSES, METADATA_BADGE_CLASSES } from '../../../shared/lib/styles'
+import { SELECTED_NAVIGATION_CARD_CLASSES, NAVIGATION_ROW_CLASSES, METADATA_BADGE_CLASSES, ENTITY_ICON_FRAME_CLASSES } from '../../../shared/lib/styles'
 import type { OrganizationInvitation } from '../api/organization-invitations-api'
 
 export function OrganizationInvitationCard({
@@ -21,20 +21,21 @@ export function OrganizationInvitationCard({
       <Link
         to="/settings/team/invitations/$invitationId"
         params={{ invitationId: invitation.id }}
-        className={`block overflow-hidden ${HOVERABLE_CARD_CLASSES}${
-          isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
+        aria-current={isSelected ? 'page' : undefined}
+        className={`block overflow-hidden ${NAVIGATION_ROW_CLASSES}${
+          isSelected ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}` : ''
         }`}
       >
-        <div className="flex min-w-0 items-center gap-3 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3 px-3 py-3">
           <span
             aria-hidden="true"
-            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[rgb(var(--cv-info-rgb)/0.12)] text-[var(--cv-info)]"
+            className={`${ENTITY_ICON_FRAME_CLASSES} size-8 bg-[rgb(var(--cv-info-rgb)/0.12)] text-[var(--cv-info)]`}
           >
-            <Icon name="mail" size={18} />
+            <Icon name="mail" size={16} />
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center justify-between gap-2">
-              <p className="min-w-0 flex-1 truncate text-ui font-semibold text-[var(--cv-t1)]">
+              <p className="min-w-0 flex-1 truncate text-ui font-medium text-[var(--cv-t1)]">
                 {invitation.email}
               </p>
               <span className={`${METADATA_BADGE_CLASSES} bg-[rgb(var(--cv-info-rgb)/0.12)] text-[var(--cv-info)]`}>
@@ -44,7 +45,7 @@ export function OrganizationInvitationCard({
             <p className="truncate text-meta text-[var(--cv-t3)]">{invitation.roleName}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2 pr-20">
+        <div className="flex items-center gap-3 px-3 pb-3 pr-20">
           <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-micro text-[var(--cv-t3)]">
             <Icon name="calendar_today" size={12} color="var(--cv-t3)" className="shrink-0" />
             {t('team.invitations.sentLabel', {
@@ -62,7 +63,7 @@ export function OrganizationInvitationCard({
       <Button
         variant="ghost"
         size="sm"
-        className="absolute bottom-1 right-4 !h-6 !rounded-md !px-2 !text-micro text-[var(--cv-primary)]"
+        className="absolute bottom-2 right-3 !h-6 !rounded-md !px-2 !text-micro text-[var(--cv-primary)]"
         onClick={() => onCancel(invitation)}
       >
         {t('team.invitations.cancel')}

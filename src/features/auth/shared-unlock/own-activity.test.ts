@@ -9,9 +9,9 @@ const apiUrl = "https://api.example.test";
 const base = fixtures.operations[0].sourceAuthorization;
 const cleanups: (() => void)[] = [];
 afterEach(() => { for (const cleanup of cleanups.splice(0)) cleanup(); vi.useRealTimers(); });
-async function harness(pause = false) {
+async function harness(pause = false, longSession = false) {
   vi.useFakeTimers(); vi.setSystemTime(base.unlockedAtMs);
-  const now = Date.now(), root = { ...base, idleDeadlineMs: now + 1_000, absoluteDeadlineMs: now + 10_000, offlineDeadlineMs: now + 8_000 };
+  const now = Date.now(), root = { ...base, idleDeadlineMs: now + (longSession ? 900_000 : 1_000), absoluteDeadlineMs: now + (longSession ? 3_600_000 : 10_000), offlineDeadlineMs: now + (longSession ? 3_600_000 : 8_000) };
   let current = true, release!: (response: Response) => void;
   const pending = new Promise<Response>(resolve => { release = resolve; });
   const bodies: Record<string, unknown>[] = [];
@@ -62,15 +62,15 @@ it('hides the old expired source while a still-live own renewal awaits its Ident
   expect(h.authority.snapshot().authorization?.idleDeadlineMs).toBe(h.now + 4_000);
 });
 it('coalesces pending input and sends its original deadline instead of adding queue time', async () => {
-  const h = await harness(true), first = h.record(h.now + 3_000);
+  const h = await harness(true, true), first = h.record(h.now + 903_000);
   await vi.waitFor(() => expect(h.fetcher).toHaveBeenCalledOnce());
-  const second = h.record(h.now + 4_000), latest = h.record(h.now + 5_000);
+  const second = h.record(h.now + 904_000), latest = h.record(h.now + 905_000);
   expect(second.dispose).toHaveBeenCalledOnce();
-  h.release(new Response(JSON.stringify({ ...h.root, idleDeadlineMs: h.now + 3_000 })));
+  h.release(new Response(JSON.stringify({ ...h.root, idleDeadlineMs: h.now + 903_000 })));
   await vi.waitFor(() => expect(first.dispose).toHaveBeenCalledOnce());
-  await vi.advanceTimersByTimeAsync(1_000);
+  await vi.advanceTimersByTimeAsync(30_000);
   await vi.waitFor(() => expect(latest.dispose).toHaveBeenCalledOnce());
-  expect(h.bodies.map(body => body.idleDeadlineMs)).toEqual([h.now + 3_000, h.now + 5_000]);
+  expect(h.bodies.map(body => body.idleDeadlineMs)).toEqual([h.now + 903_000, h.now + 905_000]);
 });
 it('cannot publish an old response into a newer own root', async () => {
   const h = await harness(true), run = h.record(h.now + 4_000);
@@ -103,4 +103,18 @@ it('bounds an ignored fetch abort to two seconds without replay', async () => {
   await vi.advanceTimersByTimeAsync(2_000);
   expect(run.dispose).toHaveBeenCalledOnce(); expect(h.fetcher).toHaveBeenCalledOnce();
   expect(h.authority.snapshot().authorization).toBeNull();
+});
+
+it('sends at most once per 30 seconds and stops after flushing the last observed input', async () => {
+  const h = await harness(false, true);
+  for (let second = 0; second < 90; second++) {
+    h.record(h.now + 900_000 + second * 1_000);
+    await vi.advanceTimersByTimeAsync(1_000);
+  }
+  expect(h.fetcher).toHaveBeenCalledTimes(4);
+  expect(h.bodies.map(body => body.idleDeadlineMs)).toEqual([
+    h.now + 900_000, h.now + 929_000, h.now + 959_000, h.now + 989_000,
+  ]);
+  await vi.advanceTimersByTimeAsync(120_000);
+  expect(h.fetcher).toHaveBeenCalledTimes(4);
 });

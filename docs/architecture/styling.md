@@ -99,7 +99,7 @@ Per-variant tokens consumed by `button.tsx`:
 - Subtle: `--cv-btn-subtle-{bg,text,border,hover}`
 - Outline: `--cv-btn-outline-{text,border,hover}`
 - Ghost: `--cv-btn-ghost-{text,hover}`
-- Accent interaction: `--cv-btn-accent-hover`, `--cv-btn-accent-shadow`, `--cv-btn-accent-shadow-hover`
+- Accent interaction: `--cv-btn-accent-bg`, `--cv-btn-accent-hover`, `--cv-btn-accent-shadow`, `--cv-btn-accent-shadow-hover`
 - Subtle elevation: `--cv-btn-subtle-shadow`
 - Premium: `--cv-premium` (`#D4820A` light / `#F0C040` dark) + the `.btn-premium` sweep-fill effect.
 
@@ -137,7 +137,7 @@ Sonner toasts wear the theme surface with a variant color as a left-border + ico
 |--------|-----|
 | `HOVERABLE_CARD_CLASSES` | Shared hover/focus class string for cards and list rows: `rounded-2xl`, `--cv-border`, `--cv-card-bg`, hover → `--cv-card-hover` (background lift, no shadow, no border change), focus-visible → `--cv-t1` border. **Edit here to change hover everywhere.** Never inline `hover:border-*` / `hover:bg-*` / `shadow-*` on card-like elements. |
 | `METADATA_BADGE_CLASSES` | Canonical compact pill geometry (`h-5`, `px-2`, `text-micro`, semibold). Use for owner/type/status badges in list and detail headers; callers add only semantic colours and optional icon. In two-line card identities, place the badge in the first-line flex row beside the primary label — never as a sibling centered against both lines. |
-| `SELECTED_NAVIGATION_CARD_CLASSES` | Shared selected Vault/Entry navigation card: primary-text border and subtle button background, without a brand-coloured ring. |
+| `SELECTED_NAVIGATION_CARD_CLASSES` | Shared selected navigation card: primary-text border/text, preserving the ordinary card surface without a selected fill. Used by Vaults, Entries, Grants, API Keys, team members, invitations and roles. |
 
 Button class exports for `<Link>` elements that must look like footer buttons: `PREMIUM_BUTTON_SM_CLASS`, `POSITIVE_BUTTON_SM_CLASS` (from `button.tsx`).
 
@@ -181,11 +181,11 @@ numeric icon/avatar sizes that cannot inherit rem sizing.
 Use semantic utilities instead of arbitrary `text-[Npx]` values. Inputs are
 44px high (`h-control`), default buttons are 36px high (`h-action`) with
 14px `text-action` labels, the sidebar
-is 250px wide (`w-sidebar`), and no informational text renders below 12px.
+is 250px wide in the authenticated shell (`w-sidebar`), and no informational text renders below 12px.
 Never add CSS `zoom` or `transform: scale()` to simulate density.
 
 All list/search surfaces use the shared `SearchBar`: `h-control`, `text-ui`, a
-16-design-pixel search icon, and `--cv-search-bg` (the same surface as cards).
+16-design-pixel search icon, and `--cv-search-bg` (opaque white in light mode; translucent input surface in dark mode).
 Form fields deliberately remain on `--cv-input-bg` so editable data stands out.
 
 When in doubt, choose the token by semantic role rather than copying a nearby
@@ -203,3 +203,54 @@ as its surrounding role; only the font family changes.
 ## Design reference
 
 An Astro prototype exists under `../design/` but is **outdated** and is **NOT a binding reference** — the product style has since changed significantly. Use it only as loose inspiration. When in doubt about visual design (spacing, shape, a new component's look), **ask the user** rather than copying the prototype. There is no "match the prototype 1:1" rule and no blocking-deviation list.
+
+## Authenticated panel — No. 2
+
+`src/app/panel-theme.css` scopes the extension-inspired workspace to the
+authenticated workspace through `:root:has(.app-shell)`, including body-portaled
+pickers and menus. Auth/unlock keep their own styling. The sidebar remains
+250px wide; brand and navbar headers are 76px high. Light surfaces are white,
+dark surfaces are neutral charcoal, with a subtle wash behind detail cards.
+The logo header and sidebar have no texture. Navbar texture stays subtle.
+The main canvas uses the landing noise behind an opaque-to-translucent broad
+diagonal wash (8% noise at the light center,7% in dark), feathering to1% at
+the corners. This is a CSS background, so it cannot overlay controls or trap
+modal stacking. Master titles align with the76px header band and bottom border,
+with20px before search; the vertical Settings rail uses the same band. Detail cards use `DETAIL_SURFACE_CLASSES` for a modest
+shadow, border and 12px radius at the current density.
+
+Entries, Agents and the split-view Vault list use `NAVIGATION_ROW_CLASSES`: flat rows,
+framed icons, medium-weight labels and secondary metadata without footers.
+`SELECTED_NAVIGATION_CARD_CLASSES` retains the neutral selected border.
+`TAB_BUTTON_CLASSES` gives detail tabs and Inbox segments medium-weight labels
+and a neutral outline, without an underline or full-width divider. Sidebar and
+Settings use `SELECTED_NAVIGATION_LINK_CLASSES` for the same neutral selection.
+
+Wide route-level `app-split-view` layouts extend the master column to the top.
+The navbar sits only over `app-detail-panel`, with the welcome hidden. The detail
+column reserves the header height outside its scroller. Settings extends its14rem section rail and nested master lists to the top from
+1280px. Its navbar starts above the final detail column, after both rails.
+Below1280px the section navigation is horizontal. `useWideScreen` switches at 1280 CSS pixels; master
+width remains `clamp(18.75rem,22vw,25rem)` (375–500px at current density).
+Narrow routes retain the regular navbar and route-driven list/detail navigation.
+
+The brand shield is 44px, shifted 4px left, beside the 22px wordmark with a 17px
+gap. Sidebar navigation has 12px top spacing, px-2/pb-2, gap-0.5 and px-3/py-2
+links. Sidebar account controls retain their original layout.
+
+Panel actions are 40px high and fields 44px. Light inputs/search are opaque
+white; dark inputs/search use a 4% neutral translucent fill. Primary buttons use
+`--cv-primary-hover` (#D43E3E) in both modes, darkened 10% on hover. Auth retains
+its original controls. Inbox reserves a stable scrollbar gutter.
+
+### Add/create affordance
+
+Use `AddButton` for actions that open adding, creating, generating or inviting:
+a square accent plus with a required localized accessible label and tooltip.
+The shared wrapper owns icon, dimensions and padding. This applies to list
+headers, detail-tab actions and empty states. Form submit/confirm/save buttons
+keep their explicit action labels.
+
+Positive approval buttons use the same neutral surface and border as subtle
+buttons, keeping green text as the semantic confirmation signal. They do not
+use a green-filled card treatment; explicit confirmation labels remain visible.

@@ -113,7 +113,7 @@ export function PendingGrantsPanel({
 
   return (
     <>
-      <div className="mb-4 flex h-10 items-center gap-2">
+      <div className="app-master-header mb-4 flex h-10 items-center gap-2">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {t('grants.pending.title')}

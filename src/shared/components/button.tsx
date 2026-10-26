@@ -41,9 +41,9 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   // size — without it a bordered button is ~2px taller and footer rows look
   // uneven (e.g. Deny vs Approve in notification cards).
   accent:
-    'bg-[var(--cv-primary)] text-white border border-transparent shadow-[var(--cv-btn-accent-shadow)] hover:bg-[var(--cv-btn-accent-hover)] hover:shadow-[var(--cv-btn-accent-shadow-hover)] disabled:bg-[rgb(var(--cv-primary-rgb)/0.5)] disabled:shadow-none',
+    'bg-[var(--cv-btn-accent-bg)] text-white border border-transparent shadow-[var(--cv-btn-accent-shadow)] hover:bg-[var(--cv-btn-accent-hover)] hover:shadow-[var(--cv-btn-accent-shadow-hover)] disabled:bg-[rgb(var(--cv-primary-rgb)/0.5)] disabled:shadow-none',
   subtle:
-    'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-btn-subtle-text)] border border-[var(--cv-btn-subtle-border)] shadow-[var(--cv-btn-subtle-shadow)] hover:bg-[var(--cv-btn-subtle-hover)]',
+    'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-btn-subtle-text)] border border-[var(--cv-btn-subtle-border)] shadow-[var(--cv-btn-subtle-shadow)] hover:bg-[var(--cv-btn-subtle-hover)] disabled:opacity-100 disabled:text-[var(--cv-t3)] disabled:hover:bg-[var(--cv-btn-subtle-bg)]',
   outline:
     'bg-transparent text-[var(--cv-btn-outline-text)] border border-[var(--cv-btn-outline-border)] hover:bg-[var(--cv-btn-outline-hover)]',
   ghost:
@@ -60,16 +60,16 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
  *  Height comes from the fixed `h-*` in SIZE_CLASS; `items-center` +
  *  `leading-none` keep the label/icon centred within that fixed height. */
 const BASE_CLASS =
-  'inline-flex items-center justify-center leading-none transition-[background-color,border-color,box-shadow,color] duration-150 ease-out focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--cv-primary-rgb)/0.28)] disabled:cursor-not-allowed disabled:opacity-60'
+  'inline-flex items-center justify-center leading-none transition-[background-color,border-color,box-shadow,color] duration-150 ease-out focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[rgb(var(--cv-primary-rgb)/0.28)] disabled:cursor-not-allowed'
 
 /** Ready-made class string for the `sm` premium button — apply to `<Link>` elements. */
 export const PREMIUM_BUTTON_SM_CLASS =
-  `${BASE_CLASS} ${SIZE_CLASS.sm} ${VARIANT_CLASS.premium}`
+  `${BASE_CLASS} disabled:opacity-60 ${SIZE_CLASS.sm} ${VARIANT_CLASS.premium}`
 
 /** Ready-made class string for the `sm` positive button — apply to `<Link>` elements
- *  that need the positive (teal) treatment but must navigate via the router. */
+ *  that need the positive semantic treatment but must navigate via the router. */
 export const POSITIVE_BUTTON_SM_CLASS =
-  `${BASE_CLASS} ${SIZE_CLASS.sm} ${VARIANT_CLASS.positive}`
+  `${BASE_CLASS} disabled:opacity-60 ${SIZE_CLASS.sm} ${VARIANT_CLASS.positive}`
 
 /**
  * Pill-shaped button used by the vault list, detail header, and
@@ -89,7 +89,7 @@ export function Button({
   const sizeClass = SIZE_CLASS[size]
   const variantClass = VARIANT_CLASS[variant]
   const composed =
-    `${BASE_CLASS} ${sizeClass} ${variantClass}` +
+    `${BASE_CLASS} ${sizeClass} ${variantClass}${variant === 'subtle' ? '' : ' disabled:opacity-60'}` +
     (className ? ` ${className}` : '')
   return (
     <button {...rest} type={type} className={composed}>

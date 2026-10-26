@@ -16,6 +16,9 @@ Lists system and custom organization roles, creates custom roles, and edits or d
 - The selected role name and assigned count live only in the selected master card/tab count on wide split view; the detail panel does not repeat a second heading. Narrow drill-in keeps only the back action above the tabs.
 - The detail panel and its shared `ScrollArea` keep tab chrome pinned, contain scroll chaining, and leave the authenticated shell at a definite viewport height.
 
+Role navigation uses shared flat rows with framed icons, medium-weight names,
+system-role badges, assigned-member counts and neutral selected outlines.
+
 ## Authorization and safety
 
 - Role listing and CRUD require `OrganizationManagement`; the rail and routes enforce the same affordance guard while backend authorization remains authoritative.

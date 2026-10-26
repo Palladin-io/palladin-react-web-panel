@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Button } from '../../shared/components/button'
+import { AddButton } from '../../shared/components/add-button'
 import { EmptyState } from '../../shared/components/empty-state'
 import { ErrorState } from '../../shared/components/error-state'
 import { ScrollArea } from '../../shared/components/scroll-area'
@@ -15,7 +15,7 @@ import {
   PERMISSION_ADD_USER,
   PERMISSION_ORGANIZATION_MANAGEMENT,
 } from '../../shared/lib/permissions'
-import { HOVERABLE_CARD_CLASSES, SETTINGS_MASTER_HEADER_CLASSES } from '../../shared/lib/styles'
+import { SELECTED_NAVIGATION_CARD_CLASSES, NAVIGATION_ROW_CLASSES, SETTINGS_MASTER_HEADER_CLASSES } from '../../shared/lib/styles'
 import type { OrganizationInvitation } from './api/organization-invitations-api'
 import type { OrganizationMember } from './api/team-members-api'
 import { CancelInvitationDialog } from './components/cancel-invitation-dialog'
@@ -136,9 +136,7 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
                 </p>
               </div>
               {canInvite ? (
-                <Button variant="accent" size="sm" icon="person_add" onClick={() => setInviteOpen(true)}>
-                  {t('team.invite.action')}
-                </Button>
+                <AddButton onClick={() => setInviteOpen(true)} label={t('team.invite.action')} />
               ) : null}
             </header>
             <div className="mb-3 flex shrink-0 items-stretch gap-2">
@@ -192,16 +190,17 @@ export function TeamMembersPage({ memberId, invitationId, renderLogs }: TeamMemb
                   className="p-5"
                 />
               ) : (
-                <ul className="flex flex-col gap-[0.625rem]" aria-label={t('team.listLabel')}>
+                <ul className="flex flex-col gap-2" aria-label={t('team.listLabel')}>
                   {filteredEntries.map((entry) => (
                     <li key={`${entry.kind}-${entry.id}`}>
                       {entry.kind === 'member' ? (
                         <Link
                           to="/settings/team/$memberId"
                           params={{ memberId: entry.member.userId }}
-                          className={`block overflow-hidden ${HOVERABLE_CARD_CLASSES}${
+                          aria-current={entry.member.userId === memberId ? 'page' : undefined}
+                          className={`block overflow-hidden ${NAVIGATION_ROW_CLASSES}${
                             entry.member.userId === memberId
-                              ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]'
+                              ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}`
                               : ''
                           }`}
                         >
@@ -279,7 +278,7 @@ function TeamListSkeleton() {
   const { t } = useTranslation()
 
   return (
-    <div role="status" aria-label={t('team.loading')} className="flex flex-col gap-[0.625rem]">
+    <div role="status" aria-label={t('team.loading')} className="flex flex-col gap-2">
       {[0, 1, 2, 3].map((item) => (
         <SkeletonBlock key={item} height="5.875rem" />
       ))}

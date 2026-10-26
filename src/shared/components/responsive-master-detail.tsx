@@ -24,21 +24,21 @@ export function ResponsiveMasterDetail({
 
   if (!isWide) {
     return (
-      <section className="h-full min-h-0" aria-label={hasSelection ? detailLabel : masterLabel}>
+      <section className={`h-full min-h-0${hasSelection ? '' : ' app-master-panel'}`} aria-label={hasSelection ? detailLabel : masterLabel}>
         {hasSelection ? detail : master}
       </section>
     )
   }
 
   return (
-    <div className="flex h-full min-h-0 overflow-hidden">
+    <div className="app-split-view flex h-full min-h-0 overflow-hidden">
       <section
-        className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]"
+        className="app-master-panel w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]"
         aria-label={masterLabel}
       >
         {master}
       </section>
-      <section className="min-w-0 flex-1 overflow-hidden" aria-label={detailLabel}>
+      <section className="app-detail-panel min-w-0 flex-1 overflow-hidden" aria-label={detailLabel}>
         {detail}
       </section>
     </div>

@@ -23,7 +23,6 @@ describe('DetailTabBar', () => {
 
     expect(screen.getByRole('tablist', { name: 'Role sections' })).toBeInTheDocument()
     expect(screen.getByRole('tablist', { name: 'Role sections' })).toHaveClass('tab-strip-scroll')
-    expect(screen.getAllByRole('tab').every((tab) => tab.classList.contains('font-semibold'))).toBe(true)
     expect(screen.getByRole('tab', { name: 'General' })).toHaveAttribute('aria-selected', 'true')
     await user.click(screen.getByRole('tab', { name: 'Permissions' }))
     expect(onChange).toHaveBeenCalledWith('permissions')
@@ -42,7 +41,7 @@ describe('DetailTabBar', () => {
 
     const back = screen.getByRole('button', { name: 'Back' })
     const row = back.parentElement?.parentElement
-    expect(row).toHaveClass('h-10', 'items-end', 'border-b')
+    expect(row).toHaveClass('h-10', 'items-center')
     expect(row).toContainElement(screen.getByRole('tablist', { name: 'Role sections' }))
   })
 })

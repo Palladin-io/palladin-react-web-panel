@@ -2,14 +2,14 @@ import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
+import { AddButton } from '../../../shared/components/add-button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
-import { HOVERABLE_CARD_CLASSES, SELECTED_NAVIGATION_CARD_CLASSES } from '../../../shared/lib/styles'
+import { NAVIGATION_ROW_CLASSES, SELECTED_NAVIGATION_CARD_CLASSES } from '../../../shared/lib/styles'
 import { useAuthStore } from '../../auth'
 import { PERMISSION_MULTIPLE_VAULTS } from '../types'
 import { CreateVaultDialog } from './create-vault-dialog'
 import { PremiumGateDialog } from './premium-gate-dialog'
-import { vaultFooterLabel } from './vault-card-model'
 import { VaultIconCircle } from './vault-icon-circle'
 import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from './vault-presentation'
 import { ScrollArea } from '../../../shared/components/scroll-area'
@@ -42,7 +42,7 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
+      <div className="app-master-header mb-4 flex h-10 shrink-0 items-center gap-2">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {t('vault.title')}
@@ -57,9 +57,7 @@ export function VaultListPanel({ selectedVaultId }: VaultListPanelProps) {
                 })}
           </p>
         </div>
-        <Button variant="accent" size="sm" icon="add" onClick={handleCreateClick}>
-          {t('vault.createVault')}
-        </Button>
+        <AddButton onClick={handleCreateClick} label={t('vault.createVault')} />
       </div>
 
       {vaults.status === 'syncing' && list.length === 0 ? (
@@ -123,14 +121,14 @@ interface VaultRowProps {
 }
 
 function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   if (vault.name === null) {
     const metadataCorrupt = vault.failureKind === 'metadata'
     return (
       <div role="alert" className="flex items-center gap-3 rounded-2xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] px-4 py-3">
         <Icon name="encrypted" size={20} color="var(--cv-primary)" />
         <div className="min-w-0">
-          <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
+          <p className="truncate text-ui font-medium text-[var(--cv-t1)]">
             {t(metadataCorrupt ? 'vault.list.corruptTitle' : 'vault.list.unavailableTitle')}
           </p>
           <p className="text-micro text-[var(--cv-t3)]">
@@ -142,22 +140,22 @@ function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
   }
   const accent = vault.color ?? DEFAULT_VAULT_COLOR
   const icon = vault.icon ?? DEFAULT_VAULT_ICON
-  const footerLabel = vaultFooterLabel(vault, i18n.language, t)
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full cursor-pointer flex-col overflow-hidden text-left ${HOVERABLE_CARD_CLASSES}${
+      aria-current={isSelected ? 'true' : undefined}
+      className={`flex w-full cursor-pointer items-center overflow-hidden text-left ${NAVIGATION_ROW_CLASSES}${
         isSelected
           ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}`
           : ''
       }`}
     >
-      <div className="flex items-center gap-3 px-4 py-2.5">
+      <div className="flex w-full items-center gap-3 px-3 py-3">
         <VaultIconCircle vaultId={vault.id} icon={icon} color={accent} size={32} iconSize={16} />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">{vault.name}</p>
+          <p className="truncate text-ui font-medium text-[var(--cv-t1)]">{vault.name}</p>
           <p className="text-meta text-[var(--cv-t3)]">
             {vault.syncStatus === 'resetting'
               ? t('vault.list.resetting')
@@ -165,12 +163,6 @@ function VaultRow({ vault, isSelected, onClick }: VaultRowProps) {
           </p>
         </div>
       </div>
-      {footerLabel ? (
-        <div className="flex items-center gap-1.5 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
-          <Icon name="schedule" size={12} color="var(--cv-t3)" className="shrink-0" />
-          <span className="truncate text-micro text-[var(--cv-t3)]">{footerLabel}</span>
-        </div>
-      ) : null}
     </button>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
+import { AddButton } from '../../shared/components/add-button'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
@@ -70,13 +71,13 @@ export function VaultListPage({ initialIntent }: VaultListPageProps) {
 
   if (isWide) {
     return (
-      <div className="flex h-full text-[var(--cv-t1)]">
-        <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+      <div className="app-split-view flex h-full text-[var(--cv-t1)]">
+        <div className="app-master-panel w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
           <div className="h-full px-4 pt-4">
             <VaultListPanel />
           </div>
         </div>
-        <div className="subtle-scrollbar flex-1 overflow-y-auto min-w-0">
+        <div className="app-detail-panel subtle-scrollbar flex-1 overflow-y-auto min-w-0">
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
             <Icon name="shield" size={48} color="var(--cv-t3)" />
             {vaults.status === 'ready' && list.length === 0 ? (
@@ -87,15 +88,7 @@ export function VaultListPage({ initialIntent }: VaultListPageProps) {
                 <p className="max-w-sm text-ui text-[var(--cv-t3)]">
                   {t('vault.noVaultsSubtitle')}
                 </p>
-                <Button
-                  variant="accent"
-                  size="sm"
-                  icon="add"
-                  onClick={handleCreateClick}
-                  className="mt-2"
-                >
-                  {t('vault.createVault')}
-                </Button>
+                <AddButton onClick={handleCreateClick} className="mt-2" label={t('vault.createVault')} />
               </>
             ) : vaults.status === 'syncing' || vaults.status === 'idle' ? (
               <p className="max-w-sm text-ui text-[var(--cv-t3)]">{t('vault.list.syncing')}</p>
@@ -120,7 +113,7 @@ export function VaultListPage({ initialIntent }: VaultListPageProps) {
   }
 
   return (
-    <div className="min-h-full text-[var(--cv-t1)]">
+    <div className="app-master-panel min-h-full text-[var(--cv-t1)]">
       <div className="p-4">
         <header className="mb-4 flex h-10 items-center gap-2">
           <div className="min-w-0 flex-1">
@@ -136,14 +129,7 @@ export function VaultListPage({ initialIntent }: VaultListPageProps) {
             </p>
           </div>
           <div className="flex items-center">
-            <Button
-              variant="accent"
-              size="sm"
-              icon="add"
-              onClick={handleCreateClick}
-            >
-              {t('vault.createVault')}
-            </Button>
+            <AddButton onClick={handleCreateClick} label={t('vault.createVault')} />
           </div>
         </header>
 
@@ -241,15 +227,7 @@ function Body({
         <p className="max-w-sm text-ui text-[var(--cv-t3)]">
           {t('vault.noVaultsSubtitle')}
         </p>
-        <Button
-          variant="accent"
-          size="sm"
-          icon="add"
-          onClick={onCreate}
-          className="mt-2"
-        >
-          {t('vault.createVault')}
-        </Button>
+        <AddButton onClick={onCreate} className="mt-2" label={t('vault.createVault')} />
       </div>
     )
   }

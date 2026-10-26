@@ -1,8 +1,10 @@
+import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
+import { AddButton } from '../../../shared/components/add-button'
 import { DetailTabBar } from '../../../shared/components/detail-tab-bar'
 import { Icon } from '../../../shared/components/icon'
 import { ModalShell } from '../../../shared/components/modal-shell'
@@ -152,14 +154,7 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
           ariaLabel={t('agents.tabsLabel')}
           wide
           actions={activeTab === 'grants' ? (
-            <Button
-              variant="accent"
-              size="sm"
-              icon="add"
-              onClick={() => setAddAccessOpen(true)}
-            >
-              {t('agents.addAccess')}
-            </Button>
+            <AddButton onClick={() => setAddAccessOpen(true)} label={t('agents.addAccess')} />
           ) : undefined}
         />
 
@@ -167,8 +162,7 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
         {activeTab === 'details' ? (
           <ScrollArea>
           <div
-            className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]
-              p-5 dark:shadow-[0_2px_8px_rgba(0,0,0,0.15)]"
+            className={`${DETAIL_SURFACE_CLASSES} p-4`}
           >
             {/* Identity header */}
             <div className="mb-4 flex items-start gap-3 border-b border-[var(--cv-divider)] pb-4">
@@ -382,7 +376,7 @@ function ActionZone({ tone, title, hint, action }: ActionZoneProps) {
       className={`rounded-xl border p-4 ${
         isPositive
           ? 'border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.12)]'
-          : 'border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)]'
+          : 'border-[var(--cv-primary)] bg-[var(--cv-card-bg)]'
       }`}
     >
       <h2

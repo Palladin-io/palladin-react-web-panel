@@ -18,7 +18,6 @@ import {
   usePendingGrants,
 } from '../grants'
 import { useVaults } from '../vaults'
-import { DashboardHeader } from './components/dashboard-header'
 import { DashboardStatsRow } from './components/dashboard-stats-row'
 import { OnboardingChecklist } from './components/onboarding-checklist'
 import { RecentActivitySection } from './components/recent-activity-section'
@@ -142,11 +141,10 @@ export function DashboardPage({ onRegisterAgent }: { onRegisterAgent?: () => voi
     setDismissed(true)
   }
 
-  const firstName = account.data?.displayName?.split(' ')[0]
 
   return (
     <div className="min-h-full px-4 py-4 text-[var(--cv-t1)]">
-      <DashboardHeader firstName={firstName} />
+      <h1 className="sr-only">{t('nav.home')}</h1>
 
       <DashboardStatsRow
         vaults={vaultCount}
@@ -189,9 +187,11 @@ export function DashboardPage({ onRegisterAgent }: { onRegisterAgent?: () => voi
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          <section>
-            <PendingGrantsPanel variant="carousel" viewAllTo="/inbox" />
-          </section>
+          {pendingGrants.data?.length !== 0 && (
+            <section>
+              <PendingGrantsPanel variant="carousel" viewAllTo="/inbox" />
+            </section>
+          )}
           <RecentEntriesSection />
           <RecentActivitySection />
         </div>

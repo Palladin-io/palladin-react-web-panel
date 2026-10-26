@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../shared/components/button'
+import { AddButton } from '../../shared/components/add-button'
 import { ErrorState } from '../../shared/components/error-state'
 import { ScrollArea } from '../../shared/components/scroll-area'
 import { useWideScreen } from '../../shared/hooks/use-wide-screen'
@@ -126,13 +127,13 @@ export function VaultDetailPage({ vaultId, initialTab, initialImport = false }: 
   if (isWide) {
     return (
       <>
-        <div className="flex h-full overflow-hidden text-[var(--cv-t1)]">
-          <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+        <div className="app-split-view flex h-full overflow-hidden text-[var(--cv-t1)]">
+          <div className="app-master-panel w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
             <div className="h-full px-4 pt-4">
               <VaultListPanel selectedVaultId={vaultId} />
             </div>
           </div>
-          <div className="flex-1 overflow-hidden min-w-0">
+          <div className="app-detail-panel flex-1 overflow-hidden min-w-0">
             <div className="h-full px-4 pt-4">{vaultContent}</div>
           </div>
         </div>
@@ -245,16 +246,12 @@ function TabActions({ activeTab, onAddEntry, onImport, onExport, onAddAgent }: T
           <Button variant="subtle" size="sm" icon="file_upload" onClick={onImport}>
             {t('vault.detail.import')}
           </Button>
-          <Button variant="accent" size="sm" icon="add" onClick={onAddEntry}>
-            {t('vault.detail.addEntry')}
-          </Button>
+          <AddButton onClick={onAddEntry} label={t('vault.detail.addEntry')} />
         </>
       )
     case 'agents':
       return (
-        <Button variant="accent" size="sm" icon="add" onClick={onAddAgent}>
-          {t('vault.detail.addAgent')}
-        </Button>
+        <AddButton onClick={onAddAgent} label={t('vault.detail.addAgent')} />
       )
     default:
       return null

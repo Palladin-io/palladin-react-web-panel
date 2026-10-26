@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./app/panel-theme.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -57,6 +58,7 @@ html {
   --cv-auth-primary-disabled-bg: #EFA3A3;
   --cv-auth-primary-disabled-text: #FFFFFF;
   --cv-auth-tooltip-bg: #FFFFFF;
+  --cv-btn-accent-bg: var(--cv-primary);
   --cv-btn-accent-hover: #E54343;
   --cv-btn-accent-shadow: 0 3px 12px rgb(var(--cv-primary-rgb) / 0.16);
   --cv-btn-accent-shadow-hover: 0 3px 12px rgb(var(--cv-primary-rgb) / 0.16);
@@ -137,6 +139,7 @@ html {
   --cv-auth-primary-disabled-bg: #713637;
   --cv-auth-primary-disabled-text: #A7A9AD;
   --cv-auth-tooltip-bg: #20242C;
+  --cv-btn-accent-bg: var(--cv-primary);
   --cv-btn-accent-hover: #E54343;
   --cv-btn-accent-shadow: 0 3px 12px rgb(var(--cv-primary-rgb) / 0.14);
   --cv-btn-accent-shadow-hover: 0 3px 12px rgb(var(--cv-primary-rgb) / 0.14);

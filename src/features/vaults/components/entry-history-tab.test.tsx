@@ -99,7 +99,7 @@ describe('EntryHistoryTab', () => {
     const auditFooter = screen.getByTestId('entry-history-audit-footer')
     expect(auditFooter).toHaveTextContent(/Updated.*Ada Admin/i)
     expect(auditFooter).toHaveClass('min-h-[2.25rem]', 'py-1.5')
-    expect(screen.getByRole('button', { name: /reveal/i })).toHaveClass('bg-[var(--cv-primary)]')
+    expect(screen.getByRole('button', { name: /reveal/i })).toHaveClass('bg-[var(--cv-btn-accent-bg)]')
 
     await user.click(screen.getByRole('button', { name: /reveal/i }))
     const historicalForm = await screen.findByTestId('historical-entry-form')

@@ -35,8 +35,8 @@ export function AgentsPage({
 
   if (isWide) {
     return (
-      <div className="flex h-full text-[var(--cv-t1)]">
-        <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+      <div className="app-split-view flex h-full text-[var(--cv-t1)]">
+        <div className="app-master-panel w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
           <div className="h-full px-4 pt-4">
             <AgentListPanel
               selectedAgentId={agentId}
@@ -45,7 +45,7 @@ export function AgentsPage({
             />
           </div>
         </div>
-        <div className="min-w-0 flex-1 overflow-hidden">
+        <div className="app-detail-panel min-w-0 flex-1 overflow-hidden">
           <div className="h-full px-4 pt-4">{detailContent}</div>
         </div>
       </div>
@@ -58,7 +58,7 @@ export function AgentsPage({
   // Agents look centered on smaller resolutions while every other screen
   // stretched edge-to-edge.
   return (
-    <div className="h-full overflow-hidden text-[var(--cv-t1)]">
+    <div className={`h-full overflow-hidden text-[var(--cv-t1)]${agentId ? '' : ' app-master-panel'}`}>
       <div className="h-full px-4 py-4">
         {agentId ? detailContent : (
           <AgentListPanel

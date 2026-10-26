@@ -6,6 +6,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 
 | Component | File | Purpose | Key props / variants |
 |-----------|------|---------|----------------------|
+| `AddButton` | `shared/components/add-button.tsx` | Opens add/create/generate/invite flows with a square accent **+** | Required translated `label` supplies accessible name and tooltip; forwards normal button events/disabled state. Submit/confirm actions keep explicit text. |
 | `Button` | `shared/components/button.tsx` | Primary interactive button | `variant` (accent / subtle / outline / ghost / danger / positive / premium), `size` (sm / md — **always sm**; sm = `h-action`, 36px high / `text-action`, 14px text), `icon` (stable local SVG name). Exports `PREMIUM_BUTTON_SM_CLASS`, `POSITIVE_BUTTON_SM_CLASS` for `<Link>`. |
 | `FormInput` | `shared/components/form-field.tsx` | Labelled text input | `label`, `labelSuffix?` (muted adornment, e.g. "· visible to agents"), `labelClassName?` (e.g. `sr-only`), `id`, `borderClass`, `monospace`, `error`, `copyable?`, `trailingAction?` (`{icon,onClick,label,show?}` — e.g. open-URL) + passthrough `InputHTMLAttributes`. |
 | `FieldFeedback` | `shared/components/form-field.tsx` | Fixed-height (`h-feedback`, 20px rendered) field-level error/success row, no layout shift | `visible`, `color` (red / teal), `children`. |
@@ -17,7 +18,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `SearchBar` | `shared/components/search-bar.tsx` | Canonical list/global search field; fixed `h-control`, `text-ui`, card-surface background | `value`, `onChange`, `placeholder?`, `className?`, `inputRef?`, `name?`, `autoFocus?`, `trailing?`. |
 | `EncryptionNotice` | `shared/components/encryption-notice.tsx` | Success-tinted "encrypted on your device" callout (`--cv-success`) | `children` (caller's translated copy). Used by create-entry + import wizard. |
 | `FileDropzone` | `vaults/components/file-dropzone.tsx` | Drag-and-drop + click-to-browse file picker (dashed target, first file only) | `onFile`, `accept?`, `disabled?`, `label`, `hint?`. (Feature-local; promote to `shared/` if a 2nd consumer appears.) |
-| `EntryIcon` | `vaults/components/entry-icon.tsx` | Circular entry avatar — renders a trusted public-catalog URL or locally decrypted `blob:` URL and otherwise falls back to the type glyph | `icon`, `type`, `color?`, `className?`. Exported via the vaults barrel; used by entries lists, dashboard recents, and global search. |
+| `EntryIcon` | `vaults/components/entry-icon.tsx` | Outlined entry avatar — renders a trusted public-catalog URL or locally decrypted `blob:` URL and otherwise falls back to the type glyph | `icon`, `type`, `color?`, `className?`. Exported via the vaults barrel; used by entries lists, dashboard recents, and global search. |
 | `PopoverMenu` | `vaults/components/popover-menu.tsx` | Action menu (icon + label + right-hint, separators, danger items) portaled to `document.body` — safe inside overflow-clipped dialogs | `trigger`, `items` (`MenuItemSpec \| 'separator'`), `ariaLabel?`, `triggerClassName?`, `alignLeft?`, `openUp?`. Used by the entry-form field rows, type menus, and the 2FA card. Promote to `shared/` on a 3rd consumer. |
 | `SectionHeader` | `vaults/components/section-header.tsx` | Small muted label + thin rule — the `[name ── line]` form-section divider; optionally exposes contextual help through an info tooltip | `children`, `hint?`, `hintLabel?`. |
 | `EntryIconButton` | `vaults/components/entry-icon-button.tsx` | Inline entry-icon button that opens the icon/colour picker in a portaled popover (used next to the Label input) | `icon`, `color`, `type`, `onChange`, `onColorChange`, `onFileSelected`, `disabled?`. |
@@ -37,6 +38,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `PasswordStrengthBar` | `shared/components/password-strength-bar.tsx` | 4-segment strength bar (score 0–4) | `score: PasswordStrength`. |
 | `AuthSubmitButton` | `shared/components/auth-submit-button.tsx` | Full-width hero CTA for auth screens (not the compact `Button`) | `children`, `className` + `ButtonHTMLAttributes`. |
 | `RotatingWelcome` | `shared/components/rotating-welcome.tsx` | Localized rotating brand lines shared by login and unlock; clears interval and fade timeout on unmount | `className?` (spacing, defaults to `mb-7`). |
+| `AppNavbar` | `app/app-navbar.tsx` | Shared authenticated navigation header | Welcome greeting, one `GlobalSearchAutocomplete`, and Inbox link. Mounted outside scrolling page content. |
 | `AppWordmark` | `shared/components/app-wordmark.tsx` | Palladin logo + wordmark | `size` (sm / lg / hero / dialog / sharing), `subtitle?` (sm only); `hero` uses landing-matched auth brand tokens; `sharing` is the centered extension-style horizontal public receiver lockup. |
 | `AuthBrandHeader` | `shared/components/auth-brand-header.tsx` | Landing-matched logo, wordmark and optional rotating brand line | `showWelcome?` (default true); reuses `AppWordmark size="hero"` and `RotatingWelcome`. Share reception uses AppWordmark's sharing variant. |
 
@@ -90,3 +92,8 @@ the left-aligned rule still applies to authenticated list/split panels.
 9. **Colors** — `var(--cv-*)` tokens only. Brand red via `--cv-primary` / `--cv-primary-rgb`. Audit colors via `tone()` in `audit-event-config.ts`.
 10. **Skeletons / empty-states / tab strips / split-view / selects** — see "Controls to extract" above; use or create the shared component, never copy markup.
 11. **Settings master headers** — use `SETTINGS_MASTER_HEADER_CLASSES` inside a panel with 16px top padding. The 40px title row + 16px bottom gap occupies the same 72px band as the Settings rail header, keeping Settings, Team, Permissions and API Keys on one baseline.
+
+EntryIcon, AgentAvatar and VaultIconCircle share `ENTITY_ICON_FRAME_CLASSES` and
+`ENTITY_ICON_IMAGE_CLASSES` from `shared/lib/styles.ts`: rounded outlined frame,
+transparent image background, contained image at62.5% of the frame, and12% tint
+for glyph identities. Standard list cards use32 design-pixel frames.

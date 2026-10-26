@@ -869,3 +869,25 @@ Tests cover sub-poll idle/absolute/offline expiry, key-buffer wipe, earlier repl
 limits and trusted idle renewal. Browser timer suspension and all later pre-key-use
 paths still require their separately recorded native acceptance; this scheduling
 change does not claim to complete that broader matrix.
+
+### Local activity and bounded sharing synchronization
+
+`useSessionTimeout` records trusted local input in the auth store independently
+of shared unlock. Its one-second local coalescing and exact local expiry scheduling
+remain unchanged. `syncOwnSharedUnlockActivity` only submits that already-recorded
+input when a live own sharing root has an enabled preference and no newer observed
+OFF. Known OFF also fences requests without an active browser channel.
+
+The network recorder sends at most once per 30 seconds per document, with one
+in-flight request and one replaceable latest input. A final queued input may flush
+after interaction stops; its captured idle deadline is never recomputed at send
+time. No new input means no heartbeat or retries. Session replacement, lock or
+observed OFF cancels/fences pending work and late replies. Absolute/offline limits,
+authorization bindings and durable expiry denials remain enforced.
+
+With sharing disabled, local activity makes no activity API calls or sharing
+checkpoint renewals. The sharing root can therefore expire while the local panel
+remains active; re-enabling sharing cannot resurrect it and requires a new manual
+unlock if it expired. Extension activity scheduling is unchanged by this Web fix.
+Regression tests cover sustained input rate, final flush/no heartbeat, local idle
+under OFF, pending OFF, late OFF/lock replies and existing expiry/security boundaries.
