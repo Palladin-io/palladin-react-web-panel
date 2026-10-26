@@ -25,7 +25,7 @@ const TAB_KEYS: { id: VaultDetailTab; labelKey: string }[] = [
 
 /**
  * Horizontal tab bar used inside the vault detail page. The shared detail
- * tab bar keeps its underline and starting offset aligned with other panels.
+ * tab bar keeps its neutral outline and spacing aligned with other panels.
  */
 export function VaultDetailTabs({ active, onChange, actions }: VaultDetailTabsProps) {
   const { t } = useTranslation()

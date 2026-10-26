@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Button } from '../../../shared/components/button'
+import { AddButton } from '../../../shared/components/add-button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { SingleSelectDropdown, TypeFilterDropdown } from '../../../shared/components/type-filter-dropdown'
 import { Icon } from '../../../shared/components/icon'
@@ -370,9 +371,7 @@ function EntriesEmptyState({ onAdd }: EntriesEmptyStateProps) {
       <p className="max-w-xs text-ui text-[var(--cv-t3)]">
         {t('vault.entries.emptySubtitle')}
       </p>
-      <Button variant="accent" size="sm" icon="add" onClick={onAdd}>
-        {t('vault.entries.emptyCta')}
-      </Button>
+      <AddButton onClick={onAdd} label={t('vault.entries.emptyCta')} />
     </div>
   )
 }

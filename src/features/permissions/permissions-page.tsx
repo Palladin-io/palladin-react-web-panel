@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../../shared/components/button'
+import { AddButton } from '../../shared/components/add-button'
 import { EmptyState } from '../../shared/components/empty-state'
 import { ErrorState } from '../../shared/components/error-state'
 import { Icon } from '../../shared/components/icon'
@@ -9,7 +9,9 @@ import { ResponsiveMasterDetail } from '../../shared/components/responsive-maste
 import { ScrollArea } from '../../shared/components/scroll-area'
 import { SkeletonBlock } from '../../shared/components/skeleton-block'
 import {
-  HOVERABLE_CARD_CLASSES,
+  NAVIGATION_ROW_CLASSES,
+  ENTITY_ICON_FRAME_CLASSES,
+  SELECTED_NAVIGATION_CARD_CLASSES,
   METADATA_BADGE_CLASSES,
   SETTINGS_MASTER_HEADER_CLASSES,
 } from '../../shared/lib/styles'
@@ -52,9 +54,7 @@ export function PermissionsPage({ roleId }: { roleId?: string }) {
                 <p className="truncate text-meta text-[var(--cv-t3)]">{t('permissions.subtitle')}</p>
               </div>
               {canManage ? (
-                <Button variant="accent" size="sm" icon="add" onClick={() => setCreateOpen(true)}>
-                  {t('permissions.create')}
-                </Button>
+                <AddButton onClick={() => setCreateOpen(true)} label={t('permissions.create')} />
               ) : null}
             </header>
 
@@ -72,20 +72,21 @@ export function PermissionsPage({ roleId }: { roleId?: string }) {
                       <Link
                         to="/settings/permissions/$roleId"
                         params={{ roleId: role.id }}
-                        className={`flex items-center gap-3 px-4 py-3 ${HOVERABLE_CARD_CLASSES}${
-                          role.id === roleId ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
+                        aria-current={role.id === roleId ? 'page' : undefined}
+                        className={`flex items-center gap-3 px-3 py-3 ${NAVIGATION_ROW_CLASSES}${
+                          role.id === roleId ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}` : ''
                         }`}
                       >
-                        <span className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
+                        <span className={`${ENTITY_ICON_FRAME_CLASSES} size-8 ${
                           role.isSystem
                             ? 'bg-[rgb(var(--cv-info-rgb)/0.12)] text-[var(--cv-info)]'
                             : 'bg-[var(--cv-bg-subtle)] text-[var(--cv-t2)]'
                         }`}>
-                          <Icon name={role.isSystem ? 'verified_user' : 'shield_person'} size={18} />
+                          <Icon name={role.isSystem ? 'verified_user' : 'shield_person'} size={16} />
                         </span>
                         <span className="min-w-0 flex-1">
                           <span className="flex min-w-0 items-center justify-between gap-2">
-                            <span className="min-w-0 flex-1 truncate text-ui font-semibold">{role.name}</span>
+                            <span className="min-w-0 flex-1 truncate text-ui font-medium">{role.name}</span>
                             {role.isSystem ? <span className={`${METADATA_BADGE_CLASSES} bg-[rgb(var(--cv-info-rgb)/0.12)] text-[var(--cv-info)]`}>{t('permissions.system')}</span> : null}
                           </span>
                           <span className="block text-meta text-[var(--cv-t3)]">{t('permissions.assignedMembers', { count: role.assignedMemberCount })}</span>

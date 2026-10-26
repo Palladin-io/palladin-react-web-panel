@@ -1,3 +1,4 @@
+import { ENTITY_ICON_FRAME_CLASSES, ENTITY_ICON_IMAGE_CLASSES } from '../../../shared/lib/styles'
 import { Icon } from '../../../shared/components/icon'
 import type { Agent } from '../api/agents-api'
 import {
@@ -9,12 +10,12 @@ import { cachedPublicAsset } from '../../../shared/api/public-assets-api'
 
 export interface AgentAvatarProps {
   agent: Pick<Agent, 'name' | 'agentId' | 'iconKey'>
-  /** Design-pixel diameter before the global comfortable-density scale. */
+  /** Design-pixel size before the global comfortable-density scale. */
   size?: number
 }
 
 /**
- * Coloured circle identifying an agent across the list and detail
+ * Outlined badge identifying an agent across the list and detail
  * views. Renders the agent's chosen Material icon when `iconKey` is
  * set, otherwise falls back to initials or the `smart_toy` glyph for
  * unnamed agents. The tint is deterministic — see {@link agentAvatarColor}.
@@ -22,7 +23,7 @@ export interface AgentAvatarProps {
 export function AgentAvatar({ agent, size = 32 }: AgentAvatarProps) {
   const color = agentAvatarColor(agent)
   const initials = agentInitials(agent.name)
-  const glyphSize = Math.round(size * 0.55)
+  const glyphSize = Math.round(size * 0.5)
 
   let content
   if (isCustomAgentIcon(agent.iconKey)) {
@@ -36,7 +37,7 @@ export function AgentAvatar({ agent, size = 32 }: AgentAvatarProps) {
       <img
         src={source}
         alt=""
-        className="h-full w-full rounded-full object-cover"
+        className={ENTITY_ICON_IMAGE_CLASSES}
       />
     )
     }
@@ -51,11 +52,11 @@ export function AgentAvatar({ agent, size = 32 }: AgentAvatarProps) {
   return (
     <span
       aria-hidden
-      className="inline-flex shrink-0 items-center justify-center rounded-full font-bold"
+      className={`${ENTITY_ICON_FRAME_CLASSES} font-bold`}
       style={{
         width: `calc(${size}px * var(--cv-density-scale))`,
         height: `calc(${size}px * var(--cv-density-scale))`,
-        backgroundColor: hexWithAlpha(color, 0.15),
+        backgroundColor: isCustomAgentIcon(agent.iconKey) ? 'transparent' : hexWithAlpha(color, 0.12),
         color,
         fontSize: `calc(${Math.round(size * 0.38)}px * var(--cv-density-scale))`,
       }}

@@ -80,16 +80,7 @@ export function VaultMembersTab({
   }
 
   return (
-    <section aria-labelledby="vault-members-heading" className="flex flex-col gap-3">
-      <div>
-        <h2 id="vault-members-heading" className="text-heading font-bold text-[var(--cv-t1)]">
-          {t('vault.members.title')}
-        </h2>
-        <p className="mt-1 text-meta text-[var(--cv-t3)]">
-          {t('vault.members.description')}
-        </p>
-      </div>
-
+    <section aria-label={t('vault.members.title')} className="flex flex-col gap-3">
       {requestedIds.size > 0 || list.some((member) =>
         member.deprovisioningStatus === 'Pending'
         || member.deprovisioningStatus === 'WaitingForRotation') ? (

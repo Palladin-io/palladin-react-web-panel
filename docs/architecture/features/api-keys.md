@@ -8,6 +8,10 @@ Org API-key management: generate keys, view which agents last used each key, and
 ## How it's organized
 A Settings-hosted split-view — key list on the left, key detail (tabs: Details / Agents) on the right. `ResponsiveMasterDetail` provides wide dual-column and narrow route-driven drill-in behavior. The Agents tab is a cursor-paginated list. Generation is a two-step modal (create → reveal the once-only secret), and revocation is a confirm dialog.
 
+API-key navigation uses the shared flat row style: framed key icon, medium-weight
+name, status badge and masked key hint. Creation date and agent usage remain
+in details instead of a separate list-card footer.
+
 ## Key patterns
 - **Reuses `AgentCard` from `agents`** in the Agents tab — concrete cross-feature component reuse.
 - The freshly generated secret is shown exactly once through `SecretInput`; afterwards only the prefix+suffix hint (`pl_••••{keySuffix}`) is displayed.

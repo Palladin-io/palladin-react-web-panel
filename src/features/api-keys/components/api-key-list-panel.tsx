@@ -1,12 +1,14 @@
 import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../../../shared/components/button'
+import { AddButton } from '../../../shared/components/add-button'
 import { ErrorState } from '../../../shared/components/error-state'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { Icon } from '../../../shared/components/icon'
 import {
-  HOVERABLE_CARD_CLASSES,
+  NAVIGATION_ROW_CLASSES,
+  ENTITY_ICON_FRAME_CLASSES,
+  SELECTED_NAVIGATION_CARD_CLASSES,
   METADATA_BADGE_CLASSES,
   SETTINGS_MASTER_HEADER_CLASSES,
 } from '../../../shared/lib/styles'
@@ -17,12 +19,6 @@ import { GenerateApiKeyModal } from './generate-api-key-modal'
 export interface ApiKeyListPanelProps {
   /** API key currently shown in the right detail panel (split-view). */
   selectedApiKeyId?: string
-}
-
-function formatDate(iso: string): string {
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 /** Compact status pill mirroring the detail panel badge. */
@@ -78,14 +74,7 @@ export function ApiKeyListPanel({ selectedApiKeyId }: ApiKeyListPanelProps) {
           </p>
         </div>
         {canWrite ? (
-          <Button
-            variant="accent"
-            size="sm"
-            icon="add"
-            onClick={() => setGenerateOpen(true)}
-          >
-            {t('apiKeys.generate')}
-          </Button>
+          <AddButton onClick={() => setGenerateOpen(true)} label={t('apiKeys.generate')} />
         ) : null}
       </div>
 
@@ -127,34 +116,25 @@ interface ApiKeyRowProps {
 }
 
 function ApiKeyRow({ apiKey, isSelected }: ApiKeyRowProps) {
-  const { t } = useTranslation()
   return (
     <Link
       to="/settings/api-keys/$keyId"
       params={{ keyId: apiKey.apiKeyId }}
-      className={`flex flex-col overflow-hidden ${HOVERABLE_CARD_CLASSES}${
-        isSelected ? ' !border-[var(--cv-t1)] bg-[var(--cv-btn-subtle-bg)]' : ''
+      aria-current={isSelected ? 'page' : undefined}
+      className={`flex items-center gap-3 px-3 py-3 ${NAVIGATION_ROW_CLASSES}${
+        isSelected ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}` : ''
       }`}
     >
-      <div className="flex flex-col gap-1 px-4 py-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
-            {apiKey.name}
-          </span>
+      <span className={`${ENTITY_ICON_FRAME_CLASSES} size-8 text-[var(--cv-t3)]`} aria-hidden="true">
+        <Icon name="key" size={16} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <span className="min-w-0 flex-1 truncate text-ui font-medium text-[var(--cv-t1)]">{apiKey.name}</span>
           <ApiKeyStatusBadge status={apiKey.status} />
         </div>
-        <span className="font-mono text-meta text-[var(--cv-t3)]">
+        <span className="block truncate font-mono text-meta text-[var(--cv-t3)]">
           pl_••••{apiKey.keySuffix || '••••'}
-        </span>
-      </div>
-      <div className="flex items-center justify-between gap-2 border-t border-[var(--cv-divider)] bg-[var(--cv-card-footer)] px-4 py-2">
-        <span className="flex min-w-0 items-center gap-1.5 truncate text-micro text-[var(--cv-t3)]">
-          <Icon name="schedule" size={12} color="var(--cv-t3)" className="shrink-0" />
-          {t('apiKeys.createdLabel', { date: formatDate(apiKey.createdAt) })}
-        </span>
-        <span className="flex shrink-0 items-center gap-1 text-micro text-[var(--cv-t3)]">
-          <Icon name="smart_toy" size={12} color="var(--cv-t3)" className="shrink-0" />
-          {t('apiKeys.agentsUsing', { count: apiKey.activeAgentCount ?? 0 })}
         </span>
       </div>
     </Link>

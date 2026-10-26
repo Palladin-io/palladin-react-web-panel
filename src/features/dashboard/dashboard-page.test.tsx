@@ -136,6 +136,16 @@ function completeSetup() {
 }
 
 describe('DashboardPage', () => {
+  it('removes the pending approval section when the last request disappears', async () => {
+    completeSetup()
+    state.pendingGrants = { data: [{ id: 'grant-1' }] }
+    const view = render(<DashboardPage />, { wrapper })
+    expect(await screen.findByText('Pending approvals')).toBeInTheDocument()
+    state.pendingGrants = { data: [] }
+    view.rerender(<DashboardPage />)
+    expect(screen.queryByText('Pending approvals')).not.toBeInTheDocument()
+  })
+
   it.each(['pending', 'deactivating', 'deactivated'])('does not count a %s Agent as registered for onboarding', async (status) => {
     completeSetup()
     state.agents = { data: [{ ...activeAgent, status }] }
@@ -146,6 +156,7 @@ describe('DashboardPage', () => {
   it('does not require the API key list to complete onboarding', async () => {
     completeSetup()
     state.apiKeys = { data: undefined }
+    state.pendingGrants = { data: [{ id: 'grant-1' }] }
     render(<DashboardPage />, { wrapper })
     await screen.findByText('Pending approvals')
     expect(screen.queryByText('Register an agent')).not.toBeInTheDocument()
@@ -168,6 +179,7 @@ describe('DashboardPage', () => {
   })
 
   it('does not render the checklist when the current user has skipped', async () => {
+    state.pendingGrants = { data: [{ id: 'grant-1' }] }
     localStorage.setItem('onboarding_skipped:user-a', 'true')
     render(<DashboardPage />, { wrapper })
     // The pending-approvals panel confirms the normal state rendered; the

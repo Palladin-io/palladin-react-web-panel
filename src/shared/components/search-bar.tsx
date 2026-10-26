@@ -51,7 +51,7 @@ export function SearchBar({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="flex-1 border-none bg-transparent text-ui text-[var(--cv-input-text)]
+          className="min-w-0 flex-1 border-none bg-transparent text-ui text-[var(--cv-input-text)]
             placeholder:text-[var(--cv-input-placeholder)] focus:outline-none"
         />
         {trailing}

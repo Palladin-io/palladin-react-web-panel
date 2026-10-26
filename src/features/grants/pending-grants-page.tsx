@@ -35,16 +35,16 @@ export function PendingGrantsPage() {
 
   if (isWide) {
     return (
-      <div className="flex h-full text-[var(--cv-t1)]">
+      <div className={`flex h-full text-[var(--cv-t1)]${showPending && canManageGrants ? ' app-split-view' : ''}`}>
         {showPending && (
-          <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
+          <div className="app-master-panel w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-y-auto border-r border-[var(--cv-border)]">
             <div className="px-4 py-4">
               <PendingGrantsPanel />
             </div>
           </div>
         )}
         {canManageGrants && (
-          <div className="min-w-0 flex-1 overflow-y-auto">
+          <div className="app-detail-panel min-w-0 flex-1 overflow-y-auto">
             <div className="px-4 py-4">
               <OrgGrantsPanel />
             </div>

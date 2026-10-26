@@ -4,7 +4,7 @@ import { ErrorState } from '../../../shared/components/error-state'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { Icon } from '../../../shared/components/icon'
 import { SearchBar } from '../../../shared/components/search-bar'
-import { Button } from '../../../shared/components/button'
+import { AddButton } from '../../../shared/components/add-button'
 import { AGENT_STATUS_ACTIVE } from '../api/agents-api'
 import { useAgents } from '../use-agents'
 import { AgentCard } from './agent-card'
@@ -55,7 +55,7 @@ export function AgentListPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-4 flex h-10 shrink-0 items-center gap-2">
+      <div className="app-master-header mb-4 flex h-10 shrink-0 items-center gap-2">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {t('agents.title')}
@@ -65,9 +65,7 @@ export function AgentListPanel({
           </p>
         </div>
         {canStartPairing ? (
-          <Button variant="accent" size="sm" icon="add" onClick={() => setAddOpen(true)}>
-            {t('agents.add.button')}
-          </Button>
+          <AddButton onClick={() => setAddOpen(true)} label={t('agents.add.button')} />
         ) : null}
       </div>
 
@@ -107,7 +105,7 @@ export function AgentListPanel({
                 {t('agents.empty')}
               </div>
             ) : (
-              <ul className="flex flex-col gap-[0.625rem]">
+              <ul className="flex flex-col gap-2">
                 {filtered.map((agent) => (
                   <li key={agent.agentId}>
                     <AgentCard

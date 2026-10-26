@@ -25,13 +25,13 @@ export function GrantsPage({ vaultId, grantId }: GrantsPageProps) {
 
   if (isWide) {
     return (
-      <div className="flex h-full text-[var(--cv-t1)]">
-        <div className="w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
+      <div className="app-split-view flex h-full text-[var(--cv-t1)]">
+        <div className="app-master-panel w-[clamp(18.75rem,22vw,25rem)] shrink-0 overflow-hidden border-r border-[var(--cv-border)]">
           <div className="h-full px-4 pt-4">
             <GrantListPanel vaultId={vaultId} selectedGrantId={grantId} />
           </div>
         </div>
-        <div className="subtle-scrollbar min-w-0 flex-1 overflow-y-auto">
+        <div className="app-detail-panel subtle-scrollbar min-w-0 flex-1 overflow-y-auto">
           <div className="px-4 py-4">{detailContent}</div>
         </div>
       </div>
@@ -39,7 +39,7 @@ export function GrantsPage({ vaultId, grantId }: GrantsPageProps) {
   }
 
   return (
-    <div className="min-h-full text-[var(--cv-t1)]">
+    <div className={`min-h-full text-[var(--cv-t1)]${grantId ? '' : ' app-master-panel'}`}>
       <div className="px-4 py-4">
         {grantId ? (
           detailContent

@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../auth'
 import { Button } from '../../../shared/components/button'
-import { Icon } from '../../../shared/components/icon'
 import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
 import { organizationIdFromAccessToken } from '../../../shared/lib/organization-scope'
 import { CreateEntryShareDialog } from './create-entry-share-dialog'
@@ -33,10 +32,10 @@ function ScopedShareAction({ scope, iconOnly, footer, userId }: EntryShareAction
   const [open, setOpen] = useState(false)
   const refresh = () => { void queryClient.invalidateQueries({ queryKey: ['entry-sharing', userId, scope.organizationId, scope.vaultId, scope.entryId] }) }
   return <>
-    <Button size="sm" variant={iconOnly ? 'ghost' : footer ? 'subtle' : 'accent'} icon={iconOnly ? undefined : footer ? 'share' : 'add'}
-      aria-label={t(iconOnly || footer ? 'sharing.shareEntry' : 'sharing.create')} onClick={() => setOpen(true)}
-      className={iconOnly ? 'w-action shrink-0 !px-0' : undefined}>
-      {iconOnly ? <Icon name="share" size={16} /> : t(footer ? 'sharing.shareEntry' : 'sharing.create')}
+    <Button size="sm" variant={iconOnly ? 'ghost' : footer ? 'subtle' : 'accent'} icon="share"
+      aria-label={t(iconOnly || footer ? 'sharing.shareEntry' : 'sharing.create')} title={t('sharing.shareEntry')} onClick={() => setOpen(true)}
+      className={!footer ? 'w-action shrink-0 !px-0' : undefined}>
+      {footer ? t('sharing.shareEntry') : null}
     </Button>
     {open ? <CreateEntryShareDialog scope={scope} onCreated={refresh} onClose={() => { setOpen(false); refresh() }} /> : null}
   </>

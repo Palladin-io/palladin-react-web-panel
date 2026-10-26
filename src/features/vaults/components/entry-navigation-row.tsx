@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { Link } from '@tanstack/react-router'
-import { HOVERABLE_CARD_CLASSES, SELECTED_NAVIGATION_CARD_CLASSES } from '../../../shared/lib/styles'
+import { NAVIGATION_ROW_CLASSES, SELECTED_NAVIGATION_CARD_CLASSES } from '../../../shared/lib/styles'
 import type { EntryType } from '../types'
 import { VaultPresentationIcon } from './vault-presentation-icon'
 
@@ -22,16 +22,16 @@ export const EntryNavigationRow = memo(function EntryNavigationRow({
   const content = <>
     <VaultPresentationIcon vaultId={vaultId} entryId={entryId} icon={icon} type={type} />
     <div className="min-w-0 flex-1">
-      <p className="truncate text-heading-sm font-semibold text-[var(--cv-t1)]">{label}</p>
+      <p className="truncate text-ui font-medium text-[var(--cv-t1)]">{label}</p>
       {subtitle && <p className="truncate text-meta text-[var(--cv-t3)]">{subtitle}</p>}
     </div>
   </>
-  if (disabled) return <div className="flex items-center gap-3 rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-4 py-2.5">{content}</div>
+  if (disabled) return <div className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-3">{content}</div>
   return <Link
     to="/vaults/$vaultId/entries/$entryId"
     params={{ vaultId, entryId }}
     search={fromEntries ? { from: 'entries' } : {}}
     aria-current={isSelected ? 'page' : undefined}
-    className={`flex items-center gap-3 px-4 py-2.5 ${HOVERABLE_CARD_CLASSES}${isSelected ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}` : ''}`}
+    className={`flex items-center gap-3 px-3 py-3 ${NAVIGATION_ROW_CLASSES}${isSelected ? ` ${SELECTED_NAVIGATION_CARD_CLASSES}` : ''}`}
   >{content}</Link>
 })

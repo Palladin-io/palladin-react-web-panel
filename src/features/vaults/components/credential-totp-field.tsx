@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { ToggleSwitch } from '../../../shared/components/toggle-switch'
-import { Button } from '../../../shared/components/button'
+import { AddButton } from '../../../shared/components/add-button'
 import { Icon } from '../../../shared/components/icon'
 import { copyToClipboard } from '../../../shared/lib/clipboard'
 import { generateTotp } from '../../../shared/crypto/totp'
@@ -50,9 +50,7 @@ export function CredentialTotpField({ value, onChange, onApply, disabled, agentA
           <div className="text-ui text-[var(--cv-t1)]">{t('vault.entries.totp.emptyTitle')}</div>
           <div className="text-meta text-[var(--cv-t3)]">{t('vault.entries.totp.emptySubtitle')}</div>
         </div>
-        <Button variant="accent" size="sm" icon="add" onClick={() => setSetup(true)} disabled={disabled}>
-          {t('vault.entries.totp.addCredential')}
-        </Button>
+        <AddButton onClick={() => setSetup(true)} disabled={disabled} label={t('vault.entries.totp.addCredential')} />
       </div>
     )
   }

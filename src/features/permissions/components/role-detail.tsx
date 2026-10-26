@@ -184,7 +184,7 @@ function RoleDetailBody({
               </section>
 
               {!role.isSystem && canManage ? (
-                <section className="rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4">
+                <section className="rounded-xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] p-4">
                   <h2 className="text-meta font-semibold text-[var(--cv-primary)]">{t('permissions.deleteSectionTitle')}</h2>
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
                     <p className="text-meta text-[var(--cv-t3)]">

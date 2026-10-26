@@ -1,3 +1,4 @@
+import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -83,7 +84,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
   return (
     <>
       {/* Main info card */}
-      <div className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5">
+      <div className={`${DETAIL_SURFACE_CLASSES} p-4`}>
         <div className="flex items-center justify-between gap-3 min-w-0">
           <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">
             {apiKey.name}
@@ -138,7 +139,7 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
 
       {/* Danger zone — shown only when user has write permission */}
       {canWrite && (isActive || isRevoked) ? <section
-        className="mt-4 rounded-xl border border-[rgb(var(--cv-primary-rgb)/0.25)] bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
+        className="mt-4 rounded-xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] p-4"
       >
         <h2 className="text-meta font-semibold text-[var(--cv-primary)]">
           {t('apiKeys.dangerZone')}

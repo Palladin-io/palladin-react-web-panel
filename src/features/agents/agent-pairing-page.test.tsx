@@ -192,7 +192,7 @@ describe('AgentPairingPage', () => {
     const approveButton = screen.getByRole('button', { name: 'Approve and activate' })
     expect(rejectButton).toHaveClass('bg-transparent', 'text-[var(--cv-btn-outline-text)]')
     expect(rejectButton).not.toHaveClass('text-[var(--cv-primary)]')
-    expect(approveButton).toHaveClass('bg-[var(--cv-primary)]')
+    expect(approveButton).toHaveClass('bg-[var(--cv-btn-accent-bg)]')
     expect(name).toHaveValue('Runtime Helper')
     expect(screen.getByText('<img src=x onerror=alert(1)>')).toHaveClass('break-words')
     expect(document.querySelector('img')).toBeNull()

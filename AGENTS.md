@@ -188,6 +188,7 @@ Every-iteration reuse reference. Reach for the shared component before writing m
 | Textarea | `FormTextarea` | Multi-line; `monospace` for code/keys |
 | Select / dropdown | `FormSelect` | Native `<select>` styling with chevron; pass `<option>`s as children |
 | Button | `Button` | All buttons; always `size="sm"` |
+| Add / create action | `AddButton` | Opens add/create/generate/invite flows: icon-only plus with translated `label`; submit/confirm buttons retain text |
 | Modal | `ModalShell` + `DialogFooter` | Any dialog; see `dialogs.md` |
 | Detail tabs | `VaultDetailTabs` (canonical); **extract** `DetailTabBar` | Detail-view tab strips; 4 divergent copies exist |
 | Card / list-row hover | `HOVERABLE_CARD_CLASSES` | Any interactive card/row; never inline hover classes |

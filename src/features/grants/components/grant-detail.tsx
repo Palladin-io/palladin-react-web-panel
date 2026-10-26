@@ -1,3 +1,4 @@
+import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -95,7 +96,7 @@ export function GrantDetail({ grant }: GrantDetailProps) {
       </div>
 
       {/* Detail card */}
-      <div className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-4 py-2">
+      <div className={`${DETAIL_SURFACE_CLASSES} px-4 py-2`}>
         <DetailRow
           label={t('grants.detail.mode')}
           value={t(grantTypeLabelKey(grant.type))}
@@ -144,8 +145,8 @@ export function GrantDetail({ grant }: GrantDetailProps) {
       {/* Revoke action */}
       {showRevoke && (
         <div
-          className="rounded-2xl border border-[rgb(var(--cv-primary-rgb)/0.25)]
-            bg-[rgb(var(--cv-primary-rgb)/0.04)] p-4"
+          className="rounded-2xl border border-[var(--cv-primary)]
+            bg-[var(--cv-card-bg)] p-4"
         >
           <p className="text-ui font-semibold text-[var(--cv-t1)]">
             {t('grants.revokeZoneTitle')}
