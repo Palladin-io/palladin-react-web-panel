@@ -183,10 +183,13 @@ function TeamMemberDetailBody({
             {activeTab === 'roles' ? (
               <>
           {member.isOwner ? (
-            <div className="flex items-start gap-2 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-bg-subtle)] p-3">
-              <Icon name="shield_person" size={18} color="var(--cv-premium)" />
-              <p className="text-ui text-[var(--cv-t2)]">{t('team.ownerRolesReadOnly')}</p>
-            </div>
+            <section className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
+              <h2 className="flex items-center gap-2 text-ui font-semibold text-[var(--cv-t1)]">
+                <Icon name="shield_person" size={18} />
+                {t('team.owner')}
+              </h2>
+              <p className="mt-3 text-meta text-[var(--cv-t2)]">{t('team.ownerRolesReadOnly')}</p>
+            </section>
           ) : null}
 
           {targetExceedsCaller ? (

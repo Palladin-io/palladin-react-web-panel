@@ -85,6 +85,13 @@ describe('OrgGrantsPanel footer actions', () => {
     } as unknown as ReturnType<typeof useOrgGrants>)
   })
 
+  it('shows the creation date in the details rather than repeating access status', () => {
+    render(<OrgGrantsPanel vaultId="vault-1" />)
+    const row = screen.getByText('Created').parentElement!
+    expect(row.querySelector('time')).toHaveAttribute('dateTime', expiredGrant.createdAt)
+    expect(screen.queryByText('Access', { exact: true })).not.toBeInTheDocument()
+  })
+
   it('keeps a future grant type visible without offering an unsupported regrant flow', () => {
     mockOrgGrants.mockReturnValue({
       data: { items: [{ ...expiredGrant, type: 'future' }], nextCursor: null },

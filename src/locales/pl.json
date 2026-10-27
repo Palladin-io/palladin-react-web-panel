@@ -1314,6 +1314,7 @@
   "grants.org.unlimited": "Bez limitu",
   "grants.org.usesLeft": "pozostało {{left}}/{{limit}} użyć",
   "grants.org.rowActor": "Przez",
+  "grants.org.rowCreated": "Utworzono",
   "grants.org.rowAccess": "Dostęp",
   "grants.org.rowReason": "Powód dostępu",
   "grants.org.rowRevokeReason": "Powód cofnięcia",

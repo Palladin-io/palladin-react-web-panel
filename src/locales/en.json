@@ -1289,6 +1289,7 @@
   "grants.org.unlimited": "Unlimited",
   "grants.org.usesLeft": "{{left}}/{{limit}} uses left",
   "grants.org.rowActor": "By",
+  "grants.org.rowCreated": "Created",
   "grants.org.rowAccess": "Access",
   "grants.org.rowReason": "Access reason",
   "grants.org.rowRevokeReason": "Revoke reason",

@@ -280,3 +280,13 @@ Grant filters are buttons with `aria-pressed`; selected filters use the neutral
 primary-text outline, matching tabs. They are not static metadata badges.
 Audit event-to-semantic-colour mapping is unchanged; the event label keeps its
 semantic hue while Entry/Vault/method context uses neutral metadata chips.
+
+Informational zones (for example protected organization ownership) use a neutral
+card and border, `p-4`, a sentence-case `text-ui font-semibold` heading with an
+inherited-colour icon, and `mt-3 text-meta` explanatory text. No warning tint or
+danger border for a read-only explanation. `DangerZone` remains reserved for
+actual destructive actions.
+
+Grant cards show status once in the header chip. Their four detail rows are
+Entry/Vault, actor, creation date and contextual reason; creation time is not
+repeated next to the header chip.

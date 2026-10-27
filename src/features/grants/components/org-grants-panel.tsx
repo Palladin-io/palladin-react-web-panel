@@ -21,7 +21,6 @@ import {
   type OrgGrant,
 } from '../api/org-grants-api'
 import {
-  accessLimitKind,
   grantActorName,
   grantStatusPresentation,
 } from '../org-grant-presentation'
@@ -34,9 +33,7 @@ import { useCreateGrant } from '../use-create-grant'
 import { useRevokeOrgGrant } from '../use-revoke-org-grant'
 import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
 import {
-  formatExpiresIn,
   formatGrantDate,
-  formatRelativeTime,
   timeBucket,
   type TimeBucket,
 } from './grant-format'
@@ -377,14 +374,10 @@ function OrgGrantRow({
   const agentName = grant.agentName ?? t('grants.unknownAgent')
   const actor = grantActorName(grant) ?? t('grants.org.actorSystem')
   const reason = contextualReason(grant, t, accessReason)
-  const accessText = accessSummary(grant, t)
   const activeCoveringGrantId = grant.activeCoveringGrantIds[0]
 
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
-      {/* Agent section — compact single row: real avatar + name + a small
-          self-contained status pill + relative time. The pill keeps the status
-          colour contained so the card doesn't flood with colour. */}
       <div className="flex items-center gap-2 px-[0.875rem] py-2.5">
         <AgentAvatar
           agent={{ name: agentName, agentId: grant.agentId ?? '', iconKey: grant.agentIconKey ?? null }}
@@ -397,15 +390,9 @@ function OrgGrantRow({
           {agentName}
         </p>
         <MetadataBadge color={presentation.color}>{t(presentation.labelKey)}</MetadataBadge>
-        <span
-          className="shrink-0 text-micro text-[var(--cv-t3)]"
-          title={formatGrantDate(grant.createdAt)}
-        >
-          {formatRelativeTime(grant.createdAt, t)}
-        </span>
       </div>
 
-      {/* Detail rows — ALWAYS exactly 4 (Entry / By / Access / contextual
+      {/* Detail rows — ALWAYS exactly 4 (Entry / By / Created / contextual
           Reason) so every card is the same height in the grid. Each value is
           single-line truncated with a hover tooltip showing the full content
           (e.g. a long Access reason). */}
@@ -447,8 +434,8 @@ function OrgGrantRow({
         <Row label={t('grants.org.rowActor')} tooltip={actor}>
           {actor}
         </Row>
-        <Row label={t('grants.org.rowAccess')} tooltip={accessText}>
-          {accessText}
+        <Row label={t('grants.org.rowCreated')} tooltip={formatGrantDate(grant.createdAt)}>
+          <time dateTime={grant.createdAt}>{formatGrantDate(grant.createdAt)}</time>
         </Row>
         <Row label={reason.label} tooltip={reason.text}>
           {reason.text}
@@ -586,18 +573,6 @@ function isTerminal(status: GrantStatus): boolean {
     || status === 'consumed'
     || status === 'denied'
     || status === 'superseded'
-}
-
-function accessSummary(grant: OrgGrant, t: TFn): string {
-  const kind = accessLimitKind(grant)
-  if (kind === 'uses') {
-    const left = Math.max((grant.queryLimit ?? 0) - (grant.queryCount ?? 0), 0)
-    return t('grants.org.usesLeft', { left, limit: grant.queryLimit ?? 0 })
-  }
-  if (kind === 'time' && grant.expiresAt) {
-    return formatExpiresIn(grant.expiresAt, t)
-  }
-  return t('grants.org.unlimited')
 }
 
 /**
