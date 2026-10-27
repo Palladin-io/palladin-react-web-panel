@@ -2,10 +2,8 @@ import type { GrantStatus, OrgGrant } from './api/org-grants-api'
 
 interface StatusPresentation {
   labelKey: string
-  /** Hex colour for the status badge (brand palette). */
+  /** Semantic token for the status badge. */
   color: string
-  /** Soft background tint for the badge chip. */
-  bg: string
 }
 
 /**
@@ -14,19 +12,18 @@ interface StatusPresentation {
  * Denied/Revoked=red, Expired/Consumed=grey.
  */
 const STATUS_PRESENTATION: Partial<Record<GrantStatus, StatusPresentation>> = {
-  active: { labelKey: 'grants.statusActive', color: '#10B981', bg: 'rgba(16, 185, 129,0.12)' },
-  pending: { labelKey: 'grants.statusPending', color: '#D4820A', bg: 'rgba(240,192,64,0.14)' },
-  denied: { labelKey: 'grants.statusDenied', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.12)' },
-  revoked: { labelKey: 'grants.statusRevoked', color: 'var(--cv-primary)', bg: 'rgb(var(--cv-primary-rgb) / 0.12)' },
-  expired: { labelKey: 'grants.statusExpired', color: '#8A95A6', bg: 'rgba(138,149,166,0.14)' },
-  consumed: { labelKey: 'grants.statusConsumed', color: '#8A95A6', bg: 'rgba(138,149,166,0.14)' },
-  superseded: { labelKey: 'grants.statusSuperseded', color: 'var(--cv-neutral)', bg: 'rgb(var(--cv-neutral-rgb) / 0.14)' },
+  active: { labelKey: 'grants.statusActive', color: 'var(--cv-success)' },
+  pending: { labelKey: 'grants.statusPending', color: 'var(--cv-pending)' },
+  denied: { labelKey: 'grants.statusDenied', color: 'var(--cv-primary)' },
+  revoked: { labelKey: 'grants.statusRevoked', color: 'var(--cv-primary)' },
+  expired: { labelKey: 'grants.statusExpired', color: 'var(--cv-neutral)' },
+  consumed: { labelKey: 'grants.statusConsumed', color: 'var(--cv-neutral)' },
+  superseded: { labelKey: 'grants.statusSuperseded', color: 'var(--cv-neutral)' },
 }
 
 const UNKNOWN_STATUS_PRESENTATION: StatusPresentation = {
   labelKey: 'grants.statusUnknown',
   color: 'var(--cv-neutral)',
-  bg: 'rgb(var(--cv-neutral-rgb) / 0.14)',
 }
 
 export function grantStatusPresentation(status: GrantStatus): StatusPresentation {

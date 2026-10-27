@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -5,7 +6,6 @@ import { Button } from '../../../shared/components/button'
 import { EmptyState } from '../../../shared/components/empty-state'
 import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
-import { METADATA_BADGE_CLASSES } from '../../../shared/lib/styles'
 import { SkeletonBlock } from '../../../shared/components/skeleton-block'
 import { hasApiErrorKey } from '../../../shared/api/error-response'
 import type { OrganizationMember } from '../../../shared/api/organization-members-api'
@@ -107,10 +107,10 @@ export function RoleMembersSection({
               <div className="flex min-w-0 items-center gap-2">
                 <h2 className="truncate text-ui font-semibold text-[var(--cv-t1)]">{name}</h2>
                 {member.isOwner ? (
-                  <span className={`${METADATA_BADGE_CLASSES} bg-[var(--cv-bg-subtle)] text-[var(--cv-premium)]`}>
-                    <Icon name="shield_person" size={14} color="var(--cv-premium)" />
+                  <MetadataBadge>
+                    <Icon name="shield_person" size={14} />
                     {t('team.owner')}
-                  </span>
+                  </MetadataBadge>
                 ) : null}
               </div>
               <p className="truncate text-meta text-[var(--cv-t3)]">{member.email}</p>

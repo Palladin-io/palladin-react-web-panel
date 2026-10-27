@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../shared/components/metadata-badge'
 import { TAB_BUTTON_CLASSES } from "../../shared/lib/styles";
 import type { GrantFieldSelectionMode } from '../../shared/types/grant-field-selection'
 import { useMemo, useState } from "react";
@@ -908,9 +909,7 @@ function SegmentTabs({
           >
             {option.label}
             {option.count ? (
-              <span className="inline-flex h-[1rem] min-w-[1rem] items-center justify-center rounded-full bg-[rgb(var(--cv-primary-rgb)/0.15)] px-1 text-micro font-bold text-[var(--cv-primary)]">
-                {option.count}
-              </span>
+              <MetadataBadge>{option.count}</MetadataBadge>
             ) : null}
           </button>
         );

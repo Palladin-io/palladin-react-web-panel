@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { Fragment, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
@@ -76,7 +77,7 @@ export function AuditLogEntry({
   }
 
   const primary = buildPrimary(item.eventType, t, slots)
-  const chips = buildChips(item, t, cfg.labelKey, cfg.color, cfg.bg, cfg.border, {
+  const chips = buildChips(item, t, cfg.labelKey, cfg.color, {
     showEntry,
     entryName: entryName ?? (item.entryId ? shortenKey(item.entryId) : undefined),
     vaultName: showVault ? vaultName : undefined,
@@ -110,14 +111,10 @@ export function AuditLogEntry({
         </div>
         <div className="flex flex-wrap gap-1.5">
           {chips.map((chip, i) => (
-            <span
-              key={i}
-              className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-micro"
-              style={{ color: chip.color, background: chip.bg, border: `1px solid ${chip.border}` }}
-            >
+            <MetadataBadge key={i} color={chip.color}>
               {chip.icon ? <Icon name={chip.icon} size={11} /> : null}
               {chip.text}
-            </span>
+            </MetadataBadge>
           ))}
         </div>
       </div>
@@ -128,49 +125,28 @@ export function AuditLogEntry({
 interface Chip {
   icon?: string
   text: string
-  color: string
-  bg: string
-  border: string
+  color?: string
 }
-
-// Chip styles emitted by `buildChips`. Colours come from CSS tokens (matching
-// the audit `tone()` palette): `blue` = `--cv-info`, `gray` = `--cv-neutral`.
-// `indigo` has no semantic token (entry-only accent) so it stays a literal.
-const CHIP_STYLES = {
-  indigo: { color: '#818CF8', bg: 'rgba(129,140,248,0.10)', border: 'rgba(129,140,248,0.20)' },
-  blue: {
-    color: 'var(--cv-info)',
-    bg: 'rgb(var(--cv-info-rgb) / 0.10)',
-    border: 'rgb(var(--cv-info-rgb) / 0.20)',
-  },
-  gray: {
-    color: 'var(--cv-neutral)',
-    bg: 'rgb(var(--cv-neutral-rgb) / 0.08)',
-    border: 'rgb(var(--cv-neutral-rgb) / 0.18)',
-  },
-} as const
 
 function buildChips(
   item: AuditLogItem,
   t: TFunction,
   typeLabelKey: string,
   typeColor: string,
-  typeBg: string,
-  typeBorder: string,
   options: { showEntry: boolean; entryName?: string; vaultName?: string },
 ): Chip[] {
   const chips: Chip[] = [
-    { text: t(typeLabelKey), color: typeColor, bg: typeBg, border: typeBorder },
+    { text: t(typeLabelKey), color: typeColor },
   ]
 
   if (options.showEntry && item.entryId && options.entryName) {
-    chips.push({ icon: 'article', text: options.entryName, ...CHIP_STYLES.indigo })
+    chips.push({ icon: 'article', text: options.entryName })
   }
 
   // Vault chip — only in the global log, where rows span vaults; resolved name
   // passed by the caller, skipped when unknown (never a raw id).
   if (options.vaultName && item.vaultId) {
-    chips.push({ icon: 'shield', text: options.vaultName, ...CHIP_STYLES.blue })
+    chips.push({ icon: 'shield', text: options.vaultName })
   }
 
   const grantType = item.metadata.grantType?.toLowerCase()
@@ -178,13 +154,12 @@ function buildChips(
     chips.push({
       icon: 'tune',
       text: t(grantType === 'full' ? 'audit.chip.full' : 'audit.chip.granular'),
-      ...CHIP_STYLES.gray,
     })
   }
 
   const method = item.metadata.method
   if (method) {
-    chips.push({ icon: 'bolt', text: method, ...CHIP_STYLES.gray })
+    chips.push({ icon: 'bolt', text: method })
   }
 
   return chips

@@ -508,6 +508,7 @@ button,
 }
 
 @theme {
+  --spacing-badge: 1.3rem;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
   /* Semantic sizes are expressed against the 20px root above. Final rendered
@@ -781,4 +782,12 @@ button,
   .benefit-confetti-piece {
     animation: none;
   }
+}
+
+/* Status hue is kept in the text; the light surface needs a darker foreground. */
+.metadata-badge {
+  color: color-mix(in srgb, var(--cv-badge-color, var(--cv-t2)) 60%, black);
+}
+.dark .metadata-badge {
+  color: var(--cv-badge-color, var(--cv-t2));
 }

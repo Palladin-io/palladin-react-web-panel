@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -395,17 +396,7 @@ function OrgGrantRow({
         >
           {agentName}
         </p>
-        <span
-          className="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-micro font-semibold"
-          style={{ color: presentation.color, background: presentation.bg }}
-        >
-          <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ background: presentation.color }}
-            aria-hidden
-          />
-          {t(presentation.labelKey)}
-        </span>
+        <MetadataBadge color={presentation.color}>{t(presentation.labelKey)}</MetadataBadge>
         <span
           className="shrink-0 text-micro text-[var(--cv-t3)]"
           title={formatGrantDate(grant.createdAt)}

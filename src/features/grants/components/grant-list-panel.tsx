@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -60,10 +61,11 @@ function FilterChip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-2.5 py-1 text-micro font-semibold transition-colors ${
+      aria-pressed={active}
+      className={`rounded-md border bg-[var(--cv-card-bg)] px-2.5 py-1 text-micro font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--cv-t1)] ${
         active
-          ? 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
-          : 'bg-[var(--cv-bg-subtle)] text-[var(--cv-t3)] hover:text-[var(--cv-t1)]'
+          ? 'border-[var(--cv-t1)] text-[var(--cv-t1)]'
+          : 'border-[var(--cv-border)] text-[var(--cv-t2)] hover:text-[var(--cv-t1)]'
       }`}
     >
       {children}
@@ -158,12 +160,7 @@ function GrantCard({
         <p className="min-w-0 flex-1 truncate text-heading-sm font-semibold text-[var(--cv-t1)]">
           {target}
         </p>
-        <span
-          className="inline-flex shrink-0 items-center gap-1 text-micro font-bold"
-          style={{ color: presentation.color }}
-        >
-          ● {t(presentation.labelKey)}
-        </span>
+        <MetadataBadge color={presentation.color}>{t(presentation.labelKey)}</MetadataBadge>
       </div>
       <p className="mt-0.5 truncate text-meta text-[var(--cv-t3)]">
         {grant.agentName ?? t('grants.unknownAgent')} ·{' '}

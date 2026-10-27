@@ -98,13 +98,13 @@ describe('AgentListPanel', () => {
     agentsState.data = [activeAgent]
     render(<AgentListPanel canStartPairing canCreateApiKey />, { wrapper })
     expect(screen.getByText('Deploy Bot')).toBeInTheDocument()
-    expect(screen.getByText(/● active/i)).toBeInTheDocument()
+    expect(screen.getByText(/^active$/i)).toBeInTheDocument()
   })
 
   it('shows pending badge for a pending agent', () => {
     agentsState.data = [pendingAgent]
     render(<AgentListPanel canStartPairing canCreateApiKey />, { wrapper })
-    expect(screen.getByText(/● pending/i)).toBeInTheDocument()
+    expect(screen.getByText(/^pending$/i)).toBeInTheDocument()
   })
 
   it('renders an error state when the list fails to load', () => {

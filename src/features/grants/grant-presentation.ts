@@ -6,16 +6,16 @@ import type { GrantStatus } from './api/grants-api'
  */
 interface StatusPresentation {
   labelKey: string
-  /** Hex colour for the status dot/badge. */
+  /** Semantic colour for the status label. */
   color: string
 }
 
 const STATUS_PRESENTATION: Partial<Record<GrantStatus, StatusPresentation>> = {
-  pending: { labelKey: 'grants.statusPending', color: '#D4820A' },
-  active: { labelKey: 'grants.statusActive', color: '#10B981' },
-  expired: { labelKey: 'grants.statusExpired', color: '#8A95A6' },
+  pending: { labelKey: 'grants.statusPending', color: 'var(--cv-pending)' },
+  active: { labelKey: 'grants.statusActive', color: 'var(--cv-success)' },
+  expired: { labelKey: 'grants.statusExpired', color: 'var(--cv-neutral)' },
   revoked: { labelKey: 'grants.statusRevoked', color: 'var(--cv-primary)' },
-  consumed: { labelKey: 'grants.statusConsumed', color: '#8A95A6' },
+  consumed: { labelKey: 'grants.statusConsumed', color: 'var(--cv-neutral)' },
   denied: { labelKey: 'grants.statusDenied', color: 'var(--cv-primary)' },
   superseded: { labelKey: 'grants.statusSuperseded', color: 'var(--cv-neutral)' },
 }

@@ -13,12 +13,9 @@ export const HOVERABLE_CARD_CLASSES = [
 export const SELECTED_NAVIGATION_CARD_CLASSES =
   '!border-[var(--cv-t1)] text-[var(--cv-t1)]'
 
-/**
- * Canonical geometry for compact metadata/status pills in list and detail
- * headers. Semantic foreground/background colours remain the caller's job.
- */
+/** Shared quiet geometry for descriptive and status labels (variant B). */
 export const METADATA_BADGE_CLASSES =
-  'inline-flex h-5 shrink-0 items-center gap-1 rounded-full px-2 text-micro font-semibold leading-none'
+  'metadata-badge inline-flex min-h-badge shrink-0 items-center gap-1 rounded-md border border-[var(--cv-border)] bg-[var(--cv-card-bg)] px-2 py-0.5 text-micro font-medium leading-tight'
 
 /**
  * Canonical title row for master columns inside Settings. Combined with the

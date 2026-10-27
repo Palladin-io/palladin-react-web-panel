@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -180,9 +181,9 @@ export function OnboardingChecklist({
                         color="var(--cv-success)"
                       />
                     ) : (
-                      <span className="rounded-md bg-[var(--cv-card-footer)] px-2 py-0.5 text-micro font-semibold text-[var(--cv-t3)]">
+                      <MetadataBadge>
                         {t('dashboard.onboarding.stepBadge', { n: index + 1 })}
-                      </span>
+                      </MetadataBadge>
                     )}
                   </div>
                   <span className="text-meta leading-relaxed text-[var(--cv-t3)]">

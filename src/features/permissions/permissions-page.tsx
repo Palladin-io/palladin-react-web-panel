@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../shared/components/metadata-badge'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -12,7 +13,6 @@ import {
   NAVIGATION_ROW_CLASSES,
   ENTITY_ICON_FRAME_CLASSES,
   SELECTED_NAVIGATION_CARD_CLASSES,
-  METADATA_BADGE_CLASSES,
   SETTINGS_MASTER_HEADER_CLASSES,
 } from '../../shared/lib/styles'
 import { PERMISSION_ORGANIZATION_MANAGEMENT } from '../../shared/lib/permissions'
@@ -87,7 +87,7 @@ export function PermissionsPage({ roleId }: { roleId?: string }) {
                         <span className="min-w-0 flex-1">
                           <span className="flex min-w-0 items-center justify-between gap-2">
                             <span className="min-w-0 flex-1 truncate text-ui font-medium">{role.name}</span>
-                            {role.isSystem ? <span className={`${METADATA_BADGE_CLASSES} bg-[rgb(var(--cv-info-rgb)/0.12)] text-[var(--cv-info)]`}>{t('permissions.system')}</span> : null}
+                            {role.isSystem ? <MetadataBadge>{t('permissions.system')}</MetadataBadge> : null}
                           </span>
                           <span className="block text-meta text-[var(--cv-t3)]">{t('permissions.assignedMembers', { count: role.assignedMemberCount })}</span>
                         </span>

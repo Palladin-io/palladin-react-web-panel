@@ -6,6 +6,7 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 
 | Component | File | Purpose | Key props / variants |
 |-----------|------|---------|----------------------|
+| `MetadataBadge` | `shared/components/metadata-badge.tsx` | Status and descriptive chips | Neutral surface/border, shared `min-h-badge`, medium micro text; optional semantic CSS `color` affects text only. No status dot or tinted fill; metadata remains neutral. |
 | `DangerZone` | `shared/components/danger-zone.tsx` | Destructive detail actions | Neutral card, red outline, inline localized zone/title, description spaced by `mt-3`, action slot; permission and confirmation logic stays in caller. |
 | `AddButton` | `shared/components/add-button.tsx` | Opens add/create/generate/invite flows with a square accent **+** | Required translated `label` supplies accessible name and tooltip; forwards normal button events/disabled state. Submit/confirm actions keep explicit text. |
 | `Button` | `shared/components/button.tsx` | Primary interactive button | `variant` (accent / subtle / outline / ghost / danger / positive / premium), `size` (sm / md — **always sm**; sm = `h-action`, 36px high / `text-action`, 14px text), `icon` (stable local SVG name). Exports `PREMIUM_BUTTON_SM_CLASS`, `POSITIVE_BUTTON_SM_CLASS` for `<Link>`. |

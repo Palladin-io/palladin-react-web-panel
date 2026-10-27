@@ -30,11 +30,11 @@ const POLICY_KINDS: { value: GrantPolicyKind; labelKey: string }[] = [
 const CHIP_CLASS =
   'rounded-md border border-[var(--cv-input-border)] bg-[var(--cv-input-bg)] ' +
   'px-2 py-1 text-meta font-medium text-[var(--cv-t2)] ' +
-  'transition-colors hover:border-[var(--cv-primary)] hover:text-[var(--cv-t1)] ' +
+  'transition-colors hover:border-[var(--cv-t1)] hover:text-[var(--cv-t1)] ' +
   'disabled:cursor-not-allowed disabled:opacity-40'
 
 const SELECTED_CHIP_CLASS =
-  'border-[var(--cv-primary)] bg-[rgb(var(--cv-primary-rgb)/0.1)] text-[var(--cv-t1)]'
+  'border-[var(--cv-t1)] bg-[var(--cv-card-bg)] text-[var(--cv-t1)]'
 
 export interface GrantPolicyFieldsProps {
   kind: GrantPolicyKind

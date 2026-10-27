@@ -6,7 +6,6 @@ describe('org grantStatusPresentation', () => {
     expect(grantStatusPresentation('suspending')).toEqual({
       labelKey: 'grants.statusUnknown',
       color: 'var(--cv-neutral)',
-      bg: 'rgb(var(--cv-neutral-rgb) / 0.14)',
     })
   })
 })

@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { DangerZone } from '../../../shared/components/danger-zone'
 import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
 import { useState } from 'react'
@@ -88,12 +89,7 @@ export function GrantDetail({ grant }: GrantDetailProps) {
             {grant.agentName ?? t('grants.unknownAgent')}
           </p>
         </div>
-        <span
-          className="inline-flex shrink-0 items-center gap-1 text-meta font-bold"
-          style={{ color: presentation.color }}
-        >
-          ● {t(presentation.labelKey)}
-        </span>
+        <MetadataBadge color={presentation.color}>{t(presentation.labelKey)}</MetadataBadge>
       </div>
 
       {/* Detail card */}

@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -9,7 +10,6 @@ import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { useWideScreen } from '../../../shared/hooks/use-wide-screen'
-import { METADATA_BADGE_CLASSES } from '../../../shared/lib/styles'
 import type { OrganizationInvitation } from '../api/organization-invitations-api'
 import { useInvitationRoles } from '../use-invitation-roles'
 import {
@@ -156,9 +156,9 @@ function OrganizationInvitationDetailBody({
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center justify-between gap-2">
                   <h1 className="min-w-0 flex-1 truncate text-heading font-bold">{invitation.email}</h1>
-                  <span className={`${METADATA_BADGE_CLASSES} bg-[rgb(var(--cv-info-rgb)/0.12)] text-[var(--cv-info)]`}>
+                  <MetadataBadge color="var(--cv-pending)">
                     {t('team.invitations.pending')}
-                  </span>
+                  </MetadataBadge>
                 </div>
                 <p className="truncate text-meta text-[var(--cv-t3)]">{t('team.invitations.detailSubtitle')}</p>
               </div>

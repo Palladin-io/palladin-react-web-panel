@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -6,7 +7,6 @@ import { useAuthStore } from '../../auth'
 import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
 import { organizationIdFromAccessToken } from '../../../shared/lib/organization-scope'
 import { shortenKey } from '../../../shared/lib/shorten-key'
-import { METADATA_BADGE_CLASSES } from '../../../shared/lib/styles'
 import { Button } from '../../../shared/components/button'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../shared/components/modal-shell'
@@ -121,10 +121,10 @@ function ShareRow({ item, onRevoke, onChangeProtection }: { item: EntryShareList
   const [expanded, setExpanded] = useState(false)
   const knownStatus = ['active', 'revoked', 'expired', 'suspended', 'locked', 'consumed'].includes(item.status)
   const statusTone = item.status === 'active'
-    ? 'bg-[rgb(var(--cv-success-rgb)/0.12)] text-[var(--cv-success)]'
+    ? 'var(--cv-success)'
     : item.status === 'revoked' || item.status === 'locked'
-      ? 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
-      : 'bg-[var(--cv-bg-subtle)] text-[var(--cv-t2)]'
+      ? 'var(--cv-primary)'
+      : 'var(--cv-t2)'
   const protection = ['none', 'password', 'pin'].includes(item.protection) ? t(`sharing.${item.protection}`) : t('sharing.unknown')
   const date = (value: string | null) => {
     if (!value) return '—'
@@ -144,9 +144,9 @@ function ShareRow({ item, onRevoke, onChangeProtection }: { item: EntryShareList
         </span>
         {item.sourceChanged ? <span className="text-micro text-[var(--cv-t3)]">{t('sharing.sourceChangedTitle')}. {t('sharing.sourceChanged')}</span> : null}
       </td>
-      {cell(t('sharing.statusLabel'), <span className={`${METADATA_BADGE_CLASSES} ${statusTone}`}>
+      {cell(t('sharing.statusLabel'), <MetadataBadge color={statusTone}>
         {t(knownStatus ? `sharing.status.${item.status}` : 'sharing.unknown')}
-      </span>)}
+      </MetadataBadge>)}
       {cell(t('sharing.validUntil'), date(item.expiresAt), 'text-[var(--cv-t2)]')}
       {cell(t('sharing.receipts'), `${item.deliveryCount} / ${item.maximumReceipts ?? t('sharing.unlimited')}`, 'font-medium text-[var(--cv-t1)]')}
       {cell(t('sharing.additionalProtection'), protection, 'text-[var(--cv-t2)]')}

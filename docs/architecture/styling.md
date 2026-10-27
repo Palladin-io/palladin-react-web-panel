@@ -263,3 +263,20 @@ and `mt-3` before the description. Its main action uses `Button variant="accent"
 In lists and confirmation dialogs, `danger` uses a neutral surface/border with red
 text. `positive` uses the same neutral surface/border with green text, including
 Grant again. Preserve permission gates, pending states and confirmation flows.
+
+### Chips and status badges — variant B
+
+Use `MetadataBadge` for status labels, roles, methods, invitation status, history
+revision markers, import outcomes and audit chips. Shared geometry is
+`min-h-badge` (1.3rem / 26px at comfortable density), `rounded-md`, `px-2 py-0.5`,
+`text-micro font-medium`. Longer labels may wrap rather than being clipped by a
+fixed height. The surface and border stay neutral in both themes. Status is
+expressed by semantic text colour, without a dot or coloured fill; roles, names,
+methods and other descriptive metadata stay neutral. Light-mode semantic text
+uses a darker shade of the same token for contrast; dark mode retains the token.
+Never force uppercase. Decorative metadata icons inherit the text colour.
+
+Grant filters are buttons with `aria-pressed`; selected filters use the neutral
+primary-text outline, matching tabs. They are not static metadata badges.
+Audit event-to-semantic-colour mapping is unchanged; the event label keeps its
+semantic hue while Entry/Vault/method context uses neutral metadata chips.

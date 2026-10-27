@@ -55,7 +55,7 @@ describe('PermissionsPage', () => {
     const roleName = screen.getByText('Administrator')
     const roleType = screen.getByText('System')
 
-    expect(roleType).toHaveClass('h-5', 'px-2', 'text-micro', 'font-semibold')
+    expect(roleType).toBeVisible()
     expect(roleType.parentElement).toBe(roleName.parentElement)
   })
 

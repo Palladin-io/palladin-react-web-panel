@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../../shared/components/metadata-badge'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -33,17 +34,10 @@ export function TotpSection() {
           </h2>
           <p className="mt-1 text-ui text-[var(--cv-t3)]">{t('security.totp.subtitle')}</p>
         </div>
-        <span
-          className={
-            'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-meta font-semibold ' +
-            (enabled
-              ? 'bg-[rgb(var(--cv-success-rgb)/0.12)] text-[var(--cv-success)]'
-              : 'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-t3)]')
-          }
-        >
+        <MetadataBadge color={enabled ? 'var(--cv-success)' : undefined}>
           {enabled ? <ShieldCheck size={14} /> : <ShieldOff size={14} />}
           {enabled ? t('security.totp.statusOn') : t('security.totp.statusOff')}
-        </span>
+        </MetadataBadge>
       </div>
 
       <div className="mt-4 flex justify-end border-t border-[var(--cv-divider)] pt-4">

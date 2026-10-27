@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -595,17 +596,7 @@ function EntryPreviewRow({ entry, conflict }: { entry: ParsedEntry; conflict: bo
 }
 
 function Badge({ children, amber }: { children: ReactNode; amber?: boolean }) {
-  return (
-    <span
-      className={`rounded px-1.5 py-0.5 text-micro font-semibold ${
-        amber
-          ? 'bg-[color-mix(in_srgb,var(--cv-premium)_12%,transparent)] text-[var(--cv-premium)]'
-          : 'bg-[var(--cv-card-hover)] text-[var(--cv-t2)]'
-      }`}
-    >
-      {children}
-    </span>
-  )
+  return <MetadataBadge color={amber ? 'var(--cv-pending)' : undefined}>{children}</MetadataBadge>
 }
 
 function ConflictStrategyPicker({
@@ -631,7 +622,7 @@ function ConflictStrategyPicker({
             aria-pressed={value === option}
             className={`flex-1 rounded-lg border px-2 py-1.5 text-meta font-medium transition-colors ${
               value === option
-                ? 'border-[var(--cv-primary)] bg-[rgb(var(--cv-primary-rgb)/0.1)] text-[var(--cv-t1)]'
+                ? 'border-[var(--cv-t1)] bg-[var(--cv-card-bg)] text-[var(--cv-t1)]'
                 : 'border-[var(--cv-input-border)] text-[var(--cv-t2)] hover:border-[var(--cv-t1)]'
             }`}
           >

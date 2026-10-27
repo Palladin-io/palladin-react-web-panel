@@ -151,11 +151,7 @@ describe('EntryHistoryTab', () => {
 
     render(<EntryHistoryTab detail={detail as never} />)
 
-    expect(screen.getByText(/^Current$/)).toHaveClass(
-      'rounded-full',
-      'bg-[rgb(var(--cv-success-rgb)/0.1)]',
-      'text-micro',
-    )
+    expect(screen.getByText(/^Current$/)).toBeVisible()
   })
 
   it('drops revealed plaintext immediately when the vault locks', async () => {

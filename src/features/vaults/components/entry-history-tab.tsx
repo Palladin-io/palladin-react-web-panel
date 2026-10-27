@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -199,13 +200,7 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
                 <div className="flex items-center gap-2">
                   <span className="text-ui font-semibold">{t('vault.entry.history.revision', { revision: item.revision })}</span>
                   {isCurrent ? (
-                    <span
-                      className="inline-flex items-center gap-1 rounded-full bg-[rgb(var(--cv-success-rgb)/0.1)]
-                        px-1.5 py-0.5 text-micro font-semibold text-[var(--cv-success)]"
-                    >
-                      <span className="h-1 w-1 rounded-full bg-[var(--cv-success)]" aria-hidden="true" />
-                      {t('vault.entry.history.current')}
-                    </span>
+                    <MetadataBadge color="var(--cv-success)">{t('vault.entry.history.current')}</MetadataBadge>
                   ) : null}
                 </div>
               </div>

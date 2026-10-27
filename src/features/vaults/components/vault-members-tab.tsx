@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -172,17 +173,9 @@ function StatusBadge({ status }: { status: string }) {
   const blocked = status === 'BlockedLastMember'
   const known = isKnownMemberStatus(status)
   return (
-    <span className={`rounded-full px-2.5 py-1 text-micro font-semibold ${
-      active
-        ? 'bg-[rgb(var(--cv-success-rgb)/0.12)] text-[var(--cv-success)]'
-        : blocked
-          ? 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]'
-          : known
-            ? 'bg-[rgb(var(--cv-pending-rgb)/0.16)] text-[var(--cv-pending)]'
-            : 'bg-[rgb(var(--cv-neutral-rgb)/0.14)] text-[var(--cv-neutral)]'
-    }`}>
+    <MetadataBadge color={active ? 'var(--cv-success)' : blocked ? 'var(--cv-primary)' : known ? 'var(--cv-pending)' : 'var(--cv-neutral)'}>
       {known ? t(`vault.members.status.${status}`) : t('vault.members.status.unknown')}
-    </span>
+    </MetadataBadge>
   )
 }
 
