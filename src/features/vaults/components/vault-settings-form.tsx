@@ -1,3 +1,4 @@
+import { DangerZone } from '../../../shared/components/danger-zone'
 import { useEffect, useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -232,32 +233,16 @@ export function VaultSettingsForm({
         </div>
       </form>
 
-      <section
-        className="mt-4 rounded-xl border border-[var(--cv-primary)]
-          bg-[var(--cv-card-bg)] p-4"
-      >
-        <h2 className="text-meta font-semibold uppercase tracking-[0.06em] text-[var(--cv-primary)]">
-          {t('vault.dangerZone')}
-        </h2>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-ui font-semibold text-[var(--cv-t1)]">
-              {t('vault.deleteVault')}
-            </div>
-            <p className="mt-1 text-meta text-[var(--cv-t3)]">
-              {t('vault.deleteVaultDescription')}
-            </p>
-          </div>
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => setShowDelete(true)}
-            disabled={isRemoving}
-          >
-            {t('vault.deleteVault')}
-          </Button>
-        </div>
-      </section>
+      <DangerZone className="mt-4" title={t('vault.deleteVault')} description={t('vault.deleteVaultDescription')}>
+        <Button
+          variant="accent"
+          size="sm"
+          onClick={() => setShowDelete(true)}
+          disabled={isRemoving}
+        >
+          {t('vault.deleteVault')}
+        </Button>
+      </DangerZone>
 
       <DeleteConfirmDialog
         open={showDelete}

@@ -1,3 +1,4 @@
+import { DangerZone } from '../../../shared/components/danger-zone'
 import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -138,44 +139,18 @@ export function ApiKeyDetail({ apiKey }: ApiKeyDetailProps) {
       ) : null}
 
       {/* Danger zone — shown only when user has write permission */}
-      {canWrite && (isActive || isRevoked) ? <section
-        className="mt-4 rounded-xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] p-4"
+      {canWrite && (isActive || isRevoked) ? <DangerZone
+        className="mt-4"
+        title={isActive ? t('apiKeys.revoke') : t('apiKeys.delete')}
+        description={isActive ? t('apiKeys.revokeSubtitle') : t('apiKeys.deleteSubtitle')}
       >
-        <h2 className="text-meta font-semibold text-[var(--cv-primary)]">
-          {t('apiKeys.dangerZone')}
-        </h2>
-
-        {isActive ? (
-          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-meta text-[var(--cv-t3)]">
-              {t('apiKeys.revokeSubtitle')}
-            </p>
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() => setRevokeOpen(true)}
-              disabled={revoke.isPending}
-            >
-              {t('apiKeys.revoke')}
-            </Button>
-          </div>
-        ) : (
-          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-meta text-[var(--cv-t3)]">
-              {t('apiKeys.deleteSubtitle')}
-            </p>
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={() => setDeleteOpen(true)}
-              disabled={del.isPending}
-            >
-              {t('apiKeys.delete')}
-            </Button>
-          </div>
-        )}
-
-      </section> : null}
+        <Button variant="accent" size="sm"
+          onClick={() => isActive ? setRevokeOpen(true) : setDeleteOpen(true)}
+          disabled={isActive ? revoke.isPending : del.isPending}
+        >
+          {isActive ? t('apiKeys.revoke') : t('apiKeys.delete')}
+        </Button>
+      </DangerZone> : null}
 
       <RevokeApiKeyDialog
         open={revokeOpen}

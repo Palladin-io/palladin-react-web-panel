@@ -1,4 +1,5 @@
 {
+  "common.dangerZone": "Strefa zagrożenia",
   "nav.welcomeNamed": "Witaj ponownie, {{name}}",
   "audit.legend.desc.entryShareCreated": "Nadawca utworzył niezależnie zaszyfrowaną kopię całego obsługiwanego wpisu, w tym notatek, 2FA i pól własnych.",
   "audit.legend.desc.entryShareDelivered": "Serwer wydał zaszyfrowaną paczkę po autoryzacji. Zużywa to odbiór z limitu, ale nie potwierdza wyświetlenia.",

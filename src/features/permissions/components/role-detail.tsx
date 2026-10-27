@@ -1,3 +1,4 @@
+import { DangerZone } from '../../../shared/components/danger-zone'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -184,15 +185,9 @@ function RoleDetailBody({
               </section>
 
               {!role.isSystem && canManage ? (
-                <section className="rounded-xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] p-4">
-                  <h2 className="text-meta font-semibold text-[var(--cv-primary)]">{t('permissions.deleteSectionTitle')}</h2>
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-meta text-[var(--cv-t3)]">
-                      {role.assignedMemberCount > 0 ? t('permissions.deleteAssignedHint') : t('permissions.deleteHint')}
-                    </p>
-                    <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)} disabled={!canDelete}>{t('permissions.delete')}</Button>
-                  </div>
-                </section>
+                <DangerZone title={t('permissions.deleteSectionTitle')} description={role.assignedMemberCount > 0 ? t('permissions.deleteAssignedHint') : t('permissions.deleteHint')}>
+                  <Button variant="accent" size="sm" onClick={() => setDeleteOpen(true)} disabled={!canDelete}>{t('permissions.delete')}</Button>
+                </DangerZone>
               ) : null}
             </>
           ) : null}

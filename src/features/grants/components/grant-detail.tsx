@@ -1,3 +1,4 @@
+import { DangerZone } from '../../../shared/components/danger-zone'
 import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -144,26 +145,16 @@ export function GrantDetail({ grant }: GrantDetailProps) {
 
       {/* Revoke action */}
       {showRevoke && (
-        <div
-          className="rounded-2xl border border-[var(--cv-primary)]
-            bg-[var(--cv-card-bg)] p-4"
-        >
-          <p className="text-ui font-semibold text-[var(--cv-t1)]">
-            {t('grants.revokeZoneTitle')}
-          </p>
-          <p className="mt-1 text-meta text-[var(--cv-t3)]">
-            {t('grants.revokeZoneHint')}
-          </p>
+        <DangerZone title={t('grants.revokeZoneTitle')} description={t('grants.revokeZoneHint')}>
           <Button
-            variant="danger"
+            variant="accent"
             size="sm"
-            className="mt-3"
             onClick={() => setDialogOpen(true)}
             disabled={revoke.isPending}
           >
             {t('grants.revoke')}
           </Button>
-        </div>
+        </DangerZone>
       )}
 
       <RevokeGrantDialog

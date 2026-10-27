@@ -254,3 +254,12 @@ keep their explicit action labels.
 Positive approval buttons use the same neutral surface and border as subtle
 buttons, keeping green text as the semantic confirmation signal. They do not
 use a green-filled card treatment; explicit confirmation labels remain visible.
+
+### Destructive and positive actions
+
+Use shared `DangerZone` for Entry, Vault, Agent, Grant, API-key and role destructive
+sections: neutral card, red border, sentence-case “Danger Zone | action” heading
+and `mt-3` before the description. Its main action uses `Button variant="accent"`.
+In lists and confirmation dialogs, `danger` uses a neutral surface/border with red
+text. `positive` uses the same neutral surface/border with green text, including
+Grant again. Preserve permission gates, pending states and confirmation flows.

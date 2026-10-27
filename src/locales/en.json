@@ -1,4 +1,5 @@
 {
+  "common.dangerZone": "Danger Zone",
   "nav.welcomeNamed": "Welcome back, {{name}}",
   "audit.legend.desc.entryShareCreated": "The sender created an independently encrypted copy of the entire supported Entry, including notes, 2FA and custom fields.",
   "audit.legend.desc.entryShareDelivered": "The server released the encrypted package after authorization. This consumes a receipt, but does not confirm display.",
