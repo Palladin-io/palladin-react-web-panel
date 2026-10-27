@@ -18,9 +18,9 @@ export function formatGrantDate(iso: string): string {
 
 /**
  * Relative time ("just now", "2h ago", "3d ago") for the "Requested" row.
- * Buckets translate via i18n plural keys so EN/PL read naturally. Falls back
- * to an absolute short date for anything older than a month, or the raw string
- * if the timestamp is unparseable.
+ * Buckets translate via i18n plural keys so EN/PL read naturally. Older
+ * timestamps remain day counts; exact dates belong in the tooltip. Falls back
+ * to the raw string if the timestamp is unparseable.
  */
 export function formatRelativeTime(iso: string, t: TFunction): string {
   const ts = Date.parse(iso)
@@ -32,12 +32,7 @@ export function formatRelativeTime(iso: string, t: TFunction): string {
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return t('grants.relative.hoursAgo', { count: hours })
   const days = Math.floor(hours / 24)
-  if (days < 30) return t('grants.relative.daysAgo', { count: days })
-  return new Date(ts).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
+  return t('grants.relative.daysAgo', { count: days })
 }
 
 /**

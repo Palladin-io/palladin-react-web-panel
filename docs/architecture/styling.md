@@ -289,4 +289,6 @@ actual destructive actions.
 
 Grant cards show status once in the header chip. Their four detail rows are
 Entry/Vault, actor, creation date and contextual reason; creation time is not
-repeated next to the header chip.
+repeated next to the header chip. Creation dates use localized minutes/hours/days
+ago; hovering or keyboard-focusing the time always shows the exact local date
+and time through the shared `Tooltip`, even when the text is not truncated.

@@ -34,6 +34,7 @@ import { useRevokeOrgGrant } from '../use-revoke-org-grant'
 import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
 import {
   formatGrantDate,
+  formatRelativeTime,
   timeBucket,
   type TimeBucket,
 } from './grant-format'
@@ -434,8 +435,8 @@ function OrgGrantRow({
         <Row label={t('grants.org.rowActor')} tooltip={actor}>
           {actor}
         </Row>
-        <Row label={t('grants.org.rowCreated')} tooltip={formatGrantDate(grant.createdAt)}>
-          <time dateTime={grant.createdAt}>{formatGrantDate(grant.createdAt)}</time>
+        <Row label={t('grants.org.rowCreated')} tooltip={formatGrantDate(grant.createdAt)} alwaysShowTooltip>
+          <time dateTime={grant.createdAt} tabIndex={0}>{formatRelativeTime(grant.createdAt, t)}</time>
         </Row>
         <Row label={reason.label} tooltip={reason.text}>
           {reason.text}
@@ -536,16 +537,18 @@ function OrgGrantRow({
 function Row({
   label,
   tooltip,
+  alwaysShowTooltip = false,
   children,
 }: {
   label: string
   tooltip?: string
+  alwaysShowTooltip?: boolean
   children: React.ReactNode
 }) {
   return (
     <div className="flex gap-3 leading-relaxed">
       <span className="w-20 shrink-0 font-medium text-[var(--cv-t3)]">{label}</span>
-      <Tooltip content={tooltip ?? ''} className="min-w-0 flex-1 truncate text-[var(--cv-t2)]">
+      <Tooltip always={alwaysShowTooltip} content={tooltip ?? ''} className="min-w-0 flex-1 truncate text-[var(--cv-t2)]">
         {children}
       </Tooltip>
     </div>

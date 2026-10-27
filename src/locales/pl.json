@@ -1413,7 +1413,7 @@
   "grants.relative.hoursAgo_few": "{{count}} godz. temu",
   "grants.relative.hoursAgo_many": "{{count}} godz. temu",
   "grants.relative.hoursAgo_other": "{{count}} godz. temu",
-  "grants.relative.daysAgo_one": "{{count}} dni temu",
+  "grants.relative.daysAgo_one": "{{count}} dzień temu",
   "grants.relative.daysAgo_few": "{{count}} dni temu",
   "grants.relative.daysAgo_many": "{{count}} dni temu",
   "grants.relative.daysAgo_other": "{{count}} dni temu",
