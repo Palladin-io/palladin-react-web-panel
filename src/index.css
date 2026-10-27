@@ -233,6 +233,34 @@ button,
   opacity: 0.18;
 }
 
+/* Login/unlock: the workspace grain crosses the open space diagonally,
+   with a quiet centre behind the form. Other auth flows retain their surface. */
+.auth-surface.auth-canvas-grain {
+  --cv-auth-canvas-base: #FFFFFF;
+  --cv-auth-canvas-cover: 90%;
+  background-color: var(--cv-auth-canvas-base);
+  background-image:
+    radial-gradient(ellipse 28rem 32rem at 50% 45%,
+      color-mix(in srgb, var(--cv-auth-canvas-base) 80%, transparent) 0%,
+      transparent 75%),
+    linear-gradient(135deg,
+      color-mix(in srgb, var(--cv-auth-canvas-base) 99%, transparent) 0%,
+      color-mix(in srgb, var(--cv-auth-canvas-base) var(--cv-auth-canvas-cover), transparent) 35%,
+      color-mix(in srgb, var(--cv-auth-canvas-base) var(--cv-auth-canvas-cover), transparent) 65%,
+      color-mix(in srgb, var(--cv-auth-canvas-base) 99%, transparent) 100%),
+    url('/textures/brand-grain.svg');
+  background-size: auto, auto, 9rem 9rem;
+}
+
+.dark .auth-surface.auth-canvas-grain {
+  --cv-auth-canvas-base: #191C20;
+  --cv-auth-canvas-cover: 91%;
+}
+
+.auth-surface.auth-canvas-grain::before {
+  content: none;
+}
+
 .auth-logo-glow {
   position: relative;
 }

@@ -78,6 +78,15 @@ An eased radial mask and bottom fade prevent hard texture edges. `.auth-glass-bu
 Both classes resolve from the root theme set by `ThemeSync`; neither creates a
 nested theme scope.
 
+Login and unlock add `auth-canvas-grain` as their default surface. It reuses the
+workspace's local grain tile at 9rem (180px at comfortable density), with a
+135-degree wash producing a broad band from the upper right to the lower left.
+The light base is white, dark is #191C20; centre-band coverage is 90% light / 91%
+dark (10% / 9% exposed grain before the additional central wash). A radial wash
+centred at 50%/45% softens the texture behind the form; both ends fade to 99%
+coverage. This replaces the old auth pseudo-element on these two routes only;
+onboarding/recovery keep their existing surface. Form geometry stays unchanged.
+
 Login and unlock use `AuthBrandHeader`: the same logo asset and rotating lines
 as the landing hero, with a 112px-wide shield (96px at widths up to 640px),
 32px wordmark (30px narrow), 24px shield-to-wordmark gap, 28px gap before the
