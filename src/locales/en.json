@@ -1,4 +1,5 @@
 {
+  "common.dangerZone": "Danger Zone",
   "nav.welcomeNamed": "Welcome back, {{name}}",
   "audit.legend.desc.entryShareCreated": "The sender created an independently encrypted copy of the entire supported Entry, including notes, 2FA and custom fields.",
   "audit.legend.desc.entryShareDelivered": "The server released the encrypted package after authorization. This consumes a receipt, but does not confirm display.",
@@ -1288,6 +1289,7 @@
   "grants.org.unlimited": "Unlimited",
   "grants.org.usesLeft": "{{left}}/{{limit}} uses left",
   "grants.org.rowActor": "By",
+  "grants.org.rowCreated": "Created",
   "grants.org.rowAccess": "Access",
   "grants.org.rowReason": "Access reason",
   "grants.org.rowRevokeReason": "Revoke reason",

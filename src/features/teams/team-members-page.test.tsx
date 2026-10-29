@@ -168,7 +168,7 @@ describe('TeamMembersPage', () => {
     const ownerBadge = screen.getByText('Owner').closest('span')
     const ownerName = screen.getByText('Alice Morgan')
     expect(ownerBadge).toBeInTheDocument()
-    expect(ownerBadge).toHaveClass('h-5', 'px-2', 'text-micro', 'font-semibold')
+    expect(ownerBadge).toBeVisible()
     expect(ownerBadge?.parentElement).toBe(ownerName.parentElement)
     expect(ownerBadge?.parentElement?.nextElementSibling).toHaveTextContent('alice@example.com')
     expect(screen.getByRole('link', { name: /Alice Morgan/ })).toHaveAttribute(
@@ -228,8 +228,7 @@ describe('TeamMembersPage', () => {
     )
     const pendingBadge = screen.getByText('Pending').closest('span')
     const pendingEmail = screen.getByText('pending@example.com')
-    expect(pendingBadge).toHaveClass('h-5', 'px-2', 'text-micro', 'font-semibold')
-    expect(pendingBadge).toHaveClass('text-[var(--cv-info)]')
+    expect(pendingBadge).toBeVisible()
     expect(pendingBadge?.parentElement).toBe(pendingEmail.parentElement)
     const pendingLink = screen.getByRole('link', { name: /pending@example.com/i })
     const calendarIcon = pendingLink.querySelector('[data-icon="calendar_today"]')

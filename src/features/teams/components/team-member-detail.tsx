@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -9,7 +10,6 @@ import { ErrorState } from '../../../shared/components/error-state'
 import { Icon } from '../../../shared/components/icon'
 import { ScrollArea } from '../../../shared/components/scroll-area'
 import { hasApiErrorKey } from '../../../shared/api/error-response'
-import { METADATA_BADGE_CLASSES } from '../../../shared/lib/styles'
 import type { OrganizationRole } from '../../../shared/api/organization-roles-api'
 import { useWideScreen } from '../../../shared/hooks/use-wide-screen'
 import type { OrganizationMember } from '../api/team-members-api'
@@ -163,10 +163,10 @@ function TeamMemberDetailBody({
                     <div className="flex min-w-0 items-center justify-between gap-2">
                       <h1 className="min-w-0 flex-1 truncate text-heading font-bold">{displayName}</h1>
                       {member.isOwner ? (
-                        <span className={`${METADATA_BADGE_CLASSES} bg-[var(--cv-bg-subtle)] text-[var(--cv-premium)]`}>
-                          <Icon name="shield_person" size={14} color="var(--cv-premium)" />
+                        <MetadataBadge>
+                          <Icon name="shield_person" size={14} />
                           {t('team.owner')}
-                        </span>
+                        </MetadataBadge>
                       ) : null}
                     </div>
                     <p className="truncate text-meta text-[var(--cv-t3)]">{member.email}</p>
@@ -183,10 +183,13 @@ function TeamMemberDetailBody({
             {activeTab === 'roles' ? (
               <>
           {member.isOwner ? (
-            <div className="flex items-start gap-2 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-bg-subtle)] p-3">
-              <Icon name="shield_person" size={18} color="var(--cv-premium)" />
-              <p className="text-ui text-[var(--cv-t2)]">{t('team.ownerRolesReadOnly')}</p>
-            </div>
+            <section className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
+              <h2 className="flex items-center gap-2 text-ui font-semibold text-[var(--cv-t1)]">
+                <Icon name="shield_person" size={18} />
+                {t('team.owner')}
+              </h2>
+              <p className="mt-3 text-meta text-[var(--cv-t2)]">{t('team.ownerRolesReadOnly')}</p>
+            </section>
           ) : null}
 
           {targetExceedsCaller ? (
@@ -215,7 +218,7 @@ function TeamMemberDetailBody({
                   <span className="min-w-0">
                     <span className="flex items-center gap-2 text-ui font-semibold">
                       {role.name}
-                      {role.isSystem ? <span className={`${METADATA_BADGE_CLASSES} bg-[rgb(var(--cv-info-rgb)/0.12)] text-[var(--cv-info)]`}>{t('permissions.system')}</span> : null}
+                      {role.isSystem ? <MetadataBadge>{t('permissions.system')}</MetadataBadge> : null}
                     </span>
                     <span className="text-meta text-[var(--cv-t3)]">
                       {role.permissions === ALL_PERMISSIONS_MASK

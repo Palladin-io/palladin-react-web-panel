@@ -50,7 +50,7 @@ export function UnlockPage({ redirectTo = '/' }: UnlockPageProps) {
 
   if (account.isPending) {
     return (
-      <div className="auth-surface flex min-h-screen items-center justify-center">
+      <div className="auth-surface auth-canvas-grain flex min-h-screen items-center justify-center">
         <p className="text-ui text-[var(--cv-auth-muted)]">{t('common.loading')}</p>
       </div>
     )
@@ -93,7 +93,7 @@ function AccountLoadError({
   }
 
   return (
-    <div className="auth-surface flex min-h-screen items-center justify-center">
+    <div className="auth-surface auth-canvas-grain flex min-h-screen items-center justify-center">
       <div className="w-full max-w-[27.5rem] px-6 text-center">
         <h1 className="mb-2 text-display font-bold leading-tight text-[var(--cv-t1)]">
           {t('unlock.accountLoadErrorTitle')}
@@ -159,7 +159,7 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
   }
 
   return (
-    <div className="auth-surface flex min-h-screen items-center justify-center">
+    <div className="auth-surface auth-canvas-grain flex min-h-screen items-center justify-center">
       <div className="auth-logo-glow w-full max-w-[27.5rem] px-6">
         <div className="text-center">
           <AuthBrandHeader />

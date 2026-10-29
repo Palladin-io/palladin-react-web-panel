@@ -1,6 +1,7 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
-import { METADATA_BADGE_CLASSES, ENTITY_ICON_FRAME_CLASSES } from '../../../shared/lib/styles'
+import { ENTITY_ICON_FRAME_CLASSES } from '../../../shared/lib/styles'
 import type { OrganizationMember } from '../api/team-members-api'
 
 export interface TeamMemberCardProps {
@@ -38,12 +39,10 @@ function OwnerBadge() {
   const { t } = useTranslation()
 
   return (
-    <span
-      className={`${METADATA_BADGE_CLASSES} bg-[var(--cv-bg-subtle)] text-[var(--cv-premium)]`}
-    >
-      <Icon name="shield_person" size={14} color="var(--cv-premium)" />
+    <MetadataBadge>
+      <Icon name="shield_person" size={14} />
       {t('team.owner')}
-    </span>
+    </MetadataBadge>
   )
 }
 

@@ -1,8 +1,9 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 import { Button } from '../../../shared/components/button'
 import { Icon } from '../../../shared/components/icon'
-import { SELECTED_NAVIGATION_CARD_CLASSES, NAVIGATION_ROW_CLASSES, METADATA_BADGE_CLASSES, ENTITY_ICON_FRAME_CLASSES } from '../../../shared/lib/styles'
+import { SELECTED_NAVIGATION_CARD_CLASSES, NAVIGATION_ROW_CLASSES, ENTITY_ICON_FRAME_CLASSES } from '../../../shared/lib/styles'
 import type { OrganizationInvitation } from '../api/organization-invitations-api'
 
 export function OrganizationInvitationCard({
@@ -38,9 +39,9 @@ export function OrganizationInvitationCard({
               <p className="min-w-0 flex-1 truncate text-ui font-medium text-[var(--cv-t1)]">
                 {invitation.email}
               </p>
-              <span className={`${METADATA_BADGE_CLASSES} bg-[rgb(var(--cv-info-rgb)/0.12)] text-[var(--cv-info)]`}>
+              <MetadataBadge color="var(--cv-pending)">
                 {t('team.invitations.pending')}
-              </span>
+              </MetadataBadge>
             </div>
             <p className="truncate text-meta text-[var(--cv-t3)]">{invitation.roleName}</p>
           </div>

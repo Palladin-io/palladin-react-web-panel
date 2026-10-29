@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useRef, type ClipboardEvent, type KeyboardEvent, type SetStateAction } from 'react'
 import { Button } from '../../../shared/components/button'
 import { parseEmailRecipients, type EmailRecipientValue } from '../email-recipients'
@@ -96,23 +97,19 @@ export function EmailRecipientInput({
         }`}
       >
         {value.recipients.map((email) => (
-          <span
-            key={email}
-            className="inline-flex max-w-full items-center gap-1 rounded-full border border-[var(--cv-border)]
-              bg-[var(--cv-bg-subtle)] py-1 pl-2.5 pr-1 text-meta text-[var(--cv-t2)]"
-          >
+          <MetadataBadge key={email} className="max-w-full">
             <span className="max-w-[16rem] truncate">{email}</span>
             <Button
               variant="ghost"
               size="sm"
               icon="close"
-              className="!size-5 !rounded-full !p-0 shrink-0"
+              className="!size-5 !rounded-md !p-0 shrink-0"
               onPointerDown={(event) => event.preventDefault()}
               onClick={() => removeRecipient(email)}
               disabled={disabled}
               aria-label={removeLabel(email)}
             />
-          </span>
+          </MetadataBadge>
         ))}
         <input
           ref={inputRef}

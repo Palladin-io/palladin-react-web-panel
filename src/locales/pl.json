@@ -1,4 +1,5 @@
 {
+  "common.dangerZone": "Strefa zagrożenia",
   "nav.welcomeNamed": "Witaj ponownie, {{name}}",
   "audit.legend.desc.entryShareCreated": "Nadawca utworzył niezależnie zaszyfrowaną kopię całego obsługiwanego wpisu, w tym notatek, 2FA i pól własnych.",
   "audit.legend.desc.entryShareDelivered": "Serwer wydał zaszyfrowaną paczkę po autoryzacji. Zużywa to odbiór z limitu, ale nie potwierdza wyświetlenia.",
@@ -1313,6 +1314,7 @@
   "grants.org.unlimited": "Bez limitu",
   "grants.org.usesLeft": "pozostało {{left}}/{{limit}} użyć",
   "grants.org.rowActor": "Przez",
+  "grants.org.rowCreated": "Utworzono",
   "grants.org.rowAccess": "Dostęp",
   "grants.org.rowReason": "Powód dostępu",
   "grants.org.rowRevokeReason": "Powód cofnięcia",
@@ -1411,7 +1413,7 @@
   "grants.relative.hoursAgo_few": "{{count}} godz. temu",
   "grants.relative.hoursAgo_many": "{{count}} godz. temu",
   "grants.relative.hoursAgo_other": "{{count}} godz. temu",
-  "grants.relative.daysAgo_one": "{{count}} dni temu",
+  "grants.relative.daysAgo_one": "{{count}} dzień temu",
   "grants.relative.daysAgo_few": "{{count}} dni temu",
   "grants.relative.daysAgo_many": "{{count}} dni temu",
   "grants.relative.daysAgo_other": "{{count}} dni temu",

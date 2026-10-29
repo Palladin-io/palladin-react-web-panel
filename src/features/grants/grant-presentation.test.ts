@@ -5,7 +5,7 @@ describe('grantStatusPresentation', () => {
   it('uses the known status presentation when available', () => {
     expect(grantStatusPresentation('active')).toMatchObject({
       labelKey: 'grants.statusActive',
-      color: '#10B981',
+      color: 'var(--cv-success)',
     })
   })
 

@@ -1,3 +1,4 @@
+import { DangerZone } from '../../shared/components/danger-zone'
 import { DETAIL_SURFACE_CLASSES } from '../../shared/lib/styles'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
@@ -1268,7 +1269,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
       </div>
 
       <div className="mt-3.5">
-        <DangerZone
+        <EntryDangerZone
           onDelete={() => setShowDelete(true)}
           disabled={isRemoving}
         />
@@ -1297,7 +1298,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
 // Danger zone
 // ---------------------------------------------------------------------------
 
-function DangerZone({
+function EntryDangerZone({
   onDelete,
   disabled,
 }: {
@@ -1306,25 +1307,11 @@ function DangerZone({
 }) {
   const { t } = useTranslation()
   return (
-    <section
-      className="rounded-xl border border-[var(--cv-primary)] bg-[var(--cv-card-bg)] p-4"
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="flex flex-wrap items-center gap-2 text-ui font-semibold">
-            <span className="text-[var(--cv-primary)]">{t('vault.entry.detail.dangerZoneTitle')}</span>
-            <span aria-hidden="true" className="text-[var(--cv-t3)]">|</span>
-            <span className="text-[var(--cv-t1)]">{t('vault.entry.detail.deleteTitle')}</span>
-          </h2>
-          <p className="mt-3 text-meta text-[var(--cv-t3)]">
-            {t('vault.entry.detail.deleteSubtitle')}
-          </p>
-        </div>
-        <Button variant="accent" size="sm" onClick={onDelete} disabled={disabled}>
-          {t('vault.entry.detail.deleteButton')}
-        </Button>
-      </div>
-    </section>
+    <DangerZone title={t('vault.entry.detail.deleteTitle')} description={t('vault.entry.detail.deleteSubtitle')}>
+      <Button variant="accent" size="sm" onClick={onDelete} disabled={disabled}>
+        {t('vault.entry.detail.deleteButton')}
+      </Button>
+    </DangerZone>
   )
 }
 

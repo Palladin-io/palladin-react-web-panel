@@ -106,7 +106,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   }
 
   return (
-    <div className="auth-surface flex min-h-screen items-center justify-center">
+    <div className="auth-surface auth-canvas-grain flex min-h-screen items-center justify-center">
       <div className="auth-logo-glow w-full max-w-[27.5rem] px-6">
         <div className="text-center">
           <AuthBrandHeader />

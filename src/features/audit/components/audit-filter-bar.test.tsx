@@ -36,6 +36,27 @@ describe('AuditFilterBar', () => {
     expect(screen.getByLabelText('Filter by event type')).toBeVisible()
   })
 
+  it('anchors the event menu outside the clipped toolbar and bounds it to the viewport', () => {
+    const { container } = render(<AuditFilterBar value={EMPTY} onChange={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Filters'))
+    const trigger = screen.getByLabelText('Filter by event type')
+    const rect = new DOMRect(280, 260, 190, 44)
+    const measure = vi.spyOn(trigger.parentElement!, 'getBoundingClientRect').mockReturnValue(rect)
+    try {
+      fireEvent.click(trigger)
+      const menu = screen.getByRole('listbox')
+      expect(container.contains(menu)).toBe(false)
+      expect(menu).toHaveStyle({ position: 'fixed', left: '280px', top: '308px' })
+      expect(parseFloat(menu.style.maxHeight)).toBeLessThanOrEqual(window.innerHeight - rect.bottom - 8)
+      fireEvent.scroll(menu)
+      expect(screen.getByRole('listbox')).toBeVisible()
+      fireEvent.keyDown(document, { key: 'Escape' })
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    } finally {
+      measure.mockRestore()
+    }
+  })
+
   it('reports search changes through onChange', () => {
     const onChange = vi.fn()
     render(<AuditFilterBar value={EMPTY} onChange={onChange} agentOptions={agentOptions} />)

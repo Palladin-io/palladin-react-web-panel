@@ -49,9 +49,9 @@ const VARIANT_CLASS: Record<ButtonVariant, string> = {
   ghost:
     'bg-transparent text-[var(--cv-btn-ghost-text)] border border-transparent hover:bg-[var(--cv-btn-ghost-hover)]',
   danger:
-    'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)] border border-[rgb(var(--cv-primary-rgb)/0.25)] hover:bg-[rgb(var(--cv-primary-rgb)/0.18)]',
+    'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-primary)] border border-[var(--cv-btn-subtle-border)] hover:bg-[var(--cv-btn-subtle-hover)]',
   positive:
-    'bg-[rgb(var(--cv-success-rgb)/0.12)] text-[var(--cv-success)] border border-[rgb(var(--cv-success-rgb)/0.3)] hover:bg-[rgb(var(--cv-success-rgb)/0.18)]',
+    'bg-[var(--cv-btn-subtle-bg)] text-[var(--cv-success)] border border-[var(--cv-btn-subtle-border)] hover:bg-[var(--cv-btn-subtle-hover)]',
   premium:
     'btn-premium bg-transparent font-bold border',
 }

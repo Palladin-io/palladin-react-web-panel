@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Icon } from '../../../shared/components/icon'
@@ -116,9 +117,9 @@ export function GrantMethodsSelect({
                       <span className="flex items-center gap-1.5 text-ui font-medium text-[var(--cv-t1)]">
                         {t(GRANT_METHOD_LABEL_KEY[method])}
                         {wasRequested && (
-                          <span className="rounded-[0.25rem] border border-[var(--cv-input-border)] px-1 text-micro font-semibold uppercase tracking-wide text-[var(--cv-t3)]">
+                          <MetadataBadge >
                             {t('grants.methods.requested')}
-                          </span>
+                          </MetadataBadge>
                         )}
                       </span>
                       <span className="text-meta leading-snug text-[var(--cv-t3)]">

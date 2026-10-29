@@ -138,7 +138,8 @@ export function AuditFilterBar({
           margin below the bar is identical in both states. The inner `pt-3`
           (12px) equals the outer `mb-3`, so the gap above the panel matches the
           gap below it. `overflow` is hidden only while collapsed, so the open
-          dropdowns (absolute popups) are never clipped. */}
+          filter row remains visible. Dropdown menus are portaled to avoid clipping
+          by the surrounding scroll region. */}
       {/* `inert` (React 19) when collapsed removes the dropdowns/date inputs from
           tab order + the a11y tree — avoids the aria-hidden-with-focusable-content
           violation without needing pointer-events-none. */}
@@ -150,6 +151,8 @@ export function AuditFilterBar({
         <div className={open ? 'overflow-visible' : 'overflow-hidden'}>
           <div className="flex flex-wrap items-center gap-2 pt-3">
             <TypeFilterDropdown
+              portal
+              disabled={!open}
               triggerClassName={TRIGGER_CLASS}
               options={eventTypeOptions}
               selected={new Set(value.eventType)}
@@ -160,6 +163,8 @@ export function AuditFilterBar({
 
             {agentOptions && (
               <TypeFilterDropdown
+                portal
+                disabled={!open}
                 triggerClassName={TRIGGER_CLASS}
                 options={agentOptions}
                 selected={new Set(value.agentId)}
@@ -171,6 +176,8 @@ export function AuditFilterBar({
 
             {userOptions && (
               <TypeFilterDropdown
+                portal
+                disabled={!open}
                 triggerClassName={TRIGGER_CLASS}
                 options={userOptions}
                 selected={new Set(value.userId)}
@@ -182,6 +189,8 @@ export function AuditFilterBar({
 
             {vaultOptions && (
               <TypeFilterDropdown
+                portal
+                disabled={!open}
                 triggerClassName={TRIGGER_CLASS}
                 options={vaultOptions}
                 selected={new Set(value.vaultId)}

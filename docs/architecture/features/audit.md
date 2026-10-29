@@ -54,3 +54,7 @@ zewnętrzny. It never resolves to the sender, Agent or organization member, even
 if a row carries a legacy user ID. Only explicit user actors enter the directory
 repair and user-filter options. No recipient e-mail/IP/device tracking is added.
 Mobile parity and real browser/server acceptance remain release requirements.
+
+Audit filter menus use `TypeFilterDropdown` in portal mode, anchored to the
+trigger and bounded by the viewport so scroll containers cannot clip event
+names or the long taxonomy list. Collapsed filters disable their menus.

@@ -78,6 +78,15 @@ An eased radial mask and bottom fade prevent hard texture edges. `.auth-glass-bu
 Both classes resolve from the root theme set by `ThemeSync`; neither creates a
 nested theme scope.
 
+Login and unlock add `auth-canvas-grain` as their default surface. It reuses the
+workspace's local grain tile at 9rem (180px at comfortable density), with a
+135-degree wash producing a broad band from the upper right to the lower left.
+The light surface matches the workspace: white base, 92% centre-band coverage,
+and the same 150-degree subtle background gradient, without an extra radial wash.
+Dark retains its #191C20 base, 91% centre-band coverage and a radial wash centred
+at 50%/45% behind the form. Both ends fade to 99% coverage. This replaces the old auth pseudo-element on these two routes only;
+onboarding/recovery keep their existing surface. Form geometry stays unchanged.
+
 Login and unlock use `AuthBrandHeader`: the same logo asset and rotating lines
 as the landing hero, with a 112px-wide shield (96px at widths up to 640px),
 32px wordmark (30px narrow), 24px shield-to-wordmark gap, 28px gap before the
@@ -254,3 +263,41 @@ keep their explicit action labels.
 Positive approval buttons use the same neutral surface and border as subtle
 buttons, keeping green text as the semantic confirmation signal. They do not
 use a green-filled card treatment; explicit confirmation labels remain visible.
+
+### Destructive and positive actions
+
+Use shared `DangerZone` for Entry, Vault, Agent, Grant, API-key and role destructive
+sections: neutral card, red border, sentence-case “Danger Zone | action” heading
+and `mt-3` before the description. Its main action uses `Button variant="accent"`.
+In lists and confirmation dialogs, `danger` uses a neutral surface/border with red
+text. `positive` uses the same neutral surface/border with green text, including
+Grant again. Preserve permission gates, pending states and confirmation flows.
+
+### Chips and status badges — variant B
+
+Use `MetadataBadge` for status labels, roles, methods, invitation status, history
+revision markers, import outcomes and audit chips. Shared geometry is
+`min-h-badge` (1.3rem / 26px at comfortable density), `rounded-md`, `px-2 py-0.5`,
+`text-micro font-medium`. Longer labels may wrap rather than being clipped by a
+fixed height. The surface and border stay neutral in both themes. Status is
+expressed by semantic text colour, without a dot or coloured fill; roles, names,
+methods and other descriptive metadata stay neutral. Light-mode semantic text
+uses a darker shade of the same token for contrast; dark mode retains the token.
+Never force uppercase. Decorative metadata icons inherit the text colour.
+
+Grant filters are buttons with `aria-pressed`; selected filters use the neutral
+primary-text outline, matching tabs. They are not static metadata badges.
+Audit event-to-semantic-colour mapping is unchanged; the event label keeps its
+semantic hue while Entry/Vault/method context uses neutral metadata chips.
+
+Informational zones (for example protected organization ownership) use a neutral
+card and border, `p-4`, a sentence-case `text-ui font-semibold` heading with an
+inherited-colour icon, and `mt-3 text-meta` explanatory text. No warning tint or
+danger border for a read-only explanation. `DangerZone` remains reserved for
+actual destructive actions.
+
+Grant cards show status once in the header chip. Their four detail rows are
+Entry/Vault, actor, creation date and contextual reason; creation time is not
+repeated next to the header chip. Creation dates use localized minutes/hours/days
+ago; hovering or keyboard-focusing the time always shows the exact local date
+and time through the shared `Tooltip`, even when the text is not truncated.

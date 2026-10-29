@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useTranslation } from 'react-i18next'
 import { GRANT_METHOD_LABEL_KEY, type GrantMethod } from '../grant-methods'
 
@@ -17,12 +18,10 @@ export function GrantMethodsBadges({ methods }: GrantMethodsBadgesProps) {
   return (
     <div className="flex flex-wrap items-center gap-1">
       {methods.map((method) => (
-        <span
-          key={method}
-          className="rounded-[0.25rem] border border-[var(--cv-input-border)] px-1.5 py-0.5 text-micro font-semibold uppercase tracking-wide text-[var(--cv-t2)]"
-        >
+        <MetadataBadge key={method}
+          >
           {t(GRANT_METHOD_LABEL_KEY[method])}
-        </span>
+        </MetadataBadge>
       ))}
     </div>
   )

@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -20,7 +21,6 @@ import {
   type OrgGrant,
 } from '../api/org-grants-api'
 import {
-  accessLimitKind,
   grantActorName,
   grantStatusPresentation,
 } from '../org-grant-presentation'
@@ -33,7 +33,6 @@ import { useCreateGrant } from '../use-create-grant'
 import { useRevokeOrgGrant } from '../use-revoke-org-grant'
 import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
 import {
-  formatExpiresIn,
   formatGrantDate,
   formatRelativeTime,
   timeBucket,
@@ -376,14 +375,10 @@ function OrgGrantRow({
   const agentName = grant.agentName ?? t('grants.unknownAgent')
   const actor = grantActorName(grant) ?? t('grants.org.actorSystem')
   const reason = contextualReason(grant, t, accessReason)
-  const accessText = accessSummary(grant, t)
   const activeCoveringGrantId = grant.activeCoveringGrantIds[0]
 
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)]">
-      {/* Agent section — compact single row: real avatar + name + a small
-          self-contained status pill + relative time. The pill keeps the status
-          colour contained so the card doesn't flood with colour. */}
       <div className="flex items-center gap-2 px-[0.875rem] py-2.5">
         <AgentAvatar
           agent={{ name: agentName, agentId: grant.agentId ?? '', iconKey: grant.agentIconKey ?? null }}
@@ -395,26 +390,10 @@ function OrgGrantRow({
         >
           {agentName}
         </p>
-        <span
-          className="inline-flex shrink-0 items-center gap-1 rounded-full px-1.5 py-0.5 text-micro font-semibold"
-          style={{ color: presentation.color, background: presentation.bg }}
-        >
-          <span
-            className="h-1.5 w-1.5 rounded-full"
-            style={{ background: presentation.color }}
-            aria-hidden
-          />
-          {t(presentation.labelKey)}
-        </span>
-        <span
-          className="shrink-0 text-micro text-[var(--cv-t3)]"
-          title={formatGrantDate(grant.createdAt)}
-        >
-          {formatRelativeTime(grant.createdAt, t)}
-        </span>
+        <MetadataBadge color={presentation.color}>{t(presentation.labelKey)}</MetadataBadge>
       </div>
 
-      {/* Detail rows — ALWAYS exactly 4 (Entry / By / Access / contextual
+      {/* Detail rows — ALWAYS exactly 4 (Entry / By / Created / contextual
           Reason) so every card is the same height in the grid. Each value is
           single-line truncated with a hover tooltip showing the full content
           (e.g. a long Access reason). */}
@@ -456,8 +435,8 @@ function OrgGrantRow({
         <Row label={t('grants.org.rowActor')} tooltip={actor}>
           {actor}
         </Row>
-        <Row label={t('grants.org.rowAccess')} tooltip={accessText}>
-          {accessText}
+        <Row label={t('grants.org.rowCreated')} tooltip={formatGrantDate(grant.createdAt)} alwaysShowTooltip>
+          <time dateTime={grant.createdAt} tabIndex={0}>{formatRelativeTime(grant.createdAt, t)}</time>
         </Row>
         <Row label={reason.label} tooltip={reason.text}>
           {reason.text}
@@ -558,16 +537,18 @@ function OrgGrantRow({
 function Row({
   label,
   tooltip,
+  alwaysShowTooltip = false,
   children,
 }: {
   label: string
   tooltip?: string
+  alwaysShowTooltip?: boolean
   children: React.ReactNode
 }) {
   return (
     <div className="flex gap-3 leading-relaxed">
       <span className="w-20 shrink-0 font-medium text-[var(--cv-t3)]">{label}</span>
-      <Tooltip content={tooltip ?? ''} className="min-w-0 flex-1 truncate text-[var(--cv-t2)]">
+      <Tooltip always={alwaysShowTooltip} content={tooltip ?? ''} className="min-w-0 flex-1 truncate text-[var(--cv-t2)]">
         {children}
       </Tooltip>
     </div>
@@ -595,18 +576,6 @@ function isTerminal(status: GrantStatus): boolean {
     || status === 'consumed'
     || status === 'denied'
     || status === 'superseded'
-}
-
-function accessSummary(grant: OrgGrant, t: TFn): string {
-  const kind = accessLimitKind(grant)
-  if (kind === 'uses') {
-    const left = Math.max((grant.queryLimit ?? 0) - (grant.queryCount ?? 0), 0)
-    return t('grants.org.usesLeft', { left, limit: grant.queryLimit ?? 0 })
-  }
-  if (kind === 'time' && grant.expiresAt) {
-    return formatExpiresIn(grant.expiresAt, t)
-  }
-  return t('grants.org.unlimited')
 }
 
 /**

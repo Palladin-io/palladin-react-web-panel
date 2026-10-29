@@ -1,3 +1,4 @@
+import { DangerZone } from '../../../shared/components/danger-zone'
 import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
 import { useState, type ReactNode } from 'react'
 import { useNavigate } from '@tanstack/react-router'
@@ -249,11 +250,11 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
             {agent.status === AGENT_STATUS_ACTIVE ? (
               <ActionZone
                 tone="danger"
-                title={t('agents.deactivateZone')}
+                title={t('agents.deactivate')}
                 hint={t('agents.deactivateHint')}
                 action={
                   <Button
-                    variant="danger"
+                    variant="accent"
                     size="sm"
                     onClick={() => setDeactivateOpen(true)}
                     disabled={deactivate.isPending}
@@ -286,11 +287,11 @@ export function AgentDetail({ agent, renderLogs }: AgentDetailProps) {
             {agent.status === AGENT_STATUS_DEACTIVATED ? (
               <ActionZone
                 tone="danger"
-                title={t('agents.deleteZone')}
+                title={t('agents.delete')}
                 hint={t('agents.deleteHint')}
                 action={
                   <Button
-                    variant="danger"
+                    variant="accent"
                     size="sm"
                     icon="delete"
                     onClick={() => setDeleteOpen(true)}
@@ -370,23 +371,11 @@ interface ActionZoneProps {
 }
 
 function ActionZone({ tone, title, hint, action }: ActionZoneProps) {
-  const isPositive = tone === 'positive'
+  if (tone === 'danger') return <DangerZone title={title} description={hint}>{action}</DangerZone>
   return (
-    <section
-      className={`rounded-xl border p-4 ${
-        isPositive
-          ? 'border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.12)]'
-          : 'border-[var(--cv-primary)] bg-[var(--cv-card-bg)]'
-      }`}
-    >
-      <h2
-        className={`text-meta font-semibold uppercase tracking-[0.06em] ${
-          isPositive ? 'text-[#10B981]' : 'text-[var(--cv-primary)]'
-        }`}
-      >
-        {title}
-      </h2>
-      <div className="mt-1.5 flex flex-wrap items-center justify-between gap-3">
+    <section className="rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
+      <h2 className="text-ui font-semibold text-[var(--cv-success)]">{title}</h2>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
         <p className="text-meta text-[var(--cv-t3)]">{hint}</p>
         {action}
       </div>

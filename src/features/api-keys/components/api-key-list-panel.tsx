@@ -1,3 +1,4 @@
+import { MetadataBadge } from '../../../shared/components/metadata-badge'
 import { useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
@@ -9,7 +10,6 @@ import {
   NAVIGATION_ROW_CLASSES,
   ENTITY_ICON_FRAME_CLASSES,
   SELECTED_NAVIGATION_CARD_CLASSES,
-  METADATA_BADGE_CLASSES,
   SETTINGS_MASTER_HEADER_CLASSES,
 } from '../../../shared/lib/styles'
 import type { ApiKeySummary } from '../api/api-keys-api'
@@ -26,24 +26,20 @@ export function ApiKeyStatusBadge({ status }: { status: ApiKeySummary['status'] 
   const { t } = useTranslation()
   const presentation = status === 'active'
     ? {
-        className: 'bg-[rgb(var(--cv-success-rgb)/0.14)] text-[var(--cv-success)]',
+        color: 'var(--cv-success)',
         label: t('apiKeys.statusActive'),
       }
     : status === 'revoked'
       ? {
-          className: 'bg-[rgb(var(--cv-primary-rgb)/0.12)] text-[var(--cv-primary)]',
+          color: 'var(--cv-primary)',
           label: t('apiKeys.statusRevoked'),
         }
       : {
-          className: 'bg-[rgb(var(--cv-neutral-rgb)/0.14)] text-[var(--cv-neutral)]',
+          color: 'var(--cv-neutral)',
           label: t('apiKeys.statusUnknown'),
         }
   return (
-    <span
-      className={`${METADATA_BADGE_CLASSES} ${presentation.className}`}
-    >
-      {presentation.label}
-    </span>
+    <MetadataBadge color={presentation.color}>{presentation.label}</MetadataBadge>
   )
 }
 

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSION_GRANT_MANAGE } from '../../../shared/lib/permissions'
 import { useMemberSyncStore } from '../../vaults/sync/member-sync-store'
 import { useOrgGrants } from '../use-org-grants'
+import { formatGrantDate } from './grant-format'
 import { OrgGrantsPanel } from './org-grants-panel'
 
 const authState = vi.hoisted(() => ({ permissions: 0 }))
@@ -83,6 +84,30 @@ describe('OrgGrantsPanel footer actions', () => {
       isError: false,
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof useOrgGrants>)
+  })
+
+  it('shows the creation date in the details rather than repeating access status', () => {
+    render(<OrgGrantsPanel vaultId="vault-1" />)
+    const row = screen.getByText('Created').parentElement!
+    expect(row.querySelector('time')).toHaveAttribute('dateTime', expiredGrant.createdAt)
+    expect(screen.queryByText('Access', { exact: true })).not.toBeInTheDocument()
+  })
+
+  it('shows relative creation time with the exact date on hover and keyboard focus', async () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-06-01T02:00:00Z'))
+    try {
+      const user = userEvent.setup()
+      render(<OrgGrantsPanel vaultId="vault-1" />)
+      const time = within(screen.getByText('Created').parentElement!).getByText('2h ago')
+      await user.hover(time)
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(formatGrantDate(expiredGrant.createdAt))
+      await user.unhover(time)
+      expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+      time.focus()
+      expect(await screen.findByRole('tooltip')).toHaveTextContent(formatGrantDate(expiredGrant.createdAt))
+    } finally {
+      now.mockRestore()
+    }
   })
 
   it('keeps a future grant type visible without offering an unsupported regrant flow', () => {
