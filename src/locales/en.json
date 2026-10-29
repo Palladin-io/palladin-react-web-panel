@@ -315,6 +315,7 @@
   "recovery.errorWordCount": "Recovery key must contain exactly 24 words.",
   "recovery.errorInvalidKey": "Recovery key is invalid. Check the words and try again.",
   "recovery.errorGeneric": "Something went wrong. Please try again.",
+  "recovery.errorProofInvalid": "We could not confirm your recovery key with the server. Please try again.",
   "recovery.next": "Next",
   "recovery.newPasswordTitle": "Set New Master Password",
   "recovery.newPasswordSubtitle": "This password will encrypt your vault from now on.",

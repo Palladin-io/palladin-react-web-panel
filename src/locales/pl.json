@@ -315,6 +315,7 @@
   "recovery.errorWordCount": "Klucz odzyskiwania musi zawierać dokładnie 24 słowa.",
   "recovery.errorInvalidKey": "Nieprawidłowy klucz odzyskiwania. Sprawdź słowa i spróbuj ponownie.",
   "recovery.errorGeneric": "Coś poszło nie tak. Spróbuj ponownie.",
+  "recovery.errorProofInvalid": "Nie udało się potwierdzić klucza odzyskiwania na serwerze. Spróbuj ponownie.",
   "recovery.next": "Dalej",
   "recovery.newPasswordTitle": "Ustaw nowe hasło główne",
   "recovery.newPasswordSubtitle": "To hasło będzie od teraz szyfrować Twój skarbiec.",
