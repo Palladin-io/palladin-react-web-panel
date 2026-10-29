@@ -35,7 +35,10 @@ export function allowedAgentFieldAccess(type: EntryType, fieldId: string, custom
   if (type === ENTRY_TYPE_CREDIT_CARD) return ['never']
   if (fieldId === ENTRY_FIELD.notes) return type === 2 ? RUNTIME_OR_NEVER : VALUE_OR_NEVER
   if (fieldId === ENTRY_FIELD.totp || customType === 'totp') return ['never', 'onGrantDerived']
-  if (fieldId.startsWith('custom:')) return type === 2 ? RUNTIME_OR_NEVER : ['never', 'discovery', 'onGrantValue']
+  if (fieldId.startsWith('custom:')) {
+    if (customType !== undefined && !isStandardValueField(customType)) return ['never']
+    return type === 2 ? RUNTIME_OR_NEVER : ['never', 'discovery', 'onGrantValue']
+  }
   if (type === ENTRY_TYPE_KEY && fieldId === ENTRY_FIELD.value) return VALUE_OR_NEVER
   if (type === ENTRY_TYPE_CREDENTIAL) {
     if (fieldId === ENTRY_FIELD.username) return ['never', 'discovery', 'onGrantValue']
@@ -49,6 +52,19 @@ export function allowedAgentFieldAccess(type: EntryType, fieldId: string, custom
   return ['never']
 }
 
+// Canonical policy admits only `never` for non-standard custom types (e.g. palladin.signin.v1).
+function isStandardValueField(customType: string): boolean {
+  return customType === 'text' || customType === 'multiline' || customType === 'concealed'
+}
+
+function withNonStandardFieldsNever(policy: AgentVisibilityPolicy, fields: CustomField[]): AgentVisibilityPolicy {
+  for (const field of fields) {
+    if (field.type === 'totp' || isStandardValueField(field.type)) continue
+    policy.fields[field.id.startsWith('custom:') ? field.id : `custom:${field.id}`] = 'never'
+  }
+  return policy
+}
+
 export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomField[] = []): AgentVisibilityPolicy {
   if (type === ENTRY_TYPE_CREDENTIAL) {
     const defaults = defaultCredentialAgentFieldAccess(fields)
@@ -57,7 +73,7 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
       if (['memberLabel', 'entryType', 'icon', 'color'].includes(id)) continue
       policy.fields[id.replace(/^credential\./, '')] = access
     }
-    return policy
+    return withNonStandardFieldsNever(policy, fields)
   }
   const policy: AgentVisibilityPolicy = { discoverable: true, fields: {
     agentLabel: 'discovery', description: type === 2 ? 'discovery' : 'never',
@@ -74,7 +90,7 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
   for (const field of fields) policy.fields[`custom:${field.id}`] = field.type === 'totp'
     ? type === ENTRY_TYPE_CREDIT_CARD ? 'never' : 'onGrantDerived'
     : type === ENTRY_TYPE_CREDIT_CARD ? 'never' : type === 2 ? 'onGrantRuntime' : 'onGrantValue'
-  return policy
+  return withNonStandardFieldsNever(policy, fields)
 }
 
 export const ENTRY_FIELD = {
@@ -116,6 +132,8 @@ function fieldPolicy(
     entryType: policy.discoverable ? 'discovery' : 'never', notes: policy.fields.notes ?? 'never',
   }
   for (const [id, access] of Object.entries(policy.fields)) {
+    // Custom keys are emitted only for fields still in the payload (below); a removed field must not leave a stale key.
+    if (id.startsWith('custom:')) continue
     if (type === ENTRY_TYPE_KEY && id === 'url'
       && (payload.type !== ENTRY_TYPE_KEY || !payload.url)) continue
     const canonicalId = type === ENTRY_TYPE_KEY && id === 'url' ? 'key.url' : FIELD_ID[id] ?? id

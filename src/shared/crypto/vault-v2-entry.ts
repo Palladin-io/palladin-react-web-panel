@@ -44,6 +44,10 @@ const VALUE_OR_NEVER = ['never', 'onGrantValue'] as const
 const DERIVED_OR_NEVER = ['never', 'onGrantDerived'] as const
 const RUNTIME_OR_NEVER = ['never', 'onGrantRuntime'] as const
 
+function isStandardValueField(customFieldType: string): boolean {
+  return customFieldType === 'text' || customFieldType === 'multiline' || customFieldType === 'concealed'
+}
+
 export function allowedAgentFieldAccess(
   type: EntryType,
   fieldId: string,
@@ -54,6 +58,8 @@ export function allowedAgentFieldAccess(
   if (fieldId === ENTRY_FIELD.notes) return type === ENTRY_TYPE_SCRIPT ? RUNTIME_OR_NEVER : VALUE_OR_NEVER
   if (fieldId === ENTRY_FIELD.totp || customFieldType === 'totp') return DERIVED_OR_NEVER
   if (fieldId.startsWith('custom:')) {
+    // Canonical policy admits only `never` for non-standard custom types (e.g. palladin.signin.v1).
+    if (customFieldType !== undefined && !isStandardValueField(customFieldType)) return ['never'] as const
     return type === ENTRY_TYPE_SCRIPT
       ? RUNTIME_OR_NEVER
       : ['never', 'discovery', 'onGrantValue'] as const
@@ -219,7 +225,8 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
   for (const field of fields) {
     defaults[`custom:${field.id}`] = field.type === 'totp'
       ? type === ENTRY_TYPE_CREDIT_CARD ? 'never' : 'onGrantDerived'
-      : type === ENTRY_TYPE_CREDIT_CARD ? 'never' : type === ENTRY_TYPE_SCRIPT ? 'onGrantRuntime' : 'onGrantValue'
+      : type === ENTRY_TYPE_CREDIT_CARD || !isStandardValueField(field.type) ? 'never'
+        : type === ENTRY_TYPE_SCRIPT ? 'onGrantRuntime' : 'onGrantValue'
   }
   return { discoverable: true, fields: defaults }
 }

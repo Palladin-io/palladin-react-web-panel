@@ -127,4 +127,39 @@ this is not a released sharing feature.
 
 Trusted API presentation metadata is kept separate from cryptographic decoding: Vault counts/default marker/dates and historical actors/retention policy do not gate ciphertext acceptance. Unknown history actors display their shortened ID. Rotation and encrypted-asset outer responses accept additive fields; canonical crypto descriptor verification, recipient bindings, byte/page budgets and digest checks remain unchanged.
 
+### Credential sign-in method (`palladin.signin.v1`)
+
+A Credential may carry one encrypted custom field of type `palladin.signin.v1`
+with value `{ provider, account }` recording how the user signs in to the
+external service (Google, Apple, Microsoft, GitHub or Facebook, plus an optional
+provider account). The browser extension creates it; the panel displays and
+edits it. `sign-in-method.ts` owns the strict parser (closed provider set,
+exactly two keys, account NFC/trimmed/1–256 UTF-16 code units or `null`, the
+same measure as the extension and mobile) and `replaceSignInMethod`. More than one binding is ambiguous; any mismatch is
+unrecognized. Neither is decoded into the form or shown readably.
+
+- `SignInMethodField` is the dedicated Credential control (create and detail):
+  provider `FormSelect`, optional account `FormInput` (stored trimmed/NFC), Remove,
+  and an explicit Add/Replace that requires a provider choice. Every edit leaves
+  exactly one binding; a single recognized binding keeps its id and label, while
+  replacing unrecognized/ambiguous bindings creates one `custom:<uuid v4>` field
+  with the localized label. `CustomFieldsEditor hideSignInMethod` hides bindings
+  from the generic list while keeping their array position.
+- An account that signs in only through a provider may have no stored username
+  or password. Create (`canSubmit`) and Entry Detail (`saveEntry`) waive both
+  Credential requirements only when `hasRecognizedSignInMethod` holds (exactly
+  one recognized binding). No binding, an unrecognized binding or two bindings keep
+  the normal requirement; other entry types are unaffected.
+- `CustomFieldsView signInMethod` renders one recognized binding as provider ·
+  account ("Account not specified" for `null`); otherwise the concealed fallback
+  remains. Other entry types ignore the type and preserve it.
+- Unknown custom field types (including unrecognized bindings) are shown
+  read-only in the editor (move/remove only), skipped by label validation and
+  folded back byte-for-byte.
+- Agent policy: both `allowedAgentFieldAccess` implementations and both
+  default-policy builders allow/assign only `never` to non-standard custom types,
+  matching the canonical `assertPolicy`. `fieldPolicy` emits `custom:*` keys only
+  for fields still in the payload, so removing any custom field no longer leaves a
+  stale policy key that the canonical encoder rejects.
+
 Applying or replacing dedicated Credential TOTP submits the complete current Entry form through the normal encrypted create/update path, without a second Save. Invalid forms and failed writes retain the draft and show an error; only a confirmed mutation reports success. Removing TOTP remains a draft edit requiring Save.
