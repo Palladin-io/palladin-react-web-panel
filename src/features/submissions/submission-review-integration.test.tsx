@@ -13,7 +13,8 @@ import {
   type ApproverKeyWrap,
   type OrganizationApproverManifest,
 } from '../../shared/crypto/agent-submission'
-import { encodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
+import { concatBytes, encodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
+import { signVaultObject, type CanonicalJson } from '../../shared/crypto/vault-v2-signatures'
 import { VAULT_KEY_KIND, computeVaultKeyFingerprint } from '../../shared/crypto/x25519-wrapper'
 import { analytics } from '../../shared/lib/analytics'
 import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
@@ -141,6 +142,30 @@ describe('submission review pipeline with the real crypto layer', () => {
     await waitFor(() => expect(result.current.isError).toBe(true))
     expect(result.current.error).toBeInstanceOf(AgentSubmissionCryptoError)
     expect((result.current.error as AgentSubmissionCryptoError).code).toBe('invalid-agent-signature')
+  })
+
+  it('refuses a decrypted payload that violates the contract before anything is shown', async () => {
+    const source = fixture.submissions[0]
+    const identity = Object.fromEntries(['contractVersion', 'protocolVersion', 'organizationId', 'submissionId', 'agentId',
+      'submissionKind', 'entryType', 'target'].map((key) => [key, source[key as keyof AgentEntrySubmission]]))
+    const canonical = (value: unknown): string => value === null || typeof value !== 'object' ? JSON.stringify(value)
+      : `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical((value as Record<string, unknown>)[key])}`).join(',')}}`
+    const payload = { ...fixture.expectedPlaintext, content: { ...fixture.expectedPlaintext.content, url: 'http://example.invalid/login' } }
+    const nonce = hex(fixture.deterministicInputs.payloadNonce)
+    const encoder = new TextEncoder()
+    const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(new Uint8Array(encoder.encode(canonical(payload))),
+      concatBytes(encoder.encode('PLDNSUB1AAD'), encoder.encode(canonical(identity))), null, nonce, hex(fixture.deterministicInputs.submissionDek))
+    const unsigned = { ...source, encodedPayload: encodeBase64Url(concatBytes(nonce, ciphertext)) } as Record<string, unknown>
+    delete unsigned.agentSignature
+    const agentSigning = sodium.crypto_sign_seed_keypair(hex(fixture.deterministicInputs.agentEd25519Seed))
+    mocks.getSubmission.mockResolvedValue({
+      submission: { ...unsigned, agentSignature: await signVaultObject('PLDNSUB1SIG:AGENT-SUBMISSION:', unsigned as CanonicalJson, agentSigning.privateKey) },
+      agentEd25519PublicKey: fixture.context.agentEd25519PublicKey, agentEd25519KeyVersion: 1,
+    })
+    const { result } = renderHook(() => useSubmissionReview(item), { wrapper })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect((result.current.error as AgentSubmissionCryptoError).code).toBe('invalid-field')
+    expect(result.current.data).toBeUndefined()
   })
 
   it('refuses a submission whose Agent is not the one listed for review', async () => {

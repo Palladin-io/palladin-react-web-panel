@@ -74,14 +74,24 @@ const CONTENT_LIMIT: Record<string, number> = {
 }
 const AEAD_NONCE_BYTES = 24
 const AEAD_TAG_BYTES = 16
-const CANONICAL_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+const LOWERCASE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const CANONICAL_U64 = /^(0|[1-9][0-9]{0,19})$/
+const U64_MAX = 0xffffffffffffffffn
+const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/
+const SEALED_KEY_PACKAGE_BYTES = 120
+const MANIFEST_FIELDS = [
+  'schema', 'contractVersion', 'protocolVersion', 'organizationId', 'keyVersion', 'manifestRevision',
+  'approverSetRevision', 'approverSetDigest', 'messagePublicKey', 'messageKeyFingerprint', 'signingPublicKey',
+  'signingKeyFingerprint', 'issuedAt', 'signature',
+]
+const MANIFEST_CONDITIONAL_FIELDS = ['continuitySignature', 'previousSigningKeyFingerprint']
 
 /** Value-free failure codes shared with the contract's reference verifier. */
 export type AgentSubmissionErrorCode =
-  | 'unknown-field' | 'missing-field' | 'invalid-target' | 'unsupported-entry-type' | 'invalid-encoding'
+  | 'unknown-field' | 'missing-field' | 'invalid-target' | 'unsupported-entry-type' | 'invalid-field'
+  | 'unsupported-version' | 'field-too-large'
   | 'invalid-agent-signature' | 'context-mismatch' | 'recipient-key-mismatch' | 'wrapper-open-failed'
-  | 'wrapper-context-mismatch' | 'payload-auth-failed' | 'identity-mismatch' | 'limit-exceeded'
+  | 'wrapper-context-mismatch' | 'payload-auth-failed' | 'identity-mismatch'
   | 'manifest-organization-mismatch' | 'manifest-fingerprint-mismatch' | 'manifest-signature-invalid'
   | 'manifest-continuity-invalid' | 'manifest-rollback' | 'manifest-key-version-skip'
   | 'manifest-reintroduction-required' | 'approver-wrap-invalid' | 'approver-not-recipient'
@@ -219,7 +229,7 @@ function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
   return difference === 0
 }
 
-function decode(value: unknown, code: AgentSubmissionErrorCode = 'invalid-encoding', bytes?: number): Uint8Array {
+function decode(value: unknown, code: AgentSubmissionErrorCode = 'invalid-field', bytes?: number): Uint8Array {
   if (typeof value !== 'string') fail(code)
   let decoded: Uint8Array
   try { decoded = decodeBase64Url(value) } catch { fail(code) }
@@ -261,83 +271,122 @@ function isNonNegativeInteger(value: unknown): value is number {
 }
 
 /** Closed transport shape: unknown or missing fields, kinds and entry types fail before any key use. */
+function isObject(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function assertObject(value: unknown): asserts value is Record<string, unknown> {
+  if (!isObject(value)) fail('invalid-field')
+}
+
+function assertHeader(object: Record<string, unknown>, schema: string): void {
+  if (object.schema !== schema || object.contractVersion !== SUBMISSION_CONTRACT_VERSION
+    || object.protocolVersion !== PROTOCOL_VERSION) fail('unsupported-version')
+}
+
+function assertUuid(value: unknown): void {
+  if (typeof value !== 'string' || !LOWERCASE_UUID.test(value)) fail('invalid-field')
+}
+
+function assertU64(value: unknown, positive: boolean): void {
+  if (typeof value !== 'string' || !CANONICAL_U64.test(value) || BigInt(value) > U64_MAX
+    || (positive && value === '0')) fail('invalid-field')
+}
+
+function assertPositiveU32(value: unknown): void {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > 0xffffffff) fail('invalid-field')
+}
+
+function assertBinary(value: unknown, bytes?: number): Uint8Array {
+  return decode(value, 'invalid-field', bytes)
+}
+
+/** `wireEncoding` and the closed transport shape, checked before any key or signature use. */
 export function assertSubmissionTransportShape(submission: unknown): asserts submission is AgentEntrySubmission {
-  if (!submission || typeof submission !== 'object' || Array.isArray(submission)) fail('missing-field')
-  const candidate = submission as Record<string, unknown>
+  assertObject(submission)
   const allowed = new Set<string>(SUBMISSION_TRANSPORT_FIELDS)
-  for (const key of Object.keys(candidate)) if (!allowed.has(key)) fail('unknown-field')
-  for (const key of allowed) if (!(key in candidate)) fail('missing-field')
-  const target = candidate.target
-  if (!target || typeof target !== 'object' || Array.isArray(target)) fail('invalid-target')
-  const kind = isNonNegativeInteger(candidate.submissionKind) ? submissionKindName(candidate.submissionKind) : null
-  if (!kind || (target as Record<string, unknown>).kind !== kind) fail('invalid-target')
-  if (!isNonNegativeInteger(candidate.entryType) || submissionEntryTypeName(candidate.entryType) === null) {
+  for (const key of Object.keys(submission)) if (!allowed.has(key)) fail('unknown-field')
+  for (const key of allowed) if (!(key in submission)) fail('missing-field')
+  assertHeader(submission, SUBMISSION_SCHEMA)
+  for (const key of ['organizationId', 'submissionId', 'agentId']) assertUuid(submission[key])
+  for (const key of ['submissionRevision', 'agentAccessEpoch', 'approverManifestRevision']) assertU64(submission[key], true)
+  assertPositiveU32(submission.agentKeyVersion)
+  assertPositiveU32(submission.approverKeyVersion)
+  assertBinary(submission.agentKeyFingerprint, 32)
+  assertBinary(submission.approverMessageKeyFingerprint, 32)
+  assertBinary(submission.encodedAgentWrappedDek, SEALED_KEY_PACKAGE_BYTES)
+  assertBinary(submission.encodedApproverWrappedDek, SEALED_KEY_PACKAGE_BYTES)
+  assertBinary(submission.agentSignature, 64)
+  if (assertBinary(submission.encodedPayload).length < AEAD_NONCE_BYTES + AEAD_TAG_BYTES) fail('invalid-field')
+  const target = submission.target
+  const kind = isNonNegativeInteger(submission.submissionKind) ? submissionKindName(submission.submissionKind) : null
+  assertObject(target)
+  if (!kind || target.kind !== kind) fail('invalid-target')
+  if (!isNonNegativeInteger(submission.entryType) || submissionEntryTypeName(submission.entryType) === null) {
     fail('unsupported-entry-type')
   }
   const targetSpec = TARGET_FIELDS[kind]
   const targetFields: readonly string[] = [...targetSpec.required, ...targetSpec.optional]
   for (const key of Object.keys(target)) if (!targetFields.includes(key)) fail('unknown-field')
   for (const key of targetSpec.required) if (!(key in target)) fail('missing-field')
-  for (const [key, value] of Object.entries(target)) {
-    if (typeof value !== 'string') fail('invalid-target')
-    if (key.endsWith('Id') && !CANONICAL_UUID.test(value)) fail('invalid-target')
-    if (key === 'expectedEntryRevision' && !CANONICAL_U64.test(value)) fail('invalid-target')
-  }
-  if (candidate.schema !== SUBMISSION_SCHEMA || candidate.contractVersion !== SUBMISSION_CONTRACT_VERSION
-    || candidate.protocolVersion !== PROTOCOL_VERSION) fail('invalid-encoding')
-  for (const key of ['organizationId', 'submissionId', 'agentId'] as const) {
-    if (typeof candidate[key] !== 'string' || !CANONICAL_UUID.test(candidate[key] as string)) fail('invalid-encoding')
-  }
-  for (const key of ['submissionRevision', 'agentAccessEpoch', 'approverManifestRevision'] as const) {
-    if (typeof candidate[key] !== 'string' || !CANONICAL_U64.test(candidate[key] as string)) fail('invalid-encoding')
-  }
-  for (const key of ['agentKeyVersion', 'approverKeyVersion'] as const) {
-    if (!isNonNegativeInteger(candidate[key])) fail('invalid-encoding')
-  }
-  for (const key of ['agentKeyFingerprint', 'approverMessageKeyFingerprint', 'encodedPayload',
-    'encodedAgentWrappedDek', 'encodedApproverWrappedDek', 'agentSignature'] as const) {
-    if (typeof candidate[key] !== 'string') fail('invalid-encoding')
-  }
+  for (const key of ['vaultId', 'entryId', 'suggestedVaultId']) if (key in target) assertUuid(target[key])
+  if ('expectedEntryRevision' in target) assertU64(target.expectedEntryRevision, true)
 }
 
-function assertPayloadShape(value: unknown): asserts value is AgentSubmissionPayload {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) fail('missing-field')
-  const payload = value as Record<string, unknown>
+function assertPayloadString(value: unknown, maximumBytes: number): asserts value is string {
+  if (typeof value !== 'string' || value.length === 0) fail('invalid-field')
+  if (utf8Length(value) > maximumBytes) fail('field-too-large')
+}
+
+function assertHttpsUrl(value: string): void {
+  let url: URL
+  try { url = new URL(value) } catch { fail('invalid-field') }
+  if (url.protocol !== 'https:' || url.hostname === '') fail('invalid-field')
+}
+
+/** Decrypted content is untrusted Agent input: closed shape, types, NFC label, HTTPS URL and limits. */
+function assertPayloadShape(payload: unknown): asserts payload is AgentSubmissionPayload {
+  assertObject(payload)
   for (const key of Object.keys(payload)) {
     if (!['schema', 'identity', 'content', 'label'].includes(key)) fail('unknown-field')
   }
   for (const key of ['schema', 'identity', 'content']) if (!(key in payload)) fail('missing-field')
-  if (payload.schema !== SUBMISSION_PAYLOAD_SCHEMA) fail('invalid-encoding')
-  const identity = payload.identity
-  if (!identity || typeof identity !== 'object' || Array.isArray(identity)) fail('identity-mismatch')
-  const kind = submissionKindName((identity as Record<string, number>).submissionKind)
-  const type = submissionEntryTypeName((identity as Record<string, number>).entryType)
-  if (!kind || !type) fail('unsupported-entry-type')
+  if (payload.schema !== SUBMISSION_PAYLOAD_SCHEMA) fail('invalid-field')
+  assertObject(payload.identity)
+  assertObject(payload.content)
+  const kind = submissionKindName(payload.identity.submissionKind as number)
+  if (kind === 'new' && !('label' in payload)) fail('missing-field')
   if ('label' in payload) {
-    if (typeof payload.label !== 'string' || payload.label.length === 0) fail('missing-field')
-    if (utf8Length(payload.label) > SUBMISSION_LIMITS.labelUtf8Bytes) fail('limit-exceeded')
-  } else if (kind === 'new') {
-    fail('missing-field')
+    assertPayloadString(payload.label, SUBMISSION_LIMITS.labelUtf8Bytes)
+    if (payload.label !== payload.label.normalize('NFC')) fail('invalid-field')
   }
-  const content = payload.content
-  if (!content || typeof content !== 'object' || Array.isArray(content)) fail('missing-field')
+  const type = submissionEntryTypeName(payload.identity.entryType as number)
+  if (!kind || !type) fail('unsupported-entry-type')
   const spec = CONTENT_FIELDS[kind][type]
   const fields: readonly string[] = [...spec.required, ...spec.optional]
-  for (const [key, field] of Object.entries(content)) {
-    if (!fields.includes(key)) fail('unknown-field')
-    if (typeof field !== 'string') fail('missing-field')
-    if (utf8Length(field) > CONTENT_LIMIT[key]) fail('limit-exceeded')
+  for (const key of Object.keys(payload.content)) if (!fields.includes(key)) fail('unknown-field')
+  for (const key of spec.required) if (!(key in payload.content)) fail('missing-field')
+  for (const [key, value] of Object.entries(payload.content)) assertPayloadString(value, CONTENT_LIMIT[key])
+  if (type === 'credential' && 'url' in payload.content) assertHttpsUrl(payload.content.url as string)
+}
+
+function assertManifestShape(manifest: unknown): asserts manifest is OrganizationApproverManifest {
+  assertObject(manifest)
+  for (const key of Object.keys(manifest)) if (!MANIFEST_FIELDS.includes(key) && !MANIFEST_CONDITIONAL_FIELDS.includes(key)) fail('unknown-field')
+  for (const key of MANIFEST_FIELDS) if (!(key in manifest)) fail('missing-field')
+  assertHeader(manifest, APPROVER_MANIFEST_SCHEMA)
+  assertUuid(manifest.organizationId)
+  assertPositiveU32(manifest.keyVersion)
+  assertU64(manifest.manifestRevision, true)
+  assertU64(manifest.approverSetRevision, true)
+  for (const key of ['approverSetDigest', 'messagePublicKey', 'messageKeyFingerprint', 'signingPublicKey', 'signingKeyFingerprint']) {
+    assertBinary(manifest[key], 32)
   }
-  for (const key of spec.required) {
-    const field = (content as Record<string, unknown>)[key]
-    if (typeof field !== 'string' || field.length === 0) fail('missing-field')
-  }
-  const url = (content as Record<string, unknown>).url
-  if (type === 'credential' && typeof url === 'string') {
-    let protocol = ''
-    try { protocol = new URL(url).protocol } catch { fail('invalid-encoding') }
-    if (protocol !== 'https:') fail('invalid-encoding')
-  }
+  if ('previousSigningKeyFingerprint' in manifest) assertBinary(manifest.previousSigningKeyFingerprint, 32)
+  assertBinary(manifest.signature, 64)
+  if ('continuitySignature' in manifest) assertBinary(manifest.continuitySignature, 64)
+  if (typeof manifest.issuedAt !== 'string' || !INSTANT.test(manifest.issuedAt)
+    || Number.isNaN(Date.parse(manifest.issuedAt))) fail('invalid-field')
 }
 
 function approverSubmissionWrapContext(submission: AgentEntrySubmission): X25519WrapperContext {
@@ -428,10 +477,8 @@ async function openPayload(
     if (!equalBytes(opened.subarray(40), expectedHash)) fail('wrapper-context-mismatch')
     const dek = opened.subarray(8, 40)
     const sealed = decode(submission.encodedPayload, 'payload-auth-failed')
-    if (sealed.length < AEAD_NONCE_BYTES + AEAD_TAG_BYTES
-      || sealed.length > AEAD_NONCE_BYTES + AEAD_TAG_BYTES + SUBMISSION_LIMITS.payloadPlaintextBytes) {
-      fail('limit-exceeded')
-    }
+    // The ciphertext length fixes the plaintext length, so the plaintext limit is enforced before decryption.
+    if (sealed.length > AEAD_NONCE_BYTES + AEAD_TAG_BYTES + SUBMISSION_LIMITS.payloadPlaintextBytes) fail('field-too-large')
     const identity = submissionIdentity(submission)
     let plaintext: Uint8Array
     try {
@@ -445,7 +492,7 @@ async function openPayload(
     try {
       payload = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext))
     } catch {
-      fail('invalid-encoding')
+      fail('invalid-field')
     } finally {
       wipe(plaintext)
     }
@@ -487,16 +534,13 @@ async function verifyManifestSignature(
   if (!valid) fail(code)
 }
 
-/** Self-contained manifest checks: organization, encodings, fingerprints, self-signature and continuity pairing. */
+/** Self-contained manifest checks: wire shape, organization, fingerprints, self-signature and continuity pairing. */
 export async function verifyApproverManifest(
-  manifest: OrganizationApproverManifest,
+  manifest: unknown,
   organizationId: string,
 ): Promise<void> {
+  assertManifestShape(manifest)
   if (manifest.organizationId !== organizationId) fail('manifest-organization-mismatch')
-  if (manifest.schema !== APPROVER_MANIFEST_SCHEMA || manifest.contractVersion !== SUBMISSION_CONTRACT_VERSION
-    || manifest.protocolVersion !== PROTOCOL_VERSION || !isNonNegativeInteger(manifest.keyVersion)
-    || manifest.keyVersion < 1 || !CANONICAL_U64.test(manifest.manifestRevision)
-    || !CANONICAL_U64.test(manifest.approverSetRevision)) fail('invalid-encoding')
   if (!await manifestFingerprintsMatch(manifest)) fail('manifest-fingerprint-mismatch')
   await verifyManifestSignature(MANIFEST_SIGNATURE_DOMAIN, manifest, 'signature',
     decode(manifest.signingPublicKey, 'manifest-signature-invalid', 32), 'manifest-signature-invalid')
@@ -651,7 +695,7 @@ export async function computeApproverSetDigest(
   return encodeBase64Url(sha256Digest(concatBytes(
     ascii('PLDNSUB1SET'),
     ...sorted.flatMap(({ approver, id }) => [
-      id, encodeU32(approver.memberKeyVersion), decode(approver.memberKeyFingerprint, 'invalid-encoding', 32),
+      id, encodeU32(approver.memberKeyVersion), decode(approver.memberKeyFingerprint, 'invalid-field', 32),
     ]),
   )))
 }
@@ -692,7 +736,7 @@ async function sealApproverWraps(
 ): Promise<ApproverKeyWrap[]> {
   const wraps: ApproverKeyWrap[] = []
   for (const recipient of recipients) {
-    const recipientPublicKey = decode(recipient.memberPublicKey, 'invalid-encoding', 32)
+    const recipientPublicKey = decode(recipient.memberPublicKey, 'invalid-field', 32)
     for (const [purpose, key] of [
       [WRAPPER_PURPOSE.approverMessagePrivateKey, keys.messagePrivateKey],
       [WRAPPER_PURPOSE.approverSigningSeed, keys.signingSeed],

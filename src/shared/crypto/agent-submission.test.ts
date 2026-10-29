@@ -133,6 +133,13 @@ async function resign(candidate: Record<string, unknown>): Promise<AgentEntrySub
   }
 }
 
+// Mirrors the reference generator: it serializes Agent input as-is, including non-NFC strings.
+function referenceCanonical(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(referenceCanonical).join(',')}]`
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${referenceCanonical((value as Record<string, unknown>)[key])}`).join(',')}}`
+}
+
 function reencryptPayload(mutate: (payload: AgentSubmissionPayload) => unknown): string {
   const payload = mutate(clone(fixture.expectedPlaintext))
   const nonce = hex(fixture.deterministicInputs.payloadNonce)
@@ -140,7 +147,7 @@ function reencryptPayload(mutate: (payload: AgentSubmissionPayload) => unknown):
   const encoder = new TextEncoder()
   const aad = concatBytes(encoder.encode('PLDNSUB1AAD'), encoder.encode(canonicalizeVaultJson(identity as CanonicalJson)))
   const ciphertext = sodium.crypto_aead_xchacha20poly1305_ietf_encrypt(
-    new Uint8Array(encoder.encode(canonicalizeVaultJson(payload as CanonicalJson))), aad, null, nonce, hex(fixture.deterministicInputs.submissionDek))
+    new Uint8Array(encoder.encode(referenceCanonical(payload))), aad, null, nonce, hex(fixture.deterministicInputs.submissionDek))
   return encodeBase64Url(concatBytes(nonce, ciphertext))
 }
 
@@ -163,7 +170,7 @@ describe('Agent Submission v1 vendored contract', () => {
   it('pins the imported fixture and contract bytes', () => {
     const digest = (text: string) => createHash('sha256').update(text).digest('hex')
     expect(digest(fixtureText)).toBe('4778ca29b0bee27e8d73c71838f9c51d51ecd59962f7f263272370e53dcf4101')
-    expect(digest(contractText)).toBe('998190ba37499981275679e2d40535816203062736fc5fcc4ede4fe3025aceba')
+    expect(digest(contractText)).toBe('58995ee2a26c2b1dcb9c7248ee944aaeb62c4df44b9b7eaacd459ba89b12fb21')
   })
 
   it('matches the frozen field lists, registrations and limits', () => {
@@ -210,6 +217,29 @@ describe('approver manifest chain', () => {
     await expectCode(verifyApproverManifestChain([v1, forged], org()), 'manifest-continuity-invalid')
     await expectCode(verifyApproverManifestChain([omit(v2, ['continuitySignature']) as unknown as OrganizationApproverManifest], org()),
       'manifest-continuity-invalid')
+  })
+
+  it('rejects manifests that violate the wire encoding before pinning them', async () => {
+    const [v1] = fixture.approverManifests
+    const cases: Array<[string, Record<string, unknown>, string]> = [
+      ['unknown manifest schema', { schema: 'palladin.organization-approver-manifest.v2' }, 'unsupported-version'],
+      ['unknown manifest protocol version', { protocolVersion: 3 }, 'unsupported-version'],
+      ['additional manifest field', { note: 'x' }, 'unknown-field'],
+      ['missing approver set digest', { approverSetDigest: undefined }, 'missing-field'],
+      ['missing issuedAt', { issuedAt: undefined }, 'missing-field'],
+      ['malformed issuedAt', { issuedAt: '2026-10-29 08:00:00' }, 'invalid-field'],
+      ['noncanonical manifest revision', { manifestRevision: '01' }, 'invalid-field'],
+      ['zero key version', { keyVersion: 0 }, 'invalid-field'],
+      ['uppercase organization', { organizationId: v1.organizationId.toUpperCase() }, 'invalid-field'],
+      ['short approver set digest', { approverSetDigest: v1.signingKeyFingerprint.slice(0, 20) }, 'invalid-field'],
+    ]
+    for (const [name, change, code] of cases) {
+      const candidate = Object.fromEntries(Object.entries({ ...v1, ...change }).filter(([, value]) => value !== undefined))
+      const error = await verifyApproverManifestChain([await signManifest(candidate, keys.approverV1Sign.privateKey)], org())
+        .then(() => null, (caught: unknown) => caught)
+      expect((error as AgentSubmissionCryptoError | null)?.code, name).toBe(code)
+    }
+    await expectCode(openOwnApproverKeys({ ...v1, issuedAt: 'yesterday' }, fixture.approverKeyWraps, memberAuthority()), 'invalid-field')
   })
 
   it('applies continuity only to rotation and requires explicit re-trust for re-bootstrap', async () => {
@@ -278,6 +308,8 @@ describe('opening submissions as the approver group', () => {
 
   it('fails closed for every contract negative case', async () => {
     const submission = fixture.submissions[0]
+    const payloadCase = (name: string, mutate: (payload: AgentSubmissionPayload) => unknown, code: string): Array<[string, () => Promise<unknown>, string]> =>
+      [[name, () => resign({ ...submission, encodedPayload: reencryptPayload(mutate) }), code]]
     const cases: Array<[string, () => Promise<unknown>, string]> = [
       ['backend substitutes organization', async () => ({ ...submission, organizationId: FOREIGN_ID }), 'invalid-agent-signature'],
       ['agent substitutes organization', () => resign({ ...submission, organizationId: FOREIGN_ID }), 'context-mismatch'],
@@ -290,7 +322,21 @@ describe('opening submissions as the approver group', () => {
       ['unknown transport field', () => resign({ ...submission, note: 'x' }), 'unknown-field'],
       ['unknown target field', () => resign({ ...submission, target: { ...submission.target, label: 'x' } }), 'unknown-field'],
       ['missing transport field', async () => omit(submission, ['agentAccessEpoch']), 'missing-field'],
-      ['stale approver key version', () => resign({ ...submission, approverKeyVersion: 0 }), 'recipient-key-mismatch'],
+      ['stale approver key version', () => resign({ ...submission, approverKeyVersion: 2 }), 'recipient-key-mismatch'],
+      ['unknown transport schema', () => resign({ ...submission, schema: 'palladin.agent-entry-submission.v2' }), 'unsupported-version'],
+      ['unknown contract version', () => resign({ ...submission, contractVersion: 2 }), 'unsupported-version'],
+      ['noncanonical submission revision', () => resign({ ...submission, submissionRevision: '01' }), 'invalid-field'],
+      ['zero access epoch', () => resign({ ...submission, agentAccessEpoch: '0' }), 'invalid-field'],
+      ['noncanonical expected revision', () => resign({ ...submission, target: { ...submission.target, expectedEntryRevision: '+7' } }), 'invalid-field'],
+      ['u64 overflow', () => resign({ ...submission, approverManifestRevision: '18446744073709551616' }), 'invalid-field'],
+      ['uppercase submission id', () => resign({ ...submission, submissionId: submission.submissionId.toUpperCase() }), 'invalid-field'],
+      ['string key version', () => resign({ ...submission, agentKeyVersion: '3' }), 'invalid-field'],
+      ['zero approver key version', () => resign({ ...submission, approverKeyVersion: 0 }), 'invalid-field'],
+      ['padded base64 fingerprint', () => resign({ ...submission, agentKeyFingerprint: `${submission.agentKeyFingerprint}=` }), 'invalid-field'],
+      ['truncated wrapped DEK', () => resign({ ...submission, encodedApproverWrappedDek: submission.encodedApproverWrappedDek.slice(0, -4) }), 'invalid-field'],
+      ['short agent signature', () => resign({ ...submission, encodedPayload: submission.encodedPayload }).then((signed) => ({ ...signed, agentSignature: signed.agentSignature.slice(0, -4) })), 'invalid-field'],
+      ['target is not an object', () => resign({ ...submission, target: 'update' }), 'invalid-field'],
+      ['submission is not an object', async () => [submission], 'invalid-field'],
       ['revision replay inside wrapper', () => resign({ ...submission, submissionRevision: '2' }), 'wrapper-context-mismatch'],
       ['approver wrap corruption', () => resign({ ...submission, encodedApproverWrappedDek: flipLastByte(submission.encodedApproverWrappedDek) }), 'wrapper-open-failed'],
       ['approver wrap swapped with agent wrap', () => resign({ ...submission, encodedApproverWrappedDek: submission.encodedAgentWrappedDek }), 'wrapper-open-failed'],
@@ -300,8 +346,19 @@ describe('opening submissions as the approver group', () => {
       ['TOTP is excluded from v1 payloads', () => resign({ ...submission, encodedPayload: reencryptPayload((payload) => ({ ...payload, content: { ...payload.content, totp: 'JBSWY3DPEHPK3PXP' } })) }), 'unknown-field'],
       ['credential update requires the new password', () => resign({ ...submission, encodedPayload: reencryptPayload((payload) => ({ ...payload, content: { username: payload.content.username } })) }), 'missing-field'],
       ['payload carries an unknown top-level field', () => resign({ ...submission, encodedPayload: reencryptPayload((payload) => ({ ...payload, agentVisibilityPolicy: {} })) }), 'unknown-field'],
-      ['credential URL must be HTTPS', () => resign({ ...submission, encodedPayload: reencryptPayload((payload) => ({ ...payload, content: { ...payload.content, url: 'http://example.invalid/login' } })) }), 'invalid-encoding'],
-      ['label above the byte limit', () => resign({ ...submission, encodedPayload: reencryptPayload((payload) => ({ ...payload, label: 'x'.repeat(257) })) }), 'limit-exceeded'],
+      ...payloadCase('unknown payload schema', (payload) => ({ ...payload, schema: 'palladin.agent-submission-payload.v2' }), 'invalid-field'),
+      ...payloadCase('numeric url', (payload) => ({ ...payload, content: { ...payload.content, url: 42 } }), 'invalid-field'),
+      ...payloadCase('http url', (payload) => ({ ...payload, content: { ...payload.content, url: 'http://example.invalid/login' } }), 'invalid-field'),
+      ...payloadCase('relative url', (payload) => ({ ...payload, content: { ...payload.content, url: '/login' } }), 'invalid-field'),
+      ...payloadCase('numeric label', (payload) => ({ ...payload, label: 7 }), 'invalid-field'),
+      ...payloadCase('non-NFC label', (payload) => ({ ...payload, label: 'Cafe\u0301' }), 'invalid-field'),
+      ...payloadCase('label over 256 bytes', (payload) => ({ ...payload, label: 'l'.repeat(257) }), 'field-too-large'),
+      ...payloadCase('password over 4096 bytes', (payload) => ({ ...payload, content: { ...payload.content, password: 'p'.repeat(4097) } }), 'field-too-large'),
+      ...payloadCase('empty optional username', (payload) => ({ ...payload, content: { ...payload.content, username: '' } }), 'invalid-field'),
+      ...payloadCase('empty new password', (payload) => ({ ...payload, content: { ...payload.content, password: '' } }), 'invalid-field'),
+      ...payloadCase('notes over 8192 bytes', (payload) => ({ ...payload, content: { ...payload.content, notes: 'n'.repeat(8193) } }), 'field-too-large'),
+      ...payloadCase('plaintext over 32768 bytes', (payload) => ({ ...payload, content: { ...payload.content, notes: 'n'.repeat(8192) }, padding: 'x'.repeat(32768) }), 'field-too-large'),
+      ...payloadCase('content is not an object', (payload) => ({ ...payload, content: 'x' }), 'invalid-field'),
     ]
     const approver = await authority(1)
     for (const [name, build, code] of cases) {
