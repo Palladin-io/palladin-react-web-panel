@@ -1765,6 +1765,7 @@
   "security.totp.codePlaceholder": "123456",
   "totpEnroll.setupTitle": "Enable Two-Factor Authentication",
   "totpEnroll.setupSubtitle": "Scan the QR code with your authenticator app, then enter the 6-digit code.",
+  "totpEnroll.passwordSubtitle": "Confirm your current password to set up two-factor authentication.",
   "totpEnroll.errorEnroll": "We couldn't start enrollment. Please try again.",
   "totpEnroll.qrAlt": "TOTP QR code",
   "totpEnroll.manualEntry": "Or enter this code manually",

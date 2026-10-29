@@ -1814,6 +1814,7 @@
   "security.totp.codePlaceholder": "123456",
   "totpEnroll.setupTitle": "Włącz uwierzytelnianie dwuskładnikowe",
   "totpEnroll.setupSubtitle": "Zeskanuj kod QR aplikacją uwierzytelniającą, a następnie wpisz 6-cyfrowy kod.",
+  "totpEnroll.passwordSubtitle": "Potwierdź obecne hasło, aby skonfigurować uwierzytelnianie dwuskładnikowe.",
   "totpEnroll.errorEnroll": "Nie udało się rozpocząć konfiguracji. Spróbuj ponownie.",
   "totpEnroll.qrAlt": "Kod QR TOTP",
   "totpEnroll.manualEntry": "Lub wpisz ten kod ręcznie",
