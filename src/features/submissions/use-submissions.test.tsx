@@ -10,12 +10,20 @@ const mocks = vi.hoisted(() => ({
   loadOwnApproverKeys: vi.fn(),
   openSubmissionAsApprover: vi.fn(),
   getOrgGrants: vi.fn(),
+  listSubmissions: vi.fn(),
+  denySubmission: vi.fn(),
+  restoreSubmission: vi.fn(),
+  approveAsNewEntry: vi.fn(),
 }))
+vi.mock('./submission-approval', () => ({ approveAsNewEntry: mocks.approveAsNewEntry, approveAsUpdate: vi.fn() }))
 
 vi.mock('../auth', () => ({ useAuthStore: (selector: (state: typeof mocks.auth) => unknown) => selector(mocks.auth) }))
 vi.mock('./api/submissions-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api/submissions-api')>()),
   getSubmission: mocks.getSubmission,
+  listSubmissions: mocks.listSubmissions,
+  denySubmission: mocks.denySubmission,
+  restoreSubmission: mocks.restoreSubmission,
 }))
 vi.mock('./approver-keys', () => ({ loadOwnApproverKeys: mocks.loadOwnApproverKeys }))
 vi.mock('../../shared/crypto/agent-submission', async (importOriginal) => ({
@@ -27,7 +35,8 @@ vi.mock('../grants', async (importOriginal) => ({
   getOrgGrants: mocks.getOrgGrants,
 }))
 
-import { useExistingAgentAccess, useSubmissionReview } from './use-submissions'
+import { act } from '@testing-library/react'
+import { useApproveSubmission, useDenySubmission, useExistingAgentAccess, useRestoreSubmission, useSubmissionReview, useSubmissions } from './use-submissions'
 
 const AGENT = '0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b'
 const item: SubmissionListItem = {
@@ -90,5 +99,44 @@ describe('useExistingAgentAccess', () => {
     await waitFor(() => expect(update.result.current.data).toBe('entry'))
     const created = renderHook(() => useExistingAgentAccess(AGENT, 'v1'), { wrapper })
     await waitFor(() => expect(created.result.current.data).toBe('none'))
+  })
+})
+
+describe('submission lists after a decision', () => {
+  it('does not request submissions for members without GrantManage', async () => {
+    mocks.auth.permissions = 0
+    renderHook(() => useSubmissions('pending'), { wrapper })
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    expect(mocks.listSubmissions).not.toHaveBeenCalled()
+  })
+
+  it('removes an approved submission from the pending list', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const local = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    mocks.listSubmissions.mockResolvedValueOnce([item]).mockResolvedValue([])
+    mocks.approveAsNewEntry.mockResolvedValue({ submissionId: item.submissionId, vaultId: 'v', entryId: 'e', entryRevision: '1', grantId: null })
+    const list = renderHook(() => useSubmissions('pending'), { wrapper: local })
+    await waitFor(() => expect(list.result.current.data).toEqual([item]))
+    const approve = renderHook(() => useApproveSubmission(), { wrapper: local })
+    await act(() => approve.result.current.mutateAsync({
+      kind: 'new', submissionId: item.submissionId, vaultId: 'v', label: 'L', payload: {} as never,
+    }))
+    await waitFor(() => expect(list.result.current.data).toEqual([]))
+  })
+
+  it.each([
+    ['deny', useDenySubmission, 'denySubmission'],
+    ['restore', useRestoreSubmission, 'restoreSubmission'],
+  ] as const)('refetches pending and trashed lists after %s', async (_name, useDecision, api) => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const local = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    mocks.listSubmissions.mockResolvedValue([])
+    mocks[api].mockResolvedValue(undefined)
+    renderHook(() => [useSubmissions('pending'), useSubmissions('trashed')], { wrapper: local })
+    await waitFor(() => expect(mocks.listSubmissions).toHaveBeenCalledTimes(2))
+    const decision = renderHook(() => useDecision(), { wrapper: local })
+    await act(() => decision.result.current.mutateAsync(item.submissionId))
+    await waitFor(() => expect(mocks.listSubmissions).toHaveBeenCalledTimes(4))
+    expect(mocks.listSubmissions.mock.calls.map(([state]) => state).sort()).toEqual(['pending', 'pending', 'trashed', 'trashed'])
   })
 })

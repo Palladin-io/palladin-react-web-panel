@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { HTTPError } from 'ky'
+import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AgentSubmissionCryptoError } from '../../../shared/crypto/agent-submission'
 import { analytics } from '../../../shared/lib/analytics'
@@ -101,6 +103,9 @@ function renderPanel(kind: 'new' | 'update', onApproved = vi.fn()) {
   render(<SubmissionDecisionPanel item={listItem(kind)} onApproved={onApproved} />, { wrapper })
   return onApproved
 }
+
+const apiError = (status: number, code: string) => new HTTPError(
+  new Response(JSON.stringify({ code }), { status }), new Request('http://localhost/api/submissions/x/approve-new'), {} as never)
 
 const consoleSpies: ReturnType<typeof vi.spyOn>[] = []
 
@@ -254,6 +259,31 @@ describe('SubmissionDecisionPanel — password update', () => {
   })
 })
 
+describe('SubmissionDecisionPanel — server conflicts', () => {
+  it('treats a server stale-target-revision like a moved target', async () => {
+    renderPanel('update')
+    mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) => options.onError?.(apiError(409, 'stale-target-revision')))
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    expect(await screen.findByText('Entry changed')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
+  })
+
+  it('reports a concurrent decision and keeps the view usable', async () => {
+    renderPanel('new')
+    mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) => options.onError?.(apiError(409, 'submission-already-decided')))
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('This submission was decided or re-keyed elsewhere. The list was refreshed.'))
+    expect(screen.queryByText('Entry changed')).not.toBeInTheDocument()
+  })
+
+  it('shows a generic failure for other errors', async () => {
+    renderPanel('new')
+    mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) => options.onError?.(apiError(403, 'vault-access-required')))
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Could not approve the submission.'))
+  })
+})
+
 describe('SubmissionDecisionPanel — asserted entry type', () => {
   it('refuses an update whose type differs from the decrypted target and still allows new entry or deny', async () => {
     renderPanel('update')
@@ -278,6 +308,13 @@ describe('SubmissionDecisionPanel — unavailable review', () => {
     expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Deny' }))
     expect(mocks.denyMutate).toHaveBeenCalled()
+  })
+
+  it('shows a non-cryptographic load failure (e.g. 403 approver-not-current) without crashing', () => {
+    mocks.review = { isPending: false, isError: true, error: apiError(403, 'approver-not-current'), refetch: vi.fn() }
+    render(<SubmissionDecisionPanel item={listItem('new')} onApproved={vi.fn()} />)
+    expect(screen.getByText('Could not open this submission.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Deny' })).toBeInTheDocument()
   })
 
   it('explains a missing review key and offers explicit re-bootstrap only when unavailable', () => {

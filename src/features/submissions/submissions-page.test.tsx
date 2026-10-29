@@ -72,6 +72,7 @@ describe('SubmissionsPage', () => {
     render(<SubmissionsPage view="trashed" submissionId="t1" />)
     expect(screen.getByRole('tab', { name: 'Trash' })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByText(/stay in the trash for 30 days/)).toBeInTheDocument()
+    expect(screen.getByText(/cannot use a restored submission until it is approved/)).toBeInTheDocument()
     mocks.restoreMutate.mockImplementation((_id: string, options: MutateOptions) => options.onSuccess?.())
     fireEvent.click(screen.getByRole('button', { name: 'Restore' }))
     expect(mocks.restoreMutate).toHaveBeenCalledWith('t1', expect.any(Object))
