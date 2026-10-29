@@ -133,7 +133,8 @@ describe('SubmissionDecisionPanel — new entry', () => {
   it('shows the proposal with the secret masked until revealed', () => {
     renderPanel('new')
     expect(screen.getByRole('heading', { name: 'Deploy Bot' })).toBeInTheDocument()
-    expect(screen.getByText(/New entry · Credential/)).toBeInTheDocument()
+    expect(screen.getByText('Proposal').nextSibling).toHaveTextContent('New entry')
+    expect(screen.getByText('Type').nextSibling).toHaveTextContent('Credential')
     expect(screen.getByLabelText('Label')).toHaveValue('Example account')
     const password = screen.getByLabelText('Password')
     expect(password).toHaveClass('secret-mask')
@@ -190,7 +191,16 @@ describe('SubmissionDecisionPanel — new entry', () => {
     expect(screen.getByRole('switch', { name: 'Give the agent access' })).toBeDisabled()
   })
 
-  it('requires a label and vault management permission', () => {
+  it('reports a missing label on blur and blocks approval', () => {
+    renderPanel('new')
+    const label = screen.getByLabelText('Label')
+    fireEvent.change(label, { target: { value: '   ' } })
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
+    fireEvent.blur(label)
+    expect(screen.getByText('Enter a label for the entry.')).toBeInTheDocument()
+  })
+
+  it('requires vault management permission', () => {
     useAuthStore.setState({ permissions: PERMISSION_GRANT_MANAGE })
     renderPanel('new')
     expect(screen.getByText('You need vault management permission to approve submissions.')).toBeInTheDocument()
@@ -209,7 +219,7 @@ describe('SubmissionDecisionPanel — password update', () => {
     renderPanel('update')
     expect(screen.getByRole('alert')).toHaveTextContent(/Password probably already changed/i)
     expect(screen.getByRole('alert')).toHaveTextContent(/locked out of the account/)
-    expect(screen.getByText('Example login')).toBeInTheDocument()
+    expect(screen.getByText('Updates').nextSibling).toHaveTextContent('Example login · Personal')
     expect(screen.getByLabelText('New password')).toHaveClass('secret-mask')
     expect(screen.queryByLabelText('Vault')).not.toBeInTheDocument()
   })

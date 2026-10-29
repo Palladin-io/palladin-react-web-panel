@@ -442,8 +442,16 @@ export function NotificationCenterPage({
             segment={segment}
             onChange={setSegment}
             todoCount={summary.data?.pendingActionCount ?? 0}
-            submissionCount={canReviewSubmissions ? pendingSubmissions.data?.length ?? 0 : null}
           />
+          {canReviewSubmissions && (
+            <Link to="/submissions" className={`mr-1 ${TAB_BUTTON_CLASSES}`}>
+              {t("notifications.center.segSubmissions")}
+              {pendingSubmissions.data?.length ? (
+                <MetadataBadge>{pendingSubmissions.data.length}</MetadataBadge>
+              ) : null}
+              <Icon name="arrow_forward" size={14} />
+            </Link>
+          )}
           <Button
             variant="subtle"
             size="sm"
@@ -808,21 +816,6 @@ function ActionFooter({
     );
   }
 
-  if (item.type === "submission_pending" && notificationDeepLink(item)) {
-    return (
-      <Button
-        variant="positive"
-        size="sm"
-        icon="arrow_forward"
-        className="flex-1"
-        disabled={busy}
-        onClick={() => onView(item)}
-      >
-        {t("notifications.center.reviewSubmission")}
-      </Button>
-    );
-  }
-
   // Any other action-required type is a log card — read-only "View" link.
   return <ViewFooter item={item} onView={onView} />;
 }
@@ -838,6 +831,8 @@ function viewLabelKey(item: NotificationItem): string {
   switch (item.type) {
     case "entry_share_received":
       return "notifications.center.viewSharing";
+    case "submission_pending":
+      return "notifications.center.reviewSubmission";
     case "agent_pending":
     case "agent_approved":
       return "notifications.center.viewAgent";
@@ -907,13 +902,10 @@ function SegmentTabs({
   segment,
   onChange,
   todoCount,
-  submissionCount,
 }: {
   segment: Segment;
   onChange: (segment: Segment) => void;
   todoCount: number;
-  /** `null` hides the Submissions link for members without GrantManage. */
-  submissionCount: number | null;
 }) {
   const { t } = useTranslation();
   const options: { key: Segment; label: string; count?: number }[] = [
@@ -942,12 +934,6 @@ function SegmentTabs({
           </button>
         );
       })}
-      {submissionCount !== null && (
-        <Link to="/submissions" className={TAB_BUTTON_CLASSES}>
-          {t("notifications.center.segSubmissions")}
-          {submissionCount ? <MetadataBadge>{submissionCount}</MetadataBadge> : null}
-        </Link>
-      )}
     </div>
   );
 }

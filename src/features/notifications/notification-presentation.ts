@@ -339,9 +339,7 @@ export function notificationCardPresentation(
     case 'submission_pending':
     case 'submission_resolved':
       return {
-        header: meta(item, 'agentName')
-          ? { kind: 'agent', agentName, agentId, agentIconKey }
-          : { kind: 'glyph', glyph: 'inbox', tone: item.type === 'submission_pending' ? 'amber' : 'grey' },
+        header: { kind: 'agent', agentName, agentId, agentIconKey },
         titleKey,
         subtitleKey: item.type === 'submission_pending' ? 'notifications.sub.submissionPending' : 'notifications.sub.submissionResolved',
         subtitleAgent: agentName,

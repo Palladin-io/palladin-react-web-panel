@@ -2155,5 +2155,9 @@
   "notifications.center.segSubmissions": "Submissions",
   "notifications.center.filterType.submission_pending": "Agent submission",
   "notifications.submissionPending.title": "Agent submission waiting",
-  "notifications.submissionPending.body": "An agent proposed a secret. Review it in Palladin."
+  "notifications.submissionPending.body": "An agent proposed a secret. Review it in Palladin.",
+  "submissions.review.labelRequired": "Enter a label for the entry.",
+  "submissions.review.proposal": "Proposal",
+  "submissions.review.entryType": "Type",
+  "submissions.review.submitted": "Submitted"
 }

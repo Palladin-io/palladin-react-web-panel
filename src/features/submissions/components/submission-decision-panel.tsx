@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { hasApiErrorKey } from '../../../shared/api/error-response'
 import { Button } from '../../../shared/components/button'
 import { ErrorState } from '../../../shared/components/error-state'
-import { FormInput } from '../../../shared/components/form-field'
+import { FeedbackSlot, FormInput } from '../../../shared/components/form-field'
 import { FormSelect } from '../../../shared/components/form-select'
 import { FormTextarea } from '../../../shared/components/form-textarea'
 import { Icon } from '../../../shared/components/icon'
@@ -22,7 +22,7 @@ import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
 import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
 import { AGENT_STATUS_ACTIVE, AgentAvatar, getAgent } from '../../agents'
 import { useAuthStore } from '../../auth'
-import { formatRelativeTime } from '../../grants'
+import { formatGrantDate, formatRelativeTime } from '../../grants'
 import { useMemberSyncStore, type DecryptedMemberVault } from '../../vaults/sync/member-sync-store'
 import type { ApproveSubmissionResponse, SubmissionListItem } from '../api/submissions-api'
 import { StaleSubmissionTargetError } from '../submission-approval'
@@ -49,7 +49,7 @@ export function SubmissionDecisionPanel({ item, onApproved }: SubmissionDecision
   const review = useSubmissionReview(keyPresentation === 'ready' ? item : undefined)
 
   if (keyPresentation !== 'ready') return <ApproverKeyNotice presentation={keyPresentation} />
-  if (review.isPending) return <SkeletonBlock height="16rem" />
+  if (review.isPending) return <SkeletonBlock height="16rem" rounded="xl" />
   if (review.isError) {
     const code = review.error instanceof AgentSubmissionCryptoError ? review.error.code : null
     return (
@@ -71,7 +71,7 @@ function DenyOnlyFooter({ item }: { item: SubmissionListItem }) {
   const deny = useDenySubmission()
   return (
     <div className="flex justify-end">
-      <Button variant="subtle" size="sm" icon="delete" disabled={deny.isPending}
+      <Button variant="subtle" size="sm" disabled={deny.isPending}
         onClick={() => deny.mutate(item.submissionId, {
           onSuccess: () => toast.success(t('submissions.decision.denied')),
           onError: () => toast.error(t('submissions.decision.denyFailed')),
@@ -110,6 +110,15 @@ function findDuplicate(vaults: ReadonlyMap<string, DecryptedMemberVault>, payloa
 
 type Conflict = 'stale' | 'typeMismatch' | null
 
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <dt className="shrink-0 text-ui text-[var(--cv-t3)]">{label}</dt>
+      <dd className="min-w-0 truncate text-right text-ui font-medium text-[var(--cv-t1)]">{value}</dd>
+    </div>
+  )
+}
+
 function SubmissionReviewForm({ item, opened, onApproved }: {
   item: SubmissionListItem
   opened: OpenedSubmission
@@ -132,6 +141,7 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
   const [vaultId, setVaultId] = useState(() =>
     writableVaults.some((vault) => vault.vaultId === target.suggestedVaultId)
       ? target.suggestedVaultId! : writableVaults[0]?.vaultId ?? '')
+  const [labelTouched, setLabelTouched] = useState(false)
   const [grantEnabled, setGrantEnabled] = useState(true)
   const [shown, setShown] = useState<Record<string, boolean>>({})
   const [conflict, setConflict] = useState<Conflict>(null)
@@ -226,24 +236,25 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
   return (
     <div className="flex flex-col gap-4">
       <section className={`${DETAIL_SURFACE_CLASSES} p-4`}>
-        <div className="flex min-w-0 items-center gap-3">
-          <AgentAvatar agent={{ name: item.agentName, agentId: item.agentId, iconKey: agent.data?.iconKey ?? null }} size={36} />
+        <div className="flex min-w-0 items-start gap-3">
+          <AgentAvatar agent={{ name: item.agentName, agentId: item.agentId, iconKey: agent.data?.iconKey ?? null }} size={40} />
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-heading font-bold text-[var(--cv-t1)]">{item.agentName}</h2>
-            <p className="truncate text-meta text-[var(--cv-t3)]">
-              {t(summary.kindKey)} · {t(summary.typeKey)} · {formatRelativeTime(item.createdAt, t)}
-            </p>
+            <p className="truncate text-meta text-[var(--cv-t3)]">{formatRelativeTime(item.createdAt, t)}</p>
           </div>
         </div>
-        {target.kind === 'update' && (
-          <p className="mt-4 border-t border-[var(--cv-divider)] pt-4 text-ui text-[var(--cv-t2)]">
-            {t('submissions.review.updates')}{' '}
-            <span className="font-semibold text-[var(--cv-t1)]">
-              {targetIndex?.memberLabel ?? t('submissions.review.unknownEntry')}
-            </span>
-            {targetVault?.metadata?.name ? <span> · {targetVault.metadata.name}</span> : null}
-          </p>
-        )}
+        <dl className="mt-5 flex flex-col gap-3 border-t border-[var(--cv-divider)] pt-4">
+          <DetailRow label={t('submissions.review.proposal')} value={t(summary.kindKey)} />
+          <DetailRow label={t('submissions.review.entryType')} value={t(summary.typeKey)} />
+          <DetailRow label={t('submissions.review.submitted')} value={formatGrantDate(item.createdAt)} />
+          {target.kind === 'update' && (
+            <DetailRow
+              label={t('submissions.review.updates')}
+              value={`${targetIndex?.memberLabel ?? t('submissions.review.unknownEntry')}${
+                targetVault?.metadata?.name ? ` · ${targetVault.metadata.name}` : ''}`}
+            />
+          )}
+        </dl>
       </section>
 
       {target.kind === 'update' && (
@@ -273,8 +284,12 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
           value={label}
           maxLength={256}
           onChange={(event) => setLabel(event.target.value)}
-          error={!labelValid}
+          onBlur={() => setLabelTouched(true)}
+          error={labelTouched && !labelValid}
         />
+        <FeedbackSlot visible={labelTouched && !labelValid} color="red">
+          {t('submissions.review.labelRequired')}
+        </FeedbackSlot>
         {mode === 'new' && (
           <FormSelect
             id="submission-vault"
@@ -313,7 +328,7 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
             <h3 id="submission-access-title" className="text-heading-sm font-bold text-[var(--cv-t1)]">
               {t('submissions.access.title')}
             </h3>
-            <p className="mt-1 text-meta text-[var(--cv-t3)]">
+            <p className="mt-1 text-ui text-[var(--cv-t3)]">
               {coverage.data === 'full' ? t('submissions.access.coveredFull', { agent: item.agentName })
                 : coverage.data === 'entry' ? t('submissions.access.coveredEntry', { agent: item.agentName })
                   : !agentActive && agent.isSuccess ? t('submissions.access.agentInactive')
@@ -336,7 +351,7 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
       )}
 
       <div className="flex justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
-        <Button variant="subtle" size="sm" icon="delete" disabled={busy} onClick={handleDeny}>
+        <Button variant="subtle" size="sm" disabled={busy} onClick={handleDeny}>
           {t('submissions.decision.deny')}
         </Button>
         <Button variant="positive" size="sm" icon="check" disabled={!canApprove} onClick={handleApprove}>

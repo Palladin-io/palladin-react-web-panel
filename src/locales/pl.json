@@ -2216,5 +2216,9 @@
   "notifications.center.segSubmissions": "Zgłoszenia",
   "notifications.center.filterType.submission_pending": "Zgłoszenie agenta",
   "notifications.submissionPending.title": "Zgłoszenie agenta czeka",
-  "notifications.submissionPending.body": "Agent zaproponował sekret. Przejrzyj go w Palladin."
+  "notifications.submissionPending.body": "Agent zaproponował sekret. Przejrzyj go w Palladin.",
+  "submissions.review.labelRequired": "Podaj nazwę wpisu.",
+  "submissions.review.proposal": "Propozycja",
+  "submissions.review.entryType": "Typ",
+  "submissions.review.submitted": "Zgłoszono"
 }

@@ -57,7 +57,7 @@ export function SubmissionListPanel({ view, selectedSubmissionId }: SubmissionLi
       <ScrollArea>
         {submissions.isPending ? (
           <div className="flex flex-col gap-2">
-            {[0, 1, 2].map((index) => <SkeletonBlock key={index} height="3.625rem" />)}
+            {[0, 1, 2].map((index) => <SkeletonBlock key={index} height="3.625rem" rounded="xl" />)}
           </div>
         ) : submissions.isError ? (
           <ErrorState message={t('submissions.errorLoad')} onRetry={submissions.refetch} />

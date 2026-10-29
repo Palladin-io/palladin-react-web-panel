@@ -21,7 +21,7 @@ export function ApproverKeyNotice({ presentation }: { presentation: ApproverKeyP
   return <EmptyState icon={icon} title={t(key)} />
 }
 
-export function RebootstrapPrompt() {
+export function RebootstrapPrompt({ footerClassName = 'flex justify-end' }: { footerClassName?: string }) {
   const { t } = useTranslation()
   const rebootstrap = useRebootstrapApproverKeys()
   return (
@@ -29,7 +29,7 @@ export function RebootstrapPrompt() {
       <WarningZone title={t('submissions.keys.rebootstrapTitle')}>
         {t('submissions.keys.rebootstrapWarning')}
       </WarningZone>
-      <div className="flex justify-end">
+      <div className={footerClassName}>
         <Button
           variant="accent"
           size="sm"

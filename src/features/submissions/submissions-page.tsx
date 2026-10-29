@@ -33,7 +33,7 @@ export function SubmissionsPage({ view, submissionId }: SubmissionsPageProps) {
   function renderDetail() {
     if (!submissionId) return <EmptyState icon="inbox" title={t('submissions.selectPrompt')} />
     if (approved?.submissionId === submissionId) return <ApprovedResult result={approved} />
-    if (submissions.isPending) return <SkeletonBlock height="16rem" />
+    if (submissions.isPending) return <SkeletonBlock height="16rem" rounded="xl" />
     if (submissions.isError) return <ErrorState message={t('submissions.errorLoad')} onRetry={submissions.refetch} />
     if (!item) return <EmptyState icon="check_circle" title={t('submissions.notFound')} />
     if (view === 'trashed') return <TrashedSubmissionDetail item={item} />
@@ -53,7 +53,7 @@ export function SubmissionsPage({ view, submissionId }: SubmissionsPageProps) {
       detail={(
         <div className="flex h-full min-h-0 flex-col px-4 py-4 text-[var(--cv-t1)]">
           {!isWide && (
-            <div className="mb-3 shrink-0">
+            <div className="mb-4 flex h-10 shrink-0 items-center">
               <Link
                 to="/submissions"
                 search={view === 'trashed' ? { view: 'trashed' } : {}}
@@ -110,7 +110,7 @@ function TrashedSubmissionDetail({ item }: { item: SubmissionListItem }) {
       </p>
       <div className="mt-4 flex justify-end">
         <Button
-          variant="subtle"
+          variant="outline"
           size="sm"
           icon="restore"
           disabled={restore.isPending}
