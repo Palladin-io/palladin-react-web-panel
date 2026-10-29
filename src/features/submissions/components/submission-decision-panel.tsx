@@ -138,9 +138,12 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
   const targetVault = target.vaultId ? vaults.get(target.vaultId) : undefined
   const targetIndex = target.entryId ? targetVault?.entries.get(target.entryId)?.payload : undefined
   const [label, setLabel] = useState(payload.label ?? targetIndex?.memberLabel ?? '')
-  const [vaultId, setVaultId] = useState(() =>
-    writableVaults.some((vault) => vault.vaultId === target.suggestedVaultId)
-      ? target.suggestedVaultId! : writableVaults[0]?.vaultId ?? '')
+  // Derived, not initialised once: after a deep-link unlock the Vaults arrive later. An explicit
+  // choice wins while that Vault stays writable; otherwise the suggestion, then the first Vault.
+  const [chosenVaultId, setVaultId] = useState<string | null>(null)
+  const isWritable = (id: string | null | undefined) => Boolean(id) && writableVaults.some((vault) => vault.vaultId === id)
+  const vaultId = isWritable(chosenVaultId) ? chosenVaultId!
+    : isWritable(target.suggestedVaultId) ? target.suggestedVaultId! : writableVaults[0]?.vaultId ?? ''
   const [labelTouched, setLabelTouched] = useState(false)
   const [grantEnabled, setGrantEnabled] = useState(true)
   const [shown, setShown] = useState<Record<string, boolean>>({})

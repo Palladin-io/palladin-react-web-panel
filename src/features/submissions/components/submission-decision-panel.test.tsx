@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { HTTPError } from 'ky'
 import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -159,6 +159,21 @@ describe('SubmissionDecisionPanel — new entry', () => {
     expect(select).toHaveValue(OTHER_VAULT)
     expect([...select.querySelectorAll('option')].map((option) => option.textContent)).toEqual(['Personal', 'Team'])
     expect(screen.getByText('A similar entry already exists: Example login in Personal.')).toBeInTheDocument()
+  })
+
+  it('selects the suggested vault once Vaults synchronize after a deep-link unlock, without overriding a choice', async () => {
+    const synced = useMemberSyncStore.getState().vaults
+    useMemberSyncStore.setState({ vaults: new Map() })
+    renderPanel('new')
+    expect(screen.getByLabelText('Vault').querySelectorAll('option')).toHaveLength(0)
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
+    act(() => useMemberSyncStore.setState({ vaults: synced }))
+    expect(screen.getByLabelText('Vault')).toHaveValue(OTHER_VAULT)
+    await clickApproveWhenReady()
+    expect(mocks.approveMutate.mock.calls[0][0]).toMatchObject({ kind: 'new', vaultId: OTHER_VAULT })
+    fireEvent.change(screen.getByLabelText('Vault'), { target: { value: VAULT } })
+    act(() => useMemberSyncStore.setState({ vaults: new Map(synced) }))
+    expect(screen.getByLabelText('Vault')).toHaveValue(VAULT)
   })
 
   it('approves into the chosen vault with the edited label and default agent access', async () => {
