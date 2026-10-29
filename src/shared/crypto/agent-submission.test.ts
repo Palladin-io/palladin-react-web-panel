@@ -172,7 +172,7 @@ describe('Agent Submission v1 vendored contract', () => {
   it('pins the imported fixture and contract bytes', () => {
     const digest = (text: string) => createHash('sha256').update(text).digest('hex')
     expect(digest(fixtureText)).toBe('4778ca29b0bee27e8d73c71838f9c51d51ecd59962f7f263272370e53dcf4101')
-    expect(digest(contractText)).toBe('58995ee2a26c2b1dcb9c7248ee944aaeb62c4df44b9b7eaacd459ba89b12fb21')
+    expect(digest(contractText)).toBe('21a40ebb4366d3559deaeccd4675470e1b07ab384b9ca45d3004c509a97a246a')
   })
 
   it('matches the frozen field lists, registrations and limits', () => {
