@@ -389,6 +389,8 @@ describe('approver key-set lifecycle material', () => {
       },
     })
     expect(added.manifest).toMatchObject({ keyVersion: 1, manifestRevision: '2', messagePublicKey: change.manifest.messagePublicKey })
+    expect(added.manifest.continuitySignature).toBeUndefined()
+    expect(added.manifest.previousSigningKeyFingerprint).toBeUndefined()
     expect(added.wraps.map((wrap) => wrap.descriptor.memberId)).toEqual([newcomerId, newcomerId])
     expect((await verifyApproverManifestChain([change.manifest, added.manifest], org()))?.manifestRevision).toBe('2')
     const theirs = await openOwnApproverKeys(added.manifest, added.wraps, {

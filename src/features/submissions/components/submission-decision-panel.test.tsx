@@ -244,6 +244,22 @@ describe('SubmissionDecisionPanel — password update', () => {
   })
 })
 
+describe('SubmissionDecisionPanel — asserted entry type', () => {
+  it('refuses an update whose type differs from the decrypted target and still allows new entry or deny', async () => {
+    renderPanel('update')
+    mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) =>
+      options.onError?.(new AgentSubmissionCryptoError('entry-type-mismatch')))
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    expect(await screen.findByText('Different entry type')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Deny' }))
+    expect(mocks.denyMutate).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Save as new entry' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    expect(mocks.approveMutate.mock.calls[1][0]).toMatchObject({ kind: 'new', vaultId: VAULT })
+  })
+})
+
 describe('SubmissionDecisionPanel — unavailable review', () => {
   it('shows a verification failure without plaintext and still allows deny', () => {
     mocks.review = { isPending: false, isError: true, error: new AgentSubmissionCryptoError('invalid-agent-signature'), refetch: vi.fn() }
