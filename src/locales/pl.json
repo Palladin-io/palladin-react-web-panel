@@ -2221,5 +2221,7 @@
   "submissions.review.proposal": "Propozycja",
   "submissions.review.entryType": "Typ",
   "submissions.review.submitted": "Zgłoszono",
-  "submissions.decision.secretNotNfc": "Ten sekret używa formy Unicode, której Palladin nie zapisze bez jej zmiany, więc nie został zapisany. Odrzuć go i poproś agenta o ponowne zgłoszenie."
+  "submissions.decision.secretNotNfc": "Ten sekret używa formy Unicode, której Palladin nie zapisze bez jej zmiany, więc nie został zapisany. Odrzuć go i poproś agenta o ponowne zgłoszenie.",
+  "submissions.access.agentLoadFailed": "Nie udało się wczytać agenta, więc nie można przygotować jego dostępu.",
+  "submissions.access.retry": "Ponów"
 }

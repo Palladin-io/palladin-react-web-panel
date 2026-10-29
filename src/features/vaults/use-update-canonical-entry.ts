@@ -23,7 +23,7 @@ import {
 } from '../grants'
 import { grantMethodsMask, parseGrantMethods } from '../grants/grant-methods'
 import { updateCanonicalEntry, type CanonicalEntryDetail, type EntryUpdateMaterial } from './api/vault-api'
-import { getEncryptedVault } from './sync/member-sync-api'
+import { getEncryptedVault, type EncryptedVaultDetail } from './sync/member-sync-api'
 import { entriesQueryKey, entryDetailQueryKey, entryHistoryQueryKey } from './use-entries'
 import { buildCompleteScriptExecutionPackage } from './script-execution-package'
 
@@ -41,6 +41,8 @@ export interface UpdateCanonicalEntryInput {
   draft?: EntryDraft
   /** Non-secret guard used by batch writers that decrypted `previous` earlier. */
   cryptoSessionGeneration?: number
+  /** An encrypted Vault response the caller already bound to its authority; fetched when absent. */
+  vault?: EncryptedVaultDetail
   /** Exact decrypted inputs for immutable-history restore; bypasses lossy presentation adapters. */
   previousCanonicalMemberSecret?: MemberSecretV1
   nextCanonicalMemberSecret?: MemberSecretV1
@@ -86,6 +88,7 @@ export async function prepareCanonicalEntryUpdate(
     cryptoSessionGeneration,
     previousCanonicalMemberSecret,
     nextCanonicalMemberSecret,
+    vault: boundVault,
   }: UpdateCanonicalEntryInput,
   entryId?: string,
 ): Promise<PreparedCanonicalEntryUpdate> {
@@ -99,7 +102,7 @@ export async function prepareCanonicalEntryUpdate(
   }
   const [grants, vault] = await Promise.all([
     activeVaultGrants(vaultId),
-    getEncryptedVault(vaultId),
+    boundVault ?? getEncryptedVault(vaultId),
   ])
   if (cryptoSessionGeneration !== undefined
     && useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration) {

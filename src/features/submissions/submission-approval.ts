@@ -3,12 +3,14 @@ import {
   newEntrySecretFromSubmission,
   type AgentSubmissionPayload,
 } from '../../shared/crypto/agent-submission'
-import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
+import { openMemberSecret } from '../../shared/crypto/entry-protocol'
+import { sealEntryShareCopy } from '../../shared/crypto/entry-share-copy-encryption'
 import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
 import { randomUuid } from '../../shared/crypto/random-uuid'
 import { wipe } from '../../shared/crypto/sodium'
 import type { MemberSecretV1 } from '../../shared/crypto/vault-plaintext'
-import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
+import { openVaultProjection } from '../../shared/crypto/vault-protocol'
+import { organizationIdFromAccessToken } from '../../shared/lib/organization-scope'
 import { useAuthStore } from '../auth'
 import { GRANT_METHOD_INJECT, grantMethodsMask, serializeGrantMethods } from '../grants/grant-methods'
 import { getCanonicalEntry, issueEntryCreationChallenge } from '../vaults/api/vault-api'
@@ -25,6 +27,13 @@ export class SubmissionApprovalLockedError extends Error {
   constructor() {
     super('Vault lock session changed')
     this.name = 'SubmissionApprovalLockedError'
+  }
+}
+
+export class SubmissionTargetMismatchError extends Error {
+  constructor() {
+    super('The Vault or Entry response does not match the signed target and authenticated organization')
+    this.name = 'SubmissionTargetMismatchError'
   }
 }
 
@@ -79,6 +88,14 @@ async function buildDefaultGrant(
   }
 }
 
+/** Independent authority for key use: the JWT organization and principal plus the in-memory Member key. */
+function currentAuthority(): { privateKey: Uint8Array; organizationId: string; memberId: string } {
+  const { privateKey, accessToken, userId } = useAuthStore.getState()
+  const organizationId = organizationIdFromAccessToken(accessToken)
+  if (!privateKey || !organizationId || !userId) throw new SubmissionApprovalLockedError()
+  return { privateKey, organizationId, memberId: userId }
+}
+
 function assertSession(privateKey: Uint8Array): void {
   if (useAuthStore.getState().privateKey !== privateKey) throw new SubmissionApprovalLockedError()
 }
@@ -93,41 +110,26 @@ export interface ApproveAsNewEntryInput {
 }
 
 export async function approveAsNewEntry(input: ApproveAsNewEntryInput): Promise<ApproveSubmissionResponse> {
-  const privateKey = useAuthStore.getState().privateKey
-  if (!privateKey) throw new SubmissionApprovalLockedError()
+  const { privateKey, organizationId, memberId } = currentAuthority()
   const secret = newEntrySecretFromSubmission(input.payload, input.label)
   const [vault, challenge] = await Promise.all([
     getEncryptedVault(input.vaultId),
     issueEntryCreationChallenge(input.vaultId),
   ])
-  const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
-  let discoveryKey: Uint8Array | undefined
-  try {
-    discoveryKey = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)
-    const organizationId = vault.memberVaultKey.wrappedVaultKey.descriptor.scope.organizationId
-    const material = await sealCanonicalEntry({
-      organizationId,
-      vaultId: vault.id,
-      entryId: challenge.entryId,
-      revision: '1',
-      vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
-      vdkVersion: vault.currentKeyEpoch.vdkVersion,
-      memberKeyGeneration: vault.memberKeyGeneration,
-    }, secret, vaultKey, discoveryKey, 1)
-    const grant = input.agent ? await buildDefaultGrant(secret, input.agent, {
-      organizationId, vaultId: vault.id, entryId: challenge.entryId, entryRevision: '1',
-      memberKeyGeneration: vault.memberKeyGeneration,
-    }) : undefined
-    assertSession(privateKey)
-    return await approveSubmissionAsNewEntry(input.submissionId, {
-      vaultId: input.vaultId,
-      entry: { vaultId: input.vaultId, entryId: challenge.entryId, deliveryPolicy: 'standard', ...material },
-      ...(grant ? { grant } : {}),
-    })
-  } finally {
-    wipe(vaultKey)
-    if (discoveryKey) wipe(discoveryKey)
-  }
+  // Same binding as saving a shared copy: the Vault response must be the selected Vault in the JWT
+  // organization with current key coordinates, and the Member wrapper must address this principal.
+  const material = await sealEntryShareCopy(secret, vault,
+    { organizationId, memberId, vaultId: input.vaultId, entryId: challenge.entryId }, privateKey, new AbortController().signal)
+  const grant = input.agent ? await buildDefaultGrant(secret, input.agent, {
+    organizationId, vaultId: input.vaultId, entryId: challenge.entryId, entryRevision: '1',
+    memberKeyGeneration: vault.memberKeyGeneration,
+  }) : undefined
+  assertSession(privateKey)
+  return approveSubmissionAsNewEntry(input.submissionId, {
+    vaultId: input.vaultId,
+    entry: { vaultId: input.vaultId, entryId: challenge.entryId, deliveryPolicy: 'standard', ...material },
+    ...(grant ? { grant } : {}),
+  })
 }
 
 export interface ApproveAsUpdateInput {
@@ -141,20 +143,21 @@ export interface ApproveAsUpdateInput {
 }
 
 export async function approveAsUpdate(input: ApproveAsUpdateInput): Promise<ApproveSubmissionResponse> {
-  const privateKey = useAuthStore.getState().privateKey
-  if (!privateKey) throw new SubmissionApprovalLockedError()
+  const { privateKey, organizationId, memberId } = currentAuthority()
   const [detail, vault] = await Promise.all([
     getCanonicalEntry(input.vaultId, input.entryId),
     getEncryptedVault(input.vaultId),
   ])
+  // The signed target and the JWT organization are the authority; both responses must match them.
+  if (detail.organizationId !== organizationId || detail.vaultId !== input.vaultId || detail.id !== input.entryId
+    || vault.id !== input.vaultId || vault.organizationId !== organizationId) throw new SubmissionTargetMismatchError()
   // The backend rejects a moved target too; failing here avoids opening keys for a stale revision.
   if (detail.currentRevision !== input.expectedEntryRevision) throw new StaleSubmissionTargetError()
-  const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+  const { vaultKey } = await openVaultProjection(vault, privateKey, memberId)
   let current: MemberSecretV1
   try {
     current = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
-      organizationId: detail.organizationId, vaultId: input.vaultId, entryId: input.entryId,
-      revision: detail.currentRevision,
+      organizationId, vaultId: input.vaultId, entryId: input.entryId, revision: detail.currentRevision,
     })
   } finally {
     wipe(vaultKey)
@@ -162,6 +165,7 @@ export async function approveAsUpdate(input: ApproveAsUpdateInput): Promise<Appr
   const next = mergeSubmissionUpdate(current, input.payload, input.label)
   const prepared = await prepareCanonicalEntryUpdate(input.vaultId, {
     detail,
+    vault,
     previousCanonicalMemberSecret: current,
     nextCanonicalMemberSecret: next,
   }, input.entryId)

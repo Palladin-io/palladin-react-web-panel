@@ -2160,5 +2160,7 @@
   "submissions.review.proposal": "Proposal",
   "submissions.review.entryType": "Type",
   "submissions.review.submitted": "Submitted",
-  "submissions.decision.secretNotNfc": "This secret uses a Unicode form that Palladin cannot store without changing it, so it was not saved. Deny it and ask the agent to submit again."
+  "submissions.decision.secretNotNfc": "This secret uses a Unicode form that Palladin cannot store without changing it, so it was not saved. Deny it and ask the agent to submit again.",
+  "submissions.access.agentLoadFailed": "Could not load the agent, so its access cannot be prepared.",
+  "submissions.access.retry": "Retry"
 }

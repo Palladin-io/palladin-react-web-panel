@@ -158,11 +158,13 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
   })
   const agentActive = agent.data?.status === AGENT_STATUS_ACTIVE && Boolean(agent.data.publicKey)
   const covered = coverage.data === 'full' || coverage.data === 'entry'
+  // The default grant needs the authoritative Agent key; never fall back to approving without it.
+  const awaitingAgent = grantEnabled && !covered && !agent.isSuccess
   const duplicate = mode === 'new' && entryType === 'credential' ? findDuplicate(vaults, payload) : null
   const labelValid = mode === 'update' || label.trim().length > 0
   const busy = approve.isPending || deny.isPending
   const canApprove = canManageVaults && labelValid && !busy && conflict !== 'stale' && conflict !== 'typeMismatch'
-    && (mode === 'update' || Boolean(vaultId)) && !coverage.isPending
+    && (mode === 'update' || Boolean(vaultId)) && !coverage.isPending && !awaitingAgent
 
   function handleApprove() {
     const grantRecipient = grantEnabled && !covered && agentActive
@@ -335,11 +337,17 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
             <p className="mt-1 text-ui text-[var(--cv-t3)]">
               {coverage.data === 'full' ? t('submissions.access.coveredFull', { agent: item.agentName })
                 : coverage.data === 'entry' ? t('submissions.access.coveredEntry', { agent: item.agentName })
+                  : agent.isError ? t('submissions.access.agentLoadFailed')
                   : !agentActive && agent.isSuccess ? t('submissions.access.agentInactive')
                     : t('submissions.access.description', { agent: item.agentName })}
             </p>
           </div>
-          {!covered && (
+          {!covered && agent.isError && (
+            <Button variant="subtle" size="sm" onClick={() => agent.refetch()}>
+              {t('submissions.access.retry')}
+            </Button>
+          )}
+          {!covered && !agent.isError && (
             <ToggleSwitch
               checked={grantEnabled && agentActive}
               label={t('submissions.access.toggle')}

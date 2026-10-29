@@ -107,6 +107,11 @@ function renderPanel(kind: 'new' | 'update', onApproved = vi.fn()) {
 const apiError = (status: number, code: string) => new HTTPError(
   new Response(JSON.stringify({ code }), { status }), new Request('http://localhost/api/submissions/x/approve-new'), {} as never)
 
+async function clickApproveWhenReady() {
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled())
+  fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+}
+
 const consoleSpies: ReturnType<typeof vi.spyOn>[] = []
 
 beforeEach(() => {
@@ -205,6 +210,28 @@ describe('SubmissionDecisionPanel — new entry', () => {
     expect(screen.getByText('Enter a label for the entry.')).toBeInTheDocument()
   })
 
+  it('keeps Approve disabled while the agent lookup for default access is still loading', async () => {
+    mocks.getAgent.mockReturnValue(new Promise(() => undefined))
+    renderPanel('new')
+    await waitFor(() => expect(mocks.getAgent).toHaveBeenCalled())
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    expect(mocks.approveMutate).not.toHaveBeenCalled()
+  })
+
+  it('shows a retryable agent lookup failure instead of approving without the default grant', async () => {
+    mocks.getAgent.mockRejectedValueOnce(new Error('network')).mockResolvedValue(
+      { agentId: AGENT, status: 'active', publicKey: 'agent-x25519', recipientKeyVersion: 3, iconKey: null })
+    renderPanel('new')
+    expect(await screen.findByText('Could not load the agent, so its access cannot be prepared.')).toBeInTheDocument()
+    expect(screen.queryByText('The agent is not active, so it cannot receive access.')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    expect(mocks.approveMutate.mock.calls[0][0].agent).toEqual({ agentId: AGENT, publicKey: 'agent-x25519', recipientKeyVersion: 3 })
+  })
+
   it('requires vault management permission', () => {
     useAuthStore.setState({ permissions: PERMISSION_GRANT_MANAGE })
     renderPanel('new')
@@ -232,7 +259,7 @@ describe('SubmissionDecisionPanel — password update', () => {
   it('approves against the signed expected revision without renaming an unchanged label', async () => {
     renderPanel('update')
     await waitFor(() => expect(mocks.getAgent).toHaveBeenCalled())
-    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await clickApproveWhenReady()
     const input = mocks.approveMutate.mock.calls[0][0]
     expect(input).toMatchObject({ kind: 'update', vaultId: VAULT, entryId: ENTRY, expectedEntryRevision: '7' })
     expect(input).not.toHaveProperty('label')
@@ -248,7 +275,7 @@ describe('SubmissionDecisionPanel — password update', () => {
   it('handles a stale target revision by blocking the update and offering a new entry', async () => {
     renderPanel('update')
     mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) => options.onError?.(new StaleSubmissionTargetError()))
-    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await clickApproveWhenReady()
     expect(await screen.findByText('Entry changed')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Save as new entry' }))
@@ -263,7 +290,7 @@ describe('SubmissionDecisionPanel — server conflicts', () => {
   it('treats a server stale-target-revision like a moved target', async () => {
     renderPanel('update')
     mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) => options.onError?.(apiError(409, 'stale-target-revision')))
-    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await clickApproveWhenReady()
     expect(await screen.findByText('Entry changed')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
   })
@@ -271,7 +298,7 @@ describe('SubmissionDecisionPanel — server conflicts', () => {
   it('reports a concurrent decision and keeps the view usable', async () => {
     renderPanel('new')
     mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) => options.onError?.(apiError(409, 'submission-already-decided')))
-    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await clickApproveWhenReady()
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('This submission was decided or re-keyed elsewhere. The list was refreshed.'))
     expect(screen.queryByText('Entry changed')).not.toBeInTheDocument()
   })
@@ -279,14 +306,14 @@ describe('SubmissionDecisionPanel — server conflicts', () => {
   it('explains a secret that cannot be stored unchanged instead of altering it', async () => {
     renderPanel('new')
     mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) => options.onError?.(new AgentSubmissionCryptoError('secret-not-nfc')))
-    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await clickApproveWhenReady()
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/cannot store without changing it/)))
   })
 
   it('shows a generic failure for other errors', async () => {
     renderPanel('new')
     mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) => options.onError?.(apiError(403, 'vault-access-required')))
-    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await clickApproveWhenReady()
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Could not approve the submission.'))
   })
 })
@@ -296,7 +323,7 @@ describe('SubmissionDecisionPanel — asserted entry type', () => {
     renderPanel('update')
     mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) =>
       options.onError?.(new AgentSubmissionCryptoError('entry-type-mismatch')))
-    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await clickApproveWhenReady()
     expect(await screen.findByText('Different entry type')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Deny' }))
