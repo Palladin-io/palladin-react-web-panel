@@ -38,7 +38,7 @@ import {
 } from '../entry-blob'
 import { CustomFieldsEditor } from './custom-fields-editor'
 import { SignInMethodField } from './sign-in-method-field'
-import { hasRecognizedSignInMethod, replaceSignInMethod } from '../sign-in-method'
+import { hasRecognizedSignInMethod, isSignInMethodField, replaceSignInMethod } from '../sign-in-method'
 import { CredentialTotpField } from './credential-totp-field'
 import { EntryIconButton } from './entry-icon-button'
 import { ScriptEditor } from './script-editor'
@@ -151,19 +151,22 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
   const buildPolicy = (fields: CustomField[]): AgentVisibilityPolicy => {
     const defaults = defaultAgentVisibilityPolicy(type, fields)
     const effectiveDiscoverable = type === ENTRY_TYPE_SCRIPT || discoverable
-    const customTypes = new Map(fields.map((field) => [`custom:${field.id}`, field.type]))
+    const customFieldsById = new Map(fields.map((field) => [`custom:${field.id}`, field]))
     return {
       discoverable: effectiveDiscoverable,
       fields: Object.fromEntries(Object.entries(defaults.fields).map(([fieldId, fallback]) => {
+        const custom = customFieldsById.get(fieldId)
         const candidate = policyOverrides[fieldId]
-        const access = candidate && allowedAgentFieldAccess(type, fieldId, customTypes.get(fieldId)).includes(candidate)
+        const access = candidate && allowedAgentFieldAccess(type, fieldId, custom?.type, custom?.value).includes(candidate)
           ? candidate
           : fallback
         return [fieldId, fieldId === ENTRY_FIELD.agentLabel
           ? (effectiveDiscoverable ? 'discovery' : 'never')
           : fieldId === ENTRY_FIELD.description && type === ENTRY_TYPE_SCRIPT
             ? 'discovery'
-            : access]
+            : custom && isSignInMethodField(custom) && !effectiveDiscoverable
+              ? 'never'
+              : access]
       })),
     }
   }
@@ -583,7 +586,14 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
                 onApply={(field) => { void submitEntry(mergeCredentialTotp(field, customFields)) }}
                 disabled={isPending} />
               <SectionHeader>{t('vault.entries.signInMethod.title')}</SectionHeader>
-              <SignInMethodField fields={customFields} onChange={setCustomFields} disabled={isPending} />
+              <SignInMethodField fields={customFields} onChange={setCustomFields} disabled={isPending}
+                agentVisibility={{
+                  isVisible: (fieldId) => policy.fields[`custom:${fieldId}`] === 'discovery',
+                  onChange: (fieldId, visible) => setPolicyOverrides((current) => ({
+                    ...current, [`custom:${fieldId}`]: visible ? 'discovery' : 'never',
+                  })),
+                  disabled: !discoverable,
+                }} />
             </>
           ) : (
             <>

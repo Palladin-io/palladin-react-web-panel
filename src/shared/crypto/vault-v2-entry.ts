@@ -1,3 +1,4 @@
+import { SIGN_IN_FIELD_TYPE, signInAllowedAccess } from '@palladin/crypto'
 import { z } from 'zod'
 import type { CustomField, EntryPlaintext } from '../../features/vaults/types'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT, type EntryType } from '../types/entry-type'
@@ -52,13 +53,18 @@ export function allowedAgentFieldAccess(
   type: EntryType,
   fieldId: string,
   customFieldType?: CustomField['type'],
+  customFieldValue?: unknown,
 ): readonly AgentFieldAccess[] {
   if (fieldId === ENTRY_FIELD.agentLabel || fieldId === ENTRY_FIELD.description) return DISCOVERY_OR_NEVER
   if (type === ENTRY_TYPE_CREDIT_CARD) return ['never'] as const
   if (fieldId === ENTRY_FIELD.notes) return type === ENTRY_TYPE_SCRIPT ? RUNTIME_OR_NEVER : VALUE_OR_NEVER
   if (fieldId === ENTRY_FIELD.totp || customFieldType === 'totp') return DERIVED_OR_NEVER
   if (fieldId.startsWith('custom:')) {
-    // Canonical policy admits only `never` for non-standard custom types (e.g. palladin.signin.v1).
+    if (customFieldType === SIGN_IN_FIELD_TYPE) {
+      return signInAllowedAccess(type === ENTRY_TYPE_CREDENTIAL ? 'credential' : 'other',
+        { id: fieldId, type: customFieldType, value: customFieldValue }) as readonly AgentFieldAccess[]
+    }
+    // Canonical policy admits only `never` for other non-standard custom types.
     if (customFieldType !== undefined && !isStandardValueField(customFieldType)) return ['never'] as const
     return type === ENTRY_TYPE_SCRIPT
       ? RUNTIME_OR_NEVER
@@ -225,8 +231,10 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
   for (const field of fields) {
     defaults[`custom:${field.id}`] = field.type === 'totp'
       ? type === ENTRY_TYPE_CREDIT_CARD ? 'never' : 'onGrantDerived'
-      : type === ENTRY_TYPE_CREDIT_CARD || !isStandardValueField(field.type) ? 'never'
-        : type === ENTRY_TYPE_SCRIPT ? 'onGrantRuntime' : 'onGrantValue'
+      : field.type === SIGN_IN_FIELD_TYPE
+        ? allowedAgentFieldAccess(type, `custom:${field.id}`, field.type, field.value).includes('discovery') ? 'discovery' : 'never'
+        : type === ENTRY_TYPE_CREDIT_CARD || !isStandardValueField(field.type) ? 'never'
+          : type === ENTRY_TYPE_SCRIPT ? 'onGrantRuntime' : 'onGrantValue'
   }
   return { discoverable: true, fields: defaults }
 }
@@ -241,9 +249,10 @@ export function validateAgentVisibilityPolicy(
   if (next.discoverable && next.fields[ENTRY_FIELD.agentLabel] !== 'discovery') {
     throw new Error('A discoverable Entry requires an Agent-facing label')
   }
-  const customTypes = new Map(fields.map((field) => [`custom:${field.id}`, field.type]))
+  const customFields = new Map(fields.map((field) => [`custom:${field.id}`, field]))
   for (const [fieldId, access] of Object.entries(next.fields)) {
-    if (!allowedAgentFieldAccess(type, fieldId, customTypes.get(fieldId)).includes(access)) {
+    const custom = customFields.get(fieldId)
+    if (!allowedAgentFieldAccess(type, fieldId, custom?.type, custom?.value).includes(access)) {
       throw new Error(`Unsupported Agent access mode for ${fieldId}`)
     }
   }

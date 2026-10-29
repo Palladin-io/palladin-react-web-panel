@@ -8,7 +8,7 @@ import { EntryDetailPage } from './entry-detail-page'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, type Vault } from './types'
 import type { CustomField } from './types'
 import { toMemberSecret } from '../../shared/crypto/entry-draft'
-import { encodeMemberSecret } from '../../shared/crypto/vault-plaintext'
+import { encodeMemberSecret, projectAgentDiscovery } from '../../shared/crypto/vault-plaintext'
 import { listGrantableFields, projectCanonicalGrantPayloadV2 } from '@palladin/crypto'
 import type { AgentFieldAccess } from '../../shared/crypto/entry-draft'
 import type { CanonicalEntryDetail } from './api/vault-api'
@@ -1044,7 +1044,7 @@ describe('EntryDetailPage — DetailsTab', () => {
   describe('sign-in method', () => {
     const SIGN_IN_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-000000000001'
     const binding: CustomField = { id: SIGN_IN_ID, label: 'Sign-in method', type: 'palladin.signin.v1',
-      value: { provider: 'google', account: 'alice@example.com' } as never }
+      value: { provider: 'google', account: 'alice@example.com', entry: null } as never }
 
     function renderCredential(fields: CustomField[] = [], policyFields: Record<string, AgentFieldAccess> = {}) {
       unlockedAuthStore()
@@ -1072,7 +1072,7 @@ describe('EntryDetailPage — DetailsTab', () => {
       expect(screen.queryByRole('textbox', { name: /field label/i })).not.toBeInTheDocument()
     })
 
-    it('adds a binding with agent access never and saves it through the canonical encoder', async () => {
+    it('adds a binding visible in Discovery, never grantable, and saves it through the canonical encoder', async () => {
       const user = userEvent.setup()
       renderCredential()
       await waitFor(() => expect(screen.getByLabelText(/^username$/i)).toHaveValue('alice'))
@@ -1084,11 +1084,31 @@ describe('EntryDetailPage — DetailsTab', () => {
       await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
       const { draft, secret } = encodedDraft()
       expect(draft.content.fields).toEqual([expect.objectContaining({
-        label: 'Sign-in method', type: 'palladin.signin.v1', value: { provider: 'github', account: 'octocat' },
+        label: 'Sign-in method', type: 'palladin.signin.v1', value: { provider: 'github', account: 'octocat', entry: null },
       })])
       const fieldId = `custom:${draft.content.fields[0].id}`
-      expect(secret.agentFieldAccess[fieldId]).toBe('never')
+      expect(secret.agentFieldAccess[fieldId]).toBe('discovery')
       expect(listGrantableFields(secret).map(({ id }) => id)).not.toContain(fieldId)
+      const discovery = projectAgentDiscovery(secret)
+      expect(discovery?.fields).toContainEqual({ id: 'signIn',
+        value: '{"entry":null,"provider":"github","schema":"palladin.signin.v1"}' })
+      expect(JSON.stringify(discovery)).not.toContain('octocat')
+    })
+
+    it('keeps an existing restricted binding hidden until the owner turns Discovery on', async () => {
+      const user = userEvent.setup()
+      renderCredential([binding], { [`custom:${SIGN_IN_ID}`]: 'never' })
+      const toggle = await screen.findByRole('switch', { name: 'Visible to agents' })
+      expect(toggle).not.toBeChecked()
+      await user.selectOptions(screen.getByLabelText('Provider'), 'apple')
+      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(1))
+      expect(encodedDraft().secret.agentFieldAccess[`custom:${SIGN_IN_ID}`]).toBe('never')
+
+      await user.click(toggle)
+      await user.click(screen.getByRole('button', { name: /save changes/i }))
+      await waitFor(() => expect(updateMutateMock).toHaveBeenCalledTimes(2))
+      expect(encodedDraft().secret.agentFieldAccess[`custom:${SIGN_IN_ID}`]).toBe('discovery')
     })
 
     it('removes the binding on save', async () => {
@@ -1106,7 +1126,7 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     it('preserves an unrecognized binding exactly on an unrelated edit', async () => {
       const user = userEvent.setup()
-      const odd: CustomField = { ...binding, value: { provider: 'google', account: ' padded ', note: 1 } as never }
+      const odd: CustomField = { ...binding, value: { provider: 'google', account: 'alice@example.com' } as never }
       renderCredential([odd], { [`custom:${SIGN_IN_ID}`]: 'never' })
       await screen.findByText(/does not recognize/)
       await user.type(screen.getByLabelText(/^label$/i), ' renamed')
@@ -1146,9 +1166,9 @@ describe('EntryDetailPage — DetailsTab', () => {
 
     it.each([
       ['no binding', []],
-      ['an unrecognized binding', [{ ...binding, value: { provider: 'google', account: ' padded ' } as never }]],
+      ['a retired two-key binding', [{ ...binding, value: { provider: 'google', account: 'alice@example.com' } as never }]],
       ['two bindings', [binding, { ...binding, id: 'aaaaaaaa-bbbb-4ccc-8ddd-000000000002',
-        value: { provider: 'apple', account: null } as never }]],
+        value: { provider: 'apple', account: null, entry: null } as never }]],
     ])('still requires username and password with %s', async (_, fields) => {
       const user = userEvent.setup()
       renderCredential(fields as CustomField[], Object.fromEntries(

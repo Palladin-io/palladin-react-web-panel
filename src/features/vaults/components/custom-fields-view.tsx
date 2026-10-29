@@ -6,6 +6,7 @@ import { Icon } from '../../../shared/components/icon'
 import { Tooltip } from '../../../shared/components/tooltip'
 import { copySecretToClipboard } from '../../../shared/lib/clipboard'
 import { readSignInMethod, type SignInBinding } from '../sign-in-method'
+import { useSignInEntryLabel } from '../use-sign-in-account-candidates'
 import { type CustomField, isTotpField } from '../types'
 import { TotpDisplay } from './totp-display'
 
@@ -89,16 +90,7 @@ function FieldViewRow({
       </Tooltip>
       <div className="flex min-w-0 flex-1 items-center justify-end gap-1.5">
         {signInBinding ? (
-          <>
-            <span className="min-w-0 flex-1 truncate text-right text-ui text-[var(--cv-t1)]">
-              {t(`vault.entries.signInMethod.providers.${signInBinding.provider}`)}
-              {' · '}
-              {signInBinding.account ?? (
-                <span className="text-[var(--cv-t3)]">{t('vault.entries.signInMethod.accountNotSpecified')}</span>
-              )}
-            </span>
-            {signInBinding.account ? <CopyButton value={signInBinding.account} label={t('common.copy')} /> : null}
-          </>
+          <SignInBindingValue binding={signInBinding} />
         ) : isRenderableTotp ? (
           <TotpDisplay params={field.value} compact />
         ) : isSecretLike ? (
@@ -135,6 +127,31 @@ function FieldViewRow({
         )}
       </div>
     </div>
+  )
+}
+
+function SignInBindingValue({ binding }: { binding: SignInBinding }) {
+  const { t } = useTranslation()
+  const linkedLabel = useSignInEntryLabel(binding.entry)
+  return (
+    <>
+      <span className="min-w-0 flex-1 truncate text-right text-ui text-[var(--cv-t1)]">
+        {t(`vault.entries.signInMethod.providers.${binding.provider}`)}
+        {' · '}
+        {binding.account ?? (
+          <span className="text-[var(--cv-t3)]">{t('vault.entries.signInMethod.accountNotSpecified')}</span>
+        )}
+        {binding.entry ? (
+          <span className="text-[var(--cv-t3)]">
+            {' · '}
+            {linkedLabel
+              ? t('vault.entries.signInMethod.linkedEntry', { label: linkedLabel })
+              : t('vault.entries.signInMethod.linkedEntryUnavailable')}
+          </span>
+        ) : null}
+      </span>
+      {binding.account ? <CopyButton value={binding.account} label={t('common.copy')} /> : null}
+    </>
   )
 }
 

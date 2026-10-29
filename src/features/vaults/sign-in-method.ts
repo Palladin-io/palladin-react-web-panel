@@ -1,23 +1,38 @@
+import { SIGN_IN_FIELD_TYPE, SIGN_IN_PROVIDERS, signInMethodValueSchema, type SignInMethodValue } from '@palladin/crypto'
+import { getDomain } from 'tldts'
 import { newFieldId } from './entry-blob'
 import type { CustomField } from './types'
 
 /**
  * `palladin.signin.v1` — one encrypted Credential custom field remembering how
- * the user signs in to the external service (federated provider + optional
- * provider account). The contract is shared with the browser extension and
- * mobile; anything that does not match it exactly is unrecognized and must be
- * preserved untouched unless the user explicitly replaces or removes it.
+ * the user signs in to the external service: federated provider, optional
+ * provider account and optional reference to the provider's own Palladin
+ * Credential. The value schema is owned by `@palladin/crypto` and shared with
+ * the extension and mobile; anything that does not match it exactly (including
+ * the retired two-key shape) is unrecognized and must be preserved untouched
+ * unless the user explicitly replaces or removes it.
  */
-export const SIGN_IN_METHOD_FIELD_TYPE = 'palladin.signin.v1'
-
-export const SIGN_IN_PROVIDERS = ['google', 'apple', 'microsoft', 'github', 'facebook'] as const
-export type SignInProvider = (typeof SIGN_IN_PROVIDERS)[number]
+export const SIGN_IN_METHOD_FIELD_TYPE = SIGN_IN_FIELD_TYPE
+export { SIGN_IN_PROVIDERS }
+export type SignInProvider = SignInMethodValue['provider']
+export type SignInBinding = SignInMethodValue
+export type SignInEntryReference = NonNullable<SignInMethodValue['entry']>
 
 export const SIGN_IN_ACCOUNT_MAX_LENGTH = 256
 
-export interface SignInBinding {
-  provider: SignInProvider
-  account: string | null
+/** Registrable domains of each provider's own account Credentials (contract v1.1). */
+const PROVIDER_ACCOUNT_DOMAINS: Record<SignInProvider, readonly string[]> = {
+  google: ['google.com'],
+  apple: ['apple.com'],
+  microsoft: ['live.com', 'microsoftonline.com', 'microsoft.com'],
+  github: ['github.com'],
+  facebook: ['facebook.com'],
+}
+
+/** Whether a Credential URL domain belongs to the provider's own account service. */
+export function isProviderAccountDomain(provider: SignInProvider, urlDomain: string | null | undefined): boolean {
+  const domain = urlDomain ? getDomain(urlDomain) : null
+  return domain !== null && PROVIDER_ACCOUNT_DOMAINS[provider].includes(domain)
 }
 
 export type SignInMethodState =
@@ -30,27 +45,10 @@ export function isSignInMethodField(field: CustomField): boolean {
   return field.type === SIGN_IN_METHOD_FIELD_TYPE
 }
 
-function isSignInProvider(value: unknown): value is SignInProvider {
-  return typeof value === 'string' && (SIGN_IN_PROVIDERS as readonly string[]).includes(value)
-}
-
-function isCanonicalAccount(value: unknown): value is string | null {
-  if (value === null) return true
-  return typeof value === 'string'
-    && value === value.normalize('NFC')
-    && value === value.trim()
-    && value.length >= 1
-    && value.length <= SIGN_IN_ACCOUNT_MAX_LENGTH
-}
-
-/** Strict decoder: exactly `{ provider, account }` with canonical values, else null. */
+/** Strict decoder: exactly `{ provider, account, entry }` per the shared schema, else null. */
 export function parseSignInBinding(value: unknown): SignInBinding | null {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
-  const record = value as Record<string, unknown>
-  const keys = Object.keys(record).sort()
-  if (keys.length !== 2 || keys[0] !== 'account' || keys[1] !== 'provider') return null
-  if (!isSignInProvider(record.provider) || !isCanonicalAccount(record.account)) return null
-  return { provider: record.provider, account: record.account }
+  const parsed = signInMethodValueSchema.safeParse(value)
+  return parsed.success ? parsed.data : null
 }
 
 /** More than one binding is ambiguous and never usable for suggestions. */
@@ -93,7 +91,11 @@ export function replaceSignInMethod(
 ): CustomField[] {
   if (binding === null) return fields.filter((field) => !isSignInMethodField(field))
   // CustomField.value is typed for the editable kinds; decrypted values of other types are opaque JSON.
-  const value = { provider: binding.provider, account: binding.account } as unknown as CustomField['value']
+  const value = {
+    provider: binding.provider,
+    account: binding.account,
+    entry: binding.entry ? { vaultId: binding.entry.vaultId, entryId: binding.entry.entryId } : null,
+  } as unknown as CustomField['value']
   const state = readSignInMethod(fields)
   if (state.kind === 'recognized') {
     return fields.map((field) => (field.id === state.fieldId ? { ...field, value } : field))

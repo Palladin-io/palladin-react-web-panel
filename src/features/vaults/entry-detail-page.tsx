@@ -18,6 +18,7 @@ import {
   ENTRY_FIELD,
   fromMemberSecret,
   withNewCredentialTotpPolicy,
+  withNewSignInMethodPolicy,
   type AgentVisibilityPolicy,
   type MemberSecretView,
 } from '../../shared/crypto/entry-draft'
@@ -748,7 +749,8 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
       : originalIcon?.startsWith('builtin:') ? undefined : originalIcon
     const savedPolicy = policy ?? originalSecret.agentVisibilityPolicy
     const basePolicy = entry.type === ENTRY_TYPE_CREDENTIAL
-      ? withNewCredentialTotpPolicy(originalSecret.content.fields ?? [], current.fields ?? [], savedPolicy)
+      ? withNewSignInMethodPolicy(entry.type, originalSecret.content.fields ?? [], current.fields ?? [],
+        withNewCredentialTotpPolicy(originalSecret.content.fields ?? [], current.fields ?? [], savedPolicy))
       : savedPolicy
     const nextPolicy = entry.type === ENTRY_TYPE_SCRIPT
       ? {
@@ -1240,6 +1242,15 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                     fields={customFields}
                     onChange={setCustomFields}
                     disabled={isSaving || decrypting || !originalSecret}
+                    entryId={entry.id}
+                    agentVisibility={policy ? {
+                      isVisible: (fieldId) => policy.discoverable
+                        && (policy.fields[`custom:${fieldId}`] ?? 'discovery') === 'discovery',
+                      onChange: (fieldId, visible) => setPolicy({ ...policy, fields: {
+                        ...policy.fields, [`custom:${fieldId}`]: visible ? 'discovery' : 'never',
+                      } }),
+                      disabled: !policy.discoverable,
+                    } : undefined}
                   />
                 </>
               ) : null}
