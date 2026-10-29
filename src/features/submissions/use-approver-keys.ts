@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ApproverKeySetChangeKind } from '../../shared/crypto/agent-submission'
 import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
@@ -42,16 +42,20 @@ export function useApproverKeyMaintenance(): void {
   const query = useApproverKeys()
   const generation = useAuthStore((state) => state.cryptoSessionGeneration)
   const attempts = useRef(new Map<string, number>())
+  // Counts completed attempts whose refetch has finished. An identical refetched state keeps the same
+  // `data` reference and may share a millisecond timestamp, so only this counter reliably re-runs the effect.
+  const [settledAttempts, setSettledAttempts] = useState(0)
   const maintenance = useMutation({
     mutationKey: MAINTENANCE_MUTATION_KEY,
     mutationFn: ({ kind, state }: { kind: ApproverKeySetChangeKind; state: ApproverKeysResponse }) =>
       runApproverKeyChange(kind, state),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: APPROVER_KEYS_QUERY_KEY }),
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: APPROVER_KEYS_QUERY_KEY })
+      setSettledAttempts((count) => count + 1)
+    },
   })
   const { mutate, isPending } = maintenance
   const state = query.data
-  // A refetch may return an identical state after a lost race; its timestamp still triggers re-evaluation.
-  const observedAt = query.dataUpdatedAt
   const action = state ? nextApproverKeyAction(state) : null
 
   useEffect(() => {
@@ -61,7 +65,7 @@ export function useApproverKeyMaintenance(): void {
     if (count >= MAX_ATTEMPTS_PER_STATE) return
     attempts.current.set(attemptKey, count + 1)
     mutate({ kind: action, state })
-  }, [action, generation, isPending, mutate, observedAt, query.isFetching, state])
+  }, [action, generation, isPending, mutate, query.isFetching, settledAttempts, state])
 }
 
 export function ApproverKeyReconciler() {

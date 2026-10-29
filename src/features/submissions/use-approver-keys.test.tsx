@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { HTTPError } from 'ky'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
@@ -64,11 +64,19 @@ describe('useApproverKeyMaintenance', () => {
   it('refetches after a lost race and retries the same observed state only a bounded number of times', async () => {
     mocks.getApproverKeys.mockResolvedValue(state({ status: 'absent', manifest: null, myWraps: null }))
     mocks.runApproverKeyChange.mockRejectedValue(conflict())
-    renderHook(() => useApproverKeyMaintenance(), { wrapper })
-    await waitFor(() => expect(mocks.runApproverKeyChange).toHaveBeenCalledTimes(3))
-    await waitFor(() => expect(mocks.getApproverKeys).toHaveBeenCalledTimes(4))
-    await new Promise((resolve) => setTimeout(resolve, 50))
-    expect(mocks.runApproverKeyChange).toHaveBeenCalledTimes(3)
+    // A frozen clock: retries must not depend on wall time or distinct timestamps between refetches.
+    vi.useFakeTimers()
+    try {
+      renderHook(() => useApproverKeyMaintenance(), { wrapper })
+      const flush = () => act(() => vi.runAllTimersAsync())
+      for (let step = 0; step < 20 && mocks.getApproverKeys.mock.calls.length < 4; step++) await flush()
+      await act(() => vi.advanceTimersByTimeAsync(10 * 60_000))
+      await flush()
+      expect(mocks.getApproverKeys).toHaveBeenCalledTimes(4)
+      expect(mocks.runApproverKeyChange).toHaveBeenCalledTimes(3)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('never re-bootstraps an unavailable set automatically and stays idle while locked or unauthorized', async () => {
