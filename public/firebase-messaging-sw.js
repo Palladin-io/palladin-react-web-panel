@@ -54,6 +54,18 @@ function safeInternalPath(link) {
   }
 }
 
+const OPAQUE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+// Built locally from an allow-listed type and an opaque UUID; the route guards
+// still check the session and GrantManage before anything is shown.
+function localNotificationLink(data) {
+  if (data && data.type === 'submission_pending' && typeof data.subjectId === 'string'
+    && OPAQUE_ID.test(data.subjectId)) {
+    return '/submissions/' + data.subjectId.toLowerCase()
+  }
+  return '/inbox'
+}
+
 const params = new URLSearchParams(self.location.search)
 const firebaseConfig = {
   apiKey: params.get('apiKey'),
@@ -78,7 +90,7 @@ if (firebaseConfig.apiKey && firebaseConfig.appId) {
         self.registration.showNotification('Palladin', {
           body: 'Open Palladin to view this notification.',
           icon: '/logo.png',
-          data: { link: '/inbox' },
+          data: { link: localNotificationLink(payload && payload.data) },
         })
       })
     })

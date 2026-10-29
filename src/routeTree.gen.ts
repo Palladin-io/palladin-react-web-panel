@@ -27,6 +27,7 @@ import { Route as AuthenticatedEntriesRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedInboxRouteImport } from './routes/_authenticated/inbox'
 import { Route as AuthenticatedSecurityRouteImport } from './routes/_authenticated/security'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedSubmissionsRouteImport } from './routes/_authenticated/submissions'
 import { Route as AuthenticatedTeamRouteImport } from './routes/_authenticated/team'
 import { Route as AuthenticatedUnlockRouteImport } from './routes/_authenticated/unlock'
 import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated/vaults'
@@ -44,6 +45,7 @@ import { Route as AuthenticatedSettingsPermissionsRouteImport } from './routes/_
 import { Route as AuthenticatedSettingsPrivacyRouteImport } from './routes/_authenticated/settings.privacy'
 import { Route as AuthenticatedSettingsSecurityRouteImport } from './routes/_authenticated/settings.security'
 import { Route as AuthenticatedSettingsTeamRouteImport } from './routes/_authenticated/settings.team'
+import { Route as AuthenticatedSubmissionsSubmissionIdRouteImport } from './routes/_authenticated/submissions_.$submissionId'
 import { Route as AuthenticatedVaultsVaultIdRouteImport } from './routes/_authenticated/vaults_.$vaultId'
 import { Route as AuthenticatedSettingsApiKeysKeyIdRouteImport } from './routes/_authenticated/settings.api-keys_.$keyId'
 import { Route as AuthenticatedSettingsPermissionsRoleIdRouteImport } from './routes/_authenticated/settings.permissions_.$roleId'
@@ -143,6 +145,12 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedSubmissionsRoute =
+  AuthenticatedSubmissionsRouteImport.update({
+    id: '/submissions',
+    path: '/submissions',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedTeamRoute = AuthenticatedTeamRouteImport.update({
   id: '/team',
   path: '/team',
@@ -241,6 +249,12 @@ const AuthenticatedSettingsTeamRoute =
     path: '/team',
     getParentRoute: () => AuthenticatedSettingsRoute,
   } as any)
+const AuthenticatedSubmissionsSubmissionIdRoute =
+  AuthenticatedSubmissionsSubmissionIdRouteImport.update({
+    id: '/submissions_/$submissionId',
+    path: '/submissions/$submissionId',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedVaultsVaultIdRoute =
   AuthenticatedVaultsVaultIdRouteImport.update({
     id: '/vaults_/$vaultId',
@@ -314,6 +328,7 @@ export interface FileRoutesByFullPath {
   '/inbox': typeof AuthenticatedInboxRoute
   '/security': typeof AuthenticatedSecurityRoute
   '/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/submissions': typeof AuthenticatedSubmissionsRoute
   '/team': typeof AuthenticatedTeamRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
@@ -330,6 +345,7 @@ export interface FileRoutesByFullPath {
   '/settings/privacy': typeof AuthenticatedSettingsPrivacyRoute
   '/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/settings/team': typeof AuthenticatedSettingsTeamRoute
+  '/submissions/$submissionId': typeof AuthenticatedSubmissionsSubmissionIdRoute
   '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
   '/settings/': typeof AuthenticatedSettingsIndexRoute
   '/settings/api-keys/$keyId': typeof AuthenticatedSettingsApiKeysKeyIdRoute
@@ -357,6 +373,7 @@ export interface FileRoutesByTo {
   '/entries': typeof AuthenticatedEntriesRoute
   '/inbox': typeof AuthenticatedInboxRoute
   '/security': typeof AuthenticatedSecurityRoute
+  '/submissions': typeof AuthenticatedSubmissionsRoute
   '/team': typeof AuthenticatedTeamRoute
   '/unlock': typeof AuthenticatedUnlockRoute
   '/vaults': typeof AuthenticatedVaultsRoute
@@ -374,6 +391,7 @@ export interface FileRoutesByTo {
   '/settings/privacy': typeof AuthenticatedSettingsPrivacyRoute
   '/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/settings/team': typeof AuthenticatedSettingsTeamRoute
+  '/submissions/$submissionId': typeof AuthenticatedSubmissionsSubmissionIdRoute
   '/vaults/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
   '/settings': typeof AuthenticatedSettingsIndexRoute
   '/settings/api-keys/$keyId': typeof AuthenticatedSettingsApiKeysKeyIdRoute
@@ -404,6 +422,7 @@ export interface FileRoutesById {
   '/_authenticated/inbox': typeof AuthenticatedInboxRoute
   '/_authenticated/security': typeof AuthenticatedSecurityRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRouteWithChildren
+  '/_authenticated/submissions': typeof AuthenticatedSubmissionsRoute
   '/_authenticated/team': typeof AuthenticatedTeamRoute
   '/_authenticated/unlock': typeof AuthenticatedUnlockRoute
   '/_authenticated/vaults': typeof AuthenticatedVaultsRoute
@@ -421,6 +440,7 @@ export interface FileRoutesById {
   '/_authenticated/settings/privacy': typeof AuthenticatedSettingsPrivacyRoute
   '/_authenticated/settings/security': typeof AuthenticatedSettingsSecurityRoute
   '/_authenticated/settings/team': typeof AuthenticatedSettingsTeamRoute
+  '/_authenticated/submissions_/$submissionId': typeof AuthenticatedSubmissionsSubmissionIdRoute
   '/_authenticated/vaults_/$vaultId': typeof AuthenticatedVaultsVaultIdRoute
   '/_authenticated/settings/': typeof AuthenticatedSettingsIndexRoute
   '/_authenticated/settings/api-keys_/$keyId': typeof AuthenticatedSettingsApiKeysKeyIdRoute
@@ -452,6 +472,7 @@ export interface FileRouteTypes {
     | '/inbox'
     | '/security'
     | '/settings'
+    | '/submissions'
     | '/team'
     | '/unlock'
     | '/vaults'
@@ -468,6 +489,7 @@ export interface FileRouteTypes {
     | '/settings/privacy'
     | '/settings/security'
     | '/settings/team'
+    | '/submissions/$submissionId'
     | '/vaults/$vaultId'
     | '/settings/'
     | '/settings/api-keys/$keyId'
@@ -495,6 +517,7 @@ export interface FileRouteTypes {
     | '/entries'
     | '/inbox'
     | '/security'
+    | '/submissions'
     | '/team'
     | '/unlock'
     | '/vaults'
@@ -512,6 +535,7 @@ export interface FileRouteTypes {
     | '/settings/privacy'
     | '/settings/security'
     | '/settings/team'
+    | '/submissions/$submissionId'
     | '/vaults/$vaultId'
     | '/settings'
     | '/settings/api-keys/$keyId'
@@ -541,6 +565,7 @@ export interface FileRouteTypes {
     | '/_authenticated/inbox'
     | '/_authenticated/security'
     | '/_authenticated/settings'
+    | '/_authenticated/submissions'
     | '/_authenticated/team'
     | '/_authenticated/unlock'
     | '/_authenticated/vaults'
@@ -558,6 +583,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings/privacy'
     | '/_authenticated/settings/security'
     | '/_authenticated/settings/team'
+    | '/_authenticated/submissions_/$submissionId'
     | '/_authenticated/vaults_/$vaultId'
     | '/_authenticated/settings/'
     | '/_authenticated/settings/api-keys_/$keyId'
@@ -710,6 +736,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/submissions': {
+      id: '/_authenticated/submissions'
+      path: '/submissions'
+      fullPath: '/submissions'
+      preLoaderRoute: typeof AuthenticatedSubmissionsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/team': {
       id: '/_authenticated/team'
       path: '/team'
@@ -829,6 +862,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsTeamRouteImport
       parentRoute: typeof AuthenticatedSettingsRoute
     }
+    '/_authenticated/submissions_/$submissionId': {
+      id: '/_authenticated/submissions_/$submissionId'
+      path: '/submissions/$submissionId'
+      fullPath: '/submissions/$submissionId'
+      preLoaderRoute: typeof AuthenticatedSubmissionsSubmissionIdRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/vaults_/$vaultId': {
       id: '/_authenticated/vaults_/$vaultId'
       path: '/vaults/$vaultId'
@@ -946,6 +986,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedInboxRoute: typeof AuthenticatedInboxRoute
   AuthenticatedSecurityRoute: typeof AuthenticatedSecurityRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRouteWithChildren
+  AuthenticatedSubmissionsRoute: typeof AuthenticatedSubmissionsRoute
   AuthenticatedTeamRoute: typeof AuthenticatedTeamRoute
   AuthenticatedUnlockRoute: typeof AuthenticatedUnlockRoute
   AuthenticatedVaultsRoute: typeof AuthenticatedVaultsRoute
@@ -954,6 +995,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAgentsAgentIdRoute: typeof AuthenticatedAgentsAgentIdRoute
   AuthenticatedApiKeysKeyIdRoute: typeof AuthenticatedApiKeysKeyIdRoute
   AuthenticatedInvitationsAcceptRoute: typeof AuthenticatedInvitationsAcceptRoute
+  AuthenticatedSubmissionsSubmissionIdRoute: typeof AuthenticatedSubmissionsSubmissionIdRoute
   AuthenticatedVaultsVaultIdRoute: typeof AuthenticatedVaultsVaultIdRoute
   AuthenticatedVaultsVaultIdGrantsRoute: typeof AuthenticatedVaultsVaultIdGrantsRoute
   AuthenticatedVaultsVaultIdSettingsRoute: typeof AuthenticatedVaultsVaultIdSettingsRoute
@@ -971,6 +1013,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedInboxRoute: AuthenticatedInboxRoute,
   AuthenticatedSecurityRoute: AuthenticatedSecurityRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRouteWithChildren,
+  AuthenticatedSubmissionsRoute: AuthenticatedSubmissionsRoute,
   AuthenticatedTeamRoute: AuthenticatedTeamRoute,
   AuthenticatedUnlockRoute: AuthenticatedUnlockRoute,
   AuthenticatedVaultsRoute: AuthenticatedVaultsRoute,
@@ -980,6 +1023,8 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAgentsAgentIdRoute: AuthenticatedAgentsAgentIdRoute,
   AuthenticatedApiKeysKeyIdRoute: AuthenticatedApiKeysKeyIdRoute,
   AuthenticatedInvitationsAcceptRoute: AuthenticatedInvitationsAcceptRoute,
+  AuthenticatedSubmissionsSubmissionIdRoute:
+    AuthenticatedSubmissionsSubmissionIdRoute,
   AuthenticatedVaultsVaultIdRoute: AuthenticatedVaultsVaultIdRoute,
   AuthenticatedVaultsVaultIdGrantsRoute: AuthenticatedVaultsVaultIdGrantsRoute,
   AuthenticatedVaultsVaultIdSettingsRoute:

@@ -11,6 +11,8 @@ export const NOTIFICATION_TYPES = [
   'agent_approved',
   'agent_deactivated',
   'entry_share_received',
+  'submission_pending',
+  'submission_resolved',
 ] as const
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number]
@@ -26,7 +28,7 @@ const FORBIDDEN_PRESENTATION_KEYS = new Set([
   'agentIconKey', 'agentPublicKey', 'agentPublicKeyHint',
 ])
 const OPAQUE_ID_KEYS = new Set([
-  'agentId', 'entityId', 'entryId', 'grantId', 'requestId', 'vaultId', 'shareId',
+  'agentId', 'entityId', 'entryId', 'grantId', 'requestId', 'vaultId', 'shareId', 'submissionId',
 ])
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 

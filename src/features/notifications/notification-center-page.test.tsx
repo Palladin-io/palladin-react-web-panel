@@ -114,6 +114,12 @@ vi.mock("../grants", async (importOriginal) => ({
   useGrantHistoryMetadata: () => grantHistoryMetadata,
 }));
 
+const submissionsState = vi.hoisted(() => ({ canReview: false, pending: [] as unknown[] }));
+vi.mock("../submissions", () => ({
+  useCanReviewSubmissions: () => submissionsState.canReview,
+  useSubmissions: () => ({ data: submissionsState.pending }),
+}));
+
 vi.mock("../agents", async (importOriginal) => ({
   // Keep real AgentAvatar (rendered by NotificationCard); stub the hooks/dialog.
   ...(await importOriginal<typeof import("../agents")>()),
@@ -229,6 +235,30 @@ function renderPage() {
 }
 
 describe("NotificationCenterPage", () => {
+  it("routes a pending agent submission card to its decision view", () => {
+    const submissionId = "0d0d0d0d-0d0d-4d0d-8d0d-0d0d0d0d0d0d";
+    const original = items[0];
+    items[0] = { ...original, id: "s1", type: "submission_pending", metadata: { submissionId } };
+    submissionsState.canReview = true;
+    submissionsState.pending = [{ submissionId, agentId: "a9", agentName: "Form Bot", submissionKind: 1, entryType: 1 }];
+    try {
+      renderPage();
+      expect(screen.getByText("Form Bot proposed a secret")).toBeInTheDocument();
+      expect(screen.getByText("Submissions")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Review" }));
+      expect(navigateMock).toHaveBeenCalledWith({ to: "/submissions/$submissionId", params: { submissionId } });
+    } finally {
+      items[0] = original;
+      submissionsState.canReview = false;
+      submissionsState.pending = [];
+    }
+  });
+
+  it("hides the Submissions link from members who cannot manage access", () => {
+    renderPage();
+    expect(screen.queryByText("Submissions")).not.toBeInTheDocument();
+  });
+
   it("shows the receipt as history and opens its source Sharing tab without approval actions", () => {
     const original = items[0];
     items[0] = { ...original, type: "entry_share_received", category: "update", actionState: null,
