@@ -40,9 +40,12 @@ backend stores only signed ciphertext; the browser verifies and decrypts locally
   with the Agent directory Ed25519 key, the listed Agent ID and the caller's own
   approver key version/fingerprint before its DEK is opened. The signed
   `submissionId` must equal the id the client requested.
-- **Secrets are stored byte-for-byte.** Only the label is normalized. Vault
-  protocol 2 rejects non-NFC MemberSecret strings, so a submission whose secret
-  is not NFC is refused at approval with a clear message instead of being altered.
+- **Agent strings are stored byte-for-byte.** Every payload string must be
+  well-formed Unicode and already NFC; anything else is rejected as
+  `invalid-field` when the submission is opened, before display, because Vault
+  protocol 2 rejects non-NFC Entry strings and nobody may normalize a secret. Only
+  a label typed by the approver is normalized. The approval builders keep a
+  `secret-not-nfc` guard with a UI message as defense in depth.
 - **Approval reuses Entry producers:** a new Entry uses the creation challenge and
   `sealCanonicalEntry` with the canonical default Agent Visibility Policy. An
   update decrypts the exact `expectedEntryRevision`, merges only the proposed

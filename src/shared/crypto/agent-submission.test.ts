@@ -172,7 +172,7 @@ describe('Agent Submission v1 vendored contract', () => {
   it('pins the imported fixture and contract bytes', () => {
     const digest = (text: string) => createHash('sha256').update(text).digest('hex')
     expect(digest(fixtureText)).toBe('4778ca29b0bee27e8d73c71838f9c51d51ecd59962f7f263272370e53dcf4101')
-    expect(digest(contractText)).toBe('21a40ebb4366d3559deaeccd4675470e1b07ab384b9ca45d3004c509a97a246a')
+    expect(digest(contractText)).toBe('dde6757dcb059e1a6a97e1254f153b5cdd79c559078ee0cb67380342b3224312')
   })
 
   it('matches the frozen field lists, registrations and limits', () => {
@@ -251,6 +251,11 @@ describe('approver manifest chain', () => {
     expect((await verifyApproverManifestChain([reBootstrap], org()))?.keyVersion).toBe(2)
     const addedApprover = await signManifest({ ...v1, manifestRevision: '2', approverSetRevision: '2' }, keys.approverV1Sign.privateKey)
     expect((await verifyApproverManifestChain([v1, addedApprover], org()))?.manifestRevision).toBe('2')
+    const substitutedMessageKey = await signManifest({
+      ...addedApprover, messagePublicKey: fixture.approverManifests[1].messagePublicKey,
+      messageKeyFingerprint: fixture.approverManifests[1].messageKeyFingerprint,
+    }, keys.approverV1Sign.privateKey)
+    await expectCode(verifyApproverManifestChain([v1, substitutedMessageKey], org()), 'manifest-fingerprint-mismatch')
     const sameVersionWithContinuity = await signManifest(
       { ...addedApprover, previousSigningKeyFingerprint: v1.signingKeyFingerprint },
       keys.approverV1Sign.privateKey, keys.approverV1Sign.privateKey)
@@ -360,6 +365,9 @@ describe('opening submissions as the approver group', () => {
       ...payloadCase('empty new password', (payload) => ({ ...payload, content: { ...payload.content, password: '' } }), 'invalid-field'),
       ...payloadCase('notes over 8192 bytes', (payload) => ({ ...payload, content: { ...payload.content, notes: 'n'.repeat(8193) } }), 'field-too-large'),
       ...payloadCase('plaintext over 32768 bytes', (payload) => ({ ...payload, content: { ...payload.content, notes: 'n'.repeat(8192) }, padding: 'x'.repeat(32768) }), 'field-too-large'),
+      ...payloadCase('unpaired surrogate in password', (payload) => ({ ...payload, content: { ...payload.content, password: 'a\ud800b' } }), 'invalid-field'),
+      ...payloadCase('non-NFC password', (payload) => ({ ...payload, content: { ...payload.content, password: 'Cafe\u0301' } }), 'invalid-field'),
+      ...payloadCase('non-NFC username', (payload) => ({ ...payload, content: { ...payload.content, username: 'Jose\u0301' } }), 'invalid-field'),
       ...payloadCase('content is not an object', (payload) => ({ ...payload, content: 'x' }), 'invalid-field'),
     ]
     const approver = await authority(1)

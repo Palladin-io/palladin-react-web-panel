@@ -333,8 +333,12 @@ export function assertSubmissionTransportShape(submission: unknown): asserts sub
   if ('expectedEntryRevision' in target) assertU64(target.expectedEntryRevision, true)
 }
 
+const UNPAIRED_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/
+
+/** Vault protocol 2 rejects non-NFC Entry strings; normalizing would change the secret the Agent used. */
 function assertPayloadString(value: unknown, maximumBytes: number): asserts value is string {
-  if (typeof value !== 'string' || value.length === 0) fail('invalid-field')
+  if (typeof value !== 'string' || value.length === 0 || UNPAIRED_SURROGATE.test(value)
+    || value !== value.normalize('NFC')) fail('invalid-field')
   if (utf8Length(value) > maximumBytes) fail('field-too-large')
 }
 
@@ -358,7 +362,6 @@ function assertPayloadShape(payload: unknown): asserts payload is AgentSubmissio
   if (kind === 'new' && !('label' in payload)) fail('missing-field')
   if ('label' in payload) {
     assertPayloadString(payload.label, SUBMISSION_LIMITS.labelUtf8Bytes)
-    if (payload.label !== payload.label.normalize('NFC')) fail('invalid-field')
   }
   const type = submissionEntryTypeName(payload.identity.entryType as number)
   if (!kind || !type) fail('unsupported-entry-type')
@@ -556,6 +559,7 @@ export interface PinnedApproverManifest {
   keyVersion: number
   manifestRevision: string
   signingKeyFingerprint: string
+  messageKeyFingerprint: string
   signingPublicKey: Uint8Array
 }
 
@@ -574,6 +578,8 @@ export async function verifyApproverManifestChain(
         if (manifest.signingKeyFingerprint !== pinned.signingKeyFingerprint || hasContinuity) {
           fail('manifest-signature-invalid')
         }
+        // A different message key under the same version would let a server substitute recipients.
+        if (manifest.messageKeyFingerprint !== pinned.messageKeyFingerprint) fail('manifest-fingerprint-mismatch')
       } else if (manifest.keyVersion === pinned.keyVersion + 1) {
         if (!hasContinuity) fail('manifest-reintroduction-required')
         if (manifest.previousSigningKeyFingerprint !== pinned.signingKeyFingerprint) fail('manifest-continuity-invalid')
@@ -587,6 +593,7 @@ export async function verifyApproverManifestChain(
       keyVersion: manifest.keyVersion,
       manifestRevision: manifest.manifestRevision,
       signingKeyFingerprint: manifest.signingKeyFingerprint,
+      messageKeyFingerprint: manifest.messageKeyFingerprint,
       signingPublicKey: decode(manifest.signingPublicKey, 'manifest-signature-invalid', 32),
     }
   }
@@ -812,8 +819,11 @@ export async function buildApproverKeySetChange(input: ApproverKeySetChangeInput
           CONTINUITY_SIGNATURE_DOMAIN, unsigned as unknown as CanonicalJson, previousSigning.privateKey),
       } : {}),
     }
-    if (kind === 'rotate') await verifyApproverManifestChain([input.currentManifest!, manifest], input.organizationId)
-    else await verifyApproverManifest(manifest, input.organizationId)
+    if (kind === 'rotate' || kind === 'addApprovers') {
+      await verifyApproverManifestChain([input.currentManifest!, manifest], input.organizationId)
+    } else {
+      await verifyApproverManifest(manifest, input.organizationId)
+    }
     const recipients = kind === 'addApprovers'
       ? challenge.approvers.filter((approver) => !approver.hasWrap)
       : challenge.approvers
