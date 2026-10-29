@@ -186,6 +186,10 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
           useMemberSyncStore.getState().retry()
           return
         }
+        if (error instanceof AgentSubmissionCryptoError && error.code === 'secret-not-nfc') {
+          toast.error(t('submissions.decision.secretNotNfc'))
+          return
+        }
         if (error instanceof AgentSubmissionCryptoError && error.code === 'entry-type-mismatch') {
           setConflict('typeMismatch')
           return

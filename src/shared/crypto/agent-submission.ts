@@ -95,7 +95,7 @@ export type AgentSubmissionErrorCode =
   | 'manifest-organization-mismatch' | 'manifest-fingerprint-mismatch' | 'manifest-signature-invalid'
   | 'manifest-continuity-invalid' | 'manifest-rollback' | 'manifest-key-version-skip'
   | 'manifest-reintroduction-required' | 'approver-wrap-invalid' | 'approver-not-recipient'
-  | 'entry-type-mismatch'
+  | 'entry-type-mismatch' | 'secret-not-nfc'
 
 export class AgentSubmissionCryptoError extends Error {
   readonly code: AgentSubmissionErrorCode
@@ -414,6 +414,8 @@ function approverSubmissionWrapContext(submission: AgentEntrySubmission): X25519
  */
 export interface SubmissionApproverAuthority {
   organizationId: string
+  /** The id the client requested; a different correctly signed submission is never opened. */
+  submissionId: string
   agentId: string
   agentEd25519PublicKey: Uint8Array
   approverKeys: Pick<OpenedApproverKeys, 'keyVersion' | 'messagePublicKey' | 'messagePrivateKey' | 'messageKeyFingerprint'>
@@ -440,7 +442,8 @@ export async function openSubmissionAsApprover(
     signatureValid = false
   }
   if (!signatureValid) fail('invalid-agent-signature')
-  if (submission.organizationId !== authority.organizationId || submission.agentId !== authority.agentId) {
+  if (submission.organizationId !== authority.organizationId || submission.submissionId !== authority.submissionId
+    || submission.agentId !== authority.agentId) {
     fail('context-mismatch')
   }
   if (submission.approverKeyVersion !== authority.approverKeys.keyVersion
@@ -826,8 +829,15 @@ export async function buildApproverKeySetChange(input: ApproverKeySetChangeInput
   }
 }
 
-function normalized(value: string | undefined): string | undefined {
-  return value?.normalize('NFC')
+/**
+ * Secrets enter the Entry exactly as the Agent sent them. Vault protocol 2 fails
+ * closed on non-NFC MemberSecret strings (vault-v2 README, `normalizedString` in
+ * the MemberSecret schema), so such a submission is refused rather than altered.
+ */
+function assertNfcSecrets(content: AgentSubmissionPayload['content']): void {
+  for (const value of Object.values(content)) {
+    if (typeof value === 'string' && value !== value.normalize('NFC')) fail('secret-not-nfc')
+  }
 }
 
 function hostname(url: string): string | null {
@@ -838,6 +848,7 @@ function hostname(url: string): string | null {
 export function newEntrySecretFromSubmission(payload: AgentSubmissionPayload, label: string): MemberSecretV1 {
   const type = submissionEntryTypeName(payload.identity.entryType as number)
   const content = payload.content
+  assertNfcSecrets(content)
   const name = label.trim()
   if (!name) fail('missing-field')
   if (type === 'credential') {
@@ -873,19 +884,20 @@ export function mergeSubmissionUpdate(
   const type = submissionEntryTypeName(payload.identity.entryType as number)
   if (type !== current.entryType) fail('entry-type-mismatch')
   const content = payload.content
+  assertNfcSecrets(content)
   const memberLabel = label?.trim() ? label.trim().normalize('NFC') : current.memberLabel
   if (current.entryType === 'credential') {
-    const url = 'url' in content ? normalized(content.url)! : current.content.url
+    const url = 'url' in content ? content.url! : current.content.url
     return {
       ...current,
       memberLabel,
       content: {
         ...current.content,
-        password: normalized(content.password) ?? current.content.password,
-        username: normalized(content.username) ?? current.content.username,
+        password: content.password ?? current.content.password,
+        username: content.username ?? current.content.username,
         url,
         urlDomain: 'url' in content ? hostname(url!) : current.content.urlDomain,
-        notes: 'notes' in content ? normalized(content.notes)! : current.content.notes,
+        notes: 'notes' in content ? content.notes! : current.content.notes,
       },
     }
   }
@@ -894,15 +906,13 @@ export function mergeSubmissionUpdate(
     return {
       ...current,
       memberLabel,
-      // A newly present Key URL needs a policy entry; it receives the canonical default.
-      agentFieldAccess: addsUrl
-        ? { ...current.agentFieldAccess, 'key.url': defaultAgentVisibilityPolicy(ENTRY_TYPE_KEY).fields.url }
-        : current.agentFieldAccess,
+      // The schema requires a key.url entry once a URL exists; a submission never widens Agent access.
+      agentFieldAccess: addsUrl ? { ...current.agentFieldAccess, 'key.url': 'never' } : current.agentFieldAccess,
       content: {
         ...current.content,
-        value: normalized(content.value) ?? current.content.value,
-        url: 'url' in content ? normalized(content.url)! : current.content.url,
-        notes: 'notes' in content ? normalized(content.notes)! : current.content.notes,
+        value: content.value ?? current.content.value,
+        url: 'url' in content ? content.url! : current.content.url,
+        notes: 'notes' in content ? content.notes! : current.content.notes,
       },
     }
   }

@@ -168,6 +168,21 @@ describe('submission review pipeline with the real crypto layer', () => {
     expect(result.current.data).toBeUndefined()
   })
 
+  it('refuses a correctly signed submission other than the one requested', async () => {
+    const source = fixture.submissions[0]
+    const unsigned = { ...source, submissionId: '1d1d1d1d-1d1d-4d1d-8d1d-1d1d1d1d1d1d' } as Record<string, unknown>
+    delete unsigned.agentSignature
+    const agentSigning = sodium.crypto_sign_seed_keypair(hex(fixture.deterministicInputs.agentEd25519Seed))
+    mocks.getSubmission.mockResolvedValue({
+      submission: { ...unsigned, agentSignature: await signVaultObject('PLDNSUB1SIG:AGENT-SUBMISSION:', unsigned as CanonicalJson, agentSigning.privateKey) },
+      agentEd25519PublicKey: fixture.context.agentEd25519PublicKey, agentEd25519KeyVersion: 1,
+    })
+    const { result } = renderHook(() => useSubmissionReview(item), { wrapper })
+    await waitFor(() => expect(result.current.isError).toBe(true))
+    expect((result.current.error as AgentSubmissionCryptoError).code).toBe('context-mismatch')
+    expect(result.current.data).toBeUndefined()
+  })
+
   it('refuses a submission whose Agent is not the one listed for review', async () => {
     const { result } = renderHook(() => useSubmissionReview({ ...item, agentId: '1b1b1b1b-1b1b-4b1b-8b1b-1b1b1b1b1b1b' }), { wrapper })
     await waitFor(() => expect(result.current.isError).toBe(true))

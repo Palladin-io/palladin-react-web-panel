@@ -38,11 +38,15 @@ backend stores only signed ciphertext; the browser verifies and decrypts locally
   version and the fingerprint derived from the in-memory Member private key; the
   opened keys must reproduce the self-signed manifest. A submission is verified
   with the Agent directory Ed25519 key, the listed Agent ID and the caller's own
-  approver key version/fingerprint before its DEK is opened.
+  approver key version/fingerprint before its DEK is opened. The signed
+  `submissionId` must equal the id the client requested.
+- **Secrets are stored byte-for-byte.** Only the label is normalized. Vault
+  protocol 2 rejects non-NFC MemberSecret strings, so a submission whose secret
+  is not NFC is refused at approval with a clear message instead of being altered.
 - **Approval reuses Entry producers:** a new Entry uses the creation challenge and
   `sealCanonicalEntry` with the canonical default Agent Visibility Policy. An
   update decrypts the exact `expectedEntryRevision`, merges only the proposed
-  fields (custom fields, TOTP and existing policy stay untouched) and calls
+  fields (custom fields, TOTP and existing policy stay untouched; a newly present Key URL gets the schema-required policy entry `never`, so it is never granted) and calls
   `prepareCanonicalEntryUpdate`, so active GRANULAR and Script grants are
   refreshed exactly like a normal edit. A moved target is a stale conflict: the
   approver may save the proposal as a new Entry or deny it.
@@ -50,6 +54,8 @@ backend stores only signed ciphertext; the browser verifies and decrypts locally
   only, no expiry and no use limit. It is omitted when the approver turns it off,
   when the Agent is inactive, or when an active FULL grant or an Entry grant
   already covers the target (the existing access is shown instead).
+- `submission_pending` and `submission_resolved` realtime/push events invalidate
+  the submission lists through the shared notification invalidation hook.
 - Deny moves to the 30-day trash; restore returns the submission to pending.
   No `fe:` success analytics are emitted; the backend owns decision outcomes.
 

@@ -32,6 +32,15 @@ function payload(type: string, data: Record<string, string> = {}): NotificationP
 }
 
 describe('useNotificationInvalidation', () => {
+  it('refreshes the submission lists and the Inbox counters for submission events', () => {
+    for (const type of ['submission_pending', 'submission_resolved']) {
+      const { invalidate, invalidateSpy } = setup()
+      invalidate(payload(type, { submissionId: '0d0d0d0d-0d0d-4d0d-8d0d-0d0d0d0d0d0d' }))
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['submissions'] })
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['notifications'] })
+    }
+  })
+
   it('invalidates the grants root (prefix covers pending + org lists) for every grant_* type', () => {
     for (const type of ['grant_pending', 'grant_approved', 'grant_denied', 'grant_revoked']) {
       const { invalidate, invalidateSpy } = setup()

@@ -276,6 +276,13 @@ describe('SubmissionDecisionPanel — server conflicts', () => {
     expect(screen.queryByText('Entry changed')).not.toBeInTheDocument()
   })
 
+  it('explains a secret that cannot be stored unchanged instead of altering it', async () => {
+    renderPanel('new')
+    mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) => options.onError?.(new AgentSubmissionCryptoError('secret-not-nfc')))
+    fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/cannot store without changing it/)))
+  })
+
   it('shows a generic failure for other errors', async () => {
     renderPanel('new')
     mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) => options.onError?.(apiError(403, 'vault-access-required')))

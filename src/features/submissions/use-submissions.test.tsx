@@ -55,7 +55,7 @@ beforeEach(() => {
 })
 
 describe('useSubmissionReview', () => {
-  it('verifies with the JWT organization, the listed Agent and its directory key, then wipes the approver keys', async () => {
+  it('verifies with the JWT organization, the requested submission, the listed Agent and its directory key, then wipes the approver keys', async () => {
     const keys = { keyVersion: 1, messagePrivateKey: new Uint8Array(32).fill(4), signingSeed: new Uint8Array(32).fill(5) }
     mocks.loadOwnApproverKeys.mockResolvedValue({ keys, authority: { organizationId: 'org' } })
     mocks.getSubmission.mockResolvedValue({ submission: { s: 1 }, agentEd25519PublicKey: 'AQID', agentEd25519KeyVersion: 2 })
@@ -63,7 +63,7 @@ describe('useSubmissionReview', () => {
     const { result } = renderHook(() => useSubmissionReview(item), { wrapper })
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(mocks.openSubmissionAsApprover).toHaveBeenCalledWith({ s: 1 }, {
-      organizationId: 'org', agentId: AGENT, agentEd25519PublicKey: new Uint8Array([1, 2, 3]), approverKeys: keys,
+      organizationId: 'org', submissionId: item.submissionId, agentId: AGENT, agentEd25519PublicKey: new Uint8Array([1, 2, 3]), approverKeys: keys,
     })
     expect(keys.messagePrivateKey.every((byte) => byte === 0)).toBe(true)
     expect(keys.signingSeed.every((byte) => byte === 0)).toBe(true)

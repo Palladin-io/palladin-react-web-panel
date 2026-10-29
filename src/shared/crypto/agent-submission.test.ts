@@ -26,6 +26,7 @@ import {
 } from './agent-submission'
 import { toMemberSecret, defaultAgentVisibilityPolicy } from './entry-draft'
 import { encodeMemberSecret, parseMemberSecret } from './vault-plaintext'
+import { listGrantableFields } from './grant-protocol'
 import { VAULT_KEY_KIND, WRAPPER_PURPOSE, computeVaultKeyFingerprint } from './x25519-wrapper'
 import { canonicalizeVaultJson, signVaultObject, type CanonicalJson } from './vault-v2-signatures'
 import { concatBytes, decodeBase64Url, encodeBase64Url } from './vault-v2-bytes'
@@ -119,6 +120,7 @@ async function approverKeysFor(version: 1 | 2): Promise<SubmissionApproverAuthor
 async function authority(version: 1 | 2 = 1): Promise<SubmissionApproverAuthority> {
   return {
     organizationId: fixture.context.organizationId,
+    submissionId: fixture.submissions[0].submissionId,
     agentId: fixture.context.agentId,
     agentEd25519PublicKey: decodeBase64Url(fixture.context.agentEd25519PublicKey),
     approverKeys: await approverKeysFor(version),
@@ -313,7 +315,7 @@ describe('opening submissions as the approver group', () => {
     const cases: Array<[string, () => Promise<unknown>, string]> = [
       ['backend substitutes organization', async () => ({ ...submission, organizationId: FOREIGN_ID }), 'invalid-agent-signature'],
       ['agent substitutes organization', () => resign({ ...submission, organizationId: FOREIGN_ID }), 'context-mismatch'],
-      ['replay under another submission id', () => resign({ ...submission, submissionId: '1d1d1d1d-1d1d-4d1d-8d1d-1d1d1d1d1d1d' }), 'wrapper-context-mismatch'],
+      ['agent replays under another submission id', () => resign({ ...submission, submissionId: '1d1d1d1d-1d1d-4d1d-8d1d-1d1d1d1d1d1d' }), 'context-mismatch'],
       ['retarget update to another entry', () => resign({ ...submission, target: { ...submission.target, entryId: '1f1f1f1f-1f1f-4f1f-8f1f-1f1f1f1f1f1f' } }), 'wrapper-context-mismatch'],
       ['rewrite expected revision', () => resign({ ...submission, target: { ...submission.target, expectedEntryRevision: '8' } }), 'wrapper-context-mismatch'],
       ['flip update to new', () => resign({ ...submission, submissionKind: 1, target: { kind: 'new' } }), 'wrapper-context-mismatch'],
@@ -365,6 +367,13 @@ describe('opening submissions as the approver group', () => {
       const error = await openSubmissionAsApprover(await build(), approver).then(() => null, (caught: unknown) => caught)
       expect((error as AgentSubmissionCryptoError | null)?.code, name).toBe(code)
     }
+  })
+
+  it('binds the opened submission to the requested submission id', async () => {
+    const replayed = await resign({ ...fixture.submissions[0], submissionId: '1d1d1d1d-1d1d-4d1d-8d1d-1d1d1d1d1d1d' })
+    await expectCode(openSubmissionAsApprover(fixture.submissions[0], { ...await authority(1), submissionId: replayed.submissionId }), 'context-mismatch')
+    // Requested and signed ids agree, so the wrapper context still catches the replay (reference code).
+    await expectCode(openSubmissionAsApprover(replayed, { ...await authority(1), submissionId: replayed.submissionId }), 'wrapper-context-mismatch')
   })
 
   it('rejects a submission signed by a different Agent key', async () => {
@@ -546,7 +555,7 @@ describe('approval plaintext builders', () => {
     expect(next.content.notes).toBe('keep notes')
   })
 
-  it('merges Key values and gives a newly present URL the default policy only', () => {
+  it('merges Key values and never grants Agent access to a newly present URL', () => {
     const current = toMemberSecret({
       label: 'API', agentLabel: 'API', type: 0,
       payload: { type: 0, value: 'old', fields: [] }, policy: defaultAgentVisibilityPolicy(0),
@@ -554,8 +563,48 @@ describe('approval plaintext builders', () => {
     const next = mergeSubmissionUpdate(current, updatePayload({ value: 'new', url: 'https://api.example.invalid' }, 0))
     if (next.entryType !== 'key' || current.entryType !== 'key') throw new Error('type')
     expect(next.content).toEqual({ ...current.content, value: 'new', url: 'https://api.example.invalid' })
-    expect(next.agentFieldAccess).toEqual({ ...current.agentFieldAccess, 'key.url': 'onGrantValue' })
+    // The current schema requires a key.url policy entry once a URL exists; it must grant nothing.
+    expect(next.agentFieldAccess).toEqual({ ...current.agentFieldAccess, 'key.url': 'never' })
+    expect(listGrantableFields(next).map((field) => field.id)).toEqual(listGrantableFields(current).map((field) => field.id))
+    expect(listGrantableFields(next).map((field) => field.id)).not.toContain('key.url')
     expect(parseMemberSecret(encodeMemberSecret(next))).toEqual(next)
+  })
+
+  it('keeps an existing Key URL policy unchanged when the URL is updated', () => {
+    const current = toMemberSecret({
+      label: 'API', agentLabel: 'API', type: 0,
+      payload: { type: 0, value: 'old', url: 'https://old.example.invalid', fields: [] },
+      policy: { ...defaultAgentVisibilityPolicy(0), fields: { ...defaultAgentVisibilityPolicy(0).fields, url: 'never' } },
+    })
+    const next = mergeSubmissionUpdate(current, updatePayload({ value: 'new', url: 'https://new.example.invalid' }, 0))
+    expect(next.agentFieldAccess).toEqual(current.agentFieldAccess)
+  })
+
+  it('stores secrets byte-for-byte and refuses a non-NFC secret instead of normalizing it', () => {
+    const composed = 'Caf\u00e9'
+    const decomposed = 'Cafe\u0301'
+    const created = newEntrySecretFromSubmission({
+      schema: 'palladin.agent-submission-payload.v1',
+      identity: { ...fixture.expectedPlaintext.identity, submissionKind: 1, target: { kind: 'new' } },
+      label: 'L', content: { username: composed, password: composed },
+    }, 'L')
+    if (created.entryType !== 'credential') throw new Error('type')
+    expect(created.content.password).toBe(composed)
+    const merged = mergeSubmissionUpdate(credentialSecret(), updatePayload({ password: composed }))
+    if (merged.entryType !== 'credential') throw new Error('type')
+    expect(merged.content.password).toBe(composed)
+    expect(() => newEntrySecretFromSubmission({
+      schema: 'palladin.agent-submission-payload.v1',
+      identity: { ...fixture.expectedPlaintext.identity, submissionKind: 1, target: { kind: 'new' } },
+      label: 'L', content: { username: 'u', password: decomposed },
+    }, 'L')).toThrow(expect.objectContaining({ code: 'secret-not-nfc' }))
+    for (const content of [{ password: decomposed }, { password: 'p', username: decomposed }, { password: 'p', notes: decomposed }]) {
+      expect(() => mergeSubmissionUpdate(credentialSecret(), updatePayload(content)))
+        .toThrow(expect.objectContaining({ code: 'secret-not-nfc' }))
+    }
+    expect(() => mergeSubmissionUpdate(toMemberSecret({
+      label: 'K', agentLabel: 'K', type: 0, payload: { type: 0, value: 'v', fields: [] }, policy: defaultAgentVisibilityPolicy(0),
+    }), updatePayload({ value: decomposed }, 0))).toThrow(expect.objectContaining({ code: 'secret-not-nfc' }))
   })
 
   it('refuses to apply an update to an Entry of another type', () => {

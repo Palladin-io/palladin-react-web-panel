@@ -136,6 +136,18 @@ describe('approveAsNewEntry', () => {
   })
 })
 
+describe('secret byte preservation', () => {
+  it('approve-new seals a precomposed secret unchanged and refuses a decomposed one before any request', async () => {
+    await approveAsNewEntry({ submissionId: 's', vaultId: VAULT, label: 'L', payload: payload('new', { username: 'u', password: 'Caf\u00e9' }) })
+    expect(mocks.sealCanonicalEntry.mock.calls[0][1].content.password).toBe('Caf\u00e9')
+    vi.clearAllMocks()
+    await expect(approveAsNewEntry({ submissionId: 's', vaultId: VAULT, label: 'L', payload: payload('new', { username: 'u', password: 'Cafe\u0301' }) }))
+      .rejects.toMatchObject({ code: 'secret-not-nfc' })
+    expect(mocks.issueEntryCreationChallenge).not.toHaveBeenCalled()
+    expect(mocks.approveSubmissionAsNewEntry).not.toHaveBeenCalled()
+  })
+})
+
 describe('approveAsUpdate', () => {
   const detail = { organizationId: ORG, vaultId: VAULT, id: ENTRY, currentRevision: '7', entryKey: 'k', memberSecret: 's' }
 
@@ -165,6 +177,14 @@ describe('approveAsUpdate', () => {
       entry: { vaultId: VAULT, entryId: ENTRY, baseRevision: '7', memberSecret: 'next', grantEnvelopes: ['refreshed'] },
       grant: expect.objectContaining({ entryId: ENTRY, methods: 'Inject' }),
     })
+  })
+
+  it('keeps a precomposed new password unchanged and refuses a decomposed one', async () => {
+    await approveAsUpdate({ submissionId: 's', vaultId: VAULT, entryId: ENTRY, expectedEntryRevision: '7', payload: payload('update', { password: 'Caf\u00e9' }) })
+    expect(mocks.prepareCanonicalEntryUpdate.mock.calls[0][1].nextCanonicalMemberSecret.content.password).toBe('Caf\u00e9')
+    await expect(approveAsUpdate({ submissionId: 's', vaultId: VAULT, entryId: ENTRY, expectedEntryRevision: '7', payload: payload('update', { password: 'Cafe\u0301' }) }))
+      .rejects.toMatchObject({ code: 'secret-not-nfc' })
+    expect(mocks.approveSubmissionAsUpdate).toHaveBeenCalledTimes(1)
   })
 
   it('stops before opening keys when the target moved past the expected revision', async () => {

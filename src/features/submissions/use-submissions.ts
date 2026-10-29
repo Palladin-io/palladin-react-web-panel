@@ -50,6 +50,7 @@ async function openSubmission(item: SubmissionListItem, signal: AbortSignal): Pr
   try {
     const payload = await openSubmissionAsApprover(detail.submission, {
       organizationId: authority.organizationId,
+      submissionId: item.submissionId,
       agentId: item.agentId,
       agentEd25519PublicKey: decodeBase64Url(detail.agentEd25519PublicKey),
       approverKeys: keys,
