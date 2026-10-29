@@ -1,7 +1,12 @@
+import Papa from 'papaparse'
 import { describe, expect, it } from 'vitest'
 import { parseText } from '../import'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY } from '../types'
 import { toPalladinCsv, toPalladinJson, type ExportVault } from './serializers'
+
+function parseCsvRows(csv: string): Record<string, string>[] {
+  return Papa.parse<Record<string, string>>(csv, { header: true }).data
+}
 
 describe('toPalladinCsv', () => {
   it('emits the header and escapes commas, quotes, and newlines (RFC 4180)', () => {
@@ -31,9 +36,61 @@ describe('toPalladinCsv', () => {
     // name,url,username,password,... → password (4th field) holds the value.
     expect(row.split(',')[3]).toBe('sk_live_1')
   })
+
+  it('neutralises formula-leading metadata cells', () => {
+    const names = ['=1+1', '+SUM(A1)', '-2', '@cmd', '\tx', '\rx']
+    const csv = toPalladinCsv([
+      ...names.map((name) => ({ name, type: ENTRY_TYPE_CREDENTIAL })),
+      {
+        name: '=HYPERLINK("https://evil.test","x")',
+        type: ENTRY_TYPE_CREDENTIAL,
+        username: '@admin',
+        url: '+https://example.test',
+        notes: '-note',
+        folder: '=Prod',
+        cardholderName: '=Ada',
+        billingAddress: '@Street',
+      },
+    ])
+    const rows = parseCsvRows(csv)
+    expect(rows.slice(0, names.length).map((row) => row.name)).toEqual(names.map((name) => `'${name}`))
+    expect(rows[names.length]).toMatchObject({
+      name: '\'=HYPERLINK("https://evil.test","x")',
+      username: "'@admin",
+      url: "'+https://example.test",
+      note: "'-note",
+      folder: "'=Prod",
+      cardholderName: "'=Ada",
+      billingAddress: "'@Street",
+    })
+  })
+
+  it('keeps secret values byte-exact', () => {
+    const csv = toPalladinCsv([
+      {
+        name: 'Plain',
+        type: ENTRY_TYPE_CREDENTIAL,
+        password: '=abc',
+        totp: '+JBSWY3DPEHPK3PXP',
+      },
+      { name: 'Token', type: ENTRY_TYPE_KEY, value: '-sk_live_1' },
+      { name: 'Card', type: ENTRY_TYPE_CREDIT_CARD, cardNumber: '@4242', cvv: '=012' },
+    ])
+    const rows = parseCsvRows(csv)
+    expect(rows[0]).toMatchObject({ password: '=abc', totp: '+JBSWY3DPEHPK3PXP' })
+    expect(rows[1].password).toBe('-sk_live_1')
+    expect(rows[2]).toMatchObject({ cardNumber: '@4242', cvv: '=012' })
+  })
 })
 
 describe('toPalladinJson round-trip', () => {
+  it('does not neutralise formula-leading values', () => {
+    const json = JSON.parse(toPalladinJson([
+      { id: 'v1', name: 'Prod', entries: [{ name: '=HYPERLINK("x")', type: ENTRY_TYPE_CREDENTIAL, username: '@admin' }] },
+    ]))
+    expect(json.vaults[0].entries[0]).toMatchObject({ name: '=HYPERLINK("x")', username: '@admin' })
+  })
+
   it('re-imports losslessly through the palladin-json profile', () => {
     const vaults: ExportVault[] = [
       {
