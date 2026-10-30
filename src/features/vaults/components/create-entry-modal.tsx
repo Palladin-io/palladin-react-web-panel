@@ -37,6 +37,8 @@ import {
   withCustomFields,
 } from '../entry-blob'
 import { CustomFieldsEditor } from './custom-fields-editor'
+import { SignInMethodField } from './sign-in-method-field'
+import { hasRecognizedSignInMethod, isSignInMethodField, replaceSignInMethod } from '../sign-in-method'
 import { CredentialTotpField } from './credential-totp-field'
 import { EntryIconButton } from './entry-icon-button'
 import { ScriptEditor } from './script-editor'
@@ -149,19 +151,22 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
   const buildPolicy = (fields: CustomField[]): AgentVisibilityPolicy => {
     const defaults = defaultAgentVisibilityPolicy(type, fields)
     const effectiveDiscoverable = type === ENTRY_TYPE_SCRIPT || discoverable
-    const customTypes = new Map(fields.map((field) => [`custom:${field.id}`, field.type]))
+    const customFieldsById = new Map(fields.map((field) => [`custom:${field.id}`, field]))
     return {
       discoverable: effectiveDiscoverable,
       fields: Object.fromEntries(Object.entries(defaults.fields).map(([fieldId, fallback]) => {
+        const custom = customFieldsById.get(fieldId)
         const candidate = policyOverrides[fieldId]
-        const access = candidate && allowedAgentFieldAccess(type, fieldId, customTypes.get(fieldId)).includes(candidate)
+        const access = candidate && allowedAgentFieldAccess(type, fieldId, custom?.type, custom?.value).includes(candidate)
           ? candidate
           : fallback
         return [fieldId, fieldId === ENTRY_FIELD.agentLabel
           ? (effectiveDiscoverable ? 'discovery' : 'never')
           : fieldId === ENTRY_FIELD.description && type === ENTRY_TYPE_SCRIPT
             ? 'discovery'
-            : access]
+            : custom && isSignInMethodField(custom) && !effectiveDiscoverable
+              ? 'never'
+              : access]
       })),
     }
   }
@@ -196,6 +201,7 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
   }, [iconTouched, type, url])
 
   const isPending = create.isPending || resolvingIcon
+  const credentialSecretsOptional = type === ENTRY_TYPE_CREDENTIAL && hasRecognizedSignInMethod(customFields)
 
   const canSubmit = useMemo(() => {
     if (isPending) return false
@@ -210,9 +216,9 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
       && /^\d{12,19}$/.test(cardNumber.replace(/[ -]/g, ''))
       && (!cvv.trim() || /^\d{3,4}$/.test(cvv.trim()))
       && /^(0[1-9]|1[0-2])$/.test(expiryMonth) && /^\d{4}$/.test(expiryYear)
-    return username.trim().length > 0 && password.trim().length > 0
+    return credentialSecretsOptional || (username.trim().length > 0 && password.trim().length > 0)
   }, [isPending, label, type, keyValue, username, password, script, description, scriptParameters,
-    refs, vault.id, cardholderName, cardNumber, cvv, expiryMonth, expiryYear])
+    refs, vault.id, cardholderName, cardNumber, cvv, expiryMonth, expiryYear, credentialSecretsOptional])
 
   const fieldsInvalid = validateCustomFields(allFields).hasError
 
@@ -346,6 +352,8 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
                 setType(nextType)
                 setDiscoverable(true)
                 setPolicyOverrides({})
+                // A sign-in method is meaningful only on a Credential; a new Entry has nothing to preserve.
+                if (nextType !== ENTRY_TYPE_CREDENTIAL) setCustomFields((fields) => replaceSignInMethod(fields, null, ''))
                 setKeyValueError(false)
                 setUsernameError(false)
                 setPasswordError(false)
@@ -538,13 +546,14 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
                   )]}
                   value={username}
                   onChange={(e) => { setUsername(e.target.value); setUsernameError(false) }}
-                  onBlur={() => setUsernameError(firstError(username, [required(t('validation.required'))]) !== null)}
+                  onBlur={() => setUsernameError(!credentialSecretsOptional
+                    && firstError(username, [required(t('validation.required'))]) !== null)}
                   placeholder={t('vault.entries.usernamePlaceholder')}
                   autoComplete="off"
                   disabled={isPending}
-                  error={usernameError}
+                  error={usernameError && !credentialSecretsOptional}
                 />
-                <FeedbackSlot visible={usernameError} color="red">
+                <FeedbackSlot visible={usernameError && !credentialSecretsOptional} color="red">
                   {t('validation.required')}
                 </FeedbackSlot>
               </div>
@@ -554,15 +563,16 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
                   label={t('vault.entries.passwordLabel')}
                   value={password}
                   onChange={(next) => { setPassword(next); setPasswordError(false) }}
-                  onBlur={() => setPasswordError(firstError(password, [required(t('validation.required'))]) !== null)}
+                  onBlur={() => setPasswordError(!credentialSecretsOptional
+                    && firstError(password, [required(t('validation.required'))]) !== null)}
                   shown={passwordVisible}
                   onToggleShown={() => setPasswordVisible((prev) => !prev)}
                   onGenerate={(pw) => { setPassword(pw); setPasswordVisible(true); setPasswordError(false) }}
                   placeholder={t('vault.entries.passwordPlaceholder')}
                   disabled={isPending}
-                  error={passwordError}
+                  error={passwordError && !credentialSecretsOptional}
                 />
-                <FeedbackSlot visible={passwordError} color="red">
+                <FeedbackSlot visible={passwordError && !credentialSecretsOptional} color="red">
                   {t('validation.required')}
                 </FeedbackSlot>
               </div>
@@ -575,6 +585,15 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
               <CredentialTotpField value={credentialTotp} onChange={setCredentialTotp}
                 onApply={(field) => { void submitEntry(mergeCredentialTotp(field, customFields)) }}
                 disabled={isPending} />
+              <SectionHeader>{t('vault.entries.signInMethod.title')}</SectionHeader>
+              <SignInMethodField fields={customFields} onChange={setCustomFields} disabled={isPending}
+                agentVisibility={{
+                  isVisible: (fieldId) => policy.fields[`custom:${fieldId}`] === 'discovery',
+                  onChange: (fieldId, visible) => setPolicyOverrides((current) => ({
+                    ...current, [`custom:${fieldId}`]: visible ? 'discovery' : 'never',
+                  })),
+                  disabled: !discoverable,
+                }} />
             </>
           ) : (
             <>
@@ -638,7 +657,8 @@ function CreateEntryModalBody({ vault, onClose, onCreated }: CreateEntryModalBod
           )}
 
           <SectionHeader>{t('vault.entries.customFields.title')}</SectionHeader>
-          <CustomFieldsEditor fields={customFields} onChange={setCustomFields} disabled={isPending} />
+          <CustomFieldsEditor fields={customFields} onChange={setCustomFields} disabled={isPending}
+            hideSignInMethod={type === ENTRY_TYPE_CREDENTIAL} />
 
           <NotesField id="entry-notes" value={notes} onChange={setNotes} disabled={isPending} />
 

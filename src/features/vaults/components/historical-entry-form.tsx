@@ -317,6 +317,7 @@ export function HistoricalEntryForm({ revision, secret, previousSecret }: Histor
           fields={customFields}
           changedFieldIds={diff.customFieldIds}
           changeDescriptionId={changeDescriptionId}
+          signInMethod={content.type === ENTRY_TYPE_CREDENTIAL}
         />
       ) : null}
 

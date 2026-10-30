@@ -357,7 +357,7 @@ function RevealPanel({
             </>
           ) : null}
 
-          <CustomFieldsView fields={readCustomFields(plaintext)} />
+          <CustomFieldsView fields={readCustomFields(plaintext)} signInMethod={plaintext.type === ENTRY_TYPE_CREDENTIAL} />
         </div>
       ) : null}
     </div>

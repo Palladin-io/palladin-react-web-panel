@@ -92,7 +92,7 @@ it does not define a second Credential default policy. Cross-consumer tests cove
 create/update decryptability and independent key-wrapper revisions. Other Entry
 types keep their existing Entry sealer; plaintext parsing/projection and complete
 Script package construction use the shared current-contract adapters. The
-manifest and lockfile pin the published registry version 0.8.0.
+manifest pins registry version 0.15.0 (see the sign-in method section).
 
 - **Zero-knowledge local use:** Reveal, Copy and TOTP atomically read only the selected complete current head from IndexedDB, authenticate its access context and structural revision/key bindings, open VK/EntryDEK/MemberSecret in shared crypto code, and keep plaintext in component memory only.
 - **Strict Vault-detail binding:** the encrypted detail contract accepts the server-owned canonical `metadataRevision` and requires it to equal the authenticated Member Vault Metadata envelope revision before any key material is opened.
@@ -126,5 +126,61 @@ this is not a released sharing feature.
 - Exports `useVaults` / `useVault` / `useEntries`, consumed by `audit`.
 
 Trusted API presentation metadata is kept separate from cryptographic decoding: Vault counts/default marker/dates and historical actors/retention policy do not gate ciphertext acceptance. Unknown history actors display their shortened ID. Rotation and encrypted-asset outer responses accept additive fields; canonical crypto descriptor verification, recipient bindings, byte/page budgets and digest checks remain unchanged.
+
+### Credential sign-in method (`palladin.signin.v1`)
+
+A Credential may carry one encrypted custom field of type `palladin.signin.v1`
+with value `{ provider, account, entry }` recording how the user signs in to the
+external service: provider (Google, Apple, Microsoft, GitHub or Facebook), an
+optional provider account and an optional `{ vaultId, entryId }` reference to the
+provider's own Palladin Credential. The value schema, allowed Agent access and
+Discovery projection are owned by `@palladin/crypto` (0.15.0:
+`signInMethodValueSchema`, `signInAllowedAccess`, `projectSignInDiscovery`).
+`sign-in-method.ts` decodes through that schema (exactly three keys, account
+NFC/trimmed/1–256 UTF-16 code units or `null`, lowercase UUIDs) and owns
+`replaceSignInMethod`. More than one binding is ambiguous; any mismatch, including
+the retired two-key `{ provider, account }` shape, is unrecognized. Neither is
+decoded into the form or shown readably.
+
+- `SignInMethodField` is the dedicated Credential control (create and detail):
+  provider `FormSelect`, optional account `FormInput` (stored trimmed/NFC), an
+  optional "Palladin account" picker, a "Visible to agents" switch, Remove, and an
+  explicit Add/Replace that requires a provider choice. Every edit leaves exactly
+  one binding; a single recognized binding keeps its id and label, while replacing
+  unrecognized/ambiguous bindings creates one `custom:<uuid v4>` field with the
+  localized label. `CustomFieldsEditor hideSignInMethod` hides bindings from the
+  generic list while keeping their array position.
+- The picker (`useSignInAccountCandidates`) lists active Credentials from the
+  in-memory MemberIndex whose `urlDomain` registrable domain belongs to the
+  provider (google.com; apple.com; live.com, microsoftonline.com, microsoft.com;
+  github.com; facebook.com), excluding the edited Entry. `discoverable` exists only
+  in the encrypted MemberSecret, so each remaining candidate is opened from the
+  local ciphertext generation (no request) and only that flag is kept; hidden or
+  unreadable candidates are not offered. Choosing one sets `account` to its
+  username and `entry` to its IDs. Typing an account, changing provider or
+  choosing "Not linked" clears `entry`. Several accounts at one provider appear as
+  separate options and are never chosen automatically.
+- Agent access: `never` or `discovery` only, and `discovery` only on a Credential
+  with a valid value; never a grant mode. A newly written binding defaults to
+  `discovery` iff the Credential is discoverable (`defaultAgentVisibilityPolicy` on
+  create, `withNewSignInMethodPolicy` on edit); editing an existing binding keeps
+  its stored access unless the owner flips the switch. A hidden Entry forces
+  `never`. The SDK's `projectAgentDiscovery` then emits one `signIn` field with
+  `{ entry, provider, schema }` — never the account or the custom field id — and
+  no field for ambiguous or non-discoverable bindings.
+- An account that signs in only through a provider may have no stored username
+  or password. Create (`canSubmit`) and Entry Detail (`saveEntry`) waive both
+  Credential requirements only when `hasRecognizedSignInMethod` holds (exactly
+  one recognized binding). No binding, an unrecognized binding or two bindings keep
+  the normal requirement; other entry types are unaffected.
+- `CustomFieldsView signInMethod` renders one recognized binding as provider ·
+  account ("Account not specified" for `null`) · "linked to <label>" when `entry`
+  resolves in the MemberIndex ("Linked entry unavailable" otherwise); otherwise
+  the concealed fallback remains. Other entry types ignore the type and preserve it.
+- Unknown custom field types (including unrecognized bindings) are shown
+  read-only in the editor (move/remove only), skipped by label validation and
+  folded back byte-for-byte. Other non-standard custom types allow and default to
+  `never` only. `fieldPolicy` emits `custom:*` keys only for fields still in the
+  payload, so removing any custom field leaves no stale policy key.
 
 Applying or replacing dedicated Credential TOTP submits the complete current Entry form through the normal encrypted create/update path, without a second Save. Invalid forms and failed writes retain the draft and show an error; only a confirmed mutation reports success. Removing TOTP remains a draft edit requiring Save.

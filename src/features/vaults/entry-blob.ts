@@ -7,6 +7,7 @@ import {
   type ScriptRef,
   type TotpParams,
   canBeAgentVisible,
+  isKnownFieldType,
   isTotpField,
 } from './types'
 
@@ -85,12 +86,15 @@ function fieldHasValue(field: CustomField): boolean {
  * Validate an editable field set: a row with a value must have a label (else its
  * value would be silently dropped at fold time), and labels must be unique
  * (case-insensitive) because the agent CLI rejects duplicate field labels.
+ * Unknown-typed fields are preserved verbatim and not user-editable, so they
+ * never block saving.
  */
 export function validateCustomFields(fields: CustomField[]): CustomFieldValidation {
   const errors: Record<string, CustomFieldError> = {}
 
   const byLabel = new Map<string, string[]>()
   for (const field of fields) {
+    if (!isKnownFieldType(field.type)) continue
     const label = field.label.trim().toLowerCase()
     if (!label) {
       if (fieldHasValue(field)) errors[field.id] = 'label-required'
@@ -125,12 +129,16 @@ export function readCustomFields(plaintext: EntryPlaintext): CustomField[] {
  * Fold editor field state into the persisted `fields[]`: trim labels and
  * string values, drop rows with no label or no value, keep order. TOTP fields
  * survive only when they carry a secret; unknown-typed fields round-trip
- * untouched (forward-compat). Returns `undefined` when nothing remains so the
- * blob can stay v1.
+ * byte-for-byte (forward-compat). Returns `undefined` when nothing remains so
+ * the blob can stay v1.
  */
 export function foldCustomFields(fields: CustomField[]): CustomField[] | undefined {
   const folded: CustomField[] = []
   for (const field of fields) {
+    if (!isKnownFieldType(field.type)) {
+      folded.push({ id: field.id, label: field.label, type: field.type, value: field.value })
+      continue
+    }
     const label = field.label.trim()
     if (!label) continue
     if (isTotpField(field)) {
