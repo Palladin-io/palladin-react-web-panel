@@ -1,15 +1,26 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
+import { HTTPError } from 'ky'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useAuthStore } from '../auth/stores/auth-store'
 import { deriveKey, RECOVERY_KEY_SALT_BYTES } from '../../shared/crypto/argon2'
-import { encodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
-import { encryptWithKey, randomBytes } from '../../shared/crypto/sodium'
+import { concatBytes, decodeUuid, encodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
+import { derivePublicKey, encryptWithKey, loadSodium, randomBytes } from '../../shared/crypto/sodium'
 import { generateRecoveryMnemonic, joinMnemonic } from '../../shared/lib/mnemonic'
-import { InvalidRecoveryKeyError, useRecover, type RecoverResult } from './use-recover'
+import {
+  InvalidRecoveryKeyError,
+  RecoveryProofInvalidError,
+  useRecover,
+  type RecoverResult,
+} from './use-recover'
 
 const getAccountMock = vi.fn()
 const recoverAccountMock = vi.fn()
+const issueRecoveryChallengeMock = vi.fn()
+
+const SESSION_USER_ID = '00112233-4455-4677-8899-aabbccddeeff'
+const OTHER_USER_ID = 'ffeeddcc-bbaa-4988-8766-554433221100'
 
 vi.mock('../../shared/api/account-api', async () => {
   const actual = await vi.importActual<typeof import('../../shared/api/account-api')>(
@@ -19,6 +30,7 @@ vi.mock('../../shared/api/account-api', async () => {
     ...actual,
     getAccount: () => getAccountMock(),
     recoverAccount: (payload: unknown) => recoverAccountMock(payload),
+    issueRecoveryChallenge: () => issueRecoveryChallengeMock(),
   }
 })
 
@@ -44,37 +56,63 @@ async function buildFakeAccount(mnemonic: string[]) {
   }
 }
 
-describe('useRecover', () => {
-  beforeEach(() => {
-    getAccountMock.mockReset()
-    recoverAccountMock.mockReset()
-  })
+async function sealChallenge(privateKey: Uint8Array, userId: string, secret: Uint8Array) {
+  const sodium = await loadSodium()
+  const plaintext = concatBytes(new TextEncoder().encode('PLDNRCV1'), decodeUuid(userId), secret)
+  return {
+    sealedChallenge: encodeBase64Url(sodium.crypto_box_seal(plaintext, await derivePublicKey(privateKey))),
+    expiresAt: '2026-10-29T12:00:00Z',
+  }
+}
 
-  it('posts re-wrapped keys and returns a fresh 24-word mnemonic on success', async () => {
-    const mnemonic = generateRecoveryMnemonic()
-    const { recoverySalt, encryptedPrivateKeyByRecovery } = await buildFakeAccount(mnemonic)
-
-    getAccountMock.mockResolvedValue({
-      userId: '00112233-4455-4677-8899-aabbccddeeff',
-      recoverySalt,
-      encryptedPrivateKeyByRecovery,
-      kdf: { credentialRevision: 1, privateKeyWrapRevision: 2 },
-    })
-    recoverAccountMock.mockResolvedValue(undefined)
-
-    const { result } = renderHook(() => useRecover(), { wrapper })
-
-    let returned: RecoverResult | undefined
-    await act(async () => {
+async function recoverWith(mnemonic: string[]) {
+  const { result } = renderHook(() => useRecover(), { wrapper })
+  let returned: RecoverResult | undefined
+  let captured: unknown
+  await act(async () => {
+    try {
       returned = await result.current.mutateAsync({
         recoveryMnemonic: mnemonic,
         newPassword: 'correct-horse-battery-staple',
       })
-    })
+    } catch (err) {
+      captured = err
+    }
+  })
+  return { returned, captured }
+}
 
-    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+async function mockRecoverableAccount(accountUserId = SESSION_USER_ID) {
+  const mnemonic = generateRecoveryMnemonic()
+  const account = await buildFakeAccount(mnemonic)
+  getAccountMock.mockResolvedValue({
+    userId: accountUserId,
+    recoverySalt: account.recoverySalt,
+    encryptedPrivateKeyByRecovery: account.encryptedPrivateKeyByRecovery,
+    kdf: { credentialRevision: 1, privateKeyWrapRevision: 2 },
+  })
+  return { mnemonic, privateKey: account.fakePrivateKey }
+}
 
+describe('useRecover', () => {
+  beforeEach(() => {
+    getAccountMock.mockReset()
+    recoverAccountMock.mockReset()
+    issueRecoveryChallengeMock.mockReset()
+    useAuthStore.setState({ userId: SESSION_USER_ID })
+  })
+
+  it('posts re-wrapped keys with the opened recovery proof and returns a fresh mnemonic', async () => {
+    const { mnemonic, privateKey } = await mockRecoverableAccount()
+    const secret = await randomBytes(32)
+    issueRecoveryChallengeMock.mockResolvedValue(await sealChallenge(privateKey, SESSION_USER_ID, secret))
+    recoverAccountMock.mockResolvedValue(undefined)
+
+    const { returned, captured } = await recoverWith(mnemonic)
+
+    expect(captured).toBeUndefined()
     expect(returned?.recoveryMnemonic).toHaveLength(24)
+    expect(issueRecoveryChallengeMock).toHaveBeenCalledTimes(1)
     expect(recoverAccountMock).toHaveBeenCalledTimes(1)
 
     const payload = recoverAccountMock.mock.calls[0][0]
@@ -87,8 +125,62 @@ describe('useRecover', () => {
         newEncryptedPrivateKey: expect.any(String),
         newRecoverySalt: expect.any(String),
         newEncryptedPrivateKeyByRecovery: expect.any(String),
+        recoveryProof: encodeBase64Url(secret),
       }),
     )
+  })
+
+  it('rejects a challenge addressed to another user without sending the recovery', async () => {
+    const { mnemonic, privateKey } = await mockRecoverableAccount()
+    issueRecoveryChallengeMock.mockResolvedValue(
+      await sealChallenge(privateKey, OTHER_USER_ID, await randomBytes(32)),
+    )
+
+    const { captured } = await recoverWith(mnemonic)
+
+    expect(captured).toBeInstanceOf(Error)
+    expect(recoverAccountMock).not.toHaveBeenCalled()
+  })
+
+  it('binds the challenge to the session user, not the account response', async () => {
+    const { mnemonic, privateKey } = await mockRecoverableAccount(OTHER_USER_ID)
+    issueRecoveryChallengeMock.mockResolvedValue(
+      await sealChallenge(privateKey, OTHER_USER_ID, await randomBytes(32)),
+    )
+
+    const { captured } = await recoverWith(mnemonic)
+
+    expect(captured).toBeInstanceOf(Error)
+    expect(recoverAccountMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects a challenge with a wrong length without sending the recovery', async () => {
+    const { mnemonic } = await mockRecoverableAccount()
+    issueRecoveryChallengeMock.mockResolvedValue({
+      sealedChallenge: encodeBase64Url(await randomBytes(103)),
+      expiresAt: '2026-10-29T12:00:00Z',
+    })
+
+    const { captured } = await recoverWith(mnemonic)
+
+    expect(captured).toBeInstanceOf(Error)
+    expect(recoverAccountMock).not.toHaveBeenCalled()
+  })
+
+  it('surfaces RecoveryProofInvalidError when the backend rejects the proof', async () => {
+    const { mnemonic, privateKey } = await mockRecoverableAccount()
+    issueRecoveryChallengeMock.mockResolvedValue(
+      await sealChallenge(privateKey, SESSION_USER_ID, await randomBytes(32)),
+    )
+    recoverAccountMock.mockRejectedValue(new HTTPError(
+      new Response(JSON.stringify({ errors: { generalErrors: ['errors.backend.recovery-proof-invalid'] } }), { status: 403 }),
+      new Request('https://api.example.test/api/account/recovery'),
+      {} as never,
+    ))
+
+    const { captured } = await recoverWith(mnemonic)
+
+    expect(captured).toBeInstanceOf(RecoveryProofInvalidError)
   })
 
   it('throws InvalidRecoveryKeyError when the mnemonic does not unwrap the server blob', async () => {
