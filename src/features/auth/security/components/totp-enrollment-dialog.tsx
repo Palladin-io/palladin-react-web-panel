@@ -5,6 +5,7 @@ import { Button } from '../../../../shared/components/button'
 import { DialogFooter } from '../../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../../shared/components/modal-shell'
 import { FeedbackSlot, FieldFeedback, FormInput } from '../../../../shared/components/form-field'
+import { SecretInput } from '../../../../shared/components/secret-input'
 import { QrCode } from '../../../../shared/components/qr-code'
 import { IncorrectCurrentPasswordError } from '../../hooks/use-change-master-password'
 import { useTotpEnrollment } from '../../hooks/use-totp'
@@ -28,6 +29,7 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
   const [step, setStep] = useState<'password' | 'setup' | 'recovery'>('password')
   const [currentPassword, setCurrentPassword] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordShown, setPasswordShown] = useState(false)
   const [code, setCode] = useState('')
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([])
   const [confirmError, setConfirmError] = useState<string | null>(null)
@@ -166,16 +168,17 @@ export function TotpEnrollmentDialog({ open, onClose }: TotpEnrollmentDialogProp
       >
         <form id="totp-password-step" onSubmit={handleStart}>
           <p className="mb-3 text-ui text-[var(--cv-t2)]">{t('totpEnroll.passwordSubtitle')}</p>
-          <FormInput
+          <SecretInput
             id="totp-current-password"
             label={t('security.password.currentLabel')}
-            type="password"
             autoComplete="current-password"
             value={currentPassword}
-            onChange={(e) => {
-              setCurrentPassword(e.target.value)
+            onChange={(next) => {
+              setCurrentPassword(next)
               if (passwordError) setPasswordError(null)
             }}
+            shown={passwordShown}
+            onToggleShown={() => setPasswordShown((shown) => !shown)}
             placeholder={t('security.password.currentPlaceholder')}
             disabled={enroll.isPending}
             error={passwordError !== null}

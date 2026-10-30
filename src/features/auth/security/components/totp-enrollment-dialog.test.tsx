@@ -42,6 +42,10 @@ describe('TotpEnrollmentDialog', () => {
     const user = userEvent.setup()
     render(<TotpEnrollmentDialog open onClose={vi.fn()} />)
     expect(enrollMutate).not.toHaveBeenCalled()
+    const password = screen.getByLabelText(/current password/i)
+    expect(password).toHaveAttribute('type', 'text')
+    expect(password).toHaveClass('ph-no-capture')
+    expect(password).toHaveAttribute('data-1p-ignore')
     expect(screen.queryByTestId('qr')).not.toBeInTheDocument()
 
     await passPasswordStep(user)

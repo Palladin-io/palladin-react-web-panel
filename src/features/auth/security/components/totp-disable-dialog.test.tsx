@@ -30,6 +30,9 @@ describe('TotpDisableDialog', () => {
     disableMutate.mockImplementation((_input, opts) => opts.onSuccess())
     const user = userEvent.setup()
     render(<TotpDisableDialog open onClose={onClose} />)
+    const password = screen.getByLabelText(/current password/i)
+    expect(password).toHaveAttribute('type', 'text')
+    expect(password).toHaveClass('ph-no-capture')
 
     await submit(user)
 

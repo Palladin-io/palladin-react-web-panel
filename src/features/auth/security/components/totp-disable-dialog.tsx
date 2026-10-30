@@ -5,6 +5,7 @@ import { Button } from '../../../../shared/components/button'
 import { DialogFooter } from '../../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../../shared/components/modal-shell'
 import { FeedbackSlot, FieldFeedback, FormInput } from '../../../../shared/components/form-field'
+import { SecretInput } from '../../../../shared/components/secret-input'
 import { WarningZone } from '../../../../shared/components/warning-zone'
 import { IncorrectCurrentPasswordError } from '../../hooks/use-change-master-password'
 import { useTotpEnrollment } from '../../hooks/use-totp'
@@ -20,6 +21,7 @@ export function TotpDisableDialog({ open, onClose }: TotpDisableDialogProps) {
   const { disable } = useTotpEnrollment()
   const [currentPassword, setCurrentPassword] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordShown, setPasswordShown] = useState(false)
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -81,16 +83,17 @@ export function TotpDisableDialog({ open, onClose }: TotpDisableDialogProps) {
         {t('security.totp.disableWarningBody')}
       </WarningZone>
       <div className="mt-3">
-        <FormInput
+        <SecretInput
           id="totp-disable-password"
           label={t('security.password.currentLabel')}
-          type="password"
           autoComplete="current-password"
           value={currentPassword}
-          onChange={(e) => {
-            setCurrentPassword(e.target.value)
+          onChange={(next) => {
+            setCurrentPassword(next)
             if (passwordError) setPasswordError(null)
           }}
+          shown={passwordShown}
+          onToggleShown={() => setPasswordShown((shown) => !shown)}
           placeholder={t('security.password.currentPlaceholder')}
           disabled={disable.isPending}
           error={passwordError !== null}
