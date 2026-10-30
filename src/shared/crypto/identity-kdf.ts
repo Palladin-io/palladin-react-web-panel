@@ -1,7 +1,7 @@
 import { deriveHkdfSha256 } from '@palladin/crypto'
 import { randomUuid } from './random-uuid'
 import { argon2id } from 'hash-wasm'
-import { decodeBase64Url, encodeUtf8 } from './vault-v2-bytes'
+import { decodeBase64Url, encodeBase64Url, encodeUtf8 } from './vault-v2-bytes'
 import { wipe } from './sodium'
 
 export const IDENTITY_SECURITY_VERSION = 1
@@ -106,5 +106,25 @@ export async function deriveIdentityV1(
   } finally {
     wipe(passwordBytes)
     if (accountRoot) wipe(accountRoot)
+  }
+}
+
+/** Step-up proof of the current login password; the derived master key is discarded. */
+export async function deriveCurrentAuthCredential(
+  password: string,
+  accountId: string,
+  kdfSalt: string,
+): Promise<string> {
+  const salt = decodeBase64Url(kdfSalt, IDENTITY_KDF_SALT_BYTES)
+  let identity: IdentityKdfOutputs | undefined
+  try {
+    identity = await deriveIdentityV1(password, accountId, salt)
+    return encodeBase64Url(identity.authCredential)
+  } finally {
+    wipe(salt)
+    if (identity) {
+      wipe(identity.authCredential)
+      wipe(identity.masterKey)
+    }
   }
 }

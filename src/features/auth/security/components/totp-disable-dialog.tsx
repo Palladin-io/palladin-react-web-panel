@@ -4,8 +4,10 @@ import { toast } from 'sonner'
 import { Button } from '../../../../shared/components/button'
 import { DialogFooter } from '../../../../shared/components/dialog-footer'
 import { ModalShell } from '../../../../shared/components/modal-shell'
-import { FieldFeedback, FormInput } from '../../../../shared/components/form-field'
+import { FeedbackSlot, FieldFeedback, FormInput } from '../../../../shared/components/form-field'
+import { SecretInput } from '../../../../shared/components/secret-input'
 import { WarningZone } from '../../../../shared/components/warning-zone'
+import { IncorrectCurrentPasswordError } from '../../hooks/use-change-master-password'
 import { useTotpEnrollment } from '../../hooks/use-totp'
 
 export interface TotpDisableDialogProps {
@@ -13,10 +15,13 @@ export interface TotpDisableDialogProps {
   onClose: () => void
 }
 
-/** Confirm-with-code dialog for turning off two-factor authentication. */
+/** Confirm-with-password-and-code dialog for turning off two-factor authentication. */
 export function TotpDisableDialog({ open, onClose }: TotpDisableDialogProps) {
   const { t } = useTranslation()
   const { disable } = useTotpEnrollment()
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordShown, setPasswordShown] = useState(false)
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
 
@@ -25,15 +30,23 @@ export function TotpDisableDialog({ open, onClose }: TotpDisableDialogProps) {
   const codeValid = /^\d{6}$/.test(code.trim())
 
   const handleDisable = () => {
-    if (!codeValid) return
+    if (!codeValid || !currentPassword) return
     setError(null)
-    disable.mutate(code, {
+    setPasswordError(null)
+    disable.mutate({ code, currentPassword }, {
       onSuccess: () => {
         toast.success(t('security.totp.disableSuccess'))
+        setCurrentPassword('')
         setCode('')
         onClose()
       },
-      onError: () => setError(t('security.totp.errorInvalidCode')),
+      onError: (err) => {
+        if (err instanceof IncorrectCurrentPasswordError) {
+          setPasswordError(t('security.password.errorCurrentIncorrect'))
+        } else {
+          setError(t('security.totp.errorInvalidCode'))
+        }
+      },
     })
   }
 
@@ -58,7 +71,7 @@ export function TotpDisableDialog({ open, onClose }: TotpDisableDialogProps) {
             variant="danger"
             size="sm"
             onClick={handleDisable}
-            disabled={!codeValid || disable.isPending}
+            disabled={!codeValid || !currentPassword || disable.isPending}
             className="flex-[2]"
           >
             {disable.isPending ? t('security.totp.disabling') : t('security.totp.disableConfirm')}
@@ -69,6 +82,26 @@ export function TotpDisableDialog({ open, onClose }: TotpDisableDialogProps) {
       <WarningZone title={t('security.totp.disableWarningTitle')}>
         {t('security.totp.disableWarningBody')}
       </WarningZone>
+      <div className="mt-3">
+        <SecretInput
+          id="totp-disable-password"
+          label={t('security.password.currentLabel')}
+          autoComplete="current-password"
+          value={currentPassword}
+          onChange={(next) => {
+            setCurrentPassword(next)
+            if (passwordError) setPasswordError(null)
+          }}
+          shown={passwordShown}
+          onToggleShown={() => setPasswordShown((shown) => !shown)}
+          placeholder={t('security.password.currentPlaceholder')}
+          disabled={disable.isPending}
+          error={passwordError !== null}
+        />
+        <FeedbackSlot visible={passwordError !== null} color="red">
+          {passwordError}
+        </FeedbackSlot>
+      </div>
       <div className="mt-3">
         <FormInput
           id="totp-disable-code"
