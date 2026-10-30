@@ -92,7 +92,7 @@ it does not define a second Credential default policy. Cross-consumer tests cove
 create/update decryptability and independent key-wrapper revisions. Other Entry
 types keep their existing Entry sealer; plaintext parsing/projection and complete
 Script package construction use the shared current-contract adapters. The
-manifest pins registry version 0.14.0 (see the sign-in method section).
+manifest pins registry version 0.15.0 (see the sign-in method section).
 
 - **Zero-knowledge local use:** Reveal, Copy and TOTP atomically read only the selected complete current head from IndexedDB, authenticate its access context and structural revision/key bindings, open VK/EntryDEK/MemberSecret in shared crypto code, and keep plaintext in component memory only.
 - **Strict Vault-detail binding:** the encrypted detail contract accepts the server-owned canonical `metadataRevision` and requires it to equal the authenticated Member Vault Metadata envelope revision before any key material is opened.
@@ -134,7 +134,7 @@ with value `{ provider, account, entry }` recording how the user signs in to the
 external service: provider (Google, Apple, Microsoft, GitHub or Facebook), an
 optional provider account and an optional `{ vaultId, entryId }` reference to the
 provider's own Palladin Credential. The value schema, allowed Agent access and
-Discovery projection are owned by `@palladin/crypto` (0.14.0:
+Discovery projection are owned by `@palladin/crypto` (0.15.0:
 `signInMethodValueSchema`, `signInAllowedAccess`, `projectSignInDiscovery`).
 `sign-in-method.ts` decodes through that schema (exactly three keys, account
 NFC/trimmed/1–256 UTF-16 code units or `null`, lowercase UUIDs) and owns
