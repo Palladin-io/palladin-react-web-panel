@@ -22,8 +22,8 @@ import {
   type OrgGrant,
 } from '../grants'
 import { grantMethodsMask, parseGrantMethods } from '../grants/grant-methods'
-import { updateCanonicalEntry, type CanonicalEntryDetail } from './api/vault-api'
-import { getEncryptedVault } from './sync/member-sync-api'
+import { updateCanonicalEntry, type CanonicalEntryDetail, type EntryUpdateMaterial } from './api/vault-api'
+import { getEncryptedVault, type EncryptedVaultDetail } from './sync/member-sync-api'
 import { entriesQueryKey, entryDetailQueryKey, entryHistoryQueryKey } from './use-entries'
 import { buildCompleteScriptExecutionPackage } from './script-execution-package'
 
@@ -36,10 +36,13 @@ export class ActiveGrantRefreshRequiredError extends Error {
 
 export interface UpdateCanonicalEntryInput {
   detail: CanonicalEntryDetail
-  previous: MemberSecretView
-  draft: EntryDraft
+  /** Presentation views; omitted when both exact canonical secrets are supplied. */
+  previous?: MemberSecretView
+  draft?: EntryDraft
   /** Non-secret guard used by batch writers that decrypted `previous` earlier. */
   cryptoSessionGeneration?: number
+  /** An encrypted Vault response the caller already bound to its authority; fetched when absent. */
+  vault?: EncryptedVaultDetail
   /** Exact decrypted inputs for immutable-history restore; bypasses lossy presentation adapters. */
   previousCanonicalMemberSecret?: MemberSecretV1
   nextCanonicalMemberSecret?: MemberSecretV1
@@ -56,7 +59,27 @@ async function activeVaultGrants(vaultId: string): Promise<OrgGrant[]> {
   return result
 }
 
+export interface PreparedCanonicalEntryUpdate {
+  material: EntryUpdateMaterial
+  nextSecret: MemberSecretV1
+  nextRevision: string
+  memberKeyGeneration: number
+}
+
 export async function updateCanonicalEntryNow(
+  vaultId: string,
+  input: UpdateCanonicalEntryInput,
+  entryId?: string,
+) {
+  const prepared = await prepareCanonicalEntryUpdate(vaultId, input, entryId)
+  return updateCanonicalEntry(vaultId, entryId ?? input.detail.id, prepared.material)
+}
+
+/**
+ * Builds the next immutable revision plus every required GRANULAR/Script grant
+ * refresh without submitting it, so other atomic flows reuse the same producer.
+ */
+export async function prepareCanonicalEntryUpdate(
   vaultId: string,
   {
     detail,
@@ -65,9 +88,10 @@ export async function updateCanonicalEntryNow(
     cryptoSessionGeneration,
     previousCanonicalMemberSecret,
     nextCanonicalMemberSecret,
+    vault: boundVault,
   }: UpdateCanonicalEntryInput,
   entryId?: string,
-) {
+): Promise<PreparedCanonicalEntryUpdate> {
   const targetEntryId = entryId ?? detail.id
   if (detail.vaultId !== vaultId || detail.id !== targetEntryId) {
     throw new Error('Canonical Entry update scope mismatch')
@@ -78,7 +102,7 @@ export async function updateCanonicalEntryNow(
   }
   const [grants, vault] = await Promise.all([
     activeVaultGrants(vaultId),
-    getEncryptedVault(vaultId),
+    boundVault ?? getEncryptedVault(vaultId),
   ])
   if (cryptoSessionGeneration !== undefined
     && useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration) {
@@ -90,20 +114,23 @@ export async function updateCanonicalEntryNow(
   let discoveryKey: Uint8Array | undefined
   try {
     discoveryKey = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)
+    if ((!nextCanonicalMemberSecret && !draft) || (!previousCanonicalMemberSecret && !previous)) {
+      throw new Error('Canonical Entry update requires the previous and next secret')
+    }
     const nextSecret = nextCanonicalMemberSecret ?? toMemberSecret({
-      label: draft.memberLabel, agentLabel: draft.agentLabel,
-      ...(draft.description ? { description: draft.description } : {}),
-      ...(draft.iconReference ? { iconReference: draft.iconReference } : {}),
-      ...(draft.color ? { color: draft.color } : {}),
-      type: draft.entryType, payload: draft.content, policy: draft.policy, vaultId,
+      label: draft!.memberLabel, agentLabel: draft!.agentLabel,
+      ...(draft!.description ? { description: draft!.description } : {}),
+      ...(draft!.iconReference ? { iconReference: draft!.iconReference } : {}),
+      ...(draft!.color ? { color: draft!.color } : {}),
+      type: draft!.entryType, payload: draft!.content, policy: draft!.policy, vaultId,
     })
     const previousSecret = previousCanonicalMemberSecret ?? toMemberSecret({
-      label: previous.memberLabel, agentLabel: previous.agentLabel,
-      ...(previous.description ? { description: previous.description } : {}),
-      ...(previous.iconReference ? { iconReference: previous.iconReference } : {}),
-      ...(previous.color ? { color: previous.color } : {}),
-      type: previous.entryType, payload: previous.content,
-      policy: previous.agentVisibilityPolicy, vaultId,
+      label: previous!.memberLabel, agentLabel: previous!.agentLabel,
+      ...(previous!.description ? { description: previous!.description } : {}),
+      ...(previous!.iconReference ? { iconReference: previous!.iconReference } : {}),
+      ...(previous!.color ? { color: previous!.color } : {}),
+      type: previous!.entryType, payload: previous!.content,
+      policy: previous!.agentVisibilityPolicy, vaultId,
     })
     const nextRevision = (BigInt(detail.currentRevision) + 1n).toString()
     const granularGrants = grants.filter((grant) => grant.type === GRANT_TYPE_GRANULAR
@@ -214,7 +241,7 @@ export async function updateCanonicalEntryNow(
         && useAuthStore.getState().cryptoSessionGeneration !== cryptoSessionGeneration)) {
       throw new Error('Vault lock session changed')
     }
-    return updateCanonicalEntry(vaultId, targetEntryId, material)
+    return { material, nextSecret, nextRevision, memberKeyGeneration: vault.memberKeyGeneration }
   } finally {
     wipe(vaultKey)
     if (discoveryKey) wipe(discoveryKey)

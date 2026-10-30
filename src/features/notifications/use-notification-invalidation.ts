@@ -3,6 +3,7 @@ import { useCallback } from 'react'
 import { confirmPendingGrantNotificationProjection } from '../../shared/lib/pending-grant-notification-reconciliation'
 import { AGENTS_QUERY_KEY } from '../agents/use-agents'
 import { GRANTS_QUERY_KEY } from '../grants'
+import { SUBMISSIONS_QUERY_KEY } from '../submissions/use-submissions'
 import { entryDetailQueryKey } from '../vaults/use-entries'
 import type { NotificationPayload } from './notification-types'
 import { NOTIFICATIONS_QUERY_KEY } from './notification-queries'
@@ -57,6 +58,12 @@ export function useNotificationInvalidation() {
               queryKey: entryDetailQueryKey(data.vaultId, data.entryId),
             })
           }
+          break
+        }
+
+        case 'submission_pending':
+        case 'submission_resolved': {
+          queryClient.invalidateQueries({ queryKey: SUBMISSIONS_QUERY_KEY })
           break
         }
 

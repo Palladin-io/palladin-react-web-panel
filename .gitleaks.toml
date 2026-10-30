@@ -22,6 +22,8 @@ paths = [
   '''^src/features/auth/register/components/register-credentials-step\.test\.tsx$''',
   '''^src/features/auth/security/components/change-master-password-section\.test\.tsx$''',
   '''^src/features/auth/security/components/totp-enrollment-dialog\.test\.tsx$''',
+  '''^src/shared/crypto/fixtures/agent-submission-v1/contract\.json$''',
+  '''^src/shared/crypto/fixtures/agent-submission-v1/fixture\.json$''',
   '''^src/shared/crypto/fixtures/vault-v2/negative/corruption\.json$''',
   '''^src/shared/crypto/fixtures/vault-v2/vectors/envelopes\.json$''',
   '''^src/shared/crypto/fixtures/vault-v2/vectors/key-derivation\.json$''',

@@ -12,7 +12,7 @@ import { useNotificationInvalidation } from './use-notification-invalidation'
 import { AGENTS_QUERY_KEY, type Agent } from '../agents'
 import { useMemberSyncStore } from '../vaults/sync/member-sync-store'
 import { claimNotificationEvent } from './notification-deduplication'
-import { resolveNotificationPayload } from './notification-resolution'
+import { notificationOpenTarget, resolveNotificationPayload } from './notification-resolution'
 
 export type WebPushStatus =
   | 'unsupported' // browser or config doesn't support push
@@ -102,7 +102,7 @@ export function useWebPush() {
                 .map((agent) => [agent.agentId, agent])),
             })
           : payload
-        showNotificationToast(resolved, () => navigate({ to: '/inbox' }))
+        showNotificationToast(resolved, () => navigate(notificationOpenTarget(resolved)))
         invalidate(payload)
       })
     })()

@@ -14,6 +14,9 @@ export const WRAPPER_PURPOSE = {
   grantDek: 4,
   agentVaultKey: 5,
   scriptExecutionDek: 6,
+  submissionDek: 7,
+  approverMessagePrivateKey: 8,
+  approverSigningSeed: 9,
 } as const
 
 export type WrapperPurpose = (typeof WRAPPER_PURPOSE)[keyof typeof WRAPPER_PURPOSE]
@@ -24,6 +27,8 @@ export const VAULT_KEY_KIND = {
   vaultSigningEd25519: 3,
   vaultMessageX25519: 4,
   memberX25519: 5,
+  approverX25519: 6,
+  approverEd25519: 7,
 } as const
 
 export type VaultKeyKind = (typeof VAULT_KEY_KIND)[keyof typeof VAULT_KEY_KIND]
@@ -33,7 +38,8 @@ export interface X25519WrapperContext {
   wrapperSuiteId: typeof X25519_SEALED_BOX_V1
   purpose: WrapperPurpose
   organizationId: string
-  vaultId: string
+  /** Absent only for organization-scoped Agent Submission purposes 7–9. */
+  vaultId?: string
   entryId?: string
   grantOrRequestId?: string
   agentId?: string
@@ -160,7 +166,8 @@ function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
 }
 
 function presentScopeBitmap(context: X25519WrapperContext): number {
-  return SCOPE.organization | SCOPE.vault
+  return SCOPE.organization
+    | (context.vaultId ? SCOPE.vault : 0)
     | (context.entryId ? SCOPE.entry : 0)
     | (context.grantOrRequestId ? SCOPE.grantOrRequest : 0)
     | (context.agentId ? SCOPE.agent : 0)
@@ -173,7 +180,13 @@ function validateContext(context: X25519WrapperContext): void {
   }
   const vault = SCOPE.organization | SCOPE.vault
   const parentBound = vault | SCOPE.entry | SCOPE.grantOrRequest | SCOPE.agent
-  const expected = context.purpose === WRAPPER_PURPOSE.memberVaultKey
+  const submissionRecipient = context.recipientKeyKind === VAULT_KEY_KIND.approverX25519
+    ? VAULT_KEY_KIND.approverX25519 : VAULT_KEY_KIND.agentX25519
+  const expected = context.purpose === WRAPPER_PURPOSE.submissionDek
+    ? { scope: SCOPE.organization | SCOPE.grantOrRequest | SCOPE.agent, kind: submissionRecipient, parent: true, generation: false }
+    : context.purpose === WRAPPER_PURPOSE.approverMessagePrivateKey || context.purpose === WRAPPER_PURPOSE.approverSigningSeed
+      ? { scope: SCOPE.organization | SCOPE.member, kind: VAULT_KEY_KIND.memberX25519, parent: false, generation: false }
+      : context.purpose === WRAPPER_PURPOSE.memberVaultKey
     ? { scope: vault | SCOPE.member, kind: VAULT_KEY_KIND.memberX25519, parent: false, generation: true }
     : context.purpose === WRAPPER_PURPOSE.agentVaultDiscoveryKey
       ? { scope: vault | SCOPE.agent, kind: VAULT_KEY_KIND.agentX25519, parent: false, generation: false }
@@ -361,14 +374,9 @@ export function encodeX25519WrapperContext(context: X25519WrapperContext): Uint8
   writer.u16(context.protocolVersion)
   writer.ascii(context.wrapperSuiteId)
   writer.u16(context.purpose)
-  let bitmap = SCOPE.organization | SCOPE.vault
-  if (context.entryId) bitmap |= SCOPE.entry
-  if (context.grantOrRequestId) bitmap |= SCOPE.grantOrRequest
-  if (context.agentId) bitmap |= SCOPE.agent
-  if (context.memberId) bitmap |= SCOPE.member
-  writer.u16(bitmap)
+  writer.u16(presentScopeBitmap(context))
   writer.bytes(uuidBytes(context.organizationId))
-  writer.bytes(uuidBytes(context.vaultId))
+  if (context.vaultId) writer.bytes(uuidBytes(context.vaultId))
   if (context.entryId) writer.bytes(uuidBytes(context.entryId))
   if (context.grantOrRequestId) writer.bytes(uuidBytes(context.grantOrRequestId))
   if (context.agentId) writer.bytes(uuidBytes(context.agentId))
@@ -385,7 +393,7 @@ export function encodeX25519WrapperContext(context: X25519WrapperContext): Uint8
   return writer.finish()
 }
 
-async function computeContextHash(context: X25519WrapperContext): Promise<Uint8Array> {
+export async function computeContextHash(context: X25519WrapperContext): Promise<Uint8Array> {
   const encoded = encodeX25519WrapperContext(context)
   const input = new Uint8Array(CONTEXT_HASH_MAGIC.length + encoded.length)
   input.set(CONTEXT_HASH_MAGIC)

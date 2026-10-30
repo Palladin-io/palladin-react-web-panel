@@ -41,6 +41,7 @@ import {
   useWebPush,
 } from '../features/notifications'
 import { MemberSyncProvider, RotationProvider } from '../features/vaults'
+import { ApproverKeyReconciler } from '../features/submissions'
 
 export const Route = createFileRoute('/_authenticated')({
   staticData: { consentSession: true },
@@ -180,6 +181,7 @@ function AuthenticatedContent() {
           memberPrivateKey={memberPrivateKey}
         >
           <SignalRProvider>
+            <ApproverKeyReconciler />
             <div
               className="app-shell flex h-dvh overflow-hidden"
               data-palladin-ignore="true"
