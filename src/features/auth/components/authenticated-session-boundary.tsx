@@ -4,7 +4,10 @@ import { getAuthRedirectFromHref } from '../../../shared/lib/auth-redirect'
 import { useAuthStore } from '../stores/auth-store'
 
 export function AuthenticatedSessionBoundary({ children }: { children: ReactNode }) {
-  const location = useRouterState({ select: state => state.location })
+  // The rendered location, not a pending one: while navigating from /unlock to
+  // a route outside this layout (e.g. /recovery), `location` already points at
+  // the target although this subtree is still mounted.
+  const location = useRouterState({ select: state => state.resolvedLocation ?? state.location })
   const navigate = useNavigate()
   const checking = useAuthStore(state => state.sessionRevalidating)
   const locked = useAuthStore(state => state.isVaultLocked)
