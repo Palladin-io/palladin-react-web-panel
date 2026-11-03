@@ -3,7 +3,7 @@ import { TAB_BUTTON_CLASSES } from "../../shared/lib/styles";
 import type { GrantFieldSelectionMode } from '../../shared/types/grant-field-selection'
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "../../shared/components/button";
@@ -43,6 +43,7 @@ import {
   type ApproveAgentInput,
 } from "../agents";
 import { useMemberSyncStore } from "../vaults/sync/member-sync-store";
+import { useCanReviewSubmissions, useSubmissions } from "../submissions";
 import { NotificationCard } from "./notification-card";
 import { NotificationPreferencesDialog } from "./notification-preferences-dialog";
 import {
@@ -109,6 +110,12 @@ export function NotificationCenterPage({
   const agentsById = useMemo(
     () => new Map((agents.data ?? []).map((agent) => [agent.agentId, agent])),
     [agents.data],
+  );
+  const canReviewSubmissions = useCanReviewSubmissions();
+  const pendingSubmissions = useSubmissions("pending");
+  const submissionsById = useMemo(
+    () => new Map((pendingSubmissions.data ?? []).map((item) => [item.submissionId, item])),
+    [pendingSubmissions.data],
   );
 
   // Refresh the feed + summary after a grant action so the resolved card drops
@@ -180,9 +187,10 @@ export function NotificationCenterPage({
           resolveNotificationItem(item, {
             vaults: memberVaults,
             agents: agentsById,
+            submissions: submissionsById,
           }),
       ),
-    [notifications.data, memberVaults, agentsById],
+    [notifications.data, memberVaults, agentsById, submissionsById],
   );
   const grantHistoryCoordinates = useMemo(
     () =>
@@ -435,6 +443,15 @@ export function NotificationCenterPage({
             onChange={setSegment}
             todoCount={summary.data?.pendingActionCount ?? 0}
           />
+          {canReviewSubmissions && (
+            <Link to="/submissions" className={`mr-1 ${TAB_BUTTON_CLASSES}`}>
+              {t("notifications.center.segSubmissions")}
+              {pendingSubmissions.data?.length ? (
+                <MetadataBadge>{pendingSubmissions.data.length}</MetadataBadge>
+              ) : null}
+              <Icon name="arrow_forward" size={14} />
+            </Link>
+          )}
           <Button
             variant="subtle"
             size="sm"
@@ -814,6 +831,8 @@ function viewLabelKey(item: NotificationItem): string {
   switch (item.type) {
     case "entry_share_received":
       return "notifications.center.viewSharing";
+    case "submission_pending":
+      return "notifications.center.reviewSubmission";
     case "agent_pending":
     case "agent_approved":
       return "notifications.center.viewAgent";
@@ -862,6 +881,7 @@ function ViewFooter({
 
 /** Notification types offered in the filter dropdown (matches the taxonomy). */
 const FILTERABLE_TYPES = [
+  "submission_pending",
   "entry_share_received",
   "agent_pending",
   "grant_pending",

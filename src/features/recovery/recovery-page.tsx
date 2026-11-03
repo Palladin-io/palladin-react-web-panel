@@ -5,7 +5,7 @@ import { analytics } from '../../shared/lib/analytics'
 import { EnterRecoveryKeyStep } from './components/enter-recovery-key-step'
 import { NewPasswordStep } from './components/new-password-step'
 import { NewRecoveryKeyStep } from './components/new-recovery-key-step'
-import { InvalidRecoveryKeyError, useRecover } from './use-recover'
+import { InvalidRecoveryKeyError, RecoveryProofInvalidError, useRecover } from './use-recover'
 
 type Step = 'enter-key' | 'new-password' | 'new-recovery-key'
 
@@ -54,6 +54,8 @@ export function RecoveryPage() {
             setMnemonic([])
             setErrorMessage(t('recovery.errorInvalidKey'))
             setStep('enter-key')
+          } else if (err instanceof RecoveryProofInvalidError) {
+            setErrorMessage(t('recovery.errorProofInvalid'))
           } else {
             setErrorMessage(t('recovery.errorGeneric'))
           }

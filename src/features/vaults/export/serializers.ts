@@ -36,12 +36,18 @@ const CSV_HEADERS = ['name', 'url', 'username', 'password', 'note', 'totp', 'fol
   'type', 'cardholderName', 'cardNumber', 'cvv', 'expiryMonth', 'expiryYear', 'billingAddress']
 
 /** Quote a field per RFC 4180 when it contains a delimiter, quote, or newline. */
-function csvField(value: string | undefined): string {
+function secretCsvField(value: string | undefined): string {
   const raw = value ?? ''
   if (/[",\r\n]/.test(raw)) {
     return `"${raw.replace(/"/g, '""')}"`
   }
   return raw
+}
+
+/** Prefixes `'` so spreadsheets do not evaluate a metadata cell as a formula. */
+function csvField(value: string | undefined): string {
+  const raw = value ?? ''
+  return secretCsvField(/^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw)
 }
 
 /**
@@ -52,6 +58,10 @@ function csvField(value: string | undefined): string {
  * KEY entries have no username/password, so their single secret is written to
  * the `password` column — the round-trip-lossless representation lives in the
  * JSON export, not here.
+ *
+ * Metadata cells are neutralised against spreadsheet formula injection; secret
+ * cells (password/value, TOTP, card number, CVV) stay byte-exact so other
+ * password managers import them unchanged.
  */
 export function toPalladinCsv(entries: ExportEntry[]): string {
   const lines = [CSV_HEADERS.join(',')]
@@ -63,17 +73,17 @@ export function toPalladinCsv(entries: ExportEntry[]): string {
         csvField(entry.name),
         csvField(entry.url),
         csvField(entry.username),
-        csvField(password),
+        secretCsvField(password),
         csvField(entry.notes),
-        csvField(entry.totp),
+        secretCsvField(entry.totp),
         csvField(entry.folder),
         csvField(entry.state),
         csvField(entry.revision),
         csvField(entry.historical ? 'true' : 'false'),
         csvField(String(entry.type)),
         csvField(entry.cardholderName),
-        csvField(entry.cardNumber),
-        csvField(entry.cvv),
+        secretCsvField(entry.cardNumber),
+        secretCsvField(entry.cvv),
         csvField(entry.expiryMonth),
         csvField(entry.expiryYear),
         csvField(entry.billingAddress),

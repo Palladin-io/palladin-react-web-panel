@@ -91,6 +91,12 @@ export interface RecoverAccountPayload {
   newRecoverySalt: string
   newEncryptedPrivateKeyByRecovery: string
   newAuthCredential?: string
+  recoveryProof: string
+}
+
+export interface RecoveryChallengeResponse {
+  sealedChallenge: string
+  expiresAt: string
 }
 
 /** TanStack Query key for the account resource — shared across features. */
@@ -102,6 +108,11 @@ export function getAccount(): Promise<AccountResponse> {
 
 export function setupAccount(payload: SetupAccountPayload): Promise<void> {
   return api.post('api/account/setup', { json: payload }).json<void>()
+}
+
+/** Single-use challenge sealed to the account key; fetch a fresh one per recovery attempt. */
+export function issueRecoveryChallenge(): Promise<RecoveryChallengeResponse> {
+  return api.post('api/account/recovery/challenge').json<RecoveryChallengeResponse>()
 }
 
 /**

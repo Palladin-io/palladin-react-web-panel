@@ -13,17 +13,29 @@ import {
   randomBytes,
   wipe,
 } from '../../shared/crypto/sodium'
+import { createAccountRecoveryProof } from '../../shared/crypto/account-recovery-proof'
 import {
   ACCOUNT_QUERY_KEY,
   getAccount,
+  issueRecoveryChallenge,
   recoverAccount,
+  type RecoverAccountPayload,
 } from '../../shared/api/account-api'
+import { hasApiErrorKey } from '../../shared/api/error-response'
 import { generateRecoveryMnemonic, joinMnemonic } from '../../shared/lib/mnemonic'
+import { useAuthStore } from '../auth'
 
 export class InvalidRecoveryKeyError extends Error {
   constructor() {
     super('Invalid recovery key')
     this.name = 'InvalidRecoveryKeyError'
+  }
+}
+
+export class RecoveryProofInvalidError extends Error {
+  constructor() {
+    super('Recovery proof rejected')
+    this.name = 'RecoveryProofInvalidError'
   }
 }
 
@@ -36,11 +48,24 @@ export interface RecoverResult {
   recoveryMnemonic: string[]
 }
 
+async function submitRecovery(payload: RecoverAccountPayload): Promise<void> {
+  try {
+    await recoverAccount(payload)
+  } catch (error) {
+    if (await hasApiErrorKey(error, 'errors.backend.recovery-proof-invalid')) {
+      throw new RecoveryProofInvalidError()
+    }
+    throw error
+  }
+}
+
 export function useRecover() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async ({ recoveryMnemonic, newPassword }: RecoverInput): Promise<RecoverResult> => {
+      const sessionUserId = useAuthStore.getState().userId
+      if (!sessionUserId) throw new Error('Recovery requires an authenticated session')
       const account = await getAccount()
       if (!account.recoverySalt || !account.encryptedPrivateKeyByRecovery || !account.kdf) {
         throw new Error('Account is missing recovery material')
@@ -85,7 +110,14 @@ export function useRecover() {
           newRecoveryKey,
         )
 
-        await recoverAccount({
+        const challenge = await issueRecoveryChallenge()
+        const recoveryProof = await createAccountRecoveryProof(
+          challenge.sealedChallenge,
+          sessionUserId,
+          privateKey,
+        )
+
+        await submitRecovery({
           securityVersion: IDENTITY_KDF_PROFILE.securityVersion,
           kdfProfileId: IDENTITY_KDF_PROFILE_ID,
           baseCredentialRevision: account.kdf.credentialRevision,
@@ -97,6 +129,7 @@ export function useRecover() {
           ...(account.kdf.credentialRevision > 0
             ? { newAuthCredential: encodeBase64Url(identity.authCredential) }
             : {}),
+          recoveryProof,
         })
 
         return { recoveryMnemonic: newRecoveryMnemonic }

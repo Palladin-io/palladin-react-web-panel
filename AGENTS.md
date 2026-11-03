@@ -24,6 +24,7 @@ React SPA for managing vaults, entries, agents, and grants. Zero-knowledge archi
 | Audit | `docs/architecture/features/audit.md` |
 | API Keys | `docs/architecture/features/api-keys.md` |
 | Notifications | `docs/architecture/features/notifications.md` |
+| Agent submissions | `docs/architecture/features/submissions.md` |
 | Settings | `docs/architecture/features/settings.md` |
 | Teams | `docs/architecture/features/teams.md` |
 
@@ -65,6 +66,7 @@ src/
     audit/                 # Audit log viewer, CSV export
     billing/               # Plan & billing, upgrade prompts
     teams/                 # Team management, member roles (Teams+)
+    submissions/           # Agent submission review, approver key maintenance
     api-keys/              # Org API key management
     settings/              # Account settings, data export, deletion
   shared/

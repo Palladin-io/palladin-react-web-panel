@@ -27,6 +27,7 @@ export type DetailRowValue =
   | { kind: 'text'; text: string }
   | { kind: 'entry'; entry: string; vault: string | null }
   | { kind: 'date'; iso: string }
+  | { kind: 'i18n'; key: string }
 
 /** One labelled detail row inside a card. */
 export interface DetailRow {
@@ -117,6 +118,18 @@ function agentHostIp(item: NotificationItem): string | undefined {
   return shortHost ?? ip ?? undefined
 }
 
+function i18nRow(labelKey: string, key: string | undefined): DetailRow {
+  return key ? { labelKey, value: { kind: 'i18n', key } } : textRow(labelKey, undefined)
+}
+
+function submissionKindLabelKey(kind: string | undefined): string | undefined {
+  return kind === '1' ? 'submissions.kindNew' : kind === '2' ? 'submissions.kindUpdate' : undefined
+}
+
+function submissionTypeLabelKey(entryType: string | undefined): string | undefined {
+  return entryType === '1' ? 'submissions.typeCredential' : entryType === '0' ? 'submissions.typeKey' : undefined
+}
+
 /**
  * Agent identity block: Public key · Type · Agent Id · Host · Ip. Missing
  * values show the em-dash placeholder so the grid stays uniform.
@@ -162,6 +175,10 @@ export function notificationTypeNameKey(type: string): string {
       return 'notifications.type.grantDenied'
     case 'credential_stale':
       return 'notifications.type.credentialStale'
+    case 'submission_pending':
+      return 'notifications.type.submissionPending'
+    case 'submission_resolved':
+      return 'notifications.type.submissionResolved'
     default:
       return 'notifications.type.generic'
   }
@@ -316,6 +333,21 @@ export function notificationCardPresentation(
           metaRow(item, 'notifications.card.rowMethods', 'methods'),
           metaRow(item, 'notifications.card.rowReason', 'denyReason'),
           metaRow(item, 'notifications.card.rowBy', 'actorName'),
+        ],
+      }
+
+    case 'submission_pending':
+    case 'submission_resolved':
+      return {
+        header: { kind: 'agent', agentName, agentId, agentIconKey },
+        titleKey,
+        subtitleKey: item.type === 'submission_pending' ? 'notifications.sub.submissionPending' : 'notifications.sub.submissionResolved',
+        subtitleAgent: agentName,
+        subtitleAgentFallbackKey: SOFT,
+        rows: [
+          i18nRow('notifications.card.rowSubmissionKind', submissionKindLabelKey(meta(item, 'submissionKind'))),
+          i18nRow('notifications.card.rowType', submissionTypeLabelKey(meta(item, 'submissionEntryType'))),
+          idRow(item, 'notifications.card.rowSubmission', 'submissionId'),
         ],
       }
 

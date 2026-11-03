@@ -11,7 +11,10 @@ import { TotpDisableDialog } from './totp-disable-dialog'
 /**
  * Two-factor authentication management. Reflects the account's
  * `totpEnabled` state and opens the enroll or disable flow. An undefined
- * `totpEnabled` (older backend) reads as disabled.
+ * `totpEnabled` (older backend) reads as disabled. TOTP guards password
+ * sign-in and every change proves the current password, so the section is
+ * hidden until Identity reports a password credential (`credentialRevision`
+ * above zero).
  */
 export function TotpSection() {
   const { t } = useTranslation()
@@ -24,6 +27,7 @@ export function TotpSection() {
   const [disableOpen, setDisableOpen] = useState(false)
 
   const enabled = account.data?.totpEnabled === true
+  if (!account.data?.kdf || account.data.kdf.credentialRevision === 0) return null
 
   return (
     <section className="rounded-2xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-5">

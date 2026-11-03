@@ -11,6 +11,7 @@ A three-step flow inside the shared recovery-shell layout: enter the mnemonic, s
 ## Key patterns
 - **Auth-surface group:** theme-aware `.auth-surface`, `AuthSubmitButton`, recovery-shell layout. Every recovery step uses `AppWordmark size="hero"` with the shared `.auth-brand-header` dimensions, matching the logo and wordmark on login/unlock. The step title remains visible below the brand.
 - **Crypto isolation:** all key work in the recovery hook, never in step JSX.
+- **Proof of key possession:** before `PUT api/account/recovery` the hook fetches a fresh single-use challenge (`POST api/account/recovery/challenge`) and opens it with the unlocked private key via `shared/crypto/account-recovery-proof.ts`. The expected userId comes from the authenticated session, never from the challenge or account response; a mismatched or malformed challenge aborts before the PUT. `errors.backend.recovery-proof-invalid` (403) maps to `RecoveryProofInvalidError`.
 - Mnemonic entry uses `FormTextarea`.
 
 ## Cross-feature deps

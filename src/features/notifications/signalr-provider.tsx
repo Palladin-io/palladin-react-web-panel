@@ -17,7 +17,7 @@ import { signalrLog } from './signalr-log'
 import { useNotificationInvalidation } from './use-notification-invalidation'
 import { usePendingAlerts } from './use-pending-alerts'
 import { claimNotificationEvent } from './notification-deduplication'
-import { resolveNotificationPayload } from './notification-resolution'
+import { notificationOpenTarget, resolveNotificationPayload } from './notification-resolution'
 
 /** Notification types that demand the user's attention (sound + tab flash). */
 const ATTENTION_TYPES = new Set([
@@ -81,7 +81,7 @@ export function SignalRProvider({ children }: { children: ReactNode }) {
         agents: new Map((queryClient.getQueryData<Agent[]>(AGENTS_QUERY_KEY) ?? [])
           .map((agent) => [agent.agentId, agent])),
       })
-      showNotificationToast(resolved, () => navigate({ to: '/inbox' }))
+      showNotificationToast(resolved, () => navigate(notificationOpenTarget(resolved)))
       invalidate(payload)
       // Attention-worthy pending events also chime + flash the tab title.
       if (ATTENTION_TYPES.has(payload.type)) {

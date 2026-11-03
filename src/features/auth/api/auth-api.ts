@@ -183,16 +183,16 @@ export interface TotpConfirmResponse {
   recoveryCodes: string[]
 }
 
-export function enrollTotp(): Promise<TotpEnrollResponse> {
-  return api.post('api/auth/totp/enroll').json()
+export function enrollTotp(currentAuthCredential: string): Promise<TotpEnrollResponse> {
+  return api.post('api/auth/totp/enroll', { json: { currentAuthCredential } }).json()
 }
 
-export function confirmTotp(code: string): Promise<TotpConfirmResponse> {
-  return api.post('api/auth/totp/confirm', { json: { code } }).json()
+export function confirmTotp(code: string, currentAuthCredential: string): Promise<TotpConfirmResponse> {
+  return api.post('api/auth/totp/confirm', { json: { code, currentAuthCredential } }).json()
 }
 
-export function disableTotp(code: string): Promise<void> {
-  return api.post('api/auth/totp/disable', { json: { code } }).json<void>()
+export function disableTotp(code: string, currentAuthCredential: string): Promise<void> {
+  return api.post('api/auth/totp/disable', { json: { code, currentAuthCredential } }).json<void>()
 }
 
 export function refreshSession(expectedSessionId?: string): Promise<AuthResponse> {

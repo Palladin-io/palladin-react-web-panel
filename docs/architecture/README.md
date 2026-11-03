@@ -40,6 +40,7 @@ Per-feature and shared-component reference for the Palladin web panel. These doc
 | Audit | [features/audit.md](features/audit.md) |
 | API Keys | [features/api-keys.md](features/api-keys.md) |
 | Notifications | [features/notifications.md](features/notifications.md) |
+| Agent submissions | [features/submissions.md](features/submissions.md) |
 | Settings | [features/settings.md](features/settings.md) |
 | Permissions | [features/permissions.md](features/permissions.md) |
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { SettingsSectionPage } from '../../../shared/components/settings-section-page'
 import { ChangeMasterPasswordSection } from './components/change-master-password-section'
@@ -9,7 +10,7 @@ import { SharedUnlockSection } from './components/shared-unlock-section'
  * authentication. Left-aligned, matching the settings page layout.
  * Inherits the theme-aware gradient + text colour from `_authenticated.tsx`.
  */
-export function SecurityPage() {
+export function SecurityPage({ children }: { children?: ReactNode }) {
   const { t } = useTranslation()
 
   return (
@@ -18,6 +19,7 @@ export function SecurityPage() {
       <TotpSection />
       <SharedUnlockSection />
       <ChangeMasterPasswordSection />
+      {children}
     </SettingsSectionPage>
   )
 }

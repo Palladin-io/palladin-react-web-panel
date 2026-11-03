@@ -41,3 +41,14 @@ Mounted feed and summary observers repair every 30 seconds in the foreground;
 hidden tabs and unmounted observers do not poll. This bounded REST repair covers
 Inbox-only delivery without pretending it is realtime push. The per-share
 checkbox remains authoritative; no global preference switch is introduced.
+
+## Agent submissions (CVT-636)
+
+`submission_pending` is an action-required Inbox card whose only metadata is the
+opaque `submissionId`. Agent name, kind and Entry type come from the authorized
+`GET /api/submissions` list; **Review** opens `/submissions/:submissionId`, and the
+Inbox header links to the submissions list with its pending count for members with
+`GrantManage`. Toasts use generic local copy and open the decision view. Web Push
+keeps its generic lock-screen copy; the service worker routes only
+`submission_pending` with a UUID subject to that view and everything else to the
+Inbox. `submission_resolved` is a history card without toast or deep link.

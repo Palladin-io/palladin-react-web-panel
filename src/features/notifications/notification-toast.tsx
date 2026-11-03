@@ -34,7 +34,7 @@ export function showNotificationToast(
   // avoids an empty toast — none had a case, so they fell through to the empty
   // wire copy.
   if (type === 'agent_resolved' || type === 'agent_approved' || type === 'agent_deactivated'
-    || type === 'entry_share_received') return
+    || type === 'entry_share_received' || type === 'submission_resolved') return
 
   // The "Open" action is a small icon button in the toast's top-right corner
   // (rendered as real toast content). Styling in index.css (`cv-toast-*`).
@@ -76,6 +76,9 @@ export function showNotificationToast(
       break
     case 'credential_accessed':
       toast.info(i18n.t('notifications.credentialAccessed.title'), opts(credentialAccessedBody(payload)))
+      break
+    case 'submission_pending':
+      toast.info(i18n.t('notifications.submissionPending.title'), opts(i18n.t('notifications.submissionPending.body')))
       break
     case 'credential_stale':
       toast.warning(i18n.t('notifications.credentialStale.title'), opts(credentialStaleBody(payload)))
