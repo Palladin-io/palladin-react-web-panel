@@ -41,7 +41,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../shared/api/account-api', () => ({
-  memberKeySuiteOf: (account: { memberKeySuiteId?: string | null }) => account.memberKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount: mocks.getAccount }))
+  memberKeySuiteOf: (account: { memberPublicKeySuiteId?: string | null }) => account.memberPublicKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount: mocks.getAccount }))
 vi.mock('./api/submissions-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api/submissions-api')>()),
   getApproverKeys: mocks.getApproverKeys,
@@ -214,7 +214,7 @@ describe('approver key changes with the real crypto layer', () => {
     // A migrated caller: approver keys are sealed only to active-suite Member keys.
     const caller = await generateRecipientKeyPair()
     useAuthStore.setState({ privateKey: new Uint8Array(caller.privateKey), memberKeySuiteId: caller.keySuiteId })
-    mocks.getAccount.mockResolvedValue({ userId: fixture.context.memberId, memberKeyVersion: 2, memberKeySuiteId: caller.keySuiteId })
+    mocks.getAccount.mockResolvedValue({ userId: fixture.context.memberId, memberKeyVersion: 2, memberPublicKeySuiteId: caller.keySuiteId })
     const colleague = await generateRecipientKeyPair()
     const outsider = await generateRecipientKeyPair()
     const self = recipient(fixture.context.memberId, caller, false, 2)

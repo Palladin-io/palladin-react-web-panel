@@ -91,7 +91,7 @@ function encryptedVaultDetail() {
     vaultAgentMessagePublicKey: {
       protocolVersion: 2,
       schemeId: 'palladin-x25519-v1',
-      keyKind: 'agentMessageX25519',
+      keyKind: 'agentMessage',
       keyVersion: 2,
       encodedPublicKey: 'public-key',
       fingerprint: 'fingerprint',
@@ -99,7 +99,7 @@ function encryptedVaultDetail() {
     vaultManifestSigningPublicKey: {
       protocolVersion: 2,
       schemeId: 'palladin-ed25519-v1',
-      keyKind: 'manifestSigningEd25519',
+      keyKind: 'manifestSigning',
       keyVersion: 2,
       encodedPublicKey: 'public-key',
       fingerprint: 'fingerprint',

@@ -33,7 +33,7 @@ const claimSchema = z.object({
   pendingVaultPrivateKeys: z.array(privateKeySchema).max(2), preparedMaterialReset: z.boolean(),
 })
 const memberSourceSchema = z.object({
-  items: z.array(z.object({ memberId: uuid, recipientKeyVersion: u32, recipientKeyFingerprint: z.string(), x25519PublicKey: z.string() })).max(100),
+  items: z.array(z.object({ memberId: uuid, recipientKeyVersion: u32, recipientKeyFingerprint: z.string(), publicKey: z.string(), keySuiteId: z.string() })).max(100),
   nextAfterId: uuid.nullable(),
 })
 const fullGrantSourceSchema = z.object({
@@ -43,7 +43,8 @@ const fullGrantSourceSchema = z.object({
     agentAccessEpoch: u32,
     recipientKeyVersion: u32,
     recipientKeyFingerprint: z.string().min(1),
-    x25519PublicKey: z.string().min(1),
+    publicKey: z.string().min(1),
+    keySuiteId: z.string().min(1),
   })).max(100),
   nextAfterId: uuid.nullable(),
 })
@@ -57,7 +58,7 @@ const discoverySourceSchema = z.object({
 })
 const agentSourceSchema = z.object({
   items: z.array(z.object({
-    agentId: uuid, agentName: z.string().nullable(), x25519PublicKey: z.string(), ed25519PublicKey: z.string(),
+    agentId: uuid, agentName: z.string().nullable(), publicKey: z.string(), keySuiteId: z.string(), ed25519PublicKey: z.string(),
     recipientKeyVersion: u32, status: z.string(), manifestRevision: u64.nullable(),
   })).max(100),
   nextAfterId: uuid.nullable(),

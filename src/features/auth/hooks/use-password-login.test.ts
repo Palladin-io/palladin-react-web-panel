@@ -26,7 +26,7 @@ vi.mock('../shared-unlock/manual-source', () => ({ prepareManualSharedUnlock }))
 vi.mock('../api/auth-api', () => ({ fetchLoginKdf, passwordLogin, totpLogin, revokeUninstalledLoginSession,
   isTotpRequired: (response: { totpRequired?: boolean }) => response.totpRequired === true }))
 vi.mock('../../../shared/api/account-api', () => ({
-  memberKeySuiteOf: (account: { memberKeySuiteId?: string | null }) => account.memberKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount }))
+  memberKeySuiteOf: (account: { memberPublicKeySuiteId?: string | null }) => account.memberPublicKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount }))
 vi.mock('../../../shared/crypto/identity-kdf', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../../shared/crypto/identity-kdf')>(), deriveAccountIdentity: deriveIdentityV1,
 }))
@@ -124,7 +124,7 @@ describe('usePasswordLogin password KDF v1', () => {
     await result.current.start.mutateAsync({ email: 'new@example.com', password: 'pw' })
     release(); await rejected
     expect(captureManualUnlockFence()()).toBe(false)
-    expect(fetchLoginKdf).toHaveBeenCalledExactlyOnceWith('new@example.com', 'identity-argon2id-account-secret-v2')
+    expect(fetchLoginKdf).toHaveBeenCalledExactlyOnceWith('new@example.com')
     result.current.cancel()
     expect(captureManualUnlockFence()()).toBe(true)
   })
@@ -227,7 +227,7 @@ describe('usePasswordLogin password KDF v1', () => {
     const v2 = { ...profile, securityVersion: 2, profileId: 'identity-argon2id-account-secret-v2' }
     fetchLoginKdf.mockResolvedValue(v2)
     getAccount.mockResolvedValue({ userId: accountId, encryptedPrivateKey: encodeBase64Url(new Uint8Array(72).fill(6)),
-      memberKeySuiteId: 'palladin-xwing-v1', kdf: { ...v2, minimumSecurityVersion: 2 } })
+      memberPublicKeySuiteId: 'palladin-xwing-v1', kdf: { ...v2, minimumSecurityVersion: 2 } })
     loadDeviceSecretKey.mockResolvedValueOnce(new Uint8Array(32).fill(8))
     passwordLogin.mockResolvedValue(response)
     const { result } = renderHook(() => usePasswordLogin(), { wrapper })

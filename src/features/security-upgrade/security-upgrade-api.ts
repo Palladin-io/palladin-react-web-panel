@@ -22,10 +22,11 @@ export interface SecurityUpgradeRequest {
 }
 
 export interface KeyMigrationReport {
-  memberKeyVersion: number
-  memberKeySuiteId: string
-  legacyMemberEnvelopes: number
-  legacyAgentEnvelopes: number
+  currentSuiteId: string
+  memberKey: { keyVersion: number; suiteId: string } | null
+  memberEnvelopes: number
+  memberEnvelopesPendingRewrap: number
+  agentEnvelopesOnNonCurrentSuite: number
 }
 
 export function submitSecurityUpgrade(request: SecurityUpgradeRequest): Promise<void> {
@@ -37,12 +38,16 @@ export function getKeyMigrationReport(): Promise<KeyMigrationReport> {
 }
 
 export async function deleteLegacyMemberKey(legacyMemberKeyVersion: number): Promise<void> {
-  await api.delete('api/account/legacy-member-key', { json: { legacyMemberKeyVersion } })
+  await api.delete('api/account/legacy-member-key', { searchParams: { legacyMemberKeyVersion } })
 }
 
+/** Compare-and-swap on the recipient key version the replaced envelope addresses; 409 when it moved. */
 export async function replaceOwnMemberVaultKey(
   vaultId: string,
+  expectedRecipientKeyVersion: number,
   envelope: MemberVaultKeyEnvelopeContract,
 ): Promise<void> {
-  await api.put(`api/vaults/${encodeURIComponent(vaultId)}/members/me/key-envelope`, { json: envelope, retry: 0 })
+  await api.put(`api/vaults/${encodeURIComponent(vaultId)}/members/me/key-envelope`, {
+    json: { expectedRecipientKeyVersion, wrappedVaultKey: envelope.wrappedVaultKey }, retry: 0,
+  })
 }

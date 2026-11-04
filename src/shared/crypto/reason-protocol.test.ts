@@ -47,10 +47,10 @@ describe('openEncryptedReason', () => {
     const signature = sodium.crypto_sign_detached(transcript, signing.privateKey)
     try {
       await expect(verifyEncryptedReasonSignature(
-        descriptor, toBase64Url(payload), toBase64Url(wrapper), toBase64Url(signature), identity,
+        descriptor, toBase64Url(payload), X25519_SEALED_BOX_V1, toBase64Url(wrapper), toBase64Url(signature), identity,
       )).resolves.toBeUndefined()
       await expect(verifyEncryptedReasonSignature(
-        descriptor, toBase64Url(new Uint8Array([4, 9])), toBase64Url(wrapper), toBase64Url(signature), identity,
+        descriptor, toBase64Url(new Uint8Array([4, 9])), X25519_SEALED_BOX_V1, toBase64Url(wrapper), toBase64Url(signature), identity,
       )).rejects.toThrow('signature is invalid')
     } finally {
       wipe(signing.privateKey); wipe(signing.publicKey); wipe(signature); wipe(fingerprint); wipe(transcript)
@@ -81,6 +81,7 @@ describe('openEncryptedReason', () => {
       vaultId: envelope.descriptor.scope.vaultId,
       entryId: envelope.descriptor.scope.entryId!,
       grantId: 'dddddddd-eeee-4fff-8000-111111111111',
+      vaultAgentMessageKeySuiteId: X25519_SEALED_BOX_V1,
       agentId: envelope.descriptor.scope.agentId!,
     })).rejects.toThrow('outer resource scope')
   })

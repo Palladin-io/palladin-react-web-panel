@@ -125,10 +125,11 @@ export const useAuthStore = create<AuthState>()(
             const inherited = unlockLimits(Date.now(), limits)
             if (keys.masterKey.length !== 32 || keys.privateKey.length !== 32) throw new Error('Invalid shared unlock keys')
             const tokens = tokenState(state, session)
-            owned = { masterKey: new Uint8Array(keys.masterKey), privateKey: new Uint8Array(keys.privateKey) }
+            owned = { masterKey: new Uint8Array(keys.masterKey), privateKey: new Uint8Array(keys.privateKey),
+              memberKeySuiteId: keys.memberKeySuiteId }
             installedGeneration = state.cryptoSessionGeneration + 1
-            // recoverSharedUnlockKeys binds the key to the Identity X25519 public key.
-            return { ...tokens, ...owned, memberKeySuiteId: KEY_WRAPPER_SUITE.legacy, unlockLimits: inherited, isVaultLocked: false,
+            // recoverSharedUnlockKeys binds the key to the Identity public key of the committed suite.
+            return { ...tokens, ...owned, unlockLimits: inherited, isVaultLocked: false,
               cryptoSessionGeneration: installedGeneration }
           })
           const current = get()

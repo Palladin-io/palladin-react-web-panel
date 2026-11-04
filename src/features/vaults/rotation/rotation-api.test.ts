@@ -9,7 +9,7 @@ const response = (data: unknown) => new Response(JSON.stringify(data), { status:
 describe('rotation transport metadata', () => {
   it('accepts additive page and recipient metadata without weakening recipient keys', async () => {
     apiMock.get.mockResolvedValueOnce(response({ items: [{ memberId: id, recipientKeyVersion: 1,
-      recipientKeyFingerprint: 'fingerprint', x25519PublicKey: 'public-key', displayHint: 'new' }],
+      recipientKeyFingerprint: 'fingerprint', publicKey: 'public-key', keySuiteId: 'palladin-xwing-v1', displayHint: 'new' }],
       nextAfterId: null, futurePageHint: true }))
     await expect(getRotationMembers(id, id, id, null, signal)).resolves.toMatchObject({ items: [{ memberId: id }] })
   })
@@ -27,7 +27,7 @@ describe('rotation transport metadata', () => {
   })
   it('still rejects an invalid recipient key version before encryption', async () => {
     apiMock.get.mockResolvedValueOnce(response({ items: [{ memberId: id, recipientKeyVersion: -1,
-      recipientKeyFingerprint: 'fingerprint', x25519PublicKey: 'public-key' }], nextAfterId: null }))
+      recipientKeyFingerprint: 'fingerprint', publicKey: 'public-key', keySuiteId: 'palladin-xwing-v1' }], nextAfterId: null }))
     await expect(getRotationMembers(id, id, id, null, signal)).rejects.toThrow()
   })
 })

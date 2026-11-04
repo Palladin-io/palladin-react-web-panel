@@ -11,7 +11,7 @@ import {
 } from '@palladin/crypto'
 import { toBase64Url } from './encoding'
 import { wipe } from './sodium'
-import { decodeBase64Url } from './vault-v2-bytes'
+import { decodeBase64Url, decodeUuid } from './vault-v2-bytes'
 
 /**
  * identity-kdf v3 device pairing (Secret Key transfer). The backend relays
@@ -21,6 +21,7 @@ import { decodeBase64Url } from './vault-v2-bytes'
 export { PairingError }
 export type { PairingEnvelope, PairingKeyPair }
 
+/** `transferId` is the backend UUID; the pairing encodings carry its 16 network-order bytes. */
 export interface TransferSession {
   accountId: string
   transferId: string
@@ -29,6 +30,18 @@ export interface TransferSession {
 }
 
 export const createTransferKeyPair = generatePairingKeyPair
+
+function wireTransferId(transferId: string): string {
+  try {
+    return toBase64Url(decodeUuid(transferId.toLowerCase()))
+  } catch {
+    throw new PairingError('malformed-envelope')
+  }
+}
+
+function wireSession<T extends { transferId: string }>(session: T): T {
+  return { ...session, transferId: wireTransferId(session.transferId) }
+}
 
 export function wipeTransferKeyPair(keyPair: PairingKeyPair | null | undefined): void {
   if (keyPair) wipe(keyPair.privateKey)
@@ -50,27 +63,27 @@ export function decodeTransferPublicKey(value: string): Uint8Array {
 export function recipientTransferQr(transferId: string, recipientPublicKey: Uint8Array): string {
   return encodePairingQr({
     flow: 'recipient-shows-qr',
-    transferId,
+    transferId: wireTransferId(transferId),
     recipientPublicKeyDigest: pairingRecipientKeyDigest(recipientPublicKey),
   })
 }
 
 export function senderTransferQr(transferId: string, challenge: string): string {
-  return encodePairingQr({ flow: 'sender-shows-qr', transferId, challenge })
+  return encodePairingQr({ flow: 'sender-shows-qr', transferId: wireTransferId(transferId), challenge })
 }
 
 export function transferSas(session: TransferSession): string {
-  return computePairingSas(session)
+  return computePairingSas(wireSession(session))
 }
 
 /** Sender, `sender-shows-qr`: seals only after the user confirmed both devices show the same SAS. */
-export function sealSecretKeyForTransfer(
+export async function sealSecretKeyForTransfer(
   session: TransferSession,
   sasConfirmed: boolean,
   secretKey: Uint8Array,
 ): Promise<PairingEnvelope> {
   if (!sasConfirmed) throw new PairingError('sas-not-confirmed')
-  return sealAccountSecretForPairing({ ...session, flow: 'sender-shows-qr', sasConfirmed: true }, secretKey)
+  return sealAccountSecretForPairing({ ...wireSession(session), flow: 'sender-shows-qr', sasConfirmed: true }, secretKey)
 }
 
 /** Recipient: the session values are the ones this browser created, never echoed by the claim response. */
@@ -79,5 +92,5 @@ export function openTransferEnvelope(
   keyPair: PairingKeyPair,
   envelope: PairingEnvelope,
 ): Promise<Uint8Array> {
-  return openPairingEnvelope(session, keyPair, envelope)
+  return openPairingEnvelope(wireSession(session), keyPair, envelope)
 }

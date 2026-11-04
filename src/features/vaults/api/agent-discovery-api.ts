@@ -13,17 +13,17 @@ const canonicalU64 = z.string()
 const agentDiscoveryProvisioningItemSchema = z.object({
   agentId: z.string().uuid(),
   agentName: z.string().max(200).nullable(),
-  encryptionPublicKey: z.string().max(2048),
-  encryptionKeySuiteId: z.string().max(64).nullable().optional(),
+  publicKey: z.string().max(2048),
+  keySuiteId: z.string().max(64).nullable().optional(),
   ed25519PublicKey: z.string().max(512),
   recipientKeyVersion: z.number().int().positive().max(0xffffffff),
   status: z.enum([DISCOVERY_STATUS_CURRENT, DISCOVERY_STATUS_PENDING]),
   manifestRevision: canonicalU64.nullable(),
-}).transform(({ agentId, agentName, encryptionPublicKey, encryptionKeySuiteId, ed25519PublicKey, recipientKeyVersion, status, manifestRevision }) => ({
+}).transform(({ agentId, agentName, publicKey, keySuiteId, ed25519PublicKey, recipientKeyVersion, status, manifestRevision }) => ({
   agentId,
   agentName,
-  encryptionPublicKey,
-  encryptionKeySuiteId: encryptionKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
+  encryptionPublicKey: publicKey,
+  encryptionKeySuiteId: keySuiteId ?? KEY_WRAPPER_SUITE.legacy,
   ed25519PublicKey,
   recipientKeyVersion,
   status,

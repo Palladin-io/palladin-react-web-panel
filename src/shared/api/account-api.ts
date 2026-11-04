@@ -58,10 +58,9 @@ export interface AccountResponse {
   /** Current server-authoritative Member public-key version. */
   memberKeyVersion?: number | null
   /** Suite of the current Member key; absent means the legacy suite (recipient-key-publication v1). */
-  memberKeySuiteId?: string | null
+  memberPublicKeySuiteId?: string | null
   /** Previous Member key wrapped under the current MK, kept only while envelopes still address it. */
-  legacyEncryptedPrivateKey?: string | null
-  legacyMemberKeyVersion?: number | null
+  legacyMemberKey?: { memberKeyVersion: number; encryptedPrivateKey: string } | null
   kdf?: IdentityKdfState | null
 }
 
@@ -102,12 +101,14 @@ export interface RecoverAccountPayload {
 }
 
 export interface RecoveryChallengeResponse {
+  /** 1 = sealed to the legacy Member key, 2 = X-Wing (identity-kdf v3). */
+  version?: 1 | 2
   sealedChallenge: string
   expiresAt: string
 }
 
-export function memberKeySuiteOf(account: Pick<AccountResponse, 'memberKeySuiteId'>): string {
-  return account.memberKeySuiteId ?? KEY_WRAPPER_SUITE.legacy
+export function memberKeySuiteOf(account: Pick<AccountResponse, 'memberPublicKeySuiteId'>): string {
+  return account.memberPublicKeySuiteId ?? KEY_WRAPPER_SUITE.legacy
 }
 
 /** TanStack Query key for the account resource — shared across features. */

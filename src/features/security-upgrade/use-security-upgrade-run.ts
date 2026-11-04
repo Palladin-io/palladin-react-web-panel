@@ -66,7 +66,7 @@ async function rewrapVaults(
       nextKey: { keySuiteId, privateKey, keyVersion: account.memberKeyVersion },
     })
     if (useAuthStore.getState().privateKey !== privateKey) throw new Error('Vault was locked')
-    await replaceOwnMemberVaultKey(vault.id, envelope)
+    await replaceOwnMemberVaultKey(vault.id, vault.memberVaultKey.wrappedVaultKey.descriptor.recipientKeyVersion, envelope)
     onProgress({ done: index + 1, total: stale.length })
   }
 }
@@ -74,7 +74,7 @@ async function rewrapVaults(
 /** Removes the legacy-key record once no Member envelope addresses the old key in any organization. */
 async function cleanUp(pending: PendingSecurityUpgrade): Promise<void> {
   const report = await getKeyMigrationReport()
-  if (report.legacyMemberEnvelopes === 0) await deleteLegacyMemberKey(pending.legacyMemberKeyVersion)
+  if (report.memberEnvelopesPendingRewrap === 0) await deleteLegacyMemberKey(pending.legacyMemberKeyVersion)
 }
 
 /**

@@ -92,14 +92,14 @@ const encryptedVaultSummarySchema = z.object({
   }
 })
 
-// Agent message keys name their key-wrapper suite (recipient-key-publication); `palladin-x25519-v1` is the legacy name.
-const LEGACY_AGENT_MESSAGE_SCHEME = 'palladin-x25519-v1'
+// Agent message keys name their key-wrapper suite (recipient-key-publication); `palladin-x25519-v1` is the pre-suite name.
+const LEGACY_AGENT_MESSAGE_SCHEMES: readonly string[] = ['palladin-x25519-v1', KEY_WRAPPER_SUITE.legacy]
 const vaultPublicKeySchema = z.object({
   protocolVersion: z.literal(2),
-  schemeId: z.enum([LEGACY_AGENT_MESSAGE_SCHEME, KEY_WRAPPER_SUITE.active, 'palladin-ed25519-v1']),
+  schemeId: z.enum(['palladin-x25519-v1', KEY_WRAPPER_SUITE.legacy, KEY_WRAPPER_SUITE.active, 'palladin-ed25519-v1']),
   keyKind: z.union([
-    z.literal('agentMessageX25519').transform(() => 1 as const),
-    z.literal('manifestSigningEd25519').transform(() => 2 as const),
+    z.literal('agentMessage').transform(() => 1 as const),
+    z.literal('manifestSigning').transform(() => 2 as const),
     z.literal(1),
     z.literal(2),
   ]),
@@ -291,7 +291,7 @@ function vaultPresentation(vault: VaultPresentation): VaultPresentation {
  */
 export function vaultAgentMessageKeySuite(vault: EncryptedVaultDetail, keyVersion: number): string {
   const current = vault.vaultAgentMessagePublicKey
-  if (keyVersion !== current.keyVersion || current.schemeId === LEGACY_AGENT_MESSAGE_SCHEME) return KEY_WRAPPER_SUITE.legacy
+  if (keyVersion !== current.keyVersion || LEGACY_AGENT_MESSAGE_SCHEMES.includes(current.schemeId)) return KEY_WRAPPER_SUITE.legacy
   return current.schemeId
 }
 

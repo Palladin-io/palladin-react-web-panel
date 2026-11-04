@@ -25,7 +25,7 @@ vi.mock('../sync/member-sync-api', () => ({ listEncryptedVaults: api.list, getEn
 vi.mock('../api/vault-api', () => ({ issueVaultCreationChallenge: api.vaultChallenge,
   issueEntryCreationChallenge: api.entryChallenge, createEntry: api.createEntry, createVault: vi.fn() }))
 vi.mock('../../../shared/api/account-api', () => ({
-  memberKeySuiteOf: (account: { memberKeySuiteId?: string | null }) => account.memberKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount: api.account, createDefaultVault: api.createDefaultVault }))
+  memberKeySuiteOf: (account: { memberPublicKeySuiteId?: string | null }) => account.memberPublicKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount: api.account, createDefaultVault: api.createDefaultVault }))
 
 const organizationId = '11111111-1111-4111-8111-111111111111'
 const vaultId = '22222222-2222-4222-8222-222222222222'
@@ -50,7 +50,7 @@ beforeEach(async () => {
     .mockRejectedValue(new Error('One receipt only'))
   api.vaultChallenge.mockResolvedValue({ vaultId })
   api.entryChallenge.mockResolvedValue({ entryId })
-  api.account.mockResolvedValue({ userId: memberId, memberKeyVersion: 1, memberKeySuiteId: member.keySuiteId })
+  api.account.mockResolvedValue({ userId: memberId, memberKeyVersion: 1, memberPublicKeySuiteId: member.keySuiteId })
   api.list.mockImplementation(async () => destination ? [{ ...destination, isDefault: true }] : [])
   api.get.mockImplementation(async () => destination)
   api.createDefaultVault.mockImplementation(async (payload: CreateVaultProtocolPayload) => {

@@ -196,7 +196,7 @@ export function usePasswordLogin() {
       try {
         await cleanup
         attempt.assertCurrent()
-        const bootstrap = await fetchLoginKdf(email, CURRENT_IDENTITY_PROFILE.id)
+        const bootstrap = await fetchLoginKdf(email)
         attempt.assertCurrent()
         const version = identityProfileVersion(bootstrap)
         if (version === 2) {

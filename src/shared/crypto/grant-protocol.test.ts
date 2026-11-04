@@ -3,7 +3,7 @@ import { generateRecipientKeyPair, openKey, RECIPIENT_KEY_KIND } from '@palladin
 import { fromBase64Url, toBase64 } from './encoding'
 import { buildCanonicalGrantEnvelope } from './grant-protocol'
 import { deriveVaultSubkey } from './hkdf'
-import { loadSodium, wipe } from './sodium'
+import { wipe } from './sodium'
 import { openVaultEnvelope, toEnvelopeDescriptor } from './vault-envelope'
 import type { MemberSecretV1 } from './vault-plaintext'
 
@@ -24,7 +24,6 @@ const secret: MemberSecretV1 = {
 
 describe('canonical Grant protocol', () => {
   it.each(['none', 'primary', 'custom'] as const)('binds fields and emits native TOTP source (%s)', async (totpKind) => {
-    const sodium = await loadSodium()
     const agent = await generateRecipientKeyPair()
     const source = { source: 'totp', secret: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', algorithm: 'SHA1', digits: 8, period: 30 } as const
     const withTotp = totpKind !== 'none'
@@ -92,7 +91,6 @@ describe('canonical Grant protocol', () => {
   })
 
   it('preserves selected methods with standard delivery for Script payloads', async () => {
-    const sodium = await loadSodium()
     const agent = await generateRecipientKeyPair()
     const scriptSecret: MemberSecretV1 = {
       schema: 'palladin.member-secret.v1', memberLabel: 'Deploy', agentLabel: 'Deploy',
@@ -124,7 +122,6 @@ describe('canonical Grant protocol', () => {
   })
 
   it('derives structural field IDs from the namespaced payload', async () => {
-    const sodium = await loadSodium()
     const agent = await generateRecipientKeyPair()
     const notesSecret: MemberSecretV1 = {
       ...secret,
@@ -151,7 +148,6 @@ describe('canonical Grant protocol', () => {
   })
 
   it('rejects the unregistered Credit Card preview from GrantPayload v2', async () => {
-    const sodium = await loadSodium()
     const agent = await generateRecipientKeyPair()
     const cardSecret: MemberSecretV1 = {
       schema: 'palladin.member-secret.v1', memberLabel: 'Company card', agentLabel: 'Company card',
@@ -185,7 +181,6 @@ describe('canonical Grant protocol', () => {
   })
 
   it('rejects fields outside the approved Agent policy', async () => {
-    const sodium = await loadSodium()
     const agent = await generateRecipientKeyPair()
     try {
       await expect(buildCanonicalGrantEnvelope({

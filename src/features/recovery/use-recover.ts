@@ -92,6 +92,7 @@ async function recoverWithNewSecretKey(
       memberPrivateKey: privateKey,
     })
     const challenge = await issueRecoveryChallenge()
+    if (challenge.version !== undefined && challenge.version !== 2) throw new RecoveryProofInvalidError()
     const recoveryProof = await createAccountRecoveryProof(
       challenge.sealedChallenge, sessionUserId, { keySuiteId: memberKeySuiteOf(account), privateKey },
     )

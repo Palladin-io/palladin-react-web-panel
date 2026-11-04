@@ -24,7 +24,7 @@ vi.mock('./api/vault-api', () => ({
   issueVaultCreationChallenge: mocks.issueChallenge,
 }))
 vi.mock('../../shared/api/account-api', () => ({
-  memberKeySuiteOf: (account: { memberKeySuiteId?: string | null }) => account.memberKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount: mocks.getAccount }))
+  memberKeySuiteOf: (account: { memberPublicKeySuiteId?: string | null }) => account.memberPublicKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount: mocks.getAccount }))
 vi.mock('./sync/member-sync-api', () => ({ listEncryptedVaults: mocks.listVaults }))
 vi.mock('../../shared/crypto/create-vault-protocol', () => ({
   createVaultProtocolPayload: mocks.createMaterial,

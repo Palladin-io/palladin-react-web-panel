@@ -22,7 +22,7 @@ const upgrade = vi.hoisted(() => ({
 const loadDeviceSecretKey = vi.hoisted(() => vi.fn())
 
 vi.mock('../../shared/api/account-api', () => ({
-  memberKeySuiteOf: (account: { memberKeySuiteId?: string | null }) => account.memberKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount, setupAccount }))
+  memberKeySuiteOf: (account: { memberPublicKeySuiteId?: string | null }) => account.memberPublicKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount, setupAccount }))
 vi.mock('../../shared/crypto/identity-kdf', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../shared/crypto/identity-kdf')>(),
   deriveAccountIdentity,
@@ -104,7 +104,7 @@ describe('useUnlock', () => {
   it('derives v2 with this browser\'s Secret Key and resumes a committed upgrade', async () => {
     const v2 = {
       ...await getAccount(),
-      memberKeySuiteId: 'palladin-xwing-v1',
+      memberPublicKeySuiteId: 'palladin-xwing-v1',
       kdf: { ...(await getAccount()).kdf, securityVersion: 2, minimumSecurityVersion: 2,
         profileId: 'identity-argon2id-account-secret-v2', credentialRevision: 2 },
     }

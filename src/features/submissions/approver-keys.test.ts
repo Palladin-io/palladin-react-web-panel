@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../auth', () => ({ useAuthStore: { getState: () => mocks.state } }))
 vi.mock('../../shared/api/account-api', () => ({
-  memberKeySuiteOf: (account: { memberKeySuiteId?: string | null }) => account.memberKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount: mocks.getAccount }))
+  memberKeySuiteOf: (account: { memberPublicKeySuiteId?: string | null }) => account.memberPublicKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount: mocks.getAccount }))
 vi.mock('./api/submissions-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api/submissions-api')>()),
   getApproverKeys: mocks.getApproverKeys,

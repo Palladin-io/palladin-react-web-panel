@@ -86,14 +86,15 @@ export async function beginSecurityUpgrade(input: {
 
 /** A v2 unlock that still holds the legacy-key record resumes the Vault re-wrap. */
 export async function resumeSecurityUpgradeIfNeeded(account: AccountResponse, masterKey: Uint8Array): Promise<void> {
-  if (!account.legacyEncryptedPrivateKey || !account.legacyMemberKeyVersion) return
-  const ciphertext = decodeBase64Url(account.legacyEncryptedPrivateKey, 4096)
+  const legacy = account.legacyMemberKey
+  if (!legacy) return
+  const ciphertext = decodeBase64Url(legacy.encryptedPrivateKey, 4096)
   try {
     const legacyPrivateKey = await decryptWithKey(ciphertext, masterKey)
     useSecurityUpgradeStore.getState().begin({
       kind: 'resume',
       legacyPrivateKey,
-      legacyMemberKeyVersion: account.legacyMemberKeyVersion,
+      legacyMemberKeyVersion: legacy.memberKeyVersion,
     })
   } finally {
     wipe(ciphertext)

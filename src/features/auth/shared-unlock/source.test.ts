@@ -1,10 +1,9 @@
 import { sendSharedUnlockBrowserTransfer, type SharedUnlockOperationTransport } from "./browser-transfer";
 import { sharedUnlockOperationSchema, type SharedUnlockOperationMessage } from "./browser-operation-message";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createSharedUnlockOffer, createSharedUnlockIdentityProofSigner, randomBytes, generateKeyPair, encryptWithKey,
-  hashSharedUnlockKeyContext, hashSharedUnlockTranscript, loadSodium, toBase64Url, sealVaultKey, unsealVaultKey,
-  type SharedUnlockEnvelope,
-  encryptEntry, decryptEntry, ENTRY_TYPE_KEY } from '@palladin/crypto'
+import { createSharedUnlockOffer, createSharedUnlockIdentityProofSigner, randomBytes, encryptWithKey, hashSharedUnlockKeyContext, hashSharedUnlockTranscript, loadSodium, toBase64Url, type SharedUnlockEnvelope, encryptEntry, decryptEntry, ENTRY_TYPE_KEY } from '@palladin/crypto'
+import { generateKeyPair } from '../../../shared/crypto/sodium'
+import { sealVaultKey, unsealVaultKey } from '../../../shared/crypto/vault-key'
 import { useAuthStore } from '../stores/auth-store'
 import { beginManualUnlockAttempt } from '../session/manual-unlock-attempt'
 import { SharedUnlockApi } from './api'

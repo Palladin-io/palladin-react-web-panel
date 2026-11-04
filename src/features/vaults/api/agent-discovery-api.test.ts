@@ -12,7 +12,8 @@ import { getAgentDiscoveryProvisioning } from './agent-discovery-api'
 const item = {
   agentId: '123e4567-e89b-42d3-a456-426614174000',
   agentName: 'Deploy Agent',
-  x25519PublicKey: 'eDI1NTE5LXB1YmxpYy1rZXk=',
+  publicKey: 'eDI1NTE5LXB1YmxpYy1rZXk=',
+  keySuiteId: 'palladin-xwing-v1',
   ed25519PublicKey: 'ZWQyNTUxOS1wdWJsaWMta2V5',
   recipientKeyVersion: 3,
   status: 'current',
@@ -34,7 +35,7 @@ describe('agent-discovery-api', () => {
 
     const response = await getAgentDiscoveryProvisioning('vault-1')
     expect(response.items).toMatchObject([
-      { status: 'current', recipientKeyVersion: 3, x25519PublicKey: item.x25519PublicKey },
+      { status: 'current', recipientKeyVersion: 3, encryptionPublicKey: item.publicKey, encryptionKeySuiteId: 'palladin-xwing-v1' },
       { status: 'pending', manifestRevision: null },
     ])
     expect(response.items[0]).not.toHaveProperty('futureHint')

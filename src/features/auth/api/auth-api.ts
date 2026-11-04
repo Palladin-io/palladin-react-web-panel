@@ -124,12 +124,9 @@ export interface LoginKdfBootstrap {
   accountSecretRequired?: boolean
 }
 
-export function fetchLoginKdf(
-  email: string,
-  profileId: string,
-): Promise<LoginKdfBootstrap> {
+export function fetchLoginKdf(email: string): Promise<LoginKdfBootstrap> {
   return mapAuthRateLimit(
-    loginApi.post('api/auth/login/salt', { json: { email, profileId } }).json(),
+    loginApi.post('api/auth/login/salt', { json: { email } }).json(),
   )
 }
 
@@ -231,7 +228,7 @@ export async function claimSecretKeyTransfer(transferId: string, pollToken: stri
     json: { pollToken }, throwHttpErrors: false,
   })
   if (response.status === 202) return { status: 'pending' }
-  if (response.status === 404 || response.status === 410) return { status: 'expired' }
+  if (response.status === 410) return { status: 'expired' }
   if (response.status === 429) throw new AuthRateLimitError(retryAfterSeconds(response))
   if (!response.ok) throw new Error(`Secret Key transfer claim failed with status ${response.status}`)
   const body = await response.json() as { accountId: string; kemCiphertext: string; ciphertext: string }
