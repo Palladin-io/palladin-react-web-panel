@@ -1,3 +1,4 @@
+import { SubmissionCustomFields } from './submission-custom-fields'
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -16,6 +17,7 @@ import { WarningZone } from '../../../shared/components/warning-zone'
 import {
   AgentSubmissionCryptoError,
   submissionEntryTypeName,
+  submissionCanCreateEntry,
   type AgentSubmissionPayload,
 } from '../../../shared/crypto/agent-submission'
 import { DETAIL_SURFACE_CLASSES } from '../../../shared/lib/styles'
@@ -166,7 +168,8 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
   const duplicate = mode === 'new' && entryType === 'credential' ? findDuplicate(vaults, payload) : null
   const labelValid = mode === 'update' || label.trim().length > 0
   const busy = approve.isPending || deny.isPending
-  const canApprove = canManageVaults && labelValid && !busy && conflict !== 'stale' && conflict !== 'typeMismatch'
+  const canCreate = submissionCanCreateEntry(payload)
+  const canApprove = (mode !== 'new' || canCreate) && canManageVaults && labelValid && !busy && conflict !== 'stale' && conflict !== 'typeMismatch'
     && (mode === 'update' || Boolean(vaultId)) && !coverage.isPending && !awaitingAgent
 
   function handleApprove() {
@@ -223,6 +226,7 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
   }
 
   function switchToNewEntry() {
+    if (!canCreate) return
     setConflict(null)
     setMode('new')
     if (!label.trim() && targetIndex?.memberLabel) setLabel(targetIndex.memberLabel)
@@ -266,7 +270,7 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
         </dl>
       </section>
 
-      {target.kind === 'update' && (
+      {target.kind === 'update' && (payload.schema !== 'palladin.agent-submission-payload.v2' || content.password !== undefined) && (
         <WarningZone title={t('submissions.review.updateWarningTitle')}>
           {t('submissions.review.updateWarning')}
         </WarningZone>
@@ -279,8 +283,9 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
         <WarningZone title={t('submissions.review.typeMismatchTitle')}>{t('submissions.review.typeMismatch')}</WarningZone>
       )}
       {conflict && (
-        <div className="flex justify-end">
-          <Button variant="subtle" size="sm" icon="add" onClick={switchToNewEntry}>
+        <div className="flex flex-col items-end gap-2">
+          {!canCreate && <p className="text-meta text-[var(--cv-t3)]">{t('submissions.review.incompleteNew')}</p>}
+          <Button variant="subtle" size="sm" icon="add" disabled={!canCreate} onClick={switchToNewEntry}>
             {t('submissions.review.saveAsNew')}
           </Button>
         </div>
@@ -312,6 +317,9 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
             ))}
           </FormSelect>
         )}
+        {payload.description !== undefined && (
+          <FormTextarea id="submission-description" label={t('submissions.review.description')} value={payload.description} readOnly />
+        )}
         {content.username !== undefined && (
           <FormInput id="submission-username" label={t('submissions.review.username')} value={content.username} readOnly />
         )}
@@ -323,6 +331,7 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
         {content.notes !== undefined && (
           <FormTextarea id="submission-notes" label={t('submissions.review.notes')} value={content.notes} readOnly />
         )}
+        {content.customFields && content.customFields.length > 0 && <SubmissionCustomFields fields={content.customFields} />}
         {duplicate && (
           <p className="flex items-start gap-2 text-meta text-[var(--cv-t3)]" role="status">
             <Icon name="info" size={16} className="mt-0.5 shrink-0" />

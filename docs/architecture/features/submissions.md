@@ -8,6 +8,8 @@ the Agent Submission contract (`palladin-protocol` `contracts/agent-submission/v
 a new Entry or a new password/value for an Entry the Agent is granted. The
 backend stores only signed ciphertext; the browser verifies and decrypts locally.
 
+The additive [plaintext v2](submissions-v2.md) also supports sparse browser-capture updates, description, and typed custom fields without changing the v1 transport.
+
 ## How it's organized
 - `/submissions` and `/submissions/:submissionId` use `ResponsiveMasterDetail`:
   the left panel lists Pending or Trash (`?view=trashed`), the right panel is
@@ -54,7 +56,7 @@ backend stores only signed ciphertext; the browser verifies and decrypts locally
   Vault response to match the signed target and the JWT organization, opens VK
   through the Member-bound Vault projection and reuses that same Vault response. An
   update decrypts the exact `expectedEntryRevision`, merges only the proposed
-  fields (custom fields, TOTP and existing policy stay untouched; a newly present Key URL gets the schema-required policy entry `never`, so it is never granted) and calls
+  fields (v1 leaves custom fields and TOTP untouched; v2 upserts reviewed custom fields with new IDs denied Agent access; existing policy stays untouched; a newly present Key URL gets the schema-required policy entry `never`, so it is never granted) and calls
   `prepareCanonicalEntryUpdate`, so active GRANULAR and Script grants are
   refreshed exactly like a normal edit. A moved target is a stale conflict: the
   approver may save the proposal as a new Entry or deny it.

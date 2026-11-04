@@ -2190,5 +2190,20 @@
   "submissions.review.submitted": "Submitted",
   "submissions.decision.secretNotNfc": "This secret uses a Unicode form that Palladin cannot store without changing it, so it was not saved. Deny it and ask the agent to submit again.",
   "submissions.access.agentLoadFailed": "Could not load the agent, so its access cannot be prepared.",
-  "submissions.access.retry": "Retry"
+  "submissions.access.retry": "Retry",
+  "submissions.review.description": "Description",
+  "submissions.review.customPolicy": "Existing field permissions stay unchanged. New custom fields are not shared with agents.",
+  "submissions.review.keepFieldLabel": "Keep existing field label",
+  "submissions.review.fieldType": "Field type",
+  "submissions.review.fieldTypes.text": "Text",
+  "submissions.review.fieldTypes.multiline": "Multiline text",
+  "submissions.review.fieldTypes.concealed": "Concealed",
+  "submissions.review.fieldTypes.totp": "One-time password (TOTP)",
+  "submissions.review.totpSecret": "TOTP secret",
+  "submissions.review.algorithm": "Algorithm",
+  "submissions.review.digits": "Digits",
+  "submissions.review.period": "Period (seconds)",
+  "submissions.review.issuer": "Issuer",
+  "submissions.review.account": "Account",
+  "submissions.review.incompleteNew": "This proposal does not contain all values and field labels needed for a new entry."
 }

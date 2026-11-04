@@ -1,3 +1,4 @@
+import { SUBMISSION_PAYLOAD_V2_SCHEMA, submissionPayloadV2, type SubmissionCustomField } from './agent-submission-v2'
 import { sha256Digest } from '@palladin/crypto'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from '../types/entry-type'
 import { defaultAgentVisibilityPolicy, toMemberSecret } from './entry-draft'
@@ -193,7 +194,8 @@ export interface AgentSubmissionPayload {
   schema: string
   identity: Record<string, unknown>
   label?: string
-  content: Partial<Record<SubmissionContentField, string>>
+  description?: string
+  content: Partial<Record<SubmissionContentField, string>> & { customFields?: SubmissionCustomField[] }
 }
 
 /**
@@ -351,6 +353,10 @@ function assertHttpsUrl(value: string): void {
 /** Decrypted content is untrusted Agent input: closed shape, types, NFC label, HTTPS URL and limits. */
 function assertPayloadShape(payload: unknown): asserts payload is AgentSubmissionPayload {
   assertObject(payload)
+  if (payload.schema === SUBMISSION_PAYLOAD_V2_SCHEMA) {
+    if (!submissionPayloadV2.safeParse(payload).success) fail('invalid-field')
+    return
+  }
   for (const key of Object.keys(payload)) {
     if (!['schema', 'identity', 'content', 'label'].includes(key)) fail('unknown-field')
   }
@@ -855,7 +861,7 @@ function hostname(url: string): string | null {
 }
 
 /** Builds a complete new Entry with the canonical default Agent Visibility Policy. */
-export function newEntrySecretFromSubmission(payload: AgentSubmissionPayload, label: string): MemberSecretV1 {
+function newEntrySecretFromV1Submission(payload: AgentSubmissionPayload, label: string): MemberSecretV1 {
   const type = submissionEntryTypeName(payload.identity.entryType as number)
   const content = payload.content
   assertNfcSecrets(content)
@@ -886,7 +892,7 @@ export function newEntrySecretFromSubmission(payload: AgentSubmissionPayload, la
  * target revision. Custom fields, TOTP and the Agent Visibility Policy of
  * existing fields are never changed.
  */
-export function mergeSubmissionUpdate(
+function mergeV1SubmissionUpdate(
   current: MemberSecretV1,
   payload: AgentSubmissionPayload,
   label?: string,
@@ -927,4 +933,43 @@ export function mergeSubmissionUpdate(
     }
   }
   fail('entry-type-mismatch')
+}
+
+/** Additive payload v2: stable-ID upserts, no deletion and no permission widening. */
+function applyV2Fields(secret: MemberSecretV1, payload: AgentSubmissionPayload): MemberSecretV1 {
+  const fields = secret.content.customFields.map(field => ({ ...field }))
+  const access = { ...secret.agentFieldAccess }
+  if (secret.entryType === 'key' && typeof secret.content.url === 'string') access['key.url'] ??= 'never'
+  for (const proposed of payload.content.customFields ?? []) {
+    const index = fields.findIndex(field => field.id === proposed.id)
+    const existing = fields[index]
+    if (existing && existing.type !== proposed.type) fail('invalid-field')
+    const label = proposed.label ?? existing?.label
+    if (!label) fail('missing-field')
+    const next = { ...proposed, label }
+    if (existing) fields[index] = next
+    else { fields.push(next); access[proposed.id] = 'never' }
+  }
+  return { ...secret, description: payload.description ?? secret.description,
+    agentFieldAccess: access, content: { ...secret.content, customFields: fields } } as MemberSecretV1
+}
+
+export function newEntrySecretFromSubmission(payload: AgentSubmissionPayload, label: string): MemberSecretV1 {
+  if (payload.schema !== SUBMISSION_PAYLOAD_V2_SCHEMA) return newEntrySecretFromV1Submission(payload, label)
+  assertPayloadShape(payload)
+  if (!submissionCanCreateEntry(payload)) fail('missing-field')
+  return applyV2Fields(newEntrySecretFromV1Submission(payload, label), payload)
+}
+
+export function mergeSubmissionUpdate(current: MemberSecretV1, payload: AgentSubmissionPayload, label?: string): MemberSecretV1 {
+  if (payload.schema !== SUBMISSION_PAYLOAD_V2_SCHEMA) return mergeV1SubmissionUpdate(current, payload, label)
+  assertPayloadShape(payload)
+  return applyV2Fields(mergeV1SubmissionUpdate(current, payload, label), payload)
+}
+
+/** Sparse updates can only be saved as new when all required values and labels exist. */
+export function submissionCanCreateEntry(payload: AgentSubmissionPayload): boolean {
+  if (payload.schema !== SUBMISSION_PAYLOAD_V2_SCHEMA) return true
+  return Boolean(payload.identity.entryType === 1 ? payload.content.username && payload.content.password : payload.content.value)
+    && (payload.content.customFields ?? []).every(field => Boolean(field.label))
 }

@@ -96,8 +96,8 @@ function opened(kind: 'new' | 'update') {
   }
 }
 
-function renderPanel(kind: 'new' | 'update', onApproved = vi.fn()) {
-  mocks.review = { isPending: false, isError: false, data: opened(kind), refetch: vi.fn() }
+function renderPanel(kind: 'new' | 'update', onApproved = vi.fn(), data: unknown = opened(kind)) {
+  mocks.review = { isPending: false, isError: false, data, refetch: vi.fn() }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>
   render(<SubmissionDecisionPanel item={listItem(kind)} onApproved={onApproved} />, { wrapper })
@@ -377,4 +377,44 @@ describe('SubmissionDecisionPanel — unavailable review', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create new review key' }))
     expect(mocks.rebootstrapMutate).toHaveBeenCalled()
   })
+})
+
+it('reviews every v2 proposed field and waits for explicit approval', async () => {
+  const data = opened('update')
+  const proposed = { ...data, payload: { ...data.payload, schema: 'palladin.agent-submission-payload.v2', description: 'Captured purpose', content: {
+    username: 'second-user', password: SECRET, notes: 'review notes', url: 'https://example.invalid/captured',
+    customFields: [
+      { id: `custom:${AGENT}`, label: 'Public detail', type: 'text', value: 'public fixture' },
+      { id: `custom:${VAULT}`, label: 'Recovery lines', type: 'multiline', value: 'line one\nline two' },
+      { id: `custom:${OTHER_VAULT}`, label: 'Private token', type: 'concealed', value: 'fixture-token' },
+      { id: `custom:${ENTRY}`, type: 'totp', value: { secret: 'JBSWY3DPEHPK3PXP', algorithm: 'SHA256', digits: 8, period: 60, issuer: 'Fixture issuer', account: 'Fixture account' } },
+    ],
+  } } }
+  renderPanel('update', vi.fn(), proposed)
+  expect(await screen.findByDisplayValue('Captured purpose')).toBeVisible()
+  for (const value of ['second-user', 'review notes', 'https://example.invalid/captured', 'public fixture', 'fixture-token', 'JBSWY3DPEHPK3PXP', 'SHA256', '8', '60', 'Fixture issuer', 'Fixture account']) {
+    expect(screen.getByDisplayValue(value)).toBeInTheDocument()
+  }
+  expect(document.getElementById(`custom:${VAULT}-value`)).toHaveValue('line one\nline two')
+  expect(screen.getByText(`custom:${ENTRY}`)).toBeVisible()
+  expect(mocks.approveMutate).not.toHaveBeenCalled()
+  await clickApproveWhenReady()
+  expect(mocks.approveMutate).toHaveBeenCalledWith(expect.objectContaining({ payload: proposed.payload }), expect.any(Object))
+})
+it('does not describe a sparse metadata update as a changed password', async () => {
+  const data = opened('update')
+  renderPanel('update', vi.fn(), { ...data, payload: { ...data.payload, schema: 'palladin.agent-submission-payload.v2', description: '', content: { notes: '' } } })
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Approve' })).toBeEnabled())
+  expect(screen.queryByText('Password probably already changed')).not.toBeInTheDocument()
+  expect(screen.getByLabelText('Description')).toHaveValue('')
+  expect(screen.getByLabelText('Notes')).toHaveValue('')
+  expect(mocks.approveMutate).not.toHaveBeenCalled()
+})
+it.each([{}, { username: 'captured-user' }])('blocks saving incomplete v2 sparse content as new after a conflict: %j', async content => {
+  const data = opened('update')
+  renderPanel('update', vi.fn(), { ...data, payload: { ...data.payload, schema: 'palladin.agent-submission-payload.v2', description: 'Sparse change', content } })
+  mocks.approveMutate.mockImplementationOnce((_input: unknown, options: MutateOptions) => options.onError?.(new StaleSubmissionTargetError()))
+  await clickApproveWhenReady()
+  expect(await screen.findByRole('button', { name: 'Save as new entry' })).toBeDisabled()
+  expect(screen.queryByLabelText('Vault')).not.toBeInTheDocument()
 })
