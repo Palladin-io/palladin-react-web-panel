@@ -2339,5 +2339,6 @@
   "securityUpgrade.stoppedBody": "Połączenie zostało przerwane. Postęp jest zapisany, więc nic nie zostanie powtórzone.",
   "securityUpgrade.retry": "Spróbuj ponownie",
   "securityUpgrade.conflictTitle": "Konto zmieniło się w innym miejscu",
-  "securityUpgrade.conflictBody": "Twoje konto zostało zaktualizowane na innym urządzeniu. Zaloguj się ponownie, aby kontynuować."
+  "securityUpgrade.conflictBody": "Twoje konto zostało zaktualizowane na innym urządzeniu. Zaloguj się ponownie, aby kontynuować.",
+  "securityUpgrade.agents": "Agenci"
 }

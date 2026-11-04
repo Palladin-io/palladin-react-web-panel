@@ -6,11 +6,13 @@ import { KEY_WRAPPER_SUITE } from '../../shared/crypto/key-wrapper'
 import { emergencyKitMaterial, storeDeviceSecretKey, type EmergencyKitMaterial } from '../../shared/crypto/secret-key'
 import { rewrapOwnMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { organizationIdFromAccessToken } from '../../shared/lib/organization-scope'
-import { useAuthStore } from '../auth/stores/auth-store'
-import { listEncryptedVaults } from '../vaults/sync/member-sync-api'
+import { RotationHttpError } from '../vaults/rotation/rotation-api'
+import { memberKeyFor, useAuthStore } from '../auth/stores/auth-store'
+import { getEncryptedVault, listEncryptedVaults } from '../vaults/sync/member-sync-api'
+import { PERMISSION_VAULT_MANAGE } from '../../shared/lib/permissions'
+import { migrateVaultAgentMessageKey, needsAgentMessageKeyMigration } from './migrate-agent-message-keys'
 import { rotateApproverKeysAfterSecurityUpgrade } from '../submissions/approver-keys'
 import {
-  countOrganizations,
   deleteLegacyMemberKey,
   getKeyMigrationReport,
   replaceOwnMemberVaultKey,
@@ -18,7 +20,7 @@ import {
 } from './security-upgrade-api'
 import { useSecurityUpgradeStore, type PendingSecurityUpgrade } from './security-upgrade-store'
 
-export type UpgradeStage = 'phrase' | 'confirm' | 'commit' | 'rewrap' | 'cleanup' | 'kit'
+export type UpgradeStage = 'phrase' | 'confirm' | 'commit' | 'rewrap' | 'messageKeys' | 'cleanup' | 'kit'
 export type UpgradeFailure = 'network' | 'conflict'
 
 export interface UpgradeProgress {
@@ -74,21 +76,44 @@ async function rewrapVaults(
 }
 
 /**
- * The key-migration report covers only the active organization while the
- * legacy key is account-wide, so the record is deleted only for a
- * single-organization account whose report is zero. Members of several
- * organizations keep it (wrapped under the v2 MK); each unlock in another
- * organization resumes and re-wraps that organization.
+ * Vault managers publish an active-suite Agent message key for every Vault
+ * still on the legacy one; other Vaults migrate when a manager unlocks.
+ */
+async function migrateMessageKeys(onProgress: (progress: UpgradeProgress) => void): Promise<void> {
+  const { privateKey, permissions } = useAuthStore.getState()
+  if (!privateKey || (permissions & PERMISSION_VAULT_MANAGE) === 0) return
+  const memberKey = memberKeyFor(privateKey)
+  const signal = new AbortController().signal
+  const vaults = await listEncryptedVaults(signal)
+  const pending = []
+  for (const summary of vaults) {
+    const detail = await getEncryptedVault(summary.id, signal)
+    if (needsAgentMessageKeyMigration(detail.vaultAgentMessageKeySuiteId)) pending.push(summary)
+  }
+  onProgress({ done: 0, total: pending.length })
+  for (const [index, vault] of pending.entries()) {
+    try {
+      await migrateVaultAgentMessageKey(vault, memberKey, signal)
+    } catch (error) {
+      // A Vault this member may not manage stays for its managers.
+      if (!(error instanceof RotationHttpError && error.status === 403)) throw error
+    }
+    onProgress({ done: index + 1, total: pending.length })
+  }
+}
+
+/**
+ * The legacy Member key is account-wide: it is deleted only when the report
+ * shows no envelope addressed to it in any organization. Organizations listed
+ * in `organizationIdsPendingRewrap` are re-wrapped on later unlocks there.
  */
 async function cleanUp(pending: PendingSecurityUpgrade): Promise<void> {
   await rotateApproverKeysAfterSecurityUpgrade({
     memberKey: { keySuiteId: KEY_WRAPPER_SUITE.legacy, privateKey: pending.legacyPrivateKey },
     memberKeyVersion: pending.legacyMemberKeyVersion,
   })
-  const [report, organizations] = await Promise.all([getKeyMigrationReport(), countOrganizations()])
-  if (organizations === 1 && report.memberEnvelopesPendingRewrap === 0) {
-    await deleteLegacyMemberKey(pending.legacyMemberKeyVersion)
-  }
+  const report = await getKeyMigrationReport()
+  if (report.accountMemberEnvelopesPendingRewrap === 0) await deleteLegacyMemberKey(pending.legacyMemberKeyVersion)
 }
 
 /**
@@ -121,6 +146,12 @@ export function useSecurityUpgradeRun(pending: PendingSecurityUpgrade) {
       if (current === 'rewrap') {
         setStage('rewrap')
         await rewrapVaults(pending, setProgress)
+        current = 'messageKeys'
+      }
+      if (current === 'messageKeys') {
+        setStage('messageKeys')
+        setProgress({ done: 0, total: null })
+        await migrateMessageKeys(setProgress)
         current = 'cleanup'
       }
       if (current === 'cleanup') {

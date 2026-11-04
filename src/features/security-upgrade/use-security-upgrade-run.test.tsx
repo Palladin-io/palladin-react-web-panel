@@ -13,13 +13,13 @@ import type { PendingUpgrade } from './security-upgrade-store'
 import { useSecurityUpgradeStore } from './security-upgrade-store'
 import { useSecurityUpgradeRun } from './use-security-upgrade-run'
 
-const api = vi.hoisted(() => ({ submit: vi.fn(), report: vi.fn(), deleteLegacy: vi.fn(), replace: vi.fn(), organizations: vi.fn() }))
+const api = vi.hoisted(() => ({ submit: vi.fn(), report: vi.fn(), deleteLegacy: vi.fn(), replace: vi.fn() }))
 const store = vi.hoisted(() => vi.fn())
 const accounts = vi.hoisted(() => ({ get: vi.fn() }))
-const vaults = vi.hoisted(() => ({ list: vi.fn() }))
+const vaults = vi.hoisted(() => ({ list: vi.fn(), get: vi.fn() }))
 vi.mock('./security-upgrade-api', () => ({
   submitSecurityUpgrade: api.submit, getKeyMigrationReport: api.report,
-  deleteLegacyMemberKey: api.deleteLegacy, replaceOwnMemberVaultKey: api.replace, countOrganizations: api.organizations,
+  deleteLegacyMemberKey: api.deleteLegacy, replaceOwnMemberVaultKey: api.replace,
 }))
 vi.mock('../../shared/crypto/secret-key', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../shared/crypto/secret-key')>(), storeDeviceSecretKey: store,
@@ -27,7 +27,15 @@ vi.mock('../../shared/crypto/secret-key', async (importOriginal) => ({
 vi.mock('../../shared/api/account-api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../shared/api/account-api')>(), getAccount: accounts.get,
 }))
-vi.mock('../vaults/sync/member-sync-api', () => ({ listEncryptedVaults: vaults.list }))
+vi.mock('../vaults/sync/member-sync-api', () => ({ listEncryptedVaults: vaults.list, getEncryptedVault: vaults.get }))
+vi.mock('../vaults/rotation/rotation-api', () => ({
+  RotationHttpError: class extends Error { status = 0 },
+}))
+const messageKeys = vi.hoisted(() => ({ migrate: vi.fn() }))
+vi.mock('./migrate-agent-message-keys', () => ({
+  migrateVaultAgentMessageKey: messageKeys.migrate,
+  needsAgentMessageKeyMigration: (suite: string) => suite !== 'palladin-xwing-v1',
+}))
 const approvers = vi.hoisted(() => ({ rotate: vi.fn() }))
 vi.mock('../submissions/approver-keys', () => ({ rotateApproverKeysAfterSecurityUpgrade: approvers.rotate }))
 
@@ -81,13 +89,14 @@ describe('useSecurityUpgradeRun', () => {
     legacy = sodium.crypto_box_keypair()
     next = await generateRecipientKeyPair()
     vaultKey = sodium.randombytes_buf(32)
-    useAuthStore.setState({ userId: memberId, accessToken, isVaultLocked: false })
+    useAuthStore.setState({ userId: memberId, accessToken, isVaultLocked: false, permissions: 8 })
     useAuthStore.getState().unlockVault(new Uint8Array(32).fill(1), legacy.privateKey)
     accounts.get.mockResolvedValue({ userId: memberId, memberKeyVersion: 2, memberPublicKeySuiteId: next.keySuiteId })
     vaults.list.mockResolvedValue([await legacyVault()])
+    vaults.get.mockResolvedValue({ vaultAgentMessageKeySuiteId: 'palladin-x25519-sealed-box-v1' })
+    messageKeys.migrate.mockResolvedValue('migrated')
     api.submit.mockResolvedValue(undefined)
-    api.report.mockResolvedValue({ memberEnvelopesPendingRewrap: 0 })
-    api.organizations.mockResolvedValue(1)
+    api.report.mockResolvedValue({ memberEnvelopesPendingRewrap: 0, accountMemberEnvelopesPendingRewrap: 0 })
     store.mockResolvedValue(undefined)
   })
 
@@ -106,24 +115,35 @@ describe('useSecurityUpgradeRun', () => {
     expect(approvers.rotate).toHaveBeenCalledWith({
       memberKey: { keySuiteId: KEY_WRAPPER_SUITE.legacy, privateKey: expect.any(Uint8Array) }, memberKeyVersion: 1,
     })
+    expect(messageKeys.migrate).toHaveBeenCalledWith(expect.objectContaining({ id: vaultId }),
+      { privateKey: expect.any(Uint8Array), keySuiteId: next.keySuiteId }, expect.anything())
     expect(api.deleteLegacy).toHaveBeenCalledWith(1)
     expect(result.current.stage).toBe('kit')
     expect(result.current.kit?.email).toBe('user@example.com')
   })
 
   it('keeps the legacy record while envelopes still address the old key', async () => {
-    api.report.mockResolvedValueOnce({ memberEnvelopesPendingRewrap: 2 })
+    api.report.mockResolvedValueOnce({ memberEnvelopesPendingRewrap: 2, accountMemberEnvelopesPendingRewrap: 2 })
     const { result } = renderHook(() => useSecurityUpgradeRun(pending()), { wrapper })
     await act(() => result.current.run('commit'))
     expect(api.deleteLegacy).not.toHaveBeenCalled()
   })
 
-  it('keeps the account-wide legacy record when another organization may still hold envelopes for it', async () => {
-    api.organizations.mockResolvedValueOnce(2)
+  it('keeps the account-wide legacy record while another organization still holds envelopes for it', async () => {
+    api.report.mockResolvedValueOnce({ memberEnvelopesPendingRewrap: 0, accountMemberEnvelopesPendingRewrap: 3,
+      organizationIdsPendingRewrap: ['22222222-2222-4222-8222-222222222222'] })
     const { result } = renderHook(() => useSecurityUpgradeRun(pending()), { wrapper })
     await act(() => result.current.run('commit'))
     expect(api.replace).toHaveBeenCalledOnce()
     expect(api.deleteLegacy).not.toHaveBeenCalled()
+    expect(result.current.stage).toBe('kit')
+  })
+
+  it('leaves Agent message keys to Vault managers', async () => {
+    useAuthStore.setState({ permissions: 0 })
+    const { result } = renderHook(() => useSecurityUpgradeRun(pending()), { wrapper })
+    await act(() => result.current.run('commit'))
+    expect(messageKeys.migrate).not.toHaveBeenCalled()
     expect(result.current.stage).toBe('kit')
   })
 

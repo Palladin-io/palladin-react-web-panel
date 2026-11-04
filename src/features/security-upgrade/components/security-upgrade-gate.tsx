@@ -88,7 +88,8 @@ interface UpgradeProgressViewProps {
 function UpgradeProgressView({ stage, progress, failure, running, onRetry }: UpgradeProgressViewProps) {
   const { t } = useTranslation()
   const accountDone = stage !== 'commit'
-  const vaultsDone = stage === 'cleanup' || stage === 'kit'
+  const vaultsDone = stage === 'messageKeys' || stage === 'cleanup' || stage === 'kit'
+  const agentsDone = stage === 'cleanup' || stage === 'kit'
   const vaultsLabel = progress.total === null
     ? t('securityUpgrade.waiting')
     : t('securityUpgrade.vaultsProgress', { done: progress.done, total: progress.total })
@@ -100,7 +101,9 @@ function UpgradeProgressView({ stage, progress, failure, running, onRetry }: Upg
           <ProgressRow label={t('securityUpgrade.accountKey')} done={accountDone} active={stage === 'commit'}
             status={accountDone ? t('securityUpgrade.done') : t('securityUpgrade.inProgress')} />
           <ProgressRow label={t('securityUpgrade.vaults')} done={vaultsDone} active={stage === 'rewrap'}
-            status={vaultsDone ? t('securityUpgrade.done') : vaultsLabel} />
+            status={vaultsDone ? t('securityUpgrade.done') : stage === 'rewrap' ? vaultsLabel : t('securityUpgrade.waiting')} />
+          <ProgressRow label={t('securityUpgrade.agents')} done={agentsDone} active={stage === 'messageKeys'}
+            status={agentsDone ? t('securityUpgrade.done') : stage === 'messageKeys' ? vaultsLabel : t('securityUpgrade.waiting')} />
         </ul>
         <p className="text-meta text-[var(--cv-auth-muted)]">{t('securityUpgrade.entriesUnchanged')}</p>
 

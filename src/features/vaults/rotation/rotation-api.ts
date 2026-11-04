@@ -97,6 +97,15 @@ export async function listPendingRotations(signal: AbortSignal): Promise<VaultRo
   return (await json(response, z.object({ items: z.array(rotationSchema).max(200) }))).items
 }
 
+/** Agent-message-only ProtocolMigration rotation; `null` when the Vault's message key is already current (409). */
+export async function startAgentMessageKeyMigration(vaultId: string, signal?: AbortSignal): Promise<VaultRotation | null> {
+  const response = await api.post(`api/vaults/${vaultId}/key-rotations/agent-message-key-migration`, {
+    json: {}, signal, throwHttpErrors: false,
+  })
+  if (response.status === 409) return null
+  return json(response, rotationSchema)
+}
+
 export async function claimRotation(vaultId: string, rotationId: string, signal: AbortSignal): Promise<RotationClaim> {
   const response = await api.post(`api/vaults/${vaultId}/key-rotations/${rotationId}/claim`, {
     json: { vaultId, rotationId }, signal, throwHttpErrors: false,
@@ -164,6 +173,7 @@ export interface RotationBatch {
   agentDiscoveries?: unknown[]
   discoveryKey?: unknown
   vaultPrivateKeys?: unknown[]
+  vaultAgentMessagePublicKey?: unknown
 }
 
 export async function prepareRotationBatch(vaultId: string, rotationId: string, fencingToken: string, batch: RotationBatch, signal: AbortSignal) {

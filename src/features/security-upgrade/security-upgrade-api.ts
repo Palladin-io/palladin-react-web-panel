@@ -21,19 +21,15 @@ export interface SecurityUpgradeRequest {
   legacyEncryptedPrivateKey: string
 }
 
-/** Scoped to the organization of the current access token. */
+/** Member counts for the active organization plus `accountMemberEnvelopesPendingRewrap` across all of them. */
 export interface KeyMigrationReport {
   currentSuiteId: string
   memberKey: { keyVersion: number; suiteId: string } | null
   memberEnvelopes: number
   memberEnvelopesPendingRewrap: number
+  accountMemberEnvelopesPendingRewrap: number
+  organizationIdsPendingRewrap: string[]
   agentEnvelopesOnNonCurrentSuite: number
-}
-
-/** Organizations of the caller; the legacy Member key is account-wide across all of them. */
-export async function countOrganizations(): Promise<number> {
-  const response = await api.get('api/organizations').json<{ items: unknown[] }>()
-  return response.items.length
 }
 
 export function submitSecurityUpgrade(request: SecurityUpgradeRequest): Promise<void> {
@@ -44,8 +40,13 @@ export function getKeyMigrationReport(): Promise<KeyMigrationReport> {
   return api.get('api/account/key-migration').json<KeyMigrationReport>()
 }
 
+/** Accepted asynchronously (202); 409 when an envelope or the directory still needs the key. */
 export async function deleteLegacyMemberKey(legacyMemberKeyVersion: number): Promise<void> {
-  await api.delete('api/account/legacy-member-key', { searchParams: { legacyMemberKeyVersion } })
+  const response = await api.delete('api/account/legacy-member-key', {
+    searchParams: { legacyMemberKeyVersion }, throwHttpErrors: false,
+  })
+  if (response.status === 409) return
+  if (!response.ok) throw new Error(`Legacy Member key deletion failed with status ${response.status}`)
 }
 
 /** Compare-and-swap on the recipient key version the replaced envelope addresses; 409 when it moved. */

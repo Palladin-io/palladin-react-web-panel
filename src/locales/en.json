@@ -2278,5 +2278,6 @@
   "securityUpgrade.stoppedBody": "The connection was interrupted. Your progress is saved, so nothing will be repeated.",
   "securityUpgrade.retry": "Retry",
   "securityUpgrade.conflictTitle": "Account changed elsewhere",
-  "securityUpgrade.conflictBody": "Your account was updated on another device. Sign in again to continue."
+  "securityUpgrade.conflictBody": "Your account was updated on another device. Sign in again to continue.",
+  "securityUpgrade.agents": "Agents"
 }

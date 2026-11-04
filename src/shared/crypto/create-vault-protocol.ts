@@ -159,3 +159,55 @@ export async function createVaultProtocolPayload(
     metadataPlaintext.fill(0)
   }
 }
+
+export interface AgentMessageKeyMigration {
+  /** New Vault Agent message private key (32-byte seed); the caller signs Agent manifests with it, then wipes it. */
+  privateKey: Uint8Array
+  keySuiteId: string
+  privateKeyEnvelope: VaultEnvelopeContract<{ wrappingVaultKeyVersion: number }>
+  publicKey: VaultPublicKeyContract
+}
+
+/**
+ * Agent-message-only rotation (cause ProtocolMigration): a fresh active-suite
+ * message key at `targetKeyVersion`, wrapped under the unchanged current VK as
+ * the next revision of the Vault's agent-message private-key envelope.
+ */
+export async function createAgentMessageKeyMigration(input: {
+  organizationId: string
+  vaultId: string
+  vaultKey: Uint8Array
+  vaultKeyVersion: number
+  memberKeyGeneration: number
+  currentEnvelopeRevision: string
+  targetKeyVersion: number
+}): Promise<AgentMessageKeyMigration> {
+  const pair = await generateRecipientKeyPair()
+  try {
+    const privateKeyEnvelope = await sealWithVaultSubkey(input.vaultKey, {
+      protocolVersion: PROTOCOL_VERSION,
+      cryptoSuiteId: VAULT_XCHACHA20_POLY1305_V1,
+      purpose: ENVELOPE_PURPOSE.agentMessagePrivateByVk,
+      scope: { organizationId: input.organizationId, vaultId: input.vaultId },
+      resourceRevision: (BigInt(input.currentEnvelopeRevision) + 1n).toString(),
+      keyVersion: input.targetKeyVersion,
+      memberKeyGeneration: input.memberKeyGeneration,
+      binding: { wrappingVaultKeyVersion: input.vaultKeyVersion },
+    }, pair.privateKey)
+    return {
+      privateKey: pair.privateKey,
+      keySuiteId: pair.keySuiteId,
+      privateKeyEnvelope,
+      publicKey: {
+        protocolVersion: 2, schemeId: pair.keySuiteId, keyKind: 'agentMessage', keyVersion: input.targetKeyVersion,
+        encodedPublicKey: toBase64Url(pair.publicKey),
+        fingerprint: recipientFingerprint({
+          keySuiteId: pair.keySuiteId, keyKind: RECIPIENT_KEY_KIND.vaultAgentMessage, publicKey: pair.publicKey,
+        }),
+      },
+    }
+  } catch (error) {
+    wipe(pair.privateKey)
+    throw error
+  }
+}

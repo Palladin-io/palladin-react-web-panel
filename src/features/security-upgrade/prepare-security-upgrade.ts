@@ -65,7 +65,8 @@ export async function beginSecurityUpgrade(input: {
         baseCredentialRevision: account.kdf.credentialRevision,
         basePrivateKeyWrapRevision: account.kdf.privateKeyWrapRevision,
         baseMemberKeyVersion: account.memberKeyVersion,
-        currentAuthCredential: encodeBase64Url(input.currentAuthCredential),
+        // An OAuth account without a password credential has nothing to prove (base revision 0).
+        currentAuthCredential: account.kdf.credentialRevision === 0 ? '' : encodeBase64Url(input.currentAuthCredential),
         securityVersion: material.securityVersion,
         kdfProfileId: material.kdfProfileId,
         kdfSalt: material.kdfSalt,
