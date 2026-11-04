@@ -525,6 +525,13 @@ describe('approver key-set lifecycle material', () => {
     expect([...mine.messagePrivateKey]).toEqual([...theirs.messagePrivateKey])
   })
 
+  it('names the recipient Member key suite on every wrap and rejects a wrap labelled with another suite', async () => {
+    const { change } = await bootstrap()
+    expect(change.wraps.every((wrap) => wrap.descriptor.wrapperSuiteId === 'palladin-xwing-v1')).toBe(true)
+    const relabelled = ownWraps(change.wraps).map((wrap) => ({ ...wrap, descriptor: { ...wrap.descriptor, wrapperSuiteId: X25519_SEALED_BOX_V1 } }))
+    await expectCode(openOwnApproverKeys(change.manifest, relabelled, selfAuthority()), 'approver-not-recipient')
+  })
+
   it('adds approvers with the unchanged key version and signs the next revision without continuity', async () => {
     const { change, approvers } = await bootstrap()
     const opened = await openOwnApproverKeys(change.manifest, ownWraps(change.wraps), selfAuthority())

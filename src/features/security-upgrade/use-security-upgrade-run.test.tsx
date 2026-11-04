@@ -13,13 +13,13 @@ import type { PendingUpgrade } from './security-upgrade-store'
 import { useSecurityUpgradeStore } from './security-upgrade-store'
 import { useSecurityUpgradeRun } from './use-security-upgrade-run'
 
-const api = vi.hoisted(() => ({ submit: vi.fn(), report: vi.fn(), deleteLegacy: vi.fn(), replace: vi.fn() }))
+const api = vi.hoisted(() => ({ submit: vi.fn(), report: vi.fn(), deleteLegacy: vi.fn(), replace: vi.fn(), organizations: vi.fn() }))
 const store = vi.hoisted(() => vi.fn())
 const accounts = vi.hoisted(() => ({ get: vi.fn() }))
 const vaults = vi.hoisted(() => ({ list: vi.fn() }))
 vi.mock('./security-upgrade-api', () => ({
   submitSecurityUpgrade: api.submit, getKeyMigrationReport: api.report,
-  deleteLegacyMemberKey: api.deleteLegacy, replaceOwnMemberVaultKey: api.replace,
+  deleteLegacyMemberKey: api.deleteLegacy, replaceOwnMemberVaultKey: api.replace, countOrganizations: api.organizations,
 }))
 vi.mock('../../shared/crypto/secret-key', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../shared/crypto/secret-key')>(), storeDeviceSecretKey: store,
@@ -87,6 +87,7 @@ describe('useSecurityUpgradeRun', () => {
     vaults.list.mockResolvedValue([await legacyVault()])
     api.submit.mockResolvedValue(undefined)
     api.report.mockResolvedValue({ memberEnvelopesPendingRewrap: 0 })
+    api.organizations.mockResolvedValue(1)
     store.mockResolvedValue(undefined)
   })
 
@@ -115,6 +116,15 @@ describe('useSecurityUpgradeRun', () => {
     const { result } = renderHook(() => useSecurityUpgradeRun(pending()), { wrapper })
     await act(() => result.current.run('commit'))
     expect(api.deleteLegacy).not.toHaveBeenCalled()
+  })
+
+  it('keeps the account-wide legacy record when another organization may still hold envelopes for it', async () => {
+    api.organizations.mockResolvedValueOnce(2)
+    const { result } = renderHook(() => useSecurityUpgradeRun(pending()), { wrapper })
+    await act(() => result.current.run('commit'))
+    expect(api.replace).toHaveBeenCalledOnce()
+    expect(api.deleteLegacy).not.toHaveBeenCalled()
+    expect(result.current.stage).toBe('kit')
   })
 
   it('reports a compare-and-swap conflict without publishing new keys', async () => {

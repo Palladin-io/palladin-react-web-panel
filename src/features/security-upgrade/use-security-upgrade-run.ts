@@ -10,6 +10,7 @@ import { useAuthStore } from '../auth/stores/auth-store'
 import { listEncryptedVaults } from '../vaults/sync/member-sync-api'
 import { rotateApproverKeysAfterSecurityUpgrade } from '../submissions/approver-keys'
 import {
+  countOrganizations,
   deleteLegacyMemberKey,
   getKeyMigrationReport,
   replaceOwnMemberVaultKey,
@@ -72,14 +73,22 @@ async function rewrapVaults(
   }
 }
 
-/** Removes the legacy-key record once no Member envelope addresses the old key in any organization. */
+/**
+ * The key-migration report covers only the active organization while the
+ * legacy key is account-wide, so the record is deleted only for a
+ * single-organization account whose report is zero. Members of several
+ * organizations keep it (wrapped under the v2 MK); each unlock in another
+ * organization resumes and re-wraps that organization.
+ */
 async function cleanUp(pending: PendingSecurityUpgrade): Promise<void> {
   await rotateApproverKeysAfterSecurityUpgrade({
     memberKey: { keySuiteId: KEY_WRAPPER_SUITE.legacy, privateKey: pending.legacyPrivateKey },
     memberKeyVersion: pending.legacyMemberKeyVersion,
   })
-  const report = await getKeyMigrationReport()
-  if (report.memberEnvelopesPendingRewrap === 0) await deleteLegacyMemberKey(pending.legacyMemberKeyVersion)
+  const [report, organizations] = await Promise.all([getKeyMigrationReport(), countOrganizations()])
+  if (organizations === 1 && report.memberEnvelopesPendingRewrap === 0) {
+    await deleteLegacyMemberKey(pending.legacyMemberKeyVersion)
+  }
 }
 
 /**

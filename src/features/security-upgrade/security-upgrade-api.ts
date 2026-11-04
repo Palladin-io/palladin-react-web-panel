@@ -21,12 +21,19 @@ export interface SecurityUpgradeRequest {
   legacyEncryptedPrivateKey: string
 }
 
+/** Scoped to the organization of the current access token. */
 export interface KeyMigrationReport {
   currentSuiteId: string
   memberKey: { keyVersion: number; suiteId: string } | null
   memberEnvelopes: number
   memberEnvelopesPendingRewrap: number
   agentEnvelopesOnNonCurrentSuite: number
+}
+
+/** Organizations of the caller; the legacy Member key is account-wide across all of them. */
+export async function countOrganizations(): Promise<number> {
+  const response = await api.get('api/organizations').json<{ items: unknown[] }>()
+  return response.items.length
 }
 
 export function submitSecurityUpgrade(request: SecurityUpgradeRequest): Promise<void> {

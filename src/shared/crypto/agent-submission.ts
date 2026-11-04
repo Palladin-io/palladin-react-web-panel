@@ -181,6 +181,8 @@ export interface OrganizationApproverManifest {
 }
 
 export interface ApproverKeyWrapDescriptor {
+  /** Suite of the recipient Member key; absent on wraps created before suite publication (legacy). */
+  wrapperSuiteId?: string
   purpose: number
   scopeBitmap: number
   organizationId: string
@@ -749,7 +751,8 @@ export async function openOwnApproverKeys(
   try {
     for (const wrap of wraps) {
       const descriptor = wrap.descriptor
-      if (descriptor.scopeBitmap !== APPROVER_WRAP_SCOPE_BITMAP
+      if ((descriptor.wrapperSuiteId ?? KEY_WRAPPER_SUITE.legacy) !== authority.memberKey.keySuiteId
+        || descriptor.scopeBitmap !== APPROVER_WRAP_SCOPE_BITMAP
         || descriptor.organizationId !== authority.organizationId
         || descriptor.memberId !== authority.memberId
         || descriptor.recipientKeyKind !== RECIPIENT_KEY_KIND.memberEncryption
@@ -877,6 +880,7 @@ async function sealApproverWraps(
         if (wrapped.descriptor.recipientFingerprint !== recipient.memberKeyFingerprint) fail('approver-not-recipient')
         wraps.push({
           descriptor: {
+            wrapperSuiteId: keySuiteId,
             purpose,
             scopeBitmap: APPROVER_WRAP_SCOPE_BITMAP,
             organizationId,
