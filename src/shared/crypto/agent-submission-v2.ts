@@ -6,8 +6,13 @@ function text(max: number, empty = true) {
   return z.string().refine(value => (empty || value.length > 0) && !unpaired.test(value) && value === value.normalize('NFC'))
     .refine(value => { const bytes = new TextEncoder().encode(value); const valid = bytes.length <= max; bytes.fill(0); return valid })
 }
+function canonicalBase32(value: string): boolean {
+  const unusedBits: Record<number, number> = { 0: 0, 2: 3, 4: 15, 5: 1, 7: 7 }
+  const mask = unusedBits[value.length % 8]
+  return mask !== undefined && ('ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'.indexOf(value.at(-1) ?? '') & mask) === 0
+}
 const totp = z.strictObject({
-  secret: text(1024, false).regex(/^[A-Z2-7]+$/), algorithm: z.enum(['SHA1', 'SHA256', 'SHA512']),
+  secret: text(1024, false).regex(/^[A-Z2-7]+$/).refine(canonicalBase32), algorithm: z.enum(['SHA1', 'SHA256', 'SHA512']),
   digits: z.union([z.literal(6), z.literal(8)]), period: z.number().int().min(15).max(120),
   issuer: text(1024).nullable().optional(), account: text(1024).nullable().optional(),
 })
