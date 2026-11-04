@@ -92,11 +92,10 @@ const encryptedVaultSummarySchema = z.object({
   }
 })
 
-// Agent message keys name their key-wrapper suite (recipient-key-publication); `palladin-x25519-v1` is the pre-suite name.
-const LEGACY_AGENT_MESSAGE_SCHEMES: readonly string[] = ['palladin-x25519-v1', KEY_WRAPPER_SUITE.legacy]
+// Agent message keys name their key-wrapper suite (recipient-key-publication).
 const vaultPublicKeySchema = z.object({
   protocolVersion: z.literal(2),
-  schemeId: z.enum(['palladin-x25519-v1', KEY_WRAPPER_SUITE.legacy, KEY_WRAPPER_SUITE.active, 'palladin-ed25519-v1']),
+  schemeId: z.enum([KEY_WRAPPER_SUITE.legacy, KEY_WRAPPER_SUITE.active, 'palladin-ed25519-v1']),
   keyKind: z.union([
     z.literal('agentMessage').transform(() => 1 as const),
     z.literal('manifestSigning').transform(() => 2 as const),
@@ -120,6 +119,7 @@ const encryptedVaultDetailSchema = encryptedVaultSummarySchema.safeExtend({
   organizationId: canonicalUuid,
   metadataRevision: canonicalU64,
   vaultAgentMessagePublicKey: vaultPublicKeySchema,
+  vaultAgentMessageKeySuiteId: z.enum([KEY_WRAPPER_SUITE.legacy, KEY_WRAPPER_SUITE.active]),
   vaultManifestSigningPublicKey: vaultPublicKeySchema,
 }).superRefine((vault, context) => {
   if (vault.metadataRevision !== vault.memberVaultMetadata.descriptor.resourceRevision) {
@@ -286,13 +286,12 @@ function vaultPresentation(vault: VaultPresentation): VaultPresentation {
 
 /**
  * Suite of the Vault Agent message key a reason is addressed to. The current
- * version's suite comes from the authenticated Vault detail; earlier versions
- * predate suite publication and are legacy. A wrong suite fails the fingerprint check.
+ * version's suite is the Vault detail's `vaultAgentMessageKeySuiteId`; earlier
+ * versions predate the X-Wing successor and are legacy. A wrong suite fails the fingerprint check.
  */
 export function vaultAgentMessageKeySuite(vault: EncryptedVaultDetail, keyVersion: number): string {
-  const current = vault.vaultAgentMessagePublicKey
-  if (keyVersion !== current.keyVersion || LEGACY_AGENT_MESSAGE_SCHEMES.includes(current.schemeId)) return KEY_WRAPPER_SUITE.legacy
-  return current.schemeId
+  if (keyVersion !== vault.vaultAgentMessagePublicKey.keyVersion) return KEY_WRAPPER_SUITE.legacy
+  return vault.vaultAgentMessageKeySuiteId
 }
 
 export function parseEncryptedVaultDetail(raw: unknown): EncryptedVaultDetail {

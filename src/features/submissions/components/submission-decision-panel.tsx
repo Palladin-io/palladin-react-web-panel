@@ -171,7 +171,7 @@ function SubmissionReviewForm({ item, opened, onApproved }: {
 
   function handleApprove() {
     const grantRecipient = grantEnabled && !covered && agentActive
-      ? { agentId: item.agentId, publicKey: agent.data!.publicKey!, publicKeySuiteId: agent.data!.publicKeySuiteId,
+      ? { agentId: item.agentId, publicKey: agent.data!.publicKey!, publicKeySuiteId: agent.data!.keySuiteId,
         recipientKeyVersion: agent.data!.recipientKeyVersion }
       : undefined
     const input = mode === 'new'

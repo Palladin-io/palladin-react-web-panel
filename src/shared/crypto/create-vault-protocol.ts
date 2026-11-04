@@ -34,7 +34,7 @@ export interface VaultPublicKeyContract {
   protocolVersion: number
   /** Key-wrapper suite id for the agent message key; `palladin-ed25519-v1` for the signing key. */
   schemeId: string
-  keyKind: 1 | 2
+  keyKind: 'agentMessage' | 'manifestSigning'
   keyVersion: number
   encodedPublicKey: string
   fingerprint: string
@@ -140,14 +140,14 @@ export async function createVaultProtocolPayload(
       discoveryKey: encryptedDiscoveryKey,
       vaultPrivateKeys: [encryptedAgentPrivate, encryptedSigningPrivate],
       vaultAgentMessagePublicKey: {
-        protocolVersion: 2, schemeId: agentMessage.keySuiteId, keyKind: 1, keyVersion: 1,
+        protocolVersion: 2, schemeId: agentMessage.keySuiteId, keyKind: 'agentMessage', keyVersion: 1,
         encodedPublicKey: toBase64Url(agentMessage.publicKey),
         fingerprint: recipientFingerprint({
           keySuiteId: agentMessage.keySuiteId, keyKind: RECIPIENT_KEY_KIND.vaultAgentMessage, publicKey: agentMessage.publicKey,
         }),
       },
       vaultManifestSigningPublicKey: {
-        protocolVersion: 2, schemeId: 'palladin-ed25519-v1', keyKind: 2, keyVersion: 1,
+        protocolVersion: 2, schemeId: 'palladin-ed25519-v1', keyKind: 'manifestSigning', keyVersion: 1,
         encodedPublicKey: toBase64Url(manifestSigning.publicKey), fingerprint: toBase64Url(signingFingerprint),
       },
     }

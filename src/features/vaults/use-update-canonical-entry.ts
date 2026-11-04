@@ -188,7 +188,7 @@ export async function prepareCanonicalEntryUpdate(
           grantEnvelopes.push(await buildCanonicalGrantEnvelope({
             secret: nextSecret,
             agentPublicKey: grant.agentPublicKey,
-            agentKeySuiteId: grant.agentPublicKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
+            agentKeySuiteId: grant.agentKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
             approvedFieldIds,
             organizationId: detail.organizationId, vaultId, grantId: grant.id,
             agentId: grant.agentId, entryId: targetEntryId, entryRevision: nextRevision,
@@ -228,7 +228,7 @@ export async function prepareCanonicalEntryUpdate(
             packageRevision: (BigInt(grant.scriptPackageRevision) + 1n).toString(),
             recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
             agentPublicKey: grant.agentPublicKey,
-            agentKeySuiteId: grant.agentPublicKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
+            agentKeySuiteId: grant.agentKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
             vaultKey,
             overrides,
           }))

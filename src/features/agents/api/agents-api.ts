@@ -63,7 +63,7 @@ export interface Agent {
   // backend ships it; the list endpoint keeps returning only prefix/suffix.
   publicKey?: string | null
   /** Suite of `publicKey` (recipient-key-publication); absent means the legacy suite. */
-  publicKeySuiteId?: string | null
+  keySuiteId?: string | null
   recipientKeyVersion: number
   /** Pending agents legitimately use epoch 0; backend owns lifecycle validity. */
   accessEpoch: number

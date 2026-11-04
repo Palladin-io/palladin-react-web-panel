@@ -183,7 +183,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
     try {
       const agent = await getAgent(grant.agentId)
       agentPublicKey = agent.publicKey
-      agentKeySuiteId = agent.publicKeySuiteId
+      agentKeySuiteId = agent.keySuiteId
       recipientAgentKeyVersion = agent.recipientKeyVersion
       agentAccessEpoch = agent.accessEpoch
     } catch {

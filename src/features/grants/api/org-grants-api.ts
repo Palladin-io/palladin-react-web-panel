@@ -88,7 +88,7 @@ export interface OrgGrant {
   agentIconKey?: string | null
   agentPublicKey?: string | null
   /** Suite of `agentPublicKey`; absent means the legacy suite. */
-  agentPublicKeySuiteId?: string | null
+  agentKeySuiteId?: string | null
   recipientAgentKeyVersion?: number | null
   agentSigningPublicKey?: string | null
   agentSigningKeyVersion?: number | null

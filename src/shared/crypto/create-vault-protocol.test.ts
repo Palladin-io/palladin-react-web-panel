@@ -42,9 +42,9 @@ describe('createVaultProtocolPayload', () => {
       recipientKeyVersion: 2,
     })
     expect(payload.vaultAgentMessagePublicKey).toMatchObject({
-      schemeId: KEY_WRAPPER_SUITE.active, keyKind: 1, keyVersion: 1,
+      schemeId: KEY_WRAPPER_SUITE.active, keyKind: 'agentMessage', keyVersion: 1,
     })
-    expect(payload.vaultManifestSigningPublicKey).toMatchObject({ keyKind: 2, keyVersion: 1 })
+    expect(payload.vaultManifestSigningPublicKey).toMatchObject({ keyKind: 'manifestSigning', keyVersion: 1 })
     expect(payload.vaultPrivateKeys).toHaveLength(2)
 
     const vaultKey = await openMemberVaultKey(payload.creatorVaultKey, {

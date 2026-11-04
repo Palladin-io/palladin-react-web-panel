@@ -88,9 +88,10 @@ function encryptedVaultDetail() {
       envelope('vaultAgentMessagePrivateKey', 2),
       envelope('vaultManifestSigningPrivateKey', 2),
     ],
+    vaultAgentMessageKeySuiteId: 'palladin-x25519-sealed-box-v1',
     vaultAgentMessagePublicKey: {
       protocolVersion: 2,
-      schemeId: 'palladin-x25519-v1',
+      schemeId: 'palladin-x25519-sealed-box-v1',
       keyKind: 'agentMessage',
       keyVersion: 2,
       encodedPublicKey: 'public-key',

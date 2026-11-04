@@ -164,7 +164,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
     try {
       const agent = await getAgent(currentSubject.agentId)
       agentPublicKey = agent.publicKey
-      agentKeySuiteId = agent.publicKeySuiteId
+      agentKeySuiteId = agent.keySuiteId
       recipientAgentKeyVersion = agent.recipientKeyVersion
       agentAccessEpoch = agent.accessEpoch
     } catch {
