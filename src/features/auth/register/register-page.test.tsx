@@ -51,10 +51,20 @@ vi.mock('../../../shared/lib/mnemonic', async (importOriginal) => {
 vi.mock('../../../shared/lib/hibp', () => ({
   checkPasswordPwned: vi.fn().mockResolvedValue(null),
 }))
+const pdfMocks = vi.hoisted(() => ({
+  create: vi.fn().mockResolvedValue(new Blob(['%PDF'])),
+  download: vi.fn(),
+}))
+vi.mock('../../../shared/lib/emergency-kit-pdf', () => ({
+  createEmergencyKitPdf: pdfMocks.create,
+  downloadEmergencyKit: pdfMocks.download,
+}))
+const KIT = { email: 'user@example.com', secretKey: 'PSK2-AAAAAA-BBBBBB', qrPayload: 'palladin-kit:v1:x.y' }
 vi.mock('../../../shared/lib/analytics', () => ({
   analytics: { capture: vi.fn() },
 }))
 beforeEach(() => {
+  pdfMocks.download.mockClear()
   useAuthStore.getState().logout()
   navigateMock.mockReset()
   registerState.mutate.mockReset()
@@ -76,6 +86,17 @@ async function reachRecoveryConfirmation(user: ReturnType<typeof userEvent.setup
   return inputs
 }
 
+async function completeEmergencyKit(user: ReturnType<typeof userEvent.setup>) {
+  expect(await screen.findByText(KIT.secretKey)).toBeInTheDocument()
+  const finish = screen.getByRole('button', { name: /^continue$/i })
+  expect(finish).toBeDisabled()
+  expect(navigateMock).not.toHaveBeenCalled()
+  await user.click(screen.getByRole('button', { name: /download emergency kit/i }))
+  expect(pdfMocks.download).toHaveBeenCalledOnce()
+  await user.click(screen.getByRole('checkbox', { name: /saved my emergency kit/i }))
+  await user.click(finish)
+}
+
 async function enterRequestedWords(
   user: ReturnType<typeof userEvent.setup>,
   inputs: HTMLElement[],
@@ -87,7 +108,7 @@ async function enterRequestedWords(
 }
 
 it('requires recovery words and resumes normal auth guards after registration', async () => {
-  registerState.mutate.mockImplementation((_input: unknown, options: { onSuccess: () => void }) => options.onSuccess())
+  registerState.mutate.mockImplementation((_input: unknown, options: { onSuccess: (kit: typeof KIT) => void }) => options.onSuccess(KIT))
   const user = userEvent.setup()
   render(<RegisterPage />)
 
@@ -104,6 +125,7 @@ it('requires recovery words and resumes normal auth guards after registration', 
     },
     expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
   )
+  await completeEmergencyKit(user)
   expect(navigateMock).toHaveBeenCalledWith({ to: '/' })
 })
 
@@ -125,7 +147,7 @@ it('shows the registration error on the recovery confirmation step', async () =>
 })
 
 it('returns to a clean sharing route after registration and preserves it when switching to login', async () => {
-  registerState.mutate.mockImplementation((_input: unknown, options: { onSuccess: () => void }) => options.onSuccess())
+  registerState.mutate.mockImplementation((_input: unknown, options: { onSuccess: (kit: typeof KIT) => void }) => options.onSuccess(KIT))
   const user = userEvent.setup()
   const destination = '/share/00112233-4455-4677-8899-aabbccddeeff'
   render(<RegisterPage redirectTo={`${destination}?access=synthetic#key=synthetic`} />)
@@ -133,17 +155,19 @@ it('returns to a clean sharing route after registration and preserves it when sw
   const inputs = await reachRecoveryConfirmation(user)
   await enterRequestedWords(user, inputs)
   await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
+  await completeEmergencyKit(user)
   expect(navigateMock).toHaveBeenCalledWith({ href: destination })
 })
 
 it('never forwards an external return through registration or its login link', async () => {
-  registerState.mutate.mockImplementation((_input: unknown, options: { onSuccess: () => void }) => options.onSuccess())
+  registerState.mutate.mockImplementation((_input: unknown, options: { onSuccess: (kit: typeof KIT) => void }) => options.onSuccess(KIT))
   const user = userEvent.setup()
   render(<RegisterPage redirectTo="https://attacker.example/" />)
   expect(screen.getByRole('link', { name: /^sign in$/i })).toHaveAttribute('href', '/login')
   const inputs = await reachRecoveryConfirmation(user)
   await enterRequestedWords(user, inputs)
   await user.click(screen.getByRole('button', { name: /verify & complete setup/i }))
+  await completeEmergencyKit(user)
   expect(navigateMock).toHaveBeenCalledWith({ to: '/' })
 })
 

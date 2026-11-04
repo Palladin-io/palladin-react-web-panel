@@ -7,7 +7,7 @@ import {
 import { presentationIconReference, type MemberVaultMetadataV1 } from '../../shared/crypto/vault-plaintext'
 import { canonicalizeVaultJson, type CanonicalJson } from '../../shared/crypto/vault-v2-signatures'
 import { wipe } from '../../shared/crypto/sodium'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import { deleteEncryptedAsset } from './assets/encrypted-asset-api'
 import { encryptAndUploadPresentationAsset } from './assets/encrypted-asset-service'
 import { getEncryptedVault } from './sync/member-sync-api'
@@ -89,7 +89,7 @@ export async function updateEncryptedVaultSettings(input: {
 
   const fresh = await getEncryptedVault(input.vaultId)
   const keyVersion = fresh.currentKeyEpoch.vaultKeyVersion
-  const opened = await openVaultProjection({ ...fresh, organizationId }, auth.privateKey, auth.userId)
+  const opened = await openVaultProjection({ ...fresh, organizationId }, memberKeyFor(auth.privateKey), auth.userId)
   const vaultKey = opened.vaultKey
   let uploadedAssetId: string | null = null
   let metadataCommitted = false

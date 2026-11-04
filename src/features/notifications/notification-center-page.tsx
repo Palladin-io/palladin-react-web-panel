@@ -62,6 +62,7 @@ import {
   notificationDeepLink,
   resolveNotificationItem,
 } from "./notification-resolution";
+import { isKeyMigrationPending } from "../../shared/crypto/key-wrapper";
 
 type Segment = "all" | "todo" | "history" | "grants";
 
@@ -349,7 +350,9 @@ export function NotificationCenterPage({
             t(
               error instanceof StaleGrantReviewError
                 ? "grants.approve.staleReview"
-                : "grants.approve.error",
+                : isKeyMigrationPending(error)
+                  ? "grants.keyMigrationPending"
+                  : "grants.approve.error",
             ),
           ),
       },

@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
   privateKey: new Uint8Array(32),
 }))
 
-vi.mock('../auth', () => ({ useAuthStore: { getState: () => ({ privateKey: mocks.privateKey }) } }))
+vi.mock('../auth', () => ({ memberKeyFor: (privateKey: Uint8Array) => ({ privateKey, keySuiteId: 'palladin-x25519-sealed-box-v1' }), useAuthStore: { getState: () => ({ privateKey: mocks.privateKey }) } }))
 vi.mock('../agents', () => ({ getAgent: mocks.getAgent }))
 vi.mock('../vaults/api/vault-api', () => ({ getCanonicalEntry: mocks.getEntry }))
 vi.mock('../vaults/sync/member-sync-api', () => ({ getEncryptedVault: mocks.getVault }))

@@ -5,7 +5,9 @@ import {
   getAgentDiscoveryProvisioning,
   provisionAgentDiscovery,
 } from '../api/agent-discovery-api'
-import { getEncryptedVault, listEncryptedVaults } from './member-sync-api'
+import { getEncryptedVault, listEncryptedVaults, vaultAgentMessageKeySuite } from './member-sync-api'
+import { isKeyMigrationPending } from '../../../shared/crypto/key-wrapper'
+import { memberKeyFor } from '../../auth'
 
 const AGENT_MESSAGE_PRIVATE_PURPOSE = 3
 const MANIFEST_SIGNING_PRIVATE_PURPOSE = 4
@@ -32,7 +34,7 @@ async function reconcileAgentDiscoveryPass(
     let agentMessagePrivateKey: Uint8Array | undefined
     let manifestSigningPrivateKey: Uint8Array | undefined
     try {
-      vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberPrivateKey)
+      vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(memberPrivateKey))
       vdk = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)
       const agentMessageEnvelope = vault.vaultPrivateKeys.find(
         (candidate) => candidate.descriptor.purpose === AGENT_MESSAGE_PRIVATE_PURPOSE,
@@ -44,6 +46,7 @@ async function reconcileAgentDiscoveryPass(
         throw new Error('Vault Discovery signing material is incomplete')
       }
       agentMessagePrivateKey = await openVaultDerivedEnvelope(agentMessageEnvelope, vaultKey)
+      const agentMessageKeySuiteId = vaultAgentMessageKeySuite(vault, vault.currentKeyEpoch.agentMessageKeyVersion)
       manifestSigningPrivateKey = await openVaultDerivedEnvelope(manifestSigningEnvelope, vaultKey)
       if (vdk.length !== 32 || agentMessagePrivateKey.length !== 32
         || (manifestSigningPrivateKey.length !== 32 && manifestSigningPrivateKey.length !== 64)) {
@@ -57,14 +60,21 @@ async function reconcileAgentDiscoveryPass(
         for (const agent of page.items) {
           if (agent.status === 'current') continue
           signal.throwIfAborted()
-          const material = await createAgentDiscoveryMaterial(agent, {
-            organizationId: vault.organizationId,
-            vaultId: vault.id,
-          }, {
-            vdkVersion: vault.currentKeyEpoch.vdkVersion,
-            agentMessageKeyVersion: vault.currentKeyEpoch.agentMessageKeyVersion,
-            manifestSigningKeyVersion: vault.currentKeyEpoch.manifestSigningKeyVersion,
-          }, { vdk, agentMessagePrivateKey, manifestSigningPrivateKey })
+          let material
+          try {
+            material = await createAgentDiscoveryMaterial(agent, {
+              organizationId: vault.organizationId,
+              vaultId: vault.id,
+            }, {
+              vdkVersion: vault.currentKeyEpoch.vdkVersion,
+              agentMessageKeyVersion: vault.currentKeyEpoch.agentMessageKeyVersion,
+              manifestSigningKeyVersion: vault.currentKeyEpoch.manifestSigningKeyVersion,
+            }, { vdk, agentMessagePrivateKey, agentMessageKeySuiteId, manifestSigningPrivateKey })
+          } catch (error) {
+            // An Agent still on a read-only key suite is provisioned after it publishes an active-suite key.
+            if (isKeyMigrationPending(error)) continue
+            throw error
+          }
           await provisionAgentDiscovery(vault.id, agent.agentId, material, signal)
         }
         afterId = page.nextAfterId ?? undefined

@@ -40,6 +40,7 @@ import {
 } from './grant-format'
 import { GrantAgainDialog } from './grant-again-dialog'
 import { RevokeGrantDialog } from './revoke-grant-dialog'
+import { isKeyMigrationPending } from '../../../shared/crypto/key-wrapper'
 
 /** Statuses shown in this panel — Pending is excluded (handled on the left). */
 const PANEL_STATUSES: GrantStatus[] = [
@@ -174,12 +175,15 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
       || (grant.type !== GRANT_TYPE_FULL && !scopedEntryId)) return
 
     let agentPublicKey: string | null | undefined
+
+    let agentKeySuiteId: string | null | undefined
     let recipientAgentKeyVersion: number | null | undefined
     let agentAccessEpoch: number | null | undefined
     setIsResolvingRegrantRecipient(true)
     try {
       const agent = await getAgent(grant.agentId)
       agentPublicKey = agent.publicKey
+      agentKeySuiteId = agent.keySuiteId
       recipientAgentKeyVersion = agent.recipientKeyVersion
       agentAccessEpoch = agent.accessEpoch
     } catch {
@@ -195,6 +199,7 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
     ...(scopedEntryId ? { entryId: scopedEntryId } : {}),
     ...(reviewedScriptRevision ? { reviewedScriptRevision } : {}),
         agentPublicKey,
+        agentKeySuiteId,
         recipientAgentKeyVersion,
         agentAccessEpoch,
         type: grant.type,
@@ -210,9 +215,9 @@ export function OrgGrantsPanel({ agentId, vaultId, entryId, bare }: OrgGrantsPan
           toast.success(t('grants.regrant.success'))
           setRegrantTarget(null)
         },
-        onError: () => {
+        onError: (error) => {
           setIsResolvingRegrantRecipient(false)
-          toast.error(t('grants.regrant.error'))
+          toast.error(t(isKeyMigrationPending(error) ? 'grants.keyMigrationPending' : 'grants.regrant.error'))
         },
       },
     )

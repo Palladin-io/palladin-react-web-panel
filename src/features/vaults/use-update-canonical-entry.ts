@@ -13,7 +13,7 @@ import {
   type MemberSecretV1,
 } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import {
   GRANT_STATUS_ACTIVE,
   GRANT_TYPE_GRANULAR,
@@ -26,6 +26,7 @@ import { updateCanonicalEntry, type CanonicalEntryDetail, type EntryUpdateMateri
 import { getEncryptedVault, type EncryptedVaultDetail } from './sync/member-sync-api'
 import { entriesQueryKey, entryDetailQueryKey, entryHistoryQueryKey } from './use-entries'
 import { buildCompleteScriptExecutionPackage } from './script-execution-package'
+import { KEY_WRAPPER_SUITE } from '../../shared/crypto/key-wrapper'
 
 export class ActiveGrantRefreshRequiredError extends Error {
   constructor() {
@@ -110,7 +111,7 @@ export async function prepareCanonicalEntryUpdate(
   }
   const privateKey = useAuthStore.getState().privateKey
   if (!privateKey) throw new Error('Vault is locked')
-  const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+  const vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
   let discoveryKey: Uint8Array | undefined
   try {
     discoveryKey = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)
@@ -187,6 +188,7 @@ export async function prepareCanonicalEntryUpdate(
           grantEnvelopes.push(await buildCanonicalGrantEnvelope({
             secret: nextSecret,
             agentPublicKey: grant.agentPublicKey,
+            agentKeySuiteId: grant.agentKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
             approvedFieldIds,
             organizationId: detail.organizationId, vaultId, grantId: grant.id,
             agentId: grant.agentId, entryId: targetEntryId, entryRevision: nextRevision,
@@ -226,6 +228,7 @@ export async function prepareCanonicalEntryUpdate(
             packageRevision: (BigInt(grant.scriptPackageRevision) + 1n).toString(),
             recipientAgentKeyVersion: grant.recipientAgentKeyVersion,
             agentPublicKey: grant.agentPublicKey,
+            agentKeySuiteId: grant.agentKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
             vaultKey,
             overrides,
           }))

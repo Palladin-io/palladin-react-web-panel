@@ -4,15 +4,18 @@ import type { VaultEnvelopeContract } from './vault-envelope'
 import { assertEnvelopeScope, openVaultEnvelope, sealVaultEnvelope, toEnvelopeDescriptor } from './vault-envelope'
 import { deriveVaultSubkey } from './hkdf'
 import { ENVELOPE_PURPOSE } from './envelope'
-import { fromBase64Url } from './encoding'
 import { VAULT_XCHACHA20_POLY1305_V1 } from './crypto-suite'
 import { encodeMemberVaultMetadata } from './vault-plaintext'
-import { loadSodium, wipe } from './sodium'
+import { wipe } from './sodium'
 import {
-  openKeyFromX25519Recipient,
-  wrapperContextFromMemberVaultKey,
+  derivePublicKeyFor,
+  KEY_WRAPPER_PURPOSE,
+  RECIPIENT_KEY_KIND,
+  unwrapKeyForRecipient,
+  wrapKeyForRecipient,
   type MemberVaultKeyEnvelopeContract,
-} from './x25519-wrapper'
+  type RecipientPrivateKey,
+} from './key-wrapper'
 
 export interface EmptyEnvelopeBindingContract { readonly __empty?: never }
 
@@ -66,19 +69,23 @@ export interface OpenVaultProjectionResult {
   vaultKey: Uint8Array
 }
 
+/**
+ * Frozen Member-VK rule: both wrapper resource revision and wrapped-key
+ * version equal `vkVersion`; the package is scoped to org/vault/member.
+ */
 export async function openMemberVaultKey(
   envelope: MemberVaultKeyEnvelopeContract,
-  memberPrivateKey: Uint8Array,
+  memberKey: RecipientPrivateKey,
 ): Promise<Uint8Array> {
-  if (memberPrivateKey.length !== 32) throw new Error('Member private key must be 32 bytes')
-  const sodium = await loadSodium()
-  const publicKey = sodium.crypto_scalarmult_base(memberPrivateKey)
-  try {
-    return await openKeyFromX25519Recipient(
-      fromBase64Url(envelope.wrappedVaultKey.encodedSealedKeyPackage), publicKey, memberPrivateKey,
-      wrapperContextFromMemberVaultKey(envelope),
-    )
-  } finally { wipe(publicKey) }
+  const descriptor = envelope.wrappedVaultKey.descriptor
+  if (descriptor.purpose !== KEY_WRAPPER_PURPOSE.memberVaultKey
+    || descriptor.recipientKeyKind !== RECIPIENT_KEY_KIND.memberEncryption
+    || descriptor.scope.memberId == null
+    || descriptor.memberKeyGeneration == null
+    || descriptor.resourceRevision !== String(descriptor.wrappedKeyVersion)) {
+    throw new TypeError('Invalid Member Vault-key wrapper descriptor')
+  }
+  return unwrapKeyForRecipient(envelope.wrappedVaultKey, memberKey, RECIPIENT_KEY_KIND.memberEncryption)
 }
 
 export async function openVaultDerivedEnvelope<TBinding extends { wrappingVaultKeyVersion: number }>(
@@ -100,7 +107,7 @@ export async function openVaultDerivedEnvelope<TBinding extends { wrappingVaultK
 
 export async function openVaultProjection(
   vault: EncryptedVaultProjection,
-  memberPrivateKey: Uint8Array,
+  memberKey: RecipientPrivateKey,
   memberId: string,
 ): Promise<OpenVaultProjectionResult> {
   const wrapper = vault.memberVaultKey.wrappedVaultKey
@@ -111,15 +118,7 @@ export async function openVaultProjection(
     throw new Error('Member Vault-key envelope does not match the outer Vault')
   }
 
-  const sodium = await loadSodium()
-  const publicKey = sodium.crypto_scalarmult_base(memberPrivateKey)
-  const vaultKey = await openKeyFromX25519Recipient(
-    fromBase64Url(wrapper.encodedSealedKeyPackage),
-    publicKey,
-    memberPrivateKey,
-    wrapperContextFromMemberVaultKey(vault.memberVaultKey),
-  )
-  wipe(publicKey)
+  const vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKey)
   try {
     assertEnvelopeScope(vault.memberVaultMetadata.descriptor, {
       purpose: ENVELOPE_PURPOSE.memberVaultMetadata,
@@ -152,5 +151,46 @@ export async function openVaultProjection(
   } catch (error) {
     wipe(vaultKey)
     throw error
+  }
+}
+
+/**
+ * Security upgrade: re-wraps this member's current VK from the legacy Member
+ * key to the new one. Every binding except the recipient is copied from the
+ * opened envelope, whose scope `openMemberVaultKey` already checked against
+ * the outer Vault and the session principal.
+ */
+export async function rewrapOwnMemberVaultKey(input: {
+  vault: Pick<EncryptedVaultProjection, 'id' | 'organizationId' | 'memberKeyGeneration' | 'memberVaultKey'>
+  memberId: string
+  legacyKey: RecipientPrivateKey
+  nextKey: RecipientPrivateKey & { keyVersion: number }
+}): Promise<MemberVaultKeyEnvelopeContract> {
+  const descriptor = input.vault.memberVaultKey.wrappedVaultKey.descriptor
+  if (descriptor.scope.organizationId !== input.vault.organizationId
+    || descriptor.scope.vaultId !== input.vault.id
+    || descriptor.scope.memberId !== input.memberId
+    || descriptor.memberKeyGeneration !== input.vault.memberKeyGeneration) {
+    throw new Error('Member Vault-key envelope does not match the outer Vault')
+  }
+  const vaultKey = await openMemberVaultKey(input.vault.memberVaultKey, input.legacyKey)
+  const publicKey = await derivePublicKeyFor(input.nextKey)
+  try {
+    const wrappedVaultKey = await wrapKeyForRecipient(vaultKey, {
+      keySuiteId: input.nextKey.keySuiteId,
+      keyKind: RECIPIENT_KEY_KIND.memberEncryption,
+      keyVersion: input.nextKey.keyVersion,
+      publicKey,
+    }, {
+      purpose: KEY_WRAPPER_PURPOSE.memberVaultKey,
+      scope: { organizationId: input.vault.organizationId, vaultId: input.vault.id, memberId: input.memberId },
+      resourceRevision: descriptor.resourceRevision,
+      wrappedKeyVersion: descriptor.wrappedKeyVersion,
+      memberKeyGeneration: descriptor.memberKeyGeneration,
+    })
+    return { wrappedVaultKey }
+  } finally {
+    wipe(vaultKey)
+    wipe(publicKey)
   }
 }

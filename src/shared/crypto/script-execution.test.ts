@@ -1,3 +1,5 @@
+import { generateRecipientKeyPair, KEY_WRAPPER_PURPOSE, openKey, RECIPIENT_KEY_KIND, toBase64Url } from '@palladin/crypto'
+import { recipientFingerprint } from './key-wrapper'
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 
@@ -12,14 +14,6 @@ import {
 import { loadSodium, wipe } from './sodium'
 import { encodeMemberSecret, parseGrantPayload, type MemberSecretV1 } from './vault-plaintext'
 import { verifyVaultSignature, type CanonicalJson } from './vault-v2-signatures'
-import {
-  computeVaultKeyFingerprint,
-  openKeyFromX25519Recipient,
-  VAULT_KEY_KIND,
-  WRAPPER_PURPOSE,
-  X25519_SEALED_BOX_V1,
-  type X25519WrapperContext,
-} from './x25519-wrapper'
 
 const organizationId = '00112233-4455-4677-8899-aabbccddeeff'
 const vaultId = '11112222-3333-4444-8555-666677778888'
@@ -79,7 +73,7 @@ function referenceSecret(): MemberSecretV1 {
 describe('Script execution package', () => {
   it('seals one package containing the Script contract and every referenced Entry', async () => {
     const sodium = await loadSodium()
-    const agent = sodium.crypto_box_keypair()
+    const agent = await generateRecipientKeyPair()
     const signer = sodium.crypto_sign_keypair()
     const referencedSecret = encodeMemberSecret(referenceSecret())
     let packageDek: Uint8Array | undefined
@@ -100,7 +94,7 @@ describe('Script execution package', () => {
         grantId,
         packageRevision: '3',
         recipientAgentKeyVersion: 4,
-        recipientAgentPublicKey: agent.publicKey,
+        recipientAgentKey: { keySuiteId: agent.keySuiteId, publicKey: agent.publicKey },
         vaultSigningKeyVersion: 5,
         vaultSigningPrivateKey: signer.privateKey,
         entries: [{ entryId: referencedEntryId, entryRevision: '9', encodedMemberSecret: referencedSecret }],
@@ -134,29 +128,23 @@ describe('Script execution package', () => {
       delete transport.producerSignature
       const aad = new TextEncoder().encode(canonicalJson(transport)) as CanonicalEnvelopeAad
       const parentDescriptorHash = await hashWithDomain('PLDNSCRIPTAAD1', aad)
-      const recipientFingerprint = await computeVaultKeyFingerprint(agent.publicKey, VAULT_KEY_KIND.agentX25519)
-      const context: X25519WrapperContext = {
+      packageDek = await openKey({
         protocolVersion: 2,
-        wrapperSuiteId: X25519_SEALED_BOX_V1,
-        purpose: WRAPPER_PURPOSE.scriptExecutionDek,
-        organizationId,
-        vaultId,
-        entryId: scriptEntryId,
-        grantOrRequestId: grantId,
-        agentId,
-        resourceRevision: 3n,
+        wrapperSuiteId: agent.keySuiteId,
+        purpose: KEY_WRAPPER_PURPOSE.scriptExecutionDek,
+        scope: { organizationId, vaultId, entryId: scriptEntryId, grantOrRequestId: grantId, agentId },
+        resourceRevision: '3',
         wrappedKeyVersion: 1,
-        recipientKeyKind: VAULT_KEY_KIND.agentX25519,
+        recipientKeyKind: RECIPIENT_KEY_KIND.agentEncryption,
         recipientKeyVersion: 4,
-        recipientFingerprint,
-        parentDescriptorHash,
-      }
-      packageDek = await openKeyFromX25519Recipient(
-        fromBase64Url(container.encodedSealedPackageDek),
-        agent.publicKey,
-        agent.privateKey,
-        context,
-      )
+        recipientFingerprint: recipientFingerprint({
+          keySuiteId: agent.keySuiteId, keyKind: RECIPIENT_KEY_KIND.agentEncryption, publicKey: agent.publicKey,
+        }),
+        parentDescriptorHash: toBase64Url(parentDescriptorHash),
+      }, toBase64Url(fromBase64Url(container.encodedSealedPackageDek)), {
+        keySuiteId: agent.keySuiteId, keyKind: RECIPIENT_KEY_KIND.agentEncryption, keyVersion: 4,
+        publicKey: agent.publicKey, privateKey: agent.privateKey,
+      })
       plaintext = await requireCryptoSuite(VAULT_XCHACHA20_POLY1305_V1).open({
         payload: fromBase64Url(container.encodedSuitePayload) as EncodedSuitePayload,
         key: packageDek,
@@ -178,7 +166,7 @@ describe('Script execution package', () => {
         fields: [{ id: 'credential.username', mode: 'value', value: 'fixture_user' }],
       })
       expect(payload.binding.authorization).toEqual({ source: 'scriptExecution', grantId })
-      expect(context.purpose).toBe(6)
+      expect(sealed.wrapperSuiteId).toBe(agent.keySuiteId)
     } finally {
       wipe(referencedSecret)
       wipe(agent.publicKey)
@@ -209,7 +197,7 @@ describe('Script execution package', () => {
     })
 
     const sodium = await loadSodium()
-    const agent = sodium.crypto_box_keypair()
+    const agent = await generateRecipientKeyPair()
     const signer = sodium.crypto_sign_keypair()
     try {
       const manifest = buildScriptExecutionManifest({
@@ -218,7 +206,7 @@ describe('Script execution package', () => {
       })
       await expect(sealScriptExecutionPackage({
         manifest, grantId, packageRevision: '1', recipientAgentKeyVersion: 1,
-        recipientAgentPublicKey: agent.publicKey, vaultSigningKeyVersion: 1,
+        recipientAgentKey: { keySuiteId: agent.keySuiteId, publicKey: agent.publicKey }, vaultSigningKeyVersion: 1,
         vaultSigningPrivateKey: signer.privateKey, entries: [],
       })).rejects.toThrow(/incomplete, stale or substituted/)
     } finally {
@@ -231,7 +219,7 @@ describe('Script execution package', () => {
 
   it('keeps duplicate selector mappings while authorizing their scope once', async () => {
     const sodium = await loadSodium()
-    const agent = sodium.crypto_box_keypair()
+    const agent = await generateRecipientKeyPair()
     const signer = sodium.crypto_sign_keypair()
     const memberSecret = scriptSecret()
     if (memberSecret.entryType !== 'script') throw new Error('fixture')
@@ -263,7 +251,7 @@ describe('Script execution package', () => {
         grantId,
         packageRevision: '1',
         recipientAgentKeyVersion: 1,
-        recipientAgentPublicKey: agent.publicKey,
+        recipientAgentKey: { keySuiteId: agent.keySuiteId, publicKey: agent.publicKey },
         vaultSigningKeyVersion: 1,
         vaultSigningPrivateKey: signer.privateKey,
         entries: [{

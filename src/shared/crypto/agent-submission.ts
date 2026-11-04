@@ -1,4 +1,4 @@
-import { sha256Digest } from '@palladin/crypto'
+import { deriveRecipientPublicKey, encodeKeyWrapperContext, generateRecipientKeyPair, KeyWrapperError, openKey, sha256Digest } from '@palladin/crypto'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_KEY } from '../types/entry-type'
 import { defaultAgentVisibilityPolicy, toMemberSecret } from './entry-draft'
 import { loadSodium, wipe } from './sodium'
@@ -6,22 +6,28 @@ import type { MemberSecretV1 } from './vault-plaintext'
 import { concatBytes, decodeBase64Url, decodeUuid, encodeBase64Url, encodeU32, encodeUtf8 } from './vault-v2-bytes'
 import { canonicalizeVaultJson, signVaultObject, verifyVaultSignature, type CanonicalJson } from './vault-v2-signatures'
 import {
-  VAULT_KEY_KIND,
-  WRAPPER_PURPOSE,
-  X25519_SEALED_BOX_V1,
-  computeContextHash,
-  computeVaultKeyFingerprint,
-  openKeyFromX25519Recipient,
-  sealKeyToX25519Recipient,
-  type X25519WrapperContext,
-} from './x25519-wrapper'
+  computeSigningKeyFingerprint,
+  derivePublicKeyFor,
+  KEY_WRAPPER_PURPOSE,
+  KEY_WRAPPER_SUITE,
+  RECIPIENT_KEY_KIND,
+  recipientFingerprint,
+  SIGNING_KEY_KIND,
+  unwrapKeyForRecipient,
+  wrapKeyForRecipient,
+  type KeyWrapperDescriptorContract,
+  type RecipientPrivateKey,
+} from './key-wrapper'
 
 // Frozen by palladin-protocol contracts/agent-submission/v1.
 export const SUBMISSION_CONTRACT_VERSION = 1
 const PROTOCOL_VERSION = 2
 export const SUBMISSION_SCHEMA = 'palladin.agent-entry-submission.v1'
+// recipient-key-publication successors: same transcripts, plus signed suite fields.
+export const SUBMISSION_SCHEMA_V2 = 'palladin.agent-entry-submission.v2'
 export const SUBMISSION_PAYLOAD_SCHEMA = 'palladin.agent-submission-payload.v1'
 export const APPROVER_MANIFEST_SCHEMA = 'palladin.organization-approver-manifest.v1'
+export const APPROVER_MANIFEST_SCHEMA_V2 = 'palladin.organization-approver-manifest.v2'
 const MANIFEST_SIGNATURE_DOMAIN = 'PLDNSUB1SIG:APPROVER-MANIFEST:'
 const CONTINUITY_SIGNATURE_DOMAIN = 'PLDNSUB1SIG:APPROVER-CONTINUITY:'
 const SUBMISSION_SIGNATURE_DOMAIN = 'PLDNSUB1SIG:AGENT-SUBMISSION:'
@@ -78,7 +84,15 @@ const LOWERCASE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f
 const CANONICAL_U64 = /^(0|[1-9][0-9]{0,19})$/
 const U64_MAX = 0xffffffffffffffffn
 const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/
-const SEALED_KEY_PACKAGE_BYTES = 120
+const SEALED_KEY_PACKAGE_BYTES: Readonly<Record<string, number>> = {
+  [KEY_WRAPPER_SUITE.legacy]: 120,
+  [KEY_WRAPPER_SUITE.active]: 1168,
+}
+const MESSAGE_PUBLIC_KEY_BYTES: Readonly<Record<string, number>> = {
+  [KEY_WRAPPER_SUITE.legacy]: 32,
+  [KEY_WRAPPER_SUITE.active]: 1216,
+}
+const SUBMISSION_SUITE_FIELDS = ['agentWrappedDekSuiteId', 'approverWrappedDekSuiteId'] as const
 const MANIFEST_FIELDS = [
   'schema', 'contractVersion', 'protocolVersion', 'organizationId', 'keyVersion', 'manifestRevision',
   'approverSetRevision', 'approverSetDigest', 'messagePublicKey', 'messageKeyFingerprint', 'signingPublicKey',
@@ -140,6 +154,9 @@ export interface AgentEntrySubmission {
   encodedAgentWrappedDek: string
   encodedApproverWrappedDek: string
   agentSignature: string
+  /** Successor (v2) only. */
+  agentWrappedDekSuiteId?: string
+  approverWrappedDekSuiteId?: string
 }
 
 export interface OrganizationApproverManifest {
@@ -153,6 +170,8 @@ export interface OrganizationApproverManifest {
   approverSetDigest: string
   messagePublicKey: string
   messageKeyFingerprint: string
+  /** Successor (v2) only; absent means the legacy suite. */
+  messageKeySuiteId?: string
   signingPublicKey: string
   signingKeyFingerprint: string
   previousSigningKeyFingerprint?: string
@@ -162,6 +181,8 @@ export interface OrganizationApproverManifest {
 }
 
 export interface ApproverKeyWrapDescriptor {
+  /** Suite of the recipient Member key; absent on wraps created before suite publication (legacy). */
+  wrapperSuiteId?: string
   purpose: number
   scopeBitmap: number
   organizationId: string
@@ -184,6 +205,8 @@ export interface ApproverRecipient {
   memberKeyVersion: number
   memberKeyFingerprint: string
   memberPublicKey: string
+  /** Suite of `memberPublicKey` in the Member key directory; absent means the legacy suite. */
+  memberKeySuiteId?: string | null
   hasWrap: boolean
 }
 
@@ -206,6 +229,7 @@ export interface OpenedApproverKeys {
   messagePublicKey: Uint8Array
   messagePrivateKey: Uint8Array
   messageKeyFingerprint: string
+  messageKeySuiteId: string
   signingSeed: Uint8Array
 }
 
@@ -241,8 +265,19 @@ function utf8Length(value: string): number {
   return new TextEncoder().encode(value).length
 }
 
-async function fingerprint(publicKey: Uint8Array, kind: number): Promise<Uint8Array> {
-  return computeVaultKeyFingerprint(publicKey, kind as (typeof VAULT_KEY_KIND)[keyof typeof VAULT_KEY_KIND])
+// Manifest v1 publishes a legacy-suite approver message key; signing keys keep the vault-v2 fingerprint.
+function manifestMessageSuite(manifest: Pick<OrganizationApproverManifest, 'messageKeySuiteId'>): string {
+  return manifest.messageKeySuiteId ?? KEY_WRAPPER_SUITE.legacy
+}
+
+async function messageKeyFingerprint(publicKey: Uint8Array, keySuiteId: string): Promise<Uint8Array> {
+  return decode(recipientFingerprint({
+    keySuiteId, keyKind: RECIPIENT_KEY_KIND.organizationApproverMessage, publicKey,
+  }), 'manifest-fingerprint-mismatch', 32)
+}
+
+async function signingKeyFingerprint(publicKey: Uint8Array): Promise<Uint8Array> {
+  return computeSigningKeyFingerprint(publicKey, SIGNING_KEY_KIND.approverSigning)
 }
 
 export function submissionIdentity(submission: AgentEntrySubmission): Record<string, unknown> {
@@ -304,18 +339,25 @@ function assertBinary(value: unknown, bytes?: number): Uint8Array {
 /** `wireEncoding` and the closed transport shape, checked before any key or signature use. */
 export function assertSubmissionTransportShape(submission: unknown): asserts submission is AgentEntrySubmission {
   assertObject(submission)
-  const allowed = new Set<string>(SUBMISSION_TRANSPORT_FIELDS)
+  const successor = submission.schema === SUBMISSION_SCHEMA_V2
+  const allowed = new Set<string>([...SUBMISSION_TRANSPORT_FIELDS, ...(successor ? SUBMISSION_SUITE_FIELDS : [])])
   for (const key of Object.keys(submission)) if (!allowed.has(key)) fail('unknown-field')
   for (const key of allowed) if (!(key in submission)) fail('missing-field')
-  assertHeader(submission, SUBMISSION_SCHEMA)
+  assertHeader(submission, successor ? SUBMISSION_SCHEMA_V2 : SUBMISSION_SCHEMA)
+  const agentSuite = successor ? submission.agentWrappedDekSuiteId : KEY_WRAPPER_SUITE.legacy
+  const approverSuite = successor ? submission.approverWrappedDekSuiteId : KEY_WRAPPER_SUITE.legacy
+  if (typeof agentSuite !== 'string' || typeof approverSuite !== 'string'
+    || !Object.hasOwn(SEALED_KEY_PACKAGE_BYTES, agentSuite) || !Object.hasOwn(SEALED_KEY_PACKAGE_BYTES, approverSuite)) {
+    fail('unsupported-version')
+  }
   for (const key of ['organizationId', 'submissionId', 'agentId']) assertUuid(submission[key])
   for (const key of ['submissionRevision', 'agentAccessEpoch', 'approverManifestRevision']) assertU64(submission[key], true)
   assertPositiveU32(submission.agentKeyVersion)
   assertPositiveU32(submission.approverKeyVersion)
   assertBinary(submission.agentKeyFingerprint, 32)
   assertBinary(submission.approverMessageKeyFingerprint, 32)
-  assertBinary(submission.encodedAgentWrappedDek, SEALED_KEY_PACKAGE_BYTES)
-  assertBinary(submission.encodedApproverWrappedDek, SEALED_KEY_PACKAGE_BYTES)
+  assertBinary(submission.encodedAgentWrappedDek, SEALED_KEY_PACKAGE_BYTES[agentSuite])
+  assertBinary(submission.encodedApproverWrappedDek, SEALED_KEY_PACKAGE_BYTES[approverSuite])
   assertBinary(submission.agentSignature, 64)
   if (assertBinary(submission.encodedPayload).length < AEAD_NONCE_BYTES + AEAD_TAG_BYTES) fail('invalid-field')
   const target = submission.target
@@ -375,14 +417,19 @@ function assertPayloadShape(payload: unknown): asserts payload is AgentSubmissio
 
 function assertManifestShape(manifest: unknown): asserts manifest is OrganizationApproverManifest {
   assertObject(manifest)
-  for (const key of Object.keys(manifest)) if (!MANIFEST_FIELDS.includes(key) && !MANIFEST_CONDITIONAL_FIELDS.includes(key)) fail('unknown-field')
-  for (const key of MANIFEST_FIELDS) if (!(key in manifest)) fail('missing-field')
-  assertHeader(manifest, APPROVER_MANIFEST_SCHEMA)
+  const successor = manifest.schema === APPROVER_MANIFEST_SCHEMA_V2
+  const required = successor ? [...MANIFEST_FIELDS, 'messageKeySuiteId'] : MANIFEST_FIELDS
+  for (const key of Object.keys(manifest)) if (!required.includes(key) && !MANIFEST_CONDITIONAL_FIELDS.includes(key)) fail('unknown-field')
+  for (const key of required) if (!(key in manifest)) fail('missing-field')
+  assertHeader(manifest, successor ? APPROVER_MANIFEST_SCHEMA_V2 : APPROVER_MANIFEST_SCHEMA)
+  const suite = successor ? manifest.messageKeySuiteId : KEY_WRAPPER_SUITE.legacy
+  if (typeof suite !== 'string' || !Object.hasOwn(MESSAGE_PUBLIC_KEY_BYTES, suite)) fail('unsupported-version')
+  assertBinary(manifest.messagePublicKey, MESSAGE_PUBLIC_KEY_BYTES[suite])
   assertUuid(manifest.organizationId)
   assertPositiveU32(manifest.keyVersion)
   assertU64(manifest.manifestRevision, true)
   assertU64(manifest.approverSetRevision, true)
-  for (const key of ['approverSetDigest', 'messagePublicKey', 'messageKeyFingerprint', 'signingPublicKey', 'signingKeyFingerprint']) {
+  for (const key of ['approverSetDigest', 'messageKeyFingerprint', 'signingPublicKey', 'signingKeyFingerprint']) {
     assertBinary(manifest[key], 32)
   }
   if ('previousSigningKeyFingerprint' in manifest) assertBinary(manifest.previousSigningKeyFingerprint, 32)
@@ -392,21 +439,27 @@ function assertManifestShape(manifest: unknown): asserts manifest is Organizatio
     || Number.isNaN(Date.parse(manifest.issuedAt))) fail('invalid-field')
 }
 
-function approverSubmissionWrapContext(submission: AgentEntrySubmission): X25519WrapperContext {
-  return {
+/** Submission v1 seals the DEK with the legacy suite; the context is rebuilt from the signed submission. */
+function approverSubmissionContextHash(submission: AgentEntrySubmission): Uint8Array {
+  const descriptor: KeyWrapperDescriptorContract = {
     protocolVersion: PROTOCOL_VERSION,
-    wrapperSuiteId: X25519_SEALED_BOX_V1,
-    purpose: WRAPPER_PURPOSE.submissionDek,
-    organizationId: submission.organizationId,
-    grantOrRequestId: submission.submissionId,
-    agentId: submission.agentId,
-    resourceRevision: BigInt(submission.submissionRevision),
+    wrapperSuiteId: KEY_WRAPPER_SUITE.legacy,
+    purpose: KEY_WRAPPER_PURPOSE.submissionDek,
+    scope: {
+      organizationId: submission.organizationId,
+      grantOrRequestId: submission.submissionId,
+      agentId: submission.agentId,
+    },
+    resourceRevision: submission.submissionRevision,
     wrappedKeyVersion: 1,
-    recipientKeyKind: VAULT_KEY_KIND.approverX25519,
+    recipientKeyKind: RECIPIENT_KEY_KIND.organizationApproverMessage,
     recipientKeyVersion: submission.approverKeyVersion,
-    recipientFingerprint: decode(submission.approverMessageKeyFingerprint, 'recipient-key-mismatch', 32),
-    parentDescriptorHash: identityDescriptorHash(submissionIdentity(submission)),
+    recipientFingerprint: submission.approverMessageKeyFingerprint,
+    parentDescriptorHash: encodeBase64Url(identityDescriptorHash(submissionIdentity(submission))),
   }
+  let encoded: Uint8Array
+  try { encoded = encodeKeyWrapperContext(descriptor) } catch { fail('wrapper-context-mismatch') }
+  return sha256Digest(concatBytes(ascii('PLDNX2CTX'), encoded))
 }
 
 /**
@@ -422,6 +475,7 @@ export interface SubmissionApproverAuthority {
   agentId: string
   agentEd25519PublicKey: Uint8Array
   approverKeys: Pick<OpenedApproverKeys, 'keyVersion' | 'messagePublicKey' | 'messagePrivateKey' | 'messageKeyFingerprint'>
+    & { messageKeySuiteId?: string }
 }
 
 /**
@@ -453,12 +507,55 @@ export async function openSubmissionAsApprover(
     || submission.approverMessageKeyFingerprint !== authority.approverKeys.messageKeyFingerprint) {
     fail('recipient-key-mismatch')
   }
+  const approverSuite = authority.approverKeys.messageKeySuiteId ?? KEY_WRAPPER_SUITE.legacy
+  if (submission.schema === SUBMISSION_SCHEMA_V2) {
+    // The suite the Agent signed must be the one the verified approver manifest publishes.
+    if (submission.approverWrappedDekSuiteId !== approverSuite) fail('recipient-key-mismatch')
+    const dek = await openSuccessorDek(submission, approverSuite, authority.approverKeys)
+    try {
+      return await decryptPayload(submission, dek)
+    } finally {
+      wipe(dek)
+    }
+  }
+  if (approverSuite !== KEY_WRAPPER_SUITE.legacy) fail('recipient-key-mismatch')
   return openPayload(
     submission,
     decode(submission.encodedApproverWrappedDek, 'wrapper-open-failed'),
     authority.approverKeys.messagePublicKey,
     authority.approverKeys.messagePrivateKey,
   )
+}
+
+async function openSuccessorDek(
+  submission: AgentEntrySubmission,
+  keySuiteId: string,
+  keys: Pick<OpenedApproverKeys, 'keyVersion' | 'messagePublicKey' | 'messagePrivateKey'>,
+): Promise<Uint8Array> {
+  try {
+    return await openKey({
+      protocolVersion: PROTOCOL_VERSION,
+      wrapperSuiteId: keySuiteId,
+      purpose: KEY_WRAPPER_PURPOSE.submissionDek,
+      scope: {
+        organizationId: submission.organizationId,
+        grantOrRequestId: submission.submissionId,
+        agentId: submission.agentId,
+      },
+      resourceRevision: submission.submissionRevision,
+      wrappedKeyVersion: 1,
+      recipientKeyKind: RECIPIENT_KEY_KIND.organizationApproverMessage,
+      recipientKeyVersion: submission.approverKeyVersion,
+      recipientFingerprint: submission.approverMessageKeyFingerprint,
+      parentDescriptorHash: encodeBase64Url(identityDescriptorHash(submissionIdentity(submission))),
+    }, submission.encodedApproverWrappedDek, {
+      keySuiteId, keyKind: RECIPIENT_KEY_KIND.organizationApproverMessage, keyVersion: keys.keyVersion,
+      publicKey: keys.messagePublicKey, privateKey: keys.messagePrivateKey,
+    })
+  } catch (error) {
+    if (error instanceof KeyWrapperError && error.code === 'recipient-mismatch') fail('recipient-key-mismatch')
+    fail('wrapper-open-failed')
+  }
 }
 
 async function openPayload(
@@ -468,62 +565,67 @@ async function openPayload(
   recipientPrivateKey: Uint8Array,
 ): Promise<AgentSubmissionPayload> {
   const sodium = await loadSodium()
-  const context = approverSubmissionWrapContext(submission)
   let opened: Uint8Array
   try {
     opened = sodium.crypto_box_seal_open(sealedDek, recipientPublicKey, recipientPrivateKey)
   } catch {
     fail('wrapper-open-failed')
   }
-  const expectedHash = await computeContextHash(context)
+  const expectedHash = approverSubmissionContextHash(submission)
   try {
     if (opened.length !== PACKAGE_MAGIC.length + 64 || !equalBytes(opened.subarray(0, 8), PACKAGE_MAGIC)) {
       fail('wrapper-open-failed')
     }
     if (!equalBytes(opened.subarray(40), expectedHash)) fail('wrapper-context-mismatch')
-    const dek = opened.subarray(8, 40)
-    const sealed = decode(submission.encodedPayload, 'payload-auth-failed')
-    // The ciphertext length fixes the plaintext length, so the plaintext limit is enforced before decryption.
-    if (sealed.length > AEAD_NONCE_BYTES + AEAD_TAG_BYTES + SUBMISSION_LIMITS.payloadPlaintextBytes) fail('field-too-large')
-    const identity = submissionIdentity(submission)
-    let plaintext: Uint8Array
-    try {
-      plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
-        null, sealed.subarray(AEAD_NONCE_BYTES), identityAad(identity), sealed.subarray(0, AEAD_NONCE_BYTES), dek,
-      )
-    } catch {
-      fail('payload-auth-failed')
-    }
-    let payload: unknown
-    try {
-      payload = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext))
-    } catch {
-      fail('invalid-field')
-    } finally {
-      wipe(plaintext)
-    }
-    assertPayloadShape(payload)
-    let sameIdentity = false
-    try {
-      sameIdentity = canonicalizeVaultJson(payload.identity as CanonicalJson)
-        === canonicalizeVaultJson(identity as CanonicalJson)
-    } catch {
-      sameIdentity = false
-    }
-    if (!sameIdentity) fail('identity-mismatch')
-    return payload
+    return await decryptPayload(submission, opened.subarray(8, 40))
   } finally {
     wipe(opened)
     wipe(expectedHash)
   }
 }
 
+/** Payload AAD covers the identity fields only (unchanged for successor submissions). */
+async function decryptPayload(submission: AgentEntrySubmission, dek: Uint8Array): Promise<AgentSubmissionPayload> {
+  const sodium = await loadSodium()
+  const sealed = decode(submission.encodedPayload, 'payload-auth-failed')
+  // The ciphertext length fixes the plaintext length, so the plaintext limit is enforced before decryption.
+  if (sealed.length > AEAD_NONCE_BYTES + AEAD_TAG_BYTES + SUBMISSION_LIMITS.payloadPlaintextBytes) fail('field-too-large')
+  const identity = submissionIdentity(submission)
+  let plaintext: Uint8Array
+  try {
+    plaintext = sodium.crypto_aead_xchacha20poly1305_ietf_decrypt(
+      null, sealed.subarray(AEAD_NONCE_BYTES), identityAad(identity), sealed.subarray(0, AEAD_NONCE_BYTES), dek,
+    )
+  } catch {
+    fail('payload-auth-failed')
+  }
+  let payload: unknown
+  try {
+    payload = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(plaintext))
+  } catch {
+    fail('invalid-field')
+  } finally {
+    wipe(plaintext)
+  }
+  assertPayloadShape(payload)
+  let sameIdentity = false
+  try {
+    sameIdentity = canonicalizeVaultJson(payload.identity as CanonicalJson)
+      === canonicalizeVaultJson(identity as CanonicalJson)
+  } catch {
+    sameIdentity = false
+  }
+  if (!sameIdentity) fail('identity-mismatch')
+  return payload
+}
+
 async function manifestFingerprintsMatch(manifest: OrganizationApproverManifest): Promise<boolean> {
   const signing = decode(manifest.signingPublicKey, 'manifest-fingerprint-mismatch', 32)
-  const message = decode(manifest.messagePublicKey, 'manifest-fingerprint-mismatch', 32)
-  return equalBytes(await fingerprint(signing, VAULT_KEY_KIND.approverEd25519),
+  const suite = manifestMessageSuite(manifest)
+  const message = decode(manifest.messagePublicKey, 'manifest-fingerprint-mismatch', MESSAGE_PUBLIC_KEY_BYTES[suite])
+  return equalBytes(await signingKeyFingerprint(signing),
     decode(manifest.signingKeyFingerprint, 'manifest-fingerprint-mismatch', 32))
-    && equalBytes(await fingerprint(message, VAULT_KEY_KIND.approverX25519),
+    && equalBytes(await messageKeyFingerprint(message, suite),
       decode(manifest.messageKeyFingerprint, 'manifest-fingerprint-mismatch', 32))
 }
 
@@ -609,21 +711,22 @@ export interface ApproverMemberAuthority {
   organizationId: string
   memberId: string
   memberKeyVersion: number
-  memberPrivateKey: Uint8Array
+  /** The in-memory Member key with the suite Identity publishes for it. */
+  memberKey: RecipientPrivateKey
 }
 
-function approverWrapContext(descriptor: ApproverKeyWrapDescriptor): X25519WrapperContext {
+/** The approver wrap descriptor is flat on the wire; its suite is the recipient Member key's published suite. */
+function approverWrapDescriptor(descriptor: ApproverKeyWrapDescriptor, keySuiteId: string): KeyWrapperDescriptorContract {
   return {
     protocolVersion: PROTOCOL_VERSION,
-    wrapperSuiteId: X25519_SEALED_BOX_V1,
-    purpose: descriptor.purpose as typeof WRAPPER_PURPOSE.approverMessagePrivateKey,
-    organizationId: descriptor.organizationId,
-    memberId: descriptor.memberId,
-    resourceRevision: BigInt(descriptor.resourceRevision),
+    wrapperSuiteId: keySuiteId,
+    purpose: descriptor.purpose,
+    scope: { organizationId: descriptor.organizationId, memberId: descriptor.memberId },
+    resourceRevision: descriptor.resourceRevision,
     wrappedKeyVersion: descriptor.wrappedKeyVersion,
-    recipientKeyKind: VAULT_KEY_KIND.memberX25519,
+    recipientKeyKind: descriptor.recipientKeyKind,
     recipientKeyVersion: descriptor.recipientKeyVersion,
-    recipientFingerprint: decode(descriptor.recipientFingerprint, 'approver-wrap-invalid', 32),
+    recipientFingerprint: descriptor.recipientFingerprint,
   }
 }
 
@@ -635,9 +738,12 @@ export async function openOwnApproverKeys(
 ): Promise<OpenedApproverKeys> {
   await verifyApproverManifest(manifest, authority.organizationId)
   const sodium = await loadSodium()
-  const memberPublicKey = sodium.crypto_scalarmult_base(authority.memberPrivateKey)
-  const memberFingerprint = encodeBase64Url(await fingerprint(memberPublicKey, VAULT_KEY_KIND.memberX25519))
-  const purposes = [WRAPPER_PURPOSE.approverMessagePrivateKey, WRAPPER_PURPOSE.approverSigningSeed]
+  const memberPublicKey = await derivePublicKeyFor(authority.memberKey)
+  const memberFingerprint = recipientFingerprint({
+    keySuiteId: authority.memberKey.keySuiteId, keyKind: RECIPIENT_KEY_KIND.memberEncryption, publicKey: memberPublicKey,
+  })
+  wipe(memberPublicKey)
+  const purposes = [KEY_WRAPPER_PURPOSE.approverMessagePrivateKey, KEY_WRAPPER_PURPOSE.approverSigningPrivateKey]
   if (wraps.length !== 2 || purposes.some((purpose) => wraps.filter((wrap) => wrap.descriptor.purpose === purpose).length !== 1)) {
     fail('approver-not-recipient')
   }
@@ -645,10 +751,11 @@ export async function openOwnApproverKeys(
   try {
     for (const wrap of wraps) {
       const descriptor = wrap.descriptor
-      if (descriptor.scopeBitmap !== APPROVER_WRAP_SCOPE_BITMAP
+      if ((descriptor.wrapperSuiteId ?? KEY_WRAPPER_SUITE.legacy) !== authority.memberKey.keySuiteId
+        || descriptor.scopeBitmap !== APPROVER_WRAP_SCOPE_BITMAP
         || descriptor.organizationId !== authority.organizationId
         || descriptor.memberId !== authority.memberId
-        || descriptor.recipientKeyKind !== VAULT_KEY_KIND.memberX25519
+        || descriptor.recipientKeyKind !== RECIPIENT_KEY_KIND.memberEncryption
         || descriptor.recipientKeyVersion !== authority.memberKeyVersion
         || descriptor.recipientFingerprint !== memberFingerprint
         || descriptor.wrappedKeyVersion !== manifest.keyVersion
@@ -657,18 +764,24 @@ export async function openOwnApproverKeys(
         fail('approver-not-recipient')
       }
       try {
-        opened.set(descriptor.purpose, await openKeyFromX25519Recipient(
-          decode(wrap.encodedSealedKeyPackage, 'approver-wrap-invalid'),
-          memberPublicKey, authority.memberPrivateKey, approverWrapContext(descriptor),
-        ))
+        opened.set(descriptor.purpose, await unwrapKeyForRecipient({
+          descriptor: approverWrapDescriptor(descriptor, authority.memberKey.keySuiteId),
+          encodedSealedKeyPackage: wrap.encodedSealedKeyPackage,
+        }, authority.memberKey, RECIPIENT_KEY_KIND.memberEncryption))
       } catch (error) {
         if (error instanceof AgentSubmissionCryptoError) throw error
         fail('approver-wrap-invalid')
       }
     }
-    const messagePrivateKey = opened.get(WRAPPER_PURPOSE.approverMessagePrivateKey)!
-    const signingSeed = opened.get(WRAPPER_PURPOSE.approverSigningSeed)!
-    const messagePublicKey = sodium.crypto_scalarmult_base(messagePrivateKey)
+    const messagePrivateKey = opened.get(KEY_WRAPPER_PURPOSE.approverMessagePrivateKey)!
+    const signingSeed = opened.get(KEY_WRAPPER_PURPOSE.approverSigningPrivateKey)!
+    const messageKeySuiteId = manifestMessageSuite(manifest)
+    let messagePublicKey: Uint8Array
+    try {
+      messagePublicKey = await deriveRecipientPublicKey(messageKeySuiteId, messagePrivateKey)
+    } catch {
+      fail('manifest-fingerprint-mismatch')
+    }
     const signing = sodium.crypto_sign_seed_keypair(signingSeed)
     try {
       if (encodeBase64Url(messagePublicKey) !== manifest.messagePublicKey
@@ -685,6 +798,7 @@ export async function openOwnApproverKeys(
       messagePublicKey,
       messagePrivateKey,
       messageKeyFingerprint: manifest.messageKeyFingerprint,
+      messageKeySuiteId,
       signingSeed,
     }
   } finally {
@@ -724,7 +838,7 @@ export interface ApproverKeySetChangeInput {
   organizationId: string
   /** The caller; must be a listed approver so the change never locks them out. */
   memberId: string
-  memberPrivateKey: Uint8Array
+  memberKey: RecipientPrivateKey
   challenge: ApproverKeyChallenge
   /** Required except for bootstrap: the last committed manifest. */
   currentManifest?: OrganizationApproverManifest
@@ -746,25 +860,42 @@ async function sealApproverWraps(
 ): Promise<ApproverKeyWrap[]> {
   const wraps: ApproverKeyWrap[] = []
   for (const recipient of recipients) {
-    const recipientPublicKey = decode(recipient.memberPublicKey, 'invalid-field', 32)
-    for (const [purpose, key] of [
-      [WRAPPER_PURPOSE.approverMessagePrivateKey, keys.messagePrivateKey],
-      [WRAPPER_PURPOSE.approverSigningSeed, keys.signingSeed],
-    ] as const) {
-      const descriptor: ApproverKeyWrapDescriptor = {
-        purpose,
-        scopeBitmap: APPROVER_WRAP_SCOPE_BITMAP,
-        organizationId,
-        memberId: recipient.memberId,
-        resourceRevision: approverSetRevision,
-        wrappedKeyVersion: keyVersion,
-        recipientKeyKind: VAULT_KEY_KIND.memberX25519,
-        recipientKeyVersion: recipient.memberKeyVersion,
-        recipientFingerprint: recipient.memberKeyFingerprint,
+    const keySuiteId = recipient.memberKeySuiteId ?? KEY_WRAPPER_SUITE.legacy
+    const recipientPublicKey = decode(recipient.memberPublicKey, 'invalid-field')
+    try {
+      for (const [purpose, key] of [
+        [KEY_WRAPPER_PURPOSE.approverMessagePrivateKey, keys.messagePrivateKey],
+        [KEY_WRAPPER_PURPOSE.approverSigningPrivateKey, keys.signingSeed],
+      ] as const) {
+        const wrapped = await wrapKeyForRecipient(key, {
+          keySuiteId, keyKind: RECIPIENT_KEY_KIND.memberEncryption,
+          keyVersion: recipient.memberKeyVersion, publicKey: recipientPublicKey,
+        }, {
+          purpose,
+          scope: { organizationId, memberId: recipient.memberId },
+          resourceRevision: approverSetRevision,
+          wrappedKeyVersion: keyVersion,
+        })
+        // Rejects a listed public key that does not reproduce its listed fingerprint.
+        if (wrapped.descriptor.recipientFingerprint !== recipient.memberKeyFingerprint) fail('approver-not-recipient')
+        wraps.push({
+          descriptor: {
+            wrapperSuiteId: keySuiteId,
+            purpose,
+            scopeBitmap: APPROVER_WRAP_SCOPE_BITMAP,
+            organizationId,
+            memberId: recipient.memberId,
+            resourceRevision: approverSetRevision,
+            wrappedKeyVersion: keyVersion,
+            recipientKeyKind: RECIPIENT_KEY_KIND.memberEncryption,
+            recipientKeyVersion: recipient.memberKeyVersion,
+            recipientFingerprint: recipient.memberKeyFingerprint,
+          },
+          encodedSealedKeyPackage: wrapped.encodedSealedKeyPackage,
+        })
       }
-      // Rejects a listed public key that does not reproduce its listed fingerprint.
-      const sealed = await sealKeyToX25519Recipient(key, recipientPublicKey, approverWrapContext(descriptor))
-      wraps.push({ descriptor, encodedSealedKeyPackage: encodeBase64Url(sealed) })
+    } finally {
+      wipe(recipientPublicKey)
     }
   }
   return wraps
@@ -777,26 +908,33 @@ async function sealApproverWraps(
 export async function buildApproverKeySetChange(input: ApproverKeySetChangeInput): Promise<ApproverKeySetChange> {
   const sodium = await loadSodium()
   const { challenge, kind } = input
-  const memberPublicKey = sodium.crypto_scalarmult_base(input.memberPrivateKey)
-  const memberFingerprint = encodeBase64Url(await fingerprint(memberPublicKey, VAULT_KEY_KIND.memberX25519))
+  const memberPublicKey = await derivePublicKeyFor(input.memberKey)
+  const memberFingerprint = recipientFingerprint({
+    keySuiteId: input.memberKey.keySuiteId, keyKind: RECIPIENT_KEY_KIND.memberEncryption, publicKey: memberPublicKey,
+  })
+  wipe(memberPublicKey)
   if (!challenge.approvers.some((approver) => approver.memberId === input.memberId
     && approver.memberKeyFingerprint === memberFingerprint)) fail('approver-not-recipient')
   if (kind !== 'bootstrap' && !input.currentManifest) fail('missing-field')
   if ((kind === 'addApprovers' || kind === 'rotate') && !input.currentKeys) fail('missing-field')
 
   const reuseKeys = kind === 'addApprovers'
-  const messagePrivateKey = reuseKeys ? new Uint8Array(input.currentKeys!.messagePrivateKey) : sodium.randombytes_buf(32)
+  // New key sets always use the active suite; adding approvers keeps the published key and its schema.
+  const messageKeySuiteId = reuseKeys ? input.currentKeys!.messageKeySuiteId : KEY_WRAPPER_SUITE.active
+  const messagePrivateKey = reuseKeys
+    ? new Uint8Array(input.currentKeys!.messagePrivateKey) : (await generateRecipientKeyPair()).privateKey
   const signingSeed = reuseKeys ? new Uint8Array(input.currentKeys!.signingSeed) : sodium.randombytes_buf(32)
   const signing = sodium.crypto_sign_seed_keypair(signingSeed)
   const previousSigning = kind === 'rotate' ? sodium.crypto_sign_seed_keypair(input.currentKeys!.signingSeed) : null
   try {
-    const messagePublicKey = sodium.crypto_scalarmult_base(messagePrivateKey)
+    const messagePublicKey = await deriveRecipientPublicKey(messageKeySuiteId, messagePrivateKey)
+    const successor = messageKeySuiteId !== KEY_WRAPPER_SUITE.legacy
     const keyVersion = kind === 'bootstrap' ? 1
       : reuseKeys ? input.currentManifest!.keyVersion : input.currentManifest!.keyVersion + 1
     const manifestRevision = kind === 'bootstrap' ? '1'
       : (BigInt(input.currentManifest!.manifestRevision) + 1n).toString()
     const unsigned: Omit<OrganizationApproverManifest, 'signature' | 'continuitySignature'> = {
-      schema: APPROVER_MANIFEST_SCHEMA,
+      schema: successor ? APPROVER_MANIFEST_SCHEMA_V2 : APPROVER_MANIFEST_SCHEMA,
       contractVersion: SUBMISSION_CONTRACT_VERSION,
       protocolVersion: PROTOCOL_VERSION,
       organizationId: input.organizationId,
@@ -805,9 +943,10 @@ export async function buildApproverKeySetChange(input: ApproverKeySetChangeInput
       approverSetRevision: challenge.approverSetRevision,
       approverSetDigest: await computeApproverSetDigest(challenge.approvers),
       messagePublicKey: encodeBase64Url(messagePublicKey),
-      messageKeyFingerprint: encodeBase64Url(await fingerprint(messagePublicKey, VAULT_KEY_KIND.approverX25519)),
+      messageKeyFingerprint: encodeBase64Url(await messageKeyFingerprint(messagePublicKey, messageKeySuiteId)),
+      ...(successor ? { messageKeySuiteId } : {}),
       signingPublicKey: encodeBase64Url(signing.publicKey),
-      signingKeyFingerprint: encodeBase64Url(await fingerprint(signing.publicKey, VAULT_KEY_KIND.approverEd25519)),
+      signingKeyFingerprint: encodeBase64Url(await signingKeyFingerprint(signing.publicKey)),
       ...(kind === 'rotate' ? { previousSigningKeyFingerprint: input.currentManifest!.signingKeyFingerprint } : {}),
       issuedAt: challenge.issuedAt,
     }

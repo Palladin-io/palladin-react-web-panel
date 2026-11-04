@@ -19,7 +19,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../auth', () => ({ useAuthStore: { getState: () => mocks.state } }))
-vi.mock('../../shared/api/account-api', () => ({ getAccount: mocks.getAccount }))
+vi.mock('../../shared/api/account-api', () => ({
+  memberKeySuiteOf: (account: { memberPublicKeySuiteId?: string | null }) => account.memberPublicKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount: mocks.getAccount }))
 vi.mock('./api/submissions-api', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./api/submissions-api')>()),
   getApproverKeys: mocks.getApproverKeys,
@@ -85,7 +86,8 @@ describe('nextApproverKeyAction', () => {
 describe('currentMemberAuthority', () => {
   it('combines the JWT organization, Identity key version and the in-memory Member key', async () => {
     await expect(currentMemberAuthority()).resolves.toEqual({
-      organizationId: ORG, memberId: USER, memberKeyVersion: 2, memberPrivateKey: mocks.state.privateKey,
+      organizationId: ORG, memberId: USER, memberKeyVersion: 2,
+      memberKey: { privateKey: mocks.state.privateKey, keySuiteId: 'palladin-x25519-sealed-box-v1' },
     })
   })
 

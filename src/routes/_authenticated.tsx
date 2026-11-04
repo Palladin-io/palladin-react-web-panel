@@ -42,6 +42,7 @@ import {
 } from '../features/notifications'
 import { MemberSyncProvider, RotationProvider } from '../features/vaults'
 import { ApproverKeyReconciler } from '../features/submissions'
+import { SecurityUpgradeGate } from '../features/security-upgrade'
 
 export const Route = createFileRoute('/_authenticated')({
   staticData: { consentSession: true },
@@ -159,47 +160,49 @@ function AuthenticatedContent() {
   if (emailUnverified) return null
 
   return (
-    <MemberSyncProvider
-      // The access token is deliberately memory-only and can be absent after
-      // a reload. Member sync may safely start once the Vault is unlocked;
-      // the API client restores the access token through the persisted refresh
-      // token on its first authenticated request. Gating on accessToken here
-      // otherwise leaves the decrypted session permanently stuck in `idle`.
-      enabled={!isVaultLocked}
-      // Prefer the authenticated account response after a cold refresh. The
-      // persisted auth hint may predate the refreshed token, while `/account`
-      // is also the authoritative source used by the unlock operation.
-      userId={memberId}
-      memberPrivateKey={memberPrivateKey}
-    >
-      {standaloneAuthSurface ? (
-        <Outlet />
-      ) : (
-        <RotationProvider
-          enabled={Boolean(accessToken) && !isVaultLocked}
-          memberId={memberId}
-          memberPrivateKey={memberPrivateKey}
-        >
-          <SignalRProvider>
-            <ApproverKeyReconciler />
-            <div
-              className="app-shell flex h-dvh overflow-hidden"
-              data-palladin-ignore="true"
-              style={{ background: 'var(--cv-page-bg)' }}
-            >
-              <AppSidebar currentPath={sidebarPath} />
-              <main className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                <AppNavbar displayName={account.data?.displayName || account.data?.email} />
-                <PrivacyPrompt fallback={<WaitlistDeveloperBenefitDialog />} />
-                <div className="app-content subtle-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
-                  <Outlet />
-                </div>
-              </main>
-            </div>
-          </SignalRProvider>
-        </RotationProvider>
-      )}
-    </MemberSyncProvider>
+    <SecurityUpgradeGate>
+      <MemberSyncProvider
+        // The access token is deliberately memory-only and can be absent after
+        // a reload. Member sync may safely start once the Vault is unlocked;
+        // the API client restores the access token through the persisted refresh
+        // token on its first authenticated request. Gating on accessToken here
+        // otherwise leaves the decrypted session permanently stuck in `idle`.
+        enabled={!isVaultLocked}
+        // Prefer the authenticated account response after a cold refresh. The
+        // persisted auth hint may predate the refreshed token, while `/account`
+        // is also the authoritative source used by the unlock operation.
+        userId={memberId}
+        memberPrivateKey={memberPrivateKey}
+      >
+        {standaloneAuthSurface ? (
+          <Outlet />
+        ) : (
+          <RotationProvider
+            enabled={Boolean(accessToken) && !isVaultLocked}
+            memberId={memberId}
+            memberPrivateKey={memberPrivateKey}
+          >
+            <SignalRProvider>
+              <ApproverKeyReconciler />
+              <div
+                className="app-shell flex h-dvh overflow-hidden"
+                data-palladin-ignore="true"
+                style={{ background: 'var(--cv-page-bg)' }}
+              >
+                <AppSidebar currentPath={sidebarPath} />
+                <main className="relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                  <AppNavbar displayName={account.data?.displayName || account.data?.email} />
+                  <PrivacyPrompt fallback={<WaitlistDeveloperBenefitDialog />} />
+                  <div className="app-content subtle-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
+                    <Outlet />
+                  </div>
+                </main>
+              </div>
+            </SignalRProvider>
+          </RotationProvider>
+        )}
+      </MemberSyncProvider>
+    </SecurityUpgradeGate>
   )
 }
 

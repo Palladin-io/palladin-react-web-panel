@@ -20,7 +20,7 @@ const mocks = vi.hoisted(() => ({
   privateKey: new Uint8Array(32).fill(7) as Uint8Array | null,
 }))
 
-vi.mock('../auth', () => ({ useAuthStore: { getState: () => ({
+vi.mock('../auth', () => ({ memberKeyFor: (privateKey: Uint8Array) => ({ privateKey, keySuiteId: 'palladin-x25519-sealed-box-v1' }), useAuthStore: { getState: () => ({
   privateKey: mocks.privateKey, userId: MEMBER,
   accessToken: `h.${Buffer.from(JSON.stringify({ org_id: ORG })).toString('base64url')}.s`,
 }) } }))
@@ -218,7 +218,7 @@ describe('approveAsUpdate', () => {
 
   it('opens the target with the Member-bound Vault projection and reuses that Vault for the revision', async () => {
     await approveAsUpdate({ submissionId: 's', vaultId: VAULT, entryId: ENTRY, expectedEntryRevision: '7', payload: payload('update', { password: 'n' }) })
-    expect(mocks.openVaultProjection).toHaveBeenCalledWith(expect.objectContaining({ id: VAULT }), mocks.privateKey, MEMBER)
+    expect(mocks.openVaultProjection).toHaveBeenCalledWith(expect.objectContaining({ id: VAULT }), { privateKey: mocks.privateKey, keySuiteId: 'palladin-x25519-sealed-box-v1' }, MEMBER)
     expect(mocks.prepareCanonicalEntryUpdate.mock.calls[0][1].vault).toMatchObject({ id: VAULT, organizationId: ORG })
   })
 

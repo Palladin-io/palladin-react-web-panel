@@ -1,19 +1,22 @@
 import { VAULT_XCHACHA20_POLY1305_V1 } from './crypto-suite'
 import { ENVELOPE_PURPOSE } from './envelope'
+import { generateRecipientKeyPair } from '@palladin/crypto'
 import { toBase64Url } from './encoding'
 import { deriveVaultSubkey } from './hkdf'
 import { loadSodium, wipe } from './sodium'
 import { encodeMemberVaultMetadata, type MemberVaultMetadataV1 } from './vault-plaintext'
 import { sealVaultEnvelope, type EnvelopeDescriptorContract, type VaultEnvelopeContract } from './vault-envelope'
 import {
-  computeVaultKeyFingerprint,
-  sealKeyToX25519Recipient,
-  VAULT_KEY_KIND,
-  WRAPPER_PURPOSE,
-  X25519_SEALED_BOX_V1,
+  computeSigningKeyFingerprint,
+  derivePublicKeyFor,
+  KEY_WRAPPER_PURPOSE,
+  RECIPIENT_KEY_KIND,
+  recipientFingerprint,
+  SIGNING_KEY_KIND,
+  wrapKeyForRecipient,
   type MemberVaultKeyEnvelopeContract,
-  type X25519WrapperContext,
-} from './x25519-wrapper'
+  type RecipientPrivateKey,
+} from './key-wrapper'
 
 const PROTOCOL_VERSION = 2
 const INITIAL_VERSION = 1
@@ -23,14 +26,15 @@ export interface CreateVaultProtocolInput {
   organizationId: string
   memberId: string
   memberKeyVersion: number
-  memberPrivateKey: Uint8Array
+  memberKey: RecipientPrivateKey
   metadata: MemberVaultMetadataV1
 }
 
 export interface VaultPublicKeyContract {
   protocolVersion: number
-  schemeId: 'palladin-x25519-v1' | 'palladin-ed25519-v1'
-  keyKind: 1 | 2
+  /** Key-wrapper suite id for the agent message key; `palladin-ed25519-v1` for the signing key. */
+  schemeId: string
+  keyKind: 'agentMessage' | 'manifestSigning'
   keyVersion: number
   encodedPublicKey: string
   fingerprint: string
@@ -103,27 +107,23 @@ export async function createVaultProtocolPayload(
   const sodium = await loadSodium()
   const vaultKey = sodium.randombytes_buf(32)
   const discoveryKey = sodium.randombytes_buf(32)
-  const memberPublicKey = sodium.crypto_scalarmult_base(input.memberPrivateKey)
-  const agentMessage = sodium.crypto_box_keypair()
+  const memberPublicKey = await derivePublicKeyFor(input.memberKey)
+  const agentMessage = await generateRecipientKeyPair()
   const manifestSigning = sodium.crypto_sign_keypair()
   const metadataPlaintext = encodeMemberVaultMetadata(input.metadata)
   try {
-    const recipientFingerprint = await computeVaultKeyFingerprint(memberPublicKey, VAULT_KEY_KIND.memberX25519)
-    const wrapperContext: X25519WrapperContext = {
-      protocolVersion: PROTOCOL_VERSION,
-      wrapperSuiteId: X25519_SEALED_BOX_V1,
-      purpose: WRAPPER_PURPOSE.memberVaultKey,
-      organizationId: input.organizationId,
-      vaultId: input.vaultId,
-      memberId: input.memberId,
-      resourceRevision: INITIAL_VERSION,
+    const creatorWrappedVaultKey = await wrapKeyForRecipient(vaultKey, {
+      keySuiteId: input.memberKey.keySuiteId,
+      keyKind: RECIPIENT_KEY_KIND.memberEncryption,
+      keyVersion: input.memberKeyVersion,
+      publicKey: memberPublicKey,
+    }, {
+      purpose: KEY_WRAPPER_PURPOSE.memberVaultKey,
+      scope: { organizationId: input.organizationId, vaultId: input.vaultId, memberId: input.memberId },
+      resourceRevision: String(INITIAL_VERSION),
       wrappedKeyVersion: INITIAL_VERSION,
       memberKeyGeneration: INITIAL_VERSION,
-      recipientKeyKind: VAULT_KEY_KIND.memberX25519,
-      recipientKeyVersion: input.memberKeyVersion,
-      recipientFingerprint,
-    }
-    const sealedVaultKey = await sealKeyToX25519Recipient(vaultKey, memberPublicKey, wrapperContext)
+    })
     const wrapping = { wrappingVaultKeyVersion: INITIAL_VERSION }
     const [memberVaultMetadata, encryptedDiscoveryKey, encryptedAgentPrivate, encryptedSigningPrivate] = await Promise.all([
       sealWithVaultSubkey(vaultKey, descriptor(input, ENVELOPE_PURPOSE.memberVaultMetadata, INITIAL_VERSION, {}), metadataPlaintext),
@@ -131,45 +131,83 @@ export async function createVaultProtocolPayload(
       sealWithVaultSubkey(vaultKey, descriptor(input, ENVELOPE_PURPOSE.agentMessagePrivateByVk, INITIAL_VERSION, wrapping), agentMessage.privateKey),
       sealWithVaultSubkey(vaultKey, descriptor(input, ENVELOPE_PURPOSE.manifestPrivateByVk, INITIAL_VERSION, wrapping), manifestSigning.privateKey),
     ])
-    const [agentFingerprint, signingFingerprint] = await Promise.all([
-      computeVaultKeyFingerprint(agentMessage.publicKey, VAULT_KEY_KIND.vaultMessageX25519),
-      computeVaultKeyFingerprint(manifestSigning.publicKey, VAULT_KEY_KIND.vaultSigningEd25519),
-    ])
+    const signingFingerprint = computeSigningKeyFingerprint(manifestSigning.publicKey, SIGNING_KEY_KIND.vaultSigning)
     return {
       vaultId: input.vaultId,
       memberVaultMetadata,
       currentKeyEpoch: { vaultKeyVersion: 1, vdkVersion: 1, agentMessageKeyVersion: 1, manifestSigningKeyVersion: 1 },
-      creatorVaultKey: {
-        wrappedVaultKey: {
-          descriptor: {
-            protocolVersion: PROTOCOL_VERSION,
-            wrapperSuiteId: X25519_SEALED_BOX_V1,
-            purpose: WRAPPER_PURPOSE.memberVaultKey,
-            scope: { organizationId: input.organizationId, vaultId: input.vaultId, memberId: input.memberId },
-            resourceRevision: '1', wrappedKeyVersion: 1, memberKeyGeneration: 1,
-            recipientKeyKind: VAULT_KEY_KIND.memberX25519,
-            recipientKeyVersion: input.memberKeyVersion,
-            recipientFingerprint: toBase64Url(recipientFingerprint), parentDescriptorHash: null,
-          },
-          encodedSealedKeyPackage: toBase64Url(sealedVaultKey),
-        },
-      },
+      creatorVaultKey: { wrappedVaultKey: creatorWrappedVaultKey },
       discoveryKey: encryptedDiscoveryKey,
       vaultPrivateKeys: [encryptedAgentPrivate, encryptedSigningPrivate],
       vaultAgentMessagePublicKey: {
-        protocolVersion: 2, schemeId: 'palladin-x25519-v1', keyKind: 1, keyVersion: 1,
-        encodedPublicKey: toBase64Url(agentMessage.publicKey), fingerprint: toBase64Url(agentFingerprint),
+        protocolVersion: 2, schemeId: agentMessage.keySuiteId, keyKind: 'agentMessage', keyVersion: 1,
+        encodedPublicKey: toBase64Url(agentMessage.publicKey),
+        fingerprint: recipientFingerprint({
+          keySuiteId: agentMessage.keySuiteId, keyKind: RECIPIENT_KEY_KIND.vaultAgentMessage, publicKey: agentMessage.publicKey,
+        }),
       },
       vaultManifestSigningPublicKey: {
-        protocolVersion: 2, schemeId: 'palladin-ed25519-v1', keyKind: 2, keyVersion: 1,
+        protocolVersion: 2, schemeId: 'palladin-ed25519-v1', keyKind: 'manifestSigning', keyVersion: 1,
         encodedPublicKey: toBase64Url(manifestSigning.publicKey), fingerprint: toBase64Url(signingFingerprint),
       },
     }
   } finally {
-    wipe(vaultKey); wipe(discoveryKey); wipe(memberPublicKey)
-    // libsodium returns realm-owned views for keypair secrets; overwrite those
-    // exact backing stores instead of passing them back through the wrapper.
-    agentMessage.privateKey.fill(0); manifestSigning.privateKey.fill(0)
+    wipe(vaultKey); wipe(discoveryKey); wipe(memberPublicKey); wipe(agentMessage.privateKey)
+    // libsodium returns realm-owned views for keypair secrets; overwrite that
+    // exact backing store instead of passing it back through the wrapper.
+    manifestSigning.privateKey.fill(0)
     metadataPlaintext.fill(0)
+  }
+}
+
+export interface AgentMessageKeyMigration {
+  /** New Vault Agent message private key (32-byte seed); the caller signs Agent manifests with it, then wipes it. */
+  privateKey: Uint8Array
+  keySuiteId: string
+  privateKeyEnvelope: VaultEnvelopeContract<{ wrappingVaultKeyVersion: number }>
+  publicKey: VaultPublicKeyContract
+}
+
+/**
+ * Agent-message-only rotation (cause ProtocolMigration): a fresh active-suite
+ * message key at `targetKeyVersion`, wrapped under the unchanged current VK as
+ * the next revision of the Vault's agent-message private-key envelope.
+ */
+export async function createAgentMessageKeyMigration(input: {
+  organizationId: string
+  vaultId: string
+  vaultKey: Uint8Array
+  vaultKeyVersion: number
+  memberKeyGeneration: number
+  currentEnvelopeRevision: string
+  targetKeyVersion: number
+}): Promise<AgentMessageKeyMigration> {
+  const pair = await generateRecipientKeyPair()
+  try {
+    const privateKeyEnvelope = await sealWithVaultSubkey(input.vaultKey, {
+      protocolVersion: PROTOCOL_VERSION,
+      cryptoSuiteId: VAULT_XCHACHA20_POLY1305_V1,
+      purpose: ENVELOPE_PURPOSE.agentMessagePrivateByVk,
+      scope: { organizationId: input.organizationId, vaultId: input.vaultId },
+      resourceRevision: (BigInt(input.currentEnvelopeRevision) + 1n).toString(),
+      keyVersion: input.targetKeyVersion,
+      memberKeyGeneration: input.memberKeyGeneration,
+      binding: { wrappingVaultKeyVersion: input.vaultKeyVersion },
+    }, pair.privateKey)
+    return {
+      privateKey: pair.privateKey,
+      keySuiteId: pair.keySuiteId,
+      privateKeyEnvelope,
+      publicKey: {
+        protocolVersion: 2, schemeId: pair.keySuiteId, keyKind: 'agentMessage', keyVersion: input.targetKeyVersion,
+        encodedPublicKey: toBase64Url(pair.publicKey),
+        fingerprint: recipientFingerprint({
+          keySuiteId: pair.keySuiteId, keyKind: RECIPIENT_KEY_KIND.vaultAgentMessage, publicKey: pair.publicKey,
+        }),
+      },
+    }
+  } catch (error) {
+    wipe(pair.privateKey)
+    throw error
   }
 }

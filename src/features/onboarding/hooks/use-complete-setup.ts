@@ -1,19 +1,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../auth'
-import { deriveKey, RECOVERY_KEY_SALT_BYTES } from '../../../shared/crypto/argon2'
 import {
-  deriveIdentityV1,
-  IDENTITY_KDF_PROFILE,
-  IDENTITY_KDF_PROFILE_ID,
-  IDENTITY_KDF_SALT_BYTES,
-} from '../../../shared/crypto/identity-kdf'
+  createAccountSecurityMaterial,
+  generateMemberKeyPair,
+  wipeAccountSecurityMaterial,
+  type AccountSecurityMaterial,
+} from '../../../shared/crypto/account-security'
+import { emergencyKitMaterial, storeDeviceSecretKey, type EmergencyKitMaterial } from '../../../shared/crypto/secret-key'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
-import {
-  encryptWithKey,
-  generateKeyPair,
-  randomBytes,
-  wipe,
-} from '../../../shared/crypto/sodium'
+import { wipe } from '../../../shared/crypto/sodium'
 import { ACCOUNT_QUERY_KEY, getAccount, setupAccount } from '../../../shared/api/account-api'
 import i18n from '../../../shared/lib/i18n'
 import { joinMnemonic } from '../../../shared/lib/mnemonic'
@@ -24,6 +19,7 @@ export interface CompleteSetupInput {
   recoveryMnemonic: string[]
 }
 
+/** First key setup (OAuth accounts): Identity v2 with a new Secret Key and an X-Wing Member key. */
 export function useCompleteSetup() {
   const queryClient = useQueryClient()
 
@@ -31,67 +27,44 @@ export function useCompleteSetup() {
     mutationFn: async ({
       masterPassword,
       recoveryMnemonic,
-    }: CompleteSetupInput) => {
+    }: CompleteSetupInput): Promise<EmergencyKitMaterial> => {
       const account = await getAccount()
-      let kdfSalt: Uint8Array | null = null
-      let identity: Awaited<ReturnType<typeof deriveIdentityV1>> | null = null
-      let keyPair: Awaited<ReturnType<typeof generateKeyPair>> | null = null
-      let recoverySalt: Uint8Array | null = null
-      let recoveryKey: Uint8Array | null = null
-      let encryptedPrivateKey: Uint8Array | null = null
-      let encryptedPrivateKeyByRecovery: Uint8Array | null = null
-
+      let memberKey: Awaited<ReturnType<typeof generateMemberKeyPair>> | null = null
+      let material: AccountSecurityMaterial | null = null
+      let kit: EmergencyKitMaterial
       try {
-        kdfSalt = await randomBytes(IDENTITY_KDF_SALT_BYTES)
-        identity = await deriveIdentityV1(
-          masterPassword,
-          account.userId,
-          kdfSalt,
-        )
-        keyPair = await generateKeyPair()
-        recoverySalt = await randomBytes(RECOVERY_KEY_SALT_BYTES)
-        recoveryKey = await deriveKey(joinMnemonic(recoveryMnemonic), recoverySalt)
-        encryptedPrivateKey = await encryptWithKey(
-          keyPair.privateKey,
-          identity.masterKey,
-        )
-        encryptedPrivateKeyByRecovery = await encryptWithKey(
-          keyPair.privateKey,
-          recoveryKey,
-        )
-
+        memberKey = await generateMemberKeyPair()
+        material = await createAccountSecurityMaterial({
+          accountId: account.userId,
+          password: masterPassword,
+          recoveryPhrase: joinMnemonic(recoveryMnemonic),
+          memberPrivateKey: memberKey.privateKey,
+        })
+        await storeDeviceSecretKey(account.userId, material.secretKey)
         await setupAccount({
-          securityVersion: IDENTITY_KDF_PROFILE.securityVersion,
-          kdfProfileId: IDENTITY_KDF_PROFILE_ID,
-          kdfSalt: encodeBase64Url(kdfSalt),
-          recoverySalt: encodeBase64Url(recoverySalt),
-          publicKey: encodeBase64Url(keyPair.publicKey),
-          encryptedPrivateKey: encodeBase64Url(encryptedPrivateKey),
-          encryptedPrivateKeyByRecovery: encodeBase64Url(encryptedPrivateKeyByRecovery),
-          newAuthCredential: encodeBase64Url(identity.authCredential),
+          securityVersion: material.securityVersion,
+          kdfProfileId: material.kdfProfileId,
+          kdfSalt: material.kdfSalt,
+          recoverySalt: material.recoverySalt,
+          publicKeySuiteId: memberKey.keySuiteId,
+          publicKey: encodeBase64Url(memberKey.publicKey),
+          encryptedPrivateKey: material.encryptedPrivateKey,
+          encryptedPrivateKeyByRecovery: material.encryptedPrivateKeyByRecovery,
+          newAuthCredential: encodeBase64Url(material.authCredential),
         })
 
-        useAuthStore.getState().unlockVault(
-          identity.masterKey,
-          keyPair.privateKey,
-        )
+        useAuthStore.getState().unlockVault(material.masterKey, memberKey.privateKey, undefined, memberKey.keySuiteId)
+        kit = emergencyKitMaterial(account.userId, account.email, material.secretKey)
       } finally {
-        if (kdfSalt) wipe(kdfSalt)
-        if (recoverySalt) wipe(recoverySalt)
-        if (identity) {
-          wipe(identity.masterKey)
-          wipe(identity.authCredential)
-        }
-        if (recoveryKey) wipe(recoveryKey)
-        if (keyPair) wipe(keyPair.privateKey)
-        if (encryptedPrivateKey) wipe(encryptedPrivateKey)
-        if (encryptedPrivateKeyByRecovery) wipe(encryptedPrivateKeyByRecovery)
+        wipeAccountSecurityMaterial(material)
+        if (memberKey) wipe(memberKey.privateKey)
       }
 
       const privateKey = useAuthStore.getState().privateKey
       if (privateKey) {
         await createDefaultVaultSafe(privateKey, i18n.t('vault.defaultName'))
       }
+      return kit
     },
     onSuccess: () => {
       useAuthStore.getState().markOnboarded()

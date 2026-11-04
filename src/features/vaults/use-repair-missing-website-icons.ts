@@ -9,7 +9,7 @@ import { fromMemberSecret, type MemberSecretView } from '../../shared/crypto/ent
 import { wipe } from '../../shared/crypto/sodium'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { publicAssetIconReference } from '../../shared/crypto/vault-plaintext'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import { getCanonicalEntry } from './api/vault-api'
 import { getEncryptedVault } from './sync/member-sync-api'
 import { useMemberSyncStore, type DecryptedMemberVault } from './sync/member-sync-store'
@@ -116,7 +116,7 @@ export function useRepairMissingWebsiteIcons(vaultId: string, entryId?: string) 
         try {
           const detail = await getCanonicalEntry(vaultId, candidate.entryId)
           assertUnlockSession(privateKey, cryptoSessionGeneration)
-          const vaultKey = await openMemberVaultKey(encryptedVault.memberVaultKey, privateKey)
+          const vaultKey = await openMemberVaultKey(encryptedVault.memberVaultKey, memberKeyFor(privateKey))
           let previous: MemberSecretView
           try {
             previous = fromMemberSecret(await openMemberSecret(

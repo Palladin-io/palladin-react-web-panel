@@ -22,7 +22,7 @@ function token(org: string) {
   return `h.${Buffer.from(JSON.stringify({ org_id: org })).toString('base64url')}.s`
 }
 
-vi.mock('../auth', () => ({
+vi.mock('../auth', () => ({ memberKeyFor: (privateKey: Uint8Array) => ({ privateKey, keySuiteId: 'palladin-x25519-sealed-box-v1' }),
   useAuthStore: { getState: () => ({ privateKey: mocks.privateKey, accessToken: token(ORG), userId: MEMBER }) },
 }))
 vi.mock('../vaults/api/vault-api', () => ({ issueEntryCreationChallenge: async () => ({ entryId: ENTRY }), getCanonicalEntry: vi.fn() }))
@@ -64,7 +64,7 @@ beforeEach(() => {
 describe('approve-new encryption', () => {
   it('seals the approved secret under the selected Vault key so only that key opens it', async () => {
     await approveAsNewEntry({ submissionId: 's', vaultId: VAULT, label: 'Approved', payload })
-    expect(mocks.openVaultProjection).toHaveBeenCalledWith(mocks.vault, mocks.privateKey, MEMBER)
+    expect(mocks.openVaultProjection).toHaveBeenCalledWith(mocks.vault, { privateKey: mocks.privateKey, keySuiteId: 'palladin-x25519-sealed-box-v1' }, MEMBER)
     const { entry } = mocks.approve.mock.calls[0][1]
     expect(JSON.stringify(entry)).not.toContain('p-secret')
     const coordinates = { organizationId: ORG, vaultId: VAULT, entryId: ENTRY, revision: '1' }

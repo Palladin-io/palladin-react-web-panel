@@ -1,11 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../../shared/api/account-api'
-import {
-  assertIdentityKdfProfile,
-  deriveCurrentAuthCredential,
-  IDENTITY_KDF_PROFILE,
-} from '../../../shared/crypto/identity-kdf'
+import { deriveCurrentAuthCredential, identityProfileVersion } from '../../../shared/crypto/identity-kdf'
+import { loadDeviceSecretKey } from '../../../shared/crypto/secret-key'
+import { wipe } from '../../../shared/crypto/sodium'
 import { confirmTotp, disableTotp, enrollTotp } from '../api/auth-api'
 import { IncorrectCurrentPasswordError } from './use-change-master-password'
 
@@ -17,13 +15,12 @@ export interface TotpCodeInput {
 async function currentAuthCredential(currentPassword: string): Promise<string> {
   const account = await getAccount()
   if (!account.kdf) throw new Error('Account is missing versioned key material')
-  assertIdentityKdfProfile({
-    ...account.kdf,
-    memoryKiB: IDENTITY_KDF_PROFILE.memoryKiB,
-    iterations: IDENTITY_KDF_PROFILE.iterations,
-    parallelism: IDENTITY_KDF_PROFILE.parallelism,
-  })
-  return deriveCurrentAuthCredential(currentPassword, account.userId, account.kdf.kdfSalt)
+  const accountSecret = identityProfileVersion(account.kdf) === 2 ? await loadDeviceSecretKey(account.userId) : null
+  try {
+    return await deriveCurrentAuthCredential(currentPassword, account.userId, account.kdf, accountSecret)
+  } finally {
+    if (accountSecret) wipe(accountSecret)
+  }
 }
 
 async function withPasswordStepUp<T>(

@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import { getCanonicalEntry, restoreCanonicalEntry } from './api/vault-api'
 import { getEncryptedVault } from './sync/member-sync-api'
 import { useMemberSyncStore } from './sync/member-sync-store'
@@ -23,7 +23,7 @@ export function useRestoreArchivedEntries(vaultId: string) {
       if (!privateKey) throw new Error('Vault is locked')
       const vault = await getEncryptedVault(vaultId)
       if (useAuthStore.getState().privateKey !== privateKey) throw new Error('Vault was locked while restoring Entries')
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
       let discoveryKey: Uint8Array | undefined
       const restored: string[] = []
       const failed: string[] = []

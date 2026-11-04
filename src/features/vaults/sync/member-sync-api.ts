@@ -21,6 +21,7 @@ export {
   memberSecretEnvelopeSchema,
   vaultEntryKeyEnvelopeSchema,
 } from './entry-envelope-schema'
+import { KEY_WRAPPER_SUITE } from '../../../shared/crypto/key-wrapper'
 
 const MAXIMUM_SYNC_RESPONSE_BYTES = 4 * 1024 * 1024
 const syncCursor = z.string().max(2_048)
@@ -91,12 +92,13 @@ const encryptedVaultSummarySchema = z.object({
   }
 })
 
+// Agent message keys name their key-wrapper suite (recipient-key-publication).
 const vaultPublicKeySchema = z.object({
   protocolVersion: z.literal(2),
-  schemeId: z.enum(['palladin-x25519-v1', 'palladin-ed25519-v1']),
+  schemeId: z.enum([KEY_WRAPPER_SUITE.legacy, KEY_WRAPPER_SUITE.active, 'palladin-ed25519-v1']),
   keyKind: z.union([
-    z.literal('agentMessageX25519').transform(() => 1 as const),
-    z.literal('manifestSigningEd25519').transform(() => 2 as const),
+    z.literal('agentMessage').transform(() => 1 as const),
+    z.literal('manifestSigning').transform(() => 2 as const),
     z.literal(1),
     z.literal(2),
   ]),
@@ -104,7 +106,7 @@ const vaultPublicKeySchema = z.object({
   encodedPublicKey: z.string().min(1),
   fingerprint: z.string().min(1),
 }).superRefine((key, context) => {
-  if ((key.keyKind === 1 && key.schemeId !== 'palladin-x25519-v1')
+  if ((key.keyKind === 1 && key.schemeId === 'palladin-ed25519-v1')
     || (key.keyKind === 2 && key.schemeId !== 'palladin-ed25519-v1')) {
     context.addIssue({ code: 'custom', message: 'Vault public key kind does not match its scheme' })
   }
@@ -117,6 +119,7 @@ const encryptedVaultDetailSchema = encryptedVaultSummarySchema.safeExtend({
   organizationId: canonicalUuid,
   metadataRevision: canonicalU64,
   vaultAgentMessagePublicKey: vaultPublicKeySchema,
+  vaultAgentMessageKeySuiteId: z.enum([KEY_WRAPPER_SUITE.legacy, KEY_WRAPPER_SUITE.active]),
   vaultManifestSigningPublicKey: vaultPublicKeySchema,
 }).superRefine((vault, context) => {
   if (vault.metadataRevision !== vault.memberVaultMetadata.descriptor.resourceRevision) {
@@ -279,6 +282,16 @@ export interface EncryptedVaultDetail extends z.infer<typeof encryptedVaultDetai
 function vaultPresentation(vault: VaultPresentation): VaultPresentation {
   return { isDefault: vault.isDefault, createdAt: vault.createdAt, updatedAt: vault.updatedAt,
     memberCount: vault.memberCount, entryCount: vault.entryCount, activeGrantCount: vault.activeGrantCount }
+}
+
+/**
+ * Suite of the Vault Agent message key a reason is addressed to. The current
+ * version's suite is the Vault detail's `vaultAgentMessageKeySuiteId`; earlier
+ * versions predate the X-Wing successor and are legacy. A wrong suite fails the fingerprint check.
+ */
+export function vaultAgentMessageKeySuite(vault: EncryptedVaultDetail, keyVersion: number): string {
+  if (keyVersion !== vault.vaultAgentMessagePublicKey.keyVersion) return KEY_WRAPPER_SUITE.legacy
+  return vault.vaultAgentMessageKeySuiteId
 }
 
 export function parseEncryptedVaultDetail(raw: unknown): EncryptedVaultDetail {

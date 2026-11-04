@@ -1,6 +1,6 @@
 import type { GrantFieldSelectionMode } from '../../shared/types/grant-field-selection'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import { getAgent } from '../agents'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
 import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
@@ -25,6 +25,7 @@ import {
 } from './grant-methods'
 import { GRANTS_QUERY_KEY } from './query-keys'
 import { ENTRY_TYPE_CREDIT_CARD, normalizeEntryType } from '../../shared/types/entry-type'
+import { KEY_WRAPPER_SUITE } from '../../shared/crypto/key-wrapper'
 
 export class VaultLockedError extends Error {
   constructor() {
@@ -98,7 +99,7 @@ export function useApproveGrant() {
       if (detail.currentRevision !== reviewedEntryRevision) {
         throw new StaleGrantReviewError()
       }
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
       try {
         if (type === GRANT_TYPE_SCRIPT_EXECUTION) {
           if (methods.length !== 1 || methods[0] !== 'exec'
@@ -115,6 +116,7 @@ export function useApproveGrant() {
             packageRevision: '1',
             recipientAgentKeyVersion: agent.recipientKeyVersion,
             agentPublicKey: agent.publicKey,
+            agentKeySuiteId: agent.keySuiteId ?? KEY_WRAPPER_SUITE.legacy,
             vaultKey,
           })
           if (scriptPackage.scriptRevision !== reviewedEntryRevision) {
@@ -153,6 +155,7 @@ export function useApproveGrant() {
         const envelope = await buildCanonicalGrantEnvelope({
           secret: memberSecret,
           agentPublicKey: agent.publicKey,
+          agentKeySuiteId: agent.keySuiteId ?? KEY_WRAPPER_SUITE.legacy,
           organizationId: detail.organizationId, vaultId, grantId, agentId, entryId,
           entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
           memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: agent.recipientKeyVersion,

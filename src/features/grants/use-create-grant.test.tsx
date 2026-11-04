@@ -36,7 +36,9 @@ vi.mock('../../shared/crypto/vault-protocol', () => ({
 }))
 vi.mock('../../shared/crypto/entry-protocol', () => ({ openMemberSecret: mocks.decrypt }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({ buildCanonicalGrantEnvelope: mocks.produce, listGrantableFields: mocks.fields }))
-vi.mock('../../shared/crypto/x25519-wrapper', () => ({ buildAgentWrappedVaultKey: mocks.buildFull }))
+vi.mock('../../shared/crypto/key-wrapper', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../shared/crypto/key-wrapper')>(), buildAgentWrappedVaultKey: mocks.buildFull,
+}))
 vi.mock('../vaults/script-execution-package', () => ({
   buildCompleteScriptExecutionPackage: mocks.buildScriptPackage,
 }))
@@ -45,7 +47,7 @@ vi.mock('../../shared/crypto/vault-plaintext', async (original) => ({
   listGrantableFieldIds: vi.fn(() => ['value']),
 }))
 vi.mock('../../shared/crypto/sodium', () => ({ wipe: mocks.wipe }))
-vi.mock('../auth', () => ({ useAuthStore: { getState: () => ({ privateKey: mocks.privateKey }) } }))
+vi.mock('../auth', () => ({ memberKeyFor: (privateKey: Uint8Array) => ({ privateKey, keySuiteId: 'palladin-x25519-sealed-box-v1' }), useAuthStore: { getState: () => ({ privateKey: mocks.privateKey }) } }))
 
 import { useCreateGrant } from './use-create-grant'
 

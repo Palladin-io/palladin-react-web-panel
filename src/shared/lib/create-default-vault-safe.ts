@@ -1,4 +1,4 @@
-import { createDefaultVault, getAccount } from '../api/account-api'
+import { createDefaultVault, getAccount, memberKeySuiteOf } from '../api/account-api'
 import { createVaultProtocolPayload } from '../crypto/create-vault-protocol'
 import { parseJwtPayload } from './jwt'
 import { useAuthStore } from '../../features/auth'
@@ -46,7 +46,7 @@ export async function createDefaultVaultSafe(
       vaultId: challenge.vaultId,
       memberId: auth.userId,
       memberKeyVersion: account.memberKeyVersion,
-      memberPrivateKey: privateKey,
+      memberKey: { privateKey, keySuiteId: memberKeySuiteOf(account) },
       metadata: {
         schema: 'palladin.member-vault-metadata.v1',
         name,

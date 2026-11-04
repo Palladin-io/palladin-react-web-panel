@@ -1,13 +1,13 @@
+import { generateRecipientKeyPair, KEY_WRAPPER_SUITE, openKey, RECIPIENT_KEY_KIND } from '@palladin/crypto'
 import { describe, expect, it } from 'vitest'
 import { toBase64 } from './encoding'
-import { decodeBase64Url } from './vault-v2-bytes'
+import { decodeBase64Url, encodeBase64Url } from './vault-v2-bytes'
 import { decryptVaultEnvelope, encryptVaultEnvelope } from './vault-v2-envelope'
 import { deriveVaultProjectionKey } from './vault-v2-kdf'
 import { decryptMemberVaultMetadata } from './vault-v2-member-sync'
 import { createAgentDiscoveryMaterial, rewrapEntryKey, rotateVaultMetadata, vaultKeyFingerprint } from './vault-v2-rotation'
 import { canonicalizeVaultJson, verifyVaultSignature } from './vault-v2-signatures'
 import { loadSodium, randomBytes, wipe } from './sodium'
-import { openKeyFromX25519Recipient, VAULT_KEY_KIND, WRAPPER_PURPOSE, X25519_SEALED_BOX_V1 } from './x25519-wrapper'
 
 const organizationId = '11111111-1111-4111-8111-111111111111'
 const vaultId = '22222222-2222-4222-8222-222222222222'
@@ -66,42 +66,65 @@ describe('Vault rotation crypto', () => {
     } finally { wipe(currentVk); wipe(targetVk); wipe(entryDek) }
   })
 
-  it('binds an Agent VDK package and manifest to both Agent identity keys', async () => {
+  it('seals the VDK with the Agent key suite and signs the successor manifest with the message key suite', async () => {
     const sodium = await loadSodium()
-    const agentBox = sodium.crypto_box_keypair()
+    const agent = await generateRecipientKeyPair()
     const agentSigning = sodium.crypto_sign_keypair()
-    const vaultMessage = sodium.crypto_box_keypair()
+    const vaultMessage = await generateRecipientKeyPair()
     const vaultSigning = sodium.crypto_sign_keypair()
     const vdk = await randomBytes(32)
     try {
       const material = await createAgentDiscoveryMaterial({
-        agentId, x25519PublicKey: toBase64(agentBox.publicKey), ed25519PublicKey: toBase64(agentSigning.publicKey),
-        recipientKeyVersion: 9, manifestRevision: '12',
+        agentId, encryptionPublicKey: toBase64(agent.publicKey), encryptionKeySuiteId: agent.keySuiteId,
+        ed25519PublicKey: toBase64(agentSigning.publicKey), recipientKeyVersion: 9, manifestRevision: '12',
       }, { organizationId, vaultId }, {
         vdkVersion: 6, agentMessageKeyVersion: 7, manifestSigningKeyVersion: 8,
-      }, { vdk, agentMessagePrivateKey: vaultMessage.privateKey, manifestSigningPrivateKey: vaultSigning.privateKey },
-      new Date('2026-07-26T03:00:00.123Z'))
+      }, {
+        vdk, agentMessagePrivateKey: vaultMessage.privateKey, agentMessageKeySuiteId: vaultMessage.keySuiteId,
+        manifestSigningPrivateKey: vaultSigning.privateKey,
+      }, new Date('2026-07-26T03:00:00.123Z'))
 
-      expect(material.envelope.wrappedVdk.descriptor.recipientFingerprint).toBe(await vaultKeyFingerprint(agentBox.publicKey, 1))
-      expect(material.manifest.agentEd25519Fingerprint).toBe(await vaultKeyFingerprint(agentSigning.publicKey, 2))
+      expect(material.manifest).toMatchObject({
+        wrapperSuiteId: KEY_WRAPPER_SUITE.active,
+        vaultAgentMessageKeySuiteId: KEY_WRAPPER_SUITE.active,
+        vaultAgentMessagePublicKey: encodeBase64Url(vaultMessage.publicKey),
+        agentEd25519Fingerprint: await vaultKeyFingerprint(agentSigning.publicKey, 2),
+      })
       const { signature, ...unsigned } = material.manifest
       expect(await verifyVaultSignature('PLDNV2SIG:VAULT-MANIFEST:', unsigned, signature,
         decodeBase64Url(material.manifest.vaultSigningPublicKey, 32))).toBe(true)
 
-      const opened = await openKeyFromX25519Recipient(
-        decodeBase64Url(material.envelope.wrappedVdk.encodedSealedKeyPackage),
-        agentBox.publicKey, agentBox.privateKey,
-        { protocolVersion: 2, wrapperSuiteId: X25519_SEALED_BOX_V1,
-          purpose: WRAPPER_PURPOSE.agentVaultDiscoveryKey, organizationId, vaultId, agentId,
-          resourceRevision: 6, wrappedKeyVersion: 6,
-          recipientKeyKind: VAULT_KEY_KIND.agentX25519, recipientKeyVersion: 9,
-          recipientFingerprint: decodeBase64Url(material.envelope.wrappedVdk.descriptor.recipientFingerprint) },
-      )
+      const wrapped = material.envelope.wrappedVdk
+      const opened = await openKey(wrapped.descriptor, wrapped.encodedSealedKeyPackage, {
+        keySuiteId: agent.keySuiteId, keyKind: RECIPIENT_KEY_KIND.agentEncryption, keyVersion: 9,
+        publicKey: agent.publicKey, privateKey: agent.privateKey,
+      })
       expect(opened).toEqual(vdk)
       wipe(opened)
     } finally {
-      wipe(agentBox.privateKey); wipe(agentSigning.privateKey); wipe(vaultMessage.privateKey)
+      wipe(agent.privateKey); wipe(agentSigning.privateKey); wipe(vaultMessage.privateKey)
       wipe(vaultSigning.privateKey); wipe(vdk)
     }
+  })
+
+  it('keeps a legacy message key manifest without the successor field and refuses a legacy Agent key', async () => {
+    const sodium = await loadSodium()
+    const legacyAgent = sodium.crypto_box_keypair()
+    const vaultMessage = sodium.crypto_box_keypair()
+    const vaultSigning = sodium.crypto_sign_keypair()
+    const xwingAgent = await generateRecipientKeyPair()
+    const base = { ed25519PublicKey: toBase64(sodium.crypto_sign_keypair().publicKey), recipientKeyVersion: 1, manifestRevision: null }
+    const keys = {
+      vdk: await randomBytes(32), agentMessagePrivateKey: vaultMessage.privateKey,
+      agentMessageKeySuiteId: KEY_WRAPPER_SUITE.legacy, manifestSigningPrivateKey: vaultSigning.privateKey,
+    }
+    const versions = { vdkVersion: 1, agentMessageKeyVersion: 1, manifestSigningKeyVersion: 1 }
+    const material = await createAgentDiscoveryMaterial({
+      ...base, agentId, encryptionPublicKey: toBase64(xwingAgent.publicKey), encryptionKeySuiteId: xwingAgent.keySuiteId,
+    }, { organizationId, vaultId }, versions, keys)
+    expect(material.manifest).not.toHaveProperty('vaultAgentMessageKeySuiteId')
+    await expect(createAgentDiscoveryMaterial({
+      ...base, agentId, encryptionPublicKey: toBase64(legacyAgent.publicKey), encryptionKeySuiteId: KEY_WRAPPER_SUITE.legacy,
+    }, { organizationId, vaultId }, versions, keys)).rejects.toMatchObject({ code: 'key-migration-pending' })
   })
 })

@@ -2,10 +2,10 @@ import { renderHook } from '@testing-library/react'
 import { createElement, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { deriveRecipientPublicKey, deriveIdentityV2, KEY_WRAPPER_SUITE, parseSecretKey } from '@palladin/crypto'
 import { deriveKey } from '../../../shared/crypto/argon2'
-import { deriveIdentityV1 } from '../../../shared/crypto/identity-kdf'
 import { decodeBase64Url, encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
-import { decryptWithKey, loadSodium } from '../../../shared/crypto/sodium'
+import { decryptWithKey } from '../../../shared/crypto/sodium'
 import type { RegisterPayload } from '../api/auth-api'
 import { useRegister } from './use-register'
 
@@ -13,8 +13,13 @@ const revokeMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 const registerMock = vi.hoisted(() => vi.fn())
 const setTokensMock = vi.hoisted(() => vi.fn())
 const unlockVaultMock = vi.hoisted(() => vi.fn())
+const storeSecretMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
 
 vi.mock('../api/auth-api', () => ({ register: registerMock, revokeUninstalledLoginSession: revokeMock }))
+vi.mock('../../../shared/crypto/secret-key', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../../shared/crypto/secret-key')>(),
+  storeDeviceSecretKey: storeSecretMock,
+}))
 vi.mock('../../../shared/lib/create-default-vault-safe', () => ({
   createDefaultVaultSafe: vi.fn().mockResolvedValue(undefined),
 }))
@@ -47,6 +52,7 @@ describe('useRegister', () => {
     })
     setTokensMock.mockReset()
     unlockVaultMock.mockReset()
+    storeSecretMock.mockClear()
   })
 
   it('posts an authHash + auth material and never leaks the password or master key', async () => {
@@ -63,6 +69,10 @@ describe('useRegister', () => {
     // Shape: crypto material + auth credential + profile.
     expect(payload.email).toBe('user@example.com')
     expect(payload.displayName).toBe('user')
+    expect(payload.securityVersion).toBe(2)
+    expect(payload.kdfProfileId).toBe('identity-argon2id-account-secret-v2')
+    expect(payload.publicKeySuiteId).toBe(KEY_WRAPPER_SUITE.active)
+    expect(decodeBase64Url(payload.publicKey, 2048)).toHaveLength(1216)
     for (const field of [
       'accountId',
       'authCredential',
@@ -81,41 +91,36 @@ describe('useRegister', () => {
     // Session is established and the vault is unlocked in-memory.
     expect(setTokensMock).toHaveBeenCalledOnce()
     expect(unlockVaultMock).toHaveBeenCalledOnce()
+    expect(unlockVaultMock.mock.calls[0][3]).toBe(KEY_WRAPPER_SUITE.active)
   })
 
-  it('produces a decryptable, self-consistent key bundle', async () => {
+  it('produces a decryptable bundle bound to the Secret Key it stores and returns for the kit', async () => {
     const { result } = renderHook(() => useRegister(), { wrapper })
-    await result.current.mutateAsync({
+    const kit = await result.current.mutateAsync({
       email: 'user@example.com',
       masterPassword: PASSWORD,
       recoveryMnemonic: MNEMONIC,
     })
     const payload = registerMock.mock.calls[0][0] as RegisterPayload
-    const sodium = await loadSodium()
+    expect(storeSecretMock).toHaveBeenCalledOnce()
+    const [storedAccountId, storedSecret] = storeSecretMock.mock.calls[0] as [string, Uint8Array]
+    expect(storedAccountId).toBe(payload.accountId)
+    // The stored buffer is wiped after use; the kit string carries the same key.
+    const secret = parseSecretKey(payload.accountId, kit.secretKey)
+    expect(kit.email).toBe('user@example.com')
+    expect(kit.qrPayload.startsWith('palladin-kit:v1:')).toBe(true)
+    expect(JSON.stringify(payload)).not.toContain(kit.secretKey)
+    expect(storedSecret).toHaveLength(32)
 
-    const kdfSalt = decodeBase64Url(payload.kdfSalt, 16)
-    const identity = await deriveIdentityV1(
-      PASSWORD,
-      payload.accountId,
-      kdfSalt,
-    )
+    const identity = await deriveIdentityV2(PASSWORD, secret, payload.accountId, decodeBase64Url(payload.kdfSalt, 16))
     expect(encodeBase64Url(identity.authCredential)).toBe(payload.authCredential)
 
-    // MK derived from the same password unwraps the private key, whose public
-    // half matches the published public key.
-    const privateKey = await decryptWithKey(
-      decodeBase64Url(payload.encryptedPrivateKey),
-      identity.masterKey,
-    )
-    const derivedPub = sodium.crypto_scalarmult_base(privateKey)
-    expect(Array.from(derivedPub)).toEqual(Array.from(decodeBase64Url(payload.publicKey)))
+    const privateKey = await decryptWithKey(decodeBase64Url(payload.encryptedPrivateKey), identity.masterKey)
+    const derivedPublic = await deriveRecipientPublicKey(KEY_WRAPPER_SUITE.active, privateKey)
+    expect(encodeBase64Url(derivedPublic)).toBe(payload.publicKey)
 
-    // The recovery wrapping unwraps the same private key.
     const rk = await deriveKey(MNEMONIC.join(' '), decodeBase64Url(payload.recoverySalt))
-    const viaRecovery = await decryptWithKey(
-      decodeBase64Url(payload.encryptedPrivateKeyByRecovery),
-      rk,
-    )
+    const viaRecovery = await decryptWithKey(decodeBase64Url(payload.encryptedPrivateKeyByRecovery), rk)
     expect(Array.from(viaRecovery)).toEqual(Array.from(privateKey))
   })
   it('revokes a late registration session after the form unmounts without publishing keys', async () => {

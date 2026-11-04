@@ -16,7 +16,7 @@ import {
   type ScriptRef,
 } from '../types'
 import type { MenuEntry } from './popover-menu'
-import { useAuthStore } from '../../auth'
+import { memberKeyFor, useAuthStore } from '../../auth'
 import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
 import { fromMemberSecret } from '../../../shared/crypto/entry-draft'
 import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
@@ -89,7 +89,7 @@ export function ScriptRefsEditor({
         getEncryptedVault(vaultId),
         getCanonicalEntry(vaultId, entryId),
       ])
-      vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+      vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
       const secret = fromMemberSecret(await openMemberSecret(
         detail.entryKey,
         detail.memberSecret,

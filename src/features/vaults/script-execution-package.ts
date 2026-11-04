@@ -30,6 +30,7 @@ export interface BuildScriptExecutionPackageInput {
   packageRevision: string
   recipientAgentKeyVersion: number
   agentPublicKey: string
+  agentKeySuiteId: string
   vaultKey: Uint8Array
   overrides?: ReadonlyMap<string, ScriptPackageEntryOverride>
 }
@@ -91,7 +92,7 @@ export async function buildCompleteScriptExecutionPackage(
       grantId: input.grantId,
       packageRevision: input.packageRevision,
       recipientAgentKeyVersion: input.recipientAgentKeyVersion,
-      recipientAgentPublicKey: recipientPublicKey,
+      recipientAgentKey: { keySuiteId: input.agentKeySuiteId, publicKey: recipientPublicKey },
       vaultSigningKeyVersion: vault.currentKeyEpoch.manifestSigningKeyVersion,
       vaultSigningPrivateKey,
       entries: encodedReferences,

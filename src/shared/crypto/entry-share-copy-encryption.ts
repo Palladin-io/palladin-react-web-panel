@@ -1,6 +1,7 @@
 import { ENVELOPE_PURPOSE } from './envelope'
 import { assertEnvelopeScope, type VaultEnvelopeContract } from './vault-envelope'
 import { openVaultProjection, openVaultDerivedEnvelope, type EncryptedVaultProjection } from './vault-protocol'
+import type { RecipientPrivateKey } from './key-wrapper'
 import { sealCanonicalEntry } from './entry-protocol'
 import { wipe } from './sodium'
 import type { MemberSecretV1 } from './vault-plaintext'
@@ -22,7 +23,7 @@ function assertVault(vault: EncryptedVaultProjection, authority: EntryShareCopyA
 }
 
 export async function readEntryShareCopyVaultName(vault: EncryptedVaultProjection,
-  authority: EntryShareCopyAuthority, privateKey: Uint8Array, signal: AbortSignal): Promise<string> {
+  authority: EntryShareCopyAuthority, privateKey: RecipientPrivateKey, signal: AbortSignal): Promise<string> {
   signal.throwIfAborted()
   assertVault(vault, authority)
   const opened = await openVaultProjection(vault, privateKey, authority.memberId)
@@ -31,7 +32,7 @@ export async function readEntryShareCopyVaultName(vault: EncryptedVaultProjectio
 }
 
 export async function sealEntryShareCopy(secret: MemberSecretV1, vault: EntryShareCopyVault,
-  authority: EntryShareCopyAuthority & { entryId: string }, privateKey: Uint8Array, signal: AbortSignal) {
+  authority: EntryShareCopyAuthority & { entryId: string }, privateKey: RecipientPrivateKey, signal: AbortSignal) {
   signal.throwIfAborted()
   assertVault(vault, authority)
   const wrapper = vault.memberVaultKey.wrappedVaultKey.descriptor

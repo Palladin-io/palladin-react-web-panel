@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { openMemberSecret, sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import { deleteEntry, getCanonicalEntry } from './api/vault-api'
 import { getEncryptedVault } from './sync/member-sync-api'
 import { useMemberSyncStore } from './sync/member-sync-store'
@@ -25,7 +25,7 @@ export function useDeleteEntry(vaultId: string) {
         useMemberSyncStore.getState().retry()
         throw new Error('Current Entry detail changed after Member sync')
       }
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
       let discoveryKey: Uint8Array | undefined
       try {
         discoveryKey = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)

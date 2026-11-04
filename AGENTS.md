@@ -91,7 +91,7 @@ src/
 ### Crypto Layer (`shared/crypto/`)
 - All encryption/decryption logic lives here — nowhere else
 - Keys (MK, private key, VK) exist **only in JS memory** (Zustand store)
-- Never persist keys to localStorage, sessionStorage, or IndexedDB
+- Never persist keys to localStorage, sessionStorage, or IndexedDB. Sole exception: the identity v2 Secret Key, stored only as ciphertext under a non-extractable WebCrypto key through `shared/crypto/secret-key.ts` and deleted on sign-out and recovery
 - Closing the tab destroys all keys — this is by design
 - libsodium WASM is lazy-loaded on first crypto operation
 

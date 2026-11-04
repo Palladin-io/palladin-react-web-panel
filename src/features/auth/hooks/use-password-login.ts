@@ -1,14 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import {
-  assertIdentityKdfProfile,
-  deriveIdentityV1,
-  IDENTITY_KDF_PROFILE_ID,
-  IDENTITY_SECURITY_VERSION,
+  CURRENT_IDENTITY_PROFILE,
+  deriveAccountIdentity,
+  identityProfileVersion,
+  SecretKeyRequiredError,
+  type IdentityKdfOutputs,
 } from '../../../shared/crypto/identity-kdf'
+import { loadDeviceSecretKey } from '../../../shared/crypto/secret-key'
 import { decodeBase64Url, encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { decryptWithKey, wipe } from '../../../shared/crypto/sodium'
-import { getAccount, type AccountResponse } from '../../../shared/api/account-api'
+import { getAccount, memberKeySuiteOf, type AccountResponse } from '../../../shared/api/account-api'
+import {
+  beginSecurityUpgrade,
+  createSecurityUpgradeDraft,
+  discardSecurityUpgradeDraft,
+  needsSecurityUpgrade,
+  resumeSecurityUpgradeIfNeeded,
+  type SecurityUpgradeDraft,
+} from '../../security-upgrade/prepare-security-upgrade'
+import { cancelSecurityUpgrade } from '../../security-upgrade/security-upgrade-store'
 import type { AuthResponse } from '../../../shared/api/types'
 import {
   revokeUninstalledLoginSession,
@@ -29,50 +40,65 @@ interface PendingV2Unlock {
   authCredential: Uint8Array
   challengeToken: string
   bootstrap: LoginKdfBootstrap
+  draft: SecurityUpgradeDraft | null
   attempt: ReturnType<typeof beginManualUnlockAttempt>
 }
 
-function assertAuthenticatedV2Account(
+/** The authenticated account must still be the exact profile the anonymous bootstrap ran. */
+function assertAuthenticatedAccountProfile(
   account: AccountResponse,
   bootstrap: LoginKdfBootstrap,
 ): void {
   if (!account.kdf
     || account.userId !== bootstrap.accountId
-    || account.kdf.securityVersion !== IDENTITY_SECURITY_VERSION
-    || account.kdf.minimumSecurityVersion > IDENTITY_SECURITY_VERSION
-    || account.kdf.profileId !== IDENTITY_KDF_PROFILE_ID
+    || account.kdf.securityVersion !== bootstrap.securityVersion
+    || account.kdf.minimumSecurityVersion > CURRENT_IDENTITY_PROFILE.securityVersion
+    || account.kdf.profileId !== bootstrap.profileId
     || account.kdf.kdfSalt !== bootstrap.kdfSalt) {
     throw new Error('security-version-downgrade')
   }
-  assertIdentityKdfProfile({
-    ...account.kdf,
-    memoryKiB: bootstrap.memoryKiB,
-    iterations: bootstrap.iterations,
-    parallelism: bootstrap.parallelism,
-  })
+  identityProfileVersion(account.kdf)
 }
 
+/** Takes ownership of `draft`: it is either handed to the upgrade gate or wiped. */
 async function unlockWithMasterKey(
   response: AuthResponse,
   masterKey: Uint8Array,
   authCredential: Uint8Array,
   attempt: ReturnType<typeof beginManualUnlockAttempt>,
-  bootstrap?: LoginKdfBootstrap,
+  bootstrap: LoginKdfBootstrap,
+  draft: SecurityUpgradeDraft | null,
 ): Promise<AccountResponse> {
-  attempt.assertCurrent()
+  let owned = draft
+  let installed = false
+  try {
+    attempt.assertCurrent()
+  } catch (error) {
+    discardSecurityUpgradeDraft(owned)
+    throw error
+  }
   useAuthStore.getState().setTokens(response)
   try {
     const account = await getAccount()
     attempt.assertCurrent()
     if (!account.encryptedPrivateKey) throw new Error('Account key material is missing')
-    if (bootstrap) assertAuthenticatedV2Account(account, bootstrap)
+    assertAuthenticatedAccountProfile(account, bootstrap)
 
     const encryptedPrivateKey = decodeBase64Url(account.encryptedPrivateKey, 4096)
     let privateKey: Uint8Array | null = null
     try {
       privateKey = await decryptWithKey(encryptedPrivateKey, masterKey)
       attempt.assertCurrent()
-      useAuthStore.getState().unlockVault(masterKey, privateKey)
+      if (owned) {
+        const handed = owned
+        owned = null
+        await beginSecurityUpgrade({ account, draft: handed, currentAuthCredential: authCredential, legacyPrivateKey: privateKey })
+      } else {
+        await resumeSecurityUpgradeIfNeeded(account, masterKey)
+      }
+      attempt.assertCurrent()
+      useAuthStore.getState().unlockVault(masterKey, privateKey, undefined, memberKeySuiteOf(account))
+      installed = true
       await prepareManualSharedUnlock(account, authCredential)
       return account
     } finally {
@@ -82,6 +108,9 @@ async function unlockWithMasterKey(
   } catch (error) {
     if (attempt.isCurrent()) await clearClientSession()
     throw error
+  } finally {
+    discardSecurityUpgradeDraft(owned)
+    if (!installed) cancelSecurityUpgrade()
   }
 }
 
@@ -108,6 +137,7 @@ export function usePasswordLogin() {
     if (!pendingV2.current) return
     wipe(pendingV2.current.masterKey)
     wipe(pendingV2.current.authCredential)
+    discardSecurityUpgradeDraft(pendingV2.current.draft)
     pendingV2.current = null
   }, [])
 
@@ -160,24 +190,31 @@ export function usePasswordLogin() {
     mutationFn: async ({ email, password, attempt, cleanup }: PasswordStart): Promise<LoginStartResult> => {
       let issued: AuthResponse | undefined
       let installed = false
-      let kdfSalt: Uint8Array | undefined
-      let identity: Awaited<ReturnType<typeof deriveIdentityV1>> | undefined
+      let accountSecret: Uint8Array | null = null
+      let identity: IdentityKdfOutputs | undefined
+      let draft: SecurityUpgradeDraft | null = null
       try {
         await cleanup
         attempt.assertCurrent()
-        const bootstrap = await fetchLoginKdf(email, IDENTITY_KDF_PROFILE_ID)
+        const bootstrap = await fetchLoginKdf(email)
         attempt.assertCurrent()
-        assertIdentityKdfProfile(bootstrap)
-        kdfSalt = decodeBase64Url(bootstrap.kdfSalt, 16)
-        identity = await deriveIdentityV1(password, bootstrap.accountId, kdfSalt)
+        const version = identityProfileVersion(bootstrap)
+        if (version === 2) {
+          accountSecret = await loadDeviceSecretKey(bootstrap.accountId)
+          if (!accountSecret) throw new SecretKeyRequiredError(bootstrap.accountId)
+        }
+        identity = await deriveAccountIdentity({ password, accountId: bootstrap.accountId, kdf: bootstrap, accountSecret })
         attempt.assertCurrent()
         const response = await passwordLogin({
           email,
-          securityVersion: IDENTITY_SECURITY_VERSION,
-          kdfProfileId: IDENTITY_KDF_PROFILE_ID,
+          securityVersion: bootstrap.securityVersion,
+          kdfProfileId: bootstrap.profileId,
           authCredential: encodeBase64Url(identity.authCredential),
         })
         if (!isTotpRequired(response)) issued = response
+        attempt.assertCurrent()
+        // The password is gone after this request; derive the upgrade material now.
+        if (needsSecurityUpgrade(version)) draft = await createSecurityUpgradeDraft(bootstrap.accountId, password)
         attempt.assertCurrent()
         if (isTotpRequired(response)) {
           pendingV2.current = {
@@ -185,15 +222,20 @@ export function usePasswordLogin() {
             authCredential: new Uint8Array(identity.authCredential),
             challengeToken: response.challengeToken,
             bootstrap,
+            draft,
             attempt,
           }
+          draft = null
           return { kind: 'totp', challengeToken: response.challengeToken }
         }
-        await unlockWithMasterKey(response, identity.masterKey, identity.authCredential, attempt, bootstrap)
+        const owned = draft
+        draft = null
+        await unlockWithMasterKey(response, identity.masterKey, identity.authCredential, attempt, bootstrap, owned)
         installed = true
         return { kind: 'done' }
       } finally {
-        if (kdfSalt) wipe(kdfSalt)
+        discardSecurityUpgradeDraft(draft)
+        if (accountSecret) wipe(accountSecret)
         if (identity) { wipe(identity.authCredential); wipe(identity.masterKey) }
         if (pendingV2.current?.attempt !== attempt) finish(attempt)
         if (issued && !installed) await revokeUninstalledLoginSession(issued.accessToken)
@@ -211,7 +253,9 @@ export function usePasswordLogin() {
       try {
         if (pending !== pendingV2.current) throw new Error('Expired pending login state')
         pending.attempt.assertCurrent()
-        await unlockWithMasterKey(response, pending.masterKey, pending.authCredential, pending.attempt, pending.bootstrap)
+        const draft = pending.draft
+        pending.draft = null
+        await unlockWithMasterKey(response, pending.masterKey, pending.authCredential, pending.attempt, pending.bootstrap, draft)
         installed = true
       } finally {
         finish(pending.attempt)

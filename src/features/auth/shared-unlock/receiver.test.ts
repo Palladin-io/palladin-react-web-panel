@@ -7,12 +7,8 @@ import type { SharedUnlockInstalled } from "./receiver";
 import { receiveSharedUnlockBrowserTransfer, type SharedUnlockOperationTransport } from "./browser-transfer";
 import { sharedUnlockOperationSchema, type SharedUnlockOperationMessage } from "./browser-operation-message";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import {
-  createSharedUnlockOffer, encodeSharedUnlockIdentityProof, encryptWithKey, fromBase64Url,
-  generateKeyPair, hashSharedUnlockKeyContext, hashSharedUnlockTranscript, loadSodium, randomBytes,
-  toBase64Url, sealVaultKey, unsealVaultKey, encryptEntry, decryptEntry, ENTRY_TYPE_KEY,
-  type SharedUnlockEnvelope,
-} from '@palladin/crypto'
+import { createSharedUnlockOffer, encodeSharedUnlockIdentityProof, encryptWithKey, fromBase64Url, hashSharedUnlockKeyContext, hashSharedUnlockTranscript, loadSodium, randomBytes, toBase64Url, encryptEntry, decryptEntry, ENTRY_TYPE_KEY, type SharedUnlockEnvelope } from '@palladin/crypto'
+import { sealVaultKey, unsealVaultKey } from '../../../shared/crypto/vault-key'
 import { useAuthStore } from '../stores/auth-store'
 import { beginManualUnlockAttempt } from '../session/manual-unlock-attempt'
 import { SharedUnlockApi } from './api'
@@ -20,6 +16,7 @@ import { beginSharedUnlockReceiver, type SharedUnlockReceiverRoute } from './rec
 import type { SharedUnlockCommit, SharedUnlockOperation } from './api-types'
 import fixtures from './fixtures/browser-session-api'
 import { notifySharedUnlockCompleted } from './completion-toast'
+import { generateKeyPair } from '../../../shared/crypto/sodium'
 
 vi.mock('./completion-toast', () => ({ notifySharedUnlockCompleted: vi.fn() }))
 

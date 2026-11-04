@@ -2,24 +2,16 @@ import { useEffect, useRef } from 'react'
 import { beginManualUnlockAttempt } from '../session/manual-unlock-attempt'
 import type { AuthResponse } from '../../../shared/api/types'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { generateIdentityAccountId } from '../../../shared/crypto/identity-kdf'
 import {
-  deriveKey,
-  RECOVERY_KEY_SALT_BYTES,
-} from '../../../shared/crypto/argon2'
-import {
-  deriveIdentityV1,
-  generateIdentityAccountId,
-  IDENTITY_KDF_PROFILE,
-  IDENTITY_KDF_PROFILE_ID,
-  IDENTITY_KDF_SALT_BYTES,
-} from '../../../shared/crypto/identity-kdf'
+  createAccountSecurityMaterial,
+  generateMemberKeyPair,
+  wipeAccountSecurityMaterial,
+  type AccountSecurityMaterial,
+} from '../../../shared/crypto/account-security'
+import { emergencyKitMaterial, storeDeviceSecretKey, type EmergencyKitMaterial } from '../../../shared/crypto/secret-key'
 import { encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
-import {
-  encryptWithKey,
-  generateKeyPair,
-  randomBytes,
-  wipe,
-} from '../../../shared/crypto/sodium'
+import { wipe } from '../../../shared/crypto/sodium'
 import { ACCOUNT_QUERY_KEY } from '../../../shared/api/account-api'
 import i18n from '../../../shared/lib/i18n'
 import { joinMnemonic } from '../../../shared/lib/mnemonic'
@@ -33,13 +25,11 @@ export interface RegisterInput {
 }
 
 /**
- * Registration crypto pipeline. Identity v1 runs Argon2id once over the exact
- * password bytes and domain-separates MK from AuthCredential with HKDF.
- * The keypair's private key is wrapped twice (under MK and under the recovery
- * key) exactly like onboarding, then everything non-secret is POSTed to
- * `register`. All secret buffers are zeroed in `finally`; the only survivors are
- * the base64 ciphertexts on the wire and the in-memory copies handed to the
- * auth store so the user lands unlocked.
+ * Registration crypto pipeline (Identity v2). The Secret Key is generated here,
+ * mixed into the KDF with the password and kept on this browser only through
+ * the non-extractable device wrapper. The X-Wing Member private key is wrapped
+ * under MK and the recovery key; only ciphertexts and public values leave the
+ * device. The resolved kit values feed the mandatory Emergency Kit step.
  */
 export function useRegister() {
   const queryClient = useQueryClient()
@@ -51,38 +41,25 @@ export function useRegister() {
       email,
       masterPassword,
       recoveryMnemonic,
-    }: RegisterInput) => {
+    }: RegisterInput): Promise<EmergencyKitMaterial> => {
       activeAttempt.current?.cancel()
       const attempt = beginManualUnlockAttempt({ blockNewSharedUnlock: true })
       activeAttempt.current = attempt
       let issued: AuthResponse | null = null
       let installed = false
       const accountId = generateIdentityAccountId()
-      let kdfSalt: Uint8Array | null = null
-      let recoverySalt: Uint8Array | null = null
-      let identity: Awaited<ReturnType<typeof deriveIdentityV1>> | null = null
-      let keyPair: Awaited<ReturnType<typeof generateKeyPair>> | null = null
-      let recoveryKey: Uint8Array | null = null
-      let encryptedPrivateKey: Uint8Array | null = null
-      let encryptedPrivateKeyByRecovery: Uint8Array | null = null
+      let memberKey: Awaited<ReturnType<typeof generateMemberKeyPair>> | null = null
+      let material: AccountSecurityMaterial | null = null
       try {
-        kdfSalt = await randomBytes(IDENTITY_KDF_SALT_BYTES)
-        recoverySalt = await randomBytes(RECOVERY_KEY_SALT_BYTES)
-        identity = await deriveIdentityV1(
-          masterPassword,
+        memberKey = await generateMemberKeyPair()
+        material = await createAccountSecurityMaterial({
           accountId,
-          kdfSalt,
-        )
-        keyPair = await generateKeyPair()
-        recoveryKey = await deriveKey(joinMnemonic(recoveryMnemonic), recoverySalt)
-        encryptedPrivateKey = await encryptWithKey(
-          keyPair.privateKey,
-          identity.masterKey,
-        )
-        encryptedPrivateKeyByRecovery = await encryptWithKey(
-          keyPair.privateKey,
-          recoveryKey,
-        )
+          password: masterPassword,
+          recoveryPhrase: joinMnemonic(recoveryMnemonic),
+          memberPrivateKey: memberKey.privateKey,
+        })
+        // Stored before the account exists so a closed tab never strands a registered account without its key.
+        await storeDeviceSecretKey(accountId, material.secretKey)
 
         attempt.assertCurrent()
         const response = await register({
@@ -92,14 +69,15 @@ export function useRegister() {
           // display name from the local-part, editable later in settings.
           displayName: email.split('@')[0],
           preferredLanguage: i18n.language.startsWith('pl') ? 'pl' : 'en',
-          securityVersion: IDENTITY_KDF_PROFILE.securityVersion,
-          kdfProfileId: IDENTITY_KDF_PROFILE_ID,
-          authCredential: encodeBase64Url(identity.authCredential),
-          kdfSalt: encodeBase64Url(kdfSalt),
-          recoverySalt: encodeBase64Url(recoverySalt),
-          publicKey: encodeBase64Url(keyPair.publicKey),
-          encryptedPrivateKey: encodeBase64Url(encryptedPrivateKey),
-          encryptedPrivateKeyByRecovery: encodeBase64Url(encryptedPrivateKeyByRecovery),
+          securityVersion: material.securityVersion,
+          kdfProfileId: material.kdfProfileId,
+          authCredential: encodeBase64Url(material.authCredential),
+          kdfSalt: material.kdfSalt,
+          recoverySalt: material.recoverySalt,
+          publicKeySuiteId: memberKey.keySuiteId,
+          publicKey: encodeBase64Url(memberKey.publicKey),
+          encryptedPrivateKey: material.encryptedPrivateKey,
+          encryptedPrivateKeyByRecovery: material.encryptedPrivateKeyByRecovery,
         })
 
         issued = response
@@ -109,19 +87,12 @@ export function useRegister() {
         useAuthStore.getState().setTokens(response)
         useAuthStore
           .getState()
-          .unlockVault(identity.masterKey, keyPair.privateKey)
+          .unlockVault(material.masterKey, memberKey.privateKey, undefined, memberKey.keySuiteId)
         installed = true
+        return emergencyKitMaterial(accountId, email, material.secretKey)
       } finally {
-        if (identity) {
-          wipe(identity.masterKey)
-          wipe(identity.authCredential)
-        }
-        if (recoveryKey) wipe(recoveryKey)
-        if (keyPair) wipe(keyPair.privateKey)
-        if (kdfSalt) wipe(kdfSalt)
-        if (recoverySalt) wipe(recoverySalt)
-        if (encryptedPrivateKey) wipe(encryptedPrivateKey)
-        if (encryptedPrivateKeyByRecovery) wipe(encryptedPrivateKeyByRecovery)
+        wipeAccountSecurityMaterial(material)
+        if (memberKey) wipe(memberKey.privateKey)
         attempt.cancel()
         if (issued && !installed) await revokeUninstalledLoginSession(issued.accessToken)
       }

@@ -22,7 +22,7 @@ export function RecoveryKeyStep({ mnemonic, onContinue, onBack }: RecoveryKeySte
       title={t('onboarding.recoveryKeyTitle')}
       subtitle={t('onboarding.recoveryKeySubtitle')}
       stepIndex={1}
-      totalSteps={3}
+      totalSteps={4}
       onBack={onBack}
     >
       <RecoveryKeyDisplay

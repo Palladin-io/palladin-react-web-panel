@@ -5,6 +5,7 @@ import { generateRecoveryMnemonic } from '../../../shared/lib/mnemonic'
 import { MasterPasswordStep } from './master-password-step'
 import { RecoveryKeyConfirmStep } from './recovery-key-confirm-step'
 import { RecoveryKeyStep } from './recovery-key-step'
+import type { EmergencyKitMaterial } from '../../../shared/crypto/secret-key'
 
 type WizardStep = 'master-password' | 'recovery-key' | 'confirm'
 
@@ -15,7 +16,12 @@ type WizardStep = 'master-password' | 'recovery-key' | 'confirm'
  * component state only. They never touch localStorage / sessionStorage /
  * Zustand — closing the tab mid-flow forces a restart, which is by design.
  */
-export function OnboardingWizard() {
+export interface OnboardingWizardProps {
+  /** Receives the kit once keys are set up; the caller gates completion on it. */
+  onKitReady: (kit: EmergencyKitMaterial) => void
+}
+
+export function OnboardingWizard({ onKitReady }: OnboardingWizardProps) {
   const { t } = useTranslation()
   const [step, setStep] = useState<WizardStep>('master-password')
   const [masterPassword, setMasterPassword] = useState<string | null>(null)
@@ -59,7 +65,7 @@ export function OnboardingWizard() {
           setStep('master-password')
           return
         }
-        completeSetup.mutate({ masterPassword, recoveryMnemonic: mnemonic })
+        completeSetup.mutate({ masterPassword, recoveryMnemonic: mnemonic }, { onSuccess: onKitReady })
       }}
     />
   )

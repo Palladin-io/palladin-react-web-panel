@@ -18,9 +18,18 @@ import {
   ACCOUNT_QUERY_KEY,
   getAccount,
   issueRecoveryChallenge,
+  memberKeySuiteOf,
   recoverAccount,
+  type AccountResponse,
   type RecoverAccountPayload,
 } from '../../shared/api/account-api'
+import { KEY_WRAPPER_SUITE } from '../../shared/crypto/key-wrapper'
+import {
+  createAccountSecurityMaterial,
+  wipeAccountSecurityMaterial,
+  type AccountSecurityMaterial,
+} from '../../shared/crypto/account-security'
+import { emergencyKitMaterial, storeDeviceSecretKey, type EmergencyKitMaterial } from '../../shared/crypto/secret-key'
 import { hasApiErrorKey } from '../../shared/api/error-response'
 import { generateRecoveryMnemonic, joinMnemonic } from '../../shared/lib/mnemonic'
 import { useAuthStore } from '../auth'
@@ -46,6 +55,8 @@ export interface RecoverInput {
 
 export interface RecoverResult {
   recoveryMnemonic: string[]
+  /** Present when recovery issued a new Secret Key (X-Wing Member key accounts). */
+  kit: EmergencyKitMaterial | null
 }
 
 async function submitRecovery(payload: RecoverAccountPayload): Promise<void> {
@@ -56,6 +67,52 @@ async function submitRecovery(payload: RecoverAccountPayload): Promise<void> {
       throw new RecoveryProofInvalidError()
     }
     throw error
+  }
+}
+
+/**
+ * identity-kdf v3 `recovery`: the Member key stays, everything derived from the
+ * password changes — a new Secret Key, KDF salt and recovery phrase. The new
+ * Secret Key replaces this browser's wrapped copy once Identity has accepted it.
+ */
+async function recoverWithNewSecretKey(
+  account: AccountResponse,
+  sessionUserId: string,
+  privateKey: Uint8Array,
+  newPassword: string,
+  newRecoveryMnemonic: string[],
+): Promise<EmergencyKitMaterial> {
+  if (!account.kdf) throw new Error('Account is missing recovery material')
+  let material: AccountSecurityMaterial | null = null
+  try {
+    material = await createAccountSecurityMaterial({
+      accountId: account.userId,
+      password: newPassword,
+      recoveryPhrase: joinMnemonic(newRecoveryMnemonic),
+      memberPrivateKey: privateKey,
+    })
+    const challenge = await issueRecoveryChallenge()
+    if (challenge.version !== undefined && challenge.version !== 2) throw new RecoveryProofInvalidError()
+    const recoveryProof = await createAccountRecoveryProof(
+      challenge.sealedChallenge, sessionUserId, { keySuiteId: memberKeySuiteOf(account), privateKey },
+    )
+    await submitRecovery({
+      securityVersion: material.securityVersion,
+      kdfProfileId: material.kdfProfileId,
+      baseCredentialRevision: account.kdf.credentialRevision,
+      basePrivateKeyWrapRevision: account.kdf.privateKeyWrapRevision,
+      newKdfSalt: material.kdfSalt,
+      newEncryptedPrivateKey: material.encryptedPrivateKey,
+      newRecoverySalt: material.recoverySalt,
+      newEncryptedPrivateKeyByRecovery: material.encryptedPrivateKeyByRecovery,
+      newAuthCredential: encodeBase64Url(material.authCredential),
+      recoveryProof,
+    })
+    // Replaces (and so deletes) the old Secret Key's device wrapper.
+    await storeDeviceSecretKey(account.userId, material.secretKey)
+    return emergencyKitMaterial(account.userId, account.email, material.secretKey)
+  } finally {
+    wipeAccountSecurityMaterial(material)
   }
 }
 
@@ -95,6 +152,12 @@ export function useRecover() {
           throw new InvalidRecoveryKeyError()
         }
 
+        const memberKey = { keySuiteId: memberKeySuiteOf(account), privateKey }
+        if (memberKey.keySuiteId !== KEY_WRAPPER_SUITE.legacy) {
+          const kit = await recoverWithNewSecretKey(account, sessionUserId, memberKey.privateKey, newPassword, newRecoveryMnemonic)
+          return { recoveryMnemonic: newRecoveryMnemonic, kit }
+        }
+
         identity = await deriveIdentityV1(
           newPassword,
           account.userId,
@@ -111,11 +174,7 @@ export function useRecover() {
         )
 
         const challenge = await issueRecoveryChallenge()
-        const recoveryProof = await createAccountRecoveryProof(
-          challenge.sealedChallenge,
-          sessionUserId,
-          privateKey,
-        )
+        const recoveryProof = await createAccountRecoveryProof(challenge.sealedChallenge, sessionUserId, memberKey)
 
         await submitRecovery({
           securityVersion: IDENTITY_KDF_PROFILE.securityVersion,
@@ -132,7 +191,7 @@ export function useRecover() {
           recoveryProof,
         })
 
-        return { recoveryMnemonic: newRecoveryMnemonic }
+        return { recoveryMnemonic: newRecoveryMnemonic, kit: null }
       } finally {
         if (recoverySalt) wipe(recoverySalt)
         if (recoveryKey) wipe(recoveryKey)

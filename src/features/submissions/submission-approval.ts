@@ -11,7 +11,7 @@ import { wipe } from '../../shared/crypto/sodium'
 import type { MemberSecretV1 } from '../../shared/crypto/vault-plaintext'
 import { openVaultProjection } from '../../shared/crypto/vault-protocol'
 import { organizationIdFromAccessToken } from '../../shared/lib/organization-scope'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import { GRANT_METHOD_INJECT, grantMethodsMask, serializeGrantMethods } from '../grants/grant-methods'
 import { getCanonicalEntry, issueEntryCreationChallenge } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
@@ -22,6 +22,7 @@ import {
   type ApproveSubmissionResponse,
   type SubmissionGrantBody,
 } from './api/submissions-api'
+import { KEY_WRAPPER_SUITE } from '../../shared/crypto/key-wrapper'
 
 export class SubmissionApprovalLockedError extends Error {
   constructor() {
@@ -44,10 +45,12 @@ export class StaleSubmissionTargetError extends Error {
   }
 }
 
-/** The submitting Agent's current authoritative X25519 recipient key. */
+/** The submitting Agent's current authoritative recipient key and its published suite. */
 export interface SubmissionGrantRecipient {
   agentId: string
   publicKey: string
+  /** Absent means the legacy suite (recipient-key-publication v1). */
+  publicKeySuiteId?: string | null
   recipientKeyVersion: number
 }
 
@@ -64,6 +67,7 @@ async function buildDefaultGrant(
   const grantEntry = await buildCanonicalGrantEnvelope({
     secret,
     agentPublicKey: agent.publicKey,
+    agentKeySuiteId: agent.publicKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
     organizationId: scope.organizationId,
     vaultId: scope.vaultId,
     grantId,
@@ -119,7 +123,7 @@ export async function approveAsNewEntry(input: ApproveAsNewEntryInput): Promise<
   // Same binding as saving a shared copy: the Vault response must be the selected Vault in the JWT
   // organization with current key coordinates, and the Member wrapper must address this principal.
   const material = await sealEntryShareCopy(secret, vault,
-    { organizationId, memberId, vaultId: input.vaultId, entryId: challenge.entryId }, privateKey, new AbortController().signal)
+    { organizationId, memberId, vaultId: input.vaultId, entryId: challenge.entryId }, memberKeyFor(privateKey), new AbortController().signal)
   const grant = input.agent ? await buildDefaultGrant(secret, input.agent, {
     organizationId, vaultId: input.vaultId, entryId: challenge.entryId, entryRevision: '1',
     memberKeyGeneration: vault.memberKeyGeneration,
@@ -153,7 +157,7 @@ export async function approveAsUpdate(input: ApproveAsUpdateInput): Promise<Appr
     || vault.id !== input.vaultId || vault.organizationId !== organizationId) throw new SubmissionTargetMismatchError()
   // The backend rejects a moved target too; failing here avoids opening keys for a stale revision.
   if (detail.currentRevision !== input.expectedEntryRevision) throw new StaleSubmissionTargetError()
-  const { vaultKey } = await openVaultProjection(vault, privateKey, memberId)
+  const { vaultKey } = await openVaultProjection(vault, memberKeyFor(privateKey), memberId)
   let current: MemberSecretV1
   try {
     current = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {

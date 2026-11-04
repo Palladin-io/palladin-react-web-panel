@@ -4,6 +4,7 @@ import { SettingsSectionPage } from '../../../shared/components/settings-section
 import { ChangeMasterPasswordSection } from './components/change-master-password-section'
 import { TotpSection } from './components/totp-section'
 import { SharedUnlockSection } from './components/shared-unlock-section'
+import { SecretKeySection } from './components/secret-key-section'
 
 /**
  * Account security screen: master-password change and two-factor
@@ -16,6 +17,7 @@ export function SecurityPage({ children }: { children?: ReactNode }) {
   return (
     <SettingsSectionPage title={t('security.title')} subtitle={t('security.subtitle')}>
       {/* TODO(authentication-methods): Add per-method controls for password and linked OAuth providers. Disabling a method must require step-up authentication and the API must reject disabling the last active login method. */}
+      <SecretKeySection />
       <TotpSection />
       <SharedUnlockSection />
       <ChangeMasterPasswordSection />

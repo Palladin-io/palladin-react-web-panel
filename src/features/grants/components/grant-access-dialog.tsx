@@ -41,6 +41,7 @@ import { GrantPolicyFields } from './grant-policy-fields'
 import { GrantMethodsSelect } from './grant-methods-select'
 import { ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_SCRIPT } from '../../../shared/types/entry-type'
 import { ScriptGrantSummary } from './script-grant-summary'
+import { isKeyMigrationPending } from '../../../shared/crypto/key-wrapper'
 
 /**
  * Where the dialog was opened from — drives which subject the user picks and
@@ -156,11 +157,14 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
     }
 
     let agentPublicKey: string | null | undefined
+
+    let agentKeySuiteId: string | null | undefined
     let recipientAgentKeyVersion: number | null | undefined
     let agentAccessEpoch: number | null | undefined
     try {
       const agent = await getAgent(currentSubject.agentId)
       agentPublicKey = agent.publicKey
+      agentKeySuiteId = agent.keySuiteId
       recipientAgentKeyVersion = agent.recipientKeyVersion
       agentAccessEpoch = agent.accessEpoch
     } catch {
@@ -173,6 +177,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
         vaultId: currentSubject.vaultId,
         agentId: currentSubject.agentId,
         agentPublicKey,
+        agentKeySuiteId,
         recipientAgentKeyVersion,
         agentAccessEpoch,
         type: currentSubject.type,
@@ -187,7 +192,7 @@ export function GrantAccessDialog({ mode, onClose }: GrantAccessDialogProps) {
           toast.success(t('grants.create.success'))
           onClose()
         },
-        onError: () => toast.error(t('grants.create.error')),
+        onError: (error) => toast.error(t(isKeyMigrationPending(error) ? 'grants.keyMigrationPending' : 'grants.create.error')),
       },
     )
   }

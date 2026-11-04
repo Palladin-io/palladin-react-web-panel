@@ -1,3 +1,4 @@
+import { generateRecipientKeyPair } from '@palladin/crypto'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { createVaultProtocolPayload } from './create-vault-protocol'
 import { openMemberVaultKey } from './vault-protocol'
@@ -12,11 +13,12 @@ import fixture from './fixtures/entry-share-v1.json'
 
 const authority = { organizationId: '11111111-1111-4111-8111-111111111111', vaultId: '22222222-2222-4222-8222-222222222222',
   memberId: '33333333-3333-4333-8333-333333333333', entryId: '44444444-4444-4444-8444-444444444444' }
-const privateKey = new Uint8Array(32).fill(7)
+const member = await generateRecipientKeyPair()
+const privateKey = { keySuiteId: member.keySuiteId, privateKey: member.privateKey }
 let vault: EntryShareCopyVault
 const secret = entryShareCopySecret(fixture.snapshot as EntryShareSnapshot, { title: 'Recipient copy', additions: {} })
 beforeAll(async () => {
-  const created = await createVaultProtocolPayload({ ...authority, memberKeyVersion: 1, memberPrivateKey: privateKey,
+  const created = await createVaultProtocolPayload({ ...authority, memberKeyVersion: 1, memberKey: privateKey,
     metadata: { schema: 'palladin.member-vault-metadata.v1', name: 'Destination', description: null,
       icon: null, color: null, grantMode: 'granular' } })
   vault = { ...created, id: authority.vaultId, organizationId: authority.organizationId,

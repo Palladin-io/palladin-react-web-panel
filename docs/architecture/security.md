@@ -83,6 +83,10 @@ libsodium WASM and all other JS are bundled by Vite from local `node_modules`,
 so they are covered by the supply-chain review of `package-lock.json` + the CI
 `npm audit --audit-level=high` gate, not by runtime SRI.
 
+## Secret Key device wrapper
+
+The identity v2 Secret Key is the only key material the web panel persists: AES-256-GCM ciphertext under a non-extractable WebCrypto key in IndexedDB `palladin-device` (`@palladin/crypto` browser device wrapper, used only via `shared/crypto/secret-key.ts`). It alone opens nothing without the password; script running in this origin could still use the wrapping key, which is the accepted residual risk of identity-kdf v3. Explicit sign-out removes it, recovery replaces it, and Settings › Security can forget it. MK, Member private key and VK stay memory-only.
+
 ## Token storage
 
 - **Access token — in memory only.** Never persisted. Startup obtains it from the cookie-only browser refresh endpoint before routing;

@@ -1,17 +1,20 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  assertIdentityKdfProfile,
-  deriveIdentityV1,
-  IDENTITY_KDF_PROFILE,
-  IDENTITY_KDF_PROFILE_ID,
+  CURRENT_IDENTITY_PROFILE,
+  deriveAccountIdentity,
+  identityProfileVersion,
   IDENTITY_KDF_SALT_BYTES,
+  SecretKeyRequiredError,
+  type IdentityKdfOutputs,
 } from '../../../shared/crypto/identity-kdf'
+import { loadDeviceSecretKey } from '../../../shared/crypto/secret-key'
 import { decodeBase64Url, encodeBase64Url } from '../../../shared/crypto/vault-v2-bytes'
 import { decryptWithKey, encryptWithKey, randomBytes, wipe } from '../../../shared/crypto/sodium'
 import {
   ACCOUNT_QUERY_KEY,
   changeMasterPassword,
   getAccount,
+  memberKeySuiteOf,
 } from '../../../shared/api/account-api'
 import { useAuthStore } from '../stores/auth-store'
 
@@ -36,36 +39,32 @@ export function useChangeMasterPassword() {
       if (!account.kdf || !account.encryptedPrivateKey) {
         throw new Error('Account is missing versioned key material')
       }
-      assertIdentityKdfProfile({
-        ...account.kdf,
-        memoryKiB: IDENTITY_KDF_PROFILE.memoryKiB,
-        iterations: IDENTITY_KDF_PROFILE.iterations,
-        parallelism: IDENTITY_KDF_PROFILE.parallelism,
-      })
-      if (account.kdf.minimumSecurityVersion > IDENTITY_KDF_PROFILE.securityVersion) {
-        throw new Error('upgrade-required')
-      }
+      const version = identityProfileVersion(account.kdf)
+      if (account.kdf.minimumSecurityVersion > CURRENT_IDENTITY_PROFILE.securityVersion) throw new Error('upgrade-required')
 
-      let currentSalt: Uint8Array | null = null
-      let current: Awaited<ReturnType<typeof deriveIdentityV1>> | null = null
+      let accountSecret: Uint8Array | null = null
+      let current: IdentityKdfOutputs | null = null
       let newSalt: Uint8Array | null = null
-      let next: Awaited<ReturnType<typeof deriveIdentityV1>> | null = null
+      let next: IdentityKdfOutputs | null = null
       let privateKey: Uint8Array | null = null
       let encryptedPrivateKey: Uint8Array | null = null
       let newEncryptedPrivateKey: Uint8Array | null = null
       try {
-        currentSalt = decodeBase64Url(account.kdf.kdfSalt, IDENTITY_KDF_SALT_BYTES)
-        current = await deriveIdentityV1(
-          currentPassword,
-          account.userId,
-          currentSalt,
-        )
+        // The Secret Key stays the same; only the password and KDF salt change.
+        if (version === 2) {
+          accountSecret = await loadDeviceSecretKey(account.userId)
+          if (!accountSecret) throw new SecretKeyRequiredError(account.userId)
+        }
+        current = await deriveAccountIdentity({
+          password: currentPassword, accountId: account.userId, kdf: account.kdf, accountSecret,
+        })
         newSalt = await randomBytes(IDENTITY_KDF_SALT_BYTES)
-        next = await deriveIdentityV1(
-          newPassword,
-          account.userId,
-          newSalt,
-        )
+        next = await deriveAccountIdentity({
+          password: newPassword,
+          accountId: account.userId,
+          kdf: { ...account.kdf, kdfSalt: encodeBase64Url(newSalt) },
+          accountSecret,
+        })
         try {
           encryptedPrivateKey = decodeBase64Url(account.encryptedPrivateKey, 4096)
           privateKey = await decryptWithKey(encryptedPrivateKey, current.masterKey)
@@ -75,8 +74,8 @@ export function useChangeMasterPassword() {
 
         newEncryptedPrivateKey = await encryptWithKey(privateKey, next.masterKey)
         await changeMasterPassword({
-          securityVersion: IDENTITY_KDF_PROFILE.securityVersion,
-          kdfProfileId: IDENTITY_KDF_PROFILE_ID,
+          securityVersion: account.kdf.securityVersion,
+          kdfProfileId: account.kdf.profileId,
           baseCredentialRevision: account.kdf.credentialRevision,
           basePrivateKeyWrapRevision: account.kdf.privateKeyWrapRevision,
           currentAuthCredential: encodeBase64Url(current.authCredential),
@@ -85,9 +84,9 @@ export function useChangeMasterPassword() {
           newEncryptedPrivateKey: encodeBase64Url(newEncryptedPrivateKey),
         })
 
-        useAuthStore.getState().unlockVault(next.masterKey, privateKey)
+        useAuthStore.getState().unlockVault(next.masterKey, privateKey, undefined, memberKeySuiteOf(account))
       } finally {
-        if (currentSalt) wipe(currentSalt)
+        if (accountSecret) wipe(accountSecret)
         if (newSalt) wipe(newSalt)
         if (current) {
           wipe(current.authCredential)

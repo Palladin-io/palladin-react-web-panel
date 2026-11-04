@@ -23,7 +23,8 @@ vi.mock('./api/vault-api', () => ({
   createVault: mocks.createVault,
   issueVaultCreationChallenge: mocks.issueChallenge,
 }))
-vi.mock('../../shared/api/account-api', () => ({ getAccount: mocks.getAccount }))
+vi.mock('../../shared/api/account-api', () => ({
+  memberKeySuiteOf: (account: { memberPublicKeySuiteId?: string | null }) => account.memberPublicKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount: mocks.getAccount }))
 vi.mock('./sync/member-sync-api', () => ({ listEncryptedVaults: mocks.listVaults }))
 vi.mock('../../shared/crypto/create-vault-protocol', () => ({
   createVaultProtocolPayload: mocks.createMaterial,
@@ -109,7 +110,7 @@ describe('useCreateVault', () => {
       vaultId: firstVaultId,
       memberId,
       memberKeyVersion: 7,
-      memberPrivateKey: expect.any(Uint8Array),
+      memberKey: { privateKey: expect.any(Uint8Array), keySuiteId: expect.any(String) },
       metadata: {
         schema: 'palladin.member-vault-metadata.v1',
         name: 'Productión', description: 'Primary',

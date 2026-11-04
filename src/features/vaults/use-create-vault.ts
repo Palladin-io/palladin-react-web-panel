@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HTTPError } from 'ky'
 import { createVaultProtocolPayload } from '../../shared/crypto/create-vault-protocol'
 import { parseJwtPayload } from '../../shared/lib/jwt'
-import { getAccount } from '../../shared/api/account-api'
+import { getAccount, memberKeySuiteOf } from '../../shared/api/account-api'
 import { useAuthStore } from '../auth'
 import { createVault, issueVaultCreationChallenge, type CreateVaultPayload } from './api/vault-api'
 import type { CreateVaultInput } from './types'
@@ -117,7 +117,7 @@ export function useCreateVault() {
             vaultId: challenge.vaultId,
             memberId,
             memberKeyVersion: account.memberKeyVersion,
-            memberPrivateKey: initialAuth.privateKey,
+            memberKey: { privateKey: initialAuth.privateKey, keySuiteId: memberKeySuiteOf(account) },
             metadata: {
               schema: 'palladin.member-vault-metadata.v1',
               name: normalizedInput.name,

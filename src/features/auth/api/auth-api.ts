@@ -51,6 +51,7 @@ export interface RegisterPayload {
   authCredential: string
   kdfSalt: string
   recoverySalt: string
+  publicKeySuiteId: string
   publicKey: string
   encryptedPrivateKey: string
   encryptedPrivateKeyByRecovery: string
@@ -120,14 +121,12 @@ export interface LoginKdfBootstrap {
   memoryKiB: number
   iterations: number
   parallelism: number
+  accountSecretRequired?: boolean
 }
 
-export function fetchLoginKdf(
-  email: string,
-  profileId: string,
-): Promise<LoginKdfBootstrap> {
+export function fetchLoginKdf(email: string): Promise<LoginKdfBootstrap> {
   return mapAuthRateLimit(
-    loginApi.post('api/auth/login/salt', { json: { email, profileId } }).json(),
+    loginApi.post('api/auth/login/salt', { json: { email } }).json(),
   )
 }
 
@@ -202,4 +201,42 @@ export function refreshSession(expectedSessionId?: string): Promise<AuthResponse
 export async function logout(expectedSessionId: string): Promise<void> {
   try { await logoutBrowserSession(expectedSessionId) }
   finally { await clearClientSession() }
+}
+
+/** Anonymous recipient session for `recipient-shows-qr` (identity-kdf v3 device pairing). */
+export interface SecretKeyTransferOffer {
+  transferId: string
+  challenge: string
+  pollToken: string
+  expiresAt: string
+}
+
+export type SecretKeyTransferClaim =
+  | { status: 'pending' }
+  | { status: 'expired' }
+  | { status: 'delivered'; accountId: string; kemCiphertext: string; ciphertext: string }
+
+export function createSecretKeyTransfer(recipientPublicKey: string): Promise<SecretKeyTransferOffer> {
+  return mapAuthRateLimit(
+    loginApi.post('api/auth/secret-key-transfers', { json: { recipientPublicKey } }).json<SecretKeyTransferOffer>(),
+  )
+}
+
+/** 202 while waiting; 200 delivers the envelope once; 404/410 when expired, consumed or cancelled. */
+export async function claimSecretKeyTransfer(transferId: string, pollToken: string): Promise<SecretKeyTransferClaim> {
+  const response = await loginApi.post(`api/auth/secret-key-transfers/${encodeURIComponent(transferId)}/claim`, {
+    json: { pollToken }, throwHttpErrors: false,
+  })
+  if (response.status === 202) return { status: 'pending' }
+  if (response.status === 410) return { status: 'expired' }
+  if (response.status === 429) throw new AuthRateLimitError(retryAfterSeconds(response))
+  if (!response.ok) throw new Error(`Secret Key transfer claim failed with status ${response.status}`)
+  const body = await response.json() as { accountId: string; kemCiphertext: string; ciphertext: string }
+  return { status: 'delivered', accountId: body.accountId, kemCiphertext: body.kemCiphertext, ciphertext: body.ciphertext }
+}
+
+export async function cancelSecretKeyTransferAsRecipient(transferId: string, pollToken: string): Promise<void> {
+  await loginApi.delete(`api/auth/secret-key-transfers/${encodeURIComponent(transferId)}`, {
+    json: { pollToken }, throwHttpErrors: false,
+  })
 }

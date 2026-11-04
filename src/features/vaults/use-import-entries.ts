@@ -15,7 +15,7 @@ import {
   publicAssetIconReference,
 } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import {
   getOrgGrants,
   GRANT_STATUS_ACTIVE,
@@ -49,6 +49,7 @@ import {
   type PublicAsset,
 } from '../../shared/api/public-assets-api'
 import { extractDomain } from './components/entry-presentation'
+import { KEY_WRAPPER_SUITE } from '../../shared/crypto/key-wrapper'
 
 /** Keep crypto/save memory bounded independently from catalog request paging. */
 const IMPORT_CHUNK_SIZE = 50
@@ -216,7 +217,7 @@ export function useImportEntries() {
 
       let vaultKey: Uint8Array
       try {
-        vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+        vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
       } catch (error) {
         throw new ImportStepError('openVaultKey', error)
       }
@@ -359,6 +360,7 @@ export function useImportEntries() {
               material.grantEnvelopes.push(await buildCanonicalGrantEnvelope({
                 secret: nextSecret,
                 agentPublicKey: grant.agentPublicKey,
+                agentKeySuiteId: grant.agentKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
                 approvedFieldIds,
                 organizationId: detail.organizationId, vaultId: input.vaultId,
                 grantId: grant.id, agentId: grant.agentId, entryId,

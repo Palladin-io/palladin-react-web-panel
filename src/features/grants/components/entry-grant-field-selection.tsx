@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAuthStore } from '../../auth'
+import { memberKeyFor, useAuthStore } from '../../auth'
 import { getCanonicalEntry } from '../../vaults/api/vault-api'
 import { getEncryptedVault } from '../../vaults/sync/member-sync-api'
 import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
@@ -30,7 +30,7 @@ export function EntryGrantFieldSelection({ vaultId, entryId, value, onChange, di
           getEncryptedVault(vaultId), getCanonicalEntry(vaultId, entryId),
         ])
         if (!active || useAuthStore.getState().privateKey !== privateKey) return
-        vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+        vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
         if (!active || useAuthStore.getState().privateKey !== privateKey) return
         const secret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId, vaultId, entryId, revision: detail.currentRevision,

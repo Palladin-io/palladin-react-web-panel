@@ -34,6 +34,10 @@ import { MemberSyncEngine, type MemberSyncTransport } from './member-sync-engine
 import { useMemberSyncStore } from './member-sync-store'
 import validSnapshotFixture from './__fixtures__/cvt-557-valid-snapshot.json'
 
+vi.mock('../../auth', () => ({
+  memberKeyFor: (privateKey: Uint8Array) => ({ privateKey, keySuiteId: 'palladin-x25519-sealed-box-v1' }),
+}))
+
 const userId = '44444444-4444-4444-8444-444444444444'
 const vaultId = '22222222-2222-4222-8222-222222222222'
 const authority = {

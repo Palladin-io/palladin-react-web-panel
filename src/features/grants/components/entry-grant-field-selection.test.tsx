@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   privateKey: new Uint8Array(32) as Uint8Array | null,
   getVault: vi.fn(), getEntry: vi.fn(), openKey: vi.fn(), openSecret: vi.fn(), fields: vi.fn(), wipe: vi.fn(),
 }))
-vi.mock('../../auth', () => ({ useAuthStore: Object.assign(
+vi.mock('../../auth', () => ({ memberKeyFor: (privateKey: Uint8Array) => ({ privateKey, keySuiteId: 'palladin-x25519-sealed-box-v1' }), useAuthStore: Object.assign(
   (selector: (state: { privateKey: Uint8Array | null }) => unknown) => selector(mocks),
   { getState: () => mocks },
 ) }))

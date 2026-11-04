@@ -1,4 +1,5 @@
 import { api } from './client'
+import { KEY_WRAPPER_SUITE } from '../crypto/key-wrapper'
 
 export interface AccountResponse {
   userId: string
@@ -54,8 +55,12 @@ export interface AccountResponse {
    * the recovery flow to re-wrap the private key with a new MK.
    */
   encryptedPrivateKeyByRecovery?: string
-  /** Current server-authoritative X25519 Member public-key version. */
+  /** Current server-authoritative Member public-key version. */
   memberKeyVersion?: number | null
+  /** Suite of the current Member key; absent means the legacy suite (recipient-key-publication v1). */
+  memberPublicKeySuiteId?: string | null
+  /** Previous Member key wrapped under the current MK, kept only while envelopes still address it. */
+  legacyMemberKey?: { memberKeyVersion: number; encryptedPrivateKey: string } | null
   kdf?: IdentityKdfState | null
 }
 
@@ -74,6 +79,7 @@ export interface SetupAccountPayload {
   kdfProfileId: string
   kdfSalt: string
   recoverySalt: string
+  publicKeySuiteId: string
   publicKey: string
   encryptedPrivateKey: string
   encryptedPrivateKeyByRecovery: string
@@ -95,8 +101,14 @@ export interface RecoverAccountPayload {
 }
 
 export interface RecoveryChallengeResponse {
+  /** 1 = sealed to the legacy Member key, 2 = X-Wing (identity-kdf v3). */
+  version?: 1 | 2
   sealedChallenge: string
   expiresAt: string
+}
+
+export function memberKeySuiteOf(account: Pick<AccountResponse, 'memberPublicKeySuiteId'>): string {
+  return account.memberPublicKeySuiteId ?? KEY_WRAPPER_SUITE.legacy
 }
 
 /** TanStack Query key for the account resource — shared across features. */

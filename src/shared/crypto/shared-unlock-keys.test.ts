@@ -1,9 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
-  encryptWithKey, generateKeyPair, hashSharedUnlockKeyContext, IDENTITY_KDF_PROFILE_ID,
-  randomBytes, toBase64Url, type SharedUnlockKeyContext,
+  encryptWithKey, generateRecipientKeyPair, hashSharedUnlockKeyContext, IDENTITY_KDF_PROFILE_ID,
+  KEY_WRAPPER_SUITE, randomBytes, toBase64Url, type SharedUnlockKeyContext,
 } from "@palladin/crypto";
 import { recoverSharedUnlockKeys } from "./shared-unlock-keys";
+import { generateKeyPair } from './sodium'
 
 const accountId = "11111111-1111-4111-8111-111111111111";
 let masterKey: Uint8Array;
@@ -28,6 +29,32 @@ describe("shared unlock key recovery", () => {
     const keys = await recoverSharedUnlockKeys(candidate, descriptor, accountId, digest, () => {});
     expect(keys.masterKey).toBe(candidate);
     expect(keys.privateKey).toEqual(privateKey);
+    expect(keys.memberKeySuiteId).toBe(KEY_WRAPPER_SUITE.legacy);
+  });
+
+  it("accepts a migrated (security version 2) account and binds its X-Wing member key", async () => {
+    const member = await generateRecipientKeyPair();
+    const context: SharedUnlockKeyContext = {
+      ...descriptor, securityVersion: 2, minimumSecurityVersion: 2, kdfProfileId: "identity-argon2id-account-secret-v2",
+      publicKey: toBase64Url(member.publicKey),
+      encryptedPrivateKey: toBase64Url(await encryptWithKey(member.privateKey, masterKey)),
+    };
+    const keys = await recoverSharedUnlockKeys(masterKey.slice(), context, accountId,
+      await hashSharedUnlockKeyContext(context), () => {});
+    expect(keys.privateKey).toEqual(member.privateKey);
+    expect(keys.memberKeySuiteId).toBe(KEY_WRAPPER_SUITE.active);
+  });
+
+  it("rejects a version 1 context that carries an X-Wing key (the suite follows the security version)", async () => {
+    const member = await generateRecipientKeyPair();
+    const candidate = masterKey.slice();
+    const context: SharedUnlockKeyContext = {
+      ...descriptor, publicKey: toBase64Url(member.publicKey),
+      encryptedPrivateKey: toBase64Url(await encryptWithKey(member.privateKey, masterKey)),
+    };
+    await expect(recoverSharedUnlockKeys(candidate, context, accountId,
+      await hashSharedUnlockKeyContext(context), () => {})).rejects.toThrow();
+    expect(candidate).toEqual(new Uint8Array(32));
   });
 
   for (const variant of ["account", "digest", "wrapper", "public-key", "minimum-version", "profile"] as const) {

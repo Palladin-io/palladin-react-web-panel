@@ -6,8 +6,11 @@ import { EnterRecoveryKeyStep } from './components/enter-recovery-key-step'
 import { NewPasswordStep } from './components/new-password-step'
 import { NewRecoveryKeyStep } from './components/new-recovery-key-step'
 import { InvalidRecoveryKeyError, RecoveryProofInvalidError, useRecover } from './use-recover'
+import { RecoveryShell } from './components/recovery-shell'
+import { EmergencyKitPanel } from '../../shared/components/emergency-kit-panel'
+import type { EmergencyKitMaterial } from '../../shared/crypto/secret-key'
 
-type Step = 'enter-key' | 'new-password' | 'new-recovery-key'
+type Step = 'enter-key' | 'new-password' | 'new-kit' | 'new-recovery-key'
 
 /**
  * Multi-step wizard for account recovery. Local state only — the mnemonic
@@ -27,6 +30,7 @@ export function RecoveryPage() {
   const [step, setStep] = useState<Step>('enter-key')
   const [mnemonic, setMnemonic] = useState<string[]>([])
   const [newMnemonic, setNewMnemonic] = useState<string[]>([])
+  const [kit, setKit] = useState<EmergencyKitMaterial | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const handleKeySubmit = (words: string[]) => {
@@ -43,7 +47,8 @@ export function RecoveryPage() {
       {
         onSuccess: (result) => {
           setNewMnemonic(result.recoveryMnemonic)
-          setStep('new-recovery-key')
+          setKit(result.kit)
+          setStep(result.kit ? 'new-kit' : 'new-recovery-key')
         },
         onError: (err) => {
           analytics.capture('recovery', 'recovery-failed')
@@ -87,6 +92,18 @@ export function RecoveryPage() {
         onBack={() => setStep('enter-key')}
         onSubmit={handlePasswordSubmit}
       />
+    )
+  }
+
+  if (step === 'new-kit' && kit) {
+    return (
+      <RecoveryShell title={t('recovery.newKitTitle')} subtitle={t('recovery.newKitSubtitle')}>
+        <EmergencyKitPanel
+          kit={kit}
+          continueLabel={t('emergencyKit.continue')}
+          onContinue={() => { setKit(null); setStep('new-recovery-key') }}
+        />
+      </RecoveryShell>
     )
   }
 

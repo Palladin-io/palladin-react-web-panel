@@ -1,5 +1,6 @@
 import { openMemberSecret } from '../../../shared/crypto/entry-protocol'
 import { wipe } from '../../../shared/crypto/sodium'
+import { memberKeyFor } from '../../auth'
 import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
 import type { MemberSecretV1 } from '../../../shared/crypto/vault-plaintext'
 import {
@@ -78,7 +79,7 @@ export async function openCurrentMemberEntrySecret(
 
   let vaultKey: Uint8Array
   try {
-    vaultKey = await openMemberVaultKey(cached.authority.memberVaultKey, input.memberPrivateKey)
+    vaultKey = await openMemberVaultKey(cached.authority.memberVaultKey, memberKeyFor(input.memberPrivateKey))
   } catch (error) {
     await invalidateMemberSyncGeneration(cache, input.userId, input.vaultId, cached)
     throw error

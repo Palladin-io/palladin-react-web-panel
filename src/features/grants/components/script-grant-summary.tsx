@@ -11,7 +11,7 @@ import {
 import { wipe } from '../../../shared/crypto/sodium'
 import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
 import { shortenKey } from '../../../shared/lib/shorten-key'
-import { useAuthStore } from '../../auth'
+import { memberKeyFor, useAuthStore } from '../../auth'
 import { getCanonicalEntry } from '../../vaults/api/vault-api'
 import { getEncryptedVault } from '../../vaults/sync/member-sync-api'
 
@@ -50,7 +50,7 @@ export function ScriptGrantSummary({
           getEncryptedVault(vaultId),
           getCanonicalEntry(vaultId, scriptEntryId),
         ])
-        vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+        vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
         const secret = await openMemberSecret(detail.entryKey, detail.memberSecret, vaultKey, {
           organizationId: detail.organizationId,
           vaultId,

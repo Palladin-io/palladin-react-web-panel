@@ -58,10 +58,12 @@ export interface Agent {
   iconColor: string | null
   publicKeyPrefix: string
   publicKeySuffix: string
-  // Full base64 X25519 public key — returned by `GET /api/agents/{id}` so the
-  // proactive-grant flow can seal a DEK to the agent. Optional until the
+  // Full base64 encryption public key — returned by `GET /api/agents/{id}` so
+  // the proactive-grant flow can seal a DEK to the agent. Optional until the
   // backend ships it; the list endpoint keeps returning only prefix/suffix.
   publicKey?: string | null
+  /** Suite of `publicKey` (recipient-key-publication); absent means the legacy suite. */
+  keySuiteId?: string | null
   recipientKeyVersion: number
   /** Pending agents legitimately use epoch 0; backend owns lifecycle validity. */
   accessEpoch: number

@@ -9,6 +9,8 @@ import { usePasswordLogin } from '../hooks/use-password-login'
 import { useAuthStore } from '../stores/auth-store'
 import { EmailPasswordForm } from './email-password-form'
 import { TotpChallengeStep } from './totp-challenge-step'
+import { SecretKeyRequiredStep } from './secret-key-required-step'
+import { SecretKeyRequiredError } from '../../../shared/crypto/identity-kdf'
 import { parseAuthRedirect } from '../../../shared/lib/auth-redirect'
 
 interface LoginPageProps {
@@ -43,7 +45,9 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   }
   const [tooltipTarget, setTooltipTarget] = useState<string | null>(null)
 
-  const [step, setStep] = useState<'credentials' | 'totp'>('credentials')
+  const [step, setStep] = useState<'credentials' | 'totp' | 'secretKey'>('credentials')
+  // Held only while this browser waits for its Secret Key, then the sign-in retries.
+  const [pendingCredentials, setPendingCredentials] = useState<{ email: string; password: string; accountId: string } | null>(null)
   const [challengeToken, setChallengeToken] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [totpError, setTotpError] = useState<string | null>(null)
@@ -76,11 +80,30 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
             finishManualLogin()
           }
         },
-        onError: (error) => setPasswordError(
-          t(error instanceof AuthRateLimitError ? 'auth.errorRateLimited' : 'login.errorInvalid'),
-        ),
+        onError: (error) => {
+          if (error instanceof SecretKeyRequiredError && error.accountId) {
+            setPendingCredentials({ email, password, accountId: error.accountId })
+            setStep('secretKey')
+            return
+          }
+          setPasswordError(
+            t(error instanceof AuthRateLimitError ? 'auth.errorRateLimited' : 'login.errorInvalid'),
+          )
+        },
       },
     )
+  }
+
+  const handleSecretKeyStored = () => {
+    const credentials = pendingCredentials
+    setPendingCredentials(null)
+    setStep('credentials')
+    if (credentials) handleCredentials(credentials.email, credentials.password)
+  }
+
+  const handleSecretKeyBack = () => {
+    setPendingCredentials(null)
+    setStep('credentials')
   }
 
   const handleTotp = (code: string) => {
@@ -111,7 +134,13 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
         <div className="text-center">
           <AuthBrandHeader />
 
-          {step === 'totp' ? (
+          {step === 'secretKey' && pendingCredentials ? (
+            <SecretKeyRequiredStep
+              accountId={pendingCredentials.accountId}
+              onSecretKeyStored={handleSecretKeyStored}
+              onBack={handleSecretKeyBack}
+            />
+          ) : step === 'totp' ? (
             <TotpChallengeStep
               isPending={submitTotp.isPending}
               errorMessage={totpError}

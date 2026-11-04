@@ -25,7 +25,7 @@ export function RecoveryKeyConfirmStep({
       title={t('onboarding.confirmTitle')}
       subtitle={t('onboarding.confirmSubtitle')}
       stepIndex={2}
-      totalSteps={3}
+      totalSteps={4}
       onBack={onBack}
     >
       <RecoveryKeyConfirmationForm

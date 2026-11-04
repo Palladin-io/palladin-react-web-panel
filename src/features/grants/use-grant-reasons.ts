@@ -3,8 +3,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { openEncryptedReason, type EncryptedReasonContract } from '../../shared/crypto/reason-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
-import { useAuthStore } from '../auth'
-import { getEncryptedVault } from '../vaults/sync/member-sync-api'
+import { memberKeyFor, useAuthStore } from '../auth'
+import { getEncryptedVault, vaultAgentMessageKeySuite } from '../vaults/sync/member-sync-api'
 import {
   grantReasonCoordinateKey,
   type GrantReasonCoordinate,
@@ -58,7 +58,7 @@ export function useGrantReasons(grants: readonly GrantReasonSource[]) {
         try {
           const vault = await getEncryptedVault(vaultId)
           if (useAuthStore.getState().privateKey !== sessionKey) return
-          vaultKey = await openMemberVaultKey(vault.memberVaultKey, sessionKey)
+          vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(sessionKey))
           for (const grant of vaultGrants) {
             try {
               const reason = await openEncryptedReason(
@@ -76,6 +76,8 @@ export function useGrantReasons(grants: readonly GrantReasonSource[]) {
                   entryId: grant.entryId ?? undefined,
                   grantId: grant.id,
                   agentId: grant.agentId!,
+                  vaultAgentMessageKeySuiteId: vaultAgentMessageKeySuite(vault,
+                    grant.encryptedReason!.wrappedReasonDek.descriptor.recipientKeyVersion),
                 },
               )
               if (useAuthStore.getState().privateKey !== sessionKey) return

@@ -8,16 +8,33 @@ import { useAuthStore } from '../auth/stores/auth-store'
 
 const getAccount = vi.hoisted(() => vi.fn())
 const setupAccount = vi.hoisted(() => vi.fn())
-const deriveIdentityV1 = vi.hoisted(() => vi.fn())
+const deriveAccountIdentity = vi.hoisted(() => vi.fn())
 const decryptWithKey = vi.hoisted(() => vi.fn())
 const derivePublicKey = vi.hoisted(() => vi.fn())
 const unlockVault = vi.hoisted(() => vi.fn())
 const prepareManualSharedUnlock = vi.hoisted(() => vi.fn())
+const upgrade = vi.hoisted(() => ({
+  createDraft: vi.fn(),
+  begin: vi.fn(),
+  resume: vi.fn(),
+  cancel: vi.fn(),
+}))
+const loadDeviceSecretKey = vi.hoisted(() => vi.fn())
 
-vi.mock('../../shared/api/account-api', () => ({ getAccount, setupAccount }))
+vi.mock('../../shared/api/account-api', () => ({
+  memberKeySuiteOf: (account: { memberPublicKeySuiteId?: string | null }) => account.memberPublicKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount, setupAccount }))
 vi.mock('../../shared/crypto/identity-kdf', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../shared/crypto/identity-kdf')>(),
-  deriveIdentityV1,
+  deriveAccountIdentity,
+}))
+vi.mock('../../shared/crypto/secret-key', () => ({ loadDeviceSecretKey }))
+vi.mock('../security-upgrade', () => ({
+  createSecurityUpgradeDraft: upgrade.createDraft,
+  beginSecurityUpgrade: upgrade.begin,
+  resumeSecurityUpgradeIfNeeded: upgrade.resume,
+  cancelSecurityUpgrade: upgrade.cancel,
+  discardSecurityUpgradeDraft: vi.fn(),
+  needsSecurityUpgrade: (version: number) => version < 2,
 }))
 vi.mock('../../shared/crypto/sodium', () => ({
   decryptWithKey,
@@ -43,7 +60,7 @@ const recoverySalt = encodeBase64Url(new Uint8Array(16).fill(4))
 describe('useUnlock', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    deriveIdentityV1.mockResolvedValue({
+    deriveAccountIdentity.mockResolvedValue({
       authCredential: new Uint8Array(32).fill(5),
       masterKey: new Uint8Array(32).fill(6),
     })
@@ -67,48 +84,74 @@ describe('useUnlock', () => {
     })
   })
 
-  it('enables password login after an OAuth-only account proves its master password', async () => {
+  it('prepares the in-place security upgrade for a v1 account before publishing the legacy keys', async () => {
+    const draft = { recoveryMnemonic: [], material: {} }
+    upgrade.createDraft.mockResolvedValue(draft)
     const { result } = renderHook(() => useUnlock(), { wrapper })
 
     await result.current.mutateAsync({ password: 'master-password' })
 
-    expect(setupAccount).toHaveBeenCalledWith(expect.objectContaining({
-      kdfSalt,
-      encryptedPrivateKey,
-      encryptedPrivateKeyByRecovery,
-      newAuthCredential: encodeBase64Url(new Uint8Array(32).fill(5)),
+    expect(upgrade.createDraft).toHaveBeenCalledWith(accountId, 'master-password')
+    expect(upgrade.begin).toHaveBeenCalledWith(expect.objectContaining({
+      draft, currentAuthCredential: new Uint8Array(32).fill(5), legacyPrivateKey: new Uint8Array(32).fill(7),
     }))
-    expect(unlockVault).toHaveBeenCalledOnce()
-    expect(prepareManualSharedUnlock).toHaveBeenCalledOnce()
+    expect(upgrade.begin.mock.invocationCallOrder[0]).toBeLessThan(unlockVault.mock.invocationCallOrder[0])
+    expect(unlockVault).toHaveBeenCalledWith(expect.any(Uint8Array), expect.any(Uint8Array), undefined,
+      'palladin-x25519-sealed-box-v1')
+    expect(setupAccount).not.toHaveBeenCalled()
   })
 
-  it('does not rewrite an existing password login method', async () => {
-    getAccount.mockResolvedValueOnce({
+  it('derives v2 with this browser\'s Secret Key and resumes a committed upgrade', async () => {
+    const v2 = {
       ...await getAccount(),
-      kdf: { ...(await getAccount()).kdf, credentialRevision: 1 },
-    })
+      memberPublicKeySuiteId: 'palladin-xwing-v1',
+      kdf: { ...(await getAccount()).kdf, securityVersion: 2, minimumSecurityVersion: 2,
+        profileId: 'identity-argon2id-account-secret-v2', credentialRevision: 2 },
+    }
+    getAccount.mockResolvedValueOnce(v2)
+    loadDeviceSecretKey.mockResolvedValueOnce(new Uint8Array(32).fill(9))
     const { result } = renderHook(() => useUnlock(), { wrapper })
 
     await result.current.mutateAsync({ password: 'master-password' })
 
-    expect(setupAccount).not.toHaveBeenCalled()
-    expect(unlockVault).toHaveBeenCalledOnce()
+    expect(deriveAccountIdentity).toHaveBeenCalledWith({
+      password: 'master-password', accountId, kdf: v2.kdf, accountSecret: new Uint8Array(32).fill(9),
+    })
+    expect(upgrade.createDraft).not.toHaveBeenCalled()
+    expect(upgrade.resume).toHaveBeenCalledWith(v2, expect.any(Uint8Array))
+    expect(unlockVault).toHaveBeenCalledWith(expect.any(Uint8Array), expect.any(Uint8Array), undefined, 'palladin-xwing-v1')
+  })
+
+  it('asks for the Secret Key instead of deriving when this browser holds none', async () => {
+    getAccount.mockResolvedValueOnce({
+      ...await getAccount(),
+      kdf: { ...(await getAccount()).kdf, securityVersion: 2, minimumSecurityVersion: 2,
+        profileId: 'identity-argon2id-account-secret-v2' },
+    })
+    loadDeviceSecretKey.mockResolvedValueOnce(null)
+    const { result } = renderHook(() => useUnlock(), { wrapper })
+
+    await expect(result.current.mutateAsync({ password: 'pw' })).rejects.toMatchObject({
+      name: 'SecretKeyRequiredError', accountId,
+    })
+    expect(deriveAccountIdentity).not.toHaveBeenCalled()
+    expect(unlockVault).not.toHaveBeenCalled()
   })
 
   for (const action of ['lockVault', 'logout', 'expireSession'] as const) {
     it(`cannot publish keys after ${action} while derivation is pending`, async () => {
       let resolve!: (value: { authCredential: Uint8Array; masterKey: Uint8Array }) => void
-      deriveIdentityV1.mockReturnValueOnce(new Promise(r => { resolve = r }))
+      deriveAccountIdentity.mockReturnValueOnce(new Promise(r => { resolve = r }))
       const { result } = renderHook(() => useUnlock(), { wrapper })
       const unlocking = result.current.mutateAsync({ password: 'pw' })
       const rejected = expect(unlocking).rejects.toThrow('Unlock attempt cancelled')
-      await vi.waitFor(() => expect(deriveIdentityV1).toHaveBeenCalledOnce())
+      await vi.waitFor(() => expect(deriveAccountIdentity).toHaveBeenCalledOnce())
       useAuthStore.getState()[action]()
       resolve({ authCredential: new Uint8Array(32).fill(5), masterKey: new Uint8Array(32).fill(6) })
       await rejected
       expect(unlockVault).not.toHaveBeenCalled()
       expect(prepareManualSharedUnlock).not.toHaveBeenCalled()
-      expect(setupAccount).not.toHaveBeenCalled()
+      expect(upgrade.begin).not.toHaveBeenCalled()
     })
   }
 })
