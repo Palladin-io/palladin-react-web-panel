@@ -11,11 +11,13 @@ import {
   type RegisterCredentialsValues,
 } from './components/register-credentials-step'
 import {
+  RegisterEmergencyKitStep,
   RegisterRecoveryConfirmStep,
   RegisterRecoveryStep,
 } from './components/register-recovery-steps'
+import type { EmergencyKitMaterial } from '../../../shared/crypto/secret-key'
 
-type Step = 'credentials' | 'recovery' | 'confirm'
+type Step = 'credentials' | 'recovery' | 'confirm' | 'kit'
 
 /**
  * Email + password registration wizard.
@@ -38,15 +40,23 @@ export function RegisterPage({ redirectTo }: RegisterPageProps) {
   const locked = useAuthStore(state => state.isVaultLocked)
   const checking = useAuthStore(state => state.sessionRevalidating)
   const navigated = useRef(false)
+  const [kit, setKit] = useState<EmergencyKitMaterial | null>(null)
 
   useEffect(() => {
-    if (!authenticated || checking || register.isPending || navigated.current) return
+    // The Emergency Kit step gates completion of a fresh registration.
+    if (!authenticated || checking || register.isPending || register.isSuccess || kit || navigated.current) return
     navigated.current = true
     if (locked) void navigate({ to: '/unlock', search: { redirect: destination ?? '/' }, replace: true })
     else void navigate({ href: destination ?? '/', replace: true })
-  }, [authenticated, locked, checking, register.isPending, navigate, destination])
+  }, [authenticated, locked, checking, register.isPending, register.isSuccess, kit, navigate, destination])
 
   const [step, setStep] = useState<Step>('credentials')
+  const finish = () => {
+    if (navigated.current) return
+    navigated.current = true
+    setKit(null)
+    void (destination ? navigate({ href: destination }) : navigate({ to: '/' }))
+  }
   const [credentials, setCredentials] = useState<RegisterCredentialsValues | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -73,10 +83,9 @@ export function RegisterPage({ redirectTo }: RegisterPageProps) {
         recoveryMnemonic: mnemonic,
       },
       {
-        onSuccess: () => {
-          if (navigated.current) return
-          navigated.current = true
-          return destination ? navigate({ href: destination }) : navigate({ to: '/' })
+        onSuccess: (material) => {
+          setKit(material)
+          setStep('kit')
         },
         onError: (err) => {
           // A 409 means the email is already registered — tell the user exactly
@@ -107,6 +116,10 @@ export function RegisterPage({ redirectTo }: RegisterPageProps) {
         onContinue={() => setStep('confirm')}
       />
     )
+  }
+
+  if (step === 'kit' && kit) {
+    return <RegisterEmergencyKitStep kit={kit} onContinue={finish} />
   }
 
   return (

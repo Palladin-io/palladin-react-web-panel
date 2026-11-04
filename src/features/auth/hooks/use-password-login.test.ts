@@ -25,10 +25,22 @@ vi.mock('../shared-unlock/manual-source', () => ({ prepareManualSharedUnlock }))
 
 vi.mock('../api/auth-api', () => ({ fetchLoginKdf, passwordLogin, totpLogin, revokeUninstalledLoginSession,
   isTotpRequired: (response: { totpRequired?: boolean }) => response.totpRequired === true }))
-vi.mock('../../../shared/api/account-api', () => ({ getAccount }))
+vi.mock('../../../shared/api/account-api', () => ({
+  memberKeySuiteOf: (account: { memberKeySuiteId?: string | null }) => account.memberKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount }))
 vi.mock('../../../shared/crypto/identity-kdf', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../../../shared/crypto/identity-kdf')>(), deriveIdentityV1,
+  ...await importOriginal<typeof import('../../../shared/crypto/identity-kdf')>(), deriveAccountIdentity: deriveIdentityV1,
 }))
+const loadDeviceSecretKey = vi.hoisted(() => vi.fn())
+vi.mock('../../../shared/crypto/secret-key', () => ({ loadDeviceSecretKey }))
+const upgrade = vi.hoisted(() => ({ createDraft: vi.fn(), begin: vi.fn(), resume: vi.fn() }))
+vi.mock('../../security-upgrade/prepare-security-upgrade', () => ({
+  createSecurityUpgradeDraft: upgrade.createDraft,
+  beginSecurityUpgrade: upgrade.begin,
+  resumeSecurityUpgradeIfNeeded: upgrade.resume,
+  discardSecurityUpgradeDraft: vi.fn(),
+  needsSecurityUpgrade: (version: number) => version < 2,
+}))
+vi.mock('../../security-upgrade/security-upgrade-store', () => ({ cancelSecurityUpgrade: vi.fn() }))
 vi.mock('../../../shared/crypto/sodium', () => ({ decryptWithKey, wipe: vi.fn() }))
 vi.mock('../stores/auth-store', () => ({ useAuthStore: { subscribe: () => () => {}, getState: () => ({
   setTokens, unlockVault, logout,
@@ -112,7 +124,7 @@ describe('usePasswordLogin password KDF v1', () => {
     await result.current.start.mutateAsync({ email: 'new@example.com', password: 'pw' })
     release(); await rejected
     expect(captureManualUnlockFence()()).toBe(false)
-    expect(fetchLoginKdf).toHaveBeenCalledExactlyOnceWith('new@example.com', 'identity-argon2id-password-v1')
+    expect(fetchLoginKdf).toHaveBeenCalledExactlyOnceWith('new@example.com', 'identity-argon2id-account-secret-v2')
     result.current.cancel()
     expect(captureManualUnlockFence()()).toBe(true)
   })
@@ -198,22 +210,49 @@ describe('usePasswordLogin password KDF v1', () => {
     expect(logout).toHaveBeenCalledTimes(2)
   })
 
-  it('derives and calls login for an unknown account pseudo-bootstrap', async () => {
+  it('asks for the Secret Key for a v2 pseudo-bootstrap exactly as for a real account on a new browser', async () => {
     const pseudoAccountId = 'ffeeddcc-bbaa-4a99-8877-665544332211'
-    fetchLoginKdf.mockResolvedValue({ ...profile, accountId: pseudoAccountId })
-    passwordLogin.mockRejectedValue(new Error('invalid-credentials'))
+    fetchLoginKdf.mockResolvedValue({ ...profile, accountId: pseudoAccountId, securityVersion: 2,
+      profileId: 'identity-argon2id-account-secret-v2' })
+    loadDeviceSecretKey.mockResolvedValueOnce(null)
     const { result } = renderHook(() => usePasswordLogin(), { wrapper })
 
-    await expect(result.current.start.mutateAsync({
-      email: 'unknown@example.com',
-      password: 'password',
-    })).rejects.toThrow('invalid-credentials')
+    await expect(result.current.start.mutateAsync({ email: 'unknown@example.com', password: 'password' }))
+      .rejects.toMatchObject({ name: 'SecretKeyRequiredError', accountId: pseudoAccountId })
+    expect(deriveIdentityV1).not.toHaveBeenCalled()
+    expect(passwordLogin).not.toHaveBeenCalled()
+  })
 
-    expect(deriveIdentityV1).toHaveBeenCalledWith(
-      'password',
-      pseudoAccountId,
-      expect.any(Uint8Array),
-    )
-    expect(passwordLogin).toHaveBeenCalledOnce()
+  it('derives v2 with the stored Secret Key and logs in with the bootstrap profile', async () => {
+    const v2 = { ...profile, securityVersion: 2, profileId: 'identity-argon2id-account-secret-v2' }
+    fetchLoginKdf.mockResolvedValue(v2)
+    getAccount.mockResolvedValue({ userId: accountId, encryptedPrivateKey: encodeBase64Url(new Uint8Array(72).fill(6)),
+      memberKeySuiteId: 'palladin-xwing-v1', kdf: { ...v2, minimumSecurityVersion: 2 } })
+    loadDeviceSecretKey.mockResolvedValueOnce(new Uint8Array(32).fill(8))
+    passwordLogin.mockResolvedValue(response)
+    const { result } = renderHook(() => usePasswordLogin(), { wrapper })
+
+    await result.current.start.mutateAsync({ email: 'u@example.com', password: 'pw' })
+
+    expect(deriveIdentityV1).toHaveBeenCalledWith({ password: 'pw', accountId, kdf: v2, accountSecret: new Uint8Array(32).fill(8) })
+    expect(passwordLogin).toHaveBeenCalledWith(expect.objectContaining({
+      securityVersion: 2, kdfProfileId: 'identity-argon2id-account-secret-v2',
+    }))
+    expect(upgrade.createDraft).not.toHaveBeenCalled()
+    expect(upgrade.resume).toHaveBeenCalledOnce()
+    expect(unlockVault).toHaveBeenCalledWith(expect.any(Uint8Array), expect.any(Uint8Array), undefined, 'palladin-xwing-v1')
+  })
+
+  it('derives the upgrade draft for a v1 account while the password is still available', async () => {
+    passwordLogin.mockResolvedValue(response)
+    const draft = { recoveryMnemonic: [], material: {} }
+    upgrade.createDraft.mockResolvedValue(draft)
+    const { result } = renderHook(() => usePasswordLogin(), { wrapper })
+
+    await result.current.start.mutateAsync({ email: 'u@example.com', password: 'pw' })
+
+    expect(upgrade.createDraft).toHaveBeenCalledWith(accountId, 'pw')
+    expect(upgrade.begin).toHaveBeenCalledWith(expect.objectContaining({ draft }))
+    expect(upgrade.begin.mock.invocationCallOrder[0]).toBeLessThan(unlockVault.mock.invocationCallOrder[0])
   })
 })

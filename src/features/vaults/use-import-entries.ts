@@ -15,7 +15,7 @@ import {
   publicAssetIconReference,
 } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import {
   getOrgGrants,
   GRANT_STATUS_ACTIVE,
@@ -216,7 +216,7 @@ export function useImportEntries() {
 
       let vaultKey: Uint8Array
       try {
-        vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+        vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
       } catch (error) {
         throw new ImportStepError('openVaultKey', error)
       }

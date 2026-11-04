@@ -1,7 +1,7 @@
 import { randomUuid } from '../../shared/crypto/random-uuid'
 import type { GrantFieldSelection } from '../../shared/types/grant-field-selection'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
 import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/crypto/grant-protocol'
 import { grantPayloadPolicyFieldId } from '../../shared/crypto/vault-plaintext'
@@ -86,7 +86,7 @@ export function useCreateGrant() {
       }
 
       const vault = await getEncryptedVault(vaultId)
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
       try {
         if (type === GRANT_TYPE_FULL) {
           assertCurrentUnlockSession(privateKey)

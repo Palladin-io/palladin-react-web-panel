@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { openEncryptedReason, type EncryptedReasonContract } from '../../shared/crypto/reason-protocol'
 import { wipe } from '../../shared/crypto/sodium'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import {
   grantReasonCoordinateKey,
@@ -58,7 +58,7 @@ export function useGrantReasons(grants: readonly GrantReasonSource[]) {
         try {
           const vault = await getEncryptedVault(vaultId)
           if (useAuthStore.getState().privateKey !== sessionKey) return
-          vaultKey = await openMemberVaultKey(vault.memberVaultKey, sessionKey)
+          vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(sessionKey))
           for (const grant of vaultGrants) {
             try {
               const reason = await openEncryptedReason(

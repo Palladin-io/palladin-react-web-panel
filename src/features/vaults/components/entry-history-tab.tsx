@@ -13,7 +13,7 @@ import { wipe } from '../../../shared/crypto/sodium'
 import { useOrganizationMemberDirectory } from '../../../shared/hooks/use-organization-member-directory'
 import { organizationIdFromAccessToken } from '../../../shared/lib/organization-scope'
 import { shortenKey } from '../../../shared/lib/shorten-key'
-import { useAuthStore } from '../../auth'
+import { memberKeyFor, useAuthStore } from '../../auth'
 import type { CanonicalEntryDetail, EntryHistoryItem } from '../api/vault-api'
 import { getEncryptedVault } from '../sync/member-sync-api'
 import { useEntryHistory } from '../use-entries'
@@ -93,7 +93,7 @@ function ScopedEntryHistoryTab({ detail }: EntryHistoryTabProps) {
     const key = useAuthStore.getState().privateKey
     if (!key) throw new Error('Vault is locked')
     const vault = await getEncryptedVault(detail.vaultId)
-    const vaultKey = await openMemberVaultKey(vault.memberVaultKey, key)
+    const vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(key))
     try {
       const result = await run(vaultKey)
       if (useAuthStore.getState().privateKey !== key) throw new Error('Vault lock session changed')

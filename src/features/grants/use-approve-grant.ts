@@ -1,6 +1,6 @@
 import type { GrantFieldSelectionMode } from '../../shared/types/grant-field-selection'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import { getAgent } from '../agents'
 import { openMemberSecret } from '../../shared/crypto/entry-protocol'
 import { buildCanonicalGrantEnvelope } from '../../shared/crypto/grant-protocol'
@@ -98,7 +98,7 @@ export function useApproveGrant() {
       if (detail.currentRevision !== reviewedEntryRevision) {
         throw new StaleGrantReviewError()
       }
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
       try {
         if (type === GRANT_TYPE_SCRIPT_EXECUTION) {
           if (methods.length !== 1 || methods[0] !== 'exec'

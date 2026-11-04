@@ -65,7 +65,7 @@ describe('createDefaultVaultSafe', () => {
 
     expect(createPayloadMock).toHaveBeenCalledWith(expect.objectContaining({
       organizationId: 'org-1', vaultId: 'vault-1', memberId: 'member-1',
-      memberKeyVersion: 3, memberPrivateKey: FAKE_KEY,
+      memberKeyVersion: 3, memberKey: { privateKey: FAKE_KEY, keySuiteId: expect.any(String) },
       metadata: expect.objectContaining({ name: 'Personal', grantMode: 'granular' }),
     }))
     expect(createDefaultVaultMock).toHaveBeenCalledOnce()

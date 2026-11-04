@@ -8,6 +8,7 @@ import { clearWaitlistDeveloperBenefitAcknowledgement } from '../lib/waitlist-de
 import { useAuthStore } from '../stores/auth-store'
 import { env } from '../../../shared/lib/env'
 import { deliverManualSharedUnlockLogout, recordManualSharedUnlockLogout } from '../shared-unlock/link-runtime'
+import { forgetDeviceSecretKey } from '../../../shared/crypto/secret-key'
 
 let clientSessionGeneration = 0
 
@@ -48,6 +49,8 @@ export async function logoutAndReload(
   let cleanup: Promise<unknown> | undefined
   try { cleanup = bestEffortBeforeReload?.() } catch { /* Secondary cleanup cannot prevent local logout. */ }
   const profileCleanup = clearClientSession()
+  // identity-kdf v3: an explicit sign-out removes this browser's wrapped Secret Key.
+  const secretKeyCleanup = userId ? forgetDeviceSecretKey(userId) : Promise.resolve()
   if (sessionId) publishBrowserSessionNotice('logout', sessionId)
   const generation = captureClientSessionGeneration()
   const delivery = sharedClosing.then(async () => {
@@ -68,6 +71,7 @@ export async function logoutAndReload(
     delivery,
     sharedClosing,
     profileCleanup,
+    secretKeyCleanup,
     cleanup ? Promise.race([
       cleanup.catch(() => undefined),
       new Promise<void>((resolve) => window.setTimeout(resolve, 500)),

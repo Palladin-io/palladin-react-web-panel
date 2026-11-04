@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { HTTPError } from 'ky'
-import { useAuthStore } from '../../auth'
+import { memberKeyFor, useAuthStore } from '../../auth'
 import { organizationIdFromAccessToken } from '../../../shared/lib/organization-scope'
 import { PERMISSION_VAULT_MANAGE } from '../../../shared/lib/permissions'
 import type { EntryShareSnapshot } from '../../../shared/crypto/entry-share'
@@ -10,7 +10,7 @@ import { listEncryptedVaults, getEncryptedVault } from '../sync/member-sync-api'
 import { createEntry, createVault, issueEntryCreationChallenge, issueVaultCreationChallenge, type CreateVaultPayload } from '../api/vault-api'
 import { useMemberSyncStore } from '../sync/member-sync-store'
 import { createVaultProtocolPayload } from '../../../shared/crypto/create-vault-protocol'
-import { createDefaultVault, getAccount } from '../../../shared/api/account-api'
+import { createDefaultVault, getAccount, memberKeySuiteOf } from '../../../shared/api/account-api'
 import { DEFAULT_VAULT_COLOR, DEFAULT_VAULT_ICON } from '../../../shared/lib/create-default-vault-safe'
 
 interface CopyVault { id: string; name: string | null; isDefault: boolean }
@@ -43,7 +43,7 @@ async function loadVaultChoices(operation: CopyOperation): Promise<CopyVault[] |
     try {
       name = await readEntryShareCopyVaultName({ ...vault, organizationId: operation.organizationId! },
         { organizationId: operation.organizationId!, memberId: operation.auth.userId!, vaultId: vault.id },
-        operation.auth.privateKey!, operation.controller.signal)
+        memberKeyFor(operation.auth.privateKey!), operation.controller.signal)
     } catch { /* A corrupt Vault must not hide unrelated authenticated choices. */ }
     if (!current(operation)) return null
     choices.push({ id: vault.id, name, isDefault: vault.isDefault })
@@ -100,7 +100,7 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
         const payload = await createVaultProtocolPayload({
           organizationId: operation.organizationId!, vaultId: challenge.vaultId,
           memberId: operation.auth.userId!, memberKeyVersion: account.memberKeyVersion,
-          memberPrivateKey: operation.auth.privateKey!,
+          memberKey: { privateKey: operation.auth.privateKey!, keySuiteId: memberKeySuiteOf(account) },
           metadata: { schema: 'palladin.member-vault-metadata.v1', name: normalizedName,
             description: null, icon: vaults.length === 0 ? { kind: 'glyph', value: DEFAULT_VAULT_ICON } : null,
             color: vaults.length === 0 ? DEFAULT_VAULT_COLOR : null, grantMode: 'granular' },
@@ -172,7 +172,7 @@ export function useSaveShareCopy(snapshot: EntryShareSnapshot) {
           issueEntryCreationChallenge(vaultId, operation.controller.signal)])
         if (!current(operation)) return 'cancelled'
         const material = await sealEntryShareCopy(secret, vault, { vaultId, entryId: challenge.entryId,
-          organizationId: operation.organizationId!, memberId: operation.auth.userId! }, operation.auth.privateKey!, operation.controller.signal)
+          organizationId: operation.organizationId!, memberId: operation.auth.userId! }, memberKeyFor(operation.auth.privateKey!), operation.controller.signal)
         if (!current(operation)) return 'cancelled'
         operation.request = { vaultId, body: { entryId: challenge.entryId, ...material,
           deliveryPolicy: snapshot.entryType === 'script' ? 'execOnly' : snapshot.entryType === 'creditCard' ? 'injectOnly' : 'standard' } }

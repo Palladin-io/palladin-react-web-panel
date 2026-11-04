@@ -7,10 +7,12 @@ import { AuthBrandHeader } from '../../shared/components/auth-brand-header'
 import { AuthSubmitButton } from '../../shared/components/auth-submit-button'
 import { FeedbackSlot, FormInput } from '../../shared/components/form-field'
 import { analytics } from '../../shared/lib/analytics'
-import { logoutAndReload, useAuthStore } from '../auth'
+import { logoutAndReload, SecretKeyRequiredStep, useAuthStore } from '../auth'
+import { SecretKeyRequiredError } from '../../shared/crypto/identity-kdf'
 import { clearPushTokenOnLogout } from '../notifications'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../shared/api/account-api'
-import { OnboardingWizard } from '../onboarding'
+import { EmergencyKitStep, OnboardingWizard } from '../onboarding'
+import type { EmergencyKitMaterial } from '../../shared/crypto/secret-key'
 import { IncorrectMasterPasswordError, useUnlock } from './use-unlock'
 
 /**
@@ -29,6 +31,8 @@ export function UnlockPage({ redirectTo = '/' }: UnlockPageProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const isVaultLocked = useAuthStore((s) => s.isVaultLocked)
+  // Latched so the account refetch after setup cannot unmount the kit step.
+  const [kit, setKit] = useState<EmergencyKitMaterial | null>(null)
 
   const account = useQuery({
     queryKey: ACCOUNT_QUERY_KEY,
@@ -39,14 +43,18 @@ export function UnlockPage({ redirectTo = '/' }: UnlockPageProps) {
   // Leave /unlock as soon as the vault is unlocked, regardless of whether
   // it was the wizard or the unlock form that did it.
   useEffect(() => {
-    if (!isVaultLocked) {
+    if (!isVaultLocked && !kit) {
       navigate({ href: redirectTo })
     }
-  }, [account.data?.kdf?.securityVersion, isVaultLocked, navigate, redirectTo])
+  }, [account.data?.kdf?.securityVersion, isVaultLocked, kit, navigate, redirectTo])
 
   useEffect(() => {
     analytics.capture('unlock', 'page-viewed')
   }, [])
+
+  if (kit) {
+    return <EmergencyKitStep kit={kit} onContinue={() => setKit(null)} />
+  }
 
   if (account.isPending) {
     return (
@@ -73,7 +81,7 @@ export function UnlockPage({ redirectTo = '/' }: UnlockPageProps) {
   // actually needs; isOnboarded alone doesn't guarantee they're present.
   // Render the wizard full-screen here (no sidebar — /unlock renders without layout chrome).
   if (!account.data?.salt || !account.data?.encryptedPrivateKey) {
-    return <OnboardingWizard />
+    return <OnboardingWizard onKitReady={setKit} />
   }
 
   return <UnlockForm redirectTo={redirectTo} />
@@ -127,6 +135,7 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
   const unlock = useUnlock()
   const [password, setPassword] = useState('')
   const [hasError, setHasError] = useState(false)
+  const [secretKeyAccountId, setSecretKeyAccountId] = useState<string | null>(null)
 
   // Same logout flow as the app shell: best-effort push-token cleanup, clear
   // session, redirect to login. The only escape hatch from a locked vault when
@@ -137,10 +146,7 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
 
   const isPending = unlock.isPending
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (isPending || password.length === 0) return
-
+  const submitUnlock = () => {
     setHasError(false)
     unlock.mutate({ password }, {
       onSuccess: () => {
@@ -148,6 +154,10 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
         navigate({ href: redirectTo })
       },
       onError: (err) => {
+        if (err instanceof SecretKeyRequiredError) {
+          setSecretKeyAccountId(err.accountId ?? null)
+          return
+        }
         analytics.capture('unlock', 'unlock-failed')
         if (err instanceof IncorrectMasterPasswordError) {
           setHasError(true)
@@ -156,6 +166,27 @@ function UnlockForm({ redirectTo }: { redirectTo: string }) {
         }
       },
     })
+  }
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (isPending || password.length === 0) return
+    submitUnlock()
+  }
+
+  if (secretKeyAccountId) {
+    return (
+      <div className="auth-surface auth-canvas-grain flex min-h-screen items-center justify-center">
+        <div className="auth-logo-glow w-full max-w-[27.5rem] px-6">
+          <AuthBrandHeader />
+          <SecretKeyRequiredStep
+            accountId={secretKeyAccountId}
+            onSecretKeyStored={() => { setSecretKeyAccountId(null); submitUnlock() }}
+            onBack={() => setSecretKeyAccountId(null)}
+          />
+        </div>
+      </div>
+    )
   }
 
   return (

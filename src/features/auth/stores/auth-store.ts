@@ -8,6 +8,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { parseJwtPayload } from '../../../shared/lib/jwt'
 import { wipe } from '../../../shared/crypto/sodium'
+import { KEY_WRAPPER_SUITE, type RecipientPrivateKey } from '../../../shared/crypto/key-wrapper'
 import { isWaitlistDeveloperBenefitActive } from '../lib/waitlist-developer-benefit'
 
 interface AuthState {
@@ -38,8 +39,10 @@ interface AuthState {
   isVaultLocked: boolean
   /** 32-byte Argon2id-derived master key. Never persisted. */
   masterKey: Uint8Array | null
-  /** 32-byte X25519 private key recovered by decrypting the server blob. */
+  /** 32-byte Member private key recovered by decrypting the server blob. */
   privateKey: Uint8Array | null
+  /** Suite of `privateKey` as published by the authenticated account. Never persisted. */
+  memberKeySuiteId: string | null
   /** Non-secret cache namespace changed for every unlocked crypto session. */
   cryptoSessionGeneration: number
   unlockLimits: SessionUnlockLimits | null
@@ -66,6 +69,7 @@ interface AuthState {
     masterKey: Uint8Array,
     privateKey: Uint8Array,
     inheritedLimits?: SessionUnlockLimits,
+    memberKeySuiteId?: string,
   ) => void
   lockVault: () => void
   /** Session timeout: wipes crypto keys AND the access token, so a walked-away tab holds neither. */
@@ -86,6 +90,7 @@ const initialState = {
   isVaultLocked: true,
   masterKey: null,
   privateKey: null,
+  memberKeySuiteId: null,
   cryptoSessionGeneration: 0,
   unlockLimits: null,
 }
@@ -122,7 +127,8 @@ export const useAuthStore = create<AuthState>()(
             const tokens = tokenState(state, session)
             owned = { masterKey: new Uint8Array(keys.masterKey), privateKey: new Uint8Array(keys.privateKey) }
             installedGeneration = state.cryptoSessionGeneration + 1
-            return { ...tokens, ...owned, unlockLimits: inherited, isVaultLocked: false,
+            // recoverSharedUnlockKeys binds the key to the Identity X25519 public key.
+            return { ...tokens, ...owned, memberKeySuiteId: KEY_WRAPPER_SUITE.legacy, unlockLimits: inherited, isVaultLocked: false,
               cryptoSessionGeneration: installedGeneration }
           })
           const current = get()
@@ -145,7 +151,7 @@ export const useAuthStore = create<AuthState>()(
               try {
                 set({ ...previous, accessToken: current.accessToken === null ? null : previous.accessToken,
                   cryptoSessionGeneration: current.cryptoSessionGeneration + 1,
-                  masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true })
+                  masterKey: null, privateKey: null, memberKeySuiteId: null, unlockLimits: null, isVaultLocked: true })
               } catch { /* set updates memory before storage/subscriber errors; owned keys are already erased. */ }
             } else if (current.masterKey === allocated.masterKey || current.privateKey === allocated.privateKey) {
               // A reentrant observer may rotate tokens before throwing. Keep
@@ -171,7 +177,7 @@ export const useAuthStore = create<AuthState>()(
           }
         }),
 
-      unlockVault: (masterKey, privateKey, inheritedLimits) =>
+      unlockVault: (masterKey, privateKey, inheritedLimits, memberKeySuiteId = KEY_WRAPPER_SUITE.legacy) =>
         // Store independent copies — callers routinely `wipe()` their local
         // buffers right after handing them off, which would zero out our
         // references too if we kept them.
@@ -183,6 +189,7 @@ export const useAuthStore = create<AuthState>()(
             unlockLimits: limits,
             masterKey: new Uint8Array(masterKey),
             privateKey: new Uint8Array(privateKey),
+            memberKeySuiteId,
             isVaultLocked: false,
             cryptoSessionGeneration: (state.cryptoSessionGeneration ?? 0) + 1,
           }
@@ -203,7 +210,7 @@ export const useAuthStore = create<AuthState>()(
           if (state.masterKey && state.userId) sharedUnlockExpiry.retire({ accountId: state.userId, apiUrl: env.apiUrl })
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
-          return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true,
+          return { masterKey: null, privateKey: null, memberKeySuiteId: null, unlockLimits: null, isVaultLocked: true,
             cryptoSessionGeneration: state.cryptoSessionGeneration + 1 }
         }),
 
@@ -212,7 +219,7 @@ export const useAuthStore = create<AuthState>()(
           if (reason !== 'pagehide' && state.masterKey && state.userId) sharedUnlockExpiry.retire({ accountId: state.userId, apiUrl: env.apiUrl })
           if (state.masterKey) wipe(state.masterKey)
           if (state.privateKey) wipe(state.privateKey)
-          return { masterKey: null, privateKey: null, unlockLimits: null, isVaultLocked: true, accessToken: null,
+          return { masterKey: null, privateKey: null, memberKeySuiteId: null, unlockLimits: null, isVaultLocked: true, accessToken: null,
             cryptoSessionGeneration: state.cryptoSessionGeneration + 1 }
         }),
 
@@ -261,6 +268,23 @@ function activeBenefitPeriod(
   }
 
   return { startedAt, endsAt }
+}
+
+function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
+  if (left.length !== right.length) return false
+  let difference = 0
+  for (let index = 0; index < left.length; index++) difference |= left[index] ^ right[index]
+  return difference === 0
+}
+
+/**
+ * Pairs a captured session key (or a copy of it) with the suite the account
+ * published for it. Throws when the vault locked or the key changed since.
+ */
+export function memberKeyFor(privateKey: Uint8Array): RecipientPrivateKey {
+  const state = useAuthStore.getState()
+  if (!state.privateKey || !sameBytes(state.privateKey, privateKey)) throw new Error('Vault was locked')
+  return { privateKey, keySuiteId: state.memberKeySuiteId ?? KEY_WRAPPER_SUITE.legacy }
 }
 
 export function getIsAuthenticated() {

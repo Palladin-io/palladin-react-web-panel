@@ -44,6 +44,7 @@ vi.mock('./use-unlock', async () => {
 
 // Default: account is set up so the unlock form renders (not the wizard).
 vi.mock('../../shared/api/account-api', () => ({
+  memberKeySuiteOf: (account: { memberKeySuiteId?: string | null }) => account.memberKeySuiteId ?? 'palladin-x25519-sealed-box-v1',
   ACCOUNT_QUERY_KEY: ['account'],
   getAccount: vi.fn().mockResolvedValue({ isOnboarded: true, salt: 'mock-salt', encryptedPrivateKey: 'mock-key' }),
 }))

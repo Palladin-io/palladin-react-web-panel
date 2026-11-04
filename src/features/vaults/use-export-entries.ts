@@ -3,7 +3,7 @@ import { openMemberSecret } from '../../shared/crypto/entry-protocol'
 import { fromMemberSecret, type MemberSecretView } from '../../shared/crypto/entry-draft'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import { getCanonicalEntry, getEntryHistory, type CanonicalEntryDetail } from './api/vault-api'
 import { toPalladinCsv, toPalladinJson, type ExportEntry, type ExportVault } from './export'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT } from './types'
@@ -200,7 +200,7 @@ export function useExportEntries() {
         for (const { target, metadata, entries } of selected) {
           throwIfCancelled(input.signal, privateKey)
           const encryptedVault = await getEncryptedVault(target.id, input.signal)
-          const vaultKey = await openMemberVaultKey(encryptedVault.memberVaultKey, privateKey)
+          const vaultKey = await openMemberVaultKey(encryptedVault.memberVaultKey, memberKeyFor(privateKey))
           try {
             const rows = await mapWithConcurrency(
               entries,

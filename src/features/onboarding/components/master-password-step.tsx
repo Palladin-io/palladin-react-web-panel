@@ -39,7 +39,7 @@ export function MasterPasswordStep({ onContinue, initialPassword }: MasterPasswo
         </>
       }
       stepIndex={0}
-      totalSteps={3}
+      totalSteps={4}
     >
       <form
         className="flex flex-col gap-3"

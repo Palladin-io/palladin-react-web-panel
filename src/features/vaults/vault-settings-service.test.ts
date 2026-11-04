@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../shared/lib/jwt', () => ({ parseJwtPayload: () => ({ org_id: '00112233-4455-4677-8899-aabbccddeeff' }) }))
-vi.mock('../auth', () => ({
+vi.mock('../auth', () => ({ memberKeyFor: (privateKey: Uint8Array) => ({ privateKey, keySuiteId: 'palladin-x25519-sealed-box-v1' }),
   useAuthStore: {
     getState: () => ({
       privateKey: new Uint8Array(32).fill(4),

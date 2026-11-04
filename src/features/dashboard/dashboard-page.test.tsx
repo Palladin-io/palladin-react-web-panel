@@ -19,6 +19,7 @@ const state = vi.hoisted(() => ({
 }))
 
 vi.mock('../../shared/api/account-api', () => ({
+  memberKeySuiteOf: (account: { memberKeySuiteId?: string | null }) => account.memberKeySuiteId ?? 'palladin-x25519-sealed-box-v1',
   ACCOUNT_QUERY_KEY: ['account'],
   getAccount: () => Promise.resolve(state.account),
 }))

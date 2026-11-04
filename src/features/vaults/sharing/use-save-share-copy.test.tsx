@@ -14,7 +14,8 @@ vi.mock('../api/vault-api', () => ({ issueEntryCreationChallenge: api.challenge,
   issueVaultCreationChallenge: api.vaultChallenge, createVault: api.createVault }))
 vi.mock('../../../shared/crypto/entry-share-copy-encryption', () => ({ readEntryShareCopyVaultName: api.name, sealEntryShareCopy: api.seal }))
 vi.mock('../../../shared/crypto/create-vault-protocol', () => ({ createVaultProtocolPayload: api.vaultPayload }))
-vi.mock('../../../shared/api/account-api', () => ({ getAccount: api.account, createDefaultVault: api.createDefaultVault }))
+vi.mock('../../../shared/api/account-api', () => ({
+  memberKeySuiteOf: (account: { memberKeySuiteId?: string | null }) => account.memberKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount: api.account, createDefaultVault: api.createDefaultVault }))
 
 const snapshot = fixture.snapshot as EntryShareSnapshot
 const organizationId = '11111111-1111-4111-8111-111111111111'

@@ -3,7 +3,7 @@ import { decryptPresentationAsset, validatePresentationAssetDimensions } from '.
 import { openMemberVaultKey } from '../../../shared/crypto/vault-protocol'
 import { wipe } from '../../../shared/crypto/sodium'
 import { parseJwtPayload } from '../../../shared/lib/jwt'
-import { useAuthStore } from '../../auth'
+import { memberKeyFor, useAuthStore } from '../../auth'
 import { getEncryptedVault } from '../sync/member-sync-api'
 import { downloadEncryptedAsset } from './encrypted-asset-api'
 
@@ -42,7 +42,7 @@ export function useVaultEncryptedAssetUrl(
       try {
         const vault = await getEncryptedVault(vaultId, controller.signal)
         const keyVersion = vault.currentKeyEpoch.vaultKeyVersion
-        vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberPrivateKey)
+        vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(memberPrivateKey))
         const remote = await downloadEncryptedAsset(vaultId, assetId, controller.signal)
         if (remote.target !== target || remote.entryId !== entryId) {
           throw new Error('Encrypted presentation asset scope mismatch')

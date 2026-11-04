@@ -24,6 +24,10 @@ import {
 import { memberSyncItemSchema } from './member-sync-api'
 import { useMemberSyncStore } from './member-sync-store'
 
+vi.mock('../../auth', () => ({
+  memberKeyFor: (privateKey: Uint8Array) => ({ privateKey, keySuiteId: 'palladin-x25519-sealed-box-v1' }),
+}))
+
 const userId = validSnapshotFixture.requestAuthority.authenticatedPrincipalId
 const vaultId = validSnapshotFixture.requestAuthority.routeVaultId
 const entryId = validSnapshotFixture.requestAuthority.authoritativeEntryHeads[0].entryId

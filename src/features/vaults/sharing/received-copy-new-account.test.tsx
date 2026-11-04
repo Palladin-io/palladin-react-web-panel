@@ -1,3 +1,4 @@
+import { generateRecipientKeyPair, type RecipientKeyPair } from '@palladin/crypto'
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -23,7 +24,8 @@ vi.mock('./recipient-api', () => ({ openRecipientSession: api.open, receiveEntry
 vi.mock('../sync/member-sync-api', () => ({ listEncryptedVaults: api.list, getEncryptedVault: api.get }))
 vi.mock('../api/vault-api', () => ({ issueVaultCreationChallenge: api.vaultChallenge,
   issueEntryCreationChallenge: api.entryChallenge, createEntry: api.createEntry, createVault: vi.fn() }))
-vi.mock('../../../shared/api/account-api', () => ({ getAccount: api.account, createDefaultVault: api.createDefaultVault }))
+vi.mock('../../../shared/api/account-api', () => ({
+  memberKeySuiteOf: (account: { memberKeySuiteId?: string | null }) => account.memberKeySuiteId ?? 'palladin-x25519-sealed-box-v1', getAccount: api.account, createDefaultVault: api.createDefaultVault }))
 
 const organizationId = '11111111-1111-4111-8111-111111111111'
 const vaultId = '22222222-2222-4222-8222-222222222222'
@@ -31,9 +33,11 @@ const memberId = '33333333-3333-4333-8333-333333333333'
 const entryId = '44444444-4444-4444-8444-444444444444'
 const shareId = fixture.scope.shareId
 let destination: EntryShareCopyVault | undefined
+let member: RecipientKeyPair
 
 beforeEach(async () => {
   vi.resetAllMocks(); destination = undefined
+  member = await generateRecipientKeyPair()
   await i18n.changeLanguage('en')
   useAuthStore.setState({ userId: null, accessToken: null, sessionId: null, emailVerified: false,
     privateKey: null, permissions: 0, isVaultLocked: true, cryptoSessionGeneration: 0 })
@@ -46,7 +50,7 @@ beforeEach(async () => {
     .mockRejectedValue(new Error('One receipt only'))
   api.vaultChallenge.mockResolvedValue({ vaultId })
   api.entryChallenge.mockResolvedValue({ entryId })
-  api.account.mockResolvedValue({ userId: memberId, memberKeyVersion: 1 })
+  api.account.mockResolvedValue({ userId: memberId, memberKeyVersion: 1, memberKeySuiteId: member.keySuiteId })
   api.list.mockImplementation(async () => destination ? [{ ...destination, isDefault: true }] : [])
   api.get.mockImplementation(async () => destination)
   api.createDefaultVault.mockImplementation(async (payload: CreateVaultProtocolPayload) => {
@@ -73,7 +77,7 @@ it('keeps one guest receipt through registration, explicit fresh Vault creation 
       accessToken: `h.${btoa(JSON.stringify({ sub: memberId, org_id: organizationId }))}.s`,
       sessionId: 'synthetic-refresh', emailVerified: false, isOnboarded: true, permissions: 8 })
     useAuthStore.getState().markEmailVerified()
-    useAuthStore.getState().unlockVault(new Uint8Array(32).fill(8), new Uint8Array(32).fill(7))
+    useAuthStore.getState().unlockVault(new Uint8Array(32).fill(8), member.privateKey, undefined, member.keySuiteId)
   })
   render(<QueryClientProvider client={queryClient}><EntryShareReceiverPage shareId={shareId}
     onContinueToAccount={navigate} /></QueryClientProvider>)
@@ -94,7 +98,8 @@ it('keeps one guest receipt through registration, explicit fresh Vault creation 
   expect(window.location.search).toBe('')
   const request = api.createEntry.mock.calls[0][1]
   expect(JSON.stringify([api.createDefaultVault.mock.calls[0][0], request])).not.toContain('fixture-only')
-  const vaultKey = await openMemberVaultKey(destination!.memberVaultKey, useAuthStore.getState().privateKey!)
+  const vaultKey = await openMemberVaultKey(destination!.memberVaultKey,
+    { keySuiteId: member.keySuiteId, privateKey: useAuthStore.getState().privateKey! })
   try {
     const saved = await openMemberSecret(request.entryKey, request.memberSecret, vaultKey,
       { organizationId, vaultId, entryId, revision: '1' })

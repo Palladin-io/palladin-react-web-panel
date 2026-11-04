@@ -63,7 +63,7 @@ describe('canonical Vault API envelope schemas', () => {
         resourceRevision: '1',
         wrappedKeyVersion: 1,
         memberKeyGeneration: 1,
-        recipientKeyKind: 'memberX25519',
+        recipientKeyKind: 'memberEncryption',
         recipientKeyVersion: 1,
         recipientFingerprint: 'fingerprint',
         parentDescriptorHash: null,

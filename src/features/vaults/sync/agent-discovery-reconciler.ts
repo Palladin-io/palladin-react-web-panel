@@ -6,6 +6,7 @@ import {
   provisionAgentDiscovery,
 } from '../api/agent-discovery-api'
 import { getEncryptedVault, listEncryptedVaults } from './member-sync-api'
+import { memberKeyFor } from '../../auth'
 
 const AGENT_MESSAGE_PRIVATE_PURPOSE = 3
 const MANIFEST_SIGNING_PRIVATE_PURPOSE = 4
@@ -32,7 +33,7 @@ async function reconcileAgentDiscoveryPass(
     let agentMessagePrivateKey: Uint8Array | undefined
     let manifestSigningPrivateKey: Uint8Array | undefined
     try {
-      vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberPrivateKey)
+      vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(memberPrivateKey))
       vdk = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)
       const agentMessageEnvelope = vault.vaultPrivateKeys.find(
         (candidate) => candidate.descriptor.purpose === AGENT_MESSAGE_PRIVATE_PURPOSE,

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { KEY_WRAPPER_SUITE } from '../../../shared/crypto/key-wrapper'
 
 export const canonicalUuidSchema = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
 export const canonicalU64Schema = z.string().regex(/^(0|[1-9][0-9]{0,19})$/)
@@ -68,9 +69,9 @@ const wrapperPurposeValues = {
   grantDek: 4,
 } as const
 const recipientKeyKindValues = {
-  agentX25519: 1,
-  vaultMessageX25519: 4,
-  memberX25519: 5,
+  agentEncryption: 1,
+  vaultAgentMessage: 4,
+  memberEncryption: 5,
 } as const
 
 const wrapperPurposeNameSchema = z.enum(Object.keys(wrapperPurposeValues) as [keyof typeof wrapperPurposeValues, ...(keyof typeof wrapperPurposeValues)[]])
@@ -84,10 +85,13 @@ const recipientKeyKindSchema = z.union([
   z.union([z.literal(1), z.literal(4), z.literal(5)]),
 ]).transform((kind) => typeof kind === 'number' ? kind : recipientKeyKindValues[kind])
 
-export const x25519WrappedKeySchema = z.object({
+/** Registered key-wrapper suites; the crypto layer still enforces each suite's lifecycle and lengths. */
+export const keyWrapperSuiteIdSchema = z.enum([KEY_WRAPPER_SUITE.active, KEY_WRAPPER_SUITE.legacy])
+
+export const wrappedKeySchema = z.object({
   descriptor: z.object({
     protocolVersion: z.literal(2),
-    wrapperSuiteId: z.literal('palladin-x25519-sealed-box-v1'),
+    wrapperSuiteId: keyWrapperSuiteIdSchema,
     purpose: wrapperPurposeSchema,
     scope: envelopeScopeSchema,
     resourceRevision: canonicalU64Schema,
@@ -108,7 +112,7 @@ export const vaultDiscoveryKeyEnvelopeSchema = vaultEnvelopeSchema(vaultKeyBindi
 export const vaultPrivateKeyEnvelopeSchema = vaultEnvelopeSchema(vaultKeyBindingSchema)
   .refine((envelope) => envelope.descriptor.purpose === 3 || envelope.descriptor.purpose === 4,
     'Vault private key purpose mismatch')
-export const memberVaultKeyEnvelopeSchema = z.object({ wrappedVaultKey: x25519WrappedKeySchema }).strict()
+export const memberVaultKeyEnvelopeSchema = z.object({ wrappedVaultKey: wrappedKeySchema }).strict()
   .refine((envelope) => envelope.wrappedVaultKey.descriptor.purpose === 1,
     'Member Vault Key wrapper purpose mismatch')
 

@@ -13,7 +13,7 @@ import {
   type MemberSecretV1,
 } from '../../shared/crypto/vault-plaintext'
 import { wipe } from '../../shared/crypto/sodium'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import {
   GRANT_STATUS_ACTIVE,
   GRANT_TYPE_GRANULAR,
@@ -110,7 +110,7 @@ export async function prepareCanonicalEntryUpdate(
   }
   const privateKey = useAuthStore.getState().privateKey
   if (!privateKey) throw new Error('Vault is locked')
-  const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+  const vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
   let discoveryKey: Uint8Array | undefined
   try {
     discoveryKey = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)

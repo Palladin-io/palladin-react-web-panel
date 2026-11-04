@@ -77,7 +77,7 @@ const samplePending = {
       scope: { organizationId: '11111111-1111-4111-8111-111111111111', vaultId: '22222222-2222-4222-8222-222222222222',
         entryId: '55555555-5555-4555-8555-555555555555', grantOrRequestId: '33333333-3333-4333-8333-333333333333',
         agentId: '44444444-4444-4444-8444-444444444444', memberId: null },
-      resourceRevision: '1', wrappedKeyVersion: 1, memberKeyGeneration: 1, recipientKeyKind: 'vaultMessageX25519',
+      resourceRevision: '1', wrappedKeyVersion: 1, memberKeyGeneration: 1, recipientKeyKind: 'vaultAgentMessage',
       recipientKeyVersion: 1, recipientFingerprint: 'fingerprint', parentDescriptorHash: 'hash',
     }, encodedSealedKeyPackage: 'wrapped' },
     agentSignature: 'A'.repeat(86),

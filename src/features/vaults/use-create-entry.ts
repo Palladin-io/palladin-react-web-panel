@@ -3,7 +3,7 @@ import { sealCanonicalEntry } from '../../shared/crypto/entry-protocol'
 import { toMemberSecret, type AgentVisibilityPolicy } from '../../shared/crypto/entry-draft'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
-import { useAuthStore } from '../auth'
+import { memberKeyFor, useAuthStore } from '../auth'
 import { GRANT_DELIVERY_POLICY_NAME } from '../../shared/crypto/grant-protocol'
 import { createEntry, issueEntryCreationChallenge, updateCanonicalEntry } from './api/vault-api'
 import { deleteEncryptedAsset } from './assets/encrypted-asset-api'
@@ -62,7 +62,7 @@ export function useCreateEntry() {
         issueEntryCreationChallenge(input.vaultId),
       ])
 
-      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, privateKey)
+      const vaultKey = await openMemberVaultKey(vault.memberVaultKey, memberKeyFor(privateKey))
       let discoveryKey: Uint8Array | undefined
       try {
         discoveryKey = await openVaultDerivedEnvelope(vault.discoveryKey, vaultKey)

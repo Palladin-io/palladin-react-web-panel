@@ -75,7 +75,7 @@ function encryptedVaultDetail() {
           resourceRevision: '1',
           wrappedKeyVersion: 7,
           memberKeyGeneration: 1,
-          recipientKeyKind: 'memberX25519',
+          recipientKeyKind: 'memberEncryption',
           recipientKeyVersion: 1,
           recipientFingerprint: 'fingerprint',
           parentDescriptorHash: null,

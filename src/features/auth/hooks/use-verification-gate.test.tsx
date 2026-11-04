@@ -7,7 +7,8 @@ import { useAuthStore } from '../stores/auth-store'
 import { ACCOUNT_QUERY_KEY } from '../../../shared/api/account-api'
 
 const api = vi.hoisted(() => ({ account: vi.fn(), refresh: vi.fn() }))
-vi.mock('../../../shared/api/account-api', () => ({ ACCOUNT_QUERY_KEY: ['account'], getAccount: api.account }))
+vi.mock('../../../shared/api/account-api', () => ({
+  memberKeySuiteOf: (account: { memberKeySuiteId?: string | null }) => account.memberKeySuiteId ?? 'palladin-x25519-sealed-box-v1', ACCOUNT_QUERY_KEY: ['account'], getAccount: api.account }))
 vi.mock('../api/auth-api', () => ({ refreshSession: api.refresh }))
 let client: QueryClient
 const verifiedAccount = { userId: 'recipient', email: 'synthetic@example.test', emailVerified: true }

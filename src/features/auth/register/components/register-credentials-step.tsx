@@ -73,7 +73,7 @@ export function RegisterCredentialsStep({
     <AuthStepShell
       title={t('register.title')}
       subtitle={t('register.subtitle')}
-      progress={{ current: 0, total: 3 }}
+      progress={{ current: 0, total: 4 }}
     >
       <form
         className="flex flex-col gap-3"

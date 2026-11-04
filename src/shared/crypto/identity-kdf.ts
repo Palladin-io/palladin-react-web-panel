@@ -1,4 +1,10 @@
-import { deriveHkdfSha256 } from '@palladin/crypto'
+import {
+  ACCOUNT_SECRET_BYTES,
+  deriveHkdfSha256,
+  deriveIdentityV2,
+  IDENTITY_ACCOUNT_SECRET_PROFILE,
+  identityKdfProfileVersion,
+} from '@palladin/crypto'
 import { randomUuid } from './random-uuid'
 import { argon2id } from 'hash-wasm'
 import { decodeBase64Url, encodeBase64Url, encodeUtf8 } from './vault-v2-bytes'
@@ -109,22 +115,72 @@ export async function deriveIdentityV1(
   }
 }
 
+/** Profile used for every new account and for the in-place security upgrade. */
+export const CURRENT_IDENTITY_PROFILE = IDENTITY_ACCOUNT_SECRET_PROFILE
+
+/** This browser holds no Secret Key for `accountId`; the user must transfer or enter it. */
+export class SecretKeyRequiredError extends Error {
+  readonly accountId: string | undefined
+
+  constructor(accountId?: string) {
+    super('account-secret-required')
+    this.name = 'SecretKeyRequiredError'
+    this.accountId = accountId
+  }
+}
+
+/** KDF state as published by Identity (login bootstrap or authenticated account). */
+export interface IdentityKdfDescriptor {
+  profileId: string
+  securityVersion: number
+  kdfSalt: string
+}
+
+/**
+ * Accepts only the registry-pinned profiles; parameters never come from the
+ * server. Throws `upgrade-required` / `unsupported-kdf-profile` before any KDF.
+ */
+export function identityProfileVersion(kdf: IdentityKdfDescriptor): 1 | 2 {
+  const profile = kdf.securityVersion === CURRENT_IDENTITY_PROFILE.securityVersion
+    ? CURRENT_IDENTITY_PROFILE : IDENTITY_KDF_PROFILE
+  return identityKdfProfileVersion({
+    ...kdf,
+    memoryKiB: profile.memoryKiB,
+    iterations: profile.iterations,
+    parallelism: profile.parallelism,
+  })
+}
+
+/** Derives MK and AuthCredential for the account's registered profile; v2 requires the Secret Key. */
+export async function deriveAccountIdentity(input: {
+  password: string
+  accountId: string
+  kdf: IdentityKdfDescriptor
+  accountSecret: Uint8Array | null
+}): Promise<IdentityKdfOutputs> {
+  const version = identityProfileVersion(input.kdf)
+  const salt = decodeBase64Url(input.kdf.kdfSalt, IDENTITY_KDF_SALT_BYTES)
+  try {
+    if (version === 1) return await deriveIdentityV1(input.password, input.accountId, salt)
+    if (input.accountSecret?.length !== ACCOUNT_SECRET_BYTES) throw new SecretKeyRequiredError()
+    return await deriveIdentityV2(input.password, input.accountSecret, input.accountId, salt)
+  } finally {
+    wipe(salt)
+  }
+}
+
 /** Step-up proof of the current login password; the derived master key is discarded. */
 export async function deriveCurrentAuthCredential(
   password: string,
   accountId: string,
-  kdfSalt: string,
+  kdf: IdentityKdfDescriptor,
+  accountSecret: Uint8Array | null,
 ): Promise<string> {
-  const salt = decodeBase64Url(kdfSalt, IDENTITY_KDF_SALT_BYTES)
-  let identity: IdentityKdfOutputs | undefined
+  const identity = await deriveAccountIdentity({ password, accountId, kdf, accountSecret })
   try {
-    identity = await deriveIdentityV1(password, accountId, salt)
     return encodeBase64Url(identity.authCredential)
   } finally {
-    wipe(salt)
-    if (identity) {
-      wipe(identity.authCredential)
-      wipe(identity.masterKey)
-    }
+    wipe(identity.authCredential)
+    wipe(identity.masterKey)
   }
 }

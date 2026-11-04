@@ -2,15 +2,24 @@ import { useMutation } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { beginManualUnlockAttempt, prepareManualSharedUnlock, useAuthStore } from '../auth'
 import {
-  assertIdentityKdfProfile,
-  deriveIdentityV1,
-  IDENTITY_KDF_PROFILE,
-  IDENTITY_KDF_PROFILE_ID,
-  IDENTITY_SECURITY_VERSION,
+  beginSecurityUpgrade,
+  cancelSecurityUpgrade,
+  createSecurityUpgradeDraft,
+  discardSecurityUpgradeDraft,
+  needsSecurityUpgrade,
+  resumeSecurityUpgradeIfNeeded,
+  type SecurityUpgradeDraft,
+} from '../security-upgrade'
+import {
+  deriveAccountIdentity,
+  identityProfileVersion,
+  SecretKeyRequiredError,
+  type IdentityKdfOutputs,
 } from '../../shared/crypto/identity-kdf'
-import { decodeBase64Url, encodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
-import { decryptWithKey, derivePublicKey, wipe } from '../../shared/crypto/sodium'
-import { getAccount, setupAccount } from '../../shared/api/account-api'
+import { loadDeviceSecretKey } from '../../shared/crypto/secret-key'
+import { decodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
+import { decryptWithKey, wipe } from '../../shared/crypto/sodium'
+import { getAccount, memberKeySuiteOf } from '../../shared/api/account-api'
 
 export class IncorrectMasterPasswordError extends Error {
   constructor() {
@@ -30,75 +39,55 @@ export function useUnlock() {
     mutationFn: async ({ password }: UnlockInput) => {
       const attempt = beginManualUnlockAttempt()
       activeAttempt.current = attempt
-      let account = await getAccount()
+      const account = await getAccount()
       attempt.assertCurrent()
       if (!account.kdf || !account.encryptedPrivateKey) {
         throw new Error('Account setup incomplete')
       }
-      if (account.kdf.minimumSecurityVersion > IDENTITY_SECURITY_VERSION) {
-        throw new Error('upgrade-required')
-      }
+      const version = identityProfileVersion(account.kdf)
 
-      const salt = decodeBase64Url(account.kdf.kdfSalt, 16)
-      let masterKey: Uint8Array | null = null
-      let authCredential: Uint8Array | null = null
+      let accountSecret: Uint8Array | null = null
+      let identity: IdentityKdfOutputs | null = null
       let privateKey: Uint8Array | null = null
       let encryptedPrivateKey: Uint8Array | null = null
+      let draft: SecurityUpgradeDraft | null = null
+      let installed = false
       try {
-        if (account.kdf.securityVersion !== IDENTITY_SECURITY_VERSION
-          || account.kdf.profileId !== IDENTITY_KDF_PROFILE_ID) {
-          throw new Error('unsupported-kdf-profile')
+        if (version === 2) {
+          accountSecret = await loadDeviceSecretKey(account.userId)
+          if (!accountSecret) throw new SecretKeyRequiredError(account.userId)
         }
-        assertIdentityKdfProfile({
-          ...account.kdf,
-          memoryKiB: IDENTITY_KDF_PROFILE.memoryKiB,
-          iterations: IDENTITY_KDF_PROFILE.iterations,
-          parallelism: IDENTITY_KDF_PROFILE.parallelism,
-        })
-        const identity = await deriveIdentityV1(password, account.userId, salt)
-        masterKey = identity.masterKey
-        authCredential = identity.authCredential
+        identity = await deriveAccountIdentity({ password, accountId: account.userId, kdf: account.kdf, accountSecret })
         attempt.assertCurrent()
 
         encryptedPrivateKey = decodeBase64Url(account.encryptedPrivateKey, 4096)
         try {
-          privateKey = await decryptWithKey(encryptedPrivateKey, masterKey)
+          privateKey = await decryptWithKey(encryptedPrivateKey, identity.masterKey)
         } catch {
           throw new IncorrectMasterPasswordError()
         }
         attempt.assertCurrent()
 
-        if (account.kdf.credentialRevision === 0
-          && account.recoverySalt
-          && account.encryptedPrivateKeyByRecovery) {
-          const publicKey = await derivePublicKey(privateKey)
-          try {
-            attempt.assertCurrent()
-            await setupAccount({
-              securityVersion: account.kdf.securityVersion,
-              kdfProfileId: account.kdf.profileId,
-              kdfSalt: account.kdf.kdfSalt,
-              recoverySalt: account.recoverySalt,
-              publicKey: encodeBase64Url(publicKey),
-              encryptedPrivateKey: account.encryptedPrivateKey,
-              encryptedPrivateKeyByRecovery: account.encryptedPrivateKeyByRecovery,
-              newAuthCredential: encodeBase64Url(authCredential),
-            })
-          } finally {
-            wipe(publicKey)
-          }
-          account = await getAccount()
+        if (needsSecurityUpgrade(version)) {
+          draft = await createSecurityUpgradeDraft(account.userId, password)
+          attempt.assertCurrent()
+          const owned = draft
+          draft = null
+          await beginSecurityUpgrade({
+            account, draft: owned, currentAuthCredential: identity.authCredential, legacyPrivateKey: privateKey,
+          })
+        } else {
+          await resumeSecurityUpgradeIfNeeded(account, identity.masterKey)
         }
         attempt.assertCurrent()
-        useAuthStore.getState().unlockVault(
-          masterKey,
-          privateKey,
-        )
-        await prepareManualSharedUnlock(account, authCredential)
+        useAuthStore.getState().unlockVault(identity.masterKey, privateKey, undefined, memberKeySuiteOf(account))
+        installed = true
+        await prepareManualSharedUnlock(account, identity.authCredential)
       } finally {
-        wipe(salt)
-        if (masterKey) wipe(masterKey)
-        if (authCredential) wipe(authCredential)
+        if (!installed) cancelSecurityUpgrade()
+        discardSecurityUpgradeDraft(draft)
+        if (accountSecret) wipe(accountSecret)
+        if (identity) { wipe(identity.masterKey); wipe(identity.authCredential) }
         if (privateKey) wipe(privateKey)
         if (encryptedPrivateKey) wipe(encryptedPrivateKey)
       }

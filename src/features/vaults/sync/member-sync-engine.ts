@@ -3,6 +3,7 @@ import { openMemberIndex } from '../../../shared/crypto/entry-protocol'
 import { openVaultProjection } from '../../../shared/crypto/vault-protocol'
 import type { MemberVaultMetadataV1 } from '../../../shared/crypto/vault-plaintext'
 import { wipe } from '../../../shared/crypto/sodium'
+import { memberKeyFor } from '../../auth'
 import {
   assertMemberSyncPageAuthority,
   getMemberDeltaPage,
@@ -223,7 +224,7 @@ export class MemberSyncEngine {
         memberKeyGeneration: vault.memberKeyGeneration,
         memberVaultMetadata: vault.memberVaultMetadata,
         memberVaultKey: vault.memberVaultKey,
-      }, memberPrivateKey, userId)
+      }, memberKeyFor(memberPrivateKey), userId)
       vaultKey = opened.vaultKey
       metadata = opened.metadata
     } catch (error) {
