@@ -9,6 +9,7 @@ import {
 } from '../../shared/crypto/agent-submission'
 import { organizationIdFromAccessToken } from '../../shared/lib/organization-scope'
 import { useAuthStore } from '../auth'
+import { isKeyMigrationPending } from '../../shared/crypto/key-wrapper'
 import {
   APPROVER_KEY_STATUS_ABSENT,
   APPROVER_KEY_STATUS_READY,
@@ -104,5 +105,47 @@ export async function runApproverKeyChange(
     await submitApproverKeySetChange(CHANGE_ROUTE[kind], { challengeId: challenge.challengeId, ...change })
   } finally {
     if (currentKeys) wipeApproverKeys(currentKeys)
+  }
+}
+
+/**
+ * Security upgrade: the caller's approver wraps still address the legacy Member
+ * key, so the key set is rotated (keyVersion + 1, continuity-signed) to an
+ * active-suite manifest while the legacy key is still in memory. Approvers that
+ * have not migrated yet block sealing (`key-migration-pending`); the rotation is
+ * then left to a later upgrade or an explicit re-bootstrap.
+ */
+export async function rotateApproverKeysAfterSecurityUpgrade(legacy: {
+  memberKey: { keySuiteId: string; privateKey: Uint8Array }
+  memberKeyVersion: number
+}): Promise<void> {
+  const state = await getApproverKeys()
+  if (!isServedApprover(state)) return
+  const authority = await currentMemberAuthority()
+  let currentKeys: Awaited<ReturnType<typeof openOwnApproverKeys>> | undefined
+  try {
+    currentKeys = await openOwnApproverKeys(state.manifest!, state.myWraps!, {
+      ...authority, memberKeyVersion: legacy.memberKeyVersion, memberKey: legacy.memberKey,
+    })
+  } catch {
+    return
+  }
+  try {
+    const challenge = await issueApproverKeyChallenge()
+    const change = await buildApproverKeySetChange({
+      kind: 'rotate',
+      organizationId: authority.organizationId,
+      memberId: authority.memberId,
+      memberKey: authority.memberKey,
+      challenge,
+      currentManifest: state.manifest!,
+      currentKeys,
+    })
+    if (useAuthStore.getState().privateKey !== authority.memberKey.privateKey) throw new ApproverKeysLockedError()
+    await submitApproverKeySetChange(CHANGE_ROUTE.rotate, { challengeId: challenge.challengeId, ...change })
+  } catch (error) {
+    if (!isKeyMigrationPending(error)) throw error
+  } finally {
+    wipeApproverKeys(currentKeys)
   }
 }

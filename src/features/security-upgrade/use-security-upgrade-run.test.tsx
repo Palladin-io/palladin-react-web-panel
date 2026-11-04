@@ -28,6 +28,8 @@ vi.mock('../../shared/api/account-api', async (importOriginal) => ({
   ...await importOriginal<typeof import('../../shared/api/account-api')>(), getAccount: accounts.get,
 }))
 vi.mock('../vaults/sync/member-sync-api', () => ({ listEncryptedVaults: vaults.list }))
+const approvers = vi.hoisted(() => ({ rotate: vi.fn() }))
+vi.mock('../submissions/approver-keys', () => ({ rotateApproverKeysAfterSecurityUpgrade: approvers.rotate }))
 
 const organizationId = '00112233-4455-4677-8899-aabbccddeeff'
 const vaultId = '11112222-3333-4444-8555-666677778888'
@@ -100,6 +102,9 @@ describe('useSecurityUpgradeRun', () => {
     expect(envelope.wrappedVaultKey.descriptor).toMatchObject({ wrapperSuiteId: KEY_WRAPPER_SUITE.active, recipientKeyVersion: 2 })
     const reopened = await openMemberVaultKey(envelope, { keySuiteId: next.keySuiteId, privateKey: next.privateKey })
     expect(Array.from(reopened)).toEqual(Array.from(vaultKey))
+    expect(approvers.rotate).toHaveBeenCalledWith({
+      memberKey: { keySuiteId: KEY_WRAPPER_SUITE.legacy, privateKey: expect.any(Uint8Array) }, memberKeyVersion: 1,
+    })
     expect(api.deleteLegacy).toHaveBeenCalledWith(1)
     expect(result.current.stage).toBe('kit')
     expect(result.current.kit?.email).toBe('user@example.com')

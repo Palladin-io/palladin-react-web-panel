@@ -1,4 +1,4 @@
-import { generateRecipientKeyPair, RECIPIENT_KEY_KIND, type RecipientKeyPair } from '@palladin/crypto'
+import { generateRecipientKeyPair, RECIPIENT_KEY_KIND, sealKey, sha256Digest, type RecipientKeyPair } from '@palladin/crypto'
 import { recipientFingerprint } from './key-wrapper'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -226,7 +226,8 @@ describe('approver manifest chain', () => {
   it('rejects manifests that violate the wire encoding before pinning them', async () => {
     const [v1] = fixture.approverManifests
     const cases: Array<[string, Record<string, unknown>, string]> = [
-      ['unknown manifest schema', { schema: 'palladin.organization-approver-manifest.v2' }, 'unsupported-version'],
+      ['unknown manifest schema', { schema: 'palladin.organization-approver-manifest.v3' }, 'unsupported-version'],
+      ['successor manifest schema without its suite field', { schema: 'palladin.organization-approver-manifest.v2' }, 'missing-field'],
       ['unknown manifest protocol version', { protocolVersion: 3 }, 'unsupported-version'],
       ['additional manifest field', { note: 'x' }, 'unknown-field'],
       ['missing approver set digest', { approverSetDigest: undefined }, 'missing-field'],
@@ -332,7 +333,8 @@ describe('opening submissions as the approver group', () => {
       ['unknown target field', () => resign({ ...submission, target: { ...submission.target, label: 'x' } }), 'unknown-field'],
       ['missing transport field', async () => omit(submission, ['agentAccessEpoch']), 'missing-field'],
       ['stale approver key version', () => resign({ ...submission, approverKeyVersion: 2 }), 'recipient-key-mismatch'],
-      ['unknown transport schema', () => resign({ ...submission, schema: 'palladin.agent-entry-submission.v2' }), 'unsupported-version'],
+      ['unknown transport schema', () => resign({ ...submission, schema: 'palladin.agent-entry-submission.v3' }), 'unsupported-version'],
+      ['successor schema without its suite fields', () => resign({ ...submission, schema: 'palladin.agent-entry-submission.v2' }), 'missing-field'],
       ['unknown contract version', () => resign({ ...submission, contractVersion: 2 }), 'unsupported-version'],
       ['noncanonical submission revision', () => resign({ ...submission, submissionRevision: '01' }), 'invalid-field'],
       ['zero access epoch', () => resign({ ...submission, agentAccessEpoch: '0' }), 'invalid-field'],
@@ -405,6 +407,65 @@ describe('opening submissions as the approver group', () => {
   })
 })
 
+describe('successor submissions (agent-entry-submission.v2)', () => {
+  async function successor(approver: RecipientKeyPair, overrides: Record<string, unknown> = {}) {
+    const base = fixture.submissions[0]
+    const approverMessageKeyFingerprint = recipientFingerprint({
+      keySuiteId: approver.keySuiteId, keyKind: RECIPIENT_KEY_KIND.organizationApproverMessage, publicKey: approver.publicKey,
+    })
+    const identityHash = sha256Digest(concatBytes(new TextEncoder().encode('PLDNSUB1ID'), new TextEncoder().encode(
+      canonicalizeVaultJson(Object.fromEntries(SUBMISSION_IDENTITY_FIELDS.map((key) => [key, base[key]])) as CanonicalJson))))
+    const recipient = { keySuiteId: approver.keySuiteId, keyKind: RECIPIENT_KEY_KIND.organizationApproverMessage,
+      keyVersion: base.approverKeyVersion, publicKey: approver.publicKey }
+    const encodedApproverWrappedDek = await sealKey({
+      protocolVersion: 2, wrapperSuiteId: approver.keySuiteId, purpose: 7,
+      scope: { organizationId: base.organizationId, grantOrRequestId: base.submissionId, agentId: base.agentId },
+      resourceRevision: base.submissionRevision, wrappedKeyVersion: 1,
+      recipientKeyKind: RECIPIENT_KEY_KIND.organizationApproverMessage, recipientKeyVersion: base.approverKeyVersion,
+      recipientFingerprint: approverMessageKeyFingerprint, parentDescriptorHash: encodeBase64Url(identityHash),
+    }, hex(fixture.deterministicInputs.submissionDek), recipient)
+    return resign({
+      ...base, schema: 'palladin.agent-entry-submission.v2', approverMessageKeyFingerprint,
+      agentWrappedDekSuiteId: approver.keySuiteId, approverWrappedDekSuiteId: approver.keySuiteId,
+      encodedAgentWrappedDek: encodedApproverWrappedDek, encodedApproverWrappedDek, ...overrides,
+    })
+  }
+
+  function successorAuthority(approver: RecipientKeyPair, fingerprint: string): SubmissionApproverAuthority {
+    return {
+      organizationId: fixture.context.organizationId, submissionId: fixture.submissions[0].submissionId,
+      agentId: fixture.context.agentId, agentEd25519PublicKey: decodeBase64Url(fixture.context.agentEd25519PublicKey),
+      approverKeys: { keyVersion: fixture.submissions[0].approverKeyVersion, messagePublicKey: approver.publicKey,
+        messagePrivateKey: approver.privateKey, messageKeyFingerprint: fingerprint, messageKeySuiteId: approver.keySuiteId },
+    }
+  }
+
+  it('opens an X-Wing submission whose signed suite matches the approver manifest', async () => {
+    const approver = await generateRecipientKeyPair()
+    const submission = await successor(approver)
+    await expect(openSubmissionAsApprover(submission, successorAuthority(approver, submission.approverMessageKeyFingerprint)))
+      .resolves.toEqual(fixture.expectedPlaintext)
+  })
+
+  it('rejects a signed suite that differs from the manifest suite and a legacy submission for an X-Wing manifest', async () => {
+    const approver = await generateRecipientKeyPair()
+    const submission = await successor(approver)
+    const auth = successorAuthority(approver, submission.approverMessageKeyFingerprint)
+    await expectCode(openSubmissionAsApprover(submission, { ...auth, approverKeys: { ...auth.approverKeys,
+      messageKeySuiteId: X25519_SEALED_BOX_V1 } }), 'recipient-key-mismatch')
+    const legacy = await resign({ ...fixture.submissions[0], approverMessageKeyFingerprint: submission.approverMessageKeyFingerprint })
+    await expectCode(openSubmissionAsApprover(legacy, auth), 'recipient-key-mismatch')
+  })
+
+  it('fails closed on a retargeted successor submission', async () => {
+    const approver = await generateRecipientKeyPair()
+    const submission = await successor(approver)
+    const retargeted = await resign({ ...submission, submissionRevision: '2' })
+    await expectCode(openSubmissionAsApprover(retargeted, successorAuthority(approver, submission.approverMessageKeyFingerprint)),
+      'wrapper-open-failed')
+  })
+})
+
 describe('approver key-set lifecycle material', () => {
   const org = () => fixture.context.organizationId
 
@@ -453,7 +514,8 @@ describe('approver key-set lifecycle material', () => {
 
   it('bootstraps key version 1 that every approver can open', async () => {
     const { change, approvers, other, otherId } = await bootstrap()
-    expect(change.manifest).toMatchObject({ keyVersion: 1, manifestRevision: '1', approverSetRevision: '1', issuedAt: '2026-10-29T08:00:00Z' })
+    expect(change.manifest).toMatchObject({ keyVersion: 1, manifestRevision: '1', approverSetRevision: '1', issuedAt: '2026-10-29T08:00:00Z',
+      schema: 'palladin.organization-approver-manifest.v2', messageKeySuiteId: 'palladin-xwing-v1' })
     expect(change.manifest.continuitySignature).toBeUndefined()
     expect(change.manifest.approverSetDigest).toBe(await computeApproverSetDigest(approvers))
     expect(change.wraps).toHaveLength(4)

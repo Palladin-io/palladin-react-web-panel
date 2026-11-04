@@ -50,7 +50,7 @@ vi.mock('./api/submissions-api', async (importOriginal) => ({
   submitApproverKeySetChange: mocks.submitApproverKeySetChange,
 }))
 
-import { runApproverKeyChange } from './approver-keys'
+import { rotateApproverKeysAfterSecurityUpgrade, runApproverKeyChange } from './approver-keys'
 import { useSubmissionReview } from './use-submissions'
 
 const hex = (value: string) => Uint8Array.from(Buffer.from(value, 'hex'))
@@ -237,6 +237,31 @@ describe('approver key changes with the real crypto layer', () => {
       organizationId: fixture.context.organizationId, memberId: fixture.context.memberId,
       memberKeyVersion: 2, memberKey: { privateKey: caller.privateKey, keySuiteId: caller.keySuiteId },
     })
+    secretsSeen.push(new Uint8Array(opened.messagePrivateKey), new Uint8Array(opened.signingSeed))
+  })
+
+  it('rotates the legacy approver key set to a continuity-signed X-Wing manifest during the security upgrade', async () => {
+    const legacyKey = new Uint8Array(member.privateKey)
+    const upgraded = await generateRecipientKeyPair()
+    useAuthStore.setState({ privateKey: new Uint8Array(upgraded.privateKey), memberKeySuiteId: upgraded.keySuiteId })
+    mocks.getAccount.mockResolvedValue({ userId: fixture.context.memberId, memberKeyVersion: 3, memberPublicKeySuiteId: upgraded.keySuiteId })
+    mocks.issueApproverKeyChallenge.mockResolvedValue({
+      challengeId: 'c3', issuedAt: '2026-10-30T08:00:00Z', approverSetRevision: '2', approverSetDigest: 'ignored', expiresAt: '',
+      approvers: [recipient(fixture.context.memberId, upgraded, true, 3)],
+    })
+    await rotateApproverKeysAfterSecurityUpgrade({
+      memberKey: { keySuiteId: 'palladin-x25519-sealed-box-v1', privateKey: legacyKey },
+      memberKeyVersion: fixture.context.memberKeyVersion,
+    })
+    const [route, body] = mocks.submitApproverKeySetChange.mock.calls[0] as [string, ApproverKeySetChangeBody]
+    expect(route).toBe('rotate')
+    expect(body.manifest).toMatchObject({ schema: 'palladin.organization-approver-manifest.v2', keyVersion: 2,
+      messageKeySuiteId: 'palladin-xwing-v1', previousSigningKeyFingerprint: fixture.approverManifests[0].signingKeyFingerprint })
+    const opened = await openOwnApproverKeys(body.manifest, body.wraps, {
+      organizationId: fixture.context.organizationId, memberId: fixture.context.memberId,
+      memberKeyVersion: 3, memberKey: { privateKey: upgraded.privateKey, keySuiteId: upgraded.keySuiteId },
+    })
+    expect(opened.messageKeySuiteId).toBe('palladin-xwing-v1')
     secretsSeen.push(new Uint8Array(opened.messagePrivateKey), new Uint8Array(opened.signingSeed))
   })
 

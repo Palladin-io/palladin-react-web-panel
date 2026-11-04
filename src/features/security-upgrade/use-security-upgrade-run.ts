@@ -8,6 +8,7 @@ import { rewrapOwnMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { organizationIdFromAccessToken } from '../../shared/lib/organization-scope'
 import { useAuthStore } from '../auth/stores/auth-store'
 import { listEncryptedVaults } from '../vaults/sync/member-sync-api'
+import { rotateApproverKeysAfterSecurityUpgrade } from '../submissions/approver-keys'
 import {
   deleteLegacyMemberKey,
   getKeyMigrationReport,
@@ -73,6 +74,10 @@ async function rewrapVaults(
 
 /** Removes the legacy-key record once no Member envelope addresses the old key in any organization. */
 async function cleanUp(pending: PendingSecurityUpgrade): Promise<void> {
+  await rotateApproverKeysAfterSecurityUpgrade({
+    memberKey: { keySuiteId: KEY_WRAPPER_SUITE.legacy, privateKey: pending.legacyPrivateKey },
+    memberKeyVersion: pending.legacyMemberKeyVersion,
+  })
   const report = await getKeyMigrationReport()
   if (report.memberEnvelopesPendingRewrap === 0) await deleteLegacyMemberKey(pending.legacyMemberKeyVersion)
 }
