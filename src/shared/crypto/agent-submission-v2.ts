@@ -25,7 +25,7 @@ export type SubmissionCustomField = z.infer<typeof field>
 export const submissionPayloadV2 = z.strictObject({
   schema: z.literal(SUBMISSION_PAYLOAD_V2_SCHEMA),
   identity: z.object({ entryType: z.union([z.literal(0), z.literal(1)]), submissionKind: z.union([z.literal(1), z.literal(2)]) }).passthrough(),
-  label: text(256, false).optional(), description: text(8192).optional(),
+  label: text(256, false).optional(), description: text(4096).optional(),
   content: z.strictObject({
     username: text(1024).optional(), password: text(4096).optional(), value: text(16384).optional(),
     url: text(2048).optional(), notes: text(8192).optional(),
