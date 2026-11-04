@@ -49,6 +49,7 @@ import {
   type PublicAsset,
 } from '../../shared/api/public-assets-api'
 import { extractDomain } from './components/entry-presentation'
+import { KEY_WRAPPER_SUITE } from '../../shared/crypto/key-wrapper'
 
 /** Keep crypto/save memory bounded independently from catalog request paging. */
 const IMPORT_CHUNK_SIZE = 50
@@ -359,6 +360,7 @@ export function useImportEntries() {
               material.grantEnvelopes.push(await buildCanonicalGrantEnvelope({
                 secret: nextSecret,
                 agentPublicKey: grant.agentPublicKey,
+                agentKeySuiteId: grant.agentPublicKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
                 approvedFieldIds,
                 organizationId: detail.organizationId, vaultId: input.vaultId,
                 grantId: grant.id, agentId: grant.agentId, entryId,

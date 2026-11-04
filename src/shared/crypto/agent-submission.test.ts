@@ -1,3 +1,5 @@
+import { generateRecipientKeyPair, RECIPIENT_KEY_KIND, type RecipientKeyPair } from '@palladin/crypto'
+import { recipientFingerprint } from './key-wrapper'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -27,7 +29,7 @@ import {
 import { toMemberSecret, defaultAgentVisibilityPolicy } from './entry-draft'
 import { encodeMemberSecret, parseMemberSecret } from './vault-plaintext'
 import { listGrantableFields } from './grant-protocol'
-import { VAULT_KEY_KIND, WRAPPER_PURPOSE, computeVaultKeyFingerprint } from './x25519-wrapper'
+import { VAULT_KEY_KIND, WRAPPER_PURPOSE, X25519_SEALED_BOX_V1, computeVaultKeyFingerprint } from '../../test/legacy-key-wrapper'
 import { canonicalizeVaultJson, signVaultObject, type CanonicalJson } from './vault-v2-signatures'
 import { concatBytes, decodeBase64Url, encodeBase64Url } from './vault-v2-bytes'
 
@@ -102,7 +104,7 @@ function memberAuthority(overrides: Partial<Parameters<typeof openOwnApproverKey
     organizationId: fixture.context.organizationId,
     memberId: fixture.context.memberId,
     memberKeyVersion: fixture.context.memberKeyVersion,
-    memberPrivateKey: keys.member.privateKey,
+    memberKey: { privateKey: keys.member.privateKey, keySuiteId: X25519_SEALED_BOX_V1 },
     ...overrides,
   }
 }
@@ -285,7 +287,7 @@ describe('opening own approver wraps as a Member', () => {
     await expectCode(openOwnApproverKeys(v1, wraps.slice(0, 1), memberAuthority()), 'approver-not-recipient')
     await expectCode(openOwnApproverKeys(v1, [wraps[0], wraps[0]], memberAuthority()), 'approver-not-recipient')
     const foreignMember = sodium.crypto_box_keypair()
-    await expectCode(openOwnApproverKeys(v1, wraps, memberAuthority({ memberPrivateKey: foreignMember.privateKey })), 'approver-not-recipient')
+    await expectCode(openOwnApproverKeys(v1, wraps, memberAuthority({ memberKey: { privateKey: foreignMember.privateKey, keySuiteId: X25519_SEALED_BOX_V1 } })), 'approver-not-recipient')
   })
 
   it('rejects a corrupted package, a substituted descriptor and a manifest the wraps do not reproduce', async () => {
@@ -406,26 +408,40 @@ describe('opening submissions as the approver group', () => {
 describe('approver key-set lifecycle material', () => {
   const org = () => fixture.context.organizationId
 
-  async function recipient(memberId: string, publicKey: Uint8Array, hasWrap = false, memberKeyVersion = 1): Promise<ApproverRecipient> {
+  let self: RecipientKeyPair
+  beforeAll(async () => { self = await generateRecipientKeyPair() })
+  const selfAuthority = () => ({
+    organizationId: org(), memberId: fixture.context.memberId, memberKeyVersion: fixture.context.memberKeyVersion,
+    memberKey: { privateKey: self.privateKey, keySuiteId: self.keySuiteId },
+  })
+  const authorityOf = (memberId: string, pair: RecipientKeyPair) => ({
+    organizationId: org(), memberId, memberKeyVersion: 1,
+    memberKey: { privateKey: pair.privateKey, keySuiteId: pair.keySuiteId },
+  })
+
+  async function recipient(memberId: string, pair: RecipientKeyPair, hasWrap = false, memberKeyVersion = 1): Promise<ApproverRecipient> {
     return {
       memberId,
       memberKeyVersion,
-      memberKeyFingerprint: encodeBase64Url(await computeVaultKeyFingerprint(publicKey, VAULT_KEY_KIND.memberX25519)),
-      memberPublicKey: encodeBase64Url(publicKey),
+      memberKeyFingerprint: recipientFingerprint({
+        keySuiteId: pair.keySuiteId, keyKind: RECIPIENT_KEY_KIND.memberEncryption, publicKey: pair.publicKey,
+      }),
+      memberPublicKey: encodeBase64Url(pair.publicKey),
+      memberKeySuiteId: pair.keySuiteId,
       hasWrap,
     }
   }
 
   async function bootstrap() {
-    const other = sodium.crypto_box_keypair()
+    const other = await generateRecipientKeyPair()
     const otherId = '2c2c2c2c-2c2c-4c2c-8c2c-2c2c2c2c2c2c'
     const approvers = [
-      await recipient(fixture.context.memberId, keys.member.publicKey, false, fixture.context.memberKeyVersion),
-      await recipient(otherId, other.publicKey),
+      await recipient(fixture.context.memberId, self, false, fixture.context.memberKeyVersion),
+      await recipient(otherId, other),
     ]
     const change = await buildApproverKeySetChange({
       kind: 'bootstrap', organizationId: org(), memberId: fixture.context.memberId,
-      memberPrivateKey: keys.member.privateKey,
+      memberKey: selfAuthority().memberKey,
       challenge: { issuedAt: '2026-10-29T08:00:00Z', approverSetRevision: '1', approvers },
     })
     return { change, approvers, other, otherId }
@@ -442,24 +458,22 @@ describe('approver key-set lifecycle material', () => {
     expect(change.manifest.approverSetDigest).toBe(await computeApproverSetDigest(approvers))
     expect(change.wraps).toHaveLength(4)
     await verifyApproverManifest(change.manifest, org())
-    const mine = await openOwnApproverKeys(change.manifest, ownWraps(change.wraps), memberAuthority())
-    const theirs = await openOwnApproverKeys(change.manifest, ownWraps(change.wraps, otherId), {
-      organizationId: org(), memberId: otherId, memberKeyVersion: 1, memberPrivateKey: other.privateKey,
-    })
+    const mine = await openOwnApproverKeys(change.manifest, ownWraps(change.wraps), selfAuthority())
+    const theirs = await openOwnApproverKeys(change.manifest, ownWraps(change.wraps, otherId), authorityOf(otherId, other))
     expect([...mine.messagePrivateKey]).toEqual([...theirs.messagePrivateKey])
   })
 
   it('adds approvers with the unchanged key version and signs the next revision without continuity', async () => {
     const { change, approvers } = await bootstrap()
-    const opened = await openOwnApproverKeys(change.manifest, ownWraps(change.wraps), memberAuthority())
-    const newcomer = sodium.crypto_box_keypair()
+    const opened = await openOwnApproverKeys(change.manifest, ownWraps(change.wraps), selfAuthority())
+    const newcomer = await generateRecipientKeyPair()
     const newcomerId = '3c3c3c3c-3c3c-4c3c-8c3c-3c3c3c3c3c3c'
     const added = await buildApproverKeySetChange({
       kind: 'addApprovers', organizationId: org(), memberId: fixture.context.memberId,
-      memberPrivateKey: keys.member.privateKey, currentManifest: change.manifest, currentKeys: opened,
+      memberKey: selfAuthority().memberKey, currentManifest: change.manifest, currentKeys: opened,
       challenge: {
         issuedAt: '2026-10-29T09:00:00Z', approverSetRevision: '2',
-        approvers: [...approvers.map((approver) => ({ ...approver, hasWrap: true })), await recipient(newcomerId, newcomer.publicKey)],
+        approvers: [...approvers.map((approver) => ({ ...approver, hasWrap: true })), await recipient(newcomerId, newcomer)],
       },
     })
     expect(added.manifest).toMatchObject({ keyVersion: 1, manifestRevision: '2', messagePublicKey: change.manifest.messagePublicKey })
@@ -467,24 +481,22 @@ describe('approver key-set lifecycle material', () => {
     expect(added.manifest.previousSigningKeyFingerprint).toBeUndefined()
     expect(added.wraps.map((wrap) => wrap.descriptor.memberId)).toEqual([newcomerId, newcomerId])
     expect((await verifyApproverManifestChain([change.manifest, added.manifest], org()))?.manifestRevision).toBe('2')
-    const theirs = await openOwnApproverKeys(added.manifest, added.wraps, {
-      organizationId: org(), memberId: newcomerId, memberKeyVersion: 1, memberPrivateKey: newcomer.privateKey,
-    })
+    const theirs = await openOwnApproverKeys(added.manifest, added.wraps, authorityOf(newcomerId, newcomer))
     expect([...theirs.messagePrivateKey]).toEqual([...opened.messagePrivateKey])
   })
 
   it('rotates to new keys with a continuity signature the Agent chain accepts', async () => {
     const { change, approvers } = await bootstrap()
-    const opened = await openOwnApproverKeys(change.manifest, ownWraps(change.wraps), memberAuthority())
+    const opened = await openOwnApproverKeys(change.manifest, ownWraps(change.wraps), selfAuthority())
     const rotated = await buildApproverKeySetChange({
       kind: 'rotate', organizationId: org(), memberId: fixture.context.memberId,
-      memberPrivateKey: keys.member.privateKey, currentManifest: change.manifest, currentKeys: opened,
+      memberKey: selfAuthority().memberKey, currentManifest: change.manifest, currentKeys: opened,
       challenge: { issuedAt: '2026-10-30T08:00:00Z', approverSetRevision: '2', approvers: approvers.slice(0, 1) },
     })
     expect(rotated.manifest).toMatchObject({ keyVersion: 2, manifestRevision: '2', previousSigningKeyFingerprint: change.manifest.signingKeyFingerprint })
     expect(rotated.wraps).toHaveLength(2)
     expect((await verifyApproverManifestChain([change.manifest, rotated.manifest], org()))?.keyVersion).toBe(2)
-    const next = await openOwnApproverKeys(rotated.manifest, rotated.wraps, memberAuthority())
+    const next = await openOwnApproverKeys(rotated.manifest, rotated.wraps, selfAuthority())
     expect([...next.messagePrivateKey]).not.toEqual([...opened.messagePrivateKey])
   })
 
@@ -492,7 +504,7 @@ describe('approver key-set lifecycle material', () => {
     const { change, approvers } = await bootstrap()
     const rebuilt = await buildApproverKeySetChange({
       kind: 'rebootstrap', organizationId: org(), memberId: fixture.context.memberId,
-      memberPrivateKey: keys.member.privateKey, currentManifest: change.manifest,
+      memberKey: selfAuthority().memberKey, currentManifest: change.manifest,
       challenge: { issuedAt: '2026-10-31T08:00:00Z', approverSetRevision: '2', approvers },
     })
     expect(rebuilt.manifest).toMatchObject({ keyVersion: 2, manifestRevision: '2' })
@@ -502,18 +514,32 @@ describe('approver key-set lifecycle material', () => {
     expect((await verifyApproverManifestChain([rebuilt.manifest], org()))?.keyVersion).toBe(2)
   })
 
+  it('does not seal approver keys to an approver whose Member key is still on the read-only suite', async () => {
+    const legacy = sodium.crypto_box_keypair()
+    const legacyApprover: ApproverRecipient = {
+      memberId: '4c4c4c4c-4c4c-4c4c-8c4c-4c4c4c4c4c4c', memberKeyVersion: 1,
+      memberKeyFingerprint: encodeBase64Url(await computeVaultKeyFingerprint(legacy.publicKey, VAULT_KEY_KIND.memberX25519)),
+      memberPublicKey: encodeBase64Url(legacy.publicKey), hasWrap: false,
+    }
+    await expect(buildApproverKeySetChange({
+      kind: 'bootstrap', organizationId: org(), memberId: fixture.context.memberId, memberKey: selfAuthority().memberKey,
+      challenge: { issuedAt: '2026-10-29T08:00:00Z', approverSetRevision: '1',
+        approvers: [await recipient(fixture.context.memberId, self, false, fixture.context.memberKeyVersion), legacyApprover] },
+    })).rejects.toMatchObject({ code: 'key-migration-pending' })
+  })
+
   it('refuses a change that would exclude the caller or seal to a key that does not match its fingerprint', async () => {
-    const other = sodium.crypto_box_keypair()
-    const outsider = await recipient('2c2c2c2c-2c2c-4c2c-8c2c-2c2c2c2c2c2c', other.publicKey)
+    const other = await generateRecipientKeyPair()
+    const outsider = await recipient('2c2c2c2c-2c2c-4c2c-8c2c-2c2c2c2c2c2c', other)
     await expectCode(buildApproverKeySetChange({
-      kind: 'bootstrap', organizationId: org(), memberId: fixture.context.memberId, memberPrivateKey: keys.member.privateKey,
+      kind: 'bootstrap', organizationId: org(), memberId: fixture.context.memberId, memberKey: selfAuthority().memberKey,
       challenge: { issuedAt: '2026-10-29T08:00:00Z', approverSetRevision: '1', approvers: [outsider] },
     }), 'approver-not-recipient')
-    const self = await recipient(fixture.context.memberId, keys.member.publicKey, false, fixture.context.memberKeyVersion)
-    const substituted = { ...outsider, memberPublicKey: encodeBase64Url(sodium.crypto_box_keypair().publicKey) }
+    const selfRecipient = await recipient(fixture.context.memberId, self, false, fixture.context.memberKeyVersion)
+    const substituted = { ...outsider, memberPublicKey: encodeBase64Url((await generateRecipientKeyPair()).publicKey) }
     await expect(buildApproverKeySetChange({
-      kind: 'bootstrap', organizationId: org(), memberId: fixture.context.memberId, memberPrivateKey: keys.member.privateKey,
-      challenge: { issuedAt: '2026-10-29T08:00:00Z', approverSetRevision: '1', approvers: [self, substituted] },
+      kind: 'bootstrap', organizationId: org(), memberId: fixture.context.memberId, memberKey: selfAuthority().memberKey,
+      challenge: { issuedAt: '2026-10-29T08:00:00Z', approverSetRevision: '1', approvers: [selfRecipient, substituted] },
     })).rejects.toThrow()
   })
 })

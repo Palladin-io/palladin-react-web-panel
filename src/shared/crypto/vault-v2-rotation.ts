@@ -6,12 +6,13 @@ import { VAULT_PROTOCOL_VERSION, type VaultEnvelopeHeader } from './vault-v2-pro
 import { canonicalizeVaultJson, signVaultObject, type CanonicalJson } from './vault-v2-signatures'
 import { loadSodium, randomBytes, wipe } from './sodium'
 import {
-  computeVaultKeyFingerprint,
-  sealKeyToX25519Recipient,
-  VAULT_KEY_KIND,
-  WRAPPER_PURPOSE,
-  X25519_SEALED_BOX_V1,
-} from './x25519-wrapper'
+  derivePublicKeyFor,
+  KEY_WRAPPER_PURPOSE,
+  KEY_WRAPPER_SUITE,
+  RECIPIENT_KEY_KIND,
+  recipientFingerprint,
+  wrapKeyForRecipient,
+} from './key-wrapper'
 
 export interface RotationKeyEnvelope {
   [key: string]: unknown
@@ -179,11 +180,17 @@ function canonicalInstant(now: Date): string {
   return iso.endsWith('.000Z') ? `${iso.slice(0, -5)}Z` : iso.replace(/0+Z$/, 'Z')
 }
 
-export async function createAgentDiscoveryMaterial(agent: { agentId: string; x25519PublicKey: string; ed25519PublicKey: string; recipientKeyVersion: number; manifestRevision: string | null }, scope: { organizationId: string; vaultId: string }, versions: { vdkVersion: number; agentMessageKeyVersion: number; manifestSigningKeyVersion: number }, keys: { vdk: Uint8Array; agentMessagePrivateKey: Uint8Array; manifestSigningPrivateKey: Uint8Array }, now = new Date()) {
+/**
+ * Discovery provisioning for one Agent. The VDK is sealed with the suite of the
+ * Agent's published encryption key and the manifest names the Vault Agent
+ * message key suite (recipient-key-publication successor schema) whenever that
+ * key is not legacy. Both suites come from authenticated publications.
+ */
+export async function createAgentDiscoveryMaterial(agent: { agentId: string; encryptionPublicKey: string; encryptionKeySuiteId: string; ed25519PublicKey: string; recipientKeyVersion: number; manifestRevision: string | null }, scope: { organizationId: string; vaultId: string }, versions: { vdkVersion: number; agentMessageKeyVersion: number; manifestSigningKeyVersion: number }, keys: { vdk: Uint8Array; agentMessagePrivateKey: Uint8Array; agentMessageKeySuiteId: string; manifestSigningPrivateKey: Uint8Array }, now = new Date()) {
   const sodium = await loadSodium()
-  const agentX = sodium.from_base64(agent.x25519PublicKey, sodium.base64_variants.ORIGINAL)
+  const agentPublicKey = sodium.from_base64(agent.encryptionPublicKey, sodium.base64_variants.ORIGINAL)
   const agentEd = sodium.from_base64(agent.ed25519PublicKey, sodium.base64_variants.ORIGINAL)
-  const messagePublic = sodium.crypto_scalarmult_base(keys.agentMessagePrivateKey)
+  const messagePublic = await derivePublicKeyFor({ keySuiteId: keys.agentMessageKeySuiteId, privateKey: keys.agentMessagePrivateKey })
   const signing = sodium.crypto_sign_seed_keypair(keys.manifestSigningPrivateKey.subarray(0, 32))
   if (keys.manifestSigningPrivateKey.length === 64
     && !sodium.memcmp(signing.privateKey, keys.manifestSigningPrivateKey)) {
@@ -191,31 +198,36 @@ export async function createAgentDiscoveryMaterial(agent: { agentId: string; x25
     throw new Error('Ed25519 private key does not match its embedded seed')
   }
   try {
-    const recipientFingerprint = await computeVaultKeyFingerprint(agentX, VAULT_KEY_KIND.agentX25519)
-    const wrapperContext = {
-      protocolVersion: 2, wrapperSuiteId: X25519_SEALED_BOX_V1,
-      purpose: WRAPPER_PURPOSE.agentVaultDiscoveryKey,
-      ...scope, agentId: agent.agentId, resourceRevision: BigInt(versions.vdkVersion),
+    const wrappedVdk = await wrapKeyForRecipient(keys.vdk, {
+      keySuiteId: agent.encryptionKeySuiteId,
+      keyKind: RECIPIENT_KEY_KIND.agentEncryption,
+      keyVersion: agent.recipientKeyVersion,
+      publicKey: agentPublicKey,
+    }, {
+      purpose: KEY_WRAPPER_PURPOSE.agentVaultDiscoveryKey,
+      scope: { ...scope, agentId: agent.agentId },
+      resourceRevision: String(versions.vdkVersion),
       wrappedKeyVersion: versions.vdkVersion,
-      recipientKeyKind: VAULT_KEY_KIND.agentX25519,
-      recipientKeyVersion: agent.recipientKeyVersion,
-      recipientFingerprint,
-    } as const
-    const wrapped = await sealKeyToX25519Recipient(keys.vdk, agentX, wrapperContext)
+    })
+    const wrapped = decodeBase64Url(wrappedVdk.encodedSealedKeyPackage, 4096)
     const digestInput = concatBytes(encodeUtf8('PLDNV2DG:AGENT-WRAPPED-VDK:'), encodeU16(2), wrapped)
     const wrappedDigest = sha256Digest(digestInput)
     const manifestRevision = (BigInt(agent.manifestRevision ?? '0') + 1n).toString()
+    const legacyMessageKey = keys.agentMessageKeySuiteId === KEY_WRAPPER_SUITE.legacy
     const unsigned = {
       protocolVersion: VAULT_PROTOCOL_VERSION,
-      cryptoSuiteId: 'palladin-vault-xchacha-v1', wrapperSuiteId: X25519_SEALED_BOX_V1,
+      cryptoSuiteId: 'palladin-vault-xchacha-v1', wrapperSuiteId: wrappedVdk.descriptor.wrapperSuiteId,
       signatureSuiteId: 'palladin-ed25519-v1', ...scope, agentId: agent.agentId,
-      agentX25519Fingerprint: await vaultKeyFingerprint(agentX, 1),
+      agentX25519Fingerprint: wrappedVdk.descriptor.recipientFingerprint,
       agentEd25519Fingerprint: await vaultKeyFingerprint(agentEd, 2),
       vaultSigningPublicKey: encodeBase64Url(signing.publicKey),
       vaultSigningKeyFingerprint: await vaultKeyFingerprint(signing.publicKey, 3),
       manifestSigningKeyVersion: versions.manifestSigningKeyVersion,
       vaultAgentMessagePublicKey: encodeBase64Url(messagePublic),
-      vaultAgentMessageKeyFingerprint: await vaultKeyFingerprint(messagePublic, 4),
+      vaultAgentMessageKeyFingerprint: recipientFingerprint({
+        keySuiteId: keys.agentMessageKeySuiteId, keyKind: RECIPIENT_KEY_KIND.vaultAgentMessage, publicKey: messagePublic,
+      }),
+      ...(legacyMessageKey ? {} : { vaultAgentMessageKeySuiteId: keys.agentMessageKeySuiteId }),
       agentMessageKeyVersion: versions.agentMessageKeyVersion, vdkVersion: versions.vdkVersion,
       agentWrappedVdkDigest: encodeBase64Url(wrappedDigest), manifestRevision,
       issuedAt: canonicalInstant(now), minimumAgentRuntimeProtocol: 2,
@@ -223,23 +235,12 @@ export async function createAgentDiscoveryMaterial(agent: { agentId: string; x25
     const signature = await signVaultObject('PLDNV2SIG:VAULT-MANIFEST:', unsigned, signing.privateKey)
     const envelope = {
       protocolVersion: 2, ...scope, agentId: agent.agentId, vdkVersion: versions.vdkVersion,
-      wrappedVdk: {
-        descriptor: {
-          protocolVersion: 2, wrapperSuiteId: X25519_SEALED_BOX_V1,
-          purpose: WRAPPER_PURPOSE.agentVaultDiscoveryKey,
-          scope: { ...scope, agentId: agent.agentId }, resourceRevision: String(versions.vdkVersion),
-          wrappedKeyVersion: versions.vdkVersion, memberKeyGeneration: null,
-          recipientKeyKind: VAULT_KEY_KIND.agentX25519,
-          recipientKeyVersion: agent.recipientKeyVersion,
-          recipientFingerprint: unsigned.agentX25519Fingerprint, parentDescriptorHash: null,
-        },
-        encodedSealedKeyPackage: encodeBase64Url(wrapped),
-      },
-      manifestRevision, manifestSignature: signature,
+      wrappedVdk, manifestRevision, manifestSignature: signature,
     }
     return { agentId: agent.agentId, envelope, manifest: { ...unsigned, signature } }
   } finally {
     wipe(signing.privateKey)
+    wipe(messagePublic)
   }
 }
 

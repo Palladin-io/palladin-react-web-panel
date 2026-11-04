@@ -22,6 +22,7 @@ import {
   type ApproveSubmissionResponse,
   type SubmissionGrantBody,
 } from './api/submissions-api'
+import { KEY_WRAPPER_SUITE } from '../../shared/crypto/key-wrapper'
 
 export class SubmissionApprovalLockedError extends Error {
   constructor() {
@@ -44,10 +45,12 @@ export class StaleSubmissionTargetError extends Error {
   }
 }
 
-/** The submitting Agent's current authoritative X25519 recipient key. */
+/** The submitting Agent's current authoritative recipient key and its published suite. */
 export interface SubmissionGrantRecipient {
   agentId: string
   publicKey: string
+  /** Absent means the legacy suite (recipient-key-publication v1). */
+  publicKeySuiteId?: string | null
   recipientKeyVersion: number
 }
 
@@ -64,6 +67,7 @@ async function buildDefaultGrant(
   const grantEntry = await buildCanonicalGrantEnvelope({
     secret,
     agentPublicKey: agent.publicKey,
+    agentKeySuiteId: agent.publicKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
     organizationId: scope.organizationId,
     vaultId: scope.vaultId,
     grantId,

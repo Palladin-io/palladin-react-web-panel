@@ -7,7 +7,7 @@ import { decryptMemberVaultMetadata } from './vault-v2-member-sync'
 import { createAgentDiscoveryMaterial, rewrapEntryKey, rotateVaultMetadata, vaultKeyFingerprint } from './vault-v2-rotation'
 import { canonicalizeVaultJson, verifyVaultSignature } from './vault-v2-signatures'
 import { loadSodium, randomBytes, wipe } from './sodium'
-import { openKeyFromX25519Recipient, VAULT_KEY_KIND, WRAPPER_PURPOSE, X25519_SEALED_BOX_V1 } from './x25519-wrapper'
+import { openKeyFromX25519Recipient, VAULT_KEY_KIND, WRAPPER_PURPOSE, X25519_SEALED_BOX_V1 } from '../../test/legacy-key-wrapper'
 
 const organizationId = '11111111-1111-4111-8111-111111111111'
 const vaultId = '22222222-2222-4222-8222-222222222222'

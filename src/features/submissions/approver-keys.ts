@@ -1,4 +1,4 @@
-import { getAccount } from '../../shared/api/account-api'
+import { getAccount, memberKeySuiteOf } from '../../shared/api/account-api'
 import {
   buildApproverKeySetChange,
   openOwnApproverKeys,
@@ -55,7 +55,10 @@ export async function currentMemberAuthority(): Promise<ApproverMemberAuthority>
     || !account.memberKeyVersion || account.userId !== userId || !userId) {
     throw new ApproverKeysLockedError()
   }
-  return { organizationId, memberId: userId, memberKeyVersion: account.memberKeyVersion, memberPrivateKey: privateKey }
+  return {
+    organizationId, memberId: userId, memberKeyVersion: account.memberKeyVersion,
+    memberKey: { privateKey, keySuiteId: memberKeySuiteOf(account) },
+  }
 }
 
 export function isServedApprover(state: ApproverKeysResponse): boolean {
@@ -91,13 +94,13 @@ export async function runApproverKeyChange(
       kind,
       organizationId: authority.organizationId,
       memberId: authority.memberId,
-      memberPrivateKey: authority.memberPrivateKey,
+      memberKey: authority.memberKey,
       challenge,
       ...(state.manifest ? { currentManifest: state.manifest } : {}),
       ...(currentKeys ? { currentKeys } : {}),
     })
     // Material prepared by an invalidated unlock session is never submitted.
-    if (useAuthStore.getState().privateKey !== authority.memberPrivateKey) throw new ApproverKeysLockedError()
+    if (useAuthStore.getState().privateKey !== authority.memberKey.privateKey) throw new ApproverKeysLockedError()
     await submitApproverKeySetChange(CHANGE_ROUTE[kind], { challengeId: challenge.challengeId, ...change })
   } finally {
     if (currentKeys) wipeApproverKeys(currentKeys)

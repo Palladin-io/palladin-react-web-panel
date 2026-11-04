@@ -8,7 +8,7 @@ import { ENVELOPE_PURPOSE } from '../../shared/crypto/envelope'
 import { wipe } from '../../shared/crypto/sodium'
 import { memberKeyFor, useAuthStore } from '../auth'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
-import { getEncryptedVault } from '../vaults/sync/member-sync-api'
+import { getEncryptedVault, vaultAgentMessageKeySuite } from '../vaults/sync/member-sync-api'
 import type { PendingGrant } from './api/pending-grants-api'
 import { isApprovableGrantType } from './api/org-grants-api'
 import { ENTRY_TYPE_CREDIT_CARD, normalizeEntryType } from '../../shared/types/entry-type'
@@ -95,6 +95,8 @@ export function useGrantApprovalReview(grant: PendingGrant | null) {
           }, {
             organizationId: detail.organizationId, vaultId: grant.vaultId,
             entryId: grant.entryId, grantId: grant.id, agentId: grant.agentId,
+            vaultAgentMessageKeySuiteId: vaultAgentMessageKeySuite(vault,
+              reason.wrappedReasonDek.descriptor.recipientKeyVersion),
           }).catch((error: unknown) => {
             throw new GrantReviewUnavailableError('encryptedReason', { cause: error })
           })

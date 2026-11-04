@@ -25,6 +25,7 @@ import {
 } from './grant-methods'
 import { GRANTS_QUERY_KEY } from './query-keys'
 import { ENTRY_TYPE_CREDIT_CARD, normalizeEntryType } from '../../shared/types/entry-type'
+import { KEY_WRAPPER_SUITE } from '../../shared/crypto/key-wrapper'
 
 export class VaultLockedError extends Error {
   constructor() {
@@ -115,6 +116,7 @@ export function useApproveGrant() {
             packageRevision: '1',
             recipientAgentKeyVersion: agent.recipientKeyVersion,
             agentPublicKey: agent.publicKey,
+            agentKeySuiteId: agent.publicKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
             vaultKey,
           })
           if (scriptPackage.scriptRevision !== reviewedEntryRevision) {
@@ -153,6 +155,7 @@ export function useApproveGrant() {
         const envelope = await buildCanonicalGrantEnvelope({
           secret: memberSecret,
           agentPublicKey: agent.publicKey,
+          agentKeySuiteId: agent.publicKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
           organizationId: detail.organizationId, vaultId, grantId, agentId, entryId,
           entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
           memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: agent.recipientKeyVersion,

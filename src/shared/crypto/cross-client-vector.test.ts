@@ -14,7 +14,7 @@ import {
   WRAPPER_PURPOSE,
   X25519_SEALED_BOX_V1,
   type X25519WrapperContext,
-} from './x25519-wrapper'
+} from '../../test/legacy-key-wrapper'
 
 const bytes = (hex: string): Uint8Array =>
   Uint8Array.from(hex.match(/../g)?.map((value) => Number.parseInt(value, 16)) ?? [])
@@ -112,6 +112,6 @@ describe(`shared Rust vector: ${wrapperVector.name}`, () => {
       publicKey,
       privateKey,
       { ...context, resourceRevision: 8 },
-    )).rejects.toThrow(/context verification/)
+    )).rejects.toThrow(/open-failed/)
   })
 })

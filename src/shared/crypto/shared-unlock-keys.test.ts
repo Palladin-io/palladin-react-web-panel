@@ -1,9 +1,10 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import {
-  encryptWithKey, generateKeyPair, hashSharedUnlockKeyContext, IDENTITY_KDF_PROFILE_ID,
+  encryptWithKey, hashSharedUnlockKeyContext, IDENTITY_KDF_PROFILE_ID,
   randomBytes, toBase64Url, type SharedUnlockKeyContext,
 } from "@palladin/crypto";
 import { recoverSharedUnlockKeys } from "./shared-unlock-keys";
+import { generateKeyPair } from './sodium'
 
 const accountId = "11111111-1111-4111-8111-111111111111";
 let masterKey: Uint8Array;

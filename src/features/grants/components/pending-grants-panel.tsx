@@ -23,6 +23,7 @@ import { formatGrantDate, formatRelativeTime } from './grant-format'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
 import { useMemberSyncStore } from '../../../shared/stores/member-sync-store'
+import { isKeyMigrationPending } from '../../../shared/crypto/key-wrapper'
 
 export interface PendingGrantsPanelProps {
   /**
@@ -93,7 +94,7 @@ export function PendingGrantsPanel({
         },
         onError: (error) => toast.error(t(error instanceof StaleGrantReviewError
           ? 'grants.approve.staleReview'
-          : 'grants.approve.error')),
+          : isKeyMigrationPending(error) ? 'grants.keyMigrationPending' : 'grants.approve.error')),
       },
     )
   }

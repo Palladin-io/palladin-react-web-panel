@@ -4,7 +4,7 @@ import { openEncryptedReason, type EncryptedReasonContract } from '../../shared/
 import { wipe } from '../../shared/crypto/sodium'
 import { openMemberVaultKey } from '../../shared/crypto/vault-protocol'
 import { memberKeyFor, useAuthStore } from '../auth'
-import { getEncryptedVault } from '../vaults/sync/member-sync-api'
+import { getEncryptedVault, vaultAgentMessageKeySuite } from '../vaults/sync/member-sync-api'
 import {
   grantReasonCoordinateKey,
   type GrantReasonCoordinate,
@@ -76,6 +76,8 @@ export function useGrantReasons(grants: readonly GrantReasonSource[]) {
                   entryId: grant.entryId ?? undefined,
                   grantId: grant.id,
                   agentId: grant.agentId!,
+                  vaultAgentMessageKeySuiteId: vaultAgentMessageKeySuite(vault,
+                    grant.encryptedReason!.wrappedReasonDek.descriptor.recipientKeyVersion),
                 },
               )
               if (useAuthStore.getState().privateKey !== sessionKey) return

@@ -86,7 +86,8 @@ describe('nextApproverKeyAction', () => {
 describe('currentMemberAuthority', () => {
   it('combines the JWT organization, Identity key version and the in-memory Member key', async () => {
     await expect(currentMemberAuthority()).resolves.toEqual({
-      organizationId: ORG, memberId: USER, memberKeyVersion: 2, memberPrivateKey: mocks.state.privateKey,
+      organizationId: ORG, memberId: USER, memberKeyVersion: 2,
+      memberKey: { privateKey: mocks.state.privateKey, keySuiteId: 'palladin-x25519-sealed-box-v1' },
     })
   })
 

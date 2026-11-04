@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import { generateRecipientKeyPair, openKey, RECIPIENT_KEY_KIND } from '@palladin/crypto'
 import { fromBase64Url, toBase64 } from './encoding'
 import { buildCanonicalGrantEnvelope } from './grant-protocol'
 import { deriveVaultSubkey } from './hkdf'
 import { loadSodium, wipe } from './sodium'
 import { openVaultEnvelope, toEnvelopeDescriptor } from './vault-envelope'
-import { openKeyFromX25519Recipient, type X25519WrapperContext } from './x25519-wrapper'
 import type { MemberSecretV1 } from './vault-plaintext'
 
 const secret: MemberSecretV1 = {
@@ -25,7 +25,7 @@ const secret: MemberSecretV1 = {
 describe('canonical Grant protocol', () => {
   it.each(['none', 'primary', 'custom'] as const)('binds fields and emits native TOTP source (%s)', async (totpKind) => {
     const sodium = await loadSodium()
-    const agent = sodium.crypto_box_keypair()
+    const agent = await generateRecipientKeyPair()
     const source = { source: 'totp', secret: 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ', algorithm: 'SHA1', digits: 8, period: 30 } as const
     const withTotp = totpKind !== 'none'
     const totpId = totpKind === 'custom' ? 'custom:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee' : 'credential.totp'
@@ -46,7 +46,7 @@ describe('canonical Grant protocol', () => {
         grantId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
         agentId: 'cccccccc-dddd-4eee-8fff-000000000000',
         entryRevision: '7', memberKeyGeneration: 3,
-        agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 4,
+        agentPublicKey: toBase64(agent.publicKey), agentKeySuiteId: agent.keySuiteId, recipientKeyVersion: 4,
         grantEnvelopeRevision: '8', grantKeyVersion: 5,
         approvedFieldIds: selected, approvedMethods: 1, secret: inputSecret,
       })
@@ -56,28 +56,10 @@ describe('canonical Grant protocol', () => {
       expect(envelope.wrappedGrantDek.descriptor.wrappedKeyVersion).toBe(5)
       expect(envelope.fieldIds).toEqual(selected)
       const wrapper = envelope.wrappedGrantDek.descriptor
-      const grantDek = await openKeyFromX25519Recipient(
-        fromBase64Url(envelope.wrappedGrantDek.encodedSealedKeyPackage),
-        agent.publicKey,
-        agent.privateKey,
-        {
-          protocolVersion: wrapper.protocolVersion,
-          wrapperSuiteId: wrapper.wrapperSuiteId,
-          purpose: wrapper.purpose,
-          organizationId: wrapper.scope.organizationId,
-          vaultId: wrapper.scope.vaultId,
-          entryId: wrapper.scope.entryId ?? undefined,
-          grantOrRequestId: wrapper.scope.grantOrRequestId ?? undefined,
-          agentId: wrapper.scope.agentId ?? undefined,
-          resourceRevision: BigInt(wrapper.resourceRevision),
-          wrappedKeyVersion: wrapper.wrappedKeyVersion,
-          memberKeyGeneration: wrapper.memberKeyGeneration ?? undefined,
-          recipientKeyKind: wrapper.recipientKeyKind,
-          recipientKeyVersion: wrapper.recipientKeyVersion,
-          recipientFingerprint: fromBase64Url(wrapper.recipientFingerprint),
-          parentDescriptorHash: fromBase64Url(wrapper.parentDescriptorHash!),
-        } satisfies X25519WrapperContext,
-      )
+      const grantDek = await openKey(wrapper, envelope.wrappedGrantDek.encodedSealedKeyPackage, {
+        keySuiteId: agent.keySuiteId, keyKind: RECIPIENT_KEY_KIND.agentEncryption,
+        keyVersion: wrapper.recipientKeyVersion, publicKey: agent.publicKey, privateKey: agent.privateKey,
+      })
       const descriptor = toEnvelopeDescriptor(envelope.descriptor)
       const { resourceRevision, ...kdfContext } = descriptor
       void resourceRevision
@@ -111,7 +93,7 @@ describe('canonical Grant protocol', () => {
 
   it('preserves selected methods with standard delivery for Script payloads', async () => {
     const sodium = await loadSodium()
-    const agent = sodium.crypto_box_keypair()
+    const agent = await generateRecipientKeyPair()
     const scriptSecret: MemberSecretV1 = {
       schema: 'palladin.member-secret.v1', memberLabel: 'Deploy', agentLabel: 'Deploy',
       discoverable: true, description: null, icon: null, color: null, entryType: 'script',
@@ -129,7 +111,7 @@ describe('canonical Grant protocol', () => {
         entryId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
         grantId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
         agentId: 'cccccccc-dddd-4eee-8fff-000000000000', entryRevision: '1',
-        memberKeyGeneration: 1, agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 1,
+        memberKeyGeneration: 1, agentPublicKey: toBase64(agent.publicKey), agentKeySuiteId: agent.keySuiteId, recipientKeyVersion: 1,
         grantEnvelopeRevision: '1', grantKeyVersion: 1,
         approvedFieldIds: ['script.source'], approvedMethods: 6, secret: scriptSecret,
       })
@@ -143,7 +125,7 @@ describe('canonical Grant protocol', () => {
 
   it('derives structural field IDs from the namespaced payload', async () => {
     const sodium = await loadSodium()
-    const agent = sodium.crypto_box_keypair()
+    const agent = await generateRecipientKeyPair()
     const notesSecret: MemberSecretV1 = {
       ...secret,
       content: { ...secret.content, notes: 'private note' },
@@ -157,7 +139,7 @@ describe('canonical Grant protocol', () => {
         grantId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
         agentId: 'cccccccc-dddd-4eee-8fff-000000000000',
         entryRevision: '1', memberKeyGeneration: 1,
-        agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 1,
+        agentPublicKey: toBase64(agent.publicKey), agentKeySuiteId: agent.keySuiteId, recipientKeyVersion: 1,
         grantEnvelopeRevision: '1', grantKeyVersion: 1,
         approvedFieldIds: ['notes'], approvedMethods: 1, secret: notesSecret,
       })
@@ -170,7 +152,7 @@ describe('canonical Grant protocol', () => {
 
   it('rejects the unregistered Credit Card preview from GrantPayload v2', async () => {
     const sodium = await loadSodium()
-    const agent = sodium.crypto_box_keypair()
+    const agent = await generateRecipientKeyPair()
     const cardSecret: MemberSecretV1 = {
       schema: 'palladin.member-secret.v1', memberLabel: 'Company card', agentLabel: 'Company card',
       discoverable: true, description: null, icon: null, color: null, entryType: 'creditCard',
@@ -193,7 +175,7 @@ describe('canonical Grant protocol', () => {
         entryId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
         grantId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
         agentId: 'cccccccc-dddd-4eee-8fff-000000000000', entryRevision: '1',
-        memberKeyGeneration: 1, agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 1,
+        memberKeyGeneration: 1, agentPublicKey: toBase64(agent.publicKey), agentKeySuiteId: agent.keySuiteId, recipientKeyVersion: 1,
         grantEnvelopeRevision: '1', grantKeyVersion: 1,
         approvedFieldIds: ['creditCard.cardNumber'], approvedMethods: 6, secret: cardSecret,
       })).rejects.toThrow(/not registered/)
@@ -204,7 +186,7 @@ describe('canonical Grant protocol', () => {
 
   it('rejects fields outside the approved Agent policy', async () => {
     const sodium = await loadSodium()
-    const agent = sodium.crypto_box_keypair()
+    const agent = await generateRecipientKeyPair()
     try {
       await expect(buildCanonicalGrantEnvelope({
         organizationId: '00112233-4455-6677-8899-aabbccddeeff',
@@ -212,7 +194,7 @@ describe('canonical Grant protocol', () => {
         entryId: 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee',
         grantId: 'bbbbbbbb-cccc-4ddd-8eee-ffffffffffff',
         agentId: 'cccccccc-dddd-4eee-8fff-000000000000', entryRevision: '1',
-        memberKeyGeneration: 1, agentPublicKey: toBase64(agent.publicKey), recipientKeyVersion: 1,
+        memberKeyGeneration: 1, agentPublicKey: toBase64(agent.publicKey), agentKeySuiteId: agent.keySuiteId, recipientKeyVersion: 1,
         grantEnvelopeRevision: '1', grantKeyVersion: 1,
         approvedFieldIds: ['credential.url'], approvedMethods: 1, secret,
       })).rejects.toThrow('not grantable')

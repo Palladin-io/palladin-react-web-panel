@@ -1,3 +1,5 @@
+import { generateRecipientKeyPair, RECIPIENT_KEY_KIND, type RecipientKeyPair } from '@palladin/crypto'
+import { recipientFingerprint } from '../../shared/crypto/key-wrapper'
 import 'fake-indexeddb/auto'
 import type { ReactNode } from 'react'
 import { readFileSync } from 'node:fs'
@@ -15,7 +17,7 @@ import {
 } from '../../shared/crypto/agent-submission'
 import { concatBytes, encodeBase64Url } from '../../shared/crypto/vault-v2-bytes'
 import { signVaultObject, type CanonicalJson } from '../../shared/crypto/vault-v2-signatures'
-import { VAULT_KEY_KIND, computeVaultKeyFingerprint } from '../../shared/crypto/x25519-wrapper'
+import { VAULT_KEY_KIND, computeVaultKeyFingerprint } from '../../test/legacy-key-wrapper'
 import { analytics } from '../../shared/lib/analytics'
 import { PERMISSION_GRANT_MANAGE } from '../../shared/lib/permissions'
 import { useAuthStore } from '../auth'
@@ -199,26 +201,31 @@ describe('submission review pipeline with the real crypto layer', () => {
 })
 
 describe('approver key changes with the real crypto layer', () => {
-  async function recipient(memberId: string, publicKey: Uint8Array, hasWrap: boolean, memberKeyVersion = 1) {
+  function recipient(memberId: string, pair: RecipientKeyPair, hasWrap: boolean, memberKeyVersion = 1) {
     return {
-      memberId, memberKeyVersion, hasWrap, memberPublicKey: encodeBase64Url(publicKey),
-      memberKeyFingerprint: encodeBase64Url(await computeVaultKeyFingerprint(publicKey, VAULT_KEY_KIND.memberX25519)),
+      memberId, memberKeyVersion, hasWrap, memberPublicKey: encodeBase64Url(pair.publicKey), memberKeySuiteId: pair.keySuiteId,
+      memberKeyFingerprint: recipientFingerprint({
+        keySuiteId: pair.keySuiteId, keyKind: RECIPIENT_KEY_KIND.memberEncryption, publicKey: pair.publicKey,
+      }),
     }
   }
 
   it('bootstraps wraps for exactly the challenge approver set, not a stale GET list', async () => {
-    const colleague = sodium.crypto_box_keypair()
-    const outsider = sodium.crypto_box_keypair()
-    const self = { memberId: fixture.context.memberId, memberKeyVersion: 2, memberKeyFingerprint: memberFingerprint,
-      memberPublicKey: encodeBase64Url(member.publicKey), hasWrap: false }
+    // A migrated caller: approver keys are sealed only to active-suite Member keys.
+    const caller = await generateRecipientKeyPair()
+    useAuthStore.setState({ privateKey: new Uint8Array(caller.privateKey), memberKeySuiteId: caller.keySuiteId })
+    mocks.getAccount.mockResolvedValue({ userId: fixture.context.memberId, memberKeyVersion: 2, memberKeySuiteId: caller.keySuiteId })
+    const colleague = await generateRecipientKeyPair()
+    const outsider = await generateRecipientKeyPair()
+    const self = recipient(fixture.context.memberId, caller, false, 2)
     const colleagueId = '2c2c2c2c-2c2c-4c2c-8c2c-2c2c2c2c2c2c'
     mocks.issueApproverKeyChallenge.mockResolvedValue({
       challengeId: 'c1', issuedAt: '2026-10-29T08:00:00Z', approverSetRevision: '1', approverSetDigest: 'ignored',
-      approvers: [self, await recipient(colleagueId, colleague.publicKey, false)], expiresAt: '',
+      approvers: [self, recipient(colleagueId, colleague, false)], expiresAt: '',
     })
     await runApproverKeyChange('bootstrap', {
       ...readyState(), status: 'absent', manifest: null, myWraps: null,
-      approvers: [self, await recipient('3c3c3c3c-3c3c-4c3c-8c3c-3c3c3c3c3c3c', outsider.publicKey, false)],
+      approvers: [self, recipient('3c3c3c3c-3c3c-4c3c-8c3c-3c3c3c3c3c3c', outsider, false)],
     })
     const [route, body] = mocks.submitApproverKeySetChange.mock.calls[0] as [string, ApproverKeySetChangeBody]
     expect(route).toBe('bootstrap')
@@ -228,20 +235,20 @@ describe('approver key changes with the real crypto layer', () => {
     expect(body.manifest.continuitySignature).toBeUndefined()
     const opened = await openOwnApproverKeys(body.manifest, body.wraps.filter((wrap) => wrap.descriptor.memberId === fixture.context.memberId), {
       organizationId: fixture.context.organizationId, memberId: fixture.context.memberId,
-      memberKeyVersion: 2, memberPrivateKey: member.privateKey,
+      memberKeyVersion: 2, memberKey: { privateKey: caller.privateKey, keySuiteId: caller.keySuiteId },
     })
     secretsSeen.push(new Uint8Array(opened.messagePrivateKey), new Uint8Array(opened.signingSeed))
   })
 
   it('adds only approvers that the challenge lists without a wrap and keeps the key version', async () => {
-    const newcomer = sodium.crypto_box_keypair()
+    const newcomer = await generateRecipientKeyPair()
     const newcomerId = '4c4c4c4c-4c4c-4c4c-8c4c-4c4c4c4c4c4c'
     mocks.issueApproverKeyChallenge.mockResolvedValue({
       challengeId: 'c2', issuedAt: '2026-10-29T09:00:00Z', approverSetRevision: '2', approverSetDigest: 'ignored', expiresAt: '',
       approvers: [
         { memberId: fixture.context.memberId, memberKeyVersion: 2, memberKeyFingerprint: memberFingerprint,
           memberPublicKey: encodeBase64Url(member.publicKey), hasWrap: true },
-        await recipient(newcomerId, newcomer.publicKey, false),
+        recipient(newcomerId, newcomer, false),
       ],
     })
     await runApproverKeyChange('addApprovers', readyState())

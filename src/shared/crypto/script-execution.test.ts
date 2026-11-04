@@ -19,7 +19,7 @@ import {
   WRAPPER_PURPOSE,
   X25519_SEALED_BOX_V1,
   type X25519WrapperContext,
-} from './x25519-wrapper'
+} from '../../test/legacy-key-wrapper'
 
 const organizationId = '00112233-4455-4677-8899-aabbccddeeff'
 const vaultId = '11112222-3333-4444-8555-666677778888'

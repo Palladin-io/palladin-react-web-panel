@@ -7,7 +7,7 @@ import { buildCanonicalGrantEnvelope, listGrantableFields } from '../../shared/c
 import { grantPayloadPolicyFieldId } from '../../shared/crypto/vault-plaintext'
 import { openMemberVaultKey, openVaultDerivedEnvelope } from '../../shared/crypto/vault-protocol'
 import { wipe } from '../../shared/crypto/sodium'
-import { buildAgentWrappedVaultKey } from '../../shared/crypto/x25519-wrapper'
+import { buildAgentWrappedVaultKey, KEY_WRAPPER_SUITE } from '../../shared/crypto/key-wrapper'
 import { getCanonicalEntry } from '../vaults/api/vault-api'
 import { getEncryptedVault } from '../vaults/sync/member-sync-api'
 import { useMemberSyncStore } from '../../shared/stores/member-sync-store'
@@ -42,6 +42,8 @@ export interface CreateGrantInput {
   vaultId: string
   agentId: string
   agentPublicKey: string | null | undefined
+  /** Suite of the Agent's published encryption key; absent means the legacy suite. */
+  agentKeySuiteId?: string | null
   recipientAgentKeyVersion: number | null | undefined
   agentAccessEpoch: number | null | undefined
   type: GrantType
@@ -64,6 +66,7 @@ export function useCreateGrant() {
       vaultId,
       agentId,
       agentPublicKey,
+      agentKeySuiteId,
       recipientAgentKeyVersion,
       agentAccessEpoch,
       type,
@@ -108,6 +111,7 @@ export function useCreateGrant() {
               vaultKeyVersion: vault.currentKeyEpoch.vaultKeyVersion,
               recipientAgentKeyVersion,
               agentPublicKey,
+              agentKeySuiteId: agentKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
               vaultSigningKeyVersion: vault.currentKeyEpoch.manifestSigningKeyVersion,
               vaultSigningPrivateKey,
             })
@@ -141,6 +145,7 @@ export function useCreateGrant() {
             packageRevision: '1',
             recipientAgentKeyVersion,
             agentPublicKey,
+            agentKeySuiteId: agentKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
             vaultKey,
           })
           if (scriptPackage.scriptRevision !== reviewedScriptRevision) {
@@ -183,6 +188,7 @@ export function useCreateGrant() {
         const envelope = await buildCanonicalGrantEnvelope({
           secret: memberSecret,
           agentPublicKey,
+          agentKeySuiteId: agentKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
           organizationId: detail.organizationId, vaultId, grantId, agentId, entryId: granularEntryId,
           entryRevision: detail.currentRevision, grantEnvelopeRevision: '1', grantKeyVersion: 1,
           memberKeyGeneration: vault.memberKeyGeneration, recipientKeyVersion: recipientAgentKeyVersion,

@@ -64,7 +64,7 @@ const emptyBindingSchema = z.object({}).strict()
 
 const wrapperPurposeValues = {
   memberVaultKey: 1,
-  agentDiscoveryVdk: 2,
+  agentVaultDiscoveryKey: 2,
   reasonDek: 3,
   grantDek: 4,
 } as const

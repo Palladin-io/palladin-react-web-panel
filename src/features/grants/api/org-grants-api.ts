@@ -3,7 +3,7 @@ import type { GrantFieldSelectionMode } from '../../../shared/types/grant-field-
 
 import { api } from "../../../shared/api/client";
 import type { buildCanonicalGrantEnvelope } from "../../../shared/crypto/grant-protocol";
-import type { AgentWrappedVaultKeyContract } from "../../../shared/crypto/x25519-wrapper";
+import type { AgentWrappedVaultKeyContract } from "../../../shared/crypto/key-wrapper";
 import type { ScriptExecutionEncryptedPackageV1 } from "../../../shared/crypto/script-execution";
 import { encryptedReasonEnvelopeSchema } from "../../vaults/sync/entry-envelope-schema";
 
@@ -87,6 +87,8 @@ export interface OrgGrant {
   agentName?: string | null
   agentIconKey?: string | null
   agentPublicKey?: string | null
+  /** Suite of `agentPublicKey`; absent means the legacy suite. */
+  agentPublicKeySuiteId?: string | null
   recipientAgentKeyVersion?: number | null
   agentSigningPublicKey?: string | null
   agentSigningKeyVersion?: number | null

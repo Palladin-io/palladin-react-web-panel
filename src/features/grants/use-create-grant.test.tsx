@@ -36,7 +36,9 @@ vi.mock('../../shared/crypto/vault-protocol', () => ({
 }))
 vi.mock('../../shared/crypto/entry-protocol', () => ({ openMemberSecret: mocks.decrypt }))
 vi.mock('../../shared/crypto/grant-protocol', () => ({ buildCanonicalGrantEnvelope: mocks.produce, listGrantableFields: mocks.fields }))
-vi.mock('../../shared/crypto/x25519-wrapper', () => ({ buildAgentWrappedVaultKey: mocks.buildFull }))
+vi.mock('../../shared/crypto/key-wrapper', async (importOriginal) => ({
+  ...await importOriginal<typeof import('../../shared/crypto/key-wrapper')>(), buildAgentWrappedVaultKey: mocks.buildFull,
+}))
 vi.mock('../vaults/script-execution-package', () => ({
   buildCompleteScriptExecutionPackage: mocks.buildScriptPackage,
 }))

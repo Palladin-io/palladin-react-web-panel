@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { api } from '../../../shared/api/client'
+import { KEY_WRAPPER_SUITE } from '../../../shared/crypto/key-wrapper'
 
 export const DISCOVERY_STATUS_CURRENT = 'current' as const
 export const DISCOVERY_STATUS_PENDING = 'pending' as const
@@ -8,18 +9,21 @@ const canonicalU64 = z.string()
   .regex(/^(0|[1-9][0-9]{0,19})$/)
   .refine((value) => BigInt(value) <= 0xffffffffffffffffn)
 
+// recipient-key-publication: the encryption key names its suite; rows without one are legacy.
 const agentDiscoveryProvisioningItemSchema = z.object({
   agentId: z.string().uuid(),
   agentName: z.string().max(200).nullable(),
-  x25519PublicKey: z.string().max(512),
+  encryptionPublicKey: z.string().max(2048),
+  encryptionKeySuiteId: z.string().max(64).nullable().optional(),
   ed25519PublicKey: z.string().max(512),
   recipientKeyVersion: z.number().int().positive().max(0xffffffff),
   status: z.enum([DISCOVERY_STATUS_CURRENT, DISCOVERY_STATUS_PENDING]),
   manifestRevision: canonicalU64.nullable(),
-}).transform(({ agentId, agentName, x25519PublicKey, ed25519PublicKey, recipientKeyVersion, status, manifestRevision }) => ({
+}).transform(({ agentId, agentName, encryptionPublicKey, encryptionKeySuiteId, ed25519PublicKey, recipientKeyVersion, status, manifestRevision }) => ({
   agentId,
   agentName,
-  x25519PublicKey,
+  encryptionPublicKey,
+  encryptionKeySuiteId: encryptionKeySuiteId ?? KEY_WRAPPER_SUITE.legacy,
   ed25519PublicKey,
   recipientKeyVersion,
   status,
