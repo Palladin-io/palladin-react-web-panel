@@ -18,6 +18,7 @@ import {
   ENTRY_FIELD,
   fromMemberSecret,
   withNewCredentialTotpPolicy,
+  withNewSignInMethodPolicy,
   type AgentVisibilityPolicy,
   type MemberSecretView,
 } from '../../shared/crypto/entry-draft'
@@ -75,6 +76,8 @@ import {
 } from './entry-blob'
 import { formatOtpauthUri, parseOtpauthUri } from '../../shared/crypto/totp'
 import { CustomFieldsEditor } from './components/custom-fields-editor'
+import { SignInMethodField } from './components/sign-in-method-field'
+import { hasRecognizedSignInMethod } from './sign-in-method'
 import { CredentialTotpField } from './components/credential-totp-field'
 import { ScriptEditor } from './components/script-editor'
 import { ScriptExecHint } from './components/script-exec-hint'
@@ -651,6 +654,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
   const existingTotp = nativeTotp || originalSecret?.content.fields?.some((field) => field.id === credentialTotp?.id)
   const totpAccess = totpPolicyId ? policy?.fields[totpPolicyId] ?? (existingTotp ? 'never' : 'onGrantDerived') : 'never'
   const fieldsInvalid = validateCustomFields(mergedFields).hasError
+  const credentialSecretsOptional = entry.type === ENTRY_TYPE_CREDENTIAL && hasRecognizedSignInMethod(customFields)
   const scriptContractInvalid = entry.type === ENTRY_TYPE_SCRIPT
     && (!description.trim() || validateScriptParameterDrafts(scriptParameters) !== null
       || !validateScriptRefs(refs, vault.id))
@@ -745,7 +749,8 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
       : originalIcon?.startsWith('builtin:') ? undefined : originalIcon
     const savedPolicy = policy ?? originalSecret.agentVisibilityPolicy
     const basePolicy = entry.type === ENTRY_TYPE_CREDENTIAL
-      ? withNewCredentialTotpPolicy(originalSecret.content.fields ?? [], current.fields ?? [], savedPolicy)
+      ? withNewSignInMethodPolicy(entry.type, originalSecret.content.fields ?? [], current.fields ?? [],
+        withNewCredentialTotpPolicy(originalSecret.content.fields ?? [], current.fields ?? [], savedPolicy))
       : savedPolicy
     const nextPolicy = entry.type === ENTRY_TYPE_SCRIPT
       ? {
@@ -824,7 +829,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
         setScriptError(true)
         return
       }
-      if (entry.type === ENTRY_TYPE_CREDENTIAL) {
+      if (entry.type === ENTRY_TYPE_CREDENTIAL && !credentialSecretsOptional) {
         const u = !username.trim()
         const p = !password.trim()
         if (u) setUsernameError(true)
@@ -1179,16 +1184,16 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                     value={username}
                     onChange={(e) => { setUsername(e.target.value); setUsernameError(false) }}
                     onBlur={() =>
-                      setUsernameError(
-                        firstError(username, [required(t('validation.required'))]) !== null,
+                      setUsernameError(!credentialSecretsOptional
+                        && firstError(username, [required(t('validation.required'))]) !== null,
                       )
                     }
                     disabled={isSaving || decrypting}
-                    error={usernameError}
+                    error={usernameError && !credentialSecretsOptional}
                     copyable
                     copyLabel={t('vault.entry.copyUsername')}
                   />
-                  <FeedbackSlot visible={usernameError} color="red">
+                  <FeedbackSlot visible={usernameError && !credentialSecretsOptional} color="red">
                     {t('validation.required')}
                   </FeedbackSlot>
                 </div>
@@ -1199,8 +1204,8 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                     value={password}
                     onChange={(next) => { setPassword(next); setPasswordError(false) }}
                     onBlur={() =>
-                      setPasswordError(
-                        firstError(password, [required(t('validation.required'))]) !== null,
+                      setPasswordError(!credentialSecretsOptional
+                        && firstError(password, [required(t('validation.required'))]) !== null,
                       )
                     }
                     shown={showPassword}
@@ -1208,11 +1213,11 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                     onGenerate={(pw) => { setPassword(pw); setShowPassword(true); setPasswordError(false) }}
                     disabled={isSaving || decrypting}
                     monospace
-                    error={passwordError}
+                    error={passwordError && !credentialSecretsOptional}
                     copyable
                     copyLabel={t('vault.entry.copyPassword')}
                   />
-                  <FeedbackSlot visible={passwordError} color="red">
+                  <FeedbackSlot visible={passwordError && !credentialSecretsOptional} color="red">
                     {t('validation.required')}
                   </FeedbackSlot>
                 </div>
@@ -1230,6 +1235,25 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                   } }),
                 } : undefined}
               />
+              {!decryptError ? (
+                <>
+                  <SectionHeader>{t('vault.entries.signInMethod.title')}</SectionHeader>
+                  <SignInMethodField
+                    fields={customFields}
+                    onChange={setCustomFields}
+                    disabled={isSaving || decrypting || !originalSecret}
+                    entryId={entry.id}
+                    agentVisibility={policy ? {
+                      isVisible: (fieldId) => policy.discoverable
+                        && (policy.fields[`custom:${fieldId}`] ?? 'discovery') === 'discovery',
+                      onChange: (fieldId, visible) => setPolicy({ ...policy, fields: {
+                        ...policy.fields, [`custom:${fieldId}`]: visible ? 'discovery' : 'never',
+                      } }),
+                      disabled: !policy.discoverable,
+                    } : undefined}
+                  />
+                </>
+              ) : null}
               </>
             )}
             {!decryptError ? (
@@ -1240,6 +1264,7 @@ function DetailsTab({ vault, entry, loadCanonical, onDeleted }: DetailsTabProps)
                   onChange={setCustomFields}
                   disabled={isSaving || decrypting || !originalSecret}
                   copyable
+                  hideSignInMethod={entry.type === ENTRY_TYPE_CREDENTIAL}
                 />
               </>
             ) : null}

@@ -10,6 +10,8 @@ import {
   ENTRY_TYPE_SCRIPT,
   type Vault,
 } from '../types'
+import { encodeMemberSecret, parseMemberSecret, projectAgentDiscovery } from '../../../shared/crypto/vault-plaintext'
+import { toMemberSecret } from '../../../shared/crypto/entry-draft'
 import { CreateEntryModal } from './create-entry-modal'
 
 const { ensureWebsiteIconsMock, ensureWebsiteIconsWithinMock } = vi.hoisted(() => ({
@@ -521,5 +523,113 @@ describe('CreateEntryModal', () => {
     expect(input.policy.discoverable).toBe(false)
     expect(input.policy.fields.agentLabel).toBe('never')
     expect(input.policy.fields.value).toBe('onGrantValue')
+  })
+
+  it('creates a Credential whose sign-in method reaches Discovery without the account', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'entry-sign-in' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    fireEvent.change(screen.getByLabelText(/^label$/i), { target: { value: 'Example' } })
+    fireEvent.change(screen.getByLabelText(/^username$/i), { target: { value: 'alice' } })
+    fireEvent.change(screen.getByLabelText(/^password$/i), { target: { value: 'secret' } })
+    await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
+    await user.selectOptions(screen.getByLabelText('Provider'), 'google')
+    await user.type(screen.getByLabelText('Provider account'), 'alice@example.com')
+    expect(screen.getByRole('switch', { name: 'Visible to agents' })).toBeChecked()
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    expect(mutateMock).toHaveBeenCalledTimes(1)
+    const [input] = mutateMock.mock.calls[0]
+    const [field] = input.payload.fields
+    expect(field).toMatchObject({ label: 'Sign-in method', type: 'palladin.signin.v1',
+      value: { provider: 'google', account: 'alice@example.com', entry: null } })
+    expect(input.policy.fields[`custom:${field.id}`]).toBe('discovery')
+    const secret = toMemberSecret({ label: 'Example', agentLabel: 'Example', type: input.type,
+      payload: input.payload, policy: input.policy })
+    const discovery = projectAgentDiscovery(parseMemberSecret(encodeMemberSecret(secret)))
+    expect(discovery?.fields).toContainEqual({ id: 'signIn',
+      value: '{"entry":null,"provider":"google","schema":"palladin.signin.v1"}' })
+    expect(JSON.stringify(discovery)).not.toContain('alice@example.com')
+  })
+
+  it('keeps the sign-in method out of Discovery when the owner turns it off or hides the Entry', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'entry-sign-in' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    fireEvent.change(screen.getByLabelText(/^label$/i), { target: { value: 'Example' } })
+    await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
+    await user.selectOptions(screen.getByLabelText('Provider'), 'apple')
+    await user.click(screen.getByRole('switch', { name: 'Visible to agents' }))
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+    const [first] = mutateMock.mock.calls[0]
+    expect(first.policy.fields[`custom:${first.payload.fields[0].id}`]).toBe('never')
+
+    await user.click(screen.getByRole('switch', { name: 'Visible to agents' }))
+    await user.click(screen.getAllByRole('button', { name: /visible to agents in discovery/i })[0])
+    expect(screen.getByRole('switch', { name: 'Visible to agents' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+    const [second] = mutateMock.mock.calls[1]
+    expect(second.policy.discoverable).toBe(false)
+    expect(second.policy.fields[`custom:${second.payload.fields[0].id}`]).toBe('never')
+  })
+
+  it('drops a draft sign-in method when the new Entry is not a Credential', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'key-without-sign-in' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
+    await user.selectOptions(screen.getByLabelText('Provider'), 'apple')
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
+    expect(screen.queryByText('Unsupported field, kept unchanged')).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText(/^label$/i), 'API')
+    await user.type(screen.getByLabelText(/^value$/i), 'sk')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    expect(mutateMock.mock.calls[0][0].payload.fields).toBeUndefined()
+  })
+
+  it('creates a Credential with empty username and password when it has a sign-in method', async () => {
+    const user = userEvent.setup()
+    mutateMock.mockImplementation((_input, options) => options.onSuccess({ id: 'oauth-only' }))
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    fireEvent.change(screen.getByLabelText(/^label$/i), { target: { value: 'Example' } })
+    expect(screen.getByRole('button', { name: /save entry/i })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
+    await user.selectOptions(screen.getByLabelText('Provider'), 'google')
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+
+    expect(mutateMock).toHaveBeenCalledTimes(1)
+    const [input] = mutateMock.mock.calls[0]
+    expect(input.payload).toMatchObject({ username: '', password: '' })
+    const secret = toMemberSecret({ label: 'Example', agentLabel: 'Example', type: input.type,
+      payload: input.payload, policy: input.policy })
+    expect(() => encodeMemberSecret(secret)).not.toThrow()
+  })
+
+  it('still requires username and password for a Credential without a sign-in method', async () => {
+    const user = userEvent.setup()
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    fireEvent.change(screen.getByLabelText(/^label$/i), { target: { value: 'Example' } })
+    expect(screen.getByRole('button', { name: /save entry/i })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText(/^username$/i), { target: { value: 'alice' } })
+    expect(screen.getByRole('button', { name: /save entry/i })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: /save entry/i }))
+    expect(mutateMock).not.toHaveBeenCalled()
+  })
+
+  it('does not relax KEY validation after a draft sign-in method is chosen', async () => {
+    const user = userEvent.setup()
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+
+    await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
+    await user.selectOptions(screen.getByLabelText('Provider'), 'google')
+    await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
+    fireEvent.change(screen.getByLabelText(/^label$/i), { target: { value: 'API' } })
+    expect(screen.getByRole('button', { name: /save entry/i })).toBeDisabled()
   })
 })

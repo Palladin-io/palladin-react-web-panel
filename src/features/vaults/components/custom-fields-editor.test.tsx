@@ -6,11 +6,11 @@ import type { CustomField } from '../types'
 import { CustomFieldsEditor } from './custom-fields-editor'
 
 /** Controlled harness — mirrors how the create/edit surfaces own the state. */
-function Harness({ initial = [] as CustomField[] }) {
+function Harness({ initial = [] as CustomField[], hideSignInMethod = false }) {
   const [fields, setFields] = useState<CustomField[]>(initial)
   return (
     <>
-      <CustomFieldsEditor fields={fields} onChange={setFields} copyable />
+      <CustomFieldsEditor fields={fields} onChange={setFields} copyable hideSignInMethod={hideSignInMethod} />
       <output data-testid="count">{fields.length}</output>
       <output data-testid="dump">{JSON.stringify(fields)}</output>
     </>
@@ -149,5 +149,39 @@ describe('CustomFieldsEditor', () => {
       expect.objectContaining({ id: 'f2' }),
       expect.objectContaining({ id: 'f1' }),
     ])
+  })
+
+  it('shows an unknown field type read-only and preserves its value exactly', async () => {
+    const user = userEvent.setup()
+    const future: CustomField = { id: 'future', label: 'Future', type: 'future-json',
+      value: { nested: [1, ' x '] } as never }
+    render(<Harness initial={[future]} />)
+
+    expect(screen.getByText('Unsupported field, kept unchanged')).toBeInTheDocument()
+    expect(screen.queryByRole('textbox', { name: /value/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^type$/i })).not.toBeInTheDocument()
+
+    await addField(user, /^text/i)
+    expect(dump()[0]).toEqual(future)
+
+    await user.click(screen.getAllByRole('button', { name: /more actions/i })[0])
+    await user.click(screen.getByRole('menuitem', { name: /remove/i }))
+    expect(dump()).toHaveLength(1)
+    expect(dump()[0].type).toBe('text')
+  })
+
+  it('hides Credential sign-in methods while keeping them in place', async () => {
+    const user = userEvent.setup()
+    const signIn: CustomField = { id: 'sign-in', label: 'Sign-in method', type: 'palladin.signin.v1',
+      value: { provider: 'google', account: null } as never }
+    const first: CustomField = { id: 'first', label: 'First', type: 'text', value: 'one' }
+    const last: CustomField = { id: 'last', label: 'Last', type: 'text', value: 'two' }
+    render(<Harness initial={[first, signIn, last]} hideSignInMethod />)
+
+    expect(screen.queryByText('Sign-in method')).not.toBeInTheDocument()
+    await user.click(screen.getAllByRole('button', { name: /more actions/i })[0])
+    await user.click(screen.getByRole('menuitem', { name: /remove/i }))
+
+    expect(dump()).toEqual([last, signIn])
   })
 })

@@ -12,6 +12,7 @@ import {
   isKnownFieldType,
 } from '../types'
 import { blankField, validateCustomFields, type CustomFieldError } from '../entry-blob'
+import { isSignInMethodField } from '../sign-in-method'
 import { PopoverMenu, type MenuEntry } from './popover-menu'
 import { TotpSetup } from './totp-setup'
 
@@ -21,6 +22,11 @@ export interface CustomFieldsEditorProps {
   disabled?: boolean
   /** Show copy buttons on value rows (the edit-detail surface). */
   copyable?: boolean
+  /**
+   * Credential surfaces edit `palladin.signin.v1` through the dedicated
+   * Sign-in method control; hide those fields here while keeping their position.
+   */
+  hideSignInMethod?: boolean
 }
 
 const FIELD_TYPE_META: Record<CustomFieldType, { icon: string; labelKey: string; descKey: string }> = {
@@ -43,8 +49,11 @@ const TYPE_ORDER: CustomFieldType[] = ['text', 'multiline', 'concealed', 'totp']
  * (required label when valued, unique labels) is surfaced inline and gated by
  * the parent on save.
  */
-export function CustomFieldsEditor({ fields, onChange, disabled }: CustomFieldsEditorProps) {
+export function CustomFieldsEditor({ fields: allFields, onChange: onAllFieldsChange, disabled, hideSignInMethod }: CustomFieldsEditorProps) {
   const { t } = useTranslation()
+  const fields = hideSignInMethod ? allFields.filter((field) => !isSignInMethodField(field)) : allFields
+  const onChange = (next: CustomField[]) =>
+    onAllFieldsChange(hideSignInMethod ? withHiddenSignInFields(allFields, next) : next)
   const { errors } = validateCustomFields(fields)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
 
@@ -122,6 +131,17 @@ export function CustomFieldsEditor({ fields, onChange, disabled }: CustomFieldsE
   )
 }
 
+/** Re-insert hidden sign-in fields at their original slots around the edited visible list. */
+function withHiddenSignInFields(all: CustomField[], visible: CustomField[]): CustomField[] {
+  const queue = [...visible]
+  const merged: CustomField[] = []
+  for (const field of all) {
+    if (isSignInMethodField(field)) merged.push(field)
+    else if (queue.length > 0) merged.push(queue.shift() as CustomField)
+  }
+  return [...merged, ...queue]
+}
+
 interface FieldRowProps {
   field: CustomField
   error?: CustomFieldError
@@ -157,7 +177,21 @@ function FieldRow({
 }: FieldRowProps) {
   const { t } = useTranslation()
   const [shown, setShown] = useState(false)
-  const rowType = isKnownFieldType(field.type) ? field.type : 'text'
+  if (!isKnownFieldType(field.type)) {
+    return (
+      <UnsupportedFieldRow
+        field={field}
+        disabled={disabled}
+        first={first}
+        canMoveUp={canMoveUp}
+        canMoveDown={canMoveDown}
+        onRemove={onRemove}
+        onMoveUp={onMoveUp}
+        onMoveDown={onMoveDown}
+      />
+    )
+  }
+  const rowType: CustomFieldType = field.type
   const stringValue = typeof field.value === 'string' ? field.value : ''
   const agentVisible = !!field.agentVisible && canBeAgentVisible(rowType)
 
@@ -327,6 +361,47 @@ function FieldRow({
             : t('vault.entries.customFields.labelRequired')}
         </p>
       ) : null}
+    </div>
+  )
+}
+
+/**
+ * A field type this client does not understand. Its value is never decoded into
+ * an editable control, so it round-trips byte-for-byte; only order and removal
+ * are offered.
+ */
+function UnsupportedFieldRow({
+  field,
+  disabled,
+  first,
+  canMoveUp,
+  canMoveDown,
+  onRemove,
+  onMoveUp,
+  onMoveDown,
+}: Pick<FieldRowProps, 'field' | 'disabled' | 'first' | 'canMoveUp' | 'canMoveDown' | 'onRemove' | 'onMoveUp' | 'onMoveDown'>) {
+  const { t } = useTranslation()
+  const items: MenuEntry[] = [
+    { icon: 'keyboard_arrow_up', label: t('common.moveUp'), disabled: !canMoveUp, onSelect: onMoveUp },
+    { icon: 'keyboard_arrow_down', label: t('common.moveDown'), disabled: !canMoveDown, onSelect: onMoveDown },
+    'separator',
+    { icon: 'delete', label: t('common.remove'), danger: true, onSelect: onRemove },
+  ]
+  return (
+    <div className={`flex items-center gap-2 px-2.5 py-2 ${first ? '' : 'border-t border-[var(--cv-divider)]'}`}>
+      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--cv-bg-subtle)] text-[var(--cv-t3)]">
+        <Icon name="help" size={14} />
+      </span>
+      <span className="w-[7.875rem] shrink-0 truncate text-ui text-[var(--cv-t2)]">{field.label}</span>
+      <span className="min-w-0 flex-1 truncate text-meta text-[var(--cv-t3)]">
+        {t('vault.entries.customFields.unsupported')}
+      </span>
+      <PopoverMenu
+        trigger={<Icon name="more_horiz" size={16} />}
+        items={items}
+        ariaLabel={t('common.moreActions')}
+        disabled={disabled}
+      />
     </div>
   )
 }
