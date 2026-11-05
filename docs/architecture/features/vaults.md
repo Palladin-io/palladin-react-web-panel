@@ -127,60 +127,43 @@ this is not a released sharing feature.
 
 Trusted API presentation metadata is kept separate from cryptographic decoding: Vault counts/default marker/dates and historical actors/retention policy do not gate ciphertext acceptance. Unknown history actors display their shortened ID. Rotation and encrypted-asset outer responses accept additive fields; canonical crypto descriptor verification, recipient bindings, byte/page budgets and digest checks remain unchanged.
 
-### Credential sign-in method (`palladin.signin.v1`)
+### Credential sign-in methods (`palladin.signin.v2`)
 
-A Credential may carry one encrypted custom field of type `palladin.signin.v1`
-with value `{ provider, account, entry }` recording how the user signs in to the
-external service: provider (Google, Apple, Microsoft, GitHub or Facebook), an
-optional provider account and an optional `{ vaultId, entryId }` reference to the
-provider's own Palladin Credential. The value schema, allowed Agent access and
-Discovery projection are owned by `@palladin/crypto` (0.15.0:
-`signInMethodValueSchema`, `signInAllowedAccess`, `projectSignInDiscovery`).
-`sign-in-method.ts` decodes through that schema (exactly three keys, account
-NFC/trimmed/1–256 UTF-16 code units or `null`, lowercase UUIDs) and owns
-`replaceSignInMethod`. More than one binding is ambiguous; any mismatch, including
-the retired two-key `{ provider, account }` shape, is unrecognized. Neither is
-decoded into the form or shown readably.
+Login/Credential entries support multiple encrypted methods, including separate
+accounts at one provider. Each is a stable-ID custom field containing
+`{ provider, account, entry }`; the optional provider Entry reference is chosen
+explicitly. New and explicitly edited recognized methods use v2. Untouched v1,
+malformed and unknown-version fields retain their data, ID spelling and policy.
+The shared `@palladin/crypto` contract owns value validation, allowed access and
+canonical Discovery projection. Provider Entry references use lowercase UUIDs;
+custom method IDs retain their existing hexadecimal case.
 
-- `SignInMethodField` is the dedicated Credential control (create and detail):
-  provider `FormSelect`, optional account `FormInput` (stored trimmed/NFC), an
-  optional "Palladin account" picker, a "Visible to agents" switch, Remove, and an
-  explicit Add/Replace that requires a provider choice. Every edit leaves exactly
-  one binding; a single recognized binding keeps its id and label, while replacing
-  unrecognized/ambiguous bindings creates one `custom:<uuid v4>` field with the
-  localized label. `CustomFieldsEditor hideSignInMethod` hides bindings from the
-  generic list while keeping their array position.
-- The picker (`useSignInAccountCandidates`) lists active Credentials from the
-  in-memory MemberIndex whose `urlDomain` registrable domain belongs to the
-  provider (google.com; apple.com; live.com, microsoftonline.com, microsoft.com;
-  github.com; facebook.com), excluding the edited Entry. `discoverable` exists only
-  in the encrypted MemberSecret, so each remaining candidate is opened from the
-  local ciphertext generation (no request) and only that flag is kept; hidden or
-  unreadable candidates are not offered. Choosing one sets `account` to its
-  username and `entry` to its IDs. Typing an account, changing provider or
-  choosing "Not linked" clears `entry`. Several accounts at one provider appear as
-  separate options and are never chosen automatically.
-- Agent access: `never` or `discovery` only, and `discovery` only on a Credential
-  with a valid value; never a grant mode. A newly written binding defaults to
-  `discovery` iff the Credential is discoverable (`defaultAgentVisibilityPolicy` on
-  create, `withNewSignInMethodPolicy` on edit); editing an existing binding keeps
-  its stored access unless the owner flips the switch. A hidden Entry forces
-  `never`. The SDK's `projectAgentDiscovery` then emits one `signIn` field with
-  `{ entry, provider, schema }` — never the account or the custom field id — and
-  no field for ambiguous or non-discoverable bindings.
-- An account that signs in only through a provider may have no stored username
-  or password. Create (`canSubmit`) and Entry Detail (`saveEntry`) waive both
-  Credential requirements only when `hasRecognizedSignInMethod` holds (exactly
-  one recognized binding). No binding, an unrecognized binding or two bindings keep
-  the normal requirement; other entry types are unaffected.
-- `CustomFieldsView signInMethod` renders one recognized binding as provider ·
-  account ("Account not specified" for `null`) · "linked to <label>" when `entry`
-  resolves in the MemberIndex ("Linked entry unavailable" otherwise); otherwise
-  the concealed fallback remains. Other entry types ignore the type and preserve it.
-- Unknown custom field types (including unrecognized bindings) are shown
-  read-only in the editor (move/remove only), skipped by label validation and
-  folded back byte-for-byte. Other non-standard custom types allow and default to
-  `never` only. `fieldPolicy` emits `custom:*` keys only for fields still in the
-  payload, so removing any custom field leaves no stale policy key.
+`SignInMethodField` appears last after Notes in create and detail forms. Its
+empty state is the heading and `AddButton`; populated methods form a responsive
+compact provider-logo/name/account grid with individual edit buttons. The modal
+uses shared controls, `ModalShell` and `DialogFooter`. Account/provider changes
+clear the linked Entry. Cancel drops the complete local draft, including the
+visibility switch. Save and remove affect only the selected field ID; neighboring
+methods, opaque fields and existing access remain unchanged. The generic custom
+field editor hides recognized methods and retains malformed/future values as
+read-only opaque fields. Read-only history renders every recognized method,
+without linked-account prose. Entry lists have no new provider marks.
 
-Applying or replacing dedicated Credential TOTP submits the complete current Entry form through the normal encrypted create/update path, without a second Save. Invalid forms and failed writes retain the draft and show an error; only a confirmed mutation reports success. Removing TOTP remains a draft edit requiring Save.
+`useSignInAccountCandidates` uses active local MemberIndex Credentials on the
+provider's registrable domains, excludes the current Entry and checks the local
+MemberSecret discoverability flag. It never selects a provider account
+automatically or merges accounts by email. Selecting an Entry sets its reference
+and username; typing an account, changing provider or choosing Not linked drops
+the reference.
+
+Methods allow only `never` or `discovery` on Credentials. Newly added methods
+follow Entry discoverability unless changed in the modal. Existing method
+policies survive edits and legacy migration. Both entry-policy adapters recognize
+v2; removed fields lose their policy through the canonical mapper. A v2-containing
+Entry emits `signInMethods` with method IDs/provider/optional Entry references,
+never provider accounts or field labels. Legacy-only singleton Discovery retains
+its original `signIn` representation. Unknown versions remain fail-closed.
+
+One or more recognized methods permit OAuth-only Credentials with empty username
+and password. Removing the last recognized method restores normal validation.
+Other Entry types retain their validation and do not expose this method editor.

@@ -56,130 +56,85 @@ afterEach(() => {
   useAuthStore.setState({ userId: null, privateKey: null })
 })
 
-describe('SignInMethodField', () => {
-  it('renders the empty prompt without creating a field', () => {
-    render(<Harness initial={[other]} />)
-    expect(screen.getByText('Sign in with Google, Apple or another provider?')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add sign-in method' })).toBeInTheDocument()
-    expect(dump()).toEqual([other])
-  })
-
-  it('adds a binding after an explicit provider choice and stores a trimmed, unlinked account', async () => {
+describe('SignInMethodField collection', () => {
+  it('shows only heading and add in the empty state; cancel never creates data', async () => {
     const user = userEvent.setup()
     render(<Harness initial={[other]} />)
-
+    expect(screen.getByText('Sign-in methods')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
-    expect(dump()).toEqual([other])
     await user.selectOptions(screen.getByLabelText('Provider'), 'apple')
-
-    const added = dump()[1]
-    expect(added).toMatchObject({ label: 'Sign-in method', type: 'palladin.signin.v1',
-      value: { provider: 'apple', account: null, entry: null } })
-    expect(added.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
-    expect(screen.queryByLabelText('Palladin account')).not.toBeInTheDocument()
-
-    await user.type(screen.getByLabelText('Provider account'), '  me@icloud.com ')
-    expect(screen.getByLabelText('Provider account')).toHaveValue('  me@icloud.com ')
-    expect(dump()[1]).toEqual({ ...added, value: { provider: 'apple', account: 'me@icloud.com', entry: null } })
+    await user.type(screen.getByLabelText('Provider account'), 'cancelled')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(dump()).toEqual([other])
   })
 
-  it('offers only discoverable Credentials of the provider and links the chosen account', async () => {
+  it('adds two same-provider accounts, edits one and removes only that method', async () => {
+    const user = userEvent.setup()
+    const opaque = { ...other, id: 'future', type: 'palladin.signin.v99' }
+    render(<Harness initial={[other, opaque]} />)
+    for (const account of ['personal@example.test', 'work@example.test']) {
+      await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
+      await user.selectOptions(screen.getByLabelText('Provider'), 'google')
+      await user.type(screen.getByLabelText('Provider account'), account)
+      expect(dump()).toHaveLength(account.startsWith('personal') ? 2 : 3)
+      await user.click(screen.getByRole('button', { name: 'Save' }))
+    }
+    const original = dump()
+    expect(original.slice(0, 2)).toEqual([other, opaque])
+    expect(original.slice(2).every((field) => field.type === 'palladin.signin.v2')).toBe(true)
+    await user.click(screen.getAllByRole('button', { name: 'Edit sign-in method' })[0])
+    await user.clear(screen.getByLabelText('Provider account'))
+    await user.type(screen.getByLabelText('Provider account'), 'changed')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(dump()[2]).toEqual({ ...original[2], value: { provider: 'google', account: 'changed', entry: null } })
+    expect(dump()[3]).toEqual(original[3])
+    await user.click(screen.getAllByRole('button', { name: 'Edit sign-in method' })[0])
+    await user.click(screen.getByRole('button', { name: 'Remove sign-in method' }))
+    expect(dump()).toEqual([other, opaque, original[3]])
+  })
+
+  it('migrates only the explicitly edited legacy method and keeps its case-sensitive ID', async () => {
+    const user = userEvent.setup()
+    const first = binding('ABCDEFAB-1234-4234-8234-ABCDEFABCDEF', { provider: 'google', account: 'legacy', entry: null })
+    const second = binding('second', { provider: 'apple', account: null, entry: null })
+    render(<Harness initial={[first, second]} />)
+    await user.click(screen.getAllByRole('button', { name: 'Edit sign-in method' })[0])
+    await user.selectOptions(screen.getByLabelText('Provider'), 'github')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(dump()).toEqual([{ ...first, type: 'palladin.signin.v2', value: { provider: 'github', account: 'legacy', entry: null } }, second])
+  })
+
+  it('offers explicit provider Entry choices and drops the reference when account changes', async () => {
     const user = userEvent.setup()
     publishCredentials()
     render(<Harness initial={[binding('keep', { provider: 'google', account: null, entry: null })]} />)
-
+    await user.click(screen.getByRole('button', { name: 'Edit sign-in method' }))
     const picker = await screen.findByLabelText('Palladin account')
     await waitFor(() => expect(within(picker).getAllByRole('option')).toHaveLength(3))
     expect(within(picker).getAllByRole('option').map((option) => option.textContent)).toEqual([
       'Not linked', 'Google personal · alice@gmail.com', 'Google work · bob@corp.com',
     ])
-
     await user.selectOptions(picker, `${VAULT_ID}/${WORK.id}`)
-    expect(dump()[0].value).toEqual({ provider: 'google', account: 'bob@corp.com',
-      entry: { vaultId: VAULT_ID, entryId: WORK.id } })
-    expect(screen.getByLabelText('Provider account')).toHaveValue('bob@corp.com')
-
-    await user.selectOptions(picker, `${VAULT_ID}/${PERSONAL.id}`)
-    expect(dump()[0].value).toEqual({ provider: 'google', account: 'alice@gmail.com',
-      entry: { vaultId: VAULT_ID, entryId: PERSONAL.id } })
-
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(dump()[0].value).toEqual({ provider: 'google', account: 'bob@corp.com', entry: { vaultId: VAULT_ID, entryId: WORK.id } })
+    await user.click(screen.getByRole('button', { name: 'Edit sign-in method' }))
     await user.type(screen.getByLabelText('Provider account'), 'x')
-    expect(dump()[0].value).toEqual({ provider: 'google', account: 'alice@gmail.comx', entry: null })
-    expect(openSecretMock).not.toHaveBeenCalledWith(expect.objectContaining({ entryId: GITHUB.id }))
-    expect(openSecretMock).not.toHaveBeenCalledWith(expect.objectContaining({ entryId: SELF_ID }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(dump()[0].value).toEqual({ provider: 'google', account: 'bob@corp.comx', entry: null })
   })
 
-  it('drops the link when the provider changes and when unlinked explicitly', async () => {
+  it('keeps visibility changes inside the editor until save and addresses the selected ID', async () => {
     const user = userEvent.setup()
-    publishCredentials()
-    const linked = binding('keep', { provider: 'google', account: 'bob@corp.com', entry: { vaultId: VAULT_ID, entryId: WORK.id } })
-    const { unmount } = render(<Harness initial={[linked]} />)
-    await waitFor(() => expect(screen.getByLabelText('Palladin account')).toHaveValue(`${VAULT_ID}/${WORK.id}`))
-    await user.selectOptions(screen.getByLabelText('Palladin account'), '')
-    expect(dump()[0].value).toEqual({ provider: 'google', account: 'bob@corp.com', entry: null })
-    unmount()
-
-    render(<Harness initial={[linked]} />)
-    await user.selectOptions(screen.getByLabelText('Provider'), 'microsoft')
-    expect(dump()[0].value).toEqual({ provider: 'microsoft', account: 'bob@corp.com', entry: null })
-  })
-
-  it('removes the binding', async () => {
-    const user = userEvent.setup()
-    render(<Harness initial={[binding('keep', { provider: 'google', account: null, entry: null }), other]} />)
-    await user.click(screen.getByRole('button', { name: 'Remove sign-in method' }))
-    expect(dump()).toEqual([other])
-  })
-
-  it('exposes the owner Discovery switch for a recognized binding', async () => {
-    const user = userEvent.setup()
-    const agentVisibility = { isVisible: vi.fn(() => true), onChange: vi.fn() }
-    render(<Harness initial={[binding('keep', { provider: 'google', account: null, entry: null })]} agentVisibility={agentVisibility} />)
-
-    const toggle = screen.getByRole('switch', { name: 'Visible to agents' })
-    expect(toggle).toBeChecked()
-    expect(agentVisibility.isVisible).toHaveBeenCalledWith('keep')
-    await user.click(toggle)
-    expect(agentVisibility.onChange).toHaveBeenCalledWith('keep', false)
-  })
-
-  it('never decodes a retired two-key binding and replaces it only on an explicit choice', async () => {
-    const user = userEvent.setup()
-    const retired = binding('odd', { provider: 'google', account: 'alice@gmail.com' })
-    render(<Harness initial={[retired, other]} agentVisibility={{ isVisible: () => true, onChange: vi.fn() }} />)
-
-    expect(screen.getByText(/does not recognize/)).toBeInTheDocument()
-    expect(screen.queryByLabelText('Provider account')).not.toBeInTheDocument()
+    const visibility = { isVisible: () => true, onChange: vi.fn() }
+    render(<Harness initial={[binding('keep', { provider: 'google', account: null, entry: null })]} agentVisibility={visibility} />)
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
-    expect(dump()).toEqual([retired, other])
-
-    await user.click(screen.getByRole('button', { name: 'Replace' }))
-    expect(dump()).toEqual([retired, other])
-    await user.selectOptions(screen.getByLabelText('Provider'), 'google')
-
-    const next = dump()
-    expect(next).toHaveLength(2)
-    expect(next[0].id).not.toBe('odd')
-    expect(next[0].value).toEqual({ provider: 'google', account: null, entry: null })
-    expect(next[1]).toEqual(other)
-  })
-
-  it('collapses ambiguous bindings to one on replace, or removes all of them', async () => {
-    const user = userEvent.setup()
-    const fields = [
-      binding('a', { provider: 'google', account: 'x', entry: null }),
-      other,
-      binding('b', { provider: 'apple', account: null, entry: null }),
-    ]
-    const { unmount } = render(<Harness initial={fields} />)
-    expect(screen.getByText(/more than one saved sign-in method/)).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Replace' }))
-    await user.selectOptions(screen.getByLabelText('Provider'), 'facebook')
-    expect(dump().filter((field) => field.type === 'palladin.signin.v1')).toHaveLength(1)
-    unmount()
-
-    render(<Harness initial={fields} />)
-    await user.click(screen.getByRole('button', { name: 'Remove sign-in method' }))
-    expect(dump()).toEqual([other])
+    await user.click(screen.getByRole('button', { name: 'Edit sign-in method' }))
+    await user.click(screen.getByRole('switch', { name: 'Visible to agents' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(visibility.onChange).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Edit sign-in method' }))
+    await user.click(screen.getByRole('switch', { name: 'Visible to agents' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(visibility.onChange).toHaveBeenCalledWith('keep', false)
   })
 })

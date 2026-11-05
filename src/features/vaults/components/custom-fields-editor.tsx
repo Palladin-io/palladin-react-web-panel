@@ -12,7 +12,7 @@ import {
   isKnownFieldType,
 } from '../types'
 import { blankField, validateCustomFields, type CustomFieldError } from '../entry-blob'
-import { isSignInMethodField } from '../sign-in-method'
+import { isSignInMethodField, parseSignInBinding } from '../sign-in-method'
 import { PopoverMenu, type MenuEntry } from './popover-menu'
 import { TotpSetup } from './totp-setup'
 
@@ -51,7 +51,7 @@ const TYPE_ORDER: CustomFieldType[] = ['text', 'multiline', 'concealed', 'totp']
  */
 export function CustomFieldsEditor({ fields: allFields, onChange: onAllFieldsChange, disabled, hideSignInMethod }: CustomFieldsEditorProps) {
   const { t } = useTranslation()
-  const fields = hideSignInMethod ? allFields.filter((field) => !isSignInMethodField(field)) : allFields
+  const fields = hideSignInMethod ? allFields.filter((field) => !isEditableSignInField(field)) : allFields
   const onChange = (next: CustomField[]) =>
     onAllFieldsChange(hideSignInMethod ? withHiddenSignInFields(allFields, next) : next)
   const { errors } = validateCustomFields(fields)
@@ -136,7 +136,7 @@ function withHiddenSignInFields(all: CustomField[], visible: CustomField[]): Cus
   const queue = [...visible]
   const merged: CustomField[] = []
   for (const field of all) {
-    if (isSignInMethodField(field)) merged.push(field)
+    if (isEditableSignInField(field)) merged.push(field)
     else if (queue.length > 0) merged.push(queue.shift() as CustomField)
   }
   return [...merged, ...queue]
@@ -509,4 +509,8 @@ function RowIconButton({
       <Icon name={icon} size={14} />
     </button>
   )
+}
+
+function isEditableSignInField(field: CustomField): boolean {
+  return isSignInMethodField(field) && parseSignInBinding(field.value) !== null
 }

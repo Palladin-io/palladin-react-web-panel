@@ -5,8 +5,7 @@ import { CopyButton } from '../../../shared/components/copy-button'
 import { Icon } from '../../../shared/components/icon'
 import { Tooltip } from '../../../shared/components/tooltip'
 import { copySecretToClipboard } from '../../../shared/lib/clipboard'
-import { readSignInMethod, type SignInBinding } from '../sign-in-method'
-import { useSignInEntryLabel } from '../use-sign-in-account-candidates'
+import { readSignInMethods, type SignInBinding } from '../sign-in-method'
 import { type CustomField, isTotpField } from '../types'
 import { TotpDisplay } from './totp-display'
 
@@ -16,7 +15,7 @@ export interface CustomFieldsViewProps {
   changedFieldIds?: ReadonlySet<string>
   /** Accessible description shared by changed historical fields. */
   changeDescriptionId?: string
-  /** Credential entries render one recognized `palladin.signin.v1` binding readably. */
+  /** Credential entries render recognized v1/v2 methods readably. */
   signInMethod?: boolean
 }
 
@@ -24,8 +23,7 @@ export interface CustomFieldsViewProps {
  * Read-only display of custom fields on the entry-detail Details tab, following
  * the Locked Value Pattern: `concealed` values start masked with a reveal
  * toggle, `totp` renders a live code, plain `text` shows inline, and
- * `multiline` preserves line breaks. On a Credential, a single recognized
- * sign-in method binding shows its provider and account. Every field is
+ * `multiline` preserves line breaks. On a Credential, recognized methods show their provider and account. Every field is
  * copyable. Unknown field
  * types and values are rendered as concealed serialized data so a newer
  * client's field is never silently omitted and its unknown sensitivity is
@@ -35,7 +33,7 @@ export interface CustomFieldsViewProps {
 export function CustomFieldsView({ fields, changedFieldIds, changeDescriptionId, signInMethod }: CustomFieldsViewProps) {
   const { t } = useTranslation()
   if (fields.length === 0) return null
-  const signIn = signInMethod ? readSignInMethod(fields) : null
+  const signIn = signInMethod ? readSignInMethods(fields) : []
 
   return (
     <section className="ph-no-capture flex flex-col gap-1.5">
@@ -47,7 +45,7 @@ export function CustomFieldsView({ fields, changedFieldIds, changeDescriptionId,
           <FieldViewRow
             key={field.id}
             field={field}
-            signInBinding={signIn?.kind === 'recognized' && signIn.fieldId === field.id ? signIn.binding : undefined}
+            signInBinding={signIn.find((method) => method.fieldId === field.id)?.binding}
             changed={changedFieldIds?.has(field.id) ?? false}
             changeDescriptionId={changeDescriptionId}
           />
@@ -132,7 +130,6 @@ function FieldViewRow({
 
 function SignInBindingValue({ binding }: { binding: SignInBinding }) {
   const { t } = useTranslation()
-  const linkedLabel = useSignInEntryLabel(binding.entry)
   return (
     <>
       <span className="min-w-0 flex-1 truncate text-right text-ui text-[var(--cv-t1)]">
@@ -141,14 +138,7 @@ function SignInBindingValue({ binding }: { binding: SignInBinding }) {
         {binding.account ?? (
           <span className="text-[var(--cv-t3)]">{t('vault.entries.signInMethod.accountNotSpecified')}</span>
         )}
-        {binding.entry ? (
-          <span className="text-[var(--cv-t3)]">
-            {' · '}
-            {linkedLabel
-              ? t('vault.entries.signInMethod.linkedEntry', { label: linkedLabel })
-              : t('vault.entries.signInMethod.linkedEntryUnavailable')}
-          </span>
-        ) : null}
+
       </span>
       {binding.account ? <CopyButton value={binding.account} label={t('common.copy')} /> : null}
     </>

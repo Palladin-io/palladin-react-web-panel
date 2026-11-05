@@ -1,4 +1,4 @@
-import { SIGN_IN_FIELD_TYPE, signInAllowedAccess } from '@palladin/crypto'
+import { SIGN_IN_FIELD_TYPE, SIGN_IN_FIELD_TYPE_V2, signInAllowedAccess, signInV2AllowedAccess } from '@palladin/crypto'
 import { z } from 'zod'
 import type { CustomField, EntryPlaintext } from '../../features/vaults/types'
 import { ENTRY_TYPE_CREDENTIAL, ENTRY_TYPE_CREDIT_CARD, ENTRY_TYPE_KEY, ENTRY_TYPE_SCRIPT, type EntryType } from '../types/entry-type'
@@ -60,8 +60,8 @@ export function allowedAgentFieldAccess(
   if (fieldId === ENTRY_FIELD.notes) return type === ENTRY_TYPE_SCRIPT ? RUNTIME_OR_NEVER : VALUE_OR_NEVER
   if (fieldId === ENTRY_FIELD.totp || customFieldType === 'totp') return DERIVED_OR_NEVER
   if (fieldId.startsWith('custom:')) {
-    if (customFieldType === SIGN_IN_FIELD_TYPE) {
-      return signInAllowedAccess(type === ENTRY_TYPE_CREDENTIAL ? 'credential' : 'other',
+    if (customFieldType === SIGN_IN_FIELD_TYPE || customFieldType === SIGN_IN_FIELD_TYPE_V2) {
+      return (customFieldType === SIGN_IN_FIELD_TYPE_V2 ? signInV2AllowedAccess : signInAllowedAccess)(type === ENTRY_TYPE_CREDENTIAL ? 'credential' : 'other',
         { id: fieldId, type: customFieldType, value: customFieldValue }) as readonly AgentFieldAccess[]
     }
     // Canonical policy admits only `never` for other non-standard custom types.
@@ -231,7 +231,7 @@ export function defaultAgentVisibilityPolicy(type: EntryType, fields: CustomFiel
   for (const field of fields) {
     defaults[`custom:${field.id}`] = field.type === 'totp'
       ? type === ENTRY_TYPE_CREDIT_CARD ? 'never' : 'onGrantDerived'
-      : field.type === SIGN_IN_FIELD_TYPE
+      : (field.type === SIGN_IN_FIELD_TYPE || field.type === SIGN_IN_FIELD_TYPE_V2)
         ? allowedAgentFieldAccess(type, `custom:${field.id}`, field.type, field.value).includes('discovery') ? 'discovery' : 'never'
         : type === ENTRY_TYPE_CREDIT_CARD || !isStandardValueField(field.type) ? 'never'
           : type === ENTRY_TYPE_SCRIPT ? 'onGrantRuntime' : 'onGrantValue'

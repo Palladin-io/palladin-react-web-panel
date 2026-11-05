@@ -537,19 +537,19 @@ describe('CreateEntryModal', () => {
     await user.selectOptions(screen.getByLabelText('Provider'), 'google')
     await user.type(screen.getByLabelText('Provider account'), 'alice@example.com')
     expect(screen.getByRole('switch', { name: 'Visible to agents' })).toBeChecked()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
     expect(mutateMock).toHaveBeenCalledTimes(1)
     const [input] = mutateMock.mock.calls[0]
     const [field] = input.payload.fields
-    expect(field).toMatchObject({ label: 'Sign-in method', type: 'palladin.signin.v1',
+    expect(field).toMatchObject({ label: 'Sign-in methods', type: 'palladin.signin.v2',
       value: { provider: 'google', account: 'alice@example.com', entry: null } })
     expect(input.policy.fields[`custom:${field.id}`]).toBe('discovery')
     const secret = toMemberSecret({ label: 'Example', agentLabel: 'Example', type: input.type,
       payload: input.payload, policy: input.policy })
     const discovery = projectAgentDiscovery(parseMemberSecret(encodeMemberSecret(secret)))
-    expect(discovery?.fields).toContainEqual({ id: 'signIn',
-      value: '{"entry":null,"provider":"google","schema":"palladin.signin.v1"}' })
+    expect(JSON.parse(discovery!.fields.find(({ id }) => id === 'signInMethods')!.value)).toEqual({ schema: 'palladin.signin.v2', methods: [{ id: `custom:${field.id}`, provider: 'google', entry: null }] })
     expect(JSON.stringify(discovery)).not.toContain('alice@example.com')
   })
 
@@ -562,13 +562,18 @@ describe('CreateEntryModal', () => {
     await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
     await user.selectOptions(screen.getByLabelText('Provider'), 'apple')
     await user.click(screen.getByRole('switch', { name: 'Visible to agents' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
     await user.click(screen.getByRole('button', { name: /save entry/i }))
     const [first] = mutateMock.mock.calls[0]
     expect(first.policy.fields[`custom:${first.payload.fields[0].id}`]).toBe('never')
 
+    await user.click(screen.getByRole('button', { name: 'Edit sign-in method' }))
     await user.click(screen.getByRole('switch', { name: 'Visible to agents' }))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
     await user.click(screen.getAllByRole('button', { name: /visible to agents in discovery/i })[0])
+    await user.click(screen.getByRole('button', { name: 'Edit sign-in method' }))
     expect(screen.getByRole('switch', { name: 'Visible to agents' })).toBeDisabled()
+    await user.click(screen.getAllByRole('button', { name: 'Cancel' }).at(-1)!)
     await user.click(screen.getByRole('button', { name: /save entry/i }))
     const [second] = mutateMock.mock.calls[1]
     expect(second.policy.discoverable).toBe(false)
@@ -582,6 +587,7 @@ describe('CreateEntryModal', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
     await user.selectOptions(screen.getByLabelText('Provider'), 'apple')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
     await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
     expect(screen.queryByText('Unsupported field, kept unchanged')).not.toBeInTheDocument()
     await user.type(screen.getByLabelText(/^label$/i), 'API')
@@ -600,14 +606,34 @@ describe('CreateEntryModal', () => {
     expect(screen.getByRole('button', { name: /save entry/i })).toBeDisabled()
     await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
     await user.selectOptions(screen.getByLabelText('Provider'), 'google')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
+    await user.selectOptions(screen.getByLabelText('Provider'), 'google')
+    await user.type(screen.getByLabelText('Provider account'), 'another@example.test')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
     await user.click(screen.getByRole('button', { name: /save entry/i }))
 
     expect(mutateMock).toHaveBeenCalledTimes(1)
     const [input] = mutateMock.mock.calls[0]
+    expect(input.payload.fields).toHaveLength(2)
     expect(input.payload).toMatchObject({ username: '', password: '' })
     const secret = toMemberSecret({ label: 'Example', agentLabel: 'Example', type: input.type,
       payload: input.payload, policy: input.policy })
     expect(() => encodeMemberSecret(secret)).not.toThrow()
+  })
+
+  it('restores required Login fields after removing the last method', async () => {
+    const user = userEvent.setup()
+    render(<CreateEntryModal open vault={VAULT} onClose={vi.fn()} />, { wrapper })
+    fireEvent.change(screen.getByLabelText(/^label$/i), { target: { value: 'Example' } })
+    await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
+    await user.selectOptions(screen.getByLabelText('Provider'), 'google')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('button', { name: /save entry/i })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: 'Edit sign-in method' }))
+    await user.click(screen.getByRole('button', { name: 'Remove sign-in method' }))
+    expect(screen.getByRole('button', { name: /save entry/i })).toBeDisabled()
+    expect(mutateMock).not.toHaveBeenCalled()
   })
 
   it('still requires username and password for a Credential without a sign-in method', async () => {
@@ -628,6 +654,7 @@ describe('CreateEntryModal', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
     await user.selectOptions(screen.getByLabelText('Provider'), 'google')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
     await user.selectOptions(screen.getByLabelText(/entry type/i), String(ENTRY_TYPE_KEY))
     fireEvent.change(screen.getByLabelText(/^label$/i), { target: { value: 'API' } })
     expect(screen.getByRole('button', { name: /save entry/i })).toBeDisabled()

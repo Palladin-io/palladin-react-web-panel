@@ -125,3 +125,37 @@ describe('palladin.signin.v1 persistence', () => {
     expect(parsed.agentFieldAccess).not.toHaveProperty(POLICY_ID)
   })
 })
+
+describe('multiple sign-in methods v2', () => {
+  it('supports v2 policy in both adapters, with independent existing restrictions', () => {
+    const first = { ...binding, type: 'palladin.signin.v2' }
+    const second = { ...first, id: 'ABCDEFAB-1234-4234-8234-ABCDEFABCDEF' }
+    for (const adapter of [allowedAgentFieldAccess, allowedV2AgentFieldAccess]) {
+      expect(adapter(ENTRY_TYPE_CREDENTIAL, POLICY_ID, first.type, first.value)).toEqual(['never', 'discovery'])
+      expect(adapter(ENTRY_TYPE_KEY, POLICY_ID, first.type, first.value)).toEqual(['never'])
+    }
+    const original = defaultAgentVisibilityPolicy(ENTRY_TYPE_CREDENTIAL, [binding])
+    const restricted = { ...original, fields: { ...original.fields, [POLICY_ID]: 'never' as const } }
+    const next = withNewSignInMethodPolicy(ENTRY_TYPE_CREDENTIAL, [binding], [first, second], restricted)
+    expect(next.fields[POLICY_ID]).toBe('never')
+    expect(next.fields['custom:ABCDEFAB-1234-4234-8234-ABCDEFABCDEF']).toBe('discovery')
+    expect(defaultV2AgentVisibilityPolicy(ENTRY_TYPE_CREDENTIAL, [first]).fields[POLICY_ID]).toBe('discovery')
+  })
+  it('seals two methods without accounts in discovery and retains their policies and opaque data', () => {
+    const first = { ...binding, type: 'palladin.signin.v2' }
+    const second = { ...binding, id: 'ABCDEFAB-1234-4234-8234-ABCDEFABCDEF', value: { provider: 'google', account: 'work@example.test', entry: null } as unknown as CustomField['value'] }
+    const opaque = { ...binding, id: '12345678-1234-4234-8234-123456789012', type: 'palladin.signin.v99', value: { future: true } as unknown as CustomField['value'] }
+    const fields = [first, second, opaque]
+    const policy = defaultAgentVisibilityPolicy(ENTRY_TYPE_CREDENTIAL, fields)
+    const parsed = parseMemberSecret(encodeMemberSecret(credential(fields, policy)))
+    expect(fromMemberSecret(parsed).content.fields).toEqual(fields)
+    const discovery = projectAgentDiscovery(parsed)
+    const methods = discovery?.fields.find(({ id }) => id === 'signInMethods')
+    expect(methods).toBeDefined()
+    expect(JSON.parse(methods!.value).methods).toHaveLength(2)
+    expect(JSON.stringify(discovery)).not.toContain('gmail.com')
+    expect(JSON.stringify(discovery)).not.toContain('work@example.test')
+    expect(JSON.stringify(discovery)).not.toContain('future')
+    expect(parsed.agentFieldAccess['custom:ABCDEFAB-1234-4234-8234-ABCDEFABCDEF']).toBe('discovery')
+  })
+})
