@@ -2251,5 +2251,20 @@
   "submissions.review.submitted": "Zgłoszono",
   "submissions.decision.secretNotNfc": "Ten sekret używa formy Unicode, której Palladin nie zapisze bez jej zmiany, więc nie został zapisany. Odrzuć go i poproś agenta o ponowne zgłoszenie.",
   "submissions.access.agentLoadFailed": "Nie udało się wczytać agenta, więc nie można przygotować jego dostępu.",
-  "submissions.access.retry": "Ponów"
+  "submissions.access.retry": "Ponów",
+  "submissions.review.description": "Opis",
+  "submissions.review.customPolicy": "Uprawnienia istniejących pól pozostają bez zmian. Nowe pola niestandardowe nie są udostępniane agentom.",
+  "submissions.review.keepFieldLabel": "Zachowaj obecną nazwę pola",
+  "submissions.review.fieldType": "Typ pola",
+  "submissions.review.fieldTypes.text": "Tekst",
+  "submissions.review.fieldTypes.multiline": "Tekst wielowierszowy",
+  "submissions.review.fieldTypes.concealed": "Ukryte",
+  "submissions.review.fieldTypes.totp": "Hasło jednorazowe (TOTP)",
+  "submissions.review.totpSecret": "Sekret TOTP",
+  "submissions.review.algorithm": "Algorytm",
+  "submissions.review.digits": "Liczba cyfr",
+  "submissions.review.period": "Okres (sekundy)",
+  "submissions.review.issuer": "Wystawca",
+  "submissions.review.account": "Konto",
+  "submissions.review.incompleteNew": "Ta propozycja nie zawiera wszystkich wartości i nazw pól potrzebnych do utworzenia nowego wpisu."
 }

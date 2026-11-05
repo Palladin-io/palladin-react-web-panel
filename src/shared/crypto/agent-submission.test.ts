@@ -353,7 +353,7 @@ describe('opening submissions as the approver group', () => {
       ['TOTP is excluded from v1 payloads', () => resign({ ...submission, encodedPayload: reencryptPayload((payload) => ({ ...payload, content: { ...payload.content, totp: 'JBSWY3DPEHPK3PXP' } })) }), 'unknown-field'],
       ['credential update requires the new password', () => resign({ ...submission, encodedPayload: reencryptPayload((payload) => ({ ...payload, content: { username: payload.content.username } })) }), 'missing-field'],
       ['payload carries an unknown top-level field', () => resign({ ...submission, encodedPayload: reencryptPayload((payload) => ({ ...payload, agentVisibilityPolicy: {} })) }), 'unknown-field'],
-      ...payloadCase('unknown payload schema', (payload) => ({ ...payload, schema: 'palladin.agent-submission-payload.v2' }), 'invalid-field'),
+      ...payloadCase('unknown payload schema', (payload) => ({ ...payload, schema: 'palladin.agent-submission-payload.v99' }), 'invalid-field'),
       ...payloadCase('numeric url', (payload) => ({ ...payload, content: { ...payload.content, url: 42 } }), 'invalid-field'),
       ...payloadCase('http url', (payload) => ({ ...payload, content: { ...payload.content, url: 'http://example.invalid/login' } }), 'invalid-field'),
       ...payloadCase('relative url', (payload) => ({ ...payload, content: { ...payload.content, url: '/login' } }), 'invalid-field'),
@@ -639,3 +639,70 @@ describe('approval plaintext builders', () => {
   })
 })
 
+
+describe('additive browser capture payload v2', () => {
+  const schema = 'palladin.agent-submission-payload.v2'
+  const id = `custom:${PIN_ID}`
+  const totp = { secret: 'JBSWY3DPEHPK3PXP', algorithm: 'SHA1', digits: 6, period: 30, issuer: null, account: 'fixture' }
+  const customFields = [
+    { id, label: 'PIN', type: 'concealed', value: '4321' },
+    { id: `custom:${FOREIGN_ID}`, label: 'OTP', type: 'totp', value: totp },
+  ]
+  async function openV2(patch: Record<string, unknown>) {
+    const submission = await resign({ ...fixture.submissions[0], encodedPayload: reencryptPayload(payload => ({ ...omit(payload, ['label']), schema, ...patch })) })
+    return openSubmissionAsApprover(submission, await authority())
+  }
+  it('opens v2 through unchanged v1 signed transport, including description and typed fields', async () => {
+    const payload = await openV2({ description: 'Captured account', content: { customFields } })
+    expect(payload).toMatchObject({ schema, description: 'Captured account', content: { customFields } })
+    expect((await openSubmissionAsApprover(fixture.submissions[0], await authority())).schema).toBe('palladin.agent-submission-payload.v1')
+  })
+  it('rejects unsupported types, malformed fields, duplicate IDs and no-op updates', async () => {
+    for (const content of [{}, { customFields: [] }, { customFields: [customFields[0], customFields[0]] },
+      { customFields: [{ ...customFields[0], type: 'script' }] }, { customFields: [{ ...customFields[0], id: 'password' }] },
+      { customFields: [{ ...customFields[1], value: { ...totp, digits: 7 } }] },
+      { customFields: [{ ...customFields[0], permission: 'discovery' }] }]) {
+      await expect(openV2({ content })).rejects.toBeInstanceOf(AgentSubmissionCryptoError)
+    }
+    await expect(openV2({ description: 'x'.repeat(8193) })).rejects.toBeInstanceOf(AgentSubmissionCryptoError)
+    await expect(openV2({ content: { customFields: [{ ...customFields[0], value: 'Cafe\u0301' }] } })).rejects.toBeInstanceOf(AgentSubmissionCryptoError)
+  })
+  it('merges sparse changes while retaining absent fields, TOTP and existing permissions', () => {
+    const current = toMemberSecret({ label: 'Before', description: 'Keep', agentLabel: 'Agent', type: 1,
+      payload: { type: 1, username: 'user', password: 'pass', notes: 'notes', fields: [{ id: PIN_ID, label: 'PIN', type: 'concealed', value: '1234' }] },
+      policy: { ...defaultAgentVisibilityPolicy(1), fields: { ...defaultAgentVisibilityPolicy(1).fields, [`custom:${PIN_ID}`]: 'never' } } })
+    const payload = { schema, identity: { entryType: 1, submissionKind: 2 }, description: '', content: { notes: '', customFields: [{ id, type: 'concealed', value: '4321' }, customFields[1]] } } as AgentSubmissionPayload
+    const next = mergeSubmissionUpdate(current, payload)
+    expect(next.description).toBe('')
+    expect(next.content).toMatchObject({ username: 'user', password: 'pass', notes: '', customFields: [{ id, label: 'PIN', type: 'concealed', value: '4321' }, customFields[1]] })
+    expect(next.agentFieldAccess).toEqual({ ...current.agentFieldAccess, [customFields[1].id]: 'never' })
+    expect(parseMemberSecret(encodeMemberSecret(next))).toEqual(next)
+    expect(() => mergeSubmissionUpdate(current, { ...payload, content: { customFields: [{ id: customFields[1].id, type: 'text', value: 'new' }] } })).toThrow()
+    expect(() => mergeSubmissionUpdate(current, { ...payload, content: { customFields: [{ id, type: 'text', value: 'changed type' }] } })).toThrow()
+  })
+  it('creates a Key with reviewed description and custom fields denied by default', () => {
+    const payload = { schema, identity: { entryType: 0, submissionKind: 1 }, label: 'Key', description: 'Purpose', content: { value: 'secret', customFields } } as AgentSubmissionPayload
+    const next = newEntrySecretFromSubmission(payload, 'Reviewed key')
+    expect(next.description).toBe('Purpose')
+    expect(next.content.customFields).toEqual(customFields)
+    expect(next.agentFieldAccess[id]).toBe('never')
+    expect(next.agentFieldAccess[customFields[1].id]).toBe('never')
+    expect(parseMemberSecret(encodeMemberSecret(next))).toEqual(next)
+  })
+})
+
+it('opens the deterministic cross-language v2 fixture for both approver key versions', async () => {
+  const v2 = JSON.parse(readFileSync(resolve(process.cwd(), 'src/shared/crypto/fixtures/agent-submission-v2/fixture.json'), 'utf8')) as Fixture
+  for (const version of [1, 2] as const) {
+    expect(await openSubmissionAsApprover(v2.submissions[version - 1], await authority(version))).toEqual(v2.expectedPlaintext)
+  }
+})
+it('preserves explicit empty Key URL in a v2 new Entry with a safe schema policy', () => {
+  const secret = newEntrySecretFromSubmission({ schema: 'palladin.agent-submission-payload.v2', label: 'Key', identity: { entryType: 0, submissionKind: 1 }, content: { value: 'fixture', url: '' } }, 'Key')
+  expect(secret.content).toMatchObject({ url: '' })
+  expect(secret.agentFieldAccess['key.url']).toBe('never')
+  expect(parseMemberSecret(encodeMemberSecret(secret))).toEqual(secret)
+})
+it('cannot save a sparse v2 update as a new Entry with missing required content', () => {
+  expect(() => newEntrySecretFromSubmission({ schema: 'palladin.agent-submission-payload.v2', identity: { entryType: 1, submissionKind: 2 }, content: { notes: 'only notes' } }, 'New entry')).toThrow(expect.objectContaining({ code: 'missing-field' }))
+})
