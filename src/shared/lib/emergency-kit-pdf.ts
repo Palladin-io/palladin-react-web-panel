@@ -33,6 +33,17 @@ const PAGE_HEIGHT_PT = 842
 const SCALE = 2
 const MARGIN = 48
 const encoder = new TextEncoder()
+const FONT = '"Inter", ui-sans-serif, system-ui, sans-serif'
+
+// Canvas cannot resolve CSS variables, so the light-theme --cv-* values are mirrored here.
+const PDF_PALETTE = {
+  paper: '#FFFFFF',
+  ink: '#0C0E12',
+  muted: '#3D4E66',
+  accent: '#E54645',
+  rule: '#D9DEE6',
+  qr: '#000000',
+} as const
 
 /**
  * The page is rasterised with the browser's own fonts so every locale renders
@@ -70,12 +81,9 @@ export async function createEmergencyKitPdf(content: EmergencyKitContent): Promi
 
 function drawEmergencyKit(context: CanvasRenderingContext2D, content: EmergencyKitContent): void {
   const { labels } = content
-  const ink = '#1A1A1A'
-  const muted = '#5C5C66'
-  const accent = '#E54645'
-  const rule = '#D9D9DE'
+  const { ink, muted, accent, rule } = PDF_PALETTE
   context.scale(SCALE, SCALE)
-  context.fillStyle = '#FFFFFF'
+  context.fillStyle = PDF_PALETTE.paper
   context.fillRect(0, 0, PAGE_WIDTH_PT, PAGE_HEIGHT_PT)
   context.textBaseline = 'top'
   const width = PAGE_WIDTH_PT - MARGIN * 2
@@ -95,55 +103,55 @@ function drawEmergencyKit(context: CanvasRenderingContext2D, content: EmergencyK
     y += 16
   }
 
-  text('Palladin', '700 14px sans-serif', accent, 20)
-  text(labels.title, '700 26px sans-serif', ink, 32)
-  text(content.generatedOn, '400 11px sans-serif', muted, 22)
-  text(labels.intro, '400 11px sans-serif', ink, 16)
+  text('Palladin', `700 14px ${FONT}`, accent, 20)
+  text(labels.title, `700 26px ${FONT}`, ink, 32)
+  text(content.generatedOn, `400 11px ${FONT}`, muted, 22)
+  text(labels.intro, `400 11px ${FONT}`, ink, 16)
   y += 12
   divider()
 
-  text(labels.signInAddress, '600 10px sans-serif', muted, 15)
-  text(content.signInAddress, '400 13px sans-serif', ink, 24)
-  text(labels.account, '600 10px sans-serif', muted, 15)
-  text(content.email, '400 13px sans-serif', ink, 24)
+  text(labels.signInAddress, `600 10px ${FONT}`, muted, 15)
+  text(content.signInAddress, `400 13px ${FONT}`, ink, 24)
+  text(labels.account, `600 10px ${FONT}`, muted, 15)
+  text(content.email, `400 13px ${FONT}`, ink, 24)
   divider()
 
   const qrSize = 150
   const qrTop = y
   const keyWidth = width - qrSize - 24
-  text(labels.secretKey, '600 10px sans-serif', muted, 16, keyWidth)
+  text(labels.secretKey, `600 10px ${FONT}`, muted, 16, keyWidth)
   const groups = content.secretKey.split('-')
   const half = Math.ceil(groups.length / 2)
   text(`${groups.slice(0, half).join('-')}-`, '600 15px monospace', ink, 22, keyWidth)
   text(groups.slice(half).join('-'), '600 15px monospace', ink, 26, keyWidth)
-  text(labels.secretKeyHint, '400 10px sans-serif', muted, 14, keyWidth)
+  text(labels.secretKeyHint, `400 10px ${FONT}`, muted, 14, keyWidth)
   drawQr(context, content.qrPayload, MARGIN + width - qrSize, qrTop, qrSize)
   y = Math.max(y, qrTop + qrSize)
-  context.font = '400 9px sans-serif'
+  context.font = `400 9px ${FONT}`
   context.fillStyle = muted
   context.fillText(labels.scan, MARGIN + width - qrSize, y + 4)
   y += 28
   divider()
 
-  text(labels.masterPassword, '600 10px sans-serif', muted, 16)
+  text(labels.masterPassword, `600 10px ${FONT}`, muted, 16)
   context.strokeStyle = rule
   context.lineWidth = 1
   context.strokeRect(MARGIN, y, width, 36)
   y += 44
-  text(labels.masterPasswordHint, '400 10px sans-serif', muted, 14)
+  text(labels.masterPasswordHint, `400 10px ${FONT}`, muted, 14)
   y += 10
   divider()
 
-  text(labels.howTo, '700 12px sans-serif', ink, 20)
-  labels.steps.forEach((step, index) => text(`${index + 1}. ${step}`, '400 11px sans-serif', ink, 16))
+  text(labels.howTo, `700 12px ${FONT}`, ink, 20)
+  labels.steps.forEach((step, index) => text(`${index + 1}. ${step}`, `400 11px ${FONT}`, ink, 16))
   y += 14
-  text(labels.keepPrivate, '600 11px sans-serif', accent, 16)
+  text(labels.keepPrivate, `600 11px ${FONT}`, accent, 16)
 }
 
 function drawQr(context: CanvasRenderingContext2D, payload: string, x: number, y: number, size: number): void {
   const { modules } = QRCode.create(payload, { errorCorrectionLevel: 'M' })
   const cell = size / modules.size
-  context.fillStyle = '#000000'
+  context.fillStyle = PDF_PALETTE.qr
   for (let row = 0; row < modules.size; row++) {
     for (let column = 0; column < modules.size; column++) {
       if (modules.get(row, column)) context.fillRect(x + column * cell, y + row * cell, cell + 0.25, cell + 0.25)

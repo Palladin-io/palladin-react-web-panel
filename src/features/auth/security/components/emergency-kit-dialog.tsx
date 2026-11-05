@@ -5,7 +5,7 @@ import { Button } from '../../../../shared/components/button'
 import { DialogFooter } from '../../../../shared/components/dialog-footer'
 import { FeedbackSlot } from '../../../../shared/components/form-field'
 import { ModalShell } from '../../../../shared/components/modal-shell'
-import { QrCode } from '../../../../shared/components/qr-code'
+import { EmergencyKitSummary } from '../../../../shared/components/emergency-kit-summary'
 import { SecretInput } from '../../../../shared/components/secret-input'
 import { useEmergencyKitDownload } from '../../../../shared/hooks/use-emergency-kit-download'
 import type { EmergencyKitMaterial } from '../../../../shared/crypto/secret-key'
@@ -94,15 +94,7 @@ function KitReady({ kit, onClose }: { kit: EmergencyKitMaterial; onClose: () => 
         </DialogFooter>
       }
     >
-      <div className="ph-no-capture flex items-start gap-3 rounded-xl border border-[var(--cv-border)] p-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-micro text-[var(--cv-t3)]">{t('emergencyKit.accountLabel')}</p>
-          <p className="mb-2 truncate text-ui text-[var(--cv-t1)]">{kit.email}</p>
-          <p className="text-micro text-[var(--cv-t3)]">{t('emergencyKit.secretKeyLabel')}</p>
-          <p className="break-all font-mono text-meta font-semibold text-[var(--cv-t1)]">{kit.secretKey}</p>
-        </div>
-        <QrCode value={kit.qrPayload} size={96} alt={t('emergencyKit.qrAlt')} />
-      </div>
+      <EmergencyKitSummary kit={kit} surface="panel" />
       <p className="mt-3 text-meta text-[var(--cv-t3)]">{t('emergencyKit.storeSeparatelyBody')}</p>
     </ModalShell>
   )

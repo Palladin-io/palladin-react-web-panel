@@ -39,6 +39,8 @@ Every genuinely shared/reusable control in the web panel. Paths are relative to 
 | `DateTimePicker` | `shared/components/datetime-picker.tsx` | Anchored calendar popover replacing native `datetime-local`, portaled to body | `value` (datetime-local string), `min?`, `onChange`, `onClose`, `anchorRef`. Tested. |
 | `PasswordStrengthBar` | `shared/components/password-strength-bar.tsx` | 4-segment strength bar (score 0–4) | `score: PasswordStrength`. |
 | `AuthSubmitButton` | `shared/components/auth-submit-button.tsx` | Full-width hero CTA for auth screens (not the compact `Button`) | `children`, `className` + `ButtonHTMLAttributes`. |
+| `AuthSecondaryButton` | `shared/components/auth-secondary-button.tsx` | Glass secondary action on auth surfaces (copy, export, download) next to `AuthSubmitButton` | `className` + `ButtonHTMLAttributes`; defaults to `type="button"`. |
+| `EmergencyKitSummary` | `shared/components/emergency-kit-summary.tsx` | Account, Secret Key and QR card of the Emergency Kit | `kit`, `surface: 'auth' \| 'panel'` (auth control material vs app card). |
 | `RotatingWelcome` | `shared/components/rotating-welcome.tsx` | Localized rotating brand lines shared by login and unlock; clears interval and fade timeout on unmount | `className?` (spacing, defaults to `mb-7`). |
 | `AppNavbar` | `app/app-navbar.tsx` | Shared authenticated navigation header | Welcome greeting, one `GlobalSearchAutocomplete`, and Inbox link. Mounted outside scrolling page content. |
 | `AppWordmark` | `shared/components/app-wordmark.tsx` | Palladin logo + wordmark | `size` (sm / lg / hero / dialog / sharing), `subtitle?` (sm only); `hero` uses landing-matched auth brand tokens; `sharing` is the centered extension-style horizontal public receiver lockup. |
@@ -90,7 +92,7 @@ the left-aligned rule still applies to authenticated list/split panels.
 5. **Glyphs** — `Icon` maps existing Material-style names to statically imported Lucide SVGs in `icon-glyphs.ts`. Add new names centrally; never load a remote icon font or render ligature spans.
 6. **Filters** — `TypeFilterDropdown` for multi-select filter chips. Date pickers → `DateTimePicker`, never native `datetime-local`.
 7. **Errors / retries** — `ErrorState` for failed query panels; `ErrorBoundary` at route level.
-8. **Auth surfaces** — `AuthSubmitButton`, `AppWordmark`, and the theme-aware `.auth-surface` / `.auth-glass-button` helpers. The shared `.auth-surface` owns a mobile-aligned light bloom or neutral dark grain behind all auth content. Never force a nested dark scope.
+8. **Auth surfaces** — `AuthSubmitButton`, `AuthSecondaryButton`, `AppWordmark`, and the theme-aware `.auth-surface` / `.auth-glass-button` helpers. The shared `.auth-surface` owns a mobile-aligned light bloom or neutral dark grain behind all auth content. Never force a nested dark scope.
 9. **Colors** — `var(--cv-*)` tokens only. Brand red via `--cv-primary` / `--cv-primary-rgb`. Audit colors via `tone()` in `audit-event-config.ts`.
 10. **Skeletons / empty-states / tab strips / split-view / selects** — see "Controls to extract" above; use or create the shared component, never copy markup.
 11. **Settings master headers** — use `SETTINGS_MASTER_HEADER_CLASSES` inside a panel with 16px top padding. The 40px title row + 16px bottom gap occupies the same 72px band as the Settings rail header, keeping Settings, Team, Permissions and API Keys on one baseline.

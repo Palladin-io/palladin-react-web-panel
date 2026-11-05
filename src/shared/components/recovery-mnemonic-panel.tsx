@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Check, Copy, Download, TriangleAlert } from 'lucide-react'
+import { AuthSecondaryButton } from './auth-secondary-button'
 
 export interface RecoveryMnemonicPanelProps {
   /** The BIP-39 recovery words to display (typically 24). */
@@ -75,24 +76,14 @@ export function RecoveryMnemonicPanel({
       </div>
 
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={handleCopy}
-          className="auth-glass-button flex flex-1 items-center justify-center gap-1.5 rounded-lg
-            border px-3 py-2 text-meta font-semibold"
-        >
+        <AuthSecondaryButton className="flex-1" onClick={handleCopy}>
           {copied ? <Check size={14} /> : <Copy size={14} />}
           {copied ? t('recoveryPhrase.copied') : t('recoveryPhrase.copyToClipboard')}
-        </button>
-        <button
-          type="button"
-          onClick={handleExport}
-          className="auth-glass-button flex flex-1 items-center justify-center gap-1.5 rounded-lg
-            border px-3 py-2 text-meta font-semibold"
-        >
+        </AuthSecondaryButton>
+        <AuthSecondaryButton className="flex-1" onClick={handleExport}>
           <Download size={14} />
           {t('recoveryPhrase.exportAsTxt')}
-        </button>
+        </AuthSecondaryButton>
       </div>
     </div>
   )

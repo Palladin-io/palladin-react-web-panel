@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Clipboard, FileText } from 'lucide-react'
 import { analytics } from '../../../shared/lib/analytics'
+import { AuthSecondaryButton } from '../../../shared/components/auth-secondary-button'
 import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
 import { FieldFeedback } from '../../../shared/components/form-field'
 import { FormTextarea } from '../../../shared/components/form-textarea'
@@ -119,24 +120,14 @@ export function EnterRecoveryKeyStep({
         </div>
 
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={handlePaste}
-            className="auth-glass-button flex flex-1 items-center justify-center gap-1.5 rounded-lg
-              border px-3 py-2 text-meta font-semibold"
-          >
+          <AuthSecondaryButton className="flex-1" onClick={handlePaste}>
             <Clipboard size={14} />
             {t('recovery.pasteFromClipboard')}
-          </button>
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="auth-glass-button flex flex-1 items-center justify-center gap-1.5 rounded-lg
-              border px-3 py-2 text-meta font-semibold"
-          >
+          </AuthSecondaryButton>
+          <AuthSecondaryButton className="flex-1" onClick={() => fileInputRef.current?.click()}>
             <FileText size={14} />
             {t('recovery.importFromFile')}
-          </button>
+          </AuthSecondaryButton>
           <input
             ref={fileInputRef}
             type="file"

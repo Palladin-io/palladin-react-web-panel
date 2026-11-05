@@ -69,9 +69,14 @@ export function AddPhoneDialog({ accountId, onClose }: AddPhoneDialogProps) {
             <Timer size={12} /> {t('secretKey.expiresIn', { time: remaining })}
           </p>
         )}
-        {(state.step === 'starting' || state.step === 'sending') && (
-          <p className="text-ui text-[var(--cv-t2)]">{t('common.loading')}</p>
+        {state.step === 'starting' && (
+          <>
+            <p className="text-ui text-[var(--cv-t2)]">{t('secretKey.addPhone.instructions')}</p>
+            <div className="h-44 w-44 animate-pulse rounded-lg bg-[var(--cv-card-bg)]" role="status"
+              aria-label={t('common.loading')} />
+          </>
         )}
+        {state.step === 'sending' && <p className="text-ui text-[var(--cv-t2)]">{t('common.loading')}</p>}
         {state.step === 'done' && (
           <>
             <Check size={24} className="text-[var(--cv-success)]" />

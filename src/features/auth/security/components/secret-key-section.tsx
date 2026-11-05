@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { KeyRound, Monitor, QrCode as QrCodeIcon } from 'lucide-react'
+import { Download, KeyRound, MonitorX, QrCode as QrCodeIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import { ACCOUNT_QUERY_KEY, getAccount } from '../../../../shared/api/account-api'
 import { Button } from '../../../../shared/components/button'
@@ -39,23 +39,21 @@ export function SecretKeySection() {
           {onThisBrowser ? t('secretKey.settings.savedHere') : t('secretKey.settings.notSavedHere')}
         </MetadataBadge>
       </div>
-      <p className="mt-3 text-meta text-[var(--cv-t3)]">{t('secretKey.settings.neverStored')}</p>
+      <p className="mt-3 text-ui text-[var(--cv-t3)]">{t('secretKey.settings.neverStored')}</p>
 
-      <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
-        {onThisBrowser && (
-          <>
-            <Button variant="subtle" size="sm" onClick={() => setDialog('forget')}>
-              <Monitor size={14} /> {t('secretKey.settings.forget')}
-            </Button>
-            <Button variant="subtle" size="sm" onClick={() => setDialog('phone')}>
-              <QrCodeIcon size={14} /> {t('secretKey.settings.addPhone')}
-            </Button>
-            <Button variant="accent" size="sm" onClick={() => setDialog('kit')}>
-              {t('secretKey.settings.downloadKit')}
-            </Button>
-          </>
-        )}
-      </div>
+      {onThisBrowser && (
+        <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-[var(--cv-divider)] pt-4">
+          <Button variant="danger" size="sm" onClick={() => setDialog('forget')}>
+            <MonitorX size={14} /> {t('secretKey.settings.forget')}
+          </Button>
+          <Button variant="subtle" size="sm" onClick={() => setDialog('phone')}>
+            <QrCodeIcon size={14} /> {t('secretKey.settings.addPhone')}
+          </Button>
+          <Button variant="accent" size="sm" onClick={() => setDialog('kit')}>
+            <Download size={14} /> {t('secretKey.settings.downloadKit')}
+          </Button>
+        </div>
+      )}
 
       {dialog === 'kit' && <EmergencyKitDialog onClose={() => setDialog(null)} />}
       {dialog === 'phone' && <AddPhoneDialog accountId={accountId} onClose={() => setDialog(null)} />}

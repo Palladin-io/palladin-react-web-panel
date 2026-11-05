@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, Loader2, RefreshCw } from 'lucide-react'
+import { Check, Circle, Loader2, RefreshCw } from 'lucide-react'
 import { AuthStepShell } from '../../../shared/components/auth-step-shell'
 import { AuthSubmitButton } from '../../../shared/components/auth-submit-button'
 import { EmergencyKitPanel } from '../../../shared/components/emergency-kit-panel'
@@ -10,6 +10,9 @@ import { WarningZone } from '../../../shared/components/warning-zone'
 import { logoutAndReload } from '../../auth/session/client-session'
 import { useSecurityUpgradeStore, type PendingSecurityUpgrade } from '../security-upgrade-store'
 import { useSecurityUpgradeRun, type UpgradeProgress, type UpgradeStage } from '../use-security-upgrade-run'
+
+/** Dots follow the order the upgrade runs: phrase, confirm, key migration, Emergency Kit. */
+const UPGRADE_STEPS = 4
 
 export interface SecurityUpgradeGateProps {
   children: ReactNode
@@ -33,7 +36,7 @@ function SecurityUpgradeFlow({ pending }: { pending: PendingSecurityUpgrade }) {
   if (pending.kind === 'upgrade' && stage === 'phrase') {
     return (
       <AuthStepShell title={t('securityUpgrade.phraseTitle')} subtitle={t('securityUpgrade.phraseSubtitle')}
-        progress={{ current: 0, total: 3 }}>
+        progress={{ current: 0, total: UPGRADE_STEPS }}>
         <RecoveryKeyDisplay
           mnemonic={pending.recoveryMnemonic}
           continueLabel={t('onboarding.savedRecoveryKey')}
@@ -46,7 +49,7 @@ function SecurityUpgradeFlow({ pending }: { pending: PendingSecurityUpgrade }) {
   if (pending.kind === 'upgrade' && stage === 'confirm') {
     return (
       <AuthStepShell title={t('onboarding.confirmTitle')} subtitle={t('onboarding.confirmSubtitle')}
-        progress={{ current: 1, total: 3 }} onBack={() => setStage('phrase')} backLabel={t('common.back')}>
+        progress={{ current: 1, total: UPGRADE_STEPS }} onBack={() => setStage('phrase')} backLabel={t('common.back')}>
         <RecoveryKeyConfirmationForm
           mnemonic={pending.recoveryMnemonic}
           isSubmitting={running}
@@ -60,7 +63,7 @@ function SecurityUpgradeFlow({ pending }: { pending: PendingSecurityUpgrade }) {
   if (stage === 'kit' && kit) {
     return (
       <AuthStepShell title={t('emergencyKit.title')} subtitle={t('securityUpgrade.kitSubtitle')}
-        progress={{ current: 2, total: 3 }}>
+        progress={{ current: 3, total: UPGRADE_STEPS }}>
         <EmergencyKitPanel kit={kit} continueLabel={t('emergencyKit.continue')} onContinue={finish} />
       </AuthStepShell>
     )
@@ -72,6 +75,7 @@ function SecurityUpgradeFlow({ pending }: { pending: PendingSecurityUpgrade }) {
       progress={progress}
       failure={failure}
       running={running}
+      showSteps={pending.kind === 'upgrade'}
       onRetry={() => void run(stage)}
     />
   )
@@ -82,28 +86,33 @@ interface UpgradeProgressViewProps {
   progress: UpgradeProgress
   failure: 'network' | 'conflict' | null
   running: boolean
+  /** A resumed migration has no phrase or kit steps, so it shows no step dots. */
+  showSteps: boolean
   onRetry: () => void
 }
 
-function UpgradeProgressView({ stage, progress, failure, running, onRetry }: UpgradeProgressViewProps) {
+function UpgradeProgressView({ stage, progress, failure, running, showSteps, onRetry }: UpgradeProgressViewProps) {
   const { t } = useTranslation()
   const accountDone = stage !== 'commit'
   const vaultsDone = stage === 'messageKeys' || stage === 'cleanup' || stage === 'kit'
   const agentsDone = stage === 'cleanup' || stage === 'kit'
-  const vaultsLabel = progress.total === null
-    ? t('securityUpgrade.waiting')
+  // `progress` counts the active stage only; it is null until that stage knows how many Vaults it touches.
+  const activeStageLabel = progress.total === null
+    ? t('securityUpgrade.inProgress')
     : t('securityUpgrade.vaultsProgress', { done: progress.done, total: progress.total })
 
   return (
-    <AuthStepShell title={t('securityUpgrade.title')} subtitle={t('securityUpgrade.subtitle')} align="center">
+    <AuthStepShell title={t('securityUpgrade.title')} subtitle={t('securityUpgrade.subtitle')}
+      progress={showSteps ? { current: 2, total: UPGRADE_STEPS } : undefined}>
       <div className="flex flex-col gap-3" aria-live="polite">
-        <ul className="flex flex-col gap-2 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
+        <ul className="flex flex-col gap-2 rounded-lg border border-[var(--cv-auth-control-border)]
+          bg-[var(--cv-auth-control-bg)] p-3">
           <ProgressRow label={t('securityUpgrade.accountKey')} done={accountDone} active={stage === 'commit'}
             status={accountDone ? t('securityUpgrade.done') : t('securityUpgrade.inProgress')} />
           <ProgressRow label={t('securityUpgrade.vaults')} done={vaultsDone} active={stage === 'rewrap'}
-            status={vaultsDone ? t('securityUpgrade.done') : stage === 'rewrap' ? vaultsLabel : t('securityUpgrade.waiting')} />
+            status={vaultsDone ? t('securityUpgrade.done') : stage === 'rewrap' ? activeStageLabel : t('securityUpgrade.waiting')} />
           <ProgressRow label={t('securityUpgrade.agents')} done={agentsDone} active={stage === 'messageKeys'}
-            status={agentsDone ? t('securityUpgrade.done') : stage === 'messageKeys' ? vaultsLabel : t('securityUpgrade.waiting')} />
+            status={agentsDone ? t('securityUpgrade.done') : stage === 'messageKeys' ? activeStageLabel : t('securityUpgrade.waiting')} />
         </ul>
         <p className="text-meta text-[var(--cv-auth-muted)]">{t('securityUpgrade.entriesUnchanged')}</p>
 
@@ -135,10 +144,12 @@ function ProgressRow({ label, status, done, active }: { label: string; status: s
       <span className="flex items-center gap-2 text-[var(--cv-t1)]">
         {done
           ? <Check size={14} className="text-[var(--cv-success)]" />
-          : <Loader2 size={14} className={active ? 'animate-spin text-[var(--cv-t3)]' : 'text-[var(--cv-t3)]'} />}
+          : active
+            ? <Loader2 size={14} className="animate-spin text-[var(--cv-auth-muted)]" />
+            : <Circle size={14} className="text-[var(--cv-auth-muted)]" />}
         {label}
       </span>
-      <span className="text-meta text-[var(--cv-t3)]">{status}</span>
+      <span className="text-meta text-[var(--cv-auth-muted)]">{status}</span>
     </li>
   )
 }

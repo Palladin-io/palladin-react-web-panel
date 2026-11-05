@@ -10,6 +10,9 @@ import { parseSecretKeyInput, SecretKeyError, storeDeviceSecretKey } from '../..
 import { wipe } from '../../../shared/crypto/sodium'
 import { useReceiveSecretKey } from '../hooks/use-receive-secret-key'
 
+const QR_CARD_CLASSES = `flex flex-col items-center gap-3 rounded-lg border border-[var(--cv-auth-control-border)]
+  bg-[var(--cv-auth-control-bg)] p-3`
+
 export interface SecretKeyRequiredStepProps {
   accountId: string
   /** The Secret Key is now in this browser's device wrapper; retry the sign-in. */
@@ -39,40 +42,40 @@ function ApproveWithPhone({ accountId, onReceived, onUseKit, onBack }: {
   const remaining = useCountdown(state.step === 'waiting' ? state.expiresAt : null)
 
   return (
-    <div className="flex flex-col gap-4 text-left">
-      <div className="text-center">
-        <h2 className="mb-1 text-auth-title font-bold text-[var(--cv-t1)]">{t('secretKey.newBrowser.title')}</h2>
-        <p className="text-ui text-[var(--cv-auth-muted)]">{t('secretKey.newBrowser.subtitle')}</p>
-      </div>
+    <div className="flex flex-col gap-3 text-left">
+      <SecretKeyStepHeader title={t('secretKey.newBrowser.title')} subtitle={t('secretKey.newBrowser.subtitle')} />
 
       {state.step === 'waiting' && (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-[var(--cv-border)] bg-[var(--cv-card-bg)] p-4">
+        <div className={QR_CARD_CLASSES}>
           <QrCode value={state.qr} size={176} alt={t('secretKey.newBrowser.qrAlt')} />
-          <p className="text-meta text-[var(--cv-t3)]">{t('secretKey.newBrowser.sasLabel')}</p>
+          <p className="text-meta text-[var(--cv-auth-muted)]">{t('secretKey.newBrowser.sasLabel')}</p>
           <p className="font-mono text-heading font-semibold tracking-wide text-[var(--cv-t1)]" data-testid="pairing-sas">
             {state.sas}
           </p>
-          <p className="text-meta text-[var(--cv-t2)]">{t('secretKey.newBrowser.waiting')}</p>
+          <p className="text-meta text-[var(--cv-auth-secondary)]">{t('secretKey.newBrowser.waiting')}</p>
           {remaining && (
-            <p className="flex items-center gap-1 text-meta text-[var(--cv-t3)]">
+            <p className="flex items-center gap-1 text-meta text-[var(--cv-auth-muted)]">
               <Timer size={12} /> {t('secretKey.expiresIn', { time: remaining })}
             </p>
           )}
         </div>
       )}
       {state.step === 'starting' && (
-        <p className="text-center text-ui text-[var(--cv-auth-muted)]">{t('common.loading')}</p>
+        <div className={QR_CARD_CLASSES}>
+          <div className="h-44 w-44 animate-pulse rounded-lg bg-[var(--cv-bg-subtle)]" role="status"
+            aria-label={t('common.loading')} />
+        </div>
       )}
       {(state.step === 'expired' || state.step === 'failed') && (
         <div className="flex flex-col gap-3">
-          <p role="alert" className="text-center text-ui text-[var(--cv-t2)]">
+          <p role="alert" className="text-center text-ui text-[var(--cv-auth-secondary)]">
             {t(state.step === 'expired' ? 'secretKey.newBrowser.expired' : 'secretKey.newBrowser.failed')}
           </p>
           <AuthSubmitButton type="button" onClick={() => void restart()}>{t('secretKey.newCode')}</AuthSubmitButton>
         </div>
       )}
 
-      <div className="flex flex-col items-center gap-3 text-ui">
+      <div className="flex flex-col items-center gap-2 text-ui">
         <button type="button" onClick={onUseKit}
           className="flex items-center gap-2 text-[var(--cv-auth-muted)] transition-colors hover:text-[var(--cv-t1)]">
           <FileText size={14} /> {t('secretKey.newBrowser.useKit')}
@@ -121,11 +124,8 @@ function EnterFromKit({ accountId, onStored, onUsePhone }: {
   }
 
   return (
-    <form className="flex flex-col gap-4 text-left" onSubmit={submit}>
-      <div className="text-center">
-        <h2 className="mb-1 text-auth-title font-bold text-[var(--cv-t1)]">{t('secretKey.kit.title')}</h2>
-        <p className="text-ui text-[var(--cv-auth-muted)]">{t('secretKey.kit.subtitle')}</p>
-      </div>
+    <form className="flex flex-col gap-3 text-left" onSubmit={submit}>
+      <SecretKeyStepHeader title={t('secretKey.kit.title')} subtitle={t('secretKey.kit.subtitle')} />
       <div className="ph-no-capture">
         <FormTextarea
           id="secret-key-input"
@@ -140,16 +140,27 @@ function EnterFromKit({ accountId, onStored, onUsePhone }: {
           onChange={(event) => { setValue(event.target.value); if (error) setError(null) }}
         />
         <FeedbackSlot visible={error !== null} color="red">{error}</FeedbackSlot>
-        <p className="mt-1 text-meta text-[var(--cv-t3)]">{t('secretKey.kit.hint')}</p>
+        <p className="mt-1 text-meta text-[var(--cv-auth-muted)]">{t('secretKey.kit.hint')}</p>
       </div>
-      <p className="flex items-start gap-2 text-meta text-[var(--cv-t2)]">
+      <p className="flex items-start gap-2 text-meta text-[var(--cv-auth-secondary)]">
         <Smartphone size={14} className="mt-0.5 shrink-0" /> {t('secretKey.kit.remembered')}
       </p>
       <AuthSubmitButton disabled={saving || value.trim().length === 0}>{t('common.continue')}</AuthSubmitButton>
-      <button type="button" onClick={onUsePhone}
-        className="text-center text-ui text-[var(--cv-auth-muted)] transition-colors hover:text-[var(--cv-t1)]">
-        {t('secretKey.kit.usePhone')}
-      </button>
+      <div className="flex flex-col items-center gap-2 text-ui">
+        <button type="button" onClick={onUsePhone}
+          className="text-[var(--cv-auth-muted)] transition-colors hover:text-[var(--cv-t1)]">
+          {t('secretKey.kit.usePhone')}
+        </button>
+      </div>
     </form>
+  )
+}
+
+function SecretKeyStepHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="mb-2 text-center">
+      <h2 className="mb-1 text-auth-title font-bold leading-tight text-[var(--cv-t1)]">{title}</h2>
+      <p className="text-heading-sm text-[var(--cv-auth-muted)]">{subtitle}</p>
+    </div>
   )
 }

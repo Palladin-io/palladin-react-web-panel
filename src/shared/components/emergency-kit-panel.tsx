@@ -3,9 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { Check, Download } from 'lucide-react'
 import type { EmergencyKitMaterial } from '../crypto/secret-key'
 import { useEmergencyKitDownload } from '../hooks/use-emergency-kit-download'
+import { AuthSecondaryButton } from './auth-secondary-button'
 import { AuthSubmitButton } from './auth-submit-button'
-import { Button } from './button'
-import { QrCode } from './qr-code'
+import { EmergencyKitSummary } from './emergency-kit-summary'
 import { WarningZone } from './warning-zone'
 
 export interface EmergencyKitPanelProps {
@@ -23,27 +23,15 @@ export function EmergencyKitPanel({ kit, continueLabel, onContinue }: EmergencyK
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="ph-no-capture flex items-start gap-3 rounded-xl border border-[var(--cv-border)]
-        bg-[var(--cv-card-bg)] p-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-micro text-[var(--cv-t3)]">{t('emergencyKit.accountLabel')}</p>
-          <p className="mb-2 truncate text-ui text-[var(--cv-t1)]">{kit.email}</p>
-          <p className="text-micro text-[var(--cv-t3)]">{t('emergencyKit.secretKeyLabel')}</p>
-          <p className="break-all font-mono text-meta font-semibold text-[var(--cv-t1)]">{kit.secretKey}</p>
-        </div>
-        <QrCode value={kit.qrPayload} size={96} alt={t('emergencyKit.qrAlt')} />
-      </div>
+      <EmergencyKitSummary kit={kit} surface="auth" />
 
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
+      <AuthSecondaryButton
         disabled={downloading}
         onClick={async () => { if (await download()) setDownloaded(true) }}
       >
         <Download size={14} />
         {t('emergencyKit.download')}
-      </Button>
+      </AuthSecondaryButton>
 
       <WarningZone title={t('emergencyKit.storeSeparatelyTitle')}>
         {t('emergencyKit.storeSeparatelyBody')}
