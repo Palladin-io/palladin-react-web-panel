@@ -48,6 +48,8 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
   const [step, setStep] = useState<'credentials' | 'totp' | 'secretKey'>('credentials')
   // Held only while this browser waits for its Secret Key, then the sign-in retries.
   const [pendingCredentials, setPendingCredentials] = useState<{ email: string; password: string; accountId: string } | null>(null)
+  // The credential form remounts after the Secret Key step; it starts from these while the sign-in retries.
+  const [retryCredentials, setRetryCredentials] = useState<{ email: string; password: string } | null>(null)
   const [challengeToken, setChallengeToken] = useState('')
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [totpError, setTotpError] = useState<string | null>(null)
@@ -71,6 +73,7 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
     start.mutate(
       { email, password },
       {
+        onSettled: () => setRetryCredentials(null),
         onSuccess: (result) => {
           if (result.kind === 'totp') {
             setChallengeToken(result.challengeToken)
@@ -98,7 +101,9 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
     const credentials = pendingCredentials
     setPendingCredentials(null)
     setStep('credentials')
-    if (credentials) handleCredentials(credentials.email, credentials.password)
+    if (!credentials) return
+    setRetryCredentials({ email: credentials.email, password: credentials.password })
+    handleCredentials(credentials.email, credentials.password)
   }
 
   const handleSecretKeyBack = () => {
@@ -152,6 +157,8 @@ export function LoginPage({ redirectTo = '/' }: LoginPageProps) {
             <>
               <EmailPasswordForm
                 redirectTo={destination}
+                initialEmail={retryCredentials?.email}
+                initialPassword={retryCredentials?.password}
                 isPending={start.isPending}
                 errorMessage={passwordError}
                 onSubmit={handleCredentials}

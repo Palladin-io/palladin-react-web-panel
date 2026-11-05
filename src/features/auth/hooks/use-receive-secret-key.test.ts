@@ -67,4 +67,15 @@ describe('useReceiveSecretKey', () => {
     expect(result.current.state.step).toBe('expired')
     expect(api.cancel).toHaveBeenCalledWith(transferId, 'poll')
   })
+
+  it('reports a transfer the other device cancelled without storing anything', async () => {
+    const onReceived = vi.fn()
+    const { result } = renderHook(() => useReceiveSecretKey(accountId, onReceived))
+    await vi.waitFor(() => expect(result.current.state.step).toBe('waiting'))
+    api.claim.mockResolvedValueOnce({ status: 'unavailable' })
+    await act(() => vi.advanceTimersByTimeAsync(2_100))
+    expect(result.current.state.step).toBe('unavailable')
+    expect(store).not.toHaveBeenCalled()
+    expect(onReceived).not.toHaveBeenCalled()
+  })
 })

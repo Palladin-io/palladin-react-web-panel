@@ -7,6 +7,9 @@ import { parseAuthRedirect } from '../../../shared/lib/auth-redirect'
 
 export interface EmailPasswordFormProps {
   redirectTo?: string
+  /** Restores the values after the form remounts, e.g. while the sign-in retries. */
+  initialEmail?: string
+  initialPassword?: string
   isPending: boolean
   errorMessage: string | null
   onSubmit: (email: string, password: string) => void
@@ -20,14 +23,16 @@ export interface EmailPasswordFormProps {
  */
 export function EmailPasswordForm({
   redirectTo,
+  initialEmail = '',
+  initialPassword = '',
   isPending,
   errorMessage,
   onSubmit,
   onFieldChange,
 }: EmailPasswordFormProps) {
   const { t } = useTranslation()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState(initialEmail)
+  const [password, setPassword] = useState(initialPassword)
   const canSubmit = email.trim().length > 0 && password.length > 0 && !isPending
   const hasError = errorMessage !== null
 

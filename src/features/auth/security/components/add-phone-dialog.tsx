@@ -19,22 +19,24 @@ export function AddPhoneDialog({ accountId, onClose }: AddPhoneDialogProps) {
   const remaining = useCountdown(state.step === 'waiting' || state.step === 'compare' ? state.expiresAt : null)
   const busy = state.step === 'sending' || state.step === 'starting'
 
-  const footer = state.step === 'compare' ? (
+  const footer = state.step === 'compare' || state.step === 'sending' ? (
     <DialogFooter>
-      <Button variant="subtle" size="sm" className="flex-1" onClick={reject}>{t('secretKey.addPhone.reject')}</Button>
-      <Button variant="accent" size="sm" className="flex-[2]" onClick={() => void approve()}>
-        <Check size={14} /> {t('secretKey.addPhone.approve')}
+      <Button variant="subtle" size="sm" className="flex-1" onClick={reject} disabled={state.step === 'sending'}>
+        {t('secretKey.addPhone.reject')}
+      </Button>
+      <Button variant="accent" size="sm" className="flex-[2]" onClick={() => void approve()}
+        disabled={state.step === 'sending'}>
+        {state.step === 'sending' ? t('secretKey.addPhone.sending') : <><Check size={14} /> {t('secretKey.addPhone.approve')}</>}
       </Button>
     </DialogFooter>
-  ) : state.step === 'expired' || state.step === 'failed' || state.step === 'rejected' ? (
+  ) : state.step === 'expired' || state.step === 'unavailable' || state.step === 'failed' || state.step === 'rejected' ? (
     <DialogFooter>
       <Button variant="subtle" size="sm" className="flex-1" onClick={onClose}>{t('common.close')}</Button>
       <Button variant="accent" size="sm" className="flex-[2]" onClick={() => void restart()}>{t('secretKey.newCode')}</Button>
     </DialogFooter>
   ) : (
     <DialogFooter>
-      <Button variant={state.step === 'done' ? 'accent' : 'subtle'} size="sm" className="flex-1" onClick={onClose}
-        disabled={state.step === 'sending'}>
+      <Button variant={state.step === 'done' ? 'accent' : 'subtle'} size="sm" className="flex-1" onClick={onClose}>
         {state.step === 'done' ? t('secretKey.addPhone.done') : t('common.cancel')}
       </Button>
     </DialogFooter>
@@ -56,7 +58,7 @@ export function AddPhoneDialog({ accountId, onClose }: AddPhoneDialogProps) {
             <p className="text-meta text-[var(--cv-t2)]">{t('secretKey.addPhone.waiting')}</p>
           </>
         )}
-        {state.step === 'compare' && (
+        {(state.step === 'compare' || state.step === 'sending') && (
           <>
             <p className="text-ui text-[var(--cv-t2)]">{t('secretKey.addPhone.compare')}</p>
             <p className="font-mono text-heading font-semibold tracking-wide text-[var(--cv-t1)]" data-testid="pairing-sas">
@@ -76,7 +78,6 @@ export function AddPhoneDialog({ accountId, onClose }: AddPhoneDialogProps) {
               aria-label={t('common.loading')} />
           </>
         )}
-        {state.step === 'sending' && <p className="text-ui text-[var(--cv-t2)]">{t('common.loading')}</p>}
         {state.step === 'done' && (
           <>
             <Check size={24} className="text-[var(--cv-success)]" />
@@ -90,6 +91,7 @@ export function AddPhoneDialog({ accountId, onClose }: AddPhoneDialogProps) {
           </>
         )}
         {state.step === 'expired' && <p role="alert" className="text-ui text-[var(--cv-t2)]">{t('secretKey.addPhone.expired')}</p>}
+        {state.step === 'unavailable' && <p role="alert" className="text-ui text-[var(--cv-t2)]">{t('secretKey.unavailable')}</p>}
         {state.step === 'failed' && <p role="alert" className="text-ui text-[var(--cv-t2)]">{t('secretKey.addPhone.failed')}</p>}
       </div>
     </ModalShell>

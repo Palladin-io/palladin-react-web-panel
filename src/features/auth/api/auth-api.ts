@@ -214,6 +214,8 @@ export interface SecretKeyTransferOffer {
 export type SecretKeyTransferClaim =
   | { status: 'pending' }
   | { status: 'expired' }
+  /** Unknown to the server: the other device cancelled it, or it was already removed. */
+  | { status: 'unavailable' }
   | { status: 'delivered'; accountId: string; kemCiphertext: string; ciphertext: string }
 
 export function createSecretKeyTransfer(recipientPublicKey: string): Promise<SecretKeyTransferOffer> {
@@ -229,6 +231,7 @@ export async function claimSecretKeyTransfer(transferId: string, pollToken: stri
   })
   if (response.status === 202) return { status: 'pending' }
   if (response.status === 410) return { status: 'expired' }
+  if (response.status === 404) return { status: 'unavailable' }
   if (response.status === 429) throw new AuthRateLimitError(retryAfterSeconds(response))
   if (!response.ok) throw new Error(`Secret Key transfer claim failed with status ${response.status}`)
   const body = await response.json() as { accountId: string; kemCiphertext: string; ciphertext: string }

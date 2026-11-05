@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth-store'
 import { captureClientSessionGeneration } from '../session/client-session'
 import {
   AuthRateLimitError,
+  claimSecretKeyTransfer,
   revokeUninstalledLoginSession,
   fetchLoginKdf,
   passwordLogin,
@@ -36,6 +37,15 @@ describe('auth API rate limiting', () => {
       retryAfterSeconds: 45,
     })
   })
+
+  it.each([[404, 'unavailable'], [410, 'expired']] as const)(
+    'reports a Secret Key transfer claim answered with %i as %s',
+    async (status, expected) => {
+      vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status })))
+      await expect(claimSecretKeyTransfer('33333333-3333-4333-8333-333333333333', 'poll'))
+        .resolves.toEqual({ status: expected })
+    },
+  )
 
   it('preserves non-rate-limit HTTP errors', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 401 })))

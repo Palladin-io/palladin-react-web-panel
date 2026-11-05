@@ -2,6 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { AuthRateLimitError } from '../api/auth-api'
+import { SecretKeyRequiredError } from '../../../shared/crypto/identity-kdf'
 import { LoginPage } from './login-page'
 import { useAuthStore } from '../stores/auth-store'
 
@@ -40,6 +41,12 @@ vi.mock('../hooks/use-password-login', () => ({
 vi.mock('../session/client-session', async () => ({
   ...await vi.importActual('../session/client-session'),
   clearClientSession: clearClientSessionMock,
+}))
+
+vi.mock('./secret-key-required-step', () => ({
+  SecretKeyRequiredStep: ({ onSecretKeyStored }: { onSecretKeyStored: () => void }) => (
+    <button type="button" onClick={onSecretKeyStored}>synthetic secret key received</button>
+  ),
 }))
 
 vi.mock('../hooks/use-identity-kdf-migration', () => ({
@@ -164,6 +171,37 @@ describe('LoginPage', () => {
       email: 'user@example.com',
       password: 'hunter2hunter2',
     })
+  })
+
+  it('keeps the entered credentials while signing in again after the Secret Key arrives, and after a failure', async () => {
+    const user = userEvent.setup()
+    startMutate.mockImplementationOnce((_input, options) => {
+      options.onError(new SecretKeyRequiredError('11111111-1111-4111-8111-111111111111'))
+    })
+    const view = render(<LoginPage />)
+    await user.type(screen.getByLabelText(/email/i), 'jan@example.com')
+    await user.type(screen.getByLabelText(/master password/i), 'hunter2hunter2')
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+
+    pending.password = true
+    await user.click(screen.getByRole('button', { name: /synthetic secret key received/i }))
+    expect(startMutate).toHaveBeenLastCalledWith(
+      { email: 'jan@example.com', password: 'hunter2hunter2' }, expect.anything())
+    expect(screen.getByLabelText(/email/i)).toHaveValue('jan@example.com')
+    expect(screen.getByLabelText(/master password/i)).toHaveValue('hunter2hunter2')
+    expect(screen.getByRole('button', { name: /signing in/i })).toBeDisabled()
+
+    pending.password = false
+    act(() => {
+      const options = startMutate.mock.lastCall?.[1]
+      options.onError(new Error('synthetic failure'))
+      options.onSettled()
+    })
+    view.rerender(<LoginPage />)
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByLabelText(/email/i)).toHaveValue('jan@example.com')
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }))
+    expect(startMutate).toHaveBeenCalledTimes(3)
   })
 
   it('clears the previous client session before opening Google login', async () => {

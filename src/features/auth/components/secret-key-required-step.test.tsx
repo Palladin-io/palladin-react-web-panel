@@ -49,3 +49,14 @@ it('explains a mistyped key and a kit of another account without storing anythin
   expect(await screen.findByText(/doesn't match your account/i)).toBeInTheDocument()
   expect(store).not.toHaveBeenCalled()
 })
+
+it('explains a cancelled or no longer valid request and offers a new code', async () => {
+  const previous = receive.state
+  receive.state = { step: 'unavailable' } as unknown as typeof previous
+  const user = userEvent.setup()
+  render(<SecretKeyRequiredStep accountId={accountId} onSecretKeyStored={vi.fn()} onBack={vi.fn()} />)
+  expect(screen.getByRole('alert')).toHaveTextContent(/the other device cancelled, or this request is no longer valid/i)
+  await user.click(screen.getByRole('button', { name: /new code/i }))
+  expect(receive.restart).toHaveBeenCalledOnce()
+  receive.state = previous
+})

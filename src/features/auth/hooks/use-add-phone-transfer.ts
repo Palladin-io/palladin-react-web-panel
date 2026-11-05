@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { HTTPError } from 'ky'
 import {
   decodeTransferPublicKey,
   sealSecretKeyForTransfer,
@@ -19,10 +20,11 @@ export type AddPhoneState =
   | { step: 'starting' }
   | { step: 'waiting'; qr: string; expiresAt: number }
   | { step: 'compare'; sas: string; expiresAt: number }
-  | { step: 'sending' }
+  | { step: 'sending'; sas: string }
   | { step: 'done' }
   | { step: 'rejected' }
   | { step: 'expired' }
+  | { step: 'unavailable' }
   | { step: 'failed' }
 
 const POLL_INTERVAL_MS = 2_000
@@ -77,42 +79,66 @@ export function useAddPhoneTransfer(accountId: string) {
     }
   }, [open, cancelRemote])
 
+  const active = state.step === 'waiting' || state.step === 'compare'
+  const expiresAt = active ? state.expiresAt : null
+
   useEffect(() => {
-    if (state.step !== 'waiting') return
+    if (expiresAt === null) return
     const current = generation.current
+    const timer = window.setTimeout(() => {
+      if (current !== generation.current) return
+      generation.current++
+      cancelRemote()
+      setState({ step: 'expired' })
+    }, Math.max(0, expiresAt - Date.now()))
+    return () => window.clearTimeout(timer)
+  }, [expiresAt, cancelRemote])
+
+  // Polling continues during code comparison so a phone that cancels, or a
+  // server-side expiry, ends the dialog instead of leaving Approve live.
+  useEffect(() => {
+    if (expiresAt === null) return
+    const current = generation.current
+    let busy = false
     const timer = window.setInterval(async () => {
       const own = session.current
-      if (!own || current !== generation.current) return
-      if (Date.now() >= own.expiresAt) {
-        cancelRemote()
-        setState({ step: 'expired' })
-        return
-      }
+      if (!own || busy || current !== generation.current) return
+      busy = true
       try {
         const relayed = await getSenderTransfer(own.transferId)
-        if (current !== generation.current || !relayed.recipientPublicKey) return
+        if (current !== generation.current || !relayed.recipientPublicKey || pairing.current) return
         const recipientPublicKey = decodeTransferPublicKey(relayed.recipientPublicKey)
         pairing.current = { accountId, transferId: own.transferId, challenge: own.challenge, recipientPublicKey }
         setState({ step: 'compare', sas: transferSas(pairing.current), expiresAt: own.expiresAt })
-      } catch {
-        if (current === generation.current) {
+      } catch (error) {
+        if (current !== generation.current) return
+        generation.current++
+        const status = error instanceof HTTPError ? error.response.status : undefined
+        if (status === 404 || status === 410) {
+          session.current = null
+          pairing.current = null
+          setState({ step: status === 404 ? 'unavailable' : 'expired' })
+        } else {
           cancelRemote()
           setState({ step: 'failed' })
         }
+      } finally {
+        busy = false
       }
     }, POLL_INTERVAL_MS)
     return () => window.clearInterval(timer)
-  }, [state.step, accountId, cancelRemote])
+  }, [expiresAt, accountId, cancelRemote])
 
   const approve = useCallback(async () => {
     const own = pairing.current
     if (!own || state.step !== 'compare') return
+    generation.current++
     if (Date.now() >= state.expiresAt) {
       cancelRemote()
       setState({ step: 'expired' })
       return
     }
-    setState({ step: 'sending' })
+    setState({ step: 'sending', sas: state.sas })
     const secretKey = await loadDeviceSecretKey(accountId).catch(() => null)
     try {
       if (!secretKey) throw new Error('This browser holds no Secret Key')

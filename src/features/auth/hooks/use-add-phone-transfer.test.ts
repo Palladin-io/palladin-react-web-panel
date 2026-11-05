@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
+import { HTTPError } from 'ky'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createTransferKeyPair, openTransferEnvelope, transferSas } from '../../../shared/crypto/device-transfer'
 import { toBase64Url } from '../../../shared/crypto/encoding'
@@ -54,5 +55,42 @@ describe('useAddPhoneTransfer', () => {
     expect(api.deliver).not.toHaveBeenCalled()
     expect(api.cancel).toHaveBeenCalledWith(transferId)
     expect(load).not.toHaveBeenCalled()
+  })
+
+  it('keeps checking during comparison and expires at the deadline without user action', async () => {
+    api.create.mockResolvedValue({ transferId, challenge, expiresAt: new Date(Date.now() + 10_000).toISOString() })
+    const { result } = await untilCompare((await createTransferKeyPair()).publicKey)
+    const pollsAtCompare = api.get.mock.calls.length
+    await act(() => vi.advanceTimersByTimeAsync(4_100))
+    expect(api.get.mock.calls.length).toBeGreaterThan(pollsAtCompare)
+    expect(result.current.state.step).toBe('compare')
+
+    await act(() => vi.advanceTimersByTimeAsync(4_000))
+    expect(result.current.state.step).toBe('expired')
+    expect(api.cancel).toHaveBeenCalledWith(transferId)
+    await act(() => result.current.approve())
+    expect(load).not.toHaveBeenCalled()
+    expect(api.deliver).not.toHaveBeenCalled()
+  })
+
+  it('ends the comparison when the phone cancels the transfer', async () => {
+    const { result } = await untilCompare((await createTransferKeyPair()).publicKey)
+    api.get.mockRejectedValueOnce(new HTTPError(
+      new Response(null, { status: 404 }), new Request('https://api.example.test/transfer'), {}))
+    await act(() => vi.advanceTimersByTimeAsync(2_100))
+    expect(result.current.state.step).toBe('unavailable')
+    expect(api.deliver).not.toHaveBeenCalled()
+  })
+
+  it('keeps the code on screen while the Secret Key is being sent', async () => {
+    let release: (value: Uint8Array) => void = () => {}
+    load.mockReturnValueOnce(new Promise<Uint8Array>((resolve) => { release = resolve }))
+    const { result } = await untilCompare((await createTransferKeyPair()).publicKey)
+    const sas = (result.current.state as { sas: string }).sas
+    let approving: Promise<void> = Promise.resolve()
+    act(() => { approving = result.current.approve() })
+    expect(result.current.state).toEqual({ step: 'sending', sas })
+    await act(async () => { release(new Uint8Array(32).fill(8)); await approving })
+    expect(result.current.state.step).toBe('done')
   })
 })

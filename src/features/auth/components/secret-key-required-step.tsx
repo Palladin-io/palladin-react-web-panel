@@ -13,6 +13,12 @@ import { useReceiveSecretKey } from '../hooks/use-receive-secret-key'
 const QR_CARD_CLASSES = `flex flex-col items-center gap-3 rounded-lg border border-[var(--cv-auth-control-border)]
   bg-[var(--cv-auth-control-bg)] p-3`
 
+const TRANSFER_ENDED_MESSAGE = {
+  expired: 'secretKey.newBrowser.expired',
+  unavailable: 'secretKey.unavailable',
+  failed: 'secretKey.newBrowser.failed',
+} as const
+
 export interface SecretKeyRequiredStepProps {
   accountId: string
   /** The Secret Key is now in this browser's device wrapper; retry the sign-in. */
@@ -66,10 +72,10 @@ function ApproveWithPhone({ accountId, onReceived, onUseKit, onBack }: {
             aria-label={t('common.loading')} />
         </div>
       )}
-      {(state.step === 'expired' || state.step === 'failed') && (
+      {(state.step === 'expired' || state.step === 'unavailable' || state.step === 'failed') && (
         <div className="flex flex-col gap-3">
           <p role="alert" className="text-center text-ui text-[var(--cv-auth-secondary)]">
-            {t(state.step === 'expired' ? 'secretKey.newBrowser.expired' : 'secretKey.newBrowser.failed')}
+            {t(TRANSFER_ENDED_MESSAGE[state.step])}
           </p>
           <AuthSubmitButton type="button" onClick={() => void restart()}>{t('secretKey.newCode')}</AuthSubmitButton>
         </div>

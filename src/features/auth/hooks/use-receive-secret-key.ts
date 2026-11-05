@@ -21,6 +21,7 @@ export type ReceiveSecretKeyState =
   | { step: 'waiting'; qr: string; sas: string; expiresAt: number }
   | { step: 'received' }
   | { step: 'expired' }
+  | { step: 'unavailable' }
   | { step: 'failed' }
 
 const POLL_INTERVAL_MS = 2_000
@@ -110,9 +111,9 @@ export function useReceiveSecretKey(accountId: string, onReceived: () => void) {
         const claim = await claimSecretKeyTransfer(own.transferId, own.pollToken)
         if (current !== generation.current) return
         if (claim.status === 'pending') return
-        if (claim.status === 'expired') {
+        if (claim.status === 'expired' || claim.status === 'unavailable') {
           discard(false)
-          setState({ step: 'expired' })
+          setState({ step: claim.status })
           return
         }
         if (claim.accountId !== accountId) throw new Error('Transfer belongs to another account')
