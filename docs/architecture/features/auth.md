@@ -404,8 +404,17 @@ receiver must be locked/signed out and either have no account or the same accoun
 A different signed-in account is never replaced. Two unlocked clients do not
 start a reverse handoff just because an earlier handoff completed.
 
-Extension allocates the scoped profile link ID; Web adopts exactly that ID and
-acknowledges successful persistence before an Extension source may prepare it.
+Extension initially allocates the scoped profile link ID. If Web already has a
+different link, it counter-proposes that retained ID in `link-selected` and waits
+for Extension to confirm it with `link` before preparing any crypto exchange.
+Extension may replace only its unused allocation, with no pending closing or
+disconnect and with its closing floor durably retained. Its admission marker is
+persisted before activation/receiver admission; already-used groups are never
+silently merged. Web's existing authorization binding and server closing group
+remain unchanged. On first use Web still adopts the Extension-selected ID.
+This recovery requires both updated clients; the existing message shapes remain
+unchanged. Interrupted first-create closing is repaired with the same missing ID
+before fresh manual authorization, preserving its pending action until receipt.
 The source reads fresh Identity preference/link state and activates the selected
 link through its own tokens/root. The resulting epoch/preference agreement is
 sent before the crypto offer. Receiver expectations combine that explicit

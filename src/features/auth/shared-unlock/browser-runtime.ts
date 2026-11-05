@@ -85,7 +85,8 @@ export function coordinateSharedUnlockBrowser(route: SharedUnlockBrowserRoute) {
     subscribe,
     selectLink: async (accountId, proposed, direction) => {
       if (!proposed) throw new Error('Extension must select the profile link')
-      return (await admissible(accountId, proposed, direction === 'receiver')).linkId
+      const existing = await links.read(scope(accountId))
+      return (await admissible(accountId, existing?.linkId ?? proposed, direction === 'receiver')).linkId
     },
     prepareSource: async (accountId, organizationId, linkId, signal, assertAttempt) => {
       const assertCurrent = () => { assertAttempt(); sharedUnlockPreferenceGate.assertAllowed(scope(accountId)); sharedUnlockPreferences.assertNotDisabled(scope(accountId)) }

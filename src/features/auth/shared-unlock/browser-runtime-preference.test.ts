@@ -253,3 +253,45 @@ it('applies own logout immediately even while a fresh manual authorization is pe
   authorize(new Response(JSON.stringify(root))); await preparing
   expect(getSharedUnlockSourceSnapshot().authorization).toBeNull()
 })
+
+it.each(['source', 'receiver'] as const)('keeps the established Web link when a fresh extension proposes another ID (Web %s)', async direction => {
+  const linkScope = { ...scope, webOrigin: 'https://web.test', extensionId: 'a'.repeat(32) }
+  const previousId = '22222222-2222-4222-8222-222222222222'
+  const nextId = '33333333-3333-4333-8333-333333333333'
+  const previous = { linkId: previousId, revision: 2, epoch: 1, state: 'active', lastInvalidationSequence: 0, lastLogoutSequence: 0 } as const
+  await sharedUnlockLinks.adopt(linkScope, previousId); await sharedUnlockLinks.observe(linkScope, previous)
+  if (direction === 'source') {
+    useAuthStore.getState().unlockVault(new Uint8Array(32).fill(3), new Uint8Array(32).fill(4), root)
+    adoptSharedUnlockSource(root, 'A'.repeat(43), { sharedUnlockEnabled: true, revision: 1 }, () => {})
+  } else useAuthStore.setState({ accessToken: null, sessionId: null })
+  const fetcher = vi.fn<typeof fetch>(async url => {
+    const path = String(url)
+    if (path.endsWith('/session-state')) return new Response(JSON.stringify({ action: 'none', link: previous }))
+    if (path.endsWith('/' + previousId)) return new Response(JSON.stringify(previous))
+    if (path.endsWith('/' + nextId)) return new Response('{}', { status: 404 })
+    if (path.endsWith('/links')) return new Response(JSON.stringify({ ...previous, linkId: nextId, revision: 1, epoch: 0, state: 'locked' }))
+    if (path.endsWith('/activate')) return new Response(JSON.stringify(previous))
+    return new Response(JSON.stringify({ sharedUnlockEnabled: true, revision: 1 }))
+  })
+  vi.stubGlobal('fetch', fetcher)
+  const f = start()
+  await vi.waitFor(() => expect(f.sent.some(message => message.payload.kind === 'state')).toBe(true))
+  const own = f.sent.filter(message => message.payload.kind === 'state').at(-1)!.attemptId
+  const peerId = 'C'.repeat(42) + 'A'
+  f.emit({ attemptId: peerId, payload: { kind: 'state', stateId: peerId, accountId: scope.accountId,
+    status: direction === 'source' ? 'locked' : 'unlocked', generation: 'D'.repeat(42) + 'A',
+    source: direction === 'source' ? null : { organizationId: root.organizationId } } })
+  f.emit({ attemptId: peerId, payload: { kind: 'link', accountId: scope.accountId, linkId: nextId, webStateId: own, extensionStateId: peerId } })
+  await vi.waitFor(() => expect(f.sent.some(message => message.payload.kind === 'link-selected')).toBe(true))
+  expect(f.sent.find(message => message.payload.kind === 'link-selected')?.payload).toMatchObject({ linkId: previousId })
+  expect((await sharedUnlockLinks.read(linkScope))?.linkId).toBe(previousId)
+  expect(f.sent.some(message => message.payload.kind === 'prepare')).toBe(false)
+  // The extension must explicitly acknowledge the retained selection before use.
+  f.emit({ attemptId: peerId, payload: { kind: 'link', accountId: scope.accountId, linkId: previousId, webStateId: own, extensionStateId: peerId } })
+  if (direction === 'source') {
+    await vi.waitFor(() => expect(f.sent.some(message => message.payload.kind === 'prepare' && message.payload.linkId === previousId)).toBe(true))
+  } else {
+    expect(useAuthStore.getState()).toMatchObject({ accessToken: null, masterKey: null, isVaultLocked: true })
+    expect(fetcher).not.toHaveBeenCalled()
+  }
+})
