@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { ModalShell } from '../../../shared/components/modal-shell'
 import { DialogFooter } from '../../../shared/components/dialog-footer'
@@ -8,6 +8,7 @@ import { AddButton } from '../../../shared/components/add-button'
 import { Button } from '../../../shared/components/button'
 import { FormInput } from '../../../shared/components/form-field'
 import { HOVERABLE_CARD_CLASSES } from '../../../shared/lib/styles'
+import { env } from '../../../shared/lib/env'
 import { Icon } from '../../../shared/components/icon'
 import { Tooltip } from '../../../shared/components/tooltip'
 import { ToggleSwitch } from '../../../shared/components/toggle-switch'
@@ -59,7 +60,7 @@ export function SignInMethodField({ fields, onChange, disabled, entryId, agentVi
   }
   return (
     <section className="ph-no-capture flex flex-col gap-3">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 pr-[calc(0.75rem+1px)]">
         <div className="min-w-0 flex-1"><SectionHeader>{t('vault.entries.signInMethod.title')}</SectionHeader></div>
         <AddButton label={t('vault.entries.signInMethod.add')} disabled={disabled}
           onClick={() => setEditing({ fieldId: null, binding: { provider: 'google', account: null, entry: null }, visible: agentVisibility?.newMethodVisible ?? false })} />
@@ -84,7 +85,7 @@ export function SignInMethodField({ fields, onChange, disabled, entryId, agentVi
           <Button variant="subtle" size="sm" className="flex-1" onClick={close}>{t('common.cancel')}</Button>
           <Button variant="accent" size="sm" className="flex-[2]" disabled={disabled} onClick={save}>{t('vault.entries.signInMethod.save')}</Button>
         </DialogFooter>}>
-        <div className="ph-no-capture flex flex-col gap-3">
+        <AnimatedEditorBody>
           <p className="text-meta text-[var(--cv-t3)]">{t('vault.entries.signInMethod.editorHint')}</p>
           <RecognizedBinding binding={editing.binding} entryId={entryId} disabled={disabled}
             onChange={(binding) => setEditing({ ...editing, binding })} />
@@ -97,7 +98,7 @@ export function SignInMethodField({ fields, onChange, disabled, entryId, agentVi
             onClick={() => { onChange(updateSignInMethod(fields, editing.fieldId, null, '')); close() }}>
             {t('vault.entries.signInMethod.remove')}
           </Button> : null}
-        </div>
+        </AnimatedEditorBody>
       </ModalShell>, document.body) : null}
     </section>
   )
@@ -200,16 +201,58 @@ function ProviderChoices({
   disabled?: boolean
 }) {
   const { t } = useTranslation()
+  const rail = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const viewport = rail.current
+    const selected = viewport?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')
+    if (!viewport || !selected) return
+    const bounds = viewport.getBoundingClientRect()
+    const item = selected.getBoundingClientRect()
+    if (item.right > bounds.right) viewport.scrollLeft += item.right - bounds.right
+    else if (item.left < bounds.left) viewport.scrollLeft += item.left - bounds.left
+  }, [])
+  const scroll = (direction: number) => rail.current?.scrollBy({ left: direction * rail.current.clientWidth * 0.75, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })
   return (
-    <div id={id} role="group" aria-label={t('vault.entries.signInMethod.provider')} className="grid grid-cols-3 gap-2">
-      {PROVIDER_DISPLAY_ORDER.map((provider) => <button key={provider} type="button" disabled={disabled}
-        aria-pressed={value === provider} onClick={() => { if (value !== provider) onChange(provider) }}
-        className={`${HOVERABLE_CARD_CLASSES} flex min-w-0 flex-col items-center gap-2 rounded-lg border border-[var(--cv-input-border)] p-3 text-action text-[var(--cv-t1)] aria-pressed:border-[var(--cv-t1)] focus-visible:outline-2 focus-visible:outline-[var(--cv-primary)] disabled:opacity-50`}>
-        <img src={`/sign-in-providers/${provider}.svg`} alt="" className={`h-6 w-6 object-contain ${provider === 'apple' || provider === 'github' ? 'brightness-0 dark:invert' : ''}`} />
-        {t(`vault.entries.signInMethod.providers.${provider}`)}
-      </button>)}
+    <div className="min-w-0">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-meta text-[var(--cv-label-text)]">{t('vault.entries.signInMethod.provider')}</span>
+        <div className="flex gap-1">
+          <Button variant="ghost" size="sm" icon="chevron_left" aria-label={t('vault.entries.signInMethod.previousProviders')} disabled={disabled} onClick={() => scroll(-1)} />
+          <Button variant="ghost" size="sm" icon="chevron_right" aria-label={t('vault.entries.signInMethod.nextProviders')} disabled={disabled} onClick={() => scroll(1)} />
+        </div>
+      </div>
+      <div ref={rail} id={id} role="group" aria-label={t('vault.entries.signInMethod.provider')}
+        className="subtle-scrollbar flex gap-2 overflow-x-auto p-1 pb-2">
+        {PROVIDER_DISPLAY_ORDER.map((provider) => <button key={provider} type="button" disabled={disabled}
+          aria-pressed={value === provider} onClick={() => { if (value !== provider) onChange(provider) }}
+          className={`${HOVERABLE_CARD_CLASSES} flex w-28 shrink-0 flex-col items-center gap-2 rounded-lg border border-[var(--cv-input-border)] p-3 text-action text-[var(--cv-t1)] aria-pressed:border-[var(--cv-t1)] focus-visible:outline-2 focus-visible:outline-[var(--cv-primary)] disabled:opacity-50`}>
+          <img src={`/sign-in-providers/${provider}.svg`} alt="" className={`h-6 w-6 object-contain ${provider === 'apple' || provider === 'github' ? 'brightness-0 dark:invert' : ''}`} />
+          {t(`vault.entries.signInMethod.providers.${provider}`)}
+        </button>)}
+      </div>
+      {env.contactEmail ? <a className="mb-2 inline-block text-meta text-[var(--cv-primary)] underline underline-offset-2"
+        href={`mailto:${env.contactEmail}?subject=${encodeURIComponent(t('vault.entries.signInMethod.missingProviderSubject'))}`}>
+        {t('vault.entries.signInMethod.missingProvider')}
+      </a> : null}
     </div>
   )
 }
 
 const accountChoiceClasses = `${HOVERABLE_CARD_CLASSES} flex w-full min-w-0 items-center gap-3 rounded-lg border border-[var(--cv-input-border)] p-3 text-ui text-[var(--cv-t1)] aria-pressed:border-[var(--cv-t1)] focus-visible:outline-2 focus-visible:outline-[var(--cv-primary)] disabled:opacity-50`
+
+// Measure the whole editor so async candidates and manual-account changes move
+// the centered dialog smoothly without replacing controls or interrupting focus.
+function AnimatedEditorBody({ children }: { children: ReactNode }) {
+  const content = useRef<HTMLDivElement>(null)
+  const [height, setHeight] = useState<number>()
+  useLayoutEffect(() => {
+    const element = content.current
+    if (!element || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => setHeight(element.getBoundingClientRect().height))
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+  return <div className="transition-[height] duration-200 ease-out motion-reduce:transition-none" style={{ height }}>
+    <div ref={content} className="ph-no-capture flex flex-col gap-3">{children}</div>
+  </div>
+}

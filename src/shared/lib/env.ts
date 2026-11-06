@@ -16,6 +16,7 @@ const sharedUnlock = selectSharedUnlockExtension(globalThis.navigator?.userAgent
   optionalEnv('VITE_SHARED_UNLOCK_SAFARI_EXTENSION_ID'))
 
 export const env = {
+  contactEmail: optionalEnv('VITE_CONTACT_EMAIL').trim(),
   appleAppStoreUrl: optionalEnv('VITE_APPLE_APP_STORE_URL'),
   googlePlayStoreUrl: optionalEnv('VITE_GOOGLE_PLAY_STORE_URL'),
   sharedUnlockExtensionId: sharedUnlock.extensionId,

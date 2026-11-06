@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,6 +9,11 @@ import { SignInMethodField, type SignInMethodAgentVisibility } from './sign-in-m
 
 const { openSecretMock } = vi.hoisted(() => ({ openSecretMock: vi.fn() }))
 vi.mock('../sync/current-member-entry-reader', () => ({ openCurrentMemberEntrySecret: openSecretMock }))
+
+vi.mock('../../../shared/lib/env', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../shared/lib/env')>()
+  return { ...actual, env: { ...actual.env, contactEmail: 'contact@example.test' } }
+})
 
 const VAULT_ID = '0b5e8f0c-1d2a-4c3b-8e4f-5a6b7c8d9e0f'
 const SELF_ID = '11111111-2222-4333-8444-555555555555'
@@ -52,6 +57,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   useMemberSyncStore.getState().clear()
   useAuthStore.setState({ userId: null, privateKey: null })
 })
@@ -66,6 +72,53 @@ describe('SignInMethodField collection', () => {
     await user.type(screen.getByLabelText('Provider account'), 'cancelled')
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(dump()).toEqual([other])
+  })
+
+  it('scrolls the provider rail without selecting and supports explicit keyboard selection', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    await user.click(screen.getByRole('button', { name: 'Add sign-in method' }))
+    const rail = screen.getByRole('group', { name: 'Provider' })
+    const scrollBy = vi.fn()
+    rail.scrollBy = scrollBy
+    await user.click(screen.getByRole('button', { name: 'Next providers' }))
+    expect(scrollBy).toHaveBeenCalled()
+    fireEvent.scroll(rail)
+    expect(screen.getByRole('button', { name: 'Google', pressed: true })).toBeVisible()
+    screen.getByRole('button', { name: 'GitHub', pressed: false }).focus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('button', { name: 'GitHub', pressed: true })).toHaveFocus()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(dump()[0].value).toEqual({ provider: 'github', account: null, entry: null })
+  })
+
+  it('offers a configured contact link with only a generic subject, regardless of the draft', async () => {
+    const user = userEvent.setup()
+    render(<Harness initial={[binding('private-id', { provider: 'google', account: 'private-account', entry: null })]} />)
+    await user.click(screen.getByRole('button', { name: 'Edit sign-in method' }))
+    const link = screen.getByRole('link', { name: 'Missing a provider? Let us know' })
+    expect(link).toHaveAttribute('href', 'mailto:contact@example.test?subject=Sign-in%20provider%20suggestion')
+    await user.type(screen.getByLabelText('Provider account'), 'secret-draft')
+    expect(link).toHaveAttribute('href', 'mailto:contact@example.test?subject=Sign-in%20provider%20suggestion')
+  })
+
+  it('reveals a later saved provider on opening without moving focus or re-snapping scroll', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+      if (this.getAttribute('role') === 'group' && this.getAttribute('aria-label') === 'Provider') return new DOMRect(0, 0, 200, 100)
+      if (this.getAttribute('aria-pressed') === 'true' && this.textContent === 'Facebook') return new DOMRect(448, 0, 112, 100)
+      return new DOMRect()
+    })
+    render(<Harness initial={[binding('last', { provider: 'facebook', account: null, entry: null })]} />)
+    await user.click(screen.getByRole('button', { name: 'Edit sign-in method' }))
+    const rail = screen.getByRole('group', { name: 'Provider' })
+    expect(rail.scrollLeft).toBe(360)
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus()
+    rail.scrollLeft = 0
+    fireEvent.scroll(rail)
+    await user.type(screen.getByLabelText('Provider account'), 'typing')
+    expect(rail.scrollLeft).toBe(0)
+    expect(screen.getByRole('button', { name: 'Facebook', pressed: true })).toBeVisible()
   })
 
   it('adds two same-provider accounts, edits one and removes only that method', async () => {
